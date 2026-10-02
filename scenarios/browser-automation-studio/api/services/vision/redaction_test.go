@@ -173,34 +173,3 @@ func TestPlaywrightCallbacksRedactLiveAndRecoveredNavigationData(t *testing.T) {
 		t.Fatalf("completion envelope leaked secret: %s", wire)
 	}
 }
-
-func TestClaudeCodeBroadcastRedactsToolInput(t *testing.T) {
-	const secret = "BAS_SYNTHETIC_CLAUDE_SECRET_58d1"
-	log := logrus.New()
-	log.SetOutput(io.Discard)
-	wsHub := hubmocks.New()
-	nav := NewClaudeCodeVisionNavigator(log, WithClaudeCodeHub(wsHub))
-	session := &claudeCodeSession{NavigationSession: &NavigationSession{
-		NavigationID: "nav_claude_redaction",
-		SessionID:    "session_claude_redaction",
-		StartedAt:    time.Now(),
-	}}
-	nav.broadcastStep(session, &claudeStreamEvent{
-		Name:  "mcp__claude-in-chrome__form_input",
-		Input: json.RawMessage(`{"ref":"#password","text":"` + secret + `"}`),
-	}, 1, "enter password="+secret)
-
-	if wsHub.BroadcastEnvelopeCount() != 1 {
-		t.Fatalf("broadcast count = %d, want 1", wsHub.BroadcastEnvelopeCount())
-	}
-	wire, err := json.Marshal(wsHub.LastBroadcastEnvelope())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if strings.Contains(string(wire), secret) {
-		t.Fatalf("Claude broadcast leaked secret: %s", wire)
-	}
-	if !strings.Contains(string(wire), redactedNavigationValue) {
-		t.Fatalf("Claude broadcast omitted redaction marker: %s", wire)
-	}
-}

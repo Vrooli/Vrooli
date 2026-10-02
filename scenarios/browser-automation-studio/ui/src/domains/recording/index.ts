@@ -66,8 +66,6 @@ export type {
 export type { UseHistoryResult } from './hooks/useHistory';
 
 // Utilities
-export { mergeConsecutiveActions, getMergeDescription } from './utils/mergeActions';
-export type { MergedAction, MergedActionMeta } from './utils/mergeActions';
 export { mapClientToViewport } from './utils/coordinateMapping';
 export type { Rect as CoordinateRect, Point as CoordinatePoint } from './utils/coordinateMapping';
 
@@ -121,9 +119,8 @@ export type {
   ActionMetadata,
 } from './types/timeline-unified';
 export {
-  recordedActionToTimelineItem,
+  mergeTimelineItemsWithAISteps,
   timelineEntryToTimelineItem,
-  timelineEntryToRecordedAction,
 } from './types/timeline-unified';
 
 // Context providers

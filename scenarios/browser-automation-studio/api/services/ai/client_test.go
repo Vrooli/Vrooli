@@ -102,6 +102,26 @@ func TestResolveRoleModel(t *testing.T) {
 	})
 }
 
+func TestExecutePromptWithRole_ResolvesRequestedPolicyRole(t *testing.T) {
+	original := resolveRoleModelFunc
+	var gotRole string
+	resolveRoleModelFunc = func(_ context.Context, role string) (string, error) {
+		gotRole = role
+		return "vendor/resolved-model", nil
+	}
+	defer func() { resolveRoleModelFunc = original }()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	client := NewOpenRouterClient(logrus.New())
+	if _, err := client.ExecutePromptWithRole(ctx, "chat.small", "return JSON"); err == nil {
+		t.Fatal("expected the cancelled gateway invocation to fail")
+	}
+	if gotRole != "chat.small" {
+		t.Fatalf("resolved role = %q, want chat.small", gotRole)
+	}
+}
+
 func TestExecutePrompt_Validation(t *testing.T) {
 	log := logrus.New()
 	log.SetOutput(os.Stderr)

@@ -28,7 +28,7 @@ export async function teardownSessionResources(session: SessionState): Promise<s
   // Snapshot owned pages and video handles before an interrupted page closes.
   // Playwright can release a page's Video handle as part of close; retaining
   // the handle first keeps the artifact flush retryable and lossless.
-  const pages = session.externalTarget ? [] : [...session.pages.entries()];
+  const pages = session.externalTarget ? [] : [...session.context.pages().entries()];
   if (!session.externalTarget && !pages.some(([, page]) => page === session.page)) {
     const nextIndex = pages.reduce((highest, [index]) => Math.max(highest, index), -1) + 1;
     pages.push([nextIndex, session.page]);
@@ -78,7 +78,7 @@ export async function teardownSessionResources(session: SessionState): Promise<s
     });
     // Navigation cleanup can admit a page after the initial snapshot. Include
     // it in the same close/artifact inventory without reusing an index.
-    for (const [index, page] of session.pages.entries()) {
+    for (const [index, page] of session.context.pages().entries()) {
       if (!pages.some(([, knownPage]) => knownPage === page)) pages.push([index, page]);
     }
     for (const [index, page] of pages) {
@@ -89,7 +89,7 @@ export async function teardownSessionResources(session: SessionState): Promise<s
   }
   assertRecordingAcknowledged(session.id);
   await once('live_input_settle', async () => {
-    await Promise.all([...new Set([...session.pages, session.page])].map((page) => settlePageInput(page)));
+    await Promise.all([...new Set([...session.context.pages(), session.page])].map((page) => settlePageInput(page)));
   });
   await once('page_callbacks_stop', () => {
     session.pageLifecycleCleanup?.();

@@ -568,7 +568,7 @@ func TestClampStatusWait(t *testing.T) {
 
 func TestStartNavigationTaskContractRejectsUnsupportedNavigatorAndInvalidPolicy(t *testing.T) {
 	for _, policy := range []string{"read_only", "invalid"} {
-		nav := &fakeNavigator{navType: vision.NavigatorClaudeCode, available: true, clientSourcePolicy: vision.AllSourcesPolicy(), navigateID: "nav"}
+		nav := &fakeNavigator{navType: vision.NavigatorType("alternate"), available: true, clientSourcePolicy: vision.AllSourcesPolicy(), navigateID: "nav"}
 		client := newTestClient(t, Deps{Registry: newTestRegistry(t, nav)})
 		_, err := client.StartNavigation(context.Background(), connect.NewRequest(&aiv1.StartNavigationRequest{SessionId: "s", Prompt: "read", Model: "m", EffectPolicy: policy}))
 		require.Error(t, err)

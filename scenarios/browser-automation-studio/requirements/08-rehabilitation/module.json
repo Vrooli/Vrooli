@@ -231,6 +231,36 @@
       "status": "planned",
       "prd_ref": "OT-P0-005",
       "validation": []
+    },
+    {
+      "id": "BAS-RH-J25",
+      "title": "local detectability and persistent sign-in continuity",
+      "description": "Given a deterministic local fingerprint fixture and an explicitly persistent profile, when interactive browsing observes browser signals and reopens its saved identity, then the fixture reports its documented observable properties, profile state stays isolated, stealth defaults apply only to interactive sessions, and authentication or challenge steps remain under operator control; external sign-in qualification uses only dedicated authorized test accounts.",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "playwright-driver/tests/journeys/J25.test.ts",
+          "phase": "journey",
+          "status": "passed",
+          "notes": "Linux x64; selected run and full journey suite pass against the local fixture and bas-goal shadow."
+        },
+        {
+          "type": "test",
+          "ref": "playwright-driver/tests/unit/routes/session-start.test.ts",
+          "phase": "unit",
+          "status": "passed",
+          "notes": "Recording mode gets the stealth default; execution/hybrid modes do not, and explicit profiles are preserved."
+        },
+        {
+          "type": "test",
+          "ref": "docs/internal/goal/TARGETS.md",
+          "phase": "external-sign-in",
+          "status": "unverified",
+          "notes": "No dedicated authorized target or test account is supplied or listed; real sign-in qualification awaits owner designation and approved test-profile provisioning."
+        }
+      ]
     }
   ]
 }

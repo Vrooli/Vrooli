@@ -76,7 +76,7 @@ func (c *playwrightCaptureClient) Capture(ctx context.Context, spec *ReplayMovie
 	if c == nil {
 		return nil, fmt.Errorf("playwright capture client not configured")
 	}
-	if spec == nil || len(spec.Frames) == 0 {
+	if spec == nil || len(spec.GetFrames()) == 0 {
 		return nil, fmt.Errorf("movie spec missing frames")
 	}
 	if strings.TrimSpace(c.exportPageURL) == "" {
@@ -156,12 +156,12 @@ func (c *playwrightCaptureClient) Capture(ctx context.Context, spec *ReplayMovie
 }
 
 func buildPlaywrightCaptureInstructions(exportPageURL string, spec *ReplayMovieSpec, captureInterval int) ([]autocontracts.CompiledInstruction, error) {
-	totalMs := spec.Summary.TotalDurationMs
-	if totalMs <= 0 && spec.Playback.DurationMs > 0 {
-		totalMs = spec.Playback.DurationMs
+	totalMs := int(spec.GetSummary().GetTotalDurationMs())
+	if totalMs <= 0 && int(spec.GetPlayback().GetDurationMs()) > 0 {
+		totalMs = int(spec.GetPlayback().GetDurationMs())
 	}
 	if totalMs <= 0 {
-		totalMs = captureInterval * len(spec.Frames)
+		totalMs = captureInterval * len(spec.GetFrames())
 	}
 	if totalMs <= 0 {
 		totalMs = 5000

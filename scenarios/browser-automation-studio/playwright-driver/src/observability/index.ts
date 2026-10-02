@@ -81,8 +81,5 @@ export {
   handleObservabilityRefresh,
   handleSessionList,
   handleMetrics,
-  handleConfigUpdate,
-  handleConfigReset,
-  handleConfigRuntime,
   type ObservabilityRouteDependencies,
 } from './route';

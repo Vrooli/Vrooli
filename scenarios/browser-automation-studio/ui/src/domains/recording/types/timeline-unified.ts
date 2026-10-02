@@ -14,20 +14,21 @@
  * ## Key Responsibilities
  *
  * 1. **Type Unification**: Same TimelineItem structure for recording and execution
- * 2. **Format Conversion**: RecordedAction ↔ TimelineEntry ↔ TimelineItem
- * 3. **AI Correlation**: mergeActionsWithAISteps() matches AI reasoning to actions
+ * 2. **Format Projection**: recording API entries → TimelineItem
+ * 3. **AI Correlation**: mergeTimelineItemsWithAISteps() matches AI reasoning to timeline items
  * 4. **Workflow Mapping**: Convert between workflow nodes and timeline items
  *
  * ## Related Files
  *
  * - api/services/workflow/sync.go (backend filesystem-DB sync)
- * - utils/mergeActions.ts (frontend action deduplication)
+ * - UI recording timelines project the raw journal without changing action boundaries.
  * - RecordingSession.tsx (usage context, lines 639-651)
  *
  * See "UNIFIED RECORDING/EXECUTION MODEL" in shared.proto for proto design rationale.
  */
 
-import type { RecordedAction, SelectorCandidate, SelectorSet, BoundingBox, ElementMeta } from './types';
+import type { RecordedAction } from './types';
+import type { TimelineEntry as RecordingTimelineEntry } from '../api/schemas';
 
 // Re-export the proto types for convenience
 // These are generated from packages/proto/schemas/browser-automation-studio/v1/
@@ -70,10 +71,6 @@ import {
   MouseButton as ProtoMouseButton,
   KeyboardModifier as ProtoKeyboardModifier,
 } from '@vrooli/proto-types/browser-automation-studio/v1/actions/action_pb';
-
-import {
-  SelectorType as ProtoSelectorType,
-} from '@vrooli/proto-types/browser-automation-studio/v1/base/shared_pb';
 
 // Import centralized timestamp utility
 import { protoTimestampToDate } from '../../../utils/timestamps';
@@ -123,6 +120,8 @@ export interface TimelineItem {
   mode: TimelineMode;
   /** Raw TimelineEntry for detailed views */
   rawEntry?: TimelineEntry;
+  /** Action parameters projected for recording display. */
+  payload?: Record<string, unknown>;
   /** Page ID for multi-tab recording */
   pageId?: string;
   /** Type of entry: action or page_event */
@@ -135,35 +134,6 @@ export interface TimelineItem {
   isAI?: boolean;
   /** AI-specific metadata (reasoning, tokens, etc.) */
   aiMetadata?: AIMetadata;
-}
-
-/**
- * Convert a legacy RecordedAction to a TimelineItem for unified rendering.
- * Used when receiving RecordedAction from legacy API responses.
- *
- * @param action - The recorded action to convert
- * @param aiMetadata - Optional AI metadata if this action was performed by AI navigation
- */
-export function recordedActionToTimelineItem(
-  action: RecordedAction,
-  aiMetadata?: AIMetadata,
-): TimelineItem {
-  return {
-    id: action.id,
-    sequenceNum: action.sequenceNum,
-    timestamp: new Date(action.timestamp),
-    durationMs: action.durationMs,
-    actionType: action.actionType,
-    selector: action.selector?.primary,
-    url: action.url,
-    success: true, // Recording actions are always successful captures
-    mode: 'recording',
-    pageId: action.pageId,
-    entryType: 'action',
-    pageTitle: action.pageTitle,
-    isAI: aiMetadata !== undefined,
-    aiMetadata,
-  };
 }
 
 /**
@@ -200,6 +170,7 @@ export function timelineEntryToTimelineItem(entry: TimelineEntry): TimelineItem 
     error: context?.error,
     mode,
     rawEntry: entry,
+    payload: timelineEntryPayloadForDisplay(entry),
   };
 }
 
@@ -207,33 +178,6 @@ export function timelineEntryToTimelineItem(entry: TimelineEntry): TimelineItem 
  * TimelineEntry type from useTimeline hook.
  * Re-declared here to avoid circular imports.
  */
-export interface UseTimelineEntry {
-  id: string;
-  type: 'action' | 'page_event';
-  timestamp: string;
-  pageId: string;
-  action?: {
-    id: string;
-    actionType: string;
-    url?: string;
-    sequenceNum: number;
-    timestamp: string;
-    selector?: { primary: string };
-    payload?: Record<string, unknown>;
-    confidence: number;
-    pageTitle?: string;
-  };
-  pageEvent?: {
-    id: string;
-    type: 'page_created' | 'page_navigated' | 'page_closed';
-    pageId: string;
-    url?: string;
-    title?: string;
-    openerId?: string;
-    timestamp: string;
-  };
-}
-
 /**
  * Restore BAS logical page identity onto driver actions before generation.
  * The driver owns driverPageId; the persisted timeline owns the session-local
@@ -241,12 +185,12 @@ export interface UseTimelineEntry {
  */
 export function attachTimelinePageIdentities(
   actions: RecordedAction[],
-  entries: UseTimelineEntry[]
+  entries: RecordingTimelineEntry[]
 ): RecordedAction[] {
   const pageIdsByActionId = new Map<string, string>();
   for (const entry of entries) {
-    if (entry.type === 'action' && entry.action && entry.pageId) {
-      pageIdsByActionId.set(entry.action.id, entry.pageId);
+    if (entry.type === 'action' && entry.pageId) {
+      pageIdsByActionId.set(entry.entry.id, entry.pageId);
     }
   }
 
@@ -261,15 +205,15 @@ export function attachTimelinePageIdentities(
  * Handles both action entries and page event entries.
  * This is for entries from the /timeline API endpoint (useTimeline hook).
  */
-export function useTimelineEntryToTimelineItem(
-  entry: UseTimelineEntry,
+export function recordingEntryToTimelineItem(
+  entry: RecordingTimelineEntry,
 ): TimelineItem {
   // Handle page events
-  if (entry.type === 'page_event' && entry.pageEvent) {
+  if (entry.type === 'page_event') {
     return {
-      id: entry.id,
+      id: entry.pageEvent.id,
       sequenceNum: 0, // Page events don't have sequence numbers
-      timestamp: new Date(entry.timestamp),
+      timestamp: new Date(entry.pageEvent.timestamp),
       actionType: entry.pageEvent.type, // page_created, page_navigated, page_closed
       mode: 'recording',
       pageId: entry.pageId,
@@ -280,30 +224,12 @@ export function useTimelineEntryToTimelineItem(
     };
   }
 
-  // Handle action entries
-  if (entry.action) {
-    return {
-      id: entry.action.id,
-      sequenceNum: entry.action.sequenceNum,
-      timestamp: new Date(entry.action.timestamp),
-      actionType: entry.action.actionType,
-      selector: entry.action.selector?.primary,
-      url: entry.action.url,
-      success: true, // Recording actions are successful captures
-      mode: 'recording',
-      pageId: entry.pageId,
-      entryType: 'action',
-      pageTitle: entry.action.pageTitle,
-    };
-  }
-
-  // Fallback for malformed entries
+  // Action details come directly from the generated proto.
+  const item = timelineEntryToTimelineItem(entry.entry);
   return {
-    id: entry.id,
-    sequenceNum: 0,
-    timestamp: new Date(entry.timestamp),
-    actionType: 'unknown',
+    ...item,
     mode: 'recording',
+    pageId: entry.pageId,
     entryType: 'action',
   };
 }
@@ -328,27 +254,6 @@ function getActionTypeString(type: number | undefined): string {
     case ProtoActionType.FOCUS: return 'focus';
     case ProtoActionType.BLUR: return 'blur';
     default: return 'unknown';
-  }
-}
-
-/**
- * Convert SelectorType enum to string.
- * Uses proto-generated enum values for type safety.
- */
-function selectorTypeToString(type: number | string | undefined): string {
-  if (typeof type === 'string') return type;
-  switch (type) {
-    case ProtoSelectorType.CSS: return 'css';
-    case ProtoSelectorType.XPATH: return 'xpath';
-    case ProtoSelectorType.ID: return 'id';
-    case ProtoSelectorType.DATA_TESTID: return 'data-testid';
-    case ProtoSelectorType.ARIA: return 'aria';
-    case ProtoSelectorType.TEXT: return 'text';
-    case ProtoSelectorType.ROLE: return 'role';
-    case ProtoSelectorType.PLACEHOLDER: return 'placeholder';
-    case ProtoSelectorType.ALT_TEXT: return 'alt-text';
-    case ProtoSelectorType.TITLE: return 'title';
-    default: return 'css';
   }
 }
 
@@ -390,117 +295,7 @@ function keyboardModifiersToStrings(modifiers: Array<number | string> | undefine
   });
 }
 
-/**
- * Convert a TimelineEntry back to a RecordedAction for legacy component compatibility.
- * This is useful when interfacing with components that still expect RecordedAction.
- */
-export function timelineEntryToRecordedAction(entry: TimelineEntry): RecordedAction | null {
-  if (!entry.action) return null;
-
-  const actionType = getActionTypeString(entry.action.type);
-  const selector = extractSelector(entry);
-  const elementMeta = extractElementMeta(entry);
-  const boundingBox = extractBoundingBox(entry);
-
-  // Extract session/execution ID from unified context.origin
-  let sessionId = '';
-  const context = entry.context;
-  if (context?.origin?.case === 'sessionId') {
-    sessionId = context.origin.value;
-  } else if (context?.origin?.case === 'executionId') {
-    sessionId = context.origin.value;
-  }
-
-  return {
-    id: entry.id,
-    sessionId,
-    sequenceNum: entry.sequenceNum,
-    timestamp: entry.timestamp ? (protoTimestampToDate(entry.timestamp)?.toISOString() ?? new Date().toISOString()) : new Date().toISOString(),
-    durationMs: entry.durationMs,
-    actionType: actionType as RecordedAction['actionType'],
-    confidence: entry.action.metadata?.confidence ?? 1.0,
-    selector,
-    elementMeta,
-    boundingBox,
-    payload: extractPayload(entry),
-    url: entry.telemetry?.url ?? '',
-    frameId: entry.telemetry?.frameId,
-    cursorPos: entry.telemetry?.cursorPosition
-      ? { x: entry.telemetry.cursorPosition.x, y: entry.telemetry.cursorPosition.y }
-      : undefined,
-  };
-}
-
-function extractSelector(entry: TimelineEntry): SelectorSet | undefined {
-  // Get selector from params
-  let primary: string | undefined;
-  const params = entry.action?.params;
-
-  if (params?.case === 'click') primary = params.value.selector;
-  else if (params?.case === 'input') primary = params.value.selector;
-  else if (params?.case === 'hover') primary = params.value.selector;
-  else if (params?.case === 'focus') primary = params.value.selector;
-  else if (params?.case === 'assert') primary = params.value.selector;
-  else if (params?.case === 'selectOption') primary = params.value.selector;
-  else if (params?.case === 'scroll') primary = params.value.selector;
-
-  if (!primary) return undefined;
-
-  // Get candidates from metadata (unified - no more modeData separation)
-  const candidates: SelectorCandidate[] = [];
-  const protoSelectorCandidates = entry.action?.metadata?.selectorCandidates ?? [];
-
-  for (const c of protoSelectorCandidates) {
-    candidates.push({
-      type: selectorTypeToString(c.type) as SelectorCandidate['type'],
-      value: c.value,
-      confidence: c.confidence,
-      specificity: c.specificity,
-    });
-  }
-
-  return { primary, candidates };
-}
-
-function extractElementMeta(entry: TimelineEntry): ElementMeta | undefined {
-  const snapshot = entry.action?.metadata?.elementSnapshot;
-  if (!snapshot) return undefined;
-
-  const attributes: Record<string, string> = {};
-  if (snapshot.attributes) {
-    for (const [key, value] of Object.entries(snapshot.attributes)) {
-      attributes[key] = value;
-    }
-  }
-
-  return {
-    tagName: snapshot.tagName,
-    id: snapshot.id,
-    className: snapshot.className,
-    innerText: snapshot.innerText,
-    attributes,
-    isVisible: snapshot.isVisible,
-    isEnabled: snapshot.isEnabled,
-    role: snapshot.role,
-    ariaLabel: snapshot.ariaLabel,
-  };
-}
-
-function extractBoundingBox(entry: TimelineEntry): BoundingBox | undefined {
-  // Use telemetry bounding box (live) or metadata captured bounding box (snapshot)
-  // Note: recordedBoundingBox was renamed to capturedBoundingBox in unified model
-  const box = entry.telemetry?.elementBoundingBox ?? entry.action?.metadata?.capturedBoundingBox;
-  if (!box) return undefined;
-
-  return {
-    x: box.x,
-    y: box.y,
-    width: box.width,
-    height: box.height,
-  };
-}
-
-function extractPayload(entry: TimelineEntry): RecordedAction['payload'] {
+function timelineEntryPayloadForDisplay(entry: TimelineEntry): Record<string, unknown> {
   const params = entry.action?.params;
   if (!params || params.case === undefined) return {};
 
@@ -765,7 +560,7 @@ interface AIStepForMerge {
  * - AI says "keypress" for keyboard events, recorder says "keyboard"
  * - AI says "done" when goal is achieved (no direct recorder equivalent)
  *
- * This normalization enables timestamp-based matching in mergeActionsWithAISteps().
+ * This normalization enables timestamp-based matching in mergeTimelineItemsWithAISteps().
  */
 function normalizeActionType(aiActionType: string): string {
   const mapping: Record<string, string> = {
@@ -777,19 +572,19 @@ function normalizeActionType(aiActionType: string): string {
 }
 
 /**
- * Correlate AI navigation steps with recorded browser actions.
+ * Correlate AI navigation steps with canonical timeline projections.
  *
  * ## Problem
  *
  * When AI drives the browser, two parallel event streams exist:
  * 1. **AI steps**: High-level decisions with reasoning, token usage, goal status
- * 2. **Recorded actions**: Low-level browser events captured by the recorder
+ * 2. **Timeline items**: Low-level browser events projected from TimelineEntry
  *
  * Users want to see both together: what happened AND why the AI did it.
  *
  * ## Solution
  *
- * Match AI steps to recorded actions using:
+ * Match AI steps to timeline items using:
  * 1. **Timestamp proximity**: Must be within 5 seconds of each other
  * 2. **Action type matching**: Types must match (after normalization)
  * 3. **Greedy best-match**: Select the closest match, consume it to prevent duplicates
@@ -807,26 +602,28 @@ function normalizeActionType(aiActionType: string): string {
  * - Prevents the same reasoning from appearing on multiple actions
  * - Simple to understand and debug
  *
- * @param actions - Recorded actions from the browser session
+ * @param items - Presentation items projected from the canonical recording journal
  * @param aiSteps - AI navigation steps with reasoning and metadata
  * @returns TimelineItems with AI metadata attached where matches were found
  */
-export function mergeActionsWithAISteps(
-  actions: RecordedAction[],
+export function mergeTimelineItemsWithAISteps(
+  items: TimelineItem[],
   aiSteps: AIStepForMerge[],
 ): TimelineItem[] {
   // Fast path: no AI steps means no correlation needed
   if (aiSteps.length === 0) {
-    return actions.map((action) => recordedActionToTimelineItem(action));
+    return items;
   }
 
   // Working copy of AI steps - we remove matched steps to prevent duplicate attribution.
   // Using splice() for removal makes this O(n*m) worst case, but m is typically small (<50).
   const unmatchedSteps = [...aiSteps];
 
-  return actions.map((action) => {
-    const actionTime = new Date(action.timestamp).getTime();
-    const normalizedActionType = action.actionType;
+  return items.map((item) => {
+    if (item.entryType === 'page_event') return item;
+
+    const actionTime = item.timestamp.getTime();
+    const normalizedActionType = normalizeActionType(item.actionType);
 
     // Greedy best-match: find the AI step with minimum time delta that also matches type
     let bestMatchIndex = -1;
@@ -854,15 +651,19 @@ export function mergeActionsWithAISteps(
       // Match found: consume the AI step (remove from pool) and attach its metadata
       const matchedStep = unmatchedSteps.splice(bestMatchIndex, 1)[0];
       if (matchedStep) {
-        return recordedActionToTimelineItem(action, {
+        return {
+          ...item,
+          isAI: true,
+          aiMetadata: {
           reasoning: matchedStep.reasoning,
           tokensUsed: matchedStep.tokensUsed,
           goalAchieved: matchedStep.goalAchieved,
-        });
+          },
+        };
       }
     }
 
-    // No match: return action without AI context (human action or unmatched AI action)
-    return recordedActionToTimelineItem(action);
+    // No match: keep the journal projection without AI-specific metadata.
+    return item;
   });
 }

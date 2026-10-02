@@ -170,9 +170,10 @@ export async function handleRecordStart(
 
     // The pipeline has already verified and activated capture. Admit preview
     // now so Stop owns it; a second DOM wait can resurrect a stopped stream.
-    if (request.frame_callback_url) {
+    if (request.frame_stream_url) {
       startFrameStreaming(sessionId, { getSession: recordingSession }, {
-        callbackUrl: request.frame_callback_url,
+        streamUrl: request.frame_stream_url,
+        streamKind: 'recording',
         routedTestMode: request.routed_test_mode === true,
         quality: request.frame_quality,
         fps: request.frame_fps,
@@ -208,7 +209,7 @@ export async function handleRecordStart(
       recordingId,
       phase: 'recording',
       url: session.page?.url?.() || '(unknown)',
-      frameStreaming: !!request.frame_callback_url,
+      frameStreaming: !!request.frame_stream_url,
       pageTracking: !!request.page_callback_url,
       verification: verificationData,
       warnings: warnings.length > 0 ? warnings : undefined,

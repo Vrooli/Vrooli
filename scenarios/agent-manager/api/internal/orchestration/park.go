@@ -204,7 +204,9 @@ func (o *Orchestrator) WakeRun(ctx context.Context, in WakeRunInput) (_ *domain.
 	// clearing the handle or launching continuation. A second notification then
 	// re-reads the now-running row and becomes the documented idempotent no-op.
 	o.awaitParkedTurnEnd(ctx, in.RunID)
-	o.wakeMu.Lock()
+	if err := o.lockForWake(ctx, in.RunID); err != nil {
+		return nil, err
+	}
 	defer o.wakeMu.Unlock()
 
 	run, err := o.GetRun(ctx, in.RunID)
@@ -377,6 +379,7 @@ func (o *Orchestrator) ParkRunFromAgent(ctx context.Context, req ParkRunFromAgen
 	// End the turn out of band so the HTTP response (the clean tool-result) can
 	// flush to the in-run CLI before the process group is signalled.
 	o.endParkedTurn(run)
+	o.scheduleParkCompaction(run)
 
 	return &ParkRunResult{
 		Run:     run,
@@ -580,6 +583,9 @@ func formatParkMessage(handle *domain.AwaitHandle) string {
 // inline, it has a non-blocking way to retrieve it rather than re-running the
 // blocking producer (which would just make it wait again).
 func formatWakeMessage(runID uuid.UUID, handle *domain.AwaitHandle, result string, timedOut bool) string {
+	if handle != nil && handle.Producer == ProducerChildren {
+		return formatChildrenWakeMessage(result, timedOut)
+	}
 	work := "the async work you were waiting on"
 	if handle != nil && strings.TrimSpace(handle.Producer) != "" {
 		work = fmt.Sprintf("the async work you parked on (%s:%s)", handle.Producer, handle.Key)
@@ -604,6 +610,18 @@ func formatWakeMessage(runID uuid.UUID, handle *domain.AwaitHandle, result strin
 		"[awaited result available] %s has completed. Result:\n\n%s\n\nContinue from here with this result. Do NOT re-run the command you parked on — it has already completed and re-running it will only make you wait again. %s",
 		work, strings.TrimSpace(result), reFetchHint(runID),
 	)
+}
+
+// formatChildrenWakeMessage frames an orchestrator's wake briefly. A parent
+// parks on its children many times a day and Codex keeps every wake message
+// verbatim through compaction, so the frame carries only what changed. A timer
+// wake is routine for a parent (its child is still working), not a stall.
+func formatChildrenWakeMessage(result string, timedOut bool) string {
+	result = strings.TrimSpace(result)
+	if timedOut {
+		return "[wake: timer] No child run ended since your last wake. " + result
+	}
+	return "[wake] " + result
 }
 
 // reFetchHint renders the one-line instruction pointing at the non-blocking

@@ -4,7 +4,8 @@ import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { appendFile, readFile, rm } from 'node:fs/promises';
 import { Script } from 'node:vm';
-import { cleanupSession } from '../../src/infra/session-cleanup-registry';
+import { cleanupSession } from '../../src/session/cleanup-registry';
+import { DriverPageBindings } from '../../src/session/page-bindings';
 import {
   chromium,
   type Browser,
@@ -88,12 +89,14 @@ function createTestSessionState(
   page: Page,
   overrides: Partial<SessionState> & Pick<SessionState, 'id' | 'ownerExecutionId' | 'leaseId' | 'spec'>
 ): SessionState {
+  const pageBindings = overrides.pageBindings ?? new DriverPageBindings();
+  pageBindings.register(page, 'initial-page');
   return {
     phase: 'ready',
     browser,
     context: browserContext,
     page,
-    pages: [page],
+    pageBindings,
     createdAt: new Date(),
     lastUsedAt: new Date(),
     instructionCount: 0,
@@ -507,7 +510,6 @@ describe('typed browser action semantics', () => {
       ownerExecutionId: 'owner',
       leaseId: 'lease',
       spec: { execution_id: 'owner', reuse_mode: 'fresh' },
-      currentPageIndex: 0,
       frameStack: [],
     });
     Reflect.set(manager, 'sessions', new Map([[session.id, session]]));
@@ -554,6 +556,7 @@ describe('typed browser action semantics', () => {
       );
       expect(response.statusCode).toBe(200);
       const result = response.getJSON();
+      if (expectedSuccess) expect(result.failure).toBeUndefined();
       expect({
         type: action.type,
         success: result.success ?? false,
@@ -727,7 +730,7 @@ describe('typed browser action semantics', () => {
       })
     );
     expect(session.page).toBe(page);
-    expect(session.pages).toEqual([page]);
+    expect(session.context.pages()).toEqual([page]);
     await switchFrame(FrameSwitchAction.ENTER, '#left');
     const detached = page.waitForEvent('framedetached', { predicate: (frame) => frame === left });
     await page.locator('#left').evaluate((element) => element.remove());
@@ -968,10 +971,7 @@ describe('typed browser action semantics', () => {
       ownerExecutionId: 'fixture-execution',
       leaseId: 'fixture-lease',
       spec: { execution_id: 'fixture-execution', reuse_mode: 'fresh' },
-      currentPageIndex: 0,
       frameStack: [],
-      pageIdMap: new Map(),
-      pageToIdMap: new WeakMap(),
     });
     Reflect.set(manager, 'sessions', new Map([[session.id, session]]));
     const registry = new HandlerRegistry();

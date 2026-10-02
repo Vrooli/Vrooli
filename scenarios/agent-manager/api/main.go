@@ -404,6 +404,9 @@ func (s *Server) recoverySteps() []maintenance.RecoveryStep {
 			return nil
 		})
 	}
+	if s.orchestrator != nil {
+		add("parked_run_compaction", s.orchestrator.RecoverParkCompactions)
+	}
 	if s.awaitRegistry != nil {
 		add("parked_runs", func(ctx context.Context) error {
 			n, err := s.awaitRegistry.RecoverParkedRuns(ctx)

@@ -675,7 +675,7 @@ impact and cross-target worker/OOPIF coverage require their own receipts.
 Workflow execution uses the lease-owning GoSession and driver.Client's single
 compiled-instruction transport. Recording/navigation use their maintained client
 interfaces. Remove the unimported parallel driver.Driver/Session model and its
-Playwright adapter/ClaudeCode stub; these do not participate in current wiring.
+Playwright adapter; these do not participate in current wiring.
 Their untyped plural RunInstructions endpoint payload is obsolete and has no
 remaining caller once the unused adapter is removed. Keep active client/session,
 recording and navigator interfaces and their behavioral regressions.
@@ -716,7 +716,7 @@ in-memory retention.
 ### AI suggestion response owner — RF068 (034)
 
 The suggestion generator owns the response contract. It requests structured JSON
-through the existing governed Ollama gateway, including the required action,
+through the shared model service boundary, including the required action,
 confidence and supported category fields. It validates returned suggestions
 before exposing them; malformed, incomplete or out-of-range provider output is
 an error, never an empty successful result or an invented replacement category.

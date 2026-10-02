@@ -12,28 +12,27 @@ import (
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 )
 
-// TestSeams_OllamaClientMock demonstrates using the MockOllamaClient for testing
-// AI analysis without requiring a real Ollama instance.
-func TestSeams_OllamaClientMock(t *testing.T) {
-	t.Run("[SEAM:OLLAMA-CLIENT] mock returns configured response", func(t *testing.T) {
+// TestSeams_RolePromptClient demonstrates the shared model-service seam.
+func TestSeams_RolePromptClient(t *testing.T) {
+	t.Run("[SEAM:AI-MODEL-CLIENT] mock returns configured response", func(t *testing.T) {
 		mockResponse := `[{"text": "Login", "tagName": "BUTTON", "confidence": 0.9, "category": "auth"}]`
-		mockClient := NewMockOllamaClient(mockResponse)
+		mockClient := newMockRolePromptClient(mockResponse)
 
-		response, err := mockClient.Query(context.Background(), "chat.small", "test prompt", "")
+		response, err := mockClient.ExecutePromptWithRole(context.Background(), "chat.small", "test prompt")
 
 		require.NoError(t, err)
 		assert.Equal(t, mockResponse, response)
-		assert.Len(t, mockClient.QueriesCalled, 1)
-		assert.Equal(t, "chat.small", mockClient.QueriesCalled[0].Role)
-		assert.Equal(t, "test prompt", mockClient.QueriesCalled[0].Prompt)
+		assert.Len(t, mockClient.Calls, 1)
+		assert.Equal(t, "chat.small", mockClient.Calls[0].Role)
+		assert.Equal(t, "test prompt", mockClient.Calls[0].Prompt)
 	})
 
-	t.Run("[SEAM:OLLAMA-CLIENT] mock returns configured error", func(t *testing.T) {
-		mockClient := &MockOllamaClient{
+	t.Run("[SEAM:AI-MODEL-CLIENT] mock returns configured error", func(t *testing.T) {
+		mockClient := &mockRolePromptClient{
 			Err: assert.AnError,
 		}
 
-		_, err := mockClient.Query(context.Background(), "chat.small", "test prompt", "")
+		_, err := mockClient.ExecutePromptWithRole(context.Background(), "chat.small", "test prompt")
 
 		assert.Error(t, err)
 		assert.Equal(t, assert.AnError, err)
@@ -135,9 +134,9 @@ func TestSeams_ElementAnalysisHandlerWithMocks(t *testing.T) {
 			{Success: true, NodeID: "analysis.navigate", StepType: "navigate"},
 		}
 
-		// Create mock Ollama client for suggestion generator
-		mockOllama := NewMockOllamaClient(`{"suggestions": [{"action": "Login", "confidence": 0.9}]}`)
-		suggestionGen := newOllamaSuggestionGenerator(log, WithOllamaClient(mockOllama))
+		// Create mock AIModel client for suggestion generator
+		mockModelClient := newMockRolePromptClient(`{"suggestions": [{"action": "Login", "confidence": 0.9}]}`)
+		suggestionGen := newAISuggestionGenerator(log, WithAISuggestionModelClient(mockModelClient))
 
 		// Inject mocks
 		handler := NewElementAnalysisHandler(log,
@@ -152,7 +151,7 @@ func TestSeams_ElementAnalysisHandlerWithMocks(t *testing.T) {
 
 // TestSeams_AIAnalysisHandlerWithMocks demonstrates injecting mocks into AIAnalysisHandler.
 func TestSeams_AIAnalysisHandlerWithMocks(t *testing.T) {
-	t.Run("[SEAM:AI-ANALYSIS] accepts injected DOM extractor and Ollama client", func(t *testing.T) {
+	t.Run("[SEAM:AI-ANALYSIS] accepts injected DOM extractor and AIModel client", func(t *testing.T) {
 		log := logrus.New()
 
 		// Create mock DOM extractor
@@ -160,19 +159,19 @@ func TestSeams_AIAnalysisHandlerWithMocks(t *testing.T) {
 			response: `{"tagName": "BODY", "children": [{"tagName": "BUTTON", "text": "Search"}]}`,
 		}
 
-		// Create mock Ollama client
-		mockOllama := NewMockOllamaClient(`[{"text": "Search", "tagName": "BUTTON", "confidence": 0.95}]`)
+		// Create mock AIModel client
+		mockModelClient := newMockRolePromptClient(`[{"text": "Search", "tagName": "BUTTON", "confidence": 0.95}]`)
 
 		// Inject mocks
 		handler := NewAIAnalysisHandler(log, nil,
 			WithDOMExtractor(mockDOMExtractor),
-			WithAIAnalysisOllamaClient(mockOllama),
+			WithAIAnalysisModelClient(mockModelClient),
 		)
 
 		analyzer, ok := handler.analyzer.(*AIElementAnalyzer)
 		require.True(t, ok, "handler should wire an AIElementAnalyzer")
 		assert.Equal(t, mockDOMExtractor, analyzer.domExtractor)
-		assert.Equal(t, mockOllama, analyzer.ollamaClient)
+		assert.Equal(t, mockModelClient, analyzer.modelClient)
 	})
 
 	t.Run("[SEAM:AI-ANALYSIS] analyzes elements with mocked dependencies", func(t *testing.T) {
@@ -189,11 +188,11 @@ func TestSeams_AIAnalysisHandlerWithMocks(t *testing.T) {
 			Category:   "actions",
 		}}
 		mockResponse, _ := json.Marshal(expectedElements)
-		mockOllama := NewMockOllamaClient(string(mockResponse))
+		mockModelClient := newMockRolePromptClient(string(mockResponse))
 
 		handler := NewAIAnalysisHandler(log, nil,
 			WithDOMExtractor(mockDOMExtractor),
-			WithAIAnalysisOllamaClient(mockOllama),
+			WithAIAnalysisModelClient(mockModelClient),
 		)
 
 		ctx := context.Background()
@@ -206,9 +205,9 @@ func TestSeams_AIAnalysisHandlerWithMocks(t *testing.T) {
 		// Verify DOM was extracted
 		assert.Equal(t, "https://example.com", mockDOMExtractor.lastURL)
 
-		// Verify Ollama was queried
-		assert.Len(t, mockOllama.QueriesCalled, 1)
-		assert.Contains(t, mockOllama.QueriesCalled[0].Prompt, "submit form")
+		// Verify AIModel was queried
+		assert.Len(t, mockModelClient.Calls, 1)
+		assert.Contains(t, mockModelClient.Calls[0].Prompt, "submit form")
 	})
 }
 

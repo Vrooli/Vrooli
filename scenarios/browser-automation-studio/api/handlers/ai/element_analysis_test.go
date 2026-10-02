@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"github.com/vrooli/browser-automation-studio/internal/testutil"
 	"image"
 	"image/png"
 	"io"
@@ -16,6 +15,8 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+
+	"github.com/vrooli/browser-automation-studio/internal/testutil"
 
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -236,12 +237,12 @@ func rgbaAt(pixels image.Image, x, y int) [4]uint32 {
 }
 
 func TestGenerateAISuggestions_Integration(t *testing.T) {
-	integration.SkipShort(t, "Ollama suggestions integration")
-	if _, err := exec.LookPath("resource-ollama"); err != nil {
-		t.Skip("resource-ollama not on PATH")
+	integration.SkipShort(t, "AI suggestions integration")
+	if _, err := exec.LookPath("resource-openrouter"); err != nil {
+		t.Skip("resource-openrouter not on PATH")
 	}
-	if err := exec.Command("resource-ollama", "status").Run(); err != nil {
-		t.Skipf("resource-ollama status failed: %v", err)
+	if err := exec.Command("resource-openrouter", "status").Run(); err != nil {
+		t.Skipf("resource-openrouter status failed: %v", err)
 	}
 
 	log := logrus.New()
@@ -622,7 +623,7 @@ func TestElementAnalysisHandler_getElementAtCoordinate(t *testing.T) {
 func newElementAnalysisHandlerForTest(runner AutomationRunner) *ElementAnalysisHandler {
 	log := logrus.New()
 	log.SetOutput(io.Discard)
-	mockSuggestions := newOllamaSuggestionGenerator(log, WithOllamaClient(NewMockOllamaClient(`{"suggestions": []}`)))
+	mockSuggestions := newAISuggestionGenerator(log, WithAISuggestionModelClient(newMockRolePromptClient(`{"suggestions": []}`)))
 	return NewElementAnalysisHandler(log,
 		WithElementRunner(runner),
 		WithSuggestionGenerator(mockSuggestions),

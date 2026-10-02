@@ -15,6 +15,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/storage"
+	exportsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/exports"
 )
 
 const (
@@ -26,10 +27,10 @@ const (
 )
 
 type htmlPayload struct {
-	GeneratedAt string               `json:"generatedAt"`
-	Execution   htmlPayloadExecution `json:"execution"`
-	Theme       ExportTheme          `json:"theme"`
-	Frames      []htmlPayloadFrame   `json:"frames"`
+	GeneratedAt string                 `json:"generatedAt"`
+	Execution   htmlPayloadExecution   `json:"execution"`
+	Theme       *exportsv1.ReplayTheme `json:"theme"`
+	Frames      []htmlPayloadFrame     `json:"frames"`
 }
 
 type htmlPayloadExecution struct {
@@ -83,7 +84,7 @@ type htmlCursor struct {
 func WriteHTMLBundle(
 	ctx context.Context,
 	writer io.Writer,
-	spec *ReplayMovieSpec,
+	spec *exportsv1.ReplaySpec,
 	storageClient storage.StorageInterface,
 	log *logrus.Logger,
 	baseURL string,
@@ -92,18 +93,18 @@ func WriteHTMLBundle(
 		return fmt.Errorf("html export requires replay spec")
 	}
 	zipWriter := zip.NewWriter(writer)
-	assetPaths := make(map[string]string, len(spec.Assets))
+	assetPaths := make(map[string]string, len(spec.GetAssets()))
 
-	for index, asset := range spec.Assets {
+	for index, asset := range spec.GetAssets() {
 		localPath, err := writeReplayAsset(ctx, zipWriter, asset, index, storageClient, log, baseURL)
 		if err != nil {
 			if log != nil {
-				log.WithError(err).WithField("asset_id", asset.ID).Warn("Failed to include replay asset in HTML bundle")
+				log.WithError(err).WithField("asset_id", asset.GetId()).Warn("Failed to include replay asset in HTML bundle")
 			}
 			continue
 		}
-		if localPath != "" && strings.TrimSpace(asset.ID) != "" {
-			assetPaths[asset.ID] = localPath
+		if localPath != "" && strings.TrimSpace(asset.GetId()) != "" {
+			assetPaths[asset.GetId()] = localPath
 		}
 	}
 
@@ -131,23 +132,23 @@ func WriteHTMLBundle(
 	return nil
 }
 
-func buildHTMLPayload(spec *ReplayMovieSpec, assetPaths map[string]string) htmlPayload {
-	frames := make([]htmlPayloadFrame, 0, len(spec.Frames))
-	for index, frame := range spec.Frames {
+func buildHTMLPayload(spec *exportsv1.ReplaySpec, assetPaths map[string]string) htmlPayload {
+	frames := make([]htmlPayloadFrame, 0, len(spec.GetFrames()))
+	for index, frame := range spec.GetFrames() {
 		viewport := resolveHTMLViewport(frame, spec)
 		screenshotPath := ""
-		if frame.ScreenshotAssetID != "" {
-			if path, ok := assetPaths[frame.ScreenshotAssetID]; ok {
+		if frame.GetScreenshotAssetId() != "" {
+			if path, ok := assetPaths[frame.GetScreenshotAssetId()]; ok {
 				screenshotPath = path
 			}
 		}
 
-		highlightRegions := normalizeHighlightRegions(frame.HighlightRegions, viewport)
-		cursorTrail := normalizeCursorTrail(frame.CursorTrail, viewport)
+		highlightRegions := normalizeHighlightRegions(frame.GetHighlightRegions(), viewport)
+		cursorTrail := normalizeCursorTrail(frame.GetCursorTrail(), viewport)
 		cursorPoint := resolveCursorPoint(frame, cursorTrail, viewport)
 		var cursor *htmlCursor
 		if cursorPoint != nil {
-			status := strings.ToLower(strings.TrimSpace(frame.Status))
+			status := strings.ToLower(strings.TrimSpace(frame.GetStatus()))
 			cursor = &htmlCursor{
 				X:     cursorPoint.X,
 				Y:     cursorPoint.Y,
@@ -155,30 +156,30 @@ func buildHTMLPayload(spec *ReplayMovieSpec, assetPaths map[string]string) htmlP
 			}
 		}
 
-		title := sanitizeTitle(frame.Title, fmt.Sprintf("%s #%d", fallbackStepType(frame.StepType), index+1))
-		subtitle := strings.ToUpper(strings.TrimSpace(frame.StepType))
-		status := strings.ToLower(strings.TrimSpace(frame.Status))
+		title := sanitizeTitle(frame.GetTitle(), fmt.Sprintf("%s #%d", fallbackStepType(frame.GetStepType()), index+1))
+		subtitle := strings.ToUpper(strings.TrimSpace(frame.GetStepType()))
+		status := strings.ToLower(strings.TrimSpace(frame.GetStatus()))
 		if status == "" {
 			status = "success"
 		}
 
-		playDuration := resolvePlayDuration(frame.DurationMs, frame.HoldMs)
-		assertionMessage := resolveAssertionMessage(frame.Assertion)
-		retryLabel := resolveRetryLabel(frame.Resilience.Attempt, frame.Resilience.MaxAttempts)
+		playDuration := resolvePlayDuration(int(frame.GetDurationMs()), int(frame.GetHoldMs()))
+		assertionMessage := resolveAssertionMessage(frame.GetAssertion())
+		retryLabel := resolveRetryLabel(int(frame.GetResilience().GetAttempt()), int(frame.GetResilience().GetMaxAttempts()))
 		durationLabel := ""
-		if frame.DurationMs > 0 {
-			durationLabel = fmt.Sprintf("%d ms", frame.DurationMs)
+		if frame.GetDurationMs() > 0 {
+			durationLabel = fmt.Sprintf("%d ms", frame.GetDurationMs())
 		}
 
-		addressBar := frame.FinalURL
+		addressBar := frame.GetFinalUrl()
 		if strings.TrimSpace(addressBar) == "" {
-			addressBar = spec.Execution.WorkflowName
+			addressBar = spec.GetExecution().GetWorkflowName()
 		}
 		if strings.TrimSpace(addressBar) == "" {
 			addressBar = "automation replay"
 		}
 
-		zoomFactor := frame.ZoomFactor
+		zoomFactor := frame.GetZoomFactor()
 		if zoomFactor <= 0 {
 			zoomFactor = 1
 		}
@@ -195,22 +196,22 @@ func buildHTMLPayload(spec *ReplayMovieSpec, assetPaths map[string]string) htmlP
 			Cursor:           cursor,
 			CursorTrail:      cursorTrail,
 			AddressBar:       addressBar,
-			FinalURL:         frame.FinalURL,
+			FinalURL:         frame.GetFinalUrl(),
 			AssertionMessage: assertionMessage,
 			RetryLabel:       retryLabel,
 			DurationLabel:    durationLabel,
-			ConsoleCount:     frame.ConsoleLogCount,
-			NetworkCount:     frame.NetworkEventCount,
+			ConsoleCount:     int(frame.GetConsoleLogCount()),
+			NetworkCount:     int(frame.GetNetworkEventCount()),
 		})
 	}
 
 	return htmlPayload{
 		GeneratedAt: time.Now().UTC().Format(time.RFC3339),
 		Execution: htmlPayloadExecution{
-			ExecutionID:  spec.Execution.ExecutionID.String(),
-			WorkflowID:   spec.Execution.WorkflowID.String(),
-			WorkflowName: spec.Execution.WorkflowName,
-			Status:       spec.Execution.Status,
+			ExecutionID:  spec.GetExecution().GetExecutionId(),
+			WorkflowID:   spec.GetExecution().GetWorkflowId(),
+			WorkflowName: spec.GetExecution().GetWorkflowName(),
+			Status:       spec.GetExecution().GetStatus(),
 			FrameCount:   len(frames),
 		},
 		Theme:  spec.Theme,
@@ -218,14 +219,14 @@ func buildHTMLPayload(spec *ReplayMovieSpec, assetPaths map[string]string) htmlP
 	}
 }
 
-func resolveHTMLViewport(frame ExportFrame, spec *ReplayMovieSpec) ExportDimensions {
-	width := frame.Viewport.Width
-	height := frame.Viewport.Height
-	if width <= 0 && spec != nil && spec.Presentation.Viewport.Width > 0 {
-		width = spec.Presentation.Viewport.Width
+func resolveHTMLViewport(frame *exportsv1.ReplayFrame, spec *exportsv1.ReplaySpec) htmlDimensions {
+	width := int(frame.GetViewport().GetWidth())
+	height := int(frame.GetViewport().GetHeight())
+	if width <= 0 && spec != nil && spec.GetPresentation().GetViewport().GetWidth() > 0 {
+		width = int(spec.GetPresentation().GetViewport().GetWidth())
 	}
-	if height <= 0 && spec != nil && spec.Presentation.Viewport.Height > 0 {
-		height = spec.Presentation.Viewport.Height
+	if height <= 0 && spec != nil && spec.GetPresentation().GetViewport().GetHeight() > 0 {
+		height = int(spec.GetPresentation().GetViewport().GetHeight())
 	}
 	if width <= 0 {
 		width = defaultHTMLViewportWidth
@@ -233,10 +234,12 @@ func resolveHTMLViewport(frame ExportFrame, spec *ReplayMovieSpec) ExportDimensi
 	if height <= 0 {
 		height = defaultHTMLViewportHeight
 	}
-	return ExportDimensions{Width: width, Height: height}
+	return htmlDimensions{Width: width, Height: height}
 }
 
-func normalizeHighlightRegions(regions []*contracts.HighlightRegion, viewport ExportDimensions) []htmlHighlightRect {
+type htmlDimensions struct{ Width, Height int }
+
+func normalizeHighlightRegions(regions []*contracts.HighlightRegion, viewport htmlDimensions) []htmlHighlightRect {
 	if len(regions) == 0 {
 		return nil
 	}
@@ -261,7 +264,7 @@ func normalizeHighlightRegions(regions []*contracts.HighlightRegion, viewport Ex
 	return result
 }
 
-func normalizeCursorTrail(points []*contracts.Point, viewport ExportDimensions) []htmlPoint {
+func normalizeCursorTrail(points []*contracts.Point, viewport htmlDimensions) []htmlPoint {
 	if len(points) == 0 {
 		return nil
 	}
@@ -276,12 +279,12 @@ func normalizeCursorTrail(points []*contracts.Point, viewport ExportDimensions) 
 	return result
 }
 
-func resolveCursorPoint(frame ExportFrame, trail []htmlPoint, viewport ExportDimensions) *htmlPoint {
-	if frame.NormalizedClickPosition != nil {
-		return &htmlPoint{X: frame.NormalizedClickPosition.X, Y: frame.NormalizedClickPosition.Y}
+func resolveCursorPoint(frame *exportsv1.ReplayFrame, trail []htmlPoint, viewport htmlDimensions) *htmlPoint {
+	if frame.GetNormalizedClickPosition() != nil {
+		return &htmlPoint{X: frame.GetNormalizedClickPosition().GetX(), Y: frame.GetNormalizedClickPosition().GetY()}
 	}
-	if frame.ClickPosition != nil {
-		normalized := normalizeHTMLPoint(frame.ClickPosition, viewport)
+	if frame.GetClickPosition() != nil {
+		normalized := normalizeHTMLPoint(frame.GetClickPosition(), viewport)
 		if normalized != nil {
 			return &htmlPoint{X: normalized.X, Y: normalized.Y}
 		}
@@ -293,7 +296,7 @@ func resolveCursorPoint(frame ExportFrame, trail []htmlPoint, viewport ExportDim
 	return nil
 }
 
-func normalizeBox(box *contracts.BoundingBox, viewport ExportDimensions) *htmlHighlightRect {
+func normalizeBox(box *contracts.BoundingBox, viewport htmlDimensions) *htmlHighlightRect {
 	if box == nil || viewport.Width <= 0 || viewport.Height <= 0 {
 		return nil
 	}
@@ -315,7 +318,7 @@ func normalizeBox(box *contracts.BoundingBox, viewport ExportDimensions) *htmlHi
 	}
 }
 
-func normalizeHTMLPoint(point *contracts.Point, viewport ExportDimensions) *htmlPoint {
+func normalizeHTMLPoint(point *contracts.Point, viewport htmlDimensions) *htmlPoint {
 	if point == nil || viewport.Width <= 0 || viewport.Height <= 0 {
 		return nil
 	}
@@ -357,15 +360,15 @@ func resolvePlayDuration(durationMs int, holdMs int) int {
 	return duration + hold
 }
 
-func resolveAssertionMessage(assertion *contracts.AssertionOutcome) string {
+func resolveAssertionMessage(assertion *exportsv1.ReplayAssertionOutcome) string {
 	if assertion == nil {
 		return ""
 	}
-	if msg := strings.TrimSpace(assertion.Message); msg != "" {
+	if msg := strings.TrimSpace(assertion.GetMessage()); msg != "" {
 		return msg
 	}
-	mode := strings.TrimSpace(assertion.Mode)
-	selector := strings.TrimSpace(assertion.Selector)
+	mode := strings.TrimSpace(assertion.GetMode())
+	selector := strings.TrimSpace(assertion.GetSelector())
 	if mode != "" && selector != "" {
 		return fmt.Sprintf("%s on %s", mode, selector)
 	}
@@ -402,16 +405,16 @@ func buildHTMLDocument(payload htmlPayload) (string, error) {
 	escaped := escapeForScript(string(jsonPayload))
 
 	gradient := "radial-gradient(circle at 20% 20%, #1e3a8a, #020617)"
-	if len(payload.Theme.BackgroundGradient) > 0 {
-		gradient = fmt.Sprintf("linear-gradient(135deg, %s)", strings.Join(payload.Theme.BackgroundGradient, ", "))
+	if len(payload.Theme.GetBackgroundGradient()) > 0 {
+		gradient = fmt.Sprintf("linear-gradient(135deg, %s)", strings.Join(payload.Theme.GetBackgroundGradient(), ", "))
 	}
 	accent := "#38bdf8"
-	if strings.TrimSpace(payload.Theme.AccentColor) != "" {
-		accent = payload.Theme.AccentColor
+	if strings.TrimSpace(payload.Theme.GetAccentColor()) != "" {
+		accent = payload.Theme.GetAccentColor()
 	}
 	surface := "rgba(15, 23, 42, 0.86)"
-	if strings.TrimSpace(payload.Theme.SurfaceColor) != "" {
-		surface = payload.Theme.SurfaceColor
+	if strings.TrimSpace(payload.Theme.GetSurfaceColor()) != "" {
+		surface = payload.Theme.GetSurfaceColor()
 	}
 
 	title := sanitizeTitle(payload.Execution.WorkflowName, "Automation Workflow")
@@ -442,13 +445,13 @@ func escapeForScript(input string) string {
 func writeReplayAsset(
 	ctx context.Context,
 	zipWriter *zip.Writer,
-	asset ExportAsset,
+	asset *exportsv1.ReplayAsset,
 	index int,
 	storageClient storage.StorageInterface,
 	log *logrus.Logger,
 	baseURL string,
 ) (string, error) {
-	source := strings.TrimSpace(asset.Source)
+	source := strings.TrimSpace(asset.GetSource())
 	if source == "" || strings.HasPrefix(source, "inline:") {
 		return "", nil
 	}
@@ -498,13 +501,13 @@ func writeReplayAsset(
 	return targetPath, nil
 }
 
-func buildAssetFilename(asset ExportAsset, index int) string {
-	rawID := strings.TrimSpace(asset.ID)
+func buildAssetFilename(asset *exportsv1.ReplayAsset, index int) string {
+	rawID := strings.TrimSpace(asset.GetId())
 	if rawID == "" {
 		rawID = fmt.Sprintf("asset-%d", index+1)
 	}
 	safeID := sanitizeAssetID(rawID)
-	ext := resolveAssetExtension(asset.Source)
+	ext := resolveAssetExtension(asset.GetSource())
 	if ext == "" {
 		ext = ".bin"
 	}

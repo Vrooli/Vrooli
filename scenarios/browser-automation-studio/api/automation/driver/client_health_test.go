@@ -22,6 +22,35 @@ func (healthDoer) Do(*http.Request) (*http.Response, error) {
 	return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(`{"status":"ok"}`)), Header: make(http.Header)}, nil
 }
 
+type sessionRouteDoer struct {
+	request *http.Request
+	calls   int
+}
+
+func (d *sessionRouteDoer) Do(req *http.Request) (*http.Response, error) {
+	d.calls++
+	d.request = req
+	return &http.Response{StatusCode: http.StatusNotFound, Header: http.Header{"X-Debug": []string{"preserved"}}, Body: io.NopCloser(strings.NewReader(`{"debug":true}`))}, nil
+}
+
+func TestSessionRouteRequestAllowsOnlyBrokerProxyRoutes(t *testing.T) {
+	doer := &sessionRouteDoer{}
+	client, err := NewClientWithURL("http://driver.test", WithHTTPClient(doer), WithoutCircuitBreaker())
+	require.NoError(t, err)
+	resp, err := client.SessionRouteRequest(context.Background(), "session-1", http.MethodGet, "/record/debug", nil)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusNotFound, resp.StatusCode)
+	require.Equal(t, "preserved", resp.Header.Get("X-Debug"))
+	body, err := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	require.NoError(t, err)
+	require.Equal(t, `{"debug":true}`, string(body))
+	require.Equal(t, "/session/session-1/record/debug", doer.request.URL.Path)
+	_, err = client.SessionRouteRequest(context.Background(), "session-1", http.MethodDelete, "/record/debug", nil)
+	require.Error(t, err)
+	require.Equal(t, 1, doer.calls)
+}
+
 func TestHealthResetsOpenBreakerAfterVerifiedProbe(t *testing.T) {
 	cfg := resilience.DefaultBreakerConfig("driver-health")
 	cfg.FailureThreshold = 1

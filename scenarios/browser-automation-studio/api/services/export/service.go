@@ -21,6 +21,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/storage"
 	basevidence "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/evidence"
+	exportsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/exports"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 	"google.golang.org/protobuf/proto"
 )
@@ -53,7 +54,7 @@ func timelineFromReplayPackage(execution *database.ExecutionIndex, pack *basevid
 	frames := make([]TimelineFrame, 0, len(pack.Timeline))
 	for _, value := range pack.Timeline {
 		if value != nil {
-			frames = append(frames, timelineEntryToFrame(proto.Clone(value).(*bastimeline.TimelineEntry)))
+			frames = append(frames, presentationFrameForTimelineEntry(proto.Clone(value).(*bastimeline.TimelineEntry)))
 		}
 	}
 	sort.Slice(frames, func(i, j int) bool {
@@ -69,7 +70,7 @@ func timelineFromReplayPackage(execution *database.ExecutionIndex, pack *basevid
 // Only one of the result fields will be populated based on format.
 type ExportResult struct {
 	Format    ExportFormatType
-	MovieSpec *ReplayMovieSpec
+	MovieSpec *exportsv1.ReplaySpec
 	Timeline  *ExecutionTimeline
 	// Markdown contains generated markdown for markdown formats.
 	Markdown string
@@ -224,9 +225,9 @@ func (f *movieSpecFormat) Export(ctx context.Context, req ExportRequest, data *E
 			return nil, fmt.Errorf("decode replay package timeline: %w", err)
 		}
 	}
-	spec, err := BuildReplayMovieSpec(data.Execution, data.Workflow, timeline)
+	spec, err := BuildReplaySpecFromExecution(data.Execution, data.Workflow, timeline)
 	if err != nil {
-		return nil, fmt.Errorf("build movie spec: %w", err)
+		return nil, fmt.Errorf("build generated replay spec: %w", err)
 	}
 
 	return &ExportResult{

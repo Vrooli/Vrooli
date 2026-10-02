@@ -2,7 +2,7 @@
 //
 // AIService groups the ephemeral, single-shot AI/automation helpers:
 // preview screenshot, link preview, element analysis, element at coordinate,
-// AI-element analysis (Ollama text model), and DOM tree extraction. The
+// AI-element analysis through the shared model service, and DOM tree extraction. The
 // stateful AI vision-navigation surface lives on a separate service.
 //
 // This package is a thin Connect adapter onto the transport-agnostic methods

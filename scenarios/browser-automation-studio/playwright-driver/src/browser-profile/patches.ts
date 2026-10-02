@@ -65,16 +65,16 @@ export interface PatchRegistryEntry {
 // =============================================================================
 
 /**
- * Remove navigator.webdriver property.
+ * Hide automation control while preserving the browser's boolean shape.
  *
  * DECISION: When navigator.webdriver is detected, the page may block automation.
- * This patch hides the property completely from enumeration and access.
+ * This patch returns false on access and hides the property from enumeration.
  */
 export function generateWebdriverPatch(): string {
   return `
     // Remove webdriver flag
     Object.defineProperty(navigator, 'webdriver', {
-      get: () => undefined,
+      get: () => false,
       configurable: true,
     });
 

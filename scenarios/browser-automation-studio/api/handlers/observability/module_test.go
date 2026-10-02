@@ -31,18 +31,6 @@ func (s *stubProxy) FetchObservabilityMetrics(context.Context) (map[string]any, 
 	return s.snapshot, s.err
 }
 
-func (s *stubProxy) FetchObservabilityConfigRuntime(context.Context) (map[string]any, error) {
-	return s.snapshot, s.err
-}
-
-func (s *stubProxy) UpdateObservabilityConfig(context.Context, string, string) (map[string]any, error) {
-	return s.snapshot, s.err
-}
-
-func (s *stubProxy) ResetObservabilityConfig(context.Context, string) (map[string]any, error) {
-	return s.snapshot, s.err
-}
-
 func discardLog() *logrus.Logger {
 	l := logrus.New()
 	l.SetOutput(io.Discard)

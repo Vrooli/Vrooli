@@ -184,6 +184,10 @@
         "allowedWrites": [
           {
             "kind": "handoff"
+          },
+          {
+            "base": "repo-root",
+            "path": "scenarios/browser-automation-studio/docs/internal/goal"
           }
         ],
         "safetyCriticalRules": [

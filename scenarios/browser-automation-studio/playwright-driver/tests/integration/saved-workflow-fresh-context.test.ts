@@ -94,7 +94,7 @@ describe('saved recording workflow replay in a fresh context', () => {
         entries?: Array<{
           type?: string;
           pageId?: string;
-          action?: { actionType?: string; pageId?: string; id?: string };
+          entry?: { id?: string; sequenceNum?: number; action?: { type?: string } };
         }>;
         totalEntries?: number;
       }> => recording(`/${sessionId}/timeline?limit=1000`);
@@ -103,7 +103,7 @@ describe('saved recording workflow replay in a fresh context', () => {
         while (Date.now() < deadline) {
           const timeline = await readTimeline();
           const clicks = (timeline.entries ?? []).filter(
-            (entry) => entry.type === 'action' && entry.action?.actionType === 'click'
+            (entry) => entry.type === 'action' && entry.entry?.action?.type === 'ACTION_TYPE_CLICK'
           );
           if (clicks.length >= expected) return;
           await new Promise((resolve) => setTimeout(resolve, 50));
@@ -156,7 +156,6 @@ describe('saved recording workflow replay in a fresh context', () => {
         // Forward actual pointer input through BAS. The independent fixture logs
         // which logical page received each effect; the durable timeline is the
         // second oracle and must retain the same page identity.
-        const baseTime = Date.now();
         await recording(`/${sessionId}/input`, {
           type: 'pointer',
           action: 'click',
@@ -194,32 +193,25 @@ describe('saved recording workflow replay in a fresh context', () => {
 
         const captured = await recording<{
           count?: number;
-          actions?: Array<{
+          entries?: Array<{
             id?: string;
-            sessionId?: string;
-            sequenceNum?: number;
-            timestamp?: string;
-            actionType?: string;
-            confidence?: number;
-            selector?: { primary?: string; candidates?: string[] };
-            url?: string;
-            pageId?: string;
-            driverPageId?: string;
+            sequence_num?: number;
+            action?: { type?: string; click?: { selector?: string } };
+            telemetry?: { driverPageId?: string };
           }>;
         }>(`/${sessionId}/actions`);
-        const clicks = (captured.actions ?? []).filter((action) => action.actionType === 'click');
+        const clicks = (captured.entries ?? []).filter((entry) => entry.action?.type === 'ACTION_TYPE_CLICK');
         expect(clicks).toHaveLength(3);
-        expect(clicks.every((action) => !action.pageId)).toBe(true);
-        expect(clicks.map((action) => action.driverPageId)).toEqual([
+        expect(clicks.map((entry) => entry.telemetry?.driverPageId)).toEqual([
           mainReceipt.driverPageId,
           popupReceipt.driverPageId,
           mainReceipt.driverPageId,
         ]);
-        expect(clicks.every((action) => action.selector?.primary === '#same')).toBe(true);
+        expect(clicks.every((entry) => entry.action?.click?.selector === '#same')).toBe(true);
 
         const persisted = await readTimeline();
         const persistedClicks = (persisted.entries ?? []).filter(
-          (entry) => entry.type === 'action' && entry.action?.actionType === 'click'
+          (entry) => entry.type === 'action' && entry.entry?.action?.type === 'ACTION_TYPE_CLICK'
         );
         expect(persistedClicks).toHaveLength(3);
         expect(persistedClicks.map((entry) => entry.pageId)).toEqual([
@@ -227,33 +219,28 @@ describe('saved recording workflow replay in a fresh context', () => {
           popupReceipt.activePageId,
           mainPageId,
         ]);
-        const persistedPageIdByActionId = new Map(
-          persistedClicks.flatMap((entry) =>
-            entry.action?.id && entry.pageId ? [[entry.action.id, entry.pageId] as const] : []
-          )
-        );
-        const clicksWithPageIdentity = clicks.map((action) => ({
-          ...action,
-          pageId: action.id ? persistedPageIdByActionId.get(action.id) : undefined,
-        }));
-        expect(clicksWithPageIdentity.map((action) => action.pageId)).toEqual([
-          mainPageId,
-          popupReceipt.activePageId,
-          mainPageId,
-        ]);
-
         const actions = [
           {
             id: randomUUID(),
             sessionId,
             sequenceNum: 0,
-            timestamp: new Date(baseTime).toISOString(),
+            timestamp: new Date().toISOString(),
             actionType: 'navigate',
             confidence: 1,
             url: mainUrl,
             pageId: mainPageId,
           },
-          ...clicksWithPageIdentity,
+          ...clicks.map((entry, index) => ({
+            id: entry.id,
+            sessionId,
+            sequenceNum: index + 1,
+            timestamp: new Date().toISOString(),
+            actionType: 'click',
+            confidence: 1,
+            selector: { primary: entry.action?.click?.selector, candidates: [] },
+            url: index === 1 ? popupUrl : mainUrl,
+            pageId: persistedClicks[index]?.pageId,
+          })),
         ];
         const workflowName = `rehab-fresh-context-${randomUUID()}`;
         const generated = await recording<{ workflow_id?: string; node_count?: number }>(
@@ -382,7 +369,7 @@ describe('saved recording workflow replay in a fresh context', () => {
       const readTimeline = (offset: number) => recording<{
         entries?: Array<{
           type?: string; sequence?: number; pageId?: string;
-          action?: { actionType?: string; id?: string; sequenceNum?: number };
+          entry?: { id?: string; sequenceNum?: number; action?: { type?: string } };
         }>;
         totalEntries?: number;
       }>(`/${sessionId}/timeline?limit=1000&offset=${offset}`);
@@ -393,9 +380,9 @@ describe('saved recording workflow replay in a fresh context', () => {
         const timeline = await readTimeline(timelineOffset);
         const entries = timeline.entries ?? [];
         for (const entry of entries) {
-          if (entry.type === 'action' && entry.action?.actionType === 'click') {
-            if (entry.action.id) clickIds.add(entry.action.id);
-            if (typeof entry.action.sequenceNum === 'number') clickSequences.push(entry.action.sequenceNum);
+          if (entry.type === 'action' && entry.entry?.action?.type === 'ACTION_TYPE_CLICK') {
+            if (entry.entry?.id) clickIds.add(entry.entry.id);
+            if (typeof entry.entry?.sequenceNum === 'number') clickSequences.push(entry.entry.sequenceNum);
           }
         }
         timelineOffset += entries.length;
@@ -482,9 +469,9 @@ describe('saved recording workflow replay in a fresh context', () => {
           const entries = page.entries ?? [];
           totalEntries = page.totalEntries ?? totalEntries;
           for (const entry of entries) {
-            if (entry.type === 'action' && entry.action?.actionType === 'click') {
-              if (entry.action.id) allIds.add(entry.action.id);
-              if (typeof entry.action.sequenceNum === 'number') allSequences.push(entry.action.sequenceNum);
+            if (entry.type === 'action' && entry.entry?.action?.type === 'ACTION_TYPE_CLICK') {
+              if (entry.entry?.id) allIds.add(entry.entry.id);
+              if (typeof entry.entry?.sequenceNum === 'number') allSequences.push(entry.entry.sequenceNum);
             }
           }
           offset += entries.length;

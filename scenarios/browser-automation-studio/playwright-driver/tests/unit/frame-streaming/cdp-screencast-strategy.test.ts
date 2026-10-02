@@ -7,6 +7,7 @@ import { CdpScreencastStrategy } from '../../../src/frame-streaming/strategies';
 import { MAX_QUEUED_FRAME_BYTES } from '../../../src/frame-streaming/types';
 
 type SourceIdentity = {
+  stream_kind: 'recording' | 'execution';
   session_id: string;
   execution_id: string;
   lease_id: string;
@@ -21,6 +22,7 @@ const sourceForSession = (sessionId: string): ((page: Page) => SourceIdentity) =
     const pageId = pages.get(page);
     if (!pageId) throw new Error('Page identity was not assigned');
     return {
+      stream_kind: 'execution',
       session_id: sessionId,
       execution_id: 'execution-a',
       lease_id: 'lease-a',

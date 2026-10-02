@@ -11,6 +11,7 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { MultiPageTimelineEntry } from './MultiPageTimelineEntry';
 import type { TimelineEntry, PageColor } from '../hooks/useTimeline';
+import { timelineEntryId } from '../api/schemas';
 import type { Page } from '../hooks/usePages';
 
 interface MultiPageTimelineProps {
@@ -191,10 +192,10 @@ export function MultiPageTimeline({
         ) : (
           filteredEntries.map((entry) => (
             <MultiPageTimelineEntry
-              key={entry.id}
+              key={timelineEntryId(entry)}
               entry={entry}
               page={pageMap.get(entry.pageId)}
-              isSelected={entry.id === selectedEntryId}
+              isSelected={timelineEntryId(entry) === selectedEntryId}
               onSelect={() => handleSelectEntry(entry)}
               pageColor={pageColorMap.get(entry.pageId)}
               showPageBadge={filterPageId === 'all' && hasMultiplePages}

@@ -79,6 +79,7 @@ import {
   worldPath,
   routeForEntity,
 } from '@/app/routes/route-paths'
+import { Heading } from '@vrooli/react-component-library/Heading/1.1.5'
 
 const COLLAPSED_SIDEBAR_WIDTH = 60
 
@@ -1679,7 +1680,7 @@ function SkillManagerLayoutImpl() {
                 >
                   <Home className="h-5 w-5" />
                 </button>
-                <h2 className="text-sm font-semibold text-foreground truncate">Skills</h2>
+                <Heading level={2} textStyle="label" className="text-sm font-semibold text-foreground truncate">Skills</Heading>
               </div>
               <div className="flex items-center gap-1">
                 <HeartbeatControlPopover

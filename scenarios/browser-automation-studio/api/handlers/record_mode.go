@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -24,6 +25,7 @@ import (
 	livecapture "github.com/vrooli/browser-automation-studio/services/live-capture"
 	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 	"github.com/vrooli/browser-automation-studio/websocket"
+	wsHub "github.com/vrooli/browser-automation-studio/websocket"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 )
 
@@ -296,6 +298,9 @@ func (h *Handler) CloseRecordingSession(w http.ResponseWriter, r *http.Request) 
 		h.log.WithError(err).WithField("session_id", sessionID).Warn("Session was already gone during idempotent close")
 	}
 
+	if frameSlots, ok := h.wsHub.(interface{ ClearRecordingFrames(string) }); ok {
+		frameSlots.ClearRecordingFrames(sessionID)
+	}
 	h.clearActiveSessionProfile(sessionID)
 
 	h.respondSuccess(w, http.StatusOK, map[string]interface{}{
@@ -322,7 +327,7 @@ func isGoneSessionError(err error) bool {
 
 // GetRecordingDebug handles GET /api/v1/recordings/live/{sessionId}/debug
 // Gets live debugging info for an active recording session.
-// This proxies directly to the playwright-driver's debug endpoint.
+// This proxies the broker-owned driver's debug endpoint.
 func (h *Handler) GetRecordingDebug(w http.ResponseWriter, r *http.Request) {
 	sessionID := chi.URLParam(r, "sessionId")
 	if sessionID == "" {
@@ -332,24 +337,13 @@ func (h *Handler) GetRecordingDebug(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	driverURL, err := getPlaywrightDriverURL()
+	resp, err := h.recordModeService.GetRecordingDebug(r.Context(), sessionID)
 	if err != nil {
-		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "resolve_playwright_driver"}))
-		return
-	}
-	targetURL := fmt.Sprintf("%s/session/%s/record/debug", driverURL, sessionID)
-
-	// #nosec G704 -- driverURL is validated by driver.ResolveEndpoint; sessionID is path data only.
-	req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, targetURL, nil)
-	if err != nil {
-		http.Error(w, "Failed to create request", http.StatusInternalServerError)
-		return
-	}
-
-	client := &http.Client{Timeout: 10 * time.Second}
-	// #nosec G704 -- request target is restricted to the validated Playwright driver endpoint.
-	resp, err := client.Do(req)
-	if err != nil {
+		var driverErr *driver.Error
+		if errors.As(err, &driverErr) && driverErr.Status > 0 {
+			http.Error(w, driverErr.Message, driverErr.Status)
+			return
+		}
 		http.Error(w, "Failed to reach playwright-driver", http.StatusBadGateway)
 		return
 	}
@@ -393,7 +387,7 @@ func (h *Handler) GetRecordedActions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Read without mutation; acknowledgement follows journal commit.
-	resp, err := h.recordModeService.DriverClient().GetRecordedActions(ctx, sessionID)
+	resp, err := h.recordModeService.GetRecordedActions(ctx, sessionID)
 	if err != nil {
 		h.log.WithError(err).Error("Failed to get recorded actions")
 		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
@@ -402,7 +396,23 @@ func (h *Handler) GetRecordedActions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if clearActions && len(resp.Actions) > 0 {
+	if clearActions && len(resp.TimelineEntries) > 0 {
+		ids := make([]string, 0, len(resp.TimelineEntries))
+		for _, entry := range resp.TimelineEntries {
+			if entry == nil {
+				continue
+			}
+			if err := h.commitRecordingEntry(ctx, sessionID, entry); err != nil {
+				h.respondError(w, err)
+				return
+			}
+			ids = append(ids, entry.GetId())
+		}
+		if err := owner.AcknowledgeRecordedActions(ctx, ids); err != nil {
+			h.respondError(w, ErrServiceUnavailable.WithMessage("Recording committed but driver acknowledgement failed").WithDetails(map[string]string{"error": err.Error()}))
+			return
+		}
+	} else if clearActions && len(resp.Actions) > 0 {
 		ids := make([]string, 0, len(resp.Actions))
 		for i := range resp.Actions {
 			action := &resp.Actions[i]
@@ -418,12 +428,19 @@ func (h *Handler) GetRecordedActions(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Current driver receipts carry canonical proto entries. The raw Actions
+	// count is only a fallback for older drivers that have not adopted them.
+	count := len(resp.Actions)
+	if len(resp.TimelineEntries) > 0 {
+		count = len(resp.TimelineEntries)
+	}
+
 	// Map service response to handler response type
 	driverResp := &GetActionsResponse{
 		SessionID:   resp.SessionID,
 		IsRecording: resp.IsRecording,
 		Actions:     resp.Actions,
-		Count:       len(resp.Actions),
+		Count:       count,
 		Entries:     resp.Entries,
 	}
 
@@ -529,17 +546,10 @@ func (h *Handler) GenerateWorkflowFromRecording(w http.ResponseWriter, r *http.R
 	h.respondSuccess(w, http.StatusCreated, respPayload)
 }
 
-// HandleDriverFrameStream accepts a length-prefixed source header and JPEG over
-// GET /ws/recording/{sessionId}/frames. Only the current lease's selected page
-// may publish. Viewers receive canonical identity without producer credentials.
+// HandleDriverFrameStream accepts the single source-bearing driver frame protocol.
+// Recording frames are checked against the current lease/page; execution frames
+// are associated with their owned execution before entering the viewer hub.
 func (h *Handler) HandleDriverFrameStream(w http.ResponseWriter, r *http.Request) {
-	sessionID := chi.URLParam(r, "sessionId")
-	if sessionID == "" {
-		h.log.Error("Missing sessionId in driver frame stream request")
-		http.Error(w, "Missing sessionId", http.StatusBadRequest)
-		return
-	}
-
 	// Upgrade to WebSocket
 	conn, err := h.upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -548,13 +558,14 @@ func (h *Handler) HandleDriverFrameStream(w http.ResponseWriter, r *http.Request
 	}
 	defer conn.Close()
 
-	h.log.WithField("session_id", sessionID).Info("Driver frame stream connected")
+	h.log.Info("Driver frame stream connected")
 
 	// Get performance config (used for logging/broadcast intervals)
 	cfg := config.Load()
 
 	// Allocate telemetry only for accepted frames carrying timing data.
 	var collector *performance.Collector
+	var streamSessionID string
 
 	// Read binary frames from driver and broadcast to browser clients
 	for {
@@ -562,9 +573,9 @@ func (h *Handler) HandleDriverFrameStream(w http.ResponseWriter, r *http.Request
 		if err != nil {
 			// Check for normal closure
 			if websocket.IsCloseError(err) {
-				h.log.WithField("session_id", sessionID).Debug("Driver frame stream closed normally")
+				h.log.Debug("Driver frame stream closed normally")
 			} else {
-				h.log.WithError(err).WithField("session_id", sessionID).Warn("Driver frame stream read error")
+				h.log.WithError(err).Warn("Driver frame stream read error")
 			}
 			break
 		}
@@ -581,15 +592,32 @@ func (h *Handler) HandleDriverFrameStream(w http.ResponseWriter, r *http.Request
 			h.log.WithError(decodeErr).Debug("Rejected invalid recording frame")
 			continue
 		}
-		pageID, accepted := h.framePage(sessionID, driverHeader.Source)
-		if !accepted {
-			continue
-		}
-
-		// Broadcast binary frame to subscribed browser clients
+		source := driverHeader.Source
+		sessionID := source.SessionID
+		streamSessionID = sessionID
 		broadcastStart := time.Now()
-		if h.wsHub.HasRecordingFrameSubscribers(sessionID) {
-			h.wsHub.BroadcastBinaryFrame(sessionID, viewerFrame(sessionID, pageID, driverHeader.CapturedAt, frameData))
+		if source.StreamKind == "recording" {
+			pageID, title, pageURL, accepted := h.framePageMetadata(sessionID, source)
+			if !accepted {
+				continue
+			}
+			h.wsHub.BroadcastBinaryFrame(sessionID, viewerFrame(sessionID, pageID, title, pageURL, driverHeader.CapturedAt, frameData))
+		} else if source.StreamKind == "execution" {
+			executionID, parseErr := uuid.Parse(source.ExecutionID)
+			if parseErr != nil || h.executionService == nil || source.SessionID == "" || source.LeaseID == "" || source.PageID == "" {
+				continue
+			}
+			if _, ownerErr := h.executionService.GetExecution(r.Context(), executionID); ownerErr != nil {
+				continue
+			}
+			width, height := jpegDimensions(frameData)
+			h.wsHub.BroadcastExecutionFrame(executionID.String(), &wsHub.ExecutionFrame{
+				ExecutionID: executionID.String(), Data: base64.StdEncoding.EncodeToString(frameData),
+				MediaType: "image/jpeg", Width: width, Height: height,
+				CapturedAt: driverHeader.CapturedAt.UTC().Format(time.RFC3339Nano),
+			})
+		} else {
+			continue
 		}
 		broadcastMs := float64(time.Since(broadcastStart).Microseconds()) / 1000.0
 
@@ -641,10 +669,10 @@ func (h *Handler) HandleDriverFrameStream(w http.ResponseWriter, r *http.Request
 
 	// Cleanup collector when stream disconnects
 	if collector != nil {
-		h.perfRegistry.Remove(sessionID)
+		h.perfRegistry.Remove(streamSessionID)
 	}
 
-	h.log.WithField("session_id", sessionID).Info("Driver frame stream disconnected")
+	h.log.WithField("session_id", streamSessionID).Info("Driver frame stream disconnected")
 }
 
 // ReloadRecordingSession handles POST /api/v1/recordings/live/{sessionId}/reload.
@@ -741,7 +769,7 @@ func (h *Handler) CaptureRecordingScreenshot(w http.ResponseWriter, r *http.Requ
 		Quality: reqBody.Quality,
 	}
 
-	resp, err := h.recordModeService.DriverClient().CaptureScreenshot(ctx, sessionID, svcReq)
+	resp, err := h.recordModeService.CaptureScreenshot(ctx, sessionID, svcReq)
 	if err != nil {
 		h.log.WithError(err).Error("Failed to capture screenshot")
 		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
@@ -855,7 +883,7 @@ func (h *Handler) UpdateStreamSettings(w http.ResponseWriter, r *http.Request) {
 		PerfMode: reqBody.PerfMode,
 	}
 
-	resp, err := h.recordModeService.DriverClient().UpdateStreamSettings(ctx, sessionID, svcReq)
+	resp, err := h.recordModeService.UpdateStreamSettings(ctx, sessionID, svcReq)
 	if err != nil {
 		h.log.WithError(err).Error("Failed to update stream settings")
 		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{
@@ -966,7 +994,7 @@ func (h *Handler) GetRecordingFrame(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	query.Set("page_id", page.DriverPageID)
-	resp, err := h.recordModeService.DriverClient().GetFrame(ctx, sessionID, query.Encode())
+	resp, err := h.recordModeService.GetFrame(ctx, sessionID, query.Encode())
 	if err != nil {
 		var driverError *driver.Error
 		if errors.As(err, &driverError) && driverError.Status == http.StatusConflict {

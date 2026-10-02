@@ -9,7 +9,7 @@
  * - Workflow nodes/edges for timeline
  */
 
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
@@ -84,6 +84,10 @@ interface UseExecutionModeStateOptions {
   sessionProfileId: string | null;
   /** Stream settings ref for frame streaming config */
   streamSettingsRef: React.RefObject<StreamSettingsValues | null>;
+  /** Load execution workflow details only while the workspace is in execution mode. */
+  enabled: boolean;
+  /** Select the workflow's default recording session. */
+  onSessionProfileSelect: (profileId: string) => void;
 }
 
 interface UseExecutionModeStateReturn {
@@ -135,8 +139,6 @@ interface UseExecutionModeStateReturn {
   logsFilter: 'all' | 'error' | 'warning' | 'info' | 'success';
   setLogsFilter: (filter: 'all' | 'error' | 'warning' | 'info' | 'success') => void;
 
-  // Callback to set session profile (passed from parent)
-  onSessionProfileSelect?: (profileId: string) => void;
 }
 
 export function useExecutionModeState({
@@ -145,6 +147,8 @@ export function useExecutionModeState({
   initialProjectId,
   sessionProfileId,
   streamSettingsRef,
+  enabled,
+  onSessionProfileSelect,
 }: UseExecutionModeStateOptions): UseExecutionModeStateReturn {
   const navigate = useNavigate();
 
@@ -170,9 +174,6 @@ export function useExecutionModeState({
   const [logsFilter, setLogsFilter] = useState<'all' | 'error' | 'warning' | 'info' | 'success'>(
     'all'
   );
-
-  // Session profile callback ref (set by parent)
-  const onSessionProfileSelectRef = useRef<((profileId: string) => void) | undefined>();
 
   // Execution store
   const currentExecution = useExecutionStore((s) => s.currentExecution);
@@ -248,11 +249,9 @@ export function useExecutionModeState({
       setShowWorkflowPicker(false);
 
       // Auto-select the workflow's default session if provided
-      if (defaultSessionId && onSessionProfileSelectRef.current) {
-        onSessionProfileSelectRef.current(defaultSessionId);
-      }
+      if (defaultSessionId) onSessionProfileSelect(defaultSessionId);
     },
-    []
+    [onSessionProfileSelect]
   );
 
   // Handle Run button click
@@ -313,7 +312,7 @@ export function useExecutionModeState({
 
   // Fetch workflow definition when workflow is selected
   useEffect(() => {
-    if (!selectedWorkflowId) {
+    if (!enabled || !selectedWorkflowId) {
       setWorkflowNodes([]);
       setWorkflowEdges([]);
       return;
@@ -344,7 +343,7 @@ export function useExecutionModeState({
     };
 
     void fetchWorkflowDefinition();
-  }, [selectedWorkflowId, selectedWorkflowName]);
+  }, [enabled, selectedWorkflowId, selectedWorkflowName]);
 
   return {
     // Workflow selection

@@ -226,6 +226,17 @@ func (r *Runner) ControlArgs(cfg *domain.RunConfig) ([]string, error) {
 	return r.codec.ControlArgs(cfg)
 }
 
+// CompactSession satisfies [runner.SessionCompactor] for codecs that can
+// compact their native session out of band; other codecs report
+// [runner.ErrCompactionNotSupported].
+func (r *Runner) CompactSession(ctx context.Context, req runner.CompactSessionRequest) (*runner.CompactSessionResult, error) {
+	compactor, ok := r.codec.(runner.SessionCompactor)
+	if !ok {
+		return nil, runner.ErrCompactionNotSupported
+	}
+	return compactor.CompactSession(ctx, req)
+}
+
 // Stop attempts a graceful shutdown of a running agent. SIGTERM is sent
 // to the process group with a bounded grace period before SIGKILL
 // escalation; ctx cancellation is honoured as immediate kill.

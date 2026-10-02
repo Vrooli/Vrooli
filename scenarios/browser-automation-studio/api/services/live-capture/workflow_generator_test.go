@@ -13,6 +13,9 @@ import (
 	"github.com/vrooli/browser-automation-studio/domain"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
+	basdomain "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/domain"
+	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestMergeConsecutiveActions_EmptySlice(t *testing.T) {
@@ -25,6 +28,25 @@ func TestMergeConsecutiveActions_EmptySlice(t *testing.T) {
 	if len(result) != 0 {
 		t.Errorf("Expected empty slice for empty input, got %v", result)
 	}
+}
+
+func TestGenerateWorkflowFromTimelineEntriesPreservesTabOrder(t *testing.T) {
+	mainID, popupID := uuid.New(), uuid.New()
+	createdAt := time.Date(2026, 9, 24, 12, 0, 2, 0, time.UTC)
+	selector := "#go"
+	pages := []*domain.Page{
+		{ID: mainID, DriverPageID: "main", URL: "https://fixture.invalid", IsInitial: true, Status: domain.PageStatusActive},
+		{ID: popupID, DriverPageID: "popup", URL: "https://fixture.invalid/popup", OpenerID: &mainID, CreatedAt: createdAt, Status: domain.PageStatusActive},
+	}
+	entry := func(id, pageID string, second int) *bastimeline.TimelineEntry {
+		return &bastimeline.TimelineEntry{Id: id, SequenceNum: int32(second), Timestamp: timestamppb.New(time.Date(2026, 9, 24, 12, 0, second, 0, time.UTC)), Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_CLICK, Params: &basactions.ActionDefinition_Click{Click: &basactions.ClickParams{Selector: selector}}}, Telemetry: &basdomain.ActionTelemetry{Url: "https://fixture.invalid", DriverPageId: &pageID}}
+	}
+	flow, err := NewWorkflowGenerator().GenerateWorkflowFromTimelineEntries([]*bastimeline.TimelineEntry{entry("one", "main", 1), entry("two", "popup", 3), entry("three", "main", 4)}, pages)
+	require.NoError(t, err)
+	require.Len(t, flow.Nodes, 7)
+	require.Equal(t, basactions.ActionType_ACTION_TYPE_TAB_SWITCH, flow.Nodes[1].Action.Type)
+	require.Equal(t, basactions.ActionType_ACTION_TYPE_TAB_SWITCH, flow.Nodes[4].Action.Type)
+	require.Equal(t, selector, flow.Nodes[6].Action.GetClick().GetSelector())
 }
 
 func TestGenerateWorkflowWithPagesReplaysPopupTabAlternation(t *testing.T) {

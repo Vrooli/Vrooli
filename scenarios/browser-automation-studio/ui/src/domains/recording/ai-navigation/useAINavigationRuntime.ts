@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AINavigationState } from './types';
-import type { AINavigationCommandRefs } from './runtimeRefs';
+import type { AINavigationRuntimeRefs } from './runtimeRefs';
 
 export const initialAINavigationState: AINavigationState = {
   isNavigating: false,
@@ -22,8 +22,8 @@ export const initialAINavigationState: AINavigationState = {
 interface UseAINavigationRuntimeOptions {
   sessionId: string | null;
   onStarted?: (navigationId: string, startAttempt?: number) => void;
-  onStep?: AINavigationCommandRefs['onStepRef']['current'];
-  onComplete?: AINavigationCommandRefs['onCompleteRef']['current'];
+  onStep?: AINavigationRuntimeRefs['onStepRef']['current'];
+  onComplete?: AINavigationRuntimeRefs['onCompleteRef']['current'];
 }
 
 /** Owns navigation identity, cancellation and the shared command/event refs. */
@@ -95,7 +95,7 @@ export function useAINavigationRuntime({
     };
   }, [cancelStatusObservation, resetNavigation, sessionId]);
 
-  const refs = useRef<AINavigationCommandRefs>({
+  const refs = useRef<AINavigationRuntimeRefs>({
     navigationIdRef,
     navigationStatusRef,
     handoffCommandInFlightRef,

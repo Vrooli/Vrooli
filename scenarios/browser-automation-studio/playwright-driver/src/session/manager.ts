@@ -5,7 +5,8 @@ import type {
   SessionCloseResult,
   AppTargetSpec,
 } from '../types';
-import type { Browser, BrowserContext, Page } from 'rebrowser-playwright';
+import { isDeepStrictEqual } from 'node:util';
+import type { Browser, BrowserContext } from 'rebrowser-playwright';
 import path from 'node:path';
 import type { Config } from '../config';
 import {
@@ -16,68 +17,94 @@ import {
   scopedLog,
   LogContext,
 } from '../utils';
-import { buildContext, type ActualViewport } from './context-builder';
 import { v4 as uuidv4 } from 'uuid';
-import { RecordingPipelineManager, createRecordingContextInitializer } from '../recording';
-import { ServiceWorkerController } from '../service-worker';
-import { createInFlightGuard, type InFlightGuard } from '../infra';
-import { BrowserManager, type BrowserStatus } from './browser-manager';
-import { applySilentSinkToCurrentPage, generateSilentSinkPatch, type AudioStrategy } from './audio';
 import {
-  createPipeWireQualificationDevice,
-  PIPEWIRE_QUALIFICATION_DEVICE_NAME,
-  verifyBrowserCaptureDevice,
-  type BrowserCaptureDeviceEvidence,
-  type PipeWireQualificationDevice,
-} from './audio/device-evidence';
-import { transition, canTransition, canAcceptInstructions } from './state-machine';
-import {
-  findByExecutionId,
-  findByLabels,
-  shouldAttemptReuse,
-  findIdleSessions,
-} from './session-decisions';
-import { setupDiagnosticLogging } from './diagnostic-logger';
-import { resolveInstrumentation, safeInvoke, type Instrumentation } from '../instrumentation';
-import { PerformanceTracer, injectWebVitalsObserver, AccessibilitySnapshotter } from '../tracing';
-import {
+  AccessibilitySnapshotter,
+  applySilentSinkToCurrentPage,
+  BrowserManager,
+  canAcceptInstructions,
+  canTransition,
+  clearFrameCache,
   countActiveSessions,
+  createPipeWireQualificationDevice,
+  type ActualViewport,
+  type AudioStrategy,
+  type BrowserCaptureDeviceEvidence,
+  type BrowserStatus,
+  type PipeWireQualificationDevice,
+  DriverPageBindings,
+  generateSilentSinkPatch,
   inspectSession,
+  isSessionActive,
+  findIdleSessions,
+  injectWebVitalsObserver,
   listSessions,
-  summarizeSessions,
-  type SessionInfo,
-  type SessionListEntry,
-  type SessionSummary,
-} from './session-inspection';
-import { resetSessionState } from './session-reset';
-import { teardownSessionResources } from './session-teardown';
-import { resetPageInputState } from './live-input';
-import { clearFrameCache } from './frame-cache';
-import {
+  PerformanceTracer,
+  PIPEWIRE_QUALIFICATION_DEVICE_NAME,
+  resetPageInputState,
+  resetSessionState,
   selectAppTargetPage,
+  SessionInfo,
+  SessionListEntry,
+  SessionSummary,
+  setupDiagnosticLogging,
+  summarizeSessions,
+  teardownSessionResources,
+  transition,
   validateAppTargetCapabilities,
   validateAppTargetSpec,
   verifyAppTargetRenderer,
-} from './electron-target';
+  verifyBrowserCaptureDevice,
+  buildContext,
+} from './manager-support';
+import { RecordingPipelineManager, createRecordingContextInitializer } from '../recording';
+import { ServiceWorkerController } from '../service-worker';
+import { resolveInstrumentation, safeInvoke, type Instrumentation } from '../instrumentation';
 
-/** Keep workflow tab operations aligned with pages created outside the tab handler. */
-function trackSessionPageStack(session: SessionState): void {
-  const trackPage = (page: Page): void => {
-    if (!session.pages.includes(page)) session.pages.push(page);
-    page.once('close', () => {
-      const index = session.pages.indexOf(page);
-      if (index !== -1) session.pages.splice(index, 1);
-      if (session.page === page) {
-        session.frameStack.length = 0;
-        const next = session.pages.find((candidate) => !candidate.isClosed());
-        if (next) session.page = next;
-      }
-      session.currentPageIndex = session.pages.indexOf(session.page);
-    });
-  };
+/** Session admission and reuse decisions stay with the lifecycle owner. */
+function findByExecutionId(sessions: Iterable<SessionState>, executionId: string): SessionState | null {
+  for (const session of sessions) if (session.spec.execution_id === executionId) return session;
+  return null;
+}
 
-  session.context.on('page', trackPage);
-  session.pages.forEach(trackPage);
+function findByLabels(sessions: Iterable<SessionState>, requested: SessionSpec): SessionState | null {
+  if (!requested.labels) return null;
+  for (const session of sessions) {
+    if (!session.spec.labels) continue;
+    const matchingLabels = Object.entries(requested.labels).every(([key, value]) => session.spec.labels?.[key] === value);
+    if (matchingLabels && matchesReusableContext(session, requested) && isSafeForLabelReuse(session)) return session;
+  }
+  return null;
+}
+
+function matchesReusableContext(session: SessionState, requested: SessionSpec): boolean {
+  const retained = session.spec;
+  const capture = (capabilities: SessionSpec['required_capabilities']): boolean => Boolean(
+    capabilities?.video || capabilities?.har || capabilities?.tracing ||
+    capabilities?.performance_trace || capabilities?.accessibility
+  );
+  if (capture(retained.required_capabilities) || capture(requested.required_capabilities)) return false;
+  return retained.session_profile_version === requested.session_profile_version &&
+    isDeepStrictEqual(retained.viewport, requested.viewport) &&
+    isDeepStrictEqual(retained.storage_state, requested.storage_state) &&
+    isDeepStrictEqual(retained.browser_profile, requested.browser_profile) &&
+    isDeepStrictEqual(retained.user_agent, requested.user_agent) &&
+    isDeepStrictEqual(retained.locale, requested.locale) &&
+    isDeepStrictEqual(retained.timezone, requested.timezone) &&
+    isDeepStrictEqual(retained.geolocation, requested.geolocation) &&
+    isDeepStrictEqual(retained.permissions, requested.permissions) &&
+    isDeepStrictEqual(retained.service_worker_control, requested.service_worker_control) &&
+    isDeepStrictEqual(retained.fake_media, requested.fake_media) &&
+    isDeepStrictEqual(retained.app_target, requested.app_target) &&
+    isDeepStrictEqual(retained.validation_context, requested.validation_context);
+}
+
+function isSafeForLabelReuse(session: SessionState): boolean {
+  return session.phase === 'ready' && !session.instructionInFlight && session.leaseReleasedAt !== undefined;
+}
+
+function shouldAttemptReuse(reuseMode: SessionSpec['reuse_mode']): boolean {
+  return reuseMode !== 'fresh';
 }
 
 /**
@@ -149,16 +176,12 @@ export class SessionManager {
    * Prevents duplicate session creation when multiple concurrent requests
    * arrive with the same execution_id before the first completes.
    */
-  private sessionCreationGuard: InFlightGuard<string, SessionCreationResult>;
+  private readonly sessionCreationInFlight = new Map<string, Promise<SessionCreationResult>>();
 
   constructor(config: Config, browserManager?: BrowserManager, instrumentation?: Instrumentation) {
     this.config = config;
     this.browserManager = browserManager ?? new BrowserManager(config);
     this.instrumentation = resolveInstrumentation(instrumentation);
-    this.sessionCreationGuard = createInFlightGuard<string, SessionCreationResult>({
-      name: 'session-creation',
-      logContext: LogContext.SESSION,
-    });
   }
 
   /**
@@ -206,7 +229,7 @@ export class SessionManager {
 
   /** Register the shared session lifecycle once for every browser target. */
   private initializeSessionRegistration(session: SessionState): void {
-    trackSessionPageStack(session);
+    session.pageBindings.attachContext(session);
     setupDiagnosticLogging(session.context, session.id);
     const pipelineManager = session.pipelineManager;
     if (!pipelineManager) {
@@ -263,20 +286,33 @@ export class SessionManager {
    * Idempotency behavior:
    * - If a session with the same execution_id already exists, returns it (for reuse/clean modes)
    * - If session creation is already in-flight for this execution_id, awaits that instead of creating duplicate
-   * - Uses InFlightGuard to prevent race conditions under concurrent requests
+   * - Joins an in-flight admission for the same execution ID
    *
    * @returns Object with session ID, whether it was reused, and the actual viewport with source attribution
    */
   async startSession(spec: SessionSpec): Promise<SessionCreationResult> {
-    // InFlightGuard handles concurrent request deduplication automatically
-    return this.sessionCreationGuard.execute(spec.execution_id, () =>
-      this.startSessionInternal(spec)
-    );
+    const existing = this.sessionCreationInFlight.get(spec.execution_id);
+    if (existing) {
+      logger.debug(scopedLog(LogContext.SESSION, 'session creation joined in-flight admission'), {
+        executionId: spec.execution_id,
+        inFlightCount: this.sessionCreationInFlight.size,
+      });
+      return existing;
+    }
+    const pending = this.startSessionInternal(spec);
+    this.sessionCreationInFlight.set(spec.execution_id, pending);
+    try {
+      return await pending;
+    } finally {
+      if (this.sessionCreationInFlight.get(spec.execution_id) === pending) {
+        this.sessionCreationInFlight.delete(spec.execution_id);
+      }
+    }
   }
 
   /**
    * Internal session creation logic.
-   * Separated from startSession to enable InFlightGuard tracking.
+   * Separated from startSession to reserve and release admission capacity.
    */
   private async startSessionInternal(spec: SessionSpec): Promise<SessionCreationResult> {
     let reserved = false;
@@ -299,7 +335,7 @@ export class SessionManager {
     reserveCapacity: () => void
   ): Promise<SessionCreationResult> {
     // Idempotency: Check for existing session with same execution_id
-    // Decision logic is in session-decisions.ts
+    // The session manager owns reuse eligibility and lease-safe handoff.
     const existingByExecutionId = findByExecutionId(this.sessions.values(), spec.execution_id);
     if (existingByExecutionId) {
       logger.info(scopedLog(LogContext.SESSION, 'idempotent return of existing session'), {
@@ -333,7 +369,7 @@ export class SessionManager {
     }
 
     // Handle reuse mode (match by labels)
-    // Decision logic is in session-decisions.ts
+    // The session manager owns cleanup eligibility and close retry ownership.
     if (shouldAttemptReuse(spec.reuse_mode)) {
       const existingSession = findByLabels(this.sessions.values(), spec);
       if (existingSession) {
@@ -577,18 +613,16 @@ export class SessionManager {
       // Network events are collected by telemetry, not logged individually
       // (reduces noise while still capturing data for debugging)
 
-      const pageIdMap = new Map<string, Page>();
-      const pageToIdMap = new WeakMap<Page, string>();
+      const pageBindings = new DriverPageBindings();
       const initialPageId = crypto.randomUUID();
-      pageIdMap.set(initialPageId, page);
-      pageToIdMap.set(page, initialPageId);
+      pageBindings.register(page, initialPageId);
 
       // Create recording pipeline manager (eager instantiation)
       // This allows early verification and ensures the pipeline is ready before recording starts
       const pipelineManager = new RecordingPipelineManager(page, context, recordingInitializer, {
         sessionId,
         logger,
-        getDriverPageId: (target) => pageToIdMap.get(target),
+        getDriverPageId: (target) => pageBindings.getId(target),
       });
 
       // Create session state
@@ -621,10 +655,7 @@ export class SessionManager {
         phase: 'ready',
         instructionCount: 0,
         frameStack: [],
-        pages: [page],
-        currentPageIndex: 0,
-        pageIdMap,
-        pageToIdMap,
+        pageBindings,
         activeMocks: new Map(),
         // Idempotency: Track executed instructions for replay safety
         instructionReceipts: new Map(),
@@ -811,11 +842,9 @@ export class SessionManager {
       const page = await selectAppTargetPage(context.pages(), target);
       sessionId = uuidv4();
       const createdAt = new Date();
-      const pageIdMap = new Map<string, Page>();
-      const pageToIdMap = new WeakMap<Page, string>();
+      const pageBindings = new DriverPageBindings();
       const pageId = crypto.randomUUID();
-      pageIdMap.set(pageId, page);
-      pageToIdMap.set(page, pageId);
+      pageBindings.register(page, pageId);
       const recordingInitializer = createRecordingContextInitializer({ logger });
       await recordingInitializer.initialize(context);
       const serviceWorkerController = new ServiceWorkerController(
@@ -826,7 +855,7 @@ export class SessionManager {
       const pipelineManager = new RecordingPipelineManager(page, context, recordingInitializer, {
         sessionId,
         logger,
-        getDriverPageId: (targetPage) => pageToIdMap.get(targetPage),
+        getDriverPageId: (targetPage) => pageBindings.getId(targetPage),
       });
       const session: SessionState = {
         id: sessionId,
@@ -846,10 +875,7 @@ export class SessionManager {
         phase: 'ready',
         instructionCount: 0,
         frameStack: [],
-        pages: [page],
-        currentPageIndex: 0,
-        pageIdMap,
-        pageToIdMap,
+        pageBindings,
         activeMocks: new Map(),
         instructionReceipts: new Map(),
         lastInstructionSequence: 0,
@@ -1179,21 +1205,16 @@ export class SessionManager {
     return closing;
   }
 
-  // Session lookup functions moved to session-decisions.ts:
-  // - findByExecutionId (was findSessionByExecutionId)
-  // - findByLabels (was findReusableSession)
-  // - findIdleSessions (new - encapsulates idle detection)
-
   /**
    * Get count of active sessions
    */
   private getActiveSessionCount(): number {
-    return countActiveSessions(this.sessions.values(), this.config.session.idleTimeoutMs);
+    return countActiveSessions(this.sessions.values(), this.config.session.idleTimeoutMs, Date.now(), isSessionActive);
   }
 
   /**
    * Cleanup idle sessions
-   * Decision logic is in session-decisions.ts
+   * The session manager owns idle classification and close retry ownership.
    */
   async cleanupIdleSessions(): Promise<void> {
     const idleSessions = findIdleSessions(this.sessions, this.config.session.idleTimeoutMs);
@@ -1229,7 +1250,7 @@ export class SessionManager {
    * Used by the /observability endpoint.
    */
   getSessionSummary(): SessionSummary {
-    return summarizeSessions(this.sessions.values(), this.config);
+    return summarizeSessions(this.sessions.values(), this.config, Date.now(), isSessionActive);
   }
 
   /**
@@ -1237,7 +1258,7 @@ export class SessionManager {
    * Returns non-sensitive session metadata.
    */
   getSessionList(): SessionListEntry[] {
-    return listSessions(this.sessions.values(), this.config);
+    return listSessions(this.sessions.values(), this.config, Date.now(), isSessionActive);
   }
 
   /** Attempt every selected close, keeping failed sessions owned. */

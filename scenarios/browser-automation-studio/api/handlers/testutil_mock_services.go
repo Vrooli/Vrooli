@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -17,7 +18,6 @@ import (
 	autosession "github.com/vrooli/browser-automation-studio/automation/session"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/domain"
-	"github.com/vrooli/browser-automation-studio/services/export"
 	livecapture "github.com/vrooli/browser-automation-studio/services/live-capture"
 	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 	"github.com/vrooli/browser-automation-studio/services/workflow"
@@ -26,6 +26,7 @@ import (
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 	basevidence "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/evidence"
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
+	basexports "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/exports"
 	basprojects "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/projects"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
@@ -671,7 +672,7 @@ func (m *MockExecutionService) DescribeExecutionExport(ctx context.Context, exec
 		return nil, m.DescribeExecutionExportError
 	}
 	return &workflow.ExecutionExportPreview{
-		Package: &export.ReplayMovieSpec{},
+		Package: &basexports.ReplaySpec{},
 	}, nil
 }
 
@@ -1181,14 +1182,41 @@ func NewMockRecordModeService() *MockRecordModeService {
 	}
 }
 
-// DriverClient returns the mock driver client for testing.
-func (m *MockRecordModeService) DriverClient() driver.ClientInterface {
-	return m.mockDriverClient
-}
-
 // MockClient provides direct access to the mock driver client for test configuration.
 func (m *MockRecordModeService) MockClient() *MockDriverClient {
 	return m.mockDriverClient
+}
+
+func (m *MockRecordModeService) GetRecordingStatus(ctx context.Context, id string) (*driver.RecordingStatusResponse, error) {
+	return m.mockDriverClient.GetRecordingStatus(ctx, id)
+}
+
+func (m *MockRecordModeService) GetRecordedActions(ctx context.Context, id string) (*driver.GetActionsResponse, error) {
+	return m.mockDriverClient.GetRecordedActions(ctx, id)
+}
+
+func (m *MockRecordModeService) CaptureScreenshot(ctx context.Context, id string, req *driver.CaptureScreenshotRequest) (*driver.CaptureScreenshotResponse, error) {
+	return m.mockDriverClient.CaptureScreenshot(ctx, id, req)
+}
+
+func (m *MockRecordModeService) UpdateStreamSettings(ctx context.Context, id string, req *driver.UpdateStreamSettingsRequest) (*driver.UpdateStreamSettingsResponse, error) {
+	return m.mockDriverClient.UpdateStreamSettings(ctx, id, req)
+}
+
+func (m *MockRecordModeService) GetFrame(ctx context.Context, id, query string) (*driver.GetFrameResponse, error) {
+	return m.mockDriverClient.GetFrame(ctx, id, query)
+}
+
+func (m *MockRecordModeService) ValidateSelector(ctx context.Context, id string, req *driver.ValidateSelectorRequest) (*driver.ValidateSelectorResponse, error) {
+	return m.mockDriverClient.ValidateSelector(ctx, id, req)
+}
+
+func (m *MockRecordModeService) ReplayPreview(ctx context.Context, id string, req *driver.ReplayPreviewRequest) (*driver.ReplayPreviewResponse, error) {
+	return m.mockDriverClient.ReplayPreview(ctx, id, req)
+}
+
+func (m *MockRecordModeService) GetRecordingDebug(context.Context, string) (*http.Response, error) {
+	return &http.Response{StatusCode: http.StatusOK, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(`{}`))}, nil
 }
 
 func (m *MockRecordModeService) CreateSession(ctx context.Context, cfg *livecapture.SessionConfig) (*livecapture.SessionResult, error) {
@@ -1360,6 +1388,10 @@ func (m *MockRecordModeService) RestoreTabs(ctx context.Context, sessionID strin
 }
 
 func (m *MockRecordModeService) AddTimelineAction(ctx context.Context, sessionID string, action *driver.RecordedAction, pageID uuid.UUID) error {
+	return nil
+}
+
+func (m *MockRecordModeService) AddTimelineEntry(ctx context.Context, sessionID string, entry *bastimeline.TimelineEntry, pageID uuid.UUID) error {
 	return nil
 }
 

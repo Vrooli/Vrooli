@@ -11,14 +11,18 @@ import (
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	coredb "github.com/vrooli/api-core/database"
+	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/automation/driver"
 	"github.com/vrooli/browser-automation-studio/automation/session"
+	"github.com/vrooli/browser-automation-studio/automation/telemetry"
 	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/domain"
 	unifiedrecording "github.com/vrooli/browser-automation-studio/services/recording"
 	"github.com/vrooli/browser-automation-studio/services/recording/persistence"
 	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
+	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // Service provides high-level operations for live capture mode.
@@ -81,22 +85,6 @@ func NewServiceWithClient(client *driver.Client, log *logrus.Logger, unifiedReco
 // DOC: docs/architecture/recording.md#unified-recording
 func (s *Service) UnifiedRecordingService() *unifiedrecording.Service {
 	return s.unifiedRecordingSvc
-}
-
-// DriverClient returns the underlying driver client for direct pass-through operations.
-// Handlers should use this for operations that don't require service-level business logic
-// (e.g., Navigate, Reload, GetFrame, ForwardInput).
-func (s *Service) DriverClient() driver.ClientInterface {
-	if s.sessions == nil {
-		return nil
-	}
-	return s.sessions.Client()
-}
-
-// Sessions returns the session manager for direct access.
-// Deprecated: Use DriverClient() for pass-through operations.
-func (s *Service) Sessions() *session.Manager {
-	return s.sessions
 }
 
 // SessionConfig configures a new capture session.
@@ -286,6 +274,81 @@ func (s *Service) GetStorageState(ctx context.Context, sessionID string) (json.R
 	return sess.GetStorageState(ctx)
 }
 
+func (s *Service) ownedSession(sessionID string) (*session.Session, error) {
+	if s.sessions == nil {
+		return nil, fmt.Errorf("session broker unavailable")
+	}
+	sess, ok := s.sessions.Get(sessionID)
+	if !ok {
+		return nil, &driver.Error{Status: http.StatusNotFound, Message: "Session is not owned by this API"}
+	}
+	return sess, nil
+}
+
+func (s *Service) GetRecordingStatus(ctx context.Context, id string) (*driver.RecordingStatusResponse, error) {
+	owned, err := s.ownedSession(id)
+	if err != nil {
+		return nil, err
+	}
+	return owned.GetRecordingStatus(ctx)
+}
+
+func (s *Service) GetRecordedActions(ctx context.Context, id string) (*driver.GetActionsResponse, error) {
+	owned, err := s.ownedSession(id)
+	if err != nil {
+		return nil, err
+	}
+	return owned.GetRecordedActionsResponse(ctx)
+}
+
+func (s *Service) CaptureScreenshot(ctx context.Context, id string, req *driver.CaptureScreenshotRequest) (*driver.CaptureScreenshotResponse, error) {
+	owned, err := s.ownedSession(id)
+	if err != nil {
+		return nil, err
+	}
+	return owned.CaptureScreenshotWithOptions(ctx, req)
+}
+
+func (s *Service) UpdateStreamSettings(ctx context.Context, id string, req *driver.UpdateStreamSettingsRequest) (*driver.UpdateStreamSettingsResponse, error) {
+	owned, err := s.ownedSession(id)
+	if err != nil {
+		return nil, err
+	}
+	return owned.UpdateStreamSettingsWithOptions(ctx, req)
+}
+
+func (s *Service) GetFrame(ctx context.Context, id, query string) (*driver.GetFrameResponse, error) {
+	owned, err := s.ownedSession(id)
+	if err != nil {
+		return nil, err
+	}
+	return owned.GetFrame(ctx, query)
+}
+
+func (s *Service) ValidateSelector(ctx context.Context, id string, req *driver.ValidateSelectorRequest) (*driver.ValidateSelectorResponse, error) {
+	owned, err := s.ownedSession(id)
+	if err != nil {
+		return nil, err
+	}
+	return owned.ValidateSelector(ctx, req.Selector)
+}
+
+func (s *Service) ReplayPreview(ctx context.Context, id string, req *driver.ReplayPreviewRequest) (*driver.ReplayPreviewResponse, error) {
+	owned, err := s.ownedSession(id)
+	if err != nil {
+		return nil, err
+	}
+	return owned.ReplayPreview(ctx, req)
+}
+
+func (s *Service) GetRecordingDebug(ctx context.Context, id string) (*http.Response, error) {
+	owned, err := s.ownedSession(id)
+	if err != nil {
+		return nil, err
+	}
+	return owned.RouteRequest(ctx, http.MethodGet, "/record/debug", nil)
+}
+
 // GetServiceWorkers retrieves service workers for a session.
 func (s *Service) GetServiceWorkers(ctx context.Context, sessionID string) (*driver.GetServiceWorkersResponse, error) {
 	sess, ok := s.sessions.Get(sessionID)
@@ -363,12 +426,12 @@ func (s *Service) StartRecording(ctx context.Context, sessionID string, cfg *Rec
 	}
 
 	req := &driver.StartRecordingRequest{
-		CallbackURL:      fmt.Sprintf("http://%s:%s/api/v1/recordings/live/%s/action", apiHost, apiPort, sessionID),
-		FrameCallbackURL: fmt.Sprintf("http://%s:%s/api/v1/recordings/live/%s/frame", apiHost, apiPort, sessionID),
-		PageCallbackURL:  fmt.Sprintf("http://%s:%s/api/v1/recordings/live/%s/page-event", apiHost, apiPort, sessionID),
-		RoutedTestMode:   coredb.IsTestMode(ctx),
-		FrameQuality:     frameQuality,
-		FrameFPS:         frameFPS,
+		CallbackURL:     fmt.Sprintf("http://%s:%s/api/v1/recordings/live/%s/action", apiHost, apiPort, sessionID),
+		FrameStreamURL:  fmt.Sprintf("ws://%s:%s/ws/frames", apiHost, apiPort),
+		PageCallbackURL: fmt.Sprintf("http://%s:%s/api/v1/recordings/live/%s/page-event", apiHost, apiPort, sessionID),
+		RoutedTestMode:  coredb.IsTestMode(ctx),
+		FrameQuality:    frameQuality,
+		FrameFPS:        frameFPS,
 	}
 
 	return owned.StartRecording(ctx, req)
@@ -415,24 +478,37 @@ type GenerateWorkflowResult struct {
 // GenerateWorkflow converts recorded actions to a workflow definition.
 func (s *Service) GenerateWorkflow(ctx context.Context, sessionID string, cfg *GenerateWorkflowConfig) (*GenerateWorkflowResult, error) {
 	var actions []driver.RecordedAction
+	var entries []*bastimeline.TimelineEntry
 
 	// Use provided actions or fetch from session
 	if len(cfg.Actions) > 0 {
 		actions = cfg.Actions
 	} else {
-		resp, err := s.sessions.Client().GetRecordedActions(ctx, sessionID)
+		owned, ok := s.sessions.Get(sessionID)
+		if !ok {
+			return nil, &driver.Error{Status: http.StatusNotFound, Message: "Recording session is not owned by this API"}
+		}
+		resp, err := owned.GetRecordedActionsResponse(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("get actions: %w", err)
 		}
-		actions = resp.Actions
+		if len(resp.TimelineEntries) > 0 {
+			entries = resp.TimelineEntries
+		} else {
+			actions = resp.Actions
+		}
 	}
 
 	// Apply action range if specified
 	if cfg.ActionRange != nil {
-		actions = ApplyActionRange(actions, cfg.ActionRange.Start, cfg.ActionRange.End)
+		if len(entries) > 0 {
+			entries = ApplyTimelineEntryRange(entries, cfg.ActionRange.Start, cfg.ActionRange.End)
+		} else {
+			actions = ApplyActionRange(actions, cfg.ActionRange.Start, cfg.ActionRange.End)
+		}
 	}
 
-	if len(actions) == 0 {
+	if len(actions) == 0 && len(entries) == 0 {
 		return nil, fmt.Errorf("no actions to convert")
 	}
 
@@ -447,7 +523,13 @@ func (s *Service) GenerateWorkflow(ctx context.Context, sessionID string, cfg *G
 	}
 
 	// Generate workflow
-	flowDef, err := s.generator.GenerateWorkflowWithPages(actions, pages)
+	var flowDef *basworkflows.WorkflowDefinitionV2
+	var err error
+	if len(entries) > 0 {
+		flowDef, err = s.generator.GenerateWorkflowFromTimelineEntries(entries, pages)
+	} else {
+		flowDef, err = s.generator.GenerateWorkflowWithPages(actions, pages)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("generate workflow: %w", err)
 	}
@@ -455,7 +537,7 @@ func (s *Service) GenerateWorkflow(ctx context.Context, sessionID string, cfg *G
 	return &GenerateWorkflowResult{
 		FlowDefinition: flowDef,
 		NodeCount:      len(flowDef.Nodes),
-		ActionCount:    len(actions),
+		ActionCount:    max(len(actions), len(entries)),
 	}, nil
 }
 
@@ -752,6 +834,14 @@ func (s *Service) AddTimelineAction(ctx context.Context, sessionID string, actio
 	return s.unifiedRecordingSvc.RecordAction(ctx, sessionID, action, pageID, source)
 }
 
+// AddTimelineEntry commits a canonical driver entry without reconstructing the RecordedAction DTO.
+func (s *Service) AddTimelineEntry(ctx context.Context, sessionID string, entry *bastimeline.TimelineEntry, pageID uuid.UUID) error {
+	if s.unifiedRecordingSvc == nil {
+		return unifiedrecording.ErrRepositoryUnavailable
+	}
+	return s.unifiedRecordingSvc.RecordTimelineEntry(ctx, sessionID, entry, pageID)
+}
+
 func (s *Service) AddTimelinePageEvent(ctx context.Context, sessionID string, event *domain.PageEvent) error {
 	if s.unifiedRecordingSvc == nil {
 		return unifiedrecording.ErrRepositoryUnavailable
@@ -782,30 +872,22 @@ func (s *Service) GetTimeline(ctx context.Context, sessionID string, pageID *uui
 		return nil, fmt.Errorf("get timeline: %w", err)
 	}
 
-	// Convert unified entries to domain entries
+	// Actions leave the API as generated proto JSON. Page ID remains recording
+	// ownership metadata because the stable TimelineEntry schema has no page ID;
+	// page lifecycle events stay separate because that schema models actions.
 	entries := make([]domain.TimelineEntry, 0, len(resp.Entries))
 	for _, e := range resp.Entries {
-		entry := domain.TimelineEntry{
-			ID:        e.ID,
-			Type:      domain.TimelineType(e.Type),
-			Timestamp: e.Timestamp,
-			PageID:    e.PageID,
-		}
-		if e.Action != nil {
-			entry.Action = &domain.RecordedActionEntry{
-				ID:          e.Action.ID.String(),
-				ActionType:  e.Action.ActionType,
-				URL:         e.Action.URL,
-				SequenceNum: e.Action.SequenceNum,
-				Timestamp:   e.Action.Timestamp.Format(time.RFC3339Nano),
-				Confidence:  e.Action.Confidence,
-				PageTitle:   e.Action.PageTitle,
-				Payload:     e.Action.Payload,
+		entry := domain.TimelineEntry{Type: string(e.Type), PageID: e.PageID}
+		if e.Entry != nil {
+			encoded, marshalErr := protojson.Marshal(e.Entry)
+			if marshalErr != nil {
+				return nil, fmt.Errorf("encode timeline entry %s: %w", e.Entry.GetId(), marshalErr)
 			}
-			if e.Action.Selector != nil {
-				entry.Action.Selector = &domain.SelectorInfo{
-					Primary: e.Action.Selector.Primary,
-				}
+			entry.Entry = encoded
+		} else if e.Action != nil {
+			entry.Entry, err = recordingActionProtoJSON(e.Action)
+			if err != nil {
+				return nil, fmt.Errorf("encode timeline action %s: %w", e.Action.ID, err)
 			}
 		}
 		if e.PageEvent != nil {
@@ -819,6 +901,42 @@ func (s *Service) GetTimeline(ctx context.Context, sessionID string, pageID *uui
 		HasMore:      resp.HasMore,
 		TotalEntries: resp.TotalCount,
 	}, nil
+}
+
+func recordingActionProtoJSON(action *domain.RecordingAction) (json.RawMessage, error) {
+	if action == nil {
+		return nil, errors.New("recording timeline action is required")
+	}
+	driverAction := &driver.RecordedAction{
+		ID: action.ID.String(), SessionID: action.SessionID, PageID: action.PageID.String(),
+		SequenceNum: action.SequenceNum, Timestamp: action.Timestamp.Format(time.RFC3339Nano),
+		DurationMs: action.DurationMs, ActionType: action.ActionType, Confidence: action.Confidence,
+		Payload: action.Payload, URL: action.URL, PageTitle: action.PageTitle,
+	}
+	if action.Selector != nil {
+		driverAction.Selector = &driver.SelectorSet{Primary: action.Selector.Primary}
+		for _, candidate := range action.Selector.Candidates {
+			driverAction.Selector.Candidates = append(driverAction.Selector.Candidates, driver.SelectorCandidate{
+				Type: candidate.Type, Value: candidate.Value, Confidence: candidate.Confidence, Specificity: candidate.Specificity,
+			})
+		}
+	}
+	if meta := action.ElementMeta; meta != nil {
+		driverAction.ElementMeta = &driver.ElementMeta{
+			TagName: meta.TagName, ID: meta.ID, ClassName: meta.ClassName, InnerText: meta.InnerText,
+			Attributes: meta.Attributes, IsVisible: meta.IsVisible, IsEnabled: meta.IsEnabled,
+			Role: meta.Role, AriaLabel: meta.AriaLabel,
+		}
+	}
+	if box := action.BoundingBox; box != nil {
+		driverAction.BoundingBox = &contracts.BoundingBox{X: box.X, Y: box.Y, Width: box.Width, Height: box.Height}
+	}
+	protoEntry := telemetry.BuildRecordingTimelineEntry(driverAction)
+	if protoEntry == nil {
+		return nil, fmt.Errorf("action %s produced no timeline entry", action.ID)
+	}
+	encoded, err := protojson.Marshal(protoEntry)
+	return json.RawMessage(encoded), err
 }
 
 // buildRecordingCallbacks creates recording callbacks that route to the unified recording service.

@@ -6,14 +6,17 @@ import (
 	"errors"
 	"fmt"
 	"sync"
-	"time"
 
 	"github.com/google/uuid"
 
 	"github.com/vrooli/api-core/schedule"
 	"github.com/vrooli/browser-automation-studio/automation/driver"
+	"github.com/vrooli/browser-automation-studio/automation/telemetry"
 	"github.com/vrooli/browser-automation-studio/domain"
 	"github.com/vrooli/browser-automation-studio/services/recording/persistence"
+	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
+	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
+	"google.golang.org/protobuf/proto"
 )
 
 var ErrRepositoryUnavailable = errors.New("recording journal unavailable")
@@ -96,16 +99,69 @@ func (s *Service) RecordAction(ctx context.Context, id string, observed *driver.
 	if observed == nil || observed.ID == "" || observed.ActionType == "" {
 		return errors.New("recording action requires identity and type")
 	}
-	ts, err := time.Parse(time.RFC3339Nano, observed.Timestamp)
+	driver.RedactSensitiveValues(observed)
+	entry := telemetry.BuildRecordingTimelineEntry(observed)
+	if entry.Timestamp == nil {
+		return errors.New("recording timestamp is required")
+	}
+	entryID, err := uuid.Parse(entry.GetId())
 	if err != nil {
+		entryID = uuid.NewSHA1(uuid.NameSpaceOID, []byte(id+":"+entry.GetId()))
+		entry.Id = entryID.String()
+	}
+	recordingSource := basbase.RecordingSource_RECORDING_SOURCE_AUTO
+	switch source {
+	case ActionSourceManual:
+		recordingSource = basbase.RecordingSource_RECORDING_SOURCE_MANUAL
+	case ActionSourceAI:
+		// The shared proto source enum has no AI value; retain a review cue.
+		needsConfirmation := true
+		entry.Context.NeedsConfirmation = &needsConfirmation
+	case ActionSourceAuto:
+	default:
+		return fmt.Errorf("unsupported action source %q", source)
+	}
+	entry.Context.Source = &recordingSource
+	return s.RecordTimelineEntry(ctx, id, entry, pageID)
+}
+
+// RecordTimelineEntry persists the driver's canonical action proto without projecting it through RecordedAction.
+func (s *Service) RecordTimelineEntry(ctx context.Context, sessionID string, observed *bastimeline.TimelineEntry, pageID uuid.UUID) error {
+	if observed == nil || observed.GetId() == "" || observed.GetAction() == nil || observed.GetTimestamp() == nil {
+		return errors.New("recording timeline entry requires identity, timestamp and action")
+	}
+	if err := observed.GetTimestamp().CheckValid(); err != nil {
 		return fmt.Errorf("recording timestamp: %w", err)
 	}
-	driver.RedactSensitiveValues(observed)
-	action := s.convertDriverAction(observed, id, pageID, ts, source)
-	return s.append(ctx, &persistence.UnifiedTimelineEntry{
-		ID: action.ID, Type: persistence.TimelineEntryTypeAction, Timestamp: ts,
-		SessionID: id, PageID: pageID, Action: action,
+	entryID, err := uuid.Parse(observed.GetId())
+	if err != nil {
+		return fmt.Errorf("recording entry ID: %w", err)
+	}
+	canonical := proto.Clone(observed).(*bastimeline.TimelineEntry)
+	if canonical.Context == nil {
+		canonical.Context = &basbase.EventContext{}
+	}
+	switch origin := canonical.Context.GetOrigin().(type) {
+	case *basbase.EventContext_SessionId:
+		if origin.SessionId == "" {
+			canonical.Context.Origin = &basbase.EventContext_SessionId{SessionId: sessionID}
+		} else if origin.SessionId != sessionID {
+			return fmt.Errorf("recording entry session %q does not match owner %q", origin.SessionId, sessionID)
+		}
+	case nil:
+		canonical.Context.Origin = &basbase.EventContext_SessionId{SessionId: sessionID}
+	default:
+		return errors.New("recording entry has an execution origin")
+	}
+	driver.RedactSensitiveTimelineEntry(canonical)
+	err = s.append(ctx, &persistence.UnifiedTimelineEntry{
+		ID: entryID, Type: persistence.TimelineEntryTypeAction, Timestamp: canonical.Timestamp.AsTime(),
+		SessionID: sessionID, PageID: pageID, Sequence: int(canonical.GetSequenceNum()), Entry: canonical,
 	})
+	if err == nil {
+		observed.SequenceNum = canonical.GetSequenceNum()
+	}
+	return err
 }
 
 func (s *Service) RecordPageEvent(ctx context.Context, id string, event *domain.PageEvent) error {
@@ -126,6 +182,9 @@ func (s *Service) append(ctx context.Context, entry *persistence.UnifiedTimeline
 	if err != nil {
 		return err
 	}
+	if entry.Entry != nil {
+		entry.Entry.SequenceNum = int32(entry.Sequence)
+	}
 	s.notifyMu.RLock()
 	notify := s.onAction
 	s.notifyMu.RUnlock()
@@ -145,6 +204,9 @@ func (s *Service) GetTimeline(ctx context.Context, q persistence.TimelineQuery) 
 		return nil, err
 	}
 	for i := range response.Entries {
+		if response.Entries[i].Entry != nil {
+			driver.RedactSensitiveTimelineEntry(response.Entries[i].Entry)
+		}
 		if response.Entries[i].Action != nil {
 			response.Entries[i].Action = redactStoredActionForRead(response.Entries[i].Action)
 		}
@@ -210,86 +272,4 @@ func (s *Service) SetOnAction(callback func(string, *persistence.UnifiedTimeline
 	s.notifyMu.Lock()
 	defer s.notifyMu.Unlock()
 	s.onAction = callback
-}
-
-// convertDriverAction converts a driver.RecordedAction to domain.RecordingAction.
-func (s *Service) convertDriverAction(action *driver.RecordedAction, sessionID string, pageID uuid.UUID, ts time.Time, source ActionSource) *domain.RecordingAction {
-	actionID, err := uuid.Parse(action.ID)
-	if err != nil {
-		// Capture sources may use opaque IDs; preserve retry identity per session.
-		actionID = uuid.NewSHA1(uuid.NameSpaceOID, []byte(sessionID+":"+action.ID))
-	}
-
-	result := &domain.RecordingAction{
-		ID:          actionID,
-		SessionID:   sessionID,
-		PageID:      pageID,
-		SequenceNum: action.SequenceNum,
-		ActionType:  action.ActionType,
-		Timestamp:   ts,
-		DurationMs:  action.DurationMs,
-		URL:         action.URL,
-		PageTitle:   action.PageTitle,
-		Confidence:  action.Confidence,
-		Source:      domain.ActionSource(source),
-		CreatedAt:   s.clock.Now(),
-	}
-
-	// Convert selector
-	if action.Selector != nil {
-		result.Selector = &domain.SelectorSet{
-			Primary: action.Selector.Primary,
-		}
-		if len(action.Selector.Candidates) > 0 {
-			result.Selector.Candidates = make([]domain.SelectorCandidate, len(action.Selector.Candidates))
-			for i, c := range action.Selector.Candidates {
-				result.Selector.Candidates[i] = domain.SelectorCandidate{
-					Type:        c.Type,
-					Value:       c.Value,
-					Confidence:  c.Confidence,
-					Specificity: c.Specificity,
-				}
-			}
-		}
-	}
-
-	// Convert element metadata
-	if action.ElementMeta != nil {
-		result.ElementMeta = &domain.ElementMeta{
-			TagName:   action.ElementMeta.TagName,
-			ID:        action.ElementMeta.ID,
-			ClassName: action.ElementMeta.ClassName,
-			InnerText: action.ElementMeta.InnerText,
-			IsVisible: action.ElementMeta.IsVisible,
-			IsEnabled: action.ElementMeta.IsEnabled,
-			Role:      action.ElementMeta.Role,
-			AriaLabel: action.ElementMeta.AriaLabel,
-		}
-		if action.ElementMeta.Attributes != nil {
-			result.ElementMeta.Attributes = make(map[string]string)
-			for k, v := range action.ElementMeta.Attributes {
-				result.ElementMeta.Attributes[k] = v
-			}
-		}
-	}
-
-	// Convert bounding box
-	if action.BoundingBox != nil {
-		result.BoundingBox = &domain.BoundingBox{
-			X:      action.BoundingBox.X,
-			Y:      action.BoundingBox.Y,
-			Width:  action.BoundingBox.Width,
-			Height: action.BoundingBox.Height,
-		}
-	}
-
-	// Copy payload
-	if action.Payload != nil {
-		result.Payload = make(map[string]interface{})
-		for k, v := range action.Payload {
-			result.Payload[k] = v
-		}
-	}
-
-	return result
 }

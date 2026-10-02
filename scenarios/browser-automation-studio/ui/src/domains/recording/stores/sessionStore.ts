@@ -14,7 +14,7 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import { getApiBase } from '@/config';
-import type { ActualViewport } from '../api/schemas';
+import { timelineEntryId, timelineEntryTimestamp, type ActualViewport } from '../api/schemas';
 import type { Page } from '../hooks/usePages';
 import type { TimelineEntry } from '../api/schemas';
 import type { RetryState } from '../services';
@@ -352,14 +352,14 @@ export const useSessionStore = create<SessionStore>()(
     addTimelineEntry: (entry) =>
       set((s) => {
         // Check if entry already exists
-        if (s.timelineEntries.some((e) => e.id === entry.id)) {
+        if (s.timelineEntries.some((e) => timelineEntryId(e) === timelineEntryId(entry))) {
           return {};
         }
 
         const updated = [...s.timelineEntries, entry];
         // Sort by timestamp
         updated.sort(
-          (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+          (a, b) => new Date(timelineEntryTimestamp(a)).getTime() - new Date(timelineEntryTimestamp(b)).getTime()
         );
 
         return {

@@ -3,7 +3,7 @@ import { WebSocketServer, type WebSocket } from 'ws';
 import type { StartRecordingRequest, StartRecordingResponse, StreamSettingsRequest, StreamSettingsResponse } from '../../src/routes/record-mode/types';
 import { TIMEOUT_MS, action, driver, env, ownership, runAction, withLeases, type Lease } from './support';
 
-type FrameEnvelope = { source: { session_id: string; execution_id: string; lease_id: string; page_id: string }; timing?: { frame_bytes?: number; frame_id?: string } };
+type FrameEnvelope = { source: { stream_kind: 'recording' | 'execution'; session_id: string; execution_id: string; lease_id: string; page_id: string }; timing?: { frame_bytes?: number; frame_id?: string } };
 
 /** Resolve with the next value `listen` produces, or reject after the shared wait timeout. */
 function next<T>(what: string, listen: (done: (value: T) => void) => () => void): Promise<T> {
@@ -58,7 +58,7 @@ describe('[REQ:BAS-RH-J23] frame stream controls and reconnect', () => {
     const firstSocket = nextSocket(observer);
     const start: StartRecordingRequest = {
       ...ownership(lease), recording_id: `j23-${randomUUID()}`,
-      frame_callback_url: `http://127.0.0.1:${address.port}/frames`, frame_quality: 65, frame_fps: 15,
+      frame_stream_url: `ws://127.0.0.1:${address.port}/frames`, frame_quality: 65, frame_fps: 15,
     };
     expect((await driver<StartRecordingResponse>(`${record}/start`, start)).recording_id).toBe(start.recording_id);
     try {

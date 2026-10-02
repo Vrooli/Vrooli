@@ -13,7 +13,7 @@ const createConfig = (overrides?: Partial<StreamingStrategyConfig>): StreamingSt
   targetFps: 10,
   scale: 'css' as const,
   includePerfHeaders: false,
-  sourceForPage: () => ({session_id:'session-1',execution_id:'execution-a',lease_id:'lease-a',page_id:'page-a'}),
+  sourceForPage: () => ({stream_kind:'execution',session_id:'session-1',execution_id:'execution-a',lease_id:'lease-a',page_id:'page-a'}),
   ...overrides,
 });
 
@@ -35,7 +35,7 @@ function createPollingFixture(capture: () => Promise<Buffer> = (): Promise<Buffe
 
 describe('PollingStrategy', () => {
   it('includes the producing page and lease with performance mode disabled [REQ:BAS-RH-J22]',async()=>{
-    const source={session_id:'session-1',execution_id:'execution-a',lease_id:'lease-a',page_id:'page-a'};
+    const source={stream_kind:'execution' as const,session_id:'session-1',execution_id:'execution-a',lease_id:'lease-a',page_id:'page-a'};
     const f = createPollingFixture(() => Promise.resolve(Buffer.from('owned-jpeg')));
     const sent = createDeferred<void>();
     const config={...createConfig(),sourceForPage:(): typeof source => source};
@@ -52,7 +52,7 @@ describe('PollingStrategy', () => {
   });
   it('discards capture completed under a retired lease even when the page is unchanged',async()=>{
     jest.useFakeTimers();
-    let source={session_id:'session-1',execution_id:'execution-a',lease_id:'lease-a',page_id:'page-a'};
+    let source={stream_kind:'execution' as const,session_id:'session-1',execution_id:'execution-a',lease_id:'lease-a',page_id:'page-a'};
     const finish = createDeferred<Buffer>();
     const f = createPollingFixture();
     f.screenshot.mockResolvedValue(Buffer.from('new-lease'));

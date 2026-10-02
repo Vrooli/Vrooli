@@ -320,8 +320,8 @@ func (c *Client) CreateSession(ctx context.Context, req *CreateSessionRequest) (
 	if c.log != nil {
 		c.log.WithFields(logrus.Fields{
 			"execution_id":    req.ExecutionID,
-			"viewport_width":  req.Viewport.Width,
-			"viewport_height": req.Viewport.Height,
+			"viewport_width":  req.Options.Viewport.Width,
+			"viewport_height": req.Options.Viewport.Height,
 		}).Debug("Creating playwright session")
 	}
 
@@ -601,18 +601,12 @@ func (c *Client) GetRecordedActions(ctx context.Context, sessionID string) (*Get
 		entries = append(entries, &entry)
 	}
 
-	if len(actions) == 0 && len(entries) > 0 {
-		actions = make([]RecordedAction, 0, len(entries))
-		for _, entry := range entries {
-			actions = append(actions, RecordedActionFromTimelineEntry(entry))
-		}
-	}
-
 	return &GetActionsResponse{
-		SessionID:   raw.SessionID,
-		IsRecording: raw.IsRecording,
-		Actions:     actions,
-		Entries:     sanitizedRawEntries,
+		SessionID:       raw.SessionID,
+		IsRecording:     raw.IsRecording,
+		Actions:         actions,
+		Entries:         sanitizedRawEntries,
+		TimelineEntries: entries,
 	}, nil
 }
 
@@ -1254,6 +1248,60 @@ func (c *Client) doRequestInternal(req *http.Request, response interface{}, oper
 	}
 
 	return nil
+}
+
+// SessionRouteRequest is the broker's escape hatch for driver session endpoints
+// whose response is intentionally proxied without interpreting its schema.
+// Callers must still enter through automation/session's owned Session.
+func (c *Client) SessionRouteRequest(ctx context.Context, sessionID, method, suffix string, body []byte) (*http.Response, error) {
+	allowed := map[string]bool{
+		http.MethodGet + " /record/debug":        true,
+		http.MethodPost + " /ai-navigate":        true,
+		http.MethodPost + " /ai-navigate/abort":  true,
+		http.MethodPost + " /ai-navigate/resume": true,
+	}
+	if strings.TrimSpace(sessionID) == "" || !allowed[method+" "+suffix] {
+		return nil, errors.New("invalid session route")
+	}
+	endpoint := c.baseURL + "/session/" + url.PathEscape(sessionID) + suffix
+	var requestBody io.Reader
+	if body != nil {
+		requestBody = bytes.NewReader(body)
+	}
+	req, err := http.NewRequestWithContext(ctx, method, endpoint, requestBody)
+	if err != nil {
+		return nil, err
+	}
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	var response *http.Response
+	operation := method + " /session/:id" + suffix
+	call := func() error {
+		resp, doErr := c.httpClient.Do(req)
+		if doErr != nil {
+			return &Error{Op: operation, URL: c.baseURL, Message: "driver unavailable", Cause: doErr, Hint: "verify playwright-driver is running and PLAYWRIGHT_DRIVER_URL is correct"}
+		}
+		response = resp
+		if resp.StatusCode >= 400 {
+			if method == http.MethodGet && suffix == "/record/debug" {
+				return nil // The debug API is a transparent proxy and preserves upstream status/body.
+			}
+			payload, _ := io.ReadAll(resp.Body)
+			resp.Body.Close()
+			return &Error{Op: operation, URL: c.baseURL, Status: resp.StatusCode, Message: strings.TrimSpace(string(payload)), Hint: hintForDriverFailure(string(payload))}
+		}
+		return nil
+	}
+	if c.breaker != nil {
+		_, err = c.breaker.Execute(func() (any, error) { return nil, call() })
+	} else {
+		err = call()
+	}
+	if err != nil {
+		return nil, err
+	}
+	return response, nil
 }
 
 func hintForDriverFailure(message string) string {

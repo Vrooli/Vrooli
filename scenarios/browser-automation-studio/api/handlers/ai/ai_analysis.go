@@ -9,6 +9,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/constants"
+	modelai "github.com/vrooli/browser-automation-studio/services/ai"
 	"github.com/vrooli/browser-automation-studio/services/credits"
 )
 
@@ -24,7 +25,7 @@ type ElementAnalyzer interface {
 	Analyze(ctx context.Context, url, intent string) ([]ElementInfo, error)
 }
 
-// AIAnalysisHandler handles AI-powered element analysis using Ollama.
+// AIAnalysisHandler handles AI-powered element analysis through the shared AI model service.
 // It focuses on HTTP concerns and delegates domain logic to an ElementAnalyzer.
 type AIAnalysisHandler struct {
 	log           *logrus.Logger
@@ -36,7 +37,7 @@ type AIAnalysisHandler struct {
 type aiAnalysisConfig struct {
 	analyzer      ElementAnalyzer
 	domExtractor  DOMExtractor
-	ollamaClient  OllamaClient
+	modelClient   modelai.RolePromptClient
 	role          string
 	timeout       time.Duration
 	creditService credits.CreditService
@@ -52,14 +53,14 @@ func WithDOMExtractor(extractor DOMExtractor) AIAnalysisOption {
 	}
 }
 
-// WithAIAnalysisOllamaClient sets a custom Ollama client for AI analysis.
-func WithAIAnalysisOllamaClient(client OllamaClient) AIAnalysisOption {
+// WithAIAnalysisModelClient sets the shared model service used for analysis.
+func WithAIAnalysisModelClient(client modelai.RolePromptClient) AIAnalysisOption {
 	return func(cfg *aiAnalysisConfig) {
-		cfg.ollamaClient = client
+		cfg.modelClient = client
 	}
 }
 
-// WithAIAnalysisRole sets the Ollama role to use for AI analysis.
+// WithAIAnalysisRole sets the AI model role to use for AI analysis.
 func WithAIAnalysisRole(role string) AIAnalysisOption {
 	return func(cfg *aiAnalysisConfig) {
 		cfg.role = role
@@ -90,7 +91,7 @@ func WithAIAnalysisCreditService(svc credits.CreditService) AIAnalysisOption {
 // NewAIAnalysisHandler creates a new AI analysis handler with optional configuration.
 func NewAIAnalysisHandler(log *logrus.Logger, domHandler *DOMHandler, opts ...AIAnalysisOption) *AIAnalysisHandler {
 	cfg := aiAnalysisConfig{
-		role:    defaultOllamaRole,
+		role:    defaultAIModelRole,
 		timeout: constants.AIAnalysisTimeout,
 	}
 
@@ -104,15 +105,15 @@ func NewAIAnalysisHandler(log *logrus.Logger, domHandler *DOMHandler, opts ...AI
 		if domExtractor == nil && domHandler != nil {
 			domExtractor = domHandler
 		}
-		ollamaClient := cfg.ollamaClient
-		if ollamaClient == nil {
-			ollamaClient = NewDefaultOllamaClient(log)
+		modelClient := cfg.modelClient
+		if modelClient == nil {
+			modelClient = modelai.NewOpenRouterClient(log)
 		}
 
 		analyzer = &AIElementAnalyzer{
 			log:          log,
 			domExtractor: domExtractor,
-			ollamaClient: ollamaClient,
+			modelClient:  modelClient,
 			role:         cfg.role,
 		}
 	}
@@ -191,15 +192,15 @@ func (h *AIAnalysisHandler) analyzeElementsWithAI(ctx context.Context, url, inte
 	return h.analyzer.Analyze(ctx, url, intent)
 }
 
-// AIElementAnalyzer owns the domain logic for DOM extraction and Ollama prompting.
+// AIElementAnalyzer owns the domain logic for DOM extraction and model prompting.
 type AIElementAnalyzer struct {
 	log          *logrus.Logger
 	domExtractor DOMExtractor
-	ollamaClient OllamaClient
+	modelClient  modelai.RolePromptClient
 	role         string
 }
 
-// Analyze extracts the DOM for the given URL and asks the configured Ollama role for element suggestions.
+// Analyze extracts the DOM for the given URL and asks the configured AI model role for element suggestions.
 func (a *AIElementAnalyzer) Analyze(ctx context.Context, url, intent string) ([]ElementInfo, error) {
 	if a.domExtractor == nil {
 		return nil, fmt.Errorf("DOM extractor not configured")
@@ -224,7 +225,7 @@ func (a *AIElementAnalyzer) Analyze(ctx context.Context, url, intent string) ([]
 		}).Info("Extracted DOM tree")
 	}
 
-	// Create a prompt for Ollama to analyze the DOM and suggest elements
+	// Create a prompt for the model service to analyze the DOM and suggest elements.
 	prompt := fmt.Sprintf(`You are an expert web automation assistant. Analyze this DOM tree and help identify the best elements to interact with based on the user's intent.
 
 URL: %s
@@ -263,52 +264,52 @@ Example format:
   }
 ]`, url, intent, domData)
 
-	// Query Ollama via the client interface
-	ollamaPayload, err := a.ollamaClient.Query(ctx, a.role, prompt, "")
+	// Query the shared model service through its role-aware interface.
+	modelResponse, err := a.modelClient.ExecutePromptWithRole(ctx, a.role, prompt)
 	if err != nil {
-		return nil, fmt.Errorf("failed to call ollama API: %w", err)
+		return nil, fmt.Errorf("failed to call AI model service: %w", err)
 	}
 
-	// Log the raw Ollama response for debugging
+	// Log the raw AI model response for debugging
 	previewLen := 200
-	if len(ollamaPayload) < previewLen {
-		previewLen = len(ollamaPayload)
+	if len(modelResponse) < previewLen {
+		previewLen = len(modelResponse)
 	}
 	if a.log != nil {
 		a.log.WithFields(logrus.Fields{
 			"role":             a.role,
-			"response_length":  len(ollamaPayload),
-			"response_preview": ollamaPayload[:previewLen],
-		}).Info("Received Ollama response")
+			"response_length":  len(modelResponse),
+			"response_preview": modelResponse[:previewLen],
+		}).Info("Received AI model response")
 	}
 
 	// Parse the JSON response from the model
 	var suggestions []ElementInfo
 
 	// First try direct parsing
-	if err := json.Unmarshal([]byte(ollamaPayload), &suggestions); err != nil {
+	if err := json.Unmarshal([]byte(modelResponse), &suggestions); err != nil {
 		// Clean up common issues in the response
 		// Remove any escape sequences
-		ollamaPayload = strings.ReplaceAll(ollamaPayload, "\\r", "")
-		ollamaPayload = strings.ReplaceAll(ollamaPayload, "\\n", "\n")
-		ollamaPayload = strings.ReplaceAll(ollamaPayload, "\\\"", "\"")
-		ollamaPayload = strings.ReplaceAll(ollamaPayload, "\\\\", "\\")
+		modelResponse = strings.ReplaceAll(modelResponse, "\\r", "")
+		modelResponse = strings.ReplaceAll(modelResponse, "\\n", "\n")
+		modelResponse = strings.ReplaceAll(modelResponse, "\\\"", "\"")
+		modelResponse = strings.ReplaceAll(modelResponse, "\\\\", "\\")
 
 		// Try to find and extract just the JSON array
-		startIdx := strings.Index(ollamaPayload, "[")
-		endIdx := strings.LastIndex(ollamaPayload, "]")
+		startIdx := strings.Index(modelResponse, "[")
+		endIdx := strings.LastIndex(modelResponse, "]")
 
 		if startIdx != -1 && endIdx != -1 && endIdx > startIdx {
-			jsonStr := ollamaPayload[startIdx : endIdx+1]
+			jsonStr := modelResponse[startIdx : endIdx+1]
 
 			// Clean up the extracted JSON
 			jsonStr = strings.TrimSpace(jsonStr)
 
 			// Try parsing the cleaned JSON
 			if err := json.Unmarshal([]byte(jsonStr), &suggestions); err != nil {
-				origPreview := ollamaPayload
-				if len(ollamaPayload) > 300 {
-					origPreview = ollamaPayload[:300]
+				origPreview := modelResponse
+				if len(modelResponse) > 300 {
+					origPreview = modelResponse[:300]
 				}
 				cleanedPreview := jsonStr
 				if len(jsonStr) > 300 {
@@ -340,12 +341,12 @@ Example format:
 			}
 		} else {
 			if a.log != nil {
-				a.log.WithField("response", ollamaPayload).Error("No valid JSON found in AI response")
+				a.log.WithField("response", modelResponse).Error("No valid JSON found in AI response")
 			}
 			// Return debug info about what we received
-			respPreview := ollamaPayload
-			if len(ollamaPayload) > 100 {
-				respPreview = ollamaPayload[:100]
+			respPreview := modelResponse
+			if len(modelResponse) > 100 {
+				respPreview = modelResponse[:100]
 			}
 			return []ElementInfo{{
 				Text:       "No JSON found in response",

@@ -9,9 +9,9 @@ metadata:
   tags: [supervision, effort, efficiency, orchestration, evidence]
   icon: eye
   status: active
-  revision: 20
+  revision: 21
   createdAt: "2026-09-12T00:00:00Z"
-  updatedAt: "2026-09-30T18:00:00Z"
+  updatedAt: "2026-10-01T15:00:00Z"
   requires:
     scenarios: [agent-manager, prompt-manager]
     commands: [agent-manager, prompt-manager skill read]
@@ -38,6 +38,7 @@ Model: Sol. Every wake costs about 10× a Luna wake, so each wake needs a reason
 | Step-back | An orchestrator's trigger after a `STEP_BACK` or park/switch/shrink entry in `QUEUE.md` | Audit it (§4). |
 | Repeated workaround | The same `WORKAROUNDS.md` failure logged twice, or by two goals | Repair it (§3). |
 | Spend spike | A goal's weighted tokens per day above twice its 7-day median | Find the cause; steer or repair. |
+| Planning finding | An orchestrator's trigger after a planning finding in the `QUEUE.md` Forecast | Audit the plan (§4). |
 
 Event wakes arrive as manual heartbeat triggers from orchestrators; find the
 event in the goal home. Never wake on unchanged state, and never start a
@@ -55,7 +56,12 @@ For each active goal home:
    Luna 1). Subscription dollar figures are $0 by construction; unknown usage stays
    unknown.
 3. Report per goal: epochs accepted, weighted cost per accepted epoch, parked
-   slices, open workarounds, and whether the exit metric moved.
+   slices, open workarounds, and whether the exit metric moved. Report the
+   orchestrator's own tokens against its children's: above about 25% of the
+   goal's spend is overhead to repair (wake count, park timeout, gate reruns).
+   Check the `QUEUE.md` Forecast: missing or older than the last acceptance, or
+   a scaled queue that cannot close the gap with no planning under way, is a
+   steering entry (§5).
 4. Confirm the orchestrator is running or parked. A repeated heartbeat relaunch
    within a day is a repair target, not a reason to relaunch again.
 5. Repair (§3) the open workaround that costs delivery the most, every daily
@@ -82,7 +88,10 @@ work is a failed audit: its remainder goes back to the queue), the growth budget
 holds, test changes
 follow `path:docs/testing/UNIT-TEST-AUTHORING.md#mature-a-suite-instead-of-growing-it`
 (net test lines and new fakes are the first thing to check), and a step-back
-chose park, switch or shrink for a stated reason.
+chose park, switch or shrink for a stated reason. For a planning finding, check
+that the new or re-estimated slices come from measured module gaps, carry
+deletion lists, and together can close the gap at the recent actual/estimate
+ratio.
 
 ### 5. Steering
 

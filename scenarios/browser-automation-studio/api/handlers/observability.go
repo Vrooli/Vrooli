@@ -220,31 +220,6 @@ func (h *Handler) FetchObservabilityMetrics(ctx context.Context) (map[string]any
 	return h.fetchObservabilityJSON(ctx, http.MethodGet, "/observability/metrics", nil, nil, 10*time.Second)
 }
 
-// FetchObservabilityConfigRuntime proxies GET /observability/config/runtime.
-func (h *Handler) FetchObservabilityConfigRuntime(ctx context.Context) (map[string]any, error) {
-	return h.fetchObservabilityJSON(ctx, http.MethodGet, "/observability/config/runtime", nil, nil, 10*time.Second)
-}
-
-// UpdateObservabilityConfig proxies PUT /observability/config/{envVar}.
-func (h *Handler) UpdateObservabilityConfig(ctx context.Context, envVar, value string) (map[string]any, error) {
-	if envVar == "" {
-		return nil, errors.New("envVar is required")
-	}
-	body, err := encodeJSONBody(map[string]any{"value": value})
-	if err != nil {
-		return nil, err
-	}
-	return h.fetchObservabilityJSON(ctx, http.MethodPut, "/observability/config/"+url.PathEscape(envVar), nil, body, 10*time.Second)
-}
-
-// ResetObservabilityConfig proxies DELETE /observability/config/{envVar}.
-func (h *Handler) ResetObservabilityConfig(ctx context.Context, envVar string) (map[string]any, error) {
-	if envVar == "" {
-		return nil, errors.New("envVar is required")
-	}
-	return h.fetchObservabilityJSON(ctx, http.MethodDelete, "/observability/config/"+url.PathEscape(envVar), nil, nil, 10*time.Second)
-}
-
 // encodeJSONBody marshals the supplied map as JSON. A nil/empty map is
 // encoded as `{}` so downstream parsers always see a valid object.
 func encodeJSONBody(payload map[string]any) (io.Reader, error) {

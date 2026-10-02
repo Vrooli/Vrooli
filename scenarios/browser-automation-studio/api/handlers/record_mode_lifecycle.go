@@ -90,7 +90,7 @@ func (h *Handler) GetRecordingStatus(w http.ResponseWriter, r *http.Request) {
 		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{"field": "sessionId"}))
 		return
 	}
-	status, err := h.recordModeService.DriverClient().GetRecordingStatus(ctx, sessionID)
+	status, err := h.recordModeService.GetRecordingStatus(ctx, sessionID)
 	if err != nil {
 		h.log.WithError(err).Error("Failed to get recording status")
 		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{"error": err.Error()}))

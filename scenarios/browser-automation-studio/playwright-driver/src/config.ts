@@ -69,98 +69,93 @@ export interface ConfigOptionMetadata {
   max?: number;
   /** For enum types: allowed values */
   enumValues?: string[];
-  /**
-   * Whether this option can be changed at runtime without restart.
-   * Options marked as editable will have a setter in the runtime config.
-   */
-  editable?: boolean;
 }
 
 /**
  * Metadata for each configuration option.
- * Maps environment variable names to their tier, default value, type, and editability.
+ * Maps environment variable names to their tier, default value, and type.
  * Used for warning when non-essential options are modified and for UI display.
  */
 export const CONFIG_TIER_METADATA: Record<string, ConfigOptionMetadata> = {
   // === Tier 1: Essential ===
-  PLAYWRIGHT_DRIVER_PORT: { tier: ConfigTier.ESSENTIAL, defaultValue: 39400, description: 'HTTP server port', dataType: 'integer', min: 1, max: 65535, editable: false },
-  MAX_SESSIONS: { tier: ConfigTier.ESSENTIAL, defaultValue: 10, description: 'Maximum parallel browser sessions', dataType: 'integer', min: 1, max: 100, editable: false },
-  EXECUTION_DEFAULT_TIMEOUT_MS: { tier: ConfigTier.ESSENTIAL, defaultValue: 30000, description: 'Default timeout for operations (click, type, etc.)', dataType: 'integer', min: 1000, max: 300000, editable: true },
-  LOG_LEVEL: { tier: ConfigTier.ESSENTIAL, defaultValue: 'info', description: 'Log verbosity level', dataType: 'enum', enumValues: ['debug', 'info', 'warn', 'error'], editable: true },
-  METRICS_ENABLED: { tier: ConfigTier.ESSENTIAL, defaultValue: true, description: 'Prometheus metrics endpoint', dataType: 'boolean', editable: false },
+  PLAYWRIGHT_DRIVER_PORT: { tier: ConfigTier.ESSENTIAL, defaultValue: 39400, description: 'HTTP server port', dataType: 'integer', min: 1, max: 65535 },
+  MAX_SESSIONS: { tier: ConfigTier.ESSENTIAL, defaultValue: 10, description: 'Maximum parallel browser sessions', dataType: 'integer', min: 1, max: 100 },
+  EXECUTION_DEFAULT_TIMEOUT_MS: { tier: ConfigTier.ESSENTIAL, defaultValue: 30000, description: 'Default timeout for operations (click, type, etc.)', dataType: 'integer', min: 1000, max: 300000 },
+  LOG_LEVEL: { tier: ConfigTier.ESSENTIAL, defaultValue: 'info', description: 'Log verbosity level', dataType: 'enum', enumValues: ['debug', 'info', 'warn', 'error'] },
+  METRICS_ENABLED: { tier: ConfigTier.ESSENTIAL, defaultValue: true, description: 'Prometheus metrics endpoint', dataType: 'boolean' },
 
   // === Tier 2: Advanced ===
-  EXECUTION_NAVIGATION_TIMEOUT_MS: { tier: ConfigTier.ADVANCED, defaultValue: 45000, description: 'Navigation timeout (goto, reload)', dataType: 'integer', min: 5000, max: 300000, editable: true },
-  EXECUTION_WAIT_TIMEOUT_MS: { tier: ConfigTier.ADVANCED, defaultValue: 30000, description: 'Wait timeout (waitForSelector)', dataType: 'integer', min: 1000, max: 300000, editable: true },
-  EXECUTION_ASSERTION_TIMEOUT_MS: { tier: ConfigTier.ADVANCED, defaultValue: 15000, description: 'Assertion timeout', dataType: 'integer', min: 1000, max: 120000, editable: true },
-  EXECUTION_REPLAY_TIMEOUT_MS: { tier: ConfigTier.ADVANCED, defaultValue: 10000, description: 'Replay action timeout', dataType: 'integer', min: 1000, max: 120000, editable: true },
-  SCREENSHOT_ENABLED: { tier: ConfigTier.ADVANCED, defaultValue: true, description: 'Screenshot collection', dataType: 'boolean', editable: true },
-  SCREENSHOT_QUALITY: { tier: ConfigTier.ADVANCED, defaultValue: 80, description: 'Screenshot JPEG quality', dataType: 'integer', min: 1, max: 100, editable: true },
-  DOM_ENABLED: { tier: ConfigTier.ADVANCED, defaultValue: true, description: 'DOM snapshot collection', dataType: 'boolean', editable: true },
-  CONSOLE_ENABLED: { tier: ConfigTier.ADVANCED, defaultValue: true, description: 'Console log collection', dataType: 'boolean', editable: true },
-  NETWORK_ENABLED: { tier: ConfigTier.ADVANCED, defaultValue: true, description: 'Network event collection', dataType: 'boolean', editable: true },
-  SESSION_POOL_SIZE: { tier: ConfigTier.ADVANCED, defaultValue: 5, description: 'Pre-warmed session pool', dataType: 'integer', min: 1, max: 50, editable: false },
-  SESSION_IDLE_TIMEOUT_MS: { tier: ConfigTier.ADVANCED, defaultValue: 300000, description: 'Session idle TTL (5 min default)', dataType: 'integer', min: 10000, max: 7200000, editable: true },
+  EXECUTION_NAVIGATION_TIMEOUT_MS: { tier: ConfigTier.ADVANCED, defaultValue: 45000, description: 'Navigation timeout (goto, reload)', dataType: 'integer', min: 5000, max: 300000 },
+  EXECUTION_WAIT_TIMEOUT_MS: { tier: ConfigTier.ADVANCED, defaultValue: 30000, description: 'Wait timeout (waitForSelector)', dataType: 'integer', min: 1000, max: 300000 },
+  EXECUTION_ASSERTION_TIMEOUT_MS: { tier: ConfigTier.ADVANCED, defaultValue: 15000, description: 'Assertion timeout', dataType: 'integer', min: 1000, max: 120000 },
+  EXECUTION_REPLAY_TIMEOUT_MS: { tier: ConfigTier.ADVANCED, defaultValue: 10000, description: 'Replay action timeout', dataType: 'integer', min: 1000, max: 120000 },
+  SCREENSHOT_ENABLED: { tier: ConfigTier.ADVANCED, defaultValue: true, description: 'Screenshot collection', dataType: 'boolean' },
+  SCREENSHOT_QUALITY: { tier: ConfigTier.ADVANCED, defaultValue: 80, description: 'Screenshot JPEG quality', dataType: 'integer', min: 1, max: 100 },
+  DOM_ENABLED: { tier: ConfigTier.ADVANCED, defaultValue: true, description: 'DOM snapshot collection', dataType: 'boolean' },
+  CONSOLE_ENABLED: { tier: ConfigTier.ADVANCED, defaultValue: true, description: 'Console log collection', dataType: 'boolean' },
+  NETWORK_ENABLED: { tier: ConfigTier.ADVANCED, defaultValue: true, description: 'Network event collection', dataType: 'boolean' },
+  SESSION_POOL_SIZE: { tier: ConfigTier.ADVANCED, defaultValue: 5, description: 'Pre-warmed session pool', dataType: 'integer', min: 1, max: 50 },
+  SESSION_IDLE_TIMEOUT_MS: { tier: ConfigTier.ADVANCED, defaultValue: 300000, description: 'Session idle TTL (5 min default)', dataType: 'integer', min: 10000, max: 7200000 },
 
   // === Tier 2: AI Navigation (Advanced) ===
-  AI_MAX_STEPS: { tier: ConfigTier.ADVANCED, defaultValue: 20, description: 'Vision agent max steps per navigation', dataType: 'integer', min: 1, max: 100, editable: true },
-  AI_SCREENSHOT_QUALITY: { tier: ConfigTier.ADVANCED, defaultValue: 80, description: 'AI screenshot JPEG quality', dataType: 'integer', min: 1, max: 100, editable: true },
-  AI_ACTION_TIMEOUT_MS: { tier: ConfigTier.ADVANCED, defaultValue: 30000, description: 'AI action execution timeout', dataType: 'integer', min: 1000, max: 120000, editable: true },
+  AI_MAX_STEPS: { tier: ConfigTier.ADVANCED, defaultValue: 20, description: 'Vision agent max steps per navigation', dataType: 'integer', min: 1, max: 100 },
+  AI_SCREENSHOT_QUALITY: { tier: ConfigTier.ADVANCED, defaultValue: 80, description: 'AI screenshot JPEG quality', dataType: 'integer', min: 1, max: 100 },
+  AI_ACTION_TIMEOUT_MS: { tier: ConfigTier.ADVANCED, defaultValue: 30000, description: 'AI action execution timeout', dataType: 'integer', min: 1000, max: 120000 },
 
   // === Tier 3: Internal ===
-  PLAYWRIGHT_DRIVER_HOST: { tier: ConfigTier.INTERNAL, defaultValue: '127.0.0.1', description: 'HTTP server host', dataType: 'string', editable: false },
-  PLAYWRIGHT_DRIVER_ADMIN_SECRET: { tier: ConfigTier.INTERNAL, defaultValue: '', description: 'Shared secret required for loopback administrative session recovery', dataType: 'string', editable: false },
-  REQUEST_TIMEOUT_MS: { tier: ConfigTier.INTERNAL, defaultValue: 300000, description: 'Request timeout', dataType: 'integer', min: 1000, max: 7200000, editable: true },
-  MAX_REQUEST_SIZE: { tier: ConfigTier.INTERNAL, defaultValue: 5242880, description: 'Max request body size (bytes)', dataType: 'integer', min: 1024, max: 52428800, editable: false },
-  HEADLESS: { tier: ConfigTier.INTERNAL, defaultValue: false, description: 'Use headless_shell binary (false = regular Chromium with --headless=new)', dataType: 'boolean', editable: false },
-  BROWSER_EXECUTABLE_PATH: { tier: ConfigTier.INTERNAL, defaultValue: undefined, description: 'Custom browser path', dataType: 'string', editable: false },
-  BROWSER_ARGS: { tier: ConfigTier.INTERNAL, defaultValue: '', description: 'Extra browser arguments (comma-separated)', dataType: 'string', editable: false },
-  BAS_FAKE_MICROPHONE_FILE: { tier: ConfigTier.INTERNAL, defaultValue: undefined, description: 'Absolute WAV path for Chromium fake microphone capture during deterministic media qualification', dataType: 'string', editable: false },
-  IGNORE_HTTPS_ERRORS: { tier: ConfigTier.INTERNAL, defaultValue: false, description: 'Ignore HTTPS certificate errors', dataType: 'boolean', editable: false },
-  RECORDING_MAX_BUFFER_SIZE: { tier: ConfigTier.INTERNAL, defaultValue: 10000, description: 'Recording buffer size (actions)', dataType: 'integer', min: 100, max: 100000, editable: true },
-  RECORDING_MIN_SELECTOR_CONFIDENCE: { tier: ConfigTier.INTERNAL, defaultValue: 0.3, description: 'Selector confidence threshold (0-1)', dataType: 'float', min: 0, max: 1, editable: true },
-  RECORDING_INPUT_DEBOUNCE_MS: { tier: ConfigTier.INTERNAL, defaultValue: 500, description: 'Input debounce timing', dataType: 'integer', min: 50, max: 2000, editable: true },
-  RECORDING_SCROLL_DEBOUNCE_MS: { tier: ConfigTier.INTERNAL, defaultValue: 150, description: 'Scroll debounce timing', dataType: 'integer', min: 50, max: 1000, editable: true },
-  RECORDING_MAX_CSS_DEPTH: { tier: ConfigTier.INTERNAL, defaultValue: 5, description: 'CSS path max depth', dataType: 'integer', min: 2, max: 10, editable: true },
-  RECORDING_INCLUDE_XPATH: { tier: ConfigTier.INTERNAL, defaultValue: true, description: 'Include XPath selectors', dataType: 'boolean', editable: true },
-  RECORDING_DEFAULT_SWIPE_DISTANCE: { tier: ConfigTier.INTERNAL, defaultValue: 300, description: 'Default swipe distance (px)', dataType: 'integer', min: 50, max: 1000, editable: true },
-  FRAME_STREAMING_USE_SCREENCAST: { tier: ConfigTier.INTERNAL, defaultValue: true, description: 'Use CDP screencast for streaming', dataType: 'boolean', editable: false },
-  FRAME_STREAMING_FALLBACK: { tier: ConfigTier.INTERNAL, defaultValue: true, description: 'Fall back to polling if screencast fails', dataType: 'boolean', editable: false },
-  FRAME_STREAMING_CDP_ACK_TIMEOUT_MS: { tier: ConfigTier.INTERNAL, defaultValue: 1000, description: 'CDP frame ACK timeout', dataType: 'integer', min: 100, max: 10000, editable: true },
-  FRAME_STREAMING_CDP_MAX_ACK_FAILURES: { tier: ConfigTier.INTERNAL, defaultValue: 5, description: 'Max CDP ACK failures before error', dataType: 'integer', min: 1, max: 100, editable: true },
-  FRAME_STREAMING_CDP_FRAME_LOG_INTERVAL: { tier: ConfigTier.INTERNAL, defaultValue: 60, description: 'Log stats every N frames (0 = disable)', dataType: 'integer', min: 0, max: 1000, editable: true },
-  FRAME_STREAMING_CDP_PAGE_CHECK_INTERVAL_MS: { tier: ConfigTier.INTERNAL, defaultValue: 100, description: 'Multi-tab check interval', dataType: 'integer', min: 50, max: 5000, editable: true },
-  PLAYWRIGHT_DRIVER_PERF_ENABLED: { tier: ConfigTier.INTERNAL, defaultValue: false, description: 'Performance debug mode', dataType: 'boolean', editable: true },
-  PLAYWRIGHT_DRIVER_PERF_INCLUDE_HEADERS: { tier: ConfigTier.INTERNAL, defaultValue: true, description: 'Include timing headers', dataType: 'boolean', editable: true },
-  PLAYWRIGHT_DRIVER_PERF_LOG_INTERVAL: { tier: ConfigTier.INTERNAL, defaultValue: 60, description: 'Performance log interval (frames)', dataType: 'integer', min: 0, max: 1000, editable: true },
-  PLAYWRIGHT_DRIVER_PERF_BUFFER_SIZE: { tier: ConfigTier.INTERNAL, defaultValue: 100, description: 'Performance buffer size', dataType: 'integer', min: 1, max: 1000, editable: true },
-  METRICS_PORT: { tier: ConfigTier.INTERNAL, defaultValue: 9090, description: 'Metrics server port', dataType: 'integer', min: 1, max: 65535, editable: false },
-  CLEANUP_INTERVAL_MS: { tier: ConfigTier.INTERNAL, defaultValue: 60000, description: 'Session cleanup interval', dataType: 'integer', min: 5000, max: 600000, editable: true },
-  SCREENSHOT_FULL_PAGE: { tier: ConfigTier.INTERNAL, defaultValue: false, description: 'Full page screenshots (may cause viewport oscillation)', dataType: 'boolean', editable: true },
-  RECORDING_DIAGNOSTICS_ENABLED: { tier: ConfigTier.INTERNAL, defaultValue: false, description: 'Verbose recording diagnostics (injection, event flow)', dataType: 'boolean', editable: true },
-  SCREENSHOT_MAX_SIZE: { tier: ConfigTier.INTERNAL, defaultValue: 512000, description: 'Max screenshot size (bytes)', dataType: 'integer', min: 1024, max: 10485760, editable: true },
-  DOM_MAX_SIZE: { tier: ConfigTier.INTERNAL, defaultValue: 524288, description: 'Max DOM snapshot size (bytes)', dataType: 'integer', min: 1024, max: 10485760, editable: true },
-  CONSOLE_MAX_ENTRIES: { tier: ConfigTier.INTERNAL, defaultValue: 100, description: 'Max console entries', dataType: 'integer', min: 1, max: 10000, editable: true },
-  NETWORK_MAX_EVENTS: { tier: ConfigTier.INTERNAL, defaultValue: 200, description: 'Max network events', dataType: 'integer', min: 1, max: 10000, editable: true },
-  HAR_ENABLED: { tier: ConfigTier.INTERNAL, defaultValue: false, description: 'HAR recording', dataType: 'boolean', editable: true },
-  TRACING_ENABLED: { tier: ConfigTier.INTERNAL, defaultValue: false, description: 'Playwright tracing', dataType: 'boolean', editable: true },
-  LOG_FORMAT: { tier: ConfigTier.INTERNAL, defaultValue: 'json', description: 'Log format', dataType: 'enum', enumValues: ['json', 'text'], editable: true },
+  PLAYWRIGHT_DRIVER_HOST: { tier: ConfigTier.INTERNAL, defaultValue: '127.0.0.1', description: 'HTTP server host', dataType: 'string' },
+  PLAYWRIGHT_DRIVER_ADMIN_SECRET: { tier: ConfigTier.INTERNAL, defaultValue: '', description: 'Shared secret required for loopback administrative session recovery', dataType: 'string' },
+  REQUEST_TIMEOUT_MS: { tier: ConfigTier.INTERNAL, defaultValue: 300000, description: 'Request timeout', dataType: 'integer', min: 1000, max: 7200000 },
+  MAX_REQUEST_SIZE: { tier: ConfigTier.INTERNAL, defaultValue: 5242880, description: 'Max request body size (bytes)', dataType: 'integer', min: 1024, max: 52428800 },
+  HEADLESS: { tier: ConfigTier.INTERNAL, defaultValue: false, description: 'Use headless_shell binary (false = regular Chromium with --headless=new)', dataType: 'boolean' },
+  BROWSER_EXECUTABLE_PATH: { tier: ConfigTier.INTERNAL, defaultValue: undefined, description: 'Custom browser path', dataType: 'string' },
+  BROWSER_ARGS: { tier: ConfigTier.INTERNAL, defaultValue: '', description: 'Extra browser arguments (comma-separated)', dataType: 'string' },
+  BAS_FAKE_MICROPHONE_FILE: { tier: ConfigTier.INTERNAL, defaultValue: undefined, description: 'Absolute WAV path for Chromium fake microphone capture during deterministic media qualification', dataType: 'string' },
+  IGNORE_HTTPS_ERRORS: { tier: ConfigTier.INTERNAL, defaultValue: false, description: 'Ignore HTTPS certificate errors', dataType: 'boolean' },
+  RECORDING_MAX_BUFFER_SIZE: { tier: ConfigTier.INTERNAL, defaultValue: 10000, description: 'Recording buffer size (actions)', dataType: 'integer', min: 100, max: 100000 },
+  RECORDING_MIN_SELECTOR_CONFIDENCE: { tier: ConfigTier.INTERNAL, defaultValue: 0.3, description: 'Selector confidence threshold (0-1)', dataType: 'float', min: 0, max: 1 },
+  RECORDING_INPUT_DEBOUNCE_MS: { tier: ConfigTier.INTERNAL, defaultValue: 500, description: 'Input debounce timing', dataType: 'integer', min: 50, max: 2000 },
+  RECORDING_SCROLL_DEBOUNCE_MS: { tier: ConfigTier.INTERNAL, defaultValue: 150, description: 'Scroll debounce timing', dataType: 'integer', min: 50, max: 1000 },
+  RECORDING_MAX_CSS_DEPTH: { tier: ConfigTier.INTERNAL, defaultValue: 5, description: 'CSS path max depth', dataType: 'integer', min: 2, max: 10 },
+  RECORDING_INCLUDE_XPATH: { tier: ConfigTier.INTERNAL, defaultValue: true, description: 'Include XPath selectors', dataType: 'boolean' },
+  RECORDING_DEFAULT_SWIPE_DISTANCE: { tier: ConfigTier.INTERNAL, defaultValue: 300, description: 'Default swipe distance (px)', dataType: 'integer', min: 50, max: 1000 },
+  FRAME_STREAMING_USE_SCREENCAST: { tier: ConfigTier.INTERNAL, defaultValue: true, description: 'Use CDP screencast for streaming', dataType: 'boolean' },
+  FRAME_STREAMING_FALLBACK: { tier: ConfigTier.INTERNAL, defaultValue: true, description: 'Fall back to polling if screencast fails', dataType: 'boolean' },
+  FRAME_STREAMING_CDP_ACK_TIMEOUT_MS: { tier: ConfigTier.INTERNAL, defaultValue: 1000, description: 'CDP frame ACK timeout', dataType: 'integer', min: 100, max: 10000 },
+  FRAME_STREAMING_CDP_MAX_ACK_FAILURES: { tier: ConfigTier.INTERNAL, defaultValue: 5, description: 'Max CDP ACK failures before error', dataType: 'integer', min: 1, max: 100 },
+  FRAME_STREAMING_CDP_FRAME_LOG_INTERVAL: { tier: ConfigTier.INTERNAL, defaultValue: 60, description: 'Log stats every N frames (0 = disable)', dataType: 'integer', min: 0, max: 1000 },
+  FRAME_STREAMING_CDP_PAGE_CHECK_INTERVAL_MS: { tier: ConfigTier.INTERNAL, defaultValue: 100, description: 'Multi-tab check interval', dataType: 'integer', min: 50, max: 5000 },
+  PLAYWRIGHT_DRIVER_PERF_ENABLED: { tier: ConfigTier.INTERNAL, defaultValue: false, description: 'Performance debug mode', dataType: 'boolean' },
+  PLAYWRIGHT_DRIVER_PERF_INCLUDE_HEADERS: { tier: ConfigTier.INTERNAL, defaultValue: true, description: 'Include timing headers', dataType: 'boolean' },
+  PLAYWRIGHT_DRIVER_PERF_LOG_INTERVAL: { tier: ConfigTier.INTERNAL, defaultValue: 60, description: 'Performance log interval (frames)', dataType: 'integer', min: 0, max: 1000 },
+  PLAYWRIGHT_DRIVER_PERF_BUFFER_SIZE: { tier: ConfigTier.INTERNAL, defaultValue: 100, description: 'Performance buffer size', dataType: 'integer', min: 1, max: 1000 },
+  METRICS_PORT: { tier: ConfigTier.INTERNAL, defaultValue: 9090, description: 'Metrics server port', dataType: 'integer', min: 1, max: 65535 },
+  CLEANUP_INTERVAL_MS: { tier: ConfigTier.INTERNAL, defaultValue: 60000, description: 'Session cleanup interval', dataType: 'integer', min: 5000, max: 600000 },
+  SCREENSHOT_FULL_PAGE: { tier: ConfigTier.INTERNAL, defaultValue: false, description: 'Full page screenshots (may cause viewport oscillation)', dataType: 'boolean' },
+  RECORDING_DIAGNOSTICS_ENABLED: { tier: ConfigTier.INTERNAL, defaultValue: false, description: 'Verbose recording diagnostics (injection, event flow)', dataType: 'boolean' },
+  SCREENSHOT_MAX_SIZE: { tier: ConfigTier.INTERNAL, defaultValue: 512000, description: 'Max screenshot size (bytes)', dataType: 'integer', min: 1024, max: 10485760 },
+  DOM_MAX_SIZE: { tier: ConfigTier.INTERNAL, defaultValue: 524288, description: 'Max DOM snapshot size (bytes)', dataType: 'integer', min: 1024, max: 10485760 },
+  CONSOLE_MAX_ENTRIES: { tier: ConfigTier.INTERNAL, defaultValue: 100, description: 'Max console entries', dataType: 'integer', min: 1, max: 10000 },
+  NETWORK_MAX_EVENTS: { tier: ConfigTier.INTERNAL, defaultValue: 200, description: 'Max network events', dataType: 'integer', min: 1, max: 10000 },
+  HAR_ENABLED: { tier: ConfigTier.INTERNAL, defaultValue: false, description: 'HAR recording', dataType: 'boolean' },
+  TRACING_ENABLED: { tier: ConfigTier.INTERNAL, defaultValue: false, description: 'Playwright tracing', dataType: 'boolean' },
+  LOG_FORMAT: { tier: ConfigTier.INTERNAL, defaultValue: 'json', description: 'Log format', dataType: 'enum', enumValues: ['json', 'text'] },
 
   // === Tier 3: AI Navigation Internal ===
-  AI_STEP_DELAY_MS: { tier: ConfigTier.INTERNAL, defaultValue: 0, description: 'Delay between AI steps', dataType: 'integer', min: 0, max: 10000, editable: true },
-  AI_MAX_HISTORY_MESSAGES: { tier: ConfigTier.INTERNAL, defaultValue: 20, description: 'AI conversation history limit', dataType: 'integer', min: 1, max: 100, editable: true },
-  AI_MAX_ELEMENT_LABELS: { tier: ConfigTier.INTERNAL, defaultValue: 50, description: 'Max elements in AI context', dataType: 'integer', min: 1, max: 500, editable: true },
-  AI_POST_ACTION_SETTLE_MS: { tier: ConfigTier.INTERNAL, defaultValue: 100, description: 'Delay after AI action', dataType: 'integer', min: 0, max: 5000, editable: true },
-  AI_CALLBACK_TIMEOUT_MS: { tier: ConfigTier.INTERNAL, defaultValue: 5000, description: 'AI callback request timeout', dataType: 'integer', min: 1000, max: 30000, editable: true },
-  AI_CALLBACK_MAX_RETRIES: { tier: ConfigTier.INTERNAL, defaultValue: 3, description: 'AI callback retry attempts', dataType: 'integer', min: 0, max: 10, editable: true },
-  AI_CALLBACK_RETRY_DELAY_MS: { tier: ConfigTier.INTERNAL, defaultValue: 500, description: 'AI callback retry delay', dataType: 'integer', min: 100, max: 5000, editable: true },
-  AI_MAX_ELEMENTS: { tier: ConfigTier.INTERNAL, defaultValue: 50, description: 'Max elements to extract per page', dataType: 'integer', min: 1, max: 500, editable: true },
-  AI_MAX_TEXT_LENGTH: { tier: ConfigTier.INTERNAL, defaultValue: 100, description: 'Max text length per element', dataType: 'integer', min: 10, max: 1000, editable: true },
+  AI_STEP_DELAY_MS: { tier: ConfigTier.INTERNAL, defaultValue: 0, description: 'Delay between AI steps', dataType: 'integer', min: 0, max: 10000 },
+  AI_MAX_HISTORY_MESSAGES: { tier: ConfigTier.INTERNAL, defaultValue: 20, description: 'AI conversation history limit', dataType: 'integer', min: 1, max: 100 },
+  AI_MAX_ELEMENT_LABELS: { tier: ConfigTier.INTERNAL, defaultValue: 50, description: 'Max elements in AI context', dataType: 'integer', min: 1, max: 500 },
+  AI_POST_ACTION_SETTLE_MS: { tier: ConfigTier.INTERNAL, defaultValue: 100, description: 'Delay after AI action', dataType: 'integer', min: 0, max: 5000 },
+  AI_CALLBACK_TIMEOUT_MS: { tier: ConfigTier.INTERNAL, defaultValue: 5000, description: 'AI callback request timeout', dataType: 'integer', min: 1000, max: 30000 },
+  AI_CALLBACK_MAX_RETRIES: { tier: ConfigTier.INTERNAL, defaultValue: 3, description: 'AI callback retry attempts', dataType: 'integer', min: 0, max: 10 },
+  AI_CALLBACK_RETRY_DELAY_MS: { tier: ConfigTier.INTERNAL, defaultValue: 500, description: 'AI callback retry delay', dataType: 'integer', min: 100, max: 5000 },
+  AI_MAX_ELEMENTS: { tier: ConfigTier.INTERNAL, defaultValue: 50, description: 'Max elements to extract per page', dataType: 'integer', min: 1, max: 500 },
+  AI_MAX_TEXT_LENGTH: { tier: ConfigTier.INTERNAL, defaultValue: 100, description: 'Max text length per element', dataType: 'integer', min: 10, max: 1000 },
 
   // === History Callback ===
-  HISTORY_CALLBACK_URL: { tier: ConfigTier.INTERNAL, defaultValue: '', description: 'URL to POST history entries when navigation occurs', dataType: 'string', editable: false },
-  HISTORY_THUMBNAIL_ENABLED: { tier: ConfigTier.INTERNAL, defaultValue: true, description: 'Capture thumbnails for history entries', dataType: 'boolean', editable: true },
-  HISTORY_THUMBNAIL_QUALITY: { tier: ConfigTier.INTERNAL, defaultValue: 60, description: 'JPEG quality for history thumbnails', dataType: 'integer', min: 10, max: 100, editable: true },
+  HISTORY_CALLBACK_URL: { tier: ConfigTier.INTERNAL, defaultValue: '', description: 'URL to POST history entries when navigation occurs', dataType: 'string' },
+  HISTORY_THUMBNAIL_ENABLED: { tier: ConfigTier.INTERNAL, defaultValue: true, description: 'Capture thumbnails for history entries', dataType: 'boolean' },
+  HISTORY_THUMBNAIL_QUALITY: { tier: ConfigTier.INTERNAL, defaultValue: 60, description: 'JPEG quality for history thumbnails', dataType: 'integer', min: 10, max: 100 },
 };
 
 const ConfigSchema = z.object({
@@ -811,7 +806,7 @@ interface ObservabilityConfigOption {
   max?: number;
   /** For enum types: allowed values */
   enum_values?: string[];
-  /** Whether this option can be changed at runtime without restart */
+  /** Runtime edits are unavailable; changes take effect after restart. */
   editable: boolean;
 }
 
@@ -885,7 +880,7 @@ export function getObservabilityConfigSummary(): {
       min: meta.min,
       max: meta.max,
       enum_values: meta.enumValues,
-      editable: meta.editable ?? false,
+      editable: false,
     };
 
     all_options[tierName].push(option);

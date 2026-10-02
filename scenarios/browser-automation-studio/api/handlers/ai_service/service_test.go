@@ -3,11 +3,12 @@ package ai_service
 import (
 	"context"
 	"errors"
-	"github.com/vrooli/browser-automation-studio/internal/testutil"
 	"io"
 	"net/http"
 	"testing"
 	"time"
+
+	"github.com/vrooli/browser-automation-studio/internal/testutil"
 
 	"connectrpc.com/connect"
 	"github.com/sirupsen/logrus"
@@ -30,7 +31,7 @@ func newServiceForTest(t *testing.T, runner aihandlers.AutomationRunner) (aiconn
 
 	screenshot := aihandlers.NewScreenshotHandler(log, aihandlers.WithScreenshotRunner(runner))
 	dom := aihandlers.NewDOMHandler(log, aihandlers.WithDOMRunner(runner))
-	// Default suggestion generator will fail to reach Ollama and gracefully
+	// Default suggestion generator will fail to reach the model gateway and gracefully
 	// degrade to empty AI suggestions; that's the behavior we want under test.
 	elem := aihandlers.NewElementAnalysisHandler(log,
 		aihandlers.WithElementRunner(runner),

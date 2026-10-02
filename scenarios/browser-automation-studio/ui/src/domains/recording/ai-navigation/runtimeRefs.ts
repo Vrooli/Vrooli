@@ -1,7 +1,7 @@
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
 import type { AINavigationState, AINavigationStep } from './types';
 
-/** Shared mutable runtime contract for command and event owners. */
+/** Client projection refs for server-owned navigation identity and state. */
 export interface AINavigationRuntimeRefs {
   navigationIdRef: MutableRefObject<string | null>;
   navigationStatusRef: MutableRefObject<AINavigationState['status']>;
@@ -18,9 +18,6 @@ export interface AINavigationRuntimeRefs {
   ) => void;
   navigationCommandGenerationRef: MutableRefObject<number>;
   cancelStatusObservation: () => void;
-}
-
-export interface AINavigationCommandRefs extends AINavigationRuntimeRefs {
   startInFlightRef: MutableRefObject<boolean>;
   startAttemptRef: MutableRefObject<number>;
   abortControllerRef: MutableRefObject<AbortController | null>;

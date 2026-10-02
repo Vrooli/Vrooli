@@ -1,7 +1,6 @@
 package vision
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -42,6 +41,7 @@ type PlaywrightVisionNavigator struct {
 	wsHub         wsHub.HubInterface
 	httpClient    HTTPDoer
 	creditService credits.CreditService
+	sessions      SessionRouteBroker
 
 	// Recording callback for unified action capture.
 	// When set, all AI navigation actions are reported for recording.
@@ -57,6 +57,10 @@ type HTTPDoer interface {
 	Do(req *http.Request) (*http.Response, error)
 }
 
+type SessionRouteBroker interface {
+	RouteSessionRequest(context.Context, string, string, string, []byte) (*http.Response, error)
+}
+
 // PlaywrightNavigatorOption configures PlaywrightVisionNavigator.
 type PlaywrightNavigatorOption func(*PlaywrightVisionNavigator)
 
@@ -64,6 +68,9 @@ type PlaywrightNavigatorOption func(*PlaywrightVisionNavigator)
 func WithPlaywrightHTTPClient(client HTTPDoer) PlaywrightNavigatorOption {
 	return func(n *PlaywrightVisionNavigator) {
 		n.httpClient = client
+		if broker, ok := client.(SessionRouteBroker); ok {
+			n.sessions = broker
+		}
 	}
 }
 
@@ -80,6 +87,14 @@ func WithPlaywrightCreditService(svc credits.CreditService) PlaywrightNavigatorO
 		n.creditService = svc
 	}
 }
+
+// WithPlaywrightSessionBroker routes every /session request through the API's
+// owned session registry.
+func WithPlaywrightSessionBroker(mgr SessionRouteBroker) PlaywrightNavigatorOption {
+	return func(n *PlaywrightVisionNavigator) { n.sessions = mgr }
+}
+
+func (n *PlaywrightVisionNavigator) SetSessionRouteBroker(mgr SessionRouteBroker) { n.sessions = mgr }
 
 // WithActionRecordCallback sets the callback for recording AI navigation actions.
 // This enables unified recording of AI-initiated browser actions.
@@ -125,6 +140,13 @@ func resolveDriverURL() string {
 // Type returns the navigator type.
 func (n *PlaywrightVisionNavigator) Type() NavigatorType {
 	return NavigatorPlaywright
+}
+
+func (n *PlaywrightVisionNavigator) routeSession(ctx context.Context, sessionID, method, suffix string, body []byte) (*http.Response, error) {
+	if n.sessions == nil {
+		return nil, fmt.Errorf("session broker unavailable")
+	}
+	return n.sessions.RouteSessionRequest(ctx, sessionID, method, suffix, body)
 }
 
 // Description returns a human-readable description.
@@ -216,22 +238,13 @@ func (n *PlaywrightVisionNavigator) Navigate(ctx context.Context, req Navigation
 		"callback_url":   req.CallbackURL,
 	}
 
-	driverURL := fmt.Sprintf("%s/session/%s/ai-navigate", n.driverBaseURL, req.SessionID)
-
 	body, err := json.Marshal(driverReq)
 	if err != nil {
 		n.removeNavigation(navigationID)
 		return nil, fmt.Errorf("marshal driver request: %w", err)
 	}
 
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, driverURL, bytes.NewReader(body))
-	if err != nil {
-		n.removeNavigation(navigationID)
-		return nil, fmt.Errorf("create request: %w", err)
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-
-	resp, err := n.httpClient.Do(httpReq)
+	resp, err := n.routeSession(ctx, req.SessionID, http.MethodPost, "/ai-navigate", body)
 	if err != nil {
 		n.removeNavigation(navigationID)
 		return nil, fmt.Errorf("driver request failed: %w", err)
@@ -549,13 +562,7 @@ func (n *PlaywrightVisionNavigator) AbortNavigation(ctx context.Context, navigat
 		return fmt.Errorf("navigation not found: %s", navigationID)
 	}
 
-	driverURL := fmt.Sprintf("%s/session/%s/ai-navigate/abort", n.driverBaseURL, session.SessionID)
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, driverURL, nil)
-	if err != nil {
-		return fmt.Errorf("create abort request: %w", err)
-	}
-
-	resp, err := n.httpClient.Do(req)
+	resp, err := n.routeSession(ctx, session.SessionID, http.MethodPost, "/ai-navigate/abort", nil)
 	if err != nil {
 		return fmt.Errorf("abort request failed: %w", err)
 	}
@@ -583,13 +590,7 @@ func (n *PlaywrightVisionNavigator) ResumeNavigation(ctx context.Context, naviga
 		return errors.New("navigation is not awaiting human intervention")
 	}
 
-	driverURL := fmt.Sprintf("%s/session/%s/ai-navigate/resume", n.driverBaseURL, session.SessionID)
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, driverURL, nil)
-	if err != nil {
-		return fmt.Errorf("create resume request: %w", err)
-	}
-
-	resp, err := n.httpClient.Do(req)
+	resp, err := n.routeSession(ctx, session.SessionID, http.MethodPost, "/ai-navigate/resume", nil)
 	if err != nil {
 		return fmt.Errorf("resume request failed: %w", err)
 	}

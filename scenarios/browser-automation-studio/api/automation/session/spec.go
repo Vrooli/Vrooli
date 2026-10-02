@@ -131,8 +131,8 @@ type FrameInfo struct {
 
 // FrameStreamingConfig configures live preview frame streaming.
 type FrameStreamingConfig struct {
-	// CallbackURL is where frames are posted. Auto-generated if empty.
-	CallbackURL string
+	// URL is the shared source-bearing WebSocket ingress. Auto-generated if empty.
+	URL string
 	// Quality is JPEG quality 1-100, default 55.
 	Quality int
 	// FPS is frames per second, default 6.

@@ -53,6 +53,14 @@ func NewPlaywrightEngineWithDefault(log *logrus.Logger) (*PlaywrightEngine, erro
 	return NewPlaywrightEngine(log)
 }
 
+// NewPlaywrightEngineWithSessionManager uses the API's shared session broker.
+func NewPlaywrightEngineWithSessionManager(mgr *session.Manager, log *logrus.Logger) (*PlaywrightEngine, error) {
+	if mgr == nil {
+		return nil, errors.New("session manager is required")
+	}
+	return &PlaywrightEngine{sessions: mgr, log: log}, nil
+}
+
 // NewPlaywrightEngineWithHTTPClient constructs an engine with a custom HTTP client.
 // This is primarily used for testing to inject mock HTTP responses.
 func NewPlaywrightEngineWithHTTPClient(driverURL string, httpClient HTTPDoer, log *logrus.Logger) (*PlaywrightEngine, error) {
@@ -76,7 +84,7 @@ func (e *PlaywrightEngine) Capabilities(ctx context.Context) (contracts.EngineCa
 	if e == nil {
 		return contracts.EngineCapabilities{}, errors.New("engine not configured")
 	}
-	if err := e.sessions.Client().Health(ctx); err != nil {
+	if err := e.sessions.Health(ctx); err != nil {
 		return contracts.EngineCapabilities{}, err
 	}
 	return contracts.EngineCapabilities{
@@ -136,10 +144,10 @@ func (e *PlaywrightEngine) StartSession(ctx context.Context, spec SessionSpec) (
 	// Add frame streaming config if enabled (for live execution preview)
 	if spec.FrameStreaming != nil {
 		sessionSpec.FrameStreaming = &session.FrameStreamingConfig{
-			CallbackURL: spec.FrameStreaming.CallbackURL,
-			Quality:     spec.FrameStreaming.Quality,
-			FPS:         spec.FrameStreaming.FPS,
-			Scale:       spec.FrameStreaming.Scale,
+			URL:     spec.FrameStreaming.URL,
+			Quality: spec.FrameStreaming.Quality,
+			FPS:     spec.FrameStreaming.FPS,
+			Scale:   spec.FrameStreaming.Scale,
 		}
 	}
 

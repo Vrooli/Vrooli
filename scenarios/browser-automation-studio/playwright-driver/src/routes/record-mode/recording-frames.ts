@@ -86,7 +86,7 @@ export async function handleRecordFrame(
   try {
     const session = sessionManager.getSession(sessionId);
     const page = session.page;
-    const source = captureFrameSource(session, page);
+    const source = captureFrameSource(session, page, 'recording');
     const url = new URL(req.url || '', 'http://localhost');
     const requestedPage = url.searchParams.get('page_id');
     const rejectChanged = (): void => sendJson(res, 409, {error:'FRAME_SOURCE_CHANGED', message:'The preview page or session lease changed'});
@@ -101,7 +101,7 @@ export async function handleRecordFrame(
       const currentViewport = page.viewportSize();
       return ownsFrameCacheSlot(sessionId, slot) && page.url() === pageUrl
         && currentViewport?.width === viewport?.width && currentViewport?.height === viewport?.height
-        && sameFrameSource(captureFrameSource(sessionManager.getSession(sessionId), page), source);
+        && sameFrameSource(captureFrameSource(sessionManager.getSession(sessionId), page, 'recording'), source);
     };
     const key = JSON.stringify([source, quality, fullPage, scale, viewport, pageUrl]);
     const pageTitle = await page.title().catch(() => '');

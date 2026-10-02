@@ -1105,7 +1105,6 @@ Rules: ignored AX nodes are pruned (children spliced up); `bounds`/`dom`/empty-s
 | Router (TS) | Yes | N/A (coordination) | N/A | - |
 | OutcomeBuilder (TS) | Yes | N/A (pure functions) | N/A | - |
 | MetricsServer (TS) | Yes | N/A (infrastructure) | N/A | - |
-| ActionMergeService (TS) | Yes | N/A (pure functions) | N/A | - |
 | AIReconciliationService (TS) | Yes | N/A (pure functions) | N/A | - |
 | WorkflowSyncRepository | Yes | Yes (Mock) | Yes | - |
 | EventBroadcaster | Yes (via HubInterface) | Yes (MockHub) | Yes | - |
@@ -1530,7 +1529,7 @@ The `handlers/ai/` package currently contains both HTTP handling AND domain logi
 - Domain types (ElementInfo, SelectorOption, etc.)
 
 **Current mitigation:**
-- `AIAnalysisHandler` is now transport-only and defers to an injected `ElementAnalyzer` (defaulting to `AIElementAnalyzer`), so DOM extraction and Ollama prompting can be exercised without HTTP concerns.
+- `AIAnalysisHandler` is now transport-only and defers to an injected `ElementAnalyzer` (defaulting to `AIElementAnalyzer`), so DOM extraction and role-aware model prompting can be exercised without HTTP concerns.
 - Handler timeouts use `constants.AIAnalysisTimeout` rather than inlined durations to keep cross-cutting configuration centralized.
 
 **Remaining opportunity:**

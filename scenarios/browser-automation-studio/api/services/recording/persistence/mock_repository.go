@@ -10,6 +10,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/domain"
+	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
+	"google.golang.org/protobuf/proto"
 )
 
 // CallCounts tracks the number of times each repository method was called.
@@ -167,18 +169,38 @@ func (r *MockRepository) AppendTimelineEntry(ctx context.Context, entry *Unified
 					return false, fmt.Errorf("conflicting journal identity")
 				}
 				entry.Sequence = old.Sequence
+				setDurableProtoSequence(entry)
 				return false, nil
 			}
 		}
 	}
 	entry.Sequence = len(r.entries[entry.SessionID]) + 1
-	data, err := json.Marshal(entry)
-	if err != nil {
-		return false, err
+	setDurableProtoSequence(entry)
+	committed := *entry
+	if entry.Action != nil {
+		data, err := json.Marshal(entry.Action)
+		if err != nil {
+			return false, err
+		}
+		var action domain.RecordingAction
+		if err := json.Unmarshal(data, &action); err != nil {
+			return false, err
+		}
+		committed.Action = &action
 	}
-	var committed UnifiedTimelineEntry
-	if err := json.Unmarshal(data, &committed); err != nil {
-		return false, err
+	if entry.PageEvent != nil {
+		data, err := json.Marshal(entry.PageEvent)
+		if err != nil {
+			return false, err
+		}
+		var event domain.PageEvent
+		if err := json.Unmarshal(data, &event); err != nil {
+			return false, err
+		}
+		committed.PageEvent = &event
+	}
+	if entry.Entry != nil {
+		committed.Entry = proto.Clone(entry.Entry).(*bastimeline.TimelineEntry)
 	}
 	r.entries[entry.SessionID] = append(r.entries[entry.SessionID], &committed)
 	return true, nil

@@ -6,10 +6,12 @@ import { clearFrameCache, clearAllFrameCaches } from '../../../src/session/frame
 import { createMockHttpRequest, createMockHttpResponse, createMockPage, createTestConfig } from '../../helpers';
 import type { SessionManager } from '../../../src/session';
 import { RECORDING_FRAME_CACHE_TTL_MS } from '../../../src/constants';
+import { DriverPageBindings } from '../../../src/session/page-bindings';
 
 describe('recording frame routes', () => {
   const config = createTestConfig();
   let mockPage: ReturnType<typeof createMockPage>;
+  let pageBindings: DriverPageBindings;
   let sessionManager: Pick<SessionManager, 'getSession'>;
   let nowSpy: jest.SpyInstance<number, []>;
 
@@ -20,10 +22,11 @@ describe('recording frame routes', () => {
       title: jest.fn().mockResolvedValue('Test Page'),
       url: jest.fn().mockReturnValue('https://example.com'),
     });
+    pageBindings = new DriverPageBindings(); pageBindings.register(mockPage, 'page-a');
     sessionManager = {
       getSession: () => ({ id:'session-1',ownerExecutionId:'execution-a',leaseId:'lease-a',page:mockPage,
         spec:{execution_id:'execution-a',workflow_id:'fixture',reuse_mode:'fresh',viewport:{width:1024,height:768}},
-        pageToIdMap:new WeakMap([[mockPage,'page-a']]) } as ReturnType<SessionManager['getSession']>),
+        pageBindings } as ReturnType<SessionManager['getSession']>),
     };
     nowSpy = jest.spyOn(Date, 'now').mockReturnValue(1000);
   });
@@ -250,7 +253,7 @@ describe('recording frame routes', () => {
   it('rejects a requested page that is no longer active before taking a screenshot', async () => {
     const session = {id:'session-1',ownerExecutionId:'execution-a',leaseId:'lease-a',page:mockPage,
         spec:{execution_id:'execution-a',workflow_id:'fixture',reuse_mode:'fresh',viewport:{width:1024,height:768}},
-      pageToIdMap:new WeakMap([[mockPage,'page-a']])} as ReturnType<SessionManager['getSession']>;
+      pageBindings} as ReturnType<SessionManager['getSession']>;
     sessionManager.getSession=()=>session;
     const req=createMockHttpRequest({method:'GET',url:'/session/session-1/record/frame?page_id=old-page'});
     const res=createMockHttpResponse();
@@ -266,9 +269,10 @@ describe('recording frame routes', () => {
     const blue=createMockPage({screenshot:jest.fn().mockResolvedValue(Buffer.from('blue-frame')),
       title:jest.fn().mockResolvedValue('Blue'),url:jest.fn().mockReturnValue('https://fixture.test/blue'),
       viewportSize:jest.fn().mockReturnValue({width:1024,height:768})});
+    pageBindings.register(blue,'page-b');
     const session={id:'session-1',ownerExecutionId:'execution-a',leaseId:'lease-a',page:mockPage,
         spec:{execution_id:'execution-a',workflow_id:'fixture',reuse_mode:'fresh',viewport:{width:1024,height:768}},
-      pageToIdMap:new WeakMap([[mockPage,'page-a'],[blue,'page-b']])} as ReturnType<SessionManager['getSession']>;
+      pageBindings} as ReturnType<SessionManager['getSession']>;
     sessionManager.getSession=()=>session;
     const request=(pageId:string)=>createMockHttpRequest({method:'GET',url:`/session/session-1/record/frame?page_id=${pageId}`});
     const old=createMockHttpResponse();const pending=handleRecordFrame(request('page-a'),old,'session-1',sessionManager as SessionManager,config);

@@ -1318,8 +1318,7 @@ func extractFrameStreamingConfig(metadata map[string]any, executionID uuid.UUID)
 	}
 
 	config := &engine.FrameStreamingConfig{
-		CallbackURL: fmt.Sprintf("http://%s:%s/api/v1/executions/%s/frames",
-			apiHost, apiPort, executionID.String()),
+		URL:     fmt.Sprintf("ws://%s:%s/ws/frames", apiHost, apiPort),
 		Quality: quality,
 		FPS:     fps,
 		Scale:   scale,
@@ -1327,7 +1326,7 @@ func extractFrameStreamingConfig(metadata map[string]any, executionID uuid.UUID)
 
 	logrus.WithFields(logrus.Fields{
 		"execution_id": executionID,
-		"callback_url": config.CallbackURL,
+		"stream_url":   config.URL,
 		"quality":      quality,
 		"fps":          fps,
 		"scale":        scale,

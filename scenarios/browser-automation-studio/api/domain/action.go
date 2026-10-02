@@ -22,8 +22,8 @@ const (
 )
 
 // RecordingAction represents a user action captured during a recording session.
-// This is the domain entity for persisted actions, separate from the driver's
-// wire format (driver.RecordedAction) and the timeline view (RecordedActionEntry).
+// This is the domain entity for persisted recording actions, separate from the
+// driver's raw capture format and the canonical timeline proto exposed by the API.
 //
 // DOC: docs/architecture/recording.md#recording-action
 type RecordingAction struct {

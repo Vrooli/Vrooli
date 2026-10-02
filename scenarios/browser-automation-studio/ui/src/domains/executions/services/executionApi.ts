@@ -7,7 +7,6 @@
  *
  * Two endpoints intentionally stay on REST and are NOT exposed here:
  *   - POST /executions/{id}/export — multipart-shaped replay export.
- *   - POST /executions/{executionId}/frames — playwright-driver ops probe.
  */
 import { create, toJson } from '@bufbuild/protobuf';
 import { executionsClient } from '@/api/executions';

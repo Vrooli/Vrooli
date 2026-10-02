@@ -14,13 +14,14 @@ import (
 	autoevents "github.com/vrooli/browser-automation-studio/automation/events"
 	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
 	autoexec "github.com/vrooli/browser-automation-studio/automation/executor"
+	autosession "github.com/vrooli/browser-automation-studio/automation/session"
 	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/services/ai"
-	"github.com/vrooli/browser-automation-studio/services/export"
 	"github.com/vrooli/browser-automation-studio/services/readiness"
 	sessionprofile "github.com/vrooli/browser-automation-studio/services/session-profile"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
+	exportsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/exports"
 )
 
 const (
@@ -28,9 +29,6 @@ const (
 	workflowJSONEndMarker   = "</WORKFLOW_JSON>"
 	projectSyncCooldown     = 30 * time.Second
 )
-
-// Type alias for ReplayMovieSpec from export package
-type ReplayMovieSpec = export.ReplayMovieSpec
 
 var (
 	ErrWorkflowVersionConflict        = errors.New("workflow version conflict")
@@ -61,6 +59,7 @@ type WorkflowService struct {
 	aiClient              ai.AIClient
 	executor              autoexec.Executor
 	engineFactory         autoengine.Factory
+	sessionBroker         *autosession.Manager
 	artifactRecorder      executionwriter.ExecutionWriter
 	planCompiler          autoexec.PlanCompiler
 	eventSinkFactory      func() autoevents.Sink
@@ -120,14 +119,14 @@ type WorkflowUpdateInput struct {
 
 // ExecutionExportPreview summarises the export readiness state for an execution.
 type ExecutionExportPreview struct {
-	ExecutionID         uuid.UUID        `json:"execution_id"`
-	SpecID              string           `json:"spec_id"`
-	Status              string           `json:"status"`
-	Message             string           `json:"message"`
-	CapturedFrameCount  int              `json:"captured_frame_count"`
-	AvailableAssetCount int              `json:"available_asset_count"`
-	TotalDurationMs     int              `json:"total_duration_ms"`
-	Package             *ReplayMovieSpec `json:"package,omitempty"`
+	ExecutionID         uuid.UUID             `json:"execution_id"`
+	SpecID              string                `json:"spec_id"`
+	Status              string                `json:"status"`
+	Message             string                `json:"message"`
+	CapturedFrameCount  int                   `json:"captured_frame_count"`
+	AvailableAssetCount int                   `json:"available_asset_count"`
+	TotalDurationMs     int                   `json:"total_duration_ms"`
+	Package             *exportsv1.ReplaySpec `json:"package,omitempty"`
 }
 
 // NewWorkflowService creates a new workflow service
@@ -140,6 +139,7 @@ func NewWorkflowService(repo database.Repository, wsHub wsHub.HubInterface, log 
 type WorkflowServiceOptions struct {
 	Executor         autoexec.Executor
 	EngineFactory    autoengine.Factory
+	SessionBroker    *autosession.Manager
 	ArtifactRecorder executionwriter.ExecutionWriter
 	PlanCompiler     autoexec.PlanCompiler
 	AIClient         ai.AIClient
@@ -177,6 +177,7 @@ func NewWorkflowServiceWithDeps(repo database.Repository, wsHub wsHub.HubInterfa
 		aiClient:              aiClient,
 		executor:              opts.Executor,
 		engineFactory:         opts.EngineFactory,
+		sessionBroker:         opts.SessionBroker,
 		artifactRecorder:      opts.ArtifactRecorder,
 		planCompiler:          opts.PlanCompiler,
 		eventSinkFactory:      eventSinkFactory,

@@ -6,8 +6,6 @@ import (
 	"os"
 	"strings"
 	"time"
-
-	"github.com/google/uuid"
 )
 
 // sanitizeFilename removes path separators and null bytes from a filename.
@@ -25,9 +23,9 @@ func sanitizeFilename(value string) string {
 func defaultFilename(spec *ReplayMovieSpec, extension string) string {
 	stem := "browser-automation-replay"
 	if spec != nil {
-		execID := spec.Execution.ExecutionID
-		if execID != uuid.Nil {
-			stem = fmt.Sprintf("browser-automation-replay-%s", execID.String()[:8])
+		execID := strings.TrimSpace(spec.GetExecution().GetExecutionId())
+		if len(execID) >= 8 {
+			stem = fmt.Sprintf("browser-automation-replay-%s", execID[:8])
 		}
 	}
 	return fmt.Sprintf("%s.%s", stem, extension)
@@ -44,21 +42,21 @@ const (
 func EstimateReplayRenderTimeout(spec *ReplayMovieSpec) time.Duration {
 	timeoutMs := renderTimeoutBufferMillis
 	if spec != nil {
-		captureInterval := spec.Playback.FrameIntervalMs
+		captureInterval := int(spec.GetPlayback().GetFrameIntervalMs())
 		if captureInterval <= 0 {
 			captureInterval = defaultCaptureInterval
 		}
 
-		totalDuration := spec.Summary.TotalDurationMs
+		totalDuration := int(spec.GetSummary().GetTotalDurationMs())
 		if totalDuration <= 0 {
-			totalDuration = spec.Playback.DurationMs
+			totalDuration = int(spec.GetPlayback().GetDurationMs())
 		}
-		if totalDuration <= 0 && len(spec.Frames) > 0 {
+		if totalDuration <= 0 && len(spec.GetFrames()) > 0 {
 			sum := 0
-			for _, frame := range spec.Frames {
-				duration := frame.DurationMs
+			for _, frame := range spec.GetFrames() {
+				duration := int(frame.GetDurationMs())
 				if duration <= 0 {
-					duration = frame.HoldMs + frame.Enter.DurationMs + frame.Exit.DurationMs
+					duration = int(frame.GetHoldMs() + frame.GetEnter().GetDurationMs() + frame.GetExit().GetDurationMs())
 				}
 				if duration <= 0 {
 					duration = captureInterval
@@ -68,12 +66,12 @@ func EstimateReplayRenderTimeout(spec *ReplayMovieSpec) time.Duration {
 			totalDuration = sum
 		}
 
-		frameBudget := spec.Playback.TotalFrames
+		frameBudget := int(spec.GetPlayback().GetTotalFrames())
 		if frameBudget <= 0 && captureInterval > 0 && totalDuration > 0 {
 			frameBudget = int(math.Ceil(float64(totalDuration) / float64(captureInterval)))
 		}
 		if frameBudget <= 0 {
-			frameBudget = len(spec.Frames)
+			frameBudget = len(spec.GetFrames())
 		}
 		if frameBudget < 1 {
 			frameBudget = 1

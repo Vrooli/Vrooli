@@ -19,7 +19,6 @@
  * │     └─ decisions.ts             - Named decision functions              │
  * │   io/                - Data flow and context setup                      │
  * │     └─ context-initializer.ts   - Context-level setup coordinator       │
- * │     └─ html-injector.ts         - HTML injection route                  │
  * │     └─ event-route.ts           - Page event interception               │
  * │     └─ buffer.ts                - In-memory entry storage               │
  * │   validation/        - Selectors, replay, verification                  │
@@ -53,8 +52,8 @@
  * Context Setup (once per context)        Recording Sessions (per session)
  * ┌─────────────────────────────────┐     ┌─────────────────────────────────┐
  * │  RecordingContextInitializer    │     │  RecordingPipelineManager       │
- * │  ├─ io/html-injector.ts         │     │  ├─ orchestration/state-machine │
- * │  │   └─ Inject script into HTML │     │  ├─ startRecording()/stop()     │
+ * │  ├─ addInitScript()             │     │  ├─ orchestration/state-machine │
+ * │  │   └─ Inject into main world  │     │  ├─ startRecording()/stop()     │
  * │  └─ io/event-route.ts           │     │  ├─ handleRawEvent()            │
  * │      └─ Page event interception │     │  │   └─ rawBrowserEventTo...()  │
  * └─────────────────────────────────┘     │  └─ verifyPipeline()            │
@@ -191,7 +190,7 @@ export * from './validation/selector-service';
 
 // Context-level setup for recording (binding + init script)
 // The coordinator imports from specialized modules:
-//   - io/html-injector.ts - HTML injection into document responses
+//   - init-script injection into each new document
 //   - io/event-route.ts - Page-level event route setup
 export {
   RecordingContextInitializer,
@@ -220,23 +219,10 @@ export type { EventRouteManager } from './io/event-route';
 // =============================================================================
 
 export {
-  createInjectionStrategy,
-  createInjectionStrategyByName,
-  getStrategyFromEnv,
   isDiagnosticsEnabled as isInjectionDiagnosticsEnabled,
-  selectStrategyForProvider,
-  InjectionStrategyFactory,
+  INJECTION_DIAGNOSTICS_ENV_VAR,
   InitScriptInjectionStrategy,
-  CDPInjectionStrategy,
-  /** @deprecated Use InitScriptInjectionStrategy instead. RouteInjectionStrategy only works with standard Playwright. */
-  RouteInjectionStrategy,
   createInitScriptInjectionStrategy,
-  createCDPInjectionStrategy,
-  /** @deprecated Use createInitScriptInjectionStrategy instead. */
-  createRouteInjectionStrategy,
-  InjectionAutoDetector,
-  createInjectionAutoDetector,
-  detectWorkingStrategy,
   createInitialStats as createInjectionStrategyStats,
 } from './injection';
 
@@ -245,9 +231,6 @@ export type {
   InjectionStrategyName,
   InjectionResult as InjectionStrategyResult,
   InjectionStrategyOptions,
-  InjectionStrategyFactoryOptions,
-  AutoDetectorOptions,
-  AutoDetectionResult,
 } from './injection';
 
 // Init script generation for context.addInitScript()

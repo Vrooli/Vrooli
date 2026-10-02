@@ -136,7 +136,7 @@ describe('Session Close Route', () => {
       await fs.writeFile(sourcePath, 'fake-video');
 
       session.videoDir = tempDir;
-      const pageWithVideo = session.pages[0] as unknown as {
+      const pageWithVideo = session.context.pages()[0] as unknown as {
         video: () => { path: () => Promise<string | null> };
       };
       pageWithVideo.video = (): { path: () => Promise<string | null> } => ({

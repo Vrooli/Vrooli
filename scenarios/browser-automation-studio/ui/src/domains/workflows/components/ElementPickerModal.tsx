@@ -251,7 +251,7 @@ const ElementPickerModal: React.FC<ElementPickerModalProps> = ({
       }
     } catch (error) {
       logger.error('Failed to analyze with AI', { component: 'ElementPickerModal', action: 'handleAIAnalysis' }, error);
-      toast.error('AI analysis failed. Make sure Ollama is running.');
+      toast.error('AI analysis failed. Check the AI model configuration and try again.');
     } finally {
       setAiAnalyzing(false);
     }

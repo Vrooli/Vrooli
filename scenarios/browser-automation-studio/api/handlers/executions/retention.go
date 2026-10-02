@@ -55,20 +55,16 @@ func (s *service) runRetention(
 		Apply:      apply,
 	}
 
-	if raw := strings.TrimSpace(msg.GetWorkflowId()); raw != "" {
-		id, err := uuid.Parse(raw)
-		if err != nil {
-			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("invalid workflow_id"))
-		}
-		opts.WorkflowID = &id
+	workflowID, err := parseRetentionFilterID(msg.GetWorkflowId(), "workflow_id")
+	if err != nil {
+		return nil, err
 	}
-	if raw := strings.TrimSpace(msg.GetProjectId()); raw != "" {
-		id, err := uuid.Parse(raw)
-		if err != nil {
-			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("invalid project_id"))
-		}
-		opts.ProjectID = &id
+	opts.WorkflowID = workflowID
+	projectID, err := parseRetentionFilterID(msg.GetProjectId(), "project_id")
+	if err != nil {
+		return nil, err
 	}
+	opts.ProjectID = projectID
 	if msg.Status != nil {
 		status := enums.ExecutionStatusToString(msg.GetStatus())
 		if !database.IsTerminalStatus(status) {
@@ -88,6 +84,18 @@ func (s *service) runRetention(
 	}
 
 	return connect.NewResponse(retentionReportToProto(report)), nil
+}
+
+func parseRetentionFilterID(raw, field string) (*uuid.UUID, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil, nil
+	}
+	id, err := uuid.Parse(raw)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("invalid "+field))
+	}
+	return &id, nil
 }
 
 func retentionReportToProto(report *retention.Report) *basapi.ExecutionArtifactRetentionResponse {

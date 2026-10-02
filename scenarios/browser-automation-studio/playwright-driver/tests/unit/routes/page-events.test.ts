@@ -7,6 +7,7 @@ import * as pageEvents from '../../../src/routes/record-mode/page-events';
 import type { Config } from '../../../src/config';
 import type { SessionManager } from '../../../src/session';
 import { installFetchMock } from '../../helpers';
+import { DriverPageBindings } from '../../../src/session/page-bindings';
 
 const { sendPageEvent, setupPageLifecycleListeners, pageEventCircuitBreaker } = pageEvents;
 
@@ -102,24 +103,24 @@ describe('page event routes', () => {
     } as unknown as Page;
 
     const contextHandlers: Record<string, (page: typeof newPage) => Promise<void>> = {};
+    const openPages: Page[] = [];
+    const context = {
+      pages: () => openPages,
+      on: jest.fn((event: string, handler: (page: typeof newPage) => Promise<void>) => { contextHandlers[event] = handler; }),
+      off: jest.fn(),
+    };
     const session = {
-      context: {
-        on: jest.fn((event: string, handler: (page: typeof newPage) => Promise<void>) => {
-          contextHandlers[event] = handler;
-        }),
-        off: jest.fn(),
-      },
-      pages: [],
-      pageIdMap: new Map(),
-      pageToIdMap: new Map(),
+      context,
+      pageBindings: new DriverPageBindings(),
     } as unknown as ReturnType<SessionManager['getSession']>;
 
     const { cleanup, ready } = setupPageLifecycleListeners('session-1', session, 'http://callback', config);
     await ready;
 
+    openPages.push(newPage);
     await contextHandlers.page?.(newPage);
 
-    expect(session.pages).toHaveLength(1);
+    expect(session.context.pages()).toHaveLength(1);
     const createdPayload = fetchMock.mock.calls[0]?.[1]?.body as string;
     expect(createdPayload).toContain('"eventType":"created"');
 
@@ -149,6 +150,8 @@ describe('recording tab callback ownership [REQ:BAS-RH-J03]', () => {
 
   function fixture() {
     const context = new EventEmitter();
+    const openPages: Page[] = [];
+    (context as EventEmitter & { pages: () => Page[] }).pages = () => openPages.filter(page => !page.isClosed());
     const events = new EventEmitter();
     const frame = {};
     const page = Object.assign(events, {
@@ -163,12 +166,15 @@ describe('recording tab callback ownership [REQ:BAS-RH-J03]', () => {
     }) as unknown as Page & EventEmitter;
     const session = {
       id: 'owned-tabs', phase: 'recording', ownerExecutionId: 'owner', leaseId: 'lease',
-      context, pages: [], pageIdMap: new Map(), pageToIdMap: new WeakMap(),
-      page, currentPageIndex: 0, frameStack: [],
+      context, pageBindings: new DriverPageBindings(),
+      page, frameStack: [],
     } as unknown as ReturnType<SessionManager['getSession']>;
     const setup = (): ReturnType<typeof setupPageLifecycleListeners> => setupPageLifecycleListeners('owned-tabs', session, 'http://callback', config);
-    const open = (): Promise<void> => (context.listeners('page')[0] as (page: Page) => Promise<void>)(page);
-    return { context, page, frame, session, setup, open };
+    const open = (): Promise<void> => {
+      if (!openPages.includes(page)) openPages.push(page);
+      return (context.listeners('page')[0] as (page: Page) => Promise<void>)(page);
+    };
+    return { context, page, frame, session, setup, open, openPages };
   }
 
   it('publishes page creation before loaded document metadata', async () => {
@@ -291,9 +297,7 @@ describe('recording tab callback ownership [REQ:BAS-RH-J03]', () => {
     cleanup(); opener.resolve(null); await opening;
     expect(f.page.listenerCount('framenavigated')).toBe(0);
     expect(f.page.listenerCount('close')).toBe(0);
-    expect(f.session.pages).toHaveLength(0);
-    expect(f.session.pageIdMap.size).toBe(0);
-    expect(f.session.pageToIdMap.has(f.page)).toBe(false);
+    expect(f.session.pageBindings.ids()).toHaveLength(0);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -301,14 +305,12 @@ describe('recording tab callback ownership [REQ:BAS-RH-J03]', () => {
     const f = fixture(); const opener = createDeferred<Page | null>();
     jest.mocked(f.page.opener).mockReturnValue(opener.promise);
     const pageId = 'existing-page';
-    f.session.pages.push(f.page);
-    f.session.pageIdMap.set(pageId, f.page);
-    f.session.pageToIdMap.set(f.page, pageId);
+    f.session.pageBindings.register(f.page, pageId);
     const { cleanup } = f.setup(); const opening = f.open();
     cleanup(); opener.resolve(null); await opening;
-    expect(f.session.pages).toEqual([f.page]);
-    expect(f.session.pageIdMap.get(pageId)).toBe(f.page);
-    expect(f.session.pageToIdMap.get(f.page)).toBe(pageId);
+    expect(f.session.context.pages()).toEqual([f.page]);
+    expect(f.session.pageBindings.getPage(pageId)).toBe(f.page);
+    expect(f.session.pageBindings.getId(f.page)).toBe(pageId);
   });
 
   it('cannot publish a pending navigation title after cleanup', async () => {
@@ -331,9 +333,9 @@ describe('recording tab callback ownership [REQ:BAS-RH-J03]', () => {
 
   it('binds initial-page navigation to that page after active-tab selection changes', async () => {
     const f = fixture(); const other = fixture();
-    f.session.pages.push(f.page, other.page);
-    f.session.pageIdMap.set('first-id', f.page); f.session.pageToIdMap.set(f.page, 'first-id');
-    f.session.pageIdMap.set('second-id', other.page); f.session.pageToIdMap.set(other.page, 'second-id');
+    f.openPages.push(f.page, other.page);
+    f.session.pageBindings.register(f.page, 'first-id');
+    f.session.pageBindings.register(other.page, 'second-id');
     const { cleanup, ready } = f.setup(); await ready; fetchMock.mockClear(); f.session.page = other.page;
     try {
       const listeners = f.page.listeners('framenavigated');
@@ -348,8 +350,8 @@ describe('recording tab callback ownership [REQ:BAS-RH-J03]', () => {
 
   it('cannot send the initial page callback when recording stops during its title lookup', async () => {
     const f = fixture();
-    f.session.pages.push(f.page);
-    f.session.pageIdMap.set('first-id', f.page); f.session.pageToIdMap.set(f.page, 'first-id');
+    f.openPages.push(f.page);
+    f.session.pageBindings.register(f.page, 'first-id');
     let capturing = false;
     let generation = 0;
     f.session.pipelineManager = {
@@ -392,9 +394,7 @@ describe('recording tab callback ownership [REQ:BAS-RH-J03]', () => {
       expect(f.page.listenerCount('close')).toBe(0);
       expect(f.page.listenerCount('framenavigated')).toBe(0);
       if (!stopped) {
-        expect(f.session.pages).toHaveLength(0);
-        expect(f.session.pageIdMap.size).toBe(0);
-        expect(f.session.pageToIdMap.has(f.page)).toBe(false);
+        expect(f.session.pageBindings.ids()).toHaveLength(0);
       }
     } finally { cleanup(); }
   });
@@ -409,12 +409,12 @@ describe('recording tab callback ownership [REQ:BAS-RH-J03]', () => {
       await handleRecordNewPage(createMockHttpRequest({ method: 'POST', body: { execution_id: 'owner', lease_id: 'lease', url: 'https://fixture.invalid/first' } }), response, 'owned-tabs', manager, config);
       await discovered;
       expect(response.statusCode).toBe(201);
-      expect(f.session.pages).toEqual([f.page]);
-      expect(f.session.pageIdMap.size).toBe(1);
+      expect(f.session.context.pages()).toEqual([f.page]);
+      expect(f.session.pageBindings.ids()).toHaveLength(1);
       const payload = pageEventBodies(fetchMock)[0];
       if (!payload) throw new Error('page-event fixture did not return a payload');
       expect(response.getJSON().driver_page_id).toBe(payload.driverPageId);
-      expect(f.session.pageToIdMap.get(f.page)).toBe(payload.driverPageId);
+      expect(f.session.pageBindings.getId(f.page)).toBe(payload.driverPageId);
     } finally { cleanup(); }
   });
 });

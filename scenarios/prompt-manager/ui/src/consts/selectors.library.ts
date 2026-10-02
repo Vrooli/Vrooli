@@ -63,5 +63,8 @@ export const librarySelectors = {
   "templates.collection-page": {
     "root": "templates.collection-page",
   },
+  "primitives.heading": {
+    "root": "primitives.heading",
+  },
 } as const;
 // vrooli:library-selectors end

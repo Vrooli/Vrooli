@@ -6,6 +6,8 @@
  */
 
 import { z } from 'zod';
+import { fromJson, type JsonValue } from '@bufbuild/protobuf';
+import { TimelineEntrySchema as ProtoTimelineEntrySchema } from '@vrooli/proto-types/browser-automation-studio/v1/timeline/entry_pb';
 
 // ============================================================================
 // Recording Lifecycle Schemas
@@ -217,24 +219,9 @@ export const PageEventTypeSchema = z.enum(['page_created', 'page_navigated', 'pa
 
 export type PageEventType = z.infer<typeof PageEventTypeSchema>;
 
-/**
- * Timeline action from API.
- */
-export const TimelineActionSchema = z.object({
-  id: z.string(),
-  actionType: z.string(),
-  url: z.string().optional(),
-  sequenceNum: z.number(),
-  timestamp: z.string(),
-  selector: z.object({
-    primary: z.string(),
-  }).optional(),
-  payload: z.record(z.unknown()).optional(),
-  confidence: z.number(),
-  pageTitle: z.string().optional(),
-});
-
-export type TimelineAction = z.infer<typeof TimelineActionSchema>;
+const ProtoTimelineEntryJsonSchema = z.unknown().transform((raw) =>
+  fromJson(ProtoTimelineEntrySchema, raw as JsonValue),
+);
 
 /**
  * Page event from timeline.
@@ -251,19 +238,32 @@ export const TimelinePageEventSchema = z.object({
 
 export type TimelinePageEvent = z.infer<typeof TimelinePageEventSchema>;
 
-/**
- * Unified timeline entry.
- */
-export const TimelineEntrySchema = z.object({
-  id: z.string(),
-  type: TimelineEntryTypeSchema,
-  timestamp: z.string(),
-  pageId: z.string(),
-  action: TimelineActionSchema.optional(),
-  pageEvent: TimelinePageEventSchema.optional(),
-});
+/** Action entries use generated protobuf values; page lifecycle data stays separate. */
+export const TimelineEntrySchema = z.union([
+  z.object({
+    entry: ProtoTimelineEntryJsonSchema,
+    pageId: z.string(),
+  }).transform((entry) => ({ ...entry, type: 'action' as const })),
+  z.object({
+    pageEvent: TimelinePageEventSchema,
+    pageId: z.string(),
+  }).transform((entry) => ({ ...entry, type: 'page_event' as const })),
+]);
 
 export type TimelineEntry = z.infer<typeof TimelineEntrySchema>;
+export type TimelineAction = Extract<TimelineEntry, { type: 'action' }>['entry'];
+
+export function timelineEntryId(entry: TimelineEntry): string {
+  return entry.type === 'action' ? entry.entry.id : entry.pageEvent.id;
+}
+
+export function timelineEntryTimestamp(entry: TimelineEntry): string {
+  if (entry.type === 'page_event') return entry.pageEvent.timestamp;
+  const timestamp = entry.entry.timestamp;
+  if (!timestamp) return new Date(0).toISOString();
+  const millis = Number(timestamp.seconds) * 1000 + Number(timestamp.nanos ?? 0) / 1_000_000;
+  return new Date(millis).toISOString();
+}
 
 /**
  * API response for timeline.

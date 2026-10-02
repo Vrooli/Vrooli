@@ -102,6 +102,7 @@ type Hub struct {
 	log            *logrus.Logger
 	mu             sync.RWMutex
 	inputForwarder InputForwarder // Optional: forwards input events to playwright-driver
+	latestFrames   map[string]latestLiveFrame
 
 	// Driver status broadcasting
 	currentDriverStatus *health.DriverHealth // Cached for immediate send on subscribe
@@ -113,14 +114,22 @@ type Hub struct {
 	droppedFrameCountMu sync.Mutex
 }
 
+// latestLiveFrame is a single replacement slot for one active stream. It is
+// retained only to seed late subscribers and never forms a frame history.
+type latestLiveFrame struct {
+	binary    []byte
+	execution *ExecutionFrame
+}
+
 // NewHub creates a new WebSocket hub
 func NewHub(log *logrus.Logger) *Hub {
 	return &Hub{
-		clients:    make(map[*Client]bool),
-		broadcast:  make(chan any),
-		register:   make(chan *Client),
-		unregister: make(chan *Client),
-		log:        log,
+		clients:      make(map[*Client]bool),
+		latestFrames: make(map[string]latestLiveFrame),
+		broadcast:    make(chan any),
+		register:     make(chan *Client),
+		unregister:   make(chan *Client),
+		log:          log,
 	}
 }
 
@@ -213,6 +222,12 @@ func (h *Hub) Run() {
 // BroadcastEnvelope pushes an automation event envelope directly to clients.
 func (h *Hub) BroadcastEnvelope(event any) {
 	h.broadcast <- event
+	if envelope, ok := event.(contracts.EventEnvelope); ok {
+		switch envelope.Kind {
+		case contracts.EventKindExecutionCompleted, contracts.EventKindExecutionFailed, contracts.EventKindExecutionCancelled:
+			h.ClearExecutionFrames(envelope.ExecutionID.String())
+		}
+	}
 }
 
 // BroadcastResult contains metrics from a broadcast operation.
@@ -271,8 +286,8 @@ func (h *Hub) BroadcastTimelineEntry(sessionID string, entry *bastimeline.Timeli
 
 // BroadcastBinaryFrame sends a source-bearing frame envelope to recording viewers.
 func (h *Hub) BroadcastBinaryFrame(sessionID string, jpegData []byte) {
-	h.mu.RLock()
-	defer h.mu.RUnlock()
+	h.mu.Lock()
+	h.latestFrames["recording:"+sessionID] = latestLiveFrame{binary: append([]byte(nil), jpegData...)}
 
 	for client := range h.clients {
 		// Only send to clients subscribed to this recording session
@@ -284,6 +299,7 @@ func (h *Hub) BroadcastBinaryFrame(sessionID string, jpegData []byte) {
 			}
 		}
 	}
+	h.mu.Unlock()
 }
 
 // HasRecordingFrameSubscribers returns true if any clients are subscribed to the given session.
@@ -328,7 +344,24 @@ func (h *Hub) HasExecutionFrameSubscribers(executionID string) bool {
 // BroadcastExecutionFrame sends a frame to clients subscribed to execution frame streaming.
 // This enables live preview of workflow execution.
 func (h *Hub) BroadcastExecutionFrame(executionID string, frame *ExecutionFrame) {
-	message := map[string]any{
+	message := executionFrameMessage(executionID, frame)
+	h.mu.Lock()
+	copyFrame := *frame
+	h.latestFrames["execution:"+executionID] = latestLiveFrame{execution: &copyFrame}
+
+	for client := range h.clients {
+		if client.ExecutionFrameStreamID != nil && *client.ExecutionFrameStreamID == executionID {
+			select {
+			case client.Send <- message:
+			default:
+			}
+		}
+	}
+	h.mu.Unlock()
+}
+
+func executionFrameMessage(executionID string, frame *ExecutionFrame) map[string]any {
+	return map[string]any{
 		"type":         "execution_frame",
 		"execution_id": executionID,
 		"data":         frame.Data,
@@ -338,21 +371,20 @@ func (h *Hub) BroadcastExecutionFrame(executionID string, frame *ExecutionFrame)
 		"captured_at":  frame.CapturedAt,
 		"timestamp":    getCurrentTimestamp(),
 	}
+}
 
-	h.mu.RLock()
-	defer h.mu.RUnlock()
+// ClearRecordingFrames releases the bounded preview slot when its session ends.
+func (h *Hub) ClearRecordingFrames(sessionID string) {
+	h.mu.Lock()
+	delete(h.latestFrames, "recording:"+sessionID)
+	h.mu.Unlock()
+}
 
-	for client := range h.clients {
-		// Only send to clients subscribed to this execution's frame stream
-		if client.ExecutionFrameStreamID != nil && *client.ExecutionFrameStreamID == executionID {
-			select {
-			case client.Send <- message:
-			default:
-				// Client buffer full, skip frame (non-blocking)
-				// Missing a frame is better than blocking the broadcast
-			}
-		}
-	}
+// ClearExecutionFrames releases the bounded preview slot when its execution ends.
+func (h *Hub) ClearExecutionFrames(executionID string) {
+	h.mu.Lock()
+	delete(h.latestFrames, "execution:"+executionID)
+	h.mu.Unlock()
 }
 
 // BroadcastPerfStats sends performance statistics to clients subscribed to a recording session.
@@ -658,6 +690,11 @@ func (c *Client) handleSubscription(msgType string, msg map[string]any) {
 			}:
 			default:
 			}
+			if c.RecordingFrames {
+				if latest, ok := c.Hub.latestFrames["recording:"+sessionID]; ok && len(latest.binary) > 0 {
+					c.enqueueBinaryFrame(latest.binary)
+				}
+			}
 		}
 	case "unsubscribe_recording":
 		c.RecordingSessionID = nil
@@ -679,6 +716,12 @@ func (c *Client) handleSubscription(msgType string, msg map[string]any) {
 				"timestamp":    getCurrentTimestamp(),
 			}:
 			default:
+			}
+			if latest, ok := c.Hub.latestFrames["execution:"+execID]; ok && latest.execution != nil {
+				select {
+				case c.Send <- executionFrameMessage(execID, latest.execution):
+				default:
+				}
 			}
 		}
 	case "unsubscribe_execution_frames":

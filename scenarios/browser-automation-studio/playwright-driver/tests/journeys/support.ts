@@ -85,8 +85,15 @@ export const ownership = (lease: Lease): CloseSessionRequest => ({ execution_id:
 
 export async function openLease(options: { storageState?: SessionSpec['storage_state']; reuseMode?: SessionSpec['reuse_mode']; labels?: SessionSpec['labels'] } = {}): Promise<Lease> {
   const request: StartSessionRequest = {
-    execution_id: randomUUID(), workflow_id: randomUUID(), viewport: VIEWPORT, reuse_mode: options.reuseMode ?? 'fresh',
-    base_url: env.fixture, storage_state: options.storageState, labels: options.labels,
+    execution_id: randomUUID(), workflow_id: randomUUID(),
+    session_options: {
+      viewport: VIEWPORT,
+      reuse_mode: options.reuseMode ?? 'fresh',
+      frame_scale: 'css',
+      base_url: env.fixture,
+      storage_state: options.storageState,
+      labels: options.labels,
+    },
   };
   const started = await driver<StartSessionResponse>('/session/start', request);
   if (!started.session_id || !started.lease_id) throw new Error(`Driver returned no lease: ${JSON.stringify(started)}`);
@@ -135,14 +142,14 @@ export function adhoc(name: string, nodeAction: ActionDefinition, waitForComplet
 }
 
 export type FixtureEffect = { sequence: number; context: string; held?: boolean };
-export type FixtureState = { effects: FixtureEffect[]; released: Array<{ sequence: number }>; inputs: Array<{ type: string; value: string; context: string }>; scrolls: Array<{ y: number }>; retryAttempts: number };
+export type FixtureState = { effects: FixtureEffect[]; released: Array<{ sequence: number }>; inputs: Array<{ type: string; value: string; context: string }>; scrolls: Array<{ y: number }>; fingerprints: Array<Record<string, unknown>>; retryAttempts: number };
 
 export async function fixtureState(): Promise<FixtureState> {
   return (await fetch(new URL('/journey-state', env.fixture))).json() as Promise<FixtureState>;
 }
 
 /** Long-poll the fixture until more than `after` records of `kind` exist. */
-export async function fixtureAfter(kind: 'effect' | 'release' | 'input' | 'scroll', after: number): Promise<FixtureState> {
+export async function fixtureAfter(kind: 'effect' | 'release' | 'input' | 'scroll' | 'fingerprint', after: number): Promise<FixtureState> {
   const url = new URL('/journey-wait', env.fixture);
   url.search = new URLSearchParams({ kind, after: String(after), timeout_ms: String(TIMEOUT_MS.wait) }).toString();
   const response = await fetch(url, { signal: AbortSignal.timeout(TIMEOUT_MS.wait + 1000) });

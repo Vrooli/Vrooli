@@ -6,8 +6,10 @@
  */
 
 import { useMemo } from 'react';
-import type { TimelineEntry, TimelineAction, PageEventType, PageColor } from '../hooks/useTimeline';
+import type { TimelineEntry, PageEventType, PageColor } from '../hooks/useTimeline';
 import type { Page } from '../hooks/usePages';
+import { timelineEntryTimestamp } from '../api/schemas';
+import { timelineEntryToTimelineItem, type TimelineItem } from '../types/timeline-unified';
 
 interface MultiPageTimelineEntryProps {
   /** The timeline entry to display */
@@ -107,13 +109,13 @@ function PageEventIcon({ eventType }: { eventType: PageEventType }) {
 }
 
 /** Get description for action */
-function getActionDescription(action: TimelineAction): string {
+function getActionDescription(action: TimelineItem): string {
   switch (action.actionType) {
     case 'click':
       if (action.payload?.text) {
         return `Click: "${truncate(String(action.payload.text), 30)}"`;
       }
-      return `Click ${action.selector?.primary ? truncate(action.selector.primary, 30) : 'element'}`;
+      return `Click ${action.selector ? truncate(action.selector, 30) : 'element'}`;
     case 'input':
     case 'type':
       if (action.payload?.text) {
@@ -165,8 +167,8 @@ export function MultiPageTimelineEntry({
   showPageBadge = true,
 }: MultiPageTimelineEntryProps) {
   const isPageEvent = entry.type === 'page_event';
-  const pageEvent = entry.pageEvent;
-  const action = entry.action;
+  const pageEvent = isPageEvent ? entry.pageEvent : undefined;
+  const action = entry.type === 'action' ? timelineEntryToTimelineItem(entry.entry) : undefined;
 
   // Get display text
   const description = useMemo(() => {
@@ -212,7 +214,7 @@ export function MultiPageTimelineEntry({
 
         {/* Timestamp */}
         <span className="text-xs text-gray-400 dark:text-gray-500 flex-shrink-0">
-          {formatTimestamp(entry.timestamp)}
+          {formatTimestamp(timelineEntryTimestamp(entry))}
         </span>
       </div>
     );
@@ -255,7 +257,7 @@ export function MultiPageTimelineEntry({
 
       {/* Timestamp */}
       <span className="text-xs text-gray-400 dark:text-gray-500 flex-shrink-0">
-        {formatTimestamp(entry.timestamp)}
+          {formatTimestamp(timelineEntryTimestamp(entry))}
       </span>
     </button>
   );

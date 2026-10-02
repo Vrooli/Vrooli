@@ -17,13 +17,14 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/api-core/connectx"
 	drv "github.com/vrooli/browser-automation-studio/automation/driver"
+	autosession "github.com/vrooli/browser-automation-studio/automation/session"
 	drillv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/drills"
 	drillconnect "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/drills/drillsconnect"
 )
 
 type Deps struct {
 	DriverURL, AdminSecret string
-	DriverClient           *drv.Client
+	SessionBroker          *autosession.Manager
 	HTTPClient             *http.Client
 	Logger                 *logrus.Logger
 }
@@ -115,8 +116,12 @@ func (s *service) RunDrill(ctx context.Context, req *connect.Request[drillv1.Run
 		auditEvent = "expired"
 	}
 	auditObserved := auditContains(post.Audit, fault, auditEvent)
-	breakerClosed := name != drillv1.DrillName_DRILL_NAME_CAPACITY || (s.deps.DriverClient != nil && s.deps.DriverClient.CircuitBreakerState() == "closed")
-	assertions := []*drillv1.DrillAssertion{{Name: "expected controlled outcome", Passed: expected, Detail: outcome}, {Name: "driver seam observed", Passed: auditObserved, Detail: fault + " " + auditEvent}, {Name: "capacity does not open breaker", Passed: breakerClosed, Detail: breakerState(s.deps.DriverClient)}, {Name: "fault residue removed", Passed: postErr == nil && len(post.Faults) == 0, Detail: fmt.Sprintf("pre=%d post=%d", len(pre.Faults), len(post.Faults))}}
+	state := "unavailable"
+	if s.deps.SessionBroker != nil {
+		state = s.deps.SessionBroker.CircuitBreakerState()
+	}
+	breakerClosed := name != drillv1.DrillName_DRILL_NAME_CAPACITY || state == "closed"
+	assertions := []*drillv1.DrillAssertion{{Name: "expected controlled outcome", Passed: expected, Detail: outcome}, {Name: "driver seam observed", Passed: auditObserved, Detail: fault + " " + auditEvent}, {Name: "capacity does not open breaker", Passed: breakerClosed, Detail: state}, {Name: "fault residue removed", Passed: postErr == nil && len(post.Faults) == 0, Detail: fmt.Sprintf("pre=%d post=%d", len(pre.Faults), len(post.Faults))}}
 	passed := expected && auditObserved && breakerClosed && postErr == nil && len(post.Faults) == 0
 	evidence, _ := json.Marshal(map[string]any{"precondition": pre, "postcondition": post, "outcome": outcome})
 	return connect.NewResponse(&drillv1.RunDrillResponse{Verdict: &drillv1.DrillVerdict{Name: name, Passed: passed, ExpectedFailureObserved: expected, CleanupCompleted: cleanup == "disarmed", PrimaryOutcome: outcome, CleanupOutcome: cleanup, Assertions: assertions, EvidenceJson: string(evidence)}}), nil
@@ -183,36 +188,19 @@ func (s *service) snapshot(ctx context.Context) (faultSnapshot, error) {
 	return v, nil
 }
 func (s *service) startSession(ctx context.Context, token string) (int, error) {
-	if s.deps.DriverClient != nil {
-		_, err := s.deps.DriverClient.CreateSessionForDrill(ctx, &drv.CreateSessionRequest{ExecutionID: "drill-" + uuid.NewString(), WorkflowID: "failure-drill", Viewport: drv.Viewport{Width: 100, Height: 100}, ReuseMode: "fresh"}, token)
-		if err == nil {
-			return http.StatusOK, nil
+	if s.deps.SessionBroker == nil {
+		return 0, errors.New("session broker unavailable")
+	}
+	owned, err := s.deps.SessionBroker.CreateForDrill(ctx, &drv.CreateSessionRequest{ExecutionID: "drill-" + uuid.NewString(), WorkflowID: "failure-drill", Options: drv.SessionOptions{Viewport: drv.Viewport{Width: 100, Height: 100}, ReuseMode: "fresh", FrameScale: "css"}}, token)
+	if err == nil {
+		if _, closeErr := owned.CloseWithArtifacts(ctx); closeErr != nil {
+			return 0, fmt.Errorf("close successful drill session: %w", closeErr)
 		}
-		var driverErr *drv.Error
-		if errors.As(err, &driverErr) {
-			return driverErr.Status, nil
-		}
-		return 0, err
+		return http.StatusOK, nil
 	}
-	body := map[string]any{"execution_id": "drill-" + uuid.NewString(), "workflow_id": "failure-drill", "viewport": map[string]int{"width": 100, "height": 100}, "reuse_mode": "fresh"}
-	raw, _ := json.Marshal(body)
-	r, err := http.NewRequestWithContext(ctx, http.MethodPost, s.deps.DriverURL+"/session/start", strings.NewReader(string(raw)))
-	if err != nil {
-		return 0, err
+	var driverErr *drv.Error
+	if errors.As(err, &driverErr) {
+		return driverErr.Status, nil
 	}
-	r.Header.Set("Content-Type", "application/json")
-	r.Header.Set("X-Playwright-Drill-Token", token)
-	resp, err := s.deps.HTTPClient.Do(r)
-	if err != nil {
-		return 0, err
-	}
-	defer resp.Body.Close()
-	return resp.StatusCode, nil
-}
-
-func breakerState(client *drv.Client) string {
-	if client == nil {
-		return "unavailable"
-	}
-	return client.CircuitBreakerState()
+	return 0, err
 }

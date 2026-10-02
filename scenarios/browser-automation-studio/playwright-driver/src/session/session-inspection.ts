@@ -1,6 +1,7 @@
 import type { Config } from '../config';
 import type { SessionPhase, SessionState } from '../types';
-import { isSessionActive } from './session-decisions';
+
+type IsSessionActive = (session: SessionState, idleTimeoutMs: number, now: number) => boolean;
 
 export interface SessionInfo {
   id: string;
@@ -57,14 +58,15 @@ export function inspectSession(session: SessionState): SessionInfo {
 export function summarizeSessions(
   sessions: Iterable<SessionState>,
   config: Config,
-  now = Date.now()
+  now = Date.now(),
+  isActive: IsSessionActive
 ): SessionSummary {
   let total = 0;
   let active = 0;
   let activeRecordings = 0;
   for (const session of sessions) {
     total++;
-    if (isSessionActive(session, config.session.idleTimeoutMs, now)) active++;
+    if (isActive(session, config.session.idleTimeoutMs, now)) active++;
     if (session.pipelineManager?.isRecording()) activeRecordings++;
   }
   return {
@@ -80,12 +82,13 @@ export function summarizeSessions(
 export function listSessions(
   sessions: Iterable<SessionState>,
   config: Config,
-  now = Date.now()
+  now = Date.now(),
+  isActive: IsSessionActive
 ): SessionListEntry[] {
   const list: SessionListEntry[] = [];
   for (const session of sessions) {
     const idleTimeMs = now - session.lastUsedAt.getTime();
-    const active = isSessionActive(session, config.session.idleTimeoutMs, now);
+    const active = isActive(session, config.session.idleTimeoutMs, now);
     let currentUrl: string | undefined;
     try {
       currentUrl = session.page.url();
@@ -104,7 +107,7 @@ export function listSessions(
       owner_execution_id: session.ownerExecutionId,
       workflow_id: session.spec.workflow_id,
       current_url: currentUrl,
-      page_count: session.pages.length,
+      page_count: session.context.pages().length,
     });
   }
   return list.sort(
@@ -115,9 +118,25 @@ export function listSessions(
 export function countActiveSessions(
   sessions: Iterable<SessionState>,
   idleTimeoutMs: number,
-  now = Date.now()
+  now = Date.now(),
+  isActive: IsSessionActive
 ): number {
   let count = 0;
-  for (const session of sessions) if (isSessionActive(session, idleTimeoutMs, now)) count++;
+  for (const session of sessions) if (isActive(session, idleTimeoutMs, now)) count++;
   return count;
+}
+
+/** One activity policy for capacity, idle cleanup, and diagnostics. */
+export function isSessionActive(session: SessionState, idleTimeoutMs: number, now = Date.now()): boolean {
+  return session.instructionInFlight || session.phase !== 'ready' || now - session.lastUsedAt.getTime() < idleTimeoutMs;
+}
+
+export function findIdleSessions(
+  sessions: Map<string, SessionState>,
+  idleTimeoutMs: number,
+  now = Date.now()
+): string[] {
+  const idle: string[] = [];
+  for (const [id, session] of sessions) if (!isSessionActive(session, idleTimeoutMs, now)) idle.push(id);
+  return idle;
 }

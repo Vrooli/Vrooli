@@ -22,6 +22,7 @@ import { chromium, Browser, BrowserContext, Page } from 'rebrowser-playwright';
 import * as http from 'http';
 import WebSocket = require('ws');
 import { SessionManager } from '../../src/session/manager';
+import { DriverPageBindings } from '../../src/session/page-bindings';
 import { createTestConfig } from '../helpers/test-config';
 import * as driverConfig from '../../src/config';
 import { PollingStrategy, CdpScreencastStrategy, type StreamingHandle } from '../../src/frame-streaming/strategies';
@@ -382,7 +383,8 @@ describe('Pipeline E2E Tests', () => {
       const load = jest.spyOn(page, 'waitForLoadState').mockImplementation(async () => { entered.resolve(); await dom.promise; });
       const receivedFrame = createDeferred<void>();
       frames.on('connection', (socket) => socket.once('message', () => receivedFrame.resolve()));
-      const session = { id: 'pipeline-e2e-test', spec: { execution_id: 'owner', workflow_id: 'fixture', reuse_mode: 'fresh', viewport: { width: 800, height: 600 } }, page, pipelineManager, phase: 'ready', ownerExecutionId: 'owner', leaseId: 'lease', pageToIdMap: new WeakMap([[page, 'initial-page']]) };
+      const pageBindings = new DriverPageBindings(); pageBindings.register(page, 'initial-page');
+      const session = { id: 'pipeline-e2e-test', spec: { execution_id: 'owner', workflow_id: 'fixture', reuse_mode: 'fresh', viewport: { width: 800, height: 600 } }, page, pipelineManager, phase: 'ready', ownerExecutionId: 'owner', leaseId: 'lease', pageBindings };
       const manager = {
         getSession: () => session,
         updateActivity: jest.fn(),
@@ -398,7 +400,7 @@ describe('Pipeline E2E Tests', () => {
       try {
         start = handleRecordStart(createMockHttpRequest({ method: 'POST', body: {
           execution_id: 'owner', lease_id: 'lease',
-          frame_callback_url: `http://127.0.0.1:${address.port}/frames`,
+          frame_stream_url: `ws://127.0.0.1:${address.port}/frames`,
         } }), response, session.id, manager, createTestConfig());
         const first = await Promise.race([start.then(() => 'started'), entered.promise.then(() => 'extra-dom-wait')]);
         if (first === 'started') {
@@ -1056,7 +1058,7 @@ describe('session-owned frame transport', () => {
       });
       sessionId = session.sessionId;
       const connected = waitForServerConnection(sockets);
-      startFrameStreaming(sessionId, manager, { callbackUrl: `http://127.0.0.1:${address.port}/frames` });
+      startFrameStreaming(sessionId, manager, { streamUrl: `ws://127.0.0.1:${address.port}/frames`, streamKind:'recording' });
       const socket = await connected;
       const painted = waitForSocketMessage(socket);
       await manager.peekSession(sessionId).page.evaluate(() => { document.body.style.background = 'tomato'; });
@@ -1121,7 +1123,7 @@ describe('native capture page identity', () => {
       const frames: Buffer[] = [];
       capture = await new CdpScreencastStrategy().start(
         () => current,
-        { sessionId: 'native-page-identity', sourceForPage: page => ({session_id:'native-page-identity',execution_id:'native-owner',lease_id:'native-lease',page_id:page===red?'red':'blue'}), quality: 65, targetFps: 30, scale: 'css', includePerfHeaders: false, cdp: { pageCheckIntervalMs: 25 } },
+        { sessionId: 'native-page-identity', sourceForPage: page => ({stream_kind:'execution',session_id:'native-page-identity',execution_id:'native-owner',lease_id:'native-lease',page_id:page===red?'red':'blue'}), quality: 65, targetFps: 30, scale: 'css', includePerfHeaders: false, cdp: { pageCheckIntervalMs: 25 } },
         { isReady: () => ready, getWebSocket: () => ({ readyState: 1, send: (bytes: Buffer): void => { frames.push(Buffer.from(bytes.subarray(4 + bytes.readUInt32BE(0)))); frameSent(); } }) },
         { onFrameSent: () => {}, onFrameSkipped: () => {} },
       );
@@ -1161,7 +1163,7 @@ describe('native polling fallback [REQ:BAS-RH-J22]', () => {
       const delivered = new Promise<Buffer>((resolve) => { sent = resolve; });
       const socket = { readyState: 1, send: (frame: Buffer): void => sent(Buffer.from(frame)) };
       capture = await new PollingStrategy().start(() => page,
-        { sessionId: `native-polling-${scale}`, sourceForPage: () => ({session_id:`native-polling-${scale}`,execution_id:'native-owner',lease_id:'native-lease',page_id:'blue'}), quality: 65, targetFps: 10, scale, includePerfHeaders: false },
+        { sessionId: `native-polling-${scale}`, sourceForPage: () => ({stream_kind:'execution',session_id:`native-polling-${scale}`,execution_id:'native-owner',lease_id:'native-lease',page_id:'blue'}), quality: 65, targetFps: 10, scale, includePerfHeaders: false },
         { isReady: () => true, getWebSocket: () => socket },
         { onFrameSent: () => {}, onFrameSkipped: () => {} });
       const frame = await Promise.race([delivered, new Promise<never>((_, reject) => {
@@ -1209,11 +1211,10 @@ describe('native recording tab ownership [REQ:BAS-RH-J03]', () => {
         });
       });
       const initial = await context.newPage();
+      const pageBindings = new DriverPageBindings(); pageBindings.register(initial, 'initial-id');
       const session = {
-        id: 'native-tab-owner', phase: 'ready', ownerExecutionId: 'owner', leaseId: 'lease', context, page: initial, pages: [initial],
-        pageIdMap: new Map([['initial-id', initial]]),
-        pageToIdMap: new WeakMap([[initial, 'initial-id']]),
-        currentPageIndex: 0, frameStack: [],
+        id: 'native-tab-owner', phase: 'ready', ownerExecutionId: 'owner', leaseId: 'lease', context, page: initial,
+        pageBindings, frameStack: [],
       } as unknown as ReturnType<SessionManager['getSession']>;
       const config = createTestConfig({ history: { callbackUrl: '', thumbnailEnabled: false } });
       const pages = setupPageLifecycleListeners('native-tab-owner', session, 'http://fixture.invalid/callback', config);
@@ -1230,10 +1231,9 @@ describe('native recording tab ownership [REQ:BAS-RH-J03]', () => {
       })]);
       clearTimeout(deadline);
       expect(response.getJSON().driver_page_id).toBe(event.driverPageId);
-      expect(session.pages).toHaveLength(2);
-      expect(session.pageIdMap.size).toBe(2);
-      expect(session.pageToIdMap.get(session.page)).toBe(event.driverPageId);
-      expect(session.currentPageIndex).toBe(1);
+      expect(session.context.pages()).toHaveLength(2);
+      expect(session.pageBindings.ids()).toHaveLength(2);
+      expect(session.pageBindings.getId(session.page)).toBe(event.driverPageId);
       cleanup();
       for (const [page, before] of counts) {
         expect(page.listenerCount('framenavigated')).toBe(before.navigation);
@@ -1272,8 +1272,9 @@ describe('native stream controls [REQ:BAS-RH-J23]', () => {
       const received = new Promise<Buffer>((resolve) => {
         server.once('connection', (socket) => socket.once('message', (bytes: Buffer) => resolve(Buffer.from(bytes))));
       });
-      startFrameStreaming(sessionId, { getSession: () => ({ id:sessionId,ownerExecutionId:'native-owner',leaseId:'native-lease',page,pageToIdMap:new WeakMap([[page,'native-page']]) }) }, {
-        callbackUrl: `http://127.0.0.1:${address.port}/frames`, scale, quality: 65, fps: 30,
+      const pageBindings = new DriverPageBindings(); pageBindings.register(page, 'native-page');
+      startFrameStreaming(sessionId, { getSession: () => ({ id:sessionId,ownerExecutionId:'native-owner',leaseId:'native-lease',page,pageBindings }) }, {
+        streamUrl: `ws://127.0.0.1:${address.port}/frames`, streamKind:'execution', scale, quality: 65, fps: 30,
       });
       const packet = await Promise.race([received, new Promise<never>((_, reject) => {
         deadline = setTimeout(() => reject(new Error('Native scale frame exceeded5000ms')), 5000);
@@ -1334,12 +1335,13 @@ describe('native stream controls [REQ:BAS-RH-J23]', () => {
         qualityCalls.push(quality);
         return screenshot(options);
       });
-      const provider = { getSession: () => ({ id:sessionId,ownerExecutionId:'native-owner',leaseId:'native-lease',page,pageToIdMap:new WeakMap([[page,'native-page']]) }) } as unknown as SessionManager;
+      const pageBindings = new DriverPageBindings(); pageBindings.register(page, 'native-page');
+      const provider = { getSession: () => ({ id:sessionId,ownerExecutionId:'native-owner',leaseId:'native-lease',page,pageBindings }) } as unknown as SessionManager;
       const observations: { at: number; jpeg: Buffer; header: { frame_bytes: number } }[] = [];
       let observed!: () => void;
       const threeFrames = new Promise<void>((resolve) => { observed = resolve; });
       const connected = waitForServerConnection(server);
-      startFrameStreaming(sessionId, provider, { callbackUrl: `http://127.0.0.1:${address.port}/frames`, quality: 65, fps: 30 });
+      startFrameStreaming(sessionId, provider, { streamUrl: `ws://127.0.0.1:${address.port}/frames`, streamKind:'execution', quality: 65, fps: 30 });
       const socket = await connected;
       socket.on('message', (data: Buffer) => {
         if (data.length < 5) return;

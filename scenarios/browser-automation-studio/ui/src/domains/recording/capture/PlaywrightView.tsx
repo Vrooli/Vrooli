@@ -38,12 +38,8 @@ interface PlaywrightViewProps {
   sessionId: string;
   /** Selected page; null disables the viewer, omission follows the active page. */
   pageId?: string | null;
-  quality?: number;
-  fps?: number;
   onStreamError?: (message: string) => void;
   refreshToken?: number;
-  /** Whether to use WebSocket for frame updates (default: true) */
-  useWebSocketFrames?: boolean;
   /** Logical viewport dimensions (for coordinate mapping, independent of device pixel ratio) */
   viewport?: { width: number; height: number };
   /** Callback to receive frame statistics updates */
@@ -65,11 +61,8 @@ interface PlaywrightViewProps {
 export const PlaywrightView = memo(function PlaywrightView({
   sessionId,
   pageId,
-  quality = 65,
-  fps = 30,
   onStreamError,
   refreshToken,
-  useWebSocketFrames = true,
   viewport,
   onStatsUpdate,
   onPageMetadataChange,
@@ -94,9 +87,6 @@ export const PlaywrightView = memo(function PlaywrightView({
   } = useFrameStream({
     sessionId,
     pageId,
-    quality,
-    fps,
-    useWebSocketFrames,
     refreshToken,
     onStreamError,
     onStatsUpdate,

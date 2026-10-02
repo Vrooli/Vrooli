@@ -1,13 +1,16 @@
 package handlers
 
 import (
+	"bytes"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
+	"image/jpeg"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/automation/driver"
+	"github.com/vrooli/browser-automation-studio/domain"
 	"github.com/vrooli/browser-automation-studio/performance"
 )
 
@@ -35,7 +38,9 @@ func decodeDriverFrame(data []byte) ([]byte, *driverFrameHeader, error) {
 		return nil, nil, err
 	}
 	payload := data[4+length:]
-	if header.Version != 1 || header.Source == nil || header.CapturedAt.IsZero() || payload[0] != 0xff || payload[1] != 0xd8 {
+	if header.Version != 1 || header.Source == nil ||
+		(header.Source.StreamKind != "recording" && header.Source.StreamKind != "execution") ||
+		header.CapturedAt.IsZero() || payload[0] != 0xff || payload[1] != 0xd8 {
 		return nil, nil, invalid
 	}
 	return payload, &header, nil
@@ -43,23 +48,46 @@ func decodeDriverFrame(data []byte) ([]byte, *driverFrameHeader, error) {
 
 // Consult the current session on every admission, including after HTTP capture.
 func (h *Handler) framePage(sessionID string, source *driver.FrameSource) (uuid.UUID, bool) {
-	owner, ok := h.recordModeService.GetSession(sessionID)
-	if !ok || owner == nil {
-		return uuid.Nil, false
-	}
-	return owner.FramePage(source)
+	pageID, _, _, accepted := h.framePageMetadata(sessionID, source)
+	return pageID, accepted
 }
 
-func viewerFrame(sessionID string, pageID uuid.UUID, capturedAt time.Time, jpeg []byte) []byte {
+func (h *Handler) framePageMetadata(sessionID string, source *driver.FrameSource) (uuid.UUID, string, string, bool) {
+	owner, ok := h.recordModeService.GetSession(sessionID)
+	if !ok || owner == nil {
+		return uuid.Nil, "", "", false
+	}
+	pageID, accepted := owner.FramePage(source)
+	if !accepted {
+		return uuid.Nil, "", "", false
+	}
+	page, ok := owner.Pages().GetPage(pageID)
+	if !ok || page.Status != domain.PageStatusActive {
+		return uuid.Nil, "", "", false
+	}
+	return pageID, page.Title, page.URL, true
+}
+
+func viewerFrame(sessionID string, pageID uuid.UUID, title, pageURL string, capturedAt time.Time, jpeg []byte) []byte {
 	header, _ := json.Marshal(struct {
 		Version    int       `json:"version"`
 		SessionID  string    `json:"session_id"`
 		PageID     uuid.UUID `json:"page_id"`
+		PageTitle  string    `json:"page_title"`
+		PageURL    string    `json:"page_url"`
 		CapturedAt time.Time `json:"captured_at"`
-	}{1, sessionID, pageID, capturedAt})
+	}{1, sessionID, pageID, title, pageURL, capturedAt})
 	packet := make([]byte, 4+len(header)+len(jpeg))
 	binary.BigEndian.PutUint32(packet, uint32(len(header)))
 	copy(packet[4:], header)
 	copy(packet[4+len(header):], jpeg)
 	return packet
+}
+
+func jpegDimensions(data []byte) (int, int) {
+	config, err := jpeg.DecodeConfig(bytes.NewReader(data))
+	if err != nil {
+		return 0, 0
+	}
+	return config.Width, config.Height
 }

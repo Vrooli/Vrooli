@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/storage"
+	exportsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/exports"
 )
 
 func TestWriteHTMLBundle_IncludesAssetsAndIndex(t *testing.T) {
@@ -31,38 +32,38 @@ func TestWriteHTMLBundle_IncludesAssetsAndIndex(t *testing.T) {
 		t.Fatalf("expected one stored screenshot, got %d", len(objectNames))
 	}
 
-	spec := &ReplayMovieSpec{
-		Execution: ExportExecutionMetadata{
-			ExecutionID:  executionID,
-			WorkflowID:   workflowID,
+	spec := &exportsv1.ReplaySpec{
+		Execution: &exportsv1.ReplayExecutionMetadata{
+			ExecutionId:  executionID.String(),
+			WorkflowId:   workflowID.String(),
 			WorkflowName: "Demo Flow",
 			Status:       "completed",
 		},
-		Theme: ExportTheme{
+		Theme: &exportsv1.ReplayTheme{
 			BackgroundGradient: []string{"#111111", "#222222"},
 			AccentColor:        "#33c3f0",
 		},
-		Presentation: ExportPresentation{
-			Viewport: ExportDimensions{Width: 1280, Height: 720},
+		Presentation: &exportsv1.ReplayPresentation{
+			Viewport: &exportsv1.ReplayDimensions{Width: 1280, Height: 720},
 		},
-		Assets: []ExportAsset{
+		Assets: []*exportsv1.ReplayAsset{
 			{
-				ID:     "shot-1",
+				Id:     "shot-1",
 				Type:   "screenshot",
 				Source: "/api/v1/screenshots/" + objectNames[0],
 			},
 		},
-		Frames: []ExportFrame{
+		Frames: []*exportsv1.ReplayFrame{
 			{
 				Index:             0,
 				StepIndex:         0,
-				NodeID:            "step-1",
+				NodeId:            "step-1",
 				StepType:          "click",
 				Title:             "Click button",
 				Status:            "success",
 				DurationMs:        1200,
-				Viewport:          ExportDimensions{Width: 1280, Height: 720},
-				ScreenshotAssetID: "shot-1",
+				Viewport:          &exportsv1.ReplayDimensions{Width: 1280, Height: 720},
+				ScreenshotAssetId: "shot-1",
 			},
 		},
 	}

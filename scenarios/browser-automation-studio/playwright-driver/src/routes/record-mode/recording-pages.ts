@@ -127,35 +127,24 @@ export function registerRecordingPage(
   session: ReturnType<SessionManager['getSession']>,
   page: Page
 ): string {
-  const existing = session.pageToIdMap.get(page);
-  if (existing) return existing;
-  const id = randomUUID();
-  if (!session.pages.includes(page)) session.pages.push(page);
-  session.pageIdMap.set(id, page);
-  session.pageToIdMap.set(page, id);
-  return id;
+  const existing = session.pageBindings.getId(page);
+  return existing ?? session.pageBindings.register(page, randomUUID());
 }
 
 // Explicit rollback and recording close callbacks converge on the same registry cleanup.
 export function unregisterRecordingPage(session: ReturnType<SessionManager['getSession']>, page: Page): void {
-  const id = session.pageToIdMap.get(page);
-  if (id) session.pageIdMap.delete(id);
-  session.pageToIdMap.delete(page);
-  const index = session.pages.indexOf(page);
-  if (index !== -1) session.pages.splice(index, 1);
+  session.pageBindings.remove(page);
   if (session.page === page) {
     session.frameStack.length = 0;
-    const next = session.pages.find(candidate => !candidate.isClosed());
+    const next = session.context.pages().find(candidate => !candidate.isClosed());
     if (next) session.page = next;
     clearFrameCache(session.id);
   }
-  session.currentPageIndex = session.pages.indexOf(session.page);
 }
 
 function selectRecordingPage(session: ReturnType<SessionManager['getSession']>, page: Page): void {
   if (session.page !== page) session.frameStack.length = 0;
   session.page = page;
-  session.currentPageIndex = session.pages.indexOf(page);
   clearFrameCache(session.id);
 }
 
@@ -173,7 +162,7 @@ export async function handleRecordClosePage(
       sendJson(res, 400, { error: 'MISSING_PAGE_ID', message: 'page_id field is required' });
       return;
     }
-    const page = session.pageIdMap.get(pageId);
+    const page = session.pageBindings.getPage(pageId);
     if (!page) {
       sendJson(res, 404, { error: 'PAGE_NOT_FOUND', message: `Page ${pageId} not found` });
       return;
@@ -182,7 +171,7 @@ export async function handleRecordClosePage(
     await page.close();
     ownedSession();
     unregisterRecordingPage(session, page);
-    sendJson(res, 200, { closed_page_id: pageId, active_page_id: session.pageToIdMap.get(session.page) ?? '' });
+    sendJson(res, 200, { closed_page_id: pageId, active_page_id: session.pageBindings.getId(session.page) ?? '' });
   } catch (error) {
     sendError(res, error as Error, `/session/${sessionId}/record/close-page`);
   }
@@ -226,7 +215,7 @@ export async function handleRecordNewPage(
       ownedSession();
       [title, faviconUrl] = await Promise.all([newPage.title().catch(() => ''), readFaviconUrl(newPage)]);
       ownedSession();
-      if (newPage.isClosed() || session.pageIdMap.get(pageId) !== newPage) throw new SessionNotFoundError(sessionId);
+      if (newPage.isClosed() || session.pageBindings.getPage(pageId) !== newPage) throw new SessionNotFoundError(sessionId);
     } catch (error) {
       try {
         await newPage.close();
@@ -245,7 +234,7 @@ export async function handleRecordNewPage(
       pageId,
       url,
       title,
-      totalPages: session.pages.length,
+      totalPages: session.context.pages().length,
     });
 
     sendJson(res, 201, {
@@ -292,11 +281,11 @@ export async function handleRecordActivePage(
     }
 
     // Find the page by ID using the page ID map
-    const targetPage = session.pageIdMap.get(request.page_id);
+    const targetPage = session.pageBindings.getPage(request.page_id);
 
     if (!targetPage) {
       // List available page IDs for debugging
-      const availableIds = Array.from(session.pageIdMap.keys());
+      const availableIds = Array.from(session.pageBindings.ids());
       sendJson(res, 404, {
         error: 'PAGE_NOT_FOUND',
         message: `Page with ID ${request.page_id} not found.`,
@@ -317,10 +306,10 @@ export async function handleRecordActivePage(
     sessionManager.updateActivity(sessionId);
     const title = await targetPage.title().catch(() => '');
     ownedSession();
-    if (targetPage.isClosed() || session.pageIdMap.get(request.page_id) !== targetPage) throw new SessionNotFoundError(sessionId);
+    if (targetPage.isClosed() || session.pageBindings.getPage(request.page_id) !== targetPage) throw new SessionNotFoundError(sessionId);
 
     // Get the previous page ID for logging
-    const previousPageId = session.pageToIdMap.get(session.page) || 'unknown';
+    const previousPageId = session.pageBindings.getId(session.page) || 'unknown';
 
     selectRecordingPage(session, targetPage);
 
@@ -331,7 +320,7 @@ export async function handleRecordActivePage(
       sessionId,
       previousPageId,
       newPageId: request.page_id,
-      pageIndex: session.currentPageIndex,
+      pageIndex: session.context.pages().indexOf(session.page),
       url,
       title,
     });

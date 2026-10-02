@@ -2,12 +2,13 @@ package executionwriter
 
 import (
 	"encoding/json"
+	"strings"
+	"testing"
+
 	"github.com/stretchr/testify/require"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	"google.golang.org/protobuf/proto"
-	"strings"
-	"testing"
 
 	"github.com/google/uuid"
 )
@@ -37,6 +38,7 @@ func TestResultManifestPreservesTimelineWhileOmittingArtifactPayloads(t *testing
 	require.NoError(t, err)
 	require.NotContains(t, string(encoded), "capture")
 	require.NotContains(t, string(encoded), "artifacts")
+	require.NotContains(t, string(encoded), "timeline_frames")
 	require.Contains(t, string(encoded), "entry")
 	require.True(t, proto.Equal(before, source.pb), "manifest projection cannot alter full timeline evidence")
 }

@@ -23,7 +23,6 @@ jest.mock('ws', () => ({
 
 import {
   WebSocketConnectionManager,
-  buildWebSocketUrl,
 } from '../../../src/frame-streaming/websocket';
 
 describe('WebSocket connection manager', () => {
@@ -112,20 +111,4 @@ describe('WebSocket connection manager', () => {
     expect(mockInstances.length).toBe(1);
   });
 
-  it('builds correct WebSocket URLs from callback URLs', () => {
-    const recordingUrl = buildWebSocketUrl(
-      'http://localhost:8080/api/v1/recordings/live/session-1/frame',
-      'session-1'
-    );
-    expect(recordingUrl).toBe('ws://localhost:8080/ws/recording/session-1/frames');
-
-    const executionUrl = buildWebSocketUrl(
-      'https://api.example.com/api/v1/executions/exec-123/frames',
-      'session-1'
-    );
-    expect(executionUrl).toBe('wss://api.example.com/ws/execution/exec-123/frames');
-
-    const fallbackUrl = buildWebSocketUrl('not-a-url', 'session-1');
-    expect(fallbackUrl).toBe('ws://127.0.0.1:8080/ws/recording/session-1/frames');
-  });
 });

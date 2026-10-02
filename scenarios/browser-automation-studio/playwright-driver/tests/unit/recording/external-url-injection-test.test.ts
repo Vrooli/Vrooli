@@ -13,7 +13,7 @@ describe('external URL injection test', () => {
     jest.clearAllMocks();
   });
 
-  it('reports failure when external injection is not attempted', async () => {
+  it('checks the initialized page rather than requiring a new injection attempt counter', async () => {
     jest.useFakeTimers();
     const page = {
       goto: jest.fn().mockResolvedValue(undefined),
@@ -37,8 +37,8 @@ describe('external URL injection test', () => {
     await jest.runAllTimersAsync();
     const result = await promise;
 
-    expect(result.success).toBe(false);
-    expect(result.failurePoint).toBe('fetch');
+    expect(result.success).toBe(true);
+    expect(result.failurePoint).toBeUndefined();
 
     jest.useRealTimers();
   });
@@ -74,7 +74,7 @@ describe('external URL injection test', () => {
     jest.useRealTimers();
   });
 
-  it('reports failure when injection attempt fails', async () => {
+  it('reports failure when the recording script is not loaded', async () => {
     jest.useFakeTimers();
     const page = {
       goto: jest.fn().mockResolvedValue(undefined),
@@ -100,7 +100,7 @@ describe('external URL injection test', () => {
     const result = await promise;
 
     expect(result.success).toBe(false);
-    expect(result.failurePoint).toBe('fetch');
+    expect(result.failurePoint).toBe('script_load');
 
     jest.useRealTimers();
   });

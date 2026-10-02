@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { ReplayMovieSpec } from '@/types/export';
+import type { ReplaySpec as ReplayMovieSpec } from "@vrooli/generated-proto/browser-automation-studio/v1/exports/exports_pb";
 import { applyReplayStyleToSpec, resolveReplayStyleFromSpec } from '../adapters/spec';
 import { getReplayBackgroundThemeId } from '../model';
 

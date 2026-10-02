@@ -158,9 +158,12 @@ export function getActionType(instruction: HandlerInstruction): string {
 function getActionParams<T>(action: ActionDefinition, actionType: ActionType): T | undefined {
   if (action.type !== actionType) return undefined;
   const enumName = ActionType[actionType];
-  const expectedCase = enumName
+  const generatedCase = enumName
     ?.toLowerCase()
     .replace(/_([a-z])/g, (_, letter: string) => letter.toUpperCase());
+  // SELECT is represented by the select_option protobuf field, whose oneof
+  // case is `selectOption` even though the action enum is simply SELECT.
+  const expectedCase = actionType === ActionType.SELECT ? 'selectOption' : generatedCase;
   if (!expectedCase || action.params.case !== expectedCase) return undefined;
   return action.params.value as T;
 }

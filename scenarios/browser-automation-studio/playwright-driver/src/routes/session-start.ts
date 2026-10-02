@@ -27,9 +27,9 @@ export async function handleSessionStart(
   faultController?: FaultController
 ): Promise<void> {
   try {
-    // Parse request body
     const body = await parseJsonBody(req, config);
     const request = body as unknown as StartSessionRequest;
+    const options = request.session_options;
 
     // Validate required fields
     if (!request.execution_id || typeof request.execution_id !== 'string') {
@@ -50,74 +50,69 @@ export async function handleSessionStart(
         }
       );
     }
-    if (!request.viewport || typeof request.viewport !== 'object') {
+    if (!options || typeof options !== 'object' || Array.isArray(options)) {
+      throw new InvalidInstructionError('Missing or invalid session_options: must be an object');
+    }
+    if (!options.viewport || typeof options.viewport !== 'object') {
       throw new InvalidInstructionError(
-        'Missing or invalid viewport: must be an object with width and height',
+        'Missing or invalid session_options.viewport: must be an object with width and height',
         {
-          field: 'viewport',
-          received: typeof request.viewport,
+          field: 'session_options.viewport',
+          received: typeof options.viewport,
         }
       );
     }
-    if (typeof request.viewport.width !== 'number' || request.viewport.width <= 0) {
-      throw new InvalidInstructionError('Invalid viewport.width: must be a positive number', {
-        field: 'viewport.width',
-        received: request.viewport.width,
+    if (typeof options.viewport.width !== 'number' || options.viewport.width <= 0) {
+      throw new InvalidInstructionError('Invalid session_options.viewport.width: must be a positive number', {
+        field: 'session_options.viewport.width',
+        received: options.viewport.width,
       });
     }
-    if (typeof request.viewport.height !== 'number' || request.viewport.height <= 0) {
-      throw new InvalidInstructionError('Invalid viewport.height: must be a positive number', {
-        field: 'viewport.height',
-        received: request.viewport.height,
+    if (typeof options.viewport.height !== 'number' || options.viewport.height <= 0) {
+      throw new InvalidInstructionError('Invalid session_options.viewport.height: must be a positive number', {
+        field: 'session_options.viewport.height',
+        received: options.viewport.height,
       });
     }
 
     // Validate reuse_mode if provided
     const validReuseModes = ['fresh', 'clean', 'reuse'];
-    if (request.reuse_mode && !validReuseModes.includes(request.reuse_mode)) {
+    if (typeof options.reuse_mode !== 'string' || !validReuseModes.includes(options.reuse_mode)) {
       throw new InvalidInstructionError(
         `Invalid reuse_mode: must be one of ${validReuseModes.join(', ')}`,
         {
-          field: 'reuse_mode',
-          received: request.reuse_mode,
+          field: 'session_options.reuse_mode',
+          received: options.reuse_mode,
           valid: validReuseModes,
         }
       );
     }
 
+    if (options.frame_scale !== 'css' && options.frame_scale !== 'device') {
+      throw new InvalidInstructionError('Invalid session_options.frame_scale: must be css or device', {
+        field: 'session_options.frame_scale',
+        received: options.frame_scale,
+      });
+    }
+
     if (
-      requiresArtifactRoot(request.required_capabilities) &&
-      !request.artifact_paths?.root?.trim()
+      requiresArtifactRoot(options.required_capabilities) &&
+      !options.artifact_paths?.root?.trim()
     ) {
       throw new InvalidInstructionError(
-        'artifact_paths.root is required when recording video/trace/HAR artifacts',
+        'session_options.artifact_paths.root is required when recording video/trace/HAR artifacts',
         {
-          field: 'artifact_paths.root',
-          required_for: request.required_capabilities,
+          field: 'session_options.artifact_paths.root',
+          required_for: options.required_capabilities,
         }
       );
     }
 
-    // Build session spec
     const spec: SessionSpec = {
       execution_id: request.execution_id,
       workflow_id: request.workflow_id,
-      viewport: request.viewport,
-      reuse_mode: (request.reuse_mode as 'fresh' | 'clean' | 'reuse') || 'fresh',
-      frame_scale: request.frame_streaming?.scale ?? 'css',
-      base_url: request.base_url,
-      labels: request.labels,
-      required_capabilities: request.required_capabilities,
-      artifact_paths: request.artifact_paths,
-      storage_state: request.storage_state,
-      browser_profile: request.browser_profile,
-      fake_media: request.fake_media,
-      audio_playback_pause_ms: request.audio_playback_pause_ms,
-      audio_playback_start_delay_ms: request.audio_playback_start_delay_ms,
-      audio_playback_defer_start: request.audio_playback_defer_start,
-      audio_device_evidence: request.audio_device_evidence,
-      app_target: request.app_target,
-      validation_context: request.validation_context,
+      ...{ ...options, browser_profile: interactiveProfileDefault(options.labels, options.browser_profile) },
+      reuse_mode: options.reuse_mode as 'fresh' | 'clean' | 'reuse',
     };
 
     const drillToken = typeof req.headers['x-playwright-drill-token'] === 'string' ? req.headers['x-playwright-drill-token'] : undefined;
@@ -136,8 +131,8 @@ export async function handleSessionStart(
       throw new PlaywrightDriverError('controlled failure after session registration; session was reconciled', 'DRILL_SESSION_REGISTRATION_FAILURE');
     }
 
-    const frameStreaming = request.frame_streaming;
-    if (frameStreaming?.callback_url) {
+    const frameStreaming = options.frame_streaming;
+    if (frameStreaming?.url) {
       // Readiness may finish after release, reuse or close. Every page lookup
       // belongs to this immutable lease, including lookups by the live stream.
       const executionId = spec.execution_id;
@@ -152,10 +147,11 @@ export async function handleSessionStart(
         if (!ready) return;
         const session = provider.getSession(sessionId);
         startFrameStreaming(sessionId, provider, {
-          callbackUrl: frameStreaming.callback_url,
+          streamUrl: frameStreaming.url,
+          streamKind: 'execution',
           quality: frameStreaming.quality,
           fps: frameStreaming.fps,
-          scale: session.spec.frame_scale ?? 'css',
+          scale: session.spec.frame_scale!,
         });
       }).catch((error: unknown) => {
         logger.debug('Deferred frame preview did not start', { sessionId, error: String(error) });
@@ -163,7 +159,7 @@ export async function handleSessionStart(
     }
 
     const current = sessionManager.getSessionForLease(sessionId, spec.execution_id, leaseId);
-    const activePageId = current.pageToIdMap.get(current.page);
+    const activePageId = current.pageBindings.getId(current.page);
     if (!isOperational(current.phase) || !activePageId) throw new SessionNotFoundError(sessionId);
 
     const response: StartSessionResponse = {
@@ -184,8 +180,10 @@ export async function handleSessionStart(
   }
 }
 
+export const interactiveProfileDefault = (labels?: SessionSpec['labels'], profile?: SessionSpec['browser_profile']): SessionSpec['browser_profile'] => profile ?? (labels?.mode === 'recording' ? { preset: 'stealth' } : undefined);
+
 function requiresArtifactRoot(
-  capabilities?: StartSessionRequest['required_capabilities']
+  capabilities?: StartSessionRequest['session_options']['required_capabilities']
 ): boolean {
   if (!capabilities) {
     return false;

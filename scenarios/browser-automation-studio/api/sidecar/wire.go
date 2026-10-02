@@ -19,11 +19,15 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/automation/driver"
+	autosession "github.com/vrooli/browser-automation-studio/automation/session"
+	"github.com/vrooli/browser-automation-studio/internal/enums"
 	"github.com/vrooli/browser-automation-studio/sidecar/health"
 	"github.com/vrooli/browser-automation-studio/sidecar/recovery"
 	"github.com/vrooli/browser-automation-studio/sidecar/supervisor"
 	"github.com/vrooli/browser-automation-studio/websocket"
 	"github.com/vrooli/scenarioconfig-go"
+	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
+	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 )
 
 // Dependencies holds all sidecar-related dependencies.
@@ -49,6 +53,39 @@ type Dependencies struct {
 	Store recovery.Store
 }
 
+func recoveryActionsFromTimelineEntries(entries []*bastimeline.TimelineEntry) ([]recovery.RecordedAction, string) {
+	actions := make([]recovery.RecordedAction, 0, len(entries))
+	var currentURL string
+	for _, entry := range entries {
+		if entry == nil {
+			continue
+		}
+		definition := entry.GetAction()
+		selector, value := "", ""
+		switch params := definition.GetParams().(type) {
+		case *basactions.ActionDefinition_Click:
+			selector = params.Click.GetSelector()
+		case *basactions.ActionDefinition_Input:
+			selector, value = params.Input.GetSelector(), params.Input.GetValue()
+		case *basactions.ActionDefinition_Navigate:
+			value = params.Navigate.GetUrl()
+		case *basactions.ActionDefinition_SelectOption:
+			selector = params.SelectOption.GetSelector()
+			value = params.SelectOption.GetValue()
+		}
+		timestamp := time.Now()
+		if entry.GetTimestamp() != nil {
+			timestamp = entry.GetTimestamp().AsTime()
+		}
+		url := entry.GetTelemetry().GetUrl()
+		actions = append(actions, recovery.RecordedAction{Type: enums.ActionTypeToString(definition.GetType()), Selector: selector, Value: value, URL: url, Timestamp: timestamp})
+		if url != "" {
+			currentURL = url
+		}
+	}
+	return actions, currentURL
+}
+
 // BuildDependencies wires up all sidecar-related dependencies.
 //
 // If PLAYWRIGHT_DRIVER_URL is set, sidecar management is disabled and all
@@ -63,6 +100,7 @@ type Dependencies struct {
 func BuildDependencies(
 	db *sqlx.DB,
 	driverClient *driver.Client,
+	sessions *autosession.Manager,
 	hub *websocket.Hub,
 	log *logrus.Logger,
 	gatewayURL string,
@@ -140,12 +178,24 @@ func BuildDependencies(
 
 	// 6. Build checkpoint manager
 	actionSource := func(ctx context.Context, sessionID string) ([]recovery.RecordedAction, string, error) {
-		resp, err := driverClient.GetRecordedActions(ctx, sessionID)
+		if sessions == nil {
+			return nil, "", fmt.Errorf("session broker unavailable")
+		}
+		owned, ok := sessions.Get(sessionID)
+		if !ok {
+			return nil, "", fmt.Errorf("recording session is not owned by this API")
+		}
+		resp, err := owned.GetRecordedActionsResponse(ctx)
 		if err != nil {
 			return nil, "", err
 		}
 
-		// Convert driver.RecordedAction to recovery.RecordedAction
+		if len(resp.TimelineEntries) > 0 {
+			actions, currentURL := recoveryActionsFromTimelineEntries(resp.TimelineEntries)
+			return actions, currentURL, nil
+		}
+
+		// Legacy driver responses may still contain recorded-action JSON.
 		actions := make([]recovery.RecordedAction, len(resp.Actions))
 		var currentURL string
 		for i, a := range resp.Actions {

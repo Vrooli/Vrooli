@@ -344,27 +344,6 @@ function setupRoutes(
     observability.handleSessionList(req, res, observabilityDeps);
     return Promise.resolve();
   });
-  // Runtime configuration management
-  router.get('/observability/config/runtime', (req, res) => {
-    observability.handleConfigRuntime(req, res);
-    return Promise.resolve();
-  });
-  router.put('/observability/config/:env_var', (req, res, params) => {
-    const envVar = requireRouteParam(res, params, 'env_var');
-    if (!envVar) {
-      return Promise.resolve();
-    }
-    observability.handleConfigUpdate(req, res, envVar);
-    return Promise.resolve();
-  });
-  router.delete('/observability/config/:env_var', (req, res, params) => {
-    const envVar = requireRouteParam(res, params, 'env_var');
-    if (!envVar) {
-      return Promise.resolve();
-    }
-    observability.handleConfigReset(req, res, envVar);
-    return Promise.resolve();
-  });
   router.post('/test-control/faults/arm', async (req, res) => routes.handleFaultArm(req, res, config, faultController));
   router.get('/test-control/faults', (req, res) => { routes.handleFaultSnapshot(req, res, config, faultController); return Promise.resolve(); });
   router.post('/test-control/faults/disarm', async (req, res) => routes.handleFaultDisarm(req, res, config, faultController));

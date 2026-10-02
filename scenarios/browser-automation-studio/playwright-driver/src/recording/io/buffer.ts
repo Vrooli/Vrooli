@@ -1,6 +1,6 @@
 import { timelineEntryToJson, type TimelineEntry } from '../../proto/recording';
 import { MAX_RECORDING_BUFFER_SIZE } from '../../utils';
-import { registerSessionCleanup } from '../../infra';
+import { registerSessionCleanup } from '../../session/cleanup-registry';
 
 type BufferedEntry = {
   entry: TimelineEntry;

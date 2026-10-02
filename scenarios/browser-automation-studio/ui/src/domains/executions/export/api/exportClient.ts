@@ -5,8 +5,9 @@
  * Tests can provide mock implementations to verify behavior without network calls.
  */
 
-import type { ReplayMovieSpec } from "@/types/export";
+import type { ReplaySpec as ReplayMovieSpec } from "@vrooli/generated-proto/browser-automation-studio/v1/exports/exports_pb";
 import { getConfig } from "@/config";
+import { serializeExportPayload } from "./replaySpecJson";
 
 // =============================================================================
 // Schemas (Runtime Validation)
@@ -130,7 +131,7 @@ async function executeExport(
       "Content-Type": "application/json",
       Accept: acceptHeader,
     },
-    body: JSON.stringify(payload),
+    body: serializeExportPayload(payload),
     signal,
   });
 

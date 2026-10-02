@@ -402,10 +402,10 @@ func TestSession_StartRecording_Success(t *testing.T) {
 	}
 
 	_, err = sess.StartRecording(context.Background(), &driver.StartRecordingRequest{
-		CallbackURL:      "http://localhost:8080/callback",
-		FrameCallbackURL: "http://localhost:8080/frame",
-		FrameQuality:     80,
-		FrameFPS:         10,
+		CallbackURL:    "http://localhost:8080/callback",
+		FrameStreamURL: "ws://localhost:8080/ws/frames",
+		FrameQuality:   80,
+		FrameFPS:       10,
 	})
 	if err != nil {
 		t.Fatalf("StartRecording failed: %v", err)
@@ -1328,7 +1328,7 @@ func TestFramePageOwnership(t *testing.T) {
 	owner := &Session{id: "session", executionID: "execution", leaseID: "lease"}
 	owner.InitializePageTracking("https://red.test")
 	owner.Pages().SetInitialPageDriverID("red")
-	valid := driver.FrameSource{SessionID: "session", ExecutionID: "execution", LeaseID: "lease", PageID: "red"}
+	valid := driver.FrameSource{StreamKind: "recording", SessionID: "session", ExecutionID: "execution", LeaseID: "lease", PageID: "red"}
 	id, ok := owner.FramePage(&valid)
 	require.True(t, ok)
 	require.Equal(t, owner.Pages().GetActivePageID(), id)

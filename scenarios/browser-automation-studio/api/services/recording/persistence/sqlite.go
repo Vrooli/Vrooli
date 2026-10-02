@@ -13,6 +13,9 @@ import (
 
 	coredb "github.com/vrooli/api-core/database"
 	"github.com/vrooli/browser-automation-studio/domain"
+	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 // SQLiteRepository implements Repository using SQLite.
@@ -197,11 +200,29 @@ func (r *SQLiteRepository) AppendTimelineEntry(ctx context.Context, entry *Unifi
 	if entry == nil || entry.ID == uuid.Nil || entry.SessionID == "" {
 		return false, fmt.Errorf("journal entry requires identity and session")
 	}
+	switch entry.Type {
+	case TimelineEntryTypeAction:
+		if entry.Entry == nil || entry.Action != nil {
+			return false, fmt.Errorf("journal action requires one canonical proto timeline entry")
+		}
+		if entry.Entry.GetId() != entry.ID.String() {
+			return false, fmt.Errorf("journal identity %s does not match proto entry %q", entry.ID, entry.Entry.GetId())
+		}
+		if entry.PageEvent != nil {
+			return false, fmt.Errorf("journal action cannot contain a page event")
+		}
+	case TimelineEntryTypePageEvent:
+		if entry.PageEvent == nil || entry.Entry != nil || entry.Action != nil {
+			return false, fmt.Errorf("journal page event requires one page event payload")
+		}
+	default:
+		return false, fmt.Errorf("unknown journal entry type %q", entry.Type)
+	}
 	var actionJSON, pageEventJSON any
-	if entry.Action != nil {
-		data, err := json.Marshal(entry.Action)
+	if entry.Entry != nil {
+		data, err := (protojson.MarshalOptions{UseProtoNames: false}).Marshal(entry.Entry)
 		if err != nil {
-			return false, fmt.Errorf("marshal action: %w", err)
+			return false, fmt.Errorf("marshal proto timeline entry: %w", err)
 		}
 		actionJSON = string(data)
 	}
@@ -212,11 +233,17 @@ func (r *SQLiteRepository) AppendTimelineEntry(ctx context.Context, entry *Unifi
 		}
 		pageEventJSON = string(data)
 	}
-	const query = `INSERT INTO timeline_entries (id,type,timestamp,session_id,page_id,sequence,action_json,page_event_json)
- SELECT $1,$2,$3,$4,$5,COALESCE(MAX(sequence),0)+1,$6,$7 FROM timeline_entries WHERE session_id=$4
+	const query = `WITH next_sequence(sequence) AS (
+ SELECT COALESCE(MAX(sequence),0)+1 FROM timeline_entries WHERE session_id=$4
+)
+INSERT INTO timeline_entries (id,type,timestamp,session_id,page_id,sequence,action_json,page_event_json)
+ SELECT $1,$2,$3,$4,$5,next_sequence.sequence,
+ CASE WHEN $6 IS NULL THEN NULL ELSE json_set($6,'$.sequenceNum',next_sequence.sequence) END,
+ $7 FROM next_sequence WHERE 1
  ON CONFLICT(id) DO NOTHING RETURNING sequence`
 	err := r.db.QueryRowContext(ctx, query, entry.ID.String(), entry.Type, entry.Timestamp, entry.SessionID, entry.PageID.String(), actionJSON, pageEventJSON).Scan(&entry.Sequence)
 	if err == nil {
+		setDurableProtoSequence(entry)
 		return true, nil
 	}
 	if err != sql.ErrNoRows {
@@ -233,7 +260,14 @@ func (r *SQLiteRepository) AppendTimelineEntry(ctx context.Context, entry *Unifi
 		return false, fmt.Errorf("journal identity %s conflicts with a committed observation", entry.ID)
 	}
 	entry.Sequence = committed.Sequence
+	setDurableProtoSequence(entry)
 	return false, nil
+}
+
+func setDurableProtoSequence(entry *UnifiedTimelineEntry) {
+	if entry.Entry != nil {
+		entry.Entry.SequenceNum = int32(entry.Sequence)
+	}
 }
 
 // Local commit metadata can differ on retry; observed fields may not.
@@ -245,6 +279,10 @@ func sameObservation(a, b *UnifiedTimelineEntry) bool {
 			copyAction := *e.Action
 			copyAction.CreatedAt = time.Time{}
 			copyEntry.Action = &copyAction
+		}
+		if e.Entry != nil {
+			copyEntry.Entry = proto.Clone(e.Entry).(*bastimeline.TimelineEntry)
+			copyEntry.Entry.SequenceNum = 0
 		}
 		data, err := json.Marshal(copyEntry)
 		if err != nil {
@@ -287,7 +325,17 @@ func scanTimelineEntry(row interface{ Scan(...any) error }) (*UnifiedTimelineEnt
 		return nil, fmt.Errorf("journal page identity: %w", err)
 	}
 	if action.Valid {
-		if err := decodeJournalJSON(action.String, &entry.Action); err != nil {
+		var fields map[string]json.RawMessage
+		if err := json.Unmarshal([]byte(action.String), &fields); err != nil {
+			return nil, fmt.Errorf("committed action %s: %w", id, err)
+		}
+		if _, canonical := fields["action"]; canonical {
+			var protoEntry bastimeline.TimelineEntry
+			if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal([]byte(action.String), &protoEntry); err != nil {
+				return nil, fmt.Errorf("committed proto action %s: %w", id, err)
+			}
+			entry.Entry = &protoEntry
+		} else if err := decodeJournalJSON(action.String, &entry.Action); err != nil {
 			return nil, fmt.Errorf("committed action %s: %w", id, err)
 		}
 	}

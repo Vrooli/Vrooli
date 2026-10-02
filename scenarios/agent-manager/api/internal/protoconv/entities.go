@@ -1631,25 +1631,26 @@ func OrchestratorRunnerStatusToProto(r *OrchestratorRunnerStatus) *pb.RunnerStat
 		Message:     r.Message,
 		InstallHint: "",
 		Capabilities: &pb.RunnerCapabilities{
-			SpawnCapabilities:        SpawnCapabilitiesToProto(r.Capabilities.SpawnCapabilities),
-			SupportsStreaming:        r.Capabilities.SupportsStreaming,
-			SupportsMessages:         r.Capabilities.SupportsMessages,
-			SupportsToolEvents:       r.Capabilities.SupportsToolEvents,
-			SupportsCostTracking:     r.Capabilities.SupportsCostTracking,
-			SupportsCancellation:     r.Capabilities.SupportsCancellation,
-			SupportsContinuation:     r.Capabilities.SupportsContinuation,
-			SupportsWarmIteration:    r.Capabilities.SupportsWarmIteration,
-			SupportsImageAttachments: r.Capabilities.SupportsImageAttachments,
-			SupportsEffort:           r.Capabilities.SupportsEffort,
-			EffortMappings:           r.Capabilities.EffortMappings,
-			EffortModelSpecific:      r.Capabilities.EffortModelSpecific,
-			SupportsRunnerDefault:    r.Capabilities.SupportsRunnerDefault,
-			DynamicModelPrefixes:     r.Capabilities.DynamicModelPrefixes,
-			MaxTurns:                 int32(r.Capabilities.MaxTurns),
-			SupportedFeatures:        r.Capabilities.SupportedFeatures,
-			AllowedExtraFlags:        r.Capabilities.AllowedExtraFlags,
-			SupportsToolRestriction:  r.Capabilities.SupportsToolRestriction,
-			ToolRestrictionMappings:  r.Capabilities.ToolRestrictionMappings,
+			SpawnCapabilities:         SpawnCapabilitiesToProto(r.Capabilities.SpawnCapabilities),
+			SupportsStreaming:         r.Capabilities.SupportsStreaming,
+			SupportsMessages:          r.Capabilities.SupportsMessages,
+			SupportsToolEvents:        r.Capabilities.SupportsToolEvents,
+			SupportsCostTracking:      r.Capabilities.SupportsCostTracking,
+			SupportsCancellation:      r.Capabilities.SupportsCancellation,
+			SupportsContinuation:      r.Capabilities.SupportsContinuation,
+			SupportsWarmIteration:     r.Capabilities.SupportsWarmIteration,
+			SupportsSessionCompaction: r.Capabilities.SupportsSessionCompaction,
+			SupportsImageAttachments:  r.Capabilities.SupportsImageAttachments,
+			SupportsEffort:            r.Capabilities.SupportsEffort,
+			EffortMappings:            r.Capabilities.EffortMappings,
+			EffortModelSpecific:       r.Capabilities.EffortModelSpecific,
+			SupportsRunnerDefault:     r.Capabilities.SupportsRunnerDefault,
+			DynamicModelPrefixes:      r.Capabilities.DynamicModelPrefixes,
+			MaxTurns:                  int32(r.Capabilities.MaxTurns),
+			SupportedFeatures:         r.Capabilities.SupportedFeatures,
+			AllowedExtraFlags:         r.Capabilities.AllowedExtraFlags,
+			SupportsToolRestriction:   r.Capabilities.SupportsToolRestriction,
+			ToolRestrictionMappings:   r.Capabilities.ToolRestrictionMappings,
 		},
 		SupportedModels: r.Capabilities.SupportedModels,
 	}
@@ -1690,26 +1691,27 @@ func RunnerCapabilitiesFromProto(capabilities *pb.RunnerCapabilities, supportedM
 		return RunnerCapabilities{SupportedModels: supportedModels}
 	}
 	return RunnerCapabilities{
-		SpawnCapabilities:        spawnCapabilitiesFromProto(capabilities.SpawnCapabilities),
-		SupportsMessages:         capabilities.SupportsMessages,
-		SupportsToolEvents:       capabilities.SupportsToolEvents,
-		SupportsCostTracking:     capabilities.SupportsCostTracking,
-		SupportsStreaming:        capabilities.SupportsStreaming,
-		SupportsCancellation:     capabilities.SupportsCancellation,
-		SupportsContinuation:     capabilities.SupportsContinuation,
-		SupportsWarmIteration:    capabilities.SupportsWarmIteration,
-		SupportsImageAttachments: capabilities.SupportsImageAttachments,
-		SupportsToolRestriction:  capabilities.SupportsToolRestriction,
-		ToolRestrictionMappings:  capabilities.ToolRestrictionMappings,
-		SupportsEffort:           capabilities.SupportsEffort,
-		EffortMappings:           capabilities.EffortMappings,
-		EffortModelSpecific:      capabilities.EffortModelSpecific,
-		MaxTurns:                 int(capabilities.MaxTurns),
-		SupportedModels:          supportedModels,
-		SupportsRunnerDefault:    capabilities.SupportsRunnerDefault,
-		DynamicModelPrefixes:     capabilities.DynamicModelPrefixes,
-		SupportedFeatures:        capabilities.SupportedFeatures,
-		AllowedExtraFlags:        capabilities.AllowedExtraFlags,
+		SpawnCapabilities:         spawnCapabilitiesFromProto(capabilities.SpawnCapabilities),
+		SupportsMessages:          capabilities.SupportsMessages,
+		SupportsToolEvents:        capabilities.SupportsToolEvents,
+		SupportsCostTracking:      capabilities.SupportsCostTracking,
+		SupportsStreaming:         capabilities.SupportsStreaming,
+		SupportsCancellation:      capabilities.SupportsCancellation,
+		SupportsContinuation:      capabilities.SupportsContinuation,
+		SupportsWarmIteration:     capabilities.SupportsWarmIteration,
+		SupportsSessionCompaction: capabilities.SupportsSessionCompaction,
+		SupportsImageAttachments:  capabilities.SupportsImageAttachments,
+		SupportsToolRestriction:   capabilities.SupportsToolRestriction,
+		ToolRestrictionMappings:   capabilities.ToolRestrictionMappings,
+		SupportsEffort:            capabilities.SupportsEffort,
+		EffortMappings:            capabilities.EffortMappings,
+		EffortModelSpecific:       capabilities.EffortModelSpecific,
+		MaxTurns:                  int(capabilities.MaxTurns),
+		SupportedModels:           supportedModels,
+		SupportsRunnerDefault:     capabilities.SupportsRunnerDefault,
+		DynamicModelPrefixes:      capabilities.DynamicModelPrefixes,
+		SupportedFeatures:         capabilities.SupportedFeatures,
+		AllowedExtraFlags:         capabilities.AllowedExtraFlags,
 	}
 }
 
@@ -1732,26 +1734,27 @@ type OrchestratorRunnerStatus struct {
 
 // RunnerCapabilities mirrors runner.Capabilities for import avoidance.
 type RunnerCapabilities struct {
-	SpawnCapabilities        []SpawnCapability
-	SupportsMessages         bool
-	SupportsToolEvents       bool
-	SupportsCostTracking     bool
-	SupportsStreaming        bool
-	SupportsCancellation     bool
-	SupportsContinuation     bool
-	SupportsWarmIteration    bool
-	SupportsImageAttachments bool
-	SupportsToolRestriction  bool
-	ToolRestrictionMappings  map[string]string
-	SupportsEffort           bool
-	EffortMappings           map[string]string
-	EffortModelSpecific      bool
-	MaxTurns                 int
-	SupportedModels          []string
-	SupportsRunnerDefault    bool
-	DynamicModelPrefixes     []string
-	SupportedFeatures        []string
-	AllowedExtraFlags        []string
+	SpawnCapabilities         []SpawnCapability
+	SupportsMessages          bool
+	SupportsToolEvents        bool
+	SupportsCostTracking      bool
+	SupportsStreaming         bool
+	SupportsCancellation      bool
+	SupportsContinuation      bool
+	SupportsWarmIteration     bool
+	SupportsSessionCompaction bool
+	SupportsImageAttachments  bool
+	SupportsToolRestriction   bool
+	ToolRestrictionMappings   map[string]string
+	SupportsEffort            bool
+	EffortMappings            map[string]string
+	EffortModelSpecific       bool
+	MaxTurns                  int
+	SupportedModels           []string
+	SupportsRunnerDefault     bool
+	DynamicModelPrefixes      []string
+	SupportedFeatures         []string
+	AllowedExtraFlags         []string
 }
 
 type SpawnCapability struct {

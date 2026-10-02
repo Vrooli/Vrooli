@@ -24,10 +24,10 @@ const (
 // When enabled, the playwright-driver will push frames to the callback URL,
 // allowing the UI to display a live preview of the execution.
 type FrameStreamingConfig struct {
-	CallbackURL string // HTTP POST endpoint to receive frames
-	Quality     int    // JPEG quality 1-100 (default: 55)
-	FPS         int    // Target frames per second (default: 6)
-	Scale       string // "css" or "device" (default: "css")
+	URL     string // Shared driver-frame WebSocket ingress URL
+	Quality int    // JPEG quality 1-100 (default: 55)
+	FPS     int    // Target frames per second (default: 6)
+	Scale   string // "css" or "device" (default: "css")
 }
 
 // SessionSpec describes the session needed for an execution.

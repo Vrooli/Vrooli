@@ -243,9 +243,8 @@ const (
 // IDs/dedupe keys using the correlation metadata.
 //
 // Note: StepOutcome is the internal representation used by the execution engine.
-// For WebSocket streaming to the UI, StepOutcome is converted to TimelineEntry
-// (basv1.TimelineEntry from timeline_entry.proto) via StepOutcomeToTimelineEntry in
-// automation/events/unified_convert.go. New UI-facing code should work with
+// For WebSocket streaming to the UI, events/ws_sink.go maps StepOutcome to the
+// canonical TimelineEntry message. New UI-facing code should work with
 // TimelineEntry directly.
 //
 // Related design work is historical; current plans are owned by Plan Manager.

@@ -143,10 +143,12 @@ func (c *Codex) Capabilities() runner.Capabilities {
 		},
 		SupportsToolEvents:       true,
 		SupportsCostTracking:     true,
-		SupportsImageAttachments: true,  // `codex exec -i/--image <FILE>`
-		SupportsToolRestriction:  false, // Codex has no per-launch allowlist for its native tools.
-		ToolRestrictionMappings:  canonicalToolMappings(codexToolTranslations),
-		SupportsEffort:           true,
+		SupportsImageAttachments: true, // `codex exec -i/--image <FILE>`
+		// `codex app-server` thread/compact/start (codex_compact.go).
+		SupportsSessionCompaction: true,
+		SupportsToolRestriction:   false, // Codex has no per-launch allowlist for its native tools.
+		ToolRestrictionMappings:   canonicalToolMappings(codexToolTranslations),
+		SupportsEffort:            true,
 		// Codex config documents minimal, low, medium, high, and xhigh. The
 		// portable scale has no minimal level, so max must not be claimed here.
 		EffortMappings:       map[string]string{"low": "model_reasoning_effort=low", "medium": "model_reasoning_effort=medium", "high": "model_reasoning_effort=high", "xhigh": "model_reasoning_effort=xhigh"},

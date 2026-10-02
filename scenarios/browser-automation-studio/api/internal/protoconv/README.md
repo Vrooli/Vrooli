@@ -99,8 +99,8 @@ browser-automation-studio/v1/
 ```
 Human Browser Action
     ↓
-livecapture.RecordedAction (Go struct with live-capture types)
-    ↓ [events/recording_convert.go]
+record-mode action handler (maps captured data at the producer seam)
+    ↓
 bastimeline.TimelineEntry (unified proto format)
     ↓
 WebSocket → UI Timeline
@@ -113,7 +113,7 @@ Workflow Definition (V2 flow JSON)
 basexecution.ExecutionPlan (compiled instructions)
     ↓ [executor/simple_executor.go]
 contracts.StepOutcome (native Go struct with time.Time)
-    ↓ [events/unified_convert.go]
+    ↓ [events/ws_sink.go]
 bastimeline.TimelineEntry (unified proto format)
     ↓
 WebSocket → UI Timeline

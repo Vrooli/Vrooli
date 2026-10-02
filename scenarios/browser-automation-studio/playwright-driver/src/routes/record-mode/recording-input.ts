@@ -186,13 +186,13 @@ export async function handleRecordViewport(
     const ownedSession = recordingOwner(body, sessionId, sessionManager);
     const session = ownedSession();
     const page = session.page;
-    const pageId = session.pageToIdMap.get(page);
+    const pageId = session.pageBindings.getId(page);
     if (!pageId || body.expected_page_id !== pageId) {
       sendJson(res, 409, {error: 'PAGE_CHANGED', message: 'The selected recording tab changed before resize'});
       return;
     }
     const ownedPage = (): void => {
-      if (ownedSession().page !== page || session.pageToIdMap.get(page) !== pageId) throw new SessionNotFoundError(sessionId);
+      if (ownedSession().page !== page || session.pageBindings.getId(page) !== pageId) throw new SessionNotFoundError(sessionId);
     };
     const {width, height} = body as unknown as ViewportRequest;
     if (typeof width !== 'number' || typeof height !== 'number' || !Number.isFinite(width) || !Number.isFinite(height) || Math.round(width) <= 0 || Math.round(height) <= 0) {

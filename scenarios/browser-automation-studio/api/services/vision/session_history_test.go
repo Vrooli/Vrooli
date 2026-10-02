@@ -1,10 +1,8 @@
 package vision
 
 import (
-	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"testing"
 	"testing/synctest"
@@ -213,114 +211,4 @@ func TestPlaywrightVisionNavigator_CompleteCallbackWakesWaiter(t *testing.T) {
 			t.Fatalf("Wait after cleanup = %v, want nil", err)
 		}
 	})
-}
-
-// ---- Claude Code navigator records history --------------------------------
-
-func TestClaudeCodeVisionNavigator_RecordsStepHistory(t *testing.T) {
-	log := logrus.New()
-	log.SetOutput(io.Discard)
-	nav := NewClaudeCodeVisionNavigator(log)
-
-	session := &claudeCodeSession{
-		NavigationSession: &NavigationSession{
-			NavigationID: "nav_cc",
-			SessionID:    "sess_cc",
-			Status:       StatusNavigating,
-			StartedAt:    time.Now(),
-		},
-		doneChan: make(chan struct{}),
-	}
-	nav.mu.Lock()
-	nav.activeNavigations["nav_cc"] = session
-	nav.mu.Unlock()
-
-	snapBefore, _ := nav.GetSession("nav_cc")
-
-	stream := `{"type":"assistant","content":[{"type":"text","text":"open the site"}]}
-{"type":"tool_use","name":"mcp__claude-in-chrome__navigate","input":{"url":"https://example.com"}}
-{"type":"assistant","content":[{"type":"text","text":"type the name"}]}
-{"type":"tool_use","name":"mcp__claude-in-chrome__form_input","input":{"ref":"ref_12","text":"alice"}}
-{"type":"tool_use","name":"mcp__claude-in-chrome__computer","input":{"action":"left_click","coordinate":[10,20]}}
-{"type":"result","result":"done"}
-`
-	nav.parseOutput(session, bytes.NewReader([]byte(stream)))
-
-	snap, ok := nav.GetSession("nav_cc")
-	if !ok {
-		t.Fatal("session missing")
-	}
-	if snap.Status != StatusCompleted {
-		t.Fatalf("status = %q, want completed", snap.Status)
-	}
-	if len(snap.Steps) != 3 {
-		t.Fatalf("recorded %d steps, want 3: %+v", len(snap.Steps), snap.Steps)
-	}
-	if s := snap.Steps[0]; s.Index != 1 || s.ActionType != "navigate" || s.URL != "https://example.com" || s.Description != "open the site" {
-		t.Errorf("step 1 = %+v", s)
-	}
-	if s := snap.Steps[1]; s.Index != 2 || s.ActionType != "type" || s.Selector != "ref_12" || s.Value != "alice" || s.Description != "type the name" {
-		t.Errorf("step 2 = %+v", s)
-	}
-	if s := snap.Steps[2]; s.Index != 3 || s.ActionType != "click" || s.Selector != "[10, 20]" {
-		t.Errorf("step 3 = %+v", s)
-	}
-	if snap.StepCount != 3 {
-		t.Errorf("StepCount = %d, want 3", snap.StepCount)
-	}
-	// The "result" event is a terminal transition and must wake waiters.
-	select {
-	case <-snapBefore.Changed():
-	default:
-		t.Error("pre-completion snapshot channel was not closed by the result event")
-	}
-}
-
-// ---- MultiTracker -----------------------------------------------------------
-
-type stubTracker struct {
-	sessions map[string]*NavigationSession
-	aborted  []string
-}
-
-func (s *stubTracker) GetSession(id string) (*NavigationSession, bool) {
-	sess, ok := s.sessions[id]
-	if !ok {
-		return nil, false
-	}
-	return sess.Snapshot(), true
-}
-
-func (s *stubTracker) AbortNavigation(_ context.Context, id string) error {
-	s.aborted = append(s.aborted, id)
-	return nil
-}
-
-func (s *stubTracker) ResumeNavigation(_ context.Context, id string) error {
-	return fmt.Errorf("resume not supported")
-}
-
-func TestMultiTracker_RoutesToOwner(t *testing.T) {
-	a := &stubTracker{sessions: map[string]*NavigationSession{"nav_a": {NavigationID: "nav_a", NavigatorType: NavigatorPlaywright}}}
-	b := &stubTracker{sessions: map[string]*NavigationSession{"nav_b": {NavigationID: "nav_b", NavigatorType: NavigatorClaudeCode}}}
-	m := MultiTracker{a, b}
-
-	if s, ok := m.GetSession("nav_b"); !ok || s.NavigatorType != NavigatorClaudeCode {
-		t.Fatalf("GetSession(nav_b) = %+v, %v", s, ok)
-	}
-	if _, ok := m.GetSession("nav_zzz"); ok {
-		t.Fatal("unknown id should not resolve")
-	}
-	if err := m.AbortNavigation(context.Background(), "nav_b"); err != nil {
-		t.Fatal(err)
-	}
-	if len(a.aborted) != 0 || len(b.aborted) != 1 {
-		t.Errorf("abort routed wrong: a=%v b=%v", a.aborted, b.aborted)
-	}
-	if err := m.AbortNavigation(context.Background(), "nav_zzz"); err == nil {
-		t.Error("abort of unknown id should error")
-	}
-	if err := m.ResumeNavigation(context.Background(), "nav_zzz"); err == nil {
-		t.Error("resume of unknown id should error")
-	}
 }

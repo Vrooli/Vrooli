@@ -3,6 +3,8 @@ package persistence
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -10,6 +12,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/domain"
 	recordingschema "github.com/vrooli/browser-automation-studio/internal/recording"
+	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
+	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	_ "modernc.org/sqlite"
 )
 
@@ -37,10 +43,82 @@ func newTestDB(t *testing.T) *sql.DB {
 	return db
 }
 
+func TestSQLiteRepository_RoundTripsCanonicalTimelineEntry(t *testing.T) {
+	repo, db := newTestRepo(t)
+	defer db.Close()
+	ctx := context.Background()
+	session := &domain.RecordingSession{ID: uuid.NewString(), Status: domain.SessionStatusActive, CreatedAt: time.Now()}
+	if err := repo.CreateSession(ctx, session); err != nil {
+		t.Fatal(err)
+	}
+	entryID := uuid.New()
+	canonical := &bastimeline.TimelineEntry{Id: entryID.String(), SequenceNum: 1, Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_NAVIGATE}}
+	stored := &UnifiedTimelineEntry{ID: entryID, Type: TimelineEntryTypeAction, Timestamp: time.Now(), SessionID: session.ID, PageID: uuid.New(), Sequence: 12, Entry: canonical}
+	inserted, err := repo.AppendTimelineEntry(ctx, stored)
+	if err != nil || !inserted {
+		t.Fatalf("append canonical entry: inserted=%v err=%v", inserted, err)
+	}
+	got, err := repo.GetTimelineEntry(ctx, entryID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Entry == nil || !proto.Equal(canonical, got.Entry) {
+		t.Fatalf("canonical entry changed across persistence: got=%v", got.Entry)
+	}
+	if got.Action != nil {
+		t.Fatal("canonical entry was also materialized as a legacy action")
+	}
+	inserted, err = repo.AppendTimelineEntry(ctx, stored)
+	if err != nil || inserted {
+		t.Fatalf("identical canonical retry: inserted=%v err=%v", inserted, err)
+	}
+}
+
+func TestSQLiteRepository_RejectsLegacyActionWritesButReadsStoredRows(t *testing.T) {
+	repo, db := newTestRepo(t)
+	defer db.Close()
+	ctx := context.Background()
+	session := &domain.RecordingSession{ID: uuid.NewString(), Status: domain.SessionStatusActive, CreatedAt: time.Now()}
+	if err := repo.CreateSession(ctx, session); err != nil {
+		t.Fatal(err)
+	}
+
+	id, pageID, now := uuid.New(), uuid.New(), time.Now().UTC()
+	legacy := &UnifiedTimelineEntry{
+		ID: id, Type: TimelineEntryTypeAction, Timestamp: now, SessionID: session.ID, PageID: pageID,
+		Action: &domain.RecordingAction{ID: id, SessionID: session.ID, PageID: pageID, ActionType: "click", Timestamp: now},
+	}
+	if _, err := repo.AppendTimelineEntry(ctx, legacy); err == nil || !strings.Contains(err.Error(), "canonical proto") {
+		t.Fatalf("expected legacy action write to be rejected, got %v", err)
+	}
+
+	legacyJSON, err := json.Marshal(legacy.Action)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = db.ExecContext(ctx, `INSERT INTO timeline_entries (id,type,timestamp,session_id,page_id,sequence,action_json)
+VALUES ($1,$2,$3,$4,$5,1,$6)`, id.String(), TimelineEntryTypeAction, now, session.ID, pageID.String(), string(legacyJSON))
+	if err != nil {
+		t.Fatalf("seed pre-existing legacy row: %v", err)
+	}
+
+	stored, err := repo.GetTimelineEntry(ctx, id)
+	if err != nil || stored == nil || stored.Action == nil || stored.Action.ActionType != "click" {
+		t.Fatalf("read pre-existing legacy row: entry=%+v err=%v", stored, err)
+	}
+}
+
 func newTestRepo(t *testing.T) (*SQLiteRepository, *sql.DB) {
 	t.Helper()
 	db := newTestDB(t)
 	return NewSQLiteRepository(db), db
+}
+
+func testCanonicalEntry(id uuid.UUID, timestamp time.Time) *bastimeline.TimelineEntry {
+	return &bastimeline.TimelineEntry{
+		Id: id.String(), Timestamp: timestamppb.New(timestamp),
+		Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_CLICK},
+	}
 }
 
 func TestSQLiteRepository_CreateSession(t *testing.T) {
@@ -155,13 +233,16 @@ func TestSQLiteRepository_DeleteSession(t *testing.T) {
 		t.Fatalf("CreateSession failed: %v", err)
 	}
 
+	entryID := uuid.New()
+	entryTimestamp := time.Now()
 	entry := &UnifiedTimelineEntry{
-		ID:        uuid.New(),
+		ID:        entryID,
 		Type:      TimelineEntryTypeAction,
-		Timestamp: time.Now(),
+		Timestamp: entryTimestamp,
 		SessionID: session.ID,
 		PageID:    uuid.New(),
 		Sequence:  1,
+		Entry:     testCanonicalEntry(entryID, entryTimestamp),
 	}
 	if _, err := repo.AppendTimelineEntry(ctx, entry); err != nil {
 		t.Fatalf("AppendTimelineEntry failed: %v", err)
@@ -273,22 +354,16 @@ func TestSQLiteRepository_AppendTimelineEntry(t *testing.T) {
 	}
 
 	// Create action entry
-	action := &domain.RecordingAction{
-		ID:         uuid.New(),
-		SessionID:  session.ID,
-		ActionType: "click",
-		Confidence: 0.95,
-		Selector:   &domain.SelectorSet{Primary: "#submit"},
-	}
-
+	entryID := uuid.New()
+	entryTimestamp := time.Now()
 	entry := &UnifiedTimelineEntry{
-		ID:        uuid.New(),
+		ID:        entryID,
 		Type:      TimelineEntryTypeAction,
-		Timestamp: time.Now(),
+		Timestamp: entryTimestamp,
 		SessionID: session.ID,
 		PageID:    uuid.New(),
 		Sequence:  1,
-		Action:    action,
+		Entry:     testCanonicalEntry(entryID, entryTimestamp),
 	}
 
 	if _, err := repo.AppendTimelineEntry(ctx, entry); err != nil {
@@ -309,11 +384,14 @@ func TestSQLiteRepository_AppendTimelineEntry(t *testing.T) {
 	if retrieved.Type != TimelineEntryTypeAction {
 		t.Errorf("expected type action, got %s", retrieved.Type)
 	}
-	if retrieved.Action == nil {
-		t.Fatal("expected action to be non-nil")
+	if retrieved.Entry == nil {
+		t.Fatal("expected proto entry to be non-nil")
 	}
-	if retrieved.Action.ActionType != "click" {
-		t.Errorf("expected action type click, got %s", retrieved.Action.ActionType)
+	if retrieved.Entry.GetAction().GetType() != basactions.ActionType_ACTION_TYPE_CLICK {
+		t.Errorf("expected click action, got %s", retrieved.Entry.GetAction().GetType())
+	}
+	if retrieved.Entry.GetSequenceNum() != int32(retrieved.Sequence) {
+		t.Errorf("proto sequence %d does not match durable sequence %d", retrieved.Entry.GetSequenceNum(), retrieved.Sequence)
 	}
 }
 
@@ -338,13 +416,16 @@ func TestSQLiteRepository_AppendTimelineEntries(t *testing.T) {
 	// Create batch of entries
 	entries := make([]*UnifiedTimelineEntry, 10)
 	for i := 0; i < 10; i++ {
+		id := uuid.New()
+		timestamp := time.Now().Add(time.Duration(i) * time.Second)
 		entries[i] = &UnifiedTimelineEntry{
-			ID:        uuid.New(),
+			ID:        id,
 			Type:      TimelineEntryTypeAction,
-			Timestamp: time.Now().Add(time.Duration(i) * time.Second),
+			Timestamp: timestamp,
 			SessionID: session.ID,
 			PageID:    uuid.New(),
 			Sequence:  i + 1,
+			Entry:     testCanonicalEntry(id, timestamp),
 		}
 	}
 
@@ -384,12 +465,14 @@ func TestSQLiteRepository_GetTimeline_Filtering(t *testing.T) {
 
 	pageID := uuid.New()
 	baseTime := time.Now().Add(-time.Hour)
+	pageEventID := uuid.New()
 
 	// Create mixed entries
+	firstActionID, secondActionID := uuid.New(), uuid.New()
 	entries := []*UnifiedTimelineEntry{
-		{ID: uuid.New(), Type: TimelineEntryTypeAction, Timestamp: baseTime, SessionID: session.ID, PageID: pageID, Sequence: 1},
-		{ID: uuid.New(), Type: TimelineEntryTypePageEvent, Timestamp: baseTime.Add(time.Minute), SessionID: session.ID, PageID: pageID, Sequence: 2},
-		{ID: uuid.New(), Type: TimelineEntryTypeAction, Timestamp: baseTime.Add(2 * time.Minute), SessionID: session.ID, PageID: uuid.New(), Sequence: 3},
+		{ID: firstActionID, Type: TimelineEntryTypeAction, Timestamp: baseTime, SessionID: session.ID, PageID: pageID, Sequence: 1, Entry: testCanonicalEntry(firstActionID, baseTime)},
+		{ID: pageEventID, Type: TimelineEntryTypePageEvent, Timestamp: baseTime.Add(time.Minute), SessionID: session.ID, PageID: pageID, Sequence: 2, PageEvent: &domain.PageEvent{ID: pageEventID, Type: domain.PageEventCreated, PageID: pageID, Timestamp: baseTime.Add(time.Minute)}},
+		{ID: secondActionID, Type: TimelineEntryTypeAction, Timestamp: baseTime.Add(2 * time.Minute), SessionID: session.ID, PageID: uuid.New(), Sequence: 3, Entry: testCanonicalEntry(secondActionID, baseTime.Add(2*time.Minute))},
 	}
 
 	for _, e := range entries {
@@ -462,13 +545,15 @@ func TestSQLiteRepository_PruneOldSessions(t *testing.T) {
 	}
 
 	// Add entry to old session
+	entryID := uuid.New()
 	entry := &UnifiedTimelineEntry{
-		ID:        uuid.New(),
+		ID:        entryID,
 		Type:      TimelineEntryTypeAction,
 		Timestamp: old.CreatedAt,
 		SessionID: old.ID,
 		PageID:    uuid.New(),
 		Sequence:  1,
+		Entry:     testCanonicalEntry(entryID, old.CreatedAt),
 	}
 	if _, err := repo.AppendTimelineEntry(ctx, entry); err != nil {
 		t.Fatalf("AppendTimelineEntry failed: %v", err)
@@ -540,13 +625,16 @@ func TestSQLiteRepository_ConcurrentAccess(t *testing.T) {
 		wg.Add(1)
 		go func(seq int) {
 			defer wg.Done()
+			id := uuid.New()
+			timestamp := time.Now()
 			entry := &UnifiedTimelineEntry{
-				ID:        uuid.New(),
+				ID:        id,
 				Type:      TimelineEntryTypeAction,
-				Timestamp: time.Now(),
+				Timestamp: timestamp,
 				SessionID: session.ID,
 				PageID:    uuid.New(),
 				Sequence:  seq,
+				Entry:     testCanonicalEntry(id, timestamp),
 			}
 			if _, err := repo.AppendTimelineEntry(ctx, entry); err != nil {
 				errors <- err

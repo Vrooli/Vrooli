@@ -302,7 +302,7 @@ export interface VisionAnalysisResponseInterface {
 export interface VisionModelSpecInterface {
   id: string;
   displayName: string;
-  provider: 'ai-gateway' | 'anthropic' | 'ollama' | 'mock';
+  provider: 'ai-gateway' | 'mock';
   apiModelId?: string;
   maxContextTokens?: number;
   supportsComputerUse: boolean;

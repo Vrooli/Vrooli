@@ -70,7 +70,7 @@ function navigationHandler(operation: NavigationOperation): (
       const ownedSession = recordingOwner(body, sessionId, sessionManager);
       const session = ownedSession();
       const page = session.page;
-      const pageId = session.pageToIdMap.get(page);
+      const pageId = session.pageBindings.getId(page);
       if (!pageId) throw new Error('Active recording page is not registered');
       const request = body as unknown as NavigateRequest;
       if (request.expected_page_id !== undefined && request.expected_page_id !== pageId) {
@@ -78,7 +78,7 @@ function navigationHandler(operation: NavigationOperation): (
         return;
       }
       const ownedPage = (): void => {
-        if (ownedSession().page !== page || session.pageToIdMap.get(page) !== pageId) throw new SessionNotFoundError(sessionId);
+        if (ownedSession().page !== page || session.pageBindings.getId(page) !== pageId) throw new SessionNotFoundError(sessionId);
       };
       sessionManager.updateActivity(sessionId);
       const options = { waitUntil: request.wait_until || 'load', timeout: request.timeout_ms ?? config.execution.navigationTimeoutMs };
@@ -224,13 +224,13 @@ function navigationReadHandler(stack: boolean) {
       const ownedSession = recordingOwner(query, sessionId, sessionManager);
       const session = ownedSession();
       const page = session.page;
-      const pageId = session.pageToIdMap.get(page);
+      const pageId = session.pageBindings.getId(page);
       if (!pageId || query.expected_page_id !== pageId) {
         sendJson(res, 409, {error: 'PAGE_CHANGED', message: 'The selected recording tab changed before history was read'});
         return;
       }
       const assertCurrent = (): void => {
-        if (ownedSession().page !== page || session.pageToIdMap.get(page) !== pageId) {
+        if (ownedSession().page !== page || session.pageBindings.getId(page) !== pageId) {
           throw new SessionNotFoundError(sessionId);
         }
       };

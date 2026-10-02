@@ -2,9 +2,7 @@ package ai
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"slices"
 	"testing"
 	"time"
 
@@ -60,7 +58,7 @@ func TestNewAIAnalysisHandler(t *testing.T) {
 		defaultAnalyzer, ok := handler.analyzer.(*AIElementAnalyzer)
 		require.True(t, ok, "default analyzer should be AIElementAnalyzer")
 		assert.Equal(t, domHandler, defaultAnalyzer.domExtractor)
-		assert.NotNil(t, defaultAnalyzer.ollamaClient)
+		assert.NotNil(t, defaultAnalyzer.modelClient)
 	})
 }
 
@@ -116,29 +114,29 @@ func TestRunAIAnalyze_AnalyzerError(t *testing.T) {
 func TestAIElementAnalyzer_ExtractFailure(t *testing.T) {
 	log := logrus.New()
 	mockDOM := &recordingDOMExtractor{err: errors.New("failed to connect")}
-	mockOllama := NewMockOllamaClient(`[{"text": "Search"}]`)
+	mockModelClient := newMockRolePromptClient(`[{"text": "Search"}]`)
 
 	analyzer := &AIElementAnalyzer{
 		log:          log,
 		domExtractor: mockDOM,
-		ollamaClient: mockOllama,
+		modelClient:  mockModelClient,
 		role:         "chat.small",
 	}
 
 	_, err := analyzer.Analyze(context.Background(), "https://example.com", "search")
 	require.Error(t, err)
-	assert.Empty(t, mockOllama.QueriesCalled, "should not call Ollama when DOM extraction fails")
+	assert.Empty(t, mockModelClient.Calls, "should not call AIModel when DOM extraction fails")
 }
 
 func TestAIElementAnalyzer_ParsesSuggestions(t *testing.T) {
 	log := logrus.New()
 	mockDOM := &recordingDOMExtractor{response: "<html><body><button>Search</button></body></html>"}
-	mockOllama := NewMockOllamaClient(`[{"text": "Search", "tagName": "BUTTON", "confidence": 0.95}]`)
+	mockModelClient := newMockRolePromptClient(`[{"text": "Search", "tagName": "BUTTON", "confidence": 0.95}]`)
 
 	analyzer := &AIElementAnalyzer{
 		log:          log,
 		domExtractor: mockDOM,
-		ollamaClient: mockOllama,
+		modelClient:  mockModelClient,
 		role:         "chat.small",
 	}
 
@@ -148,19 +146,19 @@ func TestAIElementAnalyzer_ParsesSuggestions(t *testing.T) {
 	assert.Len(t, results, 1)
 	assert.Equal(t, "Search", results[0].Text)
 	assert.Len(t, mockDOM.calls, 1)
-	assert.Len(t, mockOllama.QueriesCalled, 1)
-	assert.Equal(t, "chat.small", mockOllama.QueriesCalled[0].Role)
+	assert.Len(t, mockModelClient.Calls, 1)
+	assert.Equal(t, "chat.small", mockModelClient.Calls[0].Role)
 }
 
 func TestAIElementAnalyzer_FallbackOnBadJSON(t *testing.T) {
 	log := logrus.New()
 	mockDOM := &recordingDOMExtractor{response: "<html></html>"}
-	mockOllama := NewMockOllamaClient("not-json")
+	mockModelClient := newMockRolePromptClient("not-json")
 
 	analyzer := &AIElementAnalyzer{
 		log:          log,
 		domExtractor: mockDOM,
-		ollamaClient: mockOllama,
+		modelClient:  mockModelClient,
 		role:         "chat.small",
 	}
 
@@ -168,12 +166,12 @@ func TestAIElementAnalyzer_FallbackOnBadJSON(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.NotEmpty(t, results, "fallback suggestion should be returned")
-	assert.Len(t, mockOllama.QueriesCalled, 1)
+	assert.Len(t, mockModelClient.Calls, 1)
 }
 
-func TestOllamaSuggestionGeneratorAcceptsArrayResponse(t *testing.T) {
+func TestAIModelSuggestionGeneratorAcceptsArrayResponse(t *testing.T) {
 	log := logrus.New()
-	generator := newOllamaSuggestionGenerator(log, WithOllamaClient(NewMockOllamaClient(`[{"action":"Search","confidence":0.95,"category":"actions"}]`)))
+	generator := newAISuggestionGenerator(log, WithAISuggestionModelClient(newMockRolePromptClient(`[{"action":"Search","confidence":0.95,"category":"actions"}]`)))
 
 	suggestions, err := generator.generateAISuggestions(context.Background(), []ElementInfo{{Text: "Search", TagName: "BUTTON"}}, PageContext{URL: "https://example.com"})
 	require.NoError(t, err)
@@ -183,7 +181,7 @@ func TestOllamaSuggestionGeneratorAcceptsArrayResponse(t *testing.T) {
 
 // [REQ:BAS-AI-GENERATION-VALIDATION] Incomplete provider output must not become
 // successful suggestions or an indistinguishable empty result.
-func TestOllamaSuggestionResponseContract(t *testing.T) {
+func TestAIModelSuggestionResponseContract(t *testing.T) {
 	for _, tc := range []struct {
 		name, payload string
 		valid         bool
@@ -211,7 +209,7 @@ func TestOllamaSuggestionResponseContract(t *testing.T) {
 		{"excess confidence", `[{"action":"Search","confidence":1.1,"category":"actions"}]`, false, 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			generator := newOllamaSuggestionGenerator(logrus.New(), WithOllamaClient(NewMockOllamaClient(tc.payload)))
+			generator := newAISuggestionGenerator(logrus.New(), WithAISuggestionModelClient(newMockRolePromptClient(tc.payload)))
 			got, err := generator.generateAISuggestions(context.Background(), []ElementInfo{{Text: "Search", TagName: "BUTTON"}}, PageContext{URL: "https://example.test"})
 			if !tc.valid {
 				require.Error(t, err)
@@ -227,31 +225,13 @@ func TestOllamaSuggestionResponseContract(t *testing.T) {
 	}
 }
 
-func TestOllamaSuggestionsRequestStructuredGatewayOutput(t *testing.T) {
-	client := NewDefaultOllamaClient(logrus.New(), WithOllamaRunner(func(_ context.Context, args []string, prompt string) ([]byte, error) {
-		require.Equal(t, []string{"gateway", "generate"}, args[:2])
-		require.Contains(t, args, "--prompt-stdin")
-		require.Contains(t, prompt, "Search")
-		pos := slices.Index(args, "--format")
-		require.GreaterOrEqual(t, pos, 0, "structured generation must constrain the provider response")
-		var schema map[string]any
-		require.NoError(t, json.Unmarshal([]byte(args[pos+1]), &schema))
-		require.Equal(t, "object", schema["type"])
-		return []byte(`{"response":"{\"suggestions\":[{\"action\":\"Search\",\"confidence\":0.9,\"category\":\"actions\"}]}"}`), nil
-	}))
-	generator := newOllamaSuggestionGenerator(logrus.New(), WithOllamaClient(client))
-	got, err := generator.generateAISuggestions(context.Background(), []ElementInfo{{Text: "Search", TagName: "BUTTON"}}, PageContext{URL: "https://example.test"})
-	require.NoError(t, err)
-	require.Len(t, got, 1)
-}
-
-func TestOllamaSuggestionsWithNoElementsDoNotCallProvider(t *testing.T) {
-	client := NewMockOllamaClient("")
+func TestAIModelSuggestionsWithNoElementsDoNotCallProvider(t *testing.T) {
+	client := newMockRolePromptClient("")
 	client.Err = errors.New("provider must not be called without elements")
-	generator := newOllamaSuggestionGenerator(logrus.New(), WithOllamaClient(client))
+	generator := newAISuggestionGenerator(logrus.New(), WithAISuggestionModelClient(client))
 	got, err := generator.generateAISuggestions(context.Background(), nil, PageContext{URL: "https://example.test"})
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	require.Empty(t, got)
-	require.Empty(t, client.QueriesCalled)
+	require.Empty(t, client.Calls)
 }

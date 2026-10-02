@@ -6,15 +6,49 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/automation/driver"
 	"github.com/vrooli/browser-automation-studio/database"
-	"github.com/vrooli/browser-automation-studio/services/export"
+	"github.com/vrooli/browser-automation-studio/services/workflow"
+	basexports "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/exports"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func containsJSONField(data []byte, field string) bool {
 	return bytes.Contains(data, []byte(`"`+field+`"`))
+}
+
+func TestExecutionExportPreviewUsesGeneratedReplaySpec(t *testing.T) {
+	executionID := uuid.New()
+	workflowID := uuid.New()
+	preview := &workflow.ExecutionExportPreview{
+		ExecutionID: executionID,
+		SpecID:      uuid.NewString(),
+		Status:      "ready",
+		Package: &basexports.ReplaySpec{
+			Version:     "2025-11-07",
+			GeneratedAt: timestamppb.New(time.Date(2026, 9, 15, 12, 30, 0, 0, time.UTC)),
+			Execution: &basexports.ReplayExecutionMetadata{
+				ExecutionId: executionID.String(),
+				WorkflowId:  workflowID.String(),
+				Status:      "completed",
+				StartedAt:   timestamppb.New(time.Date(2026, 9, 15, 12, 0, 0, 0, time.UTC)),
+			},
+			Frames: []*basexports.ReplayFrame{},
+			Assets: []*basexports.ReplayAsset{},
+		},
+	}
+
+	got, err := ExecutionExportPreviewToProto(preview)
+	if err != nil {
+		t.Fatalf("convert replay preview: %v", err)
+	}
+	if got.GetPackage().GetVersion() != preview.Package.Version {
+		t.Fatalf("package version = %q", got.GetPackage().GetVersion())
+	}
+	if got.GetPackage().GetExecution().GetExecutionId() != executionID.String() {
+		t.Fatalf("package execution id = %q", got.GetPackage().GetExecution().GetExecutionId())
+	}
 }
 
 func TestExecutionToProto(t *testing.T) {
@@ -56,158 +90,6 @@ func TestExecutionToProto(t *testing.T) {
 	}
 	if !containsJSONField(data, "workflow_id") {
 		t.Fatalf("expected workflow_id field in marshalled JSON: %s", string(data))
-	}
-}
-
-func TestTimelineToProto(t *testing.T) {
-	now := time.Now().UTC()
-	completed := now.Add(time.Minute)
-	size := int64(128)
-
-	timeline := &export.ExecutionTimeline{
-		ExecutionID: uuid.New(),
-		WorkflowID:  uuid.New(),
-		Status:      database.ExecutionStatusCompleted,
-		Progress:    100,
-		StartedAt:   now,
-		CompletedAt: &completed,
-		Frames: []export.TimelineFrame{
-			{
-				StepIndex:            0,
-				NodeID:               "node-1",
-				StepType:             "navigate",
-				Status:               "completed",
-				Success:              true,
-				DurationMs:           1200,
-				TotalDurationMs:      1500,
-				Progress:             100,
-				StartedAt:            &now,
-				CompletedAt:          &completed,
-				FinalURL:             "https://example.com",
-				ConsoleLogCount:      1,
-				NetworkEventCount:    0,
-				ExtractedDataPreview: map[string]any{"preview": "ok"},
-				HighlightRegions: []*autocontracts.HighlightRegion{
-					{Selector: "#main", Padding: 4},
-				},
-				MaskRegions: []*autocontracts.MaskRegion{
-					{Selector: "#mask", Opacity: 0.5},
-				},
-				FocusedElement:     &autocontracts.ElementFocus{Selector: "#main"},
-				ElementBoundingBox: &autocontracts.BoundingBox{X: 1, Y: 2, Width: 3, Height: 4},
-				ClickPosition:      &autocontracts.Point{X: 5, Y: 6},
-				CursorTrail: []*autocontracts.Point{
-					{X: 1, Y: 1},
-				},
-				ZoomFactor: 1.2,
-				Screenshot: &export.TimelineScreenshot{
-					ArtifactID:   "shot-1",
-					URL:          "https://cdn.example.com/shot-1.png",
-					ThumbnailURL: "https://cdn.example.com/shot-1-thumb.png",
-					Width:        800,
-					Height:       600,
-					SizeBytes:    &size,
-					ContentType:  "image/png",
-				},
-			},
-		},
-	}
-
-	pb, err := TimelineToProto(timeline)
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
-	if pb.GetExecutionId() != timeline.ExecutionID.String() {
-		t.Fatalf("execution_id mismatch")
-	}
-	if len(pb.Entries) != 1 {
-		t.Fatalf("expected 1 entry, got %d", len(pb.Entries))
-	}
-	entry := pb.Entries[0]
-	if entry.GetContext().GetSuccess() != true {
-		t.Fatalf("expected context.success=true")
-	}
-	if entry.GetTelemetry().GetScreenshot().GetUrl() != "https://cdn.example.com/shot-1.png" {
-		t.Fatalf("expected screenshot url propagated")
-	}
-}
-
-func TestConvertAssertion_Nil(t *testing.T) {
-	result, err := ConvertAssertion(nil)
-	if err != nil {
-		t.Fatalf("expected no error for nil input, got %v", err)
-	}
-	if result != nil {
-		t.Fatalf("expected nil result for nil input")
-	}
-}
-
-func TestConvertAssertion_BasicFields(t *testing.T) {
-	assertion := &autocontracts.AssertionOutcome{
-		Mode:          "exists",
-		Selector:      "body",
-		Success:       true,
-		Negated:       false,
-		CaseSensitive: true,
-	}
-
-	result, err := ConvertAssertion(assertion)
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
-	if result == nil {
-		t.Fatalf("expected non-nil result")
-	}
-	if result.Selector != "body" {
-		t.Fatalf("expected selector 'body', got '%s'", result.Selector)
-	}
-	if !result.Success {
-		t.Fatalf("expected success=true")
-	}
-	if result.Negated {
-		t.Fatalf("expected negated=false")
-	}
-	if !result.CaseSensitive {
-		t.Fatalf("expected case_sensitive=true")
-	}
-}
-
-func TestConvertAssertion_WithMessage(t *testing.T) {
-	msg := "Element not found"
-	assertion := &autocontracts.AssertionOutcome{
-		Mode:     "exists",
-		Selector: "#missing",
-		Success:  false,
-		Message:  msg,
-	}
-
-	result, err := ConvertAssertion(assertion)
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
-	if result.Message == nil || *result.Message != msg {
-		t.Fatalf("expected message '%s', got '%v'", msg, result.Message)
-	}
-}
-
-func TestConvertAssertion_WithExpectedActual(t *testing.T) {
-	assertion := &autocontracts.AssertionOutcome{
-		Mode:     "text_equals",
-		Selector: "h1",
-		Success:  false,
-		Expected: "Hello World",
-		Actual:   "Goodbye World",
-	}
-
-	result, err := ConvertAssertion(assertion)
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
-	if result.Expected == nil {
-		t.Fatalf("expected Expected to be set")
-	}
-	if result.Actual == nil {
-		t.Fatalf("expected Actual to be set")
 	}
 }
 

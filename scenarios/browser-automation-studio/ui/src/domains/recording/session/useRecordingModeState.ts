@@ -1,61 +1,132 @@
-/**
- * useRecordingModeState Hook (Template)
- *
- * This file provides a template for extracting recording mode state from RecordingSession.tsx.
- * It demonstrates the intended structure for refactoring but is not yet fully integrated.
- *
- * When ready to complete the extraction:
- * 1. Read the actual hook interfaces from the imported modules
- * 2. Adjust the return types to match the actual implementations
- * 3. Wire up the hooks in RecordingSession.tsx
- *
- * Key hooks to compose:
- * - useRecordMode (recording lifecycle and actions)
- * - useActionSelection (selection state)
- * - useUnifiedTimeline (timeline items)
- * - usePages (page tracking)
- * - useAIConversation (AI navigation)
- * - useUnifiedSidebar / useAISettings (sidebar state)
- */
-
-// This is a placeholder export to indicate the intended module structure.
-// Full implementation should be done when RecordingSession.tsx refactoring is prioritized.
+import { useMemo, useRef, useState } from 'react';
+import { useRecordMode } from '../hooks/useRecordMode';
+import { useActionSelection } from '../hooks/useActionSelection';
+import { usePages } from '../hooks/usePages';
+import { useTimeline } from '../hooks/useTimeline';
+import { useUnifiedTimeline } from '../hooks/useUnifiedTimeline';
+import { attachTimelinePageIdentities, mergeTimelineItemsWithAISteps, recordingEntryToTimelineItem, type TimelineMode } from '../types/timeline-unified';
+import { useUnifiedSidebar, useAISettings } from '../sidebar';
+import { useAIConversation } from '../ai-conversation';
+import { useSessionStore } from '../stores/sessionStore';
 
 export interface RecordingModeStateConfig {
-  /** Session ID for recording */
   sessionId: string | null;
-  /** Whether to auto-start AI navigation */
+  mode: TimelineMode;
+  executionId?: string | null;
   autoStartAI?: boolean;
-  /** Initial AI prompt (from template) */
-  aiPrompt?: string;
-  /** Initial AI model (from template) */
   aiModel?: string;
-  /** Initial AI max steps (from template) */
   aiMaxSteps?: number;
+  workflowNodes?: import('./useExecutionModeState').WorkflowNode[];
+  workflowEdges?: import('./useExecutionModeState').WorkflowEdge[];
 }
 
-/**
- * Placeholder for the recording mode state hook.
- * See RecordingSession.tsx for the current implementation.
- *
- * To use this pattern, compose the individual hooks:
- * - useRecordMode
- * - useActionSelection
- * - useUnifiedTimeline
- * - usePages
- * - useAIConversation
- * - useUnifiedSidebar
- * - useAISettings
- */
-export function useRecordingModeStateTemplate(_config: RecordingModeStateConfig) {
-  // This is a template placeholder.
-  // The actual implementation should compose the hooks listed above.
-  // See RecordingSession.tsx lines 276-341 for the current usage pattern.
+const PAGE_COLORS = [
+  'bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-orange-500',
+  'bg-pink-500', 'bg-cyan-500', 'bg-yellow-500', 'bg-red-500',
+] as const;
+
+export function useRecordingModeState({
+  sessionId,
+  mode,
+  executionId,
+  autoStartAI,
+  aiModel,
+  aiMaxSteps,
+  workflowNodes,
+  workflowEdges,
+}: RecordingModeStateConfig) {
+  const [recentActivityPageId, setRecentActivityPageId] = useState<string | null>(null);
+  const switchPageRef = useRef<((pageId: string) => Promise<void>) | null>(null);
+  const {
+    isOpen: isSidebarOpen,
+    setIsOpen: setSidebarOpen,
+    toggleOpen: handleSidebarToggle,
+    activeTab: sidebarActiveTab,
+    setActiveTab: setSidebarTab,
+    setAutoActivity,
+  } = useUnifiedSidebar({ initialTab: autoStartAI ? 'auto' : 'timeline' });
+  const { settings: aiSettings, updateSettings: updateAISettings } = useAISettings({
+    initialSettings: { model: aiModel, maxSteps: aiMaxSteps },
+  });
+  const {
+    messages: aiMessages,
+    sendMessage: aiSendMessage,
+    abortNavigation: aiAbortNavigation,
+    resumeNavigation: aiResumeNavigation,
+    clearConversation: aiClearConversation,
+    isNavigating: aiIsNavigating,
+    navigationSteps: aiSteps,
+    availableModels: aiAvailableModels,
+    humanIntervention: aiHumanIntervention,
+  } = useAIConversation({
+    sessionId,
+    settings: aiSettings,
+    onTimelineAction: () => setAutoActivity(true),
+  });
+  const recordMode = useRecordMode({ sessionId });
+  const pages = usePages({
+    sessionId,
+    onPageCreated: (page) => {
+      setRecentActivityPageId(page.id);
+      setTimeout(() => setRecentActivityPageId(null), 2000);
+      if (useSessionStore.getState().activePageId !== page.id) void switchPageRef.current?.(page.id);
+    },
+  });
+  switchPageRef.current = pages.switchToPage;
+  const { entries: timelineEntries } = useTimeline({ sessionId, pages: pages.openPages });
+  const { items: timelineItems, isLive: isTimelineLive } = useUnifiedTimeline({
+    mode,
+    executionId,
+    initialTimelineItems: mode === 'recording' ? timelineEntries.map(recordingEntryToTimelineItem) : undefined,
+    workflowNodes: mode === 'execution' ? workflowNodes : undefined,
+    workflowEdges: mode === 'execution' ? workflowEdges : undefined,
+  });
+  const identifiedActions = useMemo(
+    () => attachTimelinePageIdentities(recordMode.actions, timelineEntries),
+    [recordMode.actions, timelineEntries],
+  );
+  const timelineDisplayItems = useMemo(
+    () => mode !== 'recording' || aiSteps.length === 0
+      ? timelineItems
+      : mergeTimelineItemsWithAISteps(timelineItems, aiSteps),
+    [mode, timelineItems, aiSteps],
+  );
+  const pageColorMap = useMemo(() => {
+    const colors = new Map<string, typeof PAGE_COLORS[number]>();
+    pages.openPages.forEach((page, index) => colors.set(page.id, PAGE_COLORS[index % PAGE_COLORS.length] ?? PAGE_COLORS[0]));
+    return colors;
+  }, [pages.openPages]);
+  const timelineItemCount = mode === 'recording' ? timelineDisplayItems.length : timelineItems.length;
+  const selection = useActionSelection({ actionCount: timelineItemCount });
+  const selectedActionIndices = useMemo(() => {
+    if (mode !== 'recording') return selection.selectedIndicesArray;
+    const selected: number[] = [];
+    let actionIndex = 0;
+    timelineDisplayItems.forEach((item, index) => {
+      if (item?.entryType === 'page_event') return;
+      if (selection.selectedIndices.has(index)) selected.push(actionIndex);
+      actionIndex += 1;
+    });
+    return selected;
+  }, [mode, selection.selectedIndicesArray, selection.selectedIndices, timelineDisplayItems]);
+  const handleDeleteAction = (index: number) => recordMode.deleteAction(index);
+  const handleEditSelector = (index: number, selector: string) => recordMode.updateSelector(index, selector);
+  const handleEditPayload = (index: number, payload: Record<string, unknown>) => recordMode.updatePayload(index, payload);
+
   return {
-    // Recording state would go here
-    // Timeline state would go here
-    // Selection state would go here
-    // AI conversation state would go here
-    // Sidebar state would go here
+    ...recordMode,
+    openPages: pages.openPages,
+    activePageId: pages.activePageId,
+    switchToPage: pages.switchToPage,
+    closePage: pages.closePage,
+    createPage: pages.createPage,
+    isPagesLoading: pages.isLoading,
+    ...selection,
+    isSidebarOpen, setSidebarOpen, handleSidebarToggle, sidebarActiveTab, setSidebarTab, setAutoActivity,
+    aiSettings, updateAISettings, aiMessages, aiSendMessage, aiAbortNavigation, aiResumeNavigation,
+    aiClearConversation, aiIsNavigating, aiSteps, aiAvailableModels, aiHumanIntervention,
+    recentActivityPageId, timelineEntries, timelineItems, isTimelineLive, identifiedActions,
+    timelineDisplayItems, pageColorMap, timelineItemCount, selectedActionIndices,
+    handleDeleteAction, handleEditSelector, handleEditPayload,
   };
 }

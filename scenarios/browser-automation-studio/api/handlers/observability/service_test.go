@@ -24,11 +24,6 @@ type recordingProxy struct {
 
 	gotDepth   string
 	gotNoCache bool
-	gotUpdate  struct {
-		envVar string
-		value  string
-	}
-	gotReset string
 }
 
 func (r *recordingProxy) FetchObservability(_ context.Context, depth string, noCache bool) (map[string]any, error) {
@@ -46,21 +41,6 @@ func (r *recordingProxy) FetchObservabilitySessions(context.Context) (map[string
 }
 
 func (r *recordingProxy) FetchObservabilityMetrics(context.Context) (map[string]any, error) {
-	return r.snapshot, r.err
-}
-
-func (r *recordingProxy) FetchObservabilityConfigRuntime(context.Context) (map[string]any, error) {
-	return r.snapshot, r.err
-}
-
-func (r *recordingProxy) UpdateObservabilityConfig(_ context.Context, envVar, value string) (map[string]any, error) {
-	r.gotUpdate.envVar = envVar
-	r.gotUpdate.value = value
-	return r.snapshot, r.err
-}
-
-func (r *recordingProxy) ResetObservabilityConfig(_ context.Context, envVar string) (map[string]any, error) {
-	r.gotReset = envVar
 	return r.snapshot, r.err
 }
 
@@ -150,55 +130,6 @@ func TestService_GetMetrics_Happy(t *testing.T) {
 	resp, err := client.GetMetrics(context.Background(), connect.NewRequest(&observabilityv1.GetMetricsRequest{}))
 	require.NoError(t, err)
 	require.NotNil(t, resp.Msg.GetResult())
-}
-
-// ---------------------------------------------------------------------------
-// Runtime config
-// ---------------------------------------------------------------------------
-
-func TestService_GetConfigRuntime_Happy(t *testing.T) {
-	proxy := &recordingProxy{snapshot: map[string]any{"total_overrides": 0.0}}
-	client := newClientForTest(t, proxy)
-	resp, err := client.GetConfigRuntime(context.Background(), connect.NewRequest(&observabilityv1.GetConfigRuntimeRequest{}))
-	require.NoError(t, err)
-	require.NotNil(t, resp.Msg.GetResult())
-}
-
-func TestService_UpdateConfig_RejectsEmptyEnvVar(t *testing.T) {
-	client := newClientForTest(t, &recordingProxy{})
-	_, err := client.UpdateConfig(context.Background(), connect.NewRequest(&observabilityv1.UpdateConfigRequest{
-		EnvVar: "",
-		Value:  "x",
-	}))
-	require.Error(t, err)
-	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
-}
-
-func TestService_UpdateConfig_Forwards(t *testing.T) {
-	proxy := &recordingProxy{snapshot: map[string]any{"success": true}}
-	client := newClientForTest(t, proxy)
-	_, err := client.UpdateConfig(context.Background(), connect.NewRequest(&observabilityv1.UpdateConfigRequest{
-		EnvVar: "DEBUG_LEVEL",
-		Value:  "verbose",
-	}))
-	require.NoError(t, err)
-	assert.Equal(t, "DEBUG_LEVEL", proxy.gotUpdate.envVar)
-	assert.Equal(t, "verbose", proxy.gotUpdate.value)
-}
-
-func TestService_ResetConfig_RejectsEmpty(t *testing.T) {
-	client := newClientForTest(t, &recordingProxy{})
-	_, err := client.ResetConfig(context.Background(), connect.NewRequest(&observabilityv1.ResetConfigRequest{EnvVar: ""}))
-	require.Error(t, err)
-	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
-}
-
-func TestService_ResetConfig_Forwards(t *testing.T) {
-	proxy := &recordingProxy{snapshot: map[string]any{"success": true}}
-	client := newClientForTest(t, proxy)
-	_, err := client.ResetConfig(context.Background(), connect.NewRequest(&observabilityv1.ResetConfigRequest{EnvVar: "DEBUG_LEVEL"}))
-	require.NoError(t, err)
-	assert.Equal(t, "DEBUG_LEVEL", proxy.gotReset)
 }
 
 // ---------------------------------------------------------------------------

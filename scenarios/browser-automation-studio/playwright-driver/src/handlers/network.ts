@@ -3,7 +3,7 @@ import type { HandlerInstruction } from '../types';
 import { getNetworkMockParams } from '../types';
 import { normalizeError } from '../utils/errors';
 import { logger, scopedLog, LogContext } from '../utils';
-import { registerSessionCleanup } from '../infra';
+import { registerSessionCleanup } from '../session/cleanup-registry';
 
 /** Internal params type returned by getNetworkMockParams */
 interface NetworkMockParams {

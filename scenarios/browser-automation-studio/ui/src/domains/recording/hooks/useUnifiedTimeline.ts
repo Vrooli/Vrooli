@@ -11,16 +11,11 @@
 
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useWebSocket, type WebSocketMessage, useWebSocketMessage } from '@/contexts/WebSocketContext';
-import type { RecordedAction } from '../types/types';
-import type { TimelineItem, TimelineMode, ExecutionTimelineItem, ExecutionStatus, UseTimelineEntry } from '../types/timeline-unified';
+import type { TimelineItem, TimelineMode, ExecutionTimelineItem, ExecutionStatus } from '../types/timeline-unified';
 import {
-  recordedActionToTimelineItem,
-  timelineEntryToRecordedAction,
   workflowNodesToTimelineItems,
   updateTimelineItemStatus,
-  useTimelineEntryToTimelineItem,
 } from '../types/timeline-unified';
-import { mergeConsecutiveActions } from '../utils/mergeActions';
 
 /** Minimal node type for workflow conversion */
 export interface WorkflowNode {
@@ -41,10 +36,8 @@ export interface UseUnifiedTimelineOptions {
   mode: TimelineMode;
   /** Execution ID for execution mode */
   executionId?: string | null;
-  /** Optional: Pre-existing recorded actions (for recording mode) - legacy fallback */
-  initialActions?: RecordedAction[];
-  /** Optional: Timeline entries from useTimeline hook (preferred for recording mode) */
-  initialTimelineEntries?: UseTimelineEntry[];
+  /** Optional: Presentation items projected from the recording timeline at the view boundary. */
+  initialTimelineItems?: TimelineItem[];
   /** Optional: Workflow nodes for pre-populating timeline in execution mode */
   workflowNodes?: WorkflowNode[];
   /** Optional: Workflow edges for pre-populating timeline in execution mode */
@@ -64,8 +57,6 @@ export interface UseUnifiedTimelineReturn {
   error: string | null;
   /** Clear all items */
   clearItems: () => void;
-  /** Convert items back to RecordedActions for legacy compatibility */
-  getRecordedActions: () => RecordedAction[];
   /** Subscribe to execution updates */
   subscribeToExecution: (executionId: string) => void;
   /** Unsubscribe from execution updates */
@@ -85,14 +76,11 @@ export interface UseUnifiedTimelineReturn {
 export function useUnifiedTimeline({
   mode,
   executionId,
-  initialActions = [],
-  initialTimelineEntries,
+  initialTimelineItems,
   workflowNodes,
   workflowEdges,
 }: UseUnifiedTimelineOptions): UseUnifiedTimelineReturn {
-  const [items, setItems] = useState<TimelineItem[]>(() =>
-    mergeConsecutiveActions(initialActions).map((action) => recordedActionToTimelineItem(action))
-  );
+  const [items, setItems] = useState<TimelineItem[]>(() => initialTimelineItems ?? []);
   const [isLive, setIsLive] = useState(false);
   // Error state for future error handling
   const error: string | null = null;
@@ -118,56 +106,13 @@ export function useUnifiedTimeline({
   }, [mode]);
 
   // Update items when timeline entries or actions change (recording mode)
-  // Prefer timeline entries (from useTimeline) over actions (from useRecordMode)
+  // Recording display is driven only by the proto-backed journal projection.
   useEffect(() => {
     if (mode === 'recording') {
-      if (initialTimelineEntries && initialTimelineEntries.length > 0) {
-        // Preferred path: use timeline entries from useTimeline
-        // Separate actions and page events
-        const actionEntries = initialTimelineEntries.filter(e => e.type === 'action' && e.action);
-        const pageEventEntries = initialTimelineEntries.filter(e => e.type === 'page_event');
-
-        // Convert action entries to RecordedActions for merging
-        // Note: actionEntries are filtered to only include entries with e.action defined
-        const actionsForMerging: RecordedAction[] = actionEntries
-          .filter((e): e is typeof e & { action: NonNullable<typeof e.action> } => e.action != null)
-          .map(e => ({
-            id: e.action.id,
-            sessionId: '',
-            sequenceNum: e.action.sequenceNum,
-            timestamp: e.action.timestamp,
-            actionType: e.action.actionType as RecordedAction['actionType'],
-            url: e.action.url ?? '',
-            selector: e.action.selector ? { primary: e.action.selector.primary, candidates: [] } : undefined,
-            payload: e.action.payload,
-            confidence: e.action.confidence,
-            pageId: e.pageId,
-            pageTitle: e.action.pageTitle,
-          }));
-
-        // Merge consecutive actions (typing) for readability
-        const mergedActionRecords = mergeConsecutiveActions(actionsForMerging);
-        const actionItems = mergedActionRecords.map(action => recordedActionToTimelineItem(action));
-
-        // Convert page events (no merging needed)
-        const pageEventItems = pageEventEntries.map(useTimelineEntryToTimelineItem);
-
-        // Combine and sort by timestamp
-        const allItems = [...actionItems, ...pageEventItems].sort(
-          (a, b) => a.timestamp.getTime() - b.timestamp.getTime()
-        );
-        setItems(allItems);
-      } else if (initialActions.length > 0) {
-        // Fallback: use legacy actions from useRecordMode
-        const newItems = mergeConsecutiveActions(initialActions).map((action) => recordedActionToTimelineItem(action));
-        setItems(newItems);
-      } else {
-        // No data - clear items
-        setItems([]);
-      }
+      setItems(initialTimelineItems ?? []);
       prePopulatedWorkflowRef.current = null; // Reset when switching to recording
     }
-  }, [mode, initialActions, initialTimelineEntries]);
+  }, [mode, initialTimelineItems]);
 
   // Pre-populate timeline with workflow steps when entering execution mode
   useEffect(() => {
@@ -208,7 +153,7 @@ export function useUnifiedTimeline({
       console.log('[useUnifiedTimeline] WebSocket message received:', msg);
     }
 
-    // Recording mode timeline is driven by initialActions from useRecordMode.
+    // Recording mode timeline is driven by the canonical journal projection.
 
     // Execution mode: Handle timeline entry messages
     // Support both 'step' (legacy) and 'TIMELINE_MESSAGE_TYPE_ENTRY' (current) formats
@@ -363,31 +308,6 @@ export function useUnifiedTimeline({
     setItems([]);
   }, []);
 
-  // Convert items back to RecordedActions for legacy component compatibility
-  const getRecordedActions = useCallback((): RecordedAction[] => {
-    return items
-      .map((item) => {
-        // If we have the raw TimelineEntry, convert it
-        if (item.rawEntry) {
-          return timelineEntryToRecordedAction(item.rawEntry);
-        }
-
-        // Otherwise create a minimal RecordedAction from TimelineItem
-        return {
-          id: item.id,
-          sessionId: '',
-          sequenceNum: item.sequenceNum,
-          timestamp: item.timestamp.toISOString(),
-          durationMs: item.durationMs,
-          actionType: item.actionType as RecordedAction['actionType'],
-          confidence: 1.0,
-          url: item.url ?? '',
-          selector: item.selector ? { primary: item.selector, candidates: [] } : undefined,
-        } as RecordedAction;
-      })
-      .filter((a): a is RecordedAction => a !== null);
-  }, [items]);
-
   // Calculate stats
   const stats = useMemo(() => {
     const total = items.length;
@@ -404,7 +324,6 @@ export function useUnifiedTimeline({
     isConnected,
     error,
     clearItems,
-    getRecordedActions,
     subscribeToExecution,
     unsubscribeFromExecution,
     stats,

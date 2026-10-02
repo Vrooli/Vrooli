@@ -368,6 +368,19 @@ describe('SessionManager', () => {
       expect(result2.reused).toBe(true);
     });
 
+    it('joins concurrent starts for the same execution into one session admission', async () => {
+      const [first, second] = await Promise.all([
+        manager.startSession(sessionSpec),
+        manager.startSession(sessionSpec),
+      ]);
+
+      expect(first.sessionId).toBe(second.sessionId);
+      expect(manager.getSessionCount()).toBe(1);
+      // One host audio probe and one admitted session context share the same
+      // capability probe when starts race for the same execution ID.
+      expect(mockBrowser.newContext).toHaveBeenCalledTimes(2);
+    });
+
     it('should create new session with fresh mode when execution_id differs', async () => {
       const result1 = await manager.startSession(sessionSpec);
 
@@ -642,16 +655,16 @@ describe('SessionManager', () => {
     it('retains recovery ownership when an extra page refuses to close', async () => {
       const { sessionId, session } = await resetFixture();
       const other = createMockPage();
-      other.close.mockRejectedValueOnce(new Error('page close rejected'));
-      mockContext.pages.mockReturnValue([mockPage, other]);
-      session.pages.push(other);
+      let otherClosed = false;
+      other.close.mockRejectedValueOnce(new Error('page close rejected')).mockImplementation(async () => { otherClosed = true; });
+      mockContext.pages.mockImplementation(() => [mockPage, ...(otherClosed ? [] : [other])]);
       await expect(manager.resetSession(sessionId)).rejects.toThrow('page close rejected');
       expect(session.phase).toBe('resetting');
-      expect(session.pages).toContain(other);
+      expect(mockContext.pages()).toContain(other);
       expect(mockContext.clearCookies).not.toHaveBeenCalled();
       await manager.resetSession(sessionId);
       expect(session.phase).toBe('ready');
-      expect(session.pages).toEqual([mockPage]);
+      expect(mockContext.pages()).toEqual([mockPage]);
       expect(other.close).toHaveBeenCalledTimes(2);
     });
 
@@ -1042,8 +1055,7 @@ describe('SessionManager', () => {
       const spec = createSessionSpec();
       const { sessionId } = await managerShortIdle.startSession(spec);
 
-      // Wait for session to become idle
-      await new Promise((resolve) => setTimeout(resolve, 150));
+      managerShortIdle.getSession(sessionId).lastUsedAt = new Date(Date.now() - 101);
 
       await managerShortIdle.cleanupIdleSessions();
 
@@ -1055,10 +1067,17 @@ describe('SessionManager', () => {
     it('should not close active sessions', async () => {
       const spec = createSessionSpec();
       const { sessionId } = await manager.startSession(spec);
+      const session = manager.getSession(sessionId);
+      session.lastUsedAt = new Date(Date.now() - config.session.idleTimeoutMs - 1);
+      session.instructionInFlight = true;
 
       await manager.cleanupIdleSessions();
 
-      expect(() => manager.getSession(sessionId)).not.toThrow();
+      expect(manager.getAllSessionIds()).toContain(sessionId);
+
+      session.instructionInFlight = false;
+      await manager.cleanupIdleSessions();
+      expect(manager.getAllSessionIds()).not.toContain(sessionId);
     });
   });
 

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	modelai "github.com/vrooli/browser-automation-studio/services/ai"
 	"github.com/vrooli/browser-automation-studio/services/credits"
 )
 
@@ -16,8 +17,9 @@ import (
 type ElementAnalysisHandler struct {
 	log                 *logrus.Logger
 	runner              AutomationRunner
-	suggestionGenerator *ollamaSuggestionGenerator
+	suggestionGenerator *aiSuggestionGenerator
 	creditService       credits.CreditService
+	modelClient         modelai.RolePromptClient
 }
 
 // ElementAnalysisOption configures the ElementAnalysisHandler.
@@ -31,9 +33,18 @@ func WithElementRunner(runner AutomationRunner) ElementAnalysisOption {
 }
 
 // WithSuggestionGenerator sets a custom suggestion generator.
-func WithSuggestionGenerator(gen *ollamaSuggestionGenerator) ElementAnalysisOption {
+func WithSuggestionGenerator(gen *aiSuggestionGenerator) ElementAnalysisOption {
 	return func(h *ElementAnalysisHandler) {
 		h.suggestionGenerator = gen
+	}
+}
+
+// WithAIModelClient sets the shared model service used for suggestions.
+func WithAIModelClient(client modelai.RolePromptClient) ElementAnalysisOption {
+	return func(h *ElementAnalysisHandler) {
+		if client != nil {
+			h.modelClient = client
+		}
 	}
 }
 
@@ -64,7 +75,7 @@ func NewElementAnalysisHandler(log *logrus.Logger, opts ...ElementAnalysisOption
 
 	// Create default suggestion generator if not provided
 	if handler.suggestionGenerator == nil {
-		handler.suggestionGenerator = newOllamaSuggestionGenerator(log)
+		handler.suggestionGenerator = newAISuggestionGenerator(log, WithAISuggestionModelClient(handler.modelClient))
 	}
 
 	return handler

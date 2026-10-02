@@ -695,7 +695,7 @@ func TestCaptureRecordingScreenshot_Success(t *testing.T) {
 
 func TestGetRecordingFrame_Success(t *testing.T) {
 	handler, mockService, _, source, _ := ownedFrameFixture(t)
-	mockService.MockClient().FrameResponse = &driver.GetFrameResponse{SessionID: source["session_id"], ContentHash: "abc123", Source: &driver.FrameSource{SessionID: source["session_id"], ExecutionID: source["execution_id"], LeaseID: source["lease_id"], PageID: source["page_id"]}}
+	mockService.MockClient().FrameResponse = &driver.GetFrameResponse{SessionID: source["session_id"], ContentHash: "abc123", Source: &driver.FrameSource{StreamKind: "recording", SessionID: source["session_id"], ExecutionID: source["execution_id"], LeaseID: source["lease_id"], PageID: source["page_id"]}}
 
 	sessionID := source["session_id"]
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/recordings/live/"+sessionID+"/frame", nil)
@@ -720,7 +720,7 @@ func TestGetRecordingFrame_NotModified(t *testing.T) {
 	handler, mockService, _, source, _ := ownedFrameFixture(t)
 
 	mockService.MockClient().FrameResponse = &driver.GetFrameResponse{
-		SessionID: source["session_id"], Source: &driver.FrameSource{SessionID: source["session_id"], ExecutionID: source["execution_id"], LeaseID: source["lease_id"], PageID: source["page_id"]},
+		SessionID: source["session_id"], Source: &driver.FrameSource{StreamKind: "recording", SessionID: source["session_id"], ExecutionID: source["execution_id"], LeaseID: source["lease_id"], PageID: source["page_id"]},
 		Image:       "base64-frame-data",
 		Mime:        "image/jpeg",
 		Width:       1920,

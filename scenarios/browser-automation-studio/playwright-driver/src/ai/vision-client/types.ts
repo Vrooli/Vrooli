@@ -90,7 +90,7 @@ export interface VisionModelSpec {
   /** UI display name */
   displayName: string;
   /** Owning execution boundary. */
-  provider: 'ai-gateway' | 'anthropic' | 'ollama' | 'mock';
+  provider: 'ai-gateway' | 'mock';
   /** Optional provider metadata retained for alternate test/consumer clients. */
   apiModelId?: string;
   /** Optional provider metadata retained for alternate test/consumer clients. */

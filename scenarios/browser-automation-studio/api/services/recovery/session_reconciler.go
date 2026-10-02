@@ -79,9 +79,9 @@ func newSessionReconciler(driverClient sessionInventory, repo executionLookup, l
 	return r
 }
 
-// NewSessionReconciler builds the recovery worker used by the API lifecycle.
-func NewSessionReconciler(driverClient *driver.Client, repo database.Repository, log *logrus.Logger, opts ...SessionReconcilerOption) *SessionReconciler {
-	return newSessionReconciler(driverClient, repo, log, opts...)
+// NewSessionReconciler builds the recovery worker over the canonical session broker.
+func NewSessionReconciler(broker sessionInventory, repo database.Repository, log *logrus.Logger, opts ...SessionReconcilerOption) *SessionReconciler {
+	return newSessionReconciler(broker, repo, log, opts...)
 }
 
 // ReconcileOnce performs one bounded, idempotent recovery pass.

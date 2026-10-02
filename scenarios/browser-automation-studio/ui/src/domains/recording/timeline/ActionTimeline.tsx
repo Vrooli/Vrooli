@@ -2,7 +2,7 @@
  * ActionTimeline Component
  *
  * Displays a timeline of recorded actions with:
- * - Automatic merging of consecutive actions (scroll, type) to match workflow output
+ * - Read-only projection of each recorded action in journal order
  * - Expandable action details
  * - Action-specific payload information (scroll distance, click type, key combos, etc.)
  * - Confidence indicators and warnings
@@ -12,10 +12,9 @@
  * - Selection mode with checkboxes and range selection
  */
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback } from 'react';
 import { SelectorEditor } from './SelectorEditor';
 import type { RecordedAction, SelectorValidation } from '../types/types';
-import { mergeConsecutiveActions, getMergeDescription, type MergedAction } from '../utils/mergeActions';
 
 interface ActionTimelineProps {
   /** List of recorded actions */
@@ -60,41 +59,12 @@ export function ActionTimeline({
   const [editMode, setEditMode] = useState<'selector' | 'payload' | null>(null);
   const [editingPayload, setEditingPayload] = useState<Record<string, unknown>>({});
 
-  // Merge consecutive actions to preview what the workflow will look like
-  const mergedActions = useMemo(() => mergeConsecutiveActions(actions), [actions]);
-
-  // Build a map from merged action index to original action indices for delete/edit callbacks
-  const mergedToOriginalMap = useMemo(() => {
-    const map = new Map<number, number[]>();
-    let mergedIdx = 0;
-
-    for (const action of mergedActions) {
-      const merged = action as MergedAction;
-      if (merged._merged && merged._merged.mergedIds.length > 1) {
-        // Find indices of all original actions that were merged
-        const originalIndices = merged._merged.mergedIds
-          .map((id) => actions.findIndex((a) => a.id === id))
-          .filter((idx) => idx !== -1);
-        map.set(mergedIdx, originalIndices);
-      } else {
-        // Single action - find its original index
-        const originalIdx = actions.findIndex((a) => a.id === action.id);
-        map.set(mergedIdx, originalIdx !== -1 ? [originalIdx] : []);
-      }
-      mergedIdx++;
-    }
-    return map;
-  }, [actions, mergedActions]);
-
   const handleToggleExpand = (index: number, event?: React.MouseEvent) => {
-    if (editingIndex !== null) return; // Don't toggle while editing
-
-    // In selection mode, clicking toggles selection instead of expanding
+    if (editingIndex !== null) return;
     if (isSelectionMode && onActionClick) {
       onActionClick(index, event?.shiftKey ?? false, event?.ctrlKey ?? event?.metaKey ?? false);
       return;
     }
-
     setExpandedIndex(expandedIndex === index ? null : index);
   };
 
@@ -103,56 +73,35 @@ export function ActionTimeline({
     setEditMode('selector');
   };
 
-  const handleStartEditPayload = (index: number, action: MergedAction) => {
+  const handleStartEditPayload = (index: number, action: RecordedAction) => {
     setEditingIndex(index);
     setEditMode('payload');
     setEditingPayload(action.payload || {});
   };
 
-  // Handle delete for merged actions - deletes all original actions in the merge
-  const handleDeleteMergedAction = useCallback(
-    (mergedIndex: number) => {
-      if (!onDeleteAction) return;
-      const originalIndices = mergedToOriginalMap.get(mergedIndex) || [];
-      // Delete in reverse order to preserve indices
-      const sorted = [...originalIndices].sort((a, b) => b - a);
-      for (const idx of sorted) {
-        onDeleteAction(idx);
-      }
-    },
-    [onDeleteAction, mergedToOriginalMap]
+  const handleDeleteAction = useCallback(
+    (index: number) => onDeleteAction?.(index),
+    [onDeleteAction]
   );
 
-  // Handle selector edit for merged actions - edits the first original action
-  const handleEditMergedSelector = useCallback(
-    (mergedIndex: number, newSelector: string) => {
-      if (!onEditSelector) return;
-      const originalIndices = mergedToOriginalMap.get(mergedIndex) ?? [];
-      const firstIndex = originalIndices[0];
-      if (firstIndex !== undefined) {
-        onEditSelector(firstIndex, newSelector);
-      }
+  const handleEditSelector = useCallback(
+    (index: number, newSelector: string) => {
+      onEditSelector?.(index, newSelector);
       setEditingIndex(null);
       setEditMode(null);
     },
-    [onEditSelector, mergedToOriginalMap]
+    [onEditSelector]
   );
 
-  // Handle payload edit for merged actions - edits all original actions
-  const handleEditMergedPayload = useCallback(
-    (mergedIndex: number) => {
-      if (!onEditPayload) return;
-      const originalIndices = mergedToOriginalMap.get(mergedIndex) || [];
-      for (const idx of originalIndices) {
-        onEditPayload(idx, editingPayload);
-      }
+  const handleEditPayload = useCallback(
+    (index: number) => {
+      onEditPayload?.(index, editingPayload);
       setEditingIndex(null);
       setEditMode(null);
       setEditingPayload({});
     },
-    [onEditPayload, mergedToOriginalMap, editingPayload]
+    [onEditPayload, editingPayload]
   );
-
 
   const handleCancelEdit = useCallback(() => {
     setEditingIndex(null);
@@ -374,13 +323,11 @@ export function ActionTimeline({
 
   return (
     <div className="divide-y divide-gray-200 dark:divide-gray-700">
-      {mergedActions.map((action, index) => {
+      {actions.map((action, index) => {
         const isExpanded = expandedIndex === index;
         const isEditing = editingIndex === index;
         const confidenceLevel = getConfidenceLevel(action.confidence);
         const warnable = shouldWarnOnSelector(action);
-        const mergedAction = action as MergedAction;
-        const mergeInfo = getMergeDescription(mergedAction._merged);
         const isSelected = selectedIndices.has(index);
 
         return (
@@ -431,18 +378,6 @@ export function ActionTimeline({
               {/* Label */}
               <span className="flex-1 text-sm leading-snug break-words">
                 {getActionLabel(action)}
-                {/* Merged badge */}
-                {mergeInfo && (
-                  <span
-                    className="ml-1.5 inline-flex items-center px-1.5 py-0.5 text-[10px] font-medium bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 rounded"
-                    title={mergeInfo}
-                  >
-                    <svg className="w-3 h-3 mr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" />
-                    </svg>
-                    {mergedAction._merged?.mergedCount}
-                  </span>
-                )}
               </span>
 
               {/* Confidence indicator */}
@@ -453,10 +388,10 @@ export function ActionTimeline({
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    handleDeleteMergedAction(index);
+                    handleDeleteAction(index);
                   }}
                   className="flex-shrink-0 p-1 text-gray-400 hover:text-red-500 transition-colors"
-                  title={mergeInfo ? `Delete ${mergedAction._merged?.mergedCount} merged actions` : 'Delete action'}
+                  title="Delete action"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -480,18 +415,6 @@ export function ActionTimeline({
             {/* Expanded details */}
             {isExpanded && !isEditing && (
               <div className="mt-3 ml-9 space-y-3 text-sm">
-                {/* Merged actions info */}
-                {mergeInfo && mergedAction._merged && (
-                  <div className="p-2 rounded-lg bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800">
-                    <p className="text-xs font-medium text-purple-700 dark:text-purple-300">
-                      {mergeInfo}
-                    </p>
-                    <p className="text-xs text-purple-600 dark:text-purple-400 mt-0.5">
-                      This shows the combined result that will appear in your workflow.
-                    </p>
-                  </div>
-                )}
-
                 {/* Unstable selector warning */}
                 {warnable && action.selector && confidenceLevel !== 'high' && (
                   <div className={`p-2 rounded-lg ${
@@ -814,7 +737,7 @@ export function ActionTimeline({
                   selectorSet={action.selector}
                   confidence={action.confidence}
                   onValidate={onValidateSelector}
-                  onSave={(newSelector) => handleEditMergedSelector(index, newSelector)}
+                  onSave={(newSelector) => handleEditSelector(index, newSelector)}
                   onCancel={handleCancelEdit}
                 />
               </div>
@@ -1026,7 +949,7 @@ export function ActionTimeline({
                     Cancel
                   </button>
                   <button
-                    onClick={() => handleEditMergedPayload(index)}
+                    onClick={() => handleEditPayload(index)}
                     className="px-4 py-1.5 text-sm font-medium text-white bg-blue-500 rounded-lg hover:bg-blue-600 transition-colors"
                   >
                     Save

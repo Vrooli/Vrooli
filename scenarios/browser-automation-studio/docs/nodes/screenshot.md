@@ -45,6 +45,31 @@
 - Capture DOM snapshots sparingly—they increase artifact size but help diagnose flaky UI.
 - Consider a Rotate node before screenshots to validate responsive layouts.
 
+## Capture quality during native video
+
+Full-page screenshots can corrupt concurrent native `recordVideo` imagery even
+when the encoded canvas and DOM viewport measurements stay fixed. Use explicit
+viewport-only screenshots (`full_page: false` in V2 action payloads) as the
+bounded, tested workaround; do not interpret a shrunken/gray recorded frame as
+product responsive-layout evidence. Keep requested and actual viewport, DPR,
+screenshot extent, execution identity, timestamps and original hashes together.
+
+The [verified neutral comparison and approval boundary](../bugs/VIDEO_BOTTOM_FLICKER.md#2026-10-02-follow-up--full-page-screenshots-during-native-video)
+records two full-page capture bursts with 18 damaged frames, versus zero in the
+matched viewport-only control. Product-level workaround validation and
+consuming-player playback remain pending. Obtaining full-page stills in a
+separate session is proposed, not validated by this comparison; never silently
+substitute a cropped artifact for a requested full-page image.
+
+Before accepting a recording, inspect decoded frames around screenshot and
+navigation events as well as the native timestamps. Unexplained gray padding,
+blank frames or geometry excursions fail capture-quality acceptance. Label
+intentional navigation/loading and retain complete originals and failed attempts;
+any edited presentation clip needs a separate derivative identity and edit map.
+Local hash verification, successful decode, frame quality and destination playback
+are separate gates. Recheck the permitted target/fixture route before product
+capture; a BAS shadow instance does not prove target-app isolation.
+
 ## Related Nodes
 
 - **Assert** – Validate UI before capturing proof.

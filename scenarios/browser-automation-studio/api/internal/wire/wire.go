@@ -27,6 +27,7 @@ import (
 	autoevents "github.com/vrooli/browser-automation-studio/automation/events"
 	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
 	autoexecutor "github.com/vrooli/browser-automation-studio/automation/executor"
+	autosession "github.com/vrooli/browser-automation-studio/automation/session"
 	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/paths"
@@ -53,6 +54,7 @@ type Dependencies struct {
 	// Core services
 	WorkflowService   *workflow.WorkflowService
 	RecordModeService *livecapture.Service
+	SessionBroker     *autosession.Manager
 	RecordingImport   archiveingestion.IngestionServiceInterface
 
 	// Unified recording service
@@ -114,10 +116,23 @@ func BuildDependencies(repo database.Repository, db *database.DB, hub *wsHub.Hub
 	storageClient := storage.NewScreenshotStorage(log, recordingsRoot)
 	recordingImportSvc := archiveingestion.NewIngestionService(repo, storageClient, hub, log, recordingsRoot)
 	sessionProfileSvc := sessionprofile.NewServiceWithPath(paths.ResolveSessionProfilesRoot(log), log)
+	sessionBroker, brokerErr := autosession.NewManager(
+		autosession.WithLogger(log),
+		autosession.WithExecutionArtifactsRoot(recordingsRoot),
+	)
+	if brokerErr != nil {
+		log.WithError(brokerErr).Warn("Failed to initialize session broker; automation session routes will be unavailable")
+	}
 
 	// Wire automation stack
 	autoExecutor := autoexecutor.NewSimpleExecutor(nil)
-	autoEngineFactory, engErr := autoengine.DefaultFactoryWithRecordingsRoot(log, recordingsRoot)
+	var autoEngineFactory autoengine.Factory
+	var engErr error
+	if sessionBroker == nil {
+		engErr = fmt.Errorf("session broker unavailable")
+	} else {
+		autoEngineFactory, engErr = autoengine.DefaultFactoryWithSessionManager(log, sessionBroker)
+	}
 	if engErr != nil && !cfg.SkipEngineValidation {
 		log.WithError(engErr).Warn("Failed to initialize automation engine; automation executor will be disabled")
 	}
@@ -139,6 +154,7 @@ func BuildDependencies(repo database.Repository, db *database.DB, hub *wsHub.Hub
 	workflowSvc := workflow.NewWorkflowServiceWithDeps(repo, hub, log, workflow.WorkflowServiceOptions{
 		Executor:              autoExecutor,
 		EngineFactory:         autoEngineFactory,
+		SessionBroker:         sessionBroker,
 		ArtifactRecorder:      autoRecorder,
 		EventSinkFactory:      eventSinkFactory,
 		ExecutionDataRoot:     recordingsRoot,
@@ -182,12 +198,13 @@ func BuildDependencies(repo database.Repository, db *database.DB, hub *wsHub.Hub
 
 	// Create record mode service with unified recording service injected
 	// This ensures all browser actions flow through a single recording pipeline
-	recordModeSvc := livecapture.NewService(log, unifiedRecordingSvc)
+	recordModeSvc := livecapture.NewServiceWithManager(sessionBroker, log, unifiedRecordingSvc)
 
 	// Create vision navigators with recording callbacks
 	playwrightNav := vision.NewPlaywrightVisionNavigator(
 		log,
 		vision.WithPlaywrightHub(hub),
+		vision.WithPlaywrightSessionBroker(sessionBroker),
 	)
 
 	// Connect vision navigator to live-capture service for unified AI action recording.
@@ -230,13 +247,10 @@ func BuildDependencies(repo database.Repository, db *database.DB, hub *wsHub.Hub
 	navigatorRegistry := vision.NewNavigatorRegistry()
 	navigatorRegistry.Register(playwrightNav)
 
-	// Register ClaudeCode navigator (stub)
-	claudeCodeNav := vision.NewClaudeCodeVisionNavigator(log)
-	navigatorRegistry.Register(claudeCodeNav)
-
 	return &Dependencies{
 		WorkflowService:         workflowSvc,
 		RecordModeService:       recordModeSvc,
+		SessionBroker:           sessionBroker,
 		RecordingImport:         recordingImportSvc,
 		UnifiedRecordingService: unifiedRecordingSvc,
 		UnifiedRecordingRepo:    unifiedRecordingRepo,

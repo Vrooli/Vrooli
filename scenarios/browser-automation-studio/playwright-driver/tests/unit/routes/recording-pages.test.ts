@@ -6,6 +6,27 @@ import {
   installFetchMock,
 } from '../../helpers';
 import { SessionManager } from '../../../src/session';
+import { DriverPageBindings } from '../../../src/session/page-bindings';
+
+function pageBindings(bindings: Array<[string, Page]>): DriverPageBindings {
+  const pageBindings = new DriverPageBindings();
+  bindings.forEach(([id, page]) => pageBindings.register(page, id));
+  return pageBindings;
+}
+
+function mockContext(initialPages: Page[], createPage?: Page) {
+  let pages = [...initialPages];
+  return {
+    pages: jest.fn(() => pages.filter(page => !page.isClosed?.())),
+    newPage: jest.fn(async () => {
+      if (!createPage) throw new Error('no test page configured');
+      pages.push(createPage);
+      return createPage;
+    }),
+    removePage: (page: Page) => { pages = pages.filter(candidate => candidate !== page); },
+    setPages: (next: Page[]) => { pages = [...next]; },
+  };
+}
 
 jest.mock('../../../src/session/frame-cache', () => ({
   clearFrameCache: jest.fn(),
@@ -107,11 +128,8 @@ describe('recording pages', () => {
 
       const session = {
         phase: 'ready', ownerExecutionId: 'owner', leaseId: 'lease',
-        context: { newPage: jest.fn().mockResolvedValue(newPage) },
-        pages: [] as Page[],
-        pageIdMap: new Map<string, Page>(),
-        pageToIdMap: new Map<Page, string>(),
-        currentPageIndex: 0,
+        context: mockContext([], newPage),
+        pageBindings: pageBindings([]),
         frameStack: [{} as Frame],
         page: undefined as Page | undefined,
       };
@@ -134,7 +152,7 @@ describe('recording pages', () => {
       const payload = res.getJSON();
       expect(payload.url).toBe('https://example.com');
       expect(payload.title).toBe('New Page');
-      expect(session.pages).toHaveLength(1);
+      expect(session.context.pages()).toHaveLength(1);
       expect(session.page).toBe(newPage);
       expect(session.frameStack).toEqual([]);
     });
@@ -157,11 +175,8 @@ describe('recording pages', () => {
       const frame = {} as Frame;
       const session = {
         phase: 'ready', ownerExecutionId: 'owner', leaseId: 'lease',
-        context: { newPage: jest.fn().mockResolvedValue(newPage) },
-        pages: [original, newPage], // The context callback may register before goto settles.
-        pageIdMap: new Map([['original', original], ['new', newPage]]),
-        pageToIdMap: new Map([[original, 'original'], [newPage, 'new']]),
-        currentPageIndex: 0,
+        context: mockContext([original, newPage], newPage),
+        pageBindings: pageBindings([['original', original], ['new', newPage]]),
         frameStack: [frame],
         page: original,
       };
@@ -173,15 +188,15 @@ describe('recording pages', () => {
       expect(JSON.stringify(res.getJSON())).toContain('controlled navigation failure');
       expect(newPage.close).toHaveBeenCalledTimes(1);
       expect(session.page).toBe(original);
-      expect(session.currentPageIndex).toBe(0);
+      expect(session.context.pages().indexOf(session.page)).toBe(0);
       expect(session.frameStack).toEqual([frame]);
       if (cleanupFails) {
         expect(JSON.stringify(res.getJSON())).toContain('controlled close failure');
       } else {
-        expect(session.pages).toEqual([original]);
-        expect(session.pageToIdMap.has(newPage)).toBe(false);
-        expect(session.pageIdMap.has('new')).toBe(false);
-        expect(session.pageIdMap.get('original')).toBe(original);
+        expect(session.context.pages()).toContain(original);
+        expect(session.pageBindings.has(newPage)).toBe(false);
+        expect(session.pageBindings.getPage('new')).toBeUndefined();
+        expect(session.pageBindings.getPage('original')).toBe(original);
       }
     });
   });
@@ -190,9 +205,8 @@ describe('recording pages', () => {
     it('returns 400 when page_id is missing', async () => {
       const session = {
         phase: 'ready', ownerExecutionId: 'owner', leaseId: 'lease',
-        pageIdMap: new Map<string, Page>(),
-        pageToIdMap: new Map<Page, string>(),
-        pages: [] as Page[],
+        context: mockContext([]),
+        pageBindings: pageBindings([]),
         page: undefined as Page | undefined,
       };
       const sessionManager = {
@@ -216,9 +230,8 @@ describe('recording pages', () => {
     it('returns 404 when page id is unknown', async () => {
       const session = {
         phase: 'ready', ownerExecutionId: 'owner', leaseId: 'lease',
-        pageIdMap: new Map<string, Page>([['known', {} as Page]]),
-        pageToIdMap: new Map<Page, string>(),
-        pages: [] as Page[],
+        context: mockContext([]),
+        pageBindings: pageBindings([['known', {} as Page]]),
         page: undefined as Page | undefined,
       };
       const sessionManager = {
@@ -243,9 +256,8 @@ describe('recording pages', () => {
       const page = { isClosed: jest.fn().mockReturnValue(true) } as unknown as Page;
       const session = {
         phase: 'ready', ownerExecutionId: 'owner', leaseId: 'lease',
-        pageIdMap: new Map<string, Page>([['page-1', page]]),
-        pageToIdMap: new Map<Page, string>([[page, 'page-1']]),
-        pages: [page],
+        context: mockContext([page]),
+        pageBindings: pageBindings([['page-1', page]]),
         page,
       };
       const sessionManager = {
@@ -277,11 +289,9 @@ describe('recording pages', () => {
 
       const session = {
         phase: 'ready', ownerExecutionId: 'owner', leaseId: 'lease',
-        pageIdMap: new Map<string, Page>([['page-a', pageA], ['page-b', pageB]]),
-        pageToIdMap: new Map<Page, string>([[pageA, 'page-a'], [pageB, 'page-b']]),
-        pages: [pageA, pageB],
+        context: mockContext([pageA, pageB]),
+        pageBindings: pageBindings([['page-a', pageA], ['page-b', pageB]]),
         page: pageA,
-        currentPageIndex: 0,
         frameStack: [{} as Frame],
       };
 
@@ -304,7 +314,7 @@ describe('recording pages', () => {
       expect(payload.active_page_id).toBe('page-b');
       expect(session.page).toBe(pageB);
       expect(session.frameStack).toEqual([]);
-      expect(session.currentPageIndex).toBe(1);
+      expect(session.context.pages().indexOf(session.page)).toBe(1);
     });
   });
 });
@@ -325,15 +335,16 @@ describe('tab command authority [REQ:BAS-RH-J03] [REQ:BAS-RH-J17]', () => {
       url: () => 'https://fixture.test/target', isClosed: () => false,
       close: jest.fn().mockResolvedValue(undefined),
     } as unknown as Page;
+    const context = mockContext([original], target);
     const session = {
       id: 'owned-tabs', phase: 'ready', ownerExecutionId: 'owner', leaseId: 'lease',
       leaseReleasedAt: undefined as Date | undefined,
-      context: { newPage: jest.fn().mockResolvedValue(target) },
-      page: original, pages: operation === 'activate' ? [original, target] : [original],
-      pageIdMap: new Map([['original', original]]), pageToIdMap: new Map([[original, 'original']]),
-      currentPageIndex: 0, frameStack: [{} as Frame],
+      context,
+      page: original,
+      pageBindings: pageBindings([['original', original]]),
+      frameStack: [{} as Frame],
     };
-    if (operation === 'activate') {session.pageIdMap.set('target', target);session.pageToIdMap.set(target, 'target');}
+    if (operation === 'activate') session.pageBindings.register(target, 'target');
     const manager = {
       getSession: () => session, peekSession: () => session,
       getSessionForLease: SessionManager.prototype.getSessionForLease, updateActivity: jest.fn(),
@@ -362,7 +373,7 @@ describe('tab command authority [REQ:BAS-RH-J03] [REQ:BAS-RH-J17]', () => {
       expect(f.target.title).not.toHaveBeenCalled();
       expect(f.target.goto).not.toHaveBeenCalled();
       expect(f.session.page).toBe(f.original);
-      expect(f.session.currentPageIndex).toBe(0);
+      expect(f.session.context.pages().indexOf(f.session.page)).toBe(0);
       expect(f.session.frameStack).toHaveLength(1);
       expect(f.manager.updateActivity).not.toHaveBeenCalled();
     });
@@ -377,10 +388,10 @@ describe('tab command authority [REQ:BAS-RH-J03] [REQ:BAS-RH-J17]', () => {
       const call = f.call();await started.promise;f.session.leaseId = 'replacement';title.resolve('Late title');await call.pending;
       expect(call.response.statusCode).toBe(404);
       expect(f.session.page).toBe(f.original);
-      expect(f.session.currentPageIndex).toBe(0);
+      expect(f.session.context.pages().indexOf(f.session.page)).toBe(0);
       expect(f.session.frameStack).toHaveLength(1);
       expect(f.target.close).toHaveBeenCalledTimes(operation === 'create' ? 1 : 0);
-      if (operation === 'create') expect(f.session.pageToIdMap.has(f.target)).toBe(false);
+      if (operation === 'create') expect(f.session.pageBindings.has(f.target)).toBe(false);
     });
   });
   it.each(['acquire', 'navigate'])('disposes the command page after handoff during %s', async stage => {
@@ -392,7 +403,7 @@ describe('tab command authority [REQ:BAS-RH-J03] [REQ:BAS-RH-J17]', () => {
     expect(f.target.close).toHaveBeenCalledTimes(1);
     expect(f.target.title).not.toHaveBeenCalled();
     expect(f.session.page).toBe(f.original);
-    expect(f.session.pages).toEqual([f.original]);
+    expect(f.session.context.pages()).toContain(f.original);
     if (stage === 'acquire') expect(f.target.goto).not.toHaveBeenCalled();
   });
 });
@@ -402,19 +413,19 @@ describe('tab removal selection [REQ:BAS-RH-J03]', () => {
     const first = {isClosed: () => false} as Page;
     const target = {isClosed: () => true} as Page;
     const third = {isClosed: () => false} as Page;
+    const context = mockContext(kind === 'last' ? [target] : [first, target, third]);
     const session = {
       id: 'close-tabs', page: kind === 'inactive' ? third : target,
-      pages: kind === 'last' ? [target] : [first, target, third],
-      pageIdMap: new Map(kind === 'last' ? [['target', target]] : [['first', first], ['target', target], ['third', third]]),
-      pageToIdMap: new Map(kind === 'last' ? [[target, 'target']] : [[first, 'first'], [target, 'target'], [third, 'third']]),
-      currentPageIndex: kind === 'last' ? 0 : kind === 'inactive' ? 2 : 1,
+      context,
+      pageBindings: pageBindings(
+        kind === 'last' ? [['target', target]] : [['first', first], ['target', target], ['third', third]]),
       frameStack: [{} as Frame],
     };
     unregisterRecordingPage(session as unknown as ReturnType<SessionManager['getSession']>, target);
-    expect(session.pages).not.toContain(target);
-    expect(session.pageIdMap.has('target')).toBe(false);
-    expect(session.pageToIdMap.has(target)).toBe(false);
-    expect(session.currentPageIndex).toBe(kind === 'last' ? -1 : kind === 'inactive' ? 1 : 0);
+    expect(session.context.pages()).not.toContain(target);
+    expect(session.pageBindings.getPage('target')).toBeUndefined();
+    expect(session.pageBindings.has(target)).toBe(false);
+    expect(session.context.pages().indexOf(session.page)).toBe(kind === 'last' ? -1 : kind === 'inactive' ? 1 : 0);
     expect(session.page).toBe(kind === 'last' ? target : kind === 'inactive' ? third : first);
     expect(session.frameStack).toHaveLength(kind === 'inactive' ? 1 : 0);
   });
@@ -424,13 +435,13 @@ describe('leased browser tab closure [REQ:BAS-RH-J03] [REQ:BAS-RH-J17]', () => {
   const config = createTestConfig();
   function fixture() {
     const first = {isClosed: () => false} as Page;
-    const target = {isClosed: () => false, close: jest.fn().mockResolvedValue(undefined)} as unknown as Page;
+    let targetClosed = false;
+    const target = {isClosed: () => targetClosed, close: jest.fn(async () => {targetClosed = true;context.removePage(target);})} as unknown as Page;
+    const context = mockContext([first, target]);
     const session = {
       id: 'close-tabs', phase: 'ready', ownerExecutionId: 'owner', leaseId: 'lease',
       leaseReleasedAt: undefined as Date | undefined,
-      page: target, pages: [first, target], currentPageIndex: 1, frameStack: [{} as Frame],
-      pageIdMap: new Map([['first', first], ['target', target]]),
-      pageToIdMap: new Map([[first, 'first'], [target, 'target']]),
+      page: target, context, pageBindings: pageBindings([['first', first], ['target', target]]), frameStack: [{} as Frame],
     };
     const manager = {
       getSession: () => session, peekSession: () => session,
@@ -443,7 +454,7 @@ describe('leased browser tab closure [REQ:BAS-RH-J03] [REQ:BAS-RH-J17]', () => {
       }}), response, 'close-tabs', manager, config);
       return {response, pending};
     };
-    return {first, target, session, manager, call};
+    return {first, target, session, manager, context, closeTarget: () => {targetClosed = true;context.removePage(target);}, call};
   }
   it.each(['missing lease', 'wrong lease', 'released', 'closing', 'body handoff', 'missing page', 'unknown page'])('rejects %s before browser effects', async fault => {
     const f = fixture();
@@ -458,34 +469,35 @@ describe('leased browser tab closure [REQ:BAS-RH-J03] [REQ:BAS-RH-J17]', () => {
     expect(call.response.statusCode).toBe(fault === 'missing lease' || fault === 'missing page' ? 400 : 404);
     expect(f.target.close).not.toHaveBeenCalled();
     expect(f.session.page).toBe(f.target);
-    expect(f.session.pageIdMap.has('target')).toBe(true);
+    expect(f.session.pageBindings.getPage('target')).toBe(f.target);
   });
   it.each([false, true])('closes the selected browser page with callback-first=%s', async callbackFirst => {
     const f = fixture();
-    if (callbackFirst) jest.mocked(f.target.close).mockImplementation(async () => unregisterRecordingPage(f.session as unknown as ReturnType<SessionManager['getSession']>, f.target));
+    if (callbackFirst) jest.mocked(f.target.close).mockImplementation(async () => {f.closeTarget(); unregisterRecordingPage(f.session as unknown as ReturnType<SessionManager['getSession']>, f.target);});
     const call = f.call(); await call.pending;
     expect(f.target.close).toHaveBeenCalledTimes(1);
     expect(call.response.statusCode).toBe(200);
     expect(call.response.getJSON()).toEqual({closed_page_id: 'target', active_page_id: 'first'});
     expect(f.session.page).toBe(f.first);
-    expect(f.session.pages).toEqual([f.first]);
-    expect(f.session.currentPageIndex).toBe(0);
+    expect(f.session.context.pages()).toEqual([f.first]);
+    expect(f.session.context.pages().indexOf(f.session.page)).toBe(0);
     expect(f.session.frameStack).toHaveLength(0);
   });
   it('closes the last page without inventing a selected page', async () => {
     const f = fixture();
-    f.session.pages = [f.target]; f.session.pageIdMap.delete('first'); f.session.pageToIdMap.delete(f.first);
+    f.session.pageBindings.retain(f.target);
+    f.context.setPages([f.target]);
     const call = f.call(); await call.pending;
     expect(call.response.getJSON()).toEqual({closed_page_id: 'target', active_page_id: ''});
-    expect(f.session.pages).toHaveLength(0);
-    expect(f.session.currentPageIndex).toBe(-1);
+    expect(f.session.context.pages()).toHaveLength(0);
+    expect(f.session.context.pages().indexOf(f.session.page)).toBe(-1);
   });
   it('preserves the open tab after a browser close failure', async () => {
     const f = fixture(); jest.mocked(f.target.close).mockRejectedValue(new Error('browser close failed'));
     const call = f.call(); await call.pending;
     expect(call.response.statusCode).toBe(500);
     expect(f.session.page).toBe(f.target);
-    expect(f.session.pages).toEqual([f.first, f.target]);
+    expect(f.session.context.pages()).toEqual([f.first, f.target]);
     expect(f.session.frameStack).toHaveLength(1);
   });
   it('does not commit selection to a replacement owner after closing completes', async () => {
@@ -496,7 +508,7 @@ describe('leased browser tab closure [REQ:BAS-RH-J03] [REQ:BAS-RH-J17]', () => {
     const call = f.call(); await entered; f.session.leaseId = 'replacement'; finish(); await call.pending;
     expect(call.response.statusCode).toBe(404);
     expect(f.session.page).toBe(f.target);
-    expect(f.session.pages).toEqual([f.first, f.target]);
+    expect(f.session.context.pages()).toEqual([f.first, f.target]);
     expect(f.session.frameStack).toHaveLength(1);
   });
 });

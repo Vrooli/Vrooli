@@ -1,8 +1,8 @@
 /**
  * Owns WebSocket event admission and state projection for AI navigation.
  *
- * Command admission lives in useAINavigationCommands; server-status recovery
- * remains in useAINavigation. This hook owns only the low-latency event path
+ * The unified navigation hook owns command admission and server-status
+ * recovery. This hook owns only the low-latency event path
  * and its session/generation fences.
  */
 

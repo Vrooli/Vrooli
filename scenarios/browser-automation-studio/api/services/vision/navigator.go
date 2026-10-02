@@ -4,7 +4,6 @@ package vision
 
 import (
 	"context"
-	"fmt"
 	"time"
 )
 
@@ -14,9 +13,6 @@ type NavigatorType string
 const (
 	// NavigatorPlaywright uses playwright-driver for vision navigation.
 	NavigatorPlaywright NavigatorType = "playwright"
-
-	// NavigatorClaudeCode uses Claude Code CLI with Chrome for navigation.
-	NavigatorClaudeCode NavigatorType = "claude_code"
 )
 
 // VisionNavigator defines the interface for AI-driven browser navigation backends.
@@ -36,7 +32,7 @@ type VisionNavigator interface {
 	Type() NavigatorType
 
 	// IsAvailable checks if this navigator is currently available for use.
-	// For example, ClaudeCode navigator requires the claude CLI to be installed.
+	// For example, a navigator may require an external browser driver.
 	IsAvailable(ctx context.Context) bool
 
 	// Description returns a human-readable description of the navigator.
@@ -235,52 +231,6 @@ type SessionTracker interface {
 	GetSession(navigationID string) (*NavigationSession, bool)
 	AbortNavigation(ctx context.Context, navigationID string) error
 	ResumeNavigation(ctx context.Context, navigationID string) error
-}
-
-// MultiTracker fans session lookups out over several navigators so one
-// status/abort/resume surface covers every navigator type. The first tracker
-// that knows the navigation ID wins.
-type MultiTracker []SessionTracker
-
-// GetSession returns the first tracker's snapshot for navigationID.
-func (m MultiTracker) GetSession(navigationID string) (*NavigationSession, bool) {
-	for _, t := range m {
-		if t == nil {
-			continue
-		}
-		if s, ok := t.GetSession(navigationID); ok {
-			return s, true
-		}
-	}
-	return nil, false
-}
-
-// AbortNavigation aborts on the tracker that owns navigationID.
-func (m MultiTracker) AbortNavigation(ctx context.Context, navigationID string) error {
-	if t := m.owner(navigationID); t != nil {
-		return t.AbortNavigation(ctx, navigationID)
-	}
-	return fmt.Errorf("navigation not found: %s", navigationID)
-}
-
-// ResumeNavigation resumes on the tracker that owns navigationID.
-func (m MultiTracker) ResumeNavigation(ctx context.Context, navigationID string) error {
-	if t := m.owner(navigationID); t != nil {
-		return t.ResumeNavigation(ctx, navigationID)
-	}
-	return fmt.Errorf("navigation not found: %s", navigationID)
-}
-
-func (m MultiTracker) owner(navigationID string) SessionTracker {
-	for _, t := range m {
-		if t == nil {
-			continue
-		}
-		if _, ok := t.GetSession(navigationID); ok {
-			return t
-		}
-	}
-	return nil
 }
 
 // HumanInterventionInfo contains details about human intervention.

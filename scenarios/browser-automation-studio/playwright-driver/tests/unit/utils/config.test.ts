@@ -1,4 +1,4 @@
-import { loadConfig } from '../../../src/config';
+import { getObservabilityConfigSummary, loadConfig } from '../../../src/config';
 
 describe('Config', () => {
   const originalEnv = process.env;
@@ -11,6 +11,16 @@ describe('Config', () => {
 
   afterAll(() => {
     process.env = originalEnv;
+  });
+
+  describe('observability summary', () => {
+    it('marks every process-start option as unavailable for runtime editing', () => {
+      const summary = getObservabilityConfigSummary();
+      const options = Object.values(summary.all_options ?? {}).flat();
+
+      expect(options).toHaveLength(68);
+      expect(options.every(option => option.editable === false)).toBe(true);
+    });
   });
 
   describe('loadConfig', () => {

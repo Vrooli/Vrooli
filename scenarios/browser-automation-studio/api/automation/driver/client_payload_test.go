@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/vrooli/browser-automation-studio/internal/testutil"
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/vrooli/browser-automation-studio/internal/testutil"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -160,6 +161,21 @@ func TestRecordingPullRejectsMalformedTimelineWithoutDestructiveRead(t *testing.
 	require.NoError(t, err)
 	_, err = client.GetRecordedActions(context.Background(), "session")
 	require.ErrorContains(t, err, "parse recorded entry")
+}
+
+func TestRecordingPullRetainsTypedCanonicalEntries(t *testing.T) {
+	server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"session_id":"session","entries":[{"id":"00000000-0000-4000-8000-000000000001","sequenceNum":5,"action":{"type":"ACTION_TYPE_CLICK","click":{"selector":"#go"}},"telemetry":{}}]}`))
+	}))
+	client, err := NewClientWithURL(server.URL)
+	require.NoError(t, err)
+	response, err := client.GetRecordedActions(context.Background(), "session")
+	require.NoError(t, err)
+	require.Len(t, response.TimelineEntries, 1)
+	assert.Equal(t, "00000000-0000-4000-8000-000000000001", response.TimelineEntries[0].GetId())
+	assert.Equal(t, int32(5), response.TimelineEntries[0].GetSequenceNum())
+	assert.Equal(t, "#go", response.TimelineEntries[0].GetAction().GetClick().GetSelector())
+	require.Len(t, response.Entries, 1)
 }
 
 func TestRecordingCommandsRejectMissingOwnershipBeforeHTTP(t *testing.T) {

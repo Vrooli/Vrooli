@@ -2,6 +2,14 @@
 
 Browser Automation Studio owns visual workflow authoring, recorded browser interaction, deterministic replay evidence, and automated end-to-end validation for Vrooli scenarios.
 
+## Capture quality before delivery
+
+For screenshots taken during native video recording, read the
+[screenshot/video capture guidance](nodes/screenshot.md#capture-quality-during-native-video).
+A successful execution or decode does not establish stable viewport imagery or
+successful destination playback. The linked procedure records the verified neutral
+full-page capture defect and the limited viewport-only control.
+
 ## Rehabilitation
 
 BAS rehabilitation runs as orchestrated epochs. Everything it needs lives in the

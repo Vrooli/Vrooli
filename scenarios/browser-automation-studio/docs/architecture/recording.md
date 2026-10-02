@@ -392,25 +392,20 @@ type SessionProfile struct {
 ## Telemetry Pipeline
 
 ```
-driver.RecordedAction
+driver receipt / RecordedAction
          │
          ▼
-RecordedActionToTelemetry()
-         │
-         ▼
-ActionTelemetry (unified intermediate)
-         │
-         ▼
-TelemetryToTimelineEntry()
+BuildRecordingTimelineEntry()
          │
          ▼
 bastimeline.TimelineEntry (proto)
-         │
-         ▼
-protojson.Marshal() with snake_case names
-         │
-         ▼
-WebSocket broadcast to UI
+    ┌────┴────────┐
+    ▼             ▼
+SQLite journal   WebSocket broadcast
+    │             │
+    └──────┬──────┘
+           ▼
+UI generated proto decode; TimelineItem projection at the view boundary
 ```
 
 ## Architectural Patterns
@@ -419,7 +414,7 @@ WebSocket broadcast to UI
 2. **Deduplication**: Navigate actions deduplicated within 500ms window
 3. **Multi-Page**: Bidirectional mapping between driver page IDs and Vrooli UUIDs
 4. **Dual Format Broadcast**: WebSocket sends both legacy RecordedAction AND proto TimelineEntry
-5. **Smart Merging**: Consecutive type/scroll actions merged during workflow generation
+5. **Workflow generation**: The Go live-capture `WorkflowGenerator` owns consecutive action merging; the UI timeline displays the raw journal
 6. **Persistence**: Session profiles store cookies, history, browser profile, open tabs
 7. **Mode-Aware Session**: Same Session wrapper used for recording OR execution
 

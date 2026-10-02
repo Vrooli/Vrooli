@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -23,6 +24,7 @@ import (
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
+	"github.com/vrooli/api-core/storage"
 	"github.com/vrooli/browser-automation-studio/automation/driver"
 	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/database"
@@ -288,10 +290,6 @@ func main() {
 	)
 	navigatorRegistry.Register(playwrightNav)
 
-	// Create and register claude code navigator (stub for future use)
-	claudeCodeNav := vision.NewClaudeCodeVisionNavigator(log)
-	navigatorRegistry.Register(claudeCodeNav)
-
 	log.WithField("navigator_count", navigatorRegistry.Count()).Info("✅ Vision navigator registry initialized")
 
 	// Resolve allowed origins before constructing handlers
@@ -311,6 +309,7 @@ func main() {
 		RecordingsRoot:          recordingsRoot,
 		ProjectRoot:             recordingsRoot.ProjectsRoot,
 	})
+	playwrightNav.SetSessionRouteBroker(deps.SessionBroker)
 	handler := handlers.NewHandlerWithDeps(repo, hub, log, corsCfg.AllowedOrigins, deps)
 	checkpointCtx, cancelCheckpoints := context.WithCancel(context.Background())
 	checkpointsDone := make(chan struct{})
@@ -349,10 +348,13 @@ func main() {
 	if err != nil {
 		log.WithError(err).Warn("⚠️  Failed to create driver client - sidecar management disabled")
 	} else {
-		sidecarDeps, err = sidecar.BuildDependencies(db.DB, driverClient, hub, log, gatewayURL)
+		sidecarDeps, err = sidecar.BuildDependencies(db.DB, driverClient, deps.SessionBroker, hub, log, gatewayURL)
 		if err != nil {
 			log.WithError(err).Warn("⚠️  Failed to initialize sidecar management")
 		} else if sidecarDeps.IsEnabled() {
+			if deps.SessionBroker != nil {
+				deps.SessionBroker.SetAdministrativeSecret(sidecarDeps.AdminSecret)
+			}
 			// Start sidecar services (spawns playwright-driver)
 			startCtx, startCancel := context.WithTimeout(context.Background(), 30*time.Second)
 			if err := sidecarDeps.Start(startCtx); err != nil {
@@ -375,10 +377,12 @@ func main() {
 	// Terminal executions are the API's source of truth for session ownership.
 	// Reconcile their driver sessions in the background without weakening the
 	// normal lease-protected close endpoint.
-	if driverClient != nil {
+	if deps.SessionBroker != nil {
 		reconcilerCtx, cancelReconciler := context.WithCancel(context.Background())
 		stopSessionReconciler = cancelReconciler
-		go recovery.NewSessionReconciler(driverClient, repo, log).Run(reconcilerCtx)
+		go recovery.NewSessionReconciler(deps.SessionBroker, repo, log).Run(reconcilerCtx)
+	} else {
+		log.Warn("Session broker unavailable; terminal session reconciliation disabled")
 	}
 
 	// Setup router
@@ -417,9 +421,14 @@ func main() {
 	if sidecarDeps != nil {
 		drillSecret = sidecarDeps.AdminSecret
 	}
+	recordingsEvidenceRoot := handler.RecordingsRoot()
+	capturesEvidenceRoot := paths.ResolveCapturesRoot(log)
+	retentionPlanner := retention.NewService(repo, retention.OSFileSystem{}, recordingsEvidenceRoot, log).
+		WithCaptureRoot(capturesEvidenceRoot).
+		WithRecoveryLockPath(sharedRecoveryLockPath())
 	connectMounts := []connectx.ServiceMount{
 		consumerdeclarationsconnect.Module(consumerdeclarationsconnect.Deps{Logger: log}),
-		drillsconnect.Module(drillsconnect.Deps{AdminSecret: drillSecret, DriverClient: driverClient, Logger: log}),
+		drillsconnect.Module(drillsconnect.Deps{AdminSecret: drillSecret, SessionBroker: deps.SessionBroker, Logger: log}),
 		captureconnect.Module(captureconnect.Deps{
 			Executor:          deps.ExecutionService,
 			Storage:           deps.Storage,
@@ -450,7 +459,7 @@ func main() {
 			Executor:       handler.ExecutionService(),
 			SeedScheduler:  handler.SeedCleanupManager(),
 			RecordingsRoot: handler.RecordingsRoot(),
-			Retention:      retention.NewService(repo, retention.OSFileSystem{}, handler.RecordingsRoot(), log),
+			Retention:      retentionPlanner,
 			Logger:         log,
 		}),
 		replayconfigconnect.Module(replayconfigconnect.Deps{
@@ -521,7 +530,7 @@ func main() {
 			Logger:              log,
 			Registry:            navigatorRegistry,
 			Credits:             creditService,
-			Tracker:             vision.MultiTracker{playwrightNav, claudeCodeNav},
+			Tracker:             playwrightNav,
 			CredentialAuthority: credentialAuthority,
 		}),
 	}
@@ -619,14 +628,13 @@ func main() {
 		}), health.Optional).
 		Handler()
 	r.Get("/health", healthHandler)
-	ownerCleanup := registerOwnerCleanupRoutes(r, repo, handler.RecordingsRoot(), paths.ResolveCapturesRoot(log), log)
-	ownerCleanup.StartAutomaticRetention(context.Background())
+	registerOwnerCleanupRoutes(r, retentionPlanner)
+	retentionPlanner.StartAutomaticRetention(context.Background())
 	// RESTException: WebSocket endpoints are not RPC and stay on chi.
 	// RESTReason: third_party_shape (browser WebSocket transport + binary
 	// playwright-driver frame stream). Tracked in docs/internal/REST_EXCEPTIONS.md.
-	r.Get("/ws", handler.HandleWebSocket)                                                 // WebSocket endpoint for browser clients
-	r.Get("/ws/recording/{sessionId}/frames", handler.HandleDriverFrameStream)            // WebSocket for playwright-driver binary frame streaming (recording mode)
-	r.Get("/ws/execution/{executionId}/frames", handler.HandleDriverExecutionFrameStream) // WebSocket for playwright-driver binary frame streaming (execution mode)
+	r.Get("/ws", handler.HandleWebSocket)                // WebSocket endpoint for browser clients
+	r.Get("/ws/frames", handler.HandleDriverFrameStream) // Shared recording and execution driver-frame ingress.
 
 	r.Route("/api/v1", func(r chi.Router) {
 		sessionModule := monetization.NewSessionModule(credentialClient, lpbsAccountIdentity, lpbsAccountField)
@@ -979,12 +987,6 @@ func main() {
 		//     HTML zip bundles, or writes files to a caller-supplied
 		//     output_dir on the server filesystem. Not RPC-shaped.
 		r.Post("/executions/{id}/export", handler.PostExecutionExport)
-		//   - POST /executions/{executionId}/frames — playwright-driver frame
-		//     callback. RESTException: webhook_receiver — same shape as the
-		//     /internal/history-callback sink; bound to the driver protocol,
-		//     not RPC-shaped. Tracked in docs/internal/REST_EXCEPTIONS.md.
-		r.Post("/executions/{executionId}/frames", handler.ReceiveExecutionFrame)
-
 		// Export library routes are served by ExportsService via Connect-RPC;
 		// see connectMounts above. The legacy REST routes were removed during
 		// the Phase 9 proto+Connect migration.
@@ -1198,6 +1200,20 @@ func resolveProjectRoot() (string, error) {
 		return repocontract.FindRepoRootFromPath(root)
 	}
 	return repocontract.ResolveRepoRoot()
+}
+
+func sharedRecoveryLockPath() string {
+	if resolver, err := storage.NewResolver(storage.ResolverConfig{AppID: "vrooli", Profile: storage.ProfileAuto}); err == nil {
+		if paths, resolveErr := resolver.Resolve(storage.Options{}); resolveErr == nil && paths.StateDir != "" {
+			return filepath.Join(paths.StateDir, "recovery.lock")
+		}
+	}
+	base := strings.TrimSpace(os.Getenv("VROOLI_HOME"))
+	if base == "" {
+		base, _ = os.UserHomeDir()
+		base = filepath.Join(base, ".vrooli")
+	}
+	return filepath.Join(base, "state", "storage-manager", "recovery.lock")
 }
 
 // performStartupHealthCheck validates critical dependencies are available before accepting requests.

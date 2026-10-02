@@ -15,6 +15,7 @@ import {
   NavigateParamsSchema,
   NavigateWaitEvent,
   RotateParamsSchema,
+  SelectParamsSchema,
   StorageType,
   WaitParamsSchema,
   WaitState,
@@ -26,6 +27,7 @@ import {
   getInputParams,
   getNavigateParams,
   getRotateParams,
+  getSelectParams,
   getWaitParams,
 } from '../../../src/proto/instruction';
 
@@ -48,6 +50,21 @@ describe('proto action parameter conversions', () => {
       button: 'right',
       modifiers: ['Control'],
     });
+  });
+
+  it('reads SELECT from the generated selectOption params oneof case', () => {
+    const action = create(ActionDefinitionSchema, {
+      type: ActionType.SELECT,
+      params: {
+        case: 'selectOption',
+        value: create(SelectParamsSchema, {
+          selector: '#country',
+          selectBy: { case: 'value', value: 'ca' },
+        }),
+      },
+    });
+
+    expect(getSelectParams(action)).toMatchObject({ selector: '#country', value: 'ca' });
   });
 
   it('returns undefined when a typed accessor receives another action type', () => {

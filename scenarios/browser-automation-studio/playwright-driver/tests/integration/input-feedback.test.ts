@@ -5,6 +5,7 @@ import { startFrameStreaming, stopFrameStreaming } from '../../src/frame-streami
 import * as driverConfig from '../../src/config';
 import type { SessionManager } from '../../src/session';
 import { createMockHttpRequest, createMockHttpResponse, createTestConfig } from '../helpers';
+import { DriverPageBindings } from '../../src/session/page-bindings';
 
 type ClockSample = { nodeMs: number; offsetMs: number; uncertaintyMs: number };
 type FeedbackProbeEvent = {
@@ -17,6 +18,11 @@ type FeedbackProbeWindow = Window & {
   __basPointerEventTimes?: number[];
   __basInputEvents?: FeedbackProbeEvent[];
   __basOpenedWebSockets?: number;
+  __basFrameArrivalTimes?: number[];
+  __basFrameDrawTimes?: number[];
+  __basFrameTransportAges?: number[];
+  __basFrameCaptureTimes?: number[];
+  __basFrameDecodeTimes?: number[];
 };
 type FrameSocket = {
   on: (event: 'message', listener: (message: Buffer) => void) => void;
@@ -79,9 +85,10 @@ describe('interactive input feedback diagnostic (real Chromium)', () => {
   it('correlates 1000 driver inputs with the fixture’s affected paint marker', async () => {
     const context = await browser.newContext({ viewport: { width: 800, height: 600 } });
     const page = await context.newPage();
+    const pageBindings = new DriverPageBindings(); pageBindings.register(page, 'feedback-page');
     const session = {
       phase: 'ready', ownerExecutionId: 'feedback-owner', leaseId: 'feedback-lease', page,
-      pageToIdMap: new WeakMap([[page, 'feedback-page']]),
+      pageBindings,
     } as ReturnType<SessionManager['getSession']>;
     const sessionManager = {
       getSessionForLease: () => session,
@@ -221,9 +228,10 @@ describe('interactive input feedback diagnostic (real Chromium)', () => {
     const page = await context.newPage();
     const decoder = await context.newPage();
     const sessionId = 'feedback-frame-session';
+    const pageBindings = new DriverPageBindings(); pageBindings.register(page, 'feedback-page');
     const session = {
       id: sessionId, phase: 'ready', ownerExecutionId: 'feedback-owner', leaseId: 'feedback-lease',
-      leaseReleasedAt: null, page, pageToIdMap: new WeakMap([[page, 'feedback-page']]),
+      leaseReleasedAt: null, page, pageBindings,
     } as ReturnType<SessionManager['getSession']>;
     const sessionManager = {
       getSessionForLease: () => session,
@@ -265,7 +273,7 @@ describe('interactive input feedback diagnostic (real Chromium)', () => {
       });
       const connected = new Promise<FrameSocket>((resolve) => server.on('connection', resolve));
       startFrameStreaming(sessionId, { getSession: () => session }, {
-        callbackUrl: `http://127.0.0.1:${address.port}/frames`, quality: 65, fps: 30,
+        streamUrl: `ws://127.0.0.1:${address.port}/frames`, streamKind:'execution', quality: 65, fps: 30,
       });
       socket = await connected;
       socket.on('message', (message) => {
@@ -386,6 +394,29 @@ describe('interactive input feedback diagnostic (real Chromium)', () => {
       probeWindow.__basPointerEventTimes = [];
       probeWindow.__basInputEvents = [];
       probeWindow.__basOpenedWebSockets = 0;
+      probeWindow.__basFrameArrivalTimes = [];
+      probeWindow.__basFrameDrawTimes = [];
+      probeWindow.__basFrameTransportAges = [];
+      probeWindow.__basFrameCaptureTimes = [];
+      probeWindow.__basFrameDecodeTimes = [];
+
+      const nativeCreateImageBitmap = window.createImageBitmap.bind(window);
+      window.createImageBitmap = async (...args: Parameters<typeof window.createImageBitmap>) => {
+        const startedAt = performance.now();
+        try {
+          return await nativeCreateImageBitmap(...args);
+        } finally {
+          probeWindow.__basFrameDecodeTimes?.push(performance.now() - startedAt);
+        }
+      };
+
+      const nativeDrawImage = CanvasRenderingContext2D.prototype.drawImage;
+      CanvasRenderingContext2D.prototype.drawImage = function drawImageWithFrameProbe(...args) {
+        if (this.canvas.width >= 322 && this.canvas.height >= 60) {
+          probeWindow.__basFrameDrawTimes?.push(performance.now());
+        }
+        return nativeDrawImage.apply(this, args as Parameters<typeof nativeDrawImage>);
+      };
 
       const NativeWebSocket = window.WebSocket;
       const InstrumentedWebSocket = function instrumentedWebSocket(
@@ -462,6 +493,23 @@ describe('interactive input feedback diagnostic (real Chromium)', () => {
             return;
           }
           messageHandler.set?.call(this, function recordAppliedInput(event: MessageEvent<unknown>) {
+            if (event.data instanceof ArrayBuffer) {
+              const arrivalPerfMs = performance.now();
+              probeWindow.__basFrameArrivalTimes?.push(arrivalPerfMs);
+              try {
+                const headerLength = new DataView(event.data).getUint32(0);
+                const header = JSON.parse(
+                  new TextDecoder().decode(new Uint8Array(event.data, 4, headerLength))
+                ) as { captured_at?: unknown };
+                if (typeof header.captured_at === 'string') {
+                  const transportAgeMs = Date.now() - Date.parse(header.captured_at);
+                  probeWindow.__basFrameTransportAges?.push(transportAgeMs);
+                  probeWindow.__basFrameCaptureTimes?.push(arrivalPerfMs - transportAgeMs);
+                }
+              } catch {
+                // The application remains responsible for rejecting malformed frames.
+              }
+            }
             if (typeof event.data === 'string') {
               try {
                 const message = JSON.parse(event.data) as { type?: string; input_id?: string; applied_sequence?: number };
@@ -488,7 +536,7 @@ describe('interactive input feedback diagnostic (real Chromium)', () => {
         networkSession = await page.context().newCDPSession(page) as unknown as NetworkSession;
         await networkSession.send('Network.enable');
       }
-      const created = await fetch(`${apiBase}/recordings/live/session`, {
+      const created = await fetch(`${apiBase}/api/v1/recordings/live/session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -504,7 +552,7 @@ describe('interactive input feedback diagnostic (real Chromium)', () => {
       if (!createdSession.session_id) throw new Error('Session creation returned no session_id');
       sessionId = createdSession.session_id;
 
-      const started = await fetch(`${apiBase}/recordings/live/start`, {
+      const started = await fetch(`${apiBase}/api/v1/recordings/live/start`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ session_id: sessionId, frame_fps: 30 }),
@@ -525,6 +573,22 @@ describe('interactive input feedback diagnostic (real Chromium)', () => {
         const probeWindow = window as FeedbackProbeWindow;
         return (probeWindow.__basOpenedWebSockets ?? 0) > 0;
       }, { timeout: 30000 });
+      const streamSettingsResponse = await fetch(
+        `${apiBase}/api/v1/recordings/live/${sessionId}/stream-settings`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fps: 30 }),
+        }
+      );
+      if (!streamSettingsResponse.ok) {
+        throw new Error(`Could not inspect managed stream settings (${streamSettingsResponse.status}): ${await streamSettingsResponse.text()}`);
+      }
+      const streamSettings = await streamSettingsResponse.json() as {
+        fps?: number;
+        current_fps?: number;
+        is_streaming?: boolean;
+      };
       if (networkSession) {
         await networkSession.send('Network.emulateNetworkConditions', {
           offline: false,
@@ -643,6 +707,37 @@ describe('interactive input feedback diagnostic (real Chromium)', () => {
         minMs: Math.min(...values),
         maxMs: Math.max(...values),
       });
+      const frameCadence = await page.evaluate(() => {
+        const probeWindow = window as FeedbackProbeWindow;
+        const intervals = (values: number[] = []): number[] =>
+          values.slice(1).map((time, index) => time - (values[index] ?? time));
+        return {
+          arrivals: intervals(probeWindow.__basFrameArrivalTimes),
+          draws: intervals(probeWindow.__basFrameDrawTimes),
+          transportAges: [...(probeWindow.__basFrameTransportAges ?? [])],
+          captureTimes: [...(probeWindow.__basFrameCaptureTimes ?? [])],
+          decodeTimes: [...(probeWindow.__basFrameDecodeTimes ?? [])],
+          arrivalToDraw: (probeWindow.__basFrameArrivalTimes ?? []).flatMap((arrival, index) => {
+            const drawnAt = probeWindow.__basFrameDrawTimes?.[index];
+            return drawnAt === undefined ? [] : [drawnAt - arrival];
+          }),
+          captureToDraw: (probeWindow.__basFrameCaptureTimes ?? []).flatMap((capturedAt, index) => {
+            const drawnAt = probeWindow.__basFrameDrawTimes?.[index];
+            return drawnAt === undefined ? [] : [drawnAt - capturedAt];
+          }),
+        };
+      });
+      const frameCaptureTimings = correlatedTimings.flatMap(sample => {
+        const matchingCaptures = frameCadence.captureTimes.filter(
+          time => time >= sample.pointerEventMs && time <= sample.canvasObservedMs
+        );
+        const capturedAt = matchingCaptures.at(-1);
+        return capturedAt === undefined ? [] : [{
+          inputToCaptureMs: capturedAt - sample.pointerEventMs,
+          ackToCaptureMs: capturedAt - sample.appliedAckMs,
+          captureToCanvasMs: sample.canvasObservedMs - capturedAt,
+        }];
+      });
 
       const report = {
         producer: 'playwright-driver/tests/integration/input-feedback.test.ts',
@@ -659,6 +754,7 @@ describe('interactive input feedback diagnostic (real Chromium)', () => {
         correlationComplete: samplesMs.length === count && appliedSequences.length === count,
         receiptSequencesMonotonic: appliedSequences.slice(0, -1).every((sequence, index) => appliedSequences[index + 1] > sequence),
         inputClock: 'single BAS workspace browser performance.now clock for capture-phase pointer event, WebSocket send/ack handlers and viewer-canvas marker scan',
+        streamSettings,
         p50Ms: percentile(samplesMs, 0.50),
         p95Ms: percentile(samplesMs, 0.95),
         p99Ms: percentile(samplesMs, 0.99),
@@ -668,6 +764,18 @@ describe('interactive input feedback diagnostic (real Chromium)', () => {
           inputToSocketSend: summarize(inputToSocketSendMs),
           socketSendToAppliedAck: summarize(socketSendToAckMs),
           appliedAckToCanvasPixels: summarize(ackToCanvasMs),
+          frameArrivalInterval: summarize(frameCadence.arrivals),
+          frameDrawInterval: summarize(frameCadence.draws),
+          frameArrivalToDraw: summarize(frameCadence.arrivalToDraw),
+          frameCaptureToDraw: summarize(frameCadence.captureToDraw),
+          frameCaptureToArrival: summarize(frameCadence.transportAges),
+          frameDecode: summarize(frameCadence.decodeTimes),
+          frameCaptureTimings: {
+            correlatedSamples: frameCaptureTimings.length,
+            inputToCapture: summarize(frameCaptureTimings.map(sample => sample.inputToCaptureMs)),
+            ackToCapture: summarize(frameCaptureTimings.map(sample => sample.ackToCaptureMs)),
+            captureToCanvas: summarize(frameCaptureTimings.map(sample => sample.captureToCanvasMs)),
+          },
         },
         samplesMs,
       };
@@ -683,8 +791,8 @@ describe('interactive input feedback diagnostic (real Chromium)', () => {
       if (count === 1000) expect(withinBand).toBe(true);
     } finally {
       if (sessionId) {
-        await fetch(`${apiBase}/recordings/live/${sessionId}/stop`, { method: 'POST' }).catch(() => undefined);
-        await fetch(`${apiBase}/recordings/live/session/${sessionId}/close`, { method: 'POST' }).catch(() => undefined);
+        await fetch(`${apiBase}/api/v1/recordings/live/${sessionId}/stop`, { method: 'POST' }).catch(() => undefined);
+        await fetch(`${apiBase}/api/v1/recordings/live/session/${sessionId}/close`, { method: 'POST' }).catch(() => undefined);
       }
       if (networkSession) await networkSession.detach().catch(() => undefined);
       await page.close();

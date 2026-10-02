@@ -3,10 +3,11 @@ package exports_service
 import (
 	"context"
 	"errors"
-	"github.com/vrooli/browser-automation-studio/internal/testutil"
-	"github.com/vrooli/browser-automation-studio/internal/testutil/databasemocks"
 	"net/http"
 	"testing"
+
+	"github.com/vrooli/browser-automation-studio/internal/testutil"
+	"github.com/vrooli/browser-automation-studio/internal/testutil/databasemocks"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
@@ -308,7 +309,7 @@ func TestGenerateExportCaption_Happy(t *testing.T) {
 
 func TestGenerateExportCaption_FallsBackOnAIError(t *testing.T) {
 	h := newHarness(t)
-	h.factory.client = fakeAIClient{err: errors.New("ollama down")}
+	h.factory.client = fakeAIClient{err: errors.New("AI provider down")}
 	row := seedExport(t, h, "demo")
 	resp, err := h.client.GenerateExportCaption(context.Background(), connect.NewRequest(&exportsv1.GenerateExportCaptionRequest{
 		Id: row.ID.String(),

@@ -1,6 +1,6 @@
 import type { Route } from 'rebrowser-playwright';
 import type { SessionState } from '../types';
-import { cleanupSession } from '../infra';
+import { cleanupSession } from './cleanup-registry';
 import { assertRecordingAcknowledged } from '../recording';
 import { stopFrameStreaming } from '../frame-streaming';
 import { resetPageInputState, settlePageInput } from './live-input';
@@ -26,7 +26,7 @@ export async function resetSessionState(session: SessionState): Promise<void> {
   session.pageLifecycleCleanup = undefined;
   await stopFrameStreaming(session.id);
   clearFrameCache(session.id);
-  await Promise.all([...new Set([...session.pages, session.page])].map(async (page) => {
+  await Promise.all([...new Set([...session.context.pages(), session.page])].map(async (page) => {
     await settlePageInput(page);
     await resetPageInputState(page);
     await resetKeyboardState(page);
@@ -35,7 +35,7 @@ export async function resetSessionState(session: SessionState): Promise<void> {
   // original tab, not necessarily the tab owning the current workflow state;
   // resetting that choice silently discards the user's active page and keeps
   // a stale tab instead.
-  const page = session.page ?? session.pages[0];
+  const page = session.page ?? session.context.pages()[0];
   for (const other of session.context.pages()) {
     if (other !== page) await other.close();
   }
@@ -73,14 +73,7 @@ export async function resetSessionState(session: SessionState): Promise<void> {
   session.activeMocks.clear();
   session.frameStack = [];
   session.page = page;
-  session.pages = [page];
-  session.currentPageIndex = 0;
-  for (const [id, tracked] of session.pageIdMap) {
-    if (tracked !== page) {
-      session.pageIdMap.delete(id);
-      session.pageToIdMap.delete(tracked);
-    }
-  }
+  session.pageBindings.retain(page);
   // A reset must not authorize repeating an old instruction.
   session.instructionReceipts?.clear();
   session.lastUsedAt = new Date();

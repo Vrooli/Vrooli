@@ -133,14 +133,19 @@ func (s *Session) GetNavigationStack(ctx context.Context, expectedPageID string)
 
 // GetRecordedActions retrieves recorded actions for this session.
 func (s *Session) GetRecordedActions(ctx context.Context) ([]driver.RecordedAction, error) {
-	if s.isClosed() {
-		return nil, errors.New("session closed")
-	}
-	resp, err := s.client.GetRecordedActions(ctx, s.id)
+	resp, err := s.GetRecordedActionsResponse(ctx)
 	if err != nil {
 		return nil, err
 	}
 	return resp.Actions, nil
+}
+
+// GetRecordedActionsResponse retrieves the complete recording receipt through this lease owner.
+func (s *Session) GetRecordedActionsResponse(ctx context.Context) (*driver.GetActionsResponse, error) {
+	if s.isClosed() {
+		return nil, errors.New("session closed")
+	}
+	return s.client.GetRecordedActions(ctx, s.id)
 }
 
 // AcknowledgeRecordedActions acknowledges durably committed entries under this lease.
@@ -157,6 +162,47 @@ func (s *Session) GetRecordingStatus(ctx context.Context) (*driver.RecordingStat
 		return nil, errors.New("session closed")
 	}
 	return s.client.GetRecordingStatus(ctx, s.id)
+}
+
+// CaptureScreenshotWithOptions captures a screenshot through this owned lease.
+func (s *Session) CaptureScreenshotWithOptions(ctx context.Context, req *driver.CaptureScreenshotRequest) (*driver.CaptureScreenshotResponse, error) {
+	if s.isClosed() {
+		return nil, errors.New("session closed")
+	}
+	return s.client.CaptureScreenshot(ctx, s.id, req)
+}
+
+// GetFrame retrieves a frame through this owned lease.
+func (s *Session) GetFrame(ctx context.Context, query string) (*driver.GetFrameResponse, error) {
+	if s.isClosed() {
+		return nil, errors.New("session closed")
+	}
+	return s.client.GetFrame(ctx, s.id, query)
+}
+
+// UpdateStreamSettingsWithOptions preserves the driver's complete settings surface under this lease.
+func (s *Session) UpdateStreamSettingsWithOptions(ctx context.Context, req *driver.UpdateStreamSettingsRequest) (*driver.UpdateStreamSettingsResponse, error) {
+	if s.isClosed() {
+		return nil, errors.New("session closed")
+	}
+	return s.client.UpdateStreamSettings(ctx, s.id, req)
+}
+
+// ReplayPreview runs a non-persistent preview under this session owner.
+func (s *Session) ReplayPreview(ctx context.Context, req *driver.ReplayPreviewRequest) (*driver.ReplayPreviewResponse, error) {
+	if s.isClosed() {
+		return nil, errors.New("session closed")
+	}
+	return s.client.ReplayPreview(ctx, s.id, req)
+}
+
+// RouteRequest proxies an owned driver's session endpoint while retaining the
+// session broker as the only API boundary to /session routes.
+func (s *Session) RouteRequest(ctx context.Context, method, suffix string, body []byte) (*http.Response, error) {
+	if s.isClosed() {
+		return nil, errors.New("session closed")
+	}
+	return s.client.SessionRouteRequest(ctx, s.id, method, suffix, body)
 }
 
 // --- Common Operations (All Modes) ---

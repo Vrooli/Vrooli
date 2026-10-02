@@ -27,7 +27,41 @@ var (
 	// via *domain.RunnerError with ErrCodeRunnerSessionExpired (see
 	// codecs.Codec.ClassifyTerminalError).
 	ErrContinuationNotSupported = errors.New("runner does not support session continuation")
+
+	// ErrCompactionNotSupported indicates the runner cannot compact a native
+	// session out of band.
+	ErrCompactionNotSupported = errors.New("runner does not support session compaction")
 )
+
+// SessionCompactor compacts an idle run's native conversation out of band, so
+// the next continuation re-sends a summary instead of the whole history. It is
+// only called while the run has no live agent process.
+type SessionCompactor interface {
+	CompactSession(context.Context, CompactSessionRequest) (*CompactSessionResult, error)
+}
+
+// CompactSessionRequest identifies the session to compact and the environment
+// its CLI runs in (the run-scoped home that holds the session).
+type CompactSessionRequest struct {
+	RunID      uuid.UUID
+	SessionID  string
+	Model      string
+	WorkingDir string
+	Env        map[string]string
+	// MinContextTokens skips compaction when the session's current context is
+	// smaller; zero compacts unconditionally.
+	MinContextTokens int64
+}
+
+// CompactSessionResult reports what a compaction did.
+type CompactSessionResult struct {
+	Compacted bool
+	// ContextTokens is the session's context size before compaction; zero when
+	// unknown.
+	ContextTokens int64
+	// Reason explains a skipped compaction.
+	Reason string
+}
 
 // -----------------------------------------------------------------------------
 // Runner Interface - The primary seam for agent execution
@@ -170,6 +204,9 @@ type Capabilities struct {
 
 	// SupportsContinuation indicates the runner can resume previous sessions.
 	SupportsContinuation bool
+	// SupportsSessionCompaction indicates the runner implements
+	// [SessionCompactor] for idle codec-pipe sessions.
+	SupportsSessionCompaction bool
 	// SupportsWarmIteration indicates the runner can carry an engine-owned
 	// completion test across a continuation without losing session state.
 	SupportsWarmIteration bool

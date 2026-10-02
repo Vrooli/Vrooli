@@ -35,12 +35,12 @@ describe('session capacity admission with Chromium', () => {
       await popup.evaluate((html) => {
         document.body.innerHTML = html;
       }, popupHTML);
-      expect(session.pages).toEqual([session.page, popup]);
+      expect(session.context.pages()).toEqual([session.page, popup]);
 
       const context: HandlerContext = {
         page: session.page,
         browserContext: session.context,
-        tabStack: session.pages,
+        tabStack: session.context.pages(),
         config: createTestConfig(),
         logger,
         metrics,
@@ -82,15 +82,14 @@ describe('session capacity admission with Chromium', () => {
       const popup = await popupPromise;
 
       expect(session.pipelineManager.isRecording()).toBe(false);
-      expect(session.pages).toContain(popup);
-      expect(session.pages.filter((page) => page === popup)).toHaveLength(1);
+      expect(session.context.pages()).toContain(popup);
+      expect(session.context.pages().filter((page) => page === popup)).toHaveLength(1);
 
       session.page = popup;
-      session.currentPageIndex = session.pages.indexOf(popup);
       await popup.close();
-      expect(session.pages).not.toContain(popup);
+      expect(session.context.pages()).not.toContain(popup);
       expect(session.page).toBe(initialPage);
-      expect(session.currentPageIndex).toBe(0);
+      expect(session.context.pages().indexOf(session.page)).toBe(0);
     } finally {
       await manager.shutdown();
     }

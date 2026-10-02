@@ -23,6 +23,7 @@ import (
 	basevidence "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/evidence"
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
+	"google.golang.org/protobuf/proto"
 )
 
 // stubExecutor implements Executor for tests. Only the methods exercised by
@@ -424,6 +425,38 @@ func TestGetExecutionReplayPackage_Success(t *testing.T) {
 	}
 	if resp.Msg.GetExecutionId() != id.String() || resp.Msg.GetSchemaVersion() != "bas-replay/v1" {
 		t.Fatalf("unexpected replay package: %#v", resp.Msg)
+	}
+}
+
+func TestGetExecutionTimeline_PreservesCanonicalProtoEntries(t *testing.T) {
+	id := uuid.New()
+	stepIndex := int32(2)
+	sequence := int32(7)
+	errorMessage := "retryable navigation failure"
+	expected := &bastimeline.ExecutionTimeline{
+		ExecutionId: id.String(),
+		Entries: []*bastimeline.TimelineEntry{{
+			Id:          "entry-7",
+			SequenceNum: sequence,
+			StepIndex:   &stepIndex,
+			Context:     &basbase.EventContext{Error: &errorMessage},
+		}},
+	}
+	exec := &stubExecutor{timelineProtoFn: func(_ context.Context, got uuid.UUID) (*bastimeline.ExecutionTimeline, error) {
+		if got != id {
+			t.Fatalf("execution ID = %s", got)
+		}
+		return expected, nil
+	}}
+	client, stop := newTestService(t, exec, nil)
+	defer stop()
+
+	resp, err := client.GetExecutionTimeline(context.Background(), connect.NewRequest(&basapi.GetExecutionTimelineRequest{ExecutionId: id.String()}))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !proto.Equal(resp.Msg, expected) {
+		t.Fatalf("canonical timeline was changed in transport: got %v, want %v", resp.Msg, expected)
 	}
 }
 

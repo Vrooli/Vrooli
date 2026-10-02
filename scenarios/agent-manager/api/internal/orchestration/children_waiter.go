@@ -78,11 +78,11 @@ func (w *childrenWaiter) Wait(ctx context.Context, key string) (string, error) {
 			return "", fmt.Errorf("list child runs of %s: %w", parentID, err)
 		}
 		if ended := endedSince(children, since); len(ended) > 0 {
-			return childrenPayload(parentID, "child_run_ended", ended, children)
+			return childrenPayload("child_run_ended", ended, children)
 		}
 		select {
 		case <-ctx.Done():
-			payload, _ := childrenPayload(parentID, "timer", nil, children)
+			payload, _ := childrenPayload("timer", nil, children)
 			return payload, ctx.Err()
 		case <-ticker.C:
 		}
@@ -114,7 +114,11 @@ func endedSince(children []*domain.Run, since time.Time) []*domain.Run {
 	return ended
 }
 
-func childrenPayload(parentID uuid.UUID, reason string, ended, all []*domain.Run) (string, error) {
+// childrenPayload lists the children that ended since the last wake and the
+// ones still active. It omits children reported earlier: the payload becomes a
+// user message that Codex keeps verbatim through every compaction, so listing
+// every child ever spawned grew the parent's context with each wake.
+func childrenPayload(reason string, ended, all []*domain.Run) (string, error) {
 	summarize := func(runs []*domain.Run) []childRunSummary {
 		rows := make([]childRunSummary, 0, len(runs))
 		for _, run := range runs {
@@ -129,15 +133,14 @@ func childrenPayload(parentID uuid.UUID, reason string, ended, all []*domain.Run
 		}
 		return rows
 	}
-	active := 0
+	var active []*domain.Run
 	for _, run := range all {
 		if run != nil && !run.Status.IsTerminal() {
-			active++
+			active = append(active, run)
 		}
 	}
 	data, err := json.Marshal(map[string]any{
-		"kind": "child_runs", "parent_run_id": parentID.String(), "wake_reason": reason,
-		"ended": summarize(ended), "active_children": active, "children": summarize(all),
+		"wake_reason": reason, "ended": summarize(ended), "active": summarize(active),
 	})
 	return string(data), err
 }

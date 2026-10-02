@@ -25,6 +25,7 @@ import (
 	recordingschema "github.com/vrooli/browser-automation-studio/internal/recording"
 	"github.com/vrooli/browser-automation-studio/internal/testutil/fixtures"
 	"github.com/vrooli/browser-automation-studio/services/recording/persistence"
+	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	_ "modernc.org/sqlite"
 )
 
@@ -154,12 +155,12 @@ func TestService_RecordAction(t *testing.T) {
 		t.Errorf("expected entry type action, got %s", entry.Type)
 	}
 
-	if entry.Action == nil {
-		t.Fatal("expected action to be non-nil")
+	if entry.Entry == nil || entry.Action != nil {
+		t.Fatal("expected a single canonical proto action entry")
 	}
 
-	if entry.Action.ActionType != "click" {
-		t.Errorf("expected action type click, got %s", entry.Action.ActionType)
+	if entry.Entry.GetAction().GetType() != basactions.ActionType_ACTION_TYPE_CLICK {
+		t.Errorf("expected action type click, got %s", entry.Entry.GetAction().GetType())
 	}
 }
 
@@ -189,10 +190,10 @@ func TestService_RedactsSensitiveActionsBeforeCommitAndOnLegacyRead(t *testing.T
 	if len(stored) != 1 {
 		t.Fatalf("expected one committed action, got %d", len(stored))
 	}
-	if got := stored[0].Action.Payload["text"]; got != "" {
+	if got := stored[0].Entry.GetAction().GetInput().GetValue(); got != "" {
 		t.Fatalf("new secret reached durable journal: %v", got)
 	}
-	if got := stored[0].Action.ElementMeta.InnerText; got != "" {
+	if got := stored[0].Entry.GetAction().GetMetadata().GetElementSnapshot().GetInnerText(); got != "" {
 		t.Fatalf("new secret reached durable metadata: %q", got)
 	}
 
@@ -848,7 +849,7 @@ func TestJournalSameIDRetryRecoversAcrossServiceProcessDeath(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if page.TotalCount != actionCount+1 || len(page.Entries) != 10 || page.Entries[0].Sequence != actionCount-8 || page.Entries[9].Action.ID.String() != actionID || page.Entries[9].Sequence != actionCount+1 {
+	if page.TotalCount != actionCount+1 || len(page.Entries) != 10 || page.Entries[0].Sequence != actionCount-8 || page.Entries[9].Entry.GetId() != actionID || page.Entries[9].Sequence != actionCount+1 {
 		t.Fatalf("committed observation after process death: %+v", page)
 	}
 	if err := recovered.RecordAction(ctx, session.ID, journalAction(actionID), uuid.Nil, ActionSourceAuto); err != nil {
@@ -870,7 +871,7 @@ func TestJournalSameIDRetryRecoversAcrossServiceProcessDeath(t *testing.T) {
 			t.Fatalf("reopened page %d has %d entries", offset, len(page.Entries))
 		}
 		for i, entry := range page.Entries {
-			if entry.Action.ID.String() != expectedIDs[offset+i] || entry.Sequence != offset+i+1 {
+			if entry.Entry.GetId() != expectedIDs[offset+i] || entry.Sequence != offset+i+1 {
 				t.Fatalf("reopened page %d entry %d lost journal order/identity", offset, i)
 			}
 		}
@@ -970,8 +971,8 @@ func TestJournalHistorySurvivesPaginationReopenAndConcurrentWriters(t *testing.T
 			t.Fatalf("page offset%d: total%d entries%d start%d more%v wantMore%v", offset, result.TotalCount, len(result.Entries), result.Entries[0].Sequence, result.HasMore, wantMore)
 		}
 		for i, entry := range result.Entries {
-			if entry.Action.ID.String() != expectedIDs[offset+i] {
-				t.Fatalf("page offset%d entry%d: expected action %s, got %s", offset, i, expectedIDs[offset+i], entry.Action.ID)
+			if entry.Entry.GetId() != expectedIDs[offset+i] {
+				t.Fatalf("page offset%d entry%d: expected action %s, got %s", offset, i, expectedIDs[offset+i], entry.Entry.GetId())
 			}
 		}
 	}
@@ -1041,7 +1042,7 @@ func TestJournalRetryIdentityPreservesDistinctNavigations(t *testing.T) {
 	if result.TotalCount != 2 || len(result.Entries) != 2 || result.Entries[0].ID == result.Entries[1].ID {
 		t.Fatalf("retry must deduplicate by identity and retain distinct observations: %+v", result)
 	}
-	action.Payload = map[string]interface{}{"text": "conflicting payload"}
+	action.URL = "https://example.test/different"
 	if err := svc.RecordAction(ctx, sess.ID, action, uuid.Nil, ActionSourceAuto); err == nil {
 		t.Fatal("conflicting identity reuse was acknowledged")
 	}
@@ -1069,7 +1070,7 @@ func TestJournalCorruptCommittedDataFailsRead(t *testing.T) {
 	}
 }
 
-func TestJournalRetryPreservesLargeJSONNumbersAndNotifiesOnce(t *testing.T) {
+func TestJournalRetryPreservesExactInputTextAndNotifiesOnce(t *testing.T) {
 	svc, _ := openJournalFixture(t, filepath.Join(t.TempDir(), "journal.db"))
 	ctx := context.Background()
 	sess, err := svc.CreateSession(ctx, SessionConfig{})
@@ -1077,7 +1078,7 @@ func TestJournalRetryPreservesLargeJSONNumbersAndNotifiesOnce(t *testing.T) {
 		t.Fatal(err)
 	}
 	action := journalAction("opaque-event-1")
-	action.Payload = map[string]interface{}{"exact": json.Number("9007199254740993")}
+	action.Payload = map[string]interface{}{"text": "9007199254740993"}
 	notifications := 0
 	svc.SetOnAction(func(string, *persistence.UnifiedTimelineEntry) { notifications++ })
 	for i := 0; i < 2; i++ {
@@ -1089,7 +1090,7 @@ func TestJournalRetryPreservesLargeJSONNumbersAndNotifiesOnce(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if notifications != 1 || result.TotalCount != 1 || result.Entries[0].Action.Payload["exact"] != json.Number("9007199254740993") {
+	if notifications != 1 || result.TotalCount != 1 || result.Entries[0].Entry.GetAction().GetInput().GetValue() != "9007199254740993" {
 		t.Fatalf("retry or precision lost: notifications%d history%+v", notifications, result)
 	}
 }

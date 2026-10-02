@@ -34,28 +34,68 @@ func (h *Handler) ReceiveRecordingAction(w http.ResponseWriter, r *http.Request)
 	}
 
 	var action driver.RecordedAction
-	if err := json.Unmarshal(body, &action); err != nil || action.ActionType == "" {
-		var entry bastimeline.TimelineEntry
-		if err := protojson.Unmarshal(body, &entry); err != nil {
-			h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": "Invalid JSON body: " + err.Error()}))
+	if err := json.Unmarshal(body, &action); err == nil && action.ActionType != "" {
+		if err := h.commitRecordingAction(r.Context(), sessionID, &action); err != nil {
+			h.respondError(w, err)
 			return
 		}
-		action = driver.RecordedActionFromTimelineEntry(&entry)
-	}
-
-	if err := h.commitRecordingAction(r.Context(), sessionID, &action); err != nil {
-		h.respondError(w, err)
+		entry := h.createTimelineEntry(&action)
+		broadcast := h.wsHub.BroadcastTimelineEntry(sessionID, entry)
+		h.log.WithFields(map[string]interface{}{"correlation_id": correlationID, "session_id": sessionID, "action_type": action.ActionType, "action_id": action.ID, "sequence_num": action.SequenceNum, "persisted": true, "broadcast_sent": broadcast.SentCount > 0, "subscriber_count": broadcast.SubscriberCount, "sent_count": broadcast.SentCount, "dropped_count": broadcast.DroppedCount}).Debug("Action recorded")
+		h.respondSuccess(w, http.StatusOK, map[string]string{"status": "ok", "entry_id": action.ID})
 		return
 	}
 
-	broadcast := h.wsHub.BroadcastTimelineEntry(sessionID, h.createTimelineEntry(&action))
+	var entry bastimeline.TimelineEntry
+	if err := protojson.Unmarshal(body, &entry); err != nil || entry.GetAction() == nil || entry.GetId() == "" {
+		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": "Invalid TimelineEntry JSON"}))
+		return
+	}
+	if err := h.commitRecordingEntry(r.Context(), sessionID, &entry); err != nil {
+		h.respondError(w, err)
+		return
+	}
+	driver.RedactSensitiveTimelineEntry(&entry)
+	broadcast := h.wsHub.BroadcastTimelineEntry(sessionID, &entry)
 	h.log.WithFields(map[string]interface{}{
-		"correlation_id": correlationID, "session_id": sessionID, "action_type": action.ActionType,
-		"action_id": action.ID, "sequence_num": action.SequenceNum, "persisted": true,
+		"correlation_id": correlationID, "session_id": sessionID, "action_type": entry.GetAction().GetType().String(),
+		"action_id": entry.GetId(), "sequence_num": entry.GetSequenceNum(), "persisted": true,
 		"broadcast_sent": broadcast.SentCount > 0, "subscriber_count": broadcast.SubscriberCount,
 		"sent_count": broadcast.SentCount, "dropped_count": broadcast.DroppedCount,
 	}).Debug("Action recorded")
-	h.respondSuccess(w, http.StatusOK, map[string]string{"status": "ok", "entry_id": action.ID})
+	h.respondSuccess(w, http.StatusOK, map[string]string{"status": "ok", "entry_id": entry.GetId()})
+}
+
+func (h *Handler) commitRecordingEntry(ctx context.Context, sessionID string, entry *bastimeline.TimelineEntry) *APIError {
+	if entry == nil {
+		return ErrInvalidRequest.WithMessage("Recording page identity is missing")
+	}
+	session, ok := h.recordModeService.GetSession(sessionID)
+	if !ok || session == nil {
+		return ErrExecutionNotFound.WithMessage("Session not found")
+	}
+	pages := session.Pages()
+	if pages == nil {
+		return ErrServiceUnavailable.WithMessage("Recording page tracking unavailable")
+	}
+	var pageID uuid.UUID
+	if driverPageID := entry.GetTelemetry().GetDriverPageId(); driverPageID != "" {
+		resolved := pages.GetPageIDByDriverID(driverPageID)
+		if resolved == nil {
+			return ErrInvalidRequest.WithMessage("Recording page is not registered")
+		}
+		pageID = *resolved
+	} else {
+		pageID = pages.GetActivePageID()
+	}
+	if _, ok := pages.GetPage(pageID); !ok {
+		return ErrInvalidRequest.WithMessage("Recording page is not registered")
+	}
+	driver.RedactSensitiveTimelineEntry(entry)
+	if err := h.recordModeService.AddTimelineEntry(ctx, sessionID, entry, pageID); err != nil {
+		return ErrServiceUnavailable.WithMessage("Recording entry was not committed").WithDetails(map[string]string{"error": err.Error()})
+	}
+	return nil
 }
 
 func (h *Handler) commitRecordingAction(ctx context.Context, sessionID string, action *driver.RecordedAction) *APIError {
@@ -95,7 +135,7 @@ func (h *Handler) commitRecordingAction(ctx context.Context, sessionID string, a
 }
 
 func (h *Handler) createTimelineEntry(action *driver.RecordedAction) *bastimeline.TimelineEntry {
-	return telemetry.TelemetryToTimelineEntry(telemetry.RecordedActionToTelemetry(action))
+	return telemetry.BuildRecordingTimelineEntry(action)
 }
 
 // navigationResultPage resolves a completed effect on its original Session/page.

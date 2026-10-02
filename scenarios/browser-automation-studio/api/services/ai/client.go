@@ -55,6 +55,23 @@ func (c *OpenRouterClient) ExecutePrompt(ctx context.Context, prompt string) (st
 	return c.executePromptWithModel(ctx, model, prompt)
 }
 
+// ExecutePromptWithRole resolves a model through OpenRouter's role policy and
+// sends the prompt through the same gateway boundary as other BAS AI calls.
+func (c *OpenRouterClient) ExecutePromptWithRole(ctx context.Context, role, prompt string) (string, error) {
+	if strings.TrimSpace(prompt) == "" {
+		return "", errors.New("prompt is required")
+	}
+	role = strings.TrimSpace(role)
+	if role == "" {
+		role = openRouterRole()
+	}
+	model, err := resolveRoleModel(ctx, role)
+	if err != nil {
+		return "", err
+	}
+	return c.executePromptWithModel(ctx, model, prompt)
+}
+
 // ExecutePromptWithModel sends a prompt through resource-openrouter using an
 // explicit, already-resolved model slug. The caller is responsible for supplying
 // a non-empty model (typically resolved through the OpenRouter resource policy).

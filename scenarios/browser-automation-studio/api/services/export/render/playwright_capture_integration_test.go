@@ -11,7 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/internal/testutil/integration"
-	"github.com/vrooli/browser-automation-studio/services/export"
+	exportsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/exports"
 )
 
 // Requires a running Playwright driver at PLAYWRIGHT_DRIVER_URL and no Browserless URL configured.
@@ -50,25 +50,25 @@ window.addEventListener('bas:render', (ev) => {
 
 	spec := &export.ReplayMovieSpec{
 		Version: "test",
-		Execution: export.ExportExecutionMetadata{
+		Execution: &exportsv1.ReplayExecutionMetadata{
 			ExecutionID: uuid.New(),
 			WorkflowID:  uuid.New(),
 			Status:      "completed",
 			StartedAt:   time.Now(),
 		},
-		Playback: export.ExportPlayback{
+		Playback: &exportsv1.ReplayPlayback{
 			FrameIntervalMs: 100,
 		},
-		Frames: []export.ExportFrame{{DurationMs: 200}},
-		Summary: export.ExportSummary{
+		Frames: []*exportsv1.ReplayFrame{{DurationMs: 200}},
+		Summary: &exportsv1.ReplaySummary{
 			TotalDurationMs: 500,
 		},
-		Presentation: export.ExportPresentation{
-			Canvas: export.ExportDimensions{
+		Presentation: &exportsv1.ReplayPresentation{
+			Canvas: &exportsv1.ReplayDimensions{
 				Width:  1280,
 				Height: 720,
 			},
-			Viewport: export.ExportDimensions{
+			Viewport: &exportsv1.ReplayDimensions{
 				Width:  1280,
 				Height: 720,
 			},

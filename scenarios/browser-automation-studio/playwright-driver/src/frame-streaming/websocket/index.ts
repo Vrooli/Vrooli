@@ -9,7 +9,6 @@
 export {
   WebSocketConnectionManager,
   createWebSocketConnectionManager,
-  buildWebSocketUrl,
 } from './connection';
 
 export type {

@@ -17,7 +17,7 @@
  * EXTRACTED FROM: context-initializer.ts (881 lines → ~200 lines each)
  *
  * @see context-initializer.ts - Uses this for event route setup
- * @see html-injector.ts - Handles HTML injection (sibling module)
+ * @see context-initializer.ts - Registers the recording init script
  * @see pipeline-manager.ts - Handles navigation and route re-registration
  */
 
@@ -25,7 +25,6 @@ import type { Frame, Page } from 'rebrowser-playwright';
 import type winston from 'winston';
 import { shouldProcessEvent, formatDecisionForLog } from '../orchestration/decisions';
 import { LogContext, scopedLog } from '../../utils';
-import { createWeakSetGuard, createSetGuard, type WeakSetGuard, type SetGuard } from '../../infra';
 import type { RawBrowserEvent } from '../types';
 
 // =============================================================================
@@ -193,10 +192,10 @@ export function createEventRouteManager(options: EventRouteOptions): EventRouteM
   const stats = createRouteHandlerStats();
 
   // Track pages that have event routes set up
-  const pagesWithEventRoute: WeakSetGuard<Page> = createWeakSetGuard<Page>();
+  const pagesWithEventRoute = new WeakSet<Page>();
 
   // Track pages currently being set up to prevent duplicate concurrent registrations
-  const pagesBeingSetUp: SetGuard<Page> = createSetGuard<Page>({ name: 'pages-setup-lock' });
+  const pagesBeingSetUp = new Set<Page>();
 
   /**
    * Handle a recording event from the page route.

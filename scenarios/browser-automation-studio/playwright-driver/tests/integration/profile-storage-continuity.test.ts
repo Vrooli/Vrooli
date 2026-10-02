@@ -221,9 +221,7 @@ describe('profile authentication continuity', () => {
       await partitionedFrame.evaluate(() => sessionStorage.setItem('frame-session', 'must-clear'));
       const extra = await session.context.newPage();
       await extra.goto(origin);
-      session.pages.push(extra);
       session.page = extra;
-      session.currentPageIndex = 1;
       await extra.route(`${cacheOnlyOrigin}/**`, route => route.fulfill({ contentType: 'text/html', body: '<title>Cache-only origin</title>' }));
       await extra.goto(cacheOnlyOrigin);
       await extra.evaluate(async () => { await (await caches.open('cache-only')).put('/value', new Response('must-clear')); });
@@ -235,11 +233,8 @@ describe('profile authentication continuity', () => {
       const active = await session.context.newPage();
       await active.goto(origin);
       const activeId = randomUUID();
-      session.pages.push(active);
-      session.pageIdMap.set(activeId, active);
-      session.pageToIdMap.set(active, activeId);
+      session.pageBindings.register(active, activeId);
       session.page = active;
-      session.currentPageIndex = session.pages.length - 1;
       const sequence = 9;
       session.lastInstructionSequence = sequence;
       session.instructionReceipts?.set(sequence, { fingerprint: 'old', response: '{}' });
@@ -264,9 +259,9 @@ describe('profile authentication continuity', () => {
       expect(session.page).toBe(active);
       expect(primary.isClosed()).toBe(true);
       expect(active.isClosed()).toBe(false);
-      expect(session.pageIdMap.size).toBe(1);
-      expect(session.pageIdMap.has(activeId)).toBe(true);
-      expect(session.pageToIdMap.has(active)).toBe(true);
+      expect(session.pageBindings.ids()).toHaveLength(1);
+      expect(session.pageBindings.getPage(activeId)).toBe(active);
+      expect(session.pageBindings.getId(active)).toBe(activeId);
       expect(active.url()).toBe('about:blank');
       expect(session.phase).toBe('ready');
       expect(session.lastInstructionSequence).toBe(sequence);

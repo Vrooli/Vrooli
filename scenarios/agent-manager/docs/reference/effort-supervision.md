@@ -116,10 +116,23 @@ epoch worker at a time.
 | Command | Contract |
 | --- | --- |
 | `run continue <id> --message <text>` | The one way to talk to a run. A running interactive session receives the text as its next user message (the harness queues it behind the current turn); per-turn overrides are refused there. Any other continuable run starts a new turn. A codec-pipe run that is still mid-turn is refused; write an epoch directive instead. |
-| `run park <id> --producer children --key <orchestrator-run-id> --timeout 15m` | Parks the calling run until a direct child exits, the timeout elapses, or a wake names the key. |
+| `run park <id> --producer children --key <orchestrator-run-id> --timeout 1h` | Parks the calling run until a direct child exits, the timeout elapses, or a wake names the key. The wake message names only the children that ended since the last wake and the ones still active (`[wake: timer] …` or `[wake] …`). |
 | `run wake --key <key> [--producer children] [--result <text>]` | `POST /api/v1/runs/wake-by-key`: the server matches every parked run whose await handle has exactly this producer and key and wakes it. A run identity may wake only runs its lineage permits (its parent, or its own children under the orchestrate scope). `run wake <id>` wakes one run. |
 | `run tokens <id> [--children] [--weights sol=10,luna=1]` | Non-cache tokens weighted by model tier (default Sol 10, Luna 1; an unknown model weighs 1). Usage that is not final is listed, never counted as zero. |
 | `effort epoch-check <epoch-file> [--runs ids] [--spend-threshold n] [--wake-key key]` | Parses an epoch file and prints the step-back triggers. It exits 3 when a step-back fires; `--wake-key` wakes the orchestrator parked on that key (producer `children`). Spend uses the same weighting as `run tokens`. Slice-log lines need `<time> \| <what changed> \| exit metric=<v>`; line counts default to zero, unknown `key=value` fields are ignored, and `ack=` takes free text whose `D<n>` IDs count as acknowledged. |
+
+**Parked-session compaction.** A wake re-sends the parked conversation, and the
+model's prompt cache lasts about 30 minutes, so a late wake pays for the whole
+context again. When a codec-pipe run stays parked on the same handle for 20
+minutes, its runner declares `supports_session_compaction`, and its context is
+at least 40k tokens, Agent Manager compacts the session and logs the outcome on
+the run. How is the runner's business: today only Codex declares it, through
+`codex app-server` (`thread/compact/start`; sending `/compact` through
+`codex exec resume` is only text). The
+thread ID is unchanged; a wake that arrives during compaction waits for it.
+Interactive runs are never compacted, because resuming their thread in the
+app-server clears the native goal. A failed compaction leaves the full session
+for the wake.
 
 A profile that declares the `agent-manager:orchestrate` scope lets its run
 continue, stop and wake its own direct children from inside the run. It never

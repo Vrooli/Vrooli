@@ -2,8 +2,8 @@
 // handler.
 //
 // ObservabilityService is BAS's facade onto playwright-driver's
-// /observability surface (status snapshots, session inventory, metrics,
-// runtime config) plus the in-process debug-mode toggle.
+// /observability surface (status snapshots, session inventory, metrics)
+// plus the in-process debug-mode toggle.
 //
 // This package is a thin Connect adapter onto the transport-agnostic
 // Fetch* methods exposed by the parent handlers package
@@ -32,9 +32,6 @@ type Proxy interface {
 	FetchObservabilityRefresh(ctx context.Context) (map[string]any, error)
 	FetchObservabilitySessions(ctx context.Context) (map[string]any, error)
 	FetchObservabilityMetrics(ctx context.Context) (map[string]any, error)
-	FetchObservabilityConfigRuntime(ctx context.Context) (map[string]any, error)
-	UpdateObservabilityConfig(ctx context.Context, envVar, value string) (map[string]any, error)
-	ResetObservabilityConfig(ctx context.Context, envVar string) (map[string]any, error)
 }
 
 // Verify the parent Handler still satisfies the seam.

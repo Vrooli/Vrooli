@@ -24,15 +24,16 @@ numbering, action parsing, loop detection, and human-intervention behavior.
 Each prior user frame remains attached to its original turn, and credit
 accounting consumes usage returned by AI Gateway rather than a BAS price table.
 
-The legacy Claude computer-use client is a narrow, temporary exception because
-its provider-specific computer tool contract is not yet represented by the
-gateway action schema. It is isolated to the explicit Claude navigator and has
-an owner, expiry, and replacement trigger in
-[`docs/internal/DECISIONS.md`](../internal/DECISIONS.md).
+Playwright-backed navigation is the sole production engine. The API owns
+navigation identity, authorization, lifecycle tracking and action recording;
+playwright-driver owns the observe/decide/act loop and calls AI Gateway for
+provider-neutral model inference. Text analysis also uses the shared OpenRouter
+model service boundary.
 
 ## Navigator Abstraction
 
-The AI navigation system uses a pluggable navigator architecture that allows multiple navigation backends with different capabilities, credit policies, and client source restrictions.
+The API registry exposes the canonical Playwright navigator for discovery and
+request validation. Production wiring registers exactly one navigator.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -40,13 +41,11 @@ The AI navigation system uses a pluggable navigator architecture that allows mul
 │                              │                                              │
 │                    NavigatorRegistry.SelectNavigator()                      │
 │                              │                                              │
-│           ┌──────────────────┼──────────────────┐                           │
-│           ▼                                     ▼                           │
-│  PlaywrightVisionNavigator          ClaudeCodeVisionNavigator               │
-│  (UI, CLI, API)                     (CLI only, future)                      │
-│           │                                     │                           │
-│           ▼                                     ▼                           │
-│  playwright-driver                  claude CLI --chrome                     │
+│                              ▼                                              │
+│                    PlaywrightVisionNavigator                               │
+│                              │                                              │
+│                              ▼                                              │
+│                       playwright-driver                                    │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -71,7 +70,6 @@ type VisionNavigator interface {
 | Navigator | Status | Description | Allowed Sources |
 |-----------|--------|-------------|-----------------|
 | `playwright` | Available | Vision navigation via playwright-driver | UI, CLI, API |
-| `claude_code` | Stub (future) | Navigation via Claude Code CLI with Chrome | CLI only |
 
 ## Visual Architecture Diagram
 
@@ -176,7 +174,6 @@ type CreditPolicy struct {
 | Navigator | RequiresCredits | CreditsPerStep | Bypass Conditions |
 |-----------|-----------------|----------------|-------------------|
 | Playwright | Yes | 2 | AI Gateway usage and entitlement policy |
-| ClaudeCode | No | 0 | `local_execution` |
 
 ### Bypass Conditions
 
@@ -203,7 +200,6 @@ The system tracks client sources via the `X-Client-Source` header to restrict ce
 | Navigator | Allowed Sources |
 |-----------|-----------------|
 | Playwright | All (UI, CLI, API) |
-| ClaudeCode | CLI only |
 
 ## Data Flow Sequence
 
@@ -290,7 +286,6 @@ User types prompt
 | **API** | `api/services/vision/policy.go` | CreditPolicy, ClientSourcePolicy, BypassCondition |
 | **API** | `api/services/vision/registry.go` | NavigatorRegistry (discovery + selection) |
 | **API** | `api/services/vision/playwright_navigator.go` | Playwright implementation |
-| **API** | `api/services/vision/claudecode_navigator.go` | Claude Code stub (future) |
 
 ### UI Layer
 
@@ -298,9 +293,8 @@ User types prompt
 |------|---------|
 | [CODE: ui/src/domains/recording/sidebar/AutoTab.tsx] | Chat interface for AI navigation |
 | [CODE: ui/src/domains/recording/ai-conversation/useAIConversation.ts] | Message history management |
-| [CODE: ui/src/domains/recording/ai-navigation/useAINavigation.ts] | Composition of navigation projections and public state |
+| [CODE: ui/src/domains/recording/ai-navigation/useAINavigation.ts] | Start/abort/resume requests and navigation projection |
 | [CODE: ui/src/domains/recording/ai-navigation/useAINavigationRuntime.ts] | Identity, cancellation, lifecycle reset and shared command/event refs |
-| [CODE: ui/src/domains/recording/ai-navigation/useAINavigationCommands.ts] | Start/abort/resume admission and request-to-identity handoff |
 | [CODE: ui/src/domains/recording/ai-navigation/useAINavigationEvents.ts] | Incremental WebSocket event admission |
 | [CODE: ui/src/domains/recording/ai-navigation/types.ts] | TypeScript type definitions |
 | [CODE: ui/src/domains/recording/ai-navigation/HumanInterventionOverlay.tsx] | Human intervention UI |
@@ -373,8 +367,8 @@ The UI has deliberately separate observation responsibilities:
   reset lifecycle and one shared command/event ref contract, including the
   generation predicate and current-command state updater. It is the only owner
   that creates those refs; consumers receive the same fenced object.
-- `useAINavigationCommands.ts` owns start/abort/resume admission, handoff
-  failure cleanup and the server request-to-navigation identity commit.
+- `useAINavigation.ts` sends start/abort/resume requests through the API and
+  projects their server-assigned navigation identity.
 - `useAINavigation.ts` composes the runtime, event path and server-owned status
   wait used after transport loss. WebSocket and
   recovery projections remain separate transport owners, but share the same

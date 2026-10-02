@@ -1,6 +1,7 @@
 import { createMockHttpRequest, createMockHttpResponse, createTestConfig, createTypedInstruction, createMockPage, createMockContext } from '../../helpers';
 import { handleSessionRun } from '../../../src/routes/session-run';
 import { SessionManager } from '../../../src/session';
+import { DriverPageBindings } from '../../../src/session/page-bindings';
 import type { SessionPhase, SessionState } from '../../../src/types';
 import { PassThrough } from 'node:stream';
 import type { IncomingMessage } from 'node:http';
@@ -60,9 +61,7 @@ describe('handleSessionRun', () => {
     instructionCount: 0,
     context: createMockContext(),
     storageOrigins: new Set<string>(),
-    pageIdMap: new Map(),
-    pageToIdMap: new WeakMap(),
-    pages: [],
+    pageBindings: new DriverPageBindings(),
     activeMocks: new Map(),
     instructionReceipts: new Map<number, {fingerprint: string; response: string}>(),
     lastInstructionSequence: 0,
@@ -324,7 +323,6 @@ describe('handleSessionRun', () => {
   it.each(['resetting', 'closing'] as const)(
     'rejects instructions throughout an actual delayed %s operation', async (phase) => {
       const session = buildSession();
-      session.pages = [session.page] as never;
       const manager = buildSessionManager(session);
       let release!: () => void;
       let entered!: () => void;

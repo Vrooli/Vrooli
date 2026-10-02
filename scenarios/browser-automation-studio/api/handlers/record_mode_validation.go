@@ -32,7 +32,7 @@ func (h *Handler) ValidateSelector(w http.ResponseWriter, r *http.Request) {
 		h.respondError(w, ErrMissingRequiredField.WithDetails(map[string]string{"field": "selector"}))
 		return
 	}
-	resp, err := h.recordModeService.DriverClient().ValidateSelector(ctx, sessionID, &driver.ValidateSelectorRequest{Selector: req.Selector})
+	resp, err := h.recordModeService.ValidateSelector(ctx, sessionID, &driver.ValidateSelectorRequest{Selector: req.Selector})
 	if err != nil {
 		h.log.WithError(err).Error("Failed to validate selector")
 		h.respondError(w, ErrServiceUnavailable.WithDetails(map[string]string{"error": err.Error()}))
@@ -71,7 +71,7 @@ func (h *Handler) ReplayRecordingPreview(w http.ResponseWriter, r *http.Request)
 		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": "No actions to replay"}))
 		return
 	}
-	resp, err := h.recordModeService.DriverClient().ReplayPreview(ctx, sessionID, &driver.ReplayPreviewRequest{
+	resp, err := h.recordModeService.ReplayPreview(ctx, sessionID, &driver.ReplayPreviewRequest{
 		Actions: req.Actions, Limit: req.Limit, StopOnFailure: req.StopOnFailure, ActionTimeout: req.ActionTimeout,
 	})
 	if err != nil {

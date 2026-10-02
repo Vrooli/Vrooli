@@ -33,8 +33,9 @@ type Repository interface {
 
 	// === Timeline persistence ===
 
-	// AppendTimelineEntry atomically assigns a durable sequence. An identical ID
-	// retry returns inserted=false and the committed sequence; conflicting reuse fails.
+	// AppendTimelineEntry atomically assigns a durable sequence. Action entries
+	// require the canonical proto Entry; legacy Action values are read-only. An
+	// identical ID retry returns inserted=false; conflicting reuse fails.
 	AppendTimelineEntry(ctx context.Context, entry *UnifiedTimelineEntry) (inserted bool, err error)
 
 	// GetTimelineEntry retrieves a single entry by ID.

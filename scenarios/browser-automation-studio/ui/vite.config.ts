@@ -184,6 +184,11 @@ const healthEndpointPlugin = (): Plugin => ({
 });
 
 const ALIASES = {
+  '@vrooli/generated-proto': path.resolve(__dirname, '../../../packages/proto/gen/typescript'),
+  '@vrooli/proto-types': path.resolve(__dirname, '../../../packages/proto/gen/typescript'),
+  '@bufbuild/protobuf/codegenv2': path.resolve(__dirname, 'node_modules/@bufbuild/protobuf/dist/esm/codegenv2/index.js'),
+  '@bufbuild/protobuf/wkt': path.resolve(__dirname, 'node_modules/@bufbuild/protobuf/dist/esm/wkt/index.js'),
+  '@bufbuild/protobuf': path.resolve(__dirname, 'node_modules/@bufbuild/protobuf/dist/esm/index.js'),
   '@': path.resolve(__dirname, './src'),
   '@shared': path.resolve(__dirname, './src/shared'),
   '@routing': path.resolve(__dirname, './src/routing'),

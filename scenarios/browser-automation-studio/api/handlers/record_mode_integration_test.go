@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/vrooli/browser-automation-studio/internal/testutil"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -13,6 +12,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/vrooli/browser-automation-studio/internal/testutil"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -27,7 +28,11 @@ import (
 	"github.com/vrooli/browser-automation-studio/services/recording"
 	"github.com/vrooli/browser-automation-studio/services/recording/persistence"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
+	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
+	basdomain "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/domain"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // TestRecordingHub is a test hub that captures broadcasts for verification.
@@ -213,6 +218,14 @@ func (s *journalIngressService) AddTimelineAction(ctx context.Context, id string
 	return err
 }
 
+func (s *journalIngressService) AddTimelineEntry(ctx context.Context, id string, entry *bastimeline.TimelineEntry, page uuid.UUID) error {
+	err := s.journal.RecordTimelineEntry(ctx, id, entry, page)
+	if err == nil && s.afterCommit != nil {
+		s.afterCommit()
+	}
+	return err
+}
+
 // [REQ:BAS-RH-J06] Exercise the real HTTP ingress, not an alternate recorder API.
 func TestReceiveRecordingActionRequiresCommit(t *testing.T) {
 	for _, tc := range []struct {
@@ -299,15 +312,52 @@ func TestReceiveRecordingActionRedactsBeforePersistenceAndBroadcast(t *testing.T
 
 	stored := repo.GetAllEntries("session")
 	require.Len(t, stored, 1)
-	require.Empty(t, stored[0].Action.Payload["text"])
-	require.Empty(t, stored[0].Action.Payload["value"])
-	require.Empty(t, stored[0].Action.ElementMeta.InnerText)
-	require.NotContains(t, stored[0].Action.ElementMeta.Attributes, "value")
-	require.NotContains(t, stored[0].Action.ElementMeta.Attributes, "data-token")
+	require.Empty(t, stored[0].Entry.GetAction().GetInput().GetValue())
+	require.Empty(t, stored[0].Entry.GetAction().GetMetadata().GetElementSnapshot().GetInnerText())
+	require.NotContains(t, stored[0].Entry.GetAction().GetMetadata().GetElementSnapshot().GetAttributes(), "value")
+	require.NotContains(t, stored[0].Entry.GetAction().GetMetadata().GetElementSnapshot().GetAttributes(), "data-token")
 
 	broadcast := hub.GetLastEntry("session")
 	require.NotNil(t, broadcast)
 	require.NotContains(t, broadcast.String(), secret)
+}
+
+func TestReceiveCanonicalTimelineEntryPersistsAndBroadcastsProto(t *testing.T) {
+	log := logrus.New()
+	repo := persistence.NewMockRepository()
+	journal := recording.NewService(repo, recording.ServiceConfig{})
+	require.NoError(t, journal.RegisterSession(context.Background(), "session", recording.SessionConfig{}))
+	session := &autosession.Session{}
+	session.InitializePageTracking("https://example.test")
+	hub := NewTestRecordingHub(log)
+	handler := &Handler{recordModeService: &journalIngressService{MockRecordModeService: NewMockRecordModeService(), session: session, journal: journal}, wsHub: hub, log: log}
+	entry := &bastimeline.TimelineEntry{
+		Id: uuid.NewString(), SequenceNum: 9, Timestamp: timestamppb.New(time.Date(2026, 9, 24, 0, 0, 0, 0, time.UTC)),
+		Action:    &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_NAVIGATE, Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{Url: "https://example.test/next"}}},
+		Telemetry: &basdomain.ActionTelemetry{Url: "https://example.test/next"},
+	}
+	body, err := protojson.Marshal(entry)
+	require.NoError(t, err)
+	request := httptest.NewRequest(http.MethodPost, "/recordings/live/session/action", strings.NewReader(string(body)))
+	route := chi.NewRouteContext()
+	route.URLParams.Add("sessionId", "session")
+	request = request.WithContext(context.WithValue(request.Context(), chi.RouteCtxKey, route))
+	response := httptest.NewRecorder()
+	handler.ReceiveRecordingAction(response, request)
+	require.Equal(t, http.StatusOK, response.Code, response.Body.String())
+	stored := repo.GetAllEntries("session")
+	require.Len(t, stored, 1)
+	require.NotNil(t, stored[0].Entry)
+	assert.Nil(t, stored[0].Action, "canonical ingress must not materialize the legacy action DTO")
+	assert.Equal(t, entry.GetId(), stored[0].Entry.GetId())
+	assert.Equal(t, int32(1), stored[0].Entry.GetSequenceNum(), "journal order owns the durable sequence")
+	assert.Equal(t, "https://example.test/next", stored[0].Entry.GetAction().GetNavigate().GetUrl())
+	assert.Equal(t, "session", stored[0].Entry.GetContext().GetSessionId())
+	assert.Equal(t, session.Pages().GetActivePageID(), stored[0].PageID)
+	broadcast := hub.GetLastEntry("session")
+	require.NotNil(t, broadcast)
+	assert.Equal(t, entry.GetId(), broadcast.GetId())
+	assert.Equal(t, int32(1), broadcast.GetSequenceNum(), "broadcast uses the durable journal sequence")
 }
 
 // createOwnedNavigationSession exercises driver wire ownership for API controls.
@@ -413,7 +463,7 @@ func TestHistoryNavigationRequiresRecordedOutcome(t *testing.T) {
 					require.NoError(t, err)
 					require.Equal(t, 1, entries.TotalCount)
 					require.Len(t, entries.Entries, 1)
-					assert.Equal(t, operation.name, entries.Entries[0].Action.ActionType)
+					require.NotNil(t, entries.Entries[0].Entry.GetAction().GetNavigate())
 					assert.Equal(t, "https://after.test", sess.Pages().GetActivePage().URL)
 				}
 			})
@@ -541,6 +591,69 @@ func TestPullRecordingActionsCommitBeforeAcknowledgement(t *testing.T) {
 	}
 }
 
+func TestPullCanonicalEntriesPersistsProtoBeforeAcknowledgement(t *testing.T) {
+	ctx := context.Background()
+	repo := persistence.NewMockRepository()
+	journal := recording.NewService(repo, recording.ServiceConfig{})
+	require.NoError(t, journal.RegisterSession(ctx, "session", recording.SessionConfig{}))
+	id := uuid.NewString()
+	entry := &bastimeline.TimelineEntry{Id: id, SequenceNum: 4, Timestamp: timestamppb.Now(), Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_CLICK}}
+	rawEntry, err := protojson.Marshal(entry)
+	require.NoError(t, err)
+	server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/session/start":
+			_ = json.NewEncoder(w).Encode(map[string]string{"session_id": "session", "lease_id": "canonical-pull-lease"})
+			return
+		case "/session/session/record/actions":
+			_ = json.NewEncoder(w).Encode(map[string]any{"session_id": "session", "entries": []json.RawMessage{rawEntry}})
+			return
+		case "/session/session/record/actions/ack":
+		default:
+			t.Errorf("unexpected driver request: %s", r.URL.Path)
+			w.WriteHeader(404)
+			return
+		}
+		var request struct {
+			EntryIDs []string `json:"entry_ids"`
+		}
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&request))
+		assert.Equal(t, []string{id}, request.EntryIDs)
+		timeline, getErr := journal.GetTimeline(ctx, persistence.TimelineQuery{SessionID: "session"})
+		require.NoError(t, getErr)
+		require.Len(t, timeline.Entries, 1)
+		assert.NotNil(t, timeline.Entries[0].Entry, "proto persistence must finish before driver acknowledgement")
+		_ = json.NewEncoder(w).Encode(map[string]any{"entry_ids": request.EntryIDs})
+	}))
+	defer server.Close()
+	client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
+	require.NoError(t, err)
+	manager := autosession.NewManagerWithClient(client)
+	owner := uuid.New()
+	sess, err := manager.Create(ctx, autosession.Spec{ExecutionID: owner, Mode: autosession.ModeRecording})
+	require.NoError(t, err)
+	sess.InitializePageTracking("https://fixture.test")
+	service := livecapture.NewServiceWithManager(manager, logrus.New(), journal)
+	h := &Handler{recordModeService: service, log: logrus.New()}
+	req := httptest.NewRequest(http.MethodGet, "/recordings/live/session/actions?clear=true", nil)
+	route := chi.NewRouteContext()
+	route.URLParams.Add("sessionId", "session")
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, route))
+	response := httptest.NewRecorder()
+	h.GetRecordedActions(response, req)
+	require.Equal(t, http.StatusOK, response.Code, response.Body.String())
+	var actionsResponse GetActionsResponse
+	require.NoError(t, json.Unmarshal(response.Body.Bytes(), &actionsResponse))
+	assert.Equal(t, 1, actionsResponse.Count, "the REST count follows canonical proto entries")
+	assert.Len(t, actionsResponse.Entries, 1)
+	timeline, err := journal.GetTimeline(ctx, persistence.TimelineQuery{SessionID: "session"})
+	require.NoError(t, err)
+	require.Len(t, timeline.Entries, 1)
+	require.NotNil(t, timeline.Entries[0].Entry)
+	assert.Equal(t, id, timeline.Entries[0].Entry.GetId())
+	assert.Nil(t, timeline.Entries[0].Action)
+}
+
 type navigationCompletionService struct {
 	*journalIngressService
 	current atomic.Pointer[autosession.Session]
@@ -625,7 +738,7 @@ func TestNavigationCompletionKeepsOriginalOwnership(t *testing.T) {
 				require.NoError(t, err)
 				if op.journal && (allowed || change == "session after commit") {
 					require.Len(t, timeline.Entries, 1)
-					assert.Equal(t, originalID, timeline.Entries[0].Action.PageID)
+					assert.Equal(t, originalID, timeline.Entries[0].PageID)
 				} else {
 					assert.Empty(t, timeline.Entries)
 				}

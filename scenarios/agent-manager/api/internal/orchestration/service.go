@@ -674,6 +674,10 @@ type Orchestrator struct {
 	// parked turn's agent process has been stopped. WakeRun waits on it so a
 	// continuation never starts beside the still-running parked turn.
 	parkTurnEnds sync.Map // uuid.UUID -> chan struct{}
+	// parkCompactions holds, per parked run whose session is being compacted,
+	// a channel closed when the compaction ends. WakeRun waits on it.
+	parkCompactions sync.Map // uuid.UUID -> chan struct{}
+	parkCompaction  *parkCompactionSettings
 
 	// terminalAccounting remembers which ended standalone runs have settled
 	// terminal usage, so the reconcile sweep revisits only runs that still owe it.

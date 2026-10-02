@@ -9,25 +9,18 @@ import {
 import clsx from "clsx";
 import ReplayPlayer, {
   type ReplayFrame,
-  type ReplayPlayerController,
   type CursorSpeedProfile,
   type CursorPathStyle,
 } from "@/domains/exports/replay/ReplayPlayer";
 import { MAX_BROWSER_SCALE, MIN_BROWSER_SCALE, resolveReplayStyleFromSpec } from "@/domains/replay-style";
 // toNumber is imported and used by the extracted frameMapping.ts module
-import type {
-  ReplayMovieAsset,
-  ReplayMovieSpec,
-} from "../types/export";
+import type { ReplayAsset as ReplayMovieAsset, ReplaySpec as ReplayMovieSpec } from "@vrooli/generated-proto/browser-automation-studio/v1/exports/exports_pb";
 import { logger } from "../utils/logger";
 import "../index.css";
 
 // Import extracted utilities
 import type {
-  ExportMetadata,
   ExportPreviewPayload,
-  FrameTimeline,
-  FrameWaiter,
   PresentationBounds,
 } from "./types";
 import {
@@ -37,9 +30,7 @@ import {
 } from "./bootstrap";
 import {
   buildTimeline,
-  clampProgress,
   computeTotalDuration,
-  findFrameForTime,
 } from "./timeline";
 import {
   mapIntroCardSettings,
@@ -48,13 +39,12 @@ import {
   toReplayFrame,
 } from "./frameMapping";
 import { defaultStatusMessage, normalizeStatus } from "./status";
+import { useReplayExportBridge } from "./useReplayExportBridge";
 
 // Re-export types needed by the global augmentation (imported from types.ts)
 import "./types";
 
 // Constants (only keeping ones specific to this component)
-const PROGRESS_EPSILON = 0.02;
-const DEFAULT_TIMEOUT_MS = 6000;
 const DEFAULT_BODY_BACKGROUND = "#020617";
 const DEFAULT_CANVAS_WIDTH = 1280;
 const DEFAULT_CANVAS_HEIGHT = 720;
@@ -103,51 +93,8 @@ const asCursorPathStyle = (
   return match;
 };
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
-
-const isString = (value: unknown): value is string => typeof value === "string";
-const isNumber = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value);
-
-const readFiniteNumber = (value: unknown): number | null => {
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return value;
-  }
-  if (typeof value === "string" && value.trim() !== "") {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : null;
-  }
-  return null;
-};
-
-const isReplayMovieSpec = (value: unknown): value is ReplayMovieSpec => {
-  if (!isRecord(value)) return false;
-  if (!isString(value.version)) return false;
-  if (!isString(value.generated_at)) return false;
-  if (!isRecord(value.execution)) return false;
-  if (!isString(value.execution.execution_id)) return false;
-  if (!isString(value.execution.workflow_id)) return false;
-  if (!isString(value.execution.status)) return false;
-  if (!isString(value.execution.started_at)) return false;
-  if (!isNumber(value.execution.progress)) return false;
-  if (!isNumber(value.execution.total_duration_ms)) return false;
-  if (!isRecord(value.theme)) return false;
-  if (!isRecord(value.cursor)) return false;
-  if (!isRecord(value.decor)) return false;
-  if (!isRecord(value.playback)) return false;
-  if (!isRecord(value.presentation)) return false;
-  if (!isRecord(value.cursor_motion)) return false;
-  if (!Array.isArray(value.frames)) return false;
-  if (!Array.isArray(value.assets)) return false;
-  if (!isRecord(value.summary)) return false;
-  return true;
-};
-
 // Initialize basExport bootstrap on module load
 ensureBasExportBootstrap();
-
-// Type alias for waiter (used locally in the component)
-type Waiter = FrameWaiter;
 
 const ReplayExportPage = () => {
   const [movieSpec, setMovieSpec] = useState<ReplayMovieSpec | null>(null);
@@ -158,7 +105,6 @@ const ReplayExportPage = () => {
   } | null>(null);
   const [currentFrameIndex, setCurrentFrameIndex] = useState(0);
   const [currentProgress, setCurrentProgress] = useState(0);
-  const [controllerSignal, setControllerSignal] = useState(0);
   const [mode, setMode] = useState<"standalone" | "embedded" | "capture">(
     "standalone",
   );
@@ -167,14 +113,7 @@ const ReplayExportPage = () => {
   const [presentationBounds, setPresentationBounds] = useState<PresentationBounds | null>(null);
   const fetchingRef = useRef(false);
   const pendingRetryRef = useRef<number | null>(null);
-  const parentOriginRef = useRef<string | null>(null);
   const executionSourceRef = useRef<string | null>(null);
-  const readySignalRef = useRef<string | null>(null);
-
-  const controllerRef = useRef<ReplayPlayerController | null>(null);
-  const waitersRef = useRef<Waiter[]>([]);
-  const timelineRef = useRef<FrameTimeline[]>([]);
-  const totalDurationRef = useRef(0);
 
   const clearPendingRetry = useCallback(() => {
     if (pendingRetryRef.current != null) {
@@ -268,7 +207,7 @@ const ReplayExportPage = () => {
         setStatusPayload(null);
         setLoadError(null);
         executionSourceRef.current =
-          preview.package.execution?.execution_id ?? normalizedId;
+          preview.package.execution?.executionId ?? normalizedId;
         setIsAwaitingSpec(false);
       } catch (error) {
         const message =
@@ -440,17 +379,12 @@ const ReplayExportPage = () => {
     [movieSpec?.frames],
   );
   const totalDurationMs = useMemo(() => {
-    const playbackDuration = movieSpec?.playback?.duration_ms;
+    const playbackDuration = movieSpec?.playback?.durationMs;
     if (playbackDuration && playbackDuration > 0) {
       return playbackDuration;
     }
     return computeTotalDuration(movieSpec?.summary, timeline);
-  }, [movieSpec?.playback?.duration_ms, movieSpec?.summary, timeline]);
-
-  useEffect(() => {
-    timelineRef.current = timeline;
-    totalDurationRef.current = totalDurationMs;
-  }, [timeline, totalDurationMs]);
+  }, [movieSpec?.playback?.durationMs, movieSpec?.summary, timeline]);
 
   useEffect(() => {
     return () => {
@@ -488,519 +422,22 @@ const ReplayExportPage = () => {
     movieSpec?.presentation?.viewport?.height,
   ]);
 
-  const registerWaiter = useCallback(
-    (targetIndex: number, targetProgress: number) => {
-      return new Promise<void>((resolve, reject) => {
-        const clampedProgress = clampProgress(targetProgress);
-        const cleanup = (waiter: Waiter) => {
-          waitersRef.current = waitersRef.current.filter(
-            (candidate) => candidate !== waiter,
-          );
-        };
-        const timeoutId = window.setTimeout(() => {
-          cleanup(waiter);
-          reject(new Error("Timed out waiting for replay state"));
-        }, DEFAULT_TIMEOUT_MS);
-        const waiter: Waiter = {
-          index: targetIndex,
-          progress: clampedProgress,
-          resolve: () => {
-            window.clearTimeout(timeoutId);
-            cleanup(waiter);
-            resolve();
-          },
-          reject: (error: Error) => {
-            window.clearTimeout(timeoutId);
-            cleanup(waiter);
-            reject(error);
-          },
-          timeoutId,
-        };
-        waitersRef.current.push(waiter);
-      });
-    },
-    [],
-  );
+  const { handleExposeController, controllerRef } = useReplayExportBridge({
+    mode, statusPayload, loadError, movieSpec, replayFrames,
+    effectiveCanvasWidth, effectiveCanvasHeight, currentFrameIndex, currentProgress,
+    isAwaitingSpec, assetCount, totalDurationMs, timeline, executionSourceRef,
+    fetchMovieSpec, clearPendingRetry, reportStatus, setMovieSpec, setLoadError,
+    setStatusPayload, setIsAwaitingSpec,
+  });
 
-  const seekToTime = useCallback(
-    async (ms: number) => {
-      const controller = controllerRef.current;
-      if (!controller) {
-        throw new Error("Replay controller not ready");
-      }
-      const timelineData = timelineRef.current;
-      if (!timelineData || timelineData.length === 0) {
-        throw new Error("Replay timeline unavailable");
-      }
-      const total = totalDurationRef.current;
-      const clampedMs = Math.min(Math.max(ms, 0), Math.max(total, 0));
-      const target = findFrameForTime(clampedMs, timelineData);
-      if (
-        currentFrameIndex === target.index &&
-        Math.abs(currentProgress - target.progress) <= PROGRESS_EPSILON
-      ) {
-        return;
-      }
-      const waiterPromise = registerWaiter(target.index, target.progress);
-      controller.seek({ frameIndex: target.index, progress: target.progress });
-      await waiterPromise;
-    },
-    [currentFrameIndex, currentProgress, registerWaiter],
-  );
-
-  const postToParent = useCallback(
-    (message: Record<string, unknown>) => {
-      if (mode === "capture") {
-        return;
-      }
-      if (typeof window === "undefined" || window.parent === window) {
-        return;
-      }
-      const targetOrigin = parentOriginRef.current ?? "*";
-      try {
-        window.parent.postMessage(message, targetOrigin);
-      } catch (error) {
-        logger.warn(
-          "Failed to post message to parent",
-          { component: "ReplayExportPage" },
-          error,
-        );
-      }
-    },
-    [mode],
-  );
-
-  useEffect(() => {
-    if (mode === "capture") {
-      return;
-    }
-    if (statusPayload) {
-      const frames = timelineRef.current.length;
-      const assets = Array.isArray(movieSpec?.assets)
-        ? movieSpec.assets.length
-        : 0;
-      const totalDuration = totalDurationRef.current;
-      const specId =
-        movieSpec?.execution?.execution_id ?? executionSourceRef.current;
-      if (statusPayload.status === "pending") {
-        postToParent({
-          type: "bas:metrics",
-          status: statusPayload.status,
-          message: statusPayload.message,
-          executionId: executionSourceRef.current,
-          frames,
-          assets,
-          totalDurationMs: totalDuration,
-          specId,
-          canvasWidth: effectiveCanvasWidth,
-          canvasHeight: effectiveCanvasHeight,
-        });
-        return;
-      }
-      postToParent({
-        type: "bas:error",
-        status: statusPayload.status,
-        message: statusPayload.message,
-        executionId: executionSourceRef.current,
-        frames,
-        assets,
-        totalDurationMs: totalDuration,
-        specId,
-        canvasWidth: effectiveCanvasWidth,
-        canvasHeight: effectiveCanvasHeight,
-      });
-      return;
-    }
-    if (!loadError) {
-      postToParent({
-        type: "bas:error-clear",
-        executionId: executionSourceRef.current,
-        specId:
-          movieSpec?.execution?.execution_id ?? executionSourceRef.current,
-      });
-    }
-  }, [
-    statusPayload,
-    mode,
-    postToParent,
-    loadError,
-    movieSpec,
-    effectiveCanvasWidth,
-    effectiveCanvasHeight,
-  ]);
-
-  useEffect(() => {
-    if (mode === "capture") {
-      return;
-    }
-    const executionId = executionSourceRef.current;
-    const frames = replayFrames.length || timelineRef.current.length;
-    const assets = Array.isArray(movieSpec?.assets)
-      ? movieSpec.assets.length
-      : 0;
-    const specId = movieSpec?.execution?.execution_id ?? executionId;
-    postToParent({
-      type: "bas:metrics",
-      executionId,
-      frames,
-      assets,
-      totalDurationMs: totalDurationRef.current,
-      specId,
-    });
-  }, [mode, postToParent, replayFrames.length, movieSpec, totalDurationMs]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-    const handleMessage = (event: MessageEvent) => {
-      const payload = event.data as unknown;
-      if (!isRecord(payload)) {
-        return;
-      }
-      const type = payload.type;
-      if (typeof type !== "string" || !type.startsWith("bas:")) {
-        return;
-      }
-      parentOriginRef.current = event.origin;
-      switch (type) {
-        case "bas:spec:set": {
-          const incoming = payload.spec;
-          if (isReplayMovieSpec(incoming)) {
-            clearPendingRetry();
-            setMovieSpec(incoming);
-            setLoadError(null);
-            setStatusPayload(null);
-            setIsAwaitingSpec(false);
-            if (typeof payload.apiBase === "string") {
-              const apiBase = payload.apiBase.trim();
-              if (apiBase) {
-                window.__BAS_EXPORT_API_BASE__ = apiBase;
-              }
-            }
-            if (typeof payload.specId === "string") {
-              const specId = payload.specId.trim();
-              if (specId) {
-                executionSourceRef.current = specId;
-              }
-            } else if (typeof payload.executionId === "string") {
-              executionSourceRef.current = payload.executionId.trim() || null;
-            }
-          } else if (isRecord(incoming)) {
-            reportStatus("error", "Invalid replay spec");
-          }
-          break;
-        }
-        case "bas:spec:set-encoded": {
-          if (typeof payload.payload === "string") {
-            const decoded = decodeExportPayload(payload.payload);
-            if (decoded) {
-              clearPendingRetry();
-              setMovieSpec(decoded);
-              setLoadError(null);
-              setStatusPayload(null);
-              setIsAwaitingSpec(false);
-              if (typeof payload.specId === "string") {
-                const specId = payload.specId.trim();
-                if (specId) {
-                  executionSourceRef.current = specId;
-                }
-              } else if (typeof payload.executionId === "string") {
-                executionSourceRef.current = payload.executionId.trim() || null;
-              }
-            } else {
-              reportStatus("error", "Invalid replay payload");
-            }
-          }
-          break;
-        }
-        case "bas:spec:fetch": {
-          if (typeof payload.executionId === "string") {
-            void fetchMovieSpec(payload.executionId);
-          }
-          break;
-        }
-        case "bas:control:seek": {
-          const timeMs = readFiniteNumber(payload.timeMs);
-          if (timeMs != null) {
-            void seekToTime(timeMs);
-          }
-          break;
-        }
-        case "bas:control:play": {
-          controllerRef.current?.play();
-          break;
-        }
-        case "bas:control:pause": {
-          controllerRef.current?.pause();
-          break;
-        }
-        case "bas:control:frame": {
-          const frameIndex = readFiniteNumber(payload.frameIndex);
-          const progress = readFiniteNumber(payload.progress);
-          if (frameIndex != null && controllerRef.current) {
-            const waiterPromise = registerWaiter(frameIndex, progress ?? 0);
-            controllerRef.current.seek({
-              frameIndex,
-              progress: progress ?? undefined,
-            });
-            void waiterPromise.catch((error) => {
-              logger.warn(
-                "Failed to satisfy frame seek request",
-                { component: "ReplayExportPage", frameIndex },
-                error,
-              );
-            });
-          }
-          break;
-        }
-        default:
-          break;
-      }
-    };
-    window.addEventListener("message", handleMessage);
-    return () => {
-      window.removeEventListener("message", handleMessage);
-    };
-  }, [
-    clearPendingRetry,
-    fetchMovieSpec,
-    registerWaiter,
-    reportStatus,
-    seekToTime,
-  ]);
-
-  useEffect(() => {
-    if (waitersRef.current.length === 0) {
-      return;
-    }
-    waitersRef.current = waitersRef.current.filter((waiter) => {
-      const matchesIndex = waiter.index === currentFrameIndex;
-      const matchesProgress =
-        Math.abs(waiter.progress - currentProgress) <= PROGRESS_EPSILON ||
-        (waiter.progress >= 0.98 && currentProgress >= 0.98);
-      if (matchesIndex && matchesProgress) {
-        waiter.resolve();
-        return false;
-      }
-      return true;
-    });
-  }, [currentFrameIndex, currentProgress]);
-
-  const handleExposeController = useCallback(
-    (controller: ReplayPlayerController | null) => {
-      controllerRef.current = controller;
-      setControllerSignal((value) => value + 1);
-    },
-    [],
-  );
-
-  useEffect(() => {
-    window.basExport = {
-      ready: Boolean(
-        !loadError && controllerRef.current && replayFrames.length > 0,
-      ),
-      error: loadError,
-      seekTo: seekToTime,
-      play: () => {
-        controllerRef.current?.play();
-      },
-      pause: () => {
-        controllerRef.current?.pause();
-      },
-      getViewportRect: () => {
-        const controller = controllerRef.current;
-        const layout = controller?.getLayout?.();
-        const element =
-          controller?.getPresentationElement?.() ??
-          controller?.getViewportElement();
-        if (layout) {
-          return {
-            x: Math.round(layout.viewportRect.x),
-            y: Math.round(layout.viewportRect.y),
-            width: Math.round(layout.viewportRect.width),
-            height: Math.round(layout.viewportRect.height),
-          };
-        }
-        if (!element) {
-          return { x: 0, y: 0, width: 0, height: 0 };
-        }
-        const rect = element.getBoundingClientRect();
-        const scrollX = window.scrollX ?? window.pageXOffset ?? 0;
-        const scrollY = window.scrollY ?? window.pageYOffset ?? 0;
-        return {
-          x: rect.left + scrollX,
-          y: rect.top + scrollY,
-          width: rect.width,
-          height: rect.height,
-        };
-      },
-      getMetadata: () => {
-        const controller = controllerRef.current;
-        const layout = controller?.getLayout?.();
-        const presentationElement = controller?.getPresentationElement?.();
-        const viewportElement = controller?.getViewportElement();
-        const presentationRect = presentationElement
-          ? presentationElement.getBoundingClientRect()
-          : null;
-        const viewportRect = viewportElement
-          ? viewportElement.getBoundingClientRect()
-          : null;
-        const deviceScale = movieSpec?.presentation?.device_scale_factor;
-        const assetCount = Array.isArray(movieSpec?.assets)
-          ? movieSpec?.assets.length
-          : 0;
-        const specId =
-          movieSpec?.execution?.execution_id ?? executionSourceRef.current;
-        const viewportWidth = layout
-          ? Math.max(1, Math.round(layout.viewportRect.width))
-          : viewportRect
-            ? Math.max(1, Math.round(viewportRect.width))
-            : effectiveCanvasWidth;
-        const viewportHeight = layout
-          ? Math.max(1, Math.round(layout.viewportRect.height))
-          : viewportRect
-            ? Math.max(1, Math.round(viewportRect.height))
-            : effectiveCanvasHeight;
-        const canvasWidth = layout
-          ? Math.max(1, Math.round(layout.display.width))
-          : presentationRect
-            ? Math.max(1, Math.round(presentationRect.width))
-            : effectiveCanvasWidth;
-        const canvasHeight = layout
-          ? Math.max(1, Math.round(layout.display.height))
-          : presentationRect
-            ? Math.max(1, Math.round(presentationRect.height))
-            : effectiveCanvasHeight;
-        const browserFrameRadius =
-          movieSpec?.presentation?.browser_frame?.radius ?? undefined;
-        const browserFrame = (() => {
-          if (layout) {
-            return {
-              x: Math.round(layout.viewportRect.x),
-              y: Math.round(layout.viewportRect.y),
-              width: viewportWidth,
-              height: viewportHeight,
-              radius: browserFrameRadius,
-            } as ExportMetadata["browserFrame"];
-          }
-          if (presentationRect && viewportRect) {
-            return {
-              x: Math.round(viewportRect.left - presentationRect.left),
-              y: Math.round(viewportRect.top - presentationRect.top),
-              width: viewportWidth,
-              height: viewportHeight,
-              radius: browserFrameRadius,
-            } as ExportMetadata["browserFrame"];
-          }
-          return {
-            x: 0,
-            y: 0,
-            width: viewportWidth,
-            height: viewportHeight,
-            radius: browserFrameRadius,
-          } as ExportMetadata["browserFrame"];
-        })();
-        return {
-          totalDurationMs: totalDurationRef.current,
-          frameCount: timelineRef.current.length,
-          timeline: [...timelineRef.current],
-          width: viewportWidth,
-          height: viewportHeight,
-          canvasWidth,
-          canvasHeight,
-          browserFrame,
-          assetCount,
-          specId,
-          deviceScaleFactor: deviceScale ?? 1,
-        };
-      },
-      getCurrentState: () => ({
-        frameIndex: currentFrameIndex,
-        progress: currentProgress,
-      }),
-    };
-    return () => {
-      ensureBasExportBootstrap();
-    };
-  }, [
-    controllerSignal,
-    currentFrameIndex,
-    currentProgress,
-    effectiveCanvasHeight,
-    effectiveCanvasWidth,
-    loadError,
-    movieSpec?.assets,
-    movieSpec?.execution?.execution_id,
-    movieSpec?.presentation?.browser_frame?.radius,
-    movieSpec?.presentation?.device_scale_factor,
-    replayFrames.length,
-    seekToTime,
-  ]);
-
-  useEffect(() => {
-    if (mode === "capture" || loadError || !controllerRef.current) {
-      readySignalRef.current = null;
-      return;
-    }
-
-    const pending = isAwaitingSpec || replayFrames.length === 0;
-    const signalToken = `${pending ? "pending" : "ready"}:${replayFrames.length}`;
-
-    if (readySignalRef.current === signalToken) {
-      return;
-    }
-
-    readySignalRef.current = signalToken;
-
-    postToParent({
-      type: "bas:ready",
-      frames: replayFrames.length,
-      totalDurationMs: totalDurationRef.current,
-      executionId: executionSourceRef.current,
-      assets: assetCount,
-      specId: movieSpec?.execution?.execution_id ?? executionSourceRef.current,
-      pending,
-      canvasWidth: effectiveCanvasWidth,
-      canvasHeight: effectiveCanvasHeight,
-    });
-  }, [
-    controllerSignal,
-    isAwaitingSpec,
-    loadError,
-    mode,
-    movieSpec?.execution?.execution_id,
-    assetCount,
-    effectiveCanvasHeight,
-    effectiveCanvasWidth,
-    postToParent,
-    replayFrames.length,
-  ]);
-
-  useEffect(() => {
-    if (mode === "capture") {
-      return;
-    }
-    if (typeof window === "undefined" || window.parent === window) {
-      return;
-    }
-    postToParent({
-      type: "bas:state",
-      frameIndex: currentFrameIndex,
-      progress: currentProgress,
-      frameId: replayFrames[currentFrameIndex]?.id ?? null,
-      executionId: executionSourceRef.current,
-    });
-  }, [currentFrameIndex, currentProgress, mode, postToParent, replayFrames]);
-
-  const motion = movieSpec?.cursor_motion;
+  const motion = movieSpec?.cursorMotion;
   const watermark = mapWatermarkSettings(movieSpec?.watermark);
-  const introCard = mapIntroCardSettings(movieSpec?.intro_card);
-  const outroCard = mapOutroCardSettings(movieSpec?.outro_card);
+  const introCard = mapIntroCardSettings(movieSpec?.introCard);
+  const outroCard = mapOutroCardSettings(movieSpec?.outroCard);
   const styleFromSpec = resolveReplayStyleFromSpec(movieSpec);
-  const cursorDefaultSpeedProfile = asCursorSpeedProfile(motion?.speed_profile);
-  const cursorDefaultPathStyle = asCursorPathStyle(motion?.path_style);
-  const browserFrameWidth = movieSpec?.presentation?.browser_frame?.width;
+  const cursorDefaultSpeedProfile = asCursorSpeedProfile(motion?.speedProfile);
+  const cursorDefaultPathStyle = asCursorPathStyle(motion?.pathStyle);
+  const browserFrameWidth = movieSpec?.presentation?.browserFrame?.width;
   const browserScale = browserFrameWidth && effectiveCanvasWidth > 0
     ? Math.min(MAX_BROWSER_SCALE, Math.max(MIN_BROWSER_SCALE, browserFrameWidth / effectiveCanvasWidth))
     : 1;
@@ -1117,7 +554,7 @@ const ReplayExportPage = () => {
             width: effectiveCanvasWidth,
             height: effectiveCanvasHeight,
             deviceScaleFactor:
-              movieSpec?.presentation?.device_scale_factor ?? undefined,
+              movieSpec?.presentation?.deviceScaleFactor ?? undefined,
           }}
         />
 

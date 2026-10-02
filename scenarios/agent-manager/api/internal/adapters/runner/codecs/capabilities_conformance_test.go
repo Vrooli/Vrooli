@@ -41,7 +41,7 @@ func TestCapabilitiesConformance(t *testing.T) {
 				SpawnCapabilities: []runner.SpawnCapability{{ExecutionMode: "codec_pipe", SandboxModes: []string{"protected", "tracking", "off"}}, {ExecutionMode: "interactive", SandboxModes: []string{"tracking", "off"}, NativeObjective: true}},
 				SupportsMessages:  true, SupportsToolEvents: true, SupportsCostTracking: true,
 				SupportsStreaming: true, SupportsCancellation: true, SupportsContinuation: true,
-				SupportsWarmIteration: true, SupportsImageAttachments: true,
+				SupportsWarmIteration: true, SupportsImageAttachments: true, SupportsSessionCompaction: true,
 				ToolRestrictionMappings: map[string]string{}, SupportsEffort: true,
 				EffortMappings:        map[string]string{"low": "model_reasoning_effort=low", "medium": "model_reasoning_effort=medium", "high": "model_reasoning_effort=high", "xhigh": "model_reasoning_effort=xhigh"},
 				SupportsRunnerDefault: true, DynamicModelPrefixes: []string{ollamaModelPrefix},

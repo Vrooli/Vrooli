@@ -52,4 +52,3 @@ export type {
 export { createCdpScreencastStrategy, createPollingStrategy } from './strategies';
 
 // WebSocket utilities
-export { buildWebSocketUrl } from './websocket';

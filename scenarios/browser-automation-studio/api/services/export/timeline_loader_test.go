@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -14,15 +15,62 @@ import (
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/storage"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
+	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 	basdomain "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/domain"
 	basevidence "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/evidence"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type timelineLoaderTestRepository struct {
 	execution *database.ExecutionIndex
+}
+
+func TestPresentationFramePreservesRetryAssertionAndDuration(t *testing.T) {
+	stepIndex, duration, total := int32(3), int32(240), int32(710)
+	entry := &bastimeline.TimelineEntry{
+		StepIndex: &stepIndex, DurationMs: &duration, TotalDurationMs: &total,
+		Context: &basbase.EventContext{
+			Success: proto.Bool(false), Error: proto.String("retry exhausted"),
+			RetryStatus: &basbase.RetryStatus{
+				CurrentAttempt: 2, MaxAttempts: 3, DelayMs: 125, BackoffFactor: 1.5, Configured: true,
+				History: []*basbase.RetryAttempt{{Attempt: 1, DurationMs: 180, Error: proto.String("timeout")}},
+			},
+			Assertion: &basbase.AssertionResult{Selector: "#ready", Success: false, Negated: true, Message: proto.String("not ready")},
+		},
+	}
+	frame := presentationFrameForTimelineEntry(entry)
+	assert.Equal(t, 3, frame.StepIndex)
+	assert.Equal(t, 240, frame.DurationMs)
+	assert.Equal(t, 710, frame.TotalDurationMs)
+	assert.Equal(t, 2, frame.RetryAttempt)
+	assert.Equal(t, 3, frame.RetryMaxAttempts)
+	assert.Equal(t, 2, frame.RetryConfigured)
+	assert.Equal(t, 125, frame.RetryDelayMs)
+	assert.Equal(t, 1.5, frame.RetryBackoffFactor)
+	require.Len(t, frame.RetryHistory, 1)
+	assert.Equal(t, "timeout", frame.RetryHistory[0].Error)
+	require.NotNil(t, frame.Assertion)
+	assert.Equal(t, "#ready", frame.Assertion.Selector)
+	assert.True(t, frame.Assertion.Negated)
+	assert.Equal(t, "retry exhausted", frame.Error)
+	assert.False(t, frame.Success)
+}
+
+func TestBuildExecutionTimelinePresentationKeepsProgressAndLogs(t *testing.T) {
+	execution := &database.ExecutionIndex{ID: uuid.New(), WorkflowID: uuid.New(), Status: "running"}
+	started := time.Date(2026, 10, 1, 7, 0, 0, 0, time.UTC)
+	presentation := BuildExecutionTimelinePresentation(execution, &bastimeline.ExecutionTimeline{
+		Progress: 65,
+		Logs:     []*bastimeline.TimelineLog{{Id: "log-1", Level: basbase.LogLevel_LOG_LEVEL_INFO, Message: "step started", Timestamp: timestamppb.New(started)}},
+	})
+	assert.Equal(t, 65, presentation.Progress)
+	require.Len(t, presentation.Logs, 1)
+	assert.Equal(t, "log-1", presentation.Logs[0].ID)
+	assert.Equal(t, "info", presentation.Logs[0].Level)
+	assert.Equal(t, started, presentation.Logs[0].Timestamp)
 }
 
 func (r timelineLoaderTestRepository) GetExecution(_ context.Context, id uuid.UUID) (*database.ExecutionIndex, error) {
@@ -134,7 +182,7 @@ func TestRetainedConditionExportsWithoutLosingFields(t *testing.T) {
 		var retained bastimeline.ExecutionTimeline
 		require.NoError(t, protojson.Unmarshal(data, &retained))
 		require.Len(t, retained.Entries, 1)
-		return timelineEntryToFrame(retained.Entries[0])
+		return presentationFrameForTimelineEntry(retained.Entries[0])
 	}
 	for _, truth := range []bool{false, true} {
 		condition := &contracts.ConditionOutcome{

@@ -5,11 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/vrooli/browser-automation-studio/internal/testutil"
 	"net/http"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/vrooli/browser-automation-studio/internal/testutil"
 
 	autosession "github.com/vrooli/browser-automation-studio/automation/session"
 	"github.com/vrooli/browser-automation-studio/services/recording"
@@ -25,9 +26,11 @@ import (
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
+	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/automation/driver"
@@ -45,6 +48,86 @@ func TestNewService_InitializesComponents(t *testing.T) {
 	if svc.generator == nil {
 		t.Error("Expected generator to be initialized")
 	}
+}
+
+func TestRecordingActionProtoJSON_PreservesCanonicalTimelineFields(t *testing.T) {
+	actionID, pageID := uuid.New(), uuid.New()
+	capturedAt := time.Date(2026, 10, 1, 6, 0, 0, 0, time.UTC)
+	encoded, err := recordingActionProtoJSON(&domain.RecordingAction{
+		ID: actionID, SessionID: "recording-session", PageID: pageID, SequenceNum: 7,
+		ActionType: "click", Timestamp: capturedAt, URL: "https://example.test/form", Confidence: 0.87,
+		Selector: &domain.SelectorSet{Primary: "button#submit"},
+		Payload:  map[string]interface{}{"clickCount": 2},
+	})
+	require.NoError(t, err)
+
+	var entry bastimeline.TimelineEntry
+	require.NoError(t, protojson.Unmarshal(encoded, &entry))
+	assert.Equal(t, actionID.String(), entry.GetId())
+	assert.Equal(t, int32(7), entry.GetSequenceNum())
+	assert.Equal(t, capturedAt, entry.GetTimestamp().AsTime())
+	assert.Equal(t, "button#submit", entry.GetAction().GetClick().GetSelector())
+	assert.Equal(t, "https://example.test/form", entry.GetTelemetry().GetUrl())
+	assert.InDelta(t, 0.87, entry.GetAction().GetMetadata().GetConfidence(), 0.0001)
+	assert.Equal(t, "recording-session", entry.GetContext().GetSessionId())
+}
+
+func TestService_GetTimelineReturnsPersistedProtoWithPageOwnership(t *testing.T) {
+	server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/session/start":
+			_, _ = w.Write([]byte(`{"session_id":"recording-proto","lease_id":"lease","active_page_id":"driver-page"}`))
+		case "/session/recording-proto/close":
+			_, _ = w.Write([]byte(`{"success":true}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
+	require.NoError(t, err)
+	manager := autosession.NewManagerWithClient(client)
+	ctx := context.Background()
+	owner, err := manager.Create(ctx, autosession.Spec{ExecutionID: uuid.New(), Mode: autosession.ModeRecording})
+	require.NoError(t, err)
+	defer func() { require.NoError(t, manager.Close(ctx, owner.ID())) }()
+	owner.InitializePageTracking("https://example.test")
+
+	repository := persistence.NewMockRepository()
+	recordingService := recording.NewService(repository, recording.ServiceConfig{})
+	require.NoError(t, recordingService.RegisterSession(ctx, owner.ID(), recording.SessionConfig{}))
+	service := NewServiceWithManager(manager, logrus.New(), recordingService)
+	pageID := owner.Pages().GetActivePageID()
+	require.NotEqual(t, uuid.Nil, pageID)
+	require.NoError(t, service.AddTimelineAction(ctx, owner.ID(), &driver.RecordedAction{
+		ID: uuid.NewString(), SessionID: owner.ID(), SequenceNum: 3,
+		Timestamp:  time.Date(2026, 10, 1, 6, 0, 0, 0, time.UTC).Format(time.RFC3339Nano),
+		ActionType: "click", Confidence: 0.91, URL: "https://example.test/form",
+		Selector: &driver.SelectorSet{Primary: "button#submit"},
+	}, pageID))
+
+	timeline, err := service.GetTimeline(ctx, owner.ID(), nil, 100, 0)
+	require.NoError(t, err)
+	require.Len(t, timeline.Entries, 1)
+	assert.Equal(t, string(persistence.TimelineEntryTypeAction), timeline.Entries[0].Type)
+	assert.Equal(t, pageID, timeline.Entries[0].PageID)
+	assert.Nil(t, timeline.Entries[0].PageEvent)
+	var entry bastimeline.TimelineEntry
+	require.NoError(t, protojson.Unmarshal(timeline.Entries[0].Entry, &entry))
+	assert.Equal(t, int32(1), entry.GetSequenceNum())
+	assert.Equal(t, "button#submit", entry.GetAction().GetClick().GetSelector())
+	assert.Equal(t, "https://example.test/form", entry.GetTelemetry().GetUrl())
+	canonical := &bastimeline.TimelineEntry{Id: uuid.NewString(), SequenceNum: 8, Timestamp: timestamppb.New(time.Date(2026, 10, 1, 6, 1, 0, 0, time.UTC)), Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_NAVIGATE, Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{Url: "https://example.test/next"}}}}
+	require.NoError(t, service.AddTimelineEntry(ctx, owner.ID(), canonical, pageID))
+	timeline, err = service.GetTimeline(ctx, owner.ID(), nil, 100, 0)
+	require.NoError(t, err)
+	require.Len(t, timeline.Entries, 2)
+	assert.Equal(t, string(persistence.TimelineEntryTypeAction), timeline.Entries[1].Type)
+	assert.Equal(t, pageID, timeline.Entries[1].PageID)
+	var persistedProto bastimeline.TimelineEntry
+	require.NoError(t, protojson.Unmarshal(timeline.Entries[1].Entry, &persistedProto))
+	assert.Equal(t, canonical.GetId(), persistedProto.GetId())
+	assert.Equal(t, int32(2), persistedProto.GetSequenceNum())
+	assert.Equal(t, "https://example.test/next", persistedProto.GetAction().GetNavigate().GetUrl())
 }
 
 func TestService_CreateSession_RequiresSessionManager(t *testing.T) {
@@ -108,6 +191,34 @@ func TestService_GenerateWorkflow_WithActions(t *testing.T) {
 	if result.NodeCount < 2 {
 		t.Errorf("Expected at least 2 nodes, got %d", result.NodeCount)
 	}
+}
+
+func TestService_GenerateWorkflowFetchesCanonicalTimelineEntries(t *testing.T) {
+	server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/session/start":
+			_, _ = w.Write([]byte(`{"session_id":"canonical-workflow","lease_id":"lease","active_page_id":"driver-main"}`))
+		case "/session/canonical-workflow/record/actions":
+			_, _ = w.Write([]byte(`{"session_id":"canonical-workflow","entries":[{"id":"entry-1","sequenceNum":1,"action":{"type":"ACTION_TYPE_NAVIGATE","navigate":{"url":"https://target.test"}},"telemetry":{"url":"https://target.test","driverPageId":"driver-main"}}]}`))
+		case "/session/canonical-workflow/close":
+			_, _ = w.Write([]byte(`{"success":true}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
+	require.NoError(t, err)
+	manager := autosession.NewManagerWithClient(client)
+	owner, err := manager.Create(context.Background(), autosession.Spec{ExecutionID: uuid.New(), Mode: autosession.ModeRecording})
+	require.NoError(t, err)
+	defer func() { require.NoError(t, manager.Close(context.Background(), owner.ID())) }()
+	owner.InitializePageTracking("https://target.test")
+	service := NewServiceWithManager(manager, logrus.New(), nil)
+	result, err := service.GenerateWorkflow(context.Background(), owner.ID(), &GenerateWorkflowConfig{})
+	require.NoError(t, err)
+	require.Equal(t, 1, result.ActionCount)
+	require.Len(t, result.FlowDefinition.Nodes, 1)
+	require.Equal(t, "https://target.test", result.FlowDefinition.Nodes[0].Action.GetNavigate().GetUrl())
 }
 
 func TestService_GenerateWorkflowUsesTrackedPageBindings(t *testing.T) {
@@ -190,41 +301,6 @@ func TestService_GenerateWorkflow_AppliesActionRange(t *testing.T) {
 		t.Errorf("Expected ActionCount 2 (after range filter), got %d", result.ActionCount)
 	}
 }
-
-func TestService_DriverClient_ReturnsNilWhenNoSessions(t *testing.T) {
-	log := logrus.New()
-	log.SetLevel(logrus.ErrorLevel)
-
-	svc := &Service{
-		sessions:  nil,
-		generator: NewWorkflowGenerator(),
-		log:       log,
-	}
-
-	client := svc.DriverClient()
-	if client != nil {
-		t.Error("Expected nil DriverClient when sessions is nil")
-	}
-}
-
-func TestService_Sessions_ReturnsNilWhenNotInitialized(t *testing.T) {
-	log := logrus.New()
-	log.SetLevel(logrus.ErrorLevel)
-
-	svc := &Service{
-		sessions:  nil,
-		generator: NewWorkflowGenerator(),
-		log:       log,
-	}
-
-	sessions := svc.Sessions()
-	if sessions != nil {
-		t.Error("Expected nil Sessions when not initialized")
-	}
-}
-
-// Note: GetSession requires a valid sessions manager and will panic if nil.
-// Testing with nil sessions is not meaningful since callers should check Sessions() first.
 
 // Recorded payloads must survive the complete service-to-typed-candidate boundary.
 func TestGenerateWorkflowPreservesRecordedSemantics(t *testing.T) {
@@ -426,8 +502,12 @@ func TestService_RecordingUsesOwnedSession(t *testing.T) {
 			if envelope["routed_test_mode"] != true {
 				t.Errorf("routed test mode was not propagated to callback owner: %v", envelope)
 			}
-			for field, suffix := range map[string]string{"callback_url": "action", "frame_callback_url": "frame", "page_callback_url": "page-event"} {
-				if envelope[field] != "http://fixture.invalid:9999/api/v1/recordings/live/record-session/"+suffix {
+			for field, suffix := range map[string]string{"callback_url": "action", "frame_stream_url": "stream", "page_callback_url": "page-event"} {
+				want := "http://fixture.invalid:9999/api/v1/recordings/live/record-session/" + suffix
+				if field == "frame_stream_url" {
+					want = "ws://fixture.invalid:9999/ws/frames"
+				}
+				if envelope[field] != want {
 					t.Errorf("lost callback %s: %v", field, envelope[field])
 				}
 			}

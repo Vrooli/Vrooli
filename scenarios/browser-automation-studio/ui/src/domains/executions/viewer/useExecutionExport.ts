@@ -7,7 +7,7 @@ import {
 } from "react";
 import type { Execution, TimelineFrame } from "../store";
 import type { Export } from "@/domains/exports";
-import type { ReplayMovieSpec } from "@/types/export";
+import type { ReplaySpec as ReplayMovieSpec } from "@vrooli/generated-proto/browser-automation-studio/v1/exports/exports_pb";
 // Use config from the unified export domain (single source of truth)
 import {
   DIMENSION_PRESET_CONFIG,
@@ -486,9 +486,9 @@ export const useExecutionExport = ({
       return screenshotUrl;
     }
     const specFrame = activeMovieSpec?.frames?.[0];
-    if (specFrame?.screenshot_asset_id && activeMovieSpec?.assets) {
+    if (specFrame?.screenshotAssetId && activeMovieSpec?.assets) {
       const asset = activeMovieSpec.assets.find(
-        (candidate) => candidate?.id === specFrame.screenshot_asset_id,
+        (candidate) => candidate?.id === specFrame.screenshotAssetId,
       );
       if (asset?.source) {
         return resolveUrl(asset.source) ?? asset.source;
@@ -532,7 +532,7 @@ export const useExecutionExport = ({
       ? previewMetrics.capturedFrames
       : undefined;
   const estimatedFrameCount =
-    exportSummary?.frame_count ??
+    exportSummary?.frameCount ??
     movieSpecFrameCount ??
     previewFrameCount ??
     replayFramesWithFallback.length;
@@ -540,9 +540,9 @@ export const useExecutionExport = ({
     previewMetrics.totalDurationMs || previewMetrics.totalDurationMs === 0
       ? previewMetrics.totalDurationMs
       : undefined;
-  const specDurationMs = activeMovieSpec?.playback?.duration_ms;
+  const specDurationMs = activeMovieSpec?.playback?.durationMs;
   const estimatedTotalDurationMs =
-    exportSummary?.total_duration_ms ??
+    exportSummary?.totalDurationMs ??
     specDurationMs ??
     previewDurationMs ??
     null;

@@ -4,6 +4,7 @@ import { createMockHttpRequest, createMockHttpResponse, createMockPage, createTe
 import type { SessionManager } from '../../../src/session';
 import { updateFrameStreamViewport } from '../../../src/frame-streaming';
 import { SessionNotFoundError } from '../../../src/utils';
+import { DriverPageBindings } from '../../../src/session/page-bindings';
 
 jest.mock('../../../src/frame-streaming', () => ({
   updateFrameStreamViewport: jest.fn().mockResolvedValue({ success: true }),
@@ -33,7 +34,8 @@ describe('recording input routes', () => {
       setViewportSize: jest.fn().mockResolvedValue(undefined),
       viewportSize: jest.fn().mockReturnValue({ width: 800, height: 600 }),
     });
-    const session = { phase: 'ready', ownerExecutionId: 'owner', leaseId: 'lease', page: mockPage, pageToIdMap: new WeakMap([[mockPage, 'selected-page']]) } as ReturnType<SessionManager['getSession']>;
+    const pageBindings = new DriverPageBindings(); pageBindings.register(mockPage, 'selected-page');
+    const session = { phase: 'ready', ownerExecutionId: 'owner', leaseId: 'lease', page: mockPage, pageBindings } as ReturnType<SessionManager['getSession']>;
     sessionManager = {
       getSession: (): ReturnType<SessionManager['getSession']> => session,
       getSessionForLease: (id: string, owner: string, lease: string): ReturnType<SessionManager['getSession']> => {

@@ -171,7 +171,7 @@ export function setupPageLifecycleListeners(
   const newPage = async (page: Page): Promise<void> => {
     if (!active) return;
     const createdAt = new Date().toISOString();
-    const alreadyRegistered = session.pageToIdMap.has(page);
+    const alreadyRegistered = session.pageBindings.has(page);
     const pageId = registerRecordingPage(session, page);
     let settle!: (published: boolean) => void;
     const admitted = new Promise<boolean>((resolve) => { settle = resolve; });
@@ -185,7 +185,7 @@ export function setupPageLifecycleListeners(
       const url = page.url();
       await send({
         ...event(pageId, 'created', url, '', undefined, createdAt),
-        openerDriverPageId: opener ? session.pageToIdMap.get(opener) : undefined,
+        openerDriverPageId: opener ? session.pageBindings.getId(opener) : undefined,
       });
       published = true;
     } finally {
@@ -198,10 +198,10 @@ export function setupPageLifecycleListeners(
   };
   const onNewPage = (page: Page) => newPage(page).catch(reportError);
   context.on('page', onNewPage);
-  for (const page of session.pages) attach(page, registerRecordingPage(session, page));
+  for (const page of session.context.pages()) attach(page, registerRecordingPage(session, page));
 
   const initialPage = session.page;
-  const initialId = session.pageToIdMap.get(initialPage);
+  const initialId = session.pageBindings.getId(initialPage);
   const ready = (async () => {
     if (!initialId) return;
     const url = initialPage.url();

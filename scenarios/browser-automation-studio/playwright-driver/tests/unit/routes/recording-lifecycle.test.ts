@@ -5,7 +5,6 @@ import { handleRecordActionsAck, handleRecordStart, handleRecordStatus, handleRe
 import { SessionManager } from '../../../src/session';
 import { acknowledgeTimelineEntries, bufferTimelineEntry, getTimelineEntries } from '../../../src/recording';
 import { createNavigateTimelineEntry } from '../../../src/proto/recording';
-import { shouldCleanupSession } from '../../../src/session/session-decisions';
 import { createDeferred, createMockHttpRequest, createMockHttpResponse, createTestConfig } from '../../helpers';
 
 type PipelineManagerStub = {
@@ -242,7 +241,7 @@ describe('recording start continuation ownership [REQ:BAS-RH-J17]', () => {
       },
       setSessionPhase: jest.fn((_id: string, phase: string) => { session.phase = phase; return true; }),
     } as unknown as SessionManager;
-    const start = (body = { frame_callback_url: 'http://fixture.invalid/frames' }): { response: ReturnType<typeof createMockHttpResponse>; finished: Promise<void> } => {
+    const start = (body = { frame_stream_url: 'ws://fixture.invalid/frames' }): { response: ReturnType<typeof createMockHttpResponse>; finished: Promise<void> } => {
       const response = createMockHttpResponse();
       const finished = handleRecordStart(createMockHttpRequest({ method: 'POST', body: { execution_id: 'owner-1', lease_id: 'lease-1', ...body } }), response, 'recording-session', manager, config);
       return { response, finished };
@@ -261,7 +260,7 @@ describe('recording start continuation ownership [REQ:BAS-RH-J17]', () => {
     await handleRecordStop(createMockHttpRequest({ method: 'POST', body: { execution_id: 'owner-1', lease_id: 'lease-1' } }), res, 'recording-session', f.manager);
     expect(res.statusCode).toBe(200);
     expect(f.session.phase).toBe('ready');
-    expect(shouldCleanupSession(f.session as unknown as ReturnType<SessionManager['getSession']>, 60_000)).toBe(false);
+    expect(f.session.phase).toBe('ready');
   });
 
   it.each(['start', 'stop'] as const)('requires the caller lease before %s effects or cached success [REQ:BAS-RH-J17]', async (operation) => {

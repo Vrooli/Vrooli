@@ -187,13 +187,10 @@ func (h *Handler) PostExecutionExport(w http.ResponseWriter, r *http.Request) {
 		h.log.WithError(configErr).Warn("Failed to load replay config for export")
 	}
 	replayOverrides := replayConfigToOverrides(replayConfig)
-	spec, specErr := export.BuildSpec(preview.Package, body.MovieSpec, executionID)
+	generatedSpec, specErr := exportservices.BuildReplaySpec(preview.Package, body.MovieSpec, executionID)
 	if specErr != nil {
-		if errors.Is(specErr, export.ErrMovieSpecUnavailable) {
+		if errors.Is(specErr, exportservices.ErrMovieSpecUnavailable) {
 			if format == "json" {
-				applyReplayConfigToSpec(preview.Package, replayConfig)
-				export.Apply(preview.Package, replayOverrides)
-				export.Apply(preview.Package, body.Overrides)
 				pbPreview, conversionErr := protoconv.ExecutionExportPreviewToProto(preview)
 				if conversionErr != nil {
 					h.log.WithError(conversionErr).WithField("execution_id", executionID).Error("Failed to encode execution export preview")
@@ -209,8 +206,9 @@ func (h *Handler) PostExecutionExport(w http.ResponseWriter, r *http.Request) {
 		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": specErr.Error()}))
 		return
 	}
-
-	preview.Package = spec
+	applyReplayConfigToSpec(generatedSpec, replayConfig)
+	exportservices.Apply(generatedSpec, replayOverrides)
+	exportservices.Apply(generatedSpec, body.Overrides)
 
 	// Enforce watermark requirements from the signed lease feature set. The
 	// local tier name is display data and is not an authorization ladder.
@@ -224,7 +222,7 @@ func (h *Handler) PostExecutionExport(w http.ResponseWriter, r *http.Request) {
 			userIdentity := entitlement.UserIdentityFromContext(r.Context())
 			requiresWatermark = h.entitlementService.RequiresWatermark(previewCtx, userIdentity)
 		}
-		if result := exportservices.EnforceWatermarkRequirements(spec, requiresWatermark); result.WasEnforced {
+		if result := exportservices.EnforceWatermarkRequirements(generatedSpec, requiresWatermark); result.WasEnforced {
 			h.log.WithFields(logrus.Fields{
 				"execution_id":     executionID,
 				"original_enabled": result.OriginalEnabled,
@@ -232,11 +230,8 @@ func (h *Handler) PostExecutionExport(w http.ResponseWriter, r *http.Request) {
 			}).Debug("Watermark requirements enforced for export")
 		}
 	}
-
 	if format == "json" {
-		applyReplayConfigToSpec(spec, replayConfig)
-		export.Apply(spec, replayOverrides)
-		export.Apply(spec, body.Overrides)
+		preview.Package = generatedSpec
 		if pbPreview, err := protoconv.ExecutionExportPreviewToProto(preview); err == nil {
 			h.respondProto(w, http.StatusOK, pbPreview)
 		} else {
@@ -246,10 +241,6 @@ func (h *Handler) PostExecutionExport(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if format == "html" {
-		applyReplayConfigToSpec(spec, replayConfig)
-		export.Apply(spec, replayOverrides)
-		export.Apply(spec, body.Overrides)
-
 		filename := normalizeExportFilename(body.FileName, "replay-export", ".zip")
 		w.Header().Set("Content-Type", "application/zip")
 		if strings.TrimSpace(filename) != "" {
@@ -257,22 +248,18 @@ func (h *Handler) PostExecutionExport(w http.ResponseWriter, r *http.Request) {
 		}
 
 		baseURL := requestBaseURL(r)
-		if err := exportservices.WriteHTMLBundle(previewCtx, w, spec, h.storage, h.log, baseURL); err != nil {
+		if err := exportservices.WriteHTMLBundle(previewCtx, w, generatedSpec, h.storage, h.log, baseURL); err != nil {
 			h.log.WithError(err).WithField("execution_id", executionID).Error("Failed to build HTML replay export")
 		}
 		return
 	}
 
 	// Legacy fallback: sync render and stream to response
-	applyReplayConfigToSpec(spec, replayConfig)
-	export.Apply(spec, replayOverrides)
-	export.Apply(spec, body.Overrides)
-
-	renderTimeout := render.EstimateReplayRenderTimeout(spec)
+	renderTimeout := render.EstimateReplayRenderTimeout(generatedSpec)
 	renderCtx, cancelRender := context.WithTimeout(r.Context(), renderTimeout)
 	defer cancelRender()
 
-	media, renderErr := h.replayRenderer.Render(renderCtx, spec, render.RenderFormat(format), body.FileName)
+	media, renderErr := h.replayRenderer.Render(renderCtx, generatedSpec, render.RenderFormat(format), body.FileName)
 	if renderErr != nil {
 		errMsg := strings.TrimSpace(renderErr.Error())
 		if len(errMsg) > 0 && len(errMsg) > 512 {
@@ -426,24 +413,22 @@ func (h *Handler) renderExportInBackground(ctx context.Context, exportRecord *da
 
 	replayConfig, _ := h.loadReplayConfig(ctx)
 	replayOverrides := replayConfigToOverrides(replayConfig)
-	spec, specErr := export.BuildSpec(preview.Package, body.MovieSpec, executionID)
+	generatedSpec, specErr := exportservices.BuildReplaySpec(preview.Package, body.MovieSpec, executionID)
 	if specErr != nil {
 		broadcastError(fmt.Sprintf("Failed to build export spec: %v", specErr))
 		return
 	}
-
-	applyReplayConfigToSpec(spec, replayConfig)
-	export.Apply(spec, replayOverrides)
-	export.Apply(spec, body.Overrides)
-
+	applyReplayConfigToSpec(generatedSpec, replayConfig)
+	exportservices.Apply(generatedSpec, replayOverrides)
+	exportservices.Apply(generatedSpec, body.Overrides)
 	broadcastProgress("capturing", 30, "processing")
 
 	// Render to temp file
-	renderTimeout := render.EstimateReplayRenderTimeout(spec)
+	renderTimeout := render.EstimateReplayRenderTimeout(generatedSpec)
 	renderCtx, cancelRender := context.WithTimeout(ctx, renderTimeout)
 	defer cancelRender()
 
-	media, renderErr := h.replayRenderer.Render(renderCtx, spec, render.RenderFormat(format), body.FileName)
+	media, renderErr := h.replayRenderer.Render(renderCtx, generatedSpec, render.RenderFormat(format), body.FileName)
 	if renderErr != nil {
 		broadcastError(fmt.Sprintf("Render failed: %v", renderErr))
 		return

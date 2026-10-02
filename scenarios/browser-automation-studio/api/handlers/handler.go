@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 	"time"
@@ -27,7 +28,6 @@ import (
 	archiveingestion "github.com/vrooli/browser-automation-studio/services/archive-ingestion"
 	"github.com/vrooli/browser-automation-studio/services/credits"
 	"github.com/vrooli/browser-automation-studio/services/entitlement"
-	"github.com/vrooli/browser-automation-studio/services/export"
 	"github.com/vrooli/browser-automation-studio/services/export/render"
 	livecapture "github.com/vrooli/browser-automation-studio/services/live-capture"
 	"github.com/vrooli/browser-automation-studio/services/readiness"
@@ -42,28 +42,29 @@ import (
 	"github.com/vrooli/browser-automation-studio/storage"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
 	workflowvalidator "github.com/vrooli/browser-automation-studio/workflow/validator"
+	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 )
 
 // Handler contains all HTTP handlers
 type replayRenderer interface {
-	Render(ctx context.Context, spec *export.ReplayMovieSpec, format render.RenderFormat, filename string) (*render.RenderedMedia, error)
+	Render(ctx context.Context, spec *render.ReplayMovieSpec, format render.RenderFormat, filename string) (*render.RenderedMedia, error)
 }
 
 // RecordModeService defines the interface for live recording session management.
 // This interface allows for testing with mock implementations.
-//
-// Design note: Pass-through operations (Navigate, Reload, etc.) are handled directly
-// via DriverClient() to reduce unnecessary indirection. The service layer focuses on
-// operations that require business logic (session lifecycle, recording callbacks, timeline).
 type RecordModeService interface {
-	// DriverClient returns the underlying driver client for direct pass-through operations.
-	// Handlers should use this for operations that don't require service-level business logic.
-	DriverClient() autodriver.ClientInterface
-
 	// Session lifecycle
 	CreateSession(ctx context.Context, cfg *livecapture.SessionConfig) (*livecapture.SessionResult, error)
 	CloseSession(ctx context.Context, sessionID string) error
 	GetStorageState(ctx context.Context, sessionID string) (json.RawMessage, error)
+	GetRecordingStatus(ctx context.Context, sessionID string) (*autodriver.RecordingStatusResponse, error)
+	GetRecordedActions(ctx context.Context, sessionID string) (*autodriver.GetActionsResponse, error)
+	CaptureScreenshot(ctx context.Context, sessionID string, req *autodriver.CaptureScreenshotRequest) (*autodriver.CaptureScreenshotResponse, error)
+	UpdateStreamSettings(ctx context.Context, sessionID string, req *autodriver.UpdateStreamSettingsRequest) (*autodriver.UpdateStreamSettingsResponse, error)
+	GetFrame(ctx context.Context, sessionID, query string) (*autodriver.GetFrameResponse, error)
+	ValidateSelector(ctx context.Context, sessionID string, req *autodriver.ValidateSelectorRequest) (*autodriver.ValidateSelectorResponse, error)
+	ReplayPreview(ctx context.Context, sessionID string, req *autodriver.ReplayPreviewRequest) (*autodriver.ReplayPreviewResponse, error)
+	GetRecordingDebug(ctx context.Context, sessionID string) (*http.Response, error)
 
 	// Recording lifecycle carries the owned session lease and constructs callbacks.
 	StartRecording(ctx context.Context, sessionID string, cfg *livecapture.RecordingConfig) (*autodriver.StartRecordingResponse, error)
@@ -84,6 +85,7 @@ type RecordModeService interface {
 
 	// Timeline support (has business logic for timeline management)
 	AddTimelineAction(ctx context.Context, sessionID string, action *autodriver.RecordedAction, pageID uuid.UUID) error
+	AddTimelineEntry(ctx context.Context, sessionID string, entry *bastimeline.TimelineEntry, pageID uuid.UUID) error
 	AddTimelinePageEvent(ctx context.Context, sessionID string, event *domain.PageEvent) error
 	GetTimeline(ctx context.Context, sessionID string, pageID *uuid.UUID, limit, offset int) (*domain.TimelineResponse, error)
 
@@ -162,6 +164,7 @@ type HandlerDeps struct {
 	Storage               storage.StorageInterface
 	RecordingService      archiveingestion.IngestionServiceInterface
 	RecordModeService     RecordModeService // Live recording session management (interface for testability)
+	SessionBroker         *autosession.Manager
 	RecordingsRoot        string
 	ReplayRenderer        replayRenderer
 	SessionProfileService *sessionprofile.Service
@@ -211,10 +214,23 @@ func InitDefaultDepsWithOptions(repo database.Repository, wsHub *wsHub.Hub, log 
 
 	// Create session profile service with file repository
 	sessionProfileSvc := sessionprofile.NewServiceWithPath(paths.ResolveSessionProfilesRoot(log), log)
+	sessionBroker, brokerErr := autosession.NewManager(
+		autosession.WithLogger(log),
+		autosession.WithExecutionArtifactsRoot(recordingsRoot),
+	)
+	if brokerErr != nil {
+		log.WithError(brokerErr).Warn("Failed to initialize session broker; automation session routes will be unavailable")
+	}
 
 	// Wire automation stack
 	autoExecutor := autoexecutor.NewSimpleExecutor(nil)
-	autoEngineFactory, engErr := autoengine.DefaultFactoryWithRecordingsRoot(log, recordingsRoot)
+	var autoEngineFactory autoengine.Factory
+	var engErr error
+	if sessionBroker == nil {
+		engErr = errors.New("session broker unavailable")
+	} else {
+		autoEngineFactory, engErr = autoengine.DefaultFactoryWithSessionManager(log, sessionBroker)
+	}
 	if engErr != nil {
 		log.WithError(engErr).Warn("Failed to initialize automation engine; automation executor will be disabled")
 	}
@@ -246,6 +262,7 @@ func InitDefaultDepsWithOptions(repo database.Repository, wsHub *wsHub.Hub, log 
 	workflowSvc := workflow.NewWorkflowServiceWithDeps(repo, wsHub, log, workflow.WorkflowServiceOptions{
 		Executor:              autoExecutor,
 		EngineFactory:         autoEngineFactory,
+		SessionBroker:         sessionBroker,
 		ArtifactRecorder:      autoRecorder,
 		EventSinkFactory:      eventSinkFactory,
 		ExecutionDataRoot:     recordingsRoot,
@@ -278,7 +295,7 @@ func InitDefaultDepsWithOptions(repo database.Repository, wsHub *wsHub.Hub, log 
 	// Create record mode service for live recording session management
 	// Inject unified recording service from options for timeline persistence
 	// Without this, recorded actions won't be persisted
-	recordModeSvc := livecapture.NewService(log, opts.UnifiedRecordingService)
+	recordModeSvc := livecapture.NewServiceWithManager(sessionBroker, log, opts.UnifiedRecordingService)
 	if opts.UnifiedRecordingService != nil {
 		log.Info("✅ Record mode service initialized with unified recording (timeline persistence enabled)")
 	} else {
@@ -293,6 +310,7 @@ func InitDefaultDepsWithOptions(repo database.Repository, wsHub *wsHub.Hub, log 
 		Storage:               storageClient,
 		RecordingService:      recordingService,
 		RecordModeService:     recordModeSvc,
+		SessionBroker:         sessionBroker,
 		RecordingsRoot:        recordingsRoot,
 		ReplayRenderer:        render.NewReplayRenderer(log, recordingsRoot),
 		SessionProfileService: sessionProfileSvc,
@@ -356,6 +374,7 @@ func NewHandlerWithDeps(repo database.Repository, wsHub wsHub.HubInterface, log 
 	handler.upgrader.CheckOrigin = handler.isOriginAllowed
 
 	// Initialize AI subhandlers with dependencies
+	modelClient := ai.NewOpenRouterClient(log)
 	handler.domHandler = aihandlers.NewDOMHandler(log)
 	handler.screenshotHandler = aihandlers.NewScreenshotHandler(log)
 
@@ -364,6 +383,7 @@ func NewHandlerWithDeps(repo database.Repository, wsHub wsHub.HubInterface, log 
 	if deps.CreditService != nil {
 		elementAnalysisOpts = append(elementAnalysisOpts, aihandlers.WithElementAnalysisCreditService(deps.CreditService))
 	}
+	elementAnalysisOpts = append(elementAnalysisOpts, aihandlers.WithAIModelClient(modelClient))
 	handler.elementAnalysisHandler = aihandlers.NewElementAnalysisHandler(log, elementAnalysisOpts...)
 
 	// Initialize AI analysis handler with optional credit service
@@ -371,6 +391,7 @@ func NewHandlerWithDeps(repo database.Repository, wsHub wsHub.HubInterface, log 
 	if deps.CreditService != nil {
 		aiAnalysisOpts = append(aiAnalysisOpts, aihandlers.WithAIAnalysisCreditService(deps.CreditService))
 	}
+	aiAnalysisOpts = append(aiAnalysisOpts, aihandlers.WithAIAnalysisModelClient(modelClient))
 	handler.aiAnalysisHandler = aihandlers.NewAIAnalysisHandler(log, handler.domHandler, aiAnalysisOpts...)
 
 	// Initialize vision navigation callback handler. The user-facing

@@ -616,11 +616,15 @@
     "library.templates.collection-page.root": {
       "testId": "templates.collection-page",
       "selector": "[data-testid=\"templates.collection-page\"]"
+    },
+    "library.primitives.heading.root": {
+      "testId": "primitives.heading",
+      "selector": "[data-testid=\"primitives.heading\"]"
     }
   },
   "dynamicSelectors": {},
   "sources": {
     "ui/src/constants/selectors.ts": "02e29116e9e352b4191b1d21104f972b5bb103dcea3c6bbe945a8f7d51d35ca5",
-    "ui/src/consts/selectors.library.ts": "8b26a7416a726d35468985f24b41d651b44f47633cf399d54a880ac5a33a6c01"
+    "ui/src/consts/selectors.library.ts": "02317633d9a43e2380c94dbe44b71c2ad3c264fcbbe896be7f02ac979af2691f"
   }
 }

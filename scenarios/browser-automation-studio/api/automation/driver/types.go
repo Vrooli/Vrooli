@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
+	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 )
 
 // Viewport defines browser viewport dimensions.
@@ -58,10 +59,9 @@ type ActualViewport struct {
 
 // FrameStreamingConfig configures live frame streaming for recording mode.
 type FrameStreamingConfig struct {
-	CallbackURL string `json:"callback_url"`
-	Quality     int    `json:"quality"`
-	FPS         int    `json:"fps"`
-	Scale       string `json:"scale"`
+	URL     string `json:"url"`
+	Quality int    `json:"quality"`
+	FPS     int    `json:"fps"`
 }
 
 // CapabilityRequest specifies required browser capabilities for execution.
@@ -134,12 +134,20 @@ type ValidationContext struct {
 // CreateSessionRequest is the unified request to create a browser session.
 // Used by both recording and execution modes.
 type CreateSessionRequest struct {
-	// Common fields
-	ExecutionID string            `json:"execution_id"`
-	WorkflowID  string            `json:"workflow_id"`
-	Viewport    Viewport          `json:"viewport"`
-	ReuseMode   string            `json:"reuse_mode"`
-	Labels      map[string]string `json:"labels,omitempty"`
+	// Identity remains separate from configuration so the driver can bind one
+	// resolved options snapshot to the lease created for this execution.
+	ExecutionID string         `json:"execution_id"`
+	WorkflowID  string         `json:"workflow_id"`
+	Options     SessionOptions `json:"session_options"`
+}
+
+// SessionOptions is the API-resolved, session-scoped configuration admitted
+// with a browser lease. Process/server settings remain in driver config.
+type SessionOptions struct {
+	Viewport   Viewport          `json:"viewport"`
+	ReuseMode  string            `json:"reuse_mode"`
+	FrameScale string            `json:"frame_scale"`
+	Labels     map[string]string `json:"labels,omitempty"`
 	// SessionProfileVersion binds label-pooled contexts to a profile identity and revision.
 	SessionProfileVersion string `json:"session_profile_version,omitempty"`
 
@@ -184,6 +192,11 @@ func CreateSessionRequestFromUUID(executionID, workflowID uuid.UUID) *CreateSess
 	return &CreateSessionRequest{
 		ExecutionID: executionID.String(),
 		WorkflowID:  workflowID.String(),
+		Options: SessionOptions{
+			Viewport:   Viewport{Width: 1280, Height: 720},
+			ReuseMode:  "fresh",
+			FrameScale: "css",
+		},
 	}
 }
 
@@ -198,12 +211,12 @@ type CreateSessionResponse struct {
 
 // StartRecordingRequest is the request to start recording user actions.
 type StartRecordingRequest struct {
-	CallbackURL      string `json:"callback_url"`
-	FrameCallbackURL string `json:"frame_callback_url"`
-	PageCallbackURL  string `json:"page_callback_url"`
-	RoutedTestMode   bool   `json:"routed_test_mode,omitempty"`
-	FrameQuality     int    `json:"frame_quality"`
-	FrameFPS         int    `json:"frame_fps"`
+	CallbackURL     string `json:"callback_url"`
+	FrameStreamURL  string `json:"frame_stream_url"`
+	PageCallbackURL string `json:"page_callback_url"`
+	RoutedTestMode  bool   `json:"routed_test_mode,omitempty"`
+	FrameQuality    int    `json:"frame_quality"`
+	FrameFPS        int    `json:"frame_fps"`
 }
 
 // StartRecordingResponse is the response from starting recording.
@@ -285,10 +298,11 @@ type ElementMeta struct {
 
 // GetActionsResponse is the response from getting recorded actions.
 type GetActionsResponse struct {
-	SessionID   string            `json:"session_id"`
-	IsRecording bool              `json:"is_recording"`
-	Actions     []RecordedAction  `json:"actions"`
-	Entries     []json.RawMessage `json:"entries,omitempty"`
+	SessionID       string                       `json:"session_id"`
+	IsRecording     bool                         `json:"is_recording"`
+	Actions         []RecordedAction             `json:"actions"`
+	Entries         []json.RawMessage            `json:"entries,omitempty"`
+	TimelineEntries []*bastimeline.TimelineEntry `json:"-"`
 }
 
 // NavigateRequest is the request to navigate the session.
@@ -456,6 +470,7 @@ type CaptureScreenshotResponse struct {
 // FrameSource is the immutable driver ownership receipt captured with a frame.
 // LeaseID is private to the driver/API boundary and must not reach viewers.
 type FrameSource struct {
+	StreamKind  string `json:"stream_kind"`
 	SessionID   string `json:"session_id"`
 	ExecutionID string `json:"execution_id"`
 	LeaseID     string `json:"lease_id"`

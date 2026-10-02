@@ -19,8 +19,7 @@ import (
 
 // SessionTracker is the narrow seam over the navigators that the handler
 // depends on for session-state lookups (status/wait/abort/resume). Tests
-// inject a fake; production passes a vision.MultiTracker spanning every
-// registered navigator. GetSession must return a snapshot whose Changed()
+// inject a fake; production passes the Playwright navigator tracker that owns navigation state. GetSession must return a snapshot whose Changed()
 // channel closes on the next status transition (see vision.NavigationSession).
 type SessionTracker = vision.SessionTracker
 

@@ -87,63 +87,6 @@ func (s *service) GetMetrics(
 }
 
 // ---------------------------------------------------------------------------
-// Runtime config
-// ---------------------------------------------------------------------------
-
-func (s *service) GetConfigRuntime(
-	ctx context.Context,
-	_ *connect.Request[observabilityv1.GetConfigRuntimeRequest],
-) (*connect.Response[observabilityv1.GetConfigRuntimeResponse], error) {
-	payload, err := s.deps.Proxy.FetchObservabilityConfigRuntime(ctx)
-	if err != nil {
-		return nil, s.mapProxyError(err)
-	}
-	pb, err := mapToStruct(payload)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-	return connect.NewResponse(&observabilityv1.GetConfigRuntimeResponse{Result: pb}), nil
-}
-
-func (s *service) UpdateConfig(
-	ctx context.Context,
-	req *connect.Request[observabilityv1.UpdateConfigRequest],
-) (*connect.Response[observabilityv1.UpdateConfigResponse], error) {
-	envVar := strings.TrimSpace(req.Msg.GetEnvVar())
-	if envVar == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errEnvVarRequired)
-	}
-	payload, err := s.deps.Proxy.UpdateObservabilityConfig(ctx, envVar, req.Msg.GetValue())
-	if err != nil {
-		return nil, s.mapProxyError(err)
-	}
-	pb, err := mapToStruct(payload)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-	return connect.NewResponse(&observabilityv1.UpdateConfigResponse{Result: pb}), nil
-}
-
-func (s *service) ResetConfig(
-	ctx context.Context,
-	req *connect.Request[observabilityv1.ResetConfigRequest],
-) (*connect.Response[observabilityv1.ResetConfigResponse], error) {
-	envVar := strings.TrimSpace(req.Msg.GetEnvVar())
-	if envVar == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errEnvVarRequired)
-	}
-	payload, err := s.deps.Proxy.ResetObservabilityConfig(ctx, envVar)
-	if err != nil {
-		return nil, s.mapProxyError(err)
-	}
-	pb, err := mapToStruct(payload)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-	return connect.NewResponse(&observabilityv1.ResetConfigResponse{Result: pb}), nil
-}
-
-// ---------------------------------------------------------------------------
 // Debug mode (in-process state, no proxy round-trip)
 // ---------------------------------------------------------------------------
 

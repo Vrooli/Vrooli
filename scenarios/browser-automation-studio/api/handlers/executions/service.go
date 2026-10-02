@@ -202,20 +202,16 @@ func (s *service) GetExecutionTimeline(
 	ctx, cancel := context.WithTimeout(ctx, constants.ExtendedRequestTimeout)
 	defer cancel()
 
-	// Preferred: on-disk proto timeline.
-	if pbTimeline, err := s.deps.Executor.GetExecutionTimelineProto(ctx, id); err == nil && pbTimeline != nil {
-		return connect.NewResponse(pbTimeline), nil
-	}
-
-	// Fallback: legacy result.json conversion.
-	timeline, err := s.deps.Executor.GetExecutionTimeline(ctx, id)
+	// TimelineEntry is the canonical persisted and transport contract. Keep the
+	// protobuf timeline intact from storage through the API response.
+	pbTimeline, err := s.deps.Executor.GetExecutionTimelineProto(ctx, id)
 	if err != nil {
 		s.log().WithError(err).WithField("execution_id", id).Error("get execution timeline failed")
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	pbTimeline, err := protoconv.TimelineToProto(timeline)
-	if err != nil {
-		s.log().WithError(err).WithField("execution_id", id).Error("convert timeline to proto failed")
+	if pbTimeline == nil {
+		err := errors.New("execution timeline is nil")
+		s.log().WithError(err).WithField("execution_id", id).Error("get execution timeline failed")
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	return connect.NewResponse(pbTimeline), nil

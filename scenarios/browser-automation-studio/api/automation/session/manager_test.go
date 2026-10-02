@@ -482,7 +482,40 @@ func TestManager_BuildRequestCarriesSessionProfileVersion(t *testing.T) {
 		SessionProfileVersion: "opaque-profile-context-version",
 	})
 
-	require.Equal(t, "opaque-profile-context-version", request.SessionProfileVersion)
+	require.Equal(t, "opaque-profile-context-version", request.Options.SessionProfileVersion)
+}
+
+func TestManager_BuildRequestSerializesResolvedOptionsWithAdmission(t *testing.T) {
+	m := &Manager{}
+	request := m.buildRequest(Spec{
+		ExecutionID:    uuid.MustParse("f3a99b79-a67f-4bf9-bbbf-2c61f2353ff1"),
+		WorkflowID:     uuid.MustParse("0a9ef5f1-c9a7-4ff0-9dde-edcdf328347d"),
+		Mode:           ModeExecution,
+		ViewportWidth:  1024,
+		ViewportHeight: 768,
+		ReuseMode:      "clean",
+		BaseURL:        "https://example.test",
+		FrameStreaming: &FrameStreamingConfig{URL: "ws://127.0.0.1:39000/frames", Quality: 55, FPS: 6, Scale: "device"},
+	})
+
+	payload, err := json.Marshal(request)
+	require.NoError(t, err)
+	var wire map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(payload, &wire))
+	require.Contains(t, wire, "execution_id")
+	require.Contains(t, wire, "workflow_id")
+	require.NotContains(t, wire, "viewport")
+	require.NotContains(t, wire, "reuse_mode")
+
+	var options map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(wire["session_options"], &options))
+	require.JSONEq(t, `{"width":1024,"height":768}`, string(options["viewport"]))
+	require.JSONEq(t, `"clean"`, string(options["reuse_mode"]))
+	require.JSONEq(t, `"device"`, string(options["frame_scale"]))
+	require.JSONEq(t, `"https://example.test"`, string(options["base_url"]))
+	var frameStreaming map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(options["frame_streaming"], &frameStreaming))
+	require.NotContains(t, frameStreaming, "scale")
 }
 
 // =============================================================================
@@ -547,29 +580,23 @@ func TestManager_BuildArtifactPaths(t *testing.T) {
 }
 
 // =============================================================================
-// buildFrameCallbackURL Tests
+// buildFrameStreamURL Tests
 // =============================================================================
 
-func TestManager_BuildFrameCallbackURL(t *testing.T) {
-	execID := uuid.New()
+func TestManager_BuildFrameStreamURL(t *testing.T) {
 	for _, tc := range []struct {
-		name   string
-		host   string
-		port   string
-		mode   Mode
-		route  string
-		suffix string
+		name string
+		host string
+		port string
 	}{
-		{name: "recording mode", host: "127.0.0.1", port: "8080", mode: ModeRecording, route: "/api/v1/recordings/live/", suffix: "/frame"},
-		{name: "execution mode", host: "127.0.0.1", port: "8080", mode: ModeExecution, route: "/api/v1/executions/", suffix: "/frames"},
-		{name: "hybrid mode", host: "127.0.0.1", port: "8080", mode: ModeHybrid, route: "/api/v1/executions/", suffix: "/frames"},
-		{name: "custom host and port", host: "192.168.1.100", port: "9090", mode: ModeRecording, route: "/api/v1/recordings/live/", suffix: "/frame"},
+		{name: "loopback", host: "127.0.0.1", port: "8080"},
+		{name: "custom host and port", host: "192.168.1.100", port: "9090"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			m := &Manager{apiHost: tc.host, apiPort: tc.port}
-			got := m.buildFrameCallbackURL(Spec{ExecutionID: execID, Mode: tc.mode})
-			want := "http://" + tc.host + ":" + tc.port + tc.route + execID.String() + tc.suffix
+			got := m.buildFrameStreamURL()
+			want := "ws://" + tc.host + ":" + tc.port + "/ws/frames"
 			require.Equal(t, want, got)
 		})
 	}
@@ -657,4 +684,45 @@ func TestRepeatedStartPreservesTransportSequenceAcrossLiveHandles(t *testing.T) 
 	mu.Lock()
 	defer mu.Unlock()
 	require.Equal(t, []float64{18, 19, 20}, sequences, "start retries cannot fork/reset transport ownership")
+}
+
+func TestCreateForDrillIsBrokerOwnedAndClosesWithItsLease(t *testing.T) {
+	var startBody map[string]any
+	var closeBody map[string]any
+	server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, request *http.Request) {
+		switch request.URL.Path {
+		case "/session/start":
+			require.Equal(t, "scoped-drill-token", request.Header.Get("X-Playwright-Drill-Token"))
+			require.NoError(t, json.NewDecoder(request.Body).Decode(&startBody))
+			_, _ = w.Write([]byte(`{"session_id":"drill-session","lease_id":"drill-lease","active_page_id":"page-1"}`))
+		case "/session/drill-session/close":
+			require.NoError(t, json.NewDecoder(request.Body).Decode(&closeBody))
+			_, _ = w.Write([]byte(`{"success":true}`))
+		default:
+			http.NotFound(w, request)
+		}
+	}))
+	client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
+	require.NoError(t, err)
+	manager := NewManagerWithClient(client)
+	req := &driver.CreateSessionRequest{ExecutionID: "drill-execution", WorkflowID: "failure-drill", Options: driver.SessionOptions{Viewport: driver.Viewport{Width: 100, Height: 100}, ReuseMode: "fresh"}}
+
+	owned, err := manager.CreateForDrill(context.Background(), req, "scoped-drill-token")
+	require.NoError(t, err)
+	require.Equal(t, "drill-session", owned.ID())
+	_, ok := manager.Get(owned.ID())
+	require.True(t, ok, "drill lease must be registered by the broker")
+	_, err = owned.CloseWithArtifacts(context.Background())
+	require.NoError(t, err)
+	_, ok = manager.Get(owned.ID())
+	require.False(t, ok, "successful close must release the broker's lease owner")
+	require.Equal(t, "drill-execution", startBody["execution_id"])
+	require.Equal(t, "drill-execution", closeBody["execution_id"])
+	require.Equal(t, "drill-lease", closeBody["lease_id"])
+}
+
+func TestRouteSessionRequestRequiresManagerOwnedSession(t *testing.T) {
+	manager := NewManagerWithClient(nil)
+	_, err := manager.RouteSessionRequest(context.Background(), "unowned", http.MethodGet, "/record/debug", nil)
+	require.Error(t, err)
 }

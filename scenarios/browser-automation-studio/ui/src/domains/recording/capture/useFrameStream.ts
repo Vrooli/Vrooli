@@ -1,19 +1,14 @@
-/** A session-owned API stream and HTTP fallback share one bounded decoder. */
-import { useEffect, useRef, useState } from 'react';
+/** Recording and execution previews share one bounded WebSocket decoder. */
+import { useContext, useEffect, useRef, useState } from 'react';
 import { getConfig } from '@/config';
+import { WebSocketContext } from '@/contexts/WebSocketContext';
 import { useFrameStats, type FrameStats } from '../hooks/useFrameStats';
 import { useSessionStore } from '../stores';
 
 interface FrameDimensions { width: number; height: number; capturedAt: string }
 interface FrameIdentity { session_id: string; page_id: string; captured_at: string }
-interface FramePayload extends FrameIdentity {
-  image: string;
-  width: number;
-  height: number;
-  page_title?: string;
-  page_url?: string;
-}
 export interface PageMetadata { title: string; url: string }
+export interface ExecutionFrame { data: string; mediaType: string; width: number; height: number; capturedAt: string }
 export interface StreamConnectionStatus {
   isConnected: boolean;
   isWebSocket: boolean;
@@ -21,11 +16,12 @@ export interface StreamConnectionStatus {
 }
 export interface UseFrameStreamOptions {
   sessionId: string | null;
+  /** Execution previews use the shared hub socket and decoder. */
+  executionId?: string | null;
+  enabled?: boolean;
+  onExecutionFrame?: (frame: ExecutionFrame) => void;
   /** Null is an empty workspace; omission follows the active browser page. */
   pageId?: string | null;
-  quality?: number;
-  fps?: number;
-  useWebSocketFrames?: boolean;
   refreshToken?: number;
   onStreamError?: (message: string) => void;
   onStatsUpdate?: (stats: FrameStats) => void;
@@ -41,20 +37,18 @@ interface ViewState {
   isFetching: boolean;
   isWsFrameActive: boolean;
   isPageSwitching: boolean;
+  frameCount: number;
 }
 export interface UseFrameStreamResult extends ViewState {
   canvasRef: React.RefObject<HTMLCanvasElement>;
   frameDimensionsRef: React.RefObject<FrameDimensions | null>;
   frameStats: FrameStats;
+  frameUrl: string | null;
 }
 const EMPTY_VIEW: ViewState = {
   hasFrame: false, displayDimensions: null, displayedTimestamp: null, error: null,
-  isFetching: false, isWsFrameActive: false, isPageSwitching: false,
+  isFetching: false, isWsFrameActive: false, isPageSwitching: false, frameCount: 0,
 };
-const STREAM_STALE_MS = 1000;
-// Keep one missed-RAF frame pair without allowing delayed viewers to grow memory use.
-const MAX_PENDING_PAINT_FRAMES = 2;
-const MAX_PENDING_PAINT_BYTES = 16 * 1024 * 1024;
 // Keep a bounded visual cadence when decoding is slower than admission. A
 // frame that is only a few admissions behind can still be useful; a much older
 // decode is discarded so a burst cannot paint stale pixels after a newer frame
@@ -66,8 +60,8 @@ interface FrameJob {
   blob: Blob;
   timestamp: string;
   socket: boolean;
-  etag?: string | null;
   metadata?: PageMetadata;
+  execution?: ExecutionFrame;
   owns: () => boolean;
   deliver: (frame: FrameJob, bitmap: ImageBitmap) => void;
   fail: (message: string) => void;
@@ -108,22 +102,13 @@ function parseIdentity(value: unknown): FrameIdentity {
   return identity as FrameIdentity;
 }
 
-function parseFrame(value: unknown): FramePayload {
-  parseIdentity(value);
-  const frame = value as Partial<FramePayload>;
-  if (typeof frame.image !== 'string' || !frame.image || typeof frame.width !== 'number' ||
-      frame.width <= 0 || typeof frame.height !== 'number' || frame.height <= 0) throw new Error('Invalid frame payload');
-  return frame as FramePayload;
-}
-
-function frameBlob(image: string): Blob {
-  const encoded = image.includes(',') ? image.slice(image.indexOf(',') + 1) : image;
-  const bytes = Uint8Array.from(atob(encoded), character => character.charCodeAt(0));
-  return new Blob([bytes], {type: 'image/jpeg'});
+function executionFrameBlob(data: string, mediaType: string): Blob {
+  const bytes = Uint8Array.from(atob(data), character => character.charCodeAt(0));
+  return new Blob([bytes], {type: mediaType || 'image/jpeg'});
 }
 
 // The API publishes canonical identity; producer lease credentials stay server-side.
-function binaryFrame(data: ArrayBuffer): FrameIdentity & {blob: Blob; timestamp: string} {
+function binaryFrame(data: ArrayBuffer): FrameIdentity & {blob: Blob; timestamp: string; metadata?: PageMetadata} {
   if (data.byteLength < 4) throw new Error('Invalid binary frame');
   const length = new DataView(data).getUint32(0);
   if (!length || length > 16 * 1024 || length > data.byteLength - 6) throw new Error('Invalid binary frame');
@@ -132,25 +117,32 @@ function binaryFrame(data: ArrayBuffer): FrameIdentity & {blob: Blob; timestamp:
   if ((header as {version?: unknown}).version !== 1) throw new Error('Invalid frame version');
   const jpeg = new Uint8Array(data, 4 + length);
   if (jpeg[0] !== 255 || jpeg[1] !== 216) throw new Error('Invalid JPEG frame');
-  return {...identity, blob: new Blob([jpeg], {type:'image/jpeg'}), timestamp: identity.captured_at};
+  const metadata = header as {page_title?: unknown; page_url?: unknown};
+  return {...identity, blob: new Blob([jpeg], {type:'image/jpeg'}), timestamp: identity.captured_at,
+    metadata: typeof metadata.page_title === 'string' && typeof metadata.page_url === 'string'
+      ? {title:metadata.page_title,url:metadata.page_url} : undefined};
 }
 
 export function useFrameStream(options: UseFrameStreamOptions): UseFrameStreamResult {
-  const {sessionId: suppliedSessionId, pageId, quality = 65, fps = 30,
-    useWebSocketFrames = true, refreshToken} = options;
+  const {sessionId: suppliedSessionId, executionId = null, enabled = true, pageId, refreshToken} = options;
+  const webSocket = useContext(WebSocketContext);
   const storedSessionId = useSessionStore(state => state.sessionId);
   const validated = useSessionStore(state => state.isValidated);
-  const sessionId = validated ? storedSessionId : suppliedSessionId;
+  const sessionId = executionId ? null : validated ? storedSessionId : suppliedSessionId;
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const frameDimensionsRef = useRef<FrameDimensions | null>(null);
   const decoder = useRef<Decoder>({active:false,pending:null});
   const callbacks = useRef(options);
   callbacks.current = options;
+  const executionMessageHandler = useRef<((message: unknown) => void) | null>(null);
   const previousPage = useRef(pageId);
   const [view, setView] = useState<ViewState>(EMPTY_VIEW);
+  const [frameUrl, setFrameUrl] = useState<string | null>(null);
   const {stats: frameStats, recordFrame, reset: resetStats} = useFrameStats();
 
   useEffect(() => {callbacks.current.onStatsUpdate?.(frameStats);}, [frameStats]);
+  useEffect(() => webSocket?.subscribeToMessages(message => executionMessageHandler.current?.(message)),
+    [webSocket?.subscribeToMessages]);
   useEffect(() => {
     callbacks.current.onConnectionStatusChange?.({isConnected:view.hasFrame,
       isWebSocket:view.isWsFrameActive,lastFrameTime:view.displayedTimestamp ?? undefined});
@@ -161,24 +153,18 @@ export function useFrameStream(options: UseFrameStreamOptions): UseFrameStreamRe
     let disposed = false;
     let socket: WebSocket | null = null;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-    let pollTimer: ReturnType<typeof setTimeout> | null = null;
-    let request: AbortController | null = null;
-    let raf: number | null = null;
-    let pendingPaint: Array<{frame: FrameJob; bitmap: ImageBitmap; byteSize: number}> = [];
-    let pendingPaintBytes = 0;
     let sequence = 0;
     let newestAdmission = 0;
     let newestAdmissionTimestamp = '';
     let lastPainted = 0;
-    let lastSocketPaint = -Infinity;
     let reconnectAttempts = 0;
-    let etag: string | null = null;
     let lastMetadata: PageMetadata | undefined;
     let lastTimestampUpdate = -Infinity;
     let painted = false;
     let currentView = {...EMPTY_VIEW, isPageSwitching: Boolean(previousPage.current && pageId && previousPage.current !== pageId)};
     previousPage.current = pageId;
     setView(currentView);
+    setFrameUrl(null);
     frameDimensionsRef.current = null;
     useSessionStore.getState().setFrameDimensions(null);
     useSessionStore.getState().setDisplayDimensions(null);
@@ -196,25 +182,24 @@ export function useFrameStream(options: UseFrameStreamOptions): UseFrameStreamRe
       update({error:message});
       callbacks.current.onStreamError?.(message);
     };
-    const draw = () => {
-      raf = null;
-      const ready = pendingPaint.shift();
-      if (!ready) return;
-      pendingPaintBytes -= ready.byteSize;
-      const {frame,bitmap} = ready;
+    const draw = (frame: FrameJob, bitmap: ImageBitmap) => {
       try {
         if (disposed || frame.id <= lastPainted) return;
         const target = canvasRef.current;
         const context = target?.getContext('2d', {alpha:false});
-        if (!target || !context) return;
-        // Resize and draw in one synchronous animation callback, before paint.
-        if (target.width !== bitmap.width) target.width = bitmap.width;
-        if (target.height !== bitmap.height) target.height = bitmap.height;
-        context.drawImage(bitmap,0,0);
+        if ((!target || !context) && !frame.execution) return;
+        // Draw as soon as decoding completes. Deferring through another
+        // animation frame adds a full display interval to input feedback.
+        if (target && context) {
+          if (target.width !== bitmap.width) target.width = bitmap.width;
+          if (target.height !== bitmap.height) target.height = bitmap.height;
+          context.drawImage(bitmap,0,0);
+        }
         const dimensions = {width:bitmap.width,height:bitmap.height};
         const previous = frameDimensionsRef.current;
         frameDimensionsRef.current = {...dimensions,capturedAt:frame.timestamp};
         const change: Partial<ViewState> = {hasFrame:true,isFetching:false,isPageSwitching:false,error:null,isWsFrameActive:frame.socket};
+        if (frame.execution) change.frameCount = currentView.frameCount + 1;
         if (!previous || previous.width !== bitmap.width || previous.height !== bitmap.height) {
           change.displayDimensions = dimensions;
           useSessionStore.getState().setFrameDimensions(dimensions);
@@ -226,9 +211,9 @@ export function useFrameStream(options: UseFrameStreamOptions): UseFrameStreamRe
         }
         lastPainted = frame.id;
         painted = true;
-        if (frame.socket) lastSocketPaint = performance.now();
-        else if (frame.etag) etag = frame.etag;
         update(change);
+        if (frame.execution) callbacks.current.onExecutionFrame?.(frame.execution);
+        if (frame.execution) setFrameUrl(`data:${frame.execution.mediaType};base64,${frame.execution.data}`);
         recordFrame(frame.blob.size);
         if (frame.metadata && (frame.metadata.url !== lastMetadata?.url || frame.metadata.title !== lastMetadata?.title)) {
           lastMetadata = frame.metadata;
@@ -238,7 +223,6 @@ export function useFrameStream(options: UseFrameStreamOptions): UseFrameStreamRe
         fail('Failed to render live frame');
       } finally {
         bitmap.close();
-        if (!disposed && pendingPaint.length > 0 && raf === null) raf = requestAnimationFrame(draw);
       }
     };
     const deliver = (frame: FrameJob, bitmap: ImageBitmap) => {
@@ -254,18 +238,7 @@ export function useFrameStream(options: UseFrameStreamOptions): UseFrameStreamRe
         bitmap.close();
         return;
       }
-      const byteSize = bitmap.width * bitmap.height * 4;
-      // A single oversize image remains displayable; never retain another beside it.
-      while (pendingPaint.length > 0 &&
-        (pendingPaint.length >= MAX_PENDING_PAINT_FRAMES || pendingPaintBytes + byteSize > MAX_PENDING_PAINT_BYTES)) {
-        const discarded = pendingPaint.shift();
-        if (!discarded) break;
-        pendingPaintBytes -= discarded.byteSize;
-        discarded.bitmap.close();
-      }
-      pendingPaint.push({frame,bitmap,byteSize});
-      pendingPaintBytes += byteSize;
-      if (raf === null) raf = requestAnimationFrame(draw);
+      draw(frame,bitmap);
     };
     const enqueue = (frame: Omit<FrameJob,'owns'|'deliver'|'fail'>) => {
       if (disposed || document.hidden || frame.id < newestAdmission) return;
@@ -274,54 +247,47 @@ export function useFrameStream(options: UseFrameStreamOptions): UseFrameStreamRe
       currentDecoder.pending = {...frame,owns,deliver,fail};
       void decodeLatest(currentDecoder);
     };
+    const onExecutionMessage = (value: unknown) => {
+      if (!executionId || !enabled || !value || typeof value !== 'object') return;
+      const message = value as {
+        type?: unknown; execution_id?: unknown; data?: unknown; media_type?: unknown;
+        width?: unknown; height?: unknown; captured_at?: unknown;
+      };
+      if (message.execution_id !== executionId) return;
+      if (message.type === 'execution_frame_subscribed') {
+        update({isWsFrameActive:true});
+        return;
+      }
+      if (message.type !== 'execution_frame') return;
+      if (typeof message.data !== 'string' || typeof message.captured_at !== 'string' ||
+          !Number.isFinite(Date.parse(message.captured_at)) || typeof message.width !== 'number' ||
+          message.width <= 0 || typeof message.height !== 'number' || message.height <= 0) {
+        fail('Invalid execution frame');
+        return;
+      }
+      try {
+        const mediaType = typeof message.media_type === 'string' ? message.media_type : 'image/jpeg';
+        enqueue({id:++sequence,blob:executionFrameBlob(message.data,mediaType),
+          timestamp:message.captured_at,socket:true,
+          execution:{data:message.data,mediaType,width:message.width,height:message.height,capturedAt:message.captured_at}});
+      } catch {
+        fail('Invalid execution frame');
+      }
+    };
     const matchesSource = (frame: FrameIdentity) => frame.session_id === sessionId &&
       (pageId === undefined || frame.page_id === pageId);
-    const pollInterval = Math.max(300,Math.floor(1000 / Math.max(1,fps)));
     const start = async () => {
       const config = await getConfig();
       if (disposed || !sessionId) return;
-      const poll = async () => {
-        if (disposed) return;
-        if (performance.now() - lastSocketPaint >= STREAM_STALE_MS) {
-          update({isWsFrameActive:false});
-          if (!document.hidden && !request) {
-            const id = ++sequence;
-            request = new AbortController();
-            const timeout = setTimeout(() => request?.abort(),10000);
-            update({isFetching:!painted});
-            try {
-              const query = new URLSearchParams({quality:String(quality)});
-              if (pageId) query.set('page_id',pageId);
-              const response = await fetch(`${config.API_URL}/recordings/live/${sessionId}/frame?${query}`, {
-                signal:request.signal, headers:etag ? {'If-None-Match':etag} : {},
-              });
-              if (disposed || id < newestAdmission || response.status === 304) return;
-              if (!response.ok) throw new Error(`Frame fetch failed (${response.status})`);
-              const frame = parseFrame(await response.json());
-              if (disposed || id < newestAdmission || !matchesSource(frame)) return;
-              enqueue({id,blob:frameBlob(frame.image),timestamp:frame.captured_at,socket:false,etag:response.headers.get('ETag'),
-                metadata: {title:frame.page_title ?? '',url:frame.page_url ?? ''}});
-            } catch (error) {
-              if (!disposed && id >= newestAdmission) fail(error instanceof Error ? error.message : 'Failed to fetch live frame');
-            } finally {
-              clearTimeout(timeout);
-              request = null;
-              update({isFetching:false});
-              if (!disposed) pollTimer = setTimeout(() => {void poll();},pollInterval);
-            }
-            return;
-          }
-        }
-        pollTimer = setTimeout(() => {void poll();},pollInterval);
-      };
       const connect = () => {
-        if (disposed || !useWebSocketFrames) return;
+        if (disposed) return;
         const connection = new WebSocket(config.WS_URL);
         socket = connection;
         connection.binaryType = 'arraybuffer';
         connection.onopen = () => {
           if (disposed || socket !== connection) return;
           reconnectAttempts = 0;
+          update({isFetching:!painted});
           connection.send(JSON.stringify({type:'subscribe_recording',session_id:sessionId}));
         };
         connection.onmessage = event => {
@@ -332,35 +298,38 @@ export function useFrameStream(options: UseFrameStreamOptions): UseFrameStreamRe
           }
           catch {fail('Invalid binary frame');}
         };
-        connection.onerror = () => { /* onclose owns retry and fallback. */ };
+        connection.onerror = () => { /* onclose owns retry. */ };
         connection.onclose = () => {
           if (disposed || socket !== connection) return;
           socket = null;
-          lastSocketPaint = -Infinity;
-          update({isWsFrameActive:false});
+          update({isWsFrameActive:false,isFetching:false});
           if (reconnectAttempts < 10) {
             const delay = Math.min(250 * 2 ** reconnectAttempts++,15000);
             reconnectTimer = setTimeout(connect,delay);
           }
         };
       };
-      void poll();
       connect();
     };
-    if (sessionId && pageId !== null) void start().catch(error => fail(error instanceof Error ? error.message : 'Failed to connect live viewer'));
+    let subscribedExecution = false;
+    if (executionId) {
+      executionMessageHandler.current = onExecutionMessage;
+      if (enabled && webSocket?.isConnected) {
+        subscribedExecution = webSocket.send({type:'subscribe_execution_frames',execution_id:executionId});
+        if (!subscribedExecution) fail('Failed to subscribe to execution frames');
+      }
+    } else if (sessionId && pageId !== null && enabled) {
+      void start().catch(error => fail(error instanceof Error ? error.message : 'Failed to connect live viewer'));
+    }
     return () => {
       disposed = true;
+      if (executionMessageHandler.current === onExecutionMessage) executionMessageHandler.current = null;
+      if (subscribedExecution) webSocket?.send({type:'unsubscribe_execution_frames'});
       socket?.close();
-      request?.abort();
       if (reconnectTimer !== null) clearTimeout(reconnectTimer);
-      if (pollTimer !== null) clearTimeout(pollTimer);
-      if (raf !== null) cancelAnimationFrame(raf);
-      for (const pending of pendingPaint) pending.bitmap.close();
-      pendingPaint = [];
-      pendingPaintBytes = 0;
       if (currentDecoder.pending?.owns === owns) currentDecoder.pending = null;
     };
-  }, [sessionId,pageId,quality,fps,useWebSocketFrames,refreshToken,recordFrame,resetStats]);
+  }, [sessionId,executionId,enabled,webSocket?.isConnected,webSocket?.send,pageId,refreshToken,recordFrame,resetStats]);
 
-  return {...view,canvasRef,frameDimensionsRef,frameStats};
+  return {...view,canvasRef,frameDimensionsRef,frameStats,frameUrl};
 }

@@ -53,7 +53,7 @@ func TestRedactSensitiveValues(t *testing.T) {
 	require.Equal(t, "ordinary value", ordinary.Payload["text"])
 }
 
-func TestGetRecordedActionsRedactsBufferedTimelineAndKeepsLegacyEntrySafe(t *testing.T) {
+func TestGetRecordedActionsRedactsBufferedTimelineWithoutRebuildingLegacyActions(t *testing.T) {
 	const secret = "BAS_SYNTHETIC_BUFFERED_SECRET_735e"
 	entry := &bastimeline.TimelineEntry{
 		Id: "synthetic-entry",
@@ -79,9 +79,10 @@ func TestGetRecordedActionsRedactsBufferedTimelineAndKeepsLegacyEntrySafe(t *tes
 
 	response, err := client.GetRecordedActions(t.Context(), "synthetic-session")
 	require.NoError(t, err)
-	require.Len(t, response.Actions, 1)
-	require.Empty(t, response.Actions[0].Payload["text"])
+	require.Empty(t, response.Actions)
 	require.NotContains(t, string(response.Entries[0]), secret)
-	require.Empty(t, response.Actions[0].ElementMeta.InnerText)
-	require.NotContains(t, response.Actions[0].ElementMeta.Attributes, "value")
+	require.Len(t, response.TimelineEntries, 1)
+	require.Empty(t, response.TimelineEntries[0].GetAction().GetInput().GetValue())
+	require.Empty(t, response.TimelineEntries[0].GetAction().GetMetadata().GetElementSnapshot().GetInnerText())
+	require.NotContains(t, response.TimelineEntries[0].GetAction().GetMetadata().GetElementSnapshot().GetAttributes(), "value")
 }

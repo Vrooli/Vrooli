@@ -109,10 +109,9 @@ export async function handleSessionRun(
       set page(page) {
         if (page !== session.page) session.frameStack.length = 0;
         session.page = page;
-        session.currentPageIndex = session.pages.indexOf(page);
       },
       frameStack: session.frameStack,
-      tabStack: session.pages,
+      tabStack: session.context.pages(),
       browserContext: session.context,
       config,
       logger: appLogger,

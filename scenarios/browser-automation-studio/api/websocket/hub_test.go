@@ -1009,6 +1009,54 @@ func TestBroadcastBinaryFrameToSubscribedClient(t *testing.T) {
 	})
 }
 
+func TestLatestFrameSlotReplacesAndSeedsLateRecordingViewer(t *testing.T) {
+	hub := newTestHub(t)
+	hub.BroadcastBinaryFrame("recording-latest", []byte("older"))
+	hub.BroadcastBinaryFrame("recording-latest", []byte("newest"))
+	if len(hub.latestFrames) != 1 || string(hub.latestFrames["recording:recording-latest"].binary) != "newest" {
+		t.Fatalf("latest recording frame slot did not replace the prior frame: %#v", hub.latestFrames)
+	}
+	client := &Client{ID: uuid.New(), Send: make(chan any, 4), BinarySend: make(chan []byte, 1), Hub: hub}
+	hub.register <- client
+	waitForMessage(t, client.Send)
+	client.handleSubscription("subscribe_recording", map[string]any{"session_id": "recording-latest"})
+	waitForMessage(t, client.Send) // subscription confirmation
+	select {
+	case got := <-client.BinarySend:
+		if string(got) != "newest" {
+			t.Fatalf("late recording viewer got %q", got)
+		}
+	default:
+		t.Fatal("late recording viewer did not receive the latest frame")
+	}
+	hub.ClearRecordingFrames("recording-latest")
+	if len(hub.latestFrames) != 0 {
+		t.Fatalf("recording teardown retained a frame slot: %#v", hub.latestFrames)
+	}
+}
+
+func TestLatestFrameSlotReplacesAndSeedsLateExecutionViewer(t *testing.T) {
+	hub := newTestHub(t)
+	hub.BroadcastExecutionFrame("execution-latest", &ExecutionFrame{ExecutionID: "execution-latest", Data: "older", MediaType: "image/jpeg", Width: 10, Height: 20, CapturedAt: "2026-09-30T00:00:00Z"})
+	hub.BroadcastExecutionFrame("execution-latest", &ExecutionFrame{ExecutionID: "execution-latest", Data: "newest", MediaType: "image/jpeg", Width: 30, Height: 40, CapturedAt: "2026-09-30T00:00:01Z"})
+	if len(hub.latestFrames) != 1 || hub.latestFrames["execution:execution-latest"].execution.Data != "newest" {
+		t.Fatalf("latest execution frame slot did not replace the prior frame: %#v", hub.latestFrames)
+	}
+	client := &Client{ID: uuid.New(), Send: make(chan any, 4), Hub: hub}
+	hub.register <- client
+	waitForMessage(t, client.Send)
+	client.handleSubscription("subscribe_execution_frames", map[string]any{"execution_id": "execution-latest"})
+	waitForMessage(t, client.Send) // subscription confirmation
+	message := waitForMessage(t, client.Send).(map[string]any)
+	if message["data"] != "newest" || message["width"] != 30 || message["height"] != 40 {
+		t.Fatalf("late execution viewer received %#v", message)
+	}
+	hub.ClearExecutionFrames("execution-latest")
+	if len(hub.latestFrames) != 0 {
+		t.Fatalf("execution teardown retained a frame slot: %#v", hub.latestFrames)
+	}
+}
+
 // TestBroadcastBinaryFrameFiltersNonSubscribed verifies non-subscribed clients don't receive binary frames
 func TestBroadcastBinaryFrameFiltersNonSubscribed(t *testing.T) {
 	t.Run("[REQ:BAS-FRAME-STREAM] filters binary frames from non-subscribed clients", func(t *testing.T) {

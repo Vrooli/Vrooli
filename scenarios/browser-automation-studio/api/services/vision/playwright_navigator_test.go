@@ -21,6 +21,15 @@ type mockHTTPDoer struct {
 	lastRequest *http.Request
 }
 
+func (m *mockHTTPDoer) RouteSessionRequest(ctx context.Context, sessionID, method, suffix string, body []byte) (*http.Response, error) {
+	var reader io.Reader
+	if body != nil {
+		reader = bytes.NewReader(body)
+	}
+	req, _ := http.NewRequestWithContext(ctx, method, "http://driver.test/session/"+sessionID+suffix, reader)
+	return m.Do(req)
+}
+
 func (m *mockHTTPDoer) Do(req *http.Request) (*http.Response, error) {
 	m.lastRequest = req
 	return m.response, m.err

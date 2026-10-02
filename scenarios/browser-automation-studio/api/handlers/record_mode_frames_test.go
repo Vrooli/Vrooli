@@ -1,10 +1,15 @@
 package handlers
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
 	"github.com/vrooli/browser-automation-studio/internal/testutil"
+	"image"
+	"image/color"
+	"image/jpeg"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -20,18 +25,34 @@ import (
 
 	"github.com/vrooli/browser-automation-studio/automation/driver"
 	autosession "github.com/vrooli/browser-automation-studio/automation/session"
+	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/domain"
 	"github.com/vrooli/browser-automation-studio/performance"
+	wsHub "github.com/vrooli/browser-automation-studio/websocket"
 )
 
 type frameCaptureHub struct {
 	*MockHub
-	frames [][]byte
+	frames          [][]byte
+	executionFrames []*wsHub.ExecutionFrame
+}
+
+func testJPEG(t *testing.T) []byte {
+	t.Helper()
+	var out bytes.Buffer
+	pixels := image.NewRGBA(image.Rect(0, 0, 1, 1))
+	pixels.Set(0, 0, color.RGBA{R: 200, G: 80, B: 40, A: 255})
+	require.NoError(t, jpeg.Encode(&out, pixels, nil))
+	return out.Bytes()
 }
 
 func (h *frameCaptureHub) HasRecordingFrameSubscribers(string) bool { return true }
 func (h *frameCaptureHub) BroadcastBinaryFrame(_ string, frame []byte) {
 	h.frames = append(h.frames, append([]byte(nil), frame...))
+}
+func (h *frameCaptureHub) HasExecutionFrameSubscribers(string) bool { return true }
+func (h *frameCaptureHub) BroadcastExecutionFrame(_ string, frame *wsHub.ExecutionFrame) {
+	h.executionFrames = append(h.executionFrames, frame)
 }
 
 func ownedFrameFixture(t *testing.T) (*Handler, *MockRecordModeService, *autosession.Session, map[string]string, *frameCaptureHub) {
@@ -39,7 +60,7 @@ func ownedFrameFixture(t *testing.T) (*Handler, *MockRecordModeService, *autoses
 	h, service, dir, hub := createTestHandlerWithRecordMode(t)
 	t.Cleanup(func() { _ = os.RemoveAll(dir) })
 	owner := uuid.New()
-	source := map[string]string{"session_id": "frame-session", "execution_id": owner.String(), "lease_id": "frame-lease", "page_id": "driver-red"}
+	source := map[string]string{"stream_kind": "recording", "session_id": "frame-session", "execution_id": owner.String(), "lease_id": "frame-lease", "page_id": "driver-red"}
 	server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]string{"session_id": source["session_id"], "lease_id": source["lease_id"]})
 	}))
@@ -56,9 +77,50 @@ func ownedFrameFixture(t *testing.T) (*Handler, *MockRecordModeService, *autoses
 	return h, service, sess, source, frames
 }
 
+func TestUnifiedDriverFrameIngressAdmitsOwnedExecutionFrame(t *testing.T) {
+	h, _, dir, baseHub := createTestHandlerWithRecordMode(t)
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
+	executionID := uuid.New()
+	executions := NewMockExecutionService()
+	executions.AddExecution(&database.ExecutionIndex{ID: executionID, Status: database.ExecutionStatusRunning})
+	h.executionService = executions
+	hub := &frameCaptureHub{MockHub: baseHub}
+	h.wsHub = hub
+	router := chi.NewRouter()
+	done := make(chan struct{})
+	router.Get("/ws/frames", func(w http.ResponseWriter, r *http.Request) { defer close(done); h.HandleDriverFrameStream(w, r) })
+	server := testutil.StartHTTPServer(t, router)
+	conn, _, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(server.URL, "http")+"/ws/frames", nil)
+	require.NoError(t, err)
+	source := &driver.FrameSource{StreamKind: "execution", SessionID: "driver-session", ExecutionID: executionID.String(), LeaseID: "lease", PageID: "page"}
+	header, err := json.Marshal(map[string]any{"version": 1, "source": source, "captured_at": "2026-09-23T00:00:00Z"})
+	require.NoError(t, err)
+	jpeg := testJPEG(t)
+	packet := make([]byte, 4+len(header)+len(jpeg))
+	binary.BigEndian.PutUint32(packet, uint32(len(header)))
+	copy(packet[4:], header)
+	copy(packet[4+len(header):], jpeg)
+	require.NoError(t, conn.WriteMessage(websocket.BinaryMessage, packet))
+	require.NoError(t, conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")))
+	_ = conn.Close()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("shared frame ingress did not finish")
+	}
+	require.Empty(t, hub.frames)
+	require.Len(t, hub.executionFrames, 1)
+	require.Equal(t, executionID.String(), hub.executionFrames[0].ExecutionID)
+	require.Equal(t, "image/jpeg", hub.executionFrames[0].MediaType)
+	require.Equal(t, 1, hub.executionFrames[0].Width)
+	require.Equal(t, 1, hub.executionFrames[0].Height)
+	require.Equal(t, "2026-09-23T00:00:00Z", hub.executionFrames[0].CapturedAt)
+	require.Equal(t, base64.StdEncoding.EncodeToString(jpeg), hub.executionFrames[0].Data)
+}
+
 // [REQ:BAS-RH-J05] [REQ:BAS-RH-J22] Source identity survives the API boundary.
 func TestDriverFrameSourceAdmission(t *testing.T) {
-	for _, change := range []string{"current", "session", "execution", "lease", "page", "anonymous", "version", "retired session"} {
+	for _, change := range []string{"current", "session", "execution", "lease", "page", "stream kind", "anonymous", "version", "retired session"} {
 		t.Run(change, func(t *testing.T) {
 			h, service, sess, source, hub := ownedFrameFixture(t)
 			canonical := sess.Pages().GetActivePageID().String()
@@ -75,6 +137,8 @@ func TestDriverFrameSourceAdmission(t *testing.T) {
 				source[change+"_id"] = "foreign"
 			case "version":
 				version = 99
+			case "stream kind":
+				source["stream_kind"] = "unrecognized"
 			case "retired session":
 				service.mu.Lock()
 				delete(service.OwnedSessions, "frame-session")
@@ -117,7 +181,7 @@ func TestDriverFrameSourceAdmission(t *testing.T) {
 }
 
 func TestDecodeDriverFrame(t *testing.T) {
-	source := &driver.FrameSource{SessionID: "session", ExecutionID: "execution", LeaseID: "lease", PageID: "page"}
+	source := &driver.FrameSource{StreamKind: "recording", SessionID: "session", ExecutionID: "execution", LeaseID: "lease", PageID: "page"}
 	header := driverFrameHeader{Version: 1, Source: source, CapturedAt: time.Now(), Timing: &performance.FrameHeader{FrameID: "frame-1", CaptureMs: 4}}
 	encoded, err := json.Marshal(header)
 	require.NoError(t, err)
@@ -179,7 +243,7 @@ func TestHTTPFrameSourceAdmission(t *testing.T) {
 		t.Run(change, func(t *testing.T) {
 			h, service, sess, source, _ := ownedFrameFixture(t)
 			canonical := sess.Pages().GetActivePageID()
-			receipt := &driver.GetFrameResponse{SessionID: source["session_id"], Source: &driver.FrameSource{SessionID: source["session_id"], ExecutionID: source["execution_id"], LeaseID: source["lease_id"], PageID: source["page_id"]}, Image: "jpeg", ContentHash: "same"}
+			receipt := &driver.GetFrameResponse{SessionID: source["session_id"], Source: &driver.FrameSource{StreamKind: "recording", SessionID: source["session_id"], ExecutionID: source["execution_id"], LeaseID: source["lease_id"], PageID: source["page_id"]}, Image: "jpeg", ContentHash: "same"}
 			query := "?quality=65"
 			if change == "explicit" {
 				query += "&page_id=" + canonical.String()

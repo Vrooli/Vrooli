@@ -24,7 +24,6 @@ import {
 } from './strategies';
 import {
   createWebSocketConnectionManager,
-  buildWebSocketUrl,
   type WebSocketConnectionManager,
 } from './websocket';
 import type {
@@ -45,6 +44,7 @@ import type { Page } from 'rebrowser-playwright';
  */
 interface StreamingSession {
   generation: number;
+  streamKind: 'recording' | 'execution';
   wsManager: WebSocketConnectionManager;
   strategyHandle: StreamingHandle | null;
   strategyName: string;
@@ -111,8 +111,9 @@ export function startFrameStreaming(
     const fps = Math.min(Math.max(options.fps ?? 30, 1), 60);
     const stream: StreamingSession = {
       generation,
+      streamKind: options.streamKind,
       wsManager: createWebSocketConnectionManager({
-        url: buildWebSocketUrl(options.callbackUrl, sessionId), sessionId,
+        url: options.streamUrl, sessionId,
         routedTestMode: options.routedTestMode,
       }),
       strategyHandle: null,
@@ -265,7 +266,7 @@ async function startWithStrategy(
   };
   const pageProvider = (): Page => currentSession().page;
   const sourceForPage = (page: Page): FrameSource | null => {
-    try { return captureFrameSource(currentSession(),page); }
+    try { return captureFrameSource(currentSession(),page,session.streamKind); }
     catch { return null; }
   };
   const page = admitted.page;

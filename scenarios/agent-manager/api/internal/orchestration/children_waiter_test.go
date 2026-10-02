@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -55,8 +56,10 @@ func (f *childRunsFixture) finish(i int, status domain.RunStatus, at time.Time) 
 func parkedParentWithChildren(lastWake time.Time, kids ...domain.RunStatus) *childRunsFixture {
 	parentID := uuid.New()
 	started := lastWake.Add(-time.Hour)
-	fixture := &childRunsFixture{parent: &domain.Run{ID: parentID, Status: domain.RunStatusParked, StartedAt: &started, LastAwaitResolvedAt: &lastWake,
-		AwaitHandle: &domain.AwaitHandle{Producer: ProducerChildren, Key: parentID.String(), RegisteredAt: lastWake.Add(time.Minute)}}}
+	fixture := &childRunsFixture{parent: &domain.Run{
+		ID: parentID, Status: domain.RunStatusParked, StartedAt: &started, LastAwaitResolvedAt: &lastWake,
+		AwaitHandle: &domain.AwaitHandle{Producer: ProducerChildren, Key: parentID.String(), RegisteredAt: lastWake.Add(time.Minute)},
+	}}
 	for _, status := range kids {
 		kid := &domain.Run{ID: uuid.New(), ParentRunID: &parentID, Status: status}
 		if status.IsTerminal() {
@@ -104,8 +107,11 @@ func TestChildrenWaiterWakesWhenAChildEndsAfterThePreviousWake(t *testing.T) {
 		if payload["wake_reason"] != "child_run_ended" || len(ended) != 1 || ended[0].(map[string]any)["run_id"] != fixture.kids[1].ID.String() {
 			t.Fatalf("unexpected wake payload: %s", result)
 		}
-		if payload["active_children"].(float64) != 0 {
-			t.Fatalf("active_children = %v, want 0", payload["active_children"])
+		if active := payload["active"].([]any); len(active) != 0 {
+			t.Fatalf("active = %v, want none", active)
+		}
+		if _, listed := payload["children"]; listed {
+			t.Fatalf("wake payload must not list children reported at earlier wakes: %s", result)
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("parent did not wake after its child ended")
@@ -121,7 +127,8 @@ func TestChildrenWaiterTimerWakeCarriesChildStatus(t *testing.T) {
 		t.Fatalf("timer wake error = %v, want deadline exceeded", err)
 	}
 	payload := decodeChildrenPayload(t, result)
-	if payload["wake_reason"] != "timer" || payload["active_children"].(float64) != 1 {
+	active := payload["active"].([]any)
+	if payload["wake_reason"] != "timer" || len(active) != 1 || active[0].(map[string]any)["run_id"] != fixture.kids[0].ID.String() {
 		t.Fatalf("timer payload must report the still-running child: %s", result)
 	}
 }
@@ -154,5 +161,31 @@ func TestChildrenWaiterFallsBackToTheParentStartBeforeAnyWake(t *testing.T) {
 func TestChildrenWaiterRejectsAKeyThatIsNotARunID(t *testing.T) {
 	if _, err := NewChildrenWaiter(&childRunsFixture{}, time.Millisecond).Wait(context.Background(), "bas/goal"); err == nil {
 		t.Fatal("a non-UUID key must be refused")
+	}
+}
+
+func TestChildrenWakeMessageStaysSmall(t *testing.T) {
+	// Codex keeps every wake message through compaction, so an orchestrator
+	// with many past children must not pay for them on every wake.
+	fixture := parkedParentWithChildren(time.Now(), domain.RunStatusComplete, domain.RunStatusComplete, domain.RunStatusComplete, domain.RunStatusRunning)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Millisecond)
+	defer cancel()
+	payload, _ := NewChildrenWaiter(fixture, 5*time.Millisecond).Wait(ctx, fixture.parent.ID.String())
+	handle := &domain.AwaitHandle{Producer: ProducerChildren, Key: fixture.parent.ID.String()}
+
+	msg := formatWakeMessage(fixture.parent.ID, handle, payload, true)
+	if !strings.HasPrefix(msg, "[wake: timer]") || !strings.Contains(msg, fixture.kids[3].ID.String()) {
+		t.Fatalf("timer wake must name the still-active child: %s", msg)
+	}
+	for _, reported := range fixture.kids[:3] {
+		if strings.Contains(msg, reported.ID.String()) {
+			t.Fatalf("timer wake repeats a child reported earlier: %s", msg)
+		}
+	}
+	if len(msg) > 300 {
+		t.Fatalf("timer wake is %d bytes; keep it under 300: %s", len(msg), msg)
+	}
+	if got := formatWakeMessage(fixture.parent.ID, handle, "operator note", false); got != "[wake] operator note" {
+		t.Fatalf("explicit wake = %q", got)
 	}
 }

@@ -68,14 +68,13 @@ type FileWriter struct {
 // ExecutionResultData accumulates execution results to be written to disk.
 // This is the file format stored at ExecutionIndex.ResultPath.
 type ExecutionResultData struct {
-	ExecutionID   string              `json:"execution_id"`
-	WorkflowID    string              `json:"workflow_id"`
-	Steps         []StepResultData    `json:"steps"`
-	Artifacts     []ArtifactData      `json:"artifacts"`
-	Telemetry     []TelemetryData     `json:"telemetry"`
-	TimelineFrame []TimelineFrameData `json:"timeline_frames"`
-	Summary       ExecutionSummary    `json:"summary"`
-	mu            sync.Mutex          `json:"-"`
+	ExecutionID string           `json:"execution_id"`
+	WorkflowID  string           `json:"workflow_id"`
+	Steps       []StepResultData `json:"steps"`
+	Artifacts   []ArtifactData   `json:"artifacts"`
+	Telemetry   []TelemetryData  `json:"telemetry"`
+	Summary     ExecutionSummary `json:"summary"`
+	mu          sync.Mutex       `json:"-"`
 }
 
 type executionTimelineData struct {
@@ -123,21 +122,6 @@ type TelemetryData struct {
 	Timestamp time.Time               `json:"timestamp"`
 }
 
-// TimelineFrameData captures timeline frame data for replay.
-type TimelineFrameData struct {
-	StepIndex             int            `json:"step_index"`
-	NodeID                string         `json:"node_id"`
-	StepType              string         `json:"step_type"`
-	ScreenshotURL         string         `json:"screenshot_url,omitempty"`
-	ScreenshotPath        string         `json:"screenshot_path,omitempty"`
-	ScreenshotArtifactID  string         `json:"screenshot_artifact_id,omitempty"`
-	DOMSnapshotArtifactID string         `json:"dom_snapshot_artifact_id,omitempty"`
-	Success               bool           `json:"success"`
-	Attempt               int            `json:"attempt"`
-	DurationMs            int            `json:"duration_ms"`
-	Payload               map[string]any `json:"payload,omitempty"`
-}
-
 // ExecutionSummary provides aggregate statistics.
 type ExecutionSummary struct {
 	TotalSteps      int       `json:"total_steps"`
@@ -174,12 +158,11 @@ func (r *FileWriter) getOrCreateResult(plan contracts.ExecutionPlan) *ExecutionR
 	}
 
 	result := &ExecutionResultData{
-		ExecutionID:   plan.ExecutionID.String(),
-		WorkflowID:    plan.WorkflowID.String(),
-		Steps:         make([]StepResultData, 0),
-		Artifacts:     make([]ArtifactData, 0),
-		Telemetry:     make([]TelemetryData, 0),
-		TimelineFrame: make([]TimelineFrameData, 0),
+		ExecutionID: plan.ExecutionID.String(),
+		WorkflowID:  plan.WorkflowID.String(),
+		Steps:       make([]StepResultData, 0),
+		Artifacts:   make([]ArtifactData, 0),
+		Telemetry:   make([]TelemetryData, 0),
 		Summary: ExecutionSummary{
 			LastUpdated: time.Now().UTC(),
 		},
@@ -575,26 +558,6 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 		}
 	}
 
-	// Build timeline frame
-	timelinePayload := buildTimelinePayload(outcome, timelineScreenshotURL, timelineScreenshotID, artifactIDs)
-	timelineFrame := TimelineFrameData{
-		StepIndex:      outcome.StepIndex,
-		NodeID:         outcome.NodeID,
-		StepType:       outcome.StepType,
-		ScreenshotURL:  timelineScreenshotURL,
-		ScreenshotPath: timelineScreenshotPath,
-		Success:        outcome.Success,
-		Attempt:        outcome.Attempt,
-		DurationMs:     outcome.DurationMs,
-		Payload:        timelinePayload,
-	}
-	if timelineScreenshotID != nil {
-		timelineFrame.ScreenshotArtifactID = timelineScreenshotID.String()
-	}
-	result.mu.Lock()
-	result.TimelineFrame = append(result.TimelineFrame, timelineFrame)
-	result.mu.Unlock()
-
 	if err := r.appendProtoTimelineEntry(ctx, plan, outcome, artifacts, timelineScreenshotID, timelineScreenshotURL, timelineScreenshotThumbURL, timelineScreenshotPath, timelineScreenshotSizeBytes, domSnapshotArtifact, consoleArtifact, networkArtifact, timeline); err != nil {
 		return RecordResult{}, fmt.Errorf("write proto timeline: %w", err)
 	}
@@ -751,7 +714,7 @@ func (r *FileWriter) appendProtoTimelineEntry(
 		entry.Telemetry.ZoomFactor = &zoom
 	}
 	if entry.Aggregates == nil {
-		entry.Aggregates = &bastimeline.TimelineEntryAggregates{}
+		entry.Aggregates = &bastimeline.TimelineEntryAggregates{FocusedElement: outcome.FocusedElement}
 	}
 	if outcome.Success {
 		entry.Aggregates.Status = basbase.StepStatus_STEP_STATUS_COMPLETED
@@ -880,8 +843,10 @@ func stepOutcomeToTimelineEntry(outcome contracts.StepOutcome, executionID uuid.
 	stepIndex := int32(outcome.StepIndex)
 	success := outcome.Success
 	ctx := &basbase.EventContext{
-		Success:   &success,
-		Condition: contracts.ConditionOutcomeToProto(outcome.Condition),
+		Origin:      &basbase.EventContext_ExecutionId{ExecutionId: executionID.String()},
+		Success:     &success,
+		Condition:   contracts.ConditionOutcomeToProto(outcome.Condition),
+		RetryStatus: &basbase.RetryStatus{CurrentAttempt: int32(outcome.Attempt), MaxAttempts: 1, Configured: outcome.Attempt > 0},
 	}
 	if outcome.Failure != nil && strings.TrimSpace(outcome.Failure.Message) != "" {
 		msg := outcome.Failure.Message
@@ -918,6 +883,15 @@ func stepOutcomeToTimelineEntry(outcome contracts.StepOutcome, executionID uuid.
 		}
 		ctx.Assertion = assertionResult
 	}
+	if len(outcome.ExtractedData) > 0 {
+		ctx.ExtractedData = make(map[string]*commonv1.JsonValue, len(outcome.ExtractedData))
+		for key, value := range outcome.ExtractedData {
+			ctx.ExtractedData[key], err = contracts.EncodeJsonValue(value)
+			if err != nil {
+				return nil, fmt.Errorf("project context extracted data %q: %w", key, err)
+			}
+		}
+	}
 
 	entry := &bastimeline.TimelineEntry{
 		Id:          entryID,
@@ -927,6 +901,15 @@ func stepOutcomeToTimelineEntry(outcome contracts.StepOutcome, executionID uuid.
 			Type: enums.StringToActionType(outcome.StepType),
 		},
 		Context: ctx,
+	}
+	if outcome.SelectorConfidence > 0 || outcome.ElementSnapshot != nil {
+		entry.Action.Metadata = &basactions.ActionMetadata{ElementSnapshot: outcome.ElementSnapshot}
+		if outcome.SelectorConfidence > 0 {
+			entry.Action.Metadata.Confidence = &outcome.SelectorConfidence
+		}
+		if !outcome.StartedAt.IsZero() {
+			entry.Action.Metadata.CapturedAt = timestamppb.New(outcome.StartedAt)
+		}
 	}
 
 	if strings.TrimSpace(outcome.NodeID) != "" {
@@ -1352,81 +1335,6 @@ func appendHash(location, hash string) string {
 		return "hash:" + hash
 	}
 	return location + " hash:" + hash
-}
-
-func toStringIDs(ids []uuid.UUID) []string {
-	out := make([]string, 0, len(ids))
-	for _, id := range ids {
-		out = append(out, id.String())
-	}
-	return out
-}
-
-func buildTimelinePayload(outcome contracts.StepOutcome, screenshotURL string, screenshotID *uuid.UUID, artifactIDs []uuid.UUID) map[string]any {
-	payload := map[string]any{
-		"stepIndex":     outcome.StepIndex,
-		"nodeId":        outcome.NodeID,
-		"stepType":      outcome.StepType,
-		"screenshotUrl": screenshotURL,
-		"success":       outcome.Success,
-		"attempt":       outcome.Attempt,
-		"durationMs":    outcome.DurationMs,
-	}
-	if len(outcome.CursorTrail) > 0 {
-		payload["cursorTrail"] = outcome.CursorTrail
-	}
-	if outcome.Failure != nil || !outcome.Success {
-		payload["partial"] = true
-	}
-	if outcome.StartedAt.Unix() > 0 {
-		payload["startedAt"] = outcome.StartedAt
-	}
-	if outcome.CompletedAt != nil {
-		payload["completedAt"] = *outcome.CompletedAt
-	}
-	if outcome.FinalURL != "" {
-		payload["finalUrl"] = outcome.FinalURL
-	}
-	if outcome.ElementBoundingBox != nil {
-		payload["elementBoundingBox"] = outcome.ElementBoundingBox
-	}
-	if outcome.ClickPosition != nil {
-		payload["clickPosition"] = outcome.ClickPosition
-	}
-	if outcome.FocusedElement != nil {
-		payload["focusedElement"] = outcome.FocusedElement
-	}
-	if len(outcome.HighlightRegions) > 0 {
-		payload["highlightRegions"] = outcome.HighlightRegions
-	}
-	if len(outcome.MaskRegions) > 0 {
-		payload["maskRegions"] = outcome.MaskRegions
-	}
-	if outcome.ZoomFactor != 0 {
-		payload["zoomFactor"] = outcome.ZoomFactor
-	}
-	if outcome.ExtractedData != nil {
-		payload["extractedDataPreview"] = outcome.ExtractedData
-	}
-	if outcome.Assertion != nil {
-		payload["assertion"] = outcome.Assertion
-	}
-	if len(outcome.ConsoleLogs) > 0 {
-		payload["consoleLogCount"] = len(outcome.ConsoleLogs)
-	}
-	if len(outcome.Network) > 0 {
-		payload["networkEventCount"] = len(outcome.Network)
-	}
-	if outcome.Failure != nil && strings.TrimSpace(outcome.Failure.Message) != "" {
-		payload["error"] = strings.TrimSpace(outcome.Failure.Message)
-	}
-	if screenshotID != nil {
-		payload["screenshotArtifactId"] = screenshotID.String()
-	}
-	if len(artifactIDs) > 0 {
-		payload["artifactIds"] = toStringIDs(artifactIDs)
-	}
-	return payload
 }
 
 // Compile-time interface enforcement

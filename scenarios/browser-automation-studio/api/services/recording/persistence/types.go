@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/domain"
+	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 )
 
 // TimelineEntryType identifies the type of entry in the unified timeline.
@@ -39,8 +40,12 @@ type UnifiedTimelineEntry struct {
 	// Sequence is the ordering number within the session.
 	Sequence int `json:"sequence"`
 
-	// Action contains action details (set when Type == TimelineEntryTypeAction).
+	// Action is populated only when reading pre-proto journal rows. New action
+	// writes must use Entry so TimelineEntry remains the sole current contract.
 	Action *domain.RecordingAction `json:"action,omitempty"`
+
+	// Entry is the canonical proto action payload for current journal rows.
+	Entry *bastimeline.TimelineEntry `json:"entry,omitempty"`
 
 	// PageEvent contains page event details (set when Type == TimelineEntryTypePageEvent).
 	PageEvent *domain.PageEvent `json:"pageEvent,omitempty"`

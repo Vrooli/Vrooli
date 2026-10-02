@@ -9,9 +9,9 @@ metadata:
   tags: [orchestration, multi-agent, effort, epochs, continuity, recovery]
   icon: network
   status: active
-  revision: 21
+  revision: 23
   createdAt: "2026-09-10T00:00:00Z"
-  updatedAt: "2026-09-30T12:00:00Z"
+  updatedAt: "2026-10-01T15:00:00Z"
   requires:
     scenarios: [prompt-manager, agent-manager]
     commands: [prompt-manager skill read, agent-manager]
@@ -56,26 +56,52 @@ goal home, with backoff and a cap, when it has ended.
    and new `FEEDBACK.md` entries. Your run ID is `.claims.run_id` in
    `agent-manager run identity --json`.
 2. **Admit.** If no epoch is active, take the next `QUEUE.md` slice, write its brief
-   (§4.2) and set its gates.
+   (§4.2) and set its gates. If the queue cannot reach the destination, plan
+   first (§2.1).
 3. **Spawn.** If the active epoch has no live worker:
    `agent-manager task create --title "<goal> E<n>" --scope-path <scenario path>`, then
    `agent-manager run create --task-id <task> --profile-id <worker profile> --parent-run-id <your run ID> --until "<epoch outcome and exit gate>" --model <luna> --effort medium --workload-key <goal>/E<n>`.
    The prompt names the epoch file, your run ID and the worker card. The worker
    profile runs on the interactive substrate, whose native `/goal` loop keeps it
    going across turns. Record the run ID in the brief's `Workers` field.
-4. **Park.** `agent-manager run park <your run ID> --producer children --key <your run ID> --timeout 15m`.
-   You wake when a child run ends, the timer expires, or something calls
-   `agent-manager run wake --key <your run ID>` (the worker's epoch-check friction
-   wake). Never claim to be parked from prompt text.
+4. **Park.** `agent-manager run park <your run ID> --producer children --key <your run ID> --timeout 1h`.
+   You wake when a child run ends, something calls
+   `agent-manager run wake --key <your run ID>` (the worker's epoch-check step-back
+   wake, new feedback), or the timer expires. The timer is only a backstop for a
+   worker that hangs without ending. After 20 parked minutes Agent Manager
+   compacts your session, so a later wake starts from a summary: re-read the goal
+   home rather than relying on memory, and keep check-ins short, because each
+   wake costs a re-orientation. Never claim to be parked from prompt text.
 5. **On wake.** Read new slice-log lines and run
    `agent-manager effort epoch-check <epoch file> --runs <worker run IDs>`. Stop an
    idle worker that has handed off but still shows as running
    (`agent-manager run stop <id>`). Then do exactly one of: park again, write a
    directive, direct a step-back, spawn a successor, or accept (§4.4).
-6. After acceptance, move the slice to done in `QUEUE.md` and go to step 2.
+6. After acceptance, move the slice to done in `QUEUE.md`, update the Forecast
+   (§2.1) and go to step 2.
+
+#### 2.1 Forecast and planning
+
+The queue serves the destination in `GOAL.md`; an empty queue is not a finished
+goal. Keep one `## Forecast` section at the top of `QUEUE.md`, rewritten at every
+acceptance:
+- the destination metric now, its target and the gap;
+- per accepted epoch of the last five: actual result against the brief's estimate;
+- the sum of the queued slices' estimates, scaled by the recent actual/estimate
+  ratio, against the gap.
+
+Plan new slices when the scaled queue cannot close the gap or fewer than two
+admissible slices remain. Measure the modules against the budgets in `GOAL.md` or
+`QUEUE.md`, start with the largest gaps, and prefer slices that delete whole
+features, files or duplicate surfaces over slices that only move ownership. Give
+every new slice a deletion list and an estimate from measurement, not from hope.
+
+Three accepted epochs in a row below half their estimate is a planning finding:
+record it in the Forecast with your explanation, re-estimate the queued slices,
+and wake the supervisor. So is a destination the queue can no longer reach.
 
 **Waking the supervisor.** After recording a step-back, a workaround logged a
-second time, or a spend spike in the goal home, run
+second time, a spend spike or a planning finding (§2.1) in the goal home, run
 `prompt-manager team heartbeat-trigger effort-supervision effort-supervisor`
 (delivery members may wake a supervision member; at most one event wake per
 schedule window). The supervisor reads the goal home, so record the event first.
@@ -96,7 +122,8 @@ text into a running session; the Directives section stays the record.
 
 **Operator and supervisor feedback.** Record it verbatim in `FEEDBACK.md` (open
 items at the top), then translate it into directives or brief amendments. Workers
-see only those. This is the only feedback path.
+see only those. This is the only feedback path. Whoever adds an entry while the
+orchestrator is parked wakes it: `agent-manager run wake --key <orchestrator run ID>`.
 
 ### 3. Goal home
 
@@ -230,6 +257,8 @@ profile), and enabling the team.
 For a lost run, runner exhaustion or an uncertain dispatch, read the recovery
 reference. A terminal orchestrator run is not goal completion.
 
-Close when `QUEUE.md` has no remaining slice for the destination: stop external
+Close only when the destination in `GOAL.md` is met, or every remaining gap is
+parked on an operator decision with the Forecast saying so; an empty queue with an
+open gap means plan (§2.1), not close. On close: stop external
 processes, clean up installs, list open workarounds and unverified targets, disable
 the team, and record a work record through the Memory contract.

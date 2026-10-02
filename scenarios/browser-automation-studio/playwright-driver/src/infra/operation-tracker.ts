@@ -19,7 +19,7 @@
  */
 
 import { logger, scopedLog, LogContext } from '../utils';
-import { registerSessionCleanup } from './session-cleanup-registry';
+import { registerSessionCleanup } from '../session/cleanup-registry';
 
 // =============================================================================
 // Types

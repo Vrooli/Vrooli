@@ -44,6 +44,25 @@ const HOME = html(`<h1>BAS journey fixture</h1>
       new InputEvent('input', {bubbles:true, data:'東京', inputType:'insertFromComposition', isComposing:false})]));
   </script>`);
 
+// Fixture-owned fingerprint observation contract:
+// - webdriver: navigator.webdriver as a boolean
+// - language/languages: the active browser's navigator language values
+// - timezone: Intl resolved timezone identifier
+// - hardwareConcurrency: positive integer exposed by navigator
+// These values come from the active browser, not an external fingerprint service
+// or browser/version allowlist. The journey validates observable types and shape.
+const FINGERPRINT = html(`<h1>Local browser observations</h1><output id="fingerprint" aria-label="Browser observations"></output><script>
+  const observations = {
+    webdriver: navigator.webdriver,
+    language: navigator.language,
+    languages: [...navigator.languages],
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    hardwareConcurrency: navigator.hardwareConcurrency,
+  };
+  document.querySelector('#fingerprint').textContent = JSON.stringify(observations);
+  void fetch('/fingerprint-observation', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(observations)});
+</script>`);
+
 /**
  * Start the BAS journey fixture on an ephemeral loopback port. It owns the
  * independent oracle for journey effects: every effect, held-request release
@@ -54,10 +73,11 @@ export async function startJourneySite() {
   const released = [];
   const inputs = [];
   const scrolls = [];
+  const fingerprints = [];
   let retryAttempts = 0;
-  const counts = { effect: () => effects.length, release: () => released.length, input: () => inputs.length, scroll: () => scrolls.length };
+  const counts = { effect: () => effects.length, release: () => released.length, input: () => inputs.length, scroll: () => scrolls.length, fingerprint: () => fingerprints.length };
   const waiters = new Set();
-  const snapshot = () => ({ effects, released, inputs, scrolls, retryAttempts });
+  const snapshot = () => ({ effects, released, inputs, scrolls, fingerprints, retryAttempts });
   const notify = () => { for (const wake of waiters) wake(); };
   const record = (entry) => { effects.push({ sequence: effects.length + 1, ...entry }); notify(); return effects.length; };
   const json = (response, status, body) => response.writeHead(status, { 'Content-Type': 'application/json' }).end(JSON.stringify(body));
@@ -84,6 +104,14 @@ export async function startJourneySite() {
         scrolls.push(JSON.parse(await readBody(request)));
         notify();
         response.writeHead(204).end();
+        return;
+      case 'POST /fingerprint-observation':
+        fingerprints.push(JSON.parse(await readBody(request)));
+        notify();
+        response.writeHead(204).end();
+        return;
+      case 'GET /fingerprint-state':
+        json(response, 200, fingerprints);
         return;
       case 'GET /journey-state':
         json(response, 200, snapshot());
@@ -125,6 +153,9 @@ export async function startJourneySite() {
         return;
       case 'GET /service-worker':
         response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }).end(SW_PAGE);
+        return;
+      case 'GET /fingerprint':
+        response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }).end(FINGERPRINT);
         return;
       case 'GET /redirect':
         response.writeHead(302, { Location: '/redirect-target' }).end();

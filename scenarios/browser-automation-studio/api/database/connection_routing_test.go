@@ -13,6 +13,9 @@ import (
 	basdb "github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/domain"
 	"github.com/vrooli/browser-automation-studio/services/recording/persistence"
+	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
+	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestNewConnectionRoutesRecordingWritesToLeasedTestPool(t *testing.T) {
@@ -63,16 +66,20 @@ func TestNewConnectionRoutesRecordingWritesToLeasedTestPool(t *testing.T) {
 
 	// A journal append must work on the production schema, including a freshly
 	// leased test pool. A private repository-test schema cannot prove this.
+	entryID := uuid.New()
 	entry := &persistence.UnifiedTimelineEntry{
-		ID: uuid.New(), Type: persistence.TimelineEntryTypeAction,
+		ID: entryID, Type: persistence.TimelineEntryTypeAction,
 		Timestamp: time.Now().UTC(), SessionID: "routed-session", PageID: uuid.New(),
-		Sequence: 1, Action: &domain.RecordingAction{ID: uuid.New(), ActionType: "input", Payload: map[string]interface{}{"text": "preserved"}},
+		Sequence: 1, Entry: &bastimeline.TimelineEntry{
+			Id: entryID.String(), Timestamp: timestamppb.Now(),
+			Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_CLICK},
+		},
 	}
 	if _, err := repo.AppendTimelineEntry(ctx, entry); err != nil {
 		t.Fatalf("append routed journal entry using production schema: %v", err)
 	}
 	restored, err := repo.GetTimelineEntry(ctx, entry.ID)
-	if err != nil || restored == nil || restored.Action == nil || restored.Action.Payload["text"] != "preserved" {
+	if err != nil || restored == nil || restored.Entry == nil || restored.Entry.GetAction().GetType() != basactions.ActionType_ACTION_TYPE_CLICK {
 		t.Fatalf("read routed journal entry: entry=%+v err=%v", restored, err)
 	}
 	if err := db.RawDB().QueryRowContext(context.Background(), "SELECT COUNT(*) FROM timeline_entries").Scan(&primaryCount); err != nil {
@@ -86,7 +93,7 @@ func TestNewConnectionRoutesRecordingWritesToLeasedTestPool(t *testing.T) {
 		t.Fatalf("repeat leased schema bootstrap: %v", err)
 	}
 	restored, err = repo.GetTimelineEntry(ctx, entry.ID)
-	if err != nil || restored == nil || restored.Action.Payload["text"] != "preserved" {
+	if err != nil || restored == nil || restored.Entry == nil || restored.Entry.GetAction().GetType() != basactions.ActionType_ACTION_TYPE_CLICK {
 		t.Fatalf("journal changed across schema bootstrap: entry=%+v err=%v", restored, err)
 	}
 
@@ -140,5 +147,4 @@ func TestNewConnectionRoutesRecordingWritesToLeasedTestPool(t *testing.T) {
 	if err != nil || total != 0 || len(rows) != 0 {
 		t.Fatalf("execution query escaped test pool: rows=%v total=%d err=%v", rows, total, err)
 	}
-
 }

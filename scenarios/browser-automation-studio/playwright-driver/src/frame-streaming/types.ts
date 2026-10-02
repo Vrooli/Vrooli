@@ -35,8 +35,10 @@ export interface FrameWebSocket {
  * Options for starting frame streaming.
  */
 export interface FrameStreamOptions {
-  /** Callback URL to derive WebSocket URL from */
-  callbackUrl: string;
+  /** Shared source-bearing driver-frame WebSocket ingress URL. */
+  streamUrl: string;
+  /** Identifies which API ownership fence admits this producer. */
+  streamKind: 'recording' | 'execution';
   /** Frame quality 1-100 (default: 65) */
   quality?: number;
   /** Target FPS 1-60 (default: 30) */

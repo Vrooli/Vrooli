@@ -1,3 +1,4 @@
+import { interactiveProfileDefault } from '../../../src/routes/session-start';
 import { handleSessionStart } from '../../../src/routes/session-start';
 import * as frameStreaming from '../../../src/frame-streaming';
 import { SessionManager } from '../../../src/session/manager';
@@ -47,10 +48,13 @@ describe('Session Start Route', () => {
     const body = {
       execution_id: 'exec-123',
       workflow_id: 'workflow-123',
-      base_url: 'https://example.com',
-      viewport: { width: 1280, height: 720 },
-      reuse_mode: 'fresh',
-      required_capabilities: {},
+      session_options: {
+        base_url: 'https://example.com',
+        viewport: { width: 1280, height: 720 },
+        reuse_mode: 'fresh',
+        frame_scale: 'css',
+        required_capabilities: {},
+      },
     };
 
     const mockReq = createMockHttpRequest({ method: 'POST', url: '/session/start', body });
@@ -64,7 +68,7 @@ describe('Session Start Route', () => {
     expect(typeof json.session_id).toBe('string');
     expect(typeof json.lease_id).toBe('string');
     const created = sessionManager.peekSession(json.session_id);
-    expect(json.active_page_id).toBe(created.pageToIdMap.get(created.page));
+    expect(json.active_page_id).toBe(created.pageBindings.getId(created.page));
     expect(typeof json.active_page_id).toBe('string');
     expect(json.last_instruction_sequence).toBe(0);
     // New response fields from signal improvements
@@ -75,7 +79,7 @@ describe('Session Start Route', () => {
   });
 
   it('returns the current operation highwater on a repeated start', async () => {
-    const body = { execution_id: 'same-owner', workflow_id: 'workflow', reuse_mode: 'fresh', viewport: { width: 1280, height: 720 } };
+    const body = { execution_id: 'same-owner', workflow_id: 'workflow', session_options: { reuse_mode: 'fresh', viewport: { width: 1280, height: 720 }, frame_scale: 'css' as const } };
     const first = createMockHttpResponse();
     await handleSessionStart(createMockHttpRequest({ body }), first, sessionManager, config);
     const session = sessionManager.peekSession(first.getJSON().session_id);
@@ -110,8 +114,10 @@ describe('Session Start Route', () => {
       async (scale) => {
         const body = {
           execution_id: `scale-${scale}`, workflow_id: 'preview',
-          viewport: { width: 640, height: 480 }, reuse_mode: 'fresh',
-          frame_streaming: { callback_url: 'http://127.0.0.1:65534/frames', scale },
+          session_options: {
+            viewport: { width: 640, height: 480 }, reuse_mode: 'fresh', frame_scale: scale ?? 'css',
+            frame_streaming: { url: 'http://127.0.0.1:65534/frames' },
+          },
         };
         const response = createMockHttpResponse();
         await handleSessionStart(createMockHttpRequest({ body }), response, sessionManager, config);
@@ -126,16 +132,18 @@ describe('Session Start Route', () => {
 
     it('keeps scale on an admission retry and replaces it for a new lease [REQ:BAS-RH-J23]', async () => {
       const body = {
-        execution_id: 'scale-owner', workflow_id: 'preview', labels: { pool: 'scale' },
-        viewport: { width: 640, height: 480 }, reuse_mode: 'reuse',
-        frame_streaming: { callback_url: 'http://127.0.0.1:65534/frames', scale: 'device' },
+        execution_id: 'scale-owner', workflow_id: 'preview',
+        session_options: {
+          labels: { pool: 'scale' }, viewport: { width: 640, height: 480 }, reuse_mode: 'reuse', frame_scale: 'device',
+          frame_streaming: { url: 'http://127.0.0.1:65534/frames' },
+        },
       };
       const first = createMockHttpResponse();
       await handleSessionStart(createMockHttpRequest({ body }), first, sessionManager, config);
       expect(first.statusCode).toBe(200);
       completeReadiness(true);
       await new Promise(resolve => setImmediate(resolve));
-      const changed = { ...body, frame_streaming: { ...body.frame_streaming, scale: 'css' } };
+      const changed = { ...body, session_options: { ...body.session_options, frame_scale: 'css' as const } };
       const retry = createMockHttpResponse();
       await handleSessionStart(createMockHttpRequest({ body: changed }), retry, sessionManager, config);
       await new Promise(resolve => setImmediate(resolve));
@@ -157,9 +165,10 @@ describe('Session Start Route', () => {
       'starts a deferred preview only for ready current ownership: %s', async (state) => {
         const body = {
           execution_id: 'preview-owner', workflow_id: 'preview',
-          viewport: { width: 640, height: 480 }, reuse_mode: 'fresh',
-          labels: { pool: 'preview' },
-          frame_streaming: { callback_url: 'http://127.0.0.1:65534/frames' },
+          session_options: {
+            viewport: { width: 640, height: 480 }, reuse_mode: 'fresh', frame_scale: 'css' as const,
+            labels: { pool: 'preview' }, frame_streaming: { url: 'http://127.0.0.1:65534/frames' },
+          },
         };
         const response = createMockHttpResponse();
         await handleSessionStart(createMockHttpRequest({ body }), response, sessionManager, config);
@@ -172,7 +181,7 @@ describe('Session Start Route', () => {
           expect(sessionManager.releaseExecutionLease(id, body.execution_id, lease)).toBe(true);
         }
         if (state === 'reassigned') {
-          const reused = await sessionManager.startSession({ ...body, execution_id: 'replacement', reuse_mode: 'reuse' });
+          const reused = await sessionManager.startSession({ ...body.session_options, execution_id: 'replacement', workflow_id: body.workflow_id, reuse_mode: 'reuse' });
           expect(reused.sessionId).toBe(id);
           expect(reused.leaseId).not.toBe(lease);
         }
@@ -218,10 +227,13 @@ describe('Session Start Route', () => {
     const body = {
       execution_id: 'exec-2',
       workflow_id: 'workflow-2',
-      base_url: 'https://example.com',
-      viewport: { width: 1280, height: 720 },
-      reuse_mode: 'fresh',
-      required_capabilities: {},
+      session_options: {
+        base_url: 'https://example.com',
+        viewport: { width: 1280, height: 720 },
+        reuse_mode: 'fresh',
+        frame_scale: 'css',
+        required_capabilities: {},
+      },
     };
 
     const mockReq = createMockHttpRequest({ method: 'POST', url: '/session/start', body });
@@ -232,5 +244,18 @@ describe('Session Start Route', () => {
     expect(mockRes.statusCode).toBe(429);
 
     await limitedManager.shutdown();
+  });
+});
+
+describe('interactive session profile defaults', () => {
+  it('adds stealth only to interactive recording sessions with no explicit profile', () => {
+    expect(interactiveProfileDefault({ mode: 'recording' })).toEqual({ preset: 'stealth' });
+    expect(interactiveProfileDefault({ mode: 'execution' })).toBeUndefined();
+    expect(interactiveProfileDefault({ mode: 'hybrid' })).toBeUndefined();
+  });
+
+  it('preserves an explicit profile, including an explicit non-stealth preset', () => {
+    const explicit = { preset: 'none' as const, fingerprint: { locale: 'fr-FR' } };
+    expect(interactiveProfileDefault({ mode: 'recording' }, explicit)).toBe(explicit);
   });
 });

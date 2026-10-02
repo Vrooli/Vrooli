@@ -323,7 +323,7 @@ describe('managed BAS live motion qualification', () => {
     });
 
     const openSession = async (): Promise<string> => {
-      const created = await fetch(`${apiBase}/recordings/live/session`, {
+      const created = await fetch(`${apiBase}/api/v1/recordings/live/session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -338,7 +338,7 @@ describe('managed BAS live motion qualification', () => {
         throw new Error(`Session creation failed (${created.status}): ${await created.text()}`);
       const value = (await created.json()) as { session_id?: string };
       if (!value.session_id) throw new Error('Session creation omitted session_id');
-      const started = await fetch(`${apiBase}/recordings/live/start`, {
+      const started = await fetch(`${apiBase}/api/v1/recordings/live/start`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ session_id: value.session_id, frame_fps: 30 }),
@@ -363,10 +363,10 @@ describe('managed BAS live motion qualification', () => {
       return value.session_id;
     };
     const closeSession = async (sessionId: string): Promise<void> => {
-      await fetch(`${apiBase}/recordings/live/${sessionId}/stop`, { method: 'POST' }).catch(
+      await fetch(`${apiBase}/api/v1/recordings/live/${sessionId}/stop`, { method: 'POST' }).catch(
         () => undefined
       );
-      const closed = await fetch(`${apiBase}/recordings/live/session/${sessionId}/close`, {
+      const closed = await fetch(`${apiBase}/api/v1/recordings/live/session/${sessionId}/close`, {
         method: 'POST',
       });
       if (!closed.ok) throw new Error(`Session ${sessionId} cleanup failed (${closed.status})`);
@@ -437,7 +437,7 @@ describe('managed BAS live motion qualification', () => {
       const rateSmokeFps = Number(process.env.BAS_MOTION_RATE_SMOKE_FPS || 0);
       if (rateSmokeMs > 0 && rateSmokeFps > 0) {
         const streamResponse = await fetch(
-          `${apiBase}/recordings/live/${sessionId}/stream-settings`,
+          `${apiBase}/api/v1/recordings/live/${sessionId}/stream-settings`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -491,7 +491,7 @@ describe('managed BAS live motion qualification', () => {
         );
         expect(fixturePaintUpdates / (fixtureDurationMs / 1000)).toBeGreaterThanOrEqual(29);
         const streamResponse = await fetch(
-          `${apiBase}/recordings/live/${sessionId}/stream-settings`,
+          `${apiBase}/api/v1/recordings/live/${sessionId}/stream-settings`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

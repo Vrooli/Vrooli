@@ -26,6 +26,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/storage"
+	basdomain "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/domain"
 	basevidence "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/evidence"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -766,6 +767,7 @@ func TestStructuredOutcomeSurvivesDiskProjection(t *testing.T) {
 			outcome := contracts.StepOutcome{
 				SchemaVersion: contracts.StepOutcomeSchemaVersion, PayloadVersion: contracts.PayloadVersion,
 				ExecutionID: plan.ExecutionID, CorrelationID: "attempt-3", StepIndex: 7, Attempt: 3, NodeID: "typed-evidence", StepType: "assert",
+				SelectorConfidence: 0.82, ElementSnapshot: &basdomain.ElementMeta{TagName: "button"},
 				StartedAt: now, CompletedAt: &now, Failure: &contracts.StepFailure{Kind: contracts.FailureKindUser, Code: "EXPECTED_FAILURE", Message: "fixture failed", Details: map[string]any{"value": tc.value}},
 				Assertion:     &contracts.AssertionOutcome{Mode: "equals", Expected: tc.value, Actual: tc.value},
 				ExtractedData: map[string]any{"value": tc.value}, Notes: map[string]string{"capture": "retained"},
@@ -781,7 +783,13 @@ func TestStructuredOutcomeSurvivesDiskProjection(t *testing.T) {
 			require.Len(t, timeline.Entries, 1)
 			entry := timeline.Entries[0]
 			require.False(t, entry.Context.GetSuccess())
+			require.Equal(t, now, entry.GetTimestamp().AsTime())
+			require.Equal(t, plan.ExecutionID.String(), entry.Context.GetExecutionId())
+			require.Equal(t, int32(3), entry.Context.GetRetryStatus().GetCurrentAttempt())
 			require.Equal(t, "EXPECTED_FAILURE", entry.Context.GetErrorCode())
+			require.Equal(t, 0.82, entry.GetAction().GetMetadata().GetConfidence())
+			require.Equal(t, "button", entry.GetAction().GetMetadata().GetElementSnapshot().GetTagName())
+			require.Contains(t, entry.Context.GetExtractedData(), "value")
 			var saved any
 			for _, artifact := range entry.GetAggregates().GetArtifacts() {
 				if value, ok := artifact.Payload["outcome"]; ok {

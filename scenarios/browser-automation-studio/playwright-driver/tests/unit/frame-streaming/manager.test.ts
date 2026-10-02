@@ -5,6 +5,7 @@ import {
   getFrameStreamSettings,
   updateFrameStreamViewport,
 } from '../../../src/frame-streaming/manager';
+import { DriverPageBindings } from '../../../src/session/page-bindings';
 import type { Page } from 'rebrowser-playwright';
 import type {
   FrameStreamOptions,
@@ -64,7 +65,6 @@ const mockWsManager: jest.Mocked<WebSocketManagerMethods> = {
   getWebSocket: jest.fn().mockReturnValue({}),
 };
 const mockCreateWsManager = jest.fn((): WebSocketManagerMethods => mockWsManager);
-const mockBuildWsUrl = jest.fn((_callbackUrl: string, _sessionId: string): string => 'ws://example.com/stream');
 
 jest.mock('../../../src/config', () => ({
   loadConfig: (): TestConfig => mockLoadConfig(),
@@ -84,8 +84,6 @@ jest.mock('../../../src/frame-streaming/strategies', () => ({
 
 jest.mock('../../../src/frame-streaming/websocket', () => ({
   createWebSocketConnectionManager: (): WebSocketManagerMethods => mockCreateWsManager(),
-  buildWebSocketUrl: (callbackUrl: string, sessionId: string): string =>
-    mockBuildWsUrl(callbackUrl, sessionId),
 }));
 
 const flushPromises = async (): Promise<void> => {
@@ -93,13 +91,16 @@ const flushPromises = async (): Promise<void> => {
 };
 
 const fixturePage = { name: 'page', isClosed: (): boolean => false } as unknown as Page;
+const fixtureRegistry = new DriverPageBindings();
+fixtureRegistry.register(fixturePage, 'page-a');
 const sessionProvider: SessionProvider = {
   getSession: (id: string) => ({ id, ownerExecutionId: 'execution-a', leaseId: 'lease-a', leaseReleasedAt: undefined, page: fixturePage,
-    pageToIdMap:new WeakMap([[fixturePage,'page-a']])}),
+    pageBindings: fixtureRegistry}),
 };
 
 const baseOptions: FrameStreamOptions = {
-  callbackUrl: 'http://localhost/callback',
+  streamUrl: 'ws://localhost/ws/frames',
+  streamKind: 'execution',
   quality: 60,
   fps: 30,
   scale: 'css',
@@ -170,10 +171,10 @@ describe('frame streaming manager', () => {
   it('binds each source receipt to the captured lease and actual active page [REQ:BAS-RH-J22]',async()=>{
     const blue = { name: 'blue', isClosed: (): boolean => false } as unknown as Page;
     const owned={...sessionProvider.getSession('session-1')};
-    owned.pageToIdMap.set(blue,'page-b');
+    owned.pageBindings.register(blue,'page-b');
     startFrameStreaming('session-1',{getSession:()=>owned},baseOptions);await flushPromises();
     const options=mockCdpStrategy.start.mock.calls[0][1];
-    expect(options.sourceForPage(fixturePage)).toEqual({session_id:'session-1',execution_id:'execution-a',lease_id:'lease-a',page_id:'page-a'});
+    expect(options.sourceForPage(fixturePage)).toEqual({stream_kind:'execution',session_id:'session-1',execution_id:'execution-a',lease_id:'lease-a',page_id:'page-a'});
     owned.page=blue;
     expect(options.sourceForPage(fixturePage)).toBeNull();
     expect(options.sourceForPage(blue).page_id).toBe('page-b');

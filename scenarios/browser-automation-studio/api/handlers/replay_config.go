@@ -7,8 +7,10 @@ import (
 	"math"
 	"strings"
 
+	exportsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/exports"
+	"google.golang.org/protobuf/types/known/structpb"
+
 	"github.com/vrooli/browser-automation-studio/database"
-	exportservices "github.com/vrooli/browser-automation-studio/services/export"
 )
 
 // Replay config GET/PUT/DELETE are served via Connect-RPC
@@ -96,9 +98,27 @@ func replayConfigToOverrides(config map[string]any) *executionExportOverrides {
 	}
 }
 
-func applyReplayConfigToSpec(spec *exportservices.ReplayMovieSpec, config map[string]any) {
+func applyReplayConfigToSpec(spec *exportsv1.ReplaySpec, config map[string]any) {
 	if spec == nil || config == nil {
 		return
+	}
+	if spec.Decor == nil {
+		spec.Decor = &exportsv1.ReplayDecor{}
+	}
+	if spec.CursorMotion == nil {
+		spec.CursorMotion = &exportsv1.ReplayCursorMotion{}
+	}
+	if spec.Presentation == nil {
+		spec.Presentation = &exportsv1.ReplayPresentation{}
+	}
+	if spec.Presentation.Canvas == nil {
+		spec.Presentation.Canvas = &exportsv1.ReplayDimensions{}
+	}
+	if spec.Presentation.Viewport == nil {
+		spec.Presentation.Viewport = &exportsv1.ReplayDimensions{}
+	}
+	if spec.Presentation.BrowserFrame == nil {
+		spec.Presentation.BrowserFrame = &exportsv1.ReplayFrameRect{}
 	}
 
 	style, extra := unwrapReplayConfig(config)
@@ -118,12 +138,12 @@ func applyReplayConfigToSpec(spec *exportservices.ReplayMovieSpec, config map[st
 	}
 
 	if backgroundSource != nil {
-		spec.Decor.Background = backgroundSource
+		spec.Decor.Background, _ = structpb.NewStruct(backgroundSource)
 	} else if backgroundTheme != "" {
-		spec.Decor.Background = map[string]any{
+		spec.Decor.Background, _ = structpb.NewStruct(map[string]any{
 			"type": "theme",
 			"id":   backgroundTheme,
-		}
+		})
 	}
 
 	if watermark := mapWatermark(merged["watermark"]); watermark != nil {
@@ -137,27 +157,27 @@ func applyReplayConfigToSpec(spec *exportservices.ReplayMovieSpec, config map[st
 	}
 }
 
-func applyBrowserScaleToSpec(spec *exportservices.ReplayMovieSpec, scale float64, chromeTheme string) {
+func applyBrowserScaleToSpec(spec *exportsv1.ReplaySpec, scale float64, chromeTheme string) {
 	if spec == nil || !isFiniteFloat(scale) {
 		return
 	}
-	canvasWidth := spec.Presentation.Canvas.Width
-	canvasHeight := spec.Presentation.Canvas.Height
+	canvasWidth := int(spec.GetPresentation().GetCanvas().GetWidth())
+	canvasHeight := int(spec.GetPresentation().GetCanvas().GetHeight())
 	if canvasWidth <= 0 || canvasHeight <= 0 {
-		canvasWidth = spec.Presentation.Viewport.Width
-		canvasHeight = spec.Presentation.Viewport.Height
+		canvasWidth = int(spec.GetPresentation().GetViewport().GetWidth())
+		canvasHeight = int(spec.GetPresentation().GetViewport().GetHeight())
 	}
 	if canvasWidth <= 0 || canvasHeight <= 0 {
 		return
 	}
 	clamped := clampBrowserScale(scale)
-	radius := spec.Presentation.BrowserFrame.Radius
+	radius := int(spec.GetPresentation().GetBrowserFrame().GetRadius())
 	if radius <= 0 {
 		radius = 24
 	}
 	headerHeight := chromeHeaderHeight(chromeTheme)
-	viewportWidth := spec.Presentation.Viewport.Width
-	viewportHeight := spec.Presentation.Viewport.Height
+	viewportWidth := int(spec.GetPresentation().GetViewport().GetWidth())
+	viewportHeight := int(spec.GetPresentation().GetViewport().GetHeight())
 	if viewportWidth <= 0 || viewportHeight <= 0 {
 		viewportWidth = canvasWidth
 		viewportHeight = canvasHeight
@@ -173,12 +193,12 @@ func applyBrowserScaleToSpec(spec *exportservices.ReplayMovieSpec, scale float64
 	if frameRect.Width <= 0 || frameRect.Height <= 0 {
 		return
 	}
-	spec.Presentation.BrowserFrame = exportservices.ExportFrameRect{
-		X:      int(math.Round(frameRect.X)),
-		Y:      int(math.Round(frameRect.Y)),
-		Width:  int(math.Round(frameRect.Width)),
-		Height: int(math.Round(frameRect.Height)),
-		Radius: radius,
+	spec.Presentation.BrowserFrame = &exportsv1.ReplayFrameRect{
+		X:      int32(math.Round(frameRect.X)),
+		Y:      int32(math.Round(frameRect.Y)),
+		Width:  int32(math.Round(frameRect.Width)),
+		Height: int32(math.Round(frameRect.Height)),
+		Radius: int32(radius),
 	}
 }
 
@@ -344,73 +364,73 @@ func isFiniteFloat(value float64) bool {
 	return !math.IsNaN(value) && !math.IsInf(value, 0)
 }
 
-func mapWatermark(value any) *exportservices.ExportWatermark {
+func mapWatermark(value any) *exportsv1.ReplayWatermark {
 	obj, ok := value.(map[string]any)
 	if !ok || obj == nil {
 		return nil
 	}
-	settings := &exportservices.ExportWatermark{
+	settings := &exportsv1.ReplayWatermark{
 		Enabled:  toBool(obj["enabled"]),
-		AssetID:  firstString(obj, "assetId", "asset_id"),
+		AssetId:  firstString(obj, "assetId", "asset_id"),
 		Position: firstString(obj, "position"),
-		Size:     toInt(obj["size"]),
-		Opacity:  toInt(obj["opacity"]),
-		Margin:   toInt(obj["margin"]),
+		Size:     int32(toInt(obj["size"])),
+		Opacity:  int32(toInt(obj["opacity"])),
+		Margin:   int32(toInt(obj["margin"])),
 	}
-	if !settings.Enabled && settings.AssetID == "" && settings.Position == "" && settings.Size == 0 &&
+	if !settings.Enabled && settings.AssetId == "" && settings.Position == "" && settings.Size == 0 &&
 		settings.Opacity == 0 && settings.Margin == 0 {
 		return nil
 	}
 	return settings
 }
 
-func mapIntroCard(value any) *exportservices.ExportIntroCard {
+func mapIntroCard(value any) *exportsv1.ReplayIntroCard {
 	obj, ok := value.(map[string]any)
 	if !ok || obj == nil {
 		return nil
 	}
-	settings := &exportservices.ExportIntroCard{
+	settings := &exportsv1.ReplayIntroCard{
 		Enabled:           toBool(obj["enabled"]),
 		Title:             firstString(obj, "title"),
 		Subtitle:          firstString(obj, "subtitle"),
-		LogoAssetID:       firstString(obj, "logoAssetId", "logo_asset_id"),
-		BackgroundAssetID: firstString(obj, "backgroundAssetId", "background_asset_id"),
+		LogoAssetId:       firstString(obj, "logoAssetId", "logo_asset_id"),
+		BackgroundAssetId: firstString(obj, "backgroundAssetId", "background_asset_id"),
 		BackgroundColor:   firstString(obj, "backgroundColor", "background_color"),
 		TextColor:         firstString(obj, "textColor", "text_color"),
-		DurationMs:        toInt(obj["duration"]),
+		DurationMs:        int32(toInt(obj["duration"])),
 	}
 	if settings.DurationMs == 0 {
-		settings.DurationMs = toInt(obj["duration_ms"])
+		settings.DurationMs = int32(toInt(obj["duration_ms"]))
 	}
-	if !settings.Enabled && settings.Title == "" && settings.Subtitle == "" && settings.LogoAssetID == "" &&
-		settings.BackgroundAssetID == "" && settings.BackgroundColor == "" && settings.TextColor == "" &&
+	if !settings.Enabled && settings.Title == "" && settings.Subtitle == "" && settings.LogoAssetId == "" &&
+		settings.BackgroundAssetId == "" && settings.BackgroundColor == "" && settings.TextColor == "" &&
 		settings.DurationMs == 0 {
 		return nil
 	}
 	return settings
 }
 
-func mapOutroCard(value any) *exportservices.ExportOutroCard {
+func mapOutroCard(value any) *exportsv1.ReplayOutroCard {
 	obj, ok := value.(map[string]any)
 	if !ok || obj == nil {
 		return nil
 	}
-	settings := &exportservices.ExportOutroCard{
+	settings := &exportsv1.ReplayOutroCard{
 		Enabled:           toBool(obj["enabled"]),
 		Title:             firstString(obj, "title"),
 		CtaText:           firstString(obj, "ctaText", "cta_text"),
-		CtaURL:            firstString(obj, "ctaUrl", "cta_url"),
-		LogoAssetID:       firstString(obj, "logoAssetId", "logo_asset_id"),
-		BackgroundAssetID: firstString(obj, "backgroundAssetId", "background_asset_id"),
+		CtaUrl:            firstString(obj, "ctaUrl", "cta_url"),
+		LogoAssetId:       firstString(obj, "logoAssetId", "logo_asset_id"),
+		BackgroundAssetId: firstString(obj, "backgroundAssetId", "background_asset_id"),
 		BackgroundColor:   firstString(obj, "backgroundColor", "background_color"),
 		TextColor:         firstString(obj, "textColor", "text_color"),
-		DurationMs:        toInt(obj["duration"]),
+		DurationMs:        int32(toInt(obj["duration"])),
 	}
 	if settings.DurationMs == 0 {
-		settings.DurationMs = toInt(obj["duration_ms"])
+		settings.DurationMs = int32(toInt(obj["duration_ms"]))
 	}
-	if !settings.Enabled && settings.Title == "" && settings.CtaText == "" && settings.CtaURL == "" &&
-		settings.LogoAssetID == "" && settings.BackgroundAssetID == "" && settings.BackgroundColor == "" &&
+	if !settings.Enabled && settings.Title == "" && settings.CtaText == "" && settings.CtaUrl == "" &&
+		settings.LogoAssetId == "" && settings.BackgroundAssetId == "" && settings.BackgroundColor == "" &&
 		settings.TextColor == "" && settings.DurationMs == 0 {
 		return nil
 	}

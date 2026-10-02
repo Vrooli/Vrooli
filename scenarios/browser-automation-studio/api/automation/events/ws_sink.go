@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
+	"github.com/vrooli/browser-automation-studio/automation/telemetry"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 	basdomain "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/domain"
@@ -362,7 +363,7 @@ func buildTimelineEntryFromEnvelope(ev contracts.EventEnvelope) *bastimeline.Tim
 	// Use the unified telemetry conversion when we have a StepOutcome
 	var entry *bastimeline.TimelineEntry
 	if outcome != nil {
-		entry = StepOutcomeToTimelineEntry(*outcome, ev.ExecutionID)
+		entry = telemetry.BuildExecutionTimelineEntry(*outcome, ev.ExecutionID)
 	}
 
 	// Fallback: create minimal entry if no outcome or conversion failed

@@ -23,7 +23,6 @@ import { loadHistory, type HistoryEntry } from '../capture/browserUrlHistory';
 import { useLinkPreviewsBatch, type LinkPreviewData } from '../hooks/useLinkPreview';
 import type { RecordedAction } from '../types/types';
 import { PlaywrightView, type FrameStats, type PageMetadata, type StreamConnectionStatus } from '../capture/PlaywrightView';
-import { useStreamSettings } from '../capture/streamSettingsState';
 import { useViewportOptional } from '../context';
 import { onProfilerRender } from '@/lib/profiler';
 
@@ -70,9 +69,6 @@ export const RecordPreviewPanel = memo(function RecordPreviewPanel({
   isResizing = false,
   isViewportSyncing = false,
 }: RecordPreviewPanelProps) {
-  // Stream settings (for quality/fps)
-  const { settings: streamSettings } = useStreamSettings();
-
   // Get viewport context if available (for recording mode with ViewportProvider)
   const viewportContext = useViewportOptional();
 
@@ -111,8 +107,6 @@ export const RecordPreviewPanel = memo(function RecordPreviewPanel({
           pageId={activePageId}
           refreshToken={refreshToken}
           viewport={viewportForPlaywright}
-          quality={streamSettings.quality}
-          fps={streamSettings.fps}
           onStatsUpdate={handleStatsUpdate}
           onPageMetadataChange={handlePageMetadataChange}
           onConnectionStatusChange={onConnectionStatusChange}

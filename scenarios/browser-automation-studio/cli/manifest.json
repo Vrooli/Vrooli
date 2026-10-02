@@ -2655,7 +2655,7 @@
         },
         {
           "name": "ai-analyze",
-          "description": "Ask the local Ollama model for interactive-element suggestions for a user intent.",
+          "description": "Use the shared AI model service for interactive-element suggestions for a user intent.",
           "flags": [
             {
               "name": "url",
@@ -2795,13 +2795,6 @@
             {
               "name": "max-steps",
               "description": "Maximum navigation steps (1..100, default 20)"
-            },
-            {
-              "name": "navigator",
-              "description": "Preferred navigator: playwright | claude_code (default auto-select)",
-              "bind": {
-                "field": "navigator_type"
-              }
             },
             {
               "name": "api-key",
@@ -3173,75 +3166,6 @@
           },
           "governance": {
             "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "config-get",
-          "description": "Show the current runtime config overrides.",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "ObservabilityService",
-            "method": "GetConfigRuntime"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "config-set",
-          "description": "Update a runtime configuration value.",
-          "positionals": [
-            {
-              "name": "env-var",
-              "required": true,
-              "description": "Environment variable name to update"
-            }
-          ],
-          "flags": [
-            {
-              "name": "value",
-              "required": true,
-              "description": "New value (parsed by the driver per the env var's data type)"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "ObservabilityService",
-            "method": "UpdateConfig"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "config-reset",
-          "description": "Reset a runtime configuration value back to its environment/default value.",
-          "positionals": [
-            {
-              "name": "env-var",
-              "required": true,
-              "description": "Environment variable name to reset"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "ObservabilityService",
-            "method": "ResetConfig"
-          },
-          "governance": {
-            "effect": "write",
             "run_eligible": true,
             "permissions": [
               "network:internal"

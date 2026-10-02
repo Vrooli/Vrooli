@@ -8,11 +8,12 @@
  * (mp4/gif) use async rendering with WebSocket progress updates.
  */
 
-import type { ReplayMovieSpec } from "@/types/export";
+import type { ReplaySpec as ReplayMovieSpec } from "@vrooli/generated-proto/browser-automation-studio/v1/exports/exports_pb";
 import { getConfig } from "@/config";
 import { safeParse } from "@/shared/api/safeParse";
 import { ServerExportResponseSchema } from "@/shared/api/schemas";
 import { exportsClient } from "@/api/exports";
+import { serializeExportPayload } from "./replaySpecJson";
 
 // =============================================================================
 // Types
@@ -183,7 +184,7 @@ export async function executeServerExport(options: {
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify(payload),
+    body: serializeExportPayload(payload),
   });
 
   if (!response.ok) {

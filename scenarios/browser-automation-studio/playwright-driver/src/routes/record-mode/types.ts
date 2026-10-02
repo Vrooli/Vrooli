@@ -22,8 +22,8 @@ export interface StartRecordingRequest {
   recording_id?: string;
   /** Optional callback URL to stream actions to (for API integration) */
   callback_url?: string;
-  /** Optional callback URL to stream frames to (for WebSocket broadcasting) */
-  frame_callback_url?: string;
+  /** Optional shared driver-frame WebSocket ingress URL. */
+  frame_stream_url?: string;
   /** Optional callback URL to stream page lifecycle events to (for multi-tab support) */
   page_callback_url?: string;
   /** Carries the API request's test-storage routing context to callback requests. */

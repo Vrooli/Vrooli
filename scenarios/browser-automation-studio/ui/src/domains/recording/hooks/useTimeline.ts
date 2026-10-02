@@ -17,7 +17,7 @@ import type { Page } from './usePages';
 import { useSessionStore } from '../stores';
 import { fromJson, type JsonValue } from '@bufbuild/protobuf';
 import { TimelineEntrySchema } from '@vrooli/proto-types/browser-automation-studio/v1/timeline/entry_pb';
-import { timelineEntryToRecordedAction } from '../types/timeline-unified';
+import { timelineEntryId, timelineEntryTimestamp } from '../api/schemas';
 
 // Re-export types for backward compatibility
 export type { TimelineEntry, TimelineAction, TimelinePageEvent } from '../api/schemas';
@@ -248,32 +248,20 @@ export function useTimeline({
       isValidated,
     });
 
-    // Canonical V2 timeline stream. The entry is protobuf JSON, so decode it
-    // before adapting it to this hook's presentation model.
+    // Canonical V2 timeline stream. Keep the generated message as the action
+    // value; projection belongs at the recording view boundary.
     if (msg.type === 'TIMELINE_MESSAGE_TYPE_ENTRY' && msg.session_id === sessionId) {
       try {
         const raw = (msg as unknown as { entry?: unknown }).entry;
         if (!raw) return;
-        const recorded = timelineEntryToRecordedAction(fromJson(TimelineEntrySchema, raw as JsonValue));
-        if (!recorded) return;
+        const protoEntry = fromJson(TimelineEntrySchema, raw as JsonValue);
+        if (!protoEntry.action) return;
         const entry: TimelineEntry = {
-          id: recorded.id,
           type: 'action',
-          timestamp: recorded.timestamp,
+          entry: protoEntry,
           pageId: '',
-          action: {
-            id: recorded.id,
-            actionType: recorded.actionType,
-            sequenceNum: recorded.sequenceNum,
-            timestamp: recorded.timestamp,
-            confidence: recorded.confidence,
-            url: recorded.url,
-            pageTitle: recorded.pageTitle,
-            selector: recorded.selector,
-            payload: recorded.payload,
-          },
         };
-        setEntries((prev) => prev.some((existing) => existing.id === entry.id) ? prev : [...prev, entry].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()));
+        setEntries((prev) => prev.some((existing) => timelineEntryId(existing) === timelineEntryId(entry)) ? prev : [...prev, entry].sort((a, b) => new Date(timelineEntryTimestamp(a)).getTime() - new Date(timelineEntryTimestamp(b)).getTime()));
         setTotalEntries((prev) => prev + 1);
       } catch (error) {
         console.warn('[useTimeline] Invalid V2 timeline stream entry', error);
@@ -287,23 +275,21 @@ export function useTimeline({
 
       // Create timeline entry from page event
       const entry: TimelineEntry = {
-        id: event.id,
         type: 'page_event',
-        timestamp: event.timestamp,
         pageId: event.pageId,
         pageEvent: event,
       };
 
       setEntries((prev) => {
         // Check if entry already exists
-        if (prev.some((e) => e.id === entry.id)) {
+        if (prev.some((e) => timelineEntryId(e) === timelineEntryId(entry))) {
           return prev;
         }
 
         const updated = [...prev, entry];
         // Sort by timestamp
         updated.sort((a, b) =>
-          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+          new Date(timelineEntryTimestamp(a)).getTime() - new Date(timelineEntryTimestamp(b)).getTime()
         );
 
         if (onEntryReceivedRef.current) {

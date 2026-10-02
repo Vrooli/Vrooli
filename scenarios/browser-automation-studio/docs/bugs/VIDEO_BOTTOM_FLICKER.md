@@ -1,6 +1,6 @@
 # Video Bottom Flicker Bug — Root Cause Analysis
 
-**Status:** FIXED
+**Status:** FIXED for the historical geometry repair described below; full-page screenshot/native-video interaction remains reproduced and unrepaired (see the October 2 follow-up).
 **Date:** 2026-03-13
 **Affected:** ALL Playwright `recordVideo` recordings in browser-automation-studio
 **Current repair:** SDK compositor sizing and capture ordering (077 candidate). The original BAS override below is retained as historical investigation.
@@ -117,3 +117,48 @@ video layout stabilization remains separate behavior. Two native recordings at
 without that override. Receipt: `/tmp/bas-video-geometry-077/receipt.json`.
 Full driver and live-app qualification remain pending at this amendment; refer
 to the goal home (`docs/internal/goal/`) for the final candidate's status and limitations.
+
+
+## 2026-10-02 follow-up — full-page screenshots during native video
+
+This is a separate capture-quality finding, not a reversal of the historical
+SDK geometry receipts. Existing BAS shadow health/status verified the route
+`http://localhost:15372/api/v1` before bounded adhoc tests using only a
+self-contained neutral `data:text/html` ruler page. No product requests,
+credentials, external assets, service changes or persistent settings were used.
+
+- Mixed run `15ce1a8f-ff37-4da9-b258-1716a7a6c255`: fixed 1440×900, DPR 2,
+  document height 2112; alternated viewport/full-page/viewport/full-page/viewport
+  screenshots. Both full-page captures produced shrunken imagery and about 57%
+  gray area in native WebM: nine frames at 4.64–4.96s and nine at 10.16–10.48s.
+  DOM measurements between captures remained 1440×900. All steps completed.
+- Matched viewport-only control `fbd825bc-d4b5-4459-9ede-da7238980ee8`:
+  357 frames, zero gray-area events and no large image changes after startup.
+  This validates viewport-only capture for this neutral geometry/runtime only.
+- Initial taller neutral run `c1ad5a6c-484e-4bf4-8f05-9afa4549dec5` failed:
+  raster 2850×12384 exceeded the 201326592-byte screenshot decode budget.
+  The failed receipt and video remain evidence; no budget was raised.
+
+The delivered buyer account WebM and H.264 derivative contain the same sizing
+defects at the same frames; conversion did not introduce those defects.
+Planner Focus's visible flash aligns with a scripted `/focus` reload and is a
+separate navigation/loading observation. Do not treat all reported flicker as one
+cause, dismiss it as acceptable, or infer product layout correctness from damaged
+capture. Internal compositor/CDP operations were not instrumented; that part of
+the mechanism remains source-supported inference.
+
+[Native diagnosis and reusable isolation procedure](https://docs.google.com/document/d/1ovXTxVRHgKA4z3-zWPJsR9B56JXNYeacl6iV-cppJOg/edit)
+and [separate scope and delivery-route review proposal — execution held pending owner approval](https://docs.google.com/document/d/1P8U8weXPXJTY788NnOYKj2Dx0nthSYHJazo0z3QJ07M/edit)
+contain the evidence and approval boundary. Reusable flows, original neutral
+videos, timelines, comparisons and receipts are in Library
+`libfile_8f96b0d25f7081919ec2eb1dd1e16478` (`capture-quality-evidence.zip`),
+SHA-256 `48dd87f0246f6b09df1ce0d328f69cfab86a2bf62c85535d9a12d3c5805fce2f`.
+Materialize through the current supported Library route and verify readable
+bytes/hashes; paths from another executor are not local evidence.
+
+Product-level workaround validation and destination-player playback remain
+pending. Separate-session full-page stills and product capture segmentation are
+proposals, not tested remedies here. No repair is approved by this documentation
+update. Preserve the existing shared SDK ownership and dependency governance;
+do not restore the historical asynchronous BAS CDP override from this report.
+Future capture entrypoint: [Screenshot Node capture-quality procedure](../nodes/screenshot.md#capture-quality-during-native-video).

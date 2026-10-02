@@ -6,6 +6,7 @@ import type { ServiceWorkerController } from '../service-worker';
 import type { PerformanceTracer, AccessibilitySnapshotter } from '../tracing';
 import type { AudioStrategy, HostAudioCapability } from '../session/audio';
 import type { BrowserCaptureDeviceEvidence } from '../session/audio/device-evidence';
+import type { DriverPageBindings } from '../session/page-bindings';
 
 export type ReuseMode = 'fresh' | 'clean' | 'reuse';
 
@@ -21,6 +22,12 @@ export interface SessionSpec {
   session_profile_version?: string;
   /** Preview bitmap scale, retained for this admitted lease. Defaults to CSS pixels. */
   frame_scale?: 'css' | 'device';
+  /** Resolved preview stream configuration admitted with the current lease. */
+  frame_streaming?: {
+    url: string;
+    quality?: number;
+    fps?: number;
+  };
   base_url?: string;
   labels?: Record<string, string>;
   required_capabilities?: {
@@ -286,21 +293,8 @@ export interface SessionState {
   // Frame navigation stack (for frame-switch)
   frameStack: Frame[];
 
-  // Tab/page stack (for multi-tab support)
-  pages: Page[];
-  currentPageIndex: number;
-
-  /**
-   * Map from driver page ID (UUID) to Playwright Page object.
-   * Enables efficient lookup when switching pages by ID.
-   */
-  pageIdMap: Map<string, Page>;
-
-  /**
-   * Reverse map from Playwright Page object to driver page ID.
-   * Used to find the ID when a page emits events.
-   */
-  pageToIdMap: WeakMap<Page, string>;
+  /** SessionManager-owned runtime page stack and driver identity bindings. */
+  pageBindings: DriverPageBindings;
 
   // Network mocking state
   activeMocks: Map<string, MockRoute>;
@@ -397,67 +391,20 @@ export interface SessionMetrics {
   peakSessions: number;
 }
 
+/** API-resolved session configuration bound to the lease admitted for a start. */
+export type SessionOptions = Omit<SessionSpec, 'execution_id' | 'workflow_id' | 'frame_scale' | 'frame_streaming'> & {
+  frame_scale: 'css' | 'device';
+  frame_streaming?: {
+    url: string;
+    quality?: number;
+    fps?: number;
+  };
+};
+
 export interface StartSessionRequest {
   execution_id: string;
   workflow_id: string;
-  viewport: {
-    width: number;
-    height: number;
-  };
-  reuse_mode: string;
-  base_url?: string;
-  labels?: Record<string, string>;
-  required_capabilities?: {
-    tabs?: boolean;
-    iframes?: boolean;
-    uploads?: boolean;
-    downloads?: boolean;
-    har?: boolean;
-    video?: boolean;
-    tracing?: boolean;
-    performance_trace?: boolean;
-    accessibility?: boolean;
-    viewport_width?: number;
-    viewport_height?: number;
-  };
-  artifact_paths?: {
-    root?: string;
-    video_dir?: string;
-    har_path?: string;
-    trace_path?: string;
-    perf_dir?: string;
-    accessibility_dir?: string;
-  };
-  storage_state?: SessionSpec['storage_state'];
-  /**
-   * Optional: Enable live frame streaming immediately when session is created.
-   * This allows viewing the browser before starting action recording.
-   */
-  frame_streaming?: {
-    /** Callback URL for frame delivery (API constructs WebSocket URL from this) */
-    callback_url: string;
-    /** JPEG quality 1-100 (default: 55 from API config) */
-    quality?: number;
-    /** Target FPS 1-60 (default: 30 from API config) */
-    /** Note: For CDP screencast, Chrome controls actual FPS. This is a target/hint. */
-    fps?: number;
-    /** Screenshot scale: 'css' for 1x scale (default), 'device' for device pixel ratio */
-    scale?: 'css' | 'device';
-  };
-  /**
-   * Optional: Browser profile for anti-detection and human-like behavior.
-   */
-  browser_profile?: BrowserProfile;
-  /**
-   * Optional: Deterministic fake media devices (see SessionSpec.fake_media).
-   */
-  fake_media?: SessionSpec['fake_media'];
-  audio_playback_pause_ms?: SessionSpec['audio_playback_pause_ms'];
-  audio_playback_start_delay_ms?: SessionSpec['audio_playback_start_delay_ms'];
-  audio_playback_defer_start?: SessionSpec['audio_playback_defer_start'];
-  audio_device_evidence?: SessionSpec['audio_device_evidence'];
-  app_target?: SessionSpec['app_target'];
-  validation_context?: SessionSpec['validation_context'];
+  session_options: SessionOptions;
 }
 
 /**
