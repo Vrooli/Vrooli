@@ -92,3 +92,7 @@ and Appendix C ask for.
 - [`../reference/product-specification.md`](../reference/product-specification.md) — R01, R29, R30, Appendix A §12, §14, §18, §19, §23, §25.2, and Appendix C
 - [`REDESIGN_PLAN.md`](REDESIGN_PLAN.md) — the build order and engineering bar these decisions serve
 - [`../reference/mockups/README.md`](../reference/mockups/README.md) — the cross-mockup resolutions behind D-027 and D-028
+
+## D-044 — Selected 2026-10-03 delivery direction
+
+Owner approval Sentinel_44e04ed89e408191b22e019ea0bb5aa5 (reply to Sentinel_d3abbc161d1481918c56da89a8804dfb) adopts the frozen selected contract, ND-007–025 and exact core30/Today v02 direction. ND-018–023/025 are recommendations accepted under ND-017 delegation; do not fabricate earlier owner replies. Canonical amendments are operative in product-specification.md and existing requirements/experience. Independent documentation verification precedes native finite-team activation. Runtime acceptance remains unproven. No new artwork allocation, Plan Manager, automatic generation, scene-studio or billing activation.

@@ -65,7 +65,7 @@
       "prd_ref": "OT-P0-019",
       "category": "domain",
       "criticality": "P0",
-      "description": "Each cooking timer shall have a stable id, session and step linkage, label, original duration, state, start and target timestamps, paused remaining duration, and revision, display remaining time from the current clock rather than a decrementing counter, run concurrently with hidden timers in a tray, support Start, Pause, Resume, Add minute, Reset, and Dismiss, and add a minute to the deadline when running or to the remaining duration when paused.",
+      "description": "Each cooking timer shall have a stable id, session and step linkage, label, original duration, state, start and target timestamps, paused remaining duration, and revision, display remaining time from the current clock rather than a decrementing counter, run concurrently with hidden timers in a tray, support Start, Pause, Resume, Add minute, Reset, and Dismiss, and add a minute to the deadline when running or to the remaining duration when paused. Phone compact timer access shall appear in the first viewport without displacing step navigation (ND-025).",
       "tags": [
         "cooking",
         "timers",
@@ -77,6 +77,12 @@
           "phase": "unit",
           "status": "planned",
           "notes": "Planned: +1 min adds to the deadline while running and to the remainder while paused; reload reconstructs the displayed time (AT-027)."
+        },
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "planned",
+          "notes": "Given the selected 2026-10-03 contract, when COOK-003 behavior is exercised on persisted isolated fixtures, then the selected amendment and unchanged domain invariants hold. Exact test reference must be earned; no validation claimed."
         }
       ]
     },
@@ -132,7 +138,7 @@
       "prd_ref": "OT-P0-019",
       "category": "domain",
       "criticality": "P0",
-      "description": "When cooking finishes, the scenario shall offer a batch confirmation with actual yield and optional ingredient adjustments, or Finish without inventory update, keep I ate a serving as a separate action, consume raw ingredients once at batch confirmation and prepared portions once at intake, and never count time with the screen open as active cooking time.",
+      "description": "When cooking finishes, the scenario shall finish promptly with optional batch and separate intake recording; a recorded batch asks actual yield and allows later correction. Truthful reduced yield shall save first, flag future shortage then offer plan repair; finishing does not imply eating or force inventory. Batch confirmation consumes raw stock once and intake consumes prepared portions once (ND-018).",
       "tags": [
         "cooking",
         "batch",
@@ -145,6 +151,12 @@
           "phase": "integration",
           "status": "planned",
           "notes": "Planned: finishing without eating records preparation but no intake (AT-029); cooking then eating leftovers consumes raw stock once and prepared stock once (AT-030, FIX-03)."
+        },
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "planned",
+          "notes": "Given the selected 2026-10-03 contract, when COOK-006 behavior is exercised on persisted isolated fixtures, then the selected amendment and unchanged domain invariants hold. Exact test reference must be earned; no validation claimed."
         }
       ]
     }

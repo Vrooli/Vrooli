@@ -1,5 +1,10 @@
 # Requirements Registry
 
+## Current selected direction
+
+2026-10-03 owner-approved ND-007–025 amendments are operative in existing requirement IDs and experience contracts; source precedence and exact visual pins are in docs/reference/product-specification.md. Selected design/commission approval does not prove implementation. All existing planned statuses and validation policies are preserved.
+
+
 This directory is the machine-checkable bridge between the operational
 targets in `PRD.md` and the proof that Nooch (nutrition-planner) behaves
 as intended. Each numbered folder is one module; each module's
@@ -48,7 +53,7 @@ the v2.0 redesign (decision D-025).
 ## Lifecycle
 
 1. Operational targets in `PRD.md` map to folders and requirements here;
-   the PRD is authoritative when the two disagree.
+   the owner-selected contract/specification takes precedence, then reconciled PRD targets and requirement obligations.
 2. `requirements/index.json` imports every module. Auto-sync is **off**
    (`auto_sync_enabled: false` in the index and every module, decision
    D-037) because Test Genie currently promotes validations that have no
@@ -83,7 +88,7 @@ the v2.0 redesign (decision D-025).
   invariants stay testable.
 - `26-visual-fidelity` is proven by captures compared with the concept
   mockups in `docs/reference/mockups/`; its verdicts live in
-  `docs/internal/REDESIGN_LEDGER.md`.
+  `docs/internal/goal/ACCEPTANCE.md`.
 - `18-commercial-foundations`, `19-deferred-expansion`, and
   `29-scene-studio` describe deliberately deferred capabilities; keep
   them scoped to P2.

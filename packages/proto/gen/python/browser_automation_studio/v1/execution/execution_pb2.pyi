@@ -4,6 +4,7 @@ from browser_automation_studio.v1.actions import action_pb2 as _action_pb2
 from browser_automation_studio.v1.base import browser_profile_pb2 as _browser_profile_pb2
 from browser_automation_studio.v1.base import shared_pb2 as _shared_pb2
 from browser_automation_studio.v1.domain import telemetry_pb2 as _telemetry_pb2
+from browser_automation_studio.v1.exports import exports_pb2 as _exports_pb2
 from browser_automation_studio.v1.workflows import definition_pb2 as _definition_pb2
 from buf.validate import validate_pb2 as _validate_pb2
 from common.v1 import types_pb2 as _types_pb2
@@ -357,8 +358,8 @@ class ExecutionExportPreview(_message.Message):
     captured_frame_count: int
     available_asset_count: int
     total_duration_ms: int
-    package: _types_pb2.JsonObject
-    def __init__(self, execution_id: _Optional[str] = ..., spec_id: _Optional[str] = ..., status: _Optional[_Union[_shared_pb2.ExportStatus, str]] = ..., message: _Optional[str] = ..., captured_frame_count: _Optional[int] = ..., available_asset_count: _Optional[int] = ..., total_duration_ms: _Optional[int] = ..., package: _Optional[_Union[_types_pb2.JsonObject, _Mapping]] = ...) -> None: ...
+    package: _exports_pb2.ReplaySpec
+    def __init__(self, execution_id: _Optional[str] = ..., spec_id: _Optional[str] = ..., status: _Optional[_Union[_shared_pb2.ExportStatus, str]] = ..., message: _Optional[str] = ..., captured_frame_count: _Optional[int] = ..., available_asset_count: _Optional[int] = ..., total_duration_ms: _Optional[int] = ..., package: _Optional[_Union[_exports_pb2.ReplaySpec, _Mapping]] = ...) -> None: ...
 
 class ExecutorMetrics(_message.Message):
     __slots__ = ("memory_bytes", "cpu_percent", "active_pages")

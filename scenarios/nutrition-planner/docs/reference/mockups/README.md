@@ -1,11 +1,22 @@
 # Nooch concept mockups — reading guide
 
-These fifteen images are the approved visual direction for the Nooch redesign
+## Full-resolution local selected files
+
+Every selected exact original is now local in `../selected-2026-10-03/images/`: 30 registered core families plus Today Sunroom v02. Read [the visual acceptance contract and complete screen/state map](../selected-2026-10-03/VISUAL-ACCEPTANCE.md). Close fidelity is mandatory and judged from matching runtime captures; record justified accessibility, responsive and truthful-data adaptations. Historical fifteen files below remain evidence; use the selected local originals for current acceptance. NF-010 timer reachability repair is required; external r3 excluded.
+
+
+## Current selected target
+
+The owner approved NDL-003 candidate0.3 core30 plus retained Today Sunroom v02 on 2026-10-03. Exact version IDs, full-resolution Drive IDs and image SHA256 values are in ../selected-2026-10-03/core-visual-inventory.json. The original fifteen concepts below remain historical references. Compare exact originals, never approximate replacements. NF-010 registered cooking-return needs compact first-phone-viewport timer access with step navigation and independent timers; external r3 is excluded. Selected behavior and truthful runtime data prevail over incidental specimen copy. Acceptance remains unproven.
+
+
+## Historical fifteen-reference context
+
+These fifteen images were the earlier visual direction for the Nooch redesign
 (product specification v2.0, R29.2). They are **concept references, not
 production assets and not executable contracts** (R01.1, R19.1). This guide
 states, for each image, what it is authoritative for, what to ignore, and which
-corrections apply. The implementation target is: **as close to these images as
-the written specification allows**, on desktop and phone, in both appearances.
+corrections apply. This earlier target and its cross-mockup notes remain historical evidence. Current comparison uses the selected originals and [VISUAL-ACCEPTANCE](../selected-2026-10-03/VISUAL-ACCEPTANCE.md), under the operative selected specification, on desktop and phone in both appearances.
 
 Authority order when an image and text disagree (R01.1): operator instructions →
 the specification's R-sections → the retained domain requirements (Appendix A)
@@ -24,8 +35,13 @@ resolution is recorded in [`../../internal/DECISIONS.md`](../../internal/DECISIO
   1024×768, 1440×1000, plus 320 px and 200 % zoom), both appearances, with real
   fonts and real assets. Put each capture beside its mockup and judge: same
   regions in the same order? same visual weight? same density? same image
-  treatment? same control language? Record the verdict and every residual gap in
-  [`../../internal/REDESIGN_LEDGER.md`](../../internal/REDESIGN_LEDGER.md).
+  treatment? same control language? Record the exact build, screen/state/appearance/viewport, verdict, justified
+  adaptation, residual gaps and capture evidence in the admitted
+  [epoch record](../../internal/goal/epochs/), with current status in
+  [QUEUE](../../internal/goal/QUEUE.md) and independent acceptance against
+  [ACCEPTANCE](../../internal/goal/ACCEPTANCE.md).
+  [GOAL](../../internal/goal/GOAL.md) governs; the historical redesign ledger is
+  retained evidence, not a capture destination. A capture receipt is not acceptance.
 - **Pairs the mockups do not show** (Today editorial or minimal in Evening,
   Explore Evening, Recipe Evening, Cooking Light, Equipment Evening, Onboarding,
   Settings, editors, nonideal states): take the structure from the same surface's

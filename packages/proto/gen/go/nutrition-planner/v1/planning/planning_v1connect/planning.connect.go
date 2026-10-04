@@ -36,6 +36,8 @@ const (
 	// PlanningServiceGeneratePlanProcedure is the fully-qualified name of the PlanningService's
 	// GeneratePlan RPC.
 	PlanningServiceGeneratePlanProcedure = "/vrooli.nutrition_planner.v1.planning.PlanningService/GeneratePlan"
+	// PlanningServiceGetPlanProcedure is the fully-qualified name of the PlanningService's GetPlan RPC.
+	PlanningServiceGetPlanProcedure = "/vrooli.nutrition_planner.v1.planning.PlanningService/GetPlan"
 	// PlanningServiceApplyPlanProcedure is the fully-qualified name of the PlanningService's ApplyPlan
 	// RPC.
 	PlanningServiceApplyPlanProcedure = "/vrooli.nutrition_planner.v1.planning.PlanningService/ApplyPlan"
@@ -48,6 +50,12 @@ const (
 	// PlanningServiceSetShoppingCheckedProcedure is the fully-qualified name of the PlanningService's
 	// SetShoppingChecked RPC.
 	PlanningServiceSetShoppingCheckedProcedure = "/vrooli.nutrition_planner.v1.planning.PlanningService/SetShoppingChecked"
+	// PlanningServiceSetShoppingHaveThisProcedure is the fully-qualified name of the PlanningService's
+	// SetShoppingHaveThis RPC.
+	PlanningServiceSetShoppingHaveThisProcedure = "/vrooli.nutrition_planner.v1.planning.PlanningService/SetShoppingHaveThis"
+	// PlanningServiceConfirmShoppingPurchasesProcedure is the fully-qualified name of the
+	// PlanningService's ConfirmShoppingPurchases RPC.
+	PlanningServiceConfirmShoppingPurchasesProcedure = "/vrooli.nutrition_planner.v1.planning.PlanningService/ConfirmShoppingPurchases"
 	// PlanningServiceRecordFeedbackProcedure is the fully-qualified name of the PlanningService's
 	// RecordFeedback RPC.
 	PlanningServiceRecordFeedbackProcedure = "/vrooli.nutrition_planner.v1.planning.PlanningService/RecordFeedback"
@@ -60,10 +68,13 @@ const (
 // service.
 type PlanningServiceClient interface {
 	GeneratePlan(context.Context, *connect.Request[planning.GeneratePlanRequest]) (*connect.Response[planning.GeneratePlanResponse], error)
+	GetPlan(context.Context, *connect.Request[planning.GetPlanRequest]) (*connect.Response[planning.GetPlanResponse], error)
 	ApplyPlan(context.Context, *connect.Request[planning.ApplyPlanRequest]) (*connect.Response[planning.ApplyPlanResponse], error)
 	PreviewSwap(context.Context, *connect.Request[planning.PreviewSwapRequest]) (*connect.Response[planning.PreviewSwapResponse], error)
 	GetShoppingPreview(context.Context, *connect.Request[planning.GetShoppingPreviewRequest]) (*connect.Response[planning.GetShoppingPreviewResponse], error)
 	SetShoppingChecked(context.Context, *connect.Request[planning.SetShoppingCheckedRequest]) (*connect.Response[planning.SetShoppingCheckedResponse], error)
+	SetShoppingHaveThis(context.Context, *connect.Request[planning.SetShoppingHaveThisRequest]) (*connect.Response[planning.SetShoppingHaveThisResponse], error)
+	ConfirmShoppingPurchases(context.Context, *connect.Request[planning.ConfirmShoppingPurchasesRequest]) (*connect.Response[planning.ConfirmShoppingPurchasesResponse], error)
 	RecordFeedback(context.Context, *connect.Request[planning.RecordFeedbackRequest]) (*connect.Response[planning.RecordFeedbackResponse], error)
 	UndoFeedback(context.Context, *connect.Request[planning.UndoFeedbackRequest]) (*connect.Response[planning.UndoFeedbackResponse], error)
 }
@@ -84,6 +95,12 @@ func NewPlanningServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			httpClient,
 			baseURL+PlanningServiceGeneratePlanProcedure,
 			connect.WithSchema(planningServiceMethods.ByName("GeneratePlan")),
+			connect.WithClientOptions(opts...),
+		),
+		getPlan: connect.NewClient[planning.GetPlanRequest, planning.GetPlanResponse](
+			httpClient,
+			baseURL+PlanningServiceGetPlanProcedure,
+			connect.WithSchema(planningServiceMethods.ByName("GetPlan")),
 			connect.WithClientOptions(opts...),
 		),
 		applyPlan: connect.NewClient[planning.ApplyPlanRequest, planning.ApplyPlanResponse](
@@ -110,6 +127,18 @@ func NewPlanningServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(planningServiceMethods.ByName("SetShoppingChecked")),
 			connect.WithClientOptions(opts...),
 		),
+		setShoppingHaveThis: connect.NewClient[planning.SetShoppingHaveThisRequest, planning.SetShoppingHaveThisResponse](
+			httpClient,
+			baseURL+PlanningServiceSetShoppingHaveThisProcedure,
+			connect.WithSchema(planningServiceMethods.ByName("SetShoppingHaveThis")),
+			connect.WithClientOptions(opts...),
+		),
+		confirmShoppingPurchases: connect.NewClient[planning.ConfirmShoppingPurchasesRequest, planning.ConfirmShoppingPurchasesResponse](
+			httpClient,
+			baseURL+PlanningServiceConfirmShoppingPurchasesProcedure,
+			connect.WithSchema(planningServiceMethods.ByName("ConfirmShoppingPurchases")),
+			connect.WithClientOptions(opts...),
+		),
 		recordFeedback: connect.NewClient[planning.RecordFeedbackRequest, planning.RecordFeedbackResponse](
 			httpClient,
 			baseURL+PlanningServiceRecordFeedbackProcedure,
@@ -127,18 +156,26 @@ func NewPlanningServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 
 // planningServiceClient implements PlanningServiceClient.
 type planningServiceClient struct {
-	generatePlan       *connect.Client[planning.GeneratePlanRequest, planning.GeneratePlanResponse]
-	applyPlan          *connect.Client[planning.ApplyPlanRequest, planning.ApplyPlanResponse]
-	previewSwap        *connect.Client[planning.PreviewSwapRequest, planning.PreviewSwapResponse]
-	getShoppingPreview *connect.Client[planning.GetShoppingPreviewRequest, planning.GetShoppingPreviewResponse]
-	setShoppingChecked *connect.Client[planning.SetShoppingCheckedRequest, planning.SetShoppingCheckedResponse]
-	recordFeedback     *connect.Client[planning.RecordFeedbackRequest, planning.RecordFeedbackResponse]
-	undoFeedback       *connect.Client[planning.UndoFeedbackRequest, planning.UndoFeedbackResponse]
+	generatePlan             *connect.Client[planning.GeneratePlanRequest, planning.GeneratePlanResponse]
+	getPlan                  *connect.Client[planning.GetPlanRequest, planning.GetPlanResponse]
+	applyPlan                *connect.Client[planning.ApplyPlanRequest, planning.ApplyPlanResponse]
+	previewSwap              *connect.Client[planning.PreviewSwapRequest, planning.PreviewSwapResponse]
+	getShoppingPreview       *connect.Client[planning.GetShoppingPreviewRequest, planning.GetShoppingPreviewResponse]
+	setShoppingChecked       *connect.Client[planning.SetShoppingCheckedRequest, planning.SetShoppingCheckedResponse]
+	setShoppingHaveThis      *connect.Client[planning.SetShoppingHaveThisRequest, planning.SetShoppingHaveThisResponse]
+	confirmShoppingPurchases *connect.Client[planning.ConfirmShoppingPurchasesRequest, planning.ConfirmShoppingPurchasesResponse]
+	recordFeedback           *connect.Client[planning.RecordFeedbackRequest, planning.RecordFeedbackResponse]
+	undoFeedback             *connect.Client[planning.UndoFeedbackRequest, planning.UndoFeedbackResponse]
 }
 
 // GeneratePlan calls vrooli.nutrition_planner.v1.planning.PlanningService.GeneratePlan.
 func (c *planningServiceClient) GeneratePlan(ctx context.Context, req *connect.Request[planning.GeneratePlanRequest]) (*connect.Response[planning.GeneratePlanResponse], error) {
 	return c.generatePlan.CallUnary(ctx, req)
+}
+
+// GetPlan calls vrooli.nutrition_planner.v1.planning.PlanningService.GetPlan.
+func (c *planningServiceClient) GetPlan(ctx context.Context, req *connect.Request[planning.GetPlanRequest]) (*connect.Response[planning.GetPlanResponse], error) {
+	return c.getPlan.CallUnary(ctx, req)
 }
 
 // ApplyPlan calls vrooli.nutrition_planner.v1.planning.PlanningService.ApplyPlan.
@@ -161,6 +198,18 @@ func (c *planningServiceClient) SetShoppingChecked(ctx context.Context, req *con
 	return c.setShoppingChecked.CallUnary(ctx, req)
 }
 
+// SetShoppingHaveThis calls
+// vrooli.nutrition_planner.v1.planning.PlanningService.SetShoppingHaveThis.
+func (c *planningServiceClient) SetShoppingHaveThis(ctx context.Context, req *connect.Request[planning.SetShoppingHaveThisRequest]) (*connect.Response[planning.SetShoppingHaveThisResponse], error) {
+	return c.setShoppingHaveThis.CallUnary(ctx, req)
+}
+
+// ConfirmShoppingPurchases calls
+// vrooli.nutrition_planner.v1.planning.PlanningService.ConfirmShoppingPurchases.
+func (c *planningServiceClient) ConfirmShoppingPurchases(ctx context.Context, req *connect.Request[planning.ConfirmShoppingPurchasesRequest]) (*connect.Response[planning.ConfirmShoppingPurchasesResponse], error) {
+	return c.confirmShoppingPurchases.CallUnary(ctx, req)
+}
+
 // RecordFeedback calls vrooli.nutrition_planner.v1.planning.PlanningService.RecordFeedback.
 func (c *planningServiceClient) RecordFeedback(ctx context.Context, req *connect.Request[planning.RecordFeedbackRequest]) (*connect.Response[planning.RecordFeedbackResponse], error) {
 	return c.recordFeedback.CallUnary(ctx, req)
@@ -175,10 +224,13 @@ func (c *planningServiceClient) UndoFeedback(ctx context.Context, req *connect.R
 // vrooli.nutrition_planner.v1.planning.PlanningService service.
 type PlanningServiceHandler interface {
 	GeneratePlan(context.Context, *connect.Request[planning.GeneratePlanRequest]) (*connect.Response[planning.GeneratePlanResponse], error)
+	GetPlan(context.Context, *connect.Request[planning.GetPlanRequest]) (*connect.Response[planning.GetPlanResponse], error)
 	ApplyPlan(context.Context, *connect.Request[planning.ApplyPlanRequest]) (*connect.Response[planning.ApplyPlanResponse], error)
 	PreviewSwap(context.Context, *connect.Request[planning.PreviewSwapRequest]) (*connect.Response[planning.PreviewSwapResponse], error)
 	GetShoppingPreview(context.Context, *connect.Request[planning.GetShoppingPreviewRequest]) (*connect.Response[planning.GetShoppingPreviewResponse], error)
 	SetShoppingChecked(context.Context, *connect.Request[planning.SetShoppingCheckedRequest]) (*connect.Response[planning.SetShoppingCheckedResponse], error)
+	SetShoppingHaveThis(context.Context, *connect.Request[planning.SetShoppingHaveThisRequest]) (*connect.Response[planning.SetShoppingHaveThisResponse], error)
+	ConfirmShoppingPurchases(context.Context, *connect.Request[planning.ConfirmShoppingPurchasesRequest]) (*connect.Response[planning.ConfirmShoppingPurchasesResponse], error)
 	RecordFeedback(context.Context, *connect.Request[planning.RecordFeedbackRequest]) (*connect.Response[planning.RecordFeedbackResponse], error)
 	UndoFeedback(context.Context, *connect.Request[planning.UndoFeedbackRequest]) (*connect.Response[planning.UndoFeedbackResponse], error)
 }
@@ -194,6 +246,12 @@ func NewPlanningServiceHandler(svc PlanningServiceHandler, opts ...connect.Handl
 		PlanningServiceGeneratePlanProcedure,
 		svc.GeneratePlan,
 		connect.WithSchema(planningServiceMethods.ByName("GeneratePlan")),
+		connect.WithHandlerOptions(opts...),
+	)
+	planningServiceGetPlanHandler := connect.NewUnaryHandler(
+		PlanningServiceGetPlanProcedure,
+		svc.GetPlan,
+		connect.WithSchema(planningServiceMethods.ByName("GetPlan")),
 		connect.WithHandlerOptions(opts...),
 	)
 	planningServiceApplyPlanHandler := connect.NewUnaryHandler(
@@ -220,6 +278,18 @@ func NewPlanningServiceHandler(svc PlanningServiceHandler, opts ...connect.Handl
 		connect.WithSchema(planningServiceMethods.ByName("SetShoppingChecked")),
 		connect.WithHandlerOptions(opts...),
 	)
+	planningServiceSetShoppingHaveThisHandler := connect.NewUnaryHandler(
+		PlanningServiceSetShoppingHaveThisProcedure,
+		svc.SetShoppingHaveThis,
+		connect.WithSchema(planningServiceMethods.ByName("SetShoppingHaveThis")),
+		connect.WithHandlerOptions(opts...),
+	)
+	planningServiceConfirmShoppingPurchasesHandler := connect.NewUnaryHandler(
+		PlanningServiceConfirmShoppingPurchasesProcedure,
+		svc.ConfirmShoppingPurchases,
+		connect.WithSchema(planningServiceMethods.ByName("ConfirmShoppingPurchases")),
+		connect.WithHandlerOptions(opts...),
+	)
 	planningServiceRecordFeedbackHandler := connect.NewUnaryHandler(
 		PlanningServiceRecordFeedbackProcedure,
 		svc.RecordFeedback,
@@ -236,6 +306,8 @@ func NewPlanningServiceHandler(svc PlanningServiceHandler, opts ...connect.Handl
 		switch r.URL.Path {
 		case PlanningServiceGeneratePlanProcedure:
 			planningServiceGeneratePlanHandler.ServeHTTP(w, r)
+		case PlanningServiceGetPlanProcedure:
+			planningServiceGetPlanHandler.ServeHTTP(w, r)
 		case PlanningServiceApplyPlanProcedure:
 			planningServiceApplyPlanHandler.ServeHTTP(w, r)
 		case PlanningServicePreviewSwapProcedure:
@@ -244,6 +316,10 @@ func NewPlanningServiceHandler(svc PlanningServiceHandler, opts ...connect.Handl
 			planningServiceGetShoppingPreviewHandler.ServeHTTP(w, r)
 		case PlanningServiceSetShoppingCheckedProcedure:
 			planningServiceSetShoppingCheckedHandler.ServeHTTP(w, r)
+		case PlanningServiceSetShoppingHaveThisProcedure:
+			planningServiceSetShoppingHaveThisHandler.ServeHTTP(w, r)
+		case PlanningServiceConfirmShoppingPurchasesProcedure:
+			planningServiceConfirmShoppingPurchasesHandler.ServeHTTP(w, r)
 		case PlanningServiceRecordFeedbackProcedure:
 			planningServiceRecordFeedbackHandler.ServeHTTP(w, r)
 		case PlanningServiceUndoFeedbackProcedure:
@@ -261,6 +337,10 @@ func (UnimplementedPlanningServiceHandler) GeneratePlan(context.Context, *connec
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.nutrition_planner.v1.planning.PlanningService.GeneratePlan is not implemented"))
 }
 
+func (UnimplementedPlanningServiceHandler) GetPlan(context.Context, *connect.Request[planning.GetPlanRequest]) (*connect.Response[planning.GetPlanResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.nutrition_planner.v1.planning.PlanningService.GetPlan is not implemented"))
+}
+
 func (UnimplementedPlanningServiceHandler) ApplyPlan(context.Context, *connect.Request[planning.ApplyPlanRequest]) (*connect.Response[planning.ApplyPlanResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.nutrition_planner.v1.planning.PlanningService.ApplyPlan is not implemented"))
 }
@@ -275,6 +355,14 @@ func (UnimplementedPlanningServiceHandler) GetShoppingPreview(context.Context, *
 
 func (UnimplementedPlanningServiceHandler) SetShoppingChecked(context.Context, *connect.Request[planning.SetShoppingCheckedRequest]) (*connect.Response[planning.SetShoppingCheckedResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.nutrition_planner.v1.planning.PlanningService.SetShoppingChecked is not implemented"))
+}
+
+func (UnimplementedPlanningServiceHandler) SetShoppingHaveThis(context.Context, *connect.Request[planning.SetShoppingHaveThisRequest]) (*connect.Response[planning.SetShoppingHaveThisResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.nutrition_planner.v1.planning.PlanningService.SetShoppingHaveThis is not implemented"))
+}
+
+func (UnimplementedPlanningServiceHandler) ConfirmShoppingPurchases(context.Context, *connect.Request[planning.ConfirmShoppingPurchasesRequest]) (*connect.Response[planning.ConfirmShoppingPurchasesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.nutrition_planner.v1.planning.PlanningService.ConfirmShoppingPurchases is not implemented"))
 }
 
 func (UnimplementedPlanningServiceHandler) RecordFeedback(context.Context, *connect.Request[planning.RecordFeedbackRequest]) (*connect.Response[planning.RecordFeedbackResponse], error) {

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "personal-planner",
-  "input_digest": "sha256:f875d311940363d9f637e2e588baf3c6c3f578429eab552421bb1da116d1095c",
+  "input_digest": "sha256:ad78da9504af6fdaffffd2256e8b4161896a8abaa539691d510ce7d948b29ecb",
   "input_files": [
     "schemas/personal-planner/v1/calendar/calendar.proto",
     "schemas/personal-planner/v1/commitments/commitments.proto",
@@ -26,8 +26,8 @@
     }
   },
   "outputs": {
-    "gen/go/personal-planner/v1/calendar/calendar.pb.go": "sha256:4d5a866d1fcef07fddf3111b13488caa0711ad1638c59a4694c663ddd94b247f",
-    "gen/go/personal-planner/v1/calendar/calendar_v1connect/calendar.connect.go": "sha256:603c1bc47c90fc71fabf9f544b77d94f523ad550da6e08a7514affb245a86295",
+    "gen/go/personal-planner/v1/calendar/calendar.pb.go": "sha256:058def8e0649b504fb15d5f503d243df58da79ec42728a33ff45365ef4f5f13b",
+    "gen/go/personal-planner/v1/calendar/calendar_v1connect/calendar.connect.go": "sha256:1493f002a7115e7fe75f3b69249f0a48b0388028465892206d568ef488427e1f",
     "gen/go/personal-planner/v1/commitments/commitments.pb.go": "sha256:4beb4e7703133bf3fb6a44b3a8ed3400ea7887ccd6bf05a86ab2d3db7f586164",
     "gen/go/personal-planner/v1/commitments/commitments_v1connect/commitments.connect.go": "sha256:67434e79c6c44188a1e7edba00647bbe353d7335e96179c2cba82f477efa652c",
     "gen/go/personal-planner/v1/focus/focus.pb.go": "sha256:f0e7875a51d5b093e47386fda5abec8e88b0f30745c9bc4a7ec2b67da0e3986a",
@@ -47,8 +47,8 @@
     "gen/go/personal-planner/v1/workspace/workspace.pb.go": "sha256:5fb81e13acc8c7e534e148279382e1043670231144989158828049e5ff5eea0b",
     "gen/go/personal-planner/v1/workspace/workspace_v1connect/workspace.connect.go": "sha256:67f0f48765a0ef1c61025f6ecac52670d050ae45f716f28d4ea943776f105c19",
     "gen/python/personal_planner/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/personal_planner/v1/calendar/calendar_pb2.py": "sha256:f49f5a4451dc42fe65c3a741018fc4020e83c4bc3b891d1a67c2def99d3cb3eb",
-    "gen/python/personal_planner/v1/calendar/calendar_pb2.pyi": "sha256:be5fe2341bc1d378ad78a7484cbc01715c321e23e6d8db50c60ff38ee64bc81a",
+    "gen/python/personal_planner/v1/calendar/calendar_pb2.py": "sha256:b993a03919e5f3a7d36a2ce938e80db0954d81825d9eef4bca27d8dc0470e058",
+    "gen/python/personal_planner/v1/calendar/calendar_pb2.pyi": "sha256:14a6e835da4be5fcb931f7315ddaf66385f6580cf758b90807b4d15505ef34a9",
     "gen/python/personal_planner/v1/calendar/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/personal_planner/v1/commitments/commitments_pb2.py": "sha256:e9a98408c13d70bce6eb3f8823337046b46fc0c13a6fe5ba875ac6ae92d4f326",
     "gen/python/personal_planner/v1/commitments/commitments_pb2.pyi": "sha256:a91bac092be71b19565f2d48670cfb8f82d6e3eb3e2dd1e0c1c659d4303e84e0",
@@ -80,7 +80,7 @@
     "gen/python/personal_planner/v1/workspace/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/personal_planner/v1/workspace/workspace_pb2.py": "sha256:a4104d3b555d54154166ab1cf38cf053d4167a8c31659d6d44c475911f31a218",
     "gen/python/personal_planner/v1/workspace/workspace_pb2.pyi": "sha256:af6b757d76f5276e2be632b6a6d41fa24c7c10cccb90362181830df525e9543a",
-    "gen/typescript/personal-planner/v1/calendar/calendar_pb.ts": "sha256:21feca283935a44e613c7b56d3aac4cdc3bec9b38da1edc79bb41ca32a30f3a5",
+    "gen/typescript/personal-planner/v1/calendar/calendar_pb.ts": "sha256:708e5c0ecc268efb46c4860a7cf0c8ba661f14938d7fe06e18e8faab691763b7",
     "gen/typescript/personal-planner/v1/commitments/commitments_pb.ts": "sha256:59284ca8677d49e5db25e3da11931719225be5d692554e365923f96b25d3a892",
     "gen/typescript/personal-planner/v1/focus/focus_pb.ts": "sha256:3bf5154a95d86ec354f36b245a0e37736afb03ae44131a7b083698bbf870e674",
     "gen/typescript/personal-planner/v1/forecasts/forecasts_pb.ts": "sha256:dcffeb9a5f0312e5ff5057343ecaca9ff048ab165a7268981838f7f7142f9b13",

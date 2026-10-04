@@ -25,6 +25,7 @@ import (
 
 	capsH "nutrition-planner/handlers/capabilities"
 	catalogH "nutrition-planner/handlers/catalog"
+	cookingH "nutrition-planner/handlers/cooking"
 	costH "nutrition-planner/handlers/cost"
 	diagnosticsH "nutrition-planner/handlers/diagnostics"
 	eligibilityH "nutrition-planner/handlers/eligibility"
@@ -85,8 +86,14 @@ func main() {
 		log.Fatalf("Database connection failed: %v", err)
 	}
 
-	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
+	if err := database.ApplySchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
 		log.Fatalf("schema initialization failed: %v", err)
+	}
+	if err := internalPlanning.MigrateLegacyPlans(context.Background(), db.Primary()); err != nil {
+		log.Fatalf("legacy plan migration failed: %v", err)
+	}
+	if err := database.VerifyDeclaredColumns(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
+		log.Fatalf("schema verification failed: %v", err)
 	}
 	primaryFileRoots, err := scenarioStorageRoots()
 	if err != nil {
@@ -104,6 +111,7 @@ func main() {
 		diagnosticsH.Module(db, workspaceService),
 		catalogH.Module(db, schedule.System(), log.Default()),
 		costH.Module(db, schedule.System(), log.Default()),
+		cookingH.Module(db, schedule.System(), recipeService, workspaceService, log.Default()),
 		inventoryH.Module(db, schedule.System(), log.Default()),
 		nutritionH.Module(db, schedule.System(), log.Default()),
 		supplementH.Module(db, schedule.System(), log.Default()),

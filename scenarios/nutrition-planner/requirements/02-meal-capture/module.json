@@ -65,7 +65,7 @@
       "prd_ref": "OT-P0-003",
       "category": "ui",
       "criticality": "P0",
-      "description": "The detailed editor shall cover identity, yield and effort, ingredients, nutrition, cost, method, rules and evidence, and source notes, attach validation messages to the offending field, and preserve all valid edits when one field fails.",
+      "description": "The detailed editor shall preserve valid edits on field errors and support absent or qualitative ingredient amounts, pinch/dash/to-taste suggestions and unspecified draft servings, never inventing weights or nutrition; automatic scaling requires valid numeric base/requested servings and ingredient constraints, while time is not a serving multiplier (ND-010).",
       "tags": [
         "editor",
         "validation",
@@ -83,6 +83,12 @@
           "phase": "business",
           "status": "planned",
           "notes": "Planned UI journey: reorder and remove ingredient rows with keyboard controls and confirm a removed step with dependents requires a repair preview."
+        },
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "planned",
+          "notes": "Given the selected 2026-10-03 contract, when CAP-003 behavior is exercised on persisted isolated fixtures, then the selected amendment and unchanged domain invariants hold. Exact test reference must be earned; no validation claimed."
         }
       ]
     },
@@ -165,7 +171,7 @@
       "prd_ref": "OT-P0-003",
       "category": "ui",
       "criticality": "P0",
-      "description": "The Meals destination shall present Your meals as a three-, two-, or one-column collection by width with image, title, active time, at most two evidence-backed tags, a favorite control, and + Plan on each card, search over titles, aliases, and approved tags without a model call per keystroke, chips and Filters for favorites, quick meals, high protein, fits my setup, needs review, drafts, and archived, and sorts that place unknown values in an explicit group.",
+      "description": "The Meals destination shall present Your meals as a three-, two-, or one-column collection by width with image, title, active time, at most two evidence-backed tags, a favorite control, and + Plan on each card, search over titles, aliases, and approved tags without a model call per keystroke, chips and Filters for favorites, quick meals, high protein, fits my setup, needs review, drafts, and archived, and sorts that place unknown values in an explicit group. After capture, return to the originating context with draft selected and search/filter preserved; direct capture opens details. If filters exclude the draft, show honest confirmation and a findable link (ND-008). Initial visible editable/versioned filters are Quick ≤20 minutes active preparation and 20g+ protein per serving; qualifiers and unknowns remain visible, and these are modeled filters, not personal targets (ND-023).",
       "tags": [
         "meals",
         "collection",
@@ -184,6 +190,12 @@
           "phase": "integration",
           "status": "planned",
           "notes": "Planned: a name-only draft appears under Drafts after reload and favorite state is personal metadata separate from saving (AT-016)."
+        },
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "planned",
+          "notes": "Given the selected 2026-10-03 contract, when CAP-007 behavior is exercised on persisted isolated fixtures, then the selected amendment and unchanged domain invariants hold. Exact test reference must be earned; no validation claimed."
         }
       ]
     }

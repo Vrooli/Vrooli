@@ -22,6 +22,567 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// CalendarEvent is a native event with stable identity and an optimistic
+// revision. All-day date ranges use an exclusive end; timed values are RFC3339
+// instants in the supplied IANA timezone.
+type CalendarEvent struct {
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	Id                 string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Title              string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	Subject            string                 `protobuf:"bytes,3,opt,name=subject,proto3" json:"subject,omitempty"`
+	Notes              string                 `protobuf:"bytes,4,opt,name=notes,proto3" json:"notes,omitempty"`
+	Availability       string                 `protobuf:"bytes,5,opt,name=availability,proto3" json:"availability,omitempty"`
+	Timezone           string                 `protobuf:"bytes,6,opt,name=timezone,proto3" json:"timezone,omitempty"`
+	AllDay             bool                   `protobuf:"varint,7,opt,name=all_day,json=allDay,proto3" json:"all_day,omitempty"`
+	StartDate          string                 `protobuf:"bytes,8,opt,name=start_date,json=startDate,proto3" json:"start_date,omitempty"`
+	EndDateExclusive   string                 `protobuf:"bytes,9,opt,name=end_date_exclusive,json=endDateExclusive,proto3" json:"end_date_exclusive,omitempty"`
+	StartAt            string                 `protobuf:"bytes,10,opt,name=start_at,json=startAt,proto3" json:"start_at,omitempty"`
+	EndAt              string                 `protobuf:"bytes,11,opt,name=end_at,json=endAt,proto3" json:"end_at,omitempty"`
+	Provider           string                 `protobuf:"bytes,12,opt,name=provider,proto3" json:"provider,omitempty"`
+	ProviderCalendarId string                 `protobuf:"bytes,13,opt,name=provider_calendar_id,json=providerCalendarId,proto3" json:"provider_calendar_id,omitempty"`
+	ProviderEventId    string                 `protobuf:"bytes,14,opt,name=provider_event_id,json=providerEventId,proto3" json:"provider_event_id,omitempty"`
+	OccurrenceId       string                 `protobuf:"bytes,15,opt,name=occurrence_id,json=occurrenceId,proto3" json:"occurrence_id,omitempty"`
+	Revision           int64                  `protobuf:"varint,16,opt,name=revision,proto3" json:"revision,omitempty"`
+	CreatedAt          *timestamppb.Timestamp `protobuf:"bytes,17,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt          *timestamppb.Timestamp `protobuf:"bytes,18,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *CalendarEvent) Reset() {
+	*x = CalendarEvent{}
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CalendarEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CalendarEvent) ProtoMessage() {}
+
+func (x *CalendarEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CalendarEvent.ProtoReflect.Descriptor instead.
+func (*CalendarEvent) Descriptor() ([]byte, []int) {
+	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *CalendarEvent) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *CalendarEvent) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *CalendarEvent) GetSubject() string {
+	if x != nil {
+		return x.Subject
+	}
+	return ""
+}
+
+func (x *CalendarEvent) GetNotes() string {
+	if x != nil {
+		return x.Notes
+	}
+	return ""
+}
+
+func (x *CalendarEvent) GetAvailability() string {
+	if x != nil {
+		return x.Availability
+	}
+	return ""
+}
+
+func (x *CalendarEvent) GetTimezone() string {
+	if x != nil {
+		return x.Timezone
+	}
+	return ""
+}
+
+func (x *CalendarEvent) GetAllDay() bool {
+	if x != nil {
+		return x.AllDay
+	}
+	return false
+}
+
+func (x *CalendarEvent) GetStartDate() string {
+	if x != nil {
+		return x.StartDate
+	}
+	return ""
+}
+
+func (x *CalendarEvent) GetEndDateExclusive() string {
+	if x != nil {
+		return x.EndDateExclusive
+	}
+	return ""
+}
+
+func (x *CalendarEvent) GetStartAt() string {
+	if x != nil {
+		return x.StartAt
+	}
+	return ""
+}
+
+func (x *CalendarEvent) GetEndAt() string {
+	if x != nil {
+		return x.EndAt
+	}
+	return ""
+}
+
+func (x *CalendarEvent) GetProvider() string {
+	if x != nil {
+		return x.Provider
+	}
+	return ""
+}
+
+func (x *CalendarEvent) GetProviderCalendarId() string {
+	if x != nil {
+		return x.ProviderCalendarId
+	}
+	return ""
+}
+
+func (x *CalendarEvent) GetProviderEventId() string {
+	if x != nil {
+		return x.ProviderEventId
+	}
+	return ""
+}
+
+func (x *CalendarEvent) GetOccurrenceId() string {
+	if x != nil {
+		return x.OccurrenceId
+	}
+	return ""
+}
+
+func (x *CalendarEvent) GetRevision() int64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+func (x *CalendarEvent) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *CalendarEvent) GetUpdatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return nil
+}
+
+type ListEventsRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Inclusive local civil-date range in the planner timezone.
+	StartLocalDate string `protobuf:"bytes,1,opt,name=start_local_date,json=startLocalDate,proto3" json:"start_local_date,omitempty"`
+	EndLocalDate   string `protobuf:"bytes,2,opt,name=end_local_date,json=endLocalDate,proto3" json:"end_local_date,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ListEventsRequest) Reset() {
+	*x = ListEventsRequest{}
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListEventsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListEventsRequest) ProtoMessage() {}
+
+func (x *ListEventsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListEventsRequest.ProtoReflect.Descriptor instead.
+func (*ListEventsRequest) Descriptor() ([]byte, []int) {
+	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *ListEventsRequest) GetStartLocalDate() string {
+	if x != nil {
+		return x.StartLocalDate
+	}
+	return ""
+}
+
+func (x *ListEventsRequest) GetEndLocalDate() string {
+	if x != nil {
+		return x.EndLocalDate
+	}
+	return ""
+}
+
+type ListEventsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Events        []*CalendarEvent       `protobuf:"bytes,1,rep,name=events,proto3" json:"events,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListEventsResponse) Reset() {
+	*x = ListEventsResponse{}
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListEventsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListEventsResponse) ProtoMessage() {}
+
+func (x *ListEventsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListEventsResponse.ProtoReflect.Descriptor instead.
+func (*ListEventsResponse) Descriptor() ([]byte, []int) {
+	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *ListEventsResponse) GetEvents() []*CalendarEvent {
+	if x != nil {
+		return x.Events
+	}
+	return nil
+}
+
+type GetEventRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	EventId       string                 `protobuf:"bytes,1,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetEventRequest) Reset() {
+	*x = GetEventRequest{}
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetEventRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetEventRequest) ProtoMessage() {}
+
+func (x *GetEventRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetEventRequest.ProtoReflect.Descriptor instead.
+func (*GetEventRequest) Descriptor() ([]byte, []int) {
+	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *GetEventRequest) GetEventId() string {
+	if x != nil {
+		return x.EventId
+	}
+	return ""
+}
+
+type GetEventResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Event         *CalendarEvent         `protobuf:"bytes,1,opt,name=event,proto3" json:"event,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetEventResponse) Reset() {
+	*x = GetEventResponse{}
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetEventResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetEventResponse) ProtoMessage() {}
+
+func (x *GetEventResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetEventResponse.ProtoReflect.Descriptor instead.
+func (*GetEventResponse) Descriptor() ([]byte, []int) {
+	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *GetEventResponse) GetEvent() *CalendarEvent {
+	if x != nil {
+		return x.Event
+	}
+	return nil
+}
+
+type CreateEventRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Event *CalendarEvent         `protobuf:"bytes,1,opt,name=event,proto3" json:"event,omitempty"`
+	// Reusing a key with the same request recovers the original durable event.
+	IdempotencyKey string `protobuf:"bytes,2,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *CreateEventRequest) Reset() {
+	*x = CreateEventRequest{}
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateEventRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateEventRequest) ProtoMessage() {}
+
+func (x *CreateEventRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateEventRequest.ProtoReflect.Descriptor instead.
+func (*CreateEventRequest) Descriptor() ([]byte, []int) {
+	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *CreateEventRequest) GetEvent() *CalendarEvent {
+	if x != nil {
+		return x.Event
+	}
+	return nil
+}
+
+func (x *CreateEventRequest) GetIdempotencyKey() string {
+	if x != nil {
+		return x.IdempotencyKey
+	}
+	return ""
+}
+
+type CreateEventResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Event         *CalendarEvent         `protobuf:"bytes,1,opt,name=event,proto3" json:"event,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateEventResponse) Reset() {
+	*x = CreateEventResponse{}
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateEventResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateEventResponse) ProtoMessage() {}
+
+func (x *CreateEventResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateEventResponse.ProtoReflect.Descriptor instead.
+func (*CreateEventResponse) Descriptor() ([]byte, []int) {
+	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *CreateEventResponse) GetEvent() *CalendarEvent {
+	if x != nil {
+		return x.Event
+	}
+	return nil
+}
+
+type UpdateEventRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Event            *CalendarEvent         `protobuf:"bytes,1,opt,name=event,proto3" json:"event,omitempty"`
+	ExpectedRevision int64                  `protobuf:"varint,2,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *UpdateEventRequest) Reset() {
+	*x = UpdateEventRequest{}
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateEventRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateEventRequest) ProtoMessage() {}
+
+func (x *UpdateEventRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateEventRequest.ProtoReflect.Descriptor instead.
+func (*UpdateEventRequest) Descriptor() ([]byte, []int) {
+	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *UpdateEventRequest) GetEvent() *CalendarEvent {
+	if x != nil {
+		return x.Event
+	}
+	return nil
+}
+
+func (x *UpdateEventRequest) GetExpectedRevision() int64 {
+	if x != nil {
+		return x.ExpectedRevision
+	}
+	return 0
+}
+
+type UpdateEventResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Event         *CalendarEvent         `protobuf:"bytes,1,opt,name=event,proto3" json:"event,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateEventResponse) Reset() {
+	*x = UpdateEventResponse{}
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateEventResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateEventResponse) ProtoMessage() {}
+
+func (x *UpdateEventResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateEventResponse.ProtoReflect.Descriptor instead.
+func (*UpdateEventResponse) Descriptor() ([]byte, []int) {
+	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *UpdateEventResponse) GetEvent() *CalendarEvent {
+	if x != nil {
+		return x.Event
+	}
+	return nil
+}
+
 type Allocation struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	Id              string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -40,7 +601,7 @@ type Allocation struct {
 
 func (x *Allocation) Reset() {
 	*x = Allocation{}
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[0]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -52,7 +613,7 @@ func (x *Allocation) String() string {
 func (*Allocation) ProtoMessage() {}
 
 func (x *Allocation) ProtoReflect() protoreflect.Message {
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[0]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -65,7 +626,7 @@ func (x *Allocation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Allocation.ProtoReflect.Descriptor instead.
 func (*Allocation) Descriptor() ([]byte, []int) {
-	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{0}
+	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *Allocation) GetId() string {
@@ -148,7 +709,7 @@ type ListTodayAllocationsRequest struct {
 
 func (x *ListTodayAllocationsRequest) Reset() {
 	*x = ListTodayAllocationsRequest{}
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[1]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -160,7 +721,7 @@ func (x *ListTodayAllocationsRequest) String() string {
 func (*ListTodayAllocationsRequest) ProtoMessage() {}
 
 func (x *ListTodayAllocationsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[1]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -173,7 +734,7 @@ func (x *ListTodayAllocationsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTodayAllocationsRequest.ProtoReflect.Descriptor instead.
 func (*ListTodayAllocationsRequest) Descriptor() ([]byte, []int) {
-	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{1}
+	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ListTodayAllocationsRequest) GetLocalDate() string {
@@ -198,7 +759,7 @@ type ListTodayAllocationsResponse struct {
 
 func (x *ListTodayAllocationsResponse) Reset() {
 	*x = ListTodayAllocationsResponse{}
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[2]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -210,7 +771,7 @@ func (x *ListTodayAllocationsResponse) String() string {
 func (*ListTodayAllocationsResponse) ProtoMessage() {}
 
 func (x *ListTodayAllocationsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[2]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -223,7 +784,7 @@ func (x *ListTodayAllocationsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTodayAllocationsResponse.ProtoReflect.Descriptor instead.
 func (*ListTodayAllocationsResponse) Descriptor() ([]byte, []int) {
-	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{2}
+	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ListTodayAllocationsResponse) GetAllocations() []*Allocation {
@@ -286,7 +847,7 @@ type ListAllocationsRequest struct {
 
 func (x *ListAllocationsRequest) Reset() {
 	*x = ListAllocationsRequest{}
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[3]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -298,7 +859,7 @@ func (x *ListAllocationsRequest) String() string {
 func (*ListAllocationsRequest) ProtoMessage() {}
 
 func (x *ListAllocationsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[3]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -311,7 +872,7 @@ func (x *ListAllocationsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAllocationsRequest.ProtoReflect.Descriptor instead.
 func (*ListAllocationsRequest) Descriptor() ([]byte, []int) {
-	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{3}
+	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ListAllocationsRequest) GetStartLocalDate() string {
@@ -337,7 +898,7 @@ type ListAllocationsResponse struct {
 
 func (x *ListAllocationsResponse) Reset() {
 	*x = ListAllocationsResponse{}
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[4]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -349,7 +910,7 @@ func (x *ListAllocationsResponse) String() string {
 func (*ListAllocationsResponse) ProtoMessage() {}
 
 func (x *ListAllocationsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[4]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -362,7 +923,7 @@ func (x *ListAllocationsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAllocationsResponse.ProtoReflect.Descriptor instead.
 func (*ListAllocationsResponse) Descriptor() ([]byte, []int) {
-	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{4}
+	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ListAllocationsResponse) GetAllocations() []*Allocation {
@@ -384,7 +945,7 @@ type CreateAllocationRequest struct {
 
 func (x *CreateAllocationRequest) Reset() {
 	*x = CreateAllocationRequest{}
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[5]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -396,7 +957,7 @@ func (x *CreateAllocationRequest) String() string {
 func (*CreateAllocationRequest) ProtoMessage() {}
 
 func (x *CreateAllocationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[5]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -409,7 +970,7 @@ func (x *CreateAllocationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateAllocationRequest.ProtoReflect.Descriptor instead.
 func (*CreateAllocationRequest) Descriptor() ([]byte, []int) {
-	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{5}
+	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *CreateAllocationRequest) GetWorkItemId() string {
@@ -449,7 +1010,7 @@ type CreateAllocationResponse struct {
 
 func (x *CreateAllocationResponse) Reset() {
 	*x = CreateAllocationResponse{}
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[6]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -461,7 +1022,7 @@ func (x *CreateAllocationResponse) String() string {
 func (*CreateAllocationResponse) ProtoMessage() {}
 
 func (x *CreateAllocationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[6]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -474,7 +1035,7 @@ func (x *CreateAllocationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateAllocationResponse.ProtoReflect.Descriptor instead.
 func (*CreateAllocationResponse) Descriptor() ([]byte, []int) {
-	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{6}
+	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *CreateAllocationResponse) GetAllocation() *Allocation {
@@ -496,7 +1057,7 @@ type PreviewAllocationRequest struct {
 
 func (x *PreviewAllocationRequest) Reset() {
 	*x = PreviewAllocationRequest{}
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[7]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -508,7 +1069,7 @@ func (x *PreviewAllocationRequest) String() string {
 func (*PreviewAllocationRequest) ProtoMessage() {}
 
 func (x *PreviewAllocationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[7]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -521,7 +1082,7 @@ func (x *PreviewAllocationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PreviewAllocationRequest.ProtoReflect.Descriptor instead.
 func (*PreviewAllocationRequest) Descriptor() ([]byte, []int) {
-	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{7}
+	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *PreviewAllocationRequest) GetWorkItemId() string {
@@ -568,7 +1129,7 @@ type PlacementProposal struct {
 
 func (x *PlacementProposal) Reset() {
 	*x = PlacementProposal{}
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[8]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -580,7 +1141,7 @@ func (x *PlacementProposal) String() string {
 func (*PlacementProposal) ProtoMessage() {}
 
 func (x *PlacementProposal) ProtoReflect() protoreflect.Message {
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[8]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -593,7 +1154,7 @@ func (x *PlacementProposal) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlacementProposal.ProtoReflect.Descriptor instead.
 func (*PlacementProposal) Descriptor() ([]byte, []int) {
-	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{8}
+	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *PlacementProposal) GetId() string {
@@ -661,7 +1222,7 @@ type PreviewAllocationResponse struct {
 
 func (x *PreviewAllocationResponse) Reset() {
 	*x = PreviewAllocationResponse{}
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[9]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -673,7 +1234,7 @@ func (x *PreviewAllocationResponse) String() string {
 func (*PreviewAllocationResponse) ProtoMessage() {}
 
 func (x *PreviewAllocationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[9]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -686,7 +1247,7 @@ func (x *PreviewAllocationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PreviewAllocationResponse.ProtoReflect.Descriptor instead.
 func (*PreviewAllocationResponse) Descriptor() ([]byte, []int) {
-	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{9}
+	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *PreviewAllocationResponse) GetProposal() *PlacementProposal {
@@ -707,7 +1268,7 @@ type ApplyAllocationProposalRequest struct {
 
 func (x *ApplyAllocationProposalRequest) Reset() {
 	*x = ApplyAllocationProposalRequest{}
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[10]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -719,7 +1280,7 @@ func (x *ApplyAllocationProposalRequest) String() string {
 func (*ApplyAllocationProposalRequest) ProtoMessage() {}
 
 func (x *ApplyAllocationProposalRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[10]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -732,7 +1293,7 @@ func (x *ApplyAllocationProposalRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApplyAllocationProposalRequest.ProtoReflect.Descriptor instead.
 func (*ApplyAllocationProposalRequest) Descriptor() ([]byte, []int) {
-	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{10}
+	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *ApplyAllocationProposalRequest) GetProposalId() string {
@@ -765,7 +1326,7 @@ type ApplyAllocationProposalResponse struct {
 
 func (x *ApplyAllocationProposalResponse) Reset() {
 	*x = ApplyAllocationProposalResponse{}
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[11]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -777,7 +1338,7 @@ func (x *ApplyAllocationProposalResponse) String() string {
 func (*ApplyAllocationProposalResponse) ProtoMessage() {}
 
 func (x *ApplyAllocationProposalResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[11]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -790,7 +1351,7 @@ func (x *ApplyAllocationProposalResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApplyAllocationProposalResponse.ProtoReflect.Descriptor instead.
 func (*ApplyAllocationProposalResponse) Descriptor() ([]byte, []int) {
-	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{11}
+	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *ApplyAllocationProposalResponse) GetAllocation() *Allocation {
@@ -811,7 +1372,7 @@ type PreviewScheduleRequest struct {
 
 func (x *PreviewScheduleRequest) Reset() {
 	*x = PreviewScheduleRequest{}
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[12]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -823,7 +1384,7 @@ func (x *PreviewScheduleRequest) String() string {
 func (*PreviewScheduleRequest) ProtoMessage() {}
 
 func (x *PreviewScheduleRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[12]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -836,7 +1397,7 @@ func (x *PreviewScheduleRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PreviewScheduleRequest.ProtoReflect.Descriptor instead.
 func (*PreviewScheduleRequest) Descriptor() ([]byte, []int) {
-	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{12}
+	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *PreviewScheduleRequest) GetLocalDate() string {
@@ -875,7 +1436,7 @@ type ProposedPlacement struct {
 
 func (x *ProposedPlacement) Reset() {
 	*x = ProposedPlacement{}
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[13]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -887,7 +1448,7 @@ func (x *ProposedPlacement) String() string {
 func (*ProposedPlacement) ProtoMessage() {}
 
 func (x *ProposedPlacement) ProtoReflect() protoreflect.Message {
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[13]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -900,7 +1461,7 @@ func (x *ProposedPlacement) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProposedPlacement.ProtoReflect.Descriptor instead.
 func (*ProposedPlacement) Descriptor() ([]byte, []int) {
-	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{13}
+	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *ProposedPlacement) GetWorkItemId() string {
@@ -966,7 +1527,7 @@ type ScheduleProposal struct {
 
 func (x *ScheduleProposal) Reset() {
 	*x = ScheduleProposal{}
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[14]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -978,7 +1539,7 @@ func (x *ScheduleProposal) String() string {
 func (*ScheduleProposal) ProtoMessage() {}
 
 func (x *ScheduleProposal) ProtoReflect() protoreflect.Message {
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[14]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -991,7 +1552,7 @@ func (x *ScheduleProposal) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScheduleProposal.ProtoReflect.Descriptor instead.
 func (*ScheduleProposal) Descriptor() ([]byte, []int) {
-	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{14}
+	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *ScheduleProposal) GetId() string {
@@ -1045,7 +1606,7 @@ type PreviewScheduleResponse struct {
 
 func (x *PreviewScheduleResponse) Reset() {
 	*x = PreviewScheduleResponse{}
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[15]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1057,7 +1618,7 @@ func (x *PreviewScheduleResponse) String() string {
 func (*PreviewScheduleResponse) ProtoMessage() {}
 
 func (x *PreviewScheduleResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[15]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1070,7 +1631,7 @@ func (x *PreviewScheduleResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PreviewScheduleResponse.ProtoReflect.Descriptor instead.
 func (*PreviewScheduleResponse) Descriptor() ([]byte, []int) {
-	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{15}
+	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *PreviewScheduleResponse) GetProposal() *ScheduleProposal {
@@ -1091,7 +1652,7 @@ type ApplyScheduleProposalRequest struct {
 
 func (x *ApplyScheduleProposalRequest) Reset() {
 	*x = ApplyScheduleProposalRequest{}
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[16]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1103,7 +1664,7 @@ func (x *ApplyScheduleProposalRequest) String() string {
 func (*ApplyScheduleProposalRequest) ProtoMessage() {}
 
 func (x *ApplyScheduleProposalRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[16]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1116,7 +1677,7 @@ func (x *ApplyScheduleProposalRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApplyScheduleProposalRequest.ProtoReflect.Descriptor instead.
 func (*ApplyScheduleProposalRequest) Descriptor() ([]byte, []int) {
-	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{16}
+	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *ApplyScheduleProposalRequest) GetProposalId() string {
@@ -1149,7 +1710,7 @@ type ApplyScheduleProposalResponse struct {
 
 func (x *ApplyScheduleProposalResponse) Reset() {
 	*x = ApplyScheduleProposalResponse{}
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[17]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1161,7 +1722,7 @@ func (x *ApplyScheduleProposalResponse) String() string {
 func (*ApplyScheduleProposalResponse) ProtoMessage() {}
 
 func (x *ApplyScheduleProposalResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[17]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1174,7 +1735,7 @@ func (x *ApplyScheduleProposalResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApplyScheduleProposalResponse.ProtoReflect.Descriptor instead.
 func (*ApplyScheduleProposalResponse) Descriptor() ([]byte, []int) {
-	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{17}
+	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *ApplyScheduleProposalResponse) GetAllocations() []*Allocation {
@@ -1195,7 +1756,7 @@ type CarryForwardAllocationRequest struct {
 
 func (x *CarryForwardAllocationRequest) Reset() {
 	*x = CarryForwardAllocationRequest{}
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[18]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1207,7 +1768,7 @@ func (x *CarryForwardAllocationRequest) String() string {
 func (*CarryForwardAllocationRequest) ProtoMessage() {}
 
 func (x *CarryForwardAllocationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[18]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1220,7 +1781,7 @@ func (x *CarryForwardAllocationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CarryForwardAllocationRequest.ProtoReflect.Descriptor instead.
 func (*CarryForwardAllocationRequest) Descriptor() ([]byte, []int) {
-	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{18}
+	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *CarryForwardAllocationRequest) GetAllocationId() string {
@@ -1253,7 +1814,7 @@ type CarryForwardAllocationResponse struct {
 
 func (x *CarryForwardAllocationResponse) Reset() {
 	*x = CarryForwardAllocationResponse{}
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[19]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1265,7 +1826,7 @@ func (x *CarryForwardAllocationResponse) String() string {
 func (*CarryForwardAllocationResponse) ProtoMessage() {}
 
 func (x *CarryForwardAllocationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[19]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1278,7 +1839,7 @@ func (x *CarryForwardAllocationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CarryForwardAllocationResponse.ProtoReflect.Descriptor instead.
 func (*CarryForwardAllocationResponse) Descriptor() ([]byte, []int) {
-	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{19}
+	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *CarryForwardAllocationResponse) GetAllocation() *Allocation {
@@ -1308,7 +1869,7 @@ type Routine struct {
 
 func (x *Routine) Reset() {
 	*x = Routine{}
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[20]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1320,7 +1881,7 @@ func (x *Routine) String() string {
 func (*Routine) ProtoMessage() {}
 
 func (x *Routine) ProtoReflect() protoreflect.Message {
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[20]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1333,7 +1894,7 @@ func (x *Routine) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Routine.ProtoReflect.Descriptor instead.
 func (*Routine) Descriptor() ([]byte, []int) {
-	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{20}
+	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *Routine) GetId() string {
@@ -1435,7 +1996,7 @@ type RoutineOccurrence struct {
 
 func (x *RoutineOccurrence) Reset() {
 	*x = RoutineOccurrence{}
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[21]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1447,7 +2008,7 @@ func (x *RoutineOccurrence) String() string {
 func (*RoutineOccurrence) ProtoMessage() {}
 
 func (x *RoutineOccurrence) ProtoReflect() protoreflect.Message {
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[21]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1460,7 +2021,7 @@ func (x *RoutineOccurrence) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoutineOccurrence.ProtoReflect.Descriptor instead.
 func (*RoutineOccurrence) Descriptor() ([]byte, []int) {
-	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{21}
+	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *RoutineOccurrence) GetRoutineId() string {
@@ -1520,7 +2081,7 @@ type ListRoutinesRequest struct {
 
 func (x *ListRoutinesRequest) Reset() {
 	*x = ListRoutinesRequest{}
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[22]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1532,7 +2093,7 @@ func (x *ListRoutinesRequest) String() string {
 func (*ListRoutinesRequest) ProtoMessage() {}
 
 func (x *ListRoutinesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[22]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1545,7 +2106,7 @@ func (x *ListRoutinesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRoutinesRequest.ProtoReflect.Descriptor instead.
 func (*ListRoutinesRequest) Descriptor() ([]byte, []int) {
-	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{22}
+	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{31}
 }
 
 type ListRoutinesResponse struct {
@@ -1557,7 +2118,7 @@ type ListRoutinesResponse struct {
 
 func (x *ListRoutinesResponse) Reset() {
 	*x = ListRoutinesResponse{}
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[23]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1569,7 +2130,7 @@ func (x *ListRoutinesResponse) String() string {
 func (*ListRoutinesResponse) ProtoMessage() {}
 
 func (x *ListRoutinesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[23]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1582,7 +2143,7 @@ func (x *ListRoutinesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRoutinesResponse.ProtoReflect.Descriptor instead.
 func (*ListRoutinesResponse) Descriptor() ([]byte, []int) {
-	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{23}
+	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *ListRoutinesResponse) GetRoutines() []*Routine {
@@ -1609,7 +2170,7 @@ type CreateRoutineRequest struct {
 
 func (x *CreateRoutineRequest) Reset() {
 	*x = CreateRoutineRequest{}
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[24]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1621,7 +2182,7 @@ func (x *CreateRoutineRequest) String() string {
 func (*CreateRoutineRequest) ProtoMessage() {}
 
 func (x *CreateRoutineRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[24]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1634,7 +2195,7 @@ func (x *CreateRoutineRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateRoutineRequest.ProtoReflect.Descriptor instead.
 func (*CreateRoutineRequest) Descriptor() ([]byte, []int) {
-	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{24}
+	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *CreateRoutineRequest) GetTitle() string {
@@ -1709,7 +2270,7 @@ type CreateRoutineResponse struct {
 
 func (x *CreateRoutineResponse) Reset() {
 	*x = CreateRoutineResponse{}
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[25]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1721,7 +2282,7 @@ func (x *CreateRoutineResponse) String() string {
 func (*CreateRoutineResponse) ProtoMessage() {}
 
 func (x *CreateRoutineResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[25]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1734,7 +2295,7 @@ func (x *CreateRoutineResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateRoutineResponse.ProtoReflect.Descriptor instead.
 func (*CreateRoutineResponse) Descriptor() ([]byte, []int) {
-	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{25}
+	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *CreateRoutineResponse) GetRoutine() *Routine {
@@ -1754,7 +2315,7 @@ type ListRoutineOccurrencesRequest struct {
 
 func (x *ListRoutineOccurrencesRequest) Reset() {
 	*x = ListRoutineOccurrencesRequest{}
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[26]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1766,7 +2327,7 @@ func (x *ListRoutineOccurrencesRequest) String() string {
 func (*ListRoutineOccurrencesRequest) ProtoMessage() {}
 
 func (x *ListRoutineOccurrencesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[26]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1779,7 +2340,7 @@ func (x *ListRoutineOccurrencesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRoutineOccurrencesRequest.ProtoReflect.Descriptor instead.
 func (*ListRoutineOccurrencesRequest) Descriptor() ([]byte, []int) {
-	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{26}
+	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *ListRoutineOccurrencesRequest) GetStartLocalDate() string {
@@ -1805,7 +2366,7 @@ type ListRoutineOccurrencesResponse struct {
 
 func (x *ListRoutineOccurrencesResponse) Reset() {
 	*x = ListRoutineOccurrencesResponse{}
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[27]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1817,7 +2378,7 @@ func (x *ListRoutineOccurrencesResponse) String() string {
 func (*ListRoutineOccurrencesResponse) ProtoMessage() {}
 
 func (x *ListRoutineOccurrencesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[27]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1830,7 +2391,7 @@ func (x *ListRoutineOccurrencesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRoutineOccurrencesResponse.ProtoReflect.Descriptor instead.
 func (*ListRoutineOccurrencesResponse) Descriptor() ([]byte, []int) {
-	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{27}
+	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *ListRoutineOccurrencesResponse) GetOccurrences() []*RoutineOccurrence {
@@ -1851,7 +2412,7 @@ type SkipRoutineOccurrenceRequest struct {
 
 func (x *SkipRoutineOccurrenceRequest) Reset() {
 	*x = SkipRoutineOccurrenceRequest{}
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[28]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1863,7 +2424,7 @@ func (x *SkipRoutineOccurrenceRequest) String() string {
 func (*SkipRoutineOccurrenceRequest) ProtoMessage() {}
 
 func (x *SkipRoutineOccurrenceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[28]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1876,7 +2437,7 @@ func (x *SkipRoutineOccurrenceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SkipRoutineOccurrenceRequest.ProtoReflect.Descriptor instead.
 func (*SkipRoutineOccurrenceRequest) Descriptor() ([]byte, []int) {
-	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{28}
+	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *SkipRoutineOccurrenceRequest) GetRoutineId() string {
@@ -1909,7 +2470,7 @@ type SkipRoutineOccurrenceResponse struct {
 
 func (x *SkipRoutineOccurrenceResponse) Reset() {
 	*x = SkipRoutineOccurrenceResponse{}
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[29]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1921,7 +2482,7 @@ func (x *SkipRoutineOccurrenceResponse) String() string {
 func (*SkipRoutineOccurrenceResponse) ProtoMessage() {}
 
 func (x *SkipRoutineOccurrenceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[29]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1934,7 +2495,7 @@ func (x *SkipRoutineOccurrenceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SkipRoutineOccurrenceResponse.ProtoReflect.Descriptor instead.
 func (*SkipRoutineOccurrenceResponse) Descriptor() ([]byte, []int) {
-	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{29}
+	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *SkipRoutineOccurrenceResponse) GetSkipped() bool {
@@ -1956,7 +2517,7 @@ type RescheduleRoutineOccurrenceRequest struct {
 
 func (x *RescheduleRoutineOccurrenceRequest) Reset() {
 	*x = RescheduleRoutineOccurrenceRequest{}
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[30]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1968,7 +2529,7 @@ func (x *RescheduleRoutineOccurrenceRequest) String() string {
 func (*RescheduleRoutineOccurrenceRequest) ProtoMessage() {}
 
 func (x *RescheduleRoutineOccurrenceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[30]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1981,7 +2542,7 @@ func (x *RescheduleRoutineOccurrenceRequest) ProtoReflect() protoreflect.Message
 
 // Deprecated: Use RescheduleRoutineOccurrenceRequest.ProtoReflect.Descriptor instead.
 func (*RescheduleRoutineOccurrenceRequest) Descriptor() ([]byte, []int) {
-	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{30}
+	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *RescheduleRoutineOccurrenceRequest) GetRoutineId() string {
@@ -2021,7 +2582,7 @@ type RescheduleRoutineOccurrenceResponse struct {
 
 func (x *RescheduleRoutineOccurrenceResponse) Reset() {
 	*x = RescheduleRoutineOccurrenceResponse{}
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[31]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2033,7 +2594,7 @@ func (x *RescheduleRoutineOccurrenceResponse) String() string {
 func (*RescheduleRoutineOccurrenceResponse) ProtoMessage() {}
 
 func (x *RescheduleRoutineOccurrenceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[31]
+	mi := &file_personal_planner_v1_calendar_calendar_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2046,7 +2607,7 @@ func (x *RescheduleRoutineOccurrenceResponse) ProtoReflect() protoreflect.Messag
 
 // Deprecated: Use RescheduleRoutineOccurrenceResponse.ProtoReflect.Descriptor instead.
 func (*RescheduleRoutineOccurrenceResponse) Descriptor() ([]byte, []int) {
-	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{31}
+	return file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *RescheduleRoutineOccurrenceResponse) GetRescheduled() bool {
@@ -2060,7 +2621,49 @@ var File_personal_planner_v1_calendar_calendar_proto protoreflect.FileDescriptor
 
 const file_personal_planner_v1_calendar_calendar_proto_rawDesc = "" +
 	"\n" +
-	"+personal-planner/v1/calendar/calendar.proto\x12#vrooli.personal_planner.v1.calendar\x1a\x1fgoogle/protobuf/timestamp.proto\"\xdf\x02\n" +
+	"+personal-planner/v1/calendar/calendar.proto\x12#vrooli.personal_planner.v1.calendar\x1a\x1fgoogle/protobuf/timestamp.proto\"\xee\x04\n" +
+	"\rCalendarEvent\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
+	"\x05title\x18\x02 \x01(\tR\x05title\x12\x18\n" +
+	"\asubject\x18\x03 \x01(\tR\asubject\x12\x14\n" +
+	"\x05notes\x18\x04 \x01(\tR\x05notes\x12\"\n" +
+	"\favailability\x18\x05 \x01(\tR\favailability\x12\x1a\n" +
+	"\btimezone\x18\x06 \x01(\tR\btimezone\x12\x17\n" +
+	"\aall_day\x18\a \x01(\bR\x06allDay\x12\x1d\n" +
+	"\n" +
+	"start_date\x18\b \x01(\tR\tstartDate\x12,\n" +
+	"\x12end_date_exclusive\x18\t \x01(\tR\x10endDateExclusive\x12\x19\n" +
+	"\bstart_at\x18\n" +
+	" \x01(\tR\astartAt\x12\x15\n" +
+	"\x06end_at\x18\v \x01(\tR\x05endAt\x12\x1a\n" +
+	"\bprovider\x18\f \x01(\tR\bprovider\x120\n" +
+	"\x14provider_calendar_id\x18\r \x01(\tR\x12providerCalendarId\x12*\n" +
+	"\x11provider_event_id\x18\x0e \x01(\tR\x0fproviderEventId\x12#\n" +
+	"\roccurrence_id\x18\x0f \x01(\tR\foccurrenceId\x12\x1a\n" +
+	"\brevision\x18\x10 \x01(\x03R\brevision\x129\n" +
+	"\n" +
+	"created_at\x18\x11 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
+	"\n" +
+	"updated_at\x18\x12 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"c\n" +
+	"\x11ListEventsRequest\x12(\n" +
+	"\x10start_local_date\x18\x01 \x01(\tR\x0estartLocalDate\x12$\n" +
+	"\x0eend_local_date\x18\x02 \x01(\tR\fendLocalDate\"`\n" +
+	"\x12ListEventsResponse\x12J\n" +
+	"\x06events\x18\x01 \x03(\v22.vrooli.personal_planner.v1.calendar.CalendarEventR\x06events\",\n" +
+	"\x0fGetEventRequest\x12\x19\n" +
+	"\bevent_id\x18\x01 \x01(\tR\aeventId\"\\\n" +
+	"\x10GetEventResponse\x12H\n" +
+	"\x05event\x18\x01 \x01(\v22.vrooli.personal_planner.v1.calendar.CalendarEventR\x05event\"\x87\x01\n" +
+	"\x12CreateEventRequest\x12H\n" +
+	"\x05event\x18\x01 \x01(\v22.vrooli.personal_planner.v1.calendar.CalendarEventR\x05event\x12'\n" +
+	"\x0fidempotency_key\x18\x02 \x01(\tR\x0eidempotencyKey\"_\n" +
+	"\x13CreateEventResponse\x12H\n" +
+	"\x05event\x18\x01 \x01(\v22.vrooli.personal_planner.v1.calendar.CalendarEventR\x05event\"\x8b\x01\n" +
+	"\x12UpdateEventRequest\x12H\n" +
+	"\x05event\x18\x01 \x01(\v22.vrooli.personal_planner.v1.calendar.CalendarEventR\x05event\x12+\n" +
+	"\x11expected_revision\x18\x02 \x01(\x03R\x10expectedRevision\"_\n" +
+	"\x13UpdateEventResponse\x12H\n" +
+	"\x05event\x18\x01 \x01(\v22.vrooli.personal_planner.v1.calendar.CalendarEventR\x05event\"\xdf\x02\n" +
 	"\n" +
 	"Allocation\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12 \n" +
@@ -2237,7 +2840,7 @@ const file_personal_planner_v1_calendar_calendar_proto_rawDesc = "" +
 	"\fstart_minute\x18\x03 \x01(\x05R\vstartMinute\x12+\n" +
 	"\x11expected_revision\x18\x04 \x01(\x03R\x10expectedRevision\"G\n" +
 	"#RescheduleRoutineOccurrenceResponse\x12 \n" +
-	"\vrescheduled\x18\x01 \x01(\bR\vrescheduled2\xe7\x0f\n" +
+	"\vrescheduled\x18\x01 \x01(\bR\vrescheduled2\xe5\x13\n" +
 	"\x0fCalendarService\x12\x9b\x01\n" +
 	"\x14ListTodayAllocations\x12@.vrooli.personal_planner.v1.calendar.ListTodayAllocationsRequest\x1aA.vrooli.personal_planner.v1.calendar.ListTodayAllocationsResponse\x12\x8c\x01\n" +
 	"\x0fListAllocations\x12;.vrooli.personal_planner.v1.calendar.ListAllocationsRequest\x1a<.vrooli.personal_planner.v1.calendar.ListAllocationsResponse\x12\x8f\x01\n" +
@@ -2251,7 +2854,12 @@ const file_personal_planner_v1_calendar_calendar_proto_rawDesc = "" +
 	"\rCreateRoutine\x129.vrooli.personal_planner.v1.calendar.CreateRoutineRequest\x1a:.vrooli.personal_planner.v1.calendar.CreateRoutineResponse\x12\xa1\x01\n" +
 	"\x16ListRoutineOccurrences\x12B.vrooli.personal_planner.v1.calendar.ListRoutineOccurrencesRequest\x1aC.vrooli.personal_planner.v1.calendar.ListRoutineOccurrencesResponse\x12\x9e\x01\n" +
 	"\x15SkipRoutineOccurrence\x12A.vrooli.personal_planner.v1.calendar.SkipRoutineOccurrenceRequest\x1aB.vrooli.personal_planner.v1.calendar.SkipRoutineOccurrenceResponse\x12\xb0\x01\n" +
-	"\x1bRescheduleRoutineOccurrence\x12G.vrooli.personal_planner.v1.calendar.RescheduleRoutineOccurrenceRequest\x1aH.vrooli.personal_planner.v1.calendar.RescheduleRoutineOccurrenceResponseBYZWgithub.com/vrooli/vrooli/packages/proto/gen/go/personal-planner/v1/calendar;calendar_v1b\x06proto3"
+	"\x1bRescheduleRoutineOccurrence\x12G.vrooli.personal_planner.v1.calendar.RescheduleRoutineOccurrenceRequest\x1aH.vrooli.personal_planner.v1.calendar.RescheduleRoutineOccurrenceResponse\x12}\n" +
+	"\n" +
+	"ListEvents\x126.vrooli.personal_planner.v1.calendar.ListEventsRequest\x1a7.vrooli.personal_planner.v1.calendar.ListEventsResponse\x12w\n" +
+	"\bGetEvent\x124.vrooli.personal_planner.v1.calendar.GetEventRequest\x1a5.vrooli.personal_planner.v1.calendar.GetEventResponse\x12\x80\x01\n" +
+	"\vCreateEvent\x127.vrooli.personal_planner.v1.calendar.CreateEventRequest\x1a8.vrooli.personal_planner.v1.calendar.CreateEventResponse\x12\x80\x01\n" +
+	"\vUpdateEvent\x127.vrooli.personal_planner.v1.calendar.UpdateEventRequest\x1a8.vrooli.personal_planner.v1.calendar.UpdateEventResponseBYZWgithub.com/vrooli/vrooli/packages/proto/gen/go/personal-planner/v1/calendar;calendar_v1b\x06proto3"
 
 var (
 	file_personal_planner_v1_calendar_calendar_proto_rawDescOnce sync.Once
@@ -2265,87 +2873,112 @@ func file_personal_planner_v1_calendar_calendar_proto_rawDescGZIP() []byte {
 	return file_personal_planner_v1_calendar_calendar_proto_rawDescData
 }
 
-var file_personal_planner_v1_calendar_calendar_proto_msgTypes = make([]protoimpl.MessageInfo, 32)
+var file_personal_planner_v1_calendar_calendar_proto_msgTypes = make([]protoimpl.MessageInfo, 41)
 var file_personal_planner_v1_calendar_calendar_proto_goTypes = []any{
-	(*Allocation)(nil),                          // 0: vrooli.personal_planner.v1.calendar.Allocation
-	(*ListTodayAllocationsRequest)(nil),         // 1: vrooli.personal_planner.v1.calendar.ListTodayAllocationsRequest
-	(*ListTodayAllocationsResponse)(nil),        // 2: vrooli.personal_planner.v1.calendar.ListTodayAllocationsResponse
-	(*ListAllocationsRequest)(nil),              // 3: vrooli.personal_planner.v1.calendar.ListAllocationsRequest
-	(*ListAllocationsResponse)(nil),             // 4: vrooli.personal_planner.v1.calendar.ListAllocationsResponse
-	(*CreateAllocationRequest)(nil),             // 5: vrooli.personal_planner.v1.calendar.CreateAllocationRequest
-	(*CreateAllocationResponse)(nil),            // 6: vrooli.personal_planner.v1.calendar.CreateAllocationResponse
-	(*PreviewAllocationRequest)(nil),            // 7: vrooli.personal_planner.v1.calendar.PreviewAllocationRequest
-	(*PlacementProposal)(nil),                   // 8: vrooli.personal_planner.v1.calendar.PlacementProposal
-	(*PreviewAllocationResponse)(nil),           // 9: vrooli.personal_planner.v1.calendar.PreviewAllocationResponse
-	(*ApplyAllocationProposalRequest)(nil),      // 10: vrooli.personal_planner.v1.calendar.ApplyAllocationProposalRequest
-	(*ApplyAllocationProposalResponse)(nil),     // 11: vrooli.personal_planner.v1.calendar.ApplyAllocationProposalResponse
-	(*PreviewScheduleRequest)(nil),              // 12: vrooli.personal_planner.v1.calendar.PreviewScheduleRequest
-	(*ProposedPlacement)(nil),                   // 13: vrooli.personal_planner.v1.calendar.ProposedPlacement
-	(*ScheduleProposal)(nil),                    // 14: vrooli.personal_planner.v1.calendar.ScheduleProposal
-	(*PreviewScheduleResponse)(nil),             // 15: vrooli.personal_planner.v1.calendar.PreviewScheduleResponse
-	(*ApplyScheduleProposalRequest)(nil),        // 16: vrooli.personal_planner.v1.calendar.ApplyScheduleProposalRequest
-	(*ApplyScheduleProposalResponse)(nil),       // 17: vrooli.personal_planner.v1.calendar.ApplyScheduleProposalResponse
-	(*CarryForwardAllocationRequest)(nil),       // 18: vrooli.personal_planner.v1.calendar.CarryForwardAllocationRequest
-	(*CarryForwardAllocationResponse)(nil),      // 19: vrooli.personal_planner.v1.calendar.CarryForwardAllocationResponse
-	(*Routine)(nil),                             // 20: vrooli.personal_planner.v1.calendar.Routine
-	(*RoutineOccurrence)(nil),                   // 21: vrooli.personal_planner.v1.calendar.RoutineOccurrence
-	(*ListRoutinesRequest)(nil),                 // 22: vrooli.personal_planner.v1.calendar.ListRoutinesRequest
-	(*ListRoutinesResponse)(nil),                // 23: vrooli.personal_planner.v1.calendar.ListRoutinesResponse
-	(*CreateRoutineRequest)(nil),                // 24: vrooli.personal_planner.v1.calendar.CreateRoutineRequest
-	(*CreateRoutineResponse)(nil),               // 25: vrooli.personal_planner.v1.calendar.CreateRoutineResponse
-	(*ListRoutineOccurrencesRequest)(nil),       // 26: vrooli.personal_planner.v1.calendar.ListRoutineOccurrencesRequest
-	(*ListRoutineOccurrencesResponse)(nil),      // 27: vrooli.personal_planner.v1.calendar.ListRoutineOccurrencesResponse
-	(*SkipRoutineOccurrenceRequest)(nil),        // 28: vrooli.personal_planner.v1.calendar.SkipRoutineOccurrenceRequest
-	(*SkipRoutineOccurrenceResponse)(nil),       // 29: vrooli.personal_planner.v1.calendar.SkipRoutineOccurrenceResponse
-	(*RescheduleRoutineOccurrenceRequest)(nil),  // 30: vrooli.personal_planner.v1.calendar.RescheduleRoutineOccurrenceRequest
-	(*RescheduleRoutineOccurrenceResponse)(nil), // 31: vrooli.personal_planner.v1.calendar.RescheduleRoutineOccurrenceResponse
-	(*timestamppb.Timestamp)(nil),               // 32: google.protobuf.Timestamp
+	(*CalendarEvent)(nil),                       // 0: vrooli.personal_planner.v1.calendar.CalendarEvent
+	(*ListEventsRequest)(nil),                   // 1: vrooli.personal_planner.v1.calendar.ListEventsRequest
+	(*ListEventsResponse)(nil),                  // 2: vrooli.personal_planner.v1.calendar.ListEventsResponse
+	(*GetEventRequest)(nil),                     // 3: vrooli.personal_planner.v1.calendar.GetEventRequest
+	(*GetEventResponse)(nil),                    // 4: vrooli.personal_planner.v1.calendar.GetEventResponse
+	(*CreateEventRequest)(nil),                  // 5: vrooli.personal_planner.v1.calendar.CreateEventRequest
+	(*CreateEventResponse)(nil),                 // 6: vrooli.personal_planner.v1.calendar.CreateEventResponse
+	(*UpdateEventRequest)(nil),                  // 7: vrooli.personal_planner.v1.calendar.UpdateEventRequest
+	(*UpdateEventResponse)(nil),                 // 8: vrooli.personal_planner.v1.calendar.UpdateEventResponse
+	(*Allocation)(nil),                          // 9: vrooli.personal_planner.v1.calendar.Allocation
+	(*ListTodayAllocationsRequest)(nil),         // 10: vrooli.personal_planner.v1.calendar.ListTodayAllocationsRequest
+	(*ListTodayAllocationsResponse)(nil),        // 11: vrooli.personal_planner.v1.calendar.ListTodayAllocationsResponse
+	(*ListAllocationsRequest)(nil),              // 12: vrooli.personal_planner.v1.calendar.ListAllocationsRequest
+	(*ListAllocationsResponse)(nil),             // 13: vrooli.personal_planner.v1.calendar.ListAllocationsResponse
+	(*CreateAllocationRequest)(nil),             // 14: vrooli.personal_planner.v1.calendar.CreateAllocationRequest
+	(*CreateAllocationResponse)(nil),            // 15: vrooli.personal_planner.v1.calendar.CreateAllocationResponse
+	(*PreviewAllocationRequest)(nil),            // 16: vrooli.personal_planner.v1.calendar.PreviewAllocationRequest
+	(*PlacementProposal)(nil),                   // 17: vrooli.personal_planner.v1.calendar.PlacementProposal
+	(*PreviewAllocationResponse)(nil),           // 18: vrooli.personal_planner.v1.calendar.PreviewAllocationResponse
+	(*ApplyAllocationProposalRequest)(nil),      // 19: vrooli.personal_planner.v1.calendar.ApplyAllocationProposalRequest
+	(*ApplyAllocationProposalResponse)(nil),     // 20: vrooli.personal_planner.v1.calendar.ApplyAllocationProposalResponse
+	(*PreviewScheduleRequest)(nil),              // 21: vrooli.personal_planner.v1.calendar.PreviewScheduleRequest
+	(*ProposedPlacement)(nil),                   // 22: vrooli.personal_planner.v1.calendar.ProposedPlacement
+	(*ScheduleProposal)(nil),                    // 23: vrooli.personal_planner.v1.calendar.ScheduleProposal
+	(*PreviewScheduleResponse)(nil),             // 24: vrooli.personal_planner.v1.calendar.PreviewScheduleResponse
+	(*ApplyScheduleProposalRequest)(nil),        // 25: vrooli.personal_planner.v1.calendar.ApplyScheduleProposalRequest
+	(*ApplyScheduleProposalResponse)(nil),       // 26: vrooli.personal_planner.v1.calendar.ApplyScheduleProposalResponse
+	(*CarryForwardAllocationRequest)(nil),       // 27: vrooli.personal_planner.v1.calendar.CarryForwardAllocationRequest
+	(*CarryForwardAllocationResponse)(nil),      // 28: vrooli.personal_planner.v1.calendar.CarryForwardAllocationResponse
+	(*Routine)(nil),                             // 29: vrooli.personal_planner.v1.calendar.Routine
+	(*RoutineOccurrence)(nil),                   // 30: vrooli.personal_planner.v1.calendar.RoutineOccurrence
+	(*ListRoutinesRequest)(nil),                 // 31: vrooli.personal_planner.v1.calendar.ListRoutinesRequest
+	(*ListRoutinesResponse)(nil),                // 32: vrooli.personal_planner.v1.calendar.ListRoutinesResponse
+	(*CreateRoutineRequest)(nil),                // 33: vrooli.personal_planner.v1.calendar.CreateRoutineRequest
+	(*CreateRoutineResponse)(nil),               // 34: vrooli.personal_planner.v1.calendar.CreateRoutineResponse
+	(*ListRoutineOccurrencesRequest)(nil),       // 35: vrooli.personal_planner.v1.calendar.ListRoutineOccurrencesRequest
+	(*ListRoutineOccurrencesResponse)(nil),      // 36: vrooli.personal_planner.v1.calendar.ListRoutineOccurrencesResponse
+	(*SkipRoutineOccurrenceRequest)(nil),        // 37: vrooli.personal_planner.v1.calendar.SkipRoutineOccurrenceRequest
+	(*SkipRoutineOccurrenceResponse)(nil),       // 38: vrooli.personal_planner.v1.calendar.SkipRoutineOccurrenceResponse
+	(*RescheduleRoutineOccurrenceRequest)(nil),  // 39: vrooli.personal_planner.v1.calendar.RescheduleRoutineOccurrenceRequest
+	(*RescheduleRoutineOccurrenceResponse)(nil), // 40: vrooli.personal_planner.v1.calendar.RescheduleRoutineOccurrenceResponse
+	(*timestamppb.Timestamp)(nil),               // 41: google.protobuf.Timestamp
 }
 var file_personal_planner_v1_calendar_calendar_proto_depIdxs = []int32{
-	32, // 0: vrooli.personal_planner.v1.calendar.Allocation.created_at:type_name -> google.protobuf.Timestamp
-	0,  // 1: vrooli.personal_planner.v1.calendar.ListTodayAllocationsResponse.allocations:type_name -> vrooli.personal_planner.v1.calendar.Allocation
-	0,  // 2: vrooli.personal_planner.v1.calendar.ListAllocationsResponse.allocations:type_name -> vrooli.personal_planner.v1.calendar.Allocation
-	0,  // 3: vrooli.personal_planner.v1.calendar.CreateAllocationResponse.allocation:type_name -> vrooli.personal_planner.v1.calendar.Allocation
-	8,  // 4: vrooli.personal_planner.v1.calendar.PreviewAllocationResponse.proposal:type_name -> vrooli.personal_planner.v1.calendar.PlacementProposal
-	0,  // 5: vrooli.personal_planner.v1.calendar.ApplyAllocationProposalResponse.allocation:type_name -> vrooli.personal_planner.v1.calendar.Allocation
-	13, // 6: vrooli.personal_planner.v1.calendar.ScheduleProposal.placements:type_name -> vrooli.personal_planner.v1.calendar.ProposedPlacement
-	14, // 7: vrooli.personal_planner.v1.calendar.PreviewScheduleResponse.proposal:type_name -> vrooli.personal_planner.v1.calendar.ScheduleProposal
-	0,  // 8: vrooli.personal_planner.v1.calendar.ApplyScheduleProposalResponse.allocations:type_name -> vrooli.personal_planner.v1.calendar.Allocation
-	0,  // 9: vrooli.personal_planner.v1.calendar.CarryForwardAllocationResponse.allocation:type_name -> vrooli.personal_planner.v1.calendar.Allocation
-	20, // 10: vrooli.personal_planner.v1.calendar.ListRoutinesResponse.routines:type_name -> vrooli.personal_planner.v1.calendar.Routine
-	20, // 11: vrooli.personal_planner.v1.calendar.CreateRoutineResponse.routine:type_name -> vrooli.personal_planner.v1.calendar.Routine
-	21, // 12: vrooli.personal_planner.v1.calendar.ListRoutineOccurrencesResponse.occurrences:type_name -> vrooli.personal_planner.v1.calendar.RoutineOccurrence
-	1,  // 13: vrooli.personal_planner.v1.calendar.CalendarService.ListTodayAllocations:input_type -> vrooli.personal_planner.v1.calendar.ListTodayAllocationsRequest
-	3,  // 14: vrooli.personal_planner.v1.calendar.CalendarService.ListAllocations:input_type -> vrooli.personal_planner.v1.calendar.ListAllocationsRequest
-	5,  // 15: vrooli.personal_planner.v1.calendar.CalendarService.CreateAllocation:input_type -> vrooli.personal_planner.v1.calendar.CreateAllocationRequest
-	7,  // 16: vrooli.personal_planner.v1.calendar.CalendarService.PreviewAllocation:input_type -> vrooli.personal_planner.v1.calendar.PreviewAllocationRequest
-	10, // 17: vrooli.personal_planner.v1.calendar.CalendarService.ApplyAllocationProposal:input_type -> vrooli.personal_planner.v1.calendar.ApplyAllocationProposalRequest
-	12, // 18: vrooli.personal_planner.v1.calendar.CalendarService.PreviewSchedule:input_type -> vrooli.personal_planner.v1.calendar.PreviewScheduleRequest
-	16, // 19: vrooli.personal_planner.v1.calendar.CalendarService.ApplyScheduleProposal:input_type -> vrooli.personal_planner.v1.calendar.ApplyScheduleProposalRequest
-	18, // 20: vrooli.personal_planner.v1.calendar.CalendarService.CarryForwardAllocation:input_type -> vrooli.personal_planner.v1.calendar.CarryForwardAllocationRequest
-	22, // 21: vrooli.personal_planner.v1.calendar.CalendarService.ListRoutines:input_type -> vrooli.personal_planner.v1.calendar.ListRoutinesRequest
-	24, // 22: vrooli.personal_planner.v1.calendar.CalendarService.CreateRoutine:input_type -> vrooli.personal_planner.v1.calendar.CreateRoutineRequest
-	26, // 23: vrooli.personal_planner.v1.calendar.CalendarService.ListRoutineOccurrences:input_type -> vrooli.personal_planner.v1.calendar.ListRoutineOccurrencesRequest
-	28, // 24: vrooli.personal_planner.v1.calendar.CalendarService.SkipRoutineOccurrence:input_type -> vrooli.personal_planner.v1.calendar.SkipRoutineOccurrenceRequest
-	30, // 25: vrooli.personal_planner.v1.calendar.CalendarService.RescheduleRoutineOccurrence:input_type -> vrooli.personal_planner.v1.calendar.RescheduleRoutineOccurrenceRequest
-	2,  // 26: vrooli.personal_planner.v1.calendar.CalendarService.ListTodayAllocations:output_type -> vrooli.personal_planner.v1.calendar.ListTodayAllocationsResponse
-	4,  // 27: vrooli.personal_planner.v1.calendar.CalendarService.ListAllocations:output_type -> vrooli.personal_planner.v1.calendar.ListAllocationsResponse
-	6,  // 28: vrooli.personal_planner.v1.calendar.CalendarService.CreateAllocation:output_type -> vrooli.personal_planner.v1.calendar.CreateAllocationResponse
-	9,  // 29: vrooli.personal_planner.v1.calendar.CalendarService.PreviewAllocation:output_type -> vrooli.personal_planner.v1.calendar.PreviewAllocationResponse
-	11, // 30: vrooli.personal_planner.v1.calendar.CalendarService.ApplyAllocationProposal:output_type -> vrooli.personal_planner.v1.calendar.ApplyAllocationProposalResponse
-	15, // 31: vrooli.personal_planner.v1.calendar.CalendarService.PreviewSchedule:output_type -> vrooli.personal_planner.v1.calendar.PreviewScheduleResponse
-	17, // 32: vrooli.personal_planner.v1.calendar.CalendarService.ApplyScheduleProposal:output_type -> vrooli.personal_planner.v1.calendar.ApplyScheduleProposalResponse
-	19, // 33: vrooli.personal_planner.v1.calendar.CalendarService.CarryForwardAllocation:output_type -> vrooli.personal_planner.v1.calendar.CarryForwardAllocationResponse
-	23, // 34: vrooli.personal_planner.v1.calendar.CalendarService.ListRoutines:output_type -> vrooli.personal_planner.v1.calendar.ListRoutinesResponse
-	25, // 35: vrooli.personal_planner.v1.calendar.CalendarService.CreateRoutine:output_type -> vrooli.personal_planner.v1.calendar.CreateRoutineResponse
-	27, // 36: vrooli.personal_planner.v1.calendar.CalendarService.ListRoutineOccurrences:output_type -> vrooli.personal_planner.v1.calendar.ListRoutineOccurrencesResponse
-	29, // 37: vrooli.personal_planner.v1.calendar.CalendarService.SkipRoutineOccurrence:output_type -> vrooli.personal_planner.v1.calendar.SkipRoutineOccurrenceResponse
-	31, // 38: vrooli.personal_planner.v1.calendar.CalendarService.RescheduleRoutineOccurrence:output_type -> vrooli.personal_planner.v1.calendar.RescheduleRoutineOccurrenceResponse
-	26, // [26:39] is the sub-list for method output_type
-	13, // [13:26] is the sub-list for method input_type
-	13, // [13:13] is the sub-list for extension type_name
-	13, // [13:13] is the sub-list for extension extendee
-	0,  // [0:13] is the sub-list for field type_name
+	41, // 0: vrooli.personal_planner.v1.calendar.CalendarEvent.created_at:type_name -> google.protobuf.Timestamp
+	41, // 1: vrooli.personal_planner.v1.calendar.CalendarEvent.updated_at:type_name -> google.protobuf.Timestamp
+	0,  // 2: vrooli.personal_planner.v1.calendar.ListEventsResponse.events:type_name -> vrooli.personal_planner.v1.calendar.CalendarEvent
+	0,  // 3: vrooli.personal_planner.v1.calendar.GetEventResponse.event:type_name -> vrooli.personal_planner.v1.calendar.CalendarEvent
+	0,  // 4: vrooli.personal_planner.v1.calendar.CreateEventRequest.event:type_name -> vrooli.personal_planner.v1.calendar.CalendarEvent
+	0,  // 5: vrooli.personal_planner.v1.calendar.CreateEventResponse.event:type_name -> vrooli.personal_planner.v1.calendar.CalendarEvent
+	0,  // 6: vrooli.personal_planner.v1.calendar.UpdateEventRequest.event:type_name -> vrooli.personal_planner.v1.calendar.CalendarEvent
+	0,  // 7: vrooli.personal_planner.v1.calendar.UpdateEventResponse.event:type_name -> vrooli.personal_planner.v1.calendar.CalendarEvent
+	41, // 8: vrooli.personal_planner.v1.calendar.Allocation.created_at:type_name -> google.protobuf.Timestamp
+	9,  // 9: vrooli.personal_planner.v1.calendar.ListTodayAllocationsResponse.allocations:type_name -> vrooli.personal_planner.v1.calendar.Allocation
+	9,  // 10: vrooli.personal_planner.v1.calendar.ListAllocationsResponse.allocations:type_name -> vrooli.personal_planner.v1.calendar.Allocation
+	9,  // 11: vrooli.personal_planner.v1.calendar.CreateAllocationResponse.allocation:type_name -> vrooli.personal_planner.v1.calendar.Allocation
+	17, // 12: vrooli.personal_planner.v1.calendar.PreviewAllocationResponse.proposal:type_name -> vrooli.personal_planner.v1.calendar.PlacementProposal
+	9,  // 13: vrooli.personal_planner.v1.calendar.ApplyAllocationProposalResponse.allocation:type_name -> vrooli.personal_planner.v1.calendar.Allocation
+	22, // 14: vrooli.personal_planner.v1.calendar.ScheduleProposal.placements:type_name -> vrooli.personal_planner.v1.calendar.ProposedPlacement
+	23, // 15: vrooli.personal_planner.v1.calendar.PreviewScheduleResponse.proposal:type_name -> vrooli.personal_planner.v1.calendar.ScheduleProposal
+	9,  // 16: vrooli.personal_planner.v1.calendar.ApplyScheduleProposalResponse.allocations:type_name -> vrooli.personal_planner.v1.calendar.Allocation
+	9,  // 17: vrooli.personal_planner.v1.calendar.CarryForwardAllocationResponse.allocation:type_name -> vrooli.personal_planner.v1.calendar.Allocation
+	29, // 18: vrooli.personal_planner.v1.calendar.ListRoutinesResponse.routines:type_name -> vrooli.personal_planner.v1.calendar.Routine
+	29, // 19: vrooli.personal_planner.v1.calendar.CreateRoutineResponse.routine:type_name -> vrooli.personal_planner.v1.calendar.Routine
+	30, // 20: vrooli.personal_planner.v1.calendar.ListRoutineOccurrencesResponse.occurrences:type_name -> vrooli.personal_planner.v1.calendar.RoutineOccurrence
+	10, // 21: vrooli.personal_planner.v1.calendar.CalendarService.ListTodayAllocations:input_type -> vrooli.personal_planner.v1.calendar.ListTodayAllocationsRequest
+	12, // 22: vrooli.personal_planner.v1.calendar.CalendarService.ListAllocations:input_type -> vrooli.personal_planner.v1.calendar.ListAllocationsRequest
+	14, // 23: vrooli.personal_planner.v1.calendar.CalendarService.CreateAllocation:input_type -> vrooli.personal_planner.v1.calendar.CreateAllocationRequest
+	16, // 24: vrooli.personal_planner.v1.calendar.CalendarService.PreviewAllocation:input_type -> vrooli.personal_planner.v1.calendar.PreviewAllocationRequest
+	19, // 25: vrooli.personal_planner.v1.calendar.CalendarService.ApplyAllocationProposal:input_type -> vrooli.personal_planner.v1.calendar.ApplyAllocationProposalRequest
+	21, // 26: vrooli.personal_planner.v1.calendar.CalendarService.PreviewSchedule:input_type -> vrooli.personal_planner.v1.calendar.PreviewScheduleRequest
+	25, // 27: vrooli.personal_planner.v1.calendar.CalendarService.ApplyScheduleProposal:input_type -> vrooli.personal_planner.v1.calendar.ApplyScheduleProposalRequest
+	27, // 28: vrooli.personal_planner.v1.calendar.CalendarService.CarryForwardAllocation:input_type -> vrooli.personal_planner.v1.calendar.CarryForwardAllocationRequest
+	31, // 29: vrooli.personal_planner.v1.calendar.CalendarService.ListRoutines:input_type -> vrooli.personal_planner.v1.calendar.ListRoutinesRequest
+	33, // 30: vrooli.personal_planner.v1.calendar.CalendarService.CreateRoutine:input_type -> vrooli.personal_planner.v1.calendar.CreateRoutineRequest
+	35, // 31: vrooli.personal_planner.v1.calendar.CalendarService.ListRoutineOccurrences:input_type -> vrooli.personal_planner.v1.calendar.ListRoutineOccurrencesRequest
+	37, // 32: vrooli.personal_planner.v1.calendar.CalendarService.SkipRoutineOccurrence:input_type -> vrooli.personal_planner.v1.calendar.SkipRoutineOccurrenceRequest
+	39, // 33: vrooli.personal_planner.v1.calendar.CalendarService.RescheduleRoutineOccurrence:input_type -> vrooli.personal_planner.v1.calendar.RescheduleRoutineOccurrenceRequest
+	1,  // 34: vrooli.personal_planner.v1.calendar.CalendarService.ListEvents:input_type -> vrooli.personal_planner.v1.calendar.ListEventsRequest
+	3,  // 35: vrooli.personal_planner.v1.calendar.CalendarService.GetEvent:input_type -> vrooli.personal_planner.v1.calendar.GetEventRequest
+	5,  // 36: vrooli.personal_planner.v1.calendar.CalendarService.CreateEvent:input_type -> vrooli.personal_planner.v1.calendar.CreateEventRequest
+	7,  // 37: vrooli.personal_planner.v1.calendar.CalendarService.UpdateEvent:input_type -> vrooli.personal_planner.v1.calendar.UpdateEventRequest
+	11, // 38: vrooli.personal_planner.v1.calendar.CalendarService.ListTodayAllocations:output_type -> vrooli.personal_planner.v1.calendar.ListTodayAllocationsResponse
+	13, // 39: vrooli.personal_planner.v1.calendar.CalendarService.ListAllocations:output_type -> vrooli.personal_planner.v1.calendar.ListAllocationsResponse
+	15, // 40: vrooli.personal_planner.v1.calendar.CalendarService.CreateAllocation:output_type -> vrooli.personal_planner.v1.calendar.CreateAllocationResponse
+	18, // 41: vrooli.personal_planner.v1.calendar.CalendarService.PreviewAllocation:output_type -> vrooli.personal_planner.v1.calendar.PreviewAllocationResponse
+	20, // 42: vrooli.personal_planner.v1.calendar.CalendarService.ApplyAllocationProposal:output_type -> vrooli.personal_planner.v1.calendar.ApplyAllocationProposalResponse
+	24, // 43: vrooli.personal_planner.v1.calendar.CalendarService.PreviewSchedule:output_type -> vrooli.personal_planner.v1.calendar.PreviewScheduleResponse
+	26, // 44: vrooli.personal_planner.v1.calendar.CalendarService.ApplyScheduleProposal:output_type -> vrooli.personal_planner.v1.calendar.ApplyScheduleProposalResponse
+	28, // 45: vrooli.personal_planner.v1.calendar.CalendarService.CarryForwardAllocation:output_type -> vrooli.personal_planner.v1.calendar.CarryForwardAllocationResponse
+	32, // 46: vrooli.personal_planner.v1.calendar.CalendarService.ListRoutines:output_type -> vrooli.personal_planner.v1.calendar.ListRoutinesResponse
+	34, // 47: vrooli.personal_planner.v1.calendar.CalendarService.CreateRoutine:output_type -> vrooli.personal_planner.v1.calendar.CreateRoutineResponse
+	36, // 48: vrooli.personal_planner.v1.calendar.CalendarService.ListRoutineOccurrences:output_type -> vrooli.personal_planner.v1.calendar.ListRoutineOccurrencesResponse
+	38, // 49: vrooli.personal_planner.v1.calendar.CalendarService.SkipRoutineOccurrence:output_type -> vrooli.personal_planner.v1.calendar.SkipRoutineOccurrenceResponse
+	40, // 50: vrooli.personal_planner.v1.calendar.CalendarService.RescheduleRoutineOccurrence:output_type -> vrooli.personal_planner.v1.calendar.RescheduleRoutineOccurrenceResponse
+	2,  // 51: vrooli.personal_planner.v1.calendar.CalendarService.ListEvents:output_type -> vrooli.personal_planner.v1.calendar.ListEventsResponse
+	4,  // 52: vrooli.personal_planner.v1.calendar.CalendarService.GetEvent:output_type -> vrooli.personal_planner.v1.calendar.GetEventResponse
+	6,  // 53: vrooli.personal_planner.v1.calendar.CalendarService.CreateEvent:output_type -> vrooli.personal_planner.v1.calendar.CreateEventResponse
+	8,  // 54: vrooli.personal_planner.v1.calendar.CalendarService.UpdateEvent:output_type -> vrooli.personal_planner.v1.calendar.UpdateEventResponse
+	38, // [38:55] is the sub-list for method output_type
+	21, // [21:38] is the sub-list for method input_type
+	21, // [21:21] is the sub-list for extension type_name
+	21, // [21:21] is the sub-list for extension extendee
+	0,  // [0:21] is the sub-list for field type_name
 }
 
 func init() { file_personal_planner_v1_calendar_calendar_proto_init() }
@@ -2359,7 +2992,7 @@ func file_personal_planner_v1_calendar_calendar_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_personal_planner_v1_calendar_calendar_proto_rawDesc), len(file_personal_planner_v1_calendar_calendar_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   32,
+			NumMessages:   41,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

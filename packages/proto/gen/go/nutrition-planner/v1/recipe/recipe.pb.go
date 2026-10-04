@@ -790,6 +790,110 @@ func (x *GetRecipeResponse) GetRecipe() *Recipe {
 	return nil
 }
 
+type GetRecipeRevisionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	Id            string                 `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
+	Revision      int64                  `protobuf:"varint,3,opt,name=revision,proto3" json:"revision,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRecipeRevisionRequest) Reset() {
+	*x = GetRecipeRevisionRequest{}
+	mi := &file_nutrition_planner_v1_recipe_recipe_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRecipeRevisionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRecipeRevisionRequest) ProtoMessage() {}
+
+func (x *GetRecipeRevisionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_nutrition_planner_v1_recipe_recipe_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRecipeRevisionRequest.ProtoReflect.Descriptor instead.
+func (*GetRecipeRevisionRequest) Descriptor() ([]byte, []int) {
+	return file_nutrition_planner_v1_recipe_recipe_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *GetRecipeRevisionRequest) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+func (x *GetRecipeRevisionRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *GetRecipeRevisionRequest) GetRevision() int64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+type GetRecipeRevisionResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Recipe        *Recipe                `protobuf:"bytes,1,opt,name=recipe,proto3" json:"recipe,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRecipeRevisionResponse) Reset() {
+	*x = GetRecipeRevisionResponse{}
+	mi := &file_nutrition_planner_v1_recipe_recipe_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRecipeRevisionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRecipeRevisionResponse) ProtoMessage() {}
+
+func (x *GetRecipeRevisionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_nutrition_planner_v1_recipe_recipe_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRecipeRevisionResponse.ProtoReflect.Descriptor instead.
+func (*GetRecipeRevisionResponse) Descriptor() ([]byte, []int) {
+	return file_nutrition_planner_v1_recipe_recipe_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *GetRecipeRevisionResponse) GetRecipe() *Recipe {
+	if x != nil {
+		return x.Recipe
+	}
+	return nil
+}
+
 type UpdateRecipeRequest struct {
 	state              protoimpl.MessageState `protogen:"open.v1"`
 	WorkspaceId        string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
@@ -814,7 +918,7 @@ type UpdateRecipeRequest struct {
 
 func (x *UpdateRecipeRequest) Reset() {
 	*x = UpdateRecipeRequest{}
-	mi := &file_nutrition_planner_v1_recipe_recipe_proto_msgTypes[10]
+	mi := &file_nutrition_planner_v1_recipe_recipe_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -826,7 +930,7 @@ func (x *UpdateRecipeRequest) String() string {
 func (*UpdateRecipeRequest) ProtoMessage() {}
 
 func (x *UpdateRecipeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_nutrition_planner_v1_recipe_recipe_proto_msgTypes[10]
+	mi := &file_nutrition_planner_v1_recipe_recipe_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -839,7 +943,7 @@ func (x *UpdateRecipeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateRecipeRequest.ProtoReflect.Descriptor instead.
 func (*UpdateRecipeRequest) Descriptor() ([]byte, []int) {
-	return file_nutrition_planner_v1_recipe_recipe_proto_rawDescGZIP(), []int{10}
+	return file_nutrition_planner_v1_recipe_recipe_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *UpdateRecipeRequest) GetWorkspaceId() string {
@@ -963,7 +1067,7 @@ type UpdateRecipeResponse struct {
 
 func (x *UpdateRecipeResponse) Reset() {
 	*x = UpdateRecipeResponse{}
-	mi := &file_nutrition_planner_v1_recipe_recipe_proto_msgTypes[11]
+	mi := &file_nutrition_planner_v1_recipe_recipe_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -975,7 +1079,7 @@ func (x *UpdateRecipeResponse) String() string {
 func (*UpdateRecipeResponse) ProtoMessage() {}
 
 func (x *UpdateRecipeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_nutrition_planner_v1_recipe_recipe_proto_msgTypes[11]
+	mi := &file_nutrition_planner_v1_recipe_recipe_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -988,7 +1092,7 @@ func (x *UpdateRecipeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateRecipeResponse.ProtoReflect.Descriptor instead.
 func (*UpdateRecipeResponse) Descriptor() ([]byte, []int) {
-	return file_nutrition_planner_v1_recipe_recipe_proto_rawDescGZIP(), []int{11}
+	return file_nutrition_planner_v1_recipe_recipe_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *UpdateRecipeResponse) GetRecipe() *Recipe {
@@ -1079,6 +1183,12 @@ const file_nutrition_planner_v1_recipe_recipe_proto_rawDesc = "" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\tR\x02id\"W\n" +
 	"\x11GetRecipeResponse\x12B\n" +
+	"\x06recipe\x18\x01 \x01(\v2*.vrooli.nutrition_planner.v1.recipe.RecipeR\x06recipe\"i\n" +
+	"\x18GetRecipeRevisionRequest\x12!\n" +
+	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x0e\n" +
+	"\x02id\x18\x02 \x01(\tR\x02id\x12\x1a\n" +
+	"\brevision\x18\x03 \x01(\x03R\brevision\"_\n" +
+	"\x19GetRecipeRevisionResponse\x12B\n" +
 	"\x06recipe\x18\x01 \x01(\v2*.vrooli.nutrition_planner.v1.recipe.RecipeR\x06recipe\"\xa7\x06\n" +
 	"\x13UpdateRecipeRequest\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x0e\n" +
@@ -1104,11 +1214,12 @@ const file_nutrition_planner_v1_recipe_recipe_proto_rawDesc = "" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"Z\n" +
 	"\x14UpdateRecipeResponse\x12B\n" +
-	"\x06recipe\x18\x01 \x01(\v2*.vrooli.nutrition_planner.v1.recipe.RecipeR\x06recipe2\x91\x04\n" +
+	"\x06recipe\x18\x01 \x01(\v2*.vrooli.nutrition_planner.v1.recipe.RecipeR\x06recipe2\xa4\x05\n" +
 	"\rRecipeService\x12~\n" +
 	"\vListRecipes\x126.vrooli.nutrition_planner.v1.recipe.ListRecipesRequest\x1a7.vrooli.nutrition_planner.v1.recipe.ListRecipesResponse\x12\x81\x01\n" +
 	"\fCreateRecipe\x127.vrooli.nutrition_planner.v1.recipe.CreateRecipeRequest\x1a8.vrooli.nutrition_planner.v1.recipe.CreateRecipeResponse\x12x\n" +
-	"\tGetRecipe\x124.vrooli.nutrition_planner.v1.recipe.GetRecipeRequest\x1a5.vrooli.nutrition_planner.v1.recipe.GetRecipeResponse\x12\x81\x01\n" +
+	"\tGetRecipe\x124.vrooli.nutrition_planner.v1.recipe.GetRecipeRequest\x1a5.vrooli.nutrition_planner.v1.recipe.GetRecipeResponse\x12\x90\x01\n" +
+	"\x11GetRecipeRevision\x12<.vrooli.nutrition_planner.v1.recipe.GetRecipeRevisionRequest\x1a=.vrooli.nutrition_planner.v1.recipe.GetRecipeRevisionResponse\x12\x81\x01\n" +
 	"\fUpdateRecipe\x127.vrooli.nutrition_planner.v1.recipe.UpdateRecipeRequest\x1a8.vrooli.nutrition_planner.v1.recipe.UpdateRecipeResponseBVZTgithub.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/recipe;recipe_v1b\x06proto3"
 
 var (
@@ -1123,55 +1234,60 @@ func file_nutrition_planner_v1_recipe_recipe_proto_rawDescGZIP() []byte {
 	return file_nutrition_planner_v1_recipe_recipe_proto_rawDescData
 }
 
-var file_nutrition_planner_v1_recipe_recipe_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_nutrition_planner_v1_recipe_recipe_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_nutrition_planner_v1_recipe_recipe_proto_goTypes = []any{
-	(*Recipe)(nil),                // 0: vrooli.nutrition_planner.v1.recipe.Recipe
-	(*RecipeIngredient)(nil),      // 1: vrooli.nutrition_planner.v1.recipe.RecipeIngredient
-	(*RecipeMethod)(nil),          // 2: vrooli.nutrition_planner.v1.recipe.RecipeMethod
-	(*RecipeStep)(nil),            // 3: vrooli.nutrition_planner.v1.recipe.RecipeStep
-	(*ListRecipesRequest)(nil),    // 4: vrooli.nutrition_planner.v1.recipe.ListRecipesRequest
-	(*ListRecipesResponse)(nil),   // 5: vrooli.nutrition_planner.v1.recipe.ListRecipesResponse
-	(*CreateRecipeRequest)(nil),   // 6: vrooli.nutrition_planner.v1.recipe.CreateRecipeRequest
-	(*CreateRecipeResponse)(nil),  // 7: vrooli.nutrition_planner.v1.recipe.CreateRecipeResponse
-	(*GetRecipeRequest)(nil),      // 8: vrooli.nutrition_planner.v1.recipe.GetRecipeRequest
-	(*GetRecipeResponse)(nil),     // 9: vrooli.nutrition_planner.v1.recipe.GetRecipeResponse
-	(*UpdateRecipeRequest)(nil),   // 10: vrooli.nutrition_planner.v1.recipe.UpdateRecipeRequest
-	(*UpdateRecipeResponse)(nil),  // 11: vrooli.nutrition_planner.v1.recipe.UpdateRecipeResponse
-	nil,                           // 12: vrooli.nutrition_planner.v1.recipe.Recipe.AllergenEvidenceEntry
-	nil,                           // 13: vrooli.nutrition_planner.v1.recipe.CreateRecipeRequest.AllergenEvidenceEntry
-	nil,                           // 14: vrooli.nutrition_planner.v1.recipe.UpdateRecipeRequest.AllergenEvidenceEntry
-	(*timestamppb.Timestamp)(nil), // 15: google.protobuf.Timestamp
+	(*Recipe)(nil),                    // 0: vrooli.nutrition_planner.v1.recipe.Recipe
+	(*RecipeIngredient)(nil),          // 1: vrooli.nutrition_planner.v1.recipe.RecipeIngredient
+	(*RecipeMethod)(nil),              // 2: vrooli.nutrition_planner.v1.recipe.RecipeMethod
+	(*RecipeStep)(nil),                // 3: vrooli.nutrition_planner.v1.recipe.RecipeStep
+	(*ListRecipesRequest)(nil),        // 4: vrooli.nutrition_planner.v1.recipe.ListRecipesRequest
+	(*ListRecipesResponse)(nil),       // 5: vrooli.nutrition_planner.v1.recipe.ListRecipesResponse
+	(*CreateRecipeRequest)(nil),       // 6: vrooli.nutrition_planner.v1.recipe.CreateRecipeRequest
+	(*CreateRecipeResponse)(nil),      // 7: vrooli.nutrition_planner.v1.recipe.CreateRecipeResponse
+	(*GetRecipeRequest)(nil),          // 8: vrooli.nutrition_planner.v1.recipe.GetRecipeRequest
+	(*GetRecipeResponse)(nil),         // 9: vrooli.nutrition_planner.v1.recipe.GetRecipeResponse
+	(*GetRecipeRevisionRequest)(nil),  // 10: vrooli.nutrition_planner.v1.recipe.GetRecipeRevisionRequest
+	(*GetRecipeRevisionResponse)(nil), // 11: vrooli.nutrition_planner.v1.recipe.GetRecipeRevisionResponse
+	(*UpdateRecipeRequest)(nil),       // 12: vrooli.nutrition_planner.v1.recipe.UpdateRecipeRequest
+	(*UpdateRecipeResponse)(nil),      // 13: vrooli.nutrition_planner.v1.recipe.UpdateRecipeResponse
+	nil,                               // 14: vrooli.nutrition_planner.v1.recipe.Recipe.AllergenEvidenceEntry
+	nil,                               // 15: vrooli.nutrition_planner.v1.recipe.CreateRecipeRequest.AllergenEvidenceEntry
+	nil,                               // 16: vrooli.nutrition_planner.v1.recipe.UpdateRecipeRequest.AllergenEvidenceEntry
+	(*timestamppb.Timestamp)(nil),     // 17: google.protobuf.Timestamp
 }
 var file_nutrition_planner_v1_recipe_recipe_proto_depIdxs = []int32{
-	15, // 0: vrooli.nutrition_planner.v1.recipe.Recipe.created_at:type_name -> google.protobuf.Timestamp
-	15, // 1: vrooli.nutrition_planner.v1.recipe.Recipe.updated_at:type_name -> google.protobuf.Timestamp
+	17, // 0: vrooli.nutrition_planner.v1.recipe.Recipe.created_at:type_name -> google.protobuf.Timestamp
+	17, // 1: vrooli.nutrition_planner.v1.recipe.Recipe.updated_at:type_name -> google.protobuf.Timestamp
 	2,  // 2: vrooli.nutrition_planner.v1.recipe.Recipe.methods:type_name -> vrooli.nutrition_planner.v1.recipe.RecipeMethod
-	12, // 3: vrooli.nutrition_planner.v1.recipe.Recipe.allergen_evidence:type_name -> vrooli.nutrition_planner.v1.recipe.Recipe.AllergenEvidenceEntry
+	14, // 3: vrooli.nutrition_planner.v1.recipe.Recipe.allergen_evidence:type_name -> vrooli.nutrition_planner.v1.recipe.Recipe.AllergenEvidenceEntry
 	1,  // 4: vrooli.nutrition_planner.v1.recipe.Recipe.ingredients:type_name -> vrooli.nutrition_planner.v1.recipe.RecipeIngredient
 	3,  // 5: vrooli.nutrition_planner.v1.recipe.RecipeMethod.steps:type_name -> vrooli.nutrition_planner.v1.recipe.RecipeStep
 	0,  // 6: vrooli.nutrition_planner.v1.recipe.ListRecipesResponse.recipes:type_name -> vrooli.nutrition_planner.v1.recipe.Recipe
 	2,  // 7: vrooli.nutrition_planner.v1.recipe.CreateRecipeRequest.methods:type_name -> vrooli.nutrition_planner.v1.recipe.RecipeMethod
-	13, // 8: vrooli.nutrition_planner.v1.recipe.CreateRecipeRequest.allergen_evidence:type_name -> vrooli.nutrition_planner.v1.recipe.CreateRecipeRequest.AllergenEvidenceEntry
+	15, // 8: vrooli.nutrition_planner.v1.recipe.CreateRecipeRequest.allergen_evidence:type_name -> vrooli.nutrition_planner.v1.recipe.CreateRecipeRequest.AllergenEvidenceEntry
 	1,  // 9: vrooli.nutrition_planner.v1.recipe.CreateRecipeRequest.ingredients:type_name -> vrooli.nutrition_planner.v1.recipe.RecipeIngredient
 	0,  // 10: vrooli.nutrition_planner.v1.recipe.CreateRecipeResponse.recipe:type_name -> vrooli.nutrition_planner.v1.recipe.Recipe
 	0,  // 11: vrooli.nutrition_planner.v1.recipe.GetRecipeResponse.recipe:type_name -> vrooli.nutrition_planner.v1.recipe.Recipe
-	2,  // 12: vrooli.nutrition_planner.v1.recipe.UpdateRecipeRequest.methods:type_name -> vrooli.nutrition_planner.v1.recipe.RecipeMethod
-	14, // 13: vrooli.nutrition_planner.v1.recipe.UpdateRecipeRequest.allergen_evidence:type_name -> vrooli.nutrition_planner.v1.recipe.UpdateRecipeRequest.AllergenEvidenceEntry
-	1,  // 14: vrooli.nutrition_planner.v1.recipe.UpdateRecipeRequest.ingredients:type_name -> vrooli.nutrition_planner.v1.recipe.RecipeIngredient
-	0,  // 15: vrooli.nutrition_planner.v1.recipe.UpdateRecipeResponse.recipe:type_name -> vrooli.nutrition_planner.v1.recipe.Recipe
-	4,  // 16: vrooli.nutrition_planner.v1.recipe.RecipeService.ListRecipes:input_type -> vrooli.nutrition_planner.v1.recipe.ListRecipesRequest
-	6,  // 17: vrooli.nutrition_planner.v1.recipe.RecipeService.CreateRecipe:input_type -> vrooli.nutrition_planner.v1.recipe.CreateRecipeRequest
-	8,  // 18: vrooli.nutrition_planner.v1.recipe.RecipeService.GetRecipe:input_type -> vrooli.nutrition_planner.v1.recipe.GetRecipeRequest
-	10, // 19: vrooli.nutrition_planner.v1.recipe.RecipeService.UpdateRecipe:input_type -> vrooli.nutrition_planner.v1.recipe.UpdateRecipeRequest
-	5,  // 20: vrooli.nutrition_planner.v1.recipe.RecipeService.ListRecipes:output_type -> vrooli.nutrition_planner.v1.recipe.ListRecipesResponse
-	7,  // 21: vrooli.nutrition_planner.v1.recipe.RecipeService.CreateRecipe:output_type -> vrooli.nutrition_planner.v1.recipe.CreateRecipeResponse
-	9,  // 22: vrooli.nutrition_planner.v1.recipe.RecipeService.GetRecipe:output_type -> vrooli.nutrition_planner.v1.recipe.GetRecipeResponse
-	11, // 23: vrooli.nutrition_planner.v1.recipe.RecipeService.UpdateRecipe:output_type -> vrooli.nutrition_planner.v1.recipe.UpdateRecipeResponse
-	20, // [20:24] is the sub-list for method output_type
-	16, // [16:20] is the sub-list for method input_type
-	16, // [16:16] is the sub-list for extension type_name
-	16, // [16:16] is the sub-list for extension extendee
-	0,  // [0:16] is the sub-list for field type_name
+	0,  // 12: vrooli.nutrition_planner.v1.recipe.GetRecipeRevisionResponse.recipe:type_name -> vrooli.nutrition_planner.v1.recipe.Recipe
+	2,  // 13: vrooli.nutrition_planner.v1.recipe.UpdateRecipeRequest.methods:type_name -> vrooli.nutrition_planner.v1.recipe.RecipeMethod
+	16, // 14: vrooli.nutrition_planner.v1.recipe.UpdateRecipeRequest.allergen_evidence:type_name -> vrooli.nutrition_planner.v1.recipe.UpdateRecipeRequest.AllergenEvidenceEntry
+	1,  // 15: vrooli.nutrition_planner.v1.recipe.UpdateRecipeRequest.ingredients:type_name -> vrooli.nutrition_planner.v1.recipe.RecipeIngredient
+	0,  // 16: vrooli.nutrition_planner.v1.recipe.UpdateRecipeResponse.recipe:type_name -> vrooli.nutrition_planner.v1.recipe.Recipe
+	4,  // 17: vrooli.nutrition_planner.v1.recipe.RecipeService.ListRecipes:input_type -> vrooli.nutrition_planner.v1.recipe.ListRecipesRequest
+	6,  // 18: vrooli.nutrition_planner.v1.recipe.RecipeService.CreateRecipe:input_type -> vrooli.nutrition_planner.v1.recipe.CreateRecipeRequest
+	8,  // 19: vrooli.nutrition_planner.v1.recipe.RecipeService.GetRecipe:input_type -> vrooli.nutrition_planner.v1.recipe.GetRecipeRequest
+	10, // 20: vrooli.nutrition_planner.v1.recipe.RecipeService.GetRecipeRevision:input_type -> vrooli.nutrition_planner.v1.recipe.GetRecipeRevisionRequest
+	12, // 21: vrooli.nutrition_planner.v1.recipe.RecipeService.UpdateRecipe:input_type -> vrooli.nutrition_planner.v1.recipe.UpdateRecipeRequest
+	5,  // 22: vrooli.nutrition_planner.v1.recipe.RecipeService.ListRecipes:output_type -> vrooli.nutrition_planner.v1.recipe.ListRecipesResponse
+	7,  // 23: vrooli.nutrition_planner.v1.recipe.RecipeService.CreateRecipe:output_type -> vrooli.nutrition_planner.v1.recipe.CreateRecipeResponse
+	9,  // 24: vrooli.nutrition_planner.v1.recipe.RecipeService.GetRecipe:output_type -> vrooli.nutrition_planner.v1.recipe.GetRecipeResponse
+	11, // 25: vrooli.nutrition_planner.v1.recipe.RecipeService.GetRecipeRevision:output_type -> vrooli.nutrition_planner.v1.recipe.GetRecipeRevisionResponse
+	13, // 26: vrooli.nutrition_planner.v1.recipe.RecipeService.UpdateRecipe:output_type -> vrooli.nutrition_planner.v1.recipe.UpdateRecipeResponse
+	22, // [22:27] is the sub-list for method output_type
+	17, // [17:22] is the sub-list for method input_type
+	17, // [17:17] is the sub-list for extension type_name
+	17, // [17:17] is the sub-list for extension extendee
+	0,  // [0:17] is the sub-list for field type_name
 }
 
 func init() { file_nutrition_planner_v1_recipe_recipe_proto_init() }
@@ -1185,7 +1301,7 @@ func file_nutrition_planner_v1_recipe_recipe_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_nutrition_planner_v1_recipe_recipe_proto_rawDesc), len(file_nutrition_planner_v1_recipe_recipe_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   15,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

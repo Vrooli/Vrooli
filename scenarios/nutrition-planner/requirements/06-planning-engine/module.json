@@ -125,7 +125,7 @@
       "prd_ref": "OT-P0-009",
       "category": "service",
       "criticality": "P0",
-      "description": "When replanning, the scenario shall preview changed, unchanged, and locked rows against the input revision captured at generation, apply only to selected unlocked future occurrences, and invalidate the preview when its inputs changed.",
+      "description": "When replanning, the scenario shall start with a concise change summary, expandable detail and full-week comparison; show changed, unchanged and locked rows; preserve history and locks; apply selected unlocked future changes transactionally and reject stale inputs or hard-rule conflicts (ND-013/014).",
       "tags": [
         "replan",
         "preview",
@@ -137,6 +137,12 @@
           "phase": "integration",
           "status": "planned",
           "notes": "Planned: replan preserves valid locks, reports unknown cost/nutrient/time contributions, and rejects an invalidated preview with an updated one (ACT-018, ACT-019)."
+        },
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "planned",
+          "notes": "Given the selected 2026-10-03 contract, when PLAN-006 behavior is exercised on persisted isolated fixtures, then the selected amendment and unchanged domain invariants hold. Exact test reference must be earned; no validation claimed."
         }
       ]
     },

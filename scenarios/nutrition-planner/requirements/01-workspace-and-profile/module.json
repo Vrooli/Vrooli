@@ -178,7 +178,7 @@
       "prd_ref": "OT-P0-002",
       "category": "service",
       "criticality": "P0",
-      "description": "When a profile is applied, the scenario shall preview conflicts against any existing plan, count matching meals through the same eligibility service the planner uses, and never relax a restriction merely to produce a nonzero count.",
+      "description": "When a valid profile is applied, the scenario shall permit an empty collection, preview existing-plan conflicts, count eligibility with the shared evaluator, never relax rules, and offer Add meal, clearly labeled examples or Today without requiring a starter plan (ND-007).",
       "tags": [
         "eligibility",
         "apply",
@@ -196,6 +196,12 @@
           "phase": "business",
           "status": "planned",
           "notes": "Planned UI journey: review and apply an edited setup and confirm the previewed count matches planner eligibility."
+        },
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "planned",
+          "notes": "Given the selected 2026-10-03 contract, when WS-007 behavior is exercised on persisted isolated fixtures, then the selected amendment and unchanged domain invariants hold. Exact test reference must be earned; no validation claimed."
         }
       ]
     },

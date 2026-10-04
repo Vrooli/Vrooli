@@ -137,7 +137,7 @@
       "prd_ref": "OT-P0-013",
       "category": "contract",
       "criticality": "P0",
-      "description": "The workspace export shall include every supported domain record kind with immutable references, including media and scene metadata, equipment devices and capabilities, preferences, chosen sessions, and calendar links as non-authoritative references, shall exclude secrets and signed URL credentials, shall report every omission explicitly, and restore shall never regenerate generated assets unless explicitly requested and authorized.",
+      "description": "The default workspace export shall be structured data with an explicit manifest, required food/stock/intake records and session history including pinned method/scale, steps and timer facts; a bounded opt-in archive may include supported original media. Restore shall disclose omissions, validate references transactionally with a recoverable checkpoint, exclude secrets/credentials/access grants, and require honest session resume review without silently restarting alarms, asserting real cooking conditions or generating assets (ND-021).",
       "tags": [
         "portability",
         "backup",
@@ -149,6 +149,12 @@
           "phase": "integration",
           "status": "planned",
           "notes": "Planned: exporting a populated workspace, importing into an empty authorized workspace, and re-exporting yields semantically equal content with source and revision references resolved and omissions listed (AT-047, ACT-029)."
+        },
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "planned",
+          "notes": "Given the selected 2026-10-03 contract, when PORT-006 behavior is exercised on persisted isolated fixtures, then the selected amendment and unchanged domain invariants hold. Exact test reference must be earned; no validation claimed."
         }
       ]
     }

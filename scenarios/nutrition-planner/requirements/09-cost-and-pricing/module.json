@@ -15,7 +15,7 @@
       "prd_ref": "OT-P0-012",
       "category": "domain",
       "criticality": "P0",
-      "description": "The scenario shall keep allocated portion cost, estimated checkout, and recorded actual spend as separate labeled values, computing portion cost from package price times consumed quantity over usable package quantity and checkout from packages to buy times package price.",
+      "description": "The scenario shall optimize the next grocery bill using credible owned food and actual package options, and keep consumed-food cost, estimated checkout and recorded actual spend separately named; unknown price or stock shall not become zero or unsupported savings (ND-011).",
       "tags": [
         "cost",
         "checkout",
@@ -27,6 +27,12 @@
           "phase": "unit",
           "status": "planned",
           "notes": "Planned: FIX-03 shows $15.60 allocated food cost alongside $16.50 additional checkout, each labeled with its coverage; neither is presented as actual spend (ACT-024, ACT-052)."
+        },
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "planned",
+          "notes": "Given the selected 2026-10-03 contract, when COST-001 behavior is exercised on persisted isolated fixtures, then the selected amendment and unchanged domain invariants hold. Exact test reference must be earned; no validation claimed."
         }
       ]
     },
@@ -37,7 +43,7 @@
       "prd_ref": "OT-P0-012",
       "category": "domain",
       "criticality": "P0",
-      "description": "Every price observation shall preserve product and package, retailer, amount and currency, observed date, validity or freshness, availability, membership or coupon or minimum-buy conditions, and source, and a refresh shall create a new observation rather than overwrite history.",
+      "description": "Every price observation shall preserve product and package, retailer, amount and currency, observed date, validity or freshness, availability, membership or coupon or minimum-buy conditions, and source, and a refresh shall create a new observation rather than overwrite history. Mandatory evidence retains source, basis, unit, date/revision, contributors, authority and correction path through concise qualifiers and existing expandable details/editors (ND-022).",
       "tags": [
         "prices",
         "provenance",

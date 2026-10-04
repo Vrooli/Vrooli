@@ -1,13 +1,18 @@
 # Redesign goal — Nooch
 
-The goal message that drives the v2.0 redesign to done. It was authored
+## Historical goal — superseded
+
+Do not dispatch the messages below. The current native finite goal is [GOAL](goal/GOAL.md); [QUEUE](goal/QUEUE.md), [FEEDBACK](goal/FEEDBACK.md), [ACCEPTANCE](goal/ACCEPTANCE.md) and the admitted [epochs](goal/epochs/) are the sole current delivery ledger. The dispatch, capture and feedback instructions below are preserved historical text, not instructions for the active team. The 2026-10-03 selected specification and owner authority supersede contrary historical execution, visual and generation wording.
+
+
+The retained historical goal message described the v2.0 redesign finish line. It was authored
 with the `harness-goal-authoring` skill as a **convergence goal** (§6 of that
 skill, shape C: no plan, tracked in files). It carries the finish line, the
 proof, the dials, and the stop rules; the design itself lives in the documents it
 points at, so the goal stays short and never goes stale when the design is
 refined.
 
-## How to use
+## Historical usage — do not dispatch
 
 - **Claude Code or Codex session:** type `/goal ` followed by the main message
   below (3,877 characters with the prefix; Claude Code's cap is 4,000).

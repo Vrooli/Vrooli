@@ -15,7 +15,7 @@
       "prd_ref": "OT-P1-008",
       "category": "integration",
       "criticality": "P1",
-      "description": "The scenario should discover and verify the personal-planner API before integrating, keep meal choices, recipes, servings, requirements, and food records owned here and calendar timing owned by personal-planner, expose create, read, update, cancel, change detection, and deep-link capabilities only as actually available, and keep untimed internal prep tasks when no integration is configured.",
+      "description": "The scenario should discover and verify the personal-planner API before integrating, keep meal choices, recipes, servings, requirements, and food records owned here and calendar timing owned by personal-planner, expose create, read, update, cancel, change detection, and deep-link capabilities only as actually available, and keep untimed internal prep tasks when no integration is configured. Coordinate or defer external cross-project adapter changes and retain untimed fallback; never claim untested end-to-end integration (ND-020).",
       "tags": [
         "calendar",
         "personal-planner",
@@ -27,6 +27,12 @@
           "phase": "unit",
           "status": "planned",
           "notes": "Planned: with the adapter unconfigured, Schedule prep keeps an untimed internal task and shows an honest unavailable state (R24.3)."
+        },
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "planned",
+          "notes": "Given the selected 2026-10-03 contract, when CAL-001 behavior is exercised on persisted isolated fixtures, then the selected amendment and unchanged domain invariants hold. Exact test reference must be earned; no validation claimed."
         }
       ]
     },
@@ -59,7 +65,7 @@
       "prd_ref": "OT-P1-008",
       "category": "policy",
       "criticality": "P1",
-      "description": "When a linked calendar event moves within the same day the scenario should update the linked time, when it moves across local dates it should preview meal-plan and leftover implications, when it is deleted it should only unschedule the task, and completing a calendar task should never record eating.",
+      "description": "When a calendar-owned linked block moves on the same local day the scenario should update linked-time presentation; cross-date moves should require meal/leftover impact review before changing meal date. Deletion should only unschedule, completion should never record eating, and historical food records should remain intact (ND-020).",
       "tags": [
         "calendar",
         "boundaries",
@@ -71,6 +77,12 @@
           "phase": "integration",
           "status": "planned",
           "notes": "Planned: a linked event moved to another day or deleted produces a review or unscheduling only, with no meal or intake change (AT-046)."
+        },
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "planned",
+          "notes": "Given the selected 2026-10-03 contract, when CAL-003 behavior is exercised on persisted isolated fixtures, then the selected amendment and unchanged domain invariants hold. Exact test reference must be earned; no validation claimed."
         }
       ]
     },

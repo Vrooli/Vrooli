@@ -1,6 +1,24 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "authentication": {
+    "version": 1,
+    "profile": "scenario_authenticator",
+    "default_mode": "local_multi_user",
+    "supported_modes": ["local_multi_user", "remote_vrooli"],
+    "human_sign_in": "required",
+    "provider": "scenario-authenticator",
+    "resource": "nutrition-planner",
+    "audience": "scenario-authenticator:nutrition-planner",
+    "offline": false,
+    "protected_routes": ["/api"],
+    "capabilities": [
+      {"id": "nutrition-planner:read", "effect": "read", "agent_eligible": false},
+      {"id": "nutrition-planner:write", "effect": "write", "agent_eligible": false},
+      {"id": "nutrition-planner:destructive", "effect": "destructive", "agent_eligible": false}
+    ],
+    "requires_authenticator": true
+  },
   "service": {
     "parent": "vrooli",
     "name": "nutrition-planner",
@@ -125,6 +143,17 @@
     }
   },
   "dependencies": {
+    "scenarios": {
+      "scenario-authenticator": {
+        "type": "scenario",
+        "enabled": true,
+        "required": true,
+        "startup_policy": "try_start",
+        "supervision_precedence": "required",
+        "degraded_behavior": "Nutrition Planner blocks workspace operations until owner identity can be verified.",
+        "description": "Provides verified actor identity for workspace isolation, persisted plans, and recipe ownership."
+      }
+    },
     "resources": {}
   },
   "storage": {

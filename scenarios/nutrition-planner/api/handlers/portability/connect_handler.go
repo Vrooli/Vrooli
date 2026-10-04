@@ -67,7 +67,7 @@ func (h *connectHandler) ExportGroceriesCSV(ctx context.Context, req *connect.Re
 	if err := json.Unmarshal([]byte(raw), &draft); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	recipes, err := h.recipes.List(ctx, req.Msg.WorkspaceId)
+	recipes, err := internalShopping.LoadSelectedRecipes(ctx, h.recipes, req.Msg.WorkspaceId, draft)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -303,7 +303,7 @@ func (h *connectHandler) ExportWeeklyPDF(ctx context.Context, req *connect.Reque
 	if err := json.Unmarshal([]byte(raw), &draft); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	items, err := h.recipes.List(ctx, req.Msg.WorkspaceId)
+	items, err := internalShopping.LoadSelectedRecipes(ctx, h.recipes, req.Msg.WorkspaceId, draft)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}

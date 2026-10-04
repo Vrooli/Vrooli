@@ -150,7 +150,7 @@ nutrition-specific pieces are listed in R05.3 and
 Three independent settings (R05.2, R17.1): **Appearance** — Light, Evening, or
 Follow device (the default); **Meal artwork** — Immersive scenes, Editorial
 photos, or Minimal; **Image generation** — Off (the default), Ask each time, or
-Automatic within budget. They never collapse into one premium switch. Changing
+Deferred automatic generation (outside launch scope). They never collapse into one premium switch. Changing
 appearance changes palette and artwork only — never the recipe, servings, dates,
 occurrences, layout, or actions — and never starts generation. The explicit
 choice persists locally for the first paint and in the account, with no bright

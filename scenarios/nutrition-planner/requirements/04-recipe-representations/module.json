@@ -15,7 +15,7 @@
       "prd_ref": "OT-P0-005",
       "category": "ui",
       "criticality": "P0",
-      "description": "The recipe detail shall offer Recipe, Nutrition, and Notes tabs, with Reading and Recipe map views inside Recipe and an At a glance summary that opens the map, and the reading view, map, printed recipe, and focused cooking mode shall all derive from the same selected revision and step identities; advancing any view shall not mark a step, meal, or intake complete.",
+      "description": "The recipe detail shall offer Recipe, Nutrition, and Notes tabs, with Reading and Recipe map views inside Recipe and an At a glance summary that opens the map, and the reading view, map, printed recipe, and focused cooking mode shall all derive from the same selected revision and step identities; advancing any view shall not mark a step, meal, or intake complete. Reading and Map shall share the selected step (ND-009).",
       "tags": [
         "recipe",
         "tabs",
@@ -34,6 +34,12 @@
           "phase": "integration",
           "status": "planned",
           "notes": "Planned: reading, map, and cooking views at 1 and 2 servings show the same step ids and scaled quantities for the four-step R27.2 fixture (AT-024)."
+        },
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "planned",
+          "notes": "Given the selected 2026-10-03 contract, when REC-001 behavior is exercised on persisted isolated fixtures, then the selected amendment and unchanged domain invariants hold. Exact test reference must be earned; no validation claimed."
         }
       ]
     },

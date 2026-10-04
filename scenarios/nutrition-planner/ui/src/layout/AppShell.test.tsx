@@ -1,8 +1,6 @@
 /**
- * AppShell tests — the shell is the component library's; this file verifies
- * the configuration this scenario feeds it (nav items, router adapter, labels)
- * and that the landmarks a page relies on are present. Page content is
- * exercised in the per-page tests.
+ * AppShell tests verify the warm-kitchen navigation, appearance control, and
+ * landmarks. Page content is exercised in the per-page tests.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen, waitFor } from "@testing-library/react";
@@ -43,28 +41,30 @@ describe("AppShell structure (cimode)", () => {
     expect(screen.queryByTestId(selectors.settingsPage.themeSelect)).not.toBeInTheDocument();
   });
 
-  it("renders every nav item as a desktop link and a phone tab", () => {
+  it("renders primary destinations as header links, settings as a utility link, and five phone tabs", () => {
     renderShell("/settings");
     for (const key of [
-      "dashboard",
+      "today",
+      "week",
+      "groceries",
+      "nutrition",
       "settings",
     ] as const) {
       expect(screen.getByTestId(selectors.layout.navLink({ key }))).toBeInTheDocument();
-      expect(screen.getByTestId(selectors.layout.navTab({ key }))).toBeInTheDocument();
     }
+    for (const key of ["dashboard", "today", "week", "groceries", "nutrition"] as const) expect(screen.getByTestId(selectors.layout.navTab({ key }))).toBeInTheDocument();
   });
 
-  it("marks the current route on the desktop link and the phone tab", () => {
+  it("marks the current route on settings and keeps Home unselected", () => {
     renderShell("/settings");
     expect(screen.getByTestId(selectors.layout.navLink({ key: "settings" }))).toHaveAttribute("aria-current", "page");
-    expect(screen.getByTestId(selectors.layout.navTab({ key: "settings" }))).toHaveAttribute("aria-current", "page");
     expect(screen.getByTestId(selectors.layout.navLink({ key: "dashboard" }))).not.toHaveAttribute("aria-current");
   });
 
-  it("navigates through the router when a phone tab is selected", async () => {
+  it("opens Settings from the header utility", async () => {
     const user = userEvent.setup();
     renderShell("/");
-    await user.click(screen.getByTestId(selectors.layout.navTab({ key: "settings" })));
+    await user.click(screen.getByTestId(selectors.layout.navLink({ key: "settings" })));
     await waitFor(() => {
       expect(screen.getByTestId(selectors.pages.settings)).toBeInTheDocument();
     });

@@ -8,6 +8,12 @@ export type SupplementSchedule = { id: string; revision: bigint; productRevision
 
 function mapSchedule(schedule: SupplementSchedule): SupplementSchedule { return { ...schedule, weekdays: [...schedule.weekdays] }; }
 
+export function scheduleAppliesOnLocalDate(schedule: SupplementSchedule, localDate: string): boolean {
+  if (!schedule.confirmed || schedule.paused || localDate < schedule.startDate || (schedule.endDate !== "" && localDate > schedule.endDate)) return false;
+  const date = new Date(`${localDate}T00:00:00Z`);
+  return !Number.isNaN(date.getTime()) && schedule.weekdays.includes(date.getUTCDay());
+}
+
 export async function listSupplementSchedules(workspaceId: string): Promise<SupplementSchedule[]> {
   const response = await client.listSchedules({ workspaceId });
   return response.schedules.map((schedule) => mapSchedule(schedule));

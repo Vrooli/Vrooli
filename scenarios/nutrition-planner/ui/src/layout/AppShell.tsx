@@ -1,75 +1,52 @@
-import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-
-import { AppShell as LibraryAppShell, type AppShellNavItem } from "@vrooli/react-component-library/AppShell/2";
+import { Moon, Settings, Sun } from "lucide-react";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
 
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";
-import { BrandMark } from "./BrandMark";
+import { useTheme } from "../theme/ThemeProvider";
 import { NAV_ITEMS, isNavItemActive } from "./navItems";
 
-/**
- * The shell is the component library's. This file configures it and plugs in
- * the router; it does not draw chrome.
- *
- * Decide these three settings in Gate 5 of `docs/START-HERE.md` and change
- * them here. Nothing else in the tree needs to know.
- *
- * - `density`: `"sidebar"` (icon + label, resizable) for a tool with several
- *   peer surfaces; `"rail"` (icon over a short label, narrow) when one surface
- *   needs the width.
- * - `mobileNav`: `"tabs"` for three to five destinations; `"drawer"` for more.
- * - `mainMode`: `"scroll"` pads and scrolls pages for you; `"fill"` hands a
- *   page the whole pane so it can pin its own header and composer.
- *
- * If the shell cannot do what your primary surface needs, do not fork it:
- * record the gap in `docs/reference/component-library-gaps.md` and eject with
- * `react-component-library adoptions eject --reason`.
- */
-const SHELL = {
-  density: "sidebar",
-  mobileNav: "tabs",
-  mainMode: "scroll",
-} as const;
+const primaryNavigation = NAV_ITEMS.filter((item) => ["dashboard", "today", "week", "groceries", "nutrition"].includes(item.key));
+const phoneNavigation = NAV_ITEMS.filter((item) => ["dashboard", "today", "week", "groceries", "nutrition"].includes(item.key));
 
 export function AppShell() {
   const { t } = useTranslation();
   const { pathname } = useLocation();
-  const navigate = useNavigate();
-
-  const items: AppShellNavItem[] = NAV_ITEMS.map((item) => ({
-    id: item.key,
-    label: t(item.labelKey),
-    href: item.path,
-    icon: item.icon,
-    current: isNavItemActive(item, pathname),
-    testId: selectors.layout.navLink({ key: item.key }),
-  }));
+  const { resolved, setTheme } = useTheme();
+  const evening = resolved === "dark";
 
   return (
-    <LibraryAppShell
-      brand={<span data-testid={selectors.app.title}>{t(strings.app.title)}</span>}
-      brandMark={<BrandMark />}
-      brandHref="/"
-      items={items}
-      density={SHELL.density}
-      mobileNav={SHELL.mobileNav}
-      mainMode={SHELL.mainMode}
-      renderLink={(item, { href, children, onClick, ...rest }) => (
-        <NavLink to={href} end={item.id === "brand" || NAV_ITEMS.find((entry) => entry.key === item.id)?.end === true} onClick={onClick} {...rest}>
-          {children}
-        </NavLink>
-      )}
-      onNavigate={(item) => navigate(item.href)}
-      navigationLabel={t(strings.layout.navigationLabel)}
-      mobileNavigationLabel={t(strings.layout.mobileNavigationLabel)}
-      skipLabel={t(strings.layout.skipToContent)}
-      menuLabel={t(strings.layout.openNavigation)}
-      closeLabel={t(strings.layout.closeNavigation)}
-      sidebarStorageKey="nutrition-planner.sidebar-width"
-      testId={selectors.layout.shell}
-    >
-      <Outlet />
-    </LibraryAppShell>
+    <div className="app-shell" data-testid={selectors.layout.shell}>
+      <a className="app-skip" href={`#${selectors.layout.main}`} data-testid={selectors.layout.skip}>{t(strings.layout.skipToContent)}</a>
+      <header className="app-header">
+        <NavLink className="app-wordmark" to="/" data-testid={selectors.layout.brand}>Nooch</NavLink>
+        <nav className="app-primary-nav" aria-label={t(strings.layout.navigationLabel)} data-testid={selectors.layout.navigation}>
+          {primaryNavigation.map((item) => (
+            <NavLink key={item.key} to={item.path} end={item.end} className="app-nav-link" aria-current={isNavItemActive(item, pathname) ? "page" : undefined} data-testid={selectors.layout.navLink({ key: item.key })}>
+              <span>{t(item.labelKey)}</span>
+            </NavLink>
+          ))}
+        </nav>
+        <div className="app-header-tools">
+          <button className="app-icon-button" type="button" aria-label={`Switch to ${evening ? "Light" : "Evening"} appearance`} onClick={() => setTheme(evening ? "light" : "dark")}>
+            {evening ? <Sun aria-hidden="true" /> : <Moon aria-hidden="true" />}
+          </button>
+          <NavLink className="app-icon-button" aria-label={t(strings.layout.nav.settings)} to="/settings" aria-current={isNavItemActive(NAV_ITEMS.find((item) => item.key === "settings")!, pathname) ? "page" : undefined} data-testid={selectors.layout.navLink({ key: "settings" })}>
+            <Settings aria-hidden="true" />
+          </NavLink>
+        </div>
+      </header>
+      <main id={selectors.layout.main} className="app-main" tabIndex={-1} data-testid={selectors.layout.main}>
+        <div className="app-page-frame"><Outlet /></div>
+      </main>
+      <nav className="app-phone-nav" aria-label={t(strings.layout.mobileNavigationLabel)} data-testid={selectors.layout.tabs}>
+        {phoneNavigation.map((item) => (
+          <NavLink key={item.key} to={item.path} end={item.end} className="app-phone-tab" aria-current={isNavItemActive(item, pathname) ? "page" : undefined} data-testid={selectors.layout.navTab({ key: item.key })}>
+            <span className="app-phone-tab-icon" aria-hidden="true">{item.icon}</span><span>{t(item.labelKey)}</span>
+          </NavLink>
+        ))}
+      </nav>
+    </div>
   );
 }

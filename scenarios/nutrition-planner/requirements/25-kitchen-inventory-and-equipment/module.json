@@ -15,7 +15,7 @@
       "prd_ref": "OT-P0-020",
       "category": "domain",
       "criticality": "P0",
-      "description": "The scenario shall record inventory amounts as exact, estimated, qualitative, out, or unknown, display wording such as About half a bag, Some left, or Amount not set, store the original expression separately from any reviewed quantity mapping, never infer numeric confidence percentages, and never subtract an invented quantity from a qualitative assertion.",
+      "description": "The scenario shall record inventory amounts as exact, estimated, qualitative, out, or unknown, display wording such as About half a bag, Some left, or Amount not set, store the original expression separately from any reviewed quantity mapping, never infer numeric confidence percentages, and never subtract an invented quantity from a qualitative assertion. Begin with minimal tracking; optional stock/staples prompts appear when useful, skipping is valid and repeated dismissed prompts are suppressed (ND-012).",
       "tags": [
         "inventory",
         "amounts",
@@ -27,6 +27,12 @@
           "phase": "unit",
           "status": "planned",
           "notes": "Planned: marking Have some rice leaves the grocery requirement as a pantry check rather than subtracting grams (AT-036, ACT-051)."
+        },
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "planned",
+          "notes": "Given the selected 2026-10-03 contract, when KIT-001 behavior is exercised on persisted isolated fixtures, then the selected amendment and unchanged domain invariants hold. Exact test reference must be earned; no validation claimed."
         }
       ]
     },

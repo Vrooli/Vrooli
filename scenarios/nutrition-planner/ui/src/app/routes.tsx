@@ -14,6 +14,8 @@ import { WeekPage } from "../features/week/WeekPage";
 import { GroceriesPage } from "../features/groceries/GroceriesPage";
 import { NutritionPage } from "../features/nutrition/NutritionPage";
 import { DataTransferPage } from "../features/transfer/DataTransferPage";
+import { RecipeDetailPage } from "../features/recipe/RecipeDetailPage";
+import { CookSessionPage } from "../features/recipe/CookSessionPage";
 import { ThemeProvider } from "../theme/ThemeProvider";
 
 /**
@@ -31,6 +33,8 @@ export const routes: RouteObject[] = [
       { path: "settings", element: <SettingsPage /> },
       { path: "setup", element: <OnboardingPage /> },
       { path: "today", element: <TodayPage /> },
+      { path: "recipes/:id/revisions/:revision", element: <RecipeDetailPage /> },
+      { path: "cook/:sessionId", element: <CookSessionPage /> },
       { path: "week", element: <WeekPage /> },
       { path: "groceries", element: <GroceriesPage /> },
       { path: "nutrition", element: <NutritionPage /> },

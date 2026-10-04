@@ -107,6 +107,15 @@ func (r *sqliteRepository) Get(ctx context.Context, id, workspaceID string) (Rec
 	return v, nil
 }
 
+func (r *sqliteRepository) GetRevision(ctx context.Context, id, workspaceID string, revision int64) (Recipe, error) {
+	row := r.db.QueryRowContext(ctx, `SELECT r.id,r.workspace_id,v.revision,v.name,v.notes,v.source_url,v.source_type,v.original_text,v.status,v.methods_json,v.groups_json,v.required_appliances_json,v.allergen_evidence_json,v.canonical_yield,v.serving_unit,v.ingredients_json,r.created_at,r.updated_at FROM recipes r JOIN recipe_revisions v ON v.recipe_id=r.id AND v.workspace_id=r.workspace_id WHERE r.id=? AND r.workspace_id=? AND v.revision=?`, id, workspaceID, revision)
+	v, err := scan(row)
+	if errors.Is(err, sql.ErrNoRows) {
+		return Recipe{}, ErrNotFound{id}
+	}
+	return v, err
+}
+
 func (r *sqliteRepository) Update(ctx context.Context, in UpdateInput) (Recipe, error) {
 	cur, err := r.Get(ctx, in.ID, in.WorkspaceID)
 	if err != nil {

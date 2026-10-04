@@ -66,7 +66,7 @@
       "prd_ref": "OT-P0-008",
       "category": "service",
       "criticality": "P0",
-      "description": "A swap shall preview the updated day and week nutrients, portion and checkout costs, required groceries, and batch dependencies for the selected future occurrence and planned servings, leaving other occurrences unchanged unless the user explicitly replaces matching future occurrences with a count and preview.",
+      "description": "A compatible isolated same-slot swap shall use short confirmation; wider effects on locks, leftovers, required food rules, confirmed shopping or another date shall require full impact review before apply, including scoped nutrition, checkout/consumed-food costs, groceries and dependencies; stale checks and hard rules always apply (ND-013/014).",
       "tags": [
         "swap",
         "preview",
@@ -84,6 +84,12 @@
           "phase": "integration",
           "status": "planned",
           "notes": "Planned: swapping one future meal changes only that occurrence and refreshes groceries and assessments; a swap that conflicts with a locked leftover dependency shows an impact preview or repair (AT-007, AT-008)."
+        },
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "planned",
+          "notes": "Given the selected 2026-10-03 contract, when TODAY-003 behavior is exercised on persisted isolated fixtures, then the selected amendment and unchanged domain invariants hold. Exact test reference must be earned; no validation claimed."
         }
       ]
     },

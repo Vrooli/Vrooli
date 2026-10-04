@@ -41,6 +41,9 @@ const (
 	RecipeServiceCreateRecipeProcedure = "/vrooli.nutrition_planner.v1.recipe.RecipeService/CreateRecipe"
 	// RecipeServiceGetRecipeProcedure is the fully-qualified name of the RecipeService's GetRecipe RPC.
 	RecipeServiceGetRecipeProcedure = "/vrooli.nutrition_planner.v1.recipe.RecipeService/GetRecipe"
+	// RecipeServiceGetRecipeRevisionProcedure is the fully-qualified name of the RecipeService's
+	// GetRecipeRevision RPC.
+	RecipeServiceGetRecipeRevisionProcedure = "/vrooli.nutrition_planner.v1.recipe.RecipeService/GetRecipeRevision"
 	// RecipeServiceUpdateRecipeProcedure is the fully-qualified name of the RecipeService's
 	// UpdateRecipe RPC.
 	RecipeServiceUpdateRecipeProcedure = "/vrooli.nutrition_planner.v1.recipe.RecipeService/UpdateRecipe"
@@ -51,6 +54,7 @@ type RecipeServiceClient interface {
 	ListRecipes(context.Context, *connect.Request[recipe.ListRecipesRequest]) (*connect.Response[recipe.ListRecipesResponse], error)
 	CreateRecipe(context.Context, *connect.Request[recipe.CreateRecipeRequest]) (*connect.Response[recipe.CreateRecipeResponse], error)
 	GetRecipe(context.Context, *connect.Request[recipe.GetRecipeRequest]) (*connect.Response[recipe.GetRecipeResponse], error)
+	GetRecipeRevision(context.Context, *connect.Request[recipe.GetRecipeRevisionRequest]) (*connect.Response[recipe.GetRecipeRevisionResponse], error)
 	UpdateRecipe(context.Context, *connect.Request[recipe.UpdateRecipeRequest]) (*connect.Response[recipe.UpdateRecipeResponse], error)
 }
 
@@ -84,6 +88,12 @@ func NewRecipeServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(recipeServiceMethods.ByName("GetRecipe")),
 			connect.WithClientOptions(opts...),
 		),
+		getRecipeRevision: connect.NewClient[recipe.GetRecipeRevisionRequest, recipe.GetRecipeRevisionResponse](
+			httpClient,
+			baseURL+RecipeServiceGetRecipeRevisionProcedure,
+			connect.WithSchema(recipeServiceMethods.ByName("GetRecipeRevision")),
+			connect.WithClientOptions(opts...),
+		),
 		updateRecipe: connect.NewClient[recipe.UpdateRecipeRequest, recipe.UpdateRecipeResponse](
 			httpClient,
 			baseURL+RecipeServiceUpdateRecipeProcedure,
@@ -95,10 +105,11 @@ func NewRecipeServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 
 // recipeServiceClient implements RecipeServiceClient.
 type recipeServiceClient struct {
-	listRecipes  *connect.Client[recipe.ListRecipesRequest, recipe.ListRecipesResponse]
-	createRecipe *connect.Client[recipe.CreateRecipeRequest, recipe.CreateRecipeResponse]
-	getRecipe    *connect.Client[recipe.GetRecipeRequest, recipe.GetRecipeResponse]
-	updateRecipe *connect.Client[recipe.UpdateRecipeRequest, recipe.UpdateRecipeResponse]
+	listRecipes       *connect.Client[recipe.ListRecipesRequest, recipe.ListRecipesResponse]
+	createRecipe      *connect.Client[recipe.CreateRecipeRequest, recipe.CreateRecipeResponse]
+	getRecipe         *connect.Client[recipe.GetRecipeRequest, recipe.GetRecipeResponse]
+	getRecipeRevision *connect.Client[recipe.GetRecipeRevisionRequest, recipe.GetRecipeRevisionResponse]
+	updateRecipe      *connect.Client[recipe.UpdateRecipeRequest, recipe.UpdateRecipeResponse]
 }
 
 // ListRecipes calls vrooli.nutrition_planner.v1.recipe.RecipeService.ListRecipes.
@@ -116,6 +127,11 @@ func (c *recipeServiceClient) GetRecipe(ctx context.Context, req *connect.Reques
 	return c.getRecipe.CallUnary(ctx, req)
 }
 
+// GetRecipeRevision calls vrooli.nutrition_planner.v1.recipe.RecipeService.GetRecipeRevision.
+func (c *recipeServiceClient) GetRecipeRevision(ctx context.Context, req *connect.Request[recipe.GetRecipeRevisionRequest]) (*connect.Response[recipe.GetRecipeRevisionResponse], error) {
+	return c.getRecipeRevision.CallUnary(ctx, req)
+}
+
 // UpdateRecipe calls vrooli.nutrition_planner.v1.recipe.RecipeService.UpdateRecipe.
 func (c *recipeServiceClient) UpdateRecipe(ctx context.Context, req *connect.Request[recipe.UpdateRecipeRequest]) (*connect.Response[recipe.UpdateRecipeResponse], error) {
 	return c.updateRecipe.CallUnary(ctx, req)
@@ -127,6 +143,7 @@ type RecipeServiceHandler interface {
 	ListRecipes(context.Context, *connect.Request[recipe.ListRecipesRequest]) (*connect.Response[recipe.ListRecipesResponse], error)
 	CreateRecipe(context.Context, *connect.Request[recipe.CreateRecipeRequest]) (*connect.Response[recipe.CreateRecipeResponse], error)
 	GetRecipe(context.Context, *connect.Request[recipe.GetRecipeRequest]) (*connect.Response[recipe.GetRecipeResponse], error)
+	GetRecipeRevision(context.Context, *connect.Request[recipe.GetRecipeRevisionRequest]) (*connect.Response[recipe.GetRecipeRevisionResponse], error)
 	UpdateRecipe(context.Context, *connect.Request[recipe.UpdateRecipeRequest]) (*connect.Response[recipe.UpdateRecipeResponse], error)
 }
 
@@ -155,6 +172,12 @@ func NewRecipeServiceHandler(svc RecipeServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(recipeServiceMethods.ByName("GetRecipe")),
 		connect.WithHandlerOptions(opts...),
 	)
+	recipeServiceGetRecipeRevisionHandler := connect.NewUnaryHandler(
+		RecipeServiceGetRecipeRevisionProcedure,
+		svc.GetRecipeRevision,
+		connect.WithSchema(recipeServiceMethods.ByName("GetRecipeRevision")),
+		connect.WithHandlerOptions(opts...),
+	)
 	recipeServiceUpdateRecipeHandler := connect.NewUnaryHandler(
 		RecipeServiceUpdateRecipeProcedure,
 		svc.UpdateRecipe,
@@ -169,6 +192,8 @@ func NewRecipeServiceHandler(svc RecipeServiceHandler, opts ...connect.HandlerOp
 			recipeServiceCreateRecipeHandler.ServeHTTP(w, r)
 		case RecipeServiceGetRecipeProcedure:
 			recipeServiceGetRecipeHandler.ServeHTTP(w, r)
+		case RecipeServiceGetRecipeRevisionProcedure:
+			recipeServiceGetRecipeRevisionHandler.ServeHTTP(w, r)
 		case RecipeServiceUpdateRecipeProcedure:
 			recipeServiceUpdateRecipeHandler.ServeHTTP(w, r)
 		default:
@@ -190,6 +215,10 @@ func (UnimplementedRecipeServiceHandler) CreateRecipe(context.Context, *connect.
 
 func (UnimplementedRecipeServiceHandler) GetRecipe(context.Context, *connect.Request[recipe.GetRecipeRequest]) (*connect.Response[recipe.GetRecipeResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.nutrition_planner.v1.recipe.RecipeService.GetRecipe is not implemented"))
+}
+
+func (UnimplementedRecipeServiceHandler) GetRecipeRevision(context.Context, *connect.Request[recipe.GetRecipeRevisionRequest]) (*connect.Response[recipe.GetRecipeRevisionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.nutrition_planner.v1.recipe.RecipeService.GetRecipeRevision is not implemented"))
 }
 
 func (UnimplementedRecipeServiceHandler) UpdateRecipe(context.Context, *connect.Request[recipe.UpdateRecipeRequest]) (*connect.Response[recipe.UpdateRecipeResponse], error) {

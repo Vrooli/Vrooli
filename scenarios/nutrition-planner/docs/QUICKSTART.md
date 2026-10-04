@@ -120,9 +120,10 @@ common first-time issues are:
 
 ## Next steps
 
-- Read [`internal/REDESIGN_PLAN.md`](internal/REDESIGN_PLAN.md) and
-  [`internal/REDESIGN_GOAL.md`](internal/REDESIGN_GOAL.md) before changing
-  product behavior; they drive the current v2.0 redesign.
+- Read [the accepted specification](reference/product-specification.md),
+  [GOAL](internal/goal/GOAL.md), [QUEUE](internal/goal/QUEUE.md) and the admitted
+  [epoch](internal/goal/epochs/) before delivery work. [ACCEPTANCE](internal/goal/ACCEPTANCE.md)
+  owns closure obligations. Historical redesign files preserve earlier evidence.
 - Read [`START-HERE.md`](START-HERE.md) for the template initialization gates.
 - Read [`concepts/ARCHITECTURE.md`](concepts/ARCHITECTURE.md) for the
   mental model: three surfaces, proto bridge, layered API, where to

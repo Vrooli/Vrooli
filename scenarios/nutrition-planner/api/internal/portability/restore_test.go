@@ -55,9 +55,14 @@ func TestApplyWorkspaceReplacesSupportedDomainsWithCheckpoint(t *testing.T) {
 	if err := db.QueryRow(`SELECT COUNT(*) FROM recipes WHERE workspace_id='w1'`).Scan(&count); err != nil || count != 1 {
 		t.Fatalf("recipe count=%d err=%v", count, err)
 	}
-	var plan string
-	if err := db.QueryRow(`SELECT plan_json FROM plans WHERE workspace_id='w1'`).Scan(&plan); err != nil || plan == "" {
-		t.Fatalf("plan=%q err=%v", plan, err)
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, plan, planErr := planning.ReadPlanTx(ctx, tx, "w1")
+	_ = tx.Rollback()
+	if planErr != nil || plan == "" {
+		t.Fatalf("plan=%q err=%v", plan, planErr)
 	}
 	var yield, unit, ingredients string
 	if err := db.QueryRow(`SELECT canonical_yield,serving_unit,ingredients_json FROM recipe_revisions WHERE recipe_id='r1'`).Scan(&yield, &unit, &ingredients); err != nil || yield != "4" || unit != "servings" || !strings.Contains(ingredients, "Rice") {

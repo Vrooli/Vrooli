@@ -40,6 +40,12 @@
     },
     {
       "statement": "Data health lists actionable findings from the real diagnostics service, not a single score."
+    },
+    {
+      "statement": "Launch generation starts Off, is manual-only, reviews cost and variant scope before dispatch and deliberately activates each reviewed result. No automatic triggers/acceptance/activation (ND-024)."
+    },
+    {
+      "statement": "Close visual fidelity to the exact selected local originals is required; see docs/reference/selected-2026-10-03/VISUAL-ACCEPTANCE.md and local-visual-assets.json for this page/state mapping. Compare matching actual-build state/appearance/viewport; record justified responsive/accessibility/truthful-data adaptations without weakening behavior or NF-010 timer reachability."
     }
   ],
   "states": [
@@ -254,7 +260,7 @@
       "id": "generation-policy",
       "role": "radiogroup",
       "name": "Image generation",
-      "description": "Off, Ask each time, Automatic within budget."
+      "description": "Off and manual Ask each time at launch."
     },
     {
       "id": "generation-usage",

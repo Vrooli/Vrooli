@@ -273,6 +273,126 @@ func (x *GeneratePlanResponse) GetCurrentRevision() int64 {
 	return 0
 }
 
+type GetPlanRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	FromDate      string                 `protobuf:"bytes,2,opt,name=from_date,json=fromDate,proto3" json:"from_date,omitempty"`
+	ToDate        string                 `protobuf:"bytes,3,opt,name=to_date,json=toDate,proto3" json:"to_date,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetPlanRequest) Reset() {
+	*x = GetPlanRequest{}
+	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetPlanRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetPlanRequest) ProtoMessage() {}
+
+func (x *GetPlanRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetPlanRequest.ProtoReflect.Descriptor instead.
+func (*GetPlanRequest) Descriptor() ([]byte, []int) {
+	return file_nutrition_planner_v1_planning_planning_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *GetPlanRequest) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+func (x *GetPlanRequest) GetFromDate() string {
+	if x != nil {
+		return x.FromDate
+	}
+	return ""
+}
+
+func (x *GetPlanRequest) GetToDate() string {
+	if x != nil {
+		return x.ToDate
+	}
+	return ""
+}
+
+type GetPlanResponse struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	CurrentRevision int64                  `protobuf:"varint,1,opt,name=current_revision,json=currentRevision,proto3" json:"current_revision,omitempty"`
+	DraftJson       string                 `protobuf:"bytes,2,opt,name=draft_json,json=draftJson,proto3" json:"draft_json,omitempty"`
+	HasPlan         bool                   `protobuf:"varint,3,opt,name=has_plan,json=hasPlan,proto3" json:"has_plan,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *GetPlanResponse) Reset() {
+	*x = GetPlanResponse{}
+	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetPlanResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetPlanResponse) ProtoMessage() {}
+
+func (x *GetPlanResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetPlanResponse.ProtoReflect.Descriptor instead.
+func (*GetPlanResponse) Descriptor() ([]byte, []int) {
+	return file_nutrition_planner_v1_planning_planning_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *GetPlanResponse) GetCurrentRevision() int64 {
+	if x != nil {
+		return x.CurrentRevision
+	}
+	return 0
+}
+
+func (x *GetPlanResponse) GetDraftJson() string {
+	if x != nil {
+		return x.DraftJson
+	}
+	return ""
+}
+
+func (x *GetPlanResponse) GetHasPlan() bool {
+	if x != nil {
+		return x.HasPlan
+	}
+	return false
+}
+
 type ApplyPlanRequest struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	WorkspaceId      string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
@@ -284,7 +404,7 @@ type ApplyPlanRequest struct {
 
 func (x *ApplyPlanRequest) Reset() {
 	*x = ApplyPlanRequest{}
-	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[3]
+	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -296,7 +416,7 @@ func (x *ApplyPlanRequest) String() string {
 func (*ApplyPlanRequest) ProtoMessage() {}
 
 func (x *ApplyPlanRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[3]
+	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -309,7 +429,7 @@ func (x *ApplyPlanRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApplyPlanRequest.ProtoReflect.Descriptor instead.
 func (*ApplyPlanRequest) Descriptor() ([]byte, []int) {
-	return file_nutrition_planner_v1_planning_planning_proto_rawDescGZIP(), []int{3}
+	return file_nutrition_planner_v1_planning_planning_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ApplyPlanRequest) GetWorkspaceId() string {
@@ -343,7 +463,7 @@ type ApplyPlanResponse struct {
 
 func (x *ApplyPlanResponse) Reset() {
 	*x = ApplyPlanResponse{}
-	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[4]
+	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -355,7 +475,7 @@ func (x *ApplyPlanResponse) String() string {
 func (*ApplyPlanResponse) ProtoMessage() {}
 
 func (x *ApplyPlanResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[4]
+	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -368,7 +488,7 @@ func (x *ApplyPlanResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApplyPlanResponse.ProtoReflect.Descriptor instead.
 func (*ApplyPlanResponse) Descriptor() ([]byte, []int) {
-	return file_nutrition_planner_v1_planning_planning_proto_rawDescGZIP(), []int{4}
+	return file_nutrition_planner_v1_planning_planning_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ApplyPlanResponse) GetRevision() int64 {
@@ -392,13 +512,14 @@ type PreviewSwapRequest struct {
 	Date                  string                 `protobuf:"bytes,3,opt,name=date,proto3" json:"date,omitempty"`
 	ReplacementRecipeId   string                 `protobuf:"bytes,4,opt,name=replacement_recipe_id,json=replacementRecipeId,proto3" json:"replacement_recipe_id,omitempty"`
 	ReplaceMatchingFuture bool                   `protobuf:"varint,5,opt,name=replace_matching_future,json=replaceMatchingFuture,proto3" json:"replace_matching_future,omitempty"`
+	SlotName              string                 `protobuf:"bytes,6,opt,name=slot_name,json=slotName,proto3" json:"slot_name,omitempty"`
 	unknownFields         protoimpl.UnknownFields
 	sizeCache             protoimpl.SizeCache
 }
 
 func (x *PreviewSwapRequest) Reset() {
 	*x = PreviewSwapRequest{}
-	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[5]
+	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -410,7 +531,7 @@ func (x *PreviewSwapRequest) String() string {
 func (*PreviewSwapRequest) ProtoMessage() {}
 
 func (x *PreviewSwapRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[5]
+	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -423,7 +544,7 @@ func (x *PreviewSwapRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PreviewSwapRequest.ProtoReflect.Descriptor instead.
 func (*PreviewSwapRequest) Descriptor() ([]byte, []int) {
-	return file_nutrition_planner_v1_planning_planning_proto_rawDescGZIP(), []int{5}
+	return file_nutrition_planner_v1_planning_planning_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *PreviewSwapRequest) GetWorkspaceId() string {
@@ -461,6 +582,13 @@ func (x *PreviewSwapRequest) GetReplaceMatchingFuture() bool {
 	return false
 }
 
+func (x *PreviewSwapRequest) GetSlotName() string {
+	if x != nil {
+		return x.SlotName
+	}
+	return ""
+}
+
 type PreviewSwapResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Revision      int64                  `protobuf:"varint,1,opt,name=revision,proto3" json:"revision,omitempty"`
@@ -472,7 +600,7 @@ type PreviewSwapResponse struct {
 
 func (x *PreviewSwapResponse) Reset() {
 	*x = PreviewSwapResponse{}
-	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[6]
+	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -484,7 +612,7 @@ func (x *PreviewSwapResponse) String() string {
 func (*PreviewSwapResponse) ProtoMessage() {}
 
 func (x *PreviewSwapResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[6]
+	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -497,7 +625,7 @@ func (x *PreviewSwapResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PreviewSwapResponse.ProtoReflect.Descriptor instead.
 func (*PreviewSwapResponse) Descriptor() ([]byte, []int) {
-	return file_nutrition_planner_v1_planning_planning_proto_rawDescGZIP(), []int{6}
+	return file_nutrition_planner_v1_planning_planning_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *PreviewSwapResponse) GetRevision() int64 {
@@ -531,7 +659,7 @@ type GetShoppingPreviewRequest struct {
 
 func (x *GetShoppingPreviewRequest) Reset() {
 	*x = GetShoppingPreviewRequest{}
-	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[7]
+	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -543,7 +671,7 @@ func (x *GetShoppingPreviewRequest) String() string {
 func (*GetShoppingPreviewRequest) ProtoMessage() {}
 
 func (x *GetShoppingPreviewRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[7]
+	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -556,7 +684,7 @@ func (x *GetShoppingPreviewRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetShoppingPreviewRequest.ProtoReflect.Descriptor instead.
 func (*GetShoppingPreviewRequest) Descriptor() ([]byte, []int) {
-	return file_nutrition_planner_v1_planning_planning_proto_rawDescGZIP(), []int{7}
+	return file_nutrition_planner_v1_planning_planning_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *GetShoppingPreviewRequest) GetWorkspaceId() string {
@@ -584,13 +712,21 @@ type ShoppingLine struct {
 	Price           string                 `protobuf:"bytes,7,opt,name=price,proto3" json:"price,omitempty"`
 	SourceRecipeIds []string               `protobuf:"bytes,8,rep,name=source_recipe_ids,json=sourceRecipeIds,proto3" json:"source_recipe_ids,omitempty"`
 	Checked         bool                   `protobuf:"varint,9,opt,name=checked,proto3" json:"checked,omitempty"`
+	PortionCost     string                 `protobuf:"bytes,10,opt,name=portion_cost,json=portionCost,proto3" json:"portion_cost,omitempty"`
+	CheckoutTotal   string                 `protobuf:"bytes,11,opt,name=checkout_total,json=checkoutTotal,proto3" json:"checkout_total,omitempty"`
+	ActualSpend     string                 `protobuf:"bytes,12,opt,name=actual_spend,json=actualSpend,proto3" json:"actual_spend,omitempty"`
+	HaveThis        bool                   `protobuf:"varint,13,opt,name=have_this,json=haveThis,proto3" json:"have_this,omitempty"`
+	ActualQuantity  string                 `protobuf:"bytes,14,opt,name=actual_quantity,json=actualQuantity,proto3" json:"actual_quantity,omitempty"`
+	ActualUnit      string                 `protobuf:"bytes,15,opt,name=actual_unit,json=actualUnit,proto3" json:"actual_unit,omitempty"`
+	ActualPrice     string                 `protobuf:"bytes,16,opt,name=actual_price,json=actualPrice,proto3" json:"actual_price,omitempty"`
+	PurchaseOmitted bool                   `protobuf:"varint,17,opt,name=purchase_omitted,json=purchaseOmitted,proto3" json:"purchase_omitted,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
 
 func (x *ShoppingLine) Reset() {
 	*x = ShoppingLine{}
-	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[8]
+	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -602,7 +738,7 @@ func (x *ShoppingLine) String() string {
 func (*ShoppingLine) ProtoMessage() {}
 
 func (x *ShoppingLine) ProtoReflect() protoreflect.Message {
-	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[8]
+	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -615,7 +751,7 @@ func (x *ShoppingLine) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShoppingLine.ProtoReflect.Descriptor instead.
 func (*ShoppingLine) Descriptor() ([]byte, []int) {
-	return file_nutrition_planner_v1_planning_planning_proto_rawDescGZIP(), []int{8}
+	return file_nutrition_planner_v1_planning_planning_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ShoppingLine) GetKey() string {
@@ -681,6 +817,62 @@ func (x *ShoppingLine) GetChecked() bool {
 	return false
 }
 
+func (x *ShoppingLine) GetPortionCost() string {
+	if x != nil {
+		return x.PortionCost
+	}
+	return ""
+}
+
+func (x *ShoppingLine) GetCheckoutTotal() string {
+	if x != nil {
+		return x.CheckoutTotal
+	}
+	return ""
+}
+
+func (x *ShoppingLine) GetActualSpend() string {
+	if x != nil {
+		return x.ActualSpend
+	}
+	return ""
+}
+
+func (x *ShoppingLine) GetHaveThis() bool {
+	if x != nil {
+		return x.HaveThis
+	}
+	return false
+}
+
+func (x *ShoppingLine) GetActualQuantity() string {
+	if x != nil {
+		return x.ActualQuantity
+	}
+	return ""
+}
+
+func (x *ShoppingLine) GetActualUnit() string {
+	if x != nil {
+		return x.ActualUnit
+	}
+	return ""
+}
+
+func (x *ShoppingLine) GetActualPrice() string {
+	if x != nil {
+		return x.ActualPrice
+	}
+	return ""
+}
+
+func (x *ShoppingLine) GetPurchaseOmitted() bool {
+	if x != nil {
+		return x.PurchaseOmitted
+	}
+	return false
+}
+
 type GetShoppingPreviewResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Revision      int64                  `protobuf:"varint,1,opt,name=revision,proto3" json:"revision,omitempty"`
@@ -691,7 +883,7 @@ type GetShoppingPreviewResponse struct {
 
 func (x *GetShoppingPreviewResponse) Reset() {
 	*x = GetShoppingPreviewResponse{}
-	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[9]
+	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -703,7 +895,7 @@ func (x *GetShoppingPreviewResponse) String() string {
 func (*GetShoppingPreviewResponse) ProtoMessage() {}
 
 func (x *GetShoppingPreviewResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[9]
+	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -716,7 +908,7 @@ func (x *GetShoppingPreviewResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetShoppingPreviewResponse.ProtoReflect.Descriptor instead.
 func (*GetShoppingPreviewResponse) Descriptor() ([]byte, []int) {
-	return file_nutrition_planner_v1_planning_planning_proto_rawDescGZIP(), []int{9}
+	return file_nutrition_planner_v1_planning_planning_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *GetShoppingPreviewResponse) GetRevision() int64 {
@@ -744,7 +936,7 @@ type SetShoppingCheckedRequest struct {
 
 func (x *SetShoppingCheckedRequest) Reset() {
 	*x = SetShoppingCheckedRequest{}
-	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[10]
+	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -756,7 +948,7 @@ func (x *SetShoppingCheckedRequest) String() string {
 func (*SetShoppingCheckedRequest) ProtoMessage() {}
 
 func (x *SetShoppingCheckedRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[10]
+	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -769,7 +961,7 @@ func (x *SetShoppingCheckedRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetShoppingCheckedRequest.ProtoReflect.Descriptor instead.
 func (*SetShoppingCheckedRequest) Descriptor() ([]byte, []int) {
-	return file_nutrition_planner_v1_planning_planning_proto_rawDescGZIP(), []int{10}
+	return file_nutrition_planner_v1_planning_planning_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *SetShoppingCheckedRequest) GetWorkspaceId() string {
@@ -802,7 +994,7 @@ type SetShoppingCheckedResponse struct {
 
 func (x *SetShoppingCheckedResponse) Reset() {
 	*x = SetShoppingCheckedResponse{}
-	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[11]
+	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -814,7 +1006,7 @@ func (x *SetShoppingCheckedResponse) String() string {
 func (*SetShoppingCheckedResponse) ProtoMessage() {}
 
 func (x *SetShoppingCheckedResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[11]
+	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -827,12 +1019,304 @@ func (x *SetShoppingCheckedResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetShoppingCheckedResponse.ProtoReflect.Descriptor instead.
 func (*SetShoppingCheckedResponse) Descriptor() ([]byte, []int) {
-	return file_nutrition_planner_v1_planning_planning_proto_rawDescGZIP(), []int{11}
+	return file_nutrition_planner_v1_planning_planning_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *SetShoppingCheckedResponse) GetChecked() bool {
 	if x != nil {
 		return x.Checked
+	}
+	return false
+}
+
+type SetShoppingHaveThisRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	LineKey       string                 `protobuf:"bytes,2,opt,name=line_key,json=lineKey,proto3" json:"line_key,omitempty"`
+	HaveThis      bool                   `protobuf:"varint,3,opt,name=have_this,json=haveThis,proto3" json:"have_this,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetShoppingHaveThisRequest) Reset() {
+	*x = SetShoppingHaveThisRequest{}
+	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetShoppingHaveThisRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetShoppingHaveThisRequest) ProtoMessage() {}
+
+func (x *SetShoppingHaveThisRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetShoppingHaveThisRequest.ProtoReflect.Descriptor instead.
+func (*SetShoppingHaveThisRequest) Descriptor() ([]byte, []int) {
+	return file_nutrition_planner_v1_planning_planning_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *SetShoppingHaveThisRequest) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+func (x *SetShoppingHaveThisRequest) GetLineKey() string {
+	if x != nil {
+		return x.LineKey
+	}
+	return ""
+}
+
+func (x *SetShoppingHaveThisRequest) GetHaveThis() bool {
+	if x != nil {
+		return x.HaveThis
+	}
+	return false
+}
+
+type SetShoppingHaveThisResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	HaveThis      bool                   `protobuf:"varint,1,opt,name=have_this,json=haveThis,proto3" json:"have_this,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetShoppingHaveThisResponse) Reset() {
+	*x = SetShoppingHaveThisResponse{}
+	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetShoppingHaveThisResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetShoppingHaveThisResponse) ProtoMessage() {}
+
+func (x *SetShoppingHaveThisResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetShoppingHaveThisResponse.ProtoReflect.Descriptor instead.
+func (*SetShoppingHaveThisResponse) Descriptor() ([]byte, []int) {
+	return file_nutrition_planner_v1_planning_planning_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *SetShoppingHaveThisResponse) GetHaveThis() bool {
+	if x != nil {
+		return x.HaveThis
+	}
+	return false
+}
+
+type ShoppingPurchaseActual struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	LineKey       string                 `protobuf:"bytes,1,opt,name=line_key,json=lineKey,proto3" json:"line_key,omitempty"`
+	ItemId        string                 `protobuf:"bytes,2,opt,name=item_id,json=itemId,proto3" json:"item_id,omitempty"`
+	Amount        string                 `protobuf:"bytes,3,opt,name=amount,proto3" json:"amount,omitempty"`
+	Unit          string                 `protobuf:"bytes,4,opt,name=unit,proto3" json:"unit,omitempty"`
+	Price         string                 `protobuf:"bytes,5,opt,name=price,proto3" json:"price,omitempty"`
+	Omitted       bool                   `protobuf:"varint,6,opt,name=omitted,proto3" json:"omitted,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ShoppingPurchaseActual) Reset() {
+	*x = ShoppingPurchaseActual{}
+	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ShoppingPurchaseActual) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ShoppingPurchaseActual) ProtoMessage() {}
+
+func (x *ShoppingPurchaseActual) ProtoReflect() protoreflect.Message {
+	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ShoppingPurchaseActual.ProtoReflect.Descriptor instead.
+func (*ShoppingPurchaseActual) Descriptor() ([]byte, []int) {
+	return file_nutrition_planner_v1_planning_planning_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *ShoppingPurchaseActual) GetLineKey() string {
+	if x != nil {
+		return x.LineKey
+	}
+	return ""
+}
+
+func (x *ShoppingPurchaseActual) GetItemId() string {
+	if x != nil {
+		return x.ItemId
+	}
+	return ""
+}
+
+func (x *ShoppingPurchaseActual) GetAmount() string {
+	if x != nil {
+		return x.Amount
+	}
+	return ""
+}
+
+func (x *ShoppingPurchaseActual) GetUnit() string {
+	if x != nil {
+		return x.Unit
+	}
+	return ""
+}
+
+func (x *ShoppingPurchaseActual) GetPrice() string {
+	if x != nil {
+		return x.Price
+	}
+	return ""
+}
+
+func (x *ShoppingPurchaseActual) GetOmitted() bool {
+	if x != nil {
+		return x.Omitted
+	}
+	return false
+}
+
+type ConfirmShoppingPurchasesRequest struct {
+	state         protoimpl.MessageState    `protogen:"open.v1"`
+	WorkspaceId   string                    `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	ReviewId      string                    `protobuf:"bytes,2,opt,name=review_id,json=reviewId,proto3" json:"review_id,omitempty"`
+	Lines         []*ShoppingPurchaseActual `protobuf:"bytes,3,rep,name=lines,proto3" json:"lines,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConfirmShoppingPurchasesRequest) Reset() {
+	*x = ConfirmShoppingPurchasesRequest{}
+	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfirmShoppingPurchasesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfirmShoppingPurchasesRequest) ProtoMessage() {}
+
+func (x *ConfirmShoppingPurchasesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfirmShoppingPurchasesRequest.ProtoReflect.Descriptor instead.
+func (*ConfirmShoppingPurchasesRequest) Descriptor() ([]byte, []int) {
+	return file_nutrition_planner_v1_planning_planning_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *ConfirmShoppingPurchasesRequest) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+func (x *ConfirmShoppingPurchasesRequest) GetReviewId() string {
+	if x != nil {
+		return x.ReviewId
+	}
+	return ""
+}
+
+func (x *ConfirmShoppingPurchasesRequest) GetLines() []*ShoppingPurchaseActual {
+	if x != nil {
+		return x.Lines
+	}
+	return nil
+}
+
+type ConfirmShoppingPurchasesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Confirmed     bool                   `protobuf:"varint,1,opt,name=confirmed,proto3" json:"confirmed,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConfirmShoppingPurchasesResponse) Reset() {
+	*x = ConfirmShoppingPurchasesResponse{}
+	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfirmShoppingPurchasesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfirmShoppingPurchasesResponse) ProtoMessage() {}
+
+func (x *ConfirmShoppingPurchasesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfirmShoppingPurchasesResponse.ProtoReflect.Descriptor instead.
+func (*ConfirmShoppingPurchasesResponse) Descriptor() ([]byte, []int) {
+	return file_nutrition_planner_v1_planning_planning_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *ConfirmShoppingPurchasesResponse) GetConfirmed() bool {
+	if x != nil {
+		return x.Confirmed
 	}
 	return false
 }
@@ -851,7 +1335,7 @@ type RecordFeedbackRequest struct {
 
 func (x *RecordFeedbackRequest) Reset() {
 	*x = RecordFeedbackRequest{}
-	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[12]
+	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -863,7 +1347,7 @@ func (x *RecordFeedbackRequest) String() string {
 func (*RecordFeedbackRequest) ProtoMessage() {}
 
 func (x *RecordFeedbackRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[12]
+	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -876,7 +1360,7 @@ func (x *RecordFeedbackRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecordFeedbackRequest.ProtoReflect.Descriptor instead.
 func (*RecordFeedbackRequest) Descriptor() ([]byte, []int) {
-	return file_nutrition_planner_v1_planning_planning_proto_rawDescGZIP(), []int{12}
+	return file_nutrition_planner_v1_planning_planning_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *RecordFeedbackRequest) GetWorkspaceId() string {
@@ -933,7 +1417,7 @@ type RecordFeedbackResponse struct {
 
 func (x *RecordFeedbackResponse) Reset() {
 	*x = RecordFeedbackResponse{}
-	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[13]
+	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -945,7 +1429,7 @@ func (x *RecordFeedbackResponse) String() string {
 func (*RecordFeedbackResponse) ProtoMessage() {}
 
 func (x *RecordFeedbackResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[13]
+	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -958,7 +1442,7 @@ func (x *RecordFeedbackResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecordFeedbackResponse.ProtoReflect.Descriptor instead.
 func (*RecordFeedbackResponse) Descriptor() ([]byte, []int) {
-	return file_nutrition_planner_v1_planning_planning_proto_rawDescGZIP(), []int{13}
+	return file_nutrition_planner_v1_planning_planning_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *RecordFeedbackResponse) GetDate() string {
@@ -999,7 +1483,7 @@ type UndoFeedbackRequest struct {
 
 func (x *UndoFeedbackRequest) Reset() {
 	*x = UndoFeedbackRequest{}
-	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[14]
+	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1011,7 +1495,7 @@ func (x *UndoFeedbackRequest) String() string {
 func (*UndoFeedbackRequest) ProtoMessage() {}
 
 func (x *UndoFeedbackRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[14]
+	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1024,7 +1508,7 @@ func (x *UndoFeedbackRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UndoFeedbackRequest.ProtoReflect.Descriptor instead.
 func (*UndoFeedbackRequest) Descriptor() ([]byte, []int) {
-	return file_nutrition_planner_v1_planning_planning_proto_rawDescGZIP(), []int{14}
+	return file_nutrition_planner_v1_planning_planning_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *UndoFeedbackRequest) GetWorkspaceId() string {
@@ -1050,7 +1534,7 @@ type UndoFeedbackResponse struct {
 
 func (x *UndoFeedbackResponse) Reset() {
 	*x = UndoFeedbackResponse{}
-	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[15]
+	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1062,7 +1546,7 @@ func (x *UndoFeedbackResponse) String() string {
 func (*UndoFeedbackResponse) ProtoMessage() {}
 
 func (x *UndoFeedbackResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[15]
+	mi := &file_nutrition_planner_v1_planning_planning_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1075,7 +1559,7 @@ func (x *UndoFeedbackResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UndoFeedbackResponse.ProtoReflect.Descriptor instead.
 func (*UndoFeedbackResponse) Descriptor() ([]byte, []int) {
-	return file_nutrition_planner_v1_planning_planning_proto_rawDescGZIP(), []int{15}
+	return file_nutrition_planner_v1_planning_planning_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *UndoFeedbackResponse) GetUndone() bool {
@@ -1116,7 +1600,16 @@ const file_nutrition_planner_v1_planning_planning_proto_rawDesc = "" +
 	"draft_json\x18\x02 \x01(\tR\tdraftJson\x12)\n" +
 	"\x10unresolved_dates\x18\x03 \x03(\tR\x0funresolvedDates\x12)\n" +
 	"\x10input_references\x18\x04 \x03(\tR\x0finputReferences\x12)\n" +
-	"\x10current_revision\x18\x05 \x01(\x03R\x0fcurrentRevision\"\x81\x01\n" +
+	"\x10current_revision\x18\x05 \x01(\x03R\x0fcurrentRevision\"i\n" +
+	"\x0eGetPlanRequest\x12!\n" +
+	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x1b\n" +
+	"\tfrom_date\x18\x02 \x01(\tR\bfromDate\x12\x17\n" +
+	"\ato_date\x18\x03 \x01(\tR\x06toDate\"v\n" +
+	"\x0fGetPlanResponse\x12)\n" +
+	"\x10current_revision\x18\x01 \x01(\x03R\x0fcurrentRevision\x12\x1d\n" +
+	"\n" +
+	"draft_json\x18\x02 \x01(\tR\tdraftJson\x12\x19\n" +
+	"\bhas_plan\x18\x03 \x01(\bR\ahasPlan\"\x81\x01\n" +
 	"\x10ApplyPlanRequest\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12+\n" +
 	"\x11expected_revision\x18\x02 \x01(\x03R\x10expectedRevision\x12\x1d\n" +
@@ -1124,20 +1617,21 @@ const file_nutrition_planner_v1_planning_planning_proto_rawDesc = "" +
 	"draft_json\x18\x03 \x01(\tR\tdraftJson\"L\n" +
 	"\x11ApplyPlanResponse\x12\x1a\n" +
 	"\brevision\x18\x01 \x01(\x03R\brevision\x12\x1b\n" +
-	"\tplan_json\x18\x02 \x01(\tR\bplanJson\"\xe4\x01\n" +
+	"\tplan_json\x18\x02 \x01(\tR\bplanJson\"\x81\x02\n" +
 	"\x12PreviewSwapRequest\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12+\n" +
 	"\x11expected_revision\x18\x02 \x01(\x03R\x10expectedRevision\x12\x12\n" +
 	"\x04date\x18\x03 \x01(\tR\x04date\x122\n" +
 	"\x15replacement_recipe_id\x18\x04 \x01(\tR\x13replacementRecipeId\x126\n" +
-	"\x17replace_matching_future\x18\x05 \x01(\bR\x15replaceMatchingFuture\"{\n" +
+	"\x17replace_matching_future\x18\x05 \x01(\bR\x15replaceMatchingFuture\x12\x1b\n" +
+	"\tslot_name\x18\x06 \x01(\tR\bslotName\"{\n" +
 	"\x13PreviewSwapResponse\x12\x1a\n" +
 	"\brevision\x18\x01 \x01(\x03R\brevision\x12!\n" +
 	"\fpreview_json\x18\x02 \x01(\tR\vpreviewJson\x12%\n" +
 	"\x0eaffected_dates\x18\x03 \x03(\tR\raffectedDates\"k\n" +
 	"\x19GetShoppingPreviewRequest\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12+\n" +
-	"\x11expected_revision\x18\x02 \x01(\x03R\x10expectedRevision\"\xfb\x01\n" +
+	"\x11expected_revision\x18\x02 \x01(\x03R\x10expectedRevision\"\x9d\x04\n" +
 	"\fShoppingLine\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05label\x18\x02 \x01(\tR\x05label\x12\x12\n" +
@@ -1147,7 +1641,17 @@ const file_nutrition_planner_v1_planning_planning_proto_rawDesc = "" +
 	"\rpackage_count\x18\x06 \x01(\tR\fpackageCount\x12\x14\n" +
 	"\x05price\x18\a \x01(\tR\x05price\x12*\n" +
 	"\x11source_recipe_ids\x18\b \x03(\tR\x0fsourceRecipeIds\x12\x18\n" +
-	"\achecked\x18\t \x01(\bR\achecked\"\x82\x01\n" +
+	"\achecked\x18\t \x01(\bR\achecked\x12!\n" +
+	"\fportion_cost\x18\n" +
+	" \x01(\tR\vportionCost\x12%\n" +
+	"\x0echeckout_total\x18\v \x01(\tR\rcheckoutTotal\x12!\n" +
+	"\factual_spend\x18\f \x01(\tR\vactualSpend\x12\x1b\n" +
+	"\thave_this\x18\r \x01(\bR\bhaveThis\x12'\n" +
+	"\x0factual_quantity\x18\x0e \x01(\tR\x0eactualQuantity\x12\x1f\n" +
+	"\vactual_unit\x18\x0f \x01(\tR\n" +
+	"actualUnit\x12!\n" +
+	"\factual_price\x18\x10 \x01(\tR\vactualPrice\x12)\n" +
+	"\x10purchase_omitted\x18\x11 \x01(\bR\x0fpurchaseOmitted\"\x82\x01\n" +
 	"\x1aGetShoppingPreviewResponse\x12\x1a\n" +
 	"\brevision\x18\x01 \x01(\x03R\brevision\x12H\n" +
 	"\x05lines\x18\x02 \x03(\v22.vrooli.nutrition_planner.v1.planning.ShoppingLineR\x05lines\"s\n" +
@@ -1156,7 +1660,26 @@ const file_nutrition_planner_v1_planning_planning_proto_rawDesc = "" +
 	"\bline_key\x18\x02 \x01(\tR\alineKey\x12\x18\n" +
 	"\achecked\x18\x03 \x01(\bR\achecked\"6\n" +
 	"\x1aSetShoppingCheckedResponse\x12\x18\n" +
-	"\achecked\x18\x01 \x01(\bR\achecked\"\xcc\x01\n" +
+	"\achecked\x18\x01 \x01(\bR\achecked\"w\n" +
+	"\x1aSetShoppingHaveThisRequest\x12!\n" +
+	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x19\n" +
+	"\bline_key\x18\x02 \x01(\tR\alineKey\x12\x1b\n" +
+	"\thave_this\x18\x03 \x01(\bR\bhaveThis\":\n" +
+	"\x1bSetShoppingHaveThisResponse\x12\x1b\n" +
+	"\thave_this\x18\x01 \x01(\bR\bhaveThis\"\xa8\x01\n" +
+	"\x16ShoppingPurchaseActual\x12\x19\n" +
+	"\bline_key\x18\x01 \x01(\tR\alineKey\x12\x17\n" +
+	"\aitem_id\x18\x02 \x01(\tR\x06itemId\x12\x16\n" +
+	"\x06amount\x18\x03 \x01(\tR\x06amount\x12\x12\n" +
+	"\x04unit\x18\x04 \x01(\tR\x04unit\x12\x14\n" +
+	"\x05price\x18\x05 \x01(\tR\x05price\x12\x18\n" +
+	"\aomitted\x18\x06 \x01(\bR\aomitted\"\xb5\x01\n" +
+	"\x1fConfirmShoppingPurchasesRequest\x12!\n" +
+	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x1b\n" +
+	"\treview_id\x18\x02 \x01(\tR\breviewId\x12R\n" +
+	"\x05lines\x18\x03 \x03(\v2<.vrooli.nutrition_planner.v1.planning.ShoppingPurchaseActualR\x05lines\"@\n" +
+	" ConfirmShoppingPurchasesResponse\x12\x1c\n" +
+	"\tconfirmed\x18\x01 \x01(\bR\tconfirmed\"\xcc\x01\n" +
 	"\x15RecordFeedbackRequest\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12+\n" +
 	"\x11expected_revision\x18\x02 \x01(\x03R\x10expectedRevision\x12\x12\n" +
@@ -1173,13 +1696,16 @@ const file_nutrition_planner_v1_planning_planning_proto_rawDesc = "" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x12\n" +
 	"\x04date\x18\x02 \x01(\tR\x04date\".\n" +
 	"\x14UndoFeedbackResponse\x12\x16\n" +
-	"\x06undone\x18\x01 \x01(\bR\x06undone2\xe6\a\n" +
+	"\x06undone\x18\x01 \x01(\bR\x06undone2\xa7\v\n" +
 	"\x0fPlanningService\x12\x85\x01\n" +
-	"\fGeneratePlan\x129.vrooli.nutrition_planner.v1.planning.GeneratePlanRequest\x1a:.vrooli.nutrition_planner.v1.planning.GeneratePlanResponse\x12|\n" +
+	"\fGeneratePlan\x129.vrooli.nutrition_planner.v1.planning.GeneratePlanRequest\x1a:.vrooli.nutrition_planner.v1.planning.GeneratePlanResponse\x12v\n" +
+	"\aGetPlan\x124.vrooli.nutrition_planner.v1.planning.GetPlanRequest\x1a5.vrooli.nutrition_planner.v1.planning.GetPlanResponse\x12|\n" +
 	"\tApplyPlan\x126.vrooli.nutrition_planner.v1.planning.ApplyPlanRequest\x1a7.vrooli.nutrition_planner.v1.planning.ApplyPlanResponse\x12\x82\x01\n" +
 	"\vPreviewSwap\x128.vrooli.nutrition_planner.v1.planning.PreviewSwapRequest\x1a9.vrooli.nutrition_planner.v1.planning.PreviewSwapResponse\x12\x97\x01\n" +
 	"\x12GetShoppingPreview\x12?.vrooli.nutrition_planner.v1.planning.GetShoppingPreviewRequest\x1a@.vrooli.nutrition_planner.v1.planning.GetShoppingPreviewResponse\x12\x97\x01\n" +
-	"\x12SetShoppingChecked\x12?.vrooli.nutrition_planner.v1.planning.SetShoppingCheckedRequest\x1a@.vrooli.nutrition_planner.v1.planning.SetShoppingCheckedResponse\x12\x8b\x01\n" +
+	"\x12SetShoppingChecked\x12?.vrooli.nutrition_planner.v1.planning.SetShoppingCheckedRequest\x1a@.vrooli.nutrition_planner.v1.planning.SetShoppingCheckedResponse\x12\x9a\x01\n" +
+	"\x13SetShoppingHaveThis\x12@.vrooli.nutrition_planner.v1.planning.SetShoppingHaveThisRequest\x1aA.vrooli.nutrition_planner.v1.planning.SetShoppingHaveThisResponse\x12\xa9\x01\n" +
+	"\x18ConfirmShoppingPurchases\x12E.vrooli.nutrition_planner.v1.planning.ConfirmShoppingPurchasesRequest\x1aF.vrooli.nutrition_planner.v1.planning.ConfirmShoppingPurchasesResponse\x12\x8b\x01\n" +
 	"\x0eRecordFeedback\x12;.vrooli.nutrition_planner.v1.planning.RecordFeedbackRequest\x1a<.vrooli.nutrition_planner.v1.planning.RecordFeedbackResponse\x12\x85\x01\n" +
 	"\fUndoFeedback\x129.vrooli.nutrition_planner.v1.planning.UndoFeedbackRequest\x1a:.vrooli.nutrition_planner.v1.planning.UndoFeedbackResponseBZZXgithub.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/planning;planning_v1b\x06proto3"
 
@@ -1195,49 +1721,63 @@ func file_nutrition_planner_v1_planning_planning_proto_rawDescGZIP() []byte {
 	return file_nutrition_planner_v1_planning_planning_proto_rawDescData
 }
 
-var file_nutrition_planner_v1_planning_planning_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_nutrition_planner_v1_planning_planning_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
 var file_nutrition_planner_v1_planning_planning_proto_goTypes = []any{
-	(*MealSlot)(nil),                   // 0: vrooli.nutrition_planner.v1.planning.MealSlot
-	(*GeneratePlanRequest)(nil),        // 1: vrooli.nutrition_planner.v1.planning.GeneratePlanRequest
-	(*GeneratePlanResponse)(nil),       // 2: vrooli.nutrition_planner.v1.planning.GeneratePlanResponse
-	(*ApplyPlanRequest)(nil),           // 3: vrooli.nutrition_planner.v1.planning.ApplyPlanRequest
-	(*ApplyPlanResponse)(nil),          // 4: vrooli.nutrition_planner.v1.planning.ApplyPlanResponse
-	(*PreviewSwapRequest)(nil),         // 5: vrooli.nutrition_planner.v1.planning.PreviewSwapRequest
-	(*PreviewSwapResponse)(nil),        // 6: vrooli.nutrition_planner.v1.planning.PreviewSwapResponse
-	(*GetShoppingPreviewRequest)(nil),  // 7: vrooli.nutrition_planner.v1.planning.GetShoppingPreviewRequest
-	(*ShoppingLine)(nil),               // 8: vrooli.nutrition_planner.v1.planning.ShoppingLine
-	(*GetShoppingPreviewResponse)(nil), // 9: vrooli.nutrition_planner.v1.planning.GetShoppingPreviewResponse
-	(*SetShoppingCheckedRequest)(nil),  // 10: vrooli.nutrition_planner.v1.planning.SetShoppingCheckedRequest
-	(*SetShoppingCheckedResponse)(nil), // 11: vrooli.nutrition_planner.v1.planning.SetShoppingCheckedResponse
-	(*RecordFeedbackRequest)(nil),      // 12: vrooli.nutrition_planner.v1.planning.RecordFeedbackRequest
-	(*RecordFeedbackResponse)(nil),     // 13: vrooli.nutrition_planner.v1.planning.RecordFeedbackResponse
-	(*UndoFeedbackRequest)(nil),        // 14: vrooli.nutrition_planner.v1.planning.UndoFeedbackRequest
-	(*UndoFeedbackResponse)(nil),       // 15: vrooli.nutrition_planner.v1.planning.UndoFeedbackResponse
-	nil,                                // 16: vrooli.nutrition_planner.v1.planning.GeneratePlanRequest.LockedRecipeIdsEntry
+	(*MealSlot)(nil),                         // 0: vrooli.nutrition_planner.v1.planning.MealSlot
+	(*GeneratePlanRequest)(nil),              // 1: vrooli.nutrition_planner.v1.planning.GeneratePlanRequest
+	(*GeneratePlanResponse)(nil),             // 2: vrooli.nutrition_planner.v1.planning.GeneratePlanResponse
+	(*GetPlanRequest)(nil),                   // 3: vrooli.nutrition_planner.v1.planning.GetPlanRequest
+	(*GetPlanResponse)(nil),                  // 4: vrooli.nutrition_planner.v1.planning.GetPlanResponse
+	(*ApplyPlanRequest)(nil),                 // 5: vrooli.nutrition_planner.v1.planning.ApplyPlanRequest
+	(*ApplyPlanResponse)(nil),                // 6: vrooli.nutrition_planner.v1.planning.ApplyPlanResponse
+	(*PreviewSwapRequest)(nil),               // 7: vrooli.nutrition_planner.v1.planning.PreviewSwapRequest
+	(*PreviewSwapResponse)(nil),              // 8: vrooli.nutrition_planner.v1.planning.PreviewSwapResponse
+	(*GetShoppingPreviewRequest)(nil),        // 9: vrooli.nutrition_planner.v1.planning.GetShoppingPreviewRequest
+	(*ShoppingLine)(nil),                     // 10: vrooli.nutrition_planner.v1.planning.ShoppingLine
+	(*GetShoppingPreviewResponse)(nil),       // 11: vrooli.nutrition_planner.v1.planning.GetShoppingPreviewResponse
+	(*SetShoppingCheckedRequest)(nil),        // 12: vrooli.nutrition_planner.v1.planning.SetShoppingCheckedRequest
+	(*SetShoppingCheckedResponse)(nil),       // 13: vrooli.nutrition_planner.v1.planning.SetShoppingCheckedResponse
+	(*SetShoppingHaveThisRequest)(nil),       // 14: vrooli.nutrition_planner.v1.planning.SetShoppingHaveThisRequest
+	(*SetShoppingHaveThisResponse)(nil),      // 15: vrooli.nutrition_planner.v1.planning.SetShoppingHaveThisResponse
+	(*ShoppingPurchaseActual)(nil),           // 16: vrooli.nutrition_planner.v1.planning.ShoppingPurchaseActual
+	(*ConfirmShoppingPurchasesRequest)(nil),  // 17: vrooli.nutrition_planner.v1.planning.ConfirmShoppingPurchasesRequest
+	(*ConfirmShoppingPurchasesResponse)(nil), // 18: vrooli.nutrition_planner.v1.planning.ConfirmShoppingPurchasesResponse
+	(*RecordFeedbackRequest)(nil),            // 19: vrooli.nutrition_planner.v1.planning.RecordFeedbackRequest
+	(*RecordFeedbackResponse)(nil),           // 20: vrooli.nutrition_planner.v1.planning.RecordFeedbackResponse
+	(*UndoFeedbackRequest)(nil),              // 21: vrooli.nutrition_planner.v1.planning.UndoFeedbackRequest
+	(*UndoFeedbackResponse)(nil),             // 22: vrooli.nutrition_planner.v1.planning.UndoFeedbackResponse
+	nil,                                      // 23: vrooli.nutrition_planner.v1.planning.GeneratePlanRequest.LockedRecipeIdsEntry
 }
 var file_nutrition_planner_v1_planning_planning_proto_depIdxs = []int32{
-	16, // 0: vrooli.nutrition_planner.v1.planning.GeneratePlanRequest.locked_recipe_ids:type_name -> vrooli.nutrition_planner.v1.planning.GeneratePlanRequest.LockedRecipeIdsEntry
+	23, // 0: vrooli.nutrition_planner.v1.planning.GeneratePlanRequest.locked_recipe_ids:type_name -> vrooli.nutrition_planner.v1.planning.GeneratePlanRequest.LockedRecipeIdsEntry
 	0,  // 1: vrooli.nutrition_planner.v1.planning.GeneratePlanRequest.meal_slots:type_name -> vrooli.nutrition_planner.v1.planning.MealSlot
-	8,  // 2: vrooli.nutrition_planner.v1.planning.GetShoppingPreviewResponse.lines:type_name -> vrooli.nutrition_planner.v1.planning.ShoppingLine
-	1,  // 3: vrooli.nutrition_planner.v1.planning.PlanningService.GeneratePlan:input_type -> vrooli.nutrition_planner.v1.planning.GeneratePlanRequest
-	3,  // 4: vrooli.nutrition_planner.v1.planning.PlanningService.ApplyPlan:input_type -> vrooli.nutrition_planner.v1.planning.ApplyPlanRequest
-	5,  // 5: vrooli.nutrition_planner.v1.planning.PlanningService.PreviewSwap:input_type -> vrooli.nutrition_planner.v1.planning.PreviewSwapRequest
-	7,  // 6: vrooli.nutrition_planner.v1.planning.PlanningService.GetShoppingPreview:input_type -> vrooli.nutrition_planner.v1.planning.GetShoppingPreviewRequest
-	10, // 7: vrooli.nutrition_planner.v1.planning.PlanningService.SetShoppingChecked:input_type -> vrooli.nutrition_planner.v1.planning.SetShoppingCheckedRequest
-	12, // 8: vrooli.nutrition_planner.v1.planning.PlanningService.RecordFeedback:input_type -> vrooli.nutrition_planner.v1.planning.RecordFeedbackRequest
-	14, // 9: vrooli.nutrition_planner.v1.planning.PlanningService.UndoFeedback:input_type -> vrooli.nutrition_planner.v1.planning.UndoFeedbackRequest
-	2,  // 10: vrooli.nutrition_planner.v1.planning.PlanningService.GeneratePlan:output_type -> vrooli.nutrition_planner.v1.planning.GeneratePlanResponse
-	4,  // 11: vrooli.nutrition_planner.v1.planning.PlanningService.ApplyPlan:output_type -> vrooli.nutrition_planner.v1.planning.ApplyPlanResponse
-	6,  // 12: vrooli.nutrition_planner.v1.planning.PlanningService.PreviewSwap:output_type -> vrooli.nutrition_planner.v1.planning.PreviewSwapResponse
-	9,  // 13: vrooli.nutrition_planner.v1.planning.PlanningService.GetShoppingPreview:output_type -> vrooli.nutrition_planner.v1.planning.GetShoppingPreviewResponse
-	11, // 14: vrooli.nutrition_planner.v1.planning.PlanningService.SetShoppingChecked:output_type -> vrooli.nutrition_planner.v1.planning.SetShoppingCheckedResponse
-	13, // 15: vrooli.nutrition_planner.v1.planning.PlanningService.RecordFeedback:output_type -> vrooli.nutrition_planner.v1.planning.RecordFeedbackResponse
-	15, // 16: vrooli.nutrition_planner.v1.planning.PlanningService.UndoFeedback:output_type -> vrooli.nutrition_planner.v1.planning.UndoFeedbackResponse
-	10, // [10:17] is the sub-list for method output_type
-	3,  // [3:10] is the sub-list for method input_type
-	3,  // [3:3] is the sub-list for extension type_name
-	3,  // [3:3] is the sub-list for extension extendee
-	0,  // [0:3] is the sub-list for field type_name
+	10, // 2: vrooli.nutrition_planner.v1.planning.GetShoppingPreviewResponse.lines:type_name -> vrooli.nutrition_planner.v1.planning.ShoppingLine
+	16, // 3: vrooli.nutrition_planner.v1.planning.ConfirmShoppingPurchasesRequest.lines:type_name -> vrooli.nutrition_planner.v1.planning.ShoppingPurchaseActual
+	1,  // 4: vrooli.nutrition_planner.v1.planning.PlanningService.GeneratePlan:input_type -> vrooli.nutrition_planner.v1.planning.GeneratePlanRequest
+	3,  // 5: vrooli.nutrition_planner.v1.planning.PlanningService.GetPlan:input_type -> vrooli.nutrition_planner.v1.planning.GetPlanRequest
+	5,  // 6: vrooli.nutrition_planner.v1.planning.PlanningService.ApplyPlan:input_type -> vrooli.nutrition_planner.v1.planning.ApplyPlanRequest
+	7,  // 7: vrooli.nutrition_planner.v1.planning.PlanningService.PreviewSwap:input_type -> vrooli.nutrition_planner.v1.planning.PreviewSwapRequest
+	9,  // 8: vrooli.nutrition_planner.v1.planning.PlanningService.GetShoppingPreview:input_type -> vrooli.nutrition_planner.v1.planning.GetShoppingPreviewRequest
+	12, // 9: vrooli.nutrition_planner.v1.planning.PlanningService.SetShoppingChecked:input_type -> vrooli.nutrition_planner.v1.planning.SetShoppingCheckedRequest
+	14, // 10: vrooli.nutrition_planner.v1.planning.PlanningService.SetShoppingHaveThis:input_type -> vrooli.nutrition_planner.v1.planning.SetShoppingHaveThisRequest
+	17, // 11: vrooli.nutrition_planner.v1.planning.PlanningService.ConfirmShoppingPurchases:input_type -> vrooli.nutrition_planner.v1.planning.ConfirmShoppingPurchasesRequest
+	19, // 12: vrooli.nutrition_planner.v1.planning.PlanningService.RecordFeedback:input_type -> vrooli.nutrition_planner.v1.planning.RecordFeedbackRequest
+	21, // 13: vrooli.nutrition_planner.v1.planning.PlanningService.UndoFeedback:input_type -> vrooli.nutrition_planner.v1.planning.UndoFeedbackRequest
+	2,  // 14: vrooli.nutrition_planner.v1.planning.PlanningService.GeneratePlan:output_type -> vrooli.nutrition_planner.v1.planning.GeneratePlanResponse
+	4,  // 15: vrooli.nutrition_planner.v1.planning.PlanningService.GetPlan:output_type -> vrooli.nutrition_planner.v1.planning.GetPlanResponse
+	6,  // 16: vrooli.nutrition_planner.v1.planning.PlanningService.ApplyPlan:output_type -> vrooli.nutrition_planner.v1.planning.ApplyPlanResponse
+	8,  // 17: vrooli.nutrition_planner.v1.planning.PlanningService.PreviewSwap:output_type -> vrooli.nutrition_planner.v1.planning.PreviewSwapResponse
+	11, // 18: vrooli.nutrition_planner.v1.planning.PlanningService.GetShoppingPreview:output_type -> vrooli.nutrition_planner.v1.planning.GetShoppingPreviewResponse
+	13, // 19: vrooli.nutrition_planner.v1.planning.PlanningService.SetShoppingChecked:output_type -> vrooli.nutrition_planner.v1.planning.SetShoppingCheckedResponse
+	15, // 20: vrooli.nutrition_planner.v1.planning.PlanningService.SetShoppingHaveThis:output_type -> vrooli.nutrition_planner.v1.planning.SetShoppingHaveThisResponse
+	18, // 21: vrooli.nutrition_planner.v1.planning.PlanningService.ConfirmShoppingPurchases:output_type -> vrooli.nutrition_planner.v1.planning.ConfirmShoppingPurchasesResponse
+	20, // 22: vrooli.nutrition_planner.v1.planning.PlanningService.RecordFeedback:output_type -> vrooli.nutrition_planner.v1.planning.RecordFeedbackResponse
+	22, // 23: vrooli.nutrition_planner.v1.planning.PlanningService.UndoFeedback:output_type -> vrooli.nutrition_planner.v1.planning.UndoFeedbackResponse
+	14, // [14:24] is the sub-list for method output_type
+	4,  // [4:14] is the sub-list for method input_type
+	4,  // [4:4] is the sub-list for extension type_name
+	4,  // [4:4] is the sub-list for extension extendee
+	0,  // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_nutrition_planner_v1_planning_planning_proto_init() }
@@ -1251,7 +1791,7 @@ func file_nutrition_planner_v1_planning_planning_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_nutrition_planner_v1_planning_planning_proto_rawDesc), len(file_nutrition_planner_v1_planning_planning_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   17,
+			NumMessages:   24,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -15,7 +15,7 @@
       "prd_ref": "OT-P0-021",
       "category": "reporting",
       "criticality": "P0",
-      "description": "Every primary surface, Explore, recipe detail, recipe map, cooking mode, inventory, equipment, preferences, and one long editor shall be captured at 360x800, 390x844, 768x1024, 1024x768, and 1440x1000 plus 320 px width and 200 percent zoom in Light and Evening, compared with the corresponding images in docs/reference/mockups/ for hierarchy, whitespace, image proportions, alignment, contrast, component consistency, and reachability, with each verdict and residual gap recorded.",
+      "description": "Every primary surface, Explore, recipe detail, recipe map, cooking mode, inventory, equipment, preferences, and one long editor shall be captured at 360x800, 390x844, 768x1024, 1024x768, and 1440x1000 plus 320 px width and 200 percent zoom in Light and Evening, compared with the corresponding images in docs/reference/mockups/ for hierarchy, whitespace, image proportions, alignment, contrast, component consistency, and reachability, with each verdict and residual gap recorded. The current exact target is selected-2026-10-03/core-visual-inventory.json (core30) plus accepted Today v02; historical fifteen concepts do not define current acceptance. Close fidelity is mandatory, proven against the full-resolution local originals and exact screen/state/page mapping in docs/reference/selected-2026-10-03/VISUAL-ACCEPTANCE.md and local-visual-assets.json. Capture the actual build at matching state, appearance and viewport; document justified responsive/accessibility/truthful-data adaptations and every residual gap for independent acceptance.",
       "tags": [
         "visual",
         "fidelity",
@@ -33,6 +33,18 @@
           "phase": "integration",
           "status": "planned",
           "notes": "Planned: the scenario's visual capture flow produces the R27.5 matrix for every surface from the running app with real fonts and assets."
+        },
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "planned",
+          "notes": "Given the selected 2026-10-03 contract, when VIS-001 behavior is exercised on persisted isolated fixtures, then the selected amendment and unchanged domain invariants hold. Exact test reference must be earned; no validation claimed."
+        },
+        {
+          "type": "test",
+          "phase": "experience",
+          "status": "planned",
+          "notes": "Given the exact selected local original/version/hash and truthful persisted fixture, when the matching build/screen/state/appearance/viewport is captured, then independent review records close fidelity, necessary documented adaptations and residual gaps. NF-010 first-phone-viewport timer repair must pass. No runtime fidelity is asserted by asset availability."
         }
       ]
     },
@@ -71,7 +83,7 @@
       "prd_ref": "OT-P0-021",
       "category": "ui",
       "criticality": "P0",
-      "description": "The scenario shall ensure the phone hero never buries its actions, bottom navigation never obscures content, Week never shows a tiny seven-column phone layout, meal-card buttons stay aligned when titles wrap, grocery amounts stay aligned, equipment hotspots align with their objects, timer text fits at large font sizes, overlays work with a software keyboard, and ordinary-photo and no-photo states look intentional.",
+      "description": "The scenario shall ensure the phone hero never buries its actions, bottom navigation never obscures content, Week never shows a tiny seven-column phone layout, meal-card buttons stay aligned when titles wrap, grocery amounts stay aligned, equipment hotspots align with their objects, timer text fits at large font sizes, overlays work with a software keyboard, and ordinary-photo and no-photo states look intentional. NF-010 compact timer access shall be reachable in the first phone viewport while preserving step navigation and independent timers (ND-025).",
       "tags": [
         "visual",
         "defects",
@@ -89,6 +101,12 @@
           "phase": "unit",
           "status": "planned",
           "notes": "Planned: card action rows use a stable layout that keeps + Plan aligned for one-line and three-line titles (R10.1)."
+        },
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "planned",
+          "notes": "Given the selected 2026-10-03 contract, when VIS-003 behavior is exercised on persisted isolated fixtures, then the selected amendment and unchanged domain invariants hold. Exact test reference must be earned; no validation claimed."
         }
       ]
     },

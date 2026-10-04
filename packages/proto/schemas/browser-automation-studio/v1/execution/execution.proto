@@ -6,6 +6,7 @@ import "browser-automation-studio/v1/actions/action.proto";
 import "browser-automation-studio/v1/base/browser_profile.proto";
 import "browser-automation-studio/v1/base/shared.proto";
 import "browser-automation-studio/v1/domain/telemetry.proto";
+import "browser-automation-studio/v1/exports/exports.proto";
 import "browser-automation-studio/v1/workflows/definition.proto";
 import "buf/validate/validate.proto";
 import "common/v1/types.proto";
@@ -517,7 +518,7 @@ message ExecutionExportPreview {
   // Reserved: field 8 was 'export_url' (replaced with package containing full spec)
   reserved 8;
   // Replay movie package.
-  common.v1.JsonObject package = 9;
+  browser_automation_studio.v1.exports.ReplaySpec package = 9;
 }
 
 // =============================================================================

@@ -38,6 +38,12 @@
     },
     {
       "statement": "Dependency hints say what can happen while something else cooks, without trapping the reader on one step."
+    },
+    {
+      "statement": "Finish promptly with optional batch/intake; ask actual yield when recording a batch and allow later correction. Save reduced yield truthfully before future-shortage repair. Compact timer access is in the first phone viewport alongside step navigation and independent timers; external r3 is excluded (ND-018/025)."
+    },
+    {
+      "statement": "Close visual fidelity to the exact selected local originals is required; see docs/reference/selected-2026-10-03/VISUAL-ACCEPTANCE.md and local-visual-assets.json for this page/state mapping. Compare matching actual-build state/appearance/viewport; record justified responsive/accessibility/truthful-data adaptations without weakening behavior or NF-010 timer reachability."
     }
   ],
   "states": [

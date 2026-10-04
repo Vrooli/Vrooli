@@ -102,5 +102,10 @@
         }
       }
     }
+  ],
+  "priorities": [
+    {
+      "statement": "Default structured export has explicit manifest and required food/stock/intake/session history including pinned method/scale/steps/timers. Bounded supported-original-media archive is opt-in. Restore is transactional/checkpointed with honest resume review, no silent alarms, credentials/access grants or generation (ND-021)."
+    }
   ]
 }

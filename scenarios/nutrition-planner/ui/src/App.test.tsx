@@ -25,14 +25,15 @@ describe("App composition", () => {
     cleanup();
   });
 
-  it("renders the shell title (smoke: providers + routes wire up)", () => {
+  it("renders the Nooch shell (smoke: providers + routes wire up)", () => {
     renderWithProviders(
       <Providers>
         <TestAppRouter initialEntries={["/"]} />
       </Providers>,
       { withoutRouter: true },
     );
-    expect(screen.getByTestId(selectors.app.title)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.layout.shell)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.layout.brand)).toHaveTextContent("Nooch");
   });
 });
 

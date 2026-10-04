@@ -1,15 +1,18 @@
 # Redesign ledger — Nooch
 
-The working record of the redesign goal: where the build stands, every finding
-from every hostile review pass, and the evidence behind each claim. It replaces
-Plan Manager for this effort (D-026). Read it at the start of every slice and
-pass; update it at the end of every slice and pass.
+## Historical ledger — superseded
+
+This record preserves earlier findings, status and evidence. It is not the current delivery ledger. [GOAL](goal/GOAL.md) names the sole current goal home; record current progress in [QUEUE](goal/QUEUE.md), acceptance against [ACCEPTANCE](goal/ACCEPTANCE.md), and capture verdicts, findings and receipts in the admitted [epoch](goal/epochs/). The existing orchestrator owns admission and independent acceptance. New owner feedback follows [FEEDBACK](goal/FEEDBACK.md). Import unresolved assigned historical findings/feedback with their original source and words; do not erase them or infer closure from this routing correction.
+
+The usage rules and observations below describe the historical convergence process. They do not authorize new writes, dispatch or acceptance through this file.
 
 - **Plan and definition of done:** [`REDESIGN_PLAN.md`](REDESIGN_PLAN.md)
 - **Operator feedback:** [`OPERATOR_FEEDBACK.md`](OPERATOR_FEEDBACK.md)
 - **Visual target:** [`../reference/mockups/README.md`](../reference/mockups/README.md)
 
 ## How to use this file
+
+Historical procedure retained for provenance; use the current destinations above for active delivery.
 
 1. **Status board** — update milestone and surface rows as work lands. A row
    moves only with evidence in the evidence index.

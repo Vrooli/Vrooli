@@ -39,7 +39,7 @@ func TestBuildReportsScopedActionableFindings(t *testing.T) {
 	if _, err := db.Exec(`INSERT INTO recipe_revisions(recipe_id,revision,workspace_id,name,groups_json,status,created_at) VALUES('r1',1,'w1','Rice','[{"item":"rice","status":"unknown"}]','draft',?)`, old); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.Exec(`INSERT INTO plans(workspace_id,revision,plan_json,updated_at) VALUES('w1',1,'{"unresolved":[{"code":"open_slot"}]}',?)`, old); err != nil {
+	if _, err := db.Exec(`INSERT INTO plan_state(workspace_id,revision,metadata_json,unresolved_json,updated_at) VALUES('w1',1,'{}','[{"code":"open_slot"}]',?)`, old); err != nil {
 		t.Fatal(err)
 	}
 	report, err := Build(context.Background(), db, "w1", now, []ProviderStatus{{Name: "ai_gateway", State: "not_configured"}})

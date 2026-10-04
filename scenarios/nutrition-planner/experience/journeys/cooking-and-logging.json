@@ -5,7 +5,7 @@
   "journey": {
     "id": "cooking-and-logging",
     "title": "Cooking and logging",
-    "purpose": "Start cooking from Today, follow one pinned revision step by step with explicit completion and durable timers, then finish with batch confirmation and, separately, a recorded serving.",
+    "purpose": "Start cooking from Today, follow one pinned revision step by step with explicit completion and durable timers, then finish promptly with optional batch and separate intake recording.",
     "prd_refs": [
       "OT-P0-019",
       "OT-P0-005",
@@ -42,7 +42,7 @@
     {
       "page": "cooking",
       "state": "finish",
-      "intent": "Finish by confirming the batch and, separately, recording a serving eaten.",
+      "intent": "Finish promptly, optionally confirming actual batch yield and separately recording intake; reduced yield saves before shortage repair.",
       "via": "finish-dialog"
     }
   ],

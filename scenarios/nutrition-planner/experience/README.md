@@ -1,5 +1,10 @@
 # experience/ — UX contract
 
+## Operative 2026-10-03 selection
+
+Page priorities and journey claims incorporate ND-007–025 from docs/reference/product-specification.md. The exact core30 + Today v02 visual target supersedes the historical fifteen set. All draft/aspirational statuses remain unchanged: selected design approval is not runtime acceptance. Offline stock/intake needs explicit online review; manual-only launch generation starts Off; first-phone-viewport cooking timers are required.
+
+
 This folder is the scenario's **experience contract**: the design-first sibling
 of `requirements/`. Requirements say what Nooch does; `experience/` says what
 each surface must communicate, which states it has, which elements carry that

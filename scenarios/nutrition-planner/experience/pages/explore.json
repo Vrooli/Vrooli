@@ -39,6 +39,12 @@
     },
     {
       "statement": "Creating a meal idea with AI is optional, labelled as a draft, and hidden or explained when unavailable."
+    },
+    {
+      "statement": "Use bounded curated immersive scenes with polished ordinary-photo/no-photo layouts; no unique scene per meal. Recommendation rules and nutrition/cost claims retain evidence and unknowns (ND-019/023)."
+    },
+    {
+      "statement": "Close visual fidelity to the exact selected local originals is required; see docs/reference/selected-2026-10-03/VISUAL-ACCEPTANCE.md and local-visual-assets.json for this page/state mapping. Compare matching actual-build state/appearance/viewport; record justified responsive/accessibility/truthful-data adaptations without weakening behavior or NF-010 timer reachability."
     }
   ],
   "states": [

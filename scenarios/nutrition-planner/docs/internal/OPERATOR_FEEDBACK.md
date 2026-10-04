@@ -1,9 +1,10 @@
 # Operator feedback ledger — Nooch redesign
 
-Durable record of every instruction and piece of feedback the operator gives
-while the redesign goal runs. Session context is compacted and forgotten; this
-file is not. It is a gating input to the convergence loop in
-[`REDESIGN_PLAN.md`](REDESIGN_PLAN.md) §9 (`harness-goal-authoring` §6).
+## Historical feedback — superseded
+
+This file preserves original operator words and earlier dispositions. Current feedback belongs to [goal/FEEDBACK.md](goal/FEEDBACK.md), with the existing orchestrator carrying assigned instructions into admitted [epochs](goal/epochs/). [GOAL](goal/GOAL.md) and [ACCEPTANCE](goal/ACCEPTANCE.md) retain current delivery authority. Import unresolved assigned entries verbatim with their source; this supersession does not resolve or withdraw any original instruction.
+
+The rules below document the historical convergence process, not a second live feedback queue. Preserve the original entries and their evidence; do not append new active-team instructions here.
 
 ## Rules
 

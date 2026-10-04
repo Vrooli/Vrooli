@@ -15,7 +15,7 @@
       "prd_ref": "OT-P1-007",
       "category": "policy",
       "criticality": "P1",
-      "description": "The scenario should default new accounts to generation Off, offer Ask each time with the requested variants and a configured estimate before starting, allow Automatic within budget only with an explicit nonzero cap, triggers, variant limits, and scope, and never generate from page views, theme toggles, search results, hover, resizing, or whole catalogs.",
+      "description": "At launch generation should start Off and support manual-only requests with reliable cost/variant review before dispatch and deliberate activation of each reviewed result; there should be no automatic new-recipe trigger, automatic acceptance or activation, nor generation from views/themes/search/hover/resizing/catalogs (ND-024).",
       "tags": [
         "generation",
         "policy",
@@ -26,7 +26,13 @@
           "type": "test",
           "phase": "unit",
           "status": "planned",
-          "notes": "Planned: no view, theme, search, or resize code path can create a generation job, and automatic mode without a cap is rejected (R18.1, AT-003)."
+          "notes": "Planned: at launch no automatic trigger or activation is allowed even with a nonzero cap; a cost/variant-reviewed manual request and separate deliberate result activation succeed. Views/themes/search/resize never dispatch (ND-024)."
+        },
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "planned",
+          "notes": "Given the selected 2026-10-03 contract, when GEN-001 behavior is exercised on persisted isolated fixtures, then the selected amendment and unchanged domain invariants hold. Exact test reference must be earned; no validation claimed."
         }
       ]
     },

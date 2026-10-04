@@ -101,5 +101,13 @@
         }
       }
     }
+  ],
+  "priorities": [
+    {
+      "statement": "Concise qualifiers preserve mandatory provenance/source/basis/unit/date/revision/contributors/authority/correction paths through existing details and editors; no invented precision, allergen clearance, unsupported positive/validated claims or separate undefined expert workbench (ND-022/023)."
+    },
+    {
+      "statement": "Close visual fidelity to the exact selected local originals is required; see docs/reference/selected-2026-10-03/VISUAL-ACCEPTANCE.md and local-visual-assets.json for this page/state mapping. Compare matching actual-build state/appearance/viewport; record justified responsive/accessibility/truthful-data adaptations without weakening behavior or NF-010 timer reachability."
+    }
   ]
 }

@@ -76,4 +76,48 @@ describe("ThemeProvider", () => {
 
     matchMediaSpy.mockRestore();
   });
+
+  it("uses system when stored preferences are invalid and follows later media changes", () => {
+    window.localStorage.setItem(STORAGE_KEY, "dark");
+    const stored = renderHook(() => useTheme(), { wrapper: wrapper() });
+    expect(stored.result.current.choice).toBe("dark");
+    stored.unmount();
+    window.localStorage.setItem(STORAGE_KEY, "sepia");
+    let onChange: (() => void) | undefined;
+    let prefersDark = true;
+    const addEventListener = vi.fn((_type: string, listener: () => void) => { onChange = listener; });
+    const removeEventListener = vi.fn();
+    const matchMediaSpy = vi.spyOn(window, "matchMedia").mockImplementation((q) => ({
+      get matches() { return q === "(prefers-color-scheme: dark)" && prefersDark; },
+      media: q, onchange: null, addEventListener, removeEventListener,
+      addListener: vi.fn(), removeListener: vi.fn(), dispatchEvent: vi.fn(),
+    }));
+    const { result, unmount } = renderHook(() => useTheme(), { wrapper: wrapper() });
+    expect(result.current.choice).toBe("system");
+    expect(result.current.resolved).toBe("dark");
+    prefersDark = false;
+    act(() => onChange?.());
+    expect(result.current.resolved).toBe("light");
+    unmount();
+    expect(removeEventListener).toHaveBeenCalledWith("change", onChange);
+    matchMediaSpy.mockRestore();
+  });
+
+  it("falls back to light when system media queries are unavailable", () => {
+    const descriptor = Object.getOwnPropertyDescriptor(window, "matchMedia");
+    Object.defineProperty(window, "matchMedia", { configurable: true, value: undefined });
+    const { result, unmount } = renderHook(() => useTheme(), { wrapper: wrapper("system") });
+    expect(result.current.resolved).toBe("light");
+    unmount();
+    if (descriptor) Object.defineProperty(window, "matchMedia", descriptor);
+  });
+
+  it("rejects use outside its provider", () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      expect(() => renderHook(() => useTheme())).toThrow("useTheme must be called inside <ThemeProvider>");
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
 });

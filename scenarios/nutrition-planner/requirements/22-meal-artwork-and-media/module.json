@@ -15,7 +15,7 @@
       "prd_ref": "OT-P0-017",
       "category": "domain",
       "criticality": "P0",
-      "description": "The scenario shall keep presentation (Immersive scenes, Editorial photos, Minimal), appearance (Light, Evening, Follow device), and generation permission (Off, Ask each time, Automatic within budget) as three independent settings rather than one premium theme switch.",
+      "description": "The scenario shall keep presentation (Immersive scenes, Editorial photos, Minimal), appearance (Light, Evening, Follow device), and generation permission (Off and manual reviewed requests at launch) as three independent settings rather than one premium theme switch. Use a bounded curated immersive set and polished ordinary-photo/no-photo layouts; no unique scene is required per meal (ND-019).",
       "tags": [
         "media",
         "settings",
@@ -27,6 +27,12 @@
           "phase": "unit",
           "status": "planned",
           "notes": "Planned: changing any one of the three settings leaves the other two unchanged (R17.1)."
+        },
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "planned",
+          "notes": "Given the selected 2026-10-03 contract, when MEDIA-001 behavior is exercised on persisted isolated fixtures, then the selected amendment and unchanged domain invariants hold. Exact test reference must be earned; no validation claimed."
         }
       ]
     },

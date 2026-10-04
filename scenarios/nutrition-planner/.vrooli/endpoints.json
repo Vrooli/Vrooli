@@ -145,6 +145,14 @@
       "category": "recipe"
     },
     {
+      "id": "recipe_get_revision",
+      "path": "/vrooli.nutrition_planner.v1.recipe.RecipeService/GetRecipeRevision",
+      "method": "POST",
+      "summary": "Get an immutable recipe revision",
+      "description": "",
+      "category": "recipe"
+    },
+    {
       "id": "recipe_update",
       "path": "/vrooli.nutrition_planner.v1.recipe.RecipeService/UpdateRecipe",
       "method": "POST",
@@ -193,6 +201,38 @@
       "category": "cost"
     },
     {
+      "id": "cooking_start_session",
+      "path": "/vrooli.nutrition_planner.v1.cooking.CookingService/StartSession",
+      "method": "POST",
+      "summary": "Start a cooking session pinned to a recipe revision and method",
+      "description": "",
+      "category": "cooking"
+    },
+    {
+      "id": "cooking_get_session",
+      "path": "/vrooli.nutrition_planner.v1.cooking.CookingService/GetSession",
+      "method": "POST",
+      "summary": "Resume a saved cooking session",
+      "description": "",
+      "category": "cooking"
+    },
+    {
+      "id": "cooking_list_sessions",
+      "path": "/vrooli.nutrition_planner.v1.cooking.CookingService/ListSessions",
+      "method": "POST",
+      "summary": "List cooking sessions in a workspace",
+      "description": "",
+      "category": "cooking"
+    },
+    {
+      "id": "cooking_save_session",
+      "path": "/vrooli.nutrition_planner.v1.cooking.CookingService/SaveSession",
+      "method": "POST",
+      "summary": "Save explicit cooking progress, timers, or completion",
+      "description": "",
+      "category": "cooking"
+    },
+    {
       "id": "inventory_list_events",
       "path": "/vrooli.nutrition_planner.v1.inventory.InventoryService/ListEvents",
       "method": "POST",
@@ -229,6 +269,22 @@
       "path": "/vrooli.nutrition_planner.v1.inventory.InventoryService/UndoBatchPortion",
       "method": "POST",
       "summary": "Undo one prepared batch portion",
+      "description": "",
+      "category": "inventory"
+    },
+    {
+      "id": "inventory_list_batches",
+      "path": "/vrooli.nutrition_planner.v1.inventory.InventoryService/ListBatches",
+      "method": "POST",
+      "summary": "List prepared Kitchen batches and remaining portions",
+      "description": "",
+      "category": "inventory"
+    },
+    {
+      "id": "inventory_correct_batch_yield",
+      "path": "/vrooli.nutrition_planner.v1.inventory.InventoryService/CorrectBatchYield",
+      "method": "POST",
+      "summary": "Correct measured batch yield while preserving consumed portions",
       "description": "",
       "category": "inventory"
     },
@@ -509,6 +565,14 @@
       "path": "/vrooli.nutrition_planner.v1.planning.PlanningService/GeneratePlan",
       "method": "POST",
       "summary": "Generate a deterministic dinner plan draft",
+      "description": "",
+      "category": "planning"
+    },
+    {
+      "id": "planning_get_plan",
+      "path": "/vrooli.nutrition_planner.v1.planning.PlanningService/GetPlan",
+      "method": "POST",
+      "summary": "Read persisted plan occurrences for a date range",
       "description": "",
       "category": "planning"
     },

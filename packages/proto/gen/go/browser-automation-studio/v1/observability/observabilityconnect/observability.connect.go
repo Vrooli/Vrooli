@@ -45,15 +45,6 @@ const (
 	// ObservabilityServiceGetMetricsProcedure is the fully-qualified name of the ObservabilityService's
 	// GetMetrics RPC.
 	ObservabilityServiceGetMetricsProcedure = "/browser_automation_studio.v1.observability.ObservabilityService/GetMetrics"
-	// ObservabilityServiceGetConfigRuntimeProcedure is the fully-qualified name of the
-	// ObservabilityService's GetConfigRuntime RPC.
-	ObservabilityServiceGetConfigRuntimeProcedure = "/browser_automation_studio.v1.observability.ObservabilityService/GetConfigRuntime"
-	// ObservabilityServiceUpdateConfigProcedure is the fully-qualified name of the
-	// ObservabilityService's UpdateConfig RPC.
-	ObservabilityServiceUpdateConfigProcedure = "/browser_automation_studio.v1.observability.ObservabilityService/UpdateConfig"
-	// ObservabilityServiceResetConfigProcedure is the fully-qualified name of the
-	// ObservabilityService's ResetConfig RPC.
-	ObservabilityServiceResetConfigProcedure = "/browser_automation_studio.v1.observability.ObservabilityService/ResetConfig"
 	// ObservabilityServiceGetDebugModeProcedure is the fully-qualified name of the
 	// ObservabilityService's GetDebugMode RPC.
 	ObservabilityServiceGetDebugModeProcedure = "/browser_automation_studio.v1.observability.ObservabilityService/GetDebugMode"
@@ -76,14 +67,6 @@ type ObservabilityServiceClient interface {
 	GetSessionList(context.Context, *connect.Request[observability.GetSessionListRequest]) (*connect.Response[observability.GetSessionListResponse], error)
 	// GetMetrics returns the JSON-parsed Prometheus metrics snapshot.
 	GetMetrics(context.Context, *connect.Request[observability.GetMetricsRequest]) (*connect.Response[observability.GetMetricsResponse], error)
-	// GetConfigRuntime returns the current state of all runtime config
-	// overrides held by playwright-driver.
-	GetConfigRuntime(context.Context, *connect.Request[observability.GetConfigRuntimeRequest]) (*connect.Response[observability.GetConfigRuntimeResponse], error)
-	// UpdateConfig updates a single runtime configuration value.
-	UpdateConfig(context.Context, *connect.Request[observability.UpdateConfigRequest]) (*connect.Response[observability.UpdateConfigResponse], error)
-	// ResetConfig resets a runtime configuration value back to its
-	// environment/default value.
-	ResetConfig(context.Context, *connect.Request[observability.ResetConfigRequest]) (*connect.Response[observability.ResetConfigResponse], error)
 	// GetDebugMode reports the in-process debug-mode toggle state.
 	GetDebugMode(context.Context, *connect.Request[observability.GetDebugModeRequest]) (*connect.Response[observability.DebugModeState], error)
 	// SetDebugMode enables or disables debug mode in-process.
@@ -126,24 +109,6 @@ func NewObservabilityServiceClient(httpClient connect.HTTPClient, baseURL string
 			connect.WithSchema(observabilityServiceMethods.ByName("GetMetrics")),
 			connect.WithClientOptions(opts...),
 		),
-		getConfigRuntime: connect.NewClient[observability.GetConfigRuntimeRequest, observability.GetConfigRuntimeResponse](
-			httpClient,
-			baseURL+ObservabilityServiceGetConfigRuntimeProcedure,
-			connect.WithSchema(observabilityServiceMethods.ByName("GetConfigRuntime")),
-			connect.WithClientOptions(opts...),
-		),
-		updateConfig: connect.NewClient[observability.UpdateConfigRequest, observability.UpdateConfigResponse](
-			httpClient,
-			baseURL+ObservabilityServiceUpdateConfigProcedure,
-			connect.WithSchema(observabilityServiceMethods.ByName("UpdateConfig")),
-			connect.WithClientOptions(opts...),
-		),
-		resetConfig: connect.NewClient[observability.ResetConfigRequest, observability.ResetConfigResponse](
-			httpClient,
-			baseURL+ObservabilityServiceResetConfigProcedure,
-			connect.WithSchema(observabilityServiceMethods.ByName("ResetConfig")),
-			connect.WithClientOptions(opts...),
-		),
 		getDebugMode: connect.NewClient[observability.GetDebugModeRequest, observability.DebugModeState](
 			httpClient,
 			baseURL+ObservabilityServiceGetDebugModeProcedure,
@@ -165,9 +130,6 @@ type observabilityServiceClient struct {
 	refreshObservability *connect.Client[observability.RefreshObservabilityRequest, observability.RefreshObservabilityResponse]
 	getSessionList       *connect.Client[observability.GetSessionListRequest, observability.GetSessionListResponse]
 	getMetrics           *connect.Client[observability.GetMetricsRequest, observability.GetMetricsResponse]
-	getConfigRuntime     *connect.Client[observability.GetConfigRuntimeRequest, observability.GetConfigRuntimeResponse]
-	updateConfig         *connect.Client[observability.UpdateConfigRequest, observability.UpdateConfigResponse]
-	resetConfig          *connect.Client[observability.ResetConfigRequest, observability.ResetConfigResponse]
 	getDebugMode         *connect.Client[observability.GetDebugModeRequest, observability.DebugModeState]
 	setDebugMode         *connect.Client[observability.SetDebugModeRequest, observability.DebugModeState]
 }
@@ -195,22 +157,6 @@ func (c *observabilityServiceClient) GetMetrics(ctx context.Context, req *connec
 	return c.getMetrics.CallUnary(ctx, req)
 }
 
-// GetConfigRuntime calls
-// browser_automation_studio.v1.observability.ObservabilityService.GetConfigRuntime.
-func (c *observabilityServiceClient) GetConfigRuntime(ctx context.Context, req *connect.Request[observability.GetConfigRuntimeRequest]) (*connect.Response[observability.GetConfigRuntimeResponse], error) {
-	return c.getConfigRuntime.CallUnary(ctx, req)
-}
-
-// UpdateConfig calls browser_automation_studio.v1.observability.ObservabilityService.UpdateConfig.
-func (c *observabilityServiceClient) UpdateConfig(ctx context.Context, req *connect.Request[observability.UpdateConfigRequest]) (*connect.Response[observability.UpdateConfigResponse], error) {
-	return c.updateConfig.CallUnary(ctx, req)
-}
-
-// ResetConfig calls browser_automation_studio.v1.observability.ObservabilityService.ResetConfig.
-func (c *observabilityServiceClient) ResetConfig(ctx context.Context, req *connect.Request[observability.ResetConfigRequest]) (*connect.Response[observability.ResetConfigResponse], error) {
-	return c.resetConfig.CallUnary(ctx, req)
-}
-
 // GetDebugMode calls browser_automation_studio.v1.observability.ObservabilityService.GetDebugMode.
 func (c *observabilityServiceClient) GetDebugMode(ctx context.Context, req *connect.Request[observability.GetDebugModeRequest]) (*connect.Response[observability.DebugModeState], error) {
 	return c.getDebugMode.CallUnary(ctx, req)
@@ -235,14 +181,6 @@ type ObservabilityServiceHandler interface {
 	GetSessionList(context.Context, *connect.Request[observability.GetSessionListRequest]) (*connect.Response[observability.GetSessionListResponse], error)
 	// GetMetrics returns the JSON-parsed Prometheus metrics snapshot.
 	GetMetrics(context.Context, *connect.Request[observability.GetMetricsRequest]) (*connect.Response[observability.GetMetricsResponse], error)
-	// GetConfigRuntime returns the current state of all runtime config
-	// overrides held by playwright-driver.
-	GetConfigRuntime(context.Context, *connect.Request[observability.GetConfigRuntimeRequest]) (*connect.Response[observability.GetConfigRuntimeResponse], error)
-	// UpdateConfig updates a single runtime configuration value.
-	UpdateConfig(context.Context, *connect.Request[observability.UpdateConfigRequest]) (*connect.Response[observability.UpdateConfigResponse], error)
-	// ResetConfig resets a runtime configuration value back to its
-	// environment/default value.
-	ResetConfig(context.Context, *connect.Request[observability.ResetConfigRequest]) (*connect.Response[observability.ResetConfigResponse], error)
 	// GetDebugMode reports the in-process debug-mode toggle state.
 	GetDebugMode(context.Context, *connect.Request[observability.GetDebugModeRequest]) (*connect.Response[observability.DebugModeState], error)
 	// SetDebugMode enables or disables debug mode in-process.
@@ -280,24 +218,6 @@ func NewObservabilityServiceHandler(svc ObservabilityServiceHandler, opts ...con
 		connect.WithSchema(observabilityServiceMethods.ByName("GetMetrics")),
 		connect.WithHandlerOptions(opts...),
 	)
-	observabilityServiceGetConfigRuntimeHandler := connect.NewUnaryHandler(
-		ObservabilityServiceGetConfigRuntimeProcedure,
-		svc.GetConfigRuntime,
-		connect.WithSchema(observabilityServiceMethods.ByName("GetConfigRuntime")),
-		connect.WithHandlerOptions(opts...),
-	)
-	observabilityServiceUpdateConfigHandler := connect.NewUnaryHandler(
-		ObservabilityServiceUpdateConfigProcedure,
-		svc.UpdateConfig,
-		connect.WithSchema(observabilityServiceMethods.ByName("UpdateConfig")),
-		connect.WithHandlerOptions(opts...),
-	)
-	observabilityServiceResetConfigHandler := connect.NewUnaryHandler(
-		ObservabilityServiceResetConfigProcedure,
-		svc.ResetConfig,
-		connect.WithSchema(observabilityServiceMethods.ByName("ResetConfig")),
-		connect.WithHandlerOptions(opts...),
-	)
 	observabilityServiceGetDebugModeHandler := connect.NewUnaryHandler(
 		ObservabilityServiceGetDebugModeProcedure,
 		svc.GetDebugMode,
@@ -320,12 +240,6 @@ func NewObservabilityServiceHandler(svc ObservabilityServiceHandler, opts ...con
 			observabilityServiceGetSessionListHandler.ServeHTTP(w, r)
 		case ObservabilityServiceGetMetricsProcedure:
 			observabilityServiceGetMetricsHandler.ServeHTTP(w, r)
-		case ObservabilityServiceGetConfigRuntimeProcedure:
-			observabilityServiceGetConfigRuntimeHandler.ServeHTTP(w, r)
-		case ObservabilityServiceUpdateConfigProcedure:
-			observabilityServiceUpdateConfigHandler.ServeHTTP(w, r)
-		case ObservabilityServiceResetConfigProcedure:
-			observabilityServiceResetConfigHandler.ServeHTTP(w, r)
 		case ObservabilityServiceGetDebugModeProcedure:
 			observabilityServiceGetDebugModeHandler.ServeHTTP(w, r)
 		case ObservabilityServiceSetDebugModeProcedure:
@@ -353,18 +267,6 @@ func (UnimplementedObservabilityServiceHandler) GetSessionList(context.Context, 
 
 func (UnimplementedObservabilityServiceHandler) GetMetrics(context.Context, *connect.Request[observability.GetMetricsRequest]) (*connect.Response[observability.GetMetricsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.observability.ObservabilityService.GetMetrics is not implemented"))
-}
-
-func (UnimplementedObservabilityServiceHandler) GetConfigRuntime(context.Context, *connect.Request[observability.GetConfigRuntimeRequest]) (*connect.Response[observability.GetConfigRuntimeResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.observability.ObservabilityService.GetConfigRuntime is not implemented"))
-}
-
-func (UnimplementedObservabilityServiceHandler) UpdateConfig(context.Context, *connect.Request[observability.UpdateConfigRequest]) (*connect.Response[observability.UpdateConfigResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.observability.ObservabilityService.UpdateConfig is not implemented"))
-}
-
-func (UnimplementedObservabilityServiceHandler) ResetConfig(context.Context, *connect.Request[observability.ResetConfigRequest]) (*connect.Response[observability.ResetConfigResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("browser_automation_studio.v1.observability.ObservabilityService.ResetConfig is not implemented"))
 }
 
 func (UnimplementedObservabilityServiceHandler) GetDebugMode(context.Context, *connect.Request[observability.GetDebugModeRequest]) (*connect.Response[observability.DebugModeState], error) {

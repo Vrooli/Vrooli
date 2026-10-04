@@ -13,13 +13,14 @@ import (
 type EventKind string
 
 const (
-	Purchase     EventKind = "purchase"
-	Assertion    EventKind = "assertion"
-	Correction   EventKind = "correction"
-	Waste        EventKind = "waste"
-	Preparation  EventKind = "preparation"
-	BatchPortion EventKind = "batch_portion"
-	PortionUndo  EventKind = "batch_portion_undo"
+	Purchase        EventKind = "purchase"
+	Assertion       EventKind = "assertion"
+	Correction      EventKind = "correction"
+	Waste           EventKind = "waste"
+	Preparation     EventKind = "preparation"
+	BatchPortion    EventKind = "batch_portion"
+	PortionUndo     EventKind = "batch_portion_undo"
+	YieldCorrection EventKind = "batch_yield_correction"
 )
 
 type Event struct {
@@ -71,6 +72,8 @@ type Repository interface {
 
 type BatchRepository interface {
 	Repository
+	ListBatches(context.Context, string) ([]Batch, error)
+	CorrectBatchYield(context.Context, string, string, string, decimalx.Decimal, string) (Batch, error)
 	PrepareBatch(context.Context, string, string, string, string, int64, decimalx.Decimal, string, []Event) (Batch, error)
 	ConsumeBatchPortion(context.Context, string, string, string, decimalx.Decimal, string, string, bool) (Batch, error)
 }
@@ -150,6 +153,18 @@ func Apply(state State, event Event) (State, error) {
 			return state, fmt.Errorf("batch %q not found", event.BatchID)
 		}
 		batch.Available, _ = decimalx.Add(batch.Available, event.Amount)
+		next.Batches[event.BatchID] = batch
+	case YieldCorrection:
+		batch, ok := next.Batches[event.BatchID]
+		if !ok {
+			return state, fmt.Errorf("batch %q not found", event.BatchID)
+		}
+		consumed, _ := decimalx.Sub(batch.Yield, batch.Available)
+		if comparison, _ := decimalx.Compare(event.Amount, consumed); comparison < 0 {
+			return state, errors.New("corrected yield is below portions already consumed")
+		}
+		batch.Yield = event.Amount
+		batch.Available, _ = decimalx.Sub(event.Amount, consumed)
 		next.Batches[event.BatchID] = batch
 	default:
 		return state, fmt.Errorf("unsupported inventory event kind %q", event.Kind)

@@ -61,6 +61,26 @@ class GeneratePlanResponse(_message.Message):
     current_revision: int
     def __init__(self, run_id: _Optional[str] = ..., draft_json: _Optional[str] = ..., unresolved_dates: _Optional[_Iterable[str]] = ..., input_references: _Optional[_Iterable[str]] = ..., current_revision: _Optional[int] = ...) -> None: ...
 
+class GetPlanRequest(_message.Message):
+    __slots__ = ("workspace_id", "from_date", "to_date")
+    WORKSPACE_ID_FIELD_NUMBER: _ClassVar[int]
+    FROM_DATE_FIELD_NUMBER: _ClassVar[int]
+    TO_DATE_FIELD_NUMBER: _ClassVar[int]
+    workspace_id: str
+    from_date: str
+    to_date: str
+    def __init__(self, workspace_id: _Optional[str] = ..., from_date: _Optional[str] = ..., to_date: _Optional[str] = ...) -> None: ...
+
+class GetPlanResponse(_message.Message):
+    __slots__ = ("current_revision", "draft_json", "has_plan")
+    CURRENT_REVISION_FIELD_NUMBER: _ClassVar[int]
+    DRAFT_JSON_FIELD_NUMBER: _ClassVar[int]
+    HAS_PLAN_FIELD_NUMBER: _ClassVar[int]
+    current_revision: int
+    draft_json: str
+    has_plan: bool
+    def __init__(self, current_revision: _Optional[int] = ..., draft_json: _Optional[str] = ..., has_plan: _Optional[bool] = ...) -> None: ...
+
 class ApplyPlanRequest(_message.Message):
     __slots__ = ("workspace_id", "expected_revision", "draft_json")
     WORKSPACE_ID_FIELD_NUMBER: _ClassVar[int]
@@ -80,18 +100,20 @@ class ApplyPlanResponse(_message.Message):
     def __init__(self, revision: _Optional[int] = ..., plan_json: _Optional[str] = ...) -> None: ...
 
 class PreviewSwapRequest(_message.Message):
-    __slots__ = ("workspace_id", "expected_revision", "date", "replacement_recipe_id", "replace_matching_future")
+    __slots__ = ("workspace_id", "expected_revision", "date", "replacement_recipe_id", "replace_matching_future", "slot_name")
     WORKSPACE_ID_FIELD_NUMBER: _ClassVar[int]
     EXPECTED_REVISION_FIELD_NUMBER: _ClassVar[int]
     DATE_FIELD_NUMBER: _ClassVar[int]
     REPLACEMENT_RECIPE_ID_FIELD_NUMBER: _ClassVar[int]
     REPLACE_MATCHING_FUTURE_FIELD_NUMBER: _ClassVar[int]
+    SLOT_NAME_FIELD_NUMBER: _ClassVar[int]
     workspace_id: str
     expected_revision: int
     date: str
     replacement_recipe_id: str
     replace_matching_future: bool
-    def __init__(self, workspace_id: _Optional[str] = ..., expected_revision: _Optional[int] = ..., date: _Optional[str] = ..., replacement_recipe_id: _Optional[str] = ..., replace_matching_future: _Optional[bool] = ...) -> None: ...
+    slot_name: str
+    def __init__(self, workspace_id: _Optional[str] = ..., expected_revision: _Optional[int] = ..., date: _Optional[str] = ..., replacement_recipe_id: _Optional[str] = ..., replace_matching_future: _Optional[bool] = ..., slot_name: _Optional[str] = ...) -> None: ...
 
 class PreviewSwapResponse(_message.Message):
     __slots__ = ("revision", "preview_json", "affected_dates")
@@ -112,7 +134,7 @@ class GetShoppingPreviewRequest(_message.Message):
     def __init__(self, workspace_id: _Optional[str] = ..., expected_revision: _Optional[int] = ...) -> None: ...
 
 class ShoppingLine(_message.Message):
-    __slots__ = ("key", "label", "need", "stock", "missing", "package_count", "price", "source_recipe_ids", "checked")
+    __slots__ = ("key", "label", "need", "stock", "missing", "package_count", "price", "source_recipe_ids", "checked", "portion_cost", "checkout_total", "actual_spend", "have_this", "actual_quantity", "actual_unit", "actual_price", "purchase_omitted")
     KEY_FIELD_NUMBER: _ClassVar[int]
     LABEL_FIELD_NUMBER: _ClassVar[int]
     NEED_FIELD_NUMBER: _ClassVar[int]
@@ -122,6 +144,14 @@ class ShoppingLine(_message.Message):
     PRICE_FIELD_NUMBER: _ClassVar[int]
     SOURCE_RECIPE_IDS_FIELD_NUMBER: _ClassVar[int]
     CHECKED_FIELD_NUMBER: _ClassVar[int]
+    PORTION_COST_FIELD_NUMBER: _ClassVar[int]
+    CHECKOUT_TOTAL_FIELD_NUMBER: _ClassVar[int]
+    ACTUAL_SPEND_FIELD_NUMBER: _ClassVar[int]
+    HAVE_THIS_FIELD_NUMBER: _ClassVar[int]
+    ACTUAL_QUANTITY_FIELD_NUMBER: _ClassVar[int]
+    ACTUAL_UNIT_FIELD_NUMBER: _ClassVar[int]
+    ACTUAL_PRICE_FIELD_NUMBER: _ClassVar[int]
+    PURCHASE_OMITTED_FIELD_NUMBER: _ClassVar[int]
     key: str
     label: str
     need: str
@@ -131,7 +161,15 @@ class ShoppingLine(_message.Message):
     price: str
     source_recipe_ids: _containers.RepeatedScalarFieldContainer[str]
     checked: bool
-    def __init__(self, key: _Optional[str] = ..., label: _Optional[str] = ..., need: _Optional[str] = ..., stock: _Optional[str] = ..., missing: _Optional[str] = ..., package_count: _Optional[str] = ..., price: _Optional[str] = ..., source_recipe_ids: _Optional[_Iterable[str]] = ..., checked: _Optional[bool] = ...) -> None: ...
+    portion_cost: str
+    checkout_total: str
+    actual_spend: str
+    have_this: bool
+    actual_quantity: str
+    actual_unit: str
+    actual_price: str
+    purchase_omitted: bool
+    def __init__(self, key: _Optional[str] = ..., label: _Optional[str] = ..., need: _Optional[str] = ..., stock: _Optional[str] = ..., missing: _Optional[str] = ..., package_count: _Optional[str] = ..., price: _Optional[str] = ..., source_recipe_ids: _Optional[_Iterable[str]] = ..., checked: _Optional[bool] = ..., portion_cost: _Optional[str] = ..., checkout_total: _Optional[str] = ..., actual_spend: _Optional[str] = ..., have_this: _Optional[bool] = ..., actual_quantity: _Optional[str] = ..., actual_unit: _Optional[str] = ..., actual_price: _Optional[str] = ..., purchase_omitted: _Optional[bool] = ...) -> None: ...
 
 class GetShoppingPreviewResponse(_message.Message):
     __slots__ = ("revision", "lines")
@@ -156,6 +194,54 @@ class SetShoppingCheckedResponse(_message.Message):
     CHECKED_FIELD_NUMBER: _ClassVar[int]
     checked: bool
     def __init__(self, checked: _Optional[bool] = ...) -> None: ...
+
+class SetShoppingHaveThisRequest(_message.Message):
+    __slots__ = ("workspace_id", "line_key", "have_this")
+    WORKSPACE_ID_FIELD_NUMBER: _ClassVar[int]
+    LINE_KEY_FIELD_NUMBER: _ClassVar[int]
+    HAVE_THIS_FIELD_NUMBER: _ClassVar[int]
+    workspace_id: str
+    line_key: str
+    have_this: bool
+    def __init__(self, workspace_id: _Optional[str] = ..., line_key: _Optional[str] = ..., have_this: _Optional[bool] = ...) -> None: ...
+
+class SetShoppingHaveThisResponse(_message.Message):
+    __slots__ = ("have_this",)
+    HAVE_THIS_FIELD_NUMBER: _ClassVar[int]
+    have_this: bool
+    def __init__(self, have_this: _Optional[bool] = ...) -> None: ...
+
+class ShoppingPurchaseActual(_message.Message):
+    __slots__ = ("line_key", "item_id", "amount", "unit", "price", "omitted")
+    LINE_KEY_FIELD_NUMBER: _ClassVar[int]
+    ITEM_ID_FIELD_NUMBER: _ClassVar[int]
+    AMOUNT_FIELD_NUMBER: _ClassVar[int]
+    UNIT_FIELD_NUMBER: _ClassVar[int]
+    PRICE_FIELD_NUMBER: _ClassVar[int]
+    OMITTED_FIELD_NUMBER: _ClassVar[int]
+    line_key: str
+    item_id: str
+    amount: str
+    unit: str
+    price: str
+    omitted: bool
+    def __init__(self, line_key: _Optional[str] = ..., item_id: _Optional[str] = ..., amount: _Optional[str] = ..., unit: _Optional[str] = ..., price: _Optional[str] = ..., omitted: _Optional[bool] = ...) -> None: ...
+
+class ConfirmShoppingPurchasesRequest(_message.Message):
+    __slots__ = ("workspace_id", "review_id", "lines")
+    WORKSPACE_ID_FIELD_NUMBER: _ClassVar[int]
+    REVIEW_ID_FIELD_NUMBER: _ClassVar[int]
+    LINES_FIELD_NUMBER: _ClassVar[int]
+    workspace_id: str
+    review_id: str
+    lines: _containers.RepeatedCompositeFieldContainer[ShoppingPurchaseActual]
+    def __init__(self, workspace_id: _Optional[str] = ..., review_id: _Optional[str] = ..., lines: _Optional[_Iterable[_Union[ShoppingPurchaseActual, _Mapping]]] = ...) -> None: ...
+
+class ConfirmShoppingPurchasesResponse(_message.Message):
+    __slots__ = ("confirmed",)
+    CONFIRMED_FIELD_NUMBER: _ClassVar[int]
+    confirmed: bool
+    def __init__(self, confirmed: _Optional[bool] = ...) -> None: ...
 
 class RecordFeedbackRequest(_message.Message):
     __slots__ = ("workspace_id", "expected_revision", "date", "recipe_id", "portion", "minutes")

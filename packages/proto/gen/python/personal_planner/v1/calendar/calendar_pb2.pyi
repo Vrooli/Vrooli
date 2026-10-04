@@ -9,6 +9,100 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
+class CalendarEvent(_message.Message):
+    __slots__ = ("id", "title", "subject", "notes", "availability", "timezone", "all_day", "start_date", "end_date_exclusive", "start_at", "end_at", "provider", "provider_calendar_id", "provider_event_id", "occurrence_id", "revision", "created_at", "updated_at")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    TITLE_FIELD_NUMBER: _ClassVar[int]
+    SUBJECT_FIELD_NUMBER: _ClassVar[int]
+    NOTES_FIELD_NUMBER: _ClassVar[int]
+    AVAILABILITY_FIELD_NUMBER: _ClassVar[int]
+    TIMEZONE_FIELD_NUMBER: _ClassVar[int]
+    ALL_DAY_FIELD_NUMBER: _ClassVar[int]
+    START_DATE_FIELD_NUMBER: _ClassVar[int]
+    END_DATE_EXCLUSIVE_FIELD_NUMBER: _ClassVar[int]
+    START_AT_FIELD_NUMBER: _ClassVar[int]
+    END_AT_FIELD_NUMBER: _ClassVar[int]
+    PROVIDER_FIELD_NUMBER: _ClassVar[int]
+    PROVIDER_CALENDAR_ID_FIELD_NUMBER: _ClassVar[int]
+    PROVIDER_EVENT_ID_FIELD_NUMBER: _ClassVar[int]
+    OCCURRENCE_ID_FIELD_NUMBER: _ClassVar[int]
+    REVISION_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    title: str
+    subject: str
+    notes: str
+    availability: str
+    timezone: str
+    all_day: bool
+    start_date: str
+    end_date_exclusive: str
+    start_at: str
+    end_at: str
+    provider: str
+    provider_calendar_id: str
+    provider_event_id: str
+    occurrence_id: str
+    revision: int
+    created_at: _timestamp_pb2.Timestamp
+    updated_at: _timestamp_pb2.Timestamp
+    def __init__(self, id: _Optional[str] = ..., title: _Optional[str] = ..., subject: _Optional[str] = ..., notes: _Optional[str] = ..., availability: _Optional[str] = ..., timezone: _Optional[str] = ..., all_day: _Optional[bool] = ..., start_date: _Optional[str] = ..., end_date_exclusive: _Optional[str] = ..., start_at: _Optional[str] = ..., end_at: _Optional[str] = ..., provider: _Optional[str] = ..., provider_calendar_id: _Optional[str] = ..., provider_event_id: _Optional[str] = ..., occurrence_id: _Optional[str] = ..., revision: _Optional[int] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+
+class ListEventsRequest(_message.Message):
+    __slots__ = ("start_local_date", "end_local_date")
+    START_LOCAL_DATE_FIELD_NUMBER: _ClassVar[int]
+    END_LOCAL_DATE_FIELD_NUMBER: _ClassVar[int]
+    start_local_date: str
+    end_local_date: str
+    def __init__(self, start_local_date: _Optional[str] = ..., end_local_date: _Optional[str] = ...) -> None: ...
+
+class ListEventsResponse(_message.Message):
+    __slots__ = ("events",)
+    EVENTS_FIELD_NUMBER: _ClassVar[int]
+    events: _containers.RepeatedCompositeFieldContainer[CalendarEvent]
+    def __init__(self, events: _Optional[_Iterable[_Union[CalendarEvent, _Mapping]]] = ...) -> None: ...
+
+class GetEventRequest(_message.Message):
+    __slots__ = ("event_id",)
+    EVENT_ID_FIELD_NUMBER: _ClassVar[int]
+    event_id: str
+    def __init__(self, event_id: _Optional[str] = ...) -> None: ...
+
+class GetEventResponse(_message.Message):
+    __slots__ = ("event",)
+    EVENT_FIELD_NUMBER: _ClassVar[int]
+    event: CalendarEvent
+    def __init__(self, event: _Optional[_Union[CalendarEvent, _Mapping]] = ...) -> None: ...
+
+class CreateEventRequest(_message.Message):
+    __slots__ = ("event", "idempotency_key")
+    EVENT_FIELD_NUMBER: _ClassVar[int]
+    IDEMPOTENCY_KEY_FIELD_NUMBER: _ClassVar[int]
+    event: CalendarEvent
+    idempotency_key: str
+    def __init__(self, event: _Optional[_Union[CalendarEvent, _Mapping]] = ..., idempotency_key: _Optional[str] = ...) -> None: ...
+
+class CreateEventResponse(_message.Message):
+    __slots__ = ("event",)
+    EVENT_FIELD_NUMBER: _ClassVar[int]
+    event: CalendarEvent
+    def __init__(self, event: _Optional[_Union[CalendarEvent, _Mapping]] = ...) -> None: ...
+
+class UpdateEventRequest(_message.Message):
+    __slots__ = ("event", "expected_revision")
+    EVENT_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_REVISION_FIELD_NUMBER: _ClassVar[int]
+    event: CalendarEvent
+    expected_revision: int
+    def __init__(self, event: _Optional[_Union[CalendarEvent, _Mapping]] = ..., expected_revision: _Optional[int] = ...) -> None: ...
+
+class UpdateEventResponse(_message.Message):
+    __slots__ = ("event",)
+    EVENT_FIELD_NUMBER: _ClassVar[int]
+    event: CalendarEvent
+    def __init__(self, event: _Optional[_Union[CalendarEvent, _Mapping]] = ...) -> None: ...
+
 class Allocation(_message.Message):
     __slots__ = ("id", "work_item_id", "title", "source_label", "local_date", "start_minutes", "duration_minutes", "state", "created_at", "carried_from_id")
     ID_FIELD_NUMBER: _ClassVar[int]

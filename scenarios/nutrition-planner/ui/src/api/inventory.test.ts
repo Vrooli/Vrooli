@@ -1,14 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const listEvents = vi.hoisted(() => vi.fn());
+const listBatches = vi.hoisted(() => vi.fn());
+const correctBatchYield = vi.hoisted(() => vi.fn());
 const recordEvent = vi.hoisted(() => vi.fn());
 const prepareBatch = vi.hoisted(() => vi.fn());
 const consumeBatchPortion = vi.hoisted(() => vi.fn());
 const undoBatchPortion = vi.hoisted(() => vi.fn());
-vi.mock("@connectrpc/connect", () => ({ createClient: () => ({ listEvents, recordEvent, prepareBatch, consumeBatchPortion, undoBatchPortion }) }));
+vi.mock("@connectrpc/connect", () => ({ createClient: () => ({ listEvents, listBatches, correctBatchYield, recordEvent, prepareBatch, consumeBatchPortion, undoBatchPortion }) }));
 vi.mock("./client", () => ({ transport: {} }));
 
-import { listInventoryEvents, recordInventoryEvent, prepareInventoryBatch, consumeInventoryBatchPortion, undoInventoryBatchPortion } from "./inventory";
+import { listInventoryEvents, listInventoryBatches, correctInventoryBatchYield, recordInventoryEvent, prepareInventoryBatch, consumeInventoryBatchPortion, undoInventoryBatchPortion } from "./inventory";
 
 describe("inventory API", () => {
   beforeEach(() => vi.clearAllMocks());
@@ -16,6 +18,18 @@ describe("inventory API", () => {
     listEvents.mockResolvedValue({ events: [{ id: "p1", workspaceId: "w1", kind: "purchase", itemId: "rice", batchId: "", amount: "500", unit: "g", recipeId: "", createdAt: "2026-09-18T00:00:00Z" }] });
     await expect(listInventoryEvents("w1")).resolves.toEqual([expect.objectContaining({ id: "p1", amount: "500" })]);
     expect(listEvents).toHaveBeenCalledWith({ workspaceId: "w1" });
+  });
+  it("lists prepared yield and remaining portions", async () => {
+    listBatches.mockResolvedValue({ batches: [{ id: "b1", recipeId: "r1", recipeRevision: 2n, yieldAmount: "3.5", availableAmount: "2.5", unit: "bowls" }] });
+    await expect(listInventoryBatches("w1")).resolves.toEqual([{ id: "b1", recipeId: "r1", recipeRevision: 2n, yieldAmount: "3.5", availableAmount: "2.5", unit: "bowls" }]);
+    expect(listBatches).toHaveBeenCalledWith({ workspaceId: "w1" });
+  });
+  it("corrects measured yield without changing the command shape", async () => {
+    correctBatchYield.mockResolvedValue({ batch: { id: "b1", recipeId: "r1", recipeRevision: 2n, yieldAmount: "5", availableAmount: "4", unit: "bowls" } });
+    await expect(correctInventoryBatchYield({ workspaceId: "w1", eventId: "correct-1", batchId: "b1", yieldAmount: "5", unit: "bowls" })).resolves.toMatchObject({ yieldAmount: "5", availableAmount: "4" });
+    expect(correctBatchYield).toHaveBeenCalledWith({ workspaceId: "w1", eventId: "correct-1", batchId: "b1", yieldAmount: "5", unit: "bowls" });
+    correctBatchYield.mockResolvedValue({});
+    await expect(correctInventoryBatchYield({ workspaceId: "w1", eventId: "correct-2", batchId: "b1", yieldAmount: "4", unit: "bowls" })).rejects.toThrow("no corrected batch");
   });
   it("records an explicit purchase event", async () => {
     recordEvent.mockResolvedValue({ event: { id: "p1", workspaceId: "w1", kind: "purchase", itemId: "rice", batchId: "", amount: "500", unit: "g", recipeId: "", createdAt: "2026-09-18T00:00:00Z" } });

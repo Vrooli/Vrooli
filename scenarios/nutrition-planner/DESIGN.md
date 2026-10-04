@@ -1,4 +1,9 @@
 ---
+
+## Selected mockups are an acceptance target
+
+Close fidelity to the selected core30 + accepted Today Sunroom v02 is required. Exact local originals, hashes and page/requirement mappings are in [VISUAL-ACCEPTANCE.md](docs/reference/selected-2026-10-03/VISUAL-ACCEPTANCE.md). Compare the actual build at matching screen/state/appearance/viewport; preserve composition, hierarchy, type and imagery within correct behavior, truthful data and accessibility. Record necessary adaptations and residual gaps for native independent acceptance. ND-025 compact first-phone-viewport timer access is the intended cooking-reference repair; external r3 is excluded.
+
 id: vrooli-default
 version: 0.3.0
 name: Nooch — Warm Kitchen
@@ -353,7 +358,7 @@ captures including text over imagery.
 
 ### Do
 
-- Start UI work by reading this file, the mockups guide, and the surface's section in `docs/internal/REDESIGN_PLAN.md`.
+- Start UI work by reading this file, the mockups guide, the accepted `docs/reference/product-specification.md`, and `docs/internal/goal/GOAL.md` plus the admitted epoch. Historical surface notes in `docs/internal/REDESIGN_PLAN.md` remain reference evidence; current scope and capture receipts belong to the goal home.
 - Use tokens for every colour, size, and radius; keep feature code free of raw palette classes.
 - Compose phone and desktop deliberately; keep the primary action in reach.
 - Let food photography carry warmth and keep chrome quiet.

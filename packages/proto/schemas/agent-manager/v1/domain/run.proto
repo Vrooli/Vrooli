@@ -238,6 +238,13 @@ message Run {
   // LastHandoff is the last structured handoff or assistant message retained
   // for a resume prompt.
   string last_handoff = 57;
+
+  // Runner-owned objective observation. This does not change run lifecycle;
+  // a live coordinator heartbeat only proves transport liveness.
+  string observed_goal_status = 58;
+  optional google.protobuf.Timestamp observed_goal_at = 59;
+  // Last retained provider message/tool event, separate from last_heartbeat.
+  optional google.protobuf.Timestamp provider_activity_at = 60;
 }
 
 // FinalOutputSelectionStatus describes whether provider evidence identifies a
@@ -650,6 +657,9 @@ message RunnerCapabilities {
 
   // Verified execution-mode and sandbox-mode combinations.
   repeated SpawnCapability spawn_capabilities = 19;
+
+  // Can compact an idle codec-pipe session out of band.
+  bool supports_session_compaction = 20;
 }
 
 message SpawnCapability {
@@ -852,6 +862,14 @@ message ContinueRunResponse {
   // Error code for programmatic handling.
   // Codes: "session_expired", "continuation_not_supported", "run_not_found"
   string error_code = 4;
+
+  // Transport acceptance is not provider consumption. For a live interactive
+  // session this reports "accepted" once Web Console accepts SendPrompt; replay
+  // of the same idempotency key retains that disposition.
+  string transport_disposition = 5;
+  // "unknown" until a correlated provider input receipt exists. Later model
+  // activity and semantic acknowledgement are separate observations.
+  string consumption_disposition = 6;
 }
 
 // =============================================================================

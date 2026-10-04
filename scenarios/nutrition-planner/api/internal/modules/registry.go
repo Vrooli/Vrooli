@@ -17,8 +17,10 @@
 package modules
 
 import (
+	cookingH "nutrition-planner/handlers/cooking"
 	costH "nutrition-planner/handlers/cost"
 	inventoryH "nutrition-planner/handlers/inventory"
+	cookingDomain "nutrition-planner/internal/cooking"
 	inventoryDomain "nutrition-planner/internal/inventory"
 	"nutrition-planner/internal/module"
 	supplementDomain "nutrition-planner/internal/supplement"
@@ -45,6 +47,7 @@ import (
 	localdb "nutrition-planner/internal/database"
 
 	catalogv1 "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/catalog"
+	cookingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/cooking"
 	costv1 "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/cost"
 	eligibilityv1 "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/eligibility"
 	inventoryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/inventory"
@@ -72,6 +75,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, recipeH.Endpoints...)
 	out = append(out, catalogH.Endpoints...)
 	out = append(out, costH.Endpoints...)
+	out = append(out, cookingH.Endpoints...)
 	out = append(out, inventoryH.Endpoints...)
 	out = append(out, nutritionH.Endpoints...)
 	out = append(out, supplementH.Endpoints...)
@@ -111,6 +115,7 @@ func AllProtoFiles() []ProtoFileEntry {
 		{Module: "recipe", File: recipev1.File_nutrition_planner_v1_recipe_recipe_proto},
 		{Module: "catalog", File: catalogv1.File_nutrition_planner_v1_catalog_catalog_proto},
 		{Module: "cost", File: costv1.File_nutrition_planner_v1_cost_cost_proto},
+		{Module: "cooking", File: cookingv1.File_nutrition_planner_v1_cooking_cooking_proto},
 		{Module: "inventory", File: inventoryv1.File_nutrition_planner_v1_inventory_inventory_proto},
 		{Module: "nutrition", File: nutritionv1.File_nutrition_planner_v1_nutrition_nutrition_proto},
 		{Module: "supplement", File: supplementv1.File_nutrition_planner_v1_supplement_supplement_proto},
@@ -138,6 +143,7 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(recipeH.Schema),
 		apidb.SchemaProviderFunc(catalogH.Schema),
 		apidb.SchemaProviderFunc(costH.Schema),
+		apidb.SchemaProviderFunc(cookingDomain.Schema),
 		apidb.SchemaProviderFunc(inventoryDomain.Schema),
 		apidb.SchemaProviderFunc(nutritionH.Schema),
 		apidb.SchemaProviderFunc(supplementDomain.Schema),

@@ -1,7 +1,7 @@
 {
-  "version": "2.0.0",
-  "title": "Nutrition Planner Documentation",
-  "description": "Documentation contract for the template-manager generated from the react-vite template",
+  "version": "2.0.1",
+  "title": "Nooch — Nutrition Planner Documentation",
+  "description": "Documentation contract for Nooch’s nutrition-planner scenario: accepted native product representation, current finite delivery records and retained source history.",
   "defaultDocument": "START-HERE.md",
   "contract": {
     "kind": "scenario-docs",
@@ -1186,7 +1186,7 @@
             "product-spec",
             "redesign-spec"
           ],
-          "description": "Canonical v2.0 product and implementation specification: redesign sections R01–R30, the retained v1.0 domain specification with fixtures and baseline acceptance (Appendix A), and repository notes (Appendix C)",
+          "description": "Execution-facing accepted native product specification: selected ND-007–025 and v2 R01–R30/Appendix A/B; versioned Drive authoring, ND-026/027 source application and independent native implementation acceptance remain distinct.",
           "audience": [
             "developers",
             "agents",
@@ -1207,7 +1207,8 @@
             "forbiddenPlaceholders": [
               "[TODO]"
             ]
-          }
+          },
+          "knowledgeStatus": "accepted"
         },
         {
           "path": "reference/mockups/README.md",
@@ -1243,6 +1244,226 @@
               "[TODO]"
             ]
           }
+        },
+        {
+          "path": "reference/selected-2026-10-03/VISUAL-ACCEPTANCE.md",
+          "docType": "selected-visual-acceptance",
+          "title": "Nooch VISUAL-ACCEPTANCE.md",
+          "description": "Accepted local visual contract and selected state/requirement map; exact-build fidelity is separately earned.",
+          "audience": [
+            "agents",
+            "operators"
+          ],
+          "canonicalFor": [
+            "selected-visual-acceptance"
+          ],
+          "aliases": [],
+          "knowledgeStatus": "accepted",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required",
+          "ownerSkills": [],
+          "validation": {}
+        },
+        {
+          "path": "reference/selected-2026-10-03/nooch-selected-delivery-contract-2026-10-03.md",
+          "docType": "selected-delivery-contract",
+          "title": "Nooch nooch-selected-delivery-contract-2026-10-03.md",
+          "description": "Frozen exact contract selected under ND-026; preserve bytes and earlier-state wording. Canonical reconciled product specification governs native execution.",
+          "audience": [
+            "agents",
+            "operators"
+          ],
+          "canonicalFor": [
+            "selected-delivery-contract"
+          ],
+          "aliases": [],
+          "knowledgeStatus": "accepted",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required",
+          "ownerSkills": [],
+          "validation": {}
+        },
+        {
+          "path": "reference/selected-2026-10-03/cloud-v2-exact.md",
+          "docType": "selected-raw-v2",
+          "title": "Nooch cloud-v2-exact.md",
+          "description": "Immutable raw v2 baseline; selected amendments govern its current application.",
+          "audience": [
+            "agents",
+            "operators"
+          ],
+          "canonicalFor": [
+            "selected-raw-v2"
+          ],
+          "aliases": [],
+          "knowledgeStatus": "historical",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional",
+          "ownerSkills": [],
+          "validation": {}
+        },
+        {
+          "path": "reference/selected-2026-10-03/local-visual-assets.json",
+          "docType": "selected-local-visual-assets",
+          "title": "Nooch local-visual-assets.json",
+          "description": "Exact local images, hashes and state/requirement mapping under ND-027; availability is not fidelity.",
+          "audience": [
+            "agents",
+            "operators"
+          ],
+          "canonicalFor": [
+            "selected-local-visual-assets"
+          ],
+          "aliases": [],
+          "knowledgeStatus": "accepted",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required",
+          "ownerSkills": [],
+          "validation": {}
+        },
+        {
+          "path": "reference/selected-2026-10-03/core-visual-inventory.json",
+          "docType": "selected-core-visual-inventory",
+          "title": "Nooch core-visual-inventory.json",
+          "description": "Frozen version/provenance inventory; later scoped approval is ND-026, not its historical approval flags.",
+          "audience": [
+            "agents",
+            "operators"
+          ],
+          "canonicalFor": [
+            "selected-core-visual-inventory"
+          ],
+          "aliases": [],
+          "knowledgeStatus": "supplemental",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional",
+          "ownerSkills": [],
+          "validation": {}
+        },
+        {
+          "path": "reference/selected-2026-10-03/selected-decisions-ND007-025.json",
+          "docType": "selected-decision-snapshot",
+          "title": "Nooch selected-decisions-ND007-025.json",
+          "description": "Frozen selected decision evidence; current acceptance basis is ND-026 and native accepted scope.",
+          "audience": [
+            "agents",
+            "operators"
+          ],
+          "canonicalFor": [
+            "selected-decision-snapshot"
+          ],
+          "aliases": [],
+          "knowledgeStatus": "supplemental",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional",
+          "ownerSkills": [],
+          "validation": {}
+        },
+        {
+          "path": "reference/selected-2026-10-03/selected-questions-NQ001-016.json",
+          "docType": "selected-question-snapshot",
+          "title": "Nooch selected-questions-NQ001-016.json",
+          "description": "Frozen historical question/answer evidence; not a current owner-choice queue.",
+          "audience": [
+            "agents",
+            "operators"
+          ],
+          "canonicalFor": [
+            "selected-question-snapshot"
+          ],
+          "aliases": [],
+          "knowledgeStatus": "supplemental",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional",
+          "ownerSkills": [],
+          "validation": {}
+        },
+        {
+          "path": "reference/selected-2026-10-03/nooch-selected-handoff-manifest.json",
+          "docType": "selected-source-handoff-manifest",
+          "title": "Nooch nooch-selected-handoff-manifest.json",
+          "description": "Frozen source identities and earlier commission state; ND-026/027 supersede historical holds without rewriting bytes.",
+          "audience": [
+            "agents",
+            "operators"
+          ],
+          "canonicalFor": [
+            "selected-source-handoff-manifest"
+          ],
+          "aliases": [],
+          "knowledgeStatus": "supplemental",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional",
+          "ownerSkills": [],
+          "validation": {}
+        },
+        {
+          "path": "reference/selected-2026-10-03/selected-dossier-native-snapshot.json",
+          "docType": "selected-dossier-native-snapshot",
+          "title": "Nooch selected-dossier-native-snapshot.json",
+          "description": "Frozen exact Drive dossier structural snapshot at handoff; not the mutable authoring head.",
+          "audience": [
+            "agents",
+            "operators"
+          ],
+          "canonicalFor": [
+            "selected-dossier-native-snapshot"
+          ],
+          "aliases": [],
+          "knowledgeStatus": "supplemental",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional",
+          "ownerSkills": [],
+          "validation": {}
+        },
+        {
+          "path": "reference/selected-2026-10-03/selected-dossier-readable.txt",
+          "docType": "selected-dossier-readable-snapshot",
+          "title": "Nooch selected-dossier-readable.txt",
+          "description": "Frozen readable dossier companion; exact native snapshot and scoped accepted contract retain authority.",
+          "audience": [
+            "agents",
+            "operators"
+          ],
+          "canonicalFor": [
+            "selected-dossier-readable-snapshot"
+          ],
+          "aliases": [],
+          "knowledgeStatus": "supplemental",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional",
+          "ownerSkills": [],
+          "validation": {}
         }
       ]
     },
@@ -1616,28 +1837,26 @@
         },
         {
           "path": "internal/REDESIGN_PLAN.md",
-          "docType": "plan",
-          "title": "Redesign Plan",
+          "docType": "historical-redesign-plan",
+          "title": "Historical Redesign Plan",
           "aliases": [
-            "redesign-plan",
-            "build-order",
-            "goal-notes"
+            "historical-redesign-plan",
+            "historical-build-order",
+            "historical-goal-notes"
           ],
-          "description": "Implementation plan and goal notes for the v2.0 redesign: definition of done, audited current state, engineering bar, build spine, surface specifications, production artwork, verification, and convergence protocol",
+          "description": "Retained historical plan; current execution and write destinations belong to the native goal home. Preserve original findings, instructions and evidence; import unresolved assigned scope through the existing orchestrator.",
           "audience": [
             "developers",
             "agents"
           ],
           "canonicalFor": [
-            "redesign-plan",
-            "implementation-inventory",
-            "definition-of-done"
+            "historical-redesign-plan"
           ],
-          "maturity": "active",
+          "maturity": "retired",
           "requiredBy": [
             "implemented"
           ],
-          "completion": "required",
+          "completion": "optional",
           "validation": {
             "requiredHeadings": [
               "1. Outcome and definition of done",
@@ -1648,29 +1867,33 @@
             "forbiddenPlaceholders": [
               "[TODO]"
             ]
-          }
+          },
+          "knowledgeStatus": "superseded",
+          "supersededBy": [
+            "internal/goal/GOAL.md"
+          ]
         },
         {
           "path": "internal/REDESIGN_GOAL.md",
-          "docType": "goal",
-          "title": "Redesign Goal",
+          "docType": "historical-redesign-goal",
+          "title": "Historical Redesign Goal",
           "aliases": [
-            "goal-message",
-            "convergence-goal"
+            "historical-goal-message",
+            "historical-convergence-goal"
           ],
-          "description": "The harness goal message (main and compact variants) that drives the redesign to done, with its slot map",
+          "description": "Retained historical goal; current execution and write destinations belong to the native goal home. Preserve original findings, instructions and evidence; import unresolved assigned scope through the existing orchestrator.",
           "audience": [
             "operators",
             "agents"
           ],
           "canonicalFor": [
-            "redesign-goal"
+            "historical-redesign-goal"
           ],
-          "maturity": "active",
+          "maturity": "retired",
           "requiredBy": [
             "implemented"
           ],
-          "completion": "required",
+          "completion": "optional",
           "validation": {
             "requiredHeadings": [
               "Main message",
@@ -1679,31 +1902,34 @@
             "forbiddenPlaceholders": [
               "[TODO]"
             ]
-          }
+          },
+          "knowledgeStatus": "superseded",
+          "supersededBy": [
+            "internal/goal/GOAL.md"
+          ]
         },
         {
           "path": "internal/REDESIGN_LEDGER.md",
-          "docType": "ledger",
-          "title": "Redesign Ledger",
+          "docType": "historical-redesign-ledger",
+          "title": "Historical Redesign Ledger",
           "aliases": [
-            "findings-ledger",
-            "redesign-progress"
+            "historical-findings-ledger",
+            "historical-redesign-progress"
           ],
-          "description": "Status board, findings, review-pass log, checkpoints, and evidence for the redesign convergence goal",
+          "description": "Retained historical ledger; current execution and write destinations belong to the native goal home. Preserve original findings, instructions and evidence; import unresolved assigned scope through the existing orchestrator.",
           "audience": [
             "developers",
             "agents",
             "operators"
           ],
           "canonicalFor": [
-            "redesign-status",
-            "review-findings"
+            "historical-redesign-ledger"
           ],
-          "maturity": "active",
+          "maturity": "retired",
           "requiredBy": [
             "implemented"
           ],
-          "completion": "required",
+          "completion": "optional",
           "validation": {
             "requiredHeadings": [
               "Status board",
@@ -1713,29 +1939,33 @@
             "forbiddenPlaceholders": [
               "[TODO]"
             ]
-          }
+          },
+          "knowledgeStatus": "superseded",
+          "supersededBy": [
+            "internal/goal/QUEUE.md"
+          ]
         },
         {
           "path": "internal/OPERATOR_FEEDBACK.md",
-          "docType": "feedback-ledger",
-          "title": "Operator Feedback",
+          "docType": "historical-redesign-feedback",
+          "title": "Historical Operator Feedback",
           "aliases": [
-            "operator-feedback",
-            "feedback-ledger"
+            "historical-operator-feedback",
+            "historical-feedback-ledger"
           ],
-          "description": "Verbatim operator instructions and feedback for the redesign, each resolved with a receipt; gating input to the convergence loop",
+          "description": "Retained historical feedback; current execution and write destinations belong to the native goal home. Preserve original findings, instructions and evidence; import unresolved assigned scope through the existing orchestrator.",
           "audience": [
             "agents",
             "operators"
           ],
           "canonicalFor": [
-            "operator-feedback"
+            "historical-redesign-feedback"
           ],
-          "maturity": "active",
+          "maturity": "retired",
           "requiredBy": [
             "implemented"
           ],
-          "completion": "required",
+          "completion": "optional",
           "validation": {
             "requiredHeadings": [
               "Rules",
@@ -1744,7 +1974,290 @@
             "forbiddenPlaceholders": [
               "[TODO]"
             ]
-          }
+          },
+          "knowledgeStatus": "superseded",
+          "supersededBy": [
+            "internal/goal/FEEDBACK.md"
+          ]
+        },
+        {
+          "path": "internal/goal/ACCEPTANCE.md",
+          "docType": "finite-delivery-acceptance",
+          "title": "Nooch Delivery Acceptance",
+          "description": "Approved whole-product closure obligations and native independent acceptance gates; implementation remains unaccepted until earned.",
+          "audience": [
+            "agents",
+            "operators"
+          ],
+          "canonicalFor": [
+            "definition-of-done",
+            "finite-delivery-acceptance"
+          ],
+          "aliases": [],
+          "knowledgeStatus": "accepted",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required",
+          "ownerSkills": [
+            "large-effort-orchestration"
+          ],
+          "validation": {}
+        },
+        {
+          "path": "internal/goal/FEEDBACK.md",
+          "docType": "finite-delivery-feedback",
+          "title": "Nooch Delivery Feedback",
+          "description": "Current owner instructions and assigned feedback; orchestrator carries applicable directives into epochs.",
+          "audience": [
+            "agents",
+            "operators"
+          ],
+          "canonicalFor": [
+            "operator-feedback"
+          ],
+          "aliases": [
+            "operator-feedback",
+            "feedback-ledger"
+          ],
+          "knowledgeStatus": "accepted",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required",
+          "ownerSkills": [
+            "large-effort-orchestration"
+          ],
+          "validation": {}
+        },
+        {
+          "path": "internal/goal/GOAL.md",
+          "docType": "finite-delivery-goal",
+          "title": "Nooch Finite Delivery Goal",
+          "description": "Accepted destination and authority; sole current goal home. Product acceptance is separate.",
+          "audience": [
+            "agents",
+            "operators"
+          ],
+          "canonicalFor": [
+            "redesign-goal",
+            "finite-delivery-goal"
+          ],
+          "aliases": [
+            "goal-message",
+            "convergence-goal"
+          ],
+          "knowledgeStatus": "accepted",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required",
+          "ownerSkills": [
+            "large-effort-orchestration"
+          ],
+          "validation": {}
+        },
+        {
+          "path": "internal/goal/INSTALLS.md",
+          "docType": "finite-delivery-installs",
+          "title": "Nooch External Install Record",
+          "description": "Install authorization and cleanup record; registration grants no installation authority.",
+          "audience": [
+            "agents",
+            "operators"
+          ],
+          "canonicalFor": [
+            "delivery-install-record"
+          ],
+          "aliases": [],
+          "knowledgeStatus": "supplemental",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required",
+          "ownerSkills": [
+            "large-effort-orchestration"
+          ],
+          "validation": {}
+        },
+        {
+          "path": "internal/goal/QUEUE.md",
+          "docType": "finite-delivery-queue",
+          "title": "Nooch Delivery Queue",
+          "description": "Orchestrator-owned admission, forecast and current status. Evidence-backed observations do not certify closure.",
+          "audience": [
+            "agents",
+            "operators"
+          ],
+          "canonicalFor": [
+            "redesign-plan",
+            "implementation-inventory",
+            "redesign-status",
+            "review-findings"
+          ],
+          "aliases": [
+            "redesign-plan",
+            "build-order",
+            "redesign-progress"
+          ],
+          "knowledgeStatus": "accepted",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required",
+          "ownerSkills": [
+            "large-effort-orchestration"
+          ],
+          "validation": {}
+        },
+        {
+          "path": "internal/goal/TARGETS.md",
+          "docType": "finite-delivery-targets",
+          "title": "Nooch Validation Targets",
+          "description": "Prepared target qualification and availability boundaries; no claim that proposed targets passed.",
+          "audience": [
+            "agents",
+            "operators"
+          ],
+          "canonicalFor": [
+            "validation-targets"
+          ],
+          "aliases": [],
+          "knowledgeStatus": "draft",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required",
+          "ownerSkills": [
+            "large-effort-orchestration"
+          ],
+          "validation": {}
+        },
+        {
+          "path": "internal/goal/WORKAROUNDS.md",
+          "docType": "finite-delivery-workarounds",
+          "title": "Nooch Delivery Workarounds",
+          "description": "Dated infrastructure evidence, workaround limits and return conditions; does not change product scope.",
+          "audience": [
+            "agents",
+            "operators"
+          ],
+          "canonicalFor": [
+            "delivery-workarounds"
+          ],
+          "aliases": [],
+          "knowledgeStatus": "supplemental",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required",
+          "ownerSkills": [
+            "large-effort-orchestration"
+          ],
+          "validation": {}
+        },
+        {
+          "path": "internal/goal/epochs/E1.md",
+          "docType": "delivery-epoch-e1",
+          "title": "Nooch E1 Epoch Record",
+          "description": "Orchestrator-owned admitted brief, directives, chronological slice log and evidence. Gates/acceptance must be read from this record; existence is not acceptance.",
+          "audience": [
+            "agents",
+            "operators"
+          ],
+          "canonicalFor": [
+            "delivery-epoch-e1"
+          ],
+          "aliases": [],
+          "knowledgeStatus": "supplemental",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required",
+          "ownerSkills": [
+            "large-effort-orchestration"
+          ],
+          "validation": {}
+        },
+        {
+          "path": "internal/goal/epochs/E1.template.md",
+          "docType": "delivery-epoch-E1-template",
+          "title": "Nooch E1.template Template",
+          "description": "Unadmitted example; placeholders are intentional. Never dispatch or infer an admitted epoch from this template.",
+          "audience": [
+            "agents",
+            "operators"
+          ],
+          "canonicalFor": [
+            "delivery-epoch-E1-template"
+          ],
+          "aliases": [],
+          "knowledgeStatus": "draft",
+          "maturity": "draft",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional",
+          "ownerSkills": [
+            "large-effort-orchestration"
+          ],
+          "validation": {}
+        },
+        {
+          "path": "internal/goal/epochs/E2.md",
+          "docType": "delivery-epoch-e2",
+          "title": "Nooch E2 Epoch Record",
+          "description": "Orchestrator-owned admitted brief, directives, chronological slice log and evidence. Gates/acceptance must be read from this record; existence is not acceptance.",
+          "audience": [
+            "agents",
+            "operators"
+          ],
+          "canonicalFor": [
+            "delivery-epoch-e2"
+          ],
+          "aliases": [],
+          "knowledgeStatus": "supplemental",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required",
+          "ownerSkills": [
+            "large-effort-orchestration"
+          ],
+          "validation": {}
+        },
+        {
+          "path": "internal/goal/epochs/E3.md",
+          "docType": "delivery-epoch-e3",
+          "title": "Nooch E3 Epoch Record",
+          "description": "Orchestrator-owned admitted brief, directives, chronological slice log and evidence. Gates/acceptance must be read from this record; existence is not acceptance.",
+          "audience": [
+            "agents",
+            "operators"
+          ],
+          "canonicalFor": [
+            "delivery-epoch-e3"
+          ],
+          "aliases": [],
+          "knowledgeStatus": "supplemental",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required",
+          "ownerSkills": [
+            "large-effort-orchestration"
+          ],
+          "validation": {}
         }
       ]
     }

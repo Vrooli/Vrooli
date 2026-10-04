@@ -11,6 +11,8 @@ var Endpoints = []module.EndpointDescriptor{
 	{ID: "inventory_prepare_batch", Path: connect.InventoryServicePrepareBatchProcedure, Method: "POST", Summary: "Prepare a batch and consume raw stock once", Category: "inventory"},
 	{ID: "inventory_consume_batch_portion", Path: connect.InventoryServiceConsumeBatchPortionProcedure, Method: "POST", Summary: "Consume one prepared batch portion", Category: "inventory"},
 	{ID: "inventory_undo_batch_portion", Path: connect.InventoryServiceUndoBatchPortionProcedure, Method: "POST", Summary: "Undo one prepared batch portion", Category: "inventory"},
+	{ID: "inventory_list_batches", Path: connect.InventoryServiceListBatchesProcedure, Method: "POST", Summary: "List prepared Kitchen batches and remaining portions", Category: "inventory"},
+	{ID: "inventory_correct_batch_yield", Path: connect.InventoryServiceCorrectBatchYieldProcedure, Method: "POST", Summary: "Correct measured batch yield while preserving consumed portions", Category: "inventory"},
 	{ID: "inventory_stage_receipt_proposal", Path: connect.InventoryServiceStageReceiptProposalProcedure, Method: "POST", Summary: "Stage a receipt purchase proposal for review", Category: "inventory"},
 	{ID: "inventory_list_receipt_proposals", Path: connect.InventoryServiceListReceiptProposalsProcedure, Method: "POST", Summary: "List staged receipt purchase proposals", Category: "inventory"},
 	{ID: "inventory_apply_receipt_proposal", Path: connect.InventoryServiceApplyReceiptProposalProcedure, Method: "POST", Summary: "Apply an approved receipt purchase proposal", Category: "inventory"},

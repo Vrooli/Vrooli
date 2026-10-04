@@ -11,6 +11,7 @@ import (
 	actions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	base "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 	domain "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/domain"
+	exports "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/exports"
 	workflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
 	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -1616,7 +1617,7 @@ type ExecutionExportPreview struct {
 	// Total duration in milliseconds of the replay.
 	TotalDurationMs int32 `protobuf:"varint,7,opt,name=total_duration_ms,json=totalDurationMs,proto3" json:"total_duration_ms,omitempty"`
 	// Replay movie package.
-	Package       *v1.JsonObject `protobuf:"bytes,9,opt,name=package,proto3" json:"package,omitempty"`
+	Package       *exports.ReplaySpec `protobuf:"bytes,9,opt,name=package,proto3" json:"package,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1700,7 +1701,7 @@ func (x *ExecutionExportPreview) GetTotalDurationMs() int32 {
 	return 0
 }
 
-func (x *ExecutionExportPreview) GetPackage() *v1.JsonObject {
+func (x *ExecutionExportPreview) GetPackage() *exports.ReplaySpec {
 	if x != nil {
 		return x.Package
 	}
@@ -1884,7 +1885,7 @@ var File_browser_automation_studio_v1_execution_execution_proto protoreflect.Fil
 
 const file_browser_automation_studio_v1_execution_execution_proto_rawDesc = "" +
 	"\n" +
-	"6browser-automation-studio/v1/execution/execution.proto\x12\x1cbrowser_automation_studio.v1\x1a1browser-automation-studio/v1/actions/action.proto\x1a7browser-automation-studio/v1/base/browser_profile.proto\x1a.browser-automation-studio/v1/base/shared.proto\x1a3browser-automation-studio/v1/domain/telemetry.proto\x1a7browser-automation-studio/v1/workflows/definition.proto\x1a\x1bbuf/validate/validate.proto\x1a\x15common/v1/types.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa3\b\n" +
+	"6browser-automation-studio/v1/execution/execution.proto\x12\x1cbrowser_automation_studio.v1\x1a1browser-automation-studio/v1/actions/action.proto\x1a7browser-automation-studio/v1/base/browser_profile.proto\x1a.browser-automation-studio/v1/base/shared.proto\x1a3browser-automation-studio/v1/domain/telemetry.proto\x1a2browser-automation-studio/v1/exports/exports.proto\x1a7browser-automation-studio/v1/workflows/definition.proto\x1a\x1bbuf/validate/validate.proto\x1a\x15common/v1/types.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa3\b\n" +
 	"\x18ArtifactCollectionConfig\x12\x1d\n" +
 	"\aprofile\x18\x01 \x01(\tH\x00R\aprofile\x88\x01\x01\x124\n" +
 	"\x13collect_screenshots\x18\x02 \x01(\bH\x01R\x12collectScreenshots\x88\x01\x01\x127\n" +
@@ -2119,7 +2120,7 @@ const file_browser_automation_studio_v1_execution_execution_proto_rawDesc = "" +
 	"\x16GetScreenshotsResponse\x12!\n" +
 	"\fexecution_id\x18\x01 \x01(\tR\vexecutionId\x12S\n" +
 	"\vscreenshots\x18\x02 \x03(\v21.browser_automation_studio.v1.ExecutionScreenshotR\vscreenshots\x12\x14\n" +
-	"\x05total\x18\x03 \x01(\x05R\x05total\"\xfb\x02\n" +
+	"\x05total\x18\x03 \x01(\x05R\x05total\"\x96\x03\n" +
 	"\x16ExecutionExportPreview\x12!\n" +
 	"\fexecution_id\x18\x01 \x01(\tR\vexecutionId\x12\x17\n" +
 	"\aspec_id\x18\x02 \x01(\tR\x06specId\x12B\n" +
@@ -2127,8 +2128,8 @@ const file_browser_automation_studio_v1_execution_execution_proto_rawDesc = "" +
 	"\amessage\x18\x04 \x01(\tR\amessage\x120\n" +
 	"\x14captured_frame_count\x18\x05 \x01(\x05R\x12capturedFrameCount\x122\n" +
 	"\x15available_asset_count\x18\x06 \x01(\x05R\x13availableAssetCount\x12*\n" +
-	"\x11total_duration_ms\x18\a \x01(\x05R\x0ftotalDurationMs\x12/\n" +
-	"\apackage\x18\t \x01(\v2\x15.common.v1.JsonObjectR\apackageJ\x04\b\b\x10\t\"\xc5\x01\n" +
+	"\x11total_duration_ms\x18\a \x01(\x05R\x0ftotalDurationMs\x12J\n" +
+	"\apackage\x18\t \x01(\v20.browser_automation_studio.v1.exports.ReplaySpecR\apackageJ\x04\b\b\x10\t\"\xc5\x01\n" +
 	"\x0fExecutorMetrics\x12&\n" +
 	"\fmemory_bytes\x18\x01 \x01(\x03H\x00R\vmemoryBytes\x88\x01\x01\x12$\n" +
 	"\vcpu_percent\x18\x02 \x01(\x01H\x01R\n" +
@@ -2201,7 +2202,7 @@ var file_browser_automation_studio_v1_execution_execution_proto_goTypes = []any{
 	(*workflows.WorkflowDefinitionV2)(nil), // 27: browser_automation_studio.v1.WorkflowDefinitionV2
 	(*domain.TimelineScreenshot)(nil),      // 28: browser_automation_studio.v1.TimelineScreenshot
 	(base.ExportStatus)(0),                 // 29: browser_automation_studio.v1.ExportStatus
-	(*v1.JsonObject)(nil),                  // 30: common.v1.JsonObject
+	(*exports.ReplaySpec)(nil),             // 30: browser_automation_studio.v1.exports.ReplaySpec
 	(*v1.JsonValue)(nil),                   // 31: common.v1.JsonValue
 }
 var file_browser_automation_studio_v1_execution_execution_proto_depIdxs = []int32{
@@ -2236,7 +2237,7 @@ var file_browser_automation_studio_v1_execution_execution_proto_depIdxs = []int3
 	26, // 28: browser_automation_studio.v1.ExecutionScreenshot.timestamp:type_name -> google.protobuf.Timestamp
 	11, // 29: browser_automation_studio.v1.GetScreenshotsResponse.screenshots:type_name -> browser_automation_studio.v1.ExecutionScreenshot
 	29, // 30: browser_automation_studio.v1.ExecutionExportPreview.status:type_name -> browser_automation_studio.v1.ExportStatus
-	30, // 31: browser_automation_studio.v1.ExecutionExportPreview.package:type_name -> common.v1.JsonObject
+	30, // 31: browser_automation_studio.v1.ExecutionExportPreview.package:type_name -> browser_automation_studio.v1.exports.ReplaySpec
 	31, // 32: browser_automation_studio.v1.ExecutionParameters.InitialParamsEntry.value:type_name -> common.v1.JsonValue
 	31, // 33: browser_automation_studio.v1.ExecutionParameters.InitialStoreEntry.value:type_name -> common.v1.JsonValue
 	31, // 34: browser_automation_studio.v1.ExecutionParameters.EnvEntry.value:type_name -> common.v1.JsonValue

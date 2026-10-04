@@ -42,6 +42,12 @@
     },
     {
       "statement": "An empty or unconfigured account invites Choose a meal or Plan my week instead of showing demo food."
+    },
+    {
+      "statement": "An isolated compatible same-slot swap uses short confirmation; effects on locks, leftovers, rules, confirmed shopping or another date require full impact review. Next grocery bill and consumed-food cost remain distinct (ND-011/013/014)."
+    },
+    {
+      "statement": "Close visual fidelity to the exact selected local originals is required; see docs/reference/selected-2026-10-03/VISUAL-ACCEPTANCE.md and local-visual-assets.json for this page/state mapping. Compare matching actual-build state/appearance/viewport; record justified responsive/accessibility/truthful-data adaptations without weakening behavior or NF-010 timer reachability."
     }
   ],
   "states": [

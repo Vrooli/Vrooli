@@ -22,7 +22,55 @@ service CalendarService {
   rpc ListRoutineOccurrences(ListRoutineOccurrencesRequest) returns (ListRoutineOccurrencesResponse);
   rpc SkipRoutineOccurrence(SkipRoutineOccurrenceRequest) returns (SkipRoutineOccurrenceResponse);
   rpc RescheduleRoutineOccurrence(RescheduleRoutineOccurrenceRequest) returns (RescheduleRoutineOccurrenceResponse);
+  rpc ListEvents(ListEventsRequest) returns (ListEventsResponse);
+  rpc GetEvent(GetEventRequest) returns (GetEventResponse);
+  rpc CreateEvent(CreateEventRequest) returns (CreateEventResponse);
+  rpc UpdateEvent(UpdateEventRequest) returns (UpdateEventResponse);
 }
+
+// CalendarEvent is a native event with stable identity and an optimistic
+// revision. All-day date ranges use an exclusive end; timed values are RFC3339
+// instants in the supplied IANA timezone.
+message CalendarEvent {
+  string id = 1;
+  string title = 2;
+  string subject = 3;
+  string notes = 4;
+  string availability = 5;
+  string timezone = 6;
+  bool all_day = 7;
+  string start_date = 8;
+  string end_date_exclusive = 9;
+  string start_at = 10;
+  string end_at = 11;
+  string provider = 12;
+  string provider_calendar_id = 13;
+  string provider_event_id = 14;
+  string occurrence_id = 15;
+  int64 revision = 16;
+  google.protobuf.Timestamp created_at = 17;
+  google.protobuf.Timestamp updated_at = 18;
+}
+
+message ListEventsRequest {
+  // Inclusive local civil-date range in the planner timezone.
+  string start_local_date = 1;
+  string end_local_date = 2;
+}
+message ListEventsResponse { repeated CalendarEvent events = 1; }
+message GetEventRequest { string event_id = 1; }
+message GetEventResponse { CalendarEvent event = 1; }
+message CreateEventRequest {
+  CalendarEvent event = 1;
+  // Reusing a key with the same request recovers the original durable event.
+  string idempotency_key = 2;
+}
+message CreateEventResponse { CalendarEvent event = 1; }
+message UpdateEventRequest {
+  CalendarEvent event = 1;
+  int64 expected_revision = 2;
+}
+message UpdateEventResponse { CalendarEvent event = 1; }
 
 message Allocation {
   string id = 1;

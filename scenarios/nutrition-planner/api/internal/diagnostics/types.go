@@ -103,18 +103,16 @@ func unresolvedRecipeCount(ctx context.Context, db SQLExecutor, workspaceID stri
 
 func unresolvedPlanCount(ctx context.Context, db SQLExecutor, workspaceID string) (int, error) {
 	var raw string
-	err := db.QueryRowContext(ctx, `SELECT plan_json FROM plans WHERE workspace_id=?`, workspaceID).Scan(&raw)
+	err := db.QueryRowContext(ctx, `SELECT unresolved_json FROM plan_state WHERE workspace_id=?`, workspaceID).Scan(&raw)
 	if err != nil {
 		// No current plan is a normal empty-workspace state, not a diagnostic failure.
 		return 0, nil
 	}
-	var plan struct {
-		Unresolved []json.RawMessage `json:"unresolved"`
-	}
-	if err := json.Unmarshal([]byte(raw), &plan); err != nil {
+	var unresolved []json.RawMessage
+	if err := json.Unmarshal([]byte(raw), &unresolved); err != nil {
 		return 0, err
 	}
-	return len(plan.Unresolved), nil
+	return len(unresolved), nil
 }
 
 func containsUnknown(value any) bool {

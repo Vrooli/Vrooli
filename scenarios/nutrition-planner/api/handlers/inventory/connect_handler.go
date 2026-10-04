@@ -66,6 +66,48 @@ func (h *connectHandler) ListEvents(ctx context.Context, req *connect.Request[v1
 	return connect.NewResponse(out), nil
 }
 
+func (h *connectHandler) ListBatches(ctx context.Context, req *connect.Request[v1.ListEventsRequest]) (*connect.Response[v1.ListBatchesResponse], error) {
+	if err := h.scope(ctx, req.Msg.WorkspaceId); err != nil {
+		return nil, err
+	}
+	repo, ok := h.repo.(internal.BatchRepository)
+	if !ok {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("batch inventory is unavailable"))
+	}
+	items, err := repo.ListBatches(ctx, req.Msg.WorkspaceId)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	out := &v1.ListBatchesResponse{Batches: make([]*v1.Batch, 0, len(items))}
+	for _, item := range items {
+		out.Batches = append(out.Batches, batchProto(item))
+	}
+	return connect.NewResponse(out), nil
+}
+
+func (h *connectHandler) CorrectBatchYield(ctx context.Context, req *connect.Request[v1.CorrectBatchYieldRequest]) (*connect.Response[v1.BatchResponse], error) {
+	if err := h.scope(ctx, req.Msg.WorkspaceId); err != nil {
+		return nil, err
+	}
+	repo, ok := h.repo.(internal.BatchRepository)
+	if !ok {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("batch inventory is unavailable"))
+	}
+	yield, err := decimalx.Parse(req.Msg.YieldAmount)
+	if err != nil || yield.IsUnknown() || yield.IsZero() {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("corrected yield must be a known positive amount"))
+	}
+	zero, _ := decimalx.Parse("0")
+	if comparison, _ := decimalx.Compare(yield, zero); comparison <= 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("corrected yield must be positive"))
+	}
+	batch, err := repo.CorrectBatchYield(ctx, req.Msg.WorkspaceId, req.Msg.EventId, req.Msg.BatchId, yield, req.Msg.Unit)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeAborted, err)
+	}
+	return connect.NewResponse(&v1.BatchResponse{Batch: batchProto(batch)}), nil
+}
+
 func (h *connectHandler) RecordEvent(ctx context.Context, req *connect.Request[v1.RecordEventRequest]) (*connect.Response[v1.RecordEventResponse], error) {
 	if err := h.scope(ctx, req.Msg.WorkspaceId); err != nil {
 		return nil, err

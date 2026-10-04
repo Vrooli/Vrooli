@@ -13,6 +13,7 @@ type Service interface {
 	Create(context.Context, CreateInput) (Recipe, error)
 	List(context.Context, string) ([]Recipe, error)
 	Get(context.Context, string, string) (Recipe, error)
+	GetRevision(context.Context, string, string, int64) (Recipe, error)
 	Update(context.Context, UpdateInput) (Recipe, error)
 }
 type service struct{ repo Repository }
@@ -29,8 +30,9 @@ func (s *service) Create(ctx context.Context, in CreateInput) (Recipe, error) {
 	if in.ServingUnit == "" {
 		in.ServingUnit = "serving"
 	}
+	available := ingredientIDs(in.Ingredients)
 	for _, method := range in.Methods {
-		if err := ValidateMethod(method, map[string]bool{}); err != nil {
+		if err := ValidateMethod(method, available); err != nil {
 			return Recipe{}, err
 		}
 	}
@@ -39,6 +41,9 @@ func (s *service) Create(ctx context.Context, in CreateInput) (Recipe, error) {
 func (s *service) List(ctx context.Context, w string) ([]Recipe, error) { return s.repo.List(ctx, w) }
 func (s *service) Get(ctx context.Context, id, w string) (Recipe, error) {
 	return s.repo.Get(ctx, id, w)
+}
+func (s *service) GetRevision(ctx context.Context, id, w string, revision int64) (Recipe, error) {
+	return s.repo.GetRevision(ctx, id, w, revision)
 }
 
 func RequestHash(in CreateInput) string {
@@ -59,10 +64,21 @@ func (s *service) Update(ctx context.Context, in UpdateInput) (Recipe, error) {
 	if in.ServingUnit == "" {
 		in.ServingUnit = "serving"
 	}
+	available := ingredientIDs(in.Ingredients)
 	for _, method := range in.Methods {
-		if err := ValidateMethod(method, map[string]bool{}); err != nil {
+		if err := ValidateMethod(method, available); err != nil {
 			return Recipe{}, err
 		}
 	}
 	return s.repo.Update(ctx, in)
+}
+
+func ingredientIDs(items []Ingredient) map[string]bool {
+	available := make(map[string]bool, len(items))
+	for _, item := range items {
+		if item.ID != "" {
+			available[item.ID] = true
+		}
+	}
+	return available
 }

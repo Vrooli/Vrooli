@@ -37,6 +37,12 @@
     },
     {
       "statement": "Shopping keeps working offline and shows which changes are waiting to sync."
+    },
+    {
+      "statement": "Checks are not purchases. End-of-trip combined actual-purchase review preserves amount/price corrections and omissions, confirms once, and retains unmet needs. Offline drafts of authoritative stock/intake require online revalidation and explicit review/confirmation (ND-015/016)."
+    },
+    {
+      "statement": "Close visual fidelity to the exact selected local originals is required; see docs/reference/selected-2026-10-03/VISUAL-ACCEPTANCE.md and local-visual-assets.json for this page/state mapping. Compare matching actual-build state/appearance/viewport; record justified responsive/accessibility/truthful-data adaptations without weakening behavior or NF-010 timer reachability."
     }
   ],
   "states": [
@@ -89,7 +95,7 @@
     },
     {
       "id": "syncing",
-      "description": "Locally queued changes are replaying; each pending item is marked until the server confirms it.",
+      "description": "Queued checkbox desired states synchronize idempotently; authoritative stock/intake drafts await online revalidation and explicit impact review/confirmation, never silent replay.",
       "setup": {
         "route": "/groceries",
         "query": {

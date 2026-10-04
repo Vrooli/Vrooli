@@ -125,7 +125,7 @@
       "prd_ref": "OT-P0-014",
       "category": "resilience",
       "criticality": "P0",
-      "description": "While offline, the scenario shall let a previously loaded shopping list be viewed, checked, unchecked, and extended with manual items, and a loaded recipe or cooking session be read with timers controlled locally, queue those actions in a bounded outbox of desired-state operations with operation ids and base revisions, replay them idempotently on reconnect, surface conflicts without losing edits, and partition or clear private cached data by account on sign-out.",
+      "description": "While offline, loaded lists/checks, recipes and local timers shall remain usable; stock and intake events may be drafted in a bounded account-partitioned outbox with operation IDs/base revisions, but reconnect shall revalidate and require explicit online impact review/confirmation before authoritative stock/intake effects; conflicts preserve edits, checklist desired-state sync is idempotent and never confirms purchases (ND-016).",
       "tags": [
         "offline",
         "outbox",
@@ -144,6 +144,12 @@
           "phase": "integration",
           "status": "planned",
           "notes": "Planned: after sign-out, another user entering offline sees none of the previous user's cached data (AT-050)."
+        },
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "planned",
+          "notes": "Given the selected 2026-10-03 contract, when SYS-006 behavior is exercised on persisted isolated fixtures, then the selected amendment and unchanged domain invariants hold. Exact test reference must be earned; no validation claimed."
         }
       ]
     }

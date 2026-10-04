@@ -72,6 +72,18 @@ const (
 	// CalendarServiceRescheduleRoutineOccurrenceProcedure is the fully-qualified name of the
 	// CalendarService's RescheduleRoutineOccurrence RPC.
 	CalendarServiceRescheduleRoutineOccurrenceProcedure = "/vrooli.personal_planner.v1.calendar.CalendarService/RescheduleRoutineOccurrence"
+	// CalendarServiceListEventsProcedure is the fully-qualified name of the CalendarService's
+	// ListEvents RPC.
+	CalendarServiceListEventsProcedure = "/vrooli.personal_planner.v1.calendar.CalendarService/ListEvents"
+	// CalendarServiceGetEventProcedure is the fully-qualified name of the CalendarService's GetEvent
+	// RPC.
+	CalendarServiceGetEventProcedure = "/vrooli.personal_planner.v1.calendar.CalendarService/GetEvent"
+	// CalendarServiceCreateEventProcedure is the fully-qualified name of the CalendarService's
+	// CreateEvent RPC.
+	CalendarServiceCreateEventProcedure = "/vrooli.personal_planner.v1.calendar.CalendarService/CreateEvent"
+	// CalendarServiceUpdateEventProcedure is the fully-qualified name of the CalendarService's
+	// UpdateEvent RPC.
+	CalendarServiceUpdateEventProcedure = "/vrooli.personal_planner.v1.calendar.CalendarService/UpdateEvent"
 )
 
 // CalendarServiceClient is a client for the vrooli.personal_planner.v1.calendar.CalendarService
@@ -90,6 +102,10 @@ type CalendarServiceClient interface {
 	ListRoutineOccurrences(context.Context, *connect.Request[calendar.ListRoutineOccurrencesRequest]) (*connect.Response[calendar.ListRoutineOccurrencesResponse], error)
 	SkipRoutineOccurrence(context.Context, *connect.Request[calendar.SkipRoutineOccurrenceRequest]) (*connect.Response[calendar.SkipRoutineOccurrenceResponse], error)
 	RescheduleRoutineOccurrence(context.Context, *connect.Request[calendar.RescheduleRoutineOccurrenceRequest]) (*connect.Response[calendar.RescheduleRoutineOccurrenceResponse], error)
+	ListEvents(context.Context, *connect.Request[calendar.ListEventsRequest]) (*connect.Response[calendar.ListEventsResponse], error)
+	GetEvent(context.Context, *connect.Request[calendar.GetEventRequest]) (*connect.Response[calendar.GetEventResponse], error)
+	CreateEvent(context.Context, *connect.Request[calendar.CreateEventRequest]) (*connect.Response[calendar.CreateEventResponse], error)
+	UpdateEvent(context.Context, *connect.Request[calendar.UpdateEventRequest]) (*connect.Response[calendar.UpdateEventResponse], error)
 }
 
 // NewCalendarServiceClient constructs a client for the
@@ -182,6 +198,30 @@ func NewCalendarServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(calendarServiceMethods.ByName("RescheduleRoutineOccurrence")),
 			connect.WithClientOptions(opts...),
 		),
+		listEvents: connect.NewClient[calendar.ListEventsRequest, calendar.ListEventsResponse](
+			httpClient,
+			baseURL+CalendarServiceListEventsProcedure,
+			connect.WithSchema(calendarServiceMethods.ByName("ListEvents")),
+			connect.WithClientOptions(opts...),
+		),
+		getEvent: connect.NewClient[calendar.GetEventRequest, calendar.GetEventResponse](
+			httpClient,
+			baseURL+CalendarServiceGetEventProcedure,
+			connect.WithSchema(calendarServiceMethods.ByName("GetEvent")),
+			connect.WithClientOptions(opts...),
+		),
+		createEvent: connect.NewClient[calendar.CreateEventRequest, calendar.CreateEventResponse](
+			httpClient,
+			baseURL+CalendarServiceCreateEventProcedure,
+			connect.WithSchema(calendarServiceMethods.ByName("CreateEvent")),
+			connect.WithClientOptions(opts...),
+		),
+		updateEvent: connect.NewClient[calendar.UpdateEventRequest, calendar.UpdateEventResponse](
+			httpClient,
+			baseURL+CalendarServiceUpdateEventProcedure,
+			connect.WithSchema(calendarServiceMethods.ByName("UpdateEvent")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -200,6 +240,10 @@ type calendarServiceClient struct {
 	listRoutineOccurrences      *connect.Client[calendar.ListRoutineOccurrencesRequest, calendar.ListRoutineOccurrencesResponse]
 	skipRoutineOccurrence       *connect.Client[calendar.SkipRoutineOccurrenceRequest, calendar.SkipRoutineOccurrenceResponse]
 	rescheduleRoutineOccurrence *connect.Client[calendar.RescheduleRoutineOccurrenceRequest, calendar.RescheduleRoutineOccurrenceResponse]
+	listEvents                  *connect.Client[calendar.ListEventsRequest, calendar.ListEventsResponse]
+	getEvent                    *connect.Client[calendar.GetEventRequest, calendar.GetEventResponse]
+	createEvent                 *connect.Client[calendar.CreateEventRequest, calendar.CreateEventResponse]
+	updateEvent                 *connect.Client[calendar.UpdateEventRequest, calendar.UpdateEventResponse]
 }
 
 // ListTodayAllocations calls
@@ -274,6 +318,26 @@ func (c *calendarServiceClient) RescheduleRoutineOccurrence(ctx context.Context,
 	return c.rescheduleRoutineOccurrence.CallUnary(ctx, req)
 }
 
+// ListEvents calls vrooli.personal_planner.v1.calendar.CalendarService.ListEvents.
+func (c *calendarServiceClient) ListEvents(ctx context.Context, req *connect.Request[calendar.ListEventsRequest]) (*connect.Response[calendar.ListEventsResponse], error) {
+	return c.listEvents.CallUnary(ctx, req)
+}
+
+// GetEvent calls vrooli.personal_planner.v1.calendar.CalendarService.GetEvent.
+func (c *calendarServiceClient) GetEvent(ctx context.Context, req *connect.Request[calendar.GetEventRequest]) (*connect.Response[calendar.GetEventResponse], error) {
+	return c.getEvent.CallUnary(ctx, req)
+}
+
+// CreateEvent calls vrooli.personal_planner.v1.calendar.CalendarService.CreateEvent.
+func (c *calendarServiceClient) CreateEvent(ctx context.Context, req *connect.Request[calendar.CreateEventRequest]) (*connect.Response[calendar.CreateEventResponse], error) {
+	return c.createEvent.CallUnary(ctx, req)
+}
+
+// UpdateEvent calls vrooli.personal_planner.v1.calendar.CalendarService.UpdateEvent.
+func (c *calendarServiceClient) UpdateEvent(ctx context.Context, req *connect.Request[calendar.UpdateEventRequest]) (*connect.Response[calendar.UpdateEventResponse], error) {
+	return c.updateEvent.CallUnary(ctx, req)
+}
+
 // CalendarServiceHandler is an implementation of the
 // vrooli.personal_planner.v1.calendar.CalendarService service.
 type CalendarServiceHandler interface {
@@ -290,6 +354,10 @@ type CalendarServiceHandler interface {
 	ListRoutineOccurrences(context.Context, *connect.Request[calendar.ListRoutineOccurrencesRequest]) (*connect.Response[calendar.ListRoutineOccurrencesResponse], error)
 	SkipRoutineOccurrence(context.Context, *connect.Request[calendar.SkipRoutineOccurrenceRequest]) (*connect.Response[calendar.SkipRoutineOccurrenceResponse], error)
 	RescheduleRoutineOccurrence(context.Context, *connect.Request[calendar.RescheduleRoutineOccurrenceRequest]) (*connect.Response[calendar.RescheduleRoutineOccurrenceResponse], error)
+	ListEvents(context.Context, *connect.Request[calendar.ListEventsRequest]) (*connect.Response[calendar.ListEventsResponse], error)
+	GetEvent(context.Context, *connect.Request[calendar.GetEventRequest]) (*connect.Response[calendar.GetEventResponse], error)
+	CreateEvent(context.Context, *connect.Request[calendar.CreateEventRequest]) (*connect.Response[calendar.CreateEventResponse], error)
+	UpdateEvent(context.Context, *connect.Request[calendar.UpdateEventRequest]) (*connect.Response[calendar.UpdateEventResponse], error)
 }
 
 // NewCalendarServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -377,6 +445,30 @@ func NewCalendarServiceHandler(svc CalendarServiceHandler, opts ...connect.Handl
 		connect.WithSchema(calendarServiceMethods.ByName("RescheduleRoutineOccurrence")),
 		connect.WithHandlerOptions(opts...),
 	)
+	calendarServiceListEventsHandler := connect.NewUnaryHandler(
+		CalendarServiceListEventsProcedure,
+		svc.ListEvents,
+		connect.WithSchema(calendarServiceMethods.ByName("ListEvents")),
+		connect.WithHandlerOptions(opts...),
+	)
+	calendarServiceGetEventHandler := connect.NewUnaryHandler(
+		CalendarServiceGetEventProcedure,
+		svc.GetEvent,
+		connect.WithSchema(calendarServiceMethods.ByName("GetEvent")),
+		connect.WithHandlerOptions(opts...),
+	)
+	calendarServiceCreateEventHandler := connect.NewUnaryHandler(
+		CalendarServiceCreateEventProcedure,
+		svc.CreateEvent,
+		connect.WithSchema(calendarServiceMethods.ByName("CreateEvent")),
+		connect.WithHandlerOptions(opts...),
+	)
+	calendarServiceUpdateEventHandler := connect.NewUnaryHandler(
+		CalendarServiceUpdateEventProcedure,
+		svc.UpdateEvent,
+		connect.WithSchema(calendarServiceMethods.ByName("UpdateEvent")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.personal_planner.v1.calendar.CalendarService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case CalendarServiceListTodayAllocationsProcedure:
@@ -405,6 +497,14 @@ func NewCalendarServiceHandler(svc CalendarServiceHandler, opts ...connect.Handl
 			calendarServiceSkipRoutineOccurrenceHandler.ServeHTTP(w, r)
 		case CalendarServiceRescheduleRoutineOccurrenceProcedure:
 			calendarServiceRescheduleRoutineOccurrenceHandler.ServeHTTP(w, r)
+		case CalendarServiceListEventsProcedure:
+			calendarServiceListEventsHandler.ServeHTTP(w, r)
+		case CalendarServiceGetEventProcedure:
+			calendarServiceGetEventHandler.ServeHTTP(w, r)
+		case CalendarServiceCreateEventProcedure:
+			calendarServiceCreateEventHandler.ServeHTTP(w, r)
+		case CalendarServiceUpdateEventProcedure:
+			calendarServiceUpdateEventHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -464,4 +564,20 @@ func (UnimplementedCalendarServiceHandler) SkipRoutineOccurrence(context.Context
 
 func (UnimplementedCalendarServiceHandler) RescheduleRoutineOccurrence(context.Context, *connect.Request[calendar.RescheduleRoutineOccurrenceRequest]) (*connect.Response[calendar.RescheduleRoutineOccurrenceResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.personal_planner.v1.calendar.CalendarService.RescheduleRoutineOccurrence is not implemented"))
+}
+
+func (UnimplementedCalendarServiceHandler) ListEvents(context.Context, *connect.Request[calendar.ListEventsRequest]) (*connect.Response[calendar.ListEventsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.personal_planner.v1.calendar.CalendarService.ListEvents is not implemented"))
+}
+
+func (UnimplementedCalendarServiceHandler) GetEvent(context.Context, *connect.Request[calendar.GetEventRequest]) (*connect.Response[calendar.GetEventResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.personal_planner.v1.calendar.CalendarService.GetEvent is not implemented"))
+}
+
+func (UnimplementedCalendarServiceHandler) CreateEvent(context.Context, *connect.Request[calendar.CreateEventRequest]) (*connect.Response[calendar.CreateEventResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.personal_planner.v1.calendar.CalendarService.CreateEvent is not implemented"))
+}
+
+func (UnimplementedCalendarServiceHandler) UpdateEvent(context.Context, *connect.Request[calendar.UpdateEventRequest]) (*connect.Response[calendar.UpdateEventResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.personal_planner.v1.calendar.CalendarService.UpdateEvent is not implemented"))
 }

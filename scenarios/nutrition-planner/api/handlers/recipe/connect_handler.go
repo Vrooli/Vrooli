@@ -107,6 +107,29 @@ func (h *connectHandler) GetRecipe(ctx context.Context, q *connect.Request[v1.Ge
 	return connect.NewResponse(&v1.GetRecipeResponse{Recipe: toProto(r)}), nil
 }
 
+func (h *connectHandler) GetRecipeRevision(ctx context.Context, q *connect.Request[v1.GetRecipeRevisionRequest]) (*connect.Response[v1.GetRecipeRevisionResponse], error) {
+	w, e := h.scope(ctx, q.Msg.WorkspaceId)
+	if e != nil {
+		return nil, e
+	}
+	if q.Msg.Revision < 1 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("revision must be positive"))
+	}
+	r, e := h.s.GetRevision(ctx, q.Msg.Id, w, q.Msg.Revision)
+	if e != nil {
+		var nf internal.ErrNotFound
+		if errors.As(e, &nf) {
+			return nil, connect.NewError(connect.CodeNotFound, e)
+		}
+		var f internal.ErrForbidden
+		if errors.As(e, &f) {
+			return nil, connect.NewError(connect.CodePermissionDenied, e)
+		}
+		return nil, connect.NewError(connect.CodeInternal, e)
+	}
+	return connect.NewResponse(&v1.GetRecipeRevisionResponse{Recipe: toProto(r)}), nil
+}
+
 func (h *connectHandler) UpdateRecipe(ctx context.Context, q *connect.Request[v1.UpdateRecipeRequest]) (*connect.Response[v1.UpdateRecipeResponse], error) {
 	w, e := h.scope(ctx, q.Msg.WorkspaceId)
 	if e != nil {

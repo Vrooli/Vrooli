@@ -165,6 +165,22 @@ class GetRecipeResponse(_message.Message):
     recipe: Recipe
     def __init__(self, recipe: _Optional[_Union[Recipe, _Mapping]] = ...) -> None: ...
 
+class GetRecipeRevisionRequest(_message.Message):
+    __slots__ = ("workspace_id", "id", "revision")
+    WORKSPACE_ID_FIELD_NUMBER: _ClassVar[int]
+    ID_FIELD_NUMBER: _ClassVar[int]
+    REVISION_FIELD_NUMBER: _ClassVar[int]
+    workspace_id: str
+    id: str
+    revision: int
+    def __init__(self, workspace_id: _Optional[str] = ..., id: _Optional[str] = ..., revision: _Optional[int] = ...) -> None: ...
+
+class GetRecipeRevisionResponse(_message.Message):
+    __slots__ = ("recipe",)
+    RECIPE_FIELD_NUMBER: _ClassVar[int]
+    recipe: Recipe
+    def __init__(self, recipe: _Optional[_Union[Recipe, _Mapping]] = ...) -> None: ...
+
 class UpdateRecipeRequest(_message.Message):
     __slots__ = ("workspace_id", "id", "expected_revision", "name", "notes", "source_url", "original_text", "source_type", "idempotency_key", "methods", "groups", "required_appliances", "allergen_evidence", "canonical_yield", "serving_unit", "ingredients")
     class AllergenEvidenceEntry(_message.Message):

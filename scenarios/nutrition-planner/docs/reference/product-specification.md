@@ -1,5 +1,55 @@
 # Daily — complete redesign and implementation handoff
 
+## Exact local visual acceptance
+
+The full-resolution selected core30 + Today v02 files are available in [selected visual assets](selected-2026-10-03/VISUAL-ACCEPTANCE.md), with exact bytes/hashes and experience/requirement mappings in `selected-2026-10-03/local-visual-assets.json`. Close visual fidelity is a required acceptance obligation: compare exact-build runtime captures for matching screen/state/appearance/viewport, and record justified responsive/accessibility/truthful-data adaptations and residual gaps. ND-025 first-phone-viewport timer repair remains intentional; external r3 remains excluded. Do not substitute generic styling or claim pixel identity for dynamic data.
+
+
+## Operative selection — 2026-10-03
+
+### Versioned authoring and accepted native representation
+
+Nooch is the nutrition and meal-planning project; this scenario implements the selected application. [Drive START](https://docs.google.com/document/d/1jM__Fowby-uWDD0O2VTbSVnevri_joZIELz4VfuLWFY/edit) leads to the project-owned context and local methods. The [living dossier](https://docs.google.com/document/d/1G29Pv03_sJYvznHuZJ8nNtZhqT6RhFQEr3ay-hLg0lo/edit) is the versioned authoring home for product intent, UX/specification and proposed design. The [design register](https://docs.google.com/spreadsheets/d/1HEJXkKeJxmDD7-LW4llD_cW7XP3ytyRvxziMwoO5kcA/edit) resolves exact accepted scope through ND-026 / NDL-005 and source application through ND-027. A mutable dossier URL does not approve every later byte. The [accepted I21 target](https://docs.google.com/document/d/1jM__Fowby-uWDD0O2VTbSVnevri_joZIELz4VfuLWFY/edit?tab=t.0#heading=h.jvkcbqa520cx) uses an explicit tab and heading; the START root URL is the project orientation entry, not an exact accepted-version selector.
+
+The accepted baseline remains `nooch-selected@2026-10-03:b013666f214be361`, with the frozen contract and source manifest identified below and retained unchanged in `selected-2026-10-03/`. Canonical native PRD, requirements, experience and this reconciled specification remain the execution-facing representation of that accepted scope. Native engineering records own implementation details and observed behavior; [goal/GOAL.md](../internal/goal/GOAL.md) and its goal home retain execution, admission and acceptance authority. This documentation relationship changes neither the selected product nor the current team, permissions, budgets or gates.
+
+A material design amendment requires its exact accepted scope/source revision, affected native targets and the current supported owner route. Fresh-read and reconcile affected copies, preserve immutable evidence and unaffected approvals, then verify source application and consumer acknowledgement separately. New Drive editorial work alone does not change the native baseline or pause its execution. Native observations may inform proposed design without silently rewriting owner-selected behavior. Source correction is not team consumption, implementation acceptance or a reason to force a wake.
+
+The owner approved the complete selected product and exact visual direction and explicitly authorized canonical documentation integration, independent verification, then creation, enabling and start of one finite native Nooch delivery team. Approval: Sentinel_44e04ed89e408191b22e019ea0bb5aa5 (reply to Sentinel_d3abbc161d1481918c56da89a8804dfb). The frozen contract SHA256 is b013666f214be36181251bbb7a1bad34943f12a27eda0ec2f60d7eee0aea6891; the verified handoff manifest SHA256 is 1bd357c36628043886b548840f1fe5011847bcde84d396d877b0e235c5dbdbda. Historical snapshot approval/commission flags remain evidence of their earlier state, not current holds.
+
+Precedence: owner-approved selected contract and manifest → ND-007–025 exact scoped selections → original v2 R01–R30 and Appendix A/B → exact visual references for presentation. Canonical behavior below reconciles the selected amendments; incidental specimen text, figures and obsolete DECISION NEEDED labels cannot override it. Source artifacts are retained in [selected-2026-10-03](selected-2026-10-03/nooch-selected-delivery-contract-2026-10-03.md). All implementation/validation claims remain unproven until exact-build evidence earns them.
+
+Five primary destinations remain Today, Week, Meals, Groceries and Kitchen. Planned food, purchases, cooked yield and eaten intake are distinct. Full-day foods/supplements, immutable revisions, hard rules, deterministic recommendations, components/families, curated Explore, manual text/structured import, price book, optional stock/equipment and intake, responsive accessible Light/Evening UI, recovery and portability remain in scope.
+
+### Selected behavior amendments
+The original v2 R01–R30 and Appendix A/B remain the normative base except where these explicitly selected amendments govern. The exact recorded decisions retain their evidence and authority.
+
+- ND-007 / NQ-001: Save valid setup with an empty collection; offer Add meal, clearly labeled examples or Today. No forced starter plan or silently relaxed rules.
+- ND-008 / NQ-011: Capture returns to the originating context with the draft selected and search/filter preserved. Direct capture opens details. A saved draft excluded by a preserved filter stays findable through honest confirmation and a link.
+- ND-009 / NQ-004: Reading and Map share the selected step.
+- ND-010 / NQ-010: Ingredient amounts may be absent or qualitative, with pinch/dash/to-taste suggestions. Draft servings may be unspecified. Automatic scaling requires valid numeric base and requested servings and respects ingredient constraints; time is not a simple serving multiplier. Never invent precise weights/nutrition from qualitative amounts.
+- ND-013 and ND-014 / NQ-002: Start replanning with a concise change summary, expandable detail and full-week comparison. An isolated compatible same-slot swap uses short confirmation. Wider effects on locks, leftovers, food rules, confirmed shopping or another date get full impact review. Stale checks and hard rules always apply.
+- ND-011 / NQ-014: Optimize the next grocery bill, accounting for credible owned food and actual packages. Consumed-food cost is separately named; unknown prices/stock do not become zero or unsupported savings.
+- ND-012 / NQ-013: Start with minimal tracking; offer stock/staples when useful. Skipping is valid and repeated dismissed prompts are suppressed.
+- ND-015 / NQ-003: Checks are separate from purchases. Use combined end-of-trip actual-purchase review, preserving amount/price corrections, omissions and idempotent confirmation.
+- ND-016 / NQ-006: Loaded lists/checks, recipes and local timers work offline. Actual stock/intake events can be drafted offline, then revalidated and explicitly reviewed/confirmed online before authoritative effects. Reconnection does not silently apply them.
+- ND-018 / NQ-005: Finish promptly with optional batch/intake recording. Ask actual yield when recording a batch and allow later correction. Save truthful reduced yield first, flag affected future shortage, then repair the plan. Finishing cooking does not mean eating or force inventory use.
+- ND-019 / NQ-007: Use a bounded curated immersive set with polished photo and no-photo layouts; no unique scene is required for every meal.
+- ND-020 / NQ-008: Calendar owns timed blocks. Same-day changes update linked-time presentation; cross-date moves require meal/leftover impact review before changing meal date. Deletion only unschedules, completion never records eating, history remains intact. Verify the external contract; coordinate/defer cross-project adapter changes while retaining the internal untimed fallback. Do not claim untested end-to-end calendar integration.
+- ND-021 / NQ-009: Structured-data export with explicit manifest by default, plus a bounded opt-in archive of supported original media. Include required food/stock/intake records and session history, pinned method/scale, steps and timer facts. Restored sessions require honest resume review; no silently restarted alarms or assertion of real cooking conditions. Transactional restore/checkpoints, disclosed omissions, no secrets/credentials/access grants or generation on restore.
+- ND-022 / NQ-015: Preserve required provenance, source/basis/unit/date/revision, contributors, authority and correction paths. Concise qualifiers lead to existing expandable details/editors; no separate undefined expert workbench and no omitted mandatory traceability.
+- ND-023 / NQ-016: Visible, editable/versioned initial filters are Quick = at most 20 minutes active preparation and “20g+ protein per serving.” These are transparent modeled filters, not personal targets or independent validation. Name checkout-cost basis, preserve unknowns and lower-bound qualifiers, withhold unsupported positive/validated claims and never infer allergen clearance.
+- ND-024 / NQ-012: Manual-only generation at launch. Generation starts Off; users review cost/variant scope and deliberately activate each reviewed result. No automatic new-recipe trigger or automatic activation.
+
+ND-007–009, ND-011–016 and ND-024 are explicit owner selections; ND-010 includes clarified delegated choice. ND-018–023 and ND-025 are assistant-selected recommendations under the owner's explicit delegation ND-017 / Sentinel_229bd64653b88191b40ce7bff60ef80b, not fabricated owner A replies.
+
+### Selected visual contract and closure
+
+The target is the 30 exact registered NDL-003 candidate0.3 visual families pinned by version/image hash in selected-2026-10-03/core-visual-inventory.json, plus accepted Today Sunroom v02 (Drive 19XDd-rW6fNsnfLdUl5NZ3wNAJXrWiN60; SHA256 940dbaeb230db286aa992024c4de02dbb674d510589e3739336acc6b39434e87). These supersede the earlier fifteen-reference target. Preserve original versions as historical evidence. NF-010 uses registered cooking-return (Drive 1wEU3K_leJVK0HZ-JQAXNYNglTEPEwi8g; SHA256 6ee75e46b87c760ed862700bfb0749dbe94dee12e8391b1f1c54cca523ffa4fb) with compact timer access in the first phone viewport, preserving step navigation and independent timers. External cooking r3 is excluded. Fetch and hash-check exact originals before fidelity comparison; the overview PDF is not pixel acceptance. Require phone/desktop, Light/Evening, ordinary/no-photo, accessibility and exact-build connected-state proof.
+
+Closure retains D-041 P0/P1, R27/R30 and R0/R1 gates: comprehensive Test Genie certification and two fresh hostile passes without material findings; independently admitted gates, assigned feedback resolution, real persisted connected journeys, responsive evidence and populated isolated upgrade/backup/restore qualification. Initial epoch is authenticated first use → capture/edit → Today/Week plan → derived groceries → lifecycle restart/reopen, not the whole effort. Goal home docs/internal/goal is the sole current delivery ledger; historical redesign plan/ledger are retained sources. No Plan Manager. Native profiles/permissions/budgets/safeguards apply. D-029/D-043/OF-006 cumulative $15 artwork allowance is unchanged; reconcile actual/pending attempts before paid generation. E1 reuses assets and needs no paid generation. Scene studio, autonomous ordering and billing activation remain deferred.
+
+
 **Version:** 2.0  
 **Prepared:** 2026-09-22  
 **Audience:** The local Vrooli implementation agent and product owner.  
@@ -8,7 +58,7 @@
 **Application slug:** Discover and retain the existing nutrition application slug. Do not rename it to personal-planner; that is a separate application.  
 **Status:** Implementation specification. The destination repository has not been inspected by this document's author. Nothing here claims that backend features, integrations, assets, or acceptance tests already exist.
 
-> **Repository copy.** This file is the canonical copy of the Daily v2.0 specification for the `nutrition-planner` scenario, received 2026-09-22 and stored verbatim except for this notice, two wording fixes inside Appendix A that the documentation auditor would otherwise misread (the legacy `sample` flag sentence, read as a typed reference, and "local, private, and link-local destinations" in AI-03, read as a filesystem path), and the repository-specific **Appendix C**. The concept mockups it refers to are stored in [`mockups/`](mockups/README.md). Where this repository keeps the implementation inventory, the maintained decision log, and the redesign plan is recorded in [Appendix C](#appendix-c--repository-copy-locations-inventory-and-decision-log).
+> **Repository copy.** Canonical v2 baseline received 2026-09-22, substantively reconciled with owner-selected ND-007–025 on 2026-10-03. The exact raw v2 is preserved and hash-pinned in selected-2026-10-03/cloud-v2-exact.md; this amended file is not a verbatim source copy. Appendix C records repository implementation evidence.
 
 > Build a beautiful, low-effort personal food planning application that helps people decide what to eat, plan a realistic week, shop, use their kitchen, and cook—while balancing their own nutrition goals, dietary rules, available effort, variety, and cost. Beauty must survive ordinary photos, incomplete information, small screens, and unavailable AI providers.
 
@@ -563,7 +613,7 @@ Unmocked forms follow shared components: labeled inputs, inline validation, mean
 
 ### R17.1 One layout with multiple media treatments
 
-MealHero consumes recipe/occurrence data and an explicit presentation descriptor. Presentation choices are Immersive scenes, Editorial photos, Minimal. Appearance is separately Light/Evening/Follow device. Generation permission is separately Off/Ask each time/Automatic within budget. These three settings must not collapse into a single premium-theme switch.
+MealHero consumes recipe/occurrence data and an explicit presentation descriptor. Presentation choices are Immersive scenes, Editorial photos, Minimal. Appearance is separately Light/Evening/Follow device. Generation permission is separately Off / manual Ask each time at launch. These three settings must not collapse into a single premium-theme switch.
 
 Supported treatments:
 
@@ -611,7 +661,7 @@ Generate responsive renditions once during asset processing. Use modern supporte
 
 ### R18.1 User-facing controls
 
-Default new accounts to generation Off or Ask each time according to a clearly shown deployment default; recommended safest first launch is Off with an explanation of optional generation. Users can still use bundled approved scenes. Ask each time shows the requested variants and configured price/credit estimate before starting. Automatic within budget requires an explicit nonzero cap, event triggers, variant limits, and scope.
+Launch generation starts Off. Manual requests disclose cost and requested variants before dispatch; reviewed results require deliberate activation individually. No automatic new-recipe triggers or automatic acceptance/activation are launch behavior. Unknown upper-bound cost prevents dispatch; bundled approved assets and honest no-photo layouts remain usable.
 
 Triggers may include user-requested Create scene image or an opted-in job for selected newly saved recipes. Never trigger per page view, theme toggle, search result, hover, window resize, or every meal in a catalog. Generating a wide image does not silently authorize a second paid compact/night generation if it was not included in the quoted scope.
 
@@ -621,7 +671,7 @@ Settings expose current period usage/reservations, currency or credit units, res
 
 Creation: validate recipe/media ownership and source rights; validate selected template compatibility; capture immutable input revisions; calculate job key; check existing results; quote/reserve budget; enqueue. Worker uses the configured image.generate role or repository equivalent and validated provider capability, never a hardcoded provider in UI code.
 
-States: queued → running → awaiting_review → approved/available, or failed/canceled/rejected. Separate provider job completion, review approval, and asset activation. If automatically accepted output is ever enabled, require a disclosed review policy and robust validation; default curated/admin review or explicit user approval for new generated compositions.
+States: queued → running → awaiting_review → reviewed/available, or failed/canceled/rejected. Completion, review and deliberate individual activation are separate. No automatic activation at launch; changed recipe revisions require fresh applicability review.
 
 On recipe/source/template edits during generation, store the result against original inputs; do not activate it for the new revision without compatibility review. Canceling does not guarantee an external charge was avoided; settle actual known usage and preserve that distinction. Retry only transient failures under the authorized attempt/total budget. Each potential paid attempt must be covered by the budget policy.
 
@@ -730,7 +780,7 @@ Use the baseline ownership, immutable revisions, decimal quantities, evidence, a
 | MediaAsset | owner/scope, content hash, storage ref, media type, dimensions, source, rights, state | Access control and immutable original; no unvalidated remote URLs. |
 | SceneTemplateVersion | family, version, geometry, variant refs, food region, safe regions, compatibility, status | Version immutable once referenced by a job/result. |
 | MealPresentation | recipe/ref, asset, scene version, theme, viewport class, crop, approval | Rendering eligibility differs from recipe eligibility. |
-| GenerationPolicy | owner, mode, cap/unit/period, allowed triggers/variants | Automatic mode requires explicit bounded authorization. |
+| GenerationPolicy | owner, Off/manual request, cap/unit/period, reviewed variants | Launch has no automatic triggers or activation; costs and each result require deliberate review. |
 | GenerationJob | inputs, dedupe key, state, provider/role version, attempt limit, usage, result | Stale completion cannot overwrite newer user choices. |
 | BudgetReservation | policy/period, job/attempt, reserved/settled amounts, status | Atomic cap enforcement and exactly-once settlement. |
 | EquipmentType | stable ID, categories, capability definitions, icon | Display strings are not capability IDs. |
@@ -819,7 +869,7 @@ Server/domain records are authoritative. Editor drafts, viewed tabs, local timer
 
 Offline minimum: previously loaded shopping list can be viewed, rows checked/unchecked, and manual items added locally; an already loaded recipe/session can be read and timers controlled locally. Pending actions are explicit. Planning, external imports, generation, and first-time access to uncached content require connectivity and show a useful state. Do not promise every route works offline.
 
-Persist a bounded outbox with operation IDs, base revision, action, and status. Reconnect replays idempotently. Two clients setting the same checkbox to true must not toggle it twice; store desired state, not an unqualified toggle command. If the requirement quantity changed, reconcile the fulfilled amount and surface the new need. Keep local edits on conflicts and present actionable resolution.
+Persist a bounded outbox with operation IDs, base revision, action, and status. Reconnect revalidates idempotently; stock and intake drafts require explicit online impact review and confirmation before authoritative effects. Checklist desired-state synchronization never confirms purchases. Two clients setting the same checkbox to true must not toggle it twice; store desired state, not an unqualified toggle command. If the requirement quantity changed, reconcile the fulfilled amount and surface the new need. Keep local edits on conflicts and present actionable resolution.
 
 Service workers/cache storage must respect authenticated ownership. Purge or partition private data by account/workspace and clear it on sign-out according to policy. An offline account switch must not show the previous person's meals. Avoid caching private signed URLs indefinitely or treating them as public image identities.
 
@@ -1071,7 +1121,7 @@ Do not stop after producing a generic scaffold or screenshots. Every visible pro
 | Final public name | Daily as replaceable label; retain existing internal slug. |
 | Theme startup | Follow device unless existing preference present. |
 | Presentation default | Immersive when approved asset exists, otherwise editorial/minimal. |
-| Generation spending | Off initially; opt-in Ask each time; bounded automatic later/configured. |
+| Generation spending | Off initially; manual request with cost/variant review and deliberate activation of each reviewed result; no automatic trigger or activation at launch. |
 | Initial scene families | Kitchen table and Overhead tabletop. |
 | Custom scene creation | Schema/admin import now; end-user scene studio later. |
 | Equipment interaction | Scene + tiles; deterministic slots; no free room decoration. |
@@ -3335,12 +3385,12 @@ The per-image reading guide — what each image is authoritative for, what to ig
 
 | Record the specification asks for | Location in this repository |
 | --- | --- |
-| R02.3 implementation inventory (requirement, existing behavior, gap, files, migration, verification) | [`../internal/REDESIGN_PLAN.md`](../internal/REDESIGN_PLAN.md) §"Current state inventory". Seeded 2026-09-22 from a read-only audit; milestone D0 re-verifies it and keeps it current. |
-| R28 delivery sequence, surface-by-surface build notes, and the definition of done | [`../internal/REDESIGN_PLAN.md`](../internal/REDESIGN_PLAN.md) |
+| R02.3 implementation inventory (requirement, existing behavior, gap, files, migration, verification) | [QUEUE](../internal/goal/QUEUE.md) and admitted [epochs](../internal/goal/epochs/) hold current inventory and verification. The [historical plan](../internal/REDESIGN_PLAN.md) §"Current state inventory" preserves the 2026-09-22 audit. |
+| R28 delivery sequence, surface-by-surface build notes, and the definition of done | [GOAL](../internal/goal/GOAL.md), [QUEUE](../internal/goal/QUEUE.md), [ACCEPTANCE](../internal/goal/ACCEPTANCE.md) and admitted [epochs](../internal/goal/epochs/); historical build notes remain in [REDESIGN_PLAN](../internal/REDESIGN_PLAN.md) |
 | R30 decision log (date, requirement, decision, reason, affected behavior, verification) | [`../internal/DECISIONS.md`](../internal/DECISIONS.md), entries D-025 onward. Appendix A DOC-02 is historical. |
-| Convergence findings, pass history, and required agent report evidence | [`../internal/REDESIGN_LEDGER.md`](../internal/REDESIGN_LEDGER.md) |
-| Operator feedback received while work runs | [`../internal/OPERATOR_FEEDBACK.md`](../internal/OPERATOR_FEEDBACK.md) |
-| Goal message that drives the implementation | [`../internal/REDESIGN_GOAL.md`](../internal/REDESIGN_GOAL.md) |
+| Convergence findings, pass history, and required agent report evidence | Admitted [epochs](../internal/goal/epochs/), [QUEUE](../internal/goal/QUEUE.md) and [ACCEPTANCE](../internal/goal/ACCEPTANCE.md); [REDESIGN_LEDGER](../internal/REDESIGN_LEDGER.md) is historical evidence |
+| Operator feedback received while work runs | [FEEDBACK](../internal/goal/FEEDBACK.md); preserve/import unresolved assigned [historical feedback](../internal/OPERATOR_FEEDBACK.md) verbatim through the existing orchestrator |
+| Goal message that drives the implementation | [GOAL](../internal/goal/GOAL.md); [REDESIGN_GOAL](../internal/REDESIGN_GOAL.md) is retained historical text, not a dispatch instruction |
 | Operational targets and requirement registry | [`../../PRD.md`](../../PRD.md) and [`../../requirements/`](../../requirements/README.md) |
 | Page and journey experience contract | [`../../experience/index.json`](../../experience/index.json) and [`../concepts/EXPERIENCE.md`](../concepts/EXPERIENCE.md) |
 | Binding design language (tokens, type, spacing, appearance) | [`../../DESIGN.md`](../../DESIGN.md) |

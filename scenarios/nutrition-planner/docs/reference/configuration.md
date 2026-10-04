@@ -184,7 +184,7 @@ theme (light/dark/system) and language.
 | Display name | "Nooch" by default (D-042) | Configurable product label; the scenario id `nutrition-planner` never changes. |
 | Appearance | Light, Evening, Follow device | Follow device is the first-run default unless a preference exists; persisted locally for no-flash first paint and in the account. Never changes food data or starts generation. |
 | Meal artwork presentation | Immersive scenes, Editorial photos, Minimal | Independent of appearance and of generation permission (R17.1). |
-| Generation permission | Off, Ask each time, Automatic within budget | Off for new accounts; Automatic requires an explicit nonzero cap, unit, period, allowed triggers, and variant limits (R18.1). |
+| Generation permission | Off and manual Ask each time at launch | Off for new accounts; Manual requests require cost/variant review and deliberate activation of each reviewed result; automatic triggers and activation are excluded at launch (ND-024). |
 | Integrations | personal-planner link | Shows linked, pending, failed, or reconnection-needed states (R24). |
 | Notifications | Opt-in reminders | Only through available platform channels; no messages during development without authorization (R24.4). |
 | Units, currency, timezone, week start | Locale-based and editable | IANA timezone drives local dates; the demo uses metric, USD, and a Monday week start. |

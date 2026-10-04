@@ -39,6 +39,12 @@
     },
     {
       "statement": "Explore is one tab away for new ideas that fit."
+    },
+    {
+      "statement": "Capture returns to its originating context, selects the draft and preserves search/filter; direct capture opens details, and filtered-out drafts remain findable. Quick ≤20 active minutes and 20g+ protein per serving are visible editable/versioned modeled filters, with truthful unknown/partial qualifiers (ND-008/023)."
+    },
+    {
+      "statement": "Close visual fidelity to the exact selected local originals is required; see docs/reference/selected-2026-10-03/VISUAL-ACCEPTANCE.md and local-visual-assets.json for this page/state mapping. Compare matching actual-build state/appearance/viewport; record justified responsive/accessibility/truthful-data adaptations without weakening behavior or NF-010 timer reachability."
     }
   ],
   "states": [

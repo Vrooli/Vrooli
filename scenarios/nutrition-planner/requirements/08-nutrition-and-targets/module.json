@@ -65,7 +65,7 @@
       "prd_ref": "OT-P0-010",
       "category": "domain",
       "criticality": "P0",
-      "description": "Every nutrition target shall carry a nutrient identity, unit, lower and upper bounds as applicable, evaluation period, contribution scope, enforcement level, provenance, and effective dates, and an active target shall require at least one bound with the lower bound not exceeding the upper bound.",
+      "description": "Every nutrition target shall carry a nutrient identity, unit, lower and upper bounds as applicable, evaluation period, contribution scope, enforcement level, provenance, and effective dates, and an active target shall require at least one bound with the lower bound not exceeding the upper bound. Preserve mandatory provenance, source/basis/unit/date/revision, contributors, authority and correction paths through concise qualifiers and expandable existing details/editors; no undefined expert workbench (ND-022).",
       "tags": [
         "targets",
         "bounds",
@@ -77,6 +77,12 @@
           "phase": "unit",
           "status": "planned",
           "notes": "Planned: a range target requires both bounds to be assessed, and setting a daily target does not automatically create a weekly target (ACT-042)."
+        },
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "planned",
+          "notes": "Given the selected 2026-10-03 contract, when NUT-003 behavior is exercised on persisted isolated fixtures, then the selected amendment and unchanged domain invariants hold. Exact test reference must be earned; no validation claimed."
         }
       ]
     },

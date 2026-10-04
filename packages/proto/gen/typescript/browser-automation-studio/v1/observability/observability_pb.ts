@@ -12,7 +12,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file browser-automation-studio/v1/observability/observability.proto.
  */
 export const file_browser_automation_studio_v1_observability_observability: GenFile = /*@__PURE__*/
-  fileDesc("Cj5icm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL29ic2VydmFiaWxpdHkvb2JzZXJ2YWJpbGl0eS5wcm90bxIqYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5vYnNlcnZhYmlsaXR5IjoKF0dldE9ic2VydmFiaWxpdHlSZXF1ZXN0Eg0KBWRlcHRoGAEgASgJEhAKCG5vX2NhY2hlGAIgASgIIkUKGEdldE9ic2VydmFiaWxpdHlSZXNwb25zZRIpCghzbmFwc2hvdBgBIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QiHQobUmVmcmVzaE9ic2VydmFiaWxpdHlSZXF1ZXN0IkcKHFJlZnJlc2hPYnNlcnZhYmlsaXR5UmVzcG9uc2USJwoGcmVzdWx0GAEgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdCIXChVHZXRTZXNzaW9uTGlzdFJlcXVlc3QiQQoWR2V0U2Vzc2lvbkxpc3RSZXNwb25zZRInCgZyZXN1bHQYASABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0IhMKEUdldE1ldHJpY3NSZXF1ZXN0Ij0KEkdldE1ldHJpY3NSZXNwb25zZRInCgZyZXN1bHQYASABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0IhkKF0dldENvbmZpZ1J1bnRpbWVSZXF1ZXN0IkMKGEdldENvbmZpZ1J1bnRpbWVSZXNwb25zZRInCgZyZXN1bHQYASABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0Ij4KE1VwZGF0ZUNvbmZpZ1JlcXVlc3QSGAoHZW52X3ZhchgBIAEoCUIHukgEcgIQARINCgV2YWx1ZRgCIAEoCSI/ChRVcGRhdGVDb25maWdSZXNwb25zZRInCgZyZXN1bHQYASABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0Ii4KElJlc2V0Q29uZmlnUmVxdWVzdBIYCgdlbnZfdmFyGAEgASgJQge6SARyAhABIj4KE1Jlc2V0Q29uZmlnUmVzcG9uc2USJwoGcmVzdWx0GAEgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdCIVChNHZXREZWJ1Z01vZGVSZXF1ZXN0IlQKE1NldERlYnVnTW9kZVJlcXVlc3QSDwoHZW5hYmxlZBgBIAEoCBISCgpjb21wb25lbnRzGAIgAygJEhgKEGR1cmF0aW9uX21pbnV0ZXMYAyABKAUiYQoORGVidWdNb2RlU3RhdGUSDwoHZW5hYmxlZBgBIAEoCBISCgpjb21wb25lbnRzGAIgAygJEhIKCmV4cGlyZXNfYXQYAyABKAkSFgoOcmVtYWluaW5nX21pbnMYBCABKAUy6woKFE9ic2VydmFiaWxpdHlTZXJ2aWNlEp0BChBHZXRPYnNlcnZhYmlsaXR5EkMuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5vYnNlcnZhYmlsaXR5LkdldE9ic2VydmFiaWxpdHlSZXF1ZXN0GkQuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5vYnNlcnZhYmlsaXR5LkdldE9ic2VydmFiaWxpdHlSZXNwb25zZRKpAQoUUmVmcmVzaE9ic2VydmFiaWxpdHkSRy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLm9ic2VydmFiaWxpdHkuUmVmcmVzaE9ic2VydmFiaWxpdHlSZXF1ZXN0GkguYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5vYnNlcnZhYmlsaXR5LlJlZnJlc2hPYnNlcnZhYmlsaXR5UmVzcG9uc2USlwEKDkdldFNlc3Npb25MaXN0EkEuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5vYnNlcnZhYmlsaXR5LkdldFNlc3Npb25MaXN0UmVxdWVzdBpCLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEub2JzZXJ2YWJpbGl0eS5HZXRTZXNzaW9uTGlzdFJlc3BvbnNlEosBCgpHZXRNZXRyaWNzEj0uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5vYnNlcnZhYmlsaXR5LkdldE1ldHJpY3NSZXF1ZXN0Gj4uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5vYnNlcnZhYmlsaXR5LkdldE1ldHJpY3NSZXNwb25zZRKdAQoQR2V0Q29uZmlnUnVudGltZRJDLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEub2JzZXJ2YWJpbGl0eS5HZXRDb25maWdSdW50aW1lUmVxdWVzdBpELmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEub2JzZXJ2YWJpbGl0eS5HZXRDb25maWdSdW50aW1lUmVzcG9uc2USkQEKDFVwZGF0ZUNvbmZpZxI/LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEub2JzZXJ2YWJpbGl0eS5VcGRhdGVDb25maWdSZXF1ZXN0GkAuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5vYnNlcnZhYmlsaXR5LlVwZGF0ZUNvbmZpZ1Jlc3BvbnNlEo4BCgtSZXNldENvbmZpZxI+LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEub2JzZXJ2YWJpbGl0eS5SZXNldENvbmZpZ1JlcXVlc3QaPy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLm9ic2VydmFiaWxpdHkuUmVzZXRDb25maWdSZXNwb25zZRKLAQoMR2V0RGVidWdNb2RlEj8uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5vYnNlcnZhYmlsaXR5LkdldERlYnVnTW9kZVJlcXVlc3QaOi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLm9ic2VydmFiaWxpdHkuRGVidWdNb2RlU3RhdGUSiwEKDFNldERlYnVnTW9kZRI/LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEub2JzZXJ2YWJpbGl0eS5TZXREZWJ1Z01vZGVSZXF1ZXN0GjouYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5vYnNlcnZhYmlsaXR5LkRlYnVnTW9kZVN0YXRlQmlaZ2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYnJvd3Nlci1hdXRvbWF0aW9uLXN0dWRpby92MS9vYnNlcnZhYmlsaXR5O29ic2VydmFiaWxpdHliBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_struct]);
+  fileDesc("Cj5icm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL29ic2VydmFiaWxpdHkvb2JzZXJ2YWJpbGl0eS5wcm90bxIqYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5vYnNlcnZhYmlsaXR5IjoKF0dldE9ic2VydmFiaWxpdHlSZXF1ZXN0Eg0KBWRlcHRoGAEgASgJEhAKCG5vX2NhY2hlGAIgASgIIkUKGEdldE9ic2VydmFiaWxpdHlSZXNwb25zZRIpCghzbmFwc2hvdBgBIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QiHQobUmVmcmVzaE9ic2VydmFiaWxpdHlSZXF1ZXN0IkcKHFJlZnJlc2hPYnNlcnZhYmlsaXR5UmVzcG9uc2USJwoGcmVzdWx0GAEgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdCIXChVHZXRTZXNzaW9uTGlzdFJlcXVlc3QiQQoWR2V0U2Vzc2lvbkxpc3RSZXNwb25zZRInCgZyZXN1bHQYASABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0IhMKEUdldE1ldHJpY3NSZXF1ZXN0Ij0KEkdldE1ldHJpY3NSZXNwb25zZRInCgZyZXN1bHQYASABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0IhUKE0dldERlYnVnTW9kZVJlcXVlc3QiVAoTU2V0RGVidWdNb2RlUmVxdWVzdBIPCgdlbmFibGVkGAEgASgIEhIKCmNvbXBvbmVudHMYAiADKAkSGAoQZHVyYXRpb25fbWludXRlcxgDIAEoBSJhCg5EZWJ1Z01vZGVTdGF0ZRIPCgdlbmFibGVkGAEgASgIEhIKCmNvbXBvbmVudHMYAiADKAkSEgoKZXhwaXJlc19hdBgDIAEoCRIWCg5yZW1haW5pbmdfbWlucxgEIAEoBTKmBwoUT2JzZXJ2YWJpbGl0eVNlcnZpY2USnQEKEEdldE9ic2VydmFiaWxpdHkSQy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLm9ic2VydmFiaWxpdHkuR2V0T2JzZXJ2YWJpbGl0eVJlcXVlc3QaRC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLm9ic2VydmFiaWxpdHkuR2V0T2JzZXJ2YWJpbGl0eVJlc3BvbnNlEqkBChRSZWZyZXNoT2JzZXJ2YWJpbGl0eRJHLmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEub2JzZXJ2YWJpbGl0eS5SZWZyZXNoT2JzZXJ2YWJpbGl0eVJlcXVlc3QaSC5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLm9ic2VydmFiaWxpdHkuUmVmcmVzaE9ic2VydmFiaWxpdHlSZXNwb25zZRKXAQoOR2V0U2Vzc2lvbkxpc3QSQS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLm9ic2VydmFiaWxpdHkuR2V0U2Vzc2lvbkxpc3RSZXF1ZXN0GkIuYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5vYnNlcnZhYmlsaXR5LkdldFNlc3Npb25MaXN0UmVzcG9uc2USiwEKCkdldE1ldHJpY3MSPS5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLm9ic2VydmFiaWxpdHkuR2V0TWV0cmljc1JlcXVlc3QaPi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLm9ic2VydmFiaWxpdHkuR2V0TWV0cmljc1Jlc3BvbnNlEosBCgxHZXREZWJ1Z01vZGUSPy5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLm9ic2VydmFiaWxpdHkuR2V0RGVidWdNb2RlUmVxdWVzdBo6LmJyb3dzZXJfYXV0b21hdGlvbl9zdHVkaW8udjEub2JzZXJ2YWJpbGl0eS5EZWJ1Z01vZGVTdGF0ZRKLAQoMU2V0RGVidWdNb2RlEj8uYnJvd3Nlcl9hdXRvbWF0aW9uX3N0dWRpby52MS5vYnNlcnZhYmlsaXR5LlNldERlYnVnTW9kZVJlcXVlc3QaOi5icm93c2VyX2F1dG9tYXRpb25fc3R1ZGlvLnYxLm9ic2VydmFiaWxpdHkuRGVidWdNb2RlU3RhdGVCaVpnZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9icm93c2VyLWF1dG9tYXRpb24tc3R1ZGlvL3YxL29ic2VydmFiaWxpdHk7b2JzZXJ2YWJpbGl0eWIGcHJvdG8z", [file_buf_validate_validate, file_google_protobuf_struct]);
 
 /**
  * @generated from message browser_automation_studio.v1.observability.GetObservabilityRequest
@@ -154,116 +154,6 @@ export const GetMetricsResponseSchema: GenMessage<GetMetricsResponse> = /*@__PUR
   messageDesc(file_browser_automation_studio_v1_observability_observability, 7);
 
 /**
- * @generated from message browser_automation_studio.v1.observability.GetConfigRuntimeRequest
- */
-export type GetConfigRuntimeRequest = Message<"browser_automation_studio.v1.observability.GetConfigRuntimeRequest"> & {
-};
-
-/**
- * Describes the message browser_automation_studio.v1.observability.GetConfigRuntimeRequest.
- * Use `create(GetConfigRuntimeRequestSchema)` to create a new message.
- */
-export const GetConfigRuntimeRequestSchema: GenMessage<GetConfigRuntimeRequest> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_observability_observability, 8);
-
-/**
- * @generated from message browser_automation_studio.v1.observability.GetConfigRuntimeResponse
- */
-export type GetConfigRuntimeResponse = Message<"browser_automation_studio.v1.observability.GetConfigRuntimeResponse"> & {
-  /**
-   * @generated from field: google.protobuf.Struct result = 1;
-   */
-  result?: JsonObject | undefined;
-};
-
-/**
- * Describes the message browser_automation_studio.v1.observability.GetConfigRuntimeResponse.
- * Use `create(GetConfigRuntimeResponseSchema)` to create a new message.
- */
-export const GetConfigRuntimeResponseSchema: GenMessage<GetConfigRuntimeResponse> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_observability_observability, 9);
-
-/**
- * @generated from message browser_automation_studio.v1.observability.UpdateConfigRequest
- */
-export type UpdateConfigRequest = Message<"browser_automation_studio.v1.observability.UpdateConfigRequest"> & {
-  /**
-   * Environment variable name to update.
-   *
-   * @generated from field: string env_var = 1;
-   */
-  envVar: string;
-
-  /**
-   * String form of the new value; playwright-driver parses according to
-   * the env var's declared data type.
-   *
-   * @generated from field: string value = 2;
-   */
-  value: string;
-};
-
-/**
- * Describes the message browser_automation_studio.v1.observability.UpdateConfigRequest.
- * Use `create(UpdateConfigRequestSchema)` to create a new message.
- */
-export const UpdateConfigRequestSchema: GenMessage<UpdateConfigRequest> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_observability_observability, 10);
-
-/**
- * @generated from message browser_automation_studio.v1.observability.UpdateConfigResponse
- */
-export type UpdateConfigResponse = Message<"browser_automation_studio.v1.observability.UpdateConfigResponse"> & {
-  /**
-   * @generated from field: google.protobuf.Struct result = 1;
-   */
-  result?: JsonObject | undefined;
-};
-
-/**
- * Describes the message browser_automation_studio.v1.observability.UpdateConfigResponse.
- * Use `create(UpdateConfigResponseSchema)` to create a new message.
- */
-export const UpdateConfigResponseSchema: GenMessage<UpdateConfigResponse> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_observability_observability, 11);
-
-/**
- * @generated from message browser_automation_studio.v1.observability.ResetConfigRequest
- */
-export type ResetConfigRequest = Message<"browser_automation_studio.v1.observability.ResetConfigRequest"> & {
-  /**
-   * Environment variable name to reset.
-   *
-   * @generated from field: string env_var = 1;
-   */
-  envVar: string;
-};
-
-/**
- * Describes the message browser_automation_studio.v1.observability.ResetConfigRequest.
- * Use `create(ResetConfigRequestSchema)` to create a new message.
- */
-export const ResetConfigRequestSchema: GenMessage<ResetConfigRequest> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_observability_observability, 12);
-
-/**
- * @generated from message browser_automation_studio.v1.observability.ResetConfigResponse
- */
-export type ResetConfigResponse = Message<"browser_automation_studio.v1.observability.ResetConfigResponse"> & {
-  /**
-   * @generated from field: google.protobuf.Struct result = 1;
-   */
-  result?: JsonObject | undefined;
-};
-
-/**
- * Describes the message browser_automation_studio.v1.observability.ResetConfigResponse.
- * Use `create(ResetConfigResponseSchema)` to create a new message.
- */
-export const ResetConfigResponseSchema: GenMessage<ResetConfigResponse> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_observability_observability, 13);
-
-/**
  * @generated from message browser_automation_studio.v1.observability.GetDebugModeRequest
  */
 export type GetDebugModeRequest = Message<"browser_automation_studio.v1.observability.GetDebugModeRequest"> & {
@@ -274,7 +164,7 @@ export type GetDebugModeRequest = Message<"browser_automation_studio.v1.observab
  * Use `create(GetDebugModeRequestSchema)` to create a new message.
  */
 export const GetDebugModeRequestSchema: GenMessage<GetDebugModeRequest> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_observability_observability, 14);
+  messageDesc(file_browser_automation_studio_v1_observability_observability, 8);
 
 /**
  * @generated from message browser_automation_studio.v1.observability.SetDebugModeRequest
@@ -309,7 +199,7 @@ export type SetDebugModeRequest = Message<"browser_automation_studio.v1.observab
  * Use `create(SetDebugModeRequestSchema)` to create a new message.
  */
 export const SetDebugModeRequestSchema: GenMessage<SetDebugModeRequest> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_observability_observability, 15);
+  messageDesc(file_browser_automation_studio_v1_observability_observability, 9);
 
 /**
  * DebugModeState is the canonical readout returned by GetDebugMode and
@@ -349,7 +239,7 @@ export type DebugModeState = Message<"browser_automation_studio.v1.observability
  * Use `create(DebugModeStateSchema)` to create a new message.
  */
 export const DebugModeStateSchema: GenMessage<DebugModeState> = /*@__PURE__*/
-  messageDesc(file_browser_automation_studio_v1_observability_observability, 16);
+  messageDesc(file_browser_automation_studio_v1_observability_observability, 10);
 
 /**
  * @generated from service browser_automation_studio.v1.observability.ObservabilityService
@@ -397,38 +287,6 @@ export const ObservabilityService: GenService<{
     methodKind: "unary";
     input: typeof GetMetricsRequestSchema;
     output: typeof GetMetricsResponseSchema;
-  },
-  /**
-   * GetConfigRuntime returns the current state of all runtime config
-   * overrides held by playwright-driver.
-   *
-   * @generated from rpc browser_automation_studio.v1.observability.ObservabilityService.GetConfigRuntime
-   */
-  getConfigRuntime: {
-    methodKind: "unary";
-    input: typeof GetConfigRuntimeRequestSchema;
-    output: typeof GetConfigRuntimeResponseSchema;
-  },
-  /**
-   * UpdateConfig updates a single runtime configuration value.
-   *
-   * @generated from rpc browser_automation_studio.v1.observability.ObservabilityService.UpdateConfig
-   */
-  updateConfig: {
-    methodKind: "unary";
-    input: typeof UpdateConfigRequestSchema;
-    output: typeof UpdateConfigResponseSchema;
-  },
-  /**
-   * ResetConfig resets a runtime configuration value back to its
-   * environment/default value.
-   *
-   * @generated from rpc browser_automation_studio.v1.observability.ObservabilityService.ResetConfig
-   */
-  resetConfig: {
-    methodKind: "unary";
-    input: typeof ResetConfigRequestSchema;
-    output: typeof ResetConfigResponseSchema;
   },
   /**
    * GetDebugMode reports the in-process debug-mode toggle state.

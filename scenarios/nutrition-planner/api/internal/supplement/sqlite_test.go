@@ -54,3 +54,14 @@ func TestScheduleRequiresConfirmationAndValidWeekday(t *testing.T) {
 		t.Fatal("unconfirmed schedule applied")
 	}
 }
+
+func TestScheduleRecurrenceUsesWorkspaceLocalCalendarDate(t *testing.T) {
+	dose, _ := decimalx.Parse("1")
+	sunday := Schedule{WorkspaceID: "w", ProductRevisionID: "p", Dose: dose, DoseUnit: "capsule", Weekdays: []int{0}, StartDate: "2026-10-04", EndDate: "2026-10-04", Confirmed: true}
+	// 23:30 Sunday in Los Angeles is 06:30 Monday UTC. It remains the
+	// scheduled Sunday locally and the inclusive end date still applies.
+	localSunday := time.Date(2026, 10, 4, 23, 30, 0, 0, time.FixedZone("PDT", -7*60*60))
+	if !AppliesOn(sunday, localSunday) {
+		t.Fatal("schedule should apply on the supplied local Sunday even when the UTC date is Monday")
+	}
+}

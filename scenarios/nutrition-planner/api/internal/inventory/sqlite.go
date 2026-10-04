@@ -105,6 +105,67 @@ func (r *sqliteRepository) PrepareBatch(ctx context.Context, workspaceID, eventI
 	return Batch{ID: batchID, RecipeID: recipeID, RecipeRevision: recipeRevision, Yield: yield, Available: yield, Unit: unit}, nil
 }
 
+func (r *sqliteRepository) ListBatches(ctx context.Context, workspaceID string) ([]Batch, error) {
+	rows, err := r.db.QueryContext(ctx, `SELECT batch_id,recipe_id,recipe_revision,yield_amount,available_amount,unit FROM inventory_batches WHERE workspace_id=? ORDER BY batch_id`, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := make([]Batch, 0)
+	for rows.Next() {
+		var b Batch
+		var yield, available string
+		if err := rows.Scan(&b.ID, &b.RecipeID, &b.RecipeRevision, &yield, &available, &b.Unit); err != nil {
+			return nil, err
+		}
+		var err error
+		b.Yield, err = decimalx.Parse(yield)
+		if err != nil {
+			return nil, err
+		}
+		b.Available, err = decimalx.Parse(available)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, b)
+	}
+	return out, rows.Err()
+}
+
+func (r *sqliteRepository) CorrectBatchYield(ctx context.Context, workspaceID, eventID, batchID string, yield decimalx.Decimal, unit string) (Batch, error) {
+	if workspaceID == "" || eventID == "" || batchID == "" || yield.IsUnknown() || yield.IsZero() || unit == "" {
+		return Batch{}, errors.New("yield correction requires workspace, event, batch, known yield, and unit")
+	}
+	if existing, err := r.findEvent(ctx, workspaceID, eventID); err == nil {
+		if existing.Kind != YieldCorrection || existing.BatchID != batchID || existing.Amount.String() != yield.String() || existing.Unit != unit {
+			return Batch{}, fmt.Errorf("idempotency key %q reused with different correction", eventID)
+		}
+		return r.batch(ctx, workspaceID, batchID)
+	}
+	batch, err := r.batch(ctx, workspaceID, batchID)
+	if err != nil {
+		return Batch{}, err
+	}
+	if batch.Unit != unit {
+		return Batch{}, errors.New("corrected yield unit does not match batch")
+	}
+	consumed, _ := decimalx.Sub(batch.Yield, batch.Available)
+	if comparison, _ := decimalx.Compare(yield, consumed); comparison < 0 {
+		return Batch{}, errors.New("corrected yield is below portions already consumed")
+	}
+	available, _ := decimalx.Sub(yield, consumed)
+	if _, err = r.db.ExecContext(ctx, `UPDATE inventory_batches SET yield_amount=?,available_amount=? WHERE workspace_id=? AND batch_id=?`, yield.String(), available.String(), workspaceID, batchID); err != nil {
+		return Batch{}, err
+	}
+	event := Event{ID: eventID, Kind: YieldCorrection, BatchID: batchID, Amount: yield, Unit: unit, RecipeID: batch.RecipeID, CreatedAt: time.Now().UTC()}
+	if err = r.Append(ctx, workspaceID, event); err != nil {
+		return Batch{}, err
+	}
+	batch.Yield = yield
+	batch.Available = available
+	return batch, nil
+}
+
 func (r *sqliteRepository) ConsumeBatchPortion(ctx context.Context, workspaceID, eventID, batchID string, amount decimalx.Decimal, unit, recipeID string, undo bool) (Batch, error) {
 	if eventID == "" || batchID == "" || amount.IsUnknown() || amount.IsZero() || unit == "" {
 		return Batch{}, errors.New("batch portion requires event, batch, known amount, and unit")

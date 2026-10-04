@@ -72,6 +72,7 @@
     {"service": "PlanningService", "method": "GeneratePlan", "reason": "Planning CLI parity is scheduled with the weekly planning surface."},
     {"service": "PlanningService", "method": "ApplyPlan", "reason": "Planning CLI parity is scheduled with the weekly planning surface."},
     {"service": "PlanningService", "method": "PreviewSwap", "reason": "Planning CLI parity is scheduled with the weekly planning surface."},
+    {"service": "PlanningService", "method": "GetPlan", "reason": "The persisted date-range read model is part of E1's authenticated Today/Week UI journey; CLI parity remains outside this epoch."},
     {"service": "PlanningService", "method": "GetShoppingPreview", "reason": "Shopping CLI parity is scheduled with the shopping preview surface."},
     {"service": "PlanningService", "method": "SetShoppingChecked", "reason": "Shopping CLI parity is scheduled with the shopping preview surface."},
     {"service": "PlanningService", "method": "RecordFeedback", "reason": "Feedback CLI parity is scheduled with the feedback surface."},
@@ -100,8 +101,15 @@
     ,{"service": "InventoryService", "method": "PrepareBatch", "reason": "Batch preparation CLI parity is scheduled with pantry and batch operations."}
     ,{"service": "InventoryService", "method": "ConsumeBatchPortion", "reason": "Batch consumption CLI parity is scheduled with pantry and batch operations."}
     ,{"service": "InventoryService", "method": "UndoBatchPortion", "reason": "Batch correction CLI parity is scheduled with pantry and batch operations."}
+    ,{"service": "InventoryService", "method": "ListBatches", "reason": "Prepared batch inventory is reviewed in the authenticated Kitchen page; CLI parity is outside this UI-centered E2 slice."}
+    ,{"service": "InventoryService", "method": "CorrectBatchYield", "reason": "Measured yield corrections are operated in the authenticated Kitchen page; CLI parity is outside this UI-centered E2 slice."}
     ,{"service": "InventoryService", "method": "StageReceiptProposal", "reason": "Receipt review CLI parity is scheduled with the pantry and receipt-adapter surface."}
     ,{"service": "InventoryService", "method": "ListReceiptProposals", "reason": "Receipt review CLI parity is scheduled with the pantry and receipt-adapter surface."}
     ,{"service": "InventoryService", "method": "ApplyReceiptProposal", "reason": "Receipt review CLI parity is scheduled with the pantry and receipt-adapter surface."}
+    ,{"service": "RecipeService", "method": "GetRecipeRevision", "reason": "Revision-addressed meal review is currently exposed through the authenticated app route and API; CLI revision review is not part of the current cooking workflow."}
+    ,{"service": "CookingService", "method": "StartSession", "reason": "Persistent cooking is operated through the authenticated cooking route; cooking CLI parity is outside this UI-centered E2 slice."}
+    ,{"service": "CookingService", "method": "GetSession", "reason": "Persistent cooking is operated through the authenticated cooking route; cooking CLI parity is outside this UI-centered E2 slice."}
+    ,{"service": "CookingService", "method": "ListSessions", "reason": "Persistent cooking is operated through the authenticated cooking route; cooking CLI parity is outside this UI-centered E2 slice."}
+    ,{"service": "CookingService", "method": "SaveSession", "reason": "Persistent cooking is operated through the authenticated cooking route; cooking CLI parity is outside this UI-centered E2 slice."}
   ]
 }

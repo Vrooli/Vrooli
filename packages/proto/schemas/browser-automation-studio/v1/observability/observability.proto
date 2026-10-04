@@ -42,17 +42,6 @@ service ObservabilityService {
   // GetMetrics returns the JSON-parsed Prometheus metrics snapshot.
   rpc GetMetrics(GetMetricsRequest) returns (GetMetricsResponse);
 
-  // GetConfigRuntime returns the current state of all runtime config
-  // overrides held by playwright-driver.
-  rpc GetConfigRuntime(GetConfigRuntimeRequest) returns (GetConfigRuntimeResponse);
-
-  // UpdateConfig updates a single runtime configuration value.
-  rpc UpdateConfig(UpdateConfigRequest) returns (UpdateConfigResponse);
-
-  // ResetConfig resets a runtime configuration value back to its
-  // environment/default value.
-  rpc ResetConfig(ResetConfigRequest) returns (ResetConfigResponse);
-
   // GetDebugMode reports the in-process debug-mode toggle state.
   rpc GetDebugMode(GetDebugModeRequest) returns (DebugModeState);
 
@@ -106,37 +95,6 @@ message GetSessionListResponse {
 message GetMetricsRequest {}
 
 message GetMetricsResponse {
-  google.protobuf.Struct result = 1;
-}
-
-// ---------------------------------------------------------------------------
-// Runtime config
-// ---------------------------------------------------------------------------
-
-message GetConfigRuntimeRequest {}
-
-message GetConfigRuntimeResponse {
-  google.protobuf.Struct result = 1;
-}
-
-message UpdateConfigRequest {
-  // Environment variable name to update.
-  string env_var = 1 [(buf.validate.field).string = {min_len: 1}];
-  // String form of the new value; playwright-driver parses according to
-  // the env var's declared data type.
-  string value = 2;
-}
-
-message UpdateConfigResponse {
-  google.protobuf.Struct result = 1;
-}
-
-message ResetConfigRequest {
-  // Environment variable name to reset.
-  string env_var = 1 [(buf.validate.field).string = {min_len: 1}];
-}
-
-message ResetConfigResponse {
   google.protobuf.Struct result = 1;
 }
 

@@ -142,6 +142,26 @@ class BatchResponse(_message.Message):
     batch: Batch
     def __init__(self, batch: _Optional[_Union[Batch, _Mapping]] = ...) -> None: ...
 
+class ListBatchesResponse(_message.Message):
+    __slots__ = ("batches",)
+    BATCHES_FIELD_NUMBER: _ClassVar[int]
+    batches: _containers.RepeatedCompositeFieldContainer[Batch]
+    def __init__(self, batches: _Optional[_Iterable[_Union[Batch, _Mapping]]] = ...) -> None: ...
+
+class CorrectBatchYieldRequest(_message.Message):
+    __slots__ = ("workspace_id", "event_id", "batch_id", "yield_amount", "unit")
+    WORKSPACE_ID_FIELD_NUMBER: _ClassVar[int]
+    EVENT_ID_FIELD_NUMBER: _ClassVar[int]
+    BATCH_ID_FIELD_NUMBER: _ClassVar[int]
+    YIELD_AMOUNT_FIELD_NUMBER: _ClassVar[int]
+    UNIT_FIELD_NUMBER: _ClassVar[int]
+    workspace_id: str
+    event_id: str
+    batch_id: str
+    yield_amount: str
+    unit: str
+    def __init__(self, workspace_id: _Optional[str] = ..., event_id: _Optional[str] = ..., batch_id: _Optional[str] = ..., yield_amount: _Optional[str] = ..., unit: _Optional[str] = ...) -> None: ...
+
 class ReceiptProposal(_message.Message):
     __slots__ = ("id", "workspace_id", "source_id", "transaction_id", "line_key", "description", "item_id", "amount", "unit", "price", "status", "event_id", "created_at", "applied_at")
     ID_FIELD_NUMBER: _ClassVar[int]

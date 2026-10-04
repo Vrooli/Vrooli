@@ -177,7 +177,7 @@ func (r *sqliteRestorer) ApplyWorkspace(ctx context.Context, workspaceID string,
 		}
 	}
 	if planRecord == nil {
-		if _, err := tx.ExecContext(ctx, `DELETE FROM plans WHERE workspace_id=?`, workspaceID); err != nil {
+		if err := planning.DeletePlanTx(ctx, tx, workspaceID); err != nil {
 			return RestoreResult{}, err
 		}
 	} else {
@@ -191,7 +191,7 @@ func (r *sqliteRestorer) ApplyWorkspace(ctx context.Context, workspaceID string,
 		if err != nil {
 			return RestoreResult{}, err
 		}
-		if _, err := tx.ExecContext(ctx, `INSERT INTO plans(workspace_id,revision,plan_json,updated_at) VALUES(?,?,?,?) ON CONFLICT(workspace_id) DO UPDATE SET revision=excluded.revision,plan_json=excluded.plan_json,updated_at=excluded.updated_at`, workspaceID, previousPlanRevision+1, planJSON, now); err != nil {
+		if err := planning.ReplacePlanTx(ctx, tx, workspaceID, previousPlanRevision+1, planJSON, now); err != nil {
 			return RestoreResult{}, err
 		}
 	}
@@ -451,13 +451,7 @@ func snapshotCurrent(ctx context.Context, tx *sql.Tx, workspaceID string) ([]Rec
 }
 
 func readPlan(ctx context.Context, tx *sql.Tx, workspaceID string) (int64, string, error) {
-	var revision int64
-	var plan string
-	err := tx.QueryRowContext(ctx, `SELECT revision,plan_json FROM plans WHERE workspace_id=?`, workspaceID).Scan(&revision, &plan)
-	if errors.Is(err, sql.ErrNoRows) {
-		return 0, "", nil
-	}
-	return revision, plan, err
+	return planning.ReadPlanTx(ctx, tx, workspaceID)
 }
 
 func remapPlan(raw string, remap map[string]string) (string, error) {

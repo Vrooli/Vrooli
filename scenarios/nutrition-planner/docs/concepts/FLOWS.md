@@ -417,3 +417,7 @@ run `make temporal-models` and the scenario tests.
 - [`../internal/REDESIGN_PLAN.md`](../internal/REDESIGN_PLAN.md) — build order and blocking defects
 - [`../reference/product-specification.md`](../reference/product-specification.md) — R03, R08–R16, R18, R22, R24, R27, Appendix A §4, §14–§18
 - [Shared harness recipes](/scenarios/template-manager/docs/internal/TESTING-RECIPES.md#temporal-workflow-tests) — matrix and trace testing
+
+### Selected offline stock/intake route (ND-016)
+
+Loaded checks, lists, recipes and local timers remain usable. Stock/intake drafts follow draft → reconnect revalidation → impact review → explicit online confirmation → atomic authoritative event. Canceling review has zero stock/intake effect; stale input requires fresh review, duplicate confirmation is idempotent, and account changes partition/clear private cached drafts. Checklist replay never confirms purchase or intake.

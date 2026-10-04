@@ -3,8 +3,8 @@
 > **Template Version**: 2.0
 > **Canonical Reference**: `/scenarios/business-health/docs/reference/canonical-prd-template.md`
 > **Validation**: Enforced by `business-health` (the test-genie `business` phase)
-> **Policy**: Generated once and treated as read-only (checkboxes may auto-update)
-> **Revision**: Regenerated 2026-09-22 for the v2.0 redesign (decision D-025). Target IDs from the 2026-09-18 charter are kept stable; superseded descriptions were rewritten and redesign targets were added.
+> **Policy**: Canonical owner-directed target; this documentation revision is explicitly authorized, and checkboxes remain evidence-driven.
+> **Revision**: Reconciled 2026-10-03 to owner-approved ND-007–025 and exact core30/Today v02; implementation remains unproven. Originally regenerated 2026-09-22 for the v2.0 redesign (decision D-025). Target IDs from the 2026-09-18 charter are kept stable; superseded descriptions were rewritten and redesign targets were added.
 
 ## 🎯 Overview
 - **Purpose**: Add the permanent capability to decide what to eat, plan a realistic week, shop, use one's kitchen, and cook — while balancing a person's own nutrition goals, dietary rules, available effort, variety, and cost across the whole day's food and supplements — with near-zero ongoing research or decision work. Every number is explained, scoped to what is actually known, and never invented, and the experience is beautiful enough to open every day: a calm cookbook in a warm kitchen that survives ordinary photos, incomplete information, small screens, and unavailable AI providers.
@@ -28,14 +28,14 @@
 - [ ] OT-P0-011 | Groceries Review and Shop, inventory, and leftovers | The scenario shall derive a stable shopping list with Review and Shop modes, picked-up rows with undo, Have this stock assertions, idempotent purchase confirmation, and reviewable plan-change diffs, over an event-based stock ledger in which planned reservations never consume on-hand stock
 - [ ] OT-P0-012 | Cost model and price book | The scenario shall keep allocated portion cost, estimated checkout, and recorded actual spend separate and labeled, record price observations with retailer, package, conditions, date, and freshness, and never fabricate savings, global prices, or a total that hides unpriced items
 - [ ] OT-P0-013 | Portability and printing | The scenario shall export and import native namespaced JSON with review before write, semantic round-trip, legacy import, and recoverable restore, and shall produce real vector recipe, week, and grocery PDFs in a light print theme plus safe CSV, never exporting secrets or tenant authority
-- [ ] OT-P0-014 | Persistence, concurrency, offline, and recovery | The scenario shall show honest saving states, apply idempotent revision-checked mutations with all-or-nothing effects where specified, run versioned migrations that preserve existing records, and queue offline shopping and timer actions in a bounded outbox that replays without double-applying
+- [ ] OT-P0-014 | Persistence, concurrency, offline, and recovery | The scenario shall show honest saving states, apply idempotent revision-checked mutations with all-or-nothing effects where specified, run versioned migrations that preserve existing records, and keep loaded lists/checks, recipes and local timers usable offline, and stage stock/intake drafts for revalidation and explicit online review/confirmation without silent authoritative replay
 - [ ] OT-P0-015 | Accessible, device-composed experience | The scenario shall meet a WCAG 2.2 AA target and compose each surface for its medium — distinct phone component trees where the interaction changes, five labeled bottom tabs with safe-area padding, 44 px targets, reduced motion, and no page-level horizontal scrolling
 - [ ] OT-P0-016 | Five-destination shell and unified appearances | The scenario shall present exactly five primary destinations — Today, Week, Meals, Groceries, Kitchen — in the same order on desktop and phone plus Settings, and Light, Evening, and Follow device appearances from one semantic token system that persist without a bright flash and never change food data or start generation
 - [ ] OT-P0-017 | Meal artwork with honest fallbacks | Meal heroes and cards shall render one layout with a scene, cutout, editorial, or minimal treatment chosen deterministically from approved, versioned, rights-tracked media metadata, and a missing, failed, stale, or incompatible asset shall fall back without a broken image, layout shift, or generation request
 - [ ] OT-P0-018 | Explore meals that fit | Explore shall rank curated and user-approved recipes through the planner's eligibility filter with structured reasons, carry explicit slot context such as Planning Wednesday dinner, and save or add a meal to the week idempotently without silently replacing an occurrence
 - [ ] OT-P0-019 | Focused cooking sessions and durable timers | When a user starts cooking, the scenario shall create or resume a session pinned to the recipe revision, method, and scale, record step completion only through an explicit action, run absolute-timestamp timers that survive reload and multiple tabs, and separate batch confirmation from recorded intake
 - [ ] OT-P0-020 | Kitchen inventory, equipment, and preferences | The Kitchen destination shall hold optional exact-or-qualitative dated inventory grouped by storage, equipment modeled as physical devices exposing capabilities through complete tiles plus an interactive curated scene, and grouped preferences whose required-rule changes preview their conflicts
-- [ ] OT-P0-021 | Reference-quality visual fidelity | Every primary surface, Explore, recipe detail, cooking mode, and equipment selection shall match the approved concept mockups' hierarchy, composition, typography, imagery, and atmosphere in both appearances at desktop and phone widths, verified by captures compared with the mockups and within published media budgets
+- [ ] OT-P0-021 | Reference-quality visual fidelity | Every primary surface, Explore, recipe detail, cooking mode, and equipment selection shall match the selected core30 and Today v02 references' hierarchy, composition, typography, imagery, and atmosphere in both appearances at desktop and phone widths, verified by captures compared with the mockups and within published media budgets
 
 ### 🟠 P1 – Should have post-launch
 - [ ] OT-P1-001 | AI-assisted capture and review | The scenario should turn messy text, labels, and links into validated proposals through a capture, extract, validate, compare, review, and apply pipeline whose proposals never become truth or overwrite newer edits, and should stay useful with no model configured
@@ -75,7 +75,14 @@
 
 ## 📎 Appendix
 - Canonical product and implementation specification: [`docs/reference/product-specification.md`](docs/reference/product-specification.md) — v2.0 redesign sections R01–R30, the retained v1.0 domain specification as Appendix A, and repository notes as Appendix C.
-- Visual target: [`docs/reference/mockups/README.md`](docs/reference/mockups/README.md) and the fifteen concept mockups beside it.
+- Visual target: [`docs/reference/mockups/README.md`](docs/reference/mockups/README.md) and the exact core30/Today v02 version/hash inventory in docs/reference/selected-2026-10-03/core-visual-inventory.json.
 - Implementation plan and goal notes: [`docs/internal/REDESIGN_PLAN.md`](docs/internal/REDESIGN_PLAN.md), [`docs/internal/REDESIGN_GOAL.md`](docs/internal/REDESIGN_GOAL.md), [`docs/internal/REDESIGN_LEDGER.md`](docs/internal/REDESIGN_LEDGER.md).
 - Domain, data, flow, and experience contracts: [`docs/concepts/DOMAINS.md`](docs/concepts/DOMAINS.md), [`docs/concepts/DATA.md`](docs/concepts/DATA.md), [`docs/concepts/FLOWS.md`](docs/concepts/FLOWS.md), [`docs/concepts/EXPERIENCE.md`](docs/concepts/EXPERIENCE.md), and [`experience/index.json`](experience/index.json).
 - Redesign requirement register RD-001–RD-024, acceptance cases AT-001–AT-052, baseline acceptance matrix ACT-001–ACT-063, and fixtures FIX-01–FIX-11 live in the specification (R04, R27, Appendix A §20–§21).
+
+**Selected 2026-10-03 contract**
+
+
+The operative 2026-10-03 specification selections govern all operational targets: docs/reference/product-specification.md §Operative selection. ND-007–025 are mapped to existing requirement IDs; no implementation or acceptance status is promoted. Five destinations and all retained P0/P1 closure obligations remain required. Scene studio, automatic generation, autonomous ordering and billing activation remain deferred.
+
+

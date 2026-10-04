@@ -1,8 +1,15 @@
 # Nooch redesign — implementation plan and goal notes
 
+## Current delivery authority
+
+Current outcome and acceptance: [GOAL](goal/GOAL.md) and [ACCEPTANCE](goal/ACCEPTANCE.md). Current progress, findings, capture receipts and directives belong to [QUEUE](goal/QUEUE.md) and the admitted [epoch records](goal/epochs/); new owner feedback belongs to [FEEDBACK](goal/FEEDBACK.md) through the existing orchestrator. Import unresolved assigned historical feedback with its original words and source. The remaining build spine and convergence instructions below are historical reference, not a current dispatch or write procedure.
+
+The 2026-10-03 owner-selected amendments in product-specification.md are operative. Native epochs in docs/internal/goal replace this historical build spine as the current execution ledger. Full product closure remains required; selected core30 + Today v02 replaces the historical fifteen concepts. No product implementation is claimed by this reconciliation. Offline stock/intake drafts require online review/confirmation, launch generation is manual-only Off by default, and NF-010 timer access belongs in the first phone viewport.
+
+
 **Scenario:** `nutrition-planner` (display name **Nooch**) · **Written:** 2026-09-22 ·
-**Drives:** the convergence goal in [`REDESIGN_GOAL.md`](REDESIGN_GOAL.md) ·
-**Tracks progress in:** [`REDESIGN_LEDGER.md`](REDESIGN_LEDGER.md) and
+**Historical goal:** the convergence goal in [`REDESIGN_GOAL.md`](REDESIGN_GOAL.md) ·
+**Historical progress records:** [`REDESIGN_LEDGER.md`](REDESIGN_LEDGER.md) and
 [`OPERATOR_FEEDBACK.md`](OPERATOR_FEEDBACK.md)
 
 This document turns the v2.0 specification and the fifteen approved concept
@@ -651,7 +658,7 @@ brackets.
 ### 6.13 Settings [settings]
 
 - **No mockup.** Appearance; Meal artwork (presentation: Immersive, Editorial,
-  Minimal); Generation & usage (Off / Ask each time / Automatic within budget, with
+  Minimal); Generation & usage (Off / manual Ask each time at launch, with
   usage, reservations, queued jobs); Integrations (personal-planner); Notifications;
   Units, currency, timezone, week start; Data & exports (the former `/transfer`);
   Account. Unsupported features are omitted or explained (R16).

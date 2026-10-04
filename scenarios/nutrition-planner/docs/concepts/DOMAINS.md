@@ -143,7 +143,7 @@ serves, and what exists today.
 
 ### generation
 
-- **Owns**: the generation policy (Off, Ask each time, Automatic within budget), quotes,
+- **Owns**: the generation policy (Off and manual Ask each time at launch), quotes,
   atomic budget reservations and settlement, dedup keys, job states, review, and activation
   (R18).
 - **Key rule**: default Off; no generation from views, theme changes, search, hover, or

@@ -1,9 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { create } from "@bufbuild/protobuf";
+import { CatalogRevisionSchema, NutrientValueSchema } from "@vrooli/proto-types/nutrition-planner/v1/catalog/catalog_pb";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "../../test-utils";
 
 const listTargets = vi.hoisted(() => vi.fn());
+const listCatalogRevisions = vi.hoisted(() => vi.fn().mockResolvedValue([]));
 const createTarget = vi.hoisted(() => vi.fn());
 const listIntakes = vi.hoisted(() => vi.fn());
 const recordIntake = vi.hoisted(() => vi.fn());
@@ -15,13 +18,21 @@ const listRoutineTemplates = vi.hoisted(() => vi.fn());
 const createRoutineTemplate = vi.hoisted(() => vi.fn());
 const generateRoutineOccurrences = vi.hoisted(() => vi.fn());
 vi.mock("../../api/nutrition", () => ({ listTargets, createTarget, listIntakes, recordIntake, evaluateScope }));
+vi.mock("../../api/catalog", () => ({ listCatalogRevisions }));
 vi.mock("../../api/supplement", () => ({ listSupplementSchedules, createSupplementSchedule, updateSupplementSchedule }));
 vi.mock("../../api/routine", () => ({ listRoutineTemplates, createRoutineTemplate, generateRoutineOccurrences }));
 vi.mock("../../api/workspace", () => ({ ensureWorkspace: vi.fn().mockResolvedValue({ id: "w1" }) }));
 import { NutritionPage } from "./NutritionPage";
 
 describe("NutritionPage", () => {
-  beforeEach(() => { vi.clearAllMocks(); listTargets.mockResolvedValue([]); listIntakes.mockResolvedValue([]); listSupplementSchedules.mockResolvedValue([]); listRoutineTemplates.mockResolvedValue([]); evaluateScope.mockResolvedValue({ nutrientId: "protein", known: "0", complete: true, unresolved: [], status: "pass", reason: "complete" }); });
+  beforeEach(() => { vi.clearAllMocks(); listCatalogRevisions.mockResolvedValue([]); listTargets.mockResolvedValue([]); listIntakes.mockResolvedValue([]); listSupplementSchedules.mockResolvedValue([]); listRoutineTemplates.mockResolvedValue([]); evaluateScope.mockResolvedValue({ nutrientId: "protein", known: "0", complete: true, unresolved: [], status: "pass", reason: "complete" }); });
+  it("offers pinned catalog revisions for evidence-backed supplement schedules", async () => {
+    listCatalogRevisions.mockResolvedValue([create(CatalogRevisionSchema, { id: "vitamin-d", revision: 3n, name: "Vitamin D", productName: "D3 softgel", servingQuantity: "1", servingUnit: "capsule", nutrients: [create(NutrientValueSchema, { nutrientId: "vitamin_d", amount: "25", unit: "mcg", basis: "1", basisUnit: "capsule", evidence: "label" })] })]);
+    renderWithProviders(<NutritionPage />);
+    await waitFor(() => expect(screen.getByLabelText("Product revision ID")).toHaveAttribute("list", "supplement-catalog-options"));
+    expect(document.querySelector('#supplement-catalog-options option[value="catalog:vitamin-d:3"]')).toHaveAttribute("label", "D3 softgel · revision 3");
+  });
+
   it("keeps an empty account honest and saves only an entered target", async () => {
     renderWithProviders(<NutritionPage />);
     await waitFor(() => expect(screen.getByText("No targets configured")).toBeInTheDocument());

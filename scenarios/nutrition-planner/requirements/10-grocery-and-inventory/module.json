@@ -59,7 +59,7 @@
       "prd_ref": "OT-P0-011",
       "category": "storage",
       "criticality": "P0",
-      "description": "The scenario shall represent stock through events for purchase, assertion, correction, preparation consumption, batch creation, portion consumption, waste, transfer, and reversal, each with an idempotency key, and the current projection shall be recomputable and testable.",
+      "description": "The scenario shall represent stock through events for purchase, assertion, correction, preparation consumption, batch creation, portion consumption, waste, transfer, and reversal, each with an idempotency key, and the current projection shall be recomputable and testable. Mandatory evidence retains source, basis, unit, date/revision, contributors, authority and correction path through concise qualifiers and existing expandable details/editors (ND-022).",
       "tags": [
         "inventory",
         "ledger",
@@ -103,7 +103,7 @@
       "prd_ref": "OT-P0-011",
       "category": "policy",
       "criticality": "P0",
-      "description": "Checking a shopping row shall mean only picked up; Have this shall create or update a stock assertion with an exact or qualitative basis without checking the row; Confirm purchases shall preview actual amounts and optional prices and create purchase and inventory events atomically and exactly once with partial fulfillment keeping the remaining need visible; and no shopping action shall record intake.",
+      "description": "Checking a shopping row shall mean picked up only; at end of trip the scenario shall offer a combined actual-purchase review preserving corrections to amount/price, omissions and partial fulfillment, and Confirm purchases shall create purchase and stock events atomically exactly once with remaining need visible; no check or purchase records eating (ND-015).",
       "tags": [
         "checkout",
         "purchase",
@@ -121,6 +121,12 @@
           "phase": "integration",
           "status": "planned",
           "notes": "Planned: confirming a partial purchase twice through a retry applies the actual quantity once and leaves the remainder visible (AT-032, ACT-025)."
+        },
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "planned",
+          "notes": "Given the selected 2026-10-03 contract, when GROC-005 behavior is exercised on persisted isolated fixtures, then the selected amendment and unchanged domain invariants hold. Exact test reference must be earned; no validation claimed."
         }
       ]
     },

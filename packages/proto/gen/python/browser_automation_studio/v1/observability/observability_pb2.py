@@ -26,7 +26,7 @@ from buf.validate import validate_pb2 as buf_dot_validate_dot_validate__pb2
 from google.protobuf import struct_pb2 as google_dot_protobuf_dot_struct__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n>browser-automation-studio/v1/observability/observability.proto\x12*browser_automation_studio.v1.observability\x1a\x1b\x62uf/validate/validate.proto\x1a\x1cgoogle/protobuf/struct.proto\"J\n\x17GetObservabilityRequest\x12\x14\n\x05\x64\x65pth\x18\x01 \x01(\tR\x05\x64\x65pth\x12\x19\n\x08no_cache\x18\x02 \x01(\x08R\x07noCache\"O\n\x18GetObservabilityResponse\x12\x33\n\x08snapshot\x18\x01 \x01(\x0b\x32\x17.google.protobuf.StructR\x08snapshot\"\x1d\n\x1bRefreshObservabilityRequest\"O\n\x1cRefreshObservabilityResponse\x12/\n\x06result\x18\x01 \x01(\x0b\x32\x17.google.protobuf.StructR\x06result\"\x17\n\x15GetSessionListRequest\"I\n\x16GetSessionListResponse\x12/\n\x06result\x18\x01 \x01(\x0b\x32\x17.google.protobuf.StructR\x06result\"\x13\n\x11GetMetricsRequest\"E\n\x12GetMetricsResponse\x12/\n\x06result\x18\x01 \x01(\x0b\x32\x17.google.protobuf.StructR\x06result\"\x19\n\x17GetConfigRuntimeRequest\"K\n\x18GetConfigRuntimeResponse\x12/\n\x06result\x18\x01 \x01(\x0b\x32\x17.google.protobuf.StructR\x06result\"M\n\x13UpdateConfigRequest\x12 \n\x07\x65nv_var\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x06\x65nvVar\x12\x14\n\x05value\x18\x02 \x01(\tR\x05value\"G\n\x14UpdateConfigResponse\x12/\n\x06result\x18\x01 \x01(\x0b\x32\x17.google.protobuf.StructR\x06result\"6\n\x12ResetConfigRequest\x12 \n\x07\x65nv_var\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x06\x65nvVar\"F\n\x13ResetConfigResponse\x12/\n\x06result\x18\x01 \x01(\x0b\x32\x17.google.protobuf.StructR\x06result\"\x15\n\x13GetDebugModeRequest\"z\n\x13SetDebugModeRequest\x12\x18\n\x07\x65nabled\x18\x01 \x01(\x08R\x07\x65nabled\x12\x1e\n\ncomponents\x18\x02 \x03(\tR\ncomponents\x12)\n\x10\x64uration_minutes\x18\x03 \x01(\x05R\x0f\x64urationMinutes\"\x90\x01\n\x0e\x44\x65\x62ugModeState\x12\x18\n\x07\x65nabled\x18\x01 \x01(\x08R\x07\x65nabled\x12\x1e\n\ncomponents\x18\x02 \x03(\tR\ncomponents\x12\x1d\n\nexpires_at\x18\x03 \x01(\tR\texpiresAt\x12%\n\x0eremaining_mins\x18\x04 \x01(\x05R\rremainingMins2\xeb\n\n\x14ObservabilityService\x12\x9d\x01\n\x10GetObservability\x12\x43.browser_automation_studio.v1.observability.GetObservabilityRequest\x1a\x44.browser_automation_studio.v1.observability.GetObservabilityResponse\x12\xa9\x01\n\x14RefreshObservability\x12G.browser_automation_studio.v1.observability.RefreshObservabilityRequest\x1aH.browser_automation_studio.v1.observability.RefreshObservabilityResponse\x12\x97\x01\n\x0eGetSessionList\x12\x41.browser_automation_studio.v1.observability.GetSessionListRequest\x1a\x42.browser_automation_studio.v1.observability.GetSessionListResponse\x12\x8b\x01\n\nGetMetrics\x12=.browser_automation_studio.v1.observability.GetMetricsRequest\x1a>.browser_automation_studio.v1.observability.GetMetricsResponse\x12\x9d\x01\n\x10GetConfigRuntime\x12\x43.browser_automation_studio.v1.observability.GetConfigRuntimeRequest\x1a\x44.browser_automation_studio.v1.observability.GetConfigRuntimeResponse\x12\x91\x01\n\x0cUpdateConfig\x12?.browser_automation_studio.v1.observability.UpdateConfigRequest\x1a@.browser_automation_studio.v1.observability.UpdateConfigResponse\x12\x8e\x01\n\x0bResetConfig\x12>.browser_automation_studio.v1.observability.ResetConfigRequest\x1a?.browser_automation_studio.v1.observability.ResetConfigResponse\x12\x8b\x01\n\x0cGetDebugMode\x12?.browser_automation_studio.v1.observability.GetDebugModeRequest\x1a:.browser_automation_studio.v1.observability.DebugModeState\x12\x8b\x01\n\x0cSetDebugMode\x12?.browser_automation_studio.v1.observability.SetDebugModeRequest\x1a:.browser_automation_studio.v1.observability.DebugModeStateBiZggithub.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/observability;observabilityb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n>browser-automation-studio/v1/observability/observability.proto\x12*browser_automation_studio.v1.observability\x1a\x1b\x62uf/validate/validate.proto\x1a\x1cgoogle/protobuf/struct.proto\"J\n\x17GetObservabilityRequest\x12\x14\n\x05\x64\x65pth\x18\x01 \x01(\tR\x05\x64\x65pth\x12\x19\n\x08no_cache\x18\x02 \x01(\x08R\x07noCache\"O\n\x18GetObservabilityResponse\x12\x33\n\x08snapshot\x18\x01 \x01(\x0b\x32\x17.google.protobuf.StructR\x08snapshot\"\x1d\n\x1bRefreshObservabilityRequest\"O\n\x1cRefreshObservabilityResponse\x12/\n\x06result\x18\x01 \x01(\x0b\x32\x17.google.protobuf.StructR\x06result\"\x17\n\x15GetSessionListRequest\"I\n\x16GetSessionListResponse\x12/\n\x06result\x18\x01 \x01(\x0b\x32\x17.google.protobuf.StructR\x06result\"\x13\n\x11GetMetricsRequest\"E\n\x12GetMetricsResponse\x12/\n\x06result\x18\x01 \x01(\x0b\x32\x17.google.protobuf.StructR\x06result\"\x15\n\x13GetDebugModeRequest\"z\n\x13SetDebugModeRequest\x12\x18\n\x07\x65nabled\x18\x01 \x01(\x08R\x07\x65nabled\x12\x1e\n\ncomponents\x18\x02 \x03(\tR\ncomponents\x12)\n\x10\x64uration_minutes\x18\x03 \x01(\x05R\x0f\x64urationMinutes\"\x90\x01\n\x0e\x44\x65\x62ugModeState\x12\x18\n\x07\x65nabled\x18\x01 \x01(\x08R\x07\x65nabled\x12\x1e\n\ncomponents\x18\x02 \x03(\tR\ncomponents\x12\x1d\n\nexpires_at\x18\x03 \x01(\tR\texpiresAt\x12%\n\x0eremaining_mins\x18\x04 \x01(\x05R\rremainingMins2\xa6\x07\n\x14ObservabilityService\x12\x9d\x01\n\x10GetObservability\x12\x43.browser_automation_studio.v1.observability.GetObservabilityRequest\x1a\x44.browser_automation_studio.v1.observability.GetObservabilityResponse\x12\xa9\x01\n\x14RefreshObservability\x12G.browser_automation_studio.v1.observability.RefreshObservabilityRequest\x1aH.browser_automation_studio.v1.observability.RefreshObservabilityResponse\x12\x97\x01\n\x0eGetSessionList\x12\x41.browser_automation_studio.v1.observability.GetSessionListRequest\x1a\x42.browser_automation_studio.v1.observability.GetSessionListResponse\x12\x8b\x01\n\nGetMetrics\x12=.browser_automation_studio.v1.observability.GetMetricsRequest\x1a>.browser_automation_studio.v1.observability.GetMetricsResponse\x12\x8b\x01\n\x0cGetDebugMode\x12?.browser_automation_studio.v1.observability.GetDebugModeRequest\x1a:.browser_automation_studio.v1.observability.DebugModeState\x12\x8b\x01\n\x0cSetDebugMode\x12?.browser_automation_studio.v1.observability.SetDebugModeRequest\x1a:.browser_automation_studio.v1.observability.DebugModeStateBiZggithub.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/observability;observabilityb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -34,10 +34,6 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'browser_automation_studio.v
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'Zggithub.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/observability;observability'
-  _globals['_UPDATECONFIGREQUEST'].fields_by_name['env_var']._loaded_options = None
-  _globals['_UPDATECONFIGREQUEST'].fields_by_name['env_var']._serialized_options = b'\272H\004r\002\020\001'
-  _globals['_RESETCONFIGREQUEST'].fields_by_name['env_var']._loaded_options = None
-  _globals['_RESETCONFIGREQUEST'].fields_by_name['env_var']._serialized_options = b'\272H\004r\002\020\001'
   _globals['_GETOBSERVABILITYREQUEST']._serialized_start=169
   _globals['_GETOBSERVABILITYREQUEST']._serialized_end=243
   _globals['_GETOBSERVABILITYRESPONSE']._serialized_start=245
@@ -54,24 +50,12 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_GETMETRICSREQUEST']._serialized_end=557
   _globals['_GETMETRICSRESPONSE']._serialized_start=559
   _globals['_GETMETRICSRESPONSE']._serialized_end=628
-  _globals['_GETCONFIGRUNTIMEREQUEST']._serialized_start=630
-  _globals['_GETCONFIGRUNTIMEREQUEST']._serialized_end=655
-  _globals['_GETCONFIGRUNTIMERESPONSE']._serialized_start=657
-  _globals['_GETCONFIGRUNTIMERESPONSE']._serialized_end=732
-  _globals['_UPDATECONFIGREQUEST']._serialized_start=734
-  _globals['_UPDATECONFIGREQUEST']._serialized_end=811
-  _globals['_UPDATECONFIGRESPONSE']._serialized_start=813
-  _globals['_UPDATECONFIGRESPONSE']._serialized_end=884
-  _globals['_RESETCONFIGREQUEST']._serialized_start=886
-  _globals['_RESETCONFIGREQUEST']._serialized_end=940
-  _globals['_RESETCONFIGRESPONSE']._serialized_start=942
-  _globals['_RESETCONFIGRESPONSE']._serialized_end=1012
-  _globals['_GETDEBUGMODEREQUEST']._serialized_start=1014
-  _globals['_GETDEBUGMODEREQUEST']._serialized_end=1035
-  _globals['_SETDEBUGMODEREQUEST']._serialized_start=1037
-  _globals['_SETDEBUGMODEREQUEST']._serialized_end=1159
-  _globals['_DEBUGMODESTATE']._serialized_start=1162
-  _globals['_DEBUGMODESTATE']._serialized_end=1306
-  _globals['_OBSERVABILITYSERVICE']._serialized_start=1309
-  _globals['_OBSERVABILITYSERVICE']._serialized_end=2696
+  _globals['_GETDEBUGMODEREQUEST']._serialized_start=630
+  _globals['_GETDEBUGMODEREQUEST']._serialized_end=651
+  _globals['_SETDEBUGMODEREQUEST']._serialized_start=653
+  _globals['_SETDEBUGMODEREQUEST']._serialized_end=775
+  _globals['_DEBUGMODESTATE']._serialized_start=778
+  _globals['_DEBUGMODESTATE']._serialized_end=922
+  _globals['_OBSERVABILITYSERVICE']._serialized_start=925
+  _globals['_OBSERVABILITYSERVICE']._serialized_end=1859
 # @@protoc_insertion_point(module_scope)

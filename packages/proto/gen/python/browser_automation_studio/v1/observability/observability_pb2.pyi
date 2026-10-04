@@ -52,42 +52,6 @@ class GetMetricsResponse(_message.Message):
     result: _struct_pb2.Struct
     def __init__(self, result: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...
 
-class GetConfigRuntimeRequest(_message.Message):
-    __slots__ = ()
-    def __init__(self) -> None: ...
-
-class GetConfigRuntimeResponse(_message.Message):
-    __slots__ = ("result",)
-    RESULT_FIELD_NUMBER: _ClassVar[int]
-    result: _struct_pb2.Struct
-    def __init__(self, result: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...
-
-class UpdateConfigRequest(_message.Message):
-    __slots__ = ("env_var", "value")
-    ENV_VAR_FIELD_NUMBER: _ClassVar[int]
-    VALUE_FIELD_NUMBER: _ClassVar[int]
-    env_var: str
-    value: str
-    def __init__(self, env_var: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
-
-class UpdateConfigResponse(_message.Message):
-    __slots__ = ("result",)
-    RESULT_FIELD_NUMBER: _ClassVar[int]
-    result: _struct_pb2.Struct
-    def __init__(self, result: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...
-
-class ResetConfigRequest(_message.Message):
-    __slots__ = ("env_var",)
-    ENV_VAR_FIELD_NUMBER: _ClassVar[int]
-    env_var: str
-    def __init__(self, env_var: _Optional[str] = ...) -> None: ...
-
-class ResetConfigResponse(_message.Message):
-    __slots__ = ("result",)
-    RESULT_FIELD_NUMBER: _ClassVar[int]
-    result: _struct_pb2.Struct
-    def __init__(self, result: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...
-
 class GetDebugModeRequest(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...

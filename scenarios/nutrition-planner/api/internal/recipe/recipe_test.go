@@ -37,6 +37,10 @@ func TestRevisionHistoryAndWorkspaceIsolation(t *testing.T) {
 	if _, e := s.Update(ctx, UpdateInput{WorkspaceID: "w1", ID: v.ID, ExpectedRevision: 1, Name: "Conflict"}); e == nil {
 		t.Fatal("stale update accepted")
 	}
+	historical, e := s.GetRevision(ctx, v.ID, "w1", 1)
+	if e != nil || historical.Name != "Bowl" || historical.Revision != 1 {
+		t.Fatalf("historical revision %#v %v", historical, e)
+	}
 	old, e := r.Get(ctx, v.ID, "w1")
 	if e != nil || old.Name != "Better Bowl" || old.Revision != 2 {
 		t.Fatalf("current %#v %v", old, e)
@@ -82,5 +86,25 @@ func TestRecipeYieldAndIngredientsPersistAcrossRevisions(t *testing.T) {
 	}
 	if first.CanonicalYield != "2" || first.Ingredients[0].Amount != "40" {
 		t.Fatalf("create snapshot mutated=%#v", first)
+	}
+}
+
+func TestMethodsCanReferenceRecipeIngredientsAndEarlierOutputs(t *testing.T) {
+	s := NewService(repo(t))
+	ctx := context.Background()
+	method := Method{ID: "stovetop", Name: "Stovetop", Steps: []MethodStep{
+		{ID: "prepare", Instruction: "Prepare the rice", Inputs: []string{"rice"}, Outputs: []string{"base"}},
+		{ID: "finish", Instruction: "Finish the bowl", DependsOn: []string{"prepare"}, Inputs: []string{"base"}, Outputs: []string{"bowl"}},
+	}}
+	created, err := s.Create(ctx, CreateInput{WorkspaceID: "w1", Name: "Bowl", Ingredients: []Ingredient{{ID: "rice", Name: "Rice"}}, Methods: []Method{method}})
+	if err != nil {
+		t.Fatalf("create method graph: %v", err)
+	}
+	updated, err := s.Update(ctx, UpdateInput{WorkspaceID: "w1", ID: created.ID, ExpectedRevision: created.Revision, Name: "Bowl", Ingredients: []Ingredient{{ID: "rice", Name: "Rice"}}, Methods: []Method{method}})
+	if err != nil || updated.Revision != 2 || updated.Methods[0].Steps[1].Inputs[0] != "base" {
+		t.Fatalf("update method graph = %#v, %v", updated, err)
+	}
+	if _, err := s.Create(ctx, CreateInput{WorkspaceID: "w1", Name: "Broken", Ingredients: []Ingredient{{ID: "rice"}}, Methods: []Method{{ID: "invalid", Steps: []MethodStep{{ID: "mix", Inputs: []string{"missing"}}}}}}); err == nil {
+		t.Fatal("method graph with a dangling ingredient reference was accepted")
 	}
 }

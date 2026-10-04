@@ -76,6 +76,66 @@ func TestSQLiteBatchPreparationConsumesRawOnceAndUndoIsIdempotent(t *testing.T) 
 	}
 }
 
+func TestSQLiteListBatchesReturnsMeasuredYieldPerWorkspace(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err = db.Exec(Schema()); err != nil {
+		t.Fatal(err)
+	}
+	repo := NewSQLiteRepository(db).(BatchRepository)
+	yield, _ := decimalx.Parse("3.5")
+	if _, err = repo.PrepareBatch(context.Background(), "w1", "cook-yield-1", "cook-session-1", "recipe-1", 2, yield, "bowl", nil); err != nil {
+		t.Fatal(err)
+	}
+	items, err := repo.ListBatches(context.Background(), "w1")
+	if err != nil || len(items) != 1 || items[0].Yield.String() != "3.5" || items[0].Available.String() != "3.5" {
+		t.Fatalf("batches=%#v err=%v", items, err)
+	}
+	other, err := repo.ListBatches(context.Background(), "w2")
+	if err != nil || len(other) != 0 {
+		t.Fatalf("workspace leaked batch: %#v err=%v", other, err)
+	}
+}
+
+func TestSQLiteCorrectBatchYieldPreservesConsumedPortionsAndIsIdempotent(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err = db.Exec(Schema()); err != nil {
+		t.Fatal(err)
+	}
+	repo := NewSQLiteRepository(db).(BatchRepository)
+	yield, _ := decimalx.Parse("4")
+	if _, err = repo.PrepareBatch(context.Background(), "w1", "prep", "b1", "r1", 1, yield, "bowl", nil); err != nil {
+		t.Fatal(err)
+	}
+	one, _ := decimalx.Parse("1")
+	if _, err = repo.ConsumeBatchPortion(context.Background(), "w1", "eat", "b1", one, "bowl", "r1", false); err != nil {
+		t.Fatal(err)
+	}
+	correctedYield, _ := decimalx.Parse("5")
+	corrected, err := repo.CorrectBatchYield(context.Background(), "w1", "correct-1", "b1", correctedYield, "bowl")
+	if err != nil || corrected.Yield.String() != "5" || corrected.Available.String() != "4" {
+		t.Fatalf("corrected batch=%#v err=%v", corrected, err)
+	}
+	retry, err := repo.CorrectBatchYield(context.Background(), "w1", "correct-1", "b1", correctedYield, "bowl")
+	if err != nil || retry.Available.String() != "4" {
+		t.Fatalf("retry changed availability: %#v err=%v", retry, err)
+	}
+	tooLow, _ := decimalx.Parse("0.5")
+	if _, err = repo.CorrectBatchYield(context.Background(), "w1", "correct-2", "b1", tooLow, "bowl"); err == nil {
+		t.Fatal("accepted yield below portions already consumed")
+	}
+	if _, err = repo.CorrectBatchYield(context.Background(), "w1", "correct-1", "b1", one, "bowl"); err == nil {
+		t.Fatal("accepted changed payload under the same correction key")
+	}
+}
+
 func TestSQLiteReceiptProposalsStageWithoutStockAndApplyOnce(t *testing.T) {
 	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {

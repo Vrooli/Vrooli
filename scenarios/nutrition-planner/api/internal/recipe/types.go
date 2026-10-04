@@ -46,6 +46,7 @@ type Repository interface {
 	Create(context.Context, Recipe) (Recipe, error)
 	List(context.Context, string) ([]Recipe, error)
 	Get(context.Context, string, string) (Recipe, error)
+	GetRevision(context.Context, string, string, int64) (Recipe, error)
 	Update(context.Context, UpdateInput) (Recipe, error)
 }
 type ErrNotFound struct{ ID string }

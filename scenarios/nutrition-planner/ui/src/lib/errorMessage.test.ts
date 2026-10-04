@@ -25,4 +25,12 @@ describe("errorMessage", () => {
   it("falls back to ordinary error messages", () => {
     expect(errorMessage(new Error("boom"), i18n.t)).toBe("boom");
   });
+
+  it("uses the unknown message for unrecognized API codes", () => {
+    expect(errorMessage(makeApiError("unexpected_code", "boom", 500), i18n.t)).toBe("An unknown error occurred.");
+  });
+
+  it("stringifies non-Error failures", () => {
+    expect(errorMessage("offline", i18n.t)).toBe("offline");
+  });
 });

@@ -1,6 +1,12 @@
 # Start Here — Nutrition Planner
 
-> **Current status (2026-09-22) — read this first.** This scenario (display
+## Current delivery route
+
+Nooch’s accepted application target is [product-specification.md](reference/product-specification.md), selected under ND-026 with native source application recorded by ND-027. The existing finite team owns [GOAL](internal/goal/GOAL.md), [QUEUE](internal/goal/QUEUE.md), [FEEDBACK](internal/goal/FEEDBACK.md), [ACCEPTANCE](internal/goal/ACCEPTANCE.md) and admitted [epochs](internal/goal/epochs/). Use these for current delivery, findings and capture receipts. The [selected visual contract](reference/selected-2026-10-03/VISUAL-ACCEPTANCE.md) governs exact local reference comparison. Product acceptance requires independent evidence; this route does not certify it.
+
+The initialization observation and old convergence destinations below are retained history, not current dispatch or capture instructions. Later execution is read from the goal home; template gates do not establish product closure.
+
+> **Historical initialization observation (2026-09-22).** This scenario (display
 > name **Nooch**, formerly Daily) is being rebuilt to the v2.0 redesign. The work is
 > driven by the convergence goal in
 > [`internal/REDESIGN_GOAL.md`](internal/REDESIGN_GOAL.md) and the build order,

@@ -16,6 +16,17 @@ export async function listInventoryEvents(workspaceId: string): Promise<Inventor
   return response.events.map(mapEvent);
 }
 
+export async function listInventoryBatches(workspaceId: string): Promise<InventoryBatch[]> {
+  const response = await client.listBatches({ workspaceId });
+  return response.batches.map((batch) => ({ id: batch.id, recipeId: batch.recipeId, recipeRevision: batch.recipeRevision, yieldAmount: batch.yieldAmount, availableAmount: batch.availableAmount, unit: batch.unit }));
+}
+
+export async function correctInventoryBatchYield(input: { workspaceId: string; eventId: string; batchId: string; yieldAmount: string; unit: string }): Promise<InventoryBatch> {
+  const response = await client.correctBatchYield(input);
+  if (!response.batch) throw new Error("The API returned no corrected batch.");
+  return { id: response.batch.id, recipeId: response.batch.recipeId, recipeRevision: response.batch.recipeRevision, yieldAmount: response.batch.yieldAmount, availableAmount: response.batch.availableAmount, unit: response.batch.unit };
+}
+
 export async function recordInventoryEvent(input: { workspaceId: string; id: string; kind: string; itemId: string; amount: string; unit: string }): Promise<InventoryEvent> {
   const response = await client.recordEvent({ ...input, batchId: "", recipeId: "", createdAt: new Date().toISOString() });
   if (!response.event) throw new Error("The API returned no inventory event.");

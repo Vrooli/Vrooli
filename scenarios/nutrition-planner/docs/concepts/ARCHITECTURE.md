@@ -228,7 +228,7 @@ Specification §17.3 and R22 separate these kinds of state:
 | Server facts | API + SQLite | Authoritative profiles, recipes, plans, stock, sessions, timers, intake. |
 | Derived assessments | Nutrition, planning, cost, eligibility, presentation engines | Keyed by input revisions and evaluator or policy version; recomputed, never mutated. |
 | Editor drafts | UI | Dirty fields plus a base revision; blank numeric input stays null. |
-| Pending outbox operations | UI (bounded, per workspace) | Operation id, base revision, desired state, status; replayed idempotently on reconnect (R22). |
+| Pending outbox operations | UI (bounded, per workspace) | Operation id, base revision, desired state, status; checks/local timer desired states reconcile idempotently; stock/intake drafts require online revalidation and explicit review/confirmation (ND-016). |
 | Local timer display | UI | Derived from server timer timestamps; never the only truth (R13.3). |
 | Transient interface state | UI | Tabs, filters, scroll, selected day; persisted where R03 asks, never mutating domain data. |
 

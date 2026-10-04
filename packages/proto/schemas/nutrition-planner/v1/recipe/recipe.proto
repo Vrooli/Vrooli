@@ -7,6 +7,7 @@ service RecipeService {
   rpc ListRecipes(ListRecipesRequest) returns (ListRecipesResponse);
   rpc CreateRecipe(CreateRecipeRequest) returns (CreateRecipeResponse);
   rpc GetRecipe(GetRecipeRequest) returns (GetRecipeResponse);
+  rpc GetRecipeRevision(GetRecipeRevisionRequest) returns (GetRecipeRevisionResponse);
   rpc UpdateRecipe(UpdateRecipeRequest) returns (UpdateRecipeResponse);
 }
 message Recipe { string id=1; int64 revision=2; string name=3; string notes=4; string source_url=5; string source_type=6; string original_text=7; string status=8; google.protobuf.Timestamp created_at=9; google.protobuf.Timestamp updated_at=10; repeated RecipeMethod methods=11; repeated string groups=12; repeated string required_appliances=13; map<string,string> allergen_evidence=14; string canonical_yield=15; string serving_unit=16; repeated RecipeIngredient ingredients=17; }
@@ -19,5 +20,7 @@ message CreateRecipeRequest { string name=1; string notes=2; string source_url=3
 message CreateRecipeResponse { Recipe recipe=1; }
 message GetRecipeRequest { string workspace_id=1; string id=2; }
 message GetRecipeResponse { Recipe recipe=1; }
+message GetRecipeRevisionRequest { string workspace_id=1; string id=2; int64 revision=3; }
+message GetRecipeRevisionResponse { Recipe recipe=1; }
 message UpdateRecipeRequest { string workspace_id=1; string id=2; int64 expected_revision=3; string name=4; string notes=5; string source_url=6; string original_text=7; string source_type=8; string idempotency_key=9; repeated RecipeMethod methods=10; repeated string groups=11; repeated string required_appliances=12; map<string,string> allergen_evidence=13; string canonical_yield=14; string serving_unit=15; repeated RecipeIngredient ingredients=16; }
 message UpdateRecipeResponse { Recipe recipe=1; }

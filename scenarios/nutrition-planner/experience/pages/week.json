@@ -39,6 +39,12 @@
     },
     {
       "statement": "On phones the week reads as a day agenda with an All week alternative, never a shrunken seven-column grid."
+    },
+    {
+      "statement": "Replan starts with concise change summary, expandable detail and full-week comparison. Wider effects require impact review, stale checks and hard rules. Calendar owns times; cross-date moves require review, deletion only unschedules and completion never means eating (ND-013/014/020)."
+    },
+    {
+      "statement": "Close visual fidelity to the exact selected local originals is required; see docs/reference/selected-2026-10-03/VISUAL-ACCEPTANCE.md and local-visual-assets.json for this page/state mapping. Compare matching actual-build state/appearance/viewport; record justified responsive/accessibility/truthful-data adaptations without weakening behavior or NF-010 timer reachability."
     }
   ],
   "states": [

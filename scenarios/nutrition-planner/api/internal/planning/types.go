@@ -17,14 +17,15 @@ type (
 		RecipeID string `json:"recipeId"`
 	}
 	Occurrence struct {
-		Date       string `json:"date"`
-		SlotName   string `json:"slotName,omitempty"`
-		Mode       string `json:"mode,omitempty"`
-		Quantity   string `json:"quantity,omitempty"`
-		RecipeID   string `json:"recipeId"`
-		RecipeName string `json:"recipeName"`
-		Reason     string `json:"reason"`
-		Locked     bool   `json:"locked"`
+		Date           string `json:"date"`
+		SlotName       string `json:"slotName,omitempty"`
+		Mode           string `json:"mode,omitempty"`
+		Quantity       string `json:"quantity,omitempty"`
+		RecipeID       string `json:"recipeId"`
+		RecipeRevision int64  `json:"recipeRevision,omitempty"`
+		RecipeName     string `json:"recipeName"`
+		Reason         string `json:"reason"`
+		Locked         bool   `json:"locked"`
 	}
 	Unresolved struct {
 		Date         string   `json:"date"`

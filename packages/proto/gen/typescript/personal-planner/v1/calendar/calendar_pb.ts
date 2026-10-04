@@ -12,7 +12,268 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file personal-planner/v1/calendar/calendar.proto.
  */
 export const file_personal_planner_v1_calendar_calendar: GenFile = /*@__PURE__*/
-  fileDesc("CitwZXJzb25hbC1wbGFubmVyL3YxL2NhbGVuZGFyL2NhbGVuZGFyLnByb3RvEiN2cm9vbGkucGVyc29uYWxfcGxhbm5lci52MS5jYWxlbmRhciLwAQoKQWxsb2NhdGlvbhIKCgJpZBgBIAEoCRIUCgx3b3JrX2l0ZW1faWQYAiABKAkSDQoFdGl0bGUYAyABKAkSFAoMc291cmNlX2xhYmVsGAQgASgJEhIKCmxvY2FsX2RhdGUYBSABKAkSFQoNc3RhcnRfbWludXRlcxgGIAEoBRIYChBkdXJhdGlvbl9taW51dGVzGAcgASgFEg0KBXN0YXRlGAggASgJEi4KCmNyZWF0ZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhcKD2NhcnJpZWRfZnJvbV9pZBgKIAEoCSIxChtMaXN0VG9kYXlBbGxvY2F0aW9uc1JlcXVlc3QSEgoKbG9jYWxfZGF0ZRgBIAEoCSKRAgocTGlzdFRvZGF5QWxsb2NhdGlvbnNSZXNwb25zZRJECgthbGxvY2F0aW9ucxgBIAMoCzIvLnZyb29saS5wZXJzb25hbF9wbGFubmVyLnYxLmNhbGVuZGFyLkFsbG9jYXRpb24SFwoPcGxhbm5lZF9taW51dGVzGAIgASgFEhkKEWF2YWlsYWJsZV9taW51dGVzGAMgASgFEh4KFmJyZWF0aGluZ19yb29tX21pbnV0ZXMYBCABKAUSHQoVZXh0ZXJuYWxfYnVzeV9taW51dGVzGAUgASgFEhwKFGV4dGVybmFsX2V2ZW50X2NvdW50GAYgASgFEhoKEmV4dGVybmFsX2ZyZXNobmVzcxgHIAEoCSJKChZMaXN0QWxsb2NhdGlvbnNSZXF1ZXN0EhgKEHN0YXJ0X2xvY2FsX2RhdGUYASABKAkSFgoOZW5kX2xvY2FsX2RhdGUYAiABKAkiXwoXTGlzdEFsbG9jYXRpb25zUmVzcG9uc2USRAoLYWxsb2NhdGlvbnMYASADKAsyLy52cm9vbGkucGVyc29uYWxfcGxhbm5lci52MS5jYWxlbmRhci5BbGxvY2F0aW9uInQKF0NyZWF0ZUFsbG9jYXRpb25SZXF1ZXN0EhQKDHdvcmtfaXRlbV9pZBgBIAEoCRISCgpsb2NhbF9kYXRlGAIgASgJEhUKDXN0YXJ0X21pbnV0ZXMYAyABKAUSGAoQZHVyYXRpb25fbWludXRlcxgEIAEoBSJfChhDcmVhdGVBbGxvY2F0aW9uUmVzcG9uc2USQwoKYWxsb2NhdGlvbhgBIAEoCzIvLnZyb29saS5wZXJzb25hbF9wbGFubmVyLnYxLmNhbGVuZGFyLkFsbG9jYXRpb24idQoYUHJldmlld0FsbG9jYXRpb25SZXF1ZXN0EhQKDHdvcmtfaXRlbV9pZBgBIAEoCRISCgpsb2NhbF9kYXRlGAIgASgJEhUKDXN0YXJ0X21pbnV0ZXMYAyABKAUSGAoQZHVyYXRpb25fbWludXRlcxgEIAEoBSKwAQoRUGxhY2VtZW50UHJvcG9zYWwSCgoCaWQYASABKAkSFAoMd29ya19pdGVtX2lkGAIgASgJEhIKCmxvY2FsX2RhdGUYAyABKAkSFQoNc3RhcnRfbWludXRlcxgEIAEoBRIYChBkdXJhdGlvbl9taW51dGVzGAUgASgFEg0KBXN0YXRlGAYgASgJEg4KBnJlYXNvbhgHIAEoCRIVCg1iYXNlX3JldmlzaW9uGAggASgDImUKGVByZXZpZXdBbGxvY2F0aW9uUmVzcG9uc2USSAoIcHJvcG9zYWwYASABKAsyNi52cm9vbGkucGVyc29uYWxfcGxhbm5lci52MS5jYWxlbmRhci5QbGFjZW1lbnRQcm9wb3NhbCJpCh5BcHBseUFsbG9jYXRpb25Qcm9wb3NhbFJlcXVlc3QSEwoLcHJvcG9zYWxfaWQYASABKAkSGQoRZXhwZWN0ZWRfcmV2aXNpb24YAiABKAMSFwoPaWRlbXBvdGVuY3lfa2V5GAMgASgJImYKH0FwcGx5QWxsb2NhdGlvblByb3Bvc2FsUmVzcG9uc2USQwoKYWxsb2NhdGlvbhgBIAEoCzIvLnZyb29saS5wZXJzb25hbF9wbGFubmVyLnYxLmNhbGVuZGFyLkFsbG9jYXRpb24iWgoWUHJldmlld1NjaGVkdWxlUmVxdWVzdBISCgpsb2NhbF9kYXRlGAEgASgJEhUKDXN0YXJ0X21pbnV0ZXMYAiABKAUSFQoNd29ya19pdGVtX2lkcxgDIAMoCSKcAQoRUHJvcG9zZWRQbGFjZW1lbnQSFAoMd29ya19pdGVtX2lkGAEgASgJEg0KBXRpdGxlGAIgASgJEhIKCmxvY2FsX2RhdGUYAyABKAkSFQoNc3RhcnRfbWludXRlcxgEIAEoBRIYChBkdXJhdGlvbl9taW51dGVzGAUgASgFEg0KBXN0YXRlGAYgASgJEg4KBnJlYXNvbhgHIAEoCSK0AQoQU2NoZWR1bGVQcm9wb3NhbBIKCgJpZBgBIAEoCRISCgpsb2NhbF9kYXRlGAIgASgJEhUKDWJhc2VfcmV2aXNpb24YAyABKAMSDQoFc3RhdGUYBCABKAkSDgoGcmVhc29uGAUgASgJEkoKCnBsYWNlbWVudHMYBiADKAsyNi52cm9vbGkucGVyc29uYWxfcGxhbm5lci52MS5jYWxlbmRhci5Qcm9wb3NlZFBsYWNlbWVudCJiChdQcmV2aWV3U2NoZWR1bGVSZXNwb25zZRJHCghwcm9wb3NhbBgBIAEoCzI1LnZyb29saS5wZXJzb25hbF9wbGFubmVyLnYxLmNhbGVuZGFyLlNjaGVkdWxlUHJvcG9zYWwiZwocQXBwbHlTY2hlZHVsZVByb3Bvc2FsUmVxdWVzdBITCgtwcm9wb3NhbF9pZBgBIAEoCRIZChFleHBlY3RlZF9yZXZpc2lvbhgCIAEoAxIXCg9pZGVtcG90ZW5jeV9rZXkYAyABKAkiZQodQXBwbHlTY2hlZHVsZVByb3Bvc2FsUmVzcG9uc2USRAoLYWxsb2NhdGlvbnMYASADKAsyLy52cm9vbGkucGVyc29uYWxfcGxhbm5lci52MS5jYWxlbmRhci5BbGxvY2F0aW9uImgKHUNhcnJ5Rm9yd2FyZEFsbG9jYXRpb25SZXF1ZXN0EhUKDWFsbG9jYXRpb25faWQYASABKAkSGQoRdGFyZ2V0X2xvY2FsX2RhdGUYAiABKAkSFQoNc3RhcnRfbWludXRlcxgDIAEoBSJlCh5DYXJyeUZvcndhcmRBbGxvY2F0aW9uUmVzcG9uc2USQwoKYWxsb2NhdGlvbhgBIAEoCzIvLnZyb29saS5wZXJzb25hbF9wbGFubmVyLnYxLmNhbGVuZGFyLkFsbG9jYXRpb24i6gEKB1JvdXRpbmUSCgoCaWQYASABKAkSDQoFdGl0bGUYAiABKAkSDAoEa2luZBgDIAEoCRIQCgh0aW1lem9uZRgEIAEoCRISCgpzdGFydF9kYXRlGAUgASgJEhAKCGVuZF9kYXRlGAYgASgJEhAKCHdlZWtkYXlzGAcgAygFEhQKDHN0YXJ0X21pbnV0ZRgIIAEoBRIYChBkdXJhdGlvbl9taW51dGVzGAkgASgFEhoKEmZyZXF1ZW5jeV9wZXJfd2VlaxgKIAEoBRIQCghyZXZpc2lvbhgLIAEoAxIOCgZhY3RpdmUYDCABKAgimwEKEVJvdXRpbmVPY2N1cnJlbmNlEhIKCnJvdXRpbmVfaWQYASABKAkSDQoFdGl0bGUYAiABKAkSEgoKbG9jYWxfZGF0ZRgDIAEoCRIUCgxzdGFydF9taW51dGUYBCABKAUSGAoQZHVyYXRpb25fbWludXRlcxgFIAEoBRIMCgRraW5kGAYgASgJEhEKCWdlbmVyYXRlZBgHIAEoCCIVChNMaXN0Um91dGluZXNSZXF1ZXN0IlYKFExpc3RSb3V0aW5lc1Jlc3BvbnNlEj4KCHJvdXRpbmVzGAEgAygLMiwudnJvb2xpLnBlcnNvbmFsX3BsYW5uZXIudjEuY2FsZW5kYXIuUm91dGluZSLJAQoUQ3JlYXRlUm91dGluZVJlcXVlc3QSDQoFdGl0bGUYASABKAkSDAoEa2luZBgCIAEoCRIQCgh0aW1lem9uZRgDIAEoCRISCgpzdGFydF9kYXRlGAQgASgJEhAKCGVuZF9kYXRlGAUgASgJEhAKCHdlZWtkYXlzGAYgAygFEhQKDHN0YXJ0X21pbnV0ZRgHIAEoBRIYChBkdXJhdGlvbl9taW51dGVzGAggASgFEhoKEmZyZXF1ZW5jeV9wZXJfd2VlaxgJIAEoBSJWChVDcmVhdGVSb3V0aW5lUmVzcG9uc2USPQoHcm91dGluZRgBIAEoCzIsLnZyb29saS5wZXJzb25hbF9wbGFubmVyLnYxLmNhbGVuZGFyLlJvdXRpbmUiUQodTGlzdFJvdXRpbmVPY2N1cnJlbmNlc1JlcXVlc3QSGAoQc3RhcnRfbG9jYWxfZGF0ZRgBIAEoCRIWCg5lbmRfbG9jYWxfZGF0ZRgCIAEoCSJtCh5MaXN0Um91dGluZU9jY3VycmVuY2VzUmVzcG9uc2USSwoLb2NjdXJyZW5jZXMYASADKAsyNi52cm9vbGkucGVyc29uYWxfcGxhbm5lci52MS5jYWxlbmRhci5Sb3V0aW5lT2NjdXJyZW5jZSJhChxTa2lwUm91dGluZU9jY3VycmVuY2VSZXF1ZXN0EhIKCnJvdXRpbmVfaWQYASABKAkSEgoKbG9jYWxfZGF0ZRgCIAEoCRIZChFleHBlY3RlZF9yZXZpc2lvbhgDIAEoAyIwCh1Ta2lwUm91dGluZU9jY3VycmVuY2VSZXNwb25zZRIPCgdza2lwcGVkGAEgASgIIn0KIlJlc2NoZWR1bGVSb3V0aW5lT2NjdXJyZW5jZVJlcXVlc3QSEgoKcm91dGluZV9pZBgBIAEoCRISCgpsb2NhbF9kYXRlGAIgASgJEhQKDHN0YXJ0X21pbnV0ZRgDIAEoBRIZChFleHBlY3RlZF9yZXZpc2lvbhgEIAEoAyI6CiNSZXNjaGVkdWxlUm91dGluZU9jY3VycmVuY2VSZXNwb25zZRITCgtyZXNjaGVkdWxlZBgBIAEoCDLnDwoPQ2FsZW5kYXJTZXJ2aWNlEpsBChRMaXN0VG9kYXlBbGxvY2F0aW9ucxJALnZyb29saS5wZXJzb25hbF9wbGFubmVyLnYxLmNhbGVuZGFyLkxpc3RUb2RheUFsbG9jYXRpb25zUmVxdWVzdBpBLnZyb29saS5wZXJzb25hbF9wbGFubmVyLnYxLmNhbGVuZGFyLkxpc3RUb2RheUFsbG9jYXRpb25zUmVzcG9uc2USjAEKD0xpc3RBbGxvY2F0aW9ucxI7LnZyb29saS5wZXJzb25hbF9wbGFubmVyLnYxLmNhbGVuZGFyLkxpc3RBbGxvY2F0aW9uc1JlcXVlc3QaPC52cm9vbGkucGVyc29uYWxfcGxhbm5lci52MS5jYWxlbmRhci5MaXN0QWxsb2NhdGlvbnNSZXNwb25zZRKPAQoQQ3JlYXRlQWxsb2NhdGlvbhI8LnZyb29saS5wZXJzb25hbF9wbGFubmVyLnYxLmNhbGVuZGFyLkNyZWF0ZUFsbG9jYXRpb25SZXF1ZXN0Gj0udnJvb2xpLnBlcnNvbmFsX3BsYW5uZXIudjEuY2FsZW5kYXIuQ3JlYXRlQWxsb2NhdGlvblJlc3BvbnNlEpIBChFQcmV2aWV3QWxsb2NhdGlvbhI9LnZyb29saS5wZXJzb25hbF9wbGFubmVyLnYxLmNhbGVuZGFyLlByZXZpZXdBbGxvY2F0aW9uUmVxdWVzdBo+LnZyb29saS5wZXJzb25hbF9wbGFubmVyLnYxLmNhbGVuZGFyLlByZXZpZXdBbGxvY2F0aW9uUmVzcG9uc2USpAEKF0FwcGx5QWxsb2NhdGlvblByb3Bvc2FsEkMudnJvb2xpLnBlcnNvbmFsX3BsYW5uZXIudjEuY2FsZW5kYXIuQXBwbHlBbGxvY2F0aW9uUHJvcG9zYWxSZXF1ZXN0GkQudnJvb2xpLnBlcnNvbmFsX3BsYW5uZXIudjEuY2FsZW5kYXIuQXBwbHlBbGxvY2F0aW9uUHJvcG9zYWxSZXNwb25zZRKMAQoPUHJldmlld1NjaGVkdWxlEjsudnJvb2xpLnBlcnNvbmFsX3BsYW5uZXIudjEuY2FsZW5kYXIuUHJldmlld1NjaGVkdWxlUmVxdWVzdBo8LnZyb29saS5wZXJzb25hbF9wbGFubmVyLnYxLmNhbGVuZGFyLlByZXZpZXdTY2hlZHVsZVJlc3BvbnNlEp4BChVBcHBseVNjaGVkdWxlUHJvcG9zYWwSQS52cm9vbGkucGVyc29uYWxfcGxhbm5lci52MS5jYWxlbmRhci5BcHBseVNjaGVkdWxlUHJvcG9zYWxSZXF1ZXN0GkIudnJvb2xpLnBlcnNvbmFsX3BsYW5uZXIudjEuY2FsZW5kYXIuQXBwbHlTY2hlZHVsZVByb3Bvc2FsUmVzcG9uc2USoQEKFkNhcnJ5Rm9yd2FyZEFsbG9jYXRpb24SQi52cm9vbGkucGVyc29uYWxfcGxhbm5lci52MS5jYWxlbmRhci5DYXJyeUZvcndhcmRBbGxvY2F0aW9uUmVxdWVzdBpDLnZyb29saS5wZXJzb25hbF9wbGFubmVyLnYxLmNhbGVuZGFyLkNhcnJ5Rm9yd2FyZEFsbG9jYXRpb25SZXNwb25zZRKDAQoMTGlzdFJvdXRpbmVzEjgudnJvb2xpLnBlcnNvbmFsX3BsYW5uZXIudjEuY2FsZW5kYXIuTGlzdFJvdXRpbmVzUmVxdWVzdBo5LnZyb29saS5wZXJzb25hbF9wbGFubmVyLnYxLmNhbGVuZGFyLkxpc3RSb3V0aW5lc1Jlc3BvbnNlEoYBCg1DcmVhdGVSb3V0aW5lEjkudnJvb2xpLnBlcnNvbmFsX3BsYW5uZXIudjEuY2FsZW5kYXIuQ3JlYXRlUm91dGluZVJlcXVlc3QaOi52cm9vbGkucGVyc29uYWxfcGxhbm5lci52MS5jYWxlbmRhci5DcmVhdGVSb3V0aW5lUmVzcG9uc2USoQEKFkxpc3RSb3V0aW5lT2NjdXJyZW5jZXMSQi52cm9vbGkucGVyc29uYWxfcGxhbm5lci52MS5jYWxlbmRhci5MaXN0Um91dGluZU9jY3VycmVuY2VzUmVxdWVzdBpDLnZyb29saS5wZXJzb25hbF9wbGFubmVyLnYxLmNhbGVuZGFyLkxpc3RSb3V0aW5lT2NjdXJyZW5jZXNSZXNwb25zZRKeAQoVU2tpcFJvdXRpbmVPY2N1cnJlbmNlEkEudnJvb2xpLnBlcnNvbmFsX3BsYW5uZXIudjEuY2FsZW5kYXIuU2tpcFJvdXRpbmVPY2N1cnJlbmNlUmVxdWVzdBpCLnZyb29saS5wZXJzb25hbF9wbGFubmVyLnYxLmNhbGVuZGFyLlNraXBSb3V0aW5lT2NjdXJyZW5jZVJlc3BvbnNlErABChtSZXNjaGVkdWxlUm91dGluZU9jY3VycmVuY2USRy52cm9vbGkucGVyc29uYWxfcGxhbm5lci52MS5jYWxlbmRhci5SZXNjaGVkdWxlUm91dGluZU9jY3VycmVuY2VSZXF1ZXN0GkgudnJvb2xpLnBlcnNvbmFsX3BsYW5uZXIudjEuY2FsZW5kYXIuUmVzY2hlZHVsZVJvdXRpbmVPY2N1cnJlbmNlUmVzcG9uc2VCWVpXZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9wZXJzb25hbC1wbGFubmVyL3YxL2NhbGVuZGFyO2NhbGVuZGFyX3YxYgZwcm90bzM", [file_google_protobuf_timestamp]);
+  fileDesc("CitwZXJzb25hbC1wbGFubmVyL3YxL2NhbGVuZGFyL2NhbGVuZGFyLnByb3RvEiN2cm9vbGkucGVyc29uYWxfcGxhbm5lci52MS5jYWxlbmRhciKpAwoNQ2FsZW5kYXJFdmVudBIKCgJpZBgBIAEoCRINCgV0aXRsZRgCIAEoCRIPCgdzdWJqZWN0GAMgASgJEg0KBW5vdGVzGAQgASgJEhQKDGF2YWlsYWJpbGl0eRgFIAEoCRIQCgh0aW1lem9uZRgGIAEoCRIPCgdhbGxfZGF5GAcgASgIEhIKCnN0YXJ0X2RhdGUYCCABKAkSGgoSZW5kX2RhdGVfZXhjbHVzaXZlGAkgASgJEhAKCHN0YXJ0X2F0GAogASgJEg4KBmVuZF9hdBgLIAEoCRIQCghwcm92aWRlchgMIAEoCRIcChRwcm92aWRlcl9jYWxlbmRhcl9pZBgNIAEoCRIZChFwcm92aWRlcl9ldmVudF9pZBgOIAEoCRIVCg1vY2N1cnJlbmNlX2lkGA8gASgJEhAKCHJldmlzaW9uGBAgASgDEi4KCmNyZWF0ZWRfYXQYESABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYEiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIkUKEUxpc3RFdmVudHNSZXF1ZXN0EhgKEHN0YXJ0X2xvY2FsX2RhdGUYASABKAkSFgoOZW5kX2xvY2FsX2RhdGUYAiABKAkiWAoSTGlzdEV2ZW50c1Jlc3BvbnNlEkIKBmV2ZW50cxgBIAMoCzIyLnZyb29saS5wZXJzb25hbF9wbGFubmVyLnYxLmNhbGVuZGFyLkNhbGVuZGFyRXZlbnQiIwoPR2V0RXZlbnRSZXF1ZXN0EhAKCGV2ZW50X2lkGAEgASgJIlUKEEdldEV2ZW50UmVzcG9uc2USQQoFZXZlbnQYASABKAsyMi52cm9vbGkucGVyc29uYWxfcGxhbm5lci52MS5jYWxlbmRhci5DYWxlbmRhckV2ZW50InAKEkNyZWF0ZUV2ZW50UmVxdWVzdBJBCgVldmVudBgBIAEoCzIyLnZyb29saS5wZXJzb25hbF9wbGFubmVyLnYxLmNhbGVuZGFyLkNhbGVuZGFyRXZlbnQSFwoPaWRlbXBvdGVuY3lfa2V5GAIgASgJIlgKE0NyZWF0ZUV2ZW50UmVzcG9uc2USQQoFZXZlbnQYASABKAsyMi52cm9vbGkucGVyc29uYWxfcGxhbm5lci52MS5jYWxlbmRhci5DYWxlbmRhckV2ZW50InIKElVwZGF0ZUV2ZW50UmVxdWVzdBJBCgVldmVudBgBIAEoCzIyLnZyb29saS5wZXJzb25hbF9wbGFubmVyLnYxLmNhbGVuZGFyLkNhbGVuZGFyRXZlbnQSGQoRZXhwZWN0ZWRfcmV2aXNpb24YAiABKAMiWAoTVXBkYXRlRXZlbnRSZXNwb25zZRJBCgVldmVudBgBIAEoCzIyLnZyb29saS5wZXJzb25hbF9wbGFubmVyLnYxLmNhbGVuZGFyLkNhbGVuZGFyRXZlbnQi8AEKCkFsbG9jYXRpb24SCgoCaWQYASABKAkSFAoMd29ya19pdGVtX2lkGAIgASgJEg0KBXRpdGxlGAMgASgJEhQKDHNvdXJjZV9sYWJlbBgEIAEoCRISCgpsb2NhbF9kYXRlGAUgASgJEhUKDXN0YXJ0X21pbnV0ZXMYBiABKAUSGAoQZHVyYXRpb25fbWludXRlcxgHIAEoBRINCgVzdGF0ZRgIIAEoCRIuCgpjcmVhdGVkX2F0GAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIXCg9jYXJyaWVkX2Zyb21faWQYCiABKAkiMQobTGlzdFRvZGF5QWxsb2NhdGlvbnNSZXF1ZXN0EhIKCmxvY2FsX2RhdGUYASABKAkikQIKHExpc3RUb2RheUFsbG9jYXRpb25zUmVzcG9uc2USRAoLYWxsb2NhdGlvbnMYASADKAsyLy52cm9vbGkucGVyc29uYWxfcGxhbm5lci52MS5jYWxlbmRhci5BbGxvY2F0aW9uEhcKD3BsYW5uZWRfbWludXRlcxgCIAEoBRIZChFhdmFpbGFibGVfbWludXRlcxgDIAEoBRIeChZicmVhdGhpbmdfcm9vbV9taW51dGVzGAQgASgFEh0KFWV4dGVybmFsX2J1c3lfbWludXRlcxgFIAEoBRIcChRleHRlcm5hbF9ldmVudF9jb3VudBgGIAEoBRIaChJleHRlcm5hbF9mcmVzaG5lc3MYByABKAkiSgoWTGlzdEFsbG9jYXRpb25zUmVxdWVzdBIYChBzdGFydF9sb2NhbF9kYXRlGAEgASgJEhYKDmVuZF9sb2NhbF9kYXRlGAIgASgJIl8KF0xpc3RBbGxvY2F0aW9uc1Jlc3BvbnNlEkQKC2FsbG9jYXRpb25zGAEgAygLMi8udnJvb2xpLnBlcnNvbmFsX3BsYW5uZXIudjEuY2FsZW5kYXIuQWxsb2NhdGlvbiJ0ChdDcmVhdGVBbGxvY2F0aW9uUmVxdWVzdBIUCgx3b3JrX2l0ZW1faWQYASABKAkSEgoKbG9jYWxfZGF0ZRgCIAEoCRIVCg1zdGFydF9taW51dGVzGAMgASgFEhgKEGR1cmF0aW9uX21pbnV0ZXMYBCABKAUiXwoYQ3JlYXRlQWxsb2NhdGlvblJlc3BvbnNlEkMKCmFsbG9jYXRpb24YASABKAsyLy52cm9vbGkucGVyc29uYWxfcGxhbm5lci52MS5jYWxlbmRhci5BbGxvY2F0aW9uInUKGFByZXZpZXdBbGxvY2F0aW9uUmVxdWVzdBIUCgx3b3JrX2l0ZW1faWQYASABKAkSEgoKbG9jYWxfZGF0ZRgCIAEoCRIVCg1zdGFydF9taW51dGVzGAMgASgFEhgKEGR1cmF0aW9uX21pbnV0ZXMYBCABKAUisAEKEVBsYWNlbWVudFByb3Bvc2FsEgoKAmlkGAEgASgJEhQKDHdvcmtfaXRlbV9pZBgCIAEoCRISCgpsb2NhbF9kYXRlGAMgASgJEhUKDXN0YXJ0X21pbnV0ZXMYBCABKAUSGAoQZHVyYXRpb25fbWludXRlcxgFIAEoBRINCgVzdGF0ZRgGIAEoCRIOCgZyZWFzb24YByABKAkSFQoNYmFzZV9yZXZpc2lvbhgIIAEoAyJlChlQcmV2aWV3QWxsb2NhdGlvblJlc3BvbnNlEkgKCHByb3Bvc2FsGAEgASgLMjYudnJvb2xpLnBlcnNvbmFsX3BsYW5uZXIudjEuY2FsZW5kYXIuUGxhY2VtZW50UHJvcG9zYWwiaQoeQXBwbHlBbGxvY2F0aW9uUHJvcG9zYWxSZXF1ZXN0EhMKC3Byb3Bvc2FsX2lkGAEgASgJEhkKEWV4cGVjdGVkX3JldmlzaW9uGAIgASgDEhcKD2lkZW1wb3RlbmN5X2tleRgDIAEoCSJmCh9BcHBseUFsbG9jYXRpb25Qcm9wb3NhbFJlc3BvbnNlEkMKCmFsbG9jYXRpb24YASABKAsyLy52cm9vbGkucGVyc29uYWxfcGxhbm5lci52MS5jYWxlbmRhci5BbGxvY2F0aW9uIloKFlByZXZpZXdTY2hlZHVsZVJlcXVlc3QSEgoKbG9jYWxfZGF0ZRgBIAEoCRIVCg1zdGFydF9taW51dGVzGAIgASgFEhUKDXdvcmtfaXRlbV9pZHMYAyADKAkinAEKEVByb3Bvc2VkUGxhY2VtZW50EhQKDHdvcmtfaXRlbV9pZBgBIAEoCRINCgV0aXRsZRgCIAEoCRISCgpsb2NhbF9kYXRlGAMgASgJEhUKDXN0YXJ0X21pbnV0ZXMYBCABKAUSGAoQZHVyYXRpb25fbWludXRlcxgFIAEoBRINCgVzdGF0ZRgGIAEoCRIOCgZyZWFzb24YByABKAkitAEKEFNjaGVkdWxlUHJvcG9zYWwSCgoCaWQYASABKAkSEgoKbG9jYWxfZGF0ZRgCIAEoCRIVCg1iYXNlX3JldmlzaW9uGAMgASgDEg0KBXN0YXRlGAQgASgJEg4KBnJlYXNvbhgFIAEoCRJKCgpwbGFjZW1lbnRzGAYgAygLMjYudnJvb2xpLnBlcnNvbmFsX3BsYW5uZXIudjEuY2FsZW5kYXIuUHJvcG9zZWRQbGFjZW1lbnQiYgoXUHJldmlld1NjaGVkdWxlUmVzcG9uc2USRwoIcHJvcG9zYWwYASABKAsyNS52cm9vbGkucGVyc29uYWxfcGxhbm5lci52MS5jYWxlbmRhci5TY2hlZHVsZVByb3Bvc2FsImcKHEFwcGx5U2NoZWR1bGVQcm9wb3NhbFJlcXVlc3QSEwoLcHJvcG9zYWxfaWQYASABKAkSGQoRZXhwZWN0ZWRfcmV2aXNpb24YAiABKAMSFwoPaWRlbXBvdGVuY3lfa2V5GAMgASgJImUKHUFwcGx5U2NoZWR1bGVQcm9wb3NhbFJlc3BvbnNlEkQKC2FsbG9jYXRpb25zGAEgAygLMi8udnJvb2xpLnBlcnNvbmFsX3BsYW5uZXIudjEuY2FsZW5kYXIuQWxsb2NhdGlvbiJoCh1DYXJyeUZvcndhcmRBbGxvY2F0aW9uUmVxdWVzdBIVCg1hbGxvY2F0aW9uX2lkGAEgASgJEhkKEXRhcmdldF9sb2NhbF9kYXRlGAIgASgJEhUKDXN0YXJ0X21pbnV0ZXMYAyABKAUiZQoeQ2FycnlGb3J3YXJkQWxsb2NhdGlvblJlc3BvbnNlEkMKCmFsbG9jYXRpb24YASABKAsyLy52cm9vbGkucGVyc29uYWxfcGxhbm5lci52MS5jYWxlbmRhci5BbGxvY2F0aW9uIuoBCgdSb3V0aW5lEgoKAmlkGAEgASgJEg0KBXRpdGxlGAIgASgJEgwKBGtpbmQYAyABKAkSEAoIdGltZXpvbmUYBCABKAkSEgoKc3RhcnRfZGF0ZRgFIAEoCRIQCghlbmRfZGF0ZRgGIAEoCRIQCgh3ZWVrZGF5cxgHIAMoBRIUCgxzdGFydF9taW51dGUYCCABKAUSGAoQZHVyYXRpb25fbWludXRlcxgJIAEoBRIaChJmcmVxdWVuY3lfcGVyX3dlZWsYCiABKAUSEAoIcmV2aXNpb24YCyABKAMSDgoGYWN0aXZlGAwgASgIIpsBChFSb3V0aW5lT2NjdXJyZW5jZRISCgpyb3V0aW5lX2lkGAEgASgJEg0KBXRpdGxlGAIgASgJEhIKCmxvY2FsX2RhdGUYAyABKAkSFAoMc3RhcnRfbWludXRlGAQgASgFEhgKEGR1cmF0aW9uX21pbnV0ZXMYBSABKAUSDAoEa2luZBgGIAEoCRIRCglnZW5lcmF0ZWQYByABKAgiFQoTTGlzdFJvdXRpbmVzUmVxdWVzdCJWChRMaXN0Um91dGluZXNSZXNwb25zZRI+Cghyb3V0aW5lcxgBIAMoCzIsLnZyb29saS5wZXJzb25hbF9wbGFubmVyLnYxLmNhbGVuZGFyLlJvdXRpbmUiyQEKFENyZWF0ZVJvdXRpbmVSZXF1ZXN0Eg0KBXRpdGxlGAEgASgJEgwKBGtpbmQYAiABKAkSEAoIdGltZXpvbmUYAyABKAkSEgoKc3RhcnRfZGF0ZRgEIAEoCRIQCghlbmRfZGF0ZRgFIAEoCRIQCgh3ZWVrZGF5cxgGIAMoBRIUCgxzdGFydF9taW51dGUYByABKAUSGAoQZHVyYXRpb25fbWludXRlcxgIIAEoBRIaChJmcmVxdWVuY3lfcGVyX3dlZWsYCSABKAUiVgoVQ3JlYXRlUm91dGluZVJlc3BvbnNlEj0KB3JvdXRpbmUYASABKAsyLC52cm9vbGkucGVyc29uYWxfcGxhbm5lci52MS5jYWxlbmRhci5Sb3V0aW5lIlEKHUxpc3RSb3V0aW5lT2NjdXJyZW5jZXNSZXF1ZXN0EhgKEHN0YXJ0X2xvY2FsX2RhdGUYASABKAkSFgoOZW5kX2xvY2FsX2RhdGUYAiABKAkibQoeTGlzdFJvdXRpbmVPY2N1cnJlbmNlc1Jlc3BvbnNlEksKC29jY3VycmVuY2VzGAEgAygLMjYudnJvb2xpLnBlcnNvbmFsX3BsYW5uZXIudjEuY2FsZW5kYXIuUm91dGluZU9jY3VycmVuY2UiYQocU2tpcFJvdXRpbmVPY2N1cnJlbmNlUmVxdWVzdBISCgpyb3V0aW5lX2lkGAEgASgJEhIKCmxvY2FsX2RhdGUYAiABKAkSGQoRZXhwZWN0ZWRfcmV2aXNpb24YAyABKAMiMAodU2tpcFJvdXRpbmVPY2N1cnJlbmNlUmVzcG9uc2USDwoHc2tpcHBlZBgBIAEoCCJ9CiJSZXNjaGVkdWxlUm91dGluZU9jY3VycmVuY2VSZXF1ZXN0EhIKCnJvdXRpbmVfaWQYASABKAkSEgoKbG9jYWxfZGF0ZRgCIAEoCRIUCgxzdGFydF9taW51dGUYAyABKAUSGQoRZXhwZWN0ZWRfcmV2aXNpb24YBCABKAMiOgojUmVzY2hlZHVsZVJvdXRpbmVPY2N1cnJlbmNlUmVzcG9uc2USEwoLcmVzY2hlZHVsZWQYASABKAgy5RMKD0NhbGVuZGFyU2VydmljZRKbAQoUTGlzdFRvZGF5QWxsb2NhdGlvbnMSQC52cm9vbGkucGVyc29uYWxfcGxhbm5lci52MS5jYWxlbmRhci5MaXN0VG9kYXlBbGxvY2F0aW9uc1JlcXVlc3QaQS52cm9vbGkucGVyc29uYWxfcGxhbm5lci52MS5jYWxlbmRhci5MaXN0VG9kYXlBbGxvY2F0aW9uc1Jlc3BvbnNlEowBCg9MaXN0QWxsb2NhdGlvbnMSOy52cm9vbGkucGVyc29uYWxfcGxhbm5lci52MS5jYWxlbmRhci5MaXN0QWxsb2NhdGlvbnNSZXF1ZXN0GjwudnJvb2xpLnBlcnNvbmFsX3BsYW5uZXIudjEuY2FsZW5kYXIuTGlzdEFsbG9jYXRpb25zUmVzcG9uc2USjwEKEENyZWF0ZUFsbG9jYXRpb24SPC52cm9vbGkucGVyc29uYWxfcGxhbm5lci52MS5jYWxlbmRhci5DcmVhdGVBbGxvY2F0aW9uUmVxdWVzdBo9LnZyb29saS5wZXJzb25hbF9wbGFubmVyLnYxLmNhbGVuZGFyLkNyZWF0ZUFsbG9jYXRpb25SZXNwb25zZRKSAQoRUHJldmlld0FsbG9jYXRpb24SPS52cm9vbGkucGVyc29uYWxfcGxhbm5lci52MS5jYWxlbmRhci5QcmV2aWV3QWxsb2NhdGlvblJlcXVlc3QaPi52cm9vbGkucGVyc29uYWxfcGxhbm5lci52MS5jYWxlbmRhci5QcmV2aWV3QWxsb2NhdGlvblJlc3BvbnNlEqQBChdBcHBseUFsbG9jYXRpb25Qcm9wb3NhbBJDLnZyb29saS5wZXJzb25hbF9wbGFubmVyLnYxLmNhbGVuZGFyLkFwcGx5QWxsb2NhdGlvblByb3Bvc2FsUmVxdWVzdBpELnZyb29saS5wZXJzb25hbF9wbGFubmVyLnYxLmNhbGVuZGFyLkFwcGx5QWxsb2NhdGlvblByb3Bvc2FsUmVzcG9uc2USjAEKD1ByZXZpZXdTY2hlZHVsZRI7LnZyb29saS5wZXJzb25hbF9wbGFubmVyLnYxLmNhbGVuZGFyLlByZXZpZXdTY2hlZHVsZVJlcXVlc3QaPC52cm9vbGkucGVyc29uYWxfcGxhbm5lci52MS5jYWxlbmRhci5QcmV2aWV3U2NoZWR1bGVSZXNwb25zZRKeAQoVQXBwbHlTY2hlZHVsZVByb3Bvc2FsEkEudnJvb2xpLnBlcnNvbmFsX3BsYW5uZXIudjEuY2FsZW5kYXIuQXBwbHlTY2hlZHVsZVByb3Bvc2FsUmVxdWVzdBpCLnZyb29saS5wZXJzb25hbF9wbGFubmVyLnYxLmNhbGVuZGFyLkFwcGx5U2NoZWR1bGVQcm9wb3NhbFJlc3BvbnNlEqEBChZDYXJyeUZvcndhcmRBbGxvY2F0aW9uEkIudnJvb2xpLnBlcnNvbmFsX3BsYW5uZXIudjEuY2FsZW5kYXIuQ2FycnlGb3J3YXJkQWxsb2NhdGlvblJlcXVlc3QaQy52cm9vbGkucGVyc29uYWxfcGxhbm5lci52MS5jYWxlbmRhci5DYXJyeUZvcndhcmRBbGxvY2F0aW9uUmVzcG9uc2USgwEKDExpc3RSb3V0aW5lcxI4LnZyb29saS5wZXJzb25hbF9wbGFubmVyLnYxLmNhbGVuZGFyLkxpc3RSb3V0aW5lc1JlcXVlc3QaOS52cm9vbGkucGVyc29uYWxfcGxhbm5lci52MS5jYWxlbmRhci5MaXN0Um91dGluZXNSZXNwb25zZRKGAQoNQ3JlYXRlUm91dGluZRI5LnZyb29saS5wZXJzb25hbF9wbGFubmVyLnYxLmNhbGVuZGFyLkNyZWF0ZVJvdXRpbmVSZXF1ZXN0GjoudnJvb2xpLnBlcnNvbmFsX3BsYW5uZXIudjEuY2FsZW5kYXIuQ3JlYXRlUm91dGluZVJlc3BvbnNlEqEBChZMaXN0Um91dGluZU9jY3VycmVuY2VzEkIudnJvb2xpLnBlcnNvbmFsX3BsYW5uZXIudjEuY2FsZW5kYXIuTGlzdFJvdXRpbmVPY2N1cnJlbmNlc1JlcXVlc3QaQy52cm9vbGkucGVyc29uYWxfcGxhbm5lci52MS5jYWxlbmRhci5MaXN0Um91dGluZU9jY3VycmVuY2VzUmVzcG9uc2USngEKFVNraXBSb3V0aW5lT2NjdXJyZW5jZRJBLnZyb29saS5wZXJzb25hbF9wbGFubmVyLnYxLmNhbGVuZGFyLlNraXBSb3V0aW5lT2NjdXJyZW5jZVJlcXVlc3QaQi52cm9vbGkucGVyc29uYWxfcGxhbm5lci52MS5jYWxlbmRhci5Ta2lwUm91dGluZU9jY3VycmVuY2VSZXNwb25zZRKwAQobUmVzY2hlZHVsZVJvdXRpbmVPY2N1cnJlbmNlEkcudnJvb2xpLnBlcnNvbmFsX3BsYW5uZXIudjEuY2FsZW5kYXIuUmVzY2hlZHVsZVJvdXRpbmVPY2N1cnJlbmNlUmVxdWVzdBpILnZyb29saS5wZXJzb25hbF9wbGFubmVyLnYxLmNhbGVuZGFyLlJlc2NoZWR1bGVSb3V0aW5lT2NjdXJyZW5jZVJlc3BvbnNlEn0KCkxpc3RFdmVudHMSNi52cm9vbGkucGVyc29uYWxfcGxhbm5lci52MS5jYWxlbmRhci5MaXN0RXZlbnRzUmVxdWVzdBo3LnZyb29saS5wZXJzb25hbF9wbGFubmVyLnYxLmNhbGVuZGFyLkxpc3RFdmVudHNSZXNwb25zZRJ3CghHZXRFdmVudBI0LnZyb29saS5wZXJzb25hbF9wbGFubmVyLnYxLmNhbGVuZGFyLkdldEV2ZW50UmVxdWVzdBo1LnZyb29saS5wZXJzb25hbF9wbGFubmVyLnYxLmNhbGVuZGFyLkdldEV2ZW50UmVzcG9uc2USgAEKC0NyZWF0ZUV2ZW50EjcudnJvb2xpLnBlcnNvbmFsX3BsYW5uZXIudjEuY2FsZW5kYXIuQ3JlYXRlRXZlbnRSZXF1ZXN0GjgudnJvb2xpLnBlcnNvbmFsX3BsYW5uZXIudjEuY2FsZW5kYXIuQ3JlYXRlRXZlbnRSZXNwb25zZRKAAQoLVXBkYXRlRXZlbnQSNy52cm9vbGkucGVyc29uYWxfcGxhbm5lci52MS5jYWxlbmRhci5VcGRhdGVFdmVudFJlcXVlc3QaOC52cm9vbGkucGVyc29uYWxfcGxhbm5lci52MS5jYWxlbmRhci5VcGRhdGVFdmVudFJlc3BvbnNlQllaV2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vcGVyc29uYWwtcGxhbm5lci92MS9jYWxlbmRhcjtjYWxlbmRhcl92MWIGcHJvdG8z", [file_google_protobuf_timestamp]);
+
+/**
+ * CalendarEvent is a native event with stable identity and an optimistic
+ * revision. All-day date ranges use an exclusive end; timed values are RFC3339
+ * instants in the supplied IANA timezone.
+ *
+ * @generated from message vrooli.personal_planner.v1.calendar.CalendarEvent
+ */
+export type CalendarEvent = Message<"vrooli.personal_planner.v1.calendar.CalendarEvent"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string title = 2;
+   */
+  title: string;
+
+  /**
+   * @generated from field: string subject = 3;
+   */
+  subject: string;
+
+  /**
+   * @generated from field: string notes = 4;
+   */
+  notes: string;
+
+  /**
+   * @generated from field: string availability = 5;
+   */
+  availability: string;
+
+  /**
+   * @generated from field: string timezone = 6;
+   */
+  timezone: string;
+
+  /**
+   * @generated from field: bool all_day = 7;
+   */
+  allDay: boolean;
+
+  /**
+   * @generated from field: string start_date = 8;
+   */
+  startDate: string;
+
+  /**
+   * @generated from field: string end_date_exclusive = 9;
+   */
+  endDateExclusive: string;
+
+  /**
+   * @generated from field: string start_at = 10;
+   */
+  startAt: string;
+
+  /**
+   * @generated from field: string end_at = 11;
+   */
+  endAt: string;
+
+  /**
+   * @generated from field: string provider = 12;
+   */
+  provider: string;
+
+  /**
+   * @generated from field: string provider_calendar_id = 13;
+   */
+  providerCalendarId: string;
+
+  /**
+   * @generated from field: string provider_event_id = 14;
+   */
+  providerEventId: string;
+
+  /**
+   * @generated from field: string occurrence_id = 15;
+   */
+  occurrenceId: string;
+
+  /**
+   * @generated from field: int64 revision = 16;
+   */
+  revision: bigint;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp created_at = 17;
+   */
+  createdAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp updated_at = 18;
+   */
+  updatedAt?: Timestamp | undefined;
+};
+
+/**
+ * Describes the message vrooli.personal_planner.v1.calendar.CalendarEvent.
+ * Use `create(CalendarEventSchema)` to create a new message.
+ */
+export const CalendarEventSchema: GenMessage<CalendarEvent> = /*@__PURE__*/
+  messageDesc(file_personal_planner_v1_calendar_calendar, 0);
+
+/**
+ * @generated from message vrooli.personal_planner.v1.calendar.ListEventsRequest
+ */
+export type ListEventsRequest = Message<"vrooli.personal_planner.v1.calendar.ListEventsRequest"> & {
+  /**
+   * Inclusive local civil-date range in the planner timezone.
+   *
+   * @generated from field: string start_local_date = 1;
+   */
+  startLocalDate: string;
+
+  /**
+   * @generated from field: string end_local_date = 2;
+   */
+  endLocalDate: string;
+};
+
+/**
+ * Describes the message vrooli.personal_planner.v1.calendar.ListEventsRequest.
+ * Use `create(ListEventsRequestSchema)` to create a new message.
+ */
+export const ListEventsRequestSchema: GenMessage<ListEventsRequest> = /*@__PURE__*/
+  messageDesc(file_personal_planner_v1_calendar_calendar, 1);
+
+/**
+ * @generated from message vrooli.personal_planner.v1.calendar.ListEventsResponse
+ */
+export type ListEventsResponse = Message<"vrooli.personal_planner.v1.calendar.ListEventsResponse"> & {
+  /**
+   * @generated from field: repeated vrooli.personal_planner.v1.calendar.CalendarEvent events = 1;
+   */
+  events: CalendarEvent[];
+};
+
+/**
+ * Describes the message vrooli.personal_planner.v1.calendar.ListEventsResponse.
+ * Use `create(ListEventsResponseSchema)` to create a new message.
+ */
+export const ListEventsResponseSchema: GenMessage<ListEventsResponse> = /*@__PURE__*/
+  messageDesc(file_personal_planner_v1_calendar_calendar, 2);
+
+/**
+ * @generated from message vrooli.personal_planner.v1.calendar.GetEventRequest
+ */
+export type GetEventRequest = Message<"vrooli.personal_planner.v1.calendar.GetEventRequest"> & {
+  /**
+   * @generated from field: string event_id = 1;
+   */
+  eventId: string;
+};
+
+/**
+ * Describes the message vrooli.personal_planner.v1.calendar.GetEventRequest.
+ * Use `create(GetEventRequestSchema)` to create a new message.
+ */
+export const GetEventRequestSchema: GenMessage<GetEventRequest> = /*@__PURE__*/
+  messageDesc(file_personal_planner_v1_calendar_calendar, 3);
+
+/**
+ * @generated from message vrooli.personal_planner.v1.calendar.GetEventResponse
+ */
+export type GetEventResponse = Message<"vrooli.personal_planner.v1.calendar.GetEventResponse"> & {
+  /**
+   * @generated from field: vrooli.personal_planner.v1.calendar.CalendarEvent event = 1;
+   */
+  event?: CalendarEvent | undefined;
+};
+
+/**
+ * Describes the message vrooli.personal_planner.v1.calendar.GetEventResponse.
+ * Use `create(GetEventResponseSchema)` to create a new message.
+ */
+export const GetEventResponseSchema: GenMessage<GetEventResponse> = /*@__PURE__*/
+  messageDesc(file_personal_planner_v1_calendar_calendar, 4);
+
+/**
+ * @generated from message vrooli.personal_planner.v1.calendar.CreateEventRequest
+ */
+export type CreateEventRequest = Message<"vrooli.personal_planner.v1.calendar.CreateEventRequest"> & {
+  /**
+   * @generated from field: vrooli.personal_planner.v1.calendar.CalendarEvent event = 1;
+   */
+  event?: CalendarEvent | undefined;
+
+  /**
+   * Reusing a key with the same request recovers the original durable event.
+   *
+   * @generated from field: string idempotency_key = 2;
+   */
+  idempotencyKey: string;
+};
+
+/**
+ * Describes the message vrooli.personal_planner.v1.calendar.CreateEventRequest.
+ * Use `create(CreateEventRequestSchema)` to create a new message.
+ */
+export const CreateEventRequestSchema: GenMessage<CreateEventRequest> = /*@__PURE__*/
+  messageDesc(file_personal_planner_v1_calendar_calendar, 5);
+
+/**
+ * @generated from message vrooli.personal_planner.v1.calendar.CreateEventResponse
+ */
+export type CreateEventResponse = Message<"vrooli.personal_planner.v1.calendar.CreateEventResponse"> & {
+  /**
+   * @generated from field: vrooli.personal_planner.v1.calendar.CalendarEvent event = 1;
+   */
+  event?: CalendarEvent | undefined;
+};
+
+/**
+ * Describes the message vrooli.personal_planner.v1.calendar.CreateEventResponse.
+ * Use `create(CreateEventResponseSchema)` to create a new message.
+ */
+export const CreateEventResponseSchema: GenMessage<CreateEventResponse> = /*@__PURE__*/
+  messageDesc(file_personal_planner_v1_calendar_calendar, 6);
+
+/**
+ * @generated from message vrooli.personal_planner.v1.calendar.UpdateEventRequest
+ */
+export type UpdateEventRequest = Message<"vrooli.personal_planner.v1.calendar.UpdateEventRequest"> & {
+  /**
+   * @generated from field: vrooli.personal_planner.v1.calendar.CalendarEvent event = 1;
+   */
+  event?: CalendarEvent | undefined;
+
+  /**
+   * @generated from field: int64 expected_revision = 2;
+   */
+  expectedRevision: bigint;
+};
+
+/**
+ * Describes the message vrooli.personal_planner.v1.calendar.UpdateEventRequest.
+ * Use `create(UpdateEventRequestSchema)` to create a new message.
+ */
+export const UpdateEventRequestSchema: GenMessage<UpdateEventRequest> = /*@__PURE__*/
+  messageDesc(file_personal_planner_v1_calendar_calendar, 7);
+
+/**
+ * @generated from message vrooli.personal_planner.v1.calendar.UpdateEventResponse
+ */
+export type UpdateEventResponse = Message<"vrooli.personal_planner.v1.calendar.UpdateEventResponse"> & {
+  /**
+   * @generated from field: vrooli.personal_planner.v1.calendar.CalendarEvent event = 1;
+   */
+  event?: CalendarEvent | undefined;
+};
+
+/**
+ * Describes the message vrooli.personal_planner.v1.calendar.UpdateEventResponse.
+ * Use `create(UpdateEventResponseSchema)` to create a new message.
+ */
+export const UpdateEventResponseSchema: GenMessage<UpdateEventResponse> = /*@__PURE__*/
+  messageDesc(file_personal_planner_v1_calendar_calendar, 8);
 
 /**
  * @generated from message vrooli.personal_planner.v1.calendar.Allocation
@@ -74,7 +335,7 @@ export type Allocation = Message<"vrooli.personal_planner.v1.calendar.Allocation
  * Use `create(AllocationSchema)` to create a new message.
  */
 export const AllocationSchema: GenMessage<Allocation> = /*@__PURE__*/
-  messageDesc(file_personal_planner_v1_calendar_calendar, 0);
+  messageDesc(file_personal_planner_v1_calendar_calendar, 9);
 
 /**
  * @generated from message vrooli.personal_planner.v1.calendar.ListTodayAllocationsRequest
@@ -93,7 +354,7 @@ export type ListTodayAllocationsRequest = Message<"vrooli.personal_planner.v1.ca
  * Use `create(ListTodayAllocationsRequestSchema)` to create a new message.
  */
 export const ListTodayAllocationsRequestSchema: GenMessage<ListTodayAllocationsRequest> = /*@__PURE__*/
-  messageDesc(file_personal_planner_v1_calendar_calendar, 1);
+  messageDesc(file_personal_planner_v1_calendar_calendar, 10);
 
 /**
  * @generated from message vrooli.personal_planner.v1.calendar.ListTodayAllocationsResponse
@@ -140,7 +401,7 @@ export type ListTodayAllocationsResponse = Message<"vrooli.personal_planner.v1.c
  * Use `create(ListTodayAllocationsResponseSchema)` to create a new message.
  */
 export const ListTodayAllocationsResponseSchema: GenMessage<ListTodayAllocationsResponse> = /*@__PURE__*/
-  messageDesc(file_personal_planner_v1_calendar_calendar, 2);
+  messageDesc(file_personal_planner_v1_calendar_calendar, 11);
 
 /**
  * @generated from message vrooli.personal_planner.v1.calendar.ListAllocationsRequest
@@ -164,7 +425,7 @@ export type ListAllocationsRequest = Message<"vrooli.personal_planner.v1.calenda
  * Use `create(ListAllocationsRequestSchema)` to create a new message.
  */
 export const ListAllocationsRequestSchema: GenMessage<ListAllocationsRequest> = /*@__PURE__*/
-  messageDesc(file_personal_planner_v1_calendar_calendar, 3);
+  messageDesc(file_personal_planner_v1_calendar_calendar, 12);
 
 /**
  * @generated from message vrooli.personal_planner.v1.calendar.ListAllocationsResponse
@@ -181,7 +442,7 @@ export type ListAllocationsResponse = Message<"vrooli.personal_planner.v1.calend
  * Use `create(ListAllocationsResponseSchema)` to create a new message.
  */
 export const ListAllocationsResponseSchema: GenMessage<ListAllocationsResponse> = /*@__PURE__*/
-  messageDesc(file_personal_planner_v1_calendar_calendar, 4);
+  messageDesc(file_personal_planner_v1_calendar_calendar, 13);
 
 /**
  * @generated from message vrooli.personal_planner.v1.calendar.CreateAllocationRequest
@@ -213,7 +474,7 @@ export type CreateAllocationRequest = Message<"vrooli.personal_planner.v1.calend
  * Use `create(CreateAllocationRequestSchema)` to create a new message.
  */
 export const CreateAllocationRequestSchema: GenMessage<CreateAllocationRequest> = /*@__PURE__*/
-  messageDesc(file_personal_planner_v1_calendar_calendar, 5);
+  messageDesc(file_personal_planner_v1_calendar_calendar, 14);
 
 /**
  * @generated from message vrooli.personal_planner.v1.calendar.CreateAllocationResponse
@@ -230,7 +491,7 @@ export type CreateAllocationResponse = Message<"vrooli.personal_planner.v1.calen
  * Use `create(CreateAllocationResponseSchema)` to create a new message.
  */
 export const CreateAllocationResponseSchema: GenMessage<CreateAllocationResponse> = /*@__PURE__*/
-  messageDesc(file_personal_planner_v1_calendar_calendar, 6);
+  messageDesc(file_personal_planner_v1_calendar_calendar, 15);
 
 /**
  * @generated from message vrooli.personal_planner.v1.calendar.PreviewAllocationRequest
@@ -262,7 +523,7 @@ export type PreviewAllocationRequest = Message<"vrooli.personal_planner.v1.calen
  * Use `create(PreviewAllocationRequestSchema)` to create a new message.
  */
 export const PreviewAllocationRequestSchema: GenMessage<PreviewAllocationRequest> = /*@__PURE__*/
-  messageDesc(file_personal_planner_v1_calendar_calendar, 7);
+  messageDesc(file_personal_planner_v1_calendar_calendar, 16);
 
 /**
  * @generated from message vrooli.personal_planner.v1.calendar.PlacementProposal
@@ -314,7 +575,7 @@ export type PlacementProposal = Message<"vrooli.personal_planner.v1.calendar.Pla
  * Use `create(PlacementProposalSchema)` to create a new message.
  */
 export const PlacementProposalSchema: GenMessage<PlacementProposal> = /*@__PURE__*/
-  messageDesc(file_personal_planner_v1_calendar_calendar, 8);
+  messageDesc(file_personal_planner_v1_calendar_calendar, 17);
 
 /**
  * @generated from message vrooli.personal_planner.v1.calendar.PreviewAllocationResponse
@@ -331,7 +592,7 @@ export type PreviewAllocationResponse = Message<"vrooli.personal_planner.v1.cale
  * Use `create(PreviewAllocationResponseSchema)` to create a new message.
  */
 export const PreviewAllocationResponseSchema: GenMessage<PreviewAllocationResponse> = /*@__PURE__*/
-  messageDesc(file_personal_planner_v1_calendar_calendar, 9);
+  messageDesc(file_personal_planner_v1_calendar_calendar, 18);
 
 /**
  * @generated from message vrooli.personal_planner.v1.calendar.ApplyAllocationProposalRequest
@@ -358,7 +619,7 @@ export type ApplyAllocationProposalRequest = Message<"vrooli.personal_planner.v1
  * Use `create(ApplyAllocationProposalRequestSchema)` to create a new message.
  */
 export const ApplyAllocationProposalRequestSchema: GenMessage<ApplyAllocationProposalRequest> = /*@__PURE__*/
-  messageDesc(file_personal_planner_v1_calendar_calendar, 10);
+  messageDesc(file_personal_planner_v1_calendar_calendar, 19);
 
 /**
  * @generated from message vrooli.personal_planner.v1.calendar.ApplyAllocationProposalResponse
@@ -375,7 +636,7 @@ export type ApplyAllocationProposalResponse = Message<"vrooli.personal_planner.v
  * Use `create(ApplyAllocationProposalResponseSchema)` to create a new message.
  */
 export const ApplyAllocationProposalResponseSchema: GenMessage<ApplyAllocationProposalResponse> = /*@__PURE__*/
-  messageDesc(file_personal_planner_v1_calendar_calendar, 11);
+  messageDesc(file_personal_planner_v1_calendar_calendar, 20);
 
 /**
  * @generated from message vrooli.personal_planner.v1.calendar.PreviewScheduleRequest
@@ -402,7 +663,7 @@ export type PreviewScheduleRequest = Message<"vrooli.personal_planner.v1.calenda
  * Use `create(PreviewScheduleRequestSchema)` to create a new message.
  */
 export const PreviewScheduleRequestSchema: GenMessage<PreviewScheduleRequest> = /*@__PURE__*/
-  messageDesc(file_personal_planner_v1_calendar_calendar, 12);
+  messageDesc(file_personal_planner_v1_calendar_calendar, 21);
 
 /**
  * @generated from message vrooli.personal_planner.v1.calendar.ProposedPlacement
@@ -449,7 +710,7 @@ export type ProposedPlacement = Message<"vrooli.personal_planner.v1.calendar.Pro
  * Use `create(ProposedPlacementSchema)` to create a new message.
  */
 export const ProposedPlacementSchema: GenMessage<ProposedPlacement> = /*@__PURE__*/
-  messageDesc(file_personal_planner_v1_calendar_calendar, 13);
+  messageDesc(file_personal_planner_v1_calendar_calendar, 22);
 
 /**
  * @generated from message vrooli.personal_planner.v1.calendar.ScheduleProposal
@@ -491,7 +752,7 @@ export type ScheduleProposal = Message<"vrooli.personal_planner.v1.calendar.Sche
  * Use `create(ScheduleProposalSchema)` to create a new message.
  */
 export const ScheduleProposalSchema: GenMessage<ScheduleProposal> = /*@__PURE__*/
-  messageDesc(file_personal_planner_v1_calendar_calendar, 14);
+  messageDesc(file_personal_planner_v1_calendar_calendar, 23);
 
 /**
  * @generated from message vrooli.personal_planner.v1.calendar.PreviewScheduleResponse
@@ -508,7 +769,7 @@ export type PreviewScheduleResponse = Message<"vrooli.personal_planner.v1.calend
  * Use `create(PreviewScheduleResponseSchema)` to create a new message.
  */
 export const PreviewScheduleResponseSchema: GenMessage<PreviewScheduleResponse> = /*@__PURE__*/
-  messageDesc(file_personal_planner_v1_calendar_calendar, 15);
+  messageDesc(file_personal_planner_v1_calendar_calendar, 24);
 
 /**
  * @generated from message vrooli.personal_planner.v1.calendar.ApplyScheduleProposalRequest
@@ -535,7 +796,7 @@ export type ApplyScheduleProposalRequest = Message<"vrooli.personal_planner.v1.c
  * Use `create(ApplyScheduleProposalRequestSchema)` to create a new message.
  */
 export const ApplyScheduleProposalRequestSchema: GenMessage<ApplyScheduleProposalRequest> = /*@__PURE__*/
-  messageDesc(file_personal_planner_v1_calendar_calendar, 16);
+  messageDesc(file_personal_planner_v1_calendar_calendar, 25);
 
 /**
  * @generated from message vrooli.personal_planner.v1.calendar.ApplyScheduleProposalResponse
@@ -552,7 +813,7 @@ export type ApplyScheduleProposalResponse = Message<"vrooli.personal_planner.v1.
  * Use `create(ApplyScheduleProposalResponseSchema)` to create a new message.
  */
 export const ApplyScheduleProposalResponseSchema: GenMessage<ApplyScheduleProposalResponse> = /*@__PURE__*/
-  messageDesc(file_personal_planner_v1_calendar_calendar, 17);
+  messageDesc(file_personal_planner_v1_calendar_calendar, 26);
 
 /**
  * @generated from message vrooli.personal_planner.v1.calendar.CarryForwardAllocationRequest
@@ -579,7 +840,7 @@ export type CarryForwardAllocationRequest = Message<"vrooli.personal_planner.v1.
  * Use `create(CarryForwardAllocationRequestSchema)` to create a new message.
  */
 export const CarryForwardAllocationRequestSchema: GenMessage<CarryForwardAllocationRequest> = /*@__PURE__*/
-  messageDesc(file_personal_planner_v1_calendar_calendar, 18);
+  messageDesc(file_personal_planner_v1_calendar_calendar, 27);
 
 /**
  * @generated from message vrooli.personal_planner.v1.calendar.CarryForwardAllocationResponse
@@ -596,7 +857,7 @@ export type CarryForwardAllocationResponse = Message<"vrooli.personal_planner.v1
  * Use `create(CarryForwardAllocationResponseSchema)` to create a new message.
  */
 export const CarryForwardAllocationResponseSchema: GenMessage<CarryForwardAllocationResponse> = /*@__PURE__*/
-  messageDesc(file_personal_planner_v1_calendar_calendar, 19);
+  messageDesc(file_personal_planner_v1_calendar_calendar, 28);
 
 /**
  * @generated from message vrooli.personal_planner.v1.calendar.Routine
@@ -668,7 +929,7 @@ export type Routine = Message<"vrooli.personal_planner.v1.calendar.Routine"> & {
  * Use `create(RoutineSchema)` to create a new message.
  */
 export const RoutineSchema: GenMessage<Routine> = /*@__PURE__*/
-  messageDesc(file_personal_planner_v1_calendar_calendar, 20);
+  messageDesc(file_personal_planner_v1_calendar_calendar, 29);
 
 /**
  * @generated from message vrooli.personal_planner.v1.calendar.RoutineOccurrence
@@ -715,7 +976,7 @@ export type RoutineOccurrence = Message<"vrooli.personal_planner.v1.calendar.Rou
  * Use `create(RoutineOccurrenceSchema)` to create a new message.
  */
 export const RoutineOccurrenceSchema: GenMessage<RoutineOccurrence> = /*@__PURE__*/
-  messageDesc(file_personal_planner_v1_calendar_calendar, 21);
+  messageDesc(file_personal_planner_v1_calendar_calendar, 30);
 
 /**
  * @generated from message vrooli.personal_planner.v1.calendar.ListRoutinesRequest
@@ -728,7 +989,7 @@ export type ListRoutinesRequest = Message<"vrooli.personal_planner.v1.calendar.L
  * Use `create(ListRoutinesRequestSchema)` to create a new message.
  */
 export const ListRoutinesRequestSchema: GenMessage<ListRoutinesRequest> = /*@__PURE__*/
-  messageDesc(file_personal_planner_v1_calendar_calendar, 22);
+  messageDesc(file_personal_planner_v1_calendar_calendar, 31);
 
 /**
  * @generated from message vrooli.personal_planner.v1.calendar.ListRoutinesResponse
@@ -745,7 +1006,7 @@ export type ListRoutinesResponse = Message<"vrooli.personal_planner.v1.calendar.
  * Use `create(ListRoutinesResponseSchema)` to create a new message.
  */
 export const ListRoutinesResponseSchema: GenMessage<ListRoutinesResponse> = /*@__PURE__*/
-  messageDesc(file_personal_planner_v1_calendar_calendar, 23);
+  messageDesc(file_personal_planner_v1_calendar_calendar, 32);
 
 /**
  * @generated from message vrooli.personal_planner.v1.calendar.CreateRoutineRequest
@@ -802,7 +1063,7 @@ export type CreateRoutineRequest = Message<"vrooli.personal_planner.v1.calendar.
  * Use `create(CreateRoutineRequestSchema)` to create a new message.
  */
 export const CreateRoutineRequestSchema: GenMessage<CreateRoutineRequest> = /*@__PURE__*/
-  messageDesc(file_personal_planner_v1_calendar_calendar, 24);
+  messageDesc(file_personal_planner_v1_calendar_calendar, 33);
 
 /**
  * @generated from message vrooli.personal_planner.v1.calendar.CreateRoutineResponse
@@ -819,7 +1080,7 @@ export type CreateRoutineResponse = Message<"vrooli.personal_planner.v1.calendar
  * Use `create(CreateRoutineResponseSchema)` to create a new message.
  */
 export const CreateRoutineResponseSchema: GenMessage<CreateRoutineResponse> = /*@__PURE__*/
-  messageDesc(file_personal_planner_v1_calendar_calendar, 25);
+  messageDesc(file_personal_planner_v1_calendar_calendar, 34);
 
 /**
  * @generated from message vrooli.personal_planner.v1.calendar.ListRoutineOccurrencesRequest
@@ -841,7 +1102,7 @@ export type ListRoutineOccurrencesRequest = Message<"vrooli.personal_planner.v1.
  * Use `create(ListRoutineOccurrencesRequestSchema)` to create a new message.
  */
 export const ListRoutineOccurrencesRequestSchema: GenMessage<ListRoutineOccurrencesRequest> = /*@__PURE__*/
-  messageDesc(file_personal_planner_v1_calendar_calendar, 26);
+  messageDesc(file_personal_planner_v1_calendar_calendar, 35);
 
 /**
  * @generated from message vrooli.personal_planner.v1.calendar.ListRoutineOccurrencesResponse
@@ -858,7 +1119,7 @@ export type ListRoutineOccurrencesResponse = Message<"vrooli.personal_planner.v1
  * Use `create(ListRoutineOccurrencesResponseSchema)` to create a new message.
  */
 export const ListRoutineOccurrencesResponseSchema: GenMessage<ListRoutineOccurrencesResponse> = /*@__PURE__*/
-  messageDesc(file_personal_planner_v1_calendar_calendar, 27);
+  messageDesc(file_personal_planner_v1_calendar_calendar, 36);
 
 /**
  * @generated from message vrooli.personal_planner.v1.calendar.SkipRoutineOccurrenceRequest
@@ -885,7 +1146,7 @@ export type SkipRoutineOccurrenceRequest = Message<"vrooli.personal_planner.v1.c
  * Use `create(SkipRoutineOccurrenceRequestSchema)` to create a new message.
  */
 export const SkipRoutineOccurrenceRequestSchema: GenMessage<SkipRoutineOccurrenceRequest> = /*@__PURE__*/
-  messageDesc(file_personal_planner_v1_calendar_calendar, 28);
+  messageDesc(file_personal_planner_v1_calendar_calendar, 37);
 
 /**
  * @generated from message vrooli.personal_planner.v1.calendar.SkipRoutineOccurrenceResponse
@@ -902,7 +1163,7 @@ export type SkipRoutineOccurrenceResponse = Message<"vrooli.personal_planner.v1.
  * Use `create(SkipRoutineOccurrenceResponseSchema)` to create a new message.
  */
 export const SkipRoutineOccurrenceResponseSchema: GenMessage<SkipRoutineOccurrenceResponse> = /*@__PURE__*/
-  messageDesc(file_personal_planner_v1_calendar_calendar, 29);
+  messageDesc(file_personal_planner_v1_calendar_calendar, 38);
 
 /**
  * @generated from message vrooli.personal_planner.v1.calendar.RescheduleRoutineOccurrenceRequest
@@ -934,7 +1195,7 @@ export type RescheduleRoutineOccurrenceRequest = Message<"vrooli.personal_planne
  * Use `create(RescheduleRoutineOccurrenceRequestSchema)` to create a new message.
  */
 export const RescheduleRoutineOccurrenceRequestSchema: GenMessage<RescheduleRoutineOccurrenceRequest> = /*@__PURE__*/
-  messageDesc(file_personal_planner_v1_calendar_calendar, 30);
+  messageDesc(file_personal_planner_v1_calendar_calendar, 39);
 
 /**
  * @generated from message vrooli.personal_planner.v1.calendar.RescheduleRoutineOccurrenceResponse
@@ -951,7 +1212,7 @@ export type RescheduleRoutineOccurrenceResponse = Message<"vrooli.personal_plann
  * Use `create(RescheduleRoutineOccurrenceResponseSchema)` to create a new message.
  */
 export const RescheduleRoutineOccurrenceResponseSchema: GenMessage<RescheduleRoutineOccurrenceResponse> = /*@__PURE__*/
-  messageDesc(file_personal_planner_v1_calendar_calendar, 31);
+  messageDesc(file_personal_planner_v1_calendar_calendar, 40);
 
 /**
  * Calendar owns accepted time allocations. Work recommendations are not
@@ -1063,6 +1324,38 @@ export const CalendarService: GenService<{
     methodKind: "unary";
     input: typeof RescheduleRoutineOccurrenceRequestSchema;
     output: typeof RescheduleRoutineOccurrenceResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.personal_planner.v1.calendar.CalendarService.ListEvents
+   */
+  listEvents: {
+    methodKind: "unary";
+    input: typeof ListEventsRequestSchema;
+    output: typeof ListEventsResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.personal_planner.v1.calendar.CalendarService.GetEvent
+   */
+  getEvent: {
+    methodKind: "unary";
+    input: typeof GetEventRequestSchema;
+    output: typeof GetEventResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.personal_planner.v1.calendar.CalendarService.CreateEvent
+   */
+  createEvent: {
+    methodKind: "unary";
+    input: typeof CreateEventRequestSchema;
+    output: typeof CreateEventResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.personal_planner.v1.calendar.CalendarService.UpdateEvent
+   */
+  updateEvent: {
+    methodKind: "unary";
+    input: typeof UpdateEventRequestSchema;
+    output: typeof UpdateEventResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_personal_planner_v1_calendar_calendar, 0);

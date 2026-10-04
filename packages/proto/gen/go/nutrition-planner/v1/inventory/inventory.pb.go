@@ -785,6 +785,126 @@ func (x *BatchResponse) GetBatch() *Batch {
 	return nil
 }
 
+type ListBatchesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Batches       []*Batch               `protobuf:"bytes,1,rep,name=batches,proto3" json:"batches,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListBatchesResponse) Reset() {
+	*x = ListBatchesResponse{}
+	mi := &file_nutrition_planner_v1_inventory_inventory_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListBatchesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListBatchesResponse) ProtoMessage() {}
+
+func (x *ListBatchesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_nutrition_planner_v1_inventory_inventory_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListBatchesResponse.ProtoReflect.Descriptor instead.
+func (*ListBatchesResponse) Descriptor() ([]byte, []int) {
+	return file_nutrition_planner_v1_inventory_inventory_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *ListBatchesResponse) GetBatches() []*Batch {
+	if x != nil {
+		return x.Batches
+	}
+	return nil
+}
+
+type CorrectBatchYieldRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	EventId       string                 `protobuf:"bytes,2,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	BatchId       string                 `protobuf:"bytes,3,opt,name=batch_id,json=batchId,proto3" json:"batch_id,omitempty"`
+	YieldAmount   string                 `protobuf:"bytes,4,opt,name=yield_amount,json=yieldAmount,proto3" json:"yield_amount,omitempty"`
+	Unit          string                 `protobuf:"bytes,5,opt,name=unit,proto3" json:"unit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CorrectBatchYieldRequest) Reset() {
+	*x = CorrectBatchYieldRequest{}
+	mi := &file_nutrition_planner_v1_inventory_inventory_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CorrectBatchYieldRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CorrectBatchYieldRequest) ProtoMessage() {}
+
+func (x *CorrectBatchYieldRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_nutrition_planner_v1_inventory_inventory_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CorrectBatchYieldRequest.ProtoReflect.Descriptor instead.
+func (*CorrectBatchYieldRequest) Descriptor() ([]byte, []int) {
+	return file_nutrition_planner_v1_inventory_inventory_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *CorrectBatchYieldRequest) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+func (x *CorrectBatchYieldRequest) GetEventId() string {
+	if x != nil {
+		return x.EventId
+	}
+	return ""
+}
+
+func (x *CorrectBatchYieldRequest) GetBatchId() string {
+	if x != nil {
+		return x.BatchId
+	}
+	return ""
+}
+
+func (x *CorrectBatchYieldRequest) GetYieldAmount() string {
+	if x != nil {
+		return x.YieldAmount
+	}
+	return ""
+}
+
+func (x *CorrectBatchYieldRequest) GetUnit() string {
+	if x != nil {
+		return x.Unit
+	}
+	return ""
+}
+
 type ReceiptProposal struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -807,7 +927,7 @@ type ReceiptProposal struct {
 
 func (x *ReceiptProposal) Reset() {
 	*x = ReceiptProposal{}
-	mi := &file_nutrition_planner_v1_inventory_inventory_proto_msgTypes[11]
+	mi := &file_nutrition_planner_v1_inventory_inventory_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -819,7 +939,7 @@ func (x *ReceiptProposal) String() string {
 func (*ReceiptProposal) ProtoMessage() {}
 
 func (x *ReceiptProposal) ProtoReflect() protoreflect.Message {
-	mi := &file_nutrition_planner_v1_inventory_inventory_proto_msgTypes[11]
+	mi := &file_nutrition_planner_v1_inventory_inventory_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -832,7 +952,7 @@ func (x *ReceiptProposal) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReceiptProposal.ProtoReflect.Descriptor instead.
 func (*ReceiptProposal) Descriptor() ([]byte, []int) {
-	return file_nutrition_planner_v1_inventory_inventory_proto_rawDescGZIP(), []int{11}
+	return file_nutrition_planner_v1_inventory_inventory_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ReceiptProposal) GetId() string {
@@ -950,7 +1070,7 @@ type StageReceiptProposalRequest struct {
 
 func (x *StageReceiptProposalRequest) Reset() {
 	*x = StageReceiptProposalRequest{}
-	mi := &file_nutrition_planner_v1_inventory_inventory_proto_msgTypes[12]
+	mi := &file_nutrition_planner_v1_inventory_inventory_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -962,7 +1082,7 @@ func (x *StageReceiptProposalRequest) String() string {
 func (*StageReceiptProposalRequest) ProtoMessage() {}
 
 func (x *StageReceiptProposalRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_nutrition_planner_v1_inventory_inventory_proto_msgTypes[12]
+	mi := &file_nutrition_planner_v1_inventory_inventory_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -975,7 +1095,7 @@ func (x *StageReceiptProposalRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StageReceiptProposalRequest.ProtoReflect.Descriptor instead.
 func (*StageReceiptProposalRequest) Descriptor() ([]byte, []int) {
-	return file_nutrition_planner_v1_inventory_inventory_proto_rawDescGZIP(), []int{12}
+	return file_nutrition_planner_v1_inventory_inventory_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *StageReceiptProposalRequest) GetWorkspaceId() string {
@@ -1050,7 +1170,7 @@ type ListReceiptProposalsRequest struct {
 
 func (x *ListReceiptProposalsRequest) Reset() {
 	*x = ListReceiptProposalsRequest{}
-	mi := &file_nutrition_planner_v1_inventory_inventory_proto_msgTypes[13]
+	mi := &file_nutrition_planner_v1_inventory_inventory_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1062,7 +1182,7 @@ func (x *ListReceiptProposalsRequest) String() string {
 func (*ListReceiptProposalsRequest) ProtoMessage() {}
 
 func (x *ListReceiptProposalsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_nutrition_planner_v1_inventory_inventory_proto_msgTypes[13]
+	mi := &file_nutrition_planner_v1_inventory_inventory_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1075,7 +1195,7 @@ func (x *ListReceiptProposalsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListReceiptProposalsRequest.ProtoReflect.Descriptor instead.
 func (*ListReceiptProposalsRequest) Descriptor() ([]byte, []int) {
-	return file_nutrition_planner_v1_inventory_inventory_proto_rawDescGZIP(), []int{13}
+	return file_nutrition_planner_v1_inventory_inventory_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ListReceiptProposalsRequest) GetWorkspaceId() string {
@@ -1094,7 +1214,7 @@ type ListReceiptProposalsResponse struct {
 
 func (x *ListReceiptProposalsResponse) Reset() {
 	*x = ListReceiptProposalsResponse{}
-	mi := &file_nutrition_planner_v1_inventory_inventory_proto_msgTypes[14]
+	mi := &file_nutrition_planner_v1_inventory_inventory_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1106,7 +1226,7 @@ func (x *ListReceiptProposalsResponse) String() string {
 func (*ListReceiptProposalsResponse) ProtoMessage() {}
 
 func (x *ListReceiptProposalsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_nutrition_planner_v1_inventory_inventory_proto_msgTypes[14]
+	mi := &file_nutrition_planner_v1_inventory_inventory_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1119,7 +1239,7 @@ func (x *ListReceiptProposalsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListReceiptProposalsResponse.ProtoReflect.Descriptor instead.
 func (*ListReceiptProposalsResponse) Descriptor() ([]byte, []int) {
-	return file_nutrition_planner_v1_inventory_inventory_proto_rawDescGZIP(), []int{14}
+	return file_nutrition_planner_v1_inventory_inventory_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ListReceiptProposalsResponse) GetProposals() []*ReceiptProposal {
@@ -1139,7 +1259,7 @@ type ApplyReceiptProposalRequest struct {
 
 func (x *ApplyReceiptProposalRequest) Reset() {
 	*x = ApplyReceiptProposalRequest{}
-	mi := &file_nutrition_planner_v1_inventory_inventory_proto_msgTypes[15]
+	mi := &file_nutrition_planner_v1_inventory_inventory_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1151,7 +1271,7 @@ func (x *ApplyReceiptProposalRequest) String() string {
 func (*ApplyReceiptProposalRequest) ProtoMessage() {}
 
 func (x *ApplyReceiptProposalRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_nutrition_planner_v1_inventory_inventory_proto_msgTypes[15]
+	mi := &file_nutrition_planner_v1_inventory_inventory_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1164,7 +1284,7 @@ func (x *ApplyReceiptProposalRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApplyReceiptProposalRequest.ProtoReflect.Descriptor instead.
 func (*ApplyReceiptProposalRequest) Descriptor() ([]byte, []int) {
-	return file_nutrition_planner_v1_inventory_inventory_proto_rawDescGZIP(), []int{15}
+	return file_nutrition_planner_v1_inventory_inventory_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *ApplyReceiptProposalRequest) GetWorkspaceId() string {
@@ -1190,7 +1310,7 @@ type ReceiptProposalResponse struct {
 
 func (x *ReceiptProposalResponse) Reset() {
 	*x = ReceiptProposalResponse{}
-	mi := &file_nutrition_planner_v1_inventory_inventory_proto_msgTypes[16]
+	mi := &file_nutrition_planner_v1_inventory_inventory_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1202,7 +1322,7 @@ func (x *ReceiptProposalResponse) String() string {
 func (*ReceiptProposalResponse) ProtoMessage() {}
 
 func (x *ReceiptProposalResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_nutrition_planner_v1_inventory_inventory_proto_msgTypes[16]
+	mi := &file_nutrition_planner_v1_inventory_inventory_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1215,7 +1335,7 @@ func (x *ReceiptProposalResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReceiptProposalResponse.ProtoReflect.Descriptor instead.
 func (*ReceiptProposalResponse) Descriptor() ([]byte, []int) {
-	return file_nutrition_planner_v1_inventory_inventory_proto_rawDescGZIP(), []int{16}
+	return file_nutrition_planner_v1_inventory_inventory_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *ReceiptProposalResponse) GetProposal() *ReceiptProposal {
@@ -1288,7 +1408,15 @@ const file_nutrition_planner_v1_inventory_inventory_proto_rawDesc = "" +
 	"\x04unit\x18\x05 \x01(\tR\x04unit\x12\x1b\n" +
 	"\trecipe_id\x18\x06 \x01(\tR\brecipeId\"S\n" +
 	"\rBatchResponse\x12B\n" +
-	"\x05batch\x18\x01 \x01(\v2,.vrooli.nutrition_planner.v1.inventory.BatchR\x05batch\"\x91\x03\n" +
+	"\x05batch\x18\x01 \x01(\v2,.vrooli.nutrition_planner.v1.inventory.BatchR\x05batch\"]\n" +
+	"\x13ListBatchesResponse\x12F\n" +
+	"\abatches\x18\x01 \x03(\v2,.vrooli.nutrition_planner.v1.inventory.BatchR\abatches\"\xaa\x01\n" +
+	"\x18CorrectBatchYieldRequest\x12!\n" +
+	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x19\n" +
+	"\bevent_id\x18\x02 \x01(\tR\aeventId\x12\x19\n" +
+	"\bbatch_id\x18\x03 \x01(\tR\abatchId\x12!\n" +
+	"\fyield_amount\x18\x04 \x01(\tR\vyieldAmount\x12\x12\n" +
+	"\x04unit\x18\x05 \x01(\tR\x04unit\"\x91\x03\n" +
 	"\x0fReceiptProposal\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\fworkspace_id\x18\x02 \x01(\tR\vworkspaceId\x12\x1b\n" +
@@ -1326,14 +1454,16 @@ const file_nutrition_planner_v1_inventory_inventory_proto_rawDesc = "" +
 	"\vproposal_id\x18\x02 \x01(\tR\n" +
 	"proposalId\"m\n" +
 	"\x17ReceiptProposalResponse\x12R\n" +
-	"\bproposal\x18\x01 \x01(\v26.vrooli.nutrition_planner.v1.inventory.ReceiptProposalR\bproposal2\xa2\t\n" +
+	"\bproposal\x18\x01 \x01(\v26.vrooli.nutrition_planner.v1.inventory.ReceiptProposalR\bproposal2\xb5\v\n" +
 	"\x10InventoryService\x12\x81\x01\n" +
 	"\n" +
 	"ListEvents\x128.vrooli.nutrition_planner.v1.inventory.ListEventsRequest\x1a9.vrooli.nutrition_planner.v1.inventory.ListEventsResponse\x12\x84\x01\n" +
 	"\vRecordEvent\x129.vrooli.nutrition_planner.v1.inventory.RecordEventRequest\x1a:.vrooli.nutrition_planner.v1.inventory.RecordEventResponse\x12\x87\x01\n" +
 	"\fPrepareBatch\x12:.vrooli.nutrition_planner.v1.inventory.PrepareBatchRequest\x1a;.vrooli.nutrition_planner.v1.inventory.PrepareBatchResponse\x12\x8e\x01\n" +
 	"\x13ConsumeBatchPortion\x12A.vrooli.nutrition_planner.v1.inventory.ConsumeBatchPortionRequest\x1a4.vrooli.nutrition_planner.v1.inventory.BatchResponse\x12\x8b\x01\n" +
-	"\x10UndoBatchPortion\x12A.vrooli.nutrition_planner.v1.inventory.ConsumeBatchPortionRequest\x1a4.vrooli.nutrition_planner.v1.inventory.BatchResponse\x12\x9a\x01\n" +
+	"\x10UndoBatchPortion\x12A.vrooli.nutrition_planner.v1.inventory.ConsumeBatchPortionRequest\x1a4.vrooli.nutrition_planner.v1.inventory.BatchResponse\x12\x83\x01\n" +
+	"\vListBatches\x128.vrooli.nutrition_planner.v1.inventory.ListEventsRequest\x1a:.vrooli.nutrition_planner.v1.inventory.ListBatchesResponse\x12\x8a\x01\n" +
+	"\x11CorrectBatchYield\x12?.vrooli.nutrition_planner.v1.inventory.CorrectBatchYieldRequest\x1a4.vrooli.nutrition_planner.v1.inventory.BatchResponse\x12\x9a\x01\n" +
 	"\x14StageReceiptProposal\x12B.vrooli.nutrition_planner.v1.inventory.StageReceiptProposalRequest\x1a>.vrooli.nutrition_planner.v1.inventory.ReceiptProposalResponse\x12\x9f\x01\n" +
 	"\x14ListReceiptProposals\x12B.vrooli.nutrition_planner.v1.inventory.ListReceiptProposalsRequest\x1aC.vrooli.nutrition_planner.v1.inventory.ListReceiptProposalsResponse\x12\x9a\x01\n" +
 	"\x14ApplyReceiptProposal\x12B.vrooli.nutrition_planner.v1.inventory.ApplyReceiptProposalRequest\x1a>.vrooli.nutrition_planner.v1.inventory.ReceiptProposalResponseB\\ZZgithub.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/inventory;inventory_v1b\x06proto3"
@@ -1350,7 +1480,7 @@ func file_nutrition_planner_v1_inventory_inventory_proto_rawDescGZIP() []byte {
 	return file_nutrition_planner_v1_inventory_inventory_proto_rawDescData
 }
 
-var file_nutrition_planner_v1_inventory_inventory_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_nutrition_planner_v1_inventory_inventory_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
 var file_nutrition_planner_v1_inventory_inventory_proto_goTypes = []any{
 	(*InventoryEvent)(nil),               // 0: vrooli.nutrition_planner.v1.inventory.InventoryEvent
 	(*ListEventsRequest)(nil),            // 1: vrooli.nutrition_planner.v1.inventory.ListEventsRequest
@@ -1363,12 +1493,14 @@ var file_nutrition_planner_v1_inventory_inventory_proto_goTypes = []any{
 	(*PrepareBatchResponse)(nil),         // 8: vrooli.nutrition_planner.v1.inventory.PrepareBatchResponse
 	(*ConsumeBatchPortionRequest)(nil),   // 9: vrooli.nutrition_planner.v1.inventory.ConsumeBatchPortionRequest
 	(*BatchResponse)(nil),                // 10: vrooli.nutrition_planner.v1.inventory.BatchResponse
-	(*ReceiptProposal)(nil),              // 11: vrooli.nutrition_planner.v1.inventory.ReceiptProposal
-	(*StageReceiptProposalRequest)(nil),  // 12: vrooli.nutrition_planner.v1.inventory.StageReceiptProposalRequest
-	(*ListReceiptProposalsRequest)(nil),  // 13: vrooli.nutrition_planner.v1.inventory.ListReceiptProposalsRequest
-	(*ListReceiptProposalsResponse)(nil), // 14: vrooli.nutrition_planner.v1.inventory.ListReceiptProposalsResponse
-	(*ApplyReceiptProposalRequest)(nil),  // 15: vrooli.nutrition_planner.v1.inventory.ApplyReceiptProposalRequest
-	(*ReceiptProposalResponse)(nil),      // 16: vrooli.nutrition_planner.v1.inventory.ReceiptProposalResponse
+	(*ListBatchesResponse)(nil),          // 11: vrooli.nutrition_planner.v1.inventory.ListBatchesResponse
+	(*CorrectBatchYieldRequest)(nil),     // 12: vrooli.nutrition_planner.v1.inventory.CorrectBatchYieldRequest
+	(*ReceiptProposal)(nil),              // 13: vrooli.nutrition_planner.v1.inventory.ReceiptProposal
+	(*StageReceiptProposalRequest)(nil),  // 14: vrooli.nutrition_planner.v1.inventory.StageReceiptProposalRequest
+	(*ListReceiptProposalsRequest)(nil),  // 15: vrooli.nutrition_planner.v1.inventory.ListReceiptProposalsRequest
+	(*ListReceiptProposalsResponse)(nil), // 16: vrooli.nutrition_planner.v1.inventory.ListReceiptProposalsResponse
+	(*ApplyReceiptProposalRequest)(nil),  // 17: vrooli.nutrition_planner.v1.inventory.ApplyReceiptProposalRequest
+	(*ReceiptProposalResponse)(nil),      // 18: vrooli.nutrition_planner.v1.inventory.ReceiptProposalResponse
 }
 var file_nutrition_planner_v1_inventory_inventory_proto_depIdxs = []int32{
 	0,  // 0: vrooli.nutrition_planner.v1.inventory.ListEventsResponse.events:type_name -> vrooli.nutrition_planner.v1.inventory.InventoryEvent
@@ -1376,29 +1508,34 @@ var file_nutrition_planner_v1_inventory_inventory_proto_depIdxs = []int32{
 	6,  // 2: vrooli.nutrition_planner.v1.inventory.PrepareBatchRequest.requirements:type_name -> vrooli.nutrition_planner.v1.inventory.PrepareRequirement
 	5,  // 3: vrooli.nutrition_planner.v1.inventory.PrepareBatchResponse.batch:type_name -> vrooli.nutrition_planner.v1.inventory.Batch
 	5,  // 4: vrooli.nutrition_planner.v1.inventory.BatchResponse.batch:type_name -> vrooli.nutrition_planner.v1.inventory.Batch
-	11, // 5: vrooli.nutrition_planner.v1.inventory.ListReceiptProposalsResponse.proposals:type_name -> vrooli.nutrition_planner.v1.inventory.ReceiptProposal
-	11, // 6: vrooli.nutrition_planner.v1.inventory.ReceiptProposalResponse.proposal:type_name -> vrooli.nutrition_planner.v1.inventory.ReceiptProposal
-	1,  // 7: vrooli.nutrition_planner.v1.inventory.InventoryService.ListEvents:input_type -> vrooli.nutrition_planner.v1.inventory.ListEventsRequest
-	3,  // 8: vrooli.nutrition_planner.v1.inventory.InventoryService.RecordEvent:input_type -> vrooli.nutrition_planner.v1.inventory.RecordEventRequest
-	7,  // 9: vrooli.nutrition_planner.v1.inventory.InventoryService.PrepareBatch:input_type -> vrooli.nutrition_planner.v1.inventory.PrepareBatchRequest
-	9,  // 10: vrooli.nutrition_planner.v1.inventory.InventoryService.ConsumeBatchPortion:input_type -> vrooli.nutrition_planner.v1.inventory.ConsumeBatchPortionRequest
-	9,  // 11: vrooli.nutrition_planner.v1.inventory.InventoryService.UndoBatchPortion:input_type -> vrooli.nutrition_planner.v1.inventory.ConsumeBatchPortionRequest
-	12, // 12: vrooli.nutrition_planner.v1.inventory.InventoryService.StageReceiptProposal:input_type -> vrooli.nutrition_planner.v1.inventory.StageReceiptProposalRequest
-	13, // 13: vrooli.nutrition_planner.v1.inventory.InventoryService.ListReceiptProposals:input_type -> vrooli.nutrition_planner.v1.inventory.ListReceiptProposalsRequest
-	15, // 14: vrooli.nutrition_planner.v1.inventory.InventoryService.ApplyReceiptProposal:input_type -> vrooli.nutrition_planner.v1.inventory.ApplyReceiptProposalRequest
-	2,  // 15: vrooli.nutrition_planner.v1.inventory.InventoryService.ListEvents:output_type -> vrooli.nutrition_planner.v1.inventory.ListEventsResponse
-	4,  // 16: vrooli.nutrition_planner.v1.inventory.InventoryService.RecordEvent:output_type -> vrooli.nutrition_planner.v1.inventory.RecordEventResponse
-	8,  // 17: vrooli.nutrition_planner.v1.inventory.InventoryService.PrepareBatch:output_type -> vrooli.nutrition_planner.v1.inventory.PrepareBatchResponse
-	10, // 18: vrooli.nutrition_planner.v1.inventory.InventoryService.ConsumeBatchPortion:output_type -> vrooli.nutrition_planner.v1.inventory.BatchResponse
-	10, // 19: vrooli.nutrition_planner.v1.inventory.InventoryService.UndoBatchPortion:output_type -> vrooli.nutrition_planner.v1.inventory.BatchResponse
-	16, // 20: vrooli.nutrition_planner.v1.inventory.InventoryService.StageReceiptProposal:output_type -> vrooli.nutrition_planner.v1.inventory.ReceiptProposalResponse
-	14, // 21: vrooli.nutrition_planner.v1.inventory.InventoryService.ListReceiptProposals:output_type -> vrooli.nutrition_planner.v1.inventory.ListReceiptProposalsResponse
-	16, // 22: vrooli.nutrition_planner.v1.inventory.InventoryService.ApplyReceiptProposal:output_type -> vrooli.nutrition_planner.v1.inventory.ReceiptProposalResponse
-	15, // [15:23] is the sub-list for method output_type
-	7,  // [7:15] is the sub-list for method input_type
-	7,  // [7:7] is the sub-list for extension type_name
-	7,  // [7:7] is the sub-list for extension extendee
-	0,  // [0:7] is the sub-list for field type_name
+	5,  // 5: vrooli.nutrition_planner.v1.inventory.ListBatchesResponse.batches:type_name -> vrooli.nutrition_planner.v1.inventory.Batch
+	13, // 6: vrooli.nutrition_planner.v1.inventory.ListReceiptProposalsResponse.proposals:type_name -> vrooli.nutrition_planner.v1.inventory.ReceiptProposal
+	13, // 7: vrooli.nutrition_planner.v1.inventory.ReceiptProposalResponse.proposal:type_name -> vrooli.nutrition_planner.v1.inventory.ReceiptProposal
+	1,  // 8: vrooli.nutrition_planner.v1.inventory.InventoryService.ListEvents:input_type -> vrooli.nutrition_planner.v1.inventory.ListEventsRequest
+	3,  // 9: vrooli.nutrition_planner.v1.inventory.InventoryService.RecordEvent:input_type -> vrooli.nutrition_planner.v1.inventory.RecordEventRequest
+	7,  // 10: vrooli.nutrition_planner.v1.inventory.InventoryService.PrepareBatch:input_type -> vrooli.nutrition_planner.v1.inventory.PrepareBatchRequest
+	9,  // 11: vrooli.nutrition_planner.v1.inventory.InventoryService.ConsumeBatchPortion:input_type -> vrooli.nutrition_planner.v1.inventory.ConsumeBatchPortionRequest
+	9,  // 12: vrooli.nutrition_planner.v1.inventory.InventoryService.UndoBatchPortion:input_type -> vrooli.nutrition_planner.v1.inventory.ConsumeBatchPortionRequest
+	1,  // 13: vrooli.nutrition_planner.v1.inventory.InventoryService.ListBatches:input_type -> vrooli.nutrition_planner.v1.inventory.ListEventsRequest
+	12, // 14: vrooli.nutrition_planner.v1.inventory.InventoryService.CorrectBatchYield:input_type -> vrooli.nutrition_planner.v1.inventory.CorrectBatchYieldRequest
+	14, // 15: vrooli.nutrition_planner.v1.inventory.InventoryService.StageReceiptProposal:input_type -> vrooli.nutrition_planner.v1.inventory.StageReceiptProposalRequest
+	15, // 16: vrooli.nutrition_planner.v1.inventory.InventoryService.ListReceiptProposals:input_type -> vrooli.nutrition_planner.v1.inventory.ListReceiptProposalsRequest
+	17, // 17: vrooli.nutrition_planner.v1.inventory.InventoryService.ApplyReceiptProposal:input_type -> vrooli.nutrition_planner.v1.inventory.ApplyReceiptProposalRequest
+	2,  // 18: vrooli.nutrition_planner.v1.inventory.InventoryService.ListEvents:output_type -> vrooli.nutrition_planner.v1.inventory.ListEventsResponse
+	4,  // 19: vrooli.nutrition_planner.v1.inventory.InventoryService.RecordEvent:output_type -> vrooli.nutrition_planner.v1.inventory.RecordEventResponse
+	8,  // 20: vrooli.nutrition_planner.v1.inventory.InventoryService.PrepareBatch:output_type -> vrooli.nutrition_planner.v1.inventory.PrepareBatchResponse
+	10, // 21: vrooli.nutrition_planner.v1.inventory.InventoryService.ConsumeBatchPortion:output_type -> vrooli.nutrition_planner.v1.inventory.BatchResponse
+	10, // 22: vrooli.nutrition_planner.v1.inventory.InventoryService.UndoBatchPortion:output_type -> vrooli.nutrition_planner.v1.inventory.BatchResponse
+	11, // 23: vrooli.nutrition_planner.v1.inventory.InventoryService.ListBatches:output_type -> vrooli.nutrition_planner.v1.inventory.ListBatchesResponse
+	10, // 24: vrooli.nutrition_planner.v1.inventory.InventoryService.CorrectBatchYield:output_type -> vrooli.nutrition_planner.v1.inventory.BatchResponse
+	18, // 25: vrooli.nutrition_planner.v1.inventory.InventoryService.StageReceiptProposal:output_type -> vrooli.nutrition_planner.v1.inventory.ReceiptProposalResponse
+	16, // 26: vrooli.nutrition_planner.v1.inventory.InventoryService.ListReceiptProposals:output_type -> vrooli.nutrition_planner.v1.inventory.ListReceiptProposalsResponse
+	18, // 27: vrooli.nutrition_planner.v1.inventory.InventoryService.ApplyReceiptProposal:output_type -> vrooli.nutrition_planner.v1.inventory.ReceiptProposalResponse
+	18, // [18:28] is the sub-list for method output_type
+	8,  // [8:18] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_nutrition_planner_v1_inventory_inventory_proto_init() }
@@ -1412,7 +1549,7 @@ func file_nutrition_planner_v1_inventory_inventory_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_nutrition_planner_v1_inventory_inventory_proto_rawDesc), len(file_nutrition_planner_v1_inventory_inventory_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   17,
+			NumMessages:   19,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

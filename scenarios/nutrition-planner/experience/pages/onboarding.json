@@ -36,6 +36,12 @@
     },
     {
       "statement": "Explore first is allowed and says plainly that suggestions do not reflect unentered rules."
+    },
+    {
+      "statement": "Save valid settings with an empty collection; offer Add meal, labeled examples or Today. Never force a starter plan or relax rules (ND-007)."
+    },
+    {
+      "statement": "Close visual fidelity to the exact selected local originals is required; see docs/reference/selected-2026-10-03/VISUAL-ACCEPTANCE.md and local-visual-assets.json for this page/state mapping. Compare matching actual-build state/appearance/viewport; record justified responsive/accessibility/truthful-data adaptations without weakening behavior or NF-010 timer reachability."
     }
   ],
   "states": [

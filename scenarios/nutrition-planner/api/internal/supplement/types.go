@@ -113,19 +113,17 @@ func AppliesOn(s Schedule, date time.Time) bool {
 	if s.Paused || !s.Confirmed || Validate(s) != nil {
 		return false
 	}
-	day := date.UTC().Truncate(24 * time.Hour)
-	start, _ := time.ParseInLocation("2006-01-02", s.StartDate, time.UTC)
-	if day.Before(start) {
+	// The caller supplies the workspace-local date. Keep its calendar fields:
+	// converting to UTC can move a late local evening onto the next weekday.
+	localDate := date.Format("2006-01-02")
+	if localDate < s.StartDate {
 		return false
 	}
-	if s.EndDate != "" {
-		end, _ := time.ParseInLocation("2006-01-02", s.EndDate, time.UTC)
-		if day.After(end) {
-			return false
-		}
+	if s.EndDate != "" && localDate > s.EndDate {
+		return false
 	}
 	for _, weekday := range s.Weekdays {
-		if int(day.Weekday()) == weekday {
+		if int(date.Weekday()) == weekday {
 			return true
 		}
 	}

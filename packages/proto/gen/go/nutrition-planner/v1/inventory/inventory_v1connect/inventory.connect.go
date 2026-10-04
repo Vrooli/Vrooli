@@ -48,6 +48,12 @@ const (
 	// InventoryServiceUndoBatchPortionProcedure is the fully-qualified name of the InventoryService's
 	// UndoBatchPortion RPC.
 	InventoryServiceUndoBatchPortionProcedure = "/vrooli.nutrition_planner.v1.inventory.InventoryService/UndoBatchPortion"
+	// InventoryServiceListBatchesProcedure is the fully-qualified name of the InventoryService's
+	// ListBatches RPC.
+	InventoryServiceListBatchesProcedure = "/vrooli.nutrition_planner.v1.inventory.InventoryService/ListBatches"
+	// InventoryServiceCorrectBatchYieldProcedure is the fully-qualified name of the InventoryService's
+	// CorrectBatchYield RPC.
+	InventoryServiceCorrectBatchYieldProcedure = "/vrooli.nutrition_planner.v1.inventory.InventoryService/CorrectBatchYield"
 	// InventoryServiceStageReceiptProposalProcedure is the fully-qualified name of the
 	// InventoryService's StageReceiptProposal RPC.
 	InventoryServiceStageReceiptProposalProcedure = "/vrooli.nutrition_planner.v1.inventory.InventoryService/StageReceiptProposal"
@@ -67,6 +73,8 @@ type InventoryServiceClient interface {
 	PrepareBatch(context.Context, *connect.Request[inventory.PrepareBatchRequest]) (*connect.Response[inventory.PrepareBatchResponse], error)
 	ConsumeBatchPortion(context.Context, *connect.Request[inventory.ConsumeBatchPortionRequest]) (*connect.Response[inventory.BatchResponse], error)
 	UndoBatchPortion(context.Context, *connect.Request[inventory.ConsumeBatchPortionRequest]) (*connect.Response[inventory.BatchResponse], error)
+	ListBatches(context.Context, *connect.Request[inventory.ListEventsRequest]) (*connect.Response[inventory.ListBatchesResponse], error)
+	CorrectBatchYield(context.Context, *connect.Request[inventory.CorrectBatchYieldRequest]) (*connect.Response[inventory.BatchResponse], error)
 	StageReceiptProposal(context.Context, *connect.Request[inventory.StageReceiptProposalRequest]) (*connect.Response[inventory.ReceiptProposalResponse], error)
 	ListReceiptProposals(context.Context, *connect.Request[inventory.ListReceiptProposalsRequest]) (*connect.Response[inventory.ListReceiptProposalsResponse], error)
 	ApplyReceiptProposal(context.Context, *connect.Request[inventory.ApplyReceiptProposalRequest]) (*connect.Response[inventory.ReceiptProposalResponse], error)
@@ -114,6 +122,18 @@ func NewInventoryServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(inventoryServiceMethods.ByName("UndoBatchPortion")),
 			connect.WithClientOptions(opts...),
 		),
+		listBatches: connect.NewClient[inventory.ListEventsRequest, inventory.ListBatchesResponse](
+			httpClient,
+			baseURL+InventoryServiceListBatchesProcedure,
+			connect.WithSchema(inventoryServiceMethods.ByName("ListBatches")),
+			connect.WithClientOptions(opts...),
+		),
+		correctBatchYield: connect.NewClient[inventory.CorrectBatchYieldRequest, inventory.BatchResponse](
+			httpClient,
+			baseURL+InventoryServiceCorrectBatchYieldProcedure,
+			connect.WithSchema(inventoryServiceMethods.ByName("CorrectBatchYield")),
+			connect.WithClientOptions(opts...),
+		),
 		stageReceiptProposal: connect.NewClient[inventory.StageReceiptProposalRequest, inventory.ReceiptProposalResponse](
 			httpClient,
 			baseURL+InventoryServiceStageReceiptProposalProcedure,
@@ -142,6 +162,8 @@ type inventoryServiceClient struct {
 	prepareBatch         *connect.Client[inventory.PrepareBatchRequest, inventory.PrepareBatchResponse]
 	consumeBatchPortion  *connect.Client[inventory.ConsumeBatchPortionRequest, inventory.BatchResponse]
 	undoBatchPortion     *connect.Client[inventory.ConsumeBatchPortionRequest, inventory.BatchResponse]
+	listBatches          *connect.Client[inventory.ListEventsRequest, inventory.ListBatchesResponse]
+	correctBatchYield    *connect.Client[inventory.CorrectBatchYieldRequest, inventory.BatchResponse]
 	stageReceiptProposal *connect.Client[inventory.StageReceiptProposalRequest, inventory.ReceiptProposalResponse]
 	listReceiptProposals *connect.Client[inventory.ListReceiptProposalsRequest, inventory.ListReceiptProposalsResponse]
 	applyReceiptProposal *connect.Client[inventory.ApplyReceiptProposalRequest, inventory.ReceiptProposalResponse]
@@ -173,6 +195,16 @@ func (c *inventoryServiceClient) UndoBatchPortion(ctx context.Context, req *conn
 	return c.undoBatchPortion.CallUnary(ctx, req)
 }
 
+// ListBatches calls vrooli.nutrition_planner.v1.inventory.InventoryService.ListBatches.
+func (c *inventoryServiceClient) ListBatches(ctx context.Context, req *connect.Request[inventory.ListEventsRequest]) (*connect.Response[inventory.ListBatchesResponse], error) {
+	return c.listBatches.CallUnary(ctx, req)
+}
+
+// CorrectBatchYield calls vrooli.nutrition_planner.v1.inventory.InventoryService.CorrectBatchYield.
+func (c *inventoryServiceClient) CorrectBatchYield(ctx context.Context, req *connect.Request[inventory.CorrectBatchYieldRequest]) (*connect.Response[inventory.BatchResponse], error) {
+	return c.correctBatchYield.CallUnary(ctx, req)
+}
+
 // StageReceiptProposal calls
 // vrooli.nutrition_planner.v1.inventory.InventoryService.StageReceiptProposal.
 func (c *inventoryServiceClient) StageReceiptProposal(ctx context.Context, req *connect.Request[inventory.StageReceiptProposalRequest]) (*connect.Response[inventory.ReceiptProposalResponse], error) {
@@ -199,6 +231,8 @@ type InventoryServiceHandler interface {
 	PrepareBatch(context.Context, *connect.Request[inventory.PrepareBatchRequest]) (*connect.Response[inventory.PrepareBatchResponse], error)
 	ConsumeBatchPortion(context.Context, *connect.Request[inventory.ConsumeBatchPortionRequest]) (*connect.Response[inventory.BatchResponse], error)
 	UndoBatchPortion(context.Context, *connect.Request[inventory.ConsumeBatchPortionRequest]) (*connect.Response[inventory.BatchResponse], error)
+	ListBatches(context.Context, *connect.Request[inventory.ListEventsRequest]) (*connect.Response[inventory.ListBatchesResponse], error)
+	CorrectBatchYield(context.Context, *connect.Request[inventory.CorrectBatchYieldRequest]) (*connect.Response[inventory.BatchResponse], error)
 	StageReceiptProposal(context.Context, *connect.Request[inventory.StageReceiptProposalRequest]) (*connect.Response[inventory.ReceiptProposalResponse], error)
 	ListReceiptProposals(context.Context, *connect.Request[inventory.ListReceiptProposalsRequest]) (*connect.Response[inventory.ListReceiptProposalsResponse], error)
 	ApplyReceiptProposal(context.Context, *connect.Request[inventory.ApplyReceiptProposalRequest]) (*connect.Response[inventory.ReceiptProposalResponse], error)
@@ -241,6 +275,18 @@ func NewInventoryServiceHandler(svc InventoryServiceHandler, opts ...connect.Han
 		connect.WithSchema(inventoryServiceMethods.ByName("UndoBatchPortion")),
 		connect.WithHandlerOptions(opts...),
 	)
+	inventoryServiceListBatchesHandler := connect.NewUnaryHandler(
+		InventoryServiceListBatchesProcedure,
+		svc.ListBatches,
+		connect.WithSchema(inventoryServiceMethods.ByName("ListBatches")),
+		connect.WithHandlerOptions(opts...),
+	)
+	inventoryServiceCorrectBatchYieldHandler := connect.NewUnaryHandler(
+		InventoryServiceCorrectBatchYieldProcedure,
+		svc.CorrectBatchYield,
+		connect.WithSchema(inventoryServiceMethods.ByName("CorrectBatchYield")),
+		connect.WithHandlerOptions(opts...),
+	)
 	inventoryServiceStageReceiptProposalHandler := connect.NewUnaryHandler(
 		InventoryServiceStageReceiptProposalProcedure,
 		svc.StageReceiptProposal,
@@ -271,6 +317,10 @@ func NewInventoryServiceHandler(svc InventoryServiceHandler, opts ...connect.Han
 			inventoryServiceConsumeBatchPortionHandler.ServeHTTP(w, r)
 		case InventoryServiceUndoBatchPortionProcedure:
 			inventoryServiceUndoBatchPortionHandler.ServeHTTP(w, r)
+		case InventoryServiceListBatchesProcedure:
+			inventoryServiceListBatchesHandler.ServeHTTP(w, r)
+		case InventoryServiceCorrectBatchYieldProcedure:
+			inventoryServiceCorrectBatchYieldHandler.ServeHTTP(w, r)
 		case InventoryServiceStageReceiptProposalProcedure:
 			inventoryServiceStageReceiptProposalHandler.ServeHTTP(w, r)
 		case InventoryServiceListReceiptProposalsProcedure:
@@ -304,6 +354,14 @@ func (UnimplementedInventoryServiceHandler) ConsumeBatchPortion(context.Context,
 
 func (UnimplementedInventoryServiceHandler) UndoBatchPortion(context.Context, *connect.Request[inventory.ConsumeBatchPortionRequest]) (*connect.Response[inventory.BatchResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.nutrition_planner.v1.inventory.InventoryService.UndoBatchPortion is not implemented"))
+}
+
+func (UnimplementedInventoryServiceHandler) ListBatches(context.Context, *connect.Request[inventory.ListEventsRequest]) (*connect.Response[inventory.ListBatchesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.nutrition_planner.v1.inventory.InventoryService.ListBatches is not implemented"))
+}
+
+func (UnimplementedInventoryServiceHandler) CorrectBatchYield(context.Context, *connect.Request[inventory.CorrectBatchYieldRequest]) (*connect.Response[inventory.BatchResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.nutrition_planner.v1.inventory.InventoryService.CorrectBatchYield is not implemented"))
 }
 
 func (UnimplementedInventoryServiceHandler) StageReceiptProposal(context.Context, *connect.Request[inventory.StageReceiptProposalRequest]) (*connect.Response[inventory.ReceiptProposalResponse], error) {

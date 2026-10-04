@@ -348,9 +348,15 @@ type Run struct {
 	StopReason    string `protobuf:"bytes,56,opt,name=stop_reason,json=stopReason,proto3" json:"stop_reason,omitempty"`
 	// LastHandoff is the last structured handoff or assistant message retained
 	// for a resume prompt.
-	LastHandoff   string `protobuf:"bytes,57,opt,name=last_handoff,json=lastHandoff,proto3" json:"last_handoff,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	LastHandoff string `protobuf:"bytes,57,opt,name=last_handoff,json=lastHandoff,proto3" json:"last_handoff,omitempty"`
+	// Runner-owned objective observation. This does not change run lifecycle;
+	// a live coordinator heartbeat only proves transport liveness.
+	ObservedGoalStatus string                 `protobuf:"bytes,58,opt,name=observed_goal_status,json=observedGoalStatus,proto3" json:"observed_goal_status,omitempty"`
+	ObservedGoalAt     *timestamppb.Timestamp `protobuf:"bytes,59,opt,name=observed_goal_at,json=observedGoalAt,proto3,oneof" json:"observed_goal_at,omitempty"`
+	// Last retained provider message/tool event, separate from last_heartbeat.
+	ProviderActivityAt *timestamppb.Timestamp `protobuf:"bytes,60,opt,name=provider_activity_at,json=providerActivityAt,proto3,oneof" json:"provider_activity_at,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *Run) Reset() {
@@ -766,6 +772,27 @@ func (x *Run) GetLastHandoff() string {
 		return x.LastHandoff
 	}
 	return ""
+}
+
+func (x *Run) GetObservedGoalStatus() string {
+	if x != nil {
+		return x.ObservedGoalStatus
+	}
+	return ""
+}
+
+func (x *Run) GetObservedGoalAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ObservedGoalAt
+	}
+	return nil
+}
+
+func (x *Run) GetProviderActivityAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ProviderActivityAt
+	}
+	return nil
 }
 
 // FinalOutputCandidate is one assistant message considered by the resolver.
@@ -2356,8 +2383,10 @@ type RunnerCapabilities struct {
 	DynamicModelPrefixes []string `protobuf:"bytes,18,rep,name=dynamic_model_prefixes,json=dynamicModelPrefixes,proto3" json:"dynamic_model_prefixes,omitempty"`
 	// Verified execution-mode and sandbox-mode combinations.
 	SpawnCapabilities []*SpawnCapability `protobuf:"bytes,19,rep,name=spawn_capabilities,json=spawnCapabilities,proto3" json:"spawn_capabilities,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Can compact an idle codec-pipe session out of band.
+	SupportsSessionCompaction bool `protobuf:"varint,20,opt,name=supports_session_compaction,json=supportsSessionCompaction,proto3" json:"supports_session_compaction,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
 }
 
 func (x *RunnerCapabilities) Reset() {
@@ -2521,6 +2550,13 @@ func (x *RunnerCapabilities) GetSpawnCapabilities() []*SpawnCapability {
 		return x.SpawnCapabilities
 	}
 	return nil
+}
+
+func (x *RunnerCapabilities) GetSupportsSessionCompaction() bool {
+	if x != nil {
+		return x.SupportsSessionCompaction
+	}
+	return false
 }
 
 type SpawnCapability struct {
@@ -3238,9 +3274,16 @@ type ContinueRunResponse struct {
 	Error string `protobuf:"bytes,3,opt,name=error,proto3" json:"error,omitempty"`
 	// Error code for programmatic handling.
 	// Codes: "session_expired", "continuation_not_supported", "run_not_found"
-	ErrorCode     string `protobuf:"bytes,4,opt,name=error_code,json=errorCode,proto3" json:"error_code,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	ErrorCode string `protobuf:"bytes,4,opt,name=error_code,json=errorCode,proto3" json:"error_code,omitempty"`
+	// Transport acceptance is not provider consumption. For a live interactive
+	// session this reports "accepted" once Web Console accepts SendPrompt; replay
+	// of the same idempotency key retains that disposition.
+	TransportDisposition string `protobuf:"bytes,5,opt,name=transport_disposition,json=transportDisposition,proto3" json:"transport_disposition,omitempty"`
+	// "unknown" until a correlated provider input receipt exists. Later model
+	// activity and semantic acknowledgement are separate observations.
+	ConsumptionDisposition string `protobuf:"bytes,6,opt,name=consumption_disposition,json=consumptionDisposition,proto3" json:"consumption_disposition,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *ContinueRunResponse) Reset() {
@@ -3297,6 +3340,20 @@ func (x *ContinueRunResponse) GetError() string {
 func (x *ContinueRunResponse) GetErrorCode() string {
 	if x != nil {
 		return x.ErrorCode
+	}
+	return ""
+}
+
+func (x *ContinueRunResponse) GetTransportDisposition() string {
+	if x != nil {
+		return x.TransportDisposition
+	}
+	return ""
+}
+
+func (x *ContinueRunResponse) GetConsumptionDisposition() string {
+	if x != nil {
+		return x.ConsumptionDisposition
 	}
 	return ""
 }
@@ -3929,7 +3986,7 @@ var File_agent_manager_v1_domain_run_proto protoreflect.FileDescriptor
 
 const file_agent_manager_v1_domain_run_proto_rawDesc = "" +
 	"\n" +
-	"!agent-manager/v1/domain/run.proto\x12\x10agent_manager.v1\x1a%agent-manager/v1/domain/profile.proto\x1a#agent-manager/v1/domain/types.proto\x1a&vrooli-events/v1/domain/envelope.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xab\x16\n" +
+	"!agent-manager/v1/domain/run.proto\x12\x10agent_manager.v1\x1a%agent-manager/v1/domain/profile.proto\x1a#agent-manager/v1/domain/types.proto\x1a&vrooli-events/v1/domain/envelope.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa9\x18\n" +
 	"\x03Run\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\atask_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x06taskId\x12-\n" +
@@ -3997,7 +4054,10 @@ const file_agent_manager_v1_domain_run_proto_rawDesc = "" +
 	"\x0eterminal_class\x187 \x01(\tR\rterminalClass\x12\x1f\n" +
 	"\vstop_reason\x188 \x01(\tR\n" +
 	"stopReason\x12!\n" +
-	"\flast_handoff\x189 \x01(\tR\vlastHandoffB\x13\n" +
+	"\flast_handoff\x189 \x01(\tR\vlastHandoff\x120\n" +
+	"\x14observed_goal_status\x18: \x01(\tR\x12observedGoalStatus\x12I\n" +
+	"\x10observed_goal_at\x18; \x01(\v2\x1a.google.protobuf.TimestampH\x0eR\x0eobservedGoalAt\x88\x01\x01\x12Q\n" +
+	"\x14provider_activity_at\x18< \x01(\v2\x1a.google.protobuf.TimestampH\x0fR\x12providerActivityAt\x88\x01\x01B\x13\n" +
 	"\x11_agent_profile_idB\r\n" +
 	"\v_sandbox_idB\r\n" +
 	"\v_started_atB\v\n" +
@@ -4013,7 +4073,9 @@ const file_agent_manager_v1_domain_run_proto_rawDesc = "" +
 	"\r_finalized_atB\x0f\n" +
 	"\r_await_handleB\t\n" +
 	"\a_resultB\x0e\n" +
-	"\f_imported_atJ\x04\b-\x10.\"\xf5\x03\n" +
+	"\f_imported_atB\x13\n" +
+	"\x11_observed_goal_atB\x17\n" +
+	"\x15_provider_activity_atJ\x04\b-\x10.\"\xf5\x03\n" +
 	"\x14FinalOutputCandidate\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n" +
 	"\bevent_id\x18\x02 \x01(\tR\aeventId\x12\x1a\n" +
@@ -4179,7 +4241,8 @@ const file_agent_manager_v1_domain_run_proto_rawDesc = "" +
 	"\amessage\x18\x03 \x01(\tR\amessage\x12!\n" +
 	"\finstall_hint\x18\x04 \x01(\tR\vinstallHint\x12)\n" +
 	"\x10supported_models\x18\x05 \x03(\tR\x0fsupportedModels\x12H\n" +
-	"\fcapabilities\x18\x06 \x01(\v2$.agent_manager.v1.RunnerCapabilitiesR\fcapabilities\"\xfe\t\n" +
+	"\fcapabilities\x18\x06 \x01(\v2$.agent_manager.v1.RunnerCapabilitiesR\fcapabilities\"\xbe\n" +
+	"\n" +
 	"\x12RunnerCapabilities\x12-\n" +
 	"\x12supports_streaming\x18\x01 \x01(\bR\x11supportsStreaming\x12+\n" +
 	"\x11supports_messages\x18\x02 \x01(\bR\x10supportsMessages\x120\n" +
@@ -4200,7 +4263,8 @@ const file_agent_manager_v1_domain_run_proto_rawDesc = "" +
 	"\x15effort_model_specific\x18\x10 \x01(\bR\x13effortModelSpecific\x126\n" +
 	"\x17supports_runner_default\x18\x11 \x01(\bR\x15supportsRunnerDefault\x124\n" +
 	"\x16dynamic_model_prefixes\x18\x12 \x03(\tR\x14dynamicModelPrefixes\x12P\n" +
-	"\x12spawn_capabilities\x18\x13 \x03(\v2!.agent_manager.v1.SpawnCapabilityR\x11spawnCapabilities\x1aJ\n" +
+	"\x12spawn_capabilities\x18\x13 \x03(\v2!.agent_manager.v1.SpawnCapabilityR\x11spawnCapabilities\x12>\n" +
+	"\x1bsupports_session_compaction\x18\x14 \x01(\bR\x19supportsSessionCompaction\x1aJ\n" +
 	"\x1cToolRestrictionMappingsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1aA\n" +
@@ -4262,13 +4326,15 @@ const file_agent_manager_v1_domain_run_proto_rawDesc = "" +
 	"\amessage\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\amessage\x12%\n" +
 	"\x0eattachment_ids\x18\x03 \x03(\tR\rattachmentIds\x12'\n" +
 	"\x0fidempotency_key\x18\x04 \x01(\tR\x0eidempotencyKey\x12%\n" +
-	"\x0ereinstall_goal\x18\x05 \x01(\bR\rreinstallGoal\"\x8d\x01\n" +
+	"\x0ereinstall_goal\x18\x05 \x01(\bR\rreinstallGoal\"\xfb\x01\n" +
 	"\x13ContinueRunResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12'\n" +
 	"\x03run\x18\x02 \x01(\v2\x15.agent_manager.v1.RunR\x03run\x12\x14\n" +
 	"\x05error\x18\x03 \x01(\tR\x05error\x12\x1d\n" +
 	"\n" +
-	"error_code\x18\x04 \x01(\tR\terrorCode\"_\n" +
+	"error_code\x18\x04 \x01(\tR\terrorCode\x123\n" +
+	"\x15transport_disposition\x18\x05 \x01(\tR\x14transportDisposition\x127\n" +
+	"\x17consumption_disposition\x18\x06 \x01(\tR\x16consumptionDisposition\"_\n" +
 	"\x17DeleteRunMessageRequest\x12\x1f\n" +
 	"\x06run_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05runId\x12#\n" +
 	"\bevent_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\aeventId\"4\n" +
@@ -4420,49 +4486,51 @@ var file_agent_manager_v1_domain_run_proto_depIdxs = []int32{
 	9,  // 17: agent_manager.v1.Run.result:type_name -> agent_manager.v1.RunResult
 	45, // 18: agent_manager.v1.Run.imported_at:type_name -> google.protobuf.Timestamp
 	51, // 19: agent_manager.v1.Run.work_references:type_name -> vrooli.vrooli_events.v1.domain.WorkReference
-	0,  // 20: agent_manager.v1.FinalOutputSelection.status:type_name -> agent_manager.v1.FinalOutputSelectionStatus
-	52, // 21: agent_manager.v1.StructuredExtractionProvenance.policy_snapshot:type_name -> agent_manager.v1.ExecutionPolicySnapshot
-	1,  // 22: agent_manager.v1.StructuredResult.status:type_name -> agent_manager.v1.StructuredResultStatus
-	53, // 23: agent_manager.v1.StructuredResult.spec_kind:type_name -> agent_manager.v1.ResultSpecKind
-	7,  // 24: agent_manager.v1.StructuredResult.extractor:type_name -> agent_manager.v1.StructuredExtractionProvenance
-	6,  // 25: agent_manager.v1.StructuredResult.diagnostics:type_name -> agent_manager.v1.StructuredDiagnostic
-	5,  // 26: agent_manager.v1.RunResult.selection:type_name -> agent_manager.v1.FinalOutputSelection
-	4,  // 27: agent_manager.v1.RunResult.candidates:type_name -> agent_manager.v1.FinalOutputCandidate
-	8,  // 28: agent_manager.v1.RunResult.structured:type_name -> agent_manager.v1.StructuredResult
-	10, // 29: agent_manager.v1.RunResult.observations:type_name -> agent_manager.v1.ReceiptObservations
-	2,  // 30: agent_manager.v1.ReceiptObservations.state:type_name -> agent_manager.v1.ReceiptObservationState
-	11, // 31: agent_manager.v1.ReceiptObservations.receipts:type_name -> agent_manager.v1.ObservedReceipt
-	54, // 32: agent_manager.v1.ObservedReceipt.projection:type_name -> google.protobuf.Struct
-	45, // 33: agent_manager.v1.AwaitHandle.deadline:type_name -> google.protobuf.Timestamp
-	45, // 34: agent_manager.v1.AwaitHandle.registered_at:type_name -> google.protobuf.Timestamp
-	46, // 35: agent_manager.v1.RunCheckpoint.phase:type_name -> agent_manager.v1.RunPhase
-	45, // 36: agent_manager.v1.RunCheckpoint.last_heartbeat:type_name -> google.protobuf.Timestamp
-	45, // 37: agent_manager.v1.RunCheckpoint.saved_at:type_name -> google.protobuf.Timestamp
-	39, // 38: agent_manager.v1.RunCheckpoint.metadata:type_name -> agent_manager.v1.RunCheckpoint.MetadataEntry
-	46, // 39: agent_manager.v1.RunProgress.phase:type_name -> agent_manager.v1.RunPhase
-	55, // 40: agent_manager.v1.RunProgress.elapsed_time:type_name -> google.protobuf.Duration
-	55, // 41: agent_manager.v1.RunProgress.estimated_remaining:type_name -> google.protobuf.Duration
-	45, // 42: agent_manager.v1.RunProgress.last_update:type_name -> google.protobuf.Timestamp
-	56, // 43: agent_manager.v1.IdempotencyRecord.status:type_name -> agent_manager.v1.IdempotencyStatus
-	45, // 44: agent_manager.v1.IdempotencyRecord.created_at:type_name -> google.protobuf.Timestamp
-	45, // 45: agent_manager.v1.IdempotencyRecord.expires_at:type_name -> google.protobuf.Timestamp
-	57, // 46: agent_manager.v1.RunnerStatus.runner_type:type_name -> agent_manager.v1.RunnerType
-	19, // 47: agent_manager.v1.RunnerStatus.capabilities:type_name -> agent_manager.v1.RunnerCapabilities
-	40, // 48: agent_manager.v1.RunnerCapabilities.tool_restriction_mappings:type_name -> agent_manager.v1.RunnerCapabilities.ToolRestrictionMappingsEntry
-	41, // 49: agent_manager.v1.RunnerCapabilities.effort_mappings:type_name -> agent_manager.v1.RunnerCapabilities.EffortMappingsEntry
-	20, // 50: agent_manager.v1.RunnerCapabilities.spawn_capabilities:type_name -> agent_manager.v1.SpawnCapability
-	42, // 51: agent_manager.v1.ProbeResult.details:type_name -> agent_manager.v1.ProbeResult.DetailsEntry
-	23, // 52: agent_manager.v1.StopAllResult.failures:type_name -> agent_manager.v1.StopFailure
-	26, // 53: agent_manager.v1.RunDiff.files:type_name -> agent_manager.v1.FileDiff
-	45, // 54: agent_manager.v1.RunDiff.generated_at:type_name -> google.protobuf.Timestamp
-	3,  // 55: agent_manager.v1.ContinueRunResponse.run:type_name -> agent_manager.v1.Run
-	3,  // 56: agent_manager.v1.ParkRunResponse.run:type_name -> agent_manager.v1.Run
-	3,  // 57: agent_manager.v1.WakeRunResponse.run:type_name -> agent_manager.v1.Run
-	58, // [58:58] is the sub-list for method output_type
-	58, // [58:58] is the sub-list for method input_type
-	58, // [58:58] is the sub-list for extension type_name
-	58, // [58:58] is the sub-list for extension extendee
-	0,  // [0:58] is the sub-list for field type_name
+	45, // 20: agent_manager.v1.Run.observed_goal_at:type_name -> google.protobuf.Timestamp
+	45, // 21: agent_manager.v1.Run.provider_activity_at:type_name -> google.protobuf.Timestamp
+	0,  // 22: agent_manager.v1.FinalOutputSelection.status:type_name -> agent_manager.v1.FinalOutputSelectionStatus
+	52, // 23: agent_manager.v1.StructuredExtractionProvenance.policy_snapshot:type_name -> agent_manager.v1.ExecutionPolicySnapshot
+	1,  // 24: agent_manager.v1.StructuredResult.status:type_name -> agent_manager.v1.StructuredResultStatus
+	53, // 25: agent_manager.v1.StructuredResult.spec_kind:type_name -> agent_manager.v1.ResultSpecKind
+	7,  // 26: agent_manager.v1.StructuredResult.extractor:type_name -> agent_manager.v1.StructuredExtractionProvenance
+	6,  // 27: agent_manager.v1.StructuredResult.diagnostics:type_name -> agent_manager.v1.StructuredDiagnostic
+	5,  // 28: agent_manager.v1.RunResult.selection:type_name -> agent_manager.v1.FinalOutputSelection
+	4,  // 29: agent_manager.v1.RunResult.candidates:type_name -> agent_manager.v1.FinalOutputCandidate
+	8,  // 30: agent_manager.v1.RunResult.structured:type_name -> agent_manager.v1.StructuredResult
+	10, // 31: agent_manager.v1.RunResult.observations:type_name -> agent_manager.v1.ReceiptObservations
+	2,  // 32: agent_manager.v1.ReceiptObservations.state:type_name -> agent_manager.v1.ReceiptObservationState
+	11, // 33: agent_manager.v1.ReceiptObservations.receipts:type_name -> agent_manager.v1.ObservedReceipt
+	54, // 34: agent_manager.v1.ObservedReceipt.projection:type_name -> google.protobuf.Struct
+	45, // 35: agent_manager.v1.AwaitHandle.deadline:type_name -> google.protobuf.Timestamp
+	45, // 36: agent_manager.v1.AwaitHandle.registered_at:type_name -> google.protobuf.Timestamp
+	46, // 37: agent_manager.v1.RunCheckpoint.phase:type_name -> agent_manager.v1.RunPhase
+	45, // 38: agent_manager.v1.RunCheckpoint.last_heartbeat:type_name -> google.protobuf.Timestamp
+	45, // 39: agent_manager.v1.RunCheckpoint.saved_at:type_name -> google.protobuf.Timestamp
+	39, // 40: agent_manager.v1.RunCheckpoint.metadata:type_name -> agent_manager.v1.RunCheckpoint.MetadataEntry
+	46, // 41: agent_manager.v1.RunProgress.phase:type_name -> agent_manager.v1.RunPhase
+	55, // 42: agent_manager.v1.RunProgress.elapsed_time:type_name -> google.protobuf.Duration
+	55, // 43: agent_manager.v1.RunProgress.estimated_remaining:type_name -> google.protobuf.Duration
+	45, // 44: agent_manager.v1.RunProgress.last_update:type_name -> google.protobuf.Timestamp
+	56, // 45: agent_manager.v1.IdempotencyRecord.status:type_name -> agent_manager.v1.IdempotencyStatus
+	45, // 46: agent_manager.v1.IdempotencyRecord.created_at:type_name -> google.protobuf.Timestamp
+	45, // 47: agent_manager.v1.IdempotencyRecord.expires_at:type_name -> google.protobuf.Timestamp
+	57, // 48: agent_manager.v1.RunnerStatus.runner_type:type_name -> agent_manager.v1.RunnerType
+	19, // 49: agent_manager.v1.RunnerStatus.capabilities:type_name -> agent_manager.v1.RunnerCapabilities
+	40, // 50: agent_manager.v1.RunnerCapabilities.tool_restriction_mappings:type_name -> agent_manager.v1.RunnerCapabilities.ToolRestrictionMappingsEntry
+	41, // 51: agent_manager.v1.RunnerCapabilities.effort_mappings:type_name -> agent_manager.v1.RunnerCapabilities.EffortMappingsEntry
+	20, // 52: agent_manager.v1.RunnerCapabilities.spawn_capabilities:type_name -> agent_manager.v1.SpawnCapability
+	42, // 53: agent_manager.v1.ProbeResult.details:type_name -> agent_manager.v1.ProbeResult.DetailsEntry
+	23, // 54: agent_manager.v1.StopAllResult.failures:type_name -> agent_manager.v1.StopFailure
+	26, // 55: agent_manager.v1.RunDiff.files:type_name -> agent_manager.v1.FileDiff
+	45, // 56: agent_manager.v1.RunDiff.generated_at:type_name -> google.protobuf.Timestamp
+	3,  // 57: agent_manager.v1.ContinueRunResponse.run:type_name -> agent_manager.v1.Run
+	3,  // 58: agent_manager.v1.ParkRunResponse.run:type_name -> agent_manager.v1.Run
+	3,  // 59: agent_manager.v1.WakeRunResponse.run:type_name -> agent_manager.v1.Run
+	60, // [60:60] is the sub-list for method output_type
+	60, // [60:60] is the sub-list for method input_type
+	60, // [60:60] is the sub-list for extension type_name
+	60, // [60:60] is the sub-list for extension extendee
+	0,  // [0:60] is the sub-list for field type_name
 }
 
 func init() { file_agent_manager_v1_domain_run_proto_init() }

@@ -15,15 +15,19 @@ Use this document to answer:
 - Where do secrets come from?
 - Which threats are known and how are they mitigated?
 
-**Status: designed, partly built, not verified.** The 2026-09-22 audit
-([`REDESIGN_PLAN.md`](REDESIGN_PLAN.md) §3) found that handlers do derive
-ownership from a server-side principal, but the local runtime has **no
-principal at all**, so every workspace RPC returns `401 unauthenticated`
-(blocker B1), and no Connect handler has a test. Every mitigation below
-describes the required behavior and the requirement that carries it; "by-design"
-is not "tested" until a passing `AT-*`/`ACT-*` test, handler test, or schema test
-proves it. The v2.0 redesign adds media, generation, offline, and calendar
-surfaces whose rows are marked **(redesign)**.
+**Status: partly built; connected authentication is qualified by an isolated
+Nooch fixture, while a live-account browser journey and the remaining product
+surfaces are not verified.** The 2026-09-22 audit
+([`REDESIGN_PLAN.md`](REDESIGN_PLAN.md) §3) predates the current
+`.vrooli/service.json` authentication declaration and must not be used as
+evidence that the local runtime has no principal. `api/main.go` installs the
+shared `authn` middleware when lifecycle configuration is provided. The E3
+fixture verifies Nooch's issuer, audience, signature, identity and routed test
+storage in an isolated browser-connected path; this does not prove a live
+account sign-in or every route's authorization. Each mitigation below still
+requires its own passing `AT-*`/`ACT-*`, handler, or schema evidence. The v2.0
+redesign adds media, generation, offline, and calendar surfaces whose rows are
+marked **(redesign)**.
 
 **The one-paragraph summary.** This scenario holds private personal data: what a person eats, the dietary
 rules and allergies they must not violate, body-related targets, supplement
@@ -63,20 +67,25 @@ a bug.
 
 ## Auth And Authorization
 
-The single-user local tier runs without an external sign-in, but
-**ownership is still a server-side property from day one** (`SYS-03`,
-`OT-P0-001`).
+Nooch declares the `scenario_authenticator` profile with `local_multi_user` as
+its default mode and required human sign-in. The same-origin relying-party
+middleware validates the session before workspace handlers derive ownership;
+**ownership remains a server-side property** (`SYS-03`, `OT-P0-001`). An
+isolated fixture proves the verifier and routed test-storage path, while live
+account sign-in and remaining protected routes still need their own evidence.
 
-**Local authentication profile (decision D-032).** The API only installs the
-`authn` middleware when the lifecycle supplies authentication configuration
-(`api/main.go`), and `.vrooli/service.json` currently declares **no
-`authentication` block**, so no principal exists and every request is rejected
-(blocker B1). The fix is to declare the platform profile — `hybrid` with the
-default mode `personal_local`, as `scenarios/git-control-tower/.vrooli/service.json`
-does — following repository `docs/concepts/IDENTITY-AND-AUTHENTICATION.md`.
-`personal_local` is not an authorization bypass: the principal is the local OS
-user plus the app-private runtime, and every rule below still applies. Never add a
-handler-level "skip auth in dev" branch or a hard-coded owner subject.
+**Local authentication profile (decision D-032; current manifest supersedes
+its original premise).** `.vrooli/service.json` declares the
+`scenario_authenticator` profile with `local_multi_user` as its default mode,
+required human sign-in, resource `nutrition-planner`, and audience
+`scenario-authenticator:nutrition-planner`. `api/main.go` installs the shared
+`authn` middleware when the lifecycle provides that configuration. The old
+D-032 statement that no authentication block exists and the proposed
+`hybrid`/`personal_local` configuration are stale; do not apply that proposal.
+The connected relying-party path still requires Nooch-specific evidence for
+signature, issuer, audience, identity/session, and routed storage isolation.
+Never add a handler-level "skip auth in dev" branch or a hard-coded owner
+subject.
 
 - **Derive actor and workspace scope from the authenticated server
   session.** A client-supplied `workspaceId` or owner ID is a *requested
@@ -163,11 +172,11 @@ Rules that hold for every secret:
 
 | Gap | Severity | Revisit Trigger |
 |---|---|---|
-| **The posture is designed, not verified.** Handlers derive ownership, but no Connect handler has a test and the local runtime cannot authenticate (B1). | high | The authentication profile is declared and every security-relevant `AT-*`/`ACT-*` test passes (`ACT-035`, `ACT-036`, `ACT-057`, `AT-044`, `AT-049`, `AT-050`), plus schema tests for ownership. |
+| **Some security surfaces remain unverified.** Nooch's isolated fixture qualifies the declared verifier and routed test storage, but does not prove live-account sign-in or every protected route. | high | Complete the approved browser journey and the remaining security-relevant `AT-*`/`ACT-*` cases (`ACT-035`, `ACT-036`, `ACT-057`, `AT-044`, `AT-049`, `AT-050`), plus schema tests for ownership. |
 | Workspace-scoped tables carry `workspace_id` without a foreign key to `workspaces`, and most multi-statement writes are not transactional | medium | Versioned migrations add the keys and transactions (D-034, blockers B12–B13). |
 | Media, offline cache, and calendar surfaces do not exist yet, so their controls are unbuilt | high | Each redesign row above becomes "tested" only with its acceptance case. |
 | No at-rest encryption of the SQLite database | medium | Any deployment where the host is not solely the user's own machine, or a shared device. |
-| No auth model for a networked/multi-user deployment | conditional | Before any hosted or multi-user tier. The single-user local tier is the only supported target today. |
+| Network deployment and account lifecycle beyond the declared `local_multi_user` / `remote_vrooli` modes need deployment-specific review | conditional | Before a new hosted mode or account lifecycle is introduced. |
 | Export path not yet threat-modelled as a bulk disclosure surface | medium | Before import/export ships; sanitization and secret-exclusion need their own tests. |
 | SSRF controls specified but unbuilt and untested | high | With the R2 URL-ingestion adapter; test against loopback, link-local, and redirect cases. |
 | CSV-injection policy specified but unbuilt | medium | With CSV export (`ACT-033`); test formula-like cells, quotes, and non-ASCII. |
