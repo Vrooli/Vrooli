@@ -134,3 +134,7 @@ Respect reduced-motion preferences. Animations should clarify spatial change, su
 - Claim an intended theme is implemented without regenerating and checking its runtime tokens.
 - Leave users without visible feedback after they submit, save, generate, refresh, or delete something.
 - Use silent failure, blank panels, disabled controls without explanation, or toasts as the only record of a blocking error.
+
+## Approved rehabilitation destination — 2026-09-30
+
+The [rehabilitation contract](docs/internal/goal/TARGETS.md) governs reuse-first discoverability, selected-core certification, the complete guided studio, template reuse, shared consumption, safe upgrades and cleanup. It is design intent pending execution, not a current readiness claim. Its five proving journeys and concrete deletion/budget gates supersede conflicting dense-IDE-only or full-catalog launch assumptions for this revision. Existing token ownership and typed projections above remain constraints.

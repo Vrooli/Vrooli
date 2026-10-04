@@ -590,3 +590,7 @@ component-harness failures.
 - **Remaining:** the managed suite still reports inherited preview interaction
   failures and 60 selector-registry warnings. Those are separate follow-up
   repairs; they are not represented as RCL journey acceptance failures.
+
+## Work ladder — rehabilitation amendment (2026-09-30)
+
+Highest broken rung for campaign setup: W0 contract. Historical UX acceptance was being read as broader RCL maturity, while the current goal omitted selected-core, normal-entry studio, real consumer evolution and maintainability gates. Operator-authorized repair updates PRD/DESIGN and the goal home first; new W1 obligations remain unimplemented, W2 evidence is unearned and W3 implementation is outside this amendment. Missing readiness evidence is not proof of universal behavioral failure. Next delivery admission establishes exact IDs/versions, runtime baseline and executable journey gates. Prior campaign evidence is preserved in its workspace archive; no product completion is claimed here.

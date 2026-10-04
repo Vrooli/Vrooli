@@ -23,10 +23,9 @@
       ],
       "validation": [
         {
-          "type": "test",
-          "ref": "ui/src/test-utils/voiceInput.test.ts",
-          "phase": "unit",
-          "status": "failing"
+          "type": "manual",
+          "status": "not_implemented",
+          "notes": "Prior ui/src/test-utils/voiceInput.test.ts reference no longer exists. The obligation is unverified until an owning current behavior check is linked; no substitute coverage is claimed. Rehabilitation baseline should determine whether this non-core capability is excluded or revalidated."
         }
       ]
     },
@@ -52,7 +51,7 @@
         },
         {
           "type": "test",
-        "ref": "ui/scripts/catalog-conformance.mjs",
+          "ref": "ui/scripts/catalog-conformance.mjs",
           "phase": "workflow",
           "status": "failing"
         }

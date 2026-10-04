@@ -3,7 +3,7 @@
 > **Template Version**: 2.0
 > **Canonical Reference**: `/scenarios/business-health/docs/reference/canonical-prd-template.md`
 > **Validation**: Enforced by `business-health` (the test-genie `business` phase)
-> **Policy**: Generated once and treated as read-only (checkboxes may auto-update)
+> **Policy**: Stable operational-target IDs; operator-authorized rehabilitation amendment on 2026-09-30. Checkboxes require current evidence for their stated scope.
 
 ## 🎯 Overview
 - **Purpose**: Central UI for designing, previewing, editing, and tracking shared React UI components across Vrooli scenarios. Eliminates component duplication, accelerates UI development, enforces design consistency, and enables systematic component evolution via versioning and drift detection.
@@ -21,8 +21,14 @@
 - [x] OT-P0-005 | Search and filter the registry | Name and description substring match plus tag/category facets; p95 query under 100ms on the test corpus.
 - [x] OT-P0-006 | Safe adoption workflow with drift status | `adoption_records` track scenario, path, adopted version; refresh computes current/behind/modified/unknown, while apply, reapply, and reconverge refuse unsafe writes unless the caller supplies the explicitly validated confirmation or override.
 - [ ] OT-P0-007 | CLI parity for headless workflows | `react-component-library {components,adoptions,versions} ...` covers list/search/get/index/create/refresh, atomic batch operations, and lifecycle operations; default human output, `--json` opt-in (per `cli-steer`).
-- [ ] OT-P0-008 | Test coverage meets the template floor | Per-domain SQLite-backed repository tests, handler tests over mocks, UI component tests per page, token-complete templates and adopting scenarios, catalog TypeScript/ESLint gates, real-browser full-catalog preview sweeps, component experience reconciliation, and BAS flows for primary user journeys.
-- [ ] OT-P0-009 | Executable page design and reconciliation | When a scenario page declares experience regions, the library shall design them from ranked catalog assets, persist the authored sketch beside the scenario, reconcile every region against observed source with a closed verdict vocabulary, and emit an ordered implementation brief whose closing gate verifies coverage and drift.
+- [ ] OT-P0-008 | Test coverage meets the template floor | Per-domain SQLite-backed repository tests, handler tests over mocks, UI component tests per page, token-complete templates and adopting scenarios, catalog TypeScript/ESLint gates, real-browser preview sweeps with explicit selected-core versus full-catalog scope, component experience reconciliation, and BAS flows for primary user journeys.
+- [ ] OT-P0-009 | Executable page design and reconciliation | From discoverable normal navigation, the studio shall guide scenario/page selection, durable briefing, composition, viewport/style review and governed implementation. When a scenario page declares experience regions, the library shall design them from ranked catalog assets, persist the authored sketch beside the scenario, reconcile every region against observed source with a closed verdict vocabulary, and emit an ordered implementation brief whose closing gate verifies coverage and drift.
+
+
+- [ ] OT-P0-010 | Selected core production readiness | The selected core and necessary dependency closure shall meet the contracts, state, accessibility, template-fit and real-consumer acceptance gates in docs/internal/goal/TARGETS.md; the full desired catalog is excluded from this rehabilitation certification.
+- [ ] OT-P0-011 | Honest scoped readiness and reusable adoption | Discovery and readiness shall distinguish verified behavior, failed behavior and missing/stale evidence for exact versions and scope; shared package adoption shall build in two real consumers and preserve intentional local composition/ejection provenance.
+- [ ] OT-P0-012 | Maintainable ownership and cleanup | Each rehabilitated concept shall have one authoritative owner; refactor epochs shall complete concrete replacement/deletion lists and net-negative runtime budgets, while feature growth is justified and behavior preserved.
+- [ ] OT-P0-013 | Governed generic repair and consumer evolution | A fresh agent shall repair an asset through a governed draft/release workflow and safely upgrade two consumers with impact, compatibility, local-change protection and recovery evidence.
 
 ### 🟠 P1 – Should have post-launch
 - [x] OT-P1-001 | DevTools-style visual filters | Color-scheme toggle (system/light/dark) and a vision-filter dropdown (blur 0–10px, grayscale, protanopia, deuteranopia, tritanopia) applied to the preview iframe.
@@ -48,11 +54,11 @@
 - Required resources: None at runtime for P0 (SQLite is in-process). `resource-openrouter` required only for P2 AI editing.
 - Scenario dependencies: `app-issue-tracker` (P1 adoption issues); `flow-verifier` (build-time temporal-model lint); `business-health` (build-time PRD and requirements validation).
 - Operational risks: Per-component React bundling now uses the Go esbuild path documented in `docs/RESEARCH.md`, with same-origin runtime imports and browser gates over the catalog. Remaining risk is coverage breadth: the preview/example path is gated, while broader adoption/editing journeys still need full BAS coverage. SQLite concurrent-writer pressure is a soft risk mitigated by WAL mode; the per-domain repository interface keeps a Postgres impl available later if needed.
-- Launch sequencing: P0 vertical slices in order — (1) registry + header parsing, (2) Monaco + save, (3) live preview iframe execution, (4) multi-viewport + search, (5) adoption workflow. Then all P1 features in parallel. Usable-milestone demo: list → edit → preview in 3+ viewports with a vision filter → select element → adopt into target → bump version → status flips to "behind" → diff viewer renders. Onboarding-doc shout-out lands only after the usable milestone passes.
+- Historical launch sequencing (superseded for rehabilitation by docs/internal/goal/QUEUE.md): P0 vertical slices in order — (1) registry + header parsing, (2) Monaco + save, (3) live preview iframe execution, (4) multi-viewport + search, (5) adoption workflow. Then all P1 features in parallel. Usable-milestone demo: list → edit → preview in 3+ viewports with a vision filter → select element → adopt into target → bump version → status flips to "behind" → diff viewer renders. Onboarding-doc shout-out lands only after the usable milestone passes.
 
 ## 🎨 UX & Branding
-- Look & feel: Dense, technical, IDE-like. Three-panel desktop layout (registry list / editor / preview cluster). Tailwind plus design tokens from `DESIGN.md`. Preserve backdrop-blur on graph nodes and overlays.
-- Accessibility: WCAG AA floor for the library's own chrome. Keyboard navigation across registry list, editor, and preview controls is required. The component-preview iframe is opaque to the library's a11y scoring — it renders arbitrary user code.
+- Look & feel: A clear reuse-first workspace with an intuitive studio entry and guided brief → compose → review → implement journey. Technical editing remains available within context; a dense three-panel IDE is not the mandatory home experience. Tailwind plus design tokens from `DESIGN.md`. Preserve backdrop-blur on graph nodes and overlays.
+- Accessibility: WCAG AA floor for the library's own chrome. Keyboard navigation across registry list, editor, and preview controls is required. Arbitrary third-party preview code is outside blanket certification; selected core previews, studio controls and proving-consumer journeys must meet the rehabilitation accessibility gates.
 - Voice & messaging: Terse, developer-facing. No marketing copy. Errors are structured and actionable (for example: "header parse failed at /path:line — missing `@version`").
 - Branding hooks: Inherits Vrooli operational-console tokens (`vrooli-default` design kit, `react-vite-tailwind` adapter). The P1 theme-preview switcher applies *only* to preview content, never to the library's chrome.
 

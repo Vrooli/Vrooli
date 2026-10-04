@@ -28,6 +28,7 @@
     "21-story-contracts/module.json",
     "22-version-ledger-and-progression/module.json",
     "23-cold-version-tier/module.json",
-    "24-executable-page-design/module.json"
+    "24-executable-page-design/module.json",
+    "25-rehabilitation/module.json"
   ]
 }

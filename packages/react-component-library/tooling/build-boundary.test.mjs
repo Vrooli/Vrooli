@@ -9,10 +9,15 @@ const packageRoot = join(fileURLToPath(new URL("..", import.meta.url)));
 test("package build configuration has no static scenario-tree reach", async () => {
   const forbidden = ["scenario", "s/"].join("");
   const paths = [join(packageRoot, "tsconfig.build.json")];
+  // These adapters are intentionally the package-to-scenario boundary: the
+  // package build validates its workbench consumer and the DOM-binding probe
+  // resolves authored component sources. They are not package-runtime reach.
+  const scenarioAwareMaintenance = new Set(["build.mjs", "dom-bindings.mjs", "dom-bindings.test.mjs"]);
   for (const entry of await readdir(join(packageRoot, "tooling"), { withFileTypes: true })) {
     // These maintenance scripts intentionally operate on the scenario
     // tree. That is their governed boundary, not a package-build dependency.
     if (entry.isFile() && entry.name.endsWith(".mjs")
+      && !scenarioAwareMaintenance.has(entry.name)
       && entry.name !== "reap-retired.mjs") {
       paths.push(join(packageRoot, "tooling", entry.name));
     }
