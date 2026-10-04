@@ -1,0 +1,26 @@
+{
+  "effortRef": "effort:personal-planner-I18",
+  "displayName": "Personal Planner I18 integrated repair",
+  "destinationRef": "repo:scenarios/personal-planner/docs/internal/goal/GOAL.md",
+  "targetRevision": "sha256:8ea48135bcbfd758c0ca08f4235ece3b32b6869b307bd2fd7214a96a46627783",
+  "sourceRevision": "c8e4a67baafcb11b7495377eee7c0fab56c0d487",
+  "authorityRef": "repo:scenarios/personal-planner/docs/internal/goal/AUTHORIZATION.md",
+  "subjects": [
+    {
+      "owner": "prompt-manager",
+      "kind": "team",
+      "reference": "personal-planner-delivery",
+      "role": "orchestrator"
+    },
+    {
+      "owner": "prompt-manager",
+      "kind": "member",
+      "reference": "personal-planner-delivery/personal-planner-acceptance-reviewer",
+      "role": "reviewer"
+    }
+  ],
+  "revision": "1",
+  "workShape": "orchestrated-effort",
+  "updatedAt": "2026-10-03T02:48:16.979506210Z",
+  "authorizedBy": "9022b304-9a76-4e72-829c-1f5bc101359a"
+}

@@ -189,3 +189,68 @@ green that lies. The visual gate is a hard R1 release gate (`DESIGN.md`
 - `docs/reference/source-implementation-plan.md` — the original source plan
   (external input; §6.x referenced throughout DESIGN.md).
 - `mockups/` — the approved visual acceptance oracle.
+
+## 8. Delivery reference handoff and fidelity receipts (2026-10-03)
+
+The active I18 delivery team must read the **actual full-resolution files**, not
+only this inventory, a dossier thumbnail, a PDF, or a remote link. The durable
+[visual reference manifest](./mockups/visual-reference-manifest.json) records
+17 original PNGs (37,875,533 bytes), full SHA-256 hashes, decoded dimensions,
+repository source revisions, and page/state/theme/viewport/requirement mappings.
+All were read completely and decoded with `Image.load()`; originals were neither
+resized nor replaced. These repository paths are available to the native team's
+in-place workers. Each receiving worker must acknowledge which applicable image
+files it actually opened; file presence alone does not prove a model viewed them.
+
+### Authority and reference matrix
+
+| Surface | Reference to open | Authority and limits |
+|---|---|---|
+| Today desktop, Day/Night | `mockups/mockup-today-{day,night}.png`, both 1585×992 | Original accepted D08 pair. Day hash matches the retained dossier pin `dcd6d9687b2bfb0fd84729de6933ef79a18fb9a6d72411d795463c72f3952063`. |
+| Today scenery | `scene-masters/scene-{day,night}-{wide-2x1,panorama-3x1}.png` | Four original decorative masters; no UI text or controls belong in scenery. |
+| Today mobile | `../mockups/redesign-desktop-and-mobile.html#today`, `../mockups/today-mobile-nextstep.html`, this contract §5 and `../../DESIGN.md` | Historical composition guidance; no approved portrait full-UI PNG or portrait scene exists in these sources. Compose faithfully for phones; do not claim an exact mobile image approval. |
+| Plan / Week | `../mockups/redesign-desktop-and-mobile.html#plan`; four `../mockups/source-art/plan-starchart-*.png` plus lake plates | Historical desktop Week/mobile Day composition and source-art GOOD verdict. Desk plates are 1672×941 desktop / 941×1672 portrait; not full-UI screenshots. Week has no separately referenced original PNG. |
+| Focus | HTML `#focus`; `../mockups/source-art/focus-scope-{desktop,mobile}.greenscreen.png` | Historical full-page composition guidance and GOOD plate verdict; brass scope aperture, live timer and controls. Raw green circle is an aperture, never a working UI color. |
+| Settings | HTML `#settings`; `../mockups/source-art/settings-instrument-{desktop,mobile}.greenscreen.png` | Historical composition and GOOD plate verdict; brass instrument, dark negative space, live settings. |
+| Goals / Review | HTML `#goals` / `#review`, `../../DESIGN.md` | Historical composition guidance; no corresponding standalone original full-UI PNG established. Review figures must come from actual eligible evidence. |
+| New I18 event/Month/editor, empty/error/unknown/stale/conflict states | Accepted specification §6, `../../DESIGN.md`, nearest established surface above | Routine engineering within the accepted language; no exact pre-approved specimen for every new state. No new owner checkpoint for ordinary composition/accessibility/data fixes. |
+
+The historical HTML is self-contained source, not a thumbnail: desktop specimen
+760×520, outer phone frame 320×660 (inner screen 298×638). Those are specimen
+frames, not mandatory runtime viewport sizes. Use the accepted Today 1585×992
+reference and the named responsive bands for runtime evidence.
+
+D08 accepts the Observatory direction; the repository source-art README records
+historical GOOD verdicts and the operator-confirmed Plan lake interpretation.
+The precise remote IDs and chat-version approval receipts for those plates are
+not available in the inspected sources. Preserve this limit. Do not convert
+source-plate approval into approval of every UI pixel. The expanded proposal's
+**D1–D7 remain unreviewed**; they are distinct from accepted D01–D09 and from
+these older repository composition references. A newer candidate, generated
+replacement or changed dossier image does not supersede the original pair.
+The baked-sky night lake panorama is historical/superseded; use the keyed-sky
+plate identified by its README for the live Plan composition.
+
+### Close-fidelity acceptance for affected surfaces
+
+At an epoch surface checkpoint, retain current-runtime screenshots and compare
+side by side against the applicable full-size reference: Day and Night desktop,
+plus the supported narrow composition. Record exact route/state, viewport/DPR,
+resolved appearance, source/build/runtime identity, synthetic data fixture and
+capture receipt/path. Inspect hierarchy, spacing, typography, scene framing and
+blend, landmark/aperture placement, action placement, calendar readability and
+responsive composition. A successful render or a screenshot without comparison
+is insufficient. Use the bounded checkpoint loop in §7; do not continuously
+capture during implementation or expand this finite I18 into unrelated redesign.
+
+For each material difference, retain a short disposition: fix required; justified
+responsive/accessibility adaptation; truthful-data correction; or explicitly
+unverified/open. Record why and the supporting requirement. Correct time geometry,
+real dates/values, unknown evidence, readable labels, keyboard and contrast rules
+take precedence over illustrative arithmetic or decorative copy. No pixel-identical
+claim is required or appropriate. Justified deviations must still preserve close
+visual fidelity and the established Observatory language; generic replacement
+layouts do not pass. If actual captures are unavailable, leave visual acceptance
+open and state the concrete limitation. Independent epoch review checks the
+comparison evidence under the existing native gate, without adding a parent-chat
+release gate or changing permissions, budgets, scope or provider authority.

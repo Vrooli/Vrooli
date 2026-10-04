@@ -75,7 +75,8 @@ func (s *sqliteRepository) Get(ctx context.Context, id string) (WorkItem, error)
 }
 
 func (s *sqliteRepository) List(ctx context.Context, limit int) ([]WorkItem, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id,title,description,remaining_minutes,source_label,created_at,updated_at FROM work_items WHERE (snoozed_until='' OR snoozed_until<=date('now','localtime')) ORDER BY created_at DESC,id DESC LIMIT ?`, limit)
+	today := s.clock.Now().Local().Format("2006-01-02")
+	rows, err := s.db.QueryContext(ctx, `SELECT id,title,description,remaining_minutes,source_label,created_at,updated_at FROM work_items WHERE (snoozed_until='' OR snoozed_until<=?) ORDER BY created_at DESC,id DESC LIMIT ?`, today, limit)
 	if err != nil {
 		return nil, fmt.Errorf("list work items: %w", err)
 	}

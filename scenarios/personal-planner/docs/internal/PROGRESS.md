@@ -862,3 +862,9 @@ Day/Night changes. The shared main scroller also publishes bottom
 hidden behind the home-indicator/navigation region. Full UI validation passes
 35 files / 195 tests; type-check/build/diff-check pass; managed runtime
 `ui-health` remains L5.
+
+## 2026-10-02 — secured access and isolated design-review inspection
+
+Verified existing secured URL, repaired managed lifecycle access, proved shadow SQLite isolation, captured synthetic BAS video/screenshots, and executed supported Open timer loop17/17 with independent persistence readback. Countdown start and accepted placement defects remain unfixed; full daily loop blocked. Procedure/evidence/limits appended to RUNBOOK, TESTING and PROBLEMS. No live-row write tests, credential handling, authentication/public exposure changes, commits or pushes.
+
+- 2026-10-02 05:30UTC: bounded second shadow UX sweep; canonical P01–P42 dispositions added to TESTING. Name-only duplicate capture, milestone-list timeout and blank persisted Review note/reason defects documented; profile/preferences restored; live aggregate counts unchanged. No full daily-loop or F14 acceptance; native200%zoom/destination playback remain unverified. Evidence in /tmp/planner-second/delivery; Library receipt follows.

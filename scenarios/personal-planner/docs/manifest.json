@@ -1,7 +1,7 @@
 {
-  "version": "2.0.0",
+  "version": "2.0.1",
   "title": "Personal Planner Documentation",
-  "description": "Documentation contract for the template-manager generated from the react-vite template",
+  "description": "Documentation contract for Personal Planner: current Personal Planning source navigation, accepted I18 delivery and scenario references.",
   "defaultDocument": "START-HERE.md",
   "contract": {
     "kind": "scenario-docs",
@@ -80,14 +80,14 @@
             "orientation",
             "onboarding"
           ],
-          "description": "First implementation session after scenario generation",
+          "description": "Current Personal Planning source authority and accepted I18 execution routes, with historical scaffold reference.",
           "audience": [
             "developers",
             "agents"
           ],
           "canonicalFor": [
             "orientation",
-            "first-implementation-session"
+            "delivery-source-entrypoint"
           ],
           "maturity": "active",
           "requiredBy": [
@@ -96,16 +96,27 @@
           ],
           "completion": "required",
           "ownerSkills": [
-            "scenario-generation"
+            "scenario-work-ladder",
+            "large-effort-orchestration"
           ],
           "validation": {
             "requiredHeadings": [
+              "Current Work",
+              "Source Authority",
+              "Historical Scaffold Reference",
               "Initialization Protocol",
               "Architecture Rules",
               "Replacing The Example Domain"
             ],
             "forbiddenPlaceholders": [
               "[TODO]"
+            ],
+            "requiredLinks": [
+              "internal/goal/GOAL.md",
+              "internal/goal/CONTRACT.md",
+              "internal/goal/QUEUE.md",
+              "internal/goal/receipts/source-manifest.json",
+              "reference/source-implementation-plan.md"
             ]
           }
         },
@@ -166,11 +177,11 @@
           ],
           "validation": {
             "requiredHeadings": [
-              "\ud83c\udfaf Overview",
-              "\ud83c\udfaf Operational Targets",
-              "\ud83e\uddf1 Tech Direction Snapshot",
-              "\ud83e\udd1d Dependencies & Launch Plan",
-              "\ud83c\udfa8 UX & Branding"
+              "🎯 Overview",
+              "🎯 Operational Targets",
+              "🧱 Tech Direction Snapshot",
+              "🤝 Dependencies & Launch Plan",
+              "🎨 UX & Branding"
             ],
             "forbiddenPlaceholders": [
               "[Summarize the permanent capability this scenario adds]",
@@ -245,10 +256,10 @@
           "validation": {
             "requiredHeadings": [
               "Prerequisites",
-              "1 \u2014 Setup",
-              "2 \u2014 Start",
-              "3 \u2014 Open",
-              "5 \u2014 Run the tests"
+              "1 — Setup",
+              "2 — Start",
+              "3 — Open",
+              "5 — Run the tests"
             ],
             "forbiddenPlaceholders": [
               "[TODO]"
@@ -1070,7 +1081,7 @@
             "requiredHeadings": [
               "Global flags (provided by cli-core)",
               "Built-in commands (auto-provided by `cli-core`)",
-              "Scenario commands \u2014 `notes` (CRUD reference)",
+              "Scenario commands — `notes` (CRUD reference)",
               "Output contracts",
               "Adding a new command",
               "Cross-references"
@@ -1181,6 +1192,40 @@
               "Cross-References"
             ]
           }
+        },
+        {
+          "path": "reference/source-implementation-plan.md",
+          "docType": "planner-source-implementation-plan",
+          "title": "Planner Source Implementation Plan",
+          "description": "Accepted product direction and original implementation reference; the I18 native goal and queue own current execution.",
+          "audience": [
+            "developers",
+            "agents",
+            "operators"
+          ],
+          "knowledgeStatus": "accepted",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "reference/scene-integration-contract.md",
+          "docType": "planner-scene-integration-contract",
+          "title": "Planner Scene Integration Contract",
+          "description": "Observatory scene integration reference; accepted and unreviewed visual boundaries remain governed by I18 and the existing design sources.",
+          "audience": [
+            "developers",
+            "agents",
+            "operators"
+          ],
+          "knowledgeStatus": "supplemental",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional"
         }
       ]
     },
@@ -1190,7 +1235,7 @@
       "icon": "wrench",
       "description": "Developer-facing and agent-facing memory",
       "visibility": "developers-only",
-      "purpose": "Preserve engineering memory that keeps future changes testable, maintainable, and aligned with the template.",
+      "purpose": "Preserve engineering memory and the existing accepted delivery ledger so agents can resume current work without recommissioning.",
       "extensionPolicy": "Add internal docs for durable developer/agent memory: seams, tests, errors, decisions, problems, progress, audits, and skill-specific findings. Do not place user-facing procedures here.",
       "documents": [
         {
@@ -1202,7 +1247,7 @@
             "boundaries",
             "boundary-registry"
           ],
-          "description": "Boundary registry \u2014 every interface and its production / test fake",
+          "description": "Boundary registry — every interface and its production / test fake",
           "audience": [
             "developers",
             "agents"
@@ -1508,7 +1553,7 @@
             "changelog",
             "handoff-log"
           ],
-          "description": "Lifecycle log \u2014 append a row whenever work lands",
+          "description": "Lifecycle log — append a row whenever work lands",
           "audience": [
             "developers",
             "agents"
@@ -1551,6 +1596,193 @@
               "[TODO]"
             ]
           }
+        },
+        {
+          "path": "internal/goal/GOAL.md",
+          "docType": "planner-delivery-goal",
+          "title": "Planner I18 Goal",
+          "description": "Accepted outcome, boundaries and existing team/effort ownership.",
+          "audience": [
+            "developers",
+            "agents",
+            "operators"
+          ],
+          "knowledgeStatus": "accepted",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "internal/goal/CONTRACT.md",
+          "docType": "planner-delivery-contract",
+          "title": "Planner I18 Accepted Contract",
+          "description": "Exact retained I18 acceptance scope; do not repin it to live Drive navigation.",
+          "audience": [
+            "developers",
+            "agents",
+            "operators"
+          ],
+          "knowledgeStatus": "accepted",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "internal/goal/AUTHORIZATION.md",
+          "docType": "planner-delivery-authorization",
+          "title": "Planner I18 Owner Authorization",
+          "description": "Owner approval and existing native execution-policy precedence.",
+          "audience": [
+            "developers",
+            "agents",
+            "operators"
+          ],
+          "knowledgeStatus": "accepted",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "internal/goal/QUEUE.md",
+          "docType": "planner-delivery-queue",
+          "title": "Planner I18 Queue",
+          "description": "Existing orchestrator-owned grouped outcomes and epoch progress.",
+          "audience": [
+            "developers",
+            "agents",
+            "operators"
+          ],
+          "knowledgeStatus": "supplemental",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "internal/goal/TARGETS.md",
+          "docType": "planner-delivery-targets",
+          "title": "Planner I18 Validation Targets",
+          "description": "Current validation and isolation targets under the accepted goal.",
+          "audience": [
+            "developers",
+            "agents",
+            "operators"
+          ],
+          "knowledgeStatus": "supplemental",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "internal/goal/ACCEPTANCE.md",
+          "docType": "planner-delivery-acceptance",
+          "title": "Planner I18 Acceptance",
+          "description": "Independent acceptance route and exact product evidence gates.",
+          "audience": [
+            "developers",
+            "agents",
+            "operators"
+          ],
+          "knowledgeStatus": "accepted",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "internal/goal/FEEDBACK.md",
+          "docType": "planner-delivery-feedback",
+          "title": "Planner I18 Feedback",
+          "description": "Owner/supervisor feedback consumed through the existing delivery route; migration does not imply acknowledgement.",
+          "audience": [
+            "developers",
+            "agents",
+            "operators"
+          ],
+          "knowledgeStatus": "supplemental",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "internal/goal/WORKAROUNDS.md",
+          "docType": "planner-delivery-workarounds",
+          "title": "Planner I18 Workarounds",
+          "description": "Existing delivery friction, fallback evidence and original-operation recovery conditions.",
+          "audience": [
+            "developers",
+            "agents",
+            "operators"
+          ],
+          "knowledgeStatus": "supplemental",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "internal/goal/INSTALLS.md",
+          "docType": "planner-delivery-installs",
+          "title": "Planner I18 Install History",
+          "description": "Existing record of governed installation effects.",
+          "audience": [
+            "developers",
+            "agents",
+            "operators"
+          ],
+          "knowledgeStatus": "supplemental",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "internal/goal/COMMISSIONING.md",
+          "docType": "planner-delivery-commissioning",
+          "title": "Planner I18 Commissioning History",
+          "description": "Retained original native commissioning evidence; verify current runtime state separately.",
+          "audience": [
+            "developers",
+            "agents",
+            "operators"
+          ],
+          "knowledgeStatus": "historical",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "internal/goal/receipts/source-manifest.json",
+          "docType": "planner-delivery-source-manifest",
+          "title": "Planner I18 Accepted Source Manifest",
+          "description": "Immutable historical proposal/version hashes, distinct from current Drive authoring/navigation metadata.",
+          "audience": [
+            "developers",
+            "agents",
+            "operators"
+          ],
+          "knowledgeStatus": "accepted",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional"
         }
       ]
     }

@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/vrooli/api-core/schedule"
 	v "github.com/vrooli/vrooli/packages/proto/gen/go/personal-planner/v1/calendar"
@@ -14,6 +15,7 @@ import (
 
 type Deps struct {
 	Service d.Service
+	Events  d.EventService
 	Logger  *log.Logger
 	Clock   schedule.Clock
 }
@@ -159,6 +161,43 @@ func (h *connectHandler) RescheduleRoutineOccurrence(ctx context.Context, req *c
 	return connect.NewResponse(&v.RescheduleRoutineOccurrenceResponse{Rescheduled: true}), nil
 }
 
+func (h *connectHandler) ListEvents(ctx context.Context, req *connect.Request[v.ListEventsRequest]) (*connect.Response[v.ListEventsResponse], error) {
+	events, err := h.deps.Events.List(ctx, req.Msg.StartLocalDate, req.Msg.EndLocalDate)
+	if err != nil {
+		return nil, d.ToConnectError(err)
+	}
+	out := &v.ListEventsResponse{Events: make([]*v.CalendarEvent, 0, len(events))}
+	for _, event := range events {
+		out.Events = append(out.Events, eventToProto(event))
+	}
+	return connect.NewResponse(out), nil
+}
+
+func (h *connectHandler) GetEvent(ctx context.Context, req *connect.Request[v.GetEventRequest]) (*connect.Response[v.GetEventResponse], error) {
+	event, err := h.deps.Events.Get(ctx, req.Msg.EventId)
+	if err != nil {
+		return nil, d.ToConnectError(err)
+	}
+	return connect.NewResponse(&v.GetEventResponse{Event: eventToProto(event)}), nil
+}
+
+func (h *connectHandler) CreateEvent(ctx context.Context, req *connect.Request[v.CreateEventRequest]) (*connect.Response[v.CreateEventResponse], error) {
+	event, err := h.deps.Events.Create(ctx, d.CreateEventInput{Event: eventFromProto(req.Msg.Event), IdempotencyKey: req.Msg.IdempotencyKey})
+	if err != nil {
+		return nil, d.ToConnectError(err)
+	}
+	return connect.NewResponse(&v.CreateEventResponse{Event: eventToProto(event)}), nil
+}
+
+func (h *connectHandler) UpdateEvent(ctx context.Context, req *connect.Request[v.UpdateEventRequest]) (*connect.Response[v.UpdateEventResponse], error) {
+	event := eventFromProto(req.Msg.Event)
+	updated, err := h.deps.Events.Update(ctx, d.UpdateEventInput{Event: event, ExpectedRevision: req.Msg.ExpectedRevision})
+	if err != nil {
+		return nil, d.ToConnectError(err)
+	}
+	return connect.NewResponse(&v.UpdateEventResponse{Event: eventToProto(updated)}), nil
+}
+
 func ints(values []int32) []int {
 	out := make([]int, len(values))
 	for i, value := range values {
@@ -173,4 +212,15 @@ func routineToProto(r d.Routine) *v.Routine {
 		days[i] = int32(day)
 	}
 	return &v.Routine{Id: r.ID, Title: r.Title, Kind: r.Kind, Timezone: r.Timezone, StartDate: r.StartDate, EndDate: r.EndDate, Weekdays: days, StartMinute: int32(r.StartMinute), DurationMinutes: int32(r.DurationMinutes), FrequencyPerWeek: int32(r.FrequencyPerWeek), Revision: r.Revision, Active: r.Active}
+}
+
+func eventToProto(event d.Event) *v.CalendarEvent {
+	return &v.CalendarEvent{Id: event.ID, Title: event.Title, Subject: event.Subject, Notes: event.Notes, Availability: event.Availability, Timezone: event.Timezone, AllDay: event.AllDay, StartDate: event.StartDate, EndDateExclusive: event.EndDateExclusive, StartAt: event.StartAt, EndAt: event.EndAt, Provider: event.Provider, ProviderCalendarId: event.ProviderCalendarID, ProviderEventId: event.ProviderEventID, OccurrenceId: event.OccurrenceID, Revision: event.Revision, CreatedAt: timestamppb.New(event.CreatedAt), UpdatedAt: timestamppb.New(event.UpdatedAt)}
+}
+
+func eventFromProto(event *v.CalendarEvent) d.Event {
+	if event == nil {
+		return d.Event{}
+	}
+	return d.Event{ID: event.Id, Title: event.Title, Subject: event.Subject, Notes: event.Notes, Availability: event.Availability, Timezone: event.Timezone, AllDay: event.AllDay, StartDate: event.StartDate, EndDateExclusive: event.EndDateExclusive, StartAt: event.StartAt, EndAt: event.EndAt, Provider: event.Provider, ProviderCalendarID: event.ProviderCalendarId, ProviderEventID: event.ProviderEventId, OccurrenceID: event.OccurrenceId}
 }

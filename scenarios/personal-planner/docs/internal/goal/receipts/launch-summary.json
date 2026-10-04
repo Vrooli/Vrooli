@@ -1,0 +1,14 @@
+{
+  "team_id": "personal-planner-delivery",
+  "effort_ref": "effort:personal-planner-I18",
+  "enrollment_revision": 1,
+  "accepted_revision": "sha256:8ea48135bcbfd758c0ca08f4235ece3b32b6869b307bd2fd7214a96a46627783",
+  "leader_run_id": "58257550-4062-40d8-aa7d-ffa4f01d279f",
+  "leader_task_id": "096c52a1-8735-4654-abd5-4c1c1e96de11",
+  "observed_status": "RUN_STATUS_RUNNING",
+  "native_model": "gpt-6-luna",
+  "native_role": "code.economy.delivery",
+  "next_checkpoint": "Orchestrator admits measured E1, qualifies isolated storage/restore, starts one implementation worker and parks; independent acceptance precedes epoch acceptance.",
+  "product_acceptance": "not claimed",
+  "authority": "AUTHORIZATION.md supersedes added outer execution restrictions; established native controls govern."
+}

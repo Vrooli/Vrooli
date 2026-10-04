@@ -857,8 +857,8 @@ input, textarea, select { font-size: 16px; }
 .review-week-table thead th { color: var(--color-muted-foreground); font-size: .78rem; letter-spacing: .04em; text-transform: uppercase; }
 .review-week-table tbody th { color: var(--color-foreground); font-weight: 600; }
 .plan-surface { max-width: 70rem; }
-.scene-plan .plan-surface { min-height: calc(100% - 3rem); margin: 1.5rem auto; border: 1px solid color-mix(in srgb, var(--color-border) 72%, transparent); border-radius: 1.25rem; background: linear-gradient(115deg, color-mix(in srgb, var(--color-surface-raised) 96%, transparent), color-mix(in srgb, var(--color-background) 90%, transparent)); box-shadow: 0 1.5rem 5rem color-mix(in srgb, var(--color-foreground) 16%, transparent); }
-.appearance-night.scene-plan .plan-surface { background: linear-gradient(115deg, color-mix(in srgb, var(--color-background) 94%, transparent), color-mix(in srgb, var(--color-surface) 88%, transparent)); box-shadow: 0 1.5rem 5rem color-mix(in srgb, #000 48%, transparent); }
+.scene-plan .plan-surface { min-height: calc(100% - 3rem); margin: 1.5rem auto; border: 1px solid color-mix(in srgb, var(--color-border) 72%, transparent); border-radius: 1.25rem; background: linear-gradient(115deg, color-mix(in srgb, var(--color-surface-raised) 88%, transparent), color-mix(in srgb, var(--color-background) 84%, transparent)); box-shadow: 0 1.5rem 5rem color-mix(in srgb, var(--color-foreground) 16%, transparent); }
+.appearance-night.scene-plan .plan-surface { background: linear-gradient(115deg, color-mix(in srgb, var(--color-background) 84%, transparent), color-mix(in srgb, var(--color-surface) 78%, transparent)); box-shadow: 0 1.5rem 5rem color-mix(in srgb, #000 48%, transparent); }
 .plan-capacity-strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-top: 2.5rem; }
 .plan-capacity-strip > div { padding: 1.25rem; border-top: 2px solid var(--color-accent); background: color-mix(in srgb, var(--color-surface-raised) 92%, transparent); }
 .plan-capacity-strip strong { display: block; margin-top: .4rem; color: var(--color-foreground); font: 1.8rem Georgia, serif; }
@@ -918,7 +918,7 @@ input, textarea, select { font-size: 16px; }
 .plan-placement { display: grid; grid-template-columns: minmax(12rem, 1.7fr) repeat(2, minmax(7rem, .8fr)) auto; align-items: end; gap: 1rem; margin-top: 2rem; padding: 1.25rem; border: 1px solid var(--color-border); background: color-mix(in srgb, var(--color-surface-raised) 92%, transparent); }
 .plan-placement > div > label { display: block; margin-bottom: .4rem; color: var(--color-muted-foreground); font-size: .78rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
 .plan-placement [data-rcl-form-field] { min-inline-size: 0; }
-.plan-placement input, .plan-placement select { width: 100%; min-height: 2.75rem; padding: .65rem .7rem; border: 1px solid var(--color-border-strong); border-radius: .2rem; background: var(--color-surface-raised); color: var(--color-foreground); font: inherit; }
+.plan-placement input, .plan-placement select { box-sizing: border-box; width: 100%; min-width: 0; max-width: 100%; min-height: 2.75rem; padding: .65rem .7rem; border: 1px solid var(--color-border-strong); border-radius: .2rem; background: var(--color-surface-raised); color: var(--color-foreground); font: inherit; }
 .plan-placement .primary-action { width: auto; min-height: 2.75rem; margin: 0; padding-inline: 1.25rem; }
 .plan-mobile-action-bar { display: none; }
 .plan-placement-sheet { grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0; padding: 0; border: 0; background: transparent; }
@@ -934,6 +934,7 @@ input, textarea, select { font-size: 16px; }
 .plan-estimate-editor h2 { margin: .25rem 0 .35rem; color: var(--color-foreground); font: 1.25rem Georgia, serif; font-weight: 400; }
 .plan-estimate-editor p { max-width: 30rem; margin: 0; color: var(--color-muted-foreground); font-size: .82rem; line-height: 1.4; }
 .plan-estimate-editor [data-rcl-form-field] { min-inline-size: 0; }
+.plan-estimate-editor select { box-sizing: border-box; width: 100%; min-width: 0; max-width: 100%; }
 .plan-estimate-editor button { min-height: 2.75rem; white-space: nowrap; }
 .plan-estimate-sheet { grid-template-columns: 1fr; margin: 0; padding: 0; border: 0; }
 .plan-estimate-sheet .primary-action, .plan-routines-sheet .primary-action { width: 100%; margin: 0; }
@@ -990,6 +991,30 @@ input, textarea, select { font-size: 16px; }
 .plan-forecast-history li > span[data-risk="at_risk"] { color: var(--color-danger); }
 .plan-forecast-history li > p { grid-column: 1 / -1; }
 .plan-boundary { margin-top: 1.25rem; color: var(--color-muted-foreground); font-size: .85rem; }
+.calendar-month { display: grid; gap: 1rem; margin-top: 1.5rem; padding: .75rem; border-radius: 1rem; background: color-mix(in srgb, var(--color-surface) 88%, transparent); }
+.calendar-month-header { display: flex; align-items: end; justify-content: space-between; gap: 1rem; }
+.calendar-month-header h2 { margin: .2rem 0 0; color: var(--color-foreground); font: 1.6rem Georgia, serif; }
+.calendar-month-header nav { display: flex; flex-wrap: wrap; gap: .5rem; }
+.calendar-month-weekdays, .calendar-month-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: .45rem; }
+.calendar-month-weekdays { color: var(--color-muted-foreground); font-size: .76rem; font-weight: 700; text-align: center; }
+.calendar-day { display: grid; align-content: start; gap: .4rem; min-block-size: 7.5rem; min-inline-size: 0; padding: .5rem; border: 1px solid var(--color-border); border-radius: .65rem; background: color-mix(in srgb, var(--color-surface-raised) 80%, transparent); }
+.calendar-day.outside-month { opacity: .5; }
+.calendar-day > header { display: flex; align-items: center; justify-content: space-between; gap: .25rem; color: var(--color-muted-foreground); font-size: .78rem; font-variant-numeric: tabular-nums; }
+.calendar-day > header button { min-inline-size: 2.25rem; min-block-size: 2.25rem; }
+.calendar-day-clear { color: var(--color-muted-foreground); font-size: .7rem; }
+.calendar-event { display: grid; gap: .2rem; min-inline-size: 0; padding: .45rem; border: 0; border-inline-start: 3px solid var(--color-accent); border-radius: .35rem; background: color-mix(in srgb, var(--color-accent) 12%, var(--color-surface)); color: var(--color-foreground); text-align: start; cursor: pointer; }
+.calendar-event.free { border-inline-start-color: var(--color-muted-foreground); background: color-mix(in srgb, var(--color-surface-muted) 75%, transparent); }
+.calendar-event strong, .calendar-event small { overflow-wrap: anywhere; }
+.calendar-event strong { font-size: .76rem; line-height: 1.25; }
+.calendar-event small { color: var(--color-muted-foreground); font-size: .66rem; }
+.calendar-empty-note, .calendar-event-message { padding: .8rem 1rem; border-inline-start: 3px solid var(--color-accent); background: color-mix(in srgb, var(--color-accent) 9%, var(--color-surface)); color: var(--color-foreground); }
+.calendar-event-editor { display: grid; gap: 1rem; max-inline-size: 58rem; padding: 1.25rem; border: 1px solid var(--color-border); border-radius: .8rem; background: var(--color-surface); }
+.calendar-event-editor > header, .calendar-event-editor > footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .75rem; }
+.calendar-event-editor h3 { margin: .25rem 0 0; color: var(--color-foreground); font: 1.35rem Georgia, serif; }
+.calendar-event-dates { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.calendar-all-day { display: flex; align-items: center; gap: .65rem; color: var(--color-foreground); }
+.calendar-all-day input { inline-size: 1.1rem; block-size: 1.1rem; accent-color: var(--color-accent); }
+.calendar-event-message { margin: 0; }
 .plan-range { display: grid; gap: 1.25rem; margin-top: 2rem; }
 .plan-range > section { padding: 1.25rem; border-top: 2px solid var(--color-accent); background: var(--color-surface); }
 .plan-range h2 { margin: 0 0 .8rem; color: var(--color-foreground); font: 1.35rem Georgia, serif; }
@@ -1001,6 +1026,7 @@ input, textarea, select { font-size: 16px; }
 @media (max-width: 40rem) { .plan-capacity-grid { grid-template-columns: 1fr; } .plan-capacity-intro h2 { font-size: 1.65rem; } .plan-capacity-meter > div:last-child, .plan-capacity-list li { align-items: flex-start; flex-direction: column; gap: .25rem; } }
 @media (max-width: 40rem) { .plan-forecast-summary { grid-template-columns: 1fr; } }
 @media (max-width: 48rem) { .plan-range-month { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 48rem) { .calendar-month-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .calendar-month-weekdays { display: none; } .calendar-day { min-block-size: 6.5rem; } .calendar-event-dates { grid-template-columns: 1fr; } }
 @media (max-width: 40rem) { .plan-commitment-list article { align-items: stretch; flex-direction: column; } .commitment-form { grid-template-columns: 1fr; } .commitment-form [data-rcl-form-field] { grid-column: auto !important; } }
 @media (max-width: 42rem) {
   .settings-mobile-intro { display: block; margin-block: .75rem 1rem; padding: 1rem; border-inline-start: 3px solid var(--color-accent); background: color-mix(in srgb, var(--color-surface-raised) 72%, transparent); border-radius: .7rem; }
@@ -1013,6 +1039,8 @@ input, textarea, select { font-size: 16px; }
   .scene-plan .scene-plate { inset-block-end: auto; block-size: 100dvh; background-position: center top; }
   .plan-surface .planner-page-header { margin-block: 0 .75rem; }
   .plan-surface .planner-page-header [data-rcl-page-header-description] { max-inline-size: 32rem; font-size: .95rem; line-height: 1.4; }
+  .calendar-month-header { align-items: stretch; flex-direction: column; gap: .75rem; }
+  .calendar-month-header nav { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .plan-view-switcher { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 1rem; overflow: visible; }
   .plan-view-switcher button { inline-size: 100%; }
   .plan-view-switcher-mobile { grid-template-columns: repeat(3, minmax(0, 1fr)); }

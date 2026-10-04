@@ -1,0 +1,9 @@
+{
+  "scope":  {
+    "id":  "team:personal-planner-delivery",
+    "label":  "Personal Planner I18 Delivery",
+    "frontier_target":  16,
+    "wake_budget":  96,
+    "max_entry_lines":  2
+  }
+}

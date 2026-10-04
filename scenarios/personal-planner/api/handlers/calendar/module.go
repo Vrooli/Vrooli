@@ -16,10 +16,13 @@ import (
 )
 
 func Module(db *database.RoutedDB, clock schedule.Clock, logger *log.Logger) module.Module {
-	service := d.NewService(d.NewSQLiteRepository(db, clock))
-	path, handler := c.NewCalendarServiceHandler(NewConnectHandler(Deps{Service: service, Logger: logger, Clock: clock}))
+	repository := d.NewSQLiteRepository(db, clock)
+	service := d.NewService(repository)
+	events := d.NewEventService(repository.(d.EventRepository))
+	path, handler := c.NewCalendarServiceHandler(NewConnectHandler(Deps{Service: service, Events: events, Logger: logger, Clock: clock}))
 	return module.Module{Name: "calendar", Mount: func(r *mux.Router) {
 		connectx.RegisterServices(r, connectx.ServiceMount{Path: path, Handler: handler})
+		mountEventRoutes(r, events)
 		r.HandleFunc("/api/v1/calendar/carry-forward", func(w http.ResponseWriter, req *http.Request) {
 			var body struct {
 				AllocationID string `json:"allocation_id"`

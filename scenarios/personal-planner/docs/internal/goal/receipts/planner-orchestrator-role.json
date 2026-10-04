@@ -1,0 +1,79 @@
+{
+  "target_type": "profile",
+  "target_id": "01ed3efc-aff6-44c7-b77c-0c548d56d1c9",
+  "snapshot": {
+    "catalog_digest": "sha256:a34cb8ef50dfb3a9540ed0c5997e3563e32dc216c8cda152a7cf8c30fb94f6cb",
+    "candidates": [
+      {
+        "runner_type": "RUNNER_TYPE_CODEX",
+        "selection_type": "MODEL_SELECTION_TYPE_MODEL",
+        "model": "gpt-6-luna",
+        "resource_role": "code.delivery",
+        "available": true,
+        "provenance": {
+          "source": "Owner-validated Codex 0.156.1 catalog at /usr/bin/codex exposes gpt-6-luna and gpt-6-sol. Use Luna medium for economical delivery and Sol medium for infrequent independent supervision; Agent Manager's managed codec bypasses the Vrooli attribution shim and selects the installed system runner; Astra remains excluded.",
+          "observed_at": "2026-09-28"
+        },
+        "enforcement": {
+          "permissions": "hook_unverified",
+          "caveats": [
+            "Codex's native permission settings remain intent-only; Vrooli projects a PreToolUse hook, but hook firing requires a live canary on the installed Codex version."
+          ]
+        },
+        "policy_path": "/home/matthalloran8/Vrooli/resources/codex/model-policy.json",
+        "policy_digest": "17c984eca6d24caf23fc1d15d8a428735aaaa9bac75d074ecd5ae78f85605181"
+      }
+    ],
+    "selected_candidate": {
+      "runner_type": "RUNNER_TYPE_CODEX",
+      "selection_type": "MODEL_SELECTION_TYPE_MODEL",
+      "model": "gpt-6-luna",
+      "resource_role": "code.delivery",
+      "available": true,
+      "provenance": {
+        "source": "Owner-validated Codex 0.156.1 catalog at /usr/bin/codex exposes gpt-6-luna and gpt-6-sol. Use Luna medium for economical delivery and Sol medium for infrequent independent supervision; Agent Manager's managed codec bypasses the Vrooli attribution shim and selects the installed system runner; Astra remains excluded.",
+        "observed_at": "2026-09-28"
+      },
+      "enforcement": {
+        "permissions": "hook_unverified",
+        "caveats": [
+          "Codex's native permission settings remain intent-only; Vrooli projects a PreToolUse hook, but hook firing requires a live canary on the installed Codex version."
+        ]
+      },
+      "policy_path": "/home/matthalloran8/Vrooli/resources/codex/model-policy.json",
+      "policy_digest": "17c984eca6d24caf23fc1d15d8a428735aaaa9bac75d074ecd5ae78f85605181"
+    },
+    "explanation": {
+      "source": "portable_role",
+      "summary": "portable role \"code.economy.delivery\" resolved through resource-owned policy catalogs; selected candidate 0 (codex/gpt-6-luna)",
+      "requested_role_ref": "code.economy.delivery",
+      "preflight": [
+        {
+          "candidate": {
+            "runner_type": "RUNNER_TYPE_CODEX",
+            "selection_type": "MODEL_SELECTION_TYPE_MODEL",
+            "model": "gpt-6-luna",
+            "resource_role": "code.delivery",
+            "available": true,
+            "provenance": {
+              "source": "Owner-validated Codex 0.156.1 catalog at /usr/bin/codex exposes gpt-6-luna and gpt-6-sol. Use Luna medium for economical delivery and Sol medium for infrequent independent supervision; Agent Manager's managed codec bypasses the Vrooli attribution shim and selects the installed system runner; Astra remains excluded.",
+              "observed_at": "2026-09-28"
+            },
+            "enforcement": {
+              "permissions": "hook_unverified",
+              "caveats": [
+                "Codex's native permission settings remain intent-only; Vrooli projects a PreToolUse hook, but hook firing requires a live canary on the installed Codex version."
+              ]
+            },
+            "policy_path": "/home/matthalloran8/Vrooli/resources/codex/model-policy.json",
+            "policy_digest": "17c984eca6d24caf23fc1d15d8a428735aaaa9bac75d074ecd5ae78f85605181"
+          },
+          "available": true
+        }
+      ]
+    },
+    "role_ref": "code.economy.delivery",
+    "selection_reason": "catalog_order"
+  },
+  "summary": "portable role \"code.economy.delivery\" resolved through resource-owned policy catalogs; selected candidate 0 (codex/gpt-6-luna)"
+}

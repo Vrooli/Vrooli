@@ -743,3 +743,154 @@ the sidebar and Today surface now resolve together in each appearance.
 - `pnpm type-check` and `pnpm build` passed.
 - Managed `make restart` reached healthy on API `17604` / UI `20003`; the
   unrelated notification-hub/tunnel-manager freshness timeout remains.
+
+## 2026-10-02 — isolated runtime UX inspection (not acceptance)
+
+Access/isolation procedure is in [RUNBOOK.md](../operations/RUNBOOK.md).
+Independent initial live/shadow SQLite handles and UI upstream health prove
+separate namespaces. No test-header write was used. Source/build identity,
+synthetic record IDs, counts and file hashes are in
+`/tmp/planner-ux-review/delivery/isolation-and-results.json`.
+
+| Executed case | Result and evidence |
+|---|---|
+| Estimated capture and reopen | One synthetic item `38e91bee-32f8-48dd-92a6-efffcc7da788`, title UX fixture 20261002, 45 minutes; survives navigation/reopen. BAS `baab9f3c-b326-484e-9d2e-b69aff3d2b15` executed capture/reopen/cancel, then was cancelled on stale ID selector. |
+| Cancel draft | No second work row after typing Cancelled synthetic draft and closing. Assertion evidence alone was too broad; independent count=1 verifies no duplicate. |
+| Preview/Accept placement | Preview feasible 09:00/45min. Accept hangs in Placing/Checking; independent shadow CLI timed out at8s, allocations=0. BAS `e0a45fc2-687a-4222-a33a-f28720f0ef39` FAILED. Local Chrome reproduces. F01 accepted-capacity and F02 split conservation remain blocked. |
+| Default Countdown start | HTTP400 invalid_argument: mode must be open, pomodoro, timed, or untimed. Two repeated StartFocus requests both rejected, no session created; no visible error. BAS `81a3aa8b-35d0-4638-b868-229122e64665` was cancelled; its broad body assertions are invalid proof. |
+| Open timer workaround | Local Chrome Open timer→Start focus creates one running synthetic session; BAS `c4b066df-6b32-40c2-b9d4-367e89368f75` then COMPLETED17/17 steps: running, double Pause, paused, paused reopen, Resume, running, End, note save, Review. |
+| F04/F10 partial accounting/repetition | Session `e38ebac6-5fa0-43a8-80a0-20f1d87c7eb5` ended revision4, active55s/wall65s. Exactly one session, pause event and note. Double pause did not duplicate the session/event. This does not certify cross-device concurrent starts or the full F10 fixture. |
+| End and remaining effort | Work still open/45min after End. Focus does not complete the task. No actual More to do action or date-level parent/child split UI was found in rendered/source inspection; these are not executed claims. |
+| Review | Rendered one focus session,0min active (55s floors below1min), unknown unrecorded time; saved note independently persisted. Review screenshot is an actual render, not source inference. |
+| Responsive/visible accessibility | Actual 390×844 empty Today, mobile Plan,1440×900 Goals/Focus/Review captures plus accessibility snapshots. Local Chrome AX exposes navigation, form labels, modes and state. Full contrast, zoom, screen-reader, all-route Day/Night/F14 geometry and long-content coverage remain unverified. |
+
+BAS evidence friction: raw body text includes embedded styles (a Pause text
+assertion matched CSS while no session existed); pending labels affect exact
+button selectors; a completed click does not prove its asynchronous write
+committed. Preserve failed attempts and inspect every step, then use scoped
+state assertions and independent record readback. Files include repaired flow
+`focus-loop.json`, terminal result/timeline, video, placement failure screenshots
+and baseline captures. BAS labels WebM as audio/webm; ffprobe confirmed an
+actual video stream. No feature code or test acceptance contract was changed.
+
+Target fixtures F01–F16 in this guide remain a **target map**, not a claim that
+all are implemented. This inspection supplies bounded runtime observations
+related to F04/F10 and responsive F14, not certification of those fixtures.
+The original full daily loop is blocked at acceptance; name-only capture,
+full split/move/carry-forward conservation, More to do, long-running/overtime,
+offline/error injection, DST/provider union, keyboard trap and security tests
+were not run. No product design acceptance is implied.
+
+## 2026-10-02 — bounded second UX sweep and complete catalogue dispositions
+
+Scope: follow-up to the isolated first pass, approximately05:06–05:30UTC.
+The canonical source-and-asset catalogue v0.5, not implementation phase IDs,
+owns the P01–P42 family names. Fresh recovered catalogue bytes101081,
+SHA256 `ae4fa3adabdb21f13f24a6790edbccb80a7cb7160eef8f6dcf806deaf5e136bc`;
+Drive ID `1N5_k3NDPMR2-dpaeAR8aOmnJXgGHjTov`. The local full reference plan
+still exactly matches194794bytes/SHA256
+`1ae18bb79a5f38398dfc36625e0a04b616f806fca786edff8bdcecc807402092`.
+All current family dispositions below are scoped observations, not full passes.
+
+Preflight05:06:36UTC reverified HEAD/build from the first pass, shadow pid1760416,
+namespace personal-planner_shadow, actual shadow SQLite handle, UI24816→API17778,
+and healthy BAS shadow15372. Work-list API responded. No restart was needed;
+no live service/data action ran. Shadow initial counts:1work,1focus,0goals,
+0milestones,0allocations,0providers. Settings reads initialized one default
+shadow planning profile; explicitly include this implicit read-side effect.
+BAS browser timezone was America/New_York while shadow profile is UTC; this
+inspection's date was2026-10-02 in both, not timezone/DST correctness evidence.
+
+| Case and expectation | Actual evidence and outcome |
+|---|---|
+| Reachable routes | `87c05b93-245f-4147-a735-bb55dc2374eb`: all six route renders/visible DOM probes;12steps completed. |
+| Name-only/unknown and repeated Save | `2423970a-f966-4486-b628-b14bc21f6ef4`: double Save creates TWO rows59d3b767-7634-499a-88cf-fe690fd6c2bc and cfc64f14-9702-4bbd-a70c-b2eeb0b662f1 at05:10:29.368Z; remaining/original0,open,no allocation. PP-UX-03. |
+| Long Unicode/unknown | Same flow creates row5e436d8a-31aa-41b0-a424-2a5359b4d508; full title persists; Today says NO TIME SET. Desktop wraps extensively,phone truncates. No implied allocation. |
+| Native validation/cancellation |1445minutes rejected by max1440; draft retained. Same run failed on ambiguous Close capture selector (backdrop chosen,not product defect). Escape succeeded and returned to Capture task. No invalid-estimate row persisted. |
+| Cancel/reopen/keyboard capture | `6134af47-0b75-4761-ab7b-54b22f26bcfb`: Escape cancel/reopen retains typed unsaved draft,no row. Ctrl+k shortcut failed because BAS passed unknown key Ctrl. Repaired modifier route below; never call this whole failed flow passed. |
+| Global interpretation preview | `65da163d-6de1-4996-8a83-9f1fae3929a9`: supported Control modifier+k opens global capture; Planner review tomorrow30m shows title containing tomorrow and30min,no interpreted date. Cancelled,not saved/applied. Source can autoapply time+effort captures; no dated capture apply tested. |
+| Goal create/edit/reopen | `a3df673b-1726-4471-849f-1492e8302f26`: goal1ffb8222-988d-4084-bb5d-a4c00492c9ed created with purpose/manual0%; target2026-10-09 persisted atrevision2. Cancelled second goal draft returns focus to New goal; exactly1goal remains. Title/purpose edit not exposed; progress slider untested. |
+| Milestone write/read failure | Same goal flow created milestone066fba5a-15c4-4d9c-9156-b48dcf294d32,open,revision1; storage readback proves write. UI Adding/Proofs loading and completion assertion failed. Independent ListMilestones read timedout6.02s. PP-UX-05; no retry creating another row. |
+| Reversible planning prefs/errors | `5744a03b-ee94-45d0-a972-d4d9e8e8535b`: invalid Not/AZone twice displays Planning profile could not be saved,keeps draft. UTC+capacity450 saves/reopens;480 restored. Independent default profileUTC/Monday480/60/45,revision3. Remaining appearance steps stopped after unsuitable hidden-radio selectors; not whole-run pass. |
+| Appearance/art-free | `1b05b4e3-5a68-4d7e-bf35-ff808441aee1`: label clicks Day/Night and art-free; same next task/capacity strings across themes; actual screenshots; Auto/art-free off restored within context. No allocations for geometry certification. Separate preference-receipts flow e71e1d0f-7ac9-49e1-874b-bbb3a76bf114 reads known noncredential localStorage and checked states around reduced-scenery/reopen/restoration. |
+| All Plan projections/Review periods | `54c9cad0-a8a3-4cff-9e1c-2a7c8d766fb5`: Week/Agenda/Month/Timeline/Capacity/Commitments/Outlook/Day and Review Week/Day selected;31steps completed. Empty projections not populated-view proof. Outlook displays known45min and28dayhorizon; unknown-task count absent. Weekly7rows/1session/0roundedmin/unknown unrecorded. |
+| Stored focus note display | Daily Review renders blank note and reason cards despite stored synthetic note/interrupted event. Independent REST returns capitalized fields; UI expects snake_case. PP-UX-06. Corrects first-pass persistence/display interpretation: saved note survives; its Review content does not render. |
+| Keyboard-only shell/focus return | `e6a0a47d-f736-407f-9481-ce48fe54a014`: Tab skip→brand→six destinations,each2px solid focus outline; Enter Settings; Control+k dialog; Escape returns to prior Monday control.36steps complete. No full focus trap/screen-reader proof. |
+| Zoom boundary | Same flow five Control+plus attempts left innerWidth1440,height900,DPR2,visualViewport.scale1 unchanged. Native200% zoom unsupported/unverified here. `06082325-ca8e-4465-985b-b90a81abc648` captures720×450 effective reflow as labelled approximation only. |
+| Narrow routes and Settings | `9ea7a84d-d95f-4dbc-90c8-86438a2c46d3`: all six routes360×800. Document width360,no document horizontal overflow; nested overflow/hit targets not fully measured. `831fcaa9-7b6c-4559-8735-9aba27a82e71`: mobile Planning profile/API Health/Preferences section clicks. |
+| History/reload | `d8e34f4a-7e57-40e6-9d40-ce95e007c8c1`: links Today→Plan→Review; actual history.back→Plan,forward→Review,reload→Review,then reopen Focus/Goals/Settings/Today.24steps complete; no promise that local view tabs survive reload. |
+| Reachable task detail | `2f9bf726-c098-4921-937b-a8f3655cae15`: Open draft displays limited description/No minutes remaining/source; Escape returns to Open draft. Not a complete task editor. |
+
+The exported flow definitions retain exact steps/selectors and viewport; full
+timelines retain failed outcomes, network evidence and paths. Automated body
+text can contain CSS/hidden pending labels; visible innerText snapshots, scoped
+regions and independent readback ground these findings. Raw select text can
+also include hidden options: it is inventory context, not visible selection proof.
+BAS full_page screenshots here capture a fixed viewport with nested scrolling;
+they do not automatically reveal all content in .planner-route-scroll. Mobile
+section-action screenshots show selected below-fold settings where operated.
+The original keyboard video45.88s decodes locally; delivered32s derivative is
+the first32s,stream-copy clipped without redaction. Destination playback remains
+the receiving executor's check. Parent cloud live sign-in succeeded04:41 and
+captured read-only Today; its separate cloud recording is unverified.
+
+No F01/F02 acceptance or downstream split/capacity certification. F04/F10/T15
+remain partial focus evidence; F07/T13 unknown display observations and F13
+insufficient-history copy are partial only. F14/T29–T31 have bounded same-data
+themes,keyboard and narrow captures; native200%zoom,durationgeometry,crowded
+events,contrast,reducedmotion,failedart and screenreader remain unverified.
+No adapters/shares/notifications/import/restore/security/fault-injection tests.
+Retain all bounded synthetic records; no deletion/reset/product fix/commit/push.
+
+### Current P01–P42 runtime route/state disposition
+
+The following extends this testing authority; it does not replace the connected
+design catalogue's artwork inventory. JSON export coverage-P01-P42.json preserves
+its exact surface/section mapping and marks full_family_passed=false for every row.
+
+| Catalogue ID and surface | Current disposition | Operated route/state and limits |
+|---|---|---|
+| P01 Application shell and primary navigation | observed and tested | /, /plan, /goals, /focus, /review, /settings — Six routes reopened; shell Tab→Settings, Back/Forward/reload,360px navigation. Full route keyboard/zoom matrix unverified. |
+| P02 First-use setup and first draft | absent/not reachable | six canonical routes — No skippable onboarding/first-draft flow found. Settings lazily creates a default shadow profile; not onboarding proof. |
+| P03 Today desktop and phone | observed and tested | / — Empty and long unknown-effort Today; Day/Night same task/capacity, narrow360px. Crowded/DST/accepted geometry blocked. |
+| P04 NextActionCard | observed but untested | / .next-card — Long unknown task and Open draft observed; alternative selection/source-owned/feasibility/Today Start/Resume variants untested. |
+| P05 CapacitySummary and explanation | observed but untested | / .capacity-card — 0planned/7havailable/7hbreathing rendered. No accepted allocations or union fixture; unknown demand count absent from this summary. |
+| P06 Today TimeHorizon | observed but untested | / .timeline — Empty Today timeline and Day/Focus buttons rendered. No1:2:3 geometry,collision,DST or legend proof. |
+| P07 Global quick capture and inbox/backlog | observed and tested | / manual capture; global Control+K — Name-only, long Unicode, invalid1445, repeated Save (duplicate defect), cancel/reopen; global parsed30min preview cancelled. No interpreted dated apply. |
+| P08 Task detail and WorkItemRow/Card | observed and tested | / Open draft; /plan work select — Limited read-only detail dialog and Escape return; persisted titles/unknown effort. Full editor/ownership/estimate history absent from this dialog. |
+| P09 Task/session operations and impact previews | blocked | /plan placement — Feasible preview exists; PP-UX-02 Accept hangs. Split/move/unschedule/undo not executed; no forcing downstream fixtures. |
+| P10 Plan — Day | observed and tested | /plan Day — Empty view and navigation tested; accepted editing and populated time geometry blocked by placement. |
+| P11 Plan — Week | observed and tested | /plan Week — Selected empty Week projection; populated placement/filter/deep-link behavior untested. |
+| P12 Plan — Month | observed and tested | /plan Month — Selected empty Month projection; RangeView returns empty before drawing a month grid. Populated view untested. |
+| P13 Plan — Agenda | observed and tested | /plan Agenda — Selected empty Agenda projection; accepted entries and accessible operation/deep links untested. |
+| P14 Plan — Timeline | observed and tested | /plan Timeline — Empty selection tested. Source RangeView is accepted-allocation list; required dependency/milestone timeline not found. |
+| P15 Plan — Capacity | observed and tested | /plan Capacity — Selected current capacity view with no allocations. Multi-day accounting/fragmentation/reserve scenario untested. |
+| P16 Plan — Commitments | observed and tested | /plan Commitments — Empty commitments tab observed after selection; no populated risk/history/filter tests. |
+| P17 Event and allocation editor | absent/not reachable | /plan placement inputs — Time/duration/work placement controls exist (apply blocked). No native event editor,provider detail or DST-resolution interface found. |
+| P18 Routine editor and occurrence scope | observed but untested | /plan routine-form — Fixed/flexible builder and weekday controls rendered, no routine creation, recurrence or occurrence-scope tests. |
+| P19 Goals and initiative overview/detail | observed and tested | /goals — One native goal/purpose created, target date edited/reopened; progress0 retained. No title/purpose edit or initiative detail found; progress slider untested. |
+| P20 Milestones and dependency/wait editor | blocked | /goals milestone-section — One milestone persisted; populated ListMilestones timed out independently6s and UI remained loading. Dependency/wait/cycle tests not run. |
+| P21 CommitmentStatus and commitment editor | absent/not reachable | /plan Commitments — Empty list exists; no commitment creation/renegotiation/status editor found in operated destinations. Domain code is not operated UI proof. |
+| P22 ProposalDiff and apply/undo | blocked | /plan placement proposal — First-pass preview observed, apply hangs. Full ProposalDiff/selective apply/undo/stale recovery not demonstrated. |
+| P23 What-if comparison | absent/not reachable | /plan Outlook — Outlook is not a what-if input/comparison editor; no what-if UI found. |
+| P24 Forecast detail and HistoryDrawer | observed but untested | /plan Outlook — Known45min,28dayhorizon,central/cautious scenario and recent outlook rendered. No history drawer,revision comparison or changed-input forecast correctness proof. |
+| P25 Focus screen and FocusPanel | observed and tested | /focus — First pass Countdown400 silent; supported Open timer running/doublepause/reopen/resume/end17steps+DB. Second pass idle/reopen/narrow; Pomodoro/break/overrun/untimed not run. |
+| P26 Focus wrap-up and actuals correction | observed and tested | /focus note; /review — Note persisted; second sweep reveals blank Review note/reason display (PP-UX-06). More to do/Blocked/remaining/correction not found in operated wrap-up; ledger not operated. |
+| P27 Review — Daily | observed and tested | /review Day — Daily/unknown-history read,reload,narrow; focus-note blank defect. No reflection/win write or selective carry-forward (no accepted allocations). |
+| P28 Review — Weekly | observed and tested | /review Week — Week selection renders7daytable,1session,0roundedminutes,unknown unrecorded. Drilldown/completion/calibrated learning untested. |
+| P29 InsightCard and learning adjustment review | observed but untested | /review EvidenceInsight,CalibrationCard — Insufficient-activity copy observed. No learning-adjustment accept/dismiss/reset flow or eligible-history fixture operated. |
+| P30 Settings — Availability and planning policy | observed and tested | /settings planning profile — Invalidtimezone twice→visibleerror; UTC recovery; capacity480→450→reload→480,DBrevision3. Availability/reserve/exception controls observed only; no impact preview. |
+| P31 Appearance controls and settings | observed and tested | /settings appearance; / appearance — Visible label clicks Day/Night,art-free/reload/restored Auto; selected checked states retained in context. Reduced scenery persisted/reopened/restored with independent checked/storage readback; focus-deferred transition untested. |
+| P32 Settings — Focus and notifications | observed but untested | /settings reminder/focus preferences — Focus length,quiet hours,lead,Show reminders rendered. No notifications changed/sent or permissions granted. |
+| P33 Settings — Learning controls | absent/not reachable | /settings — No dedicated learning-controls/history/exclusions/reset/export group found; Review calibration copy is not this settings flow. |
+| P34 Settings — Integrations and health | observed and tested | /settings calendar connections and API Health — Empty connection boundary and healthy readout; mobile health section navigation. Sample calendar not added,no OAuth/reconnect/disconnect/provider tests. |
+| P35 Embedded source agenda/capacity and deep-link context | outside authorized execution | no isolated source adapter fixture operated — No source agenda/capacity/deep-link fixture established; no external accounts/source mutations. Six-route shell has no embedded context surface. |
+| P36 SharePreview and sharing management | outside authorized execution | no share surface found — No recipient/grant fixture,share creation/send or exposure authorized. SharePreview UI not found in six routes. |
+| P37 Read-only guest commitment page | outside authorized execution | no guest fixture found — No proven isolated guest grant/recipient route; no security/access guessing or public exposure changes. |
+| P38 Settings — Data, import/export, restore and retention | absent/not reachable | /settings — No data import/export/restore/retention controls found. No import/restore/permanent deletion performed; command/API capabilities not certified here. |
+| P39 Global search and results | absent/not reachable | shell/routes — Global Capture exists; no global search/results UI found. Work dropdown discovery is not search certification. |
+| P40 State and recovery families | observed and tested | capture,settings,goals,history — Empty states,invalid input,duplicates,cancel,reopen,repeated timezone failure/recovery,Back/Forward/reload. Placement and milestone pending defects; offline/staleprovider/lostresponse unsupported/notrun. |
+| P41 Landscape and visual foundation | observed and tested | Day/Night Today; Settings art-free — Actual same-data scene screenshots and art-free fallback. Longtitle wraps desktop/truncates phone; failed-art/reducedmotion/contrast measurement notrun. |
+| P42 Accessibility and responsive state matrix | observed and tested | desktop1440×900,phone360×800,effective720×450 — Shell keyboard focus2px outlines,Control+K/Escape return,allmainphonecaptures. Native200% zoom shortcut unchanged;720×450 is approximation only; full F14/contrast/screen-reader/trap matrix unverified. |
+
+October2 feedback follow-up: original double Pause used expectedRevision1 twice; first200 paused revision2, second409 aborted. One pause persisted and reopen retained it. Generic failure feedback is PP-UX-07, separate from conservation. End/note-save Countdown selection versus hardcoded Open timer start guidance is PP-UX-08, not a backend mode change. Exact original request/response receipt and trace hash: /tmp/planner-second/delivery/first-double-pause-exact-responses.json. Access/isolation/capture/replay prerequisite is established separately from blocked core-loop product acceptance. Native200% zoom and consuming-executor playback remain unverified. See PROBLEMS and second-sweep report.

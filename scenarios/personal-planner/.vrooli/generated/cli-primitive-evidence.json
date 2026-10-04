@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "personal-planner",
   "generator": "v1.0.0",
-  "manifest_hash": "450b8ba3da7d39f86e28207b2d878572ef250596af82e6bffe296c032a5d30fe",
+  "manifest_hash": "4d476b8c0ffc66492735d28a10116e42551f581f87fb40e15f1d59e4dcff25dc",
   "commands": [
     {
       "path": "calendar apply-placement",
@@ -31,12 +31,44 @@
       "observed_primitive": "proto_mutation"
     },
     {
+      "path": "calendar create-event",
+      "group": "calendar",
+      "command": "create-event",
+      "binding": "CalendarService.CreateEvent",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
       "path": "calendar create-routine",
       "group": "calendar",
       "command": "create-routine",
       "binding": "CalendarService.CreateRoutine",
       "declared_primitive": "proto_mutation",
       "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "calendar event-status",
+      "group": "calendar",
+      "command": "event-status",
+      "binding": ".",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "calendar events",
+      "group": "calendar",
+      "command": "events",
+      "binding": "CalendarService.ListEvents",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "calendar get-event",
+      "group": "calendar",
+      "command": "get-event",
+      "binding": "CalendarService.GetEvent",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
     },
     {
       "path": "calendar preview-placement",
@@ -83,6 +115,14 @@
       "group": "calendar",
       "command": "skip-routine-occurrence",
       "binding": "CalendarService.SkipRoutineOccurrence",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "calendar update-event",
+      "group": "calendar",
+      "command": "update-event",
+      "binding": "CalendarService.UpdateEvent",
       "declared_primitive": "proto_mutation",
       "observed_primitive": "proto_mutation"
     },

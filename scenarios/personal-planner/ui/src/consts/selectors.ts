@@ -37,6 +37,30 @@ const literalSelectors = {
     themeSelect: "page-settings-theme",
     localeSelect: "page-settings-locale",
   },
+  calendarMonth: {
+    monthView: "calendar-month-view",
+    mobileMore: "calendar-month-mobile-more",
+    grid: "calendar-month-grid",
+    emptyState: "calendar-empty-state",
+    previousMonth: "calendar-month-previous",
+    nextMonth: "calendar-month-next",
+    addFirstInMonth: "calendar-add-first-in-month",
+    event: "calendar-event",
+    timedEvent: "calendar-timed-event",
+    editor: "calendar-event-editor",
+    revisionHeading: "calendar-event-revision",
+    message: "calendar-event-message",
+    eventTitle: "calendar-event-title",
+    eventSubject: "calendar-event-subject",
+    exclusiveEndDate: "calendar-event-end-exclusive",
+    allDayToggle: "calendar-event-all-day",
+    eventStartInstant: "calendar-event-start-instant",
+    eventEndInstant: "calendar-event-end-instant",
+    createButton: "calendar-event-create",
+    saveButton: "calendar-event-save",
+    checkStatus: "calendar-event-check-status",
+    closeButton: "calendar-event-close",
+  },
   pages: {
     dashboard: "page-today",
     today: "page-today",
@@ -53,6 +77,13 @@ const literalSelectors = {
 } satisfies LiteralSelectorTree;
 
 const dynamicSelectorDefinitions = {
+  calendarMonth: {
+    eventByTitle: defineDynamicSelector({
+      description: "Calendar event by its visible title",
+      selectorPattern: '[data-testid="calendar-event"][data-event-title="${title}"]',
+      params: { title: { type: "string" } },
+    }),
+  },
   layout: {
     navLink: defineDynamicSelector({
       description: "Primary navigation link by canonical nav key; the phone tab derives `-tab` from the same id",

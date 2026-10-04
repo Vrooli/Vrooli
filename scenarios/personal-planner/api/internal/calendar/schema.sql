@@ -15,6 +15,42 @@ CREATE TABLE IF NOT EXISTS calendar_schedule_state (
 );
 INSERT OR IGNORE INTO calendar_schedule_state (id, revision) VALUES ('default', 1);
 
+-- Native events preserve civil all-day ranges separately from timed instants.
+-- range_start/range_end are derived local civil bounds used only for overlap
+-- queries; end is exclusive for both event kinds.
+CREATE TABLE IF NOT EXISTS calendar_events (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  subject TEXT NOT NULL DEFAULT '',
+  notes TEXT NOT NULL DEFAULT '',
+  availability TEXT NOT NULL,
+  timezone TEXT NOT NULL,
+  all_day INTEGER NOT NULL,
+  start_date TEXT NOT NULL DEFAULT '',
+  end_date_exclusive TEXT NOT NULL DEFAULT '',
+  start_at TEXT NOT NULL DEFAULT '',
+  end_at TEXT NOT NULL DEFAULT '',
+  range_start TEXT NOT NULL,
+  range_end TEXT NOT NULL,
+  provider TEXT NOT NULL DEFAULT '',
+  provider_calendar_id TEXT NOT NULL DEFAULT '',
+  provider_event_id TEXT NOT NULL DEFAULT '',
+  occurrence_id TEXT NOT NULL DEFAULT '',
+  revision INTEGER NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_calendar_events_range ON calendar_events(range_start, range_end);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_calendar_events_provider_identity
+  ON calendar_events(provider, provider_calendar_id, provider_event_id, occurrence_id)
+  WHERE provider_event_id <> '';
+CREATE TABLE IF NOT EXISTS calendar_event_commands (
+  idempotency_key TEXT PRIMARY KEY,
+  fingerprint TEXT NOT NULL,
+  event_id TEXT NOT NULL REFERENCES calendar_events(id),
+  created_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS placement_proposals (
   id TEXT PRIMARY KEY,
   work_item_id TEXT NOT NULL,

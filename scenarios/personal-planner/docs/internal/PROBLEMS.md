@@ -291,3 +291,144 @@ a migration handoff with a planned retirement path back into
 - [`SEAMS.md`](SEAMS.md) — boundary registry (load-bearing for tests)
 - [`TESTING.md`](TESTING.md) — test patterns
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — generic-template issues
+
+## 2026-10-02 — runtime UX defects for design review (unfixed)
+
+### PP-UX-01: Default Countdown cannot start, with silent failure
+
+**Observed/rendered/executed:** isolated shadow Focus shows Countdown by
+default; Start focus sends mode=countdown and returns400 invalid_argument.
+Exact independent API response: `mode: must be open, pomodoro, timed, or untimed`.
+Local Chrome repeats the failure with no visible error/AX state change. BAS
+network telemetry records repeated rejected calls and independent DB reads
+show no session. **Source:** FocusPage passes timerMode directly; focus/service.go
+lines43–48 rejects countdown. Start-card branch has no mutation error renderer;
+error copy is nested under the existing-session branch.
+
+**Workaround verified:** select Open timer then Start focus. Supported loop
+BAS `c4b066df-6b32-40c2-b9d4-367e89368f75` passes with DB readback.
+**Impact:** primary default focus journey unusable; silent failure masks cause.
+**Status:** open; no product fix authorized by this access/inspection task.
+
+### PP-UX-02: Accept placement waits indefinitely without saving
+
+**Observed/rendered/executed:** synthetic45min09:00 preview is feasible;
+Accept stays Placing…/Checking…, no allocation persists. BAS
+`e0a45fc2-687a-4222-a33a-f28720f0ef39` failed completion assertion; local Chrome
+reproduces. `timeout 8 personal-planner --instance shadow calendar apply-placement
+--proposal-id 7a1fa32d-f675-44eb-93a5-c623d3390071 --revision 1
+--idempotency-key ux-20261002-independent --json` exited124 without output.
+
+**Source hypothesis (not a stack-trace proof):** main.go configures
+MaxOpenConns1; calendar/sqlite.go ApplyProposal begins a transaction then calls
+r.routineBusy outside the transaction, which reaches ListRoutines through r.db.
+The sole connection is held by the transaction. This can explain the self-wait.
+**Impact:** daily planning acceptance, split-session and accepted-capacity probes
+blocked; later broad BAS text assertions falsely looked successful.
+**Status:** open; inspect transaction-bound reads in a separately authorized fix.
+
+### Missing-path observations and visual questions
+
+No explicit More to do or date-level allocation→child session split control
+was found. FLOWS.md describes these as target semantics; absence in this bounded
+inspection is a design/implementation coverage gap, not a demonstrated broken
+existing control. Empty mobile Today puts the large empty timeline before the
+capture card, while enabled Start focus is visible without work; evaluate
+whether first-use guidance communicates spontaneous focus versus capture well.
+Review floors55active seconds to0min; honest accounting persists, but presentation
+of sub-minute activity may merit design review. No changes made.
+
+## 2026-10-02 — second-sweep runtime findings (unfixed)
+
+### PP-UX-03: Repeated manual capture creates duplicate tasks
+
+Executed Today name-only capture → double Save task in BAS
+2423970a-f966-4486-b628-b14bc21f6ef4. Independent SQLite read shows two open
+unknown-effort rows with identical title Planner review second name-only:
+59d3b767-7634-499a-88cf-fe690fd6c2bc and cfc64f14-9702-4bbd-a70c-b2eeb0b662f1,
+created05:10:29.368Z. Expected one accepted submission; actual two records.
+Impact medium: repeat clicks duplicate backlog demand. No live data affected.
+Root cause not isolated; pending-button disable alone did not prevent this race.
+
+### PP-UX-04: Placement duration's native validity contradicts default45
+
+Runtime DOM reports45 invalid, nearest41/46; source PlanPage.tsx:172 combines
+min1 with step5. Low-severity constraint inconsistency. Placement is a div with
+type=button preview,so native form submission validation does NOT block its
+preview; first-pass45minpreview was feasible. Do not describe this as the cause
+of PP-UX-02 or as a demonstrated visible error banner.
+
+### PP-UX-05: A persisted milestone makes its list wait indefinitely
+
+Goal1ffb8222-988d-4084-bb5d-a4c00492c9ed and target date2026-10-09 persisted;
+milestone066fba5a-15c4-4d9c-9156-b48dcf294d32 also persisted as open revision1.
+BAS a3df673b-1726-4471-849f-1492e8302f26 failed its scoped list assertion; UI
+showed Adding…/Proofs loading after reopen. Independent read-only POST
+http://localhost:17778/vrooli.personal_planner.v1.goals.GoalsService/ListMilestones
+with that goalId timed out6.02s. No duplicate creation retry performed.
+High impact: a real stored proof point cannot be read through the normal list.
+Source hypothesis: sqlite.go:105–125 keeps outer rows open while calling
+loadPrerequisites:217–222 through r.db; main MaxOpenConns1. This explains a
+connection self-wait but is not stack-trace proof. Browser disposal/cancellation
+releases the request; shadow work API responds afterward. No restart needed.
+
+### PP-UX-06: Stored focus notes and interruption reasons render blank
+
+Daily Review displays FOCUS NOTES/PAUSE PATTERNS headings and empty content,
+despite note Synthetic UX verification note and event reason interrupted in
+shadow storage. Independent REST GET /api/v1/focus/notes?date=2026-10-02 returns
+SessionID/LocalDate/Note/UpdatedAt; pause-reasons returns ID/Reason/etc.
+focus.ts:80–100 reads session_id/local_date/note/reason instead. Go SessionNote
+and PauseEvent in focus/types.go:31–39 have no JSON field tags. This source and
+executed response mismatch directly supports the blank render diagnosis.
+Medium impact: recorded reflection/interruption context is hidden in review.
+The first pass proved note persistence and save acknowledgment, not correct
+Review content display. No note loss/delete was observed.
+
+### Wider rendered/design gaps, not newly proven implementation failures
+
+Long title wraps through most of desktop NextActionCard and truncates on phone;
+mobile Today puts its empty timeline before the useful next action. Global
+capture tomorrow30m retains tomorrow in the title,shows30min but no interpreted
+date; cancelled without applying. Outlook shows known45min but omits the three
+unknown-effort task count from its observed explanation. Full task detail is a
+small read-only description/source dialog; date-level split,More to do,first-use
+setup,what-if,search,learning-controls,data-portability and share/guest surfaces
+were absent/not reachable in this bounded six-route inspection. Domain code is
+not proof that these user journeys exist. Use catalogue dispositions in TESTING.
+
+### PP-UX-07: Duplicate Pause conserves state but gives ambiguous failure feedback
+
+Original BAS c4b066df-6b32-40c2-b9d4-367e89368f75 trace, recovered without new
+mutations: both PauseFocus requests used expectedRevision "1" and the same
+session. At04:44:48.224Z the first returned200, paused revision2, active53/wall53.
+At04:44:48.225Z the second returned409 aborted: focus session changed; refresh
+before retrying. Exactly one interrupted pause event persisted. focus-paused.jpg
+shows State paused / Evidence Server saved together with "That transition did
+not save. Nothing was assumed." Reopening retained paused and cleared the alert.
+Conservation passes this duplicate-command case; medium UX feedback defect:
+the message does not identify the rejected repeated Pause and obscures the
+successful transition. This is not evidence of a failed original save or lost time.
+Exact requests/responses and original trace hash: first-double-pause-exact-responses.json.
+
+### PP-UX-08: Fixed Open timer guidance conflicts with selected Countdown draft
+
+Actual focus-ended.jpg and focus-note-saved.jpg show Countdown selected while
+the guidance above says Open timer / Stop when the work stops. Source
+ui/src/components/FocusStartGuidance.tsx hardcodes those words; FocusPage.tsx
+initializes the new timer draft as countdown after reload. The ended server
+session remained mode open, revision4. This is low-severity misleading start
+mode guidance, not an executed backend mode change or a completed-session
+summary. Note-save acknowledgment persists; Review display remains PP-UX-06.
+No extra focus session, product repair or mutation was needed to establish this.
+
+### Capability prerequisite and product correctness are separate results
+
+Existing secured access, independently verified shadow routing, bounded fixtures,
+BAS replay definitions, actual screenshots/video and reproducible readbacks are
+established for a buyer/design audit. Open Planner defects do not by themselves
+invalidate this access/isolation/capture prerequisite. Full core-loop product
+acceptance remains blocked by placement/milestone waits; Countdown400, duplicate
+capture and reflection display/feedback defects remain open. Native200% zoom,
+full accessibility matrix and consuming-executor recording playback remain
+unverified. P01–P42 dispositions are bounded evidence, never full-family passes.

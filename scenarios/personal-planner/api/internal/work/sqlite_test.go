@@ -25,7 +25,8 @@ func TestSQLiteSnoozeHidesUntilDateAndRecordsReason(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	repo := NewSQLiteRepositoryWithOptions(db, schedule.NewFake(time.Date(2026, 9, 21, 12, 0, 0, 0, time.UTC)), RepositoryOptions{IDGenerator: func() string { return "snooze-1" }})
+	clock := schedule.NewFake(time.Date(2026, 9, 21, 12, 0, 0, 0, time.UTC))
+	repo := NewSQLiteRepositoryWithOptions(db, clock, RepositoryOptions{IDGenerator: func() string { return "snooze-1" }})
 	if err := repo.Snooze(context.Background(), "work-1", "2026-09-22", "blocked"); err != nil {
 		t.Fatal(err)
 	}
@@ -35,6 +36,11 @@ func TestSQLiteSnoozeHidesUntilDateAndRecordsReason(t *testing.T) {
 	}
 	if len(items) != 0 {
 		t.Fatalf("snoozed item was listed: %#v", items)
+	}
+	clock.Advance(24 * time.Hour)
+	items, err = repo.List(context.Background(), 100)
+	if err != nil || len(items) != 1 || items[0].ID != "work-1" {
+		t.Fatalf("item did not reappear after its snooze date: %#v err=%v", items, err)
 	}
 	var reason string
 	if err := db.QueryRow(`SELECT reason FROM work_item_snoozes WHERE id='snooze-1'`).Scan(&reason); err != nil || reason != "blocked" {

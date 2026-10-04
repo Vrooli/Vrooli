@@ -1,0 +1,287 @@
+{
+  "status": {
+    "path": "/home/matthalloran8/Vrooli/scenarios/agent-manager/config/role-policy-catalog.json",
+    "requirement": {
+      "required": true,
+      "reason": "portable role selection must resolve through resource-owned coding-agent policies"
+    },
+    "ready": true,
+    "active_digest": "sha256:a34cb8ef50dfb3a9540ed0c5997e3563e32dc216c8cda152a7cf8c30fb94f6cb",
+    "activated_at": "2026-10-01T16:21:06.784097632Z",
+    "last_reload_attempt": {
+      "attempted_at": "2026-10-01T16:21:06.784097632Z",
+      "succeeded": true,
+      "digest": "sha256:a34cb8ef50dfb3a9540ed0c5997e3563e32dc216c8cda152a7cf8c30fb94f6cb"
+    }
+  },
+  "catalog": {
+    "schema_version": 1,
+    "metadata": {
+      "catalog_id": "agent-manager-coding-role-policy",
+      "updated_at": "2026-09-27"
+    },
+    "default_role": "code.default",
+    "roles": [
+      {
+        "role_ref": "code.cheap",
+        "intent": "cost-conscious coding",
+        "description": "Cost-conscious coding work.",
+        "candidates": [
+          {
+            "runner_type": "RUNNER_TYPE_CODEX",
+            "resource_role": "code.cheap"
+          },
+          {
+            "runner_type": "RUNNER_TYPE_CLAUDE_CODE",
+            "resource_role": "code.cheap"
+          },
+          {
+            "runner_type": "RUNNER_TYPE_OPENCODE",
+            "resource_role": "code.cheap"
+          },
+          {
+            "runner_type": "RUNNER_TYPE_GROK",
+            "resource_role": "code.cheap"
+          },
+          {
+            "runner_type": "RUNNER_TYPE_ANTIGRAVITY",
+            "resource_role": "code.cheap"
+          }
+        ]
+      },
+      {
+        "role_ref": "code.default",
+        "intent": "balanced coding",
+        "description": "Balanced implementation work with portable fallback.",
+        "candidates": [
+          {
+            "runner_type": "RUNNER_TYPE_CODEX",
+            "resource_role": "code.default"
+          },
+          {
+            "runner_type": "RUNNER_TYPE_CLAUDE_CODE",
+            "resource_role": "code.default"
+          },
+          {
+            "runner_type": "RUNNER_TYPE_OPENCODE",
+            "resource_role": "code.default"
+          },
+          {
+            "runner_type": "RUNNER_TYPE_GROK",
+            "resource_role": "code.default"
+          },
+          {
+            "runner_type": "RUNNER_TYPE_ANTIGRAVITY",
+            "resource_role": "code.default"
+          }
+        ]
+      },
+      {
+        "role_ref": "code.economy.delivery",
+        "intent": "economical sustained delivery",
+        "description": "Economical delivery coordination and implementation on the Codex subscription; campaign profiles require medium effort.",
+        "candidates": [
+          {
+            "runner_type": "RUNNER_TYPE_CODEX",
+            "resource_role": "code.delivery"
+          }
+        ]
+      },
+      {
+        "role_ref": "code.economy.judgment",
+        "intent": "economical judgment",
+        "description": "Judgment and challenge work on the Codex subscription using Luna. Routine heartbeats use medium effort under the operator 2026-09-12 quota policy.",
+        "candidates": [
+          {
+            "runner_type": "RUNNER_TYPE_CODEX",
+            "resource_role": "code.judgment"
+          }
+        ]
+      },
+      {
+        "role_ref": "code.fast",
+        "intent": "fast coding",
+        "description": "Low-latency implementation and focused edits.",
+        "candidates": [
+          {
+            "runner_type": "RUNNER_TYPE_CODEX",
+            "resource_role": "code.fast"
+          },
+          {
+            "runner_type": "RUNNER_TYPE_CLAUDE_CODE",
+            "resource_role": "code.fast"
+          },
+          {
+            "runner_type": "RUNNER_TYPE_OPENCODE",
+            "resource_role": "code.fast"
+          },
+          {
+            "runner_type": "RUNNER_TYPE_GROK",
+            "resource_role": "code.fast"
+          },
+          {
+            "runner_type": "RUNNER_TYPE_ANTIGRAVITY",
+            "resource_role": "code.fast"
+          }
+        ]
+      },
+      {
+        "role_ref": "code.flatrate",
+        "intent": "flat-rate long-horizon coding",
+        "description": "Long-horizon coding on the operator's flat-rate coding-agent subscription (OpenCode Go). A launch either runs there or fails loudly; it never falls through to the Claude or Codex pools.",
+        "candidates": [
+          {
+            "runner_type": "RUNNER_TYPE_OPENCODE",
+            "resource_role": "code.flatrate"
+          }
+        ]
+      },
+      {
+        "role_ref": "code.inspection",
+        "intent": "inspection and execution",
+        "description": "Code inspection, reproduction, execution, and evidence gathering.",
+        "candidates": [
+          {
+            "runner_type": "RUNNER_TYPE_CODEX",
+            "resource_role": "code.inspection"
+          },
+          {
+            "runner_type": "RUNNER_TYPE_CLAUDE_CODE",
+            "resource_role": "code.inspection"
+          },
+          {
+            "runner_type": "RUNNER_TYPE_OPENCODE",
+            "resource_role": "code.inspection"
+          },
+          {
+            "runner_type": "RUNNER_TYPE_GROK",
+            "resource_role": "code.inspection"
+          },
+          {
+            "runner_type": "RUNNER_TYPE_ANTIGRAVITY",
+            "resource_role": "code.inspection"
+          }
+        ]
+      },
+      {
+        "role_ref": "code.judgment",
+        "intent": "judgment and reasoning",
+        "description": "High-level judgment, challenge, and strategic reasoning work.",
+        "candidates": [
+          {
+            "runner_type": "RUNNER_TYPE_CLAUDE_CODE",
+            "resource_role": "code.judgment"
+          },
+          {
+            "runner_type": "RUNNER_TYPE_CODEX",
+            "resource_role": "code.judgment"
+          },
+          {
+            "runner_type": "RUNNER_TYPE_OPENCODE",
+            "resource_role": "code.judgment"
+          },
+          {
+            "runner_type": "RUNNER_TYPE_GROK",
+            "resource_role": "code.judgment"
+          },
+          {
+            "runner_type": "RUNNER_TYPE_ANTIGRAVITY",
+            "resource_role": "code.judgment"
+          }
+        ]
+      },
+      {
+        "role_ref": "code.longrun",
+        "intent": "long-horizon coding",
+        "description": "Long-horizon autonomous coding work.",
+        "candidates": [
+          {
+            "runner_type": "RUNNER_TYPE_CLAUDE_CODE",
+            "resource_role": "code.longrun"
+          },
+          {
+            "runner_type": "RUNNER_TYPE_CODEX",
+            "resource_role": "code.longrun"
+          },
+          {
+            "runner_type": "RUNNER_TYPE_OPENCODE",
+            "resource_role": "code.longrun"
+          },
+          {
+            "runner_type": "RUNNER_TYPE_GROK",
+            "resource_role": "code.longrun"
+          },
+          {
+            "runner_type": "RUNNER_TYPE_ANTIGRAVITY",
+            "resource_role": "code.longrun"
+          }
+        ]
+      },
+      {
+        "role_ref": "code.smart",
+        "intent": "high capability coding",
+        "description": "Highest-capability coding and reasoning work.",
+        "candidates": [
+          {
+            "runner_type": "RUNNER_TYPE_CODEX",
+            "resource_role": "code.smart"
+          },
+          {
+            "runner_type": "RUNNER_TYPE_CLAUDE_CODE",
+            "resource_role": "code.smart"
+          },
+          {
+            "runner_type": "RUNNER_TYPE_OPENCODE",
+            "resource_role": "code.smart"
+          },
+          {
+            "runner_type": "RUNNER_TYPE_GROK",
+            "resource_role": "code.smart"
+          },
+          {
+            "runner_type": "RUNNER_TYPE_ANTIGRAVITY",
+            "resource_role": "code.smart"
+          }
+        ]
+      },
+      {
+        "role_ref": "code.supervision",
+        "intent": "independent delivery supervision",
+        "description": "Infrequent independently admitted delivery review on the operator-authorized Sol subscription route.",
+        "candidates": [
+          {
+            "runner_type": "RUNNER_TYPE_CODEX",
+            "resource_role": "judgment.supervision"
+          }
+        ]
+      },
+      {
+        "role_ref": "code.ux",
+        "intent": "user experience coding",
+        "description": "User-facing interaction and frontend work.",
+        "candidates": [
+          {
+            "runner_type": "RUNNER_TYPE_CODEX",
+            "resource_role": "code.ux"
+          },
+          {
+            "runner_type": "RUNNER_TYPE_CLAUDE_CODE",
+            "resource_role": "code.ux"
+          },
+          {
+            "runner_type": "RUNNER_TYPE_OPENCODE",
+            "resource_role": "code.ux"
+          },
+          {
+            "runner_type": "RUNNER_TYPE_GROK",
+            "resource_role": "code.ux"
+          },
+          {
+            "runner_type": "RUNNER_TYPE_ANTIGRAVITY",
+            "resource_role": "code.ux"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"os"
 	"strconv"
 	"strings"
 
@@ -13,11 +15,39 @@ import (
 	vc "github.com/vrooli/vrooli/packages/proto/gen/go/personal-planner/v1/calendar/calendar_v1connect"
 )
 
-type handlers struct{ client vc.CalendarServiceClient }
+type handlers struct {
+	client      vc.CalendarServiceClient
+	eventClient calendarEventRPC
+	httpClient  connect.HTTPClient
+	apiBase     string
+}
 
 func newHandlers(c *cliapp.ScenarioApp) *handlers {
 	httpClient, base := cliapp.NewConnectHTTPClient(c)
-	return &handlers{client: vc.NewCalendarServiceClient(httpClient, base)}
+	if os.Getenv(testModeEnv) == "1" {
+		httpClient = testModeHTTPClient{HTTPClient: httpClient}
+	}
+	client := vc.NewCalendarServiceClient(httpClient, base)
+	return &handlers{client: client, eventClient: client, httpClient: httpClient, apiBase: base}
+}
+
+type calendarEventRPC interface {
+	ListEvents(context.Context, *connect.Request[v.ListEventsRequest]) (*connect.Response[v.ListEventsResponse], error)
+	GetEvent(context.Context, *connect.Request[v.GetEventRequest]) (*connect.Response[v.GetEventResponse], error)
+	CreateEvent(context.Context, *connect.Request[v.CreateEventRequest]) (*connect.Response[v.CreateEventResponse], error)
+	UpdateEvent(context.Context, *connect.Request[v.UpdateEventRequest]) (*connect.Response[v.UpdateEventResponse], error)
+}
+
+type testModeHTTPClient struct{ connect.HTTPClient }
+
+func (c testModeHTTPClient) Do(req *http.Request) (*http.Response, error) {
+	clone := req.Clone(req.Context())
+	clone.Header = req.Header.Clone()
+	if clone.Header == nil {
+		clone.Header = make(http.Header)
+	}
+	clone.Header.Set("X-Vrooli-Test-Mode", "1")
+	return c.HTTPClient.Do(clone)
 }
 
 func (h *handlers) listRoutinesCall(_ cliapp.OperationContext) (*v.ListRoutinesResponse, error) {

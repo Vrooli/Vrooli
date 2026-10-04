@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
@@ -72,6 +73,11 @@ func main() {
 	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
+	// A routed Test Genie pool is a fresh SQLite database. Initialize it with
+	// the same scenario-owned schemas before the lease can receive requests.
+	db.SetTestPoolInitializer(func(ctx context.Context, testDB *sql.DB) error {
+		return database.EnsureSchemas(ctx, testDB, modules.AllSchemas()...)
+	})
 	primaryFileRoots, err := scenarioStorageRoots()
 	if err != nil {
 		log.Fatalf("file storage configuration failed: %v", err)

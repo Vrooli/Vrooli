@@ -2,14 +2,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import { applyAllocationProposal, applyScheduleProposal, createRoutine, fetchAllocations, fetchRoutineOccurrences, fetchRoutines, fetchTodayAllocations, previewAllocation, previewSchedule, rescheduleRoutineOccurrence, skipRoutineOccurrence } from "../api/calendar";
+import { applyAllocationProposal, applyScheduleProposal, createRoutine, fetchAllocations, fetchCalendarEvents, fetchRoutineOccurrences, fetchRoutines, fetchTodayAllocations, previewAllocation, previewSchedule, rescheduleRoutineOccurrence, skipRoutineOccurrence } from "../api/calendar";
 import { fetchWorkItems, updateWorkEstimate } from "../api/work";
 import { createCommitment, fetchCommitments } from "../api/commitments";
 import { fetchForecast, fetchForecastHistory } from "../api/forecasts";
 import { renderWithProviders } from "../test-utils";
 import { PlanPage } from "./PlanPage";
 
-vi.mock("../api/calendar", () => ({ fetchTodayAllocations: vi.fn(), fetchAllocations: vi.fn(), applyAllocationProposal: vi.fn(), applyScheduleProposal: vi.fn(), previewAllocation: vi.fn(), previewSchedule: vi.fn(), fetchRoutines: vi.fn(), createRoutine: vi.fn(), fetchRoutineOccurrences: vi.fn(), rescheduleRoutineOccurrence: vi.fn(), skipRoutineOccurrence: vi.fn() }));
+vi.mock("../api/calendar", () => ({ fetchTodayAllocations: vi.fn(), fetchAllocations: vi.fn(), fetchCalendarEvents: vi.fn(), applyAllocationProposal: vi.fn(), applyScheduleProposal: vi.fn(), previewAllocation: vi.fn(), previewSchedule: vi.fn(), fetchRoutines: vi.fn(), createRoutine: vi.fn(), fetchRoutineOccurrences: vi.fn(), rescheduleRoutineOccurrence: vi.fn(), skipRoutineOccurrence: vi.fn() }));
 vi.mock("../api/work", () => ({ fetchWorkItems: vi.fn(), updateWorkEstimate: vi.fn() }));
 vi.mock("../api/commitments", () => ({ createCommitment: vi.fn(), fetchCommitments: vi.fn(), updateCommitmentState: vi.fn() }));
 vi.mock("../api/forecasts", () => ({ fetchForecast: vi.fn(), fetchForecastHistory: vi.fn() }));
@@ -22,6 +22,7 @@ afterEach(() => {
 
 beforeEach(() => {
   vi.mocked(fetchAllocations).mockResolvedValue({ allocations: [] } as never);
+  vi.mocked(fetchCalendarEvents).mockResolvedValue([]);
   vi.mocked(fetchRoutines).mockResolvedValue([]);
   vi.mocked(fetchRoutineOccurrences).mockResolvedValue([]);
   vi.mocked(fetchCommitments).mockResolvedValue([]);
@@ -333,7 +334,7 @@ describe("PlanPage", () => {
     expect(await screen.findByRole("status")).toHaveTextContent("stale or could not be accepted");
   });
 
-  it("projects the shared allocation set as a week", async () => {
+  it("projects accepted allocations as a week and native events as a month", async () => {
     vi.mocked(fetchTodayAllocations).mockResolvedValue({ plannedMinutes: 0, availableMinutes: 480, breathingRoomMinutes: 480, allocations: [] } as never);
     vi.mocked(fetchWorkItems).mockResolvedValue([]);
     vi.mocked(fetchAllocations).mockResolvedValue({ allocations: [{ id: "allocation-2", localDate: "2026-09-22", title: "Review the brief", startMinutes: 660, durationMinutes: 30, sourceLabel: "Daily" }] } as never);
@@ -344,9 +345,16 @@ describe("PlanPage", () => {
     expect(screen.getByText("11:00 · 30 min")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("tab", { name: "Agenda" }));
     expect(await screen.findByRole("heading", { name: "Upcoming accepted work" })).toBeInTheDocument();
+    const now = new Date();
+    const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+    vi.mocked(fetchCalendarEvents).mockResolvedValue([{
+      id: "native-month-event", title: "Native month event", subject: "synthetic owner", notes: "", availability: "busy", timezone: "America/New_York", all_day: true,
+      start_date: monthStart, end_date_exclusive: `${monthStart.slice(0, 8)}02`, start_at: "", end_at: "", provider: "", provider_calendar_id: "", provider_event_id: "", occurrence_id: "", revision: 1,
+      created_at: "2026-10-01T12:00:00Z", updated_at: "2026-10-01T12:00:00Z",
+    }]);
     await userEvent.click(screen.getByRole("tab", { name: "Month" }));
-    expect(await screen.findByLabelText("Accepted month")).toBeInTheDocument();
-    expect(screen.getByText("Review the brief")).toBeInTheDocument();
+    expect(await screen.findByLabelText(/dates$/)).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /Edit Native month event, event native-month-event/ })).toBeInTheDocument();
     await userEvent.click(screen.getByRole("tab", { name: "Timeline" }));
     expect(await screen.findByLabelText("Accepted timeline")).toBeInTheDocument();
     expect(screen.getByText("Review the brief")).toBeInTheDocument();

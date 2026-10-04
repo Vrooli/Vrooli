@@ -6,9 +6,39 @@ vi.mock("@connectrpc/connect", () => ({ createClient: () => client }));
 import { applyAllocationProposal, applyScheduleProposal, carryForwardAllocation, createAllocation, createRoutine, fetchAllocations, fetchRoutineOccurrences, fetchRoutines, fetchTodayAllocations, previewAllocation, previewSchedule, rescheduleRoutineOccurrence, skipRoutineOccurrence } from "./calendar";
 import { API_BASE } from "./client";
 
-afterEach(() => vi.clearAllMocks());
+afterEach(() => { vi.unstubAllGlobals(); vi.clearAllMocks(); });
 
 describe("calendar API transport", () => {
+  it("lists, creates, reopens, and revision-edits native events through the scenario API", async () => {
+    const event = { id: "event-1", title: "Synthetic trip", all_day: true, start_date: "2026-10-04", end_date_exclusive: "2026-10-07", revision: 2 };
+    const request = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ events: [event] }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(event), { status: 201 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(event), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(event), { status: 200 }));
+    vi.stubGlobal("fetch", request);
+    const input = { title: "Synthetic trip", subject: "owner", notes: "", availability: "busy" as const, timezone: "America/New_York", all_day: true, start_date: "2026-10-04", end_date_exclusive: "2026-10-07", start_at: "", end_at: "" };
+    const { createCalendarEvent, fetchCalendarEvent, fetchCalendarEvents, updateCalendarEvent } = await import("./calendar");
+    expect(await fetchCalendarEvents("2026-10-01", "2026-10-31")).toEqual([event]);
+    expect(await createCalendarEvent(input, "synthetic-key")).toEqual(event);
+    expect(await fetchCalendarEvent("event-1")).toEqual(event);
+    expect(await updateCalendarEvent("event-1", input, 1)).toEqual(event);
+    expect(request.mock.calls.map(([url]) => url)).toEqual([
+      `${API_BASE}/api/v1/calendar/events?start_local_date=2026-10-01&end_local_date=2026-10-31`,
+      `${API_BASE}/api/v1/calendar/events`,
+      `${API_BASE}/api/v1/calendar/events/event-1`,
+      `${API_BASE}/api/v1/calendar/events/event-1`,
+    ]);
+    expect(JSON.parse(request.mock.calls[1]![1]?.body as string)).toMatchObject({ idempotency_key: "synthetic-key", end_date_exclusive: "2026-10-07" });
+    expect(JSON.parse(request.mock.calls[3]![1]?.body as string)).toMatchObject({ expected_revision: 1, start_date: "2026-10-04" });
+  });
+
+  it("surfaces calendar event revision conflicts instead of retrying a stale edit", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("event changed; reload", { status: 409 })));
+    const { updateCalendarEvent } = await import("./calendar");
+    await expect(updateCalendarEvent("event-1", { title: "x" } as never, 1)).rejects.toThrow("event changed; reload");
+  });
+
   it("reads accepted allocations", async () => {
     const response = { plannedMinutes: 45, allocations: [] } as never;
     client.listTodayAllocations.mockResolvedValueOnce(response);

@@ -17,10 +17,14 @@ the standard full-stack Vrooli scenario shape:
 - Requirements registry, generated L0 experience contract, and progress log
   (`requirements/`, `experience/`, `docs/internal/PROGRESS.md`)
 
-> **Start here:** open [`docs/START-HERE.md`](docs/START-HERE.md). It
-> owns the first-session initialization protocol — charter, requirements,
-> domain map, design language, placeholder replacement, and first real
-> vertical slice. Run `make orient` for a machine-readable gate status.
+> **Start here:** open the [Personal Planning home](https://docs.google.com/document/d/1k9Ifow_SxI8dkh5SYYBFiEhHqrvZFlZe_2Eyq7Yl20M/edit?tab=t.dc6m4yea535i)
+> for goals, deadlines, manual work, workarounds, lessons and project sources.
+> This checkout owns the Planner application within that broader context.
+> For native delivery, read [`docs/START-HERE.md`](docs/START-HERE.md), then
+> [`GOAL.md`](docs/internal/goal/GOAL.md) and the existing
+> [`QUEUE.md`](docs/internal/goal/QUEUE.md). Team `personal-planner-delivery`
+> continues effort `personal-planner-I18`; the Drive reorganization does not
+> create another commission or expand its accepted product scope.
 
 ## What You Get
 
@@ -64,13 +68,11 @@ the standard full-stack Vrooli scenario shape:
 
 ## Customize Safely
 
-The generated scaffold is intentionally not the product. Today the only
-real code is the `health` domain plus a fenced, removable `notes` example;
-everything else in the domain map is a target to build against. When you
-build the real UX, keep two things straight: what is a **placeholder** to
-replace, what is a **durable seam** to preserve, and what the
-**Observatory design contract** binds regardless of how you rewrite the
-layout.
+Continue from the accepted I18 contract and the current native queue, not
+from a fresh-scaffold inventory. Preserve the Observatory design contract
+and durable seams. Confirm any remaining placeholder in current sources
+before replacing it; scaffold-era examples in START-HERE are historical
+reference, not evidence that a feature is absent or permission to reset it.
 
 ### The Observatory design contract
 
@@ -88,9 +90,10 @@ equivalent. See [`docs/concepts/EXPERIENCE.md`](docs/concepts/EXPERIENCE.md)
 for the surface set and [`docs/guides/choosing-ui.md`](docs/guides/choosing-ui.md)
 for the decide → configure → adopt → build path.
 
-### Placeholders to replace
+### Historical placeholder guidance
 
-Treat these as **placeholders** to replace:
+The examples below describe the generated template. Consult current sources
+and the active goal before treating any of them as remaining work:
 
 - The `notes` domain (proto, API, CLI, UI feature) — a worked vertical
   slice meant to be copied once and then deleted.
@@ -154,8 +157,8 @@ receiver, third-party shape, ops probe) are enumerated in
 `api/internal/module/module.go`. The notes attachments endpoint is
 the worked REST example.
 
-[`docs/START-HERE.md`](docs/START-HERE.md) describes the replacement
-workflow in full.
+[`docs/START-HERE.md`](docs/START-HERE.md) separates current delivery and
+source authority from the historical template replacement workflow.
 
 ## Running The Scenario
 
@@ -169,15 +172,21 @@ make start   # wraps `vrooli scenario start`
 
 See [`docs/QUICKSTART.md`](docs/QUICKSTART.md) for the full clone-to-running flow.
 
-Run tests with `make test` (which runs `vrooli scenario test`) or invoke
-`test-genie execute personal-planner --preset comprehensive` directly for
-finer-grained presets.
+Choose validation scope using repository `docs/TESTING.md` and the active
+goal gates. Run relevant phases with
+`vrooli scenario test personal-planner --phases <relevant-phases>`; `make test`
+is the scenario entrypoint. Initialization history does not require repeating
+a comprehensive suite for a documentation-only change.
 
 ## Documentation Map
 
 | Need | Start Here |
 |---|---|
-| Initialize after generation | [`docs/START-HERE.md`](docs/START-HERE.md) |
+| Orient across Personal Planning sources | [Drive home](https://docs.google.com/document/d/1k9Ifow_SxI8dkh5SYYBFiEhHqrvZFlZe_2Eyq7Yl20M/edit?tab=t.dc6m4yea535i), [`docs/START-HERE.md`](docs/START-HERE.md) |
+| Resume accepted I18 delivery | [`GOAL.md`](docs/internal/goal/GOAL.md), [`CONTRACT.md`](docs/internal/goal/CONTRACT.md), [`QUEUE.md`](docs/internal/goal/QUEUE.md) |
+| Check acceptance and source pins | [`ACCEPTANCE.md`](docs/internal/goal/ACCEPTANCE.md), [`source-manifest.json`](docs/internal/goal/receipts/source-manifest.json) |
+| Read product and implementation references | [`source implementation plan`](docs/reference/source-implementation-plan.md), [`scene integration`](docs/reference/scene-integration-contract.md) |
+| Consult historical template initialization | [`docs/START-HERE.md`](docs/START-HERE.md#initialization-protocol) |
 | Establish UI design language (Observatory contract) | `DESIGN.md` at this scenario's root |
 | Understand the product surfaces + the UI decision | [`docs/concepts/EXPERIENCE.md`](docs/concepts/EXPERIENCE.md) |
 | Decide, configure and adopt the UI | [`docs/guides/choosing-ui.md`](docs/guides/choosing-ui.md) |
@@ -197,9 +206,9 @@ finer-grained presets.
 
 ## Working Rules
 
-1. **Read [`docs/START-HERE.md`](docs/START-HERE.md) first.** It owns the first implementation workflow.
-2. **Run `make orient`** as a progress check — it reports initialization gates from `.vrooli/orientation.json`.
-3. **Update `PRD.md` and `requirements/`** before feature work. Operational targets drive code + tests.
+1. **Read [`docs/START-HERE.md`](docs/START-HERE.md) first**, then resume the existing I18 goal and queue.
+2. **Use the goal ledger for current progress.** `make orient` describes historical scaffold gates, not current epoch acceptance.
+3. **Follow the accepted contract and current directives.** Keep requirements aligned with admitted work; Drive authoring or an old implementation sequence does not reset the commission.
 4. **Read root `DESIGN.md` before UI work.** Tokens, motion, and status semantics are binding; specific component lists in the design are illustrative — implement everything your scenario actually needs.
 5. **Keep `experience/` aligned with routes.** Start at L0, then add priorities, claims, bindings, states, and journeys before flipping pages active.
 6. **Update `docs/concepts/DOMAINS.md`** before adding product code.

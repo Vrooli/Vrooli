@@ -1,0 +1,516 @@
+{
+  "schema_version": 1,
+  "status": "data_entry_blocked_capability_missing",
+  "events": [
+    {
+      "title": "South Jersey",
+      "subject": "owner",
+      "all_day": true,
+      "timezone": "America/New_York",
+      "start_date": "2026-10-04",
+      "end_date_inclusive": "2026-10-06",
+      "end_date_exclusive": "2026-10-07",
+      "notes": "",
+      "planner_id": null,
+      "entry_status": "not_entered_unsupported_native_event",
+      "reminders": [],
+      "attendees": [],
+      "recurrence": null
+    },
+    {
+      "title": "South Jersey",
+      "subject": "owner",
+      "all_day": true,
+      "timezone": "America/New_York",
+      "start_date": "2026-10-09",
+      "end_date_inclusive": "2026-10-12",
+      "end_date_exclusive": "2026-10-13",
+      "notes": "",
+      "planner_id": null,
+      "entry_status": "not_entered_unsupported_native_event",
+      "reminders": [],
+      "attendees": [],
+      "recurrence": null
+    },
+    {
+      "title": "South Jersey",
+      "subject": "owner",
+      "all_day": true,
+      "timezone": "America/New_York",
+      "start_date": "2026-10-17",
+      "end_date_inclusive": "2026-10-18",
+      "end_date_exclusive": "2026-10-19",
+      "notes": "",
+      "planner_id": null,
+      "entry_status": "not_entered_unsupported_native_event",
+      "reminders": [],
+      "attendees": [],
+      "recurrence": null
+    },
+    {
+      "title": "South Jersey",
+      "subject": "owner",
+      "all_day": true,
+      "timezone": "America/New_York",
+      "start_date": "2026-10-23",
+      "end_date_inclusive": "2026-10-27",
+      "end_date_exclusive": "2026-10-28",
+      "notes": "",
+      "planner_id": null,
+      "entry_status": "not_entered_unsupported_native_event",
+      "reminders": [],
+      "attendees": [],
+      "recurrence": null
+    },
+    {
+      "title": "South Jersey",
+      "subject": "owner",
+      "all_day": true,
+      "timezone": "America/New_York",
+      "start_date": "2026-11-01",
+      "end_date_inclusive": "2026-11-03",
+      "end_date_exclusive": "2026-11-04",
+      "notes": "",
+      "planner_id": null,
+      "entry_status": "not_entered_unsupported_native_event",
+      "reminders": [],
+      "attendees": [],
+      "recurrence": null
+    },
+    {
+      "title": "South Jersey",
+      "subject": "owner",
+      "all_day": true,
+      "timezone": "America/New_York",
+      "start_date": "2026-11-08",
+      "end_date_inclusive": "2026-11-11",
+      "end_date_exclusive": "2026-11-12",
+      "notes": "",
+      "planner_id": null,
+      "entry_status": "not_entered_unsupported_native_event",
+      "reminders": [],
+      "attendees": [],
+      "recurrence": null
+    },
+    {
+      "title": "South Jersey",
+      "subject": "owner",
+      "all_day": true,
+      "timezone": "America/New_York",
+      "start_date": "2026-11-19",
+      "end_date_inclusive": "2026-11-21",
+      "end_date_exclusive": "2026-11-22",
+      "notes": "",
+      "planner_id": null,
+      "entry_status": "not_entered_unsupported_native_event",
+      "reminders": [],
+      "attendees": [],
+      "recurrence": null
+    },
+    {
+      "title": "South Jersey",
+      "subject": "owner",
+      "all_day": true,
+      "timezone": "America/New_York",
+      "start_date": "2026-11-26",
+      "end_date_inclusive": "2026-11-30",
+      "end_date_exclusive": "2026-12-01",
+      "notes": "",
+      "planner_id": null,
+      "entry_status": "not_entered_unsupported_native_event",
+      "reminders": [],
+      "attendees": [],
+      "recurrence": null
+    },
+    {
+      "title": "Girlfriend in South Jersey",
+      "subject": "girlfriend_context",
+      "all_day": true,
+      "timezone": "America/New_York",
+      "start_date": "2026-10-04",
+      "end_date_inclusive": "2026-10-06",
+      "end_date_exclusive": "2026-10-07",
+      "notes": "Context on owner calendar; does not imply owner presence or reserve owner attention.",
+      "planner_id": null,
+      "entry_status": "not_entered_unsupported_native_event",
+      "reminders": [],
+      "attendees": [],
+      "recurrence": null
+    },
+    {
+      "title": "Girlfriend in South Jersey",
+      "subject": "girlfriend_context",
+      "all_day": true,
+      "timezone": "America/New_York",
+      "start_date": "2026-10-23",
+      "end_date_inclusive": "2026-10-27",
+      "end_date_exclusive": "2026-10-28",
+      "notes": "Context on owner calendar; does not imply owner presence or reserve owner attention.",
+      "planner_id": null,
+      "entry_status": "not_entered_unsupported_native_event",
+      "reminders": [],
+      "attendees": [],
+      "recurrence": null
+    },
+    {
+      "title": "Girlfriend in South Jersey",
+      "subject": "girlfriend_context",
+      "all_day": true,
+      "timezone": "America/New_York",
+      "start_date": "2026-11-08",
+      "end_date_inclusive": "2026-11-11",
+      "end_date_exclusive": "2026-11-12",
+      "notes": "Context on owner calendar; does not imply owner presence or reserve owner attention.",
+      "planner_id": null,
+      "entry_status": "not_entered_unsupported_native_event",
+      "reminders": [],
+      "attendees": [],
+      "recurrence": null
+    },
+    {
+      "title": "Girlfriend in South Jersey",
+      "subject": "girlfriend_context",
+      "all_day": true,
+      "timezone": "America/New_York",
+      "start_date": "2026-11-27",
+      "end_date_inclusive": "2026-11-30",
+      "end_date_exclusive": "2026-12-01",
+      "notes": "Context on owner calendar; does not imply owner presence or reserve owner attention.",
+      "planner_id": null,
+      "entry_status": "not_entered_unsupported_native_event",
+      "reminders": [],
+      "attendees": [],
+      "recurrence": null
+    },
+    {
+      "title": "Birthday",
+      "subject": "owner",
+      "all_day": true,
+      "timezone": "America/New_York",
+      "start_date": "2026-10-10",
+      "end_date_inclusive": "2026-10-10",
+      "end_date_exclusive": "2026-10-11",
+      "notes": "",
+      "planner_id": null,
+      "entry_status": "not_entered_unsupported_native_event",
+      "reminders": [],
+      "attendees": [],
+      "recurrence": null
+    },
+    {
+      "title": "Anniversary",
+      "subject": "owner",
+      "all_day": true,
+      "timezone": "America/New_York",
+      "start_date": "2026-10-11",
+      "end_date_inclusive": "2026-10-11",
+      "end_date_exclusive": "2026-10-12",
+      "notes": "",
+      "planner_id": null,
+      "entry_status": "not_entered_unsupported_native_event",
+      "reminders": [],
+      "attendees": [],
+      "recurrence": null
+    },
+    {
+      "title": "Anniversary dinner",
+      "subject": "owner",
+      "all_day": true,
+      "timezone": "America/New_York",
+      "start_date": "2026-10-16",
+      "end_date_inclusive": "2026-10-16",
+      "end_date_exclusive": "2026-10-17",
+      "notes": "Time unspecified; date-only entry.",
+      "planner_id": null,
+      "entry_status": "not_entered_unsupported_native_event",
+      "reminders": [],
+      "attendees": [],
+      "recurrence": null
+    },
+    {
+      "title": "Foliage hike",
+      "subject": "owner",
+      "all_day": true,
+      "timezone": "America/New_York",
+      "start_date": "2026-10-31",
+      "end_date_inclusive": "2026-10-31",
+      "end_date_exclusive": "2026-11-01",
+      "notes": "Time unspecified; date-only entry.",
+      "planner_id": null,
+      "entry_status": "not_entered_unsupported_native_event",
+      "reminders": [],
+      "attendees": [],
+      "recurrence": null
+    },
+    {
+      "title": "Handing out candy at girlfriend\u2019s parents\u2019 house",
+      "subject": "owner",
+      "all_day": true,
+      "timezone": "America/New_York",
+      "start_date": "2026-10-31",
+      "end_date_inclusive": "2026-10-31",
+      "end_date_exclusive": "2026-11-01",
+      "notes": "Time unspecified; date-only entry.",
+      "planner_id": null,
+      "entry_status": "not_entered_unsupported_native_event",
+      "reminders": [],
+      "attendees": [],
+      "recurrence": null
+    },
+    {
+      "title": "Girlfriend away \u2014 bachelorette weekend",
+      "subject": "girlfriend_context",
+      "all_day": true,
+      "timezone": "America/New_York",
+      "start_date": "2026-10-09",
+      "end_date_inclusive": "2026-10-11",
+      "end_date_exclusive": "2026-10-12",
+      "notes": "Bachelorette weekend, not wedding; owner is not attending.",
+      "planner_id": null,
+      "entry_status": "not_entered_unsupported_native_event",
+      "reminders": [],
+      "attendees": [],
+      "recurrence": null
+    },
+    {
+      "title": "Girlfriend visiting Maya in Maryland",
+      "subject": "girlfriend_context",
+      "all_day": true,
+      "timezone": "America/New_York",
+      "start_date": "2026-11-12",
+      "end_date_inclusive": "2026-11-15",
+      "end_date_exclusive": "2026-11-16",
+      "notes": "Context on owner calendar; does not imply owner presence.",
+      "planner_id": null,
+      "entry_status": "not_entered_unsupported_native_event",
+      "reminders": [],
+      "attendees": [],
+      "recurrence": null
+    },
+    {
+      "title": "Thanksgiving",
+      "subject": "owner",
+      "all_day": true,
+      "timezone": "America/New_York",
+      "start_date": "2026-11-26",
+      "end_date_inclusive": "2026-11-26",
+      "end_date_exclusive": "2026-11-27",
+      "notes": "",
+      "planner_id": null,
+      "entry_status": "not_entered_unsupported_native_event",
+      "reminders": [],
+      "attendees": [],
+      "recurrence": null
+    },
+    {
+      "title": "Sister-family Disney trip",
+      "subject": "family_awareness",
+      "all_day": true,
+      "timezone": "America/New_York",
+      "start_date": "2026-11-04",
+      "end_date_inclusive": "2026-11-08",
+      "end_date_exclusive": "2026-11-09",
+      "notes": "Awareness only; owner attendance not asserted.",
+      "planner_id": null,
+      "entry_status": "not_entered_unsupported_native_event",
+      "reminders": [],
+      "attendees": [],
+      "recurrence": null
+    }
+  ],
+  "excluded": [
+    "Unconfirmed green box Nov 13",
+    "Remote-work markers"
+  ],
+  "runtime": {
+    "ui": "http://localhost:20003",
+    "api": "http://localhost:17604",
+    "calendar_allocation_range": [
+      "2026-10-01",
+      "2026-11-30"
+    ],
+    "allocations": [],
+    "routines": [],
+    "ui_and_anonymous_connect_profile": {
+      "timezone": "America/New_York",
+      "revision": 2,
+      "capacity_minutes": 420
+    },
+    "cli_profile": {
+      "timezone": "UTC",
+      "revision": 3,
+      "capacity_minutes": 480
+    },
+    "ui_and_anonymous_connect_connections": [
+      {
+        "id": "fixture-1789878002478075841",
+        "provider": "fixture",
+        "live_provider_account": false
+      }
+    ],
+    "cli_connections": []
+  },
+  "observations": [
+    {
+      "kind": "capability_gap",
+      "evidence": "CalendarService has no native event CRUD or all-day dates; only work allocations and weekday routines."
+    },
+    {
+      "kind": "observed_friction",
+      "evidence": "Month view has no month/date selector; empty range removes calendar grid; reloading Plan resets selected tab to Day."
+    },
+    {
+      "kind": "observed_discrepancy",
+      "bug_id": "knw-1790983555151947761",
+      "evidence": "Explicit CLI API base and anonymous JSON/UI readbacks differ. Root cause not established."
+    }
+  ],
+  "current_capability_map": {
+    "Google Calendar": "Live schedule authority; parent handled creation and reuse. Do not duplicate by local import or new OAuth connection.",
+    "Personal Planner": "Developmental work planning/routines; real native schedule entry not supported in inspected build.",
+    "Drive": "Existing project records and review documents; parent owns integration into existing Planner home."
+  },
+  "source_pointers": [
+    "scenarios/personal-planner/docs/reference/source-implementation-plan.md:392",
+    "scenarios/personal-planner/docs/reference/source-implementation-plan.md:427",
+    "scenarios/personal-planner/docs/reference/source-implementation-plan.md:889",
+    "scenarios/personal-planner/docs/reference/source-implementation-plan.md:903",
+    "packages/proto/schemas/personal-planner/v1/calendar/calendar.proto:10",
+    "scenarios/personal-planner/ui/src/pages/PlanPage.tsx:44",
+    "scenarios/personal-planner/ui/src/pages/PlanPage.tsx:100",
+    "scenarios/personal-planner/ui/src/pages/PlanPage.tsx:121",
+    "scenarios/personal-planner/ui/src/components/RangeView.tsx:17",
+    "scenarios/personal-planner/api/internal/integrations/google.go:29",
+    "scenarios/personal-planner/api/internal/integrations/google.go:108",
+    "scenarios/personal-planner/api/internal/integrations/sqlite.go:49",
+    "scenarios/personal-planner/cli/domains/workspace/handlers.go:23"
+  ],
+  "repair_brief": {
+    "outcome": "Store, reopen, edit and navigate the 20 confirmed date-only events without invented times, owner-attendance assumptions, work effort, invitations or reminders.",
+    "authority": "Proposal only. No implementation, lifecycle, dependency, OAuth, permission or product settings changes authorized.",
+    "delivery_route": "Parent should reconcile into existing Personal Planner project records, FEATURE_BACKLOG and canonical source plan P03 calendar/P08 integrations; no Planner-specific prompt-manager team was returned, so do not invent a competing team or dispatch. Existing QA intake owns the state discrepancy.",
+    "stages": [
+      {
+        "stage": "State parity prerequisite",
+        "deliver": "Establish effective workspace, endpoint and request context in UI/CLI. Diagnose knw-1790983555151947761 before personal data mutations; preserve existing state."
+      },
+      {
+        "stage": "Native calendar vertical slice",
+        "deliver": "Date-only start/inclusive display/exclusive end, timed instant intervals, named timezone, title, private context subject, optional busy/free effect, durable IDs/revisions, idempotent create and list/read/update across UI/CLI. Keep location/context visibility independent of reserved attention. Select arbitrary Oct/Nov dates, render empty month grid, navigate months and show overlapping events."
+      },
+      {
+        "stage": "Read-only provider ingestion",
+        "deliver": "Use Google calendar ID plus event ID and recurrence occurrence identity; durable credential-owner references and refresh, cursor/pagination/full-reset handling, preserved date/instant/zone/transparency/status and ETags; stale last-known projections; transactional replace. Never recreate already existing Google events from local titles."
+      },
+      {
+        "stage": "Explicit provider write direction",
+        "deliver": "Only after separate authorization: one ownership model, provider ID mapping, revision/ETag conflict detection, idempotent create/update, queued status/readback, tombstones and deletion confirmation, recurrence exceptions and loop prevention. iOS edits to the same Google calendar should reconcile through that provider identity; do not assume independent calendar copies converge."
+      }
+    ],
+    "source_review_only_gaps": [
+      "google.go ImportedEvent keeps RemoteID/LocalDate/start minutes/duration but loses separate all-day end date, is-all-day flag, calendar/series/original-start identity, ETag/revision and named timezone.",
+      "normalizeGoogleEvent stores multiday all-day as duration on its first date; source-reviewed, not tested against real provider.",
+      "normalizeGoogleEvent requires valid start/end even for cancelled events; a cancellation payload containing only identity/status would be omitted. Source-reviewed, not executed.",
+      "GoogleAdapter supports calendar/event list pagination, singleEvents expansion, nextSyncToken and 410 reset signal, but no durable cursor/credential-refresh integration or provider writes found.",
+      "SQLiteRepository.Sync is fixture-only: writes fixed synthetic events and counters, not GoogleAdapter ingestion. No live provider connection observed in actual UI."
+    ],
+    "acceptance": [
+      "All 20 fixture events persist with stable IDs and exact civil dates after reopen; list/read from UI and CLI agrees in the same workspace.",
+      "Inclusive ranges Oct4\u20136, Oct9\u201312, Oct17\u201318, Oct23\u201327, Nov1\u20133, Nov8\u201311, Nov19\u201321, Nov26\u201330 and girlfriend ranges remain exact; Nov26\u201330 exclusive end is Dec1.",
+      "America/New_York DST rollback Nov1 changes elapsed time where appropriate, never shifts date-only Nov1\u20133; view-zone changes preserve civil dates under declared policy.",
+      "Birthday, anniversary and bachelorette overlap owner South Jersey without implying owner attendance at bachelorette; girlfriend Maryland and South Jersey remain context only.",
+      "Dinner/hike/candy retain unspecified times as date-only; same-day hike/candy both visible; no guest invitation or reminder delivery.",
+      "Unknown create outcome is recovered by ID/idempotency lookup/readback before retry; reopening never replays a create.",
+      "Exact parent Google IDs are used for any later import identity matching; existing birthday and Thanksgiving reused; repeat sync never duplicates.",
+      "Focused temporal/persistence/CLI/UI regressions and scoped Test Genie phases per docs/TESTING.md; use disposable isolated fixtures, never destructive tests on real calendar."
+    ],
+    "actual_acceptance_evidence": "Read-only UI/CLI/RPC inspection and reopen completed. Native event persistence/edit/DST/provider round-trip acceptance cannot run because capability is missing. No tests, synthetic refresh, restart or deployment run."
+  },
+  "expanded_review": {
+    "source_version": "c8e4a67baafcb11b7495377eee7c0fab56c0d487",
+    "working_tree_caveat": "Existing dirty Planner PROBLEMS, PROGRESS, TESTING and RUNBOOK were read, not changed. Analysis is current working source; tracked revision is anchor, not assertion all files are clean.",
+    "phase_correction": "P02 temporal/manual calendar; P03 goals; P05 forecasts; P06 focus; P07 review/learning; P08 integrations; P10 CLI parity.",
+    "income_examples": [
+      {
+        "title": "First $1000 after costs before tax",
+        "target_date": "2026-11-30",
+        "entered": false,
+        "progress": "unknown; no synthetic earnings"
+      },
+      {
+        "title": "Recurring $1000/month",
+        "target_date": "2026-12-31",
+        "entered": false,
+        "progress": "unknown; recurring measurement window/evidence definition remains unspecified"
+      }
+    ],
+    "matrix": [
+      {
+        "area": "Goal outcomes and measures",
+        "implemented": "Generic title/purpose/manual percent or equally weighted milestone-count progress. REST target date; no currency/current-value/net-income/measurement-period model in proto.",
+        "tested": "Goals unit suite passes; UI creation dialog inspected without save; UI zero goals vs CLI existing synthetic goal.",
+        "gap": "Exact income measurement and recurrence cannot be represented as governed measures; workspace parity unresolved."
+      },
+      {
+        "area": "Milestones/deadlines/project plans",
+        "implemented": "Due date, criteria, linked work, prerequisite IDs and revision-guarded completion. No first-class project plan in inspected Goal/Work contract.",
+        "tested": "Prerequisite and rollup unit tests pass.",
+        "gap": "Goal deadline REST-only, no baseline target/history or expected revision. General edit/repeat/interrupted write scenarios untested; parent goal status consistency source concern."
+      },
+      {
+        "area": "Estimates/completion",
+        "implemented": "Original estimate preserved; remaining estimate changes with reason; completion history and linked milestone/goal cascade.",
+        "tested": "Baseline-preservation test passes; disposable Complete probe invents30 actual minutes from60 original minus30 remaining with no actual evidence.",
+        "gap": "Completion actual and created date unreliable; multi-step writes nontransactional; complete/reestimate/snooze absent inspected CLI contract."
+      },
+      {
+        "area": "Focus/actuals",
+        "implemented": "Durable session lifecycle, active vs wall time, pause reason, manual approximate actual and correction audit.",
+        "tested": "All focused lifecycle/correction tests pass. UI ledger viewed; no timer/manual write.",
+        "gap": "No issue demonstrated in tested lifecycle; cross-device/interrupted live saves not tested; midnight/DST aggregation uses server clock zone in review source."
+      },
+      {
+        "area": "Forecast/slippage",
+        "implemented": "Durable deterministic central/cautious snapshots and promise comparisons; fixed420/300 minutes perday,60 reserve.",
+        "tested": "Existing forecast tests pass; disposable two-day600 work/840 occupied probe gives available0, beyond_horizon plus on_track and finishNov2.",
+        "gap": "Contradictory risk/date/explanation; actual capacity, calendar/routines/dependencies/calibration not integrated. Linear goal drift is heuristic, not goal-scoped completion forecast."
+      },
+      {
+        "area": "Learning/review",
+        "implemented": "Calibration projection, target/completed date variance, drift, overdue, reasons, optional reflection, agent read model.",
+        "tested": "Existing review suite passes; split30+30 actuals/60 planned gives -50%,two samples; unfinished goal emits58 days early from one done milestone.",
+        "gap": "Calibration aggregation and completion truth broken; timer evidence ignored, category empty, trend unsorted; no verified estimate-adaptation or statistical validation."
+      },
+      {
+        "area": "Snooze/time authority",
+        "implemented": "Stores snooze/reason with injected clock; list uses SQLite real host local date.",
+        "tested": "Existing fake-clock snooze regression fails on current date.",
+        "gap": "List ignores injected time/profile zone; test failure is deterministic clock mismatch, not proof live future snoozes never hide."
+      }
+    ],
+    "verification": {
+      "proto_preflight": "make verify-committed-gen passed with approved generation-lock access",
+      "focused_packages": "goals/review/focus/forecasts passed; work failed snooze regression",
+      "disposable_overlay": "4 expected-behavior probes failed against real domain code, in-memory databases; source unchanged",
+      "live_writes": "none",
+      "ui_tests": "not run",
+      "test_genie": "not run; no whole-scenario certification claimed"
+    },
+    "acceptance": [
+      "Resolve UI/CLI workspace identity before personal data entry; same owner/profile/revisions/readback across supported routes.",
+      "Support all21 normalized awareness/owner events with NY civil dates and exclusive ends, Oct/Nov boundaries and Nov1 DST; no reminders/invitations/provider duplicates.",
+      "Represent Nov30 first$1000 after costs before tax and Dec31 recurring$1000/month as distinct measurable outcomes with units,basis,window,evidence; undefined or absent progress remains unknown. Apply same plan/deadline contract to other projects.",
+      "Keep outcome achievement independent from time spent and task completion; milestones prerequisites and goal statuses agree; partial milestones do not produce goal completion variance.",
+      "Preserve original estimates/deadlines and append revised value,reason,actor,time; corrections revise effective views without losing provenance.",
+      "Compute recorded actuals from timer active time plus explicit manual evidence with correction handling and documented overlap policy; missing evidence remains unknown, not original-minus-remaining.",
+      "Aggregate split actuals once per planned block/work unit; partition sessions across NY midnight/DST; sample units,ordered periods,categories,coverage and unknowns are explicit.",
+      "Forecast actual usable capacity and scoped dependencies; zero capacity cannot say on_track or finish inside horizon; missed deadline and unfinished work remain distinguishable.",
+      "Readback/reopen and edit revision conflicts, save interruption, duplicate retry and repeat completion preserve exactly-once effects and atomic related history; inspect destination after unknown outcome.",
+      "Expose honest durable learning to UI/CLI/agents; show rationale/sample support, never silently alter baseline; statistical/adaptive claims require method and held-out evidence."
+    ],
+    "issue_lineage": {
+      "existing_workspace_parity": "knw-1790983555151947761",
+      "new_defects": "Within scoped repair proposal; no implementation or duplicate bug entries created."
+    }
+  }
+}

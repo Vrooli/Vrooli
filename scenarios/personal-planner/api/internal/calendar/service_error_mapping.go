@@ -52,5 +52,21 @@ func ToConnectError(err error) error {
 	if errors.As(err, &proposalApplied) {
 		return connect.NewError(connect.CodeAlreadyExists, err)
 	}
+	var eventMissing ErrEventNotFound
+	if errors.As(err, &eventMissing) {
+		return connect.NewError(connect.CodeNotFound, err)
+	}
+	var eventRevision ErrEventRevisionConflict
+	if errors.As(err, &eventRevision) {
+		return connect.NewError(connect.CodeAborted, err)
+	}
+	var eventIdempotency ErrEventIdempotencyConflict
+	if errors.As(err, &eventIdempotency) {
+		return connect.NewError(connect.CodeAlreadyExists, err)
+	}
+	var eventIdentity ErrEventIdentityConflict
+	if errors.As(err, &eventIdentity) {
+		return connect.NewError(connect.CodeAlreadyExists, err)
+	}
 	return connect.NewError(connect.CodeInternal, fmt.Errorf("calendar: %w", err))
 }

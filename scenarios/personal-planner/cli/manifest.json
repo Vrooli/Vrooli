@@ -8,6 +8,74 @@
       "description": "Inspect routines and accepted calendar time",
     "commands": [
       {
+        "name": "events",
+        "description": "List native calendar events for an inclusive New York civil-date range",
+        "flags": [
+          {"name": "start-date", "required": true, "description": "First local date, YYYY-MM-DD", "bind": {"field": "start_local_date"}},
+          {"name": "end-date", "required": true, "description": "Last local date, YYYY-MM-DD", "bind": {"field": "end_local_date"}}
+        ],
+        "binding": {"kind": "connect-rpc", "service": "CalendarService", "method": "ListEvents"},
+        "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+        "architecture": {"primitive": "proto_list"}
+      },
+      {
+        "name": "get-event",
+        "description": "Read one native event by its durable id",
+        "flags": [{"name": "event-id", "required": true, "description": "Durable event id"}],
+        "binding": {"kind": "connect-rpc", "service": "CalendarService", "method": "GetEvent"},
+        "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+        "architecture": {"primitive": "proto_list"}
+      },
+      {
+        "name": "event-status",
+        "description": "Resolve an uncertain event create by its idempotency key",
+        "flags": [{"name": "idempotency-key", "required": true, "description": "Create retry key"}],
+        "binding": {"kind": "local"},
+        "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+        "architecture": {"primitive": "action"}
+      },
+      {
+        "name": "create-event",
+        "description": "Create a native timed or date-only calendar event",
+        "flags": [
+          {"name": "title", "required": true, "description": "Event title"},
+          {"name": "subject", "description": "Private context subject"},
+          {"name": "notes", "description": "Private notes"},
+          {"name": "availability", "required": true, "description": "busy or free"},
+          {"name": "timezone", "required": true, "description": "IANA timezone"},
+          {"name": "all-day", "required": true, "description": "true for date-only, false for timed"},
+          {"name": "start-date", "description": "All-day start, YYYY-MM-DD"},
+          {"name": "end-date-exclusive", "description": "All-day exclusive end, YYYY-MM-DD"},
+          {"name": "start-at", "description": "Timed RFC3339 instant"},
+          {"name": "end-at", "description": "Timed RFC3339 instant"},
+          {"name": "idempotency-key", "required": true, "description": "Stable retry key"}
+        ],
+        "binding": {"kind": "connect-rpc", "service": "CalendarService", "method": "CreateEvent"},
+        "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]},
+        "architecture": {"primitive": "proto_mutation"}
+      },
+      {
+        "name": "update-event",
+        "description": "Edit a native event using its current revision",
+        "flags": [
+          {"name": "event-id", "required": true, "description": "Durable event id"},
+          {"name": "revision", "required": true, "description": "Expected current event revision"},
+          {"name": "title", "required": true, "description": "Event title"},
+          {"name": "subject", "description": "Private context subject"},
+          {"name": "notes", "description": "Private notes"},
+          {"name": "availability", "required": true, "description": "busy or free"},
+          {"name": "timezone", "required": true, "description": "IANA timezone"},
+          {"name": "all-day", "required": true, "description": "true for date-only, false for timed"},
+          {"name": "start-date", "description": "All-day start, YYYY-MM-DD"},
+          {"name": "end-date-exclusive", "description": "All-day exclusive end, YYYY-MM-DD"},
+          {"name": "start-at", "description": "Timed RFC3339 instant"},
+          {"name": "end-at", "description": "Timed RFC3339 instant"}
+        ],
+        "binding": {"kind": "connect-rpc", "service": "CalendarService", "method": "UpdateEvent"},
+        "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]},
+        "architecture": {"primitive": "proto_mutation"}
+      },
+      {
         "name": "carry-forward",
         "description": "Carry one accepted allocation to a new local date",
         "flags": [

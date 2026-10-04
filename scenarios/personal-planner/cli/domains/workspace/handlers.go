@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"os"
 	"strconv"
 	"strings"
 
@@ -13,11 +15,28 @@ import (
 	vc "github.com/vrooli/vrooli/packages/proto/gen/go/personal-planner/v1/workspace/workspace_v1connect"
 )
 
+const testModeEnv = "PERSONAL_PLANNER_TEST_MODE"
+
 type handlers struct{ client vc.WorkspaceServiceClient }
 
 func newHandlers(c *cliapp.ScenarioApp) *handlers {
 	httpClient, base := cliapp.NewConnectHTTPClient(c)
+	if os.Getenv(testModeEnv) == "1" {
+		httpClient = testModeHTTPClient{HTTPClient: httpClient}
+	}
 	return &handlers{client: vc.NewWorkspaceServiceClient(httpClient, base)}
+}
+
+type testModeHTTPClient struct{ connect.HTTPClient }
+
+func (c testModeHTTPClient) Do(req *http.Request) (*http.Response, error) {
+	clone := req.Clone(req.Context())
+	clone.Header = req.Header.Clone()
+	if clone.Header == nil {
+		clone.Header = make(http.Header)
+	}
+	clone.Header.Set("X-Vrooli-Test-Mode", "1")
+	return c.HTTPClient.Do(clone)
 }
 
 func (h *handlers) profileCall(_ cliapp.OperationContext) (*v.GetProfileResponse, error) {
