@@ -1,3 +1,4 @@
+// Responsibility: fence serving-owner operations against durable maintenance admission.
 package orchestration
 
 import (

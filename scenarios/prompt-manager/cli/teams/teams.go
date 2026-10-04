@@ -3513,12 +3513,33 @@ func cmdFrictionCapture(ctx appctx.Context, args []string) error {
 	description := fs.String("description", "", "What happened and why this is structural friction")
 	slug := fs.String("slug", "", "Short kebab-case report slug")
 	honesty := fs.String("honesty-flags", "", "Comma-separated honesty flags")
+	reportFile := fs.String("report-file", "", "Complete friction report JSON file (exclusive of typed flags)")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() == 0 || fs.Arg(0) != "meta-optimization" {
 		return fmt.Errorf("usage: team friction-capture meta-optimization --scope=... --severity=... --expected=... --actual=... --description=... --slug=...")
+	}
+	if *reportFile != "" {
+		for _, name := range []string{"scope", "severity", "expected", "actual", "description", "slug", "honesty-flags"} {
+			set := false
+			fs.Visit(func(f *flag.Flag) {
+				if f.Name == name {
+					set = true
+				}
+			})
+			if set {
+				return fmt.Errorf("--report-file is exclusive of typed report flags")
+			}
+		}
+		if fs.NArg() != 1 {
+			return fmt.Errorf("unexpected friction-capture arguments")
+		}
+		return captureFrictionFile(ctx, *reportFile, *jsonOut)
+	}
+	if fs.NArg() != 1 || !frictionSlug.MatchString(*slug) || len(*slug) > 120 {
+		return fmt.Errorf("one destination and a kebab-case slug of at most 120 characters are required")
 	}
 	validScopes := map[string]bool{"toolchain": true, "run-execution": true, "prompt-team-agent-storage": true, "recurring-workaround": true, "unknown": true}
 	validSeverities := map[string]bool{"blocking": true, "recurring": true, "one-off": true}

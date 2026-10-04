@@ -105,3 +105,14 @@ func TestClientMaintainsInteractiveSessionContract(t *testing.T) {
 		t.Fatalf("missing delete err=%v", err)
 	}
 }
+
+func TestSendPromptSubmitsWithNamedEnter(t *testing.T) {
+	terminal := &terminalTestServer{}
+	client := newWebConsoleTestClient(t, &sessionTestServer{}, terminal)
+	if err := client.SendPrompt(context.Background(), "session-1", "D5 directive", "agent-manager:run-1"); err != nil {
+		t.Fatal(err)
+	}
+	if len(terminal.inputs) != 2 || terminal.inputs[0].GetText() != "D5 directive" || !terminal.inputs[0].GetIsPaste() || terminal.inputs[1].GetKeys() == nil || len(terminal.inputs[1].GetKeys().GetKeys()) != 1 || terminal.inputs[1].GetKeys().GetKeys()[0].GetName() != "enter" {
+		t.Fatalf("prompt did not paste and explicitly submit: %+v", terminal.inputs)
+	}
+}

@@ -29,7 +29,7 @@ func validWorkflowJSON(owner, key string) string {
 		`{"id":"start","kind":"run","run":{"roleRef":"code.default","promptRef":{"skillId":"fixture-skill"}}},` +
 		`{"id":"done","kind":"end","end":{"status":"succeeded"}}],` +
 		`"edges":[{"from":"start","to":"done"}],` +
-		`"budgets":{"wallTimeSeconds":60,"maxTurns":4,"maxTokens":1000,"maxChargeMicroUsd":1,"maxNodeAttempts":3,"maxChildren":2,"maxConcurrency":2,"maxRecursion":2,"maxRetries":2,"maxWaitSeconds":30}}`
+		`"budgets":{"wallTimeSeconds":60,"maxTurns":4,"maxTokens":1000,"maxChargeMicroUsd":1000000,"maxNodeAttempts":3,"maxChildren":2,"maxConcurrency":2,"maxRecursion":2,"maxRetries":2,"maxWaitSeconds":30}}`
 }
 
 func writeFile(t *testing.T, path, content string) {
@@ -138,7 +138,7 @@ func TestValidateReportsAllWorkflowDiagnostics(t *testing.T) {
 		`{"id":"start","kind":"run","run":{"roleRef":"code.default","promptTemplate":"Do {{.missing}}"}},` +
 		`{"id":"done","kind":"end","end":{"status":"succeeded"}}],` +
 		`"edges":[{"from":"gate","to":"start","condition":"iteration <"},{"from":"gate","to":"done","condition":"true"},{"from":"start","to":"done"}],` +
-		`"budgets":{"wallTimeSeconds":60,"maxTurns":4,"maxTokens":1000,"maxChargeMicroUsd":1,"maxNodeAttempts":3,"maxChildren":2,"maxConcurrency":2,"maxRecursion":2,"maxRetries":2,"maxWaitSeconds":30}}`
+		`"budgets":{"wallTimeSeconds":60,"maxTurns":4,"maxTokens":1000,"maxChargeMicroUsd":1000000,"maxNodeAttempts":3,"maxChildren":2,"maxConcurrency":2,"maxRecursion":2,"maxRetries":2,"maxWaitSeconds":30}}`
 	writeFile(t, filepath.Join(root, ".vrooli", "service.json"),
 		`{"dependencies":{"scenarios":{"agent-manager":{"enabled":true,"config":{"declarations":{"reconcile":true,"sources":[".vrooli/agent-manager/flow.json"]}}}}}}`)
 	writeFile(t, filepath.Join(root, ".vrooli", "agent-manager", "flow.json"), bad)
@@ -378,5 +378,30 @@ func copyRoleCatalog(t *testing.T, repo string) {
 	}
 	if err := os.WriteFile(destination, data, 0o644); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestValidateRejectsBelowMinimumWorkflowChargeBudget(t *testing.T) {
+	repo := t.TempDir()
+	copyRoleCatalog(t, repo)
+	root := filepath.Join(repo, "scenarios", "consumer")
+	writeFile(t, filepath.Join(root, ".vrooli", "service.json"), `{"dependencies":{"scenarios":{"agent-manager":{"enabled":true,"config":{"declarations":{"reconcile":true,"sources":[".vrooli/agent-manager/flow.json"]}}}}}}`)
+	belowMinimum := strings.Replace(validWorkflowJSON("consumer", "consumer/flow"), `"maxChargeMicroUsd":1000000`, `"maxChargeMicroUsd":1`, 1)
+	writeFile(t, filepath.Join(root, ".vrooli", "agent-manager", "flow.json"), belowMinimum)
+	report, err := (Service{RepoRoot: repo}).Validate("consumer", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasFinding(report.Findings, CodeWorkflowInvalid) {
+		t.Fatalf("expected invalid budget finding, got %#v", report.Findings)
+	}
+	found := false
+	for _, finding := range report.Findings {
+		if strings.Contains(finding.Remediation, "maxChargeMicroUsd") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected named charge budget diagnosis, got %#v", report.Findings)
 	}
 }

@@ -33,6 +33,7 @@ import (
 type LauncherSelector struct {
 	mu             sync.RWMutex
 	host           Launcher
+	finiteNative   *FiniteNativeFactory
 	sandboxFactory SandboxLauncherFactory
 }
 
@@ -56,6 +57,14 @@ func (s *LauncherSelector) SetSandboxLauncherFactory(factory SandboxLauncherFact
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.sandboxFactory = factory
+}
+
+// SetFiniteNativeFactory installs a reviewed immutable finite launch contract.
+// Nil is disabled; finite requests never use host/tracking fallback.
+func (s *LauncherSelector) SetFiniteNativeFactory(f *FiniteNativeFactory) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.finiteNative = f
 }
 
 // HostLauncher returns the configured host launcher. Used by Stop()
@@ -95,8 +104,18 @@ func (s *LauncherSelector) PickFor(ctx context.Context, runID uuid.UUID, cfg *do
 	s.mu.RLock()
 	host := s.host
 	factory := s.sandboxFactory
+	finite := s.finiteNative
 	s.mu.RUnlock()
 
+	if cfg != nil && cfg.Admission != nil && cfg.Admission.Effort != nil {
+		if cfg.RequireEffectContainment || (cfg.SandboxConfig != nil && cfg.SandboxConfig.WritePolicy != nil) || (cfg.SandboxConfig != nil && cfg.SandboxConfig.Mode.Effective() != domain.SandboxModeOff) {
+			return newDeniedLauncher("finite native workspace containment contract is unqualified")
+		}
+		return finite.pick(runID, cfg)
+	}
+	if finite.Enabled() {
+		return newDeniedLauncher("enabled finite-only target refuses ordinary native launch")
+	}
 	if cfg == nil || cfg.SandboxConfig == nil {
 		return newDeniedLauncher("required containment policy has no sandbox configuration")
 	}

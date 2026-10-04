@@ -10,9 +10,9 @@ metadata:
   writes_to: ["friction-inbox/*"]
   icon: "alert-triangle"
   status: "active"
-  revision: 3
+  revision: 4
   createdAt: "2026-05-03T00:00:00Z"
-  updatedAt: "2026-07-21T00:00:00Z"
+  updatedAt: "2026-10-03T00:00:00Z"
   requires:
     scenarios: ["prompt-manager"]
     commands: ["prompt-manager", "prompt-manager team"]
@@ -89,52 +89,85 @@ commands — so the curator can replay your path without your context.
 
 2. **Generate a kebab-case slug** that summarizes the friction in 3–6 words. Examples: `cli-rejects-valid-uuid-input`, `heartbeat-loops-on-empty-handoff`, `decision-vs-knowledge-routing-unclear`, `same-yaml-front-matter-fix-applied-fourth-time`.
 
-3. **Construct the topic.** `topic:friction-inbox/<scope>/<slug>`.
+3. **Prepare one UTF-8 JSON report file.** The command constructs the topic and
+   YAML front matter. Supply declared reporter identity, the truthful observation
+   date, available context anchors, and three explanatory paragraphs. Unknown
+   context values may be null. Do not include secrets in commands or output.
+   `reporter` and `reporter_team` are observational metadata, not authenticated
+   identity or permission to write. Runtime writer attribution remains separate.
 
-4. **Format the front-matter.** Match the `friction-report` schema in the taxonomy exactly:
+   Example shape (replace the illustrative values with your actual observation):
 
-   ```yaml
-   severity: <blocking|recurring|one-off>
-   scope: <toolchain|run-execution|prompt-team-agent-storage|recurring-workaround|unknown>
-   reporter: <your-agent-id>
-   reporter_team: <your-team-id>
-   observed_at: <today's date in YYYY-MM-DD>
-   context:
-     scenario: <scenario-id-or-null>
-     skill: <skill-id-or-null>
-     member: <member-id-or-null>
-     command: <command-or-null>
-     doc: <doc-path-or-null>
-     task: <task-id-or-null>
-   expected: <one-line>
-   actual: <one-line>
-   description: |
-     <free-form notes>
-   honesty_flags: [<flags>]
+   ```json
+   {
+     "scope": "toolchain",
+     "severity": "recurring",
+     "slug": "capture-guidance-requires-repeated-workaround",
+     "reporter": "your-agent-id",
+     "reporter_team": "your-team-id",
+     "observed_at": "2026-10-03",
+     "context": {
+       "scenario": "prompt-manager", "skill": "report-friction",
+       "member": null, "command": "exact non-sensitive command",
+       "doc": "path to expected contract", "task": null
+     },
+     "expected": "The documented command preserves the observation.",
+     "actual": "The command needs the same workaround again.",
+     "description": "Run the exact command. Observe the output. State uncertainty.",
+     "honesty_flags": ["minimal-context"],
+     "recurrence_count": 2,
+     "attempt": "Explain what you were trying to do.",
+     "observation": "Explain what happened, including output and recurrence evidence.",
+     "explanation": "Explain why this is friction rather than a bug or immediate fix; cite the expected contract."
+   }
    ```
 
-5. **Format the body.** Free-form, but include:
-   - **What you were trying to do** (one paragraph).
-   - **What happened** (one paragraph; specifics like command output, observed shape, recurrence count if `severity: recurring`).
-   - **Why this is friction (not a bug, not fix-it-yourself)** (one paragraph; cite the promised behavior or the system contract you expected).
+   `recurring` requires `recurrence_count >= 2` or a nonempty `prior_entry` pointer.
+   `blocking` requires `currently_blocked: true`. These declarations support
+   mechanical validation; their semantic truth remains your authoring and review
+   responsibility. `unknown` is valid for capture and requires curator
+   reclassification before downstream routing. The three body fields are producer
+   paragraphs; Routings, Drops and Blocked belong only to the curator's snapshot.
+   JSON escapes preserve multiline text and special characters. Unknown fields,
+   invalid taxonomy values, unsafe slugs and missing required fields fail before
+   any storage operation.
 
-6. **Invoke the knowledge writer.** From the command line (or whatever invocation surface your runtime exposes):
+4. **Invoke the qualified CLI.** Check the build identity if using a recently
+   changed checkout; an installed wrapper can still run an older build.
 
    ```bash
-     prompt-manager team friction-capture meta-optimization \
-     --topic="friction-inbox/<scope>/<slug>" \
-     --caller-note="filed via report-friction skill" \
-     --content="$(cat <<'EOF'
-   ---
-   <front-matter from step 4>
-   ---
-
-   <body from step 5>
-   EOF
-   )"
+   prompt-manager team friction-capture meta-optimization --report-file=/absolute/path/report.json --json
    ```
 
-7. **Confirm the write.** Capture the `knw-...` id returned by the CLI. Include it in your heartbeat output ("Filed friction-inbox/<scope>/<slug> as <id>") so the operator and the curator can trace. You can later track where the curator routed it via `prompt-manager team knowledge-list meta-optimization --topic-prefix=friction-report/`.
+   Do not pass `--topic`, `--caller-note` or `--content`; they are unsupported.
+   `--report-file` cannot be mixed with typed report flags. Existing typed callers
+   using `--scope --severity --expected --actual --description --slug` and optional
+   `--honesty-flags` remain supported, but produce narrower operator reports:
+   reporter/team are `operator`, context is reduced, date is capture time, and the
+   three explanatory body paragraphs are absent. Historical reports remain valid
+   evidence of that narrower route, not of complete declared identity capture.
+
+5. **Confirm and retain the receipt.** Include the returned `knw-...` ID and
+   `friction-inbox/<scope>/<slug>` in your handoff. Receiver intake is:
+
+   ```bash
+   prompt-manager team knowledge-list meta-optimization --topic-prefix=friction-inbox/ --last=100 --json
+   ```
+
+   Prefix discovery is distinct from curator execution; a disabled curator has
+   not processed the report. Keep the same file, scope and slug for an exact
+   repeat: the structured route reads the existing topic first and returns the
+   identical case instead of appending another. Different content at the same
+   topic requires reconciliation and fails without a write. After an uncertain
+   write, read the same topic before repeating; if that read is unavailable,
+   retain an unresolved outcome and stop. Never mint another slug to bypass it.
+   This is a bounded serial retry guarantee, not concurrent exactly-once storage.
+   The current storage reader bounds its Source Ledger scan to 500 entries;
+   older cases outside that window require separate historical reconciliation.
+
+   Synthetic verification belongs only in the documented temporary fixture in
+   `scenarios/prompt-manager/api/TESTING_GUIDE.md`, with no live ledger attached.
+   Do not place fictional actionable observations in the live inbox.
 
 ---
 

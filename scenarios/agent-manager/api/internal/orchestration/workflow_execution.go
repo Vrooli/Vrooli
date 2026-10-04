@@ -134,7 +134,10 @@ func (l workflowChildLauncher) StartFresh(ctx context.Context, req workflowrunti
 		role := req.RoleRef
 		create.RoleRef = &role
 	}
-	run, err := l.o.CreateRun(ctx, create)
+	// This is the private workflow lifecycle route, admitted above through
+	// admittedWorkflowContext before task creation. It does not impersonate a
+	// public CreateRun caller or alter the workflow endpoint's auth contract.
+	run, err := l.o.createRun(ctx, create, nil)
 	if err != nil {
 		return workflowruntime.ChildState{}, err
 	}

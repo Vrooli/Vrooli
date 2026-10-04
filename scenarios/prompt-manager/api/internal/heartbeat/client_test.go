@@ -222,7 +222,7 @@ func TestCreateRun_Success(t *testing.T) {
 	defer srv.Close()
 
 	client := newTestClient(t, srv)
-	run, err := client.CreateRun(context.Background(), &CreateRunRequest{
+	run, err := client.CreateRun(withCreateRunCaller(context.Background(), "Bearer fixture-owner", ""), &CreateRunRequest{
 		TaskID:     "task-1",
 		ProfileRef: &ProfileRef{ProfileKey: "my-profile"},
 	})
@@ -258,10 +258,10 @@ func TestCreateRunDelegatedKeepsAuthorityRequestLocal(t *testing.T) {
 	if _, err := c.CreateRunDelegated(context.Background(), request, secret); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := c.CreateRun(context.Background(), &CreateRunRequest{TaskID: "ordinary"}); err != nil {
-		t.Fatal(err)
+	if _, err := c.CreateRun(context.Background(), &CreateRunRequest{TaskID: "ordinary"}); err == nil {
+		t.Fatal("default caller inherited delegated authority")
 	}
-	if len(auths) != 2 || auths[0] != "Bearer "+secret || auths[1] != "" {
+	if len(auths) != 1 || auths[0] != "Bearer "+secret {
 		t.Fatal("delegation changed default caller authority")
 	}
 }

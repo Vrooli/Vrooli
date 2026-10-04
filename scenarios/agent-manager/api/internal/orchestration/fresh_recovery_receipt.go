@@ -1,3 +1,4 @@
+// Responsibility: read and fence exact durable fresh-recovery acceptance receipts.
 package orchestration
 
 import (

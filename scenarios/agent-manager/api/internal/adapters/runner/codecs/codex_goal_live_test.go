@@ -105,6 +105,74 @@ func TestCodexGoalAcceptedReceiptAcrossConsumeSegments(t *testing.T) {
 	}
 }
 
+// The Nooch RC-001 rollout carried pause as a matched exec call/result pair,
+// without a subsequent thread_goal_updated event. A successful receipt is
+// nonterminal goal state evidence; the request alone is not.
+func TestCodexGoalAcceptedPauseReceiptFromLiveWireShape(t *testing.T) {
+	parser := NewCodexForTest().NewTranscriptParser()
+	runID := uuid.New()
+	threadID := "01a10043-3cea-7890-9594-782d91cc1879"
+	objective := "Finish E1 with existing gates"
+	install, _ := json.Marshal(map[string]any{"type": "event_msg", "payload": map[string]any{"type": "thread_goal_updated", "threadId": threadID, "goal": map[string]any{"threadId": threadID, "objective": objective, "status": "active"}}})
+	parser.ParseTranscriptLine(runID, string(install))
+	request := goalRequestLine("pause-call", "const r = await tools.update_goal({status:\"paused\"});\ntext(r);\n")
+	if got := parser.ParseTranscriptLine(runID, request); got.Goal != nil || got.Terminal != nil {
+		t.Fatalf("pause request became accepted evidence: %+v", got)
+	}
+	goal, _ := json.Marshal(map[string]any{"goal": map[string]any{"threadId": threadID, "objective": objective, "status": "paused"}})
+	output, _ := json.Marshal(map[string]any{"type": "response_item", "payload": map[string]any{"type": "custom_tool_call_output", "call_id": "pause-call", "output": []map[string]string{{"type": "input_text", "text": "Script completed\nWall time 0.0 seconds\nOutput:\n"}, {"type": "input_text", "text": string(goal)}}}})
+	got := parser.ParseTranscriptLine(runID, string(output))
+	if got.Goal == nil || got.Goal.Status != runner.GoalStatusPaused || got.Terminal != nil {
+		t.Fatalf("matched pause receipt was not nonterminal: %+v", got)
+	}
+	if duplicate := parser.ParseTranscriptLine(runID, string(output)); duplicate.Goal != nil {
+		t.Fatalf("duplicate pause result changed state: %+v", duplicate)
+	}
+}
+
+func TestCodexPauseReceiptRequiresMatchedAcceptedEvidence(t *testing.T) {
+	for name, change := range map[string]func(map[string]any){
+		"unmatched":       func(v map[string]any) { v["call_id"] = "other-call" },
+		"rejected":        func(v map[string]any) { v["isError"] = true },
+		"wrong_session":   func(v map[string]any) { v["goal"].(map[string]any)["threadId"] = "other-thread" },
+		"wrong_objective": func(v map[string]any) { v["goal"].(map[string]any)["objective"] = "other work" },
+	} {
+		t.Run(name, func(t *testing.T) {
+			parser := NewCodexForTest().NewTranscriptParser()
+			runID := uuid.New()
+			parser.ParseTranscriptLine(runID, `{"type":"session_meta","payload":{"id":"fixture-thread"}}`)
+			parser.ParseTranscriptLine(runID, `{"type":"event_msg","payload":{"type":"thread_goal_updated","goal":{"threadId":"fixture-thread","objective":"finish","status":"active"}}}`)
+			parser.ParseTranscriptLine(runID, goalRequestLine("pause-call", `text(await tools.update_goal({status:"paused"}));`))
+			payload := map[string]any{"call_id": "pause-call", "goal": map[string]any{"threadId": "fixture-thread", "objective": "finish", "status": "paused"}}
+			change(payload)
+			goal, _ := json.Marshal(map[string]any{"goal": payload["goal"]})
+			output, _ := json.Marshal(map[string]any{"type": "response_item", "payload": map[string]any{"type": "custom_tool_call_output", "call_id": payload["call_id"], "isError": payload["isError"], "output": string(goal)}})
+			if got := parser.ParseTranscriptLine(runID, string(output)); got.Goal != nil || got.Terminal != nil {
+				t.Fatalf("unqualified pause changed state: %+v", got)
+			}
+		})
+	}
+}
+
+func TestCodexGoalDelayedOldObjectiveCannotFinalizeNewGoal(t *testing.T) {
+	parser := NewCodexForTest().NewTranscriptParser()
+	runID := uuid.New()
+	for _, line := range []string{
+		`{"type":"event_msg","payload":{"type":"thread_goal_updated","goal":{"objective":"old","status":"active"}}}`,
+		`{"type":"event_msg","payload":{"type":"thread_goal_updated","goal":{"objective":"new","status":"active"}}}`,
+	} {
+		parser.ParseTranscriptLine(runID, line)
+	}
+	old := parser.ParseTranscriptLine(runID, `{"type":"event_msg","payload":{"type":"thread_goal_updated","goal":{"objective":"old","status":"complete"}}}`)
+	if old.Goal != nil || old.Terminal != nil {
+		t.Fatalf("late old objective finalized current goal: %+v", old)
+	}
+	current := parser.ParseTranscriptLine(runID, `{"type":"event_msg","payload":{"type":"thread_goal_updated","goal":{"objective":"new","status":"paused"}}}`)
+	if current.Goal == nil || current.Goal.Status != runner.GoalStatusPaused || current.Terminal != nil {
+		t.Fatalf("current pause disappeared: %+v", current)
+	}
+}
+
 func TestCodexGoalEvidenceRejectsRequestsQuotesAndUnmatchedResults(t *testing.T) {
 	for name, line := range map[string]string{
 		"request_only":      goalRequestLine("call-goal", `const r = await tools.update_goal({status:"complete"}); text(r);`),

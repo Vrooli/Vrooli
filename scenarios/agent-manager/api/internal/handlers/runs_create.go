@@ -18,6 +18,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/effortauthority"
 	"github.com/vrooli/cli-core/cliutil"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
@@ -37,7 +38,28 @@ func bearerToken(value string) string {
 
 // CreateRun creates a new run.
 func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
-	if r.Header.Get("Authorization") != "" && bearerToken(r.Header.Get("Authorization")) == "" {
+	if len(r.Header.Values("Authorization")) > 1 || len(r.Header.Values(cliutil.HeaderAgentIdentityToken)) > 1 || len(r.Header.Values(effortauthority.Header)) > 1 {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "a single proof per identity channel is required"})
+		return
+	}
+	if len(r.Header.Values(effortauthority.Header)) != 0 && (strings.TrimSpace(r.Header.Get(effortauthority.Header)) == "" || len(r.Header.Values("Authorization")) != 0 || len(r.Header.Values(cliutil.HeaderAgentIdentityToken)) != 0) {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "one exclusive finite effort proof channel is required"})
+		return
+	}
+	// Credential absence is not operator authority. Reject before body parsing
+	// or calling orchestration; localhost, parentRunId and profile labels are
+	// not caller proof. Offered credentials still pass the existing verifiers.
+	if strings.TrimSpace(r.Header.Get("Authorization")) == "" && strings.TrimSpace(r.Header.Get(cliutil.HeaderAgentIdentityToken)) == "" && len(r.Header.Values(effortauthority.Header)) == 0 {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{
+			"error": "create-run requires verified caller identity: human Authorization or exact-parent X-Agent-Identity-Token",
+		})
+		return
+	}
+	if len(r.Header.Values(cliutil.HeaderAgentIdentityToken)) != 0 && strings.TrimSpace(r.Header.Get(cliutil.HeaderAgentIdentityToken)) == "" {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "offered run identity is blank"})
+		return
+	}
+	if len(r.Header.Values("Authorization")) != 0 && bearerToken(r.Header.Get("Authorization")) == "" {
 		writeSimpleError(w, r, "authorization", "a valid Bearer authorization header is required")
 		return
 	}
@@ -86,10 +108,12 @@ func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
 	}
 
 	req := orchestration.CreateRunRequest{
-		TaskID:         taskID,
-		Force:          protoReq.Force,
-		OwnerToken:     bearerToken(r.Header.Get("Authorization")),
-		WorkReferences: protoReq.GetWorkReferences(),
+		TaskID:           taskID,
+		EffortProof:      r.Header.Get(effortauthority.Header),
+		Force:            protoReq.Force,
+		OwnerToken:       bearerToken(r.Header.Get("Authorization")),
+		RunIdentityToken: identityToken,
+		WorkReferences:   protoReq.GetWorkReferences(),
 	}
 	if narrowing := protoReq.GetRequestedScopes(); narrowing != nil {
 		req.RequestedScopes = append([]string{}, narrowing.GetScopes()...)
@@ -283,6 +307,10 @@ func optionalTrimmedString(raw string) *string {
 // or cancelled run, inheriting its task + profile and seeding the prior
 // attempt's transcript and diff so the agent can complete the remaining work.
 func (h *Handler) ResumeFromFailedRun(w http.ResponseWriter, r *http.Request) {
+	if len(r.Header.Values(effortauthority.Header)) > 1 || (len(r.Header.Values(effortauthority.Header)) != 0 && (strings.TrimSpace(r.Header.Get(effortauthority.Header)) == "" || len(r.Header.Values("Authorization")) != 0 || len(r.Header.Values(cliutil.HeaderAgentIdentityToken)) != 0)) {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "one exclusive finite effort proof channel is required"})
+		return
+	}
 	if h.denyRunInitiatedLifecycleOperation(w, r, "resume-from-failed") {
 		return
 	}
@@ -304,6 +332,7 @@ func (h *Handler) ResumeFromFailedRun(w http.ResponseWriter, r *http.Request) {
 
 	run, err := h.svc.ResumeFromFailedRun(r.Context(), orchestration.ResumeFromFailedRunRequest{
 		RunID:         runID,
+		EffortProof:   r.Header.Get(effortauthority.Header),
 		CustomContext: req.CustomContext,
 		AttachmentIDs: req.AttachmentIDs,
 	})
@@ -698,8 +727,13 @@ func (h *Handler) ContinueRun(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := &domainpb.ContinueRunResponse{
-		Success: true,
-		Run:     protoconv.RunToProto(run),
+		Success:                true,
+		Run:                    protoconv.RunToProto(run),
+		TransportDisposition:   "continuation_started",
+		ConsumptionDisposition: "unknown",
+	}
+	if run.ExecutionMode.Normalized() == domain.ExecutionModeInteractive && run.Status == domain.RunStatusRunning {
+		resp.TransportDisposition = "accepted"
 	}
 	writeProtoJSON(w, http.StatusOK, resp)
 }

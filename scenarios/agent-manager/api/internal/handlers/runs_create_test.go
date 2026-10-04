@@ -170,7 +170,7 @@ func TestCreateRun_Success(t *testing.T) {
 			ClassificationValues: []string{"complete", "blocked"},
 		}, Model: func() *string { model := "model-override"; return &model }()},
 	})
-	req = httptest.NewRequest(http.MethodPost, "/api/v1/runs", bytes.NewReader(body))
+	req = authenticatedRunTestRequest(bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rr = httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
@@ -482,7 +482,7 @@ func TestDeletePendingRunIsRejectedWithLifecycleGuidance(t *testing.T) {
 	profileID := profile.Profile.GetId()
 	runBody := encodeProtoJSON(t, &apipb.CreateRunRequest{TaskId: task.Task.GetId(), AgentProfileId: &profileID})
 	runRR := httptest.NewRecorder()
-	router.ServeHTTP(runRR, httptest.NewRequest(http.MethodPost, "/api/v1/runs", bytes.NewReader(runBody)))
+	router.ServeHTTP(runRR, authenticatedRunTestRequest(bytes.NewReader(runBody)))
 	if runRR.Code != http.StatusCreated {
 		t.Fatalf("run status=%d body=%s", runRR.Code, runRR.Body.String())
 	}
@@ -510,7 +510,7 @@ func TestCreateRun_InvalidNestedEnumIncludesParseDetail(t *testing.T) {
 			}
 		}
 	}`)
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/runs", bytes.NewReader(body))
+	req := authenticatedRunTestRequest(bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
@@ -564,3 +564,27 @@ func TestGetRunnerStatus(t *testing.T) {
 // =============================================================================
 
 // TestRequestIDMiddleware tests that request IDs are properly assigned.
+
+// AUTH-01: a body-named parent and a previous denial cannot establish caller
+// authority. A nil service is deliberate: any service call on rejection panics.
+func TestCreateRunRefusesMissingCallerBeforeServiceEffects(t *testing.T) {
+	for _, header := range []string{"", " ", "\t"} {
+		t.Run("absent-or-blank-"+header, func(t *testing.T) {
+			h := New(orchestration.HandlerServices{})
+			for _, body := range []string{
+				`{"taskId":"` + uuid.NewString() + `"}`,
+				`{"taskId":"` + uuid.NewString() + `","parentRunId":"` + uuid.NewString() + `","idempotencyKey":"prior-denial"}`,
+				`{`,
+			} {
+				req := httptest.NewRequest(http.MethodPost, "/api/v1/runs", strings.NewReader(body))
+				req.Header.Set(cliutil.HeaderAgentIdentityToken, header)
+				req.Header.Set("Authorization", header)
+				response := httptest.NewRecorder()
+				h.CreateRun(response, req)
+				if response.Code != http.StatusUnauthorized {
+					t.Fatalf("missing caller status=%d body=%s", response.Code, response.Body.String())
+				}
+			}
+		})
+	}
+}

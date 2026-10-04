@@ -81,6 +81,8 @@ func TestOrchestrator_ConsecutiveRuns(t *testing.T) {
 		orchestration.WithIdempotency(repos.Idempotency),
 		newTestRolePolicyOption(t),
 		orchestration.WithRunStateRoot(t.TempDir()),
+
+		fixtureOwnerIdentityOption(),
 	)
 
 	// Create a profile
@@ -131,12 +133,12 @@ func TestOrchestrator_ConsecutiveRuns(t *testing.T) {
 	// Execute first run
 	t.Log("Creating first run...")
 	runMode := domain.RunModeInPlace
-	run1, err := svc.CreateRun(ctx, orchestration.CreateRunRequest{
+	run1, err := svc.CreateRun(ctx, authenticatedCreateRunFixture(orchestration.CreateRunRequest{
 		TaskID:         createdTask1.ID,
 		AgentProfileID: &createdProfile.ID,
 		Prompt:         "Execute first test task",
 		RunMode:        &runMode,
-	})
+	}))
 	if err != nil {
 		t.Fatalf("CreateRun 1 failed: %v", err)
 	}
@@ -156,12 +158,12 @@ func TestOrchestrator_ConsecutiveRuns(t *testing.T) {
 
 	// Execute second run (this is where the bug was observed)
 	t.Log("Creating second run...")
-	run2, err := svc.CreateRun(ctx, orchestration.CreateRunRequest{
+	run2, err := svc.CreateRun(ctx, authenticatedCreateRunFixture(orchestration.CreateRunRequest{
 		TaskID:         createdTask2.ID,
 		AgentProfileID: &createdProfile.ID,
 		Prompt:         "Execute second test task",
 		RunMode:        &runMode,
-	})
+	}))
 	if err != nil {
 		t.Fatalf("CreateRun 2 failed: %v", err)
 	}
@@ -245,6 +247,8 @@ func TestOrchestrator_ConsecutiveRunsWithHeartbeat(t *testing.T) {
 		orchestration.WithIdempotency(repos.Idempotency),
 		newTestRolePolicyOption(t),
 		orchestration.WithRunStateRoot(t.TempDir()),
+
+		fixtureOwnerIdentityOption(),
 	)
 
 	// Create profile and task
@@ -277,12 +281,12 @@ func TestOrchestrator_ConsecutiveRunsWithHeartbeat(t *testing.T) {
 
 	// Create and execute run
 	runMode := domain.RunModeInPlace
-	run, err := svc.CreateRun(ctx, orchestration.CreateRunRequest{
+	run, err := svc.CreateRun(ctx, authenticatedCreateRunFixture(orchestration.CreateRunRequest{
 		TaskID:         createdTask.ID,
 		AgentProfileID: &createdProfile.ID,
 		Prompt:         "Test heartbeat during execution",
 		RunMode:        &runMode,
-	})
+	}))
 	if err != nil {
 		t.Fatalf("CreateRun failed: %v", err)
 	}

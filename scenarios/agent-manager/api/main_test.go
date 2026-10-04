@@ -27,8 +27,12 @@ import (
 
 type maintenanceOwnerFixture struct{}
 
-func (maintenanceOwnerFixture) Verify(context.Context, string) (identity.Principal, error) {
-	return identity.Principal{Verified: true, Kind: identity.ActorHuman, Subject: "fixture-owner", Scopes: []string{"agent-manager:write"}}, nil
+func (maintenanceOwnerFixture) Verify(_ context.Context, token string) (identity.Principal, error) {
+	if token != "fixture" {
+		return identity.Principal{}, errors.New("invalid fixture owner")
+	}
+
+	return identity.Principal{Verified: true, Kind: identity.ActorHuman, Subject: "fixture-owner", Scopes: []string{"agent-manager:write"}, ExpiresAt: time.Now().Add(time.Hour)}, nil
 }
 
 func TestRouterMountsDurableMaintenanceWithSharedOrchestrationGate(t *testing.T) {
@@ -38,7 +42,7 @@ func TestRouterMountsDurableMaintenanceWithSharedOrchestrationGate(t *testing.T)
 	t.Cleanup(cleanup)
 	repos, _, _ := testutil.SetupTestReposWithDB(t, db)
 	gate := maintenance.NewGate(maintenance.NewRepository(db))
-	orch := orchestration.New(repos.Profiles, repos.Tasks, repos.Runs, orchestration.WithMaintenanceGate(gate))
+	orch := orchestration.New(repos.Profiles, repos.Tasks, repos.Runs, orchestration.WithMaintenanceGate(gate), orchestration.WithOwnerIdentity(maintenanceOwnerFixture{}))
 	interlock, err := maintenance.NewScenarioInterlock(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
@@ -60,7 +64,7 @@ func TestRouterMountsDurableMaintenanceWithSharedOrchestrationGate(t *testing.T)
 	if response.Code != http.StatusOK {
 		t.Fatalf("mounted begin=%d %s", response.Code, response.Body.String())
 	}
-	if _, err := orch.CreateRun(t.Context(), orchestration.CreateRunRequest{TaskID: uuid.New(), Force: true}); !errors.Is(err, maintenance.ErrClosed) {
+	if _, err := orch.CreateRun(t.Context(), orchestration.CreateRunRequest{TaskID: uuid.New(), Force: true, OwnerToken: "fixture"}); !errors.Is(err, maintenance.ErrClosed) {
 		t.Fatalf("HTTP closed a different gate from orchestration: %v", err)
 	}
 	response = httptest.NewRecorder()

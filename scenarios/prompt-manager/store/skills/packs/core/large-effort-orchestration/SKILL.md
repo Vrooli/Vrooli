@@ -9,9 +9,9 @@ metadata:
   tags: [orchestration, multi-agent, effort, epochs, continuity, recovery]
   icon: network
   status: active
-  revision: 23
+  revision: 25
   createdAt: "2026-09-10T00:00:00Z"
-  updatedAt: "2026-10-01T15:00:00Z"
+  updatedAt: "2026-10-03T13:13:18Z"
   requires:
     scenarios: [prompt-manager, agent-manager]
     commands: [prompt-manager skill read, agent-manager]
@@ -208,6 +208,8 @@ Accept an epoch only when all of these hold:
   sleeps for state, or tests of private helpers, and any net test growth is
   explained by behavior newly covered;
 - validation targets marked `required` pass;
+- selected source/material versions remain accessible and mapped for the epoch;
+  any required visual gate uses the actual-build comparison evidence in §6.1;
 - `epoch-check` reports no unacknowledged directive.
 
 Rerun the gate yourself; a worker's report is not evidence. The `QUEUE.md` slice
@@ -249,10 +251,93 @@ epoch's log. A failure becomes a `QUEUE.md` item, never a reopened epoch.
 
 ### 6. Start, recover and close
 
-Start a goal by writing the goal home (preserve the operator's destination,
-constraints and decisions in `GOAL.md` with links to their sources), configuring
-the delivery team with an orchestrator leader member (delivery-orchestrator
-profile), and enabling the team.
+#### 6.1 Commission an accurate, accessible handoff
+
+Before creating a team, resolve current native outcome/goal ownership. If a team
+already owns it, amend that team's handoff through §2 instead of creating another.
+Before commission or extension, verify exclusions against the whole approved
+outcome, accepted requirements and required shared contracts/generated outputs.
+Distinguish observer read-only limits, per-worker slice exclusions and constraints
+on the whole outcome. The excluded worker still obeys its slice; required approved
+work outside that slice returns to the native owner for a corrected assignment or
+next slice, not automatically to a human approval gate.
+
+Use normal governed tools in the established shared checkout. Preserve genuinely
+overlapping authored edits and native locking, staging, source-drift and scoped-
+publication safeguards. Shared paths or dirty generated output alone do not require
+worktrees, a separate artifact root or extra isolation; only an actual native
+contract does. For example, a Planner child brief's “Never edit packages/proto”
+does not prohibit required Planner contract work across the approved outcome.
+Its owner may assign the remainder through the governed Proto route documented in
+`path:packages/proto/README.md` and `path:docs/package-governance.md`:
+`cd packages/proto && make generate SCENARIO=personal-planner`. Verify freshness
+with `make verify-committed-gen`; never hand-edit generated output or overwrite
+conflicting authored changes.
+
+Label each blocker as an actual enforcement/admission denial, assignment wording,
+or reviewer inference, retaining attempted-action evidence or stating that no
+action was attempted. No attempted admission is not proof of denial. Never
+override or route around a real denial. Native budgets/security and genuine
+action-time confirmations remain intact; this scope check does not expand profiles.
+
+For a new finite delivery team, complete this checklist while the team remains
+disabled:
+
+1. **Integrate the target.** Reconcile the applicable canonical PRD, requirements,
+   experience and design records with authorized selections. Preserve source
+   precedence; distinguish desired from implemented state, selected from candidate
+   references, and historical observations from current facts. Write `GOAL.md`
+   with the destination, constraints and decisions linked to these canonical
+   sources; it must not become a competing specification.
+2. **Deliver the materials.** Make every required image and other reference file
+   available through the receiving executor's actual route at the selected version
+   and usable original resolution. In the project's existing source/asset manifest,
+   record identity/version, executor-readable location, bytes, hash, format and
+   image dimensions, and requirement-to-screen/state/source mappings. Verify bytes
+   and successful decoding/opening. Label governing, illustrative, historical and
+   rejected references; preserve originals and identify derivatives. A link, ID,
+   contact sheet, overview PDF or older image folder does not prove access to the
+   selected originals. If no such materials are required, record that scope.
+3. **Verify independently.** A fresh reader, without the author's conversation or
+   coached answers, must retrieve the canonical sources and required materials
+   through the normal receiving execution route. Check coverage as well as access:
+   each relevant requirement and screen/state resolves to its correct source and
+   image version; conflicts and missing items are explicit. Retain a dated receipt
+   naming the route, identities/hashes, what was opened and mapped, and remaining
+   limits. Resolve required handoff gaps before enablement. This verifies the
+   handoff, not product implementation or broader authority. Include a concrete
+   required shared-contract case: the reader must distinguish a child exclusion
+   from whole-outcome authority, recover the native owner/next-slice and governed
+   generation/verification route, and identify genuine overlap or denial evidence.
+   Resolve lost required work or invented project-wide owner/isolation gates.
+4. **Enable the qualified commission.** Configure the native orchestrator leader
+   member using the delivery-orchestrator profile and supported disabled
+   contract/binding path. Verify the complete contract and accepted source revision,
+   then enable under the existing native permissions, budgets and safeguards.
+   These checks do not copy the sender's tool restrictions or add a parent-release
+   or accounting layer.
+
+For visual delivery, put close fidelity to selected governing images in the
+admitted acceptance gate. Compare captures of the exact running build with the
+matching screen/state/appearance and intended viewport or device composition.
+Preserve required behavior, truthful data and accessibility; document justified
+responsive, accessibility and real-data adaptations. Retain source/runtime
+versions, captures, differences and unresolved limits with native acceptance
+evidence. Decoding images, passing code tests or viewing a contact sheet does not
+prove visual acceptance. Do not invent pixel-identity guarantees or numerical
+visual budgets that the product contract does not set.
+
+For an active team, send a source/material correction through short verbatim
+`FEEDBACK.md` (§2), with changed versions, requirement/acceptance impact and the
+receipt. The leader reconciles `QUEUE.md` and epoch directives; use the supported
+native wake when parked and retain its acknowledgment. Keep the existing owner
+and native safeguards. Do not stop, restart or replace a team to deliver materials.
+
+Source clarification: [Verify specifications and assets before team enablement](https://docs.google.com/document/d/152DaKTk-lBAiy2GXHf-1Bpp3GalY0xXj8EolzhYECrc/edit#heading=h.aig16ectqkdt),
+owner-requested 2026-10-03. The operative native checklist is here; following it
+does not require recovering the author's cloud conversation.
+
+#### 6.2 Recover and close
 
 For a lost run, runner exhaustion or an uncertain dispatch, read the recovery
 reference. A terminal orchestrator run is not goal completion.
@@ -262,3 +347,36 @@ parked on an operator decision with the Forecast saying so; an empty queue with 
 open gap means plan (§2.1), not close. On close: stop external
 processes, clean up installs, list open workarounds and unverified targets, disable
 the team, and record a work record through the Memory contract.
+
+### CreateRun caller identity and refusal
+
+CreateRun requires caller proof at both the HTTP and service boundaries, before
+reservation or dispatch. The shared CLI transport forwards an existing run
+credential in `X-Agent-Identity-Token`; each adapter still needs qualification.
+Delegated requests must name that verified run as their exact `parentRunId` and
+retain qualification and execution restrictions. An existing human owner
+credential belongs in `Authorization: Bearer`, where the owner verifier must
+validate it as a live human with the declared `agent-manager:write` capability.
+A run credential in the human channel is not human authorization. If both
+channels are offered, both must validate for the same owner; scopes and expiry
+are intersected. An invalid offered channel cannot be ignored.
+
+Public CreateRun selects existing profiles. Inline defaults that would create
+or change a profile must be reconciled through the existing authorized profile
+owner route first; identical existing declarations remain no-ops. An accepted
+public replay requires the original persisted caller, task, parent and scope
+ceiling. Historical anonymous admissions are refused by the public route;
+renewed proof does not renew the original run's authority expiry.
+
+After an authentication or policy refusal, preserve the redacted request and
+exact response and stop the denied action and dependent work. Do not remove an
+identity header, substitute another principal, attach a run, mint credentials,
+or retry anonymously. Body lineage, localhost origin, task/profile names and
+harness labels do not prove authority. Use an already authorized direct session
+only when the owner explicitly supports that work shape; record its actual
+scope without claiming native admission.
+
+The AUTH-01 receiving-boundary source correction is not rollout qualification.
+Supported caller migration, service-level replay binding, positive verified
+operator/exact-parent tests and independent evidence remain deployment gates.
+Other lifecycle endpoints retain their existing contracts.

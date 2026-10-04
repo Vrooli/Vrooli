@@ -354,9 +354,21 @@
         {
           "name": "refresh",
           "description": "Preview native skill freshness or apply an exact reviewed projection digest.",
-          "binding": { "kind": "connect-rpc", "service": "SkillsService", "method": "RefreshProjection" },
-          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal"] },
-          "architecture": { "primitive": "action" }
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SkillsService",
+            "method": "RefreshProjection"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
         },
         {
           "name": "import",
@@ -3150,6 +3162,11 @@
       "command": "team heartbeat-instructions",
       "class": "passthrough",
       "reason": "Heartbeat instructions combines read, inline write, and file-backed write modes; those control modes cannot be represented as one safe binding."
+    },
+    {
+      "command": "team friction-capture",
+      "class": "passthrough",
+      "reason": "Friction capture validates typed flags or a complete JSON file, reads the stable topic for bounded repeats, and conditionally invokes AddKnowledge; it is not one RPC binding."
     }
   ]
 }

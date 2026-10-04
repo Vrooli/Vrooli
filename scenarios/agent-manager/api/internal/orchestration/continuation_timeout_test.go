@@ -63,6 +63,8 @@ func TestCreateRun_RefusesProfileLimitsAboveGlobalCeilings(t *testing.T) {
 		orchestration.WithRunners(runnerRegistry),
 		orchestration.WithOrchestrationSettings(settingsStore),
 		newTestRolePolicyOption(t),
+
+		fixtureOwnerIdentityOption(),
 	)
 	task := mustCreateTask(t, svc, ctx, &domain.Task{Title: "duration ceiling", ScopePath: "src/"})
 
@@ -86,11 +88,11 @@ func TestCreateRun_RefusesProfileLimitsAboveGlobalCeilings(t *testing.T) {
 				SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff},
 			})
 
-			_, err := svc.CreateRun(ctx, orchestration.CreateRunRequest{
+			_, err := svc.CreateRun(ctx, authenticatedCreateRunFixture(orchestration.CreateRunRequest{
 				TaskID:         task.ID,
 				AgentProfileID: &profile.ID,
 				Prompt:         "prove ceiling validation",
-			})
+			}))
 			if err == nil {
 				t.Fatal("CreateRun() succeeded with profile above the global ceiling")
 			}
@@ -110,11 +112,11 @@ func TestCreateRun_RefusesProfileLimitsAboveGlobalCeilings(t *testing.T) {
 		MaxTurns:      450,
 		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff},
 	})
-	run, err := svc.CreateRun(ctx, orchestration.CreateRunRequest{
+	run, err := svc.CreateRun(ctx, authenticatedCreateRunFixture(orchestration.CreateRunRequest{
 		TaskID:         task.ID,
 		AgentProfileID: &profile.ID,
 		Prompt:         "prove effective resolved limits",
-	})
+	}))
 	if err != nil {
 		t.Fatalf("CreateRun() within ceilings: %v", err)
 	}
@@ -190,6 +192,8 @@ func TestContinuation_HasPerTurnTimeout(t *testing.T) {
 		orchestration.WithOrchestrationSettings(settingsStore),
 		orchestration.WithRunStateRoot(t.TempDir()),
 		newTestRolePolicyOption(t),
+
+		fixtureOwnerIdentityOption(),
 	)
 
 	profile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
@@ -305,6 +309,8 @@ func TestContinuation_FailurePreservesSessionID(t *testing.T) {
 		orchestration.WithRunners(registry),
 		orchestration.WithRunStateRoot(t.TempDir()),
 		newTestRolePolicyOption(t),
+
+		fixtureOwnerIdentityOption(),
 	)
 
 	// Create profile and task
@@ -454,6 +460,8 @@ func TestContinuation_SessionLostIsTypedInterruption(t *testing.T) {
 				orchestration.WithRunners(registry),
 				orchestration.WithRunStateRoot(t.TempDir()),
 				newTestRolePolicyOption(t),
+
+				fixtureOwnerIdentityOption(),
 			)
 
 			profile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{

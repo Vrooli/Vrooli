@@ -1,3 +1,4 @@
+// Responsibility: coordinate durable plan-family workflow dispatch and recovery.
 package orchestration
 
 import (

@@ -74,3 +74,91 @@ test("emits content-free reformulation and selection telemetry", async () => {
     expect(payload).not.toHaveProperty("snippet");
   }
 });
+
+test("late responses cannot replace a newer query and blank input clears retained results", async () => {
+  vi.spyOn(conversationSearchClient, "getConversationIndexStatus").mockRejectedValue(new Error("index offline"));
+  const completions: Array<(value: ReturnType<typeof create<typeof SearchConversationsResponseSchema>>) => void> = [];
+  const search = vi.spyOn(conversationSearchClient, "searchConversations").mockImplementation(() => new Promise((resolve) => completions.push(resolve)));
+  const { result, rerender } = renderHook(({ query }) => useConversationSearch(query, DEFAULT_CONVERSATION_FILTERS), { initialProps: { query: "old" } });
+  await waitFor(() => expect(search).toHaveBeenCalledTimes(1));
+  rerender({ query: "new" });
+  await waitFor(() => expect(search).toHaveBeenCalledTimes(2));
+  await act(async () => completions[1]?.(create(SearchConversationsResponseSchema, { requestId: "new", hits: [create(ConversationSearchHitSchema, { stableHitId: "new-hit" })] })));
+  await act(async () => completions[0]?.(create(SearchConversationsResponseSchema, { requestId: "old", hits: [create(ConversationSearchHitSchema, { stableHitId: "old-hit" })] })));
+  expect(result.current.hits.map((hit) => hit.stableHitId)).toEqual(["new-hit"]);
+  expect(result.current.loading).toBe(false);
+  expect(result.current.status).toBeNull();
+  rerender({ query: "  " });
+  await waitFor(() => expect(result.current.hits).toEqual([]));
+  expect(result.current.error).toBeNull();
+  expect(search).toHaveBeenCalledTimes(2);
+});
+
+test("cursor failure preserves prior hits, guards double loads and retry clears an initial failure", async () => {
+  vi.spyOn(conversationSearchClient, "getConversationIndexStatus").mockResolvedValue({} as never);
+  const hit = create(ConversationSearchHitSchema, { stableHitId: "retained" });
+  let failPage!: (error: Error) => void;
+  const search = vi.spyOn(conversationSearchClient, "searchConversations")
+    .mockResolvedValueOnce(create(SearchConversationsResponseSchema, { hits: [hit], nextPageCursor: "next" }))
+    .mockImplementationOnce(() => new Promise((_resolve, reject) => { failPage = reject; }))
+    .mockRejectedValueOnce(new ConnectError("retryable", Code.Unavailable))
+    .mockResolvedValueOnce(create(SearchConversationsResponseSchema, { hits: [hit] }));
+  const interaction = vi.spyOn(conversationSearchClient, "recordConversationSearchInteraction").mockResolvedValue({ accepted: true } as never);
+  const { result } = renderHook(() => useConversationSearch("pages", DEFAULT_CONVERSATION_FILTERS));
+  await waitFor(() => expect(result.current.hasMore).toBe(true));
+  act(() => result.current.loadMore());
+  await waitFor(() => expect(result.current.loadingMore).toBe(true));
+  act(() => result.current.loadMore());
+  expect(search).toHaveBeenCalledTimes(2);
+  await act(async () => failPage(new ConnectError("denied", Code.PermissionDenied)));
+  expect(result.current.hits).toEqual([hit]);
+  expect(result.current.error?.kind).toBe("permission");
+  expect(result.current.loadingMore).toBe(false);
+  act(() => result.current.recordSelection(hit, 1));
+  expect(interaction).not.toHaveBeenCalled(); // requestless response is not attributable telemetry
+  act(() => result.current.retry());
+  await waitFor(() => expect(result.current.error?.kind).toBe("admission"));
+  expect(result.current.hits).toEqual([]);
+  act(() => result.current.retry());
+  await waitFor(() => expect(result.current.hits).toEqual([hit]));
+  expect(result.current.error).toBeNull();
+  act(() => result.current.loadMore());
+  expect(search).toHaveBeenCalledTimes(4);
+});
+
+test("filtered requests trim scopes, reject invalid dates and keep selection telemetry content-free", async () => {
+  vi.spyOn(conversationSearchClient, "getConversationIndexStatus").mockResolvedValue({} as never);
+  const hit = create(ConversationSearchHitSchema, { stableHitId: "filtered" });
+  const search = vi.spyOn(conversationSearchClient, "searchConversations").mockResolvedValue(create(SearchConversationsResponseSchema, { requestId: "filtered-request", hits: [hit] }));
+  const interaction = vi.spyOn(conversationSearchClient, "recordConversationSearchInteraction").mockRejectedValue(new Error("telemetry unavailable"));
+  const filters = { ...DEFAULT_CONVERSATION_FILTERS, role: " assistant ", harness: " codex ", project: " repo ", model: " model ", profile: " profile ", runStatus: " complete ", after: "not-a-date", before: "2026-09-01", contentClass: 1, includeToolEvents: true };
+  const { result } = renderHook(() => useConversationSearch("  bounded clue  ", filters, 7));
+  await waitFor(() => expect(result.current.response?.requestId).toBe("filtered-request"));
+  const request = search.mock.calls[0]?.[0];
+  expect(request?.query).toBe("bounded clue");
+  expect(request?.pageSize).toBe(7);
+  expect(request?.filters).toMatchObject({ roles: ["assistant"], harnesses: ["codex"], projectScopes: ["repo"], models: ["model"], profiles: ["profile"], runStatuses: ["complete"], occurredAfter: undefined, contentClasses: [1], includeToolEvents: true });
+  expect(request?.filters?.occurredBefore).toBeDefined();
+  act(() => result.current.recordSelection(hit, 0));
+  expect(interaction).not.toHaveBeenCalled();
+  await act(async () => result.current.recordSelection(hit, 1));
+  expect(interaction.mock.calls[0]?.[0]).toMatchObject({ requestId: "filtered-request", stableHitId: "filtered", selectedRank: 1 });
+  expect(interaction.mock.calls[0]?.[0]).not.toHaveProperty("query");
+  expect(result.current.error).toBeNull();
+});
+
+test("aborted request errors stay invisible and authentication/availability messages stay bounded", async () => {
+  vi.spyOn(conversationSearchClient, "getConversationIndexStatus").mockResolvedValue({} as never);
+  let fail!: (error: Error) => void;
+  vi.spyOn(conversationSearchClient, "searchConversations").mockImplementationOnce(() => new Promise((_resolve, reject) => { fail = reject; })).mockResolvedValue(create(SearchConversationsResponseSchema));
+  const { result, rerender } = renderHook(({ query }) => useConversationSearch(query, DEFAULT_CONVERSATION_FILTERS), { initialProps: { query: "first" } });
+  await waitFor(() => expect(fail).toBeDefined());
+  rerender({ query: "replacement" });
+  await act(async () => fail(new ConnectError("cancelled transport detail", Code.Unknown)));
+  expect(result.current.error).toBeNull();
+  expect(classifyConversationSearchError(new ConnectError("private", Code.Unauthenticated)).kind).toBe("permission");
+  expect(classifyConversationSearchError(new ConnectError("private", Code.Unavailable)).kind).toBe("admission");
+  expect(classifyConversationSearchError(new ConnectError("", Code.InvalidArgument))).toEqual({ kind: "invalid", message: "Check the query and filters." });
+  expect(classifyConversationSearchError(new ConnectError("", Code.Unknown))).toEqual({ kind: "generic", message: "Conversation search failed." });
+  expect(classifyConversationSearchError(new Error("retained explanation"))).toEqual({ kind: "generic", message: "retained explanation" });
+});

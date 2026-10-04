@@ -33,7 +33,8 @@ func TestOrchestrator_CreateRun_RejectsUnboundedWorkReferencesBeforeEffects(t *t
 			// No repositories or dispatch dependencies: invalid declarations must
 			// be refused before reserving an operation or creating a run.
 			svc := &orchestration.Orchestrator{}
-			run, err := svc.CreateRun(context.Background(), orchestration.CreateRunRequest{WorkReferences: refs})
+			fixtureOwnerIdentityOption()(svc)
+			run, err := svc.CreateRun(context.Background(), authenticatedCreateRunFixture(orchestration.CreateRunRequest{WorkReferences: refs}))
 			if run != nil || err == nil || !strings.Contains(err.Error(), "work_references") {
 				t.Fatalf("expected bounded declaration refusal, got run=%v error=%v", run, err)
 			}
@@ -106,6 +107,8 @@ func newTestOrchestrator(t *testing.T) *orchestration.Orchestrator {
 		orchestration.WithRunners(runnerRegistry),
 		orchestration.WithCheckpoints(repos.Checkpoints),
 		orchestration.WithIdempotency(repos.Idempotency),
+
+		fixtureOwnerIdentityOption(),
 	)
 }
 
@@ -330,11 +333,11 @@ func TestOrchestrator_RunOperations(t *testing.T) {
 	mustCreateTask(t, svc, ctx, task)
 
 	// Create run (will fail due to missing sandbox, but we can test the creation logic)
-	run, err := svc.CreateRun(ctx, orchestration.CreateRunRequest{
+	run, err := svc.CreateRun(ctx, authenticatedCreateRunFixture(orchestration.CreateRunRequest{
 		TaskID:         task.ID,
 		AgentProfileID: &profile.ID,
 		Prompt:         "Test prompt",
-	})
+	}))
 	if err != nil {
 		// Expected - sandbox not available
 		t.Logf("CreateRun returned expected error (sandbox unavailable): %v", err)
@@ -747,20 +750,20 @@ func TestOrchestrator_CreateRun_IdempotencyKey(t *testing.T) {
 	idempotencyKey := "test-idempotency-" + uuid.New().String()
 
 	// First creation attempt (may fail due to sandbox, but key should be recorded)
-	run1, err1 := svc.CreateRun(ctx, orchestration.CreateRunRequest{
+	run1, err1 := svc.CreateRun(ctx, authenticatedCreateRunFixture(orchestration.CreateRunRequest{
 		TaskID:         task.ID,
 		AgentProfileID: &profile.ID,
 		Prompt:         "Test prompt",
 		IdempotencyKey: idempotencyKey,
-	})
+	}))
 
 	// Second creation attempt with same key should return same result
-	run2, err2 := svc.CreateRun(ctx, orchestration.CreateRunRequest{
+	run2, err2 := svc.CreateRun(ctx, authenticatedCreateRunFixture(orchestration.CreateRunRequest{
 		TaskID:         task.ID,
 		AgentProfileID: &profile.ID,
 		Prompt:         "Different prompt",
 		IdempotencyKey: idempotencyKey,
-	})
+	}))
 
 	// Both should have same outcome (either both succeed with same run, or both fail)
 	if (err1 == nil) != (err2 == nil) {
@@ -803,6 +806,8 @@ func newTestOrchestratorWithLimit(t *testing.T, maxRuns int) (*orchestration.Orc
 		orchestration.WithRunners(runnerRegistry),
 		orchestration.WithCheckpoints(repos.Checkpoints),
 		orchestration.WithIdempotency(repos.Idempotency),
+
+		fixtureOwnerIdentityOption(),
 	)
 
 	return svc, repos.Runs
@@ -856,11 +861,11 @@ func TestOrchestrator_SlotEnforcement_BlocksAtCapacity(t *testing.T) {
 	}
 
 	// Now try to create another run - should fail with capacity error
-	_, err := svc.CreateRun(ctx, orchestration.CreateRunRequest{
+	_, err := svc.CreateRun(ctx, authenticatedCreateRunFixture(orchestration.CreateRunRequest{
 		TaskID:         task.ID,
 		AgentProfileID: &profile.ID,
 		Prompt:         "This should fail",
-	})
+	}))
 
 	if err == nil {
 		t.Fatal("expected CapacityExceededError, got nil")
@@ -926,12 +931,12 @@ func TestOrchestrator_SlotEnforcement_ForceBypassesLimit(t *testing.T) {
 
 	// Try to create with Force=true - should NOT return capacity error
 	// (may fail for other reasons like runner issues, but NOT capacity)
-	_, err := svc.CreateRun(ctx, orchestration.CreateRunRequest{
+	_, err := svc.CreateRun(ctx, authenticatedCreateRunFixture(orchestration.CreateRunRequest{
 		TaskID:         task.ID,
 		AgentProfileID: &profile.ID,
 		Prompt:         "Force this run",
 		Force:          true,
-	})
+	}))
 	// If there's an error, make sure it's NOT a CapacityExceededError
 	if err != nil {
 		if _, ok := err.(*domain.CapacityExceededError); ok {
@@ -991,11 +996,11 @@ func TestOrchestrator_SlotEnforcement_CountsStartingRuns(t *testing.T) {
 	}
 
 	// Try to create another run - should fail (1 running + 1 starting = 2 = limit)
-	_, err := svc.CreateRun(ctx, orchestration.CreateRunRequest{
+	_, err := svc.CreateRun(ctx, authenticatedCreateRunFixture(orchestration.CreateRunRequest{
 		TaskID:         task.ID,
 		AgentProfileID: &profile.ID,
 		Prompt:         "This should fail",
-	})
+	}))
 
 	if err == nil {
 		t.Fatal("expected CapacityExceededError when counting starting runs")
@@ -1049,11 +1054,11 @@ func TestOrchestrator_SlotEnforcement_AllowsUnderCapacity(t *testing.T) {
 	}
 
 	// Try to create another run - should NOT fail with capacity error
-	_, err := svc.CreateRun(ctx, orchestration.CreateRunRequest{
+	_, err := svc.CreateRun(ctx, authenticatedCreateRunFixture(orchestration.CreateRunRequest{
 		TaskID:         task.ID,
 		AgentProfileID: &profile.ID,
 		Prompt:         "This should succeed (capacity-wise)",
-	})
+	}))
 	// If there's an error, make sure it's NOT a CapacityExceededError
 	if err != nil {
 		var capErr *domain.CapacityExceededError
@@ -1097,6 +1102,8 @@ func newTestOrchestratorWithFlagValidator(t *testing.T, fv runner.FlagValidator)
 		orchestration.WithIdempotency(repos.Idempotency),
 		orchestration.WithFlagValidator(fv),
 		newTestRolePolicyOption(t),
+
+		fixtureOwnerIdentityOption(),
 	)
 }
 
@@ -1126,12 +1133,12 @@ func TestOrchestrator_CreateRun_InlineEnableBrowser(t *testing.T) {
 	mustCreateTask(t, svc, ctx, task)
 
 	enableBrowser := true
-	_, err := svc.CreateRun(ctx, orchestration.CreateRunRequest{
+	_, err := svc.CreateRun(ctx, authenticatedCreateRunFixture(orchestration.CreateRunRequest{
 		TaskID:         task.ID,
 		AgentProfileID: &profile.ID,
 		Prompt:         "Test with browser enabled",
 		EnableBrowser:  &enableBrowser,
-	})
+	}))
 	// The run may fail for non-capacity reasons (runner execution issues in mock),
 	// but it should NOT fail due to EnableBrowser being invalid.
 	if err != nil {
@@ -1178,11 +1185,11 @@ func TestOrchestrator_CreateRun_ExtraFlagsValidation(t *testing.T) {
 	}
 	mustCreateTask(t, svc, ctx, task)
 
-	_, err := svc.CreateRun(ctx, orchestration.CreateRunRequest{
+	_, err := svc.CreateRun(ctx, authenticatedCreateRunFixture(orchestration.CreateRunRequest{
 		TaskID:         task.ID,
 		AgentProfileID: &profile.ID,
 		Prompt:         "This should fail validation",
-	})
+	}))
 
 	if err == nil {
 		t.Fatal("expected error from flag validation, got nil")
@@ -1241,14 +1248,14 @@ func TestOrchestrator_CreateRun_ExtraFlagsInlineOverride(t *testing.T) {
 	mustCreateTask(t, svc, ctx, task)
 
 	// Create run with inline extra flags that override profile's
-	_, err := svc.CreateRun(ctx, orchestration.CreateRunRequest{
+	_, err := svc.CreateRun(ctx, authenticatedCreateRunFixture(orchestration.CreateRunRequest{
 		TaskID:         task.ID,
 		AgentProfileID: &profile.ID,
 		Prompt:         "Test inline override",
 		ExtraFlags: domain.RunnerExtraFlags{
 			domain.RunnerTypeClaudeCode: []string{"--inline-flag"},
 		},
-	})
+	}))
 	// Verify that the inline flags were validated (may fail for other reasons)
 	if err != nil {
 		t.Logf("CreateRun returned error (may be expected): %v", err)
@@ -1295,11 +1302,11 @@ func TestOrchestrator_CreateRun_NoFlagValidator(t *testing.T) {
 	mustCreateTask(t, svc, ctx, task)
 
 	// Should NOT fail due to flag validation (no validator is set)
-	_, err := svc.CreateRun(ctx, orchestration.CreateRunRequest{
+	_, err := svc.CreateRun(ctx, authenticatedCreateRunFixture(orchestration.CreateRunRequest{
 		TaskID:         task.ID,
 		AgentProfileID: &profile.ID,
 		Prompt:         "Test without validator",
-	})
+	}))
 	if err != nil {
 		// Check it's not a validation error about extra flags
 		if ve, ok := err.(*domain.ValidationError); ok && ve.Field == "extraFlags" {
@@ -1351,11 +1358,11 @@ func TestOrchestrator_SlotEnforcement_ZeroLimitDisablesCheck(t *testing.T) {
 	}
 
 	// Try to create another run - should NOT fail with capacity error
-	_, err := svc.CreateRun(ctx, orchestration.CreateRunRequest{
+	_, err := svc.CreateRun(ctx, authenticatedCreateRunFixture(orchestration.CreateRunRequest{
 		TaskID:         task.ID,
 		AgentProfileID: &profile.ID,
 		Prompt:         "No limit test",
-	})
+	}))
 	// If there's an error, make sure it's NOT a CapacityExceededError
 	if err != nil {
 		var capErr *domain.CapacityExceededError
@@ -1396,6 +1403,8 @@ func TestOrchestrator_CreateRun_ResolvesRelativeProjectRoot(t *testing.T) {
 		orchestration.WithCheckpoints(repos.Checkpoints),
 		orchestration.WithIdempotency(repos.Idempotency),
 		newTestRolePolicyOption(t),
+
+		fixtureOwnerIdentityOption(),
 	)
 	ctx := context.Background()
 
@@ -1424,12 +1433,12 @@ func TestOrchestrator_CreateRun_ResolvesRelativeProjectRoot(t *testing.T) {
 	// CreateRun should succeed past the preflight validation.
 	// It will still fail asynchronously (no sandbox provider), but the run
 	// should be created with the task's projectRoot resolved to absolute.
-	run, err := svc.CreateRun(ctx, orchestration.CreateRunRequest{
+	run, err := svc.CreateRun(ctx, authenticatedCreateRunFixture(orchestration.CreateRunRequest{
 		TaskID:         task.ID,
 		AgentProfileID: &profile.ID,
 		Prompt:         "Test prompt",
 		Force:          true,
-	})
+	}))
 	// The run should be created (preflight passes)
 	if err != nil {
 		t.Fatalf("CreateRun failed unexpectedly: %v", err)

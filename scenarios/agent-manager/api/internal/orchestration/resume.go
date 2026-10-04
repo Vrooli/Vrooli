@@ -16,6 +16,7 @@ import (
 	"agent-manager/internal/runreport"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/api-core/effortauthority"
 )
 
 // ResumeFromFailedRun creates a new run that resumes the work of a failed
@@ -151,6 +152,14 @@ func (o *Orchestrator) resumeFromFailedRun(ctx context.Context, req ResumeFromFa
 		if cfg.SandboxConfig != nil {
 			createReq.SandboxConfig = cfg.SandboxConfig
 		}
+	}
+
+	if failedRun.ResolvedConfig != nil && failedRun.ResolvedConfig.Admission != nil && failedRun.ResolvedConfig.Admission.Effort != nil {
+		if err := o.prepareEffortRecovery(ctx, req, failedRun, &createReq, originalTask, recoveryConfig); err != nil {
+			return nil, err
+		}
+	} else if req.EffortProof != "" {
+		return nil, effortauthority.ErrRefused
 	}
 
 	ctx, releaseAdmission, err := o.admitMaintenanceContext(ctx)

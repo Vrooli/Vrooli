@@ -28,7 +28,7 @@ func TestCreateRunIdentityRefusesInvalidAuthorityBeforeEffects(t *testing.T) {
 	for _, variant := range []string{"missing", "wrong-owner", "wrong-scope", "wildcard", "expired", "expiry-boundary", "unavailable", "service", "unverified", "empty-owner-grant"} {
 		t.Run(variant, func(t *testing.T) {
 			req := CreateRunRequest{OwnerToken: credential, ExpectedOwnerSubject: "owner-a", RequestedScopes: []string{"agent-manager:supervise"}}
-			principal := coreidentity.Principal{Kind: coreidentity.ActorHuman, Verified: true, Subject: "owner-a", Scopes: []string{"agent-manager:supervise"}, ExpiresAt: now.Add(time.Hour)}
+			principal := coreidentity.Principal{Kind: coreidentity.ActorHuman, Verified: true, Subject: "owner-a", Scopes: []string{"agent-manager:write", "agent-manager:supervise"}, ExpiresAt: now.Add(time.Hour)}
 			var verifyErr error
 			switch variant {
 			case "missing":
@@ -64,7 +64,7 @@ func TestCreateRunIdentityRefusesInvalidAuthorityBeforeEffects(t *testing.T) {
 func TestCreateRunIdentityFutureWakesRetainNarrowingAndExpiry(t *testing.T) {
 	now := time.Now().Truncate(time.Second)
 	ownerExpiry := now.Add(time.Hour)
-	principal := coreidentity.Principal{Kind: coreidentity.ActorHuman, Verified: true, Subject: "owner-a", Scopes: []string{"agent-manager:supervise", "agent-manager:admin"}, ExpiresAt: ownerExpiry}
+	principal := coreidentity.Principal{Kind: coreidentity.ActorHuman, Verified: true, Subject: "owner-a", Scopes: []string{"agent-manager:write", "agent-manager:supervise", "agent-manager:admin"}, ExpiresAt: ownerExpiry}
 	o := &Orchestrator{clock: func() time.Time { return now }, ownerIdentity: createOwnerVerifier(func(context.Context, string) (coreidentity.Principal, error) { return principal, nil })}
 	for _, scopes := range [][]string{{"agent-manager:supervise"}, {}} {
 		for wake := 0; wake < 2; wake++ {

@@ -73,6 +73,8 @@ func TestSpawnDispatcher_SerializesBurst(t *testing.T) {
 		newTestRolePolicyOption(t),
 		orchestration.WithSpawnDispatcher(dispatcher),
 		orchestration.WithRunStateRoot(t.TempDir()),
+
+		fixtureOwnerIdentityOption(),
 	)
 
 	profile, err := svc.CreateProfile(ctx, &domain.AgentProfile{
@@ -111,12 +113,12 @@ func TestSpawnDispatcher_SerializesBurst(t *testing.T) {
 		i := i
 		go func() {
 			defer wg.Done()
-			run, err := svc.CreateRun(ctx, orchestration.CreateRunRequest{
+			run, err := svc.CreateRun(ctx, authenticatedCreateRunFixture(orchestration.CreateRunRequest{
 				TaskID:         tasks[i].ID,
 				AgentProfileID: &profile.ID,
 				Prompt:         "burst",
 				RunMode:        &runMode,
-			})
+			}))
 			if err != nil {
 				t.Errorf("CreateRun %d: %v", i, err)
 				return

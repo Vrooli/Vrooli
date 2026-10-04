@@ -149,7 +149,7 @@ func TestCreateRun_MalformedJSON(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodPost, "/api/v1/runs", bytes.NewReader([]byte(tt.body)))
+			req := authenticatedRunTestRequest(bytes.NewReader([]byte(tt.body)))
 			req.Header.Set("Content-Type", "application/json")
 			rr := httptest.NewRecorder()
 
@@ -426,7 +426,7 @@ func TestStopRun_Success(t *testing.T) {
 		TaskId:         task.Id,
 		AgentProfileId: &agentProfileID,
 	})
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/runs", bytes.NewReader(body))
+	req := authenticatedRunTestRequest(bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
@@ -668,7 +668,7 @@ func TestGetRunEvents_Success(t *testing.T) {
 		TaskId:         task.Id,
 		AgentProfileId: &agentProfileID,
 	})
-	req = httptest.NewRequest(http.MethodPost, "/api/v1/runs", bytes.NewReader(body))
+	req = authenticatedRunTestRequest(bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rr = httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
@@ -1186,7 +1186,7 @@ func TestListRuns_IncludesPromptPreview(t *testing.T) {
 		AgentProfileId: &profileID,
 		Tag:            &tag,
 	})
-	req = httptest.NewRequest(http.MethodPost, "/api/v1/runs", bytes.NewReader(body))
+	req = authenticatedRunTestRequest(bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rr = httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
@@ -1248,7 +1248,7 @@ func TestListRuns_OmitsHeavyFields(t *testing.T) {
 		AgentProfileId: &profileID,
 		Tag:            &tag,
 	})
-	req = httptest.NewRequest(http.MethodPost, "/api/v1/runs", bytes.NewReader(body))
+	req = authenticatedRunTestRequest(bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rr = httptest.NewRecorder()
 	router.ServeHTTP(rr, req)

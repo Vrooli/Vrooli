@@ -29,6 +29,8 @@ func TestCreateRunReconcilesLostAcceptedResponse(t *testing.T) {
 		repos.Runs,
 		orchestration.WithEvents(eventStore),
 		orchestration.WithIdempotency(repos.Idempotency),
+
+		fixtureOwnerIdentityOption(),
 	)
 	ctx := context.Background()
 
@@ -61,15 +63,16 @@ func TestCreateRunReconcilesLostAcceptedResponse(t *testing.T) {
 		CreatedAt:      time.Now(),
 		UpdatedAt:      time.Now(),
 	}
+	authenticatedAcceptedRunFixture(original)
 	if err := repos.Runs.Create(ctx, original); err != nil {
 		t.Fatalf("create original run: %v", err)
 	}
 
-	replayed, err := svc.CreateRun(ctx, orchestration.CreateRunRequest{
+	replayed, err := svc.CreateRun(ctx, authenticatedCreateRunFixture(orchestration.CreateRunRequest{
 		TaskID:         task.ID,
 		Prompt:         "replayed start after lost response",
 		IdempotencyKey: key,
-	})
+	}))
 	if err != nil {
 		t.Fatalf("replayed start should reconcile, got error: %v", err)
 	}
@@ -95,7 +98,7 @@ func TestCreateRunAcceptedReceiptSurvivesCacheExpiryAndDeletion(t *testing.T) {
 			t.Cleanup(cleanup)
 			repos, _, _ := testutil.SetupTestReposWithDB(t, db)
 			ctx := context.Background()
-			o := orchestration.New(repos.Profiles, repos.Tasks, repos.Runs, orchestration.WithIdempotency(repos.Idempotency))
+			o := orchestration.New(repos.Profiles, repos.Tasks, repos.Runs, orchestration.WithIdempotency(repos.Idempotency), fixtureOwnerIdentityOption())
 			task := &domain.Task{ID: uuid.New(), Title: "accepted-once", ScopePath: ".", Status: domain.TaskStatusCancelled}
 			if err := repos.Tasks.Create(ctx, task); err != nil {
 				t.Fatal(err)
@@ -105,6 +108,7 @@ func TestCreateRunAcceptedReceiptSurvivesCacheExpiryAndDeletion(t *testing.T) {
 				t.Fatal(err)
 			}
 			original := &domain.Run{ID: uuid.New(), TaskID: task.ID, Status: domain.RunStatusComplete, Phase: domain.RunPhaseCompleted, IdempotencyKey: key}
+			authenticatedAcceptedRunFixture(original)
 			if err := repos.Runs.Create(ctx, original); err != nil {
 				t.Fatal(err)
 			}
@@ -122,7 +126,7 @@ func TestCreateRunAcceptedReceiptSurvivesCacheExpiryAndDeletion(t *testing.T) {
 			if n, err := repos.Idempotency.CleanupExpired(ctx); err != nil || n != 1 {
 				t.Fatal("ordinary creation cache was not expired/cleaned", n, err)
 			}
-			got, err := o.CreateRun(ctx, orchestration.CreateRunRequest{TaskID: task.ID, IdempotencyKey: key})
+			got, err := o.CreateRun(ctx, authenticatedCreateRunFixture(orchestration.CreateRunRequest{TaskID: task.ID, IdempotencyKey: key}))
 			if deleteRun {
 				if err == nil || got != nil || !strings.Contains(err.Error(), "accepted-result-unavailable") {
 					t.Fatal("deleted accepted creation reached fresh admission", err)

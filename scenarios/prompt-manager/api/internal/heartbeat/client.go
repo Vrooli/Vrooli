@@ -3,10 +3,14 @@ package heartbeat
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/vrooli/api-core/effortauthority"
+	"github.com/vrooli/api-core/owneridentity"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -16,9 +20,11 @@ import (
 
 // AgentManagerClient provides HTTP client for agent-manager API
 type AgentManagerClient struct {
-	httpClient  *http.Client
-	testBaseURL string // override for tests; empty in production
-	sleep       func(context.Context, time.Duration) error
+	createCallerVerifier owneridentity.Validator
+	efforts              *FiniteEffortAuthority
+	httpClient           *http.Client
+	testBaseURL          string // override for tests; empty in production
+	sleep                func(context.Context, time.Duration) error
 }
 
 func waitForRetry(ctx context.Context, delay time.Duration) error {
@@ -35,6 +41,7 @@ func waitForRetry(ctx context.Context, delay time.Duration) error {
 // NewAgentManagerClient creates a new agent-manager client
 func NewAgentManagerClient(timeout time.Duration) *AgentManagerClient {
 	return &AgentManagerClient{
+		createCallerVerifier: owneridentity.NewClient(owneridentity.Config{Resolver: discovery.NewResolver(discovery.ResolverConfig{})}),
 		httpClient: &http.Client{
 			Timeout: timeout,
 		},
@@ -58,12 +65,13 @@ type AgentProfile struct {
 // Field names and JSON tags must match the agent-manager proto schema
 // (protojson with DiscardUnknown=false rejects any unrecognised field).
 type Task struct {
-	ID          string `json:"id,omitempty"`
-	Title       string `json:"title"`                  // Short label (required, 1-255 chars)
-	Description string `json:"description"`            // Main prompt sent to the agent
-	ScopePath   string `json:"scope_path"`             // Working directory (required, non-empty)
-	ProjectRoot string `json:"project_root,omitempty"` // Optional project root
-	Status      string `json:"status,omitempty"`       // Owner lifecycle status, when returned
+	ID                 string          `json:"id,omitempty"`
+	Title              string          `json:"title"`                         // Short label (required, 1-255 chars)
+	Description        string          `json:"description"`                   // Main prompt sent to the agent
+	ScopePath          string          `json:"scope_path"`                    // Working directory (required, non-empty)
+	ProjectRoot        string          `json:"project_root,omitempty"`        // Optional project root
+	Status             string          `json:"status,omitempty"`              // Owner lifecycle status, when returned
+	ContextAttachments json.RawMessage `json:"context_attachments,omitempty"` // Retained so finite transport can refuse unsupported attached tasks.
 }
 
 // CreateTaskRequest is the request for creating a task
@@ -88,6 +96,7 @@ type CreateTaskResponse struct {
 // channel is generic and other prompt-manager spawn sites may add additional
 // VROOLI_-prefixed vars without a contract change.
 type CreateRunRequest struct {
+	ParentRunID     *string                  `json:"parent_run_id,omitempty"`
 	RequestedScopes *RunIdentityScopeRequest `json:"requested_scopes,omitempty"`
 	WorkReferences  []*eventpb.WorkReference `json:"work_references,omitempty"`
 	IdempotencyKey  string                   `json:"idempotency_key,omitempty"`
@@ -355,12 +364,17 @@ func (c *AgentManagerClient) DeleteTask(ctx context.Context, taskID string) erro
 //   - marshal failure / non-2xx response -> definitive rejection (no run accepted)
 //   - transport failure or malformed 2xx body -> uncertain (run may exist)
 func (c *AgentManagerClient) CreateRun(ctx context.Context, req *CreateRunRequest) (*Run, error) {
+	proof := createRunCaller(ctx)
+	if _, effort := effortCaller(ctx); !effort && proof.authorization == "" && proof.runIdentity == "" {
+		return nil, NewDispatchRejectedError(fmt.Errorf("CreateRun caller proof is missing"))
+	}
 	body, err := json.Marshal(req)
 	if err != nil {
 		return nil, NewDispatchRejectedError(fmt.Errorf("marshal request: %w", err))
 	}
 
-	resp, err := c.doRequestWithRetry(ctx, "POST", "/api/v1/runs", body)
+	// Request-local proof never falls back to anonymous retries or redirects.
+	resp, err := c.doRequest(ctx, "POST", "/api/v1/runs", body)
 	if err != nil {
 		// The request may have reached the owner before the transport failed.
 		return nil, NewDispatchUncertainError(err)
@@ -368,7 +382,11 @@ func (c *AgentManagerClient) CreateRun(ctx context.Context, req *CreateRunReques
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return nil, NewDispatchRejectedError(c.parseError(resp))
+		safeError := redactEffortResponseError(redactCreateRunCallerError(c.parseError(resp), proof), resp)
+		if _, finite := effortCaller(ctx); finite && resp.StatusCode >= http.StatusInternalServerError {
+			return nil, NewDispatchUncertainError(safeError)
+		}
+		return nil, NewDispatchRejectedError(safeError)
 	}
 
 	var result CreateRunResponse
@@ -731,6 +749,30 @@ func (c *AgentManagerClient) doRequest(ctx context.Context, method, path string,
 	}
 	req.Header.Set("Accept", "application/json")
 
+	if method == http.MethodPost && path == "/api/v1/runs" {
+		if admission, ok := effortCaller(ctx); ok {
+			raw, e := admission.authority.Proof(ctx, admission.binding, body)
+			if e != nil {
+				return nil, e
+			}
+			req.Header.Set(effortauthority.Header, raw)
+			client := *c.httpClient
+			client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+			return client.Do(req)
+		}
+		proof := createRunCaller(ctx)
+		if proof.authorization != "" || proof.runIdentity != "" {
+			if proof.authorization != "" {
+				req.Header.Set("Authorization", proof.authorization)
+			}
+			if proof.runIdentity != "" {
+				req.Header.Set("X-Agent-Identity-Token", proof.runIdentity)
+			}
+			client := *c.httpClient
+			client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+			return client.Do(req)
+		}
+	}
 	return c.httpClient.Do(req)
 }
 
@@ -772,4 +814,56 @@ func (c *AgentManagerClient) parseError(resp *http.Response) error {
 		}
 	}
 	return fmt.Errorf("agent-manager error: status %d, body: %s", resp.StatusCode, string(body))
+}
+
+// prepareCreateRunCaller qualifies the two-step executor before local state or
+// task writes. Unattended contexts have no anonymous fallback. Direct raw
+// proxy requests retain the owner's exact-parent verification at CreateRun.
+func (c *AgentManagerClient) prepareCreateRunCaller(ctx context.Context) (context.Context, error) {
+	if admission, ok := effortCaller(ctx); ok {
+		if e := admission.authority.Check(ctx); e != nil {
+			return nil, e
+		}
+		return ctx, nil
+	}
+	proof := createRunCaller(ctx)
+	headers := http.Header{}
+	if proof.authorization != "" {
+		headers.Set("Authorization", proof.authorization)
+	}
+	if proof.runIdentity != "" {
+		headers.Set("X-Agent-Identity-Token", proof.runIdentity)
+	}
+	verifier := c.createCallerVerifier
+	if verifier == nil {
+		verifier = owneridentity.NewClient(owneridentity.Config{Resolver: discovery.NewResolver(discovery.ResolverConfig{})})
+	}
+	return owneridentity.AuthorizeCreateRunCaller(ctx, headers, verifier, time.Now())
+}
+
+// SetFiniteEffortAuthority requires explicit configured custody and policy
+// bindings. No default or credential-free enrollment is performed.
+func (c *AgentManagerClient) SetFiniteEffortAuthority(a *FiniteEffortAuthority) { c.efforts = a }
+
+// Redact the request-local finite proof too: it is minted at transport time,
+// so it is absent from the ordinary caller context.
+func redactEffortResponseError(err error, resp *http.Response) error {
+	if err == nil || resp == nil || resp.Request == nil {
+		return err
+	}
+	raw := resp.Request.Header.Get(effortauthority.Header)
+	if raw == "" {
+		return err
+	}
+	message := err.Error()
+	secrets := []string{raw, url.QueryEscape(raw), base64.StdEncoding.EncodeToString([]byte(raw)), base64.RawURLEncoding.EncodeToString([]byte(raw))}
+	if decoded, e := base64.RawURLEncoding.DecodeString(raw); e == nil {
+		secrets = append(secrets, string(decoded))
+	}
+	for _, secret := range secrets {
+		if secret != "" {
+			message = strings.ReplaceAll(message, secret, "[redacted]")
+		}
+	}
+	return fmt.Errorf("%s", message)
 }

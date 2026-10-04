@@ -9,6 +9,18 @@ resume set.
 deletion list, exit gate, non-goals), the last ~20 slice-log lines, open
 directives, and the scenario docs the brief names.
 
+**Before the first write.** Retain a bounded byte snapshot and hash manifest of
+the exact admitted source paths through the owner's existing artifact route,
+including untracked files and explicit absence for files you will create. Record
+the artifact identity and capture time in the slice log. Capture generated
+owner outputs before a permitted generator/materializer can replace them. If
+this attempt resumes, preserve its original baseline and add a dated checkpoint;
+never relabel later bytes as the original pre-run state. At handoff compare the
+allowed write set with that baseline, naming concurrent/unknown attribution and
+validation side effects. Do not restore over another writer or claim a whole
+dirty checkout diff is your contribution. This is evidence inside the existing
+admission, not a new product or parent-release gate.
+
 **Loop.**
 1. Make one change and run its focused checks. A change whose checks pass is a
    work unit. Size units as meaningful steps (a module, an owner or a whole

@@ -73,6 +73,12 @@ func TestHandleWebSocketSupportsTypedAndLegacyClientMessages(t *testing.T) {
 		t.Fatalf("marshal subscription: %v", err)
 	}
 	writeMessage(subscribe)
+	// WebSocket frames are ordered: the pong proves the earlier subscription
+	// was processed before the hub publishes the subscribed progress event.
+	writeMessage(typedPing)
+	if pong := readMessage(); pong.Type != domainpb.AgentManagerWsMessageType_AGENT_MANAGER_WS_MESSAGE_TYPE_PONG || pong.GetPong() == nil {
+		t.Fatalf("expected subscription barrier pong, got %+v", pong)
+	}
 	hub.BroadcastProgress(runID, domain.RunPhaseExecuting, 45, "checking durable state")
 	if progress := readMessage(); progress.Type != domainpb.AgentManagerWsMessageType_AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_PROGRESS || progress.GetRunId() != runID.String() || progress.GetRunProgress().GetPercentComplete() != 45 {
 		t.Fatalf("expected subscribed progress update, got %+v", progress)

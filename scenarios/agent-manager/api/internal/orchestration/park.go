@@ -223,6 +223,9 @@ func (o *Orchestrator) WakeRun(ctx context.Context, in WakeRunInput) (_ *domain.
 	if run.Status != domain.RunStatusParked {
 		return o.attachRunActions(ctx, run), nil
 	}
+	if err := o.checkEffortContinuation(ctx, run); err != nil {
+		return nil, domain.RefuseBeforeEffects(err)
+	}
 	if err := validateExecutionModel(run.ResolvedConfig); err != nil {
 		return nil, err
 	}

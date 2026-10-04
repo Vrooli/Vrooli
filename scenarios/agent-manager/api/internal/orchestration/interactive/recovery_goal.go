@@ -1,3 +1,4 @@
+// Responsibility: inspect retained transcript goals without replaying tool effects.
 package interactive
 
 import (

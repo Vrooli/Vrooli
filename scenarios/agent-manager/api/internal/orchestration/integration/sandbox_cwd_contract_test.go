@@ -166,6 +166,8 @@ func TestSandboxCwdContract_ProtectedRoutesThroughSandbox(t *testing.T) {
 		newTestRolePolicyOption(t),
 		orchestration.WithSandbox(provider),
 		orchestration.WithRunStateRoot(t.TempDir()),
+
+		fixtureOwnerIdentityOption(),
 	)
 
 	profile, err := svc.CreateProfile(ctx, &domain.AgentProfile{
@@ -196,11 +198,11 @@ func TestSandboxCwdContract_ProtectedRoutesThroughSandbox(t *testing.T) {
 	// picks RunModeSandboxed from the profile's Mode=Protected. If a
 	// future regression downgrades it (the original bypass shape), the
 	// codec WorkingDir assertion below catches it.
-	run, err := svc.CreateRun(ctx, orchestration.CreateRunRequest{
+	run, err := svc.CreateRun(ctx, authenticatedCreateRunFixture(orchestration.CreateRunRequest{
 		TaskID:         task.ID,
 		AgentProfileID: &profile.ID,
 		Prompt:         "sandbox-cwd contract test",
-	})
+	}))
 	if err != nil {
 		t.Fatalf("CreateRun: %v", err)
 	}
@@ -304,6 +306,8 @@ func TestSandboxCwdContract_OffRunsInPlace(t *testing.T) {
 		newTestRolePolicyOption(t),
 		orchestration.WithSandbox(provider),
 		orchestration.WithRunStateRoot(t.TempDir()),
+
+		fixtureOwnerIdentityOption(),
 	)
 
 	profile, err := svc.CreateProfile(ctx, &domain.AgentProfile{
@@ -328,11 +332,11 @@ func TestSandboxCwdContract_OffRunsInPlace(t *testing.T) {
 		t.Fatalf("CreateTask: %v", err)
 	}
 
-	run, err := svc.CreateRun(ctx, orchestration.CreateRunRequest{
+	run, err := svc.CreateRun(ctx, authenticatedCreateRunFixture(orchestration.CreateRunRequest{
 		TaskID:         task.ID,
 		AgentProfileID: &profile.ID,
 		Prompt:         "off-mode contract test",
-	})
+	}))
 	if err != nil {
 		t.Fatalf("CreateRun: %v", err)
 	}

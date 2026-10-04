@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/vrooli/api-core/effortauthority"
 	"log"
 	"os"
 	"path/filepath"
@@ -104,8 +105,12 @@ const (
 )
 
 type queuedExecution struct {
-	AgentID    string `json:"AgentID"`
-	ProfileKey string `json:"ProfileKey"`
+	EffortBinding   *effortauthority.Binding `json:"effortBinding,omitempty"`
+	ManualAdmission bool                     `json:"manual_admission,omitempty"`
+	// Only in-memory caller proof. Recovery requires fresh authorized admission.
+	caller     context.Context `json:"-"`
+	AgentID    string          `json:"AgentID"`
+	ProfileKey string          `json:"ProfileKey"`
 	// RunID is the agent-manager run ID for entries in the running slice.
 	// Queued entries (not yet dispatched) carry an empty RunID; it is
 	// populated by Executor.Execute via SetRunningRunID once CreateRun
@@ -138,6 +143,7 @@ type queuedExecution struct {
 }
 
 type runningEntry struct {
+	EffortBinding        *effortauthority.Binding
 	ProfileKey           string
 	RunID                string
 	State                string
@@ -229,7 +235,22 @@ func (c *TeamExecutionContext) Configure(queuePolicy string, maxConcurrentRuns i
 
 // Enqueue adds an agent to the team's execution queue. If capacity is available,
 // execution starts immediately. Otherwise, the member is queued.
-func (c *TeamExecutionContext) Enqueue(_ context.Context, agentID, profileKey string) (*EnqueueResult, error) {
+func (c *TeamExecutionContext) Enqueue(ctx context.Context, agentID, profileKey string) (*EnqueueResult, error) {
+	worker := context.Background()
+	manualAdmission := false
+	if client, ok := c.agentClient.(*AgentManagerClient); ok {
+		manualAdmission = true
+		qualified, err := client.prepareCreateRunCaller(ctx)
+		if err != nil {
+			return nil, NewDispatchRejectedError(err)
+		}
+		carried, err := carryQualifiedCaller(qualified, context.Background())
+		if err != nil {
+			return nil, NewDispatchRejectedError(err)
+		}
+		proof := createRunCaller(ctx)
+		worker = withCreateRunCaller(carried, proof.authorization, proof.runIdentity)
+	}
 	c.mu.Lock()
 	if _, ok := c.running[agentID]; ok {
 		c.mu.Unlock()
@@ -248,18 +269,27 @@ func (c *TeamExecutionContext) Enqueue(_ context.Context, agentID, profileKey st
 	}
 
 	if len(c.running) < c.maxConcurrentRuns {
-		c.running[agentID] = runningEntry{ProfileKey: profileKey}
-		c.persistLocked()
+		c.running[agentID] = runningEntry{ProfileKey: profileKey, EffortBinding: qualifiedEffortBinding(worker)}
+		if err := c.persistLocked(); err != nil && qualifiedEffortBinding(worker) != nil {
+			delete(c.running, agentID)
+			c.mu.Unlock()
+			return nil, NewDispatchUncertainError(fmt.Errorf("finite queue save failed: %w", err))
+		}
 		c.mu.Unlock()
-		c.startExecution(agentID, profileKey)
+		c.startExecution(agentID, profileKey, worker)
 		result.Status = "started"
 		result.Position = 0
 		return result, nil
 	}
 
-	c.queue = append(c.queue, queuedExecution{AgentID: agentID, ProfileKey: profileKey})
+	c.queue = append(c.queue, queuedExecution{AgentID: agentID, ProfileKey: profileKey, caller: worker, ManualAdmission: manualAdmission, EffortBinding: qualifiedEffortBinding(worker)})
 	c.queued[agentID] = true
-	c.persistLocked()
+	if err := c.persistLocked(); err != nil && qualifiedEffortBinding(worker) != nil {
+		c.queue = c.queue[:len(c.queue)-1]
+		delete(c.queued, agentID)
+		c.mu.Unlock()
+		return nil, NewDispatchUncertainError(fmt.Errorf("finite queue save failed: %w", err))
+	}
 	c.mu.Unlock()
 	return result, nil
 }
@@ -336,28 +366,60 @@ type persistedTeamQueue struct {
 
 func (c *TeamExecutionContext) dispatchAvailableLocked() []queuedExecution {
 	var dispatches []queuedExecution
-	for len(c.running) < c.maxConcurrentRuns && len(c.queue) > 0 {
+	savedQueue := append([]queuedExecution(nil), c.queue...)
+	savedRunning := make(map[string]runningEntry, len(c.running))
+	for k, v := range c.running {
+		savedRunning[k] = v
+	}
+	savedQueued := make(map[string]bool, len(c.queued))
+	for k, v := range c.queued {
+		savedQueued[k] = v
+	}
+	// A bounded scan keeps expired/recovered entries held without blocking other
+	// callers. Their proof is never renewed from a different queued request.
+	scans := len(c.queue)
+	for len(c.running) < c.maxConcurrentRuns && len(c.queue) > 0 && scans > 0 {
+		scans--
 		next := c.queue[0]
 		c.queue = c.queue[1:]
+		if _, real := c.agentClient.(*AgentManagerClient); real {
+			if next.caller == nil || requireQualifiedCaller(next.caller) != nil {
+				next.State = "caller_required"
+				c.queue = append(c.queue, next)
+				continue
+			}
+		}
 		delete(c.queued, next.AgentID)
-		c.running[next.AgentID] = runningEntry{ProfileKey: next.ProfileKey}
+		c.running[next.AgentID] = runningEntry{ProfileKey: next.ProfileKey, EffortBinding: next.EffortBinding}
 		dispatches = append(dispatches, next)
 	}
-	c.persistLocked()
+	if err := c.persistLocked(); err != nil {
+		for _, d := range dispatches {
+			if d.EffortBinding != nil {
+				c.queue, c.running, c.queued = savedQueue, savedRunning, savedQueued
+				log.Printf("team_execution: finite dispatch held because queue save failed: %v", err)
+				return nil
+			}
+		}
+	}
 	return dispatches
 }
 
 func (c *TeamExecutionContext) startExecutions(dispatches []queuedExecution) {
 	for _, next := range dispatches {
-		c.startExecution(next.AgentID, next.ProfileKey)
+		c.startExecution(next.AgentID, next.ProfileKey, next.caller)
 	}
 }
 
-func (c *TeamExecutionContext) startExecution(agentID, profileKey string) {
+func (c *TeamExecutionContext) startExecution(agentID, profileKey string, caller context.Context) {
 	c.executionWG.Add(1)
 	go func() {
 		defer c.executionWG.Done()
-		result, err := c.executor.Execute(context.Background(), c.teamID, agentID, profileKey)
+		ctx := caller
+		if ctx == nil {
+			ctx = context.Background()
+		}
+		result, err := c.executor.Execute(ctx, c.teamID, agentID, profileKey)
 		if err != nil {
 			if IsDispatchUncertain(err) {
 				// The owner may have accepted the run. Retain the slot as an
@@ -384,13 +446,15 @@ func (c *TeamExecutionContext) Shutdown() {
 // start request leaves the process. A crash between here and the response
 // recovers as a visible, replayable obligation.
 func (c *TeamExecutionContext) BeginDispatch(agentID string, intent DispatchIntent) {
+	_ = c.BeginDispatchDurable(agentID, intent)
+}
+func (c *TeamExecutionContext) BeginDispatchDurable(agentID string, intent DispatchIntent) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	entry, ok := c.running[agentID]
 	if !ok {
-		log.Printf("team_execution: BeginDispatch called for %s/%s not in running map", c.teamID, agentID)
-		return
+		return ErrRunningEntryNotFound
 	}
 	entry.State = ObligationDispatchUncertain
 	entry.IdempotencyKey = intent.IdempotencyKey
@@ -400,7 +464,7 @@ func (c *TeamExecutionContext) BeginDispatch(agentID string, intent DispatchInte
 	entry.WorkloadKey = intent.WorkloadKey
 	entry.WorkloadInstance = intent.WorkloadInstance
 	c.running[agentID] = entry
-	c.persistLocked()
+	return c.persistLocked()
 }
 
 // ReconcileDispatch resolves a retained dispatch_uncertain obligation by
@@ -435,6 +499,18 @@ func (c *TeamExecutionContext) ReconcileDispatch(ctx context.Context, agentID st
 		c.mu.Unlock()
 		return fmt.Errorf("cannot replay %s/%s dispatch: agent client is not configured", c.teamID, agentID)
 	}
+	if client, ok := c.agentClient.(*AgentManagerClient); ok && entry.EffortBinding != nil {
+		if client.efforts == nil {
+			c.mu.Unlock()
+			return effortauthority.ErrRefused
+		}
+		restored, e := client.efforts.Restore(ctx, *entry.EffortBinding, c.teamID, agentID, entry.ProfileKey)
+		if e != nil {
+			c.mu.Unlock()
+			return e
+		}
+		ctx = restored
+	}
 	profileKey := entry.ProfileKey
 	intent := DispatchIntent{
 		IdempotencyKey:   entry.IdempotencyKey,
@@ -461,6 +537,9 @@ func (c *TeamExecutionContext) ReconcileDispatch(ctx context.Context, agentID st
 	if err != nil {
 		if IsDispatchUncertain(err) {
 			c.MarkDispatchUncertain(agentID, err.Error())
+			return err
+		}
+		if entry.EffortBinding != nil {
 			return err
 		}
 		// Definitive owner refusal: the intent can never become a run.
@@ -612,15 +691,31 @@ func (c *TeamExecutionContext) Recover(ctx context.Context) {
 		}
 	}
 
-	if len(persisted.Queue) > 0 {
-		log.Printf("team_execution: dropping %d stale queued tick(s) for %s on recovery", len(persisted.Queue), c.teamID)
-	}
 	c.queue = make([]queuedExecution, 0)
 	c.queued = make(map[string]bool)
+	for _, item := range persisted.Queue {
+		if !item.ManualAdmission {
+			continue
+		} // stale scheduled ticks remain discarded
+		item.caller = nil
+		item.State = "caller_required"
+		if client, ok := c.agentClient.(*AgentManagerClient); ok && client.efforts != nil && item.EffortBinding != nil {
+			item.caller, _ = client.efforts.Restore(ctx, *item.EffortBinding, c.teamID, item.AgentID, item.ProfileKey)
+			if item.caller != nil {
+				item.State = ""
+			}
+		}
+		c.queue = append(c.queue, item)
+		c.queued[item.AgentID] = true
+	}
 
-	// Write cleaned/reconciled state back to disk.
-	c.persistLocked()
+	// Write cleaned/reconciled state back to disk before any replay.
+	saveErr := c.persistLocked()
 	c.mu.Unlock()
+	if saveErr != nil {
+		log.Printf("team_execution: recovery held because queue save failed: %v", saveErr)
+		return
+	}
 
 	for _, agentID := range replayable {
 		if err := c.ReconcileDispatch(ctx, agentID); err != nil {
@@ -636,6 +731,7 @@ func (c *TeamExecutionContext) Recover(ctx context.Context) {
 func (c *TeamExecutionContext) reconcileRunningEntry(ctx context.Context, item queuedExecution) (runningEntry, bool) {
 	base := runningEntry{
 		ProfileKey:           item.ProfileKey,
+		EffortBinding:        item.EffortBinding,
 		RunID:                item.RunID,
 		IdempotencyKey:       item.IdempotencyKey,
 		TaskID:               item.TaskID,
@@ -712,12 +808,13 @@ func (c *TeamExecutionContext) ClearRunning(ctx context.Context, agentID string,
 	return nil
 }
 
-func (c *TeamExecutionContext) persistLocked() {
+func (c *TeamExecutionContext) persistLocked() error {
 	running := make([]queuedExecution, 0, len(c.running))
 	for agentID, entry := range c.running {
 		running = append(running, queuedExecution{
 			AgentID:              agentID,
 			ProfileKey:           entry.ProfileKey,
+			EffortBinding:        entry.EffortBinding,
 			RunID:                entry.RunID,
 			State:                entry.State,
 			IdempotencyKey:       entry.IdempotencyKey,
@@ -743,19 +840,41 @@ func (c *TeamExecutionContext) persistLocked() {
 
 	bytes, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
-		log.Printf("team_execution: failed to marshal queue for %s: %v", c.teamID, err)
-		return
+		return err
 	}
 
 	filePath := c.queueFilePath()
 	if err := os.MkdirAll(filepath.Dir(filePath), 0o755); err != nil {
-		log.Printf("team_execution: failed to create dir for %s: %v", c.teamID, err)
-		return
+		return err
 	}
 
-	if err := os.WriteFile(filePath, bytes, 0o644); err != nil {
-		log.Printf("team_execution: failed to write queue for %s: %v", c.teamID, err)
+	// Queue obligations must survive a process crash before native dispatch.
+	f, err := os.CreateTemp(filepath.Dir(filePath), ".team-queue-*")
+	if err != nil {
+		return err
 	}
+	tmp := f.Name()
+	defer os.Remove(tmp)
+	if _, err = f.Write(bytes); err != nil {
+		f.Close()
+		return err
+	}
+	if err = f.Sync(); err != nil {
+		f.Close()
+		return err
+	}
+	if err = f.Close(); err != nil {
+		return err
+	}
+	if err = os.Rename(tmp, filePath); err != nil {
+		return err
+	}
+	dir, err := os.Open(filepath.Dir(filePath))
+	if err != nil {
+		return err
+	}
+	defer dir.Close()
+	return dir.Sync()
 }
 
 func (c *TeamExecutionContext) queueFilePath() string {

@@ -193,6 +193,8 @@ func runClosedDiffScenario(t *testing.T, archive *sandbox.DiffResult) (*orchestr
 		newTestRolePolicyOption(t),
 		orchestration.WithSandbox(provider),
 		orchestration.WithRunStateRoot(t.TempDir()),
+
+		fixtureOwnerIdentityOption(),
 	)
 
 	profile, err := svc.CreateProfile(ctx, &domain.AgentProfile{
@@ -216,11 +218,11 @@ func runClosedDiffScenario(t *testing.T, archive *sandbox.DiffResult) (*orchestr
 		t.Fatalf("CreateTask: %v", err)
 	}
 
-	run, err := svc.CreateRun(ctx, orchestration.CreateRunRequest{
+	run, err := svc.CreateRun(ctx, authenticatedCreateRunFixture(orchestration.CreateRunRequest{
 		TaskID:         task.ID,
 		AgentProfileID: &profile.ID,
 		Prompt:         "closed-run-diff scenario",
-	})
+	}))
 	if err != nil {
 		t.Fatalf("CreateRun: %v", err)
 	}

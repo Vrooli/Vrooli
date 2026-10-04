@@ -216,6 +216,16 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 			return e.FiniteLeader.Dispatch(ctx, teamID, agentID)
 		}
 	}
+	// The real owner HTTP adapter requires verified request-local identity
+	// before configuration, source-ledger or task effects. Finite-leader new
+	// admission has the same check in its own owner adapter boundary.
+	if client, ok := e.agentClient.(*AgentManagerClient); ok {
+		qualified, err := client.prepareCreateRunCaller(ctx)
+		if err != nil {
+			return nil, NewDispatchRejectedError(err)
+		}
+		ctx = qualified
+	}
 	startedAt := time.Now().UTC()
 	result := &ExecutionResult{
 		TeamID:    teamID,
@@ -356,14 +366,27 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 	// process dies between here and the response, recovery sees an obligation
 	// (with the idempotency key) instead of a free slot.
 	if e.teamExecStore != nil {
-		e.teamExecStore.BeginDispatch(teamID, agentID, DispatchIntent{
+		intent := DispatchIntent{
 			IdempotencyKey:   dispatchKey,
 			TaskID:           createdTask.ID,
 			RunTag:           runTag,
 			WorkloadKind:     workloadKind,
 			WorkloadKey:      workloadKey,
 			WorkloadInstance: workloadInstance,
-		})
+		}
+		if qualifiedEffortBinding(ctx) != nil {
+			durable, ok := e.teamExecStore.(interface {
+				BeginDispatchDurable(string, string, DispatchIntent) error
+			})
+			if !ok {
+				return nil, NewDispatchUncertainError(fmt.Errorf("finite queue has no durable dispatch writer"))
+			}
+			if err := durable.BeginDispatchDurable(teamID, agentID, intent); err != nil {
+				return nil, NewDispatchUncertainError(fmt.Errorf("finite dispatch intent save failed: %w", err))
+			}
+		} else {
+			e.teamExecStore.BeginDispatch(teamID, agentID, intent)
+		}
 	}
 
 	run, err := e.agentClient.CreateRun(ctx, runReq)

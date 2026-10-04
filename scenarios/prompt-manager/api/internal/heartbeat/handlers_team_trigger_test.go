@@ -39,6 +39,10 @@ func TestTriggerTeam_TeamNotFound(t *testing.T) {
 	req = mux.SetURLVars(req, map[string]string{"id": "nonexistent"})
 	w := httptest.NewRecorder()
 
+	handlers.runCallerValidator = auth01ConversationVerifier{}
+
+	req.Header.Set("Authorization", "Bearer fixture-owner")
+
 	handlers.TriggerTeam(w, req)
 
 	if w.Code != http.StatusNotFound {
@@ -58,6 +62,10 @@ func TestTriggerTeam_TeamDisabled(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/teams/team-1/trigger", nil)
 	req = mux.SetURLVars(req, map[string]string{"id": "team-1"})
 	w := httptest.NewRecorder()
+
+	handlers.runCallerValidator = auth01ConversationVerifier{}
+
+	req.Header.Set("Authorization", "Bearer fixture-owner")
 
 	handlers.TriggerTeam(w, req)
 
@@ -91,6 +99,10 @@ func TestTriggerTeam_LeaderLedTargetsExplicitLead(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/teams/team-sp/trigger", nil)
 	req = mux.SetURLVars(req, map[string]string{"id": "team-sp"})
 	w := httptest.NewRecorder()
+
+	handlers.runCallerValidator = auth01ConversationVerifier{}
+
+	req.Header.Set("Authorization", "Bearer fixture-owner")
 
 	handlers.TriggerTeam(w, req)
 
@@ -131,6 +143,10 @@ func TestTriggerTeam_LeaderLedRequiresActiveLeadMembership(t *testing.T) {
 	req = mux.SetURLVars(req, map[string]string{"id": "team-sp"})
 	w := httptest.NewRecorder()
 
+	handlers.runCallerValidator = auth01ConversationVerifier{}
+
+	req.Header.Set("Authorization", "Bearer fixture-owner")
+
 	handlers.TriggerTeam(w, req)
 
 	if w.Code != http.StatusBadRequest {
@@ -155,6 +171,10 @@ func TestTriggerTeam_LeaderLedRequiresLeadHeartbeatConfig(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/teams/team-sp/trigger", nil)
 	req = mux.SetURLVars(req, map[string]string{"id": "team-sp"})
 	w := httptest.NewRecorder()
+
+	handlers.runCallerValidator = auth01ConversationVerifier{}
+
+	req.Header.Set("Authorization", "Bearer fixture-owner")
 
 	handlers.TriggerTeam(w, req)
 
@@ -181,6 +201,10 @@ func TestTriggerTeam_MultiProcessNoConfigs(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/teams/team-mp/trigger", nil)
 	req = mux.SetURLVars(req, map[string]string{"id": "team-mp"})
 	w := httptest.NewRecorder()
+
+	handlers.runCallerValidator = auth01ConversationVerifier{}
+
+	req.Header.Set("Authorization", "Bearer fixture-owner")
 
 	handlers.TriggerTeam(w, req)
 
@@ -226,6 +250,10 @@ func TestTriggerTeam_ExecutorNotConfigured(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/teams/team-1/trigger", nil)
 	req = mux.SetURLVars(req, map[string]string{"id": "team-1"})
 	w := httptest.NewRecorder()
+
+	handlers.runCallerValidator = auth01ConversationVerifier{}
+
+	req.Header.Set("Authorization", "Bearer fixture-owner")
 
 	handlers.TriggerTeam(w, req)
 
@@ -278,6 +306,8 @@ func TestTriggerTeam_MemberAlreadyQueued(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/teams/team-q/trigger", nil)
 	req = mux.SetURLVars(req, map[string]string{"id": "team-q"})
 	w := httptest.NewRecorder()
+	handlers.runCallerValidator = auth01ConversationVerifier{}
+	req.Header.Set("Authorization", "Bearer fixture-owner")
 	handlers.TriggerTeam(w, req)
 
 	if w.Code != http.StatusAccepted {
@@ -288,6 +318,8 @@ func TestTriggerTeam_MemberAlreadyQueued(t *testing.T) {
 	req2 := httptest.NewRequest(http.MethodPost, "/teams/team-q/trigger", nil)
 	req2 = mux.SetURLVars(req2, map[string]string{"id": "team-q"})
 	w2 := httptest.NewRecorder()
+	handlers.runCallerValidator = auth01ConversationVerifier{}
+	req2.Header.Set("Authorization", "Bearer fixture-owner")
 	handlers.TriggerTeam(w2, req2)
 
 	if w2.Code != http.StatusConflict {
@@ -325,6 +357,10 @@ func TestTriggerTeam_IndependentTriggersConfiguredMembers(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/teams/team-independent/trigger", nil)
 	req = mux.SetURLVars(req, map[string]string{"id": "team-independent"})
 	w := httptest.NewRecorder()
+
+	handlers.runCallerValidator = auth01ConversationVerifier{}
+
+	req.Header.Set("Authorization", "Bearer fixture-owner")
 
 	handlers.TriggerTeam(w, req)
 

@@ -41,10 +41,12 @@ func conversationFixture(t *testing.T) (*Handlers, *mockAgentClient, func(string
 		t.Fatal(err)
 	}
 	client := newMockAgentClient().WithCreateRunResponse(&Run{ID: "run-1", Status: "running"})
-	h := NewHandlers(HandlersDeps{TeamStore: teams, AgentStore: agents, RelationStore: fs.Relations(), Executor: newTestExecutor(t, teams, agents, nil, "", nil, nil), AgentClient: client})
+	h := NewHandlers(HandlersDeps{RunCallerValidator: auth01ConversationVerifier{}, TeamStore: teams, AgentStore: agents, RelationStore: fs.Relations(), Executor: newTestExecutor(t, teams, agents, nil, "", nil, nil), AgentClient: client})
 	return h, client, func(body string) *httptest.ResponseRecorder {
 		w := httptest.NewRecorder()
-		h.CreateRun(w, httptest.NewRequest(http.MethodPost, "/runs", bytes.NewBufferString(body)))
+		req := httptest.NewRequest(http.MethodPost, "/runs", bytes.NewBufferString(body))
+		req.Header.Set("Authorization", "Bearer fixture-owner")
+		h.CreateRun(w, req)
 		return w
 	}
 }
@@ -100,8 +102,8 @@ func TestMemberConversationRetryAndConflict(t *testing.T) {
 	if w := send(conversationBody); w.Code != 200 || !strings.Contains(w.Body.String(), "run-1") {
 		t.Fatal(w.Body.String())
 	}
-	if len(client.createRunCalls) != 1 || len(client.createTaskCalls) != 1 {
-		t.Fatal("retry duplicated work")
+	if len(client.createRunCalls) != 2 || len(client.createTaskCalls) != 1 {
+		t.Fatal("replay must requalify with owner without another task")
 	}
 	if w := send(strings.Replace(conversationBody, "How is the garden?", "Different message", 1)); w.Code != 409 {
 		t.Fatalf("expected conflict: %d %s", w.Code, w.Body.String())

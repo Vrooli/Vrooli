@@ -728,6 +728,7 @@ func TestExecute_EndToEndWithHTTPServer(t *testing.T) {
 	defer srv.Close()
 
 	client := newTestClient(t, srv)
+	client.createCallerVerifier = auth01ConversationVerifier{}
 	registry := NewRunRegistry(t.TempDir())
 	executor := newTestExecutor(t, teamStore, agentStore, client, t.TempDir(), registry, nil)
 
@@ -735,7 +736,7 @@ func TestExecute_EndToEndWithHTTPServer(t *testing.T) {
 	completeCalled.Add(1)
 	executor.OnComplete = func(_, _ string) { completeCalled.Done() }
 
-	result, err := executor.Execute(context.Background(), "team-1", "agent-1", "test-profile")
+	result, err := executor.Execute(withCreateRunCaller(context.Background(), "Bearer fixture-owner", ""), "team-1", "agent-1", "test-profile")
 	if err != nil {
 		t.Fatalf("Execute: %v", err)
 	}
@@ -775,9 +776,10 @@ func TestExecute_AgentManagerReturnsValidationError(t *testing.T) {
 	defer srv.Close()
 
 	client := newTestClient(t, srv)
+	client.createCallerVerifier = auth01ConversationVerifier{}
 	executor := newTestExecutor(t, teamStore, agentStore, client, t.TempDir(), nil, nil)
 
-	result, err := executor.Execute(context.Background(), "team-1", "agent-1", "p")
+	result, err := executor.Execute(withCreateRunCaller(context.Background(), "Bearer fixture-owner", ""), "team-1", "agent-1", "p")
 	if err == nil {
 		t.Fatal("expected error from validation failure")
 	}
@@ -879,9 +881,10 @@ func TestExecute_AgentManagerReturnsProfileNotFound(t *testing.T) {
 	defer srv.Close()
 
 	client := newTestClient(t, srv)
+	client.createCallerVerifier = auth01ConversationVerifier{}
 	executor := newTestExecutor(t, teamStore, agentStore, client, t.TempDir(), nil, nil)
 
-	result, err := executor.Execute(context.Background(), "team-1", "agent-1", "nonexistent-profile")
+	result, err := executor.Execute(withCreateRunCaller(context.Background(), "Bearer fixture-owner", ""), "team-1", "agent-1", "nonexistent-profile")
 	if err == nil {
 		t.Fatal("expected error for profile not found")
 	}

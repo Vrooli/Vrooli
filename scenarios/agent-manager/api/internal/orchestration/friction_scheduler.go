@@ -1,3 +1,4 @@
+// Responsibility: schedule idempotent publication of recurring friction findings.
 package orchestration
 
 import (

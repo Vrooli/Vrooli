@@ -48,6 +48,10 @@ func TestTriggerHeartbeatRequiresConfig(t *testing.T) {
 	req = mux.SetURLVars(req, map[string]string{"id": "team-1", "agentId": "agent-1"})
 	w := httptest.NewRecorder()
 
+	handlers.runCallerValidator = auth01ConversationVerifier{}
+
+	req.Header.Set("Authorization", "Bearer fixture-owner")
+
 	handlers.TriggerHeartbeat(w, req)
 
 	if w.Code != http.StatusNotFound {
@@ -80,6 +84,10 @@ func TestTriggerHeartbeatRequiresMembership(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/teams/team-1/heartbeats/agent-1/trigger", nil)
 	req = mux.SetURLVars(req, map[string]string{"id": "team-1", "agentId": "agent-1"})
 	w := httptest.NewRecorder()
+
+	handlers.runCallerValidator = auth01ConversationVerifier{}
+
+	req.Header.Set("Authorization", "Bearer fixture-owner")
 
 	handlers.TriggerHeartbeat(w, req)
 
@@ -124,6 +132,8 @@ func TestTriggerHeartbeat_MemberAlreadyQueued(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/teams/team-1/heartbeats/agent-1/trigger", nil)
 	req = mux.SetURLVars(req, map[string]string{"id": "team-1", "agentId": "agent-1"})
 	w := httptest.NewRecorder()
+	handlers.runCallerValidator = auth01ConversationVerifier{}
+	req.Header.Set("Authorization", "Bearer fixture-owner")
 	handlers.TriggerHeartbeat(w, req)
 
 	if w.Code != http.StatusAccepted {
@@ -134,6 +144,8 @@ func TestTriggerHeartbeat_MemberAlreadyQueued(t *testing.T) {
 	req2 := httptest.NewRequest(http.MethodPost, "/teams/team-1/heartbeats/agent-1/trigger", nil)
 	req2 = mux.SetURLVars(req2, map[string]string{"id": "team-1", "agentId": "agent-1"})
 	w2 := httptest.NewRecorder()
+	handlers.runCallerValidator = auth01ConversationVerifier{}
+	req2.Header.Set("Authorization", "Bearer fixture-owner")
 	handlers.TriggerHeartbeat(w2, req2)
 
 	if w2.Code != http.StatusConflict {
@@ -168,6 +180,8 @@ func TestTriggerHeartbeat_DeduplicatesCompletedManualTriggerWithinScheduleWindow
 		req := httptest.NewRequest(http.MethodPost, "/teams/team-1/heartbeats/agent-1/trigger"+strings.Join(query, ""), nil)
 		req = mux.SetURLVars(req, map[string]string{"id": "team-1", "agentId": "agent-1"})
 		w := httptest.NewRecorder()
+		handlers.runCallerValidator = auth01ConversationVerifier{}
+		req.Header.Set("Authorization", "Bearer fixture-owner")
 		handlers.TriggerHeartbeat(w, req)
 		return w
 	}
@@ -238,6 +252,10 @@ func TestTriggerHeartbeat_FullPathWithTeamExecStore(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/teams/team-1/heartbeats/agent-1/trigger", nil)
 	req = mux.SetURLVars(req, map[string]string{"id": "team-1", "agentId": "agent-1"})
 	w := httptest.NewRecorder()
+
+	handlers.runCallerValidator = auth01ConversationVerifier{}
+
+	req.Header.Set("Authorization", "Bearer fixture-owner")
 
 	handlers.TriggerHeartbeat(w, req)
 
@@ -322,6 +340,10 @@ func TestTriggerHeartbeat_DirectExecutionFallback(t *testing.T) {
 	req = mux.SetURLVars(req, map[string]string{"id": "team-1", "agentId": "agent-1"})
 	w := httptest.NewRecorder()
 
+	handlers.runCallerValidator = auth01ConversationVerifier{}
+
+	req.Header.Set("Authorization", "Bearer fixture-owner")
+
 	handlers.TriggerHeartbeat(w, req)
 
 	if w.Code != http.StatusAccepted {
@@ -388,6 +410,10 @@ func TestTriggerHeartbeatBlockedWhenTeamDisabled(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/teams/team-1/heartbeats/agent-1/trigger", nil)
 	req = mux.SetURLVars(req, map[string]string{"id": "team-1", "agentId": "agent-1"})
 	w := httptest.NewRecorder()
+
+	handlers.runCallerValidator = auth01ConversationVerifier{}
+
+	req.Header.Set("Authorization", "Bearer fixture-owner")
 
 	handlers.TriggerHeartbeat(w, req)
 
@@ -467,6 +493,8 @@ func TestEffectiveExecutionStateReportsArchivedTeamAndBlocksTrigger(t *testing.T
 	req := httptest.NewRequest(http.MethodPost, "/teams/team-archived/heartbeats/agent-archived/trigger", nil)
 	req = mux.SetURLVars(req, map[string]string{"id": "team-archived", "agentId": "agent-archived"})
 	w := httptest.NewRecorder()
+	handlers.runCallerValidator = auth01ConversationVerifier{}
+	req.Header.Set("Authorization", "Bearer fixture-owner")
 	handlers.TriggerHeartbeat(w, req)
 	if w.Code != http.StatusConflict {
 		t.Fatalf("expected archived team trigger status 409, got %d: %s", w.Code, w.Body.String())
@@ -508,6 +536,8 @@ func TestTriggerHeartbeat_DeliveryMemberMayWakeSupervisor(t *testing.T) {
 		req.Header.Set(attributionHeaderName, encodeAttribution(t, store.AttributionInfo{Kind: store.KnowledgeKindAgentMember, SpawnOrigin: store.SpawnOriginHeartbeat, TeamID: &fromTeam, MemberID: &member}))
 		req = mux.SetURLVars(req, map[string]string{"id": "supervision", "agentId": "agent-1"})
 		w := httptest.NewRecorder()
+		handlers.runCallerValidator = auth01ConversationVerifier{}
+		req.Header.Set("Authorization", "Bearer fixture-owner")
 		handlers.TriggerHeartbeat(w, req)
 		return w
 	}

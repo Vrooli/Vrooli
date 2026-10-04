@@ -1,3 +1,4 @@
+// Responsibility: reconcile typed investigation completion and retained learning.
 package orchestration
 
 import (

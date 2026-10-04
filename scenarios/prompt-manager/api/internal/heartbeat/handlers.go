@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/owneridentity"
 	"log"
 	"net/http"
 	"os"
@@ -24,16 +26,17 @@ import (
 
 // Handlers provides HTTP handlers for heartbeat operations
 type Handlers struct {
-	teamStore       *store.FileTeamStore
-	agentStore      *store.FileAgentStore
-	relationStore   store.RelationStore
-	scheduler       *Scheduler
-	executor        *Executor
-	runRegistry     *RunRegistry
-	agentClient     AgentClient
-	teamExecStore   *TeamExecutionStore
-	controlStore    *HeartbeatControlStore
-	manualTriggerMu sync.Mutex
+	runCallerValidator owneridentity.Validator
+	teamStore          *store.FileTeamStore
+	agentStore         *store.FileAgentStore
+	relationStore      store.RelationStore
+	scheduler          *Scheduler
+	executor           *Executor
+	runRegistry        *RunRegistry
+	agentClient        AgentClient
+	teamExecStore      *TeamExecutionStore
+	controlStore       *HeartbeatControlStore
+	manualTriggerMu    sync.Mutex
 }
 
 // SetControlStore attaches the heartbeat engagement guard.
@@ -51,26 +54,31 @@ func (h *Handlers) SetControlStore(controlStore *HeartbeatControlStore) {
 // collaborator a test actually needs; every other field being absent is then
 // information rather than noise.
 type HandlersDeps struct {
-	TeamStore     *store.FileTeamStore
-	AgentStore    *store.FileAgentStore
-	RelationStore store.RelationStore
-	Scheduler     *Scheduler
-	Executor      *Executor
-	RunRegistry   *RunRegistry
-	AgentClient   AgentClient
-	TeamExecStore *TeamExecutionStore
+	RunCallerValidator owneridentity.Validator
+	TeamStore          *store.FileTeamStore
+	AgentStore         *store.FileAgentStore
+	RelationStore      store.RelationStore
+	Scheduler          *Scheduler
+	Executor           *Executor
+	RunRegistry        *RunRegistry
+	AgentClient        AgentClient
+	TeamExecStore      *TeamExecutionStore
 }
 
 func NewHandlers(deps HandlersDeps) *Handlers {
+	if deps.RunCallerValidator == nil {
+		deps.RunCallerValidator = owneridentity.NewClient(owneridentity.Config{Resolver: discovery.NewResolver(discovery.ResolverConfig{})})
+	}
 	return &Handlers{
-		teamStore:     deps.TeamStore,
-		agentStore:    deps.AgentStore,
-		relationStore: deps.RelationStore,
-		scheduler:     deps.Scheduler,
-		executor:      deps.Executor,
-		runRegistry:   deps.RunRegistry,
-		agentClient:   deps.AgentClient,
-		teamExecStore: deps.TeamExecStore,
+		runCallerValidator: deps.RunCallerValidator,
+		teamStore:          deps.TeamStore,
+		agentStore:         deps.AgentStore,
+		relationStore:      deps.RelationStore,
+		scheduler:          deps.Scheduler,
+		executor:           deps.Executor,
+		runRegistry:        deps.RunRegistry,
+		agentClient:        deps.AgentClient,
+		teamExecStore:      deps.TeamExecStore,
 	}
 }
 
@@ -659,6 +667,17 @@ func (h *Handlers) DeleteHeartbeat(w http.ResponseWriter, r *http.Request) {
 
 // TriggerHeartbeat handles POST /teams/{id}/heartbeats/{agentId}/trigger - manual trigger
 func (h *Handlers) TriggerHeartbeat(w http.ResponseWriter, r *http.Request) {
+	verifier := h.runCallerValidator
+	if verifier == nil {
+		verifier = owneridentity.NewClient(owneridentity.Config{Resolver: discovery.NewResolver(discovery.ResolverConfig{})})
+	}
+	qualified, authErr := owneridentity.AuthorizeCreateRunCaller(r.Context(), r.Header, verifier, time.Now())
+	if authErr != nil {
+		http.Error(w, "verified human heartbeat caller required", http.StatusUnauthorized)
+		return
+	}
+	qualified = withCreateRunCaller(qualified, r.Header.Get("Authorization"), "")
+	r = r.WithContext(qualified)
 	ctx := r.Context()
 	vars := mux.Vars(r)
 	teamID := vars["id"]
@@ -1707,6 +1726,17 @@ func writeHeartbeatPaused(w http.ResponseWriter, paused *HeartbeatPausedErrorRes
 
 // TriggerTeam handles POST /teams/{id}/trigger - triggers the team according to its runtime and coordination policy.
 func (h *Handlers) TriggerTeam(w http.ResponseWriter, r *http.Request) {
+	verifier := h.runCallerValidator
+	if verifier == nil {
+		verifier = owneridentity.NewClient(owneridentity.Config{Resolver: discovery.NewResolver(discovery.ResolverConfig{})})
+	}
+	qualified, authErr := owneridentity.AuthorizeCreateRunCaller(r.Context(), r.Header, verifier, time.Now())
+	if authErr != nil {
+		http.Error(w, "verified human heartbeat caller required", http.StatusUnauthorized)
+		return
+	}
+	qualified = withCreateRunCaller(qualified, r.Header.Get("Authorization"), "")
+	r = r.WithContext(qualified)
 	ctx := r.Context()
 	vars := mux.Vars(r)
 	teamID := vars["id"]
@@ -2319,10 +2349,26 @@ func (h *Handlers) CreateTask(w http.ResponseWriter, r *http.Request) {
 
 // CreateRun handles POST /runs - creates a run via agent-manager.
 func (h *Handlers) CreateRun(w http.ResponseWriter, r *http.Request) {
+	if len(r.Header.Values("Authorization")) > 1 || len(r.Header.Values("X-Agent-Identity-Token")) > 1 {
+		http.Error(w, "a single proof per identity channel is required", http.StatusUnauthorized)
+		return
+	}
 	if h.agentClient == nil {
 		http.Error(w, "agent client not configured", http.StatusServiceUnavailable)
 		return
 	}
+
+	// Preserve offered proof without using a process credential or stored owner.
+	// The receiving Agent Manager verifies it; this proxy supplies no grant.
+	authorization, runProof := r.Header.Get("Authorization"), r.Header.Get("X-Agent-Identity-Token")
+	parts := strings.Fields(authorization)
+	if (strings.TrimSpace(authorization) == "" && strings.TrimSpace(runProof) == "") ||
+		(len(r.Header.Values("Authorization")) != 0 && (len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer"))) ||
+		(len(r.Header.Values("X-Agent-Identity-Token")) != 0 && strings.TrimSpace(runProof) == "") {
+		http.Error(w, "CreateRun requires an existing caller proof in its correct channel", http.StatusUnauthorized)
+		return
+	}
+	r = r.WithContext(withCreateRunCaller(r.Context(), authorization, runProof))
 
 	var req struct {
 		CreateRunRequest
@@ -2334,6 +2380,16 @@ func (h *Handlers) CreateRun(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if req.Conversation != nil {
+		verifier := h.runCallerValidator
+		if verifier == nil {
+			verifier = owneridentity.NewClient(owneridentity.Config{Resolver: discovery.NewResolver(discovery.ResolverConfig{})})
+		}
+		ctx, err := owneridentity.AuthorizeCreateRunCaller(r.Context(), r.Header, verifier, time.Now())
+		if err != nil {
+			http.Error(w, "verified human conversation caller required", http.StatusUnauthorized)
+			return
+		}
+		r = r.WithContext(ctx)
 		h.createMemberConversation(w, r, req.Conversation, req.CreateRunRequest)
 		return
 	}

@@ -1,3 +1,4 @@
+// Responsibility: resolve declared spawn preferences against runner capabilities.
 package orchestration
 
 import (

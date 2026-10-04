@@ -108,3 +108,30 @@ commands:
   report what an agent did and cannot be cleared by editing the tree.
 - `TestGeneratedRuleTablesMatchTheCatalog` (`memberflow`) fails when a generated
   documentation table has drifted from the rule catalog.
+
+## Complete friction capture fixture (I10 A)
+
+`handlers/teams/friction_capture_test.go` builds the actual CLI into a
+`t.TempDir`, then invokes `team friction-capture --report-file` and receiver
+`team knowledge-list meta-optimization --topic-prefix=friction-inbox/` through
+the production Teams Connect mount and heartbeat knowledge handlers.
+`paths.RootsForTest` supplies all roots; the standalone `FileTeamStore` has no
+Source Ledger attached. Its in-memory corpus belongs only to that test instance.
+The server closes and Go removes the temporary build/report/tree at test end.
+No fixture is written into live team knowledge; no live deletion is performed.
+
+Run from `scenarios/prompt-manager/api`:
+
+```bash
+go test -v ./handlers/teams -run TestFrictionCapture
+```
+
+The synthetic report preserves declared identity, six context anchors, exact
+multiline/special-character content, date, flags and three explanatory paragraphs.
+Prefix intake matches its receipt without a record-ID lookup; repeating identical
+input returns that receipt without another case. The transport fixture simulates
+denied/unavailable writes and a response lost after the real handler commits.
+Read failure and conflicting content prevent another mutation. Legacy typed
+operator calls remain narrower and supported. This proves bounded fixture
+behavior, not live ledger retention, concurrent exactly-once writes, authenticated
+declared identity, curator execution or downstream repair authority.

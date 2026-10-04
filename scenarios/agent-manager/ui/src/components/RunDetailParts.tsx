@@ -409,16 +409,19 @@ export function RunDetailsContent({ run, taskTitle, profileName, durationMs, cos
             <div className="flex items-start gap-2">
               <PauseCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
               <div className="space-y-1">
-                <p className="font-medium">Parked — waiting, not hung</p>
+                <p className="font-medium">Parked — awaiting a result</p>
                 <p className="break-words text-xs">
-                  Suspended (zero tokens) while agent-manager waits on{" "}
+                  The current await condition is{" "}
                   <code className="font-mono">
                     {run.awaitHandle.producer}
                     {run.awaitHandle.key ? `:${run.awaitHandle.key}` : ""}
                   </code>
-                  . It resumes automatically with the result.
+                  {run.awaitHandle.producer === "children"
+                    ? ". It watches for a newly ended direct child; already reported children do not wake it again. New feedback alone does not satisfy this condition."
+                    : "."}
+                  {" "}A result or the deadline schedules a resume.
                   {run.awaitHandle.deadline
-                    ? ` Resumes by ${new Date(timestampMs(run.awaitHandle.deadline)).toLocaleString()} at the latest.`
+                    ? ` Timer deadline: ${new Date(timestampMs(run.awaitHandle.deadline)).toLocaleString()}.`
                     : ""}
                 </p>
               </div>

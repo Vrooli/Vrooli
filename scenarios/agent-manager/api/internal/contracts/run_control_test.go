@@ -7,9 +7,10 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/adapters/runner/codecs"
@@ -88,9 +89,11 @@ func TestDefaultLifecycleVocabularyIsEmittable(t *testing.T) {
 func TestRunConfigFieldLivenessRegistryIsComplete(t *testing.T) {
 	registry := map[string]string{
 		"RunnerType": "resolveExecutionPolicy", "Model": "BuildArgs", "RoleRef": "resolveExecutionPolicy", "MaxTurns": "BuildArgs", "Timeout": "WithTimeout", "Effort": "BuildArgs",
-		"PolicySnapshot": "resolveExecutionPolicy", "Billing": "BuildArgs", "ResultSpec": "structuredResults.Resolve", "AllowedTools": "BuildArgs", "DeniedTools": "BuildArgs", "ToolRestrictionPolicy": "validateToolRestriction",
+		"PreferredRunner": "resolveExecutionPolicy", "Until": "observedGoalMatchesRun", "PolicySnapshot": "resolveExecutionPolicy", "Billing": "BuildArgs", "ResultSpec": "structuredResults.Resolve", "AllowedTools": "BuildArgs", "DeniedTools": "BuildArgs", "ToolRestrictionPolicy": "validateToolRestriction",
 		"SkipPermissionPrompt": "BuildArgs", "Features": "BuildArgs", "ExtraFlags": "BuildArgs", "NetworkAccess": "BuildArgs", "SandboxConfig": "DeriveRunMode", "AllowedPaths": "CreateSandbox", "DeniedPaths": "CreateSandbox", "ManifestIndexSnapshot": "ImportTranscript", "TranscriptCodec": "ImportTranscript", "TranscriptCodecScore": "ImportTranscript",
 		"PreambleInjectedTokens": "ProjectRun", "PreambleTokenBasis": "ProjectRun",
+		"MaxToolCalls": "runDurable", "AllowedEffects": "dependentExecutionPermissionsError", "RequireEffectContainment": "PickFor",
+		"SkillPack": "ProjectProfileSkills", "SkillExperimentID": "ProjectProfileSkillsAssigned", "Admission": "dependentDelegationAdmissionError",
 	}
 	assertFieldRegistry(t, reflect.TypeOf(domain.RunConfig{}), "RunConfig", registry)
 }
@@ -174,11 +177,7 @@ func consumerExists(t *testing.T, symbol string) bool {
 
 func apiRoot(t *testing.T) string {
 	t.Helper()
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("resolve contracts source")
-	}
-	return filepath.Clean(filepath.Join(filepath.Dir(file), "..", ".."))
+	return filepath.Join(repocontracttest.ProjectRoot(t), "scenarios", "agent-manager", "api")
 }
 
 func TestToolRestrictionFallbackSkipsUnsupportedCandidate(t *testing.T) {

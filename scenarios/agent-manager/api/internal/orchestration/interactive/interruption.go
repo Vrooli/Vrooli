@@ -1,3 +1,4 @@
+// Responsibility: classify resumable provider screen interruptions.
 package interactive
 
 import "strings"

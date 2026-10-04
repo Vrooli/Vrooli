@@ -1,3 +1,4 @@
+// Responsibility: share bounded invocation-local maintenance admission with nested operations.
 package orchestration
 
 import (

@@ -5,6 +5,7 @@ package handlers
 import (
 	"bytes"
 	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -23,6 +24,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	coreidentity "github.com/vrooli/api-core/identity"
 	"google.golang.org/protobuf/proto"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
@@ -50,6 +52,28 @@ func encodeProtoJSON(t *testing.T, msg proto.Message) []byte {
 		t.Fatalf("failed to encode proto JSON: %v", err)
 	}
 	return body
+}
+
+// testOwnerCredential and its verifier exist only in disposable HTTP fixtures.
+// Requests must opt in explicitly; production verification is never bypassed.
+const testOwnerCredential = "fixture-human-owner"
+
+type fixtureOwnerVerifier struct{}
+
+func (fixtureOwnerVerifier) Verify(_ context.Context, token string) (coreidentity.Principal, error) {
+	if token != testOwnerCredential {
+		return coreidentity.Principal{}, coreidentity.NewFailure(coreidentity.FailureInvalid, coreidentity.SourceScenarioAuthenticator)
+	}
+	return coreidentity.Principal{
+		Kind: coreidentity.ActorHuman, Verified: true, Subject: "fixture-owner",
+		Scopes: []string{"agent-manager:write", "agent-manager:supervise"}, ExpiresAt: time.Now().Add(time.Hour),
+	}, nil
+}
+
+func authenticatedRunTestRequest(body io.Reader) *http.Request {
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/runs", body)
+	req.Header.Set("Authorization", "Bearer "+testOwnerCredential)
+	return req
 }
 
 // setupTestHandler creates a handler with SQLite-backed repositories for testing.
@@ -101,6 +125,7 @@ func setupTestHandlerWithRunnerAndRepos(t *testing.T, mock *runner.MockRunner) (
 			DefaultProjectRoot: t.TempDir(),
 		}),
 		orchestration.WithEvents(eventStore),
+		orchestration.WithOwnerIdentity(fixtureOwnerVerifier{}),
 		orchestration.WithRunners(registry),
 		orchestration.WithRunStateRoot(t.TempDir()),
 		orchestration.WithRolePolicyState(roleState, handlerRoleResolver{}),
@@ -152,7 +177,7 @@ func createRunnableTestRun(t *testing.T, router *mux.Router) *pb.Run {
 	profileID := profile.Profile.GetId()
 	runBody := encodeProtoJSON(t, &apipb.CreateRunRequest{TaskId: task.Task.GetId(), AgentProfileId: &profileID})
 	runRR := httptest.NewRecorder()
-	router.ServeHTTP(runRR, httptest.NewRequest(http.MethodPost, "/api/v1/runs", bytes.NewReader(runBody)))
+	router.ServeHTTP(runRR, authenticatedRunTestRequest(bytes.NewReader(runBody)))
 	if runRR.Code != http.StatusCreated {
 		t.Fatalf("create run status=%d body=%s", runRR.Code, runRR.Body.String())
 	}

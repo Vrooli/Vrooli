@@ -107,21 +107,9 @@ func (h *Handlers) createMemberConversation(w http.ResponseWriter, r *http.Reque
 		fail(http.StatusConflict, fmt.Errorf("request_id was already used for a different member or message"))
 		return
 	}
-	// Read durable runs as well as using Agent Manager's short-lived idempotency
-	// key. A reload/retry tomorrow must not spawn the same conversation again.
-	existing, err := h.agentClient.ListRuns(ctx, ListRunsOptions{TaskID: taskID, TagPrefix: tag, Limit: 100})
-	if err != nil {
-		fail(http.StatusBadGateway, err)
-		return
-	}
-	if existing != nil {
-		for _, run := range existing.Runs {
-			if run.TaskID == taskID && run.Tag == tag {
-				writeConversationRun(w, run)
-				return
-			}
-		}
-	}
+	// All replays pass through owner CreateRun admission, which verifies the
+	// original caller/task/grant and durable idempotency without redispatch.
+	// ListRuns is a read surface and cannot authorize a conversation replay.
 	runReq := &CreateRunRequest{TaskID: taskID, ProfileRef: &ProfileRef{ProfileKey: profile}, Tag: &tag, IdempotencyKey: "prompt-manager-conversation:" + taskID}
 	// Unassigned personas have no team-member authority to inherit.
 	if req.TeamID != "" {

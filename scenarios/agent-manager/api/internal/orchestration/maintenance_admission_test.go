@@ -38,7 +38,7 @@ func TestMaintenanceFencesNewRunContinueResumeAndAttach(t *testing.T) {
 	}
 	for name, call := range map[string]func() error{
 		"create-force": func() error {
-			_, err := o.CreateRun(t.Context(), CreateRunRequest{TaskID: task.ID, Prompt: "new", Force: true, IdempotencyKey: "new", Environment: map[string]string{workflowExecutionEnv: uuid.NewString()}})
+			_, err := o.CreateRun(t.Context(), authenticatedInternalCreateRunFixture(o, CreateRunRequest{TaskID: task.ID, Prompt: "new", Force: true, IdempotencyKey: "new", Environment: map[string]string{workflowExecutionEnv: uuid.NewString()}}))
 			return err
 		},
 		"continue": func() error {
@@ -77,6 +77,7 @@ func TestMaintenanceKeepsAcceptedRunAndContinuationReplays(t *testing.T) {
 		t.Fatal(err)
 	}
 	run := &domain.Run{ID: uuid.New(), TaskID: task.ID, Status: domain.RunStatusPending, Phase: domain.RunPhaseQueued, IdempotencyKey: "accepted"}
+	authenticatedAcceptedRunFixture(run)
 	if err := repos.Runs.Create(t.Context(), run); err != nil {
 		t.Fatal(err)
 	}
@@ -93,7 +94,7 @@ func TestMaintenanceKeepsAcceptedRunAndContinuationReplays(t *testing.T) {
 	if _, err := gate.Enter(t.Context(), "owner", "rollout"); err != nil {
 		t.Fatal(err)
 	}
-	got, err := o.CreateRun(t.Context(), CreateRunRequest{TaskID: task.ID, IdempotencyKey: "accepted"})
+	got, err := o.CreateRun(t.Context(), authenticatedInternalCreateRunFixture(o, CreateRunRequest{TaskID: task.ID, IdempotencyKey: "accepted"}))
 	if err != nil || got.ID != run.ID {
 		t.Fatalf("accepted run lost: %+v %v", got, err)
 	}
@@ -176,7 +177,7 @@ func TestMaintenanceConcurrentCreateCannotDisappearDuringDrain(t *testing.T) {
 	o.dispatcher.Close()
 	done := make(chan error, 1)
 	go func() {
-		_, err := o.CreateRun(t.Context(), CreateRunRequest{TaskID: uuid.New(), Force: true})
+		_, err := o.CreateRun(t.Context(), authenticatedInternalCreateRunFixture(o, CreateRunRequest{TaskID: uuid.New(), Force: true}))
 		done <- err
 	}()
 	<-tasks.entered

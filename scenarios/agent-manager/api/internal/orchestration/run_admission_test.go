@@ -64,13 +64,13 @@ func TestCreateRunAdmissionUsesFinalSandboxConfig(t *testing.T) {
 	}
 	role, network := "code.default", domain.NetworkAccessNone
 	const key = "final-sandbox-admission"
-	_, err = o.CreateRun(ctx, CreateRunRequest{
+	_, err = o.CreateRun(ctx, authenticatedInternalCreateRunFixture(o, CreateRunRequest{
 		TaskID: task.ID, RoleRef: &role, NetworkAccess: &network, IdempotencyKey: key,
 		SandboxConfig: &domain.SandboxConfig{
 			Mode: domain.SandboxModeProtected, ManualReview: true,
 			WritePolicy: &domain.WorkspaceWritePolicy{Paths: []string{"src"}},
 		},
-	})
+	}))
 	if !errors.Is(err, spawn.ErrDispatcherClosed) {
 		t.Fatalf("expected dispatch refusal after persistence, got %v", err)
 	}

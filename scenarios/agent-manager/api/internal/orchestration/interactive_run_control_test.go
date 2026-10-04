@@ -37,6 +37,7 @@ type recordingSessions struct {
 	getNotFound bool
 	onCreate    func()
 	onPrompt    func()
+	promptErr   error
 	shellScreen string
 }
 
@@ -98,7 +99,7 @@ func (r *recordingSessions) SendPrompt(_ context.Context, _, prompt, source stri
 	r.promptSrc = append(r.promptSrc, source)
 	r.promptText = append(r.promptText, prompt)
 	r.mu.Unlock()
-	return nil
+	return r.promptErr
 }
 
 func (r *recordingSessions) Interrupt(context.Context, string, string) error {
@@ -146,6 +147,55 @@ func persistInteractiveRun(t *testing.T, runs repository.RunRepository, taskID u
 		t.Fatalf("create run: %v", err)
 	}
 	return run
+}
+
+func TestInteractiveGoalObservationSeparatesPauseFromCoordinatorHeartbeat(t *testing.T) {
+	ctx := context.Background()
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	sessions := newRecordingSessions()
+	svc := New(repos.Profiles, repos.Tasks, repos.Runs, WithEvents(eventStore), WithInteractiveSessions(sessions))
+	task := interactiveTestTask(t, svc)
+	run := persistInteractiveRun(t, repos.Runs, task.ID, domain.RunStatusRunning, "provider-session", "wc-1")
+	run.ResolvedConfig.Until = "finish E1"
+	providerAt := time.Now().Add(-2 * time.Hour).UTC().Truncate(time.Second)
+	heartbeatAt := time.Now().UTC().Truncate(time.Second)
+	run.LastHeartbeat = &heartbeatAt
+	if err := repos.Runs.Update(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+	activity := domain.NewProviderMessageEvent(run.ID, "assistant", "work paused", domain.MessageEventData{ProviderOrigin: "codex"})
+	activity.Timestamp = providerAt
+	pause := domain.NewGoalStatusChangedEvent(run.ID, "finish E1", "paused", 2, "owner dependency")
+	pause.Timestamp = providerAt.Add(time.Second)
+	if err := eventStore.Append(ctx, run.ID, activity, pause); err != nil {
+		t.Fatal(err)
+	}
+	mismatch := domain.NewGoalStatusChangedEvent(run.ID, "different objective", "complete", 3, "stale")
+	mismatch.Timestamp = providerAt.Add(2 * time.Second)
+	if err := eventStore.Append(ctx, run.ID, mismatch); err != nil {
+		t.Fatal(err)
+	}
+	observed, err := svc.GetRun(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if observed.Status != domain.RunStatusRunning || observed.ObservedGoalStatus != "paused" || observed.ObservedGoalAt == nil || observed.ProviderActivityAt == nil || !observed.ProviderActivityAt.Equal(providerAt) || observed.LastHeartbeat == nil || !observed.LastHeartbeat.Equal(heartbeatAt) {
+		t.Fatalf("pause/heartbeat/provider projection = %+v", observed)
+	}
+	if _, err := svc.ContinueRun(ctx, ContinueRunRequest{RunID: run.ID, Message: "directive", IdempotencyKey: "paused-directive"}); err == nil || !strings.Contains(err.Error(), "goal is paused") {
+		t.Fatalf("paused input was not rejected before transport: %v", err)
+	}
+	if calls := sessions.callLog(); len(calls) != 0 {
+		t.Fatalf("paused input reached transport: %v", calls)
+	}
+	// An unmatched or rejected parser result never emits a GoalStatusChanged
+	// event. Re-reading the same stream is stable across owner restart/replay.
+	restarted := New(repos.Profiles, repos.Tasks, repos.Runs, WithEvents(eventStore))
+	replayed, err := restarted.GetRun(ctx, run.ID)
+	if err != nil || replayed.ObservedGoalStatus != "paused" || replayed.ProviderActivityAt == nil || !replayed.ProviderActivityAt.Equal(providerAt) {
+		t.Fatalf("replayed observation changed: %+v %v", replayed, err)
+	}
 }
 
 // TestExecuteInteractiveRun_ProtectedBackstop verifies the execution-path backstop
@@ -604,7 +654,7 @@ func TestContinueRunTypesIntoRunningInteractiveSession(t *testing.T) {
 	if err != nil || got == nil || got.Status != domain.RunStatusRunning {
 		t.Fatalf("running session not typed into: %+v %v", got, err)
 	}
-	if log := sessions.callLog(); len(log) != 1 || log[0] != "sendtext" {
+	if log := sessions.callLog(); len(log) != 1 || log[0] != "sendprompt" {
 		t.Fatalf("want exactly one typed message, got %v", log)
 	}
 
@@ -633,6 +683,27 @@ func TestContinueRunTypesIntoRunningInteractiveSession(t *testing.T) {
 	}
 	if log := sessions.callLog(); len(log) != 1 {
 		t.Fatalf("refused continuation reached the session: %v", log)
+	}
+}
+
+func TestInteractivePromptTransportUnknownRetainsIdempotencyReservation(t *testing.T) {
+	ctx := context.Background()
+	repos, _, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	sessions := newRecordingSessions()
+	sessions.promptErr = errors.New("submit result lost after paste")
+	svc := New(repos.Profiles, repos.Tasks, repos.Runs, WithInteractiveSessions(sessions), WithIdempotency(repos.Idempotency))
+	task := interactiveTestTask(t, svc)
+	run := persistInteractiveRun(t, repos.Runs, task.ID, domain.RunStatusRunning, "provider-session", "wc-1")
+	req := ContinueRunRequest{RunID: run.ID, Message: "D5", IdempotencyKey: "same-handoff"}
+	if _, err := svc.ContinueRun(ctx, req); err == nil || !strings.Contains(err.Error(), "outcome unknown") {
+		t.Fatalf("partial transport did not surface unknown: %v", err)
+	}
+	if _, err := svc.ContinueRun(ctx, req); err == nil {
+		t.Fatal("duplicate handoff was resent while outcome unknown")
+	}
+	if calls := sessions.callLog(); len(calls) != 1 || calls[0] != "sendprompt" {
+		t.Fatalf("duplicate handoff effects: %v", calls)
 	}
 }
 

@@ -111,7 +111,7 @@ func TestGetObservedReceiptsReturnsConfiguredObservationState(t *testing.T) {
 	profileID := profile.Profile.GetId()
 	runBody := encodeProtoJSON(t, &apipb.CreateRunRequest{TaskId: task.Task.GetId(), AgentProfileId: &profileID})
 	runRR := httptest.NewRecorder()
-	router.ServeHTTP(runRR, httptest.NewRequest(http.MethodPost, "/api/v1/runs", bytes.NewReader(runBody)))
+	router.ServeHTTP(runRR, authenticatedRunTestRequest(bytes.NewReader(runBody)))
 	var run apipb.CreateRunResponse
 	decodeProtoJSON(t, runRR.Body.Bytes(), &run)
 
@@ -164,7 +164,7 @@ func TestGetObservedReceiptsExplainsEmptyRuntimeState(t *testing.T) {
 	profileID := profile.Profile.GetId()
 	runBody := encodeProtoJSON(t, &apipb.CreateRunRequest{TaskId: task.Task.GetId(), AgentProfileId: &profileID})
 	runRR := httptest.NewRecorder()
-	router.ServeHTTP(runRR, httptest.NewRequest(http.MethodPost, "/api/v1/runs", bytes.NewReader(runBody)))
+	router.ServeHTTP(runRR, authenticatedRunTestRequest(bytes.NewReader(runBody)))
 	var run apipb.CreateRunResponse
 	decodeProtoJSON(t, runRR.Body.Bytes(), &run)
 	rr := httptest.NewRecorder()

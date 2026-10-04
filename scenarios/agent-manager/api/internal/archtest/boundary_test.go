@@ -12,9 +12,10 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 
 	"agent-manager/internal/runsignal"
 )
@@ -519,9 +520,5 @@ func contains(values []string, wanted string) bool {
 
 func scenarioRoot(t *testing.T) string {
 	t.Helper()
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("resolve archtest source")
-	}
-	return filepath.Clean(filepath.Join(filepath.Dir(file), "..", "..", ".."))
+	return filepath.Join(repocontracttest.ProjectRoot(t), "scenarios", "agent-manager")
 }

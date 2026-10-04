@@ -91,6 +91,12 @@ func (s *codexGoalContext) parse(runID uuid.UUID, line string) (runner.GoalMarke
 		if s.threadID != "" && threadID != "" && threadID != s.threadID {
 			return runner.GoalMarker{}, false
 		}
+		// A delayed status for an older objective cannot finalize the newer
+		// objective. A new active marker is the only supported installation of
+		// a changed objective on this session.
+		if s.objective != "" && marker.Objective != s.objective && marker.Status != runner.GoalStatusActive {
+			return runner.GoalMarker{}, false
+		}
 		if threadID != "" {
 			s.threadID = threadID
 		}
@@ -179,7 +185,7 @@ func codexGoalRequestedStatus(envelope codexGoalEnvelope) (runner.GoalStatus, bo
 			status = request.Status
 		}
 	}
-	return status, status.Valid() && status != runner.GoalStatusActive && status != runner.GoalStatusPaused
+	return status, status.Valid()
 }
 
 func codexAcceptedGoalOutput(output json.RawMessage) (codexAcceptedGoal, bool) {

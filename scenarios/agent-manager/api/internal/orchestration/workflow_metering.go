@@ -1,3 +1,4 @@
+// Responsibility: persist workflow usage evidence before bounded driver nudges.
 package orchestration
 
 import (

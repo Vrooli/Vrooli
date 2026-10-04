@@ -289,3 +289,14 @@ func (s *TeamExecutionStore) configureContext(ctx context.Context, teamID string
 	tec.Configure(team.Execution.QueuePolicy, team.Execution.MaxConcurrentRuns)
 	return tec, nil
 }
+
+// BeginDispatchDurable is required by finite effort execution before native dispatch.
+func (s *TeamExecutionStore) BeginDispatchDurable(teamID, agentID string, intent DispatchIntent) error {
+	s.mu.RLock()
+	tec, ok := s.contexts[teamID]
+	s.mu.RUnlock()
+	if !ok {
+		return ErrRunningEntryNotFound
+	}
+	return tec.BeginDispatchDurable(agentID, intent)
+}

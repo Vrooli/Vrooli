@@ -29,11 +29,11 @@ func TestAttachRunActionsList_ActionsPopulated(t *testing.T) {
 
 	// Create two runs
 	for i := 0; i < 2; i++ {
-		_, _ = svc.CreateRun(ctx, orchestration.CreateRunRequest{
+		_, _ = svc.CreateRun(ctx, authenticatedCreateRunFixture(orchestration.CreateRunRequest{
 			TaskID:         task.ID,
 			AgentProfileID: &profile.ID,
 			Prompt:         "Test prompt",
-		})
+		}))
 	}
 
 	runs, err := svc.ListRuns(ctx, orchestration.RunListOptions{})

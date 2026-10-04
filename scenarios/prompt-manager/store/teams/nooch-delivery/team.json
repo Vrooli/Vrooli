@@ -1,0 +1,97 @@
+{
+  "archived": false,
+  "coordination": {
+    "pattern": "leader-led",
+    "leadAgentId": "nooch-delivery-orchestrator",
+    "reportingMode": "leader",
+    "messagingMode": "async-inbox",
+    "capabilities": {
+      "showOrgContext": true,
+      "injectInbox": true,
+      "allowPeerTriggers": false,
+      "showTaskBoardGuidance": true,
+      "showKnowledgeLogGuidance": true,
+      "requireHandoff": true
+    }
+  },
+  "createdAt": "2026-10-03T05:28:13Z",
+  "displayName": "Nooch Delivery",
+  "effortRefs": [
+    "nooch-selected-delivery-2026-10-03"
+  ],
+  "enabled": true,
+  "execution": {
+    "queuePolicy": "serialized",
+    "maxConcurrentRuns": 1
+  },
+  "id": "nooch-delivery",
+  "kind": "team",
+  "lifetime": "finite",
+  "mission": "Finish and independently verify the whole owner-approved selected Nooch product through substantial native epochs.",
+  "operatingContract": {
+    "schemaVersion": 1,
+    "governance": {},
+    "documents": {
+      "planOfRecord": [
+        {
+          "id": "nooch-final-target",
+          "paths": [
+            {
+              "base": "repo-root",
+              "path": "scenarios/nutrition-planner/docs/reference/product-specification.md"
+            }
+          ],
+          "writePolicy": "Final owner-approved product direction; amendments require recorded owner disposition. Engineering implementation follows active grant.",
+          "consumers": [
+            "nooch-delivery-orchestrator"
+          ],
+          "rationale": "Exact accepted current Nooch design and decision boundary."
+        }
+      ],
+      "sharedState": [
+        {
+          "id": "nooch-goal-home",
+          "path": {
+            "base": "repo-root",
+            "path": "scenarios/nutrition-planner/docs/internal/goal"
+          },
+          "kind": "rolling-snapshot",
+          "required": true
+        }
+      ]
+    },
+    "knowledgeTopics": {},
+    "members": {
+      "nooch-delivery-orchestrator": {
+        "lane": "Own Nooch goal home, admit and independently accept epochs under large-effort-orchestration; never implement product work.",
+        "allowedWrites": [
+          {
+            "kind": "handoff"
+          },
+          {
+            "base": "repo-root",
+            "path": "scenarios/nutrition-planner/docs/internal/goal"
+          }
+        ],
+        "safetyCriticalRules": [
+          "Final accepted design/decision revision and owner authority are required before dispatch.",
+          "No Plan Manager or Swarm dispatch; no product implementation by orchestrator.",
+          "Use registered native delivery profiles/permissions/budgets/safeguards; do not inherit investigation-only restrictions.",
+          "Preserve user data and other agents changes; do not steer or alter planner/BAS teams.",
+          "Accept only through native mechanical gates; no silent gate lowering."
+        ],
+        "readOnlyModeBehavior": {
+          "stillWriteKnowledge": false,
+          "stillWriteHandoff": true
+        }
+      }
+    }
+  },
+  "purpose": "delivery",
+  "revision": 3,
+  "runtime": {
+    "mode": "multi-process"
+  },
+  "schemaVersion": 1,
+  "updatedAt": "2026-10-03T05:30:04Z"
+}

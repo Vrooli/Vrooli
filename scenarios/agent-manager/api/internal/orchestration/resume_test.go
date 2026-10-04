@@ -186,7 +186,7 @@ func TestFreshRecoveryReceiptMissingIsReadOnlyAndLineageMustMatch(t *testing.T) 
 		t.Fatal(err)
 	}
 	// A matching key alone cannot certify the wrong source lineage.
-	reader := orchestration.New(repos.Profiles, repos.Tasks, &wrongRecoveryLineageRuns{repos.Runs, claims})
+	reader := orchestration.New(repos.Profiles, repos.Tasks, &wrongRecoveryLineageRuns{repos.Runs, claims}, fixtureOwnerIdentityOption())
 	if got, err := reader.FreshRecoveryAccepted(t.Context(), source.ID, "exact"); err == nil || got != nil {
 		t.Fatal("receipt accepted mismatched source lineage")
 	}
@@ -278,13 +278,13 @@ func TestFreshRecoveryKeepsAdmissionThroughSourceClaimAndCreation(t *testing.T) 
 	if err != nil || accepted == nil || accepted.ID != recovered.ID {
 		t.Fatalf("admitted recovery lost its receipt: %v %v", accepted, err)
 	}
-	if _, err := svc.CreateRun(t.Context(), orchestration.CreateRunRequest{TaskID: task.ID, Force: true, Prompt: "not admitted", IdempotencyKey: "public-must-stay-fenced"}); err == nil {
+	if _, err := svc.CreateRun(t.Context(), authenticatedCreateRunFixture(orchestration.CreateRunRequest{TaskID: task.ID, Force: true, Prompt: "not admitted", IdempotencyKey: "public-must-stay-fenced"})); err == nil {
 		t.Fatal("private nested admission bypass escaped to public Force")
 	}
 	if claims.admittedCtx == nil {
 		t.Fatal("source claim did not receive its admission context")
 	}
-	if _, err := svc.CreateRun(claims.admittedCtx, orchestration.CreateRunRequest{TaskID: task.ID, Force: true, Prompt: "expired admission", IdempotencyKey: "expired-context-must-stay-fenced"}); !errors.Is(err, maintenance.ErrClosed) {
+	if _, err := svc.CreateRun(claims.admittedCtx, authenticatedCreateRunFixture(orchestration.CreateRunRequest{TaskID: task.ID, Force: true, Prompt: "expired admission", IdempotencyKey: "expired-context-must-stay-fenced"})); !errors.Is(err, maintenance.ErrClosed) {
 		t.Fatalf("released recovery context bypassed the public creation gate: %v", err)
 	}
 }
@@ -483,6 +483,8 @@ func resumeTestOrchestrator(t *testing.T, repos *database.Repositories, eventSto
 		orchestration.WithAttachmentStorage(mockStorage),
 		orchestration.WithRunStateRoot(t.TempDir()),
 		orchestration.WithSpawnDispatcher(dispatcher),
+
+		fixtureOwnerIdentityOption(),
 	)
 	for _, option := range options {
 		option(svc)

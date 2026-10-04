@@ -3,8 +3,9 @@ package config
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"testing"
+
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 )
 
 func TestResolveOrchestrationSettingsPathCanonicalizesContractDescendant(t *testing.T) {
@@ -53,9 +54,5 @@ func newConfigContractFixtureRepo(t *testing.T) string {
 
 func configRepoRoot(t *testing.T) string {
 	t.Helper()
-	_, filename, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller failed")
-	}
-	return filepath.Clean(filepath.Join(filepath.Dir(filename), "..", "..", "..", "..", ".."))
+	return repocontracttest.ProjectRoot(t)
 }

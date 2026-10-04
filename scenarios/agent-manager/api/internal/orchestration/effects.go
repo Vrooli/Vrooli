@@ -1,3 +1,4 @@
+// Responsibility: validate workflow effect grants before admission effects.
 package orchestration
 
 import (

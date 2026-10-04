@@ -5,16 +5,18 @@ import (
 	"io"
 	"net/http"
 	"testing"
+
+	"github.com/vrooli/api-core/apihttptest"
 )
 
 func TestDoerFunc(t *testing.T) {
 	called := false
-	doer := DoerFunc(func(req *http.Request) (*http.Response, error) {
+	doer := apihttptest.DoerFunc(func(req *http.Request) (*http.Response, error) {
 		called = true
 		if req.Method != http.MethodPost {
 			t.Fatalf("method = %s, want POST", req.Method)
 		}
-		return Response(http.StatusCreated, "ok"), nil
+		return apihttptest.Response(http.StatusCreated, "ok"), nil
 	})
 
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "http://example.test", nil)
@@ -34,7 +36,7 @@ func TestDoerFunc(t *testing.T) {
 }
 
 func TestResponse(t *testing.T) {
-	resp := Response(http.StatusAccepted, "accepted")
+	resp := apihttptest.Response(http.StatusAccepted, "accepted")
 	if resp.StatusCode != http.StatusAccepted {
 		t.Fatalf("status = %d, want %d", resp.StatusCode, http.StatusAccepted)
 	}

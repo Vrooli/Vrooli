@@ -146,12 +146,18 @@ func TestAttachedRunProtoRoundTripOmitsUnboundTask(t *testing.T) {
 // surface (execution_mode, web_console_session_id, computed web_console_session_url)
 // round-trips through the Run converters.
 func TestRunToProtoInteractiveFields(t *testing.T) {
+	observedAt := time.Date(2026, time.October, 3, 6, 50, 11, 0, time.UTC)
+	heartbeatAt := observedAt.Add(2 * time.Hour)
 	r := &domain.Run{
 		ID:                   uuid.New(),
 		TaskID:               uuid.New(),
 		ExecutionMode:        domain.ExecutionModeInteractive,
 		WebConsoleSessionID:  "sess-123",
 		WebConsoleSessionURL: "http://localhost:21233/?session=sess-123",
+		ObservedGoalStatus:   "paused",
+		ObservedGoalAt:       &observedAt,
+		ProviderActivityAt:   &observedAt,
+		LastHeartbeat:        &heartbeatAt,
 	}
 	pbRun := RunToProto(r)
 	if pbRun.ExecutionMode != pb.ExecutionMode_EXECUTION_MODE_INTERACTIVE {
@@ -163,6 +169,9 @@ func TestRunToProtoInteractiveFields(t *testing.T) {
 	if pbRun.WebConsoleSessionUrl != "http://localhost:21233/?session=sess-123" {
 		t.Errorf("web_console_session_url: unexpected %q", pbRun.WebConsoleSessionUrl)
 	}
+	if pbRun.ObservedGoalStatus != "paused" || pbRun.ObservedGoalAt == nil || pbRun.ProviderActivityAt == nil || pbRun.LastHeartbeat == nil {
+		t.Fatalf("paused goal, provider activity and heartbeat were not projected separately: %+v", pbRun)
+	}
 
 	back := RunFromProto(pbRun)
 	if back.ExecutionMode != domain.ExecutionModeInteractive {
@@ -170,6 +179,9 @@ func TestRunToProtoInteractiveFields(t *testing.T) {
 	}
 	if back.WebConsoleSessionID != "sess-123" {
 		t.Errorf("round-trip session id: got %q", back.WebConsoleSessionID)
+	}
+	if back.ObservedGoalStatus != "paused" || back.ObservedGoalAt == nil || !back.ObservedGoalAt.Equal(observedAt) || back.ProviderActivityAt == nil || !back.ProviderActivityAt.Equal(observedAt) || back.LastHeartbeat == nil || !back.LastHeartbeat.Equal(heartbeatAt) {
+		t.Fatalf("round-trip lost independent goal, provider activity or coordinator heartbeat: %+v", back)
 	}
 }
 

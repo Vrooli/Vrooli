@@ -52,6 +52,7 @@ type FiniteLeaderRuntime struct {
 		OnComplete(teamID, agentID string)
 	}
 	Control *HeartbeatControlStore
+	Efforts *FiniteEffortAuthority
 }
 
 func (f *FiniteLeaderRuntime) eligible(ctx context.Context, teamID, agentID string, cfg *store.HeartbeatConfig) error {
@@ -105,6 +106,7 @@ func reserveFiniteLeader(state *store.FiniteLeaderState) {
 func (f *FiniteLeaderRuntime) Tick(ctx context.Context, teamID, agentID string) (*store.FiniteLeaderState, error) {
 	var out *store.FiniteLeaderState
 	var observed *Run
+	var finiteRelaunch bool
 	err := f.Executor.teamStore.WithFiniteLeader(ctx, teamID, agentID, func(cfg *store.HeartbeatConfig, state *store.FiniteLeaderState, save func() error) error {
 		out = state
 		// Completion is terminal until an explicit reopen. A tick may still
@@ -113,8 +115,26 @@ func (f *FiniteLeaderRuntime) Tick(ctx context.Context, teamID, agentID string) 
 			return store.ErrFiniteLeaderCompleted
 		}
 		if state.DispatchStarted {
+			if state.RunID == "" {
+				qualified, e := f.prepareFiniteCaller(ctx, teamID, agentID, cfg)
+				if e != nil {
+					return e
+				}
+				ctx = qualified
+			}
 			var err error
 			observed, err = f.observe(ctx, state)
+			if err == nil && observed != nil && IsTerminalStatus(observed.Status) && cfg.FiniteLeader.KeepAlive {
+				qualified, e := f.prepareFiniteCaller(ctx, teamID, agentID, cfg)
+				if e != nil {
+					return e
+				}
+				ctx = qualified
+				if _, ok := effortCaller(ctx); ok {
+					finiteRelaunch = true
+					return nil
+				}
+			}
 			if err != nil {
 				state.Error = err.Error()
 			}
@@ -123,11 +143,24 @@ func (f *FiniteLeaderRuntime) Tick(ctx context.Context, teamID, agentID string) 
 			}
 			return err
 		}
+		qualified, authErr := f.prepareFiniteCaller(ctx, teamID, agentID, cfg)
+		if authErr != nil {
+			return authErr
+		}
+		ctx = qualified
 		if err := f.eligible(ctx, teamID, agentID, cfg); err != nil {
 			return err
 		}
-		reserveFiniteLeader(state)
+		if e := reserveQualifiedFiniteLeader(ctx, state); e != nil {
+			return e
+		}
+		if e := f.reserveEffortLeader(ctx, cfg, state); e != nil {
+			return e
+		}
 		if err := save(); err != nil {
+			if _, finite := effortCaller(ctx); finite {
+				return fmt.Errorf("finite leader preparation finite-leader-%s remains held after state save failed: %w", state.ID, err)
+			}
 			return err
 		}
 		if state.TaskStarted || memberOccupied(f.Queue.Status(teamID), agentID) {
@@ -136,7 +169,7 @@ func (f *FiniteLeaderRuntime) Tick(ctx context.Context, teamID, agentID string) 
 		_, err := f.Queue.Enqueue(ctx, teamID, agentID, cfg.ProfileKey)
 		return err
 	})
-	if err == nil && observed != nil {
+	if err == nil && observed != nil && !finiteRelaunch {
 		err = f.record(ctx, out, observed)
 	}
 	if err == nil && observed != nil && IsTerminalStatus(observed.Status) {
@@ -185,6 +218,9 @@ func healthyLeaderRun(run *Run) bool {
 // Consecutive short runs back off and then stop at the cap. One tick relaunches
 // at most once, and a completed, retired or disabled effort is never relaunched.
 func (f *FiniteLeaderRuntime) relaunch(ctx context.Context, teamID, agentID string, terminal *Run) (*store.FiniteLeaderState, error) {
+	if _, ok := effortCaller(ctx); ok {
+		return f.relaunchEffort(ctx, teamID, agentID, terminal)
+	}
 	var out *store.FiniteLeaderState
 	now := time.Now().UTC()
 	err := f.Executor.teamStore.WithFiniteLeader(ctx, teamID, agentID, func(cfg *store.HeartbeatConfig, state *store.FiniteLeaderState, save func() error) error {
@@ -192,6 +228,11 @@ func (f *FiniteLeaderRuntime) relaunch(ctx context.Context, teamID, agentID stri
 		if !cfg.FiniteLeader.KeepAlive || state.Completed != nil || !state.DispatchStarted || state.RunID != terminal.ID {
 			return nil
 		}
+		qualified, authErr := f.prepareFiniteCaller(ctx, teamID, agentID, cfg)
+		if authErr != nil {
+			return authErr
+		}
+		ctx = qualified
 		if err := f.eligible(ctx, teamID, agentID, cfg); err != nil {
 			return err
 		}
@@ -200,6 +241,9 @@ func (f *FiniteLeaderRuntime) relaunch(ctx context.Context, teamID, agentID stri
 			consecutive = 0
 		}
 		if consecutive >= livenessMaxRelaunches {
+			if _, ok := effortCaller(ctx); ok {
+				return fmt.Errorf("finite liveness relaunch capped")
+			}
 			state.Status = livenessCappedStatus
 			state.Error = fmt.Sprintf("liveness relaunch stopped after %d consecutive short leader runs; repair the cause, then use the explicit restart operation", consecutive)
 			return save()
@@ -207,16 +251,24 @@ func (f *FiniteLeaderRuntime) relaunch(ctx context.Context, teamID, agentID stri
 		if consecutive > 0 && len(state.RestartHistory) > 0 {
 			last, err := time.Parse(time.RFC3339Nano, state.RestartHistory[len(state.RestartHistory)-1].RestartedAt)
 			if next := last.Add(livenessRelaunchBackoff << (consecutive - 1)); err == nil && now.Before(next) {
+				if _, ok := effortCaller(ctx); ok {
+					return fmt.Errorf("finite liveness relaunch backing off")
+				}
 				state.Error = "liveness relaunch backing off until " + next.Format(time.RFC3339)
 				return save()
 			}
+		}
+		candidate := &store.FiniteLeaderState{}
+		reserveFiniteLeader(candidate)
+		if e := f.reserveEffortLeader(ctx, cfg, candidate); e != nil {
+			return e
 		}
 		state.RecordRestart(store.FiniteLeaderRestart{
 			RunID: state.RunID, TaskID: state.TaskID, Revision: cfg.FiniteLeader.AcceptedRevision,
 			EvidenceRef: "liveness-heartbeat:" + terminal.Status, RestartedAt: now.Format(time.RFC3339Nano),
 		})
 		state.ConsecutiveRelaunches = consecutive + 1
-		state.ID, state.TaskID, state.RunID, state.CreatedAt, state.Error = "", "", "", "", ""
+		state.ID, state.TaskID, state.RunID, state.CreatedAt, state.Error = candidate.ID, "", "", candidate.CreatedAt, ""
 		state.TaskStarted, state.DispatchStarted = false, false
 		reserveFiniteLeader(state)
 		if err := save(); err != nil {
@@ -343,6 +395,13 @@ func (f *FiniteLeaderRuntime) Dispatch(ctx context.Context, teamID, agentID stri
 			return store.ErrFiniteLeaderCompleted
 		}
 		if current.DispatchStarted {
+			if current.RunID == "" {
+				qualified, e := f.prepareFiniteCaller(ctx, teamID, agentID, cfg)
+				if e != nil {
+					return e
+				}
+				ctx = qualified
+			}
 			var err error
 			run, err = f.observe(ctx, current)
 			if err != nil {
@@ -350,10 +409,20 @@ func (f *FiniteLeaderRuntime) Dispatch(ctx context.Context, teamID, agentID stri
 			}
 			return save()
 		}
+		qualified, authErr := f.prepareFiniteCaller(ctx, teamID, agentID, cfg)
+		if authErr != nil {
+			return authErr
+		}
+		ctx = qualified
 		if err := f.eligible(ctx, teamID, agentID, cfg); err != nil {
 			return err
 		}
-		reserveFiniteLeader(current)
+		if e := reserveQualifiedFiniteLeader(ctx, current); e != nil {
+			return e
+		}
+		if e := f.reserveEffortLeader(ctx, cfg, current); e != nil {
+			return e
+		}
 		if current.TaskStarted {
 			return fmt.Errorf("finite leader task admission uncertain; retain reservation %s", current.ID)
 		}
@@ -399,6 +468,19 @@ func (f *FiniteLeaderRuntime) Dispatch(ctx context.Context, teamID, agentID stri
 			return err
 		}
 		tag := "finite-leader-" + current.ID
+		// The finite leader has its own durable state, and the serialized queue
+		// must also retain the exact request for owner-mediated crash recovery.
+		if _, finite := effortCaller(ctx); finite && f.Executor.teamExecStore != nil {
+			durable, ok := f.Executor.teamExecStore.(interface {
+				BeginDispatchDurable(string, string, DispatchIntent) error
+			})
+			if !ok {
+				return NewDispatchUncertainError(fmt.Errorf("finite queue has no durable dispatch writer"))
+			}
+			if e := durable.BeginDispatchDurable(teamID, agentID, DispatchIntent{IdempotencyKey: tag, TaskID: task.ID, RunTag: tag}); e != nil {
+				return NewDispatchUncertainError(fmt.Errorf("finite dispatch intent save failed: %w", e))
+			}
+		}
 		key, value := buildHeartbeatAttributionEnv(teamID, agentID)
 		run, err = f.Executor.agentClient.CreateRun(ctx, &CreateRunRequest{
 			TaskID: task.ID, IdempotencyKey: tag, Tag: &tag,
@@ -429,6 +511,15 @@ func (f *FiniteLeaderRuntime) Dispatch(ctx context.Context, teamID, agentID stri
 }
 
 func (f *FiniteLeaderRuntime) record(ctx context.Context, state *store.FiniteLeaderState, run *Run) error {
+	finiteEffortRelaunchMu.Lock()
+	defer finiteEffortRelaunchMu.Unlock()
+	return f.recordLocked(ctx, state, run)
+}
+
+// recordLocked fences the exact predecessor through all completion callbacks.
+// Every finite record caller shares the relaunch mutex; the store first checks
+// exact attempt/run identity before queue or run-registry effects.
+func (f *FiniteLeaderRuntime) recordLocked(ctx context.Context, state *store.FiniteLeaderState, run *Run) error {
 	e := f.Executor
 	status := store.HeartbeatStatusRunning
 	if IsTerminalStatus(run.Status) {

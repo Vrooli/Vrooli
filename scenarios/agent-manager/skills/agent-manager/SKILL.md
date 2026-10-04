@@ -299,3 +299,38 @@ Run `program-runtime library run agent-manager.supervision-experiment-read --inp
 to join pinned identities, owner evaluation gates and bounded outcome coverage.
 These programs do not consume cursors or write assessments. Treat a capped sample
 as a sample. Use the existing usage memory loop once after the operational outcome.
+
+### CreateRun caller identity and refusal
+
+CreateRun requires caller proof at both the HTTP and service boundaries, before
+reservation or dispatch. The shared CLI transport forwards an existing run
+credential in `X-Agent-Identity-Token`; each adapter still needs qualification.
+Delegated requests must name that verified run as their exact `parentRunId` and
+retain qualification and execution restrictions. An existing human owner
+credential belongs in `Authorization: Bearer`, where the owner verifier must
+validate it as a live human with the declared `agent-manager:write` capability.
+A run credential in the human channel is not human authorization. If both
+channels are offered, both must validate for the same owner; scopes and expiry
+are intersected. An invalid offered channel cannot be ignored.
+
+Public CreateRun selects existing profiles. Inline defaults that would create
+or change a profile must be reconciled through the existing authorized profile
+owner route first; identical existing declarations remain no-ops. An accepted
+public replay requires the original persisted caller, task, parent and scope
+ceiling. Historical anonymous admissions are refused by the public route;
+renewed proof does not renew the original run's authority expiry.
+
+After an authentication or policy refusal, preserve the redacted request and
+exact response and stop the denied action and dependent work. Do not remove an
+identity header, substitute another principal, attach a run, mint credentials,
+or retry anonymously. Body lineage, localhost origin, task/profile names and
+harness labels do not prove authority. Use an already authorized direct session
+only when the owner explicitly supports that work shape; record its actual
+scope without claiming native admission.
+
+The AUTH-01 receiving-boundary source correction is not rollout qualification.
+Supported caller migration, service-level replay binding, positive verified
+operator/exact-parent tests and independent evidence remain deployment gates.
+Other lifecycle endpoints retain their existing contracts.
+
+For current adapter and manual queue migration limits, read [AUTH01_CALLER_MIGRATION.md](../../docs/AUTH01_CALLER_MIGRATION.md) before rollout.

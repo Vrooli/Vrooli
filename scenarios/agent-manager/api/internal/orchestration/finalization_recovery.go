@@ -1,3 +1,4 @@
+// Responsibility: recover only retained post-run finalization effects.
 package orchestration
 
 import (

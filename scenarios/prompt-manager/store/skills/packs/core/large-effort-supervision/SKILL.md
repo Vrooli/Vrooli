@@ -64,7 +64,15 @@ For each active goal home:
    steering entry (§5).
 4. Confirm the orchestrator is running or parked. A repeated heartbeat relaunch
    within a day is a repair target, not a reason to relaunch again.
-5. Repair (§3) the open workaround that costs delivery the most, every daily
+5. Reconcile open repair handoffs: submitted/admitted, source-applied, receiver
+   acknowledged, and verified recovery are separate states. Retain the exact
+   receiving owner, feedback ID, receipt, next handling condition/deadline and
+   remaining acceptance. A completed supervisor run or persisted feedback does
+   not close a blocker. If the receiver is parked, inspect its actual await
+   predicate; do not assume new feedback wakes a child/timer wait or bypass a
+   denied wake through another identity. Recheck on changed evidence or the
+   existing daily/event opportunity, not repeated unchanged triggers.
+6. Repair (§3) the open workaround that costs delivery the most, every daily
    check. A report without a repair or a named reason it could not be done is an
    incomplete check.
 
@@ -74,7 +82,10 @@ For each open workaround entry: reproduce the failure once, fix it in the owning
 scenario (Agent Manager, Prompt Manager, Program Runtime, Test Genie, Workspace
 Sandbox, Git Control Tower, the bridge) or dispatch one bounded repair run through
 Agent Manager with its own `--until`, then mark the entry resolved with evidence
-so orchestrators stop using the fallback. Route only what needs a decision,
+so orchestrators stop using the fallback. Source/test success is a repair
+handoff, not closure: require receiver acknowledgement plus the original
+consumer operation against the qualified changed build, or retain an exact
+unverified dependency and next action. Route only what needs a decision,
 credential, dependency approval or production effect you do not hold.
 
 ### 4. Audits
