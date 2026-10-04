@@ -136,6 +136,51 @@ func TestRecordExecutionArtifacts(t *testing.T) {
 	}
 }
 
+func TestStepOutcomeTimelineArtifactPreservesCursorSampleTimes(t *testing.T) {
+	dir := t.TempDir()
+	writer := NewFileWriter(noopRepo{}, storage.NewMemoryStorage(), nil, NewStaticRoot(dir))
+	executionID := uuid.New()
+	plan := contracts.ExecutionPlan{ExecutionID: executionID, WorkflowID: uuid.New()}
+	started := time.Date(2026, 10, 3, 2, 0, 0, 0, time.UTC)
+	first := started.Add(125 * time.Millisecond)
+	second := started.Add(375 * time.Millisecond)
+	outcome := contracts.StepOutcome{
+		ExecutionID: executionID, StepIndex: 0, Attempt: 1, NodeID: "move", StepType: "move",
+		StartedAt: started, Success: true,
+		CursorTrail: []contracts.CursorPosition{
+			{Point: &contracts.Point{X: 12, Y: 34}, RecordedAt: first, ElapsedMs: 125},
+			{Point: &contracts.Point{X: 56, Y: 78}, RecordedAt: second, ElapsedMs: 375},
+		},
+	}
+	_, err := writer.RecordStepOutcome(context.Background(), plan, outcome)
+	require.NoError(t, err)
+
+	raw, err := os.ReadFile(filepath.Join(dir, executionID.String(), protoTimelineFileName))
+	require.NoError(t, err)
+	var timeline bastimeline.ExecutionTimeline
+	require.NoError(t, protojson.Unmarshal(raw, &timeline))
+	require.Len(t, timeline.Entries, 1)
+
+	var savedOutcome map[string]any
+	for _, artifact := range timeline.Entries[0].GetAggregates().GetArtifacts() {
+		if value := artifact.GetPayload()["outcome"]; value != nil {
+			savedOutcome, _ = contracts.JsonValueToAny(value).(map[string]any)
+		}
+	}
+	require.NotNil(t, savedOutcome)
+	samples, ok := savedOutcome["cursor_trail"].([]any)
+	require.True(t, ok)
+	require.Len(t, samples, 2)
+	firstSample, ok := samples[0].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, first.Format(time.RFC3339Nano), firstSample["recorded_at"])
+	require.Equal(t, int64(125), firstSample["elapsed_ms"])
+	secondSample, ok := samples[1].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, second.Format(time.RFC3339Nano), secondSample["recorded_at"])
+	require.Equal(t, int64(375), secondSample["elapsed_ms"])
+}
+
 type captureArtifactStorage struct {
 	*storage.MemoryStorage
 	objects map[string][]byte

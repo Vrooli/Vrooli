@@ -128,6 +128,9 @@ export interface Screenshot {
   from_cache?: boolean;
   truncated?: boolean;
   source?: string;
+  requested_extent?: string;
+  actual_extent?: string;
+  degraded?: boolean;
 }
 
 /**
@@ -262,6 +265,10 @@ export function buildStepOutcome(params: BuildOutcomeParams): StepOutcome {
     notes: {
       ...(instruction.invocationId ? { invocation_id: instruction.invocationId } : {}),
       ...(instruction.operationSequence ? { operation_sequence: String(instruction.operationSequence) } : {}),
+      ...(screenshot?.requested_extent ? { screenshot_requested_extent: screenshot.requested_extent } : {}),
+      ...(screenshot?.actual_extent ? { screenshot_actual_extent: screenshot.actual_extent } : {}),
+      ...(screenshot?.media_type ? { screenshot_media_type: screenshot.media_type } : {}),
+      ...(screenshot ? { screenshot_degraded: String(screenshot.degraded ?? false) } : {}),
     },
   });
 

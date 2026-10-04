@@ -24,6 +24,25 @@ function createRawInputEvent(attributes: Record<string, string>, secret: string)
 }
 
 describe('recording timeline sensitive-value redaction', () => {
+  it('preserves observed cursor position separately from click position', () => {
+    const base = createRawInputEvent({ type: 'text' }, 'value');
+    const observed = rawBrowserEventToTimelineEntry({
+      ...base,
+      actionType: 'mousemove',
+      cursorPos: { x: 31, y: 47 },
+    }, { sessionId: 'synthetic-session', sequenceNum: 3 });
+    expect(observed.telemetry?.cursorPosition).toMatchObject({ x: 31, y: 47 });
+    expect(observed.telemetry?.clickPosition).toBeUndefined();
+
+    const clicked = rawBrowserEventToTimelineEntry({
+      ...base,
+      actionType: 'click',
+      cursorPos: { x: 53, y: 71 },
+    }, { sessionId: 'synthetic-session', sequenceNum: 4 });
+    expect(clicked.telemetry?.cursorPosition).toMatchObject({ x: 53, y: 71 });
+    expect(clicked.telemetry?.clickPosition).toMatchObject({ x: 53, y: 71 });
+  });
+
   it.each([
     ['password type', { type: 'password' }],
     ['hidden type', { type: 'hidden' }],

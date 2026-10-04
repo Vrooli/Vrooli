@@ -16,6 +16,7 @@ import {
   ExecutionParametersSchema,
   ExecuteWorkflowOptionsSchema,
   GetScreenshotsResponseSchema,
+  type ExecutionParameters,
   type GetScreenshotsResponse as ProtoGetScreenshotsResponse,
 } from '@vrooli/proto-types/browser-automation-studio/v1/execution/execution_pb';
 import {
@@ -213,6 +214,8 @@ export interface Execution {
   pages?: ExecutionPage[];
   /** Currently active page ID during playback. */
   activePageId?: string;
+  /** CSS viewport and DPR admitted for this execution. */
+  captureGeometry?: { viewport: { width: number; height: number }; deviceScaleFactor?: number };
 }
 
 /**
@@ -369,10 +372,11 @@ const parseExecutionProto = (raw: unknown): Execution => {
   const completedAt = timestampToDate(proto.completedAt);
   // Note: proto field is now lastHeartbeatAt (not lastHeartbeat)
   const lastHeartbeatAt = proto.lastHeartbeatAt ? timestampToDate(proto.lastHeartbeatAt) : undefined;
-
+  const captureGeometry = captureGeometryFromParameters(proto.parameters);
   return {
     id: proto.executionId || '',
     workflowId: proto.workflowId || '',
+    captureGeometry,
     status: mapExecutionStatus(proto.status),
     startedAt,
     completedAt: completedAt || undefined,
@@ -388,6 +392,20 @@ const parseExecutionProto = (raw: unknown): Execution => {
         }
       : undefined,
   };
+};
+
+export const captureGeometryFromParameters = (parameters?: ExecutionParameters | null) => {
+  const fingerprint = parameters?.browserProfile?.fingerprint;
+  const requestedWidth = parameters?.viewportWidth ?? 0;
+  const requestedHeight = parameters?.viewportHeight ?? 0;
+  const viewportWidth = requestedWidth > 0 ? requestedWidth : fingerprint?.viewportWidth;
+  const viewportHeight = requestedHeight > 0 ? requestedHeight : fingerprint?.viewportHeight;
+  return viewportWidth && viewportWidth > 0 && viewportHeight && viewportHeight > 0
+    ? {
+        viewport: { width: viewportWidth, height: viewportHeight },
+        ...(fingerprint?.deviceScaleFactor ? { deviceScaleFactor: fingerprint.deviceScaleFactor } : {}),
+      }
+    : undefined;
 };
 
 const mapBoundingBoxFromProto = (bbox?: { x?: number; y?: number; width?: number; height?: number } | null) => {
@@ -458,6 +476,27 @@ export const mapTimelineEntryToFrame = (entry: ProtoTimelineEntry): TimelineFram
   const artifacts = (aggregates?.artifacts ?? [])
     .map((a) => mapTimelineArtifactFromProto(a))
     .filter((a): a is TimelineArtifact => a !== undefined);
+  const rawOutcome = artifacts
+    .map((artifact) => artifact.payload?.outcome)
+    .find((outcome): outcome is Record<string, unknown> => Boolean(outcome && typeof outcome === 'object' && !Array.isArray(outcome)));
+  const rawTrail = rawOutcome?.cursor_trail;
+  const cursorTrailSamples = Array.isArray(rawTrail)
+    ? rawTrail.flatMap((sample) => {
+        if (!sample || typeof sample !== 'object' || Array.isArray(sample)) return [];
+        const item = sample as Record<string, unknown>;
+        const point = item.point;
+        if (!point || typeof point !== 'object' || Array.isArray(point)) return [];
+        const coordinates = point as Record<string, unknown>;
+        if (typeof coordinates.x !== 'number' || !Number.isFinite(coordinates.x)
+          || typeof coordinates.y !== 'number' || !Number.isFinite(coordinates.y)) return [];
+        return [{
+          x: coordinates.x,
+          y: coordinates.y,
+          ...(typeof item.recorded_at === 'string' ? { recordedAt: item.recorded_at } : {}),
+          ...(typeof item.elapsed_ms === 'number' && Number.isFinite(item.elapsed_ms) ? { elapsedMs: item.elapsed_ms } : {}),
+        }];
+      })
+    : [];
   const telemetryArtifacts = [
     mapTelemetryArtifactFromProto('dom_snapshot', telemetry?.domSnapshot),
     mapTelemetryArtifactFromProto('console_log', telemetry?.consoleLogArtifact),
@@ -508,6 +547,7 @@ export const mapTimelineEntryToFrame = (entry: ProtoTimelineEntry): TimelineFram
   return {
     id: entry.id || `entry-${entry.stepIndex ?? 0}`,
     stepIndex: entry.stepIndex ?? 0,
+    observedAt: timestampToDate(entry.timestamp)?.toISOString(),
     nodeId: entry.nodeId || undefined,
     stepType: entry.action?.type ? mapStepType(entry.action.type) : undefined,
     status: aggregates ? mapStepStatus(aggregates.status) : undefined,
@@ -525,8 +565,13 @@ export const mapTimelineEntryToFrame = (entry: ProtoTimelineEntry): TimelineFram
     maskRegions: [], // Not in new proto - would come from telemetry.maskRegions if added
     focusedElement,
     elementBoundingBox,
-    clickPosition: telemetry?.cursorPosition ? { x: telemetry.cursorPosition.x, y: telemetry.cursorPosition.y } : null,
-    cursorTrail: [], // Not in new proto - would come from telemetry.cursorTrail if added
+    cursorPosition: telemetry?.cursorPosition ? { x: telemetry.cursorPosition.x, y: telemetry.cursorPosition.y } : null,
+    clickPosition: telemetry?.clickPosition ? { x: telemetry.clickPosition.x, y: telemetry.clickPosition.y } : null,
+    cursorTrail: telemetry?.cursorTrail?.map((point) => ({ x: point.x, y: point.y })) ?? [],
+    cursorTrailSamples,
+    // ActionTelemetry currently has no viewport/DPR contract. Preserve the
+    // point, but do not claim it can be placed accurately over a raster image.
+    cursorProvenance: 'missing',
     zoomFactor: undefined, // Not in new proto
     assertion,
     retryAttempt: retryStatus?.currentAttempt ?? undefined,
@@ -900,7 +945,22 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
       // REST shape exposed one. Preserve undefined for now.
       const rawError: unknown = undefined;
 
-      const frames = (protoTimeline.entries ?? []).map((entry) => mapTimelineFrameFromProto(entry));
+      const frames = (protoTimeline.entries ?? []).map((entry) => {
+        const frame = mapTimelineFrameFromProto(entry);
+        const currentExecution = get().currentExecution;
+        const geometry = currentExecution?.id === executionId ? currentExecution.captureGeometry : undefined;
+        if (!geometry) return frame;
+        const hasObservedPointer = (frame.cursorTrailSamples?.length ?? 0) > 0
+          || (frame.cursorTrail?.length ?? 0) > 0
+          || Boolean(frame.cursorPosition)
+          || Boolean(frame.clickPosition);
+        return {
+          ...frame,
+          viewport: geometry.viewport,
+          deviceScaleFactor: geometry.deviceScaleFactor,
+          ...(hasObservedPointer ? { cursorProvenance: 'observed' as const } : {}),
+        };
+      });
 
       const normalizedLogs = (protoTimeline.logs ?? [])
         .map((log) => mapTimelineLogFromProto(log))

@@ -26,6 +26,7 @@ import (
 
 type timelineLoaderTestRepository struct {
 	execution *database.ExecutionIndex
+	workflow  *database.WorkflowIndex
 }
 
 func TestPresentationFramePreservesRetryAssertionAndDuration(t *testing.T) {
@@ -73,6 +74,17 @@ func TestBuildExecutionTimelinePresentationKeepsProgressAndLogs(t *testing.T) {
 	assert.Equal(t, started, presentation.Logs[0].Timestamp)
 }
 
+func TestBuildExecutionTimelinePresentationLoadsViewportAndDeviceScale(t *testing.T) {
+	resultPath := filepath.Join(t.TempDir(), "result.json")
+	raw := []byte(`{"parameters":{"viewportWidth":1440,"viewportHeight":900,"browserProfile":{"fingerprint":{"deviceScaleFactor":2}}}}`)
+	require.NoError(t, os.WriteFile(filepath.Join(filepath.Dir(resultPath), "execution.proto.json"), raw, 0o600))
+	execution := &database.ExecutionIndex{ID: uuid.New(), WorkflowID: uuid.New(), Status: "completed", ResultPath: resultPath}
+	presentation := BuildExecutionTimelinePresentation(execution, &bastimeline.ExecutionTimeline{})
+	assert.Equal(t, 1440, presentation.ViewportWidth)
+	assert.Equal(t, 900, presentation.ViewportHeight)
+	assert.Equal(t, 2.0, presentation.DeviceScaleFactor)
+}
+
 func (r timelineLoaderTestRepository) GetExecution(_ context.Context, id uuid.UUID) (*database.ExecutionIndex, error) {
 	if r.execution.ID != id {
 		return nil, database.ErrNotFound
@@ -80,8 +92,22 @@ func (r timelineLoaderTestRepository) GetExecution(_ context.Context, id uuid.UU
 	return r.execution, nil
 }
 
-func (timelineLoaderTestRepository) GetWorkflow(context.Context, uuid.UUID) (*database.WorkflowIndex, error) {
-	return nil, nil
+func (r timelineLoaderTestRepository) GetWorkflow(context.Context, uuid.UUID) (*database.WorkflowIndex, error) {
+	return r.workflow, nil
+}
+
+func TestTimelineLoaderUsesWorkflowCaptureGeometryWhenExecutionHasNoOverride(t *testing.T) {
+	dir := t.TempDir()
+	workflowPath := filepath.Join(dir, "workflow.json")
+	require.NoError(t, os.WriteFile(workflowPath, []byte(`{"settings":{"viewportWidth":1440,"viewportHeight":900,"browserProfile":{"fingerprint":{"deviceScaleFactor":2}}}}`), 0o600))
+	execution := &database.ExecutionIndex{ID: uuid.New(), WorkflowID: uuid.New(), Status: "completed", ResultPath: filepath.Join(dir, "result.json")}
+	workflow := &database.WorkflowIndex{ID: execution.WorkflowID, FilePath: workflowPath}
+	loader := NewTimelineLoader(timelineLoaderTestRepository{execution: execution, workflow: workflow})
+	presentation, err := loader.LoadTimeline(context.Background(), execution.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 1440, presentation.ViewportWidth)
+	assert.Equal(t, 900, presentation.ViewportHeight)
+	assert.Equal(t, 2.0, presentation.DeviceScaleFactor)
 }
 
 func TestTimelineLoaderRedactsSensitiveValuesFromLegacyProtoFiles(t *testing.T) {

@@ -188,6 +188,8 @@ export const toReplayFrame = (
   const cursorTrail = mapTrail(
     frame.cursorTrail ?? frame.normalizedCursorTrail,
   );
+  const viewportWidth = toNumber(frame.viewport?.width);
+  const viewportHeight = toNumber(frame.viewport?.height);
   const retry = frame.resilience;
 
   return {
@@ -217,6 +219,9 @@ export const toReplayFrame = (
           sizeBytes: toNumber(asset?.sizeBytes),
         }
       : undefined,
+    viewport: viewportWidth && viewportHeight
+      ? { width: viewportWidth, height: viewportHeight }
+      : undefined,
     highlightRegions: mapRegions(frame.highlightRegions),
     maskRegions: mapRegions(frame.maskRegions),
     focusedElement: focusedBoundingBox
@@ -231,6 +236,9 @@ export const toReplayFrame = (
     elementBoundingBox: boundingBox ?? null,
     clickPosition: clickPosition ?? null,
     cursorTrail,
+    cursorProvenance: viewportWidth && viewportHeight && (clickPosition || cursorTrail.length > 0)
+      ? "observed"
+      : "missing",
     zoomFactor: toNumber(frame.zoomFactor),
     assertion: mapAssertion(frame.assertion),
     retryAttempt: toNumber(retry?.attempt),

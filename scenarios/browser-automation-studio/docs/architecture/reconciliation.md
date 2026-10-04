@@ -37,5 +37,5 @@ The UI passes raw actions to API generation and replay requests. The timeline pr
 |---|---|---|
 | Workflow file and database index sync | `api/services/workflow/sync.go` | Files remain canonical; the database is a query index |
 | Recorded-action merging for workflows | `api/services/live-capture/workflow_generator.go` | `MergeConsecutiveActions()` runs as workflow nodes are generated |
-| Recording timeline | `ui/src/domains/recording/timeline/ActionTimeline.tsx` and `useUnifiedTimeline.ts` | Raw action projection in journal order |
+| Recording timeline | `ui/src/domains/recording/sidebar/TimelineTab.tsx` and `ui/src/domains/recording/timeline/TimelineEventCard.tsx` (`UnifiedTimeline`) | Raw action projection in journal order; selection and playback target the retained unified timeline items |
 | AI reasoning correlation | `ui/src/domains/recording/types/timeline-unified.ts` | Correlates AI steps and recorded actions for display |

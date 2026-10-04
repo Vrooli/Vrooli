@@ -171,6 +171,36 @@ func TestBuildReplaySpecFromTimelineGeneratesSpec(t *testing.T) {
 	})
 }
 
+func TestReplaySpecKeepsCssViewportSeparateFromScreenshotRaster(t *testing.T) {
+	execution := &database.ExecutionIndex{ID: uuid.New(), WorkflowID: uuid.New(), Status: database.ExecutionStatusCompleted}
+	workflow := &database.WorkflowIndex{ID: execution.WorkflowID, Name: "geometry"}
+	point := &autocontracts.Point{X: 720, Y: 450}
+	timeline := &ExecutionTimeline{
+		ExecutionID: execution.ID, WorkflowID: workflow.ID,
+		ViewportWidth: 1440, ViewportHeight: 900, DeviceScaleFactor: 2,
+		Frames: []TimelineFrame{{StepIndex: 0, Success: true, Screenshot: &TimelineScreenshot{ArtifactID: "shot", Width: 2880, Height: 1800}, CursorPosition: point}},
+	}
+	spec, err := BuildReplaySpecFromTimeline(execution, workflow, timeline)
+	if err != nil {
+		t.Fatalf("BuildReplaySpecFromTimeline returned error: %v", err)
+	}
+	if got := spec.Presentation.Canvas.Width; got != 2880 {
+		t.Fatalf("canvas width = %d, want raster width 2880", got)
+	}
+	if got := spec.Presentation.Viewport.Width; got != 1440 {
+		t.Fatalf("viewport width = %d, want CSS width 1440", got)
+	}
+	if got := spec.Presentation.DeviceScaleFactor; got != 2 {
+		t.Fatalf("device scale factor = %v, want 2", got)
+	}
+	if got := spec.Frames[0].Viewport.Width; got != 1440 {
+		t.Fatalf("frame viewport width = %d, want CSS width 1440", got)
+	}
+	if got := spec.Frames[0].NormalizedCursorTrail[0].X; got < 0.499 || got > 0.501 {
+		t.Fatalf("normalized cursor x = %v, want 0.5", got)
+	}
+}
+
 func TestTimelineFromReplayPackageUsesTypedTimelineEntries(t *testing.T) {
 	executionID, workflowID := uuid.New(), uuid.New()
 	exec := &database.ExecutionIndex{ID: executionID, WorkflowID: workflowID, Status: database.ExecutionStatusCompleted, StartedAt: time.Now()}

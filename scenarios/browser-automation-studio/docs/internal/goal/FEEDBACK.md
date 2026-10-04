@@ -14,32 +14,56 @@ exact wording.
 
 ## Open directives
 
-### BAS-FB-061 — approved capture/review reliability work through the existing team (2026-10-02, operator)
+### BAS-FB-062 — slices are not held for the destination gap (2026-10-02, operator)
 
-Operator amendment recorded; orchestrator intake/queue reconciliation pending. Supersede only our October 2 abandoned isolated-repair dispatch instructions. Preserve GOAL, BAS-SUP-001, 205000 destination, prior acceptances, dirty changes, other work and safety holds. No new team/effort or contract/profile/security/enrollment change.
+> Yes, go ahead with all three. (Approving: rewrite FB-061 plainly; measured
+> slices may run now; bring me live-feature retirement candidates.)
 
-Authority: owner Sentinel_c4f59814f5448191b461cce40ec66e7e at2026-10-02T22:40:34UTC begins verbatim “I1 A I2 B”; I1 A approves both BAS briefs, diagnostics first. Parent acknowledged22:40:53. Parent01a0fe5b-0548-7544-b1b7-1f3ff748800c relayed owner23:07 direction to stop an unadmitted isolated dispatch and extend existing BAS delivery workload with normal orchestrator/supervisor workflow and reliable status/issues/insights/friction returned to Drive. Owner23:08 wording relayed verbatim: “Gotcha well you do need to figure out how to properly extend the work. I’m authorizing you to figure out how to do that.” I2 is not authority for additional BAS scope. Later instruction authorizes this durable amendment but does not increase resources.
+Status: open. For the orchestrator:
+- BAS-SUP-001's gap does not gate individual slices. Admit any slice whose exact
+  deletion list and estimate are measured; keep the 205k gap visible in the
+  Forecast as a planning item.
+- Order: (1) DIAG-REDACT (FB-061), (2) REC-1A, (3) REC-FIX (FB-061), (4) WF-1
+  after its census, then the remaining ownership slices as they are measured.
+- Write a short `## Retirement candidates` list at the top of `QUEUE.md`: live
+  features whose removal would close the gap, each with runtime lines, the
+  user-visible loss and its callers. Wake the supervisor once when it exists;
+  the operator chooses from it. Do not lower the 205k destination meanwhile.
 
-Approved sources, reread2026-10-02 around23:15UTC:
-- Diagnostics brief3 BAS-OBSERVABILITY-REDACTION-01: https://docs.google.com/document/d/1EqXUqhJEPJ5DrhEEMWKXcGvcTVbir1lJOWoLI5ckH_k/edit?tab=t.zabm70ptmjv7 ; redaction section1238–12508; revision ANLCKQlv9xwiLdr6bArlWzI6kSA1eSZh2kgKfh_8jZ8Cv8df86NhxoLpy_L6ZvQV45IZkm4U3EwmvlU-CJ2z0h_8SCH2X4BNQEIKI6iDSQ.
-- Recording brief5 RECORDING-FIX-01/Work68: https://docs.google.com/document/d/1P8U8weXPXJTY788NnOYKj2Dx0nthSYHJazo0z3QJ07M/edit ; revision ANLCKQnsJdegTR_pJoXyYnDTAZoTx7X4jYwqLil3XgYhCTM_-FKDStJ53J1QcHvvLzXO28jQ7maznyMT3LEIFcSKMUj0fOwXjDZwJBW9xA.
-Their historical pending-approval wording remains historical; I1 A supplies scope approval, not execution/acceptance evidence.
+### BAS-FB-061 — capture/review reliability work (2026-10-02, operator)
 
-Existing-work amendment: orchestrator reconciles one linked capture/review reliability work group in QUEUE. Diagnostics is a bounded prerequisite inside existing BAS ownership, not an inflated epoch or competing lane. Recording is the integrated outcome: stable native video geometry; truthful screenshot extent; observed/derived/missing pointer provenance; explicit source choice; useful intended-surface playback; preserved originals/failures. Recording execution stays held until diagnostic verified stop, independent acceptance and handoff, fresh source/runtime check and parent release. Do not start its clock or metadata action during this amendment. SUP-001 broader ownership/deletion hold stays intact.
+> The operator approved both briefs below, diagnostics first ("I1 A"), through
+> the existing BAS team and its normal orchestrator/supervisor workflow.
 
-Diagnostics: redact recovery credential at producer in BOTH all_options.internal and modified_options. Synthetic-only regression coverage must inspect complete serialized standard/deep responses, cache-hit branches and actual API proxy/transformation; set/unset/modified cases; preserved ordinary metadata/set-unset indication and original fixture authentication. Read full linked acceptance. No live secret/full runtime config, rotation, security/access change, deployment/restart, dependencies, enrollment/profile/contract change or unrelated cleanup. <=50 net added runtime lines in named seams, no generated edits or unrelated deletion offsets. Preserve dirty source baselines and independent work. Report version-skew/deployed/outer-access limits, no universal security claim.
+Status: open; supersedes the earlier long form of this entry (kept in
+`~/Documents/Codex/2026-10-02/task-9/`). Two queue items, run in order:
 
-Persistent diagnostics resource ledger: ceiling120 summed RESERVED elapsed run-minutes across attributable coordination/standing owner, worker, independent supervisor/review, verification/retesting, stopping and cleanup. Include waits/parks/idle and overlapping participants. Retain20previous coordination+10qualification+full5tracking as used=35charged; amendment preparation4 plus retry4 yields43charged through2026-10-02T23:25UTC and at most77remaining BEFORE unreconciled attributable parent overhead. Parent overhead is UNKNOWN, notzero, and is not waived. This narrow ledger correction began2026-10-02T23:26:38UTC; reserve/charge2additional minutes INCLUDING current owner check, correction, readback and receipt, yielding45charged and at most75remaining before parent overhead. Exact actual segment/end is recorded in [the same applied receipt](/home/matthalloran8/Documents/Codex/2026-10-02/task-9/BAS-FB-061.applied.receipt.json). Any activity beyond that reservation must be charged before admission. No repair worker was admitted. No retry/resume/handoff renews allowance; old30worker/35coord/15review/5cleanup split is not a fresh reservation after these charges.
+- **DIAG-REDACT** — brief 3, BAS-OBSERVABILITY-REDACTION-01:
+  https://docs.google.com/document/d/1EqXUqhJEPJ5DrhEEMWKXcGvcTVbir1lJOWoLI5ckH_k/edit?tab=t.zabm70ptmjv7
+  (redaction section). Redact the recovery credential at the producer in both
+  `all_options.internal` and `modified_options`. Synthetic-only regressions
+  inspect full serialized standard and deep responses, cache-hit branches and
+  the API proxy/transformation, for set, unset and modified cases, keeping
+  ordinary metadata and the set/unset indication. ≤50 net runtime lines; no
+  generated-code edits, live secrets, dependency, security or access changes.
+  Report version-skew and deployment limits rather than claiming universal
+  coverage. A small epoch by operator choice; the ~3 h minimum does not apply.
+- **REC-FIX** — brief 5, RECORDING-FIX-01:
+  https://docs.google.com/document/d/1P8U8weXPXJTY788NnOYKj2Dx0nthSYHJazo0z3QJ07M/edit
+  Starts after DIAG-REDACT is accepted. Outcome: stable native video geometry,
+  truthful screenshot extent, observed/derived/missing pointer provenance,
+  explicit source choice, useful intended-surface playback, originals and
+  failures preserved. Feature budget: expected ≤500 net runtime lines, hard
+  maximum the lesser of 750 or 1.5× the admitted estimate. Allowed: the brief's
+  three narrow metadata corrections and restarting the `bas-goal` shadow; not
+  the live BAS or other services. Read the full acceptance in the brief.
 
-No worker may dispatch until the existing owner reconciles the CURRENT remaining aggregate reservation, including unknown parent overhead, and records a feasible split covering ALL coordination/standing-owner wait, implementation, normal independent supervisor/review, verification/retesting, stopping and cleanup. Record identities, absolute deadlines, effective narrowed timeouts and supported stopping controller; reconcile residual activity/server tests before releasing lane. If it cannot fit, return exact additional capacity required, not missing scope approval. Included subscription tools only,$0additional spending; no automatic renewal/extension/model escalation/paid fallback.150000weighted non-cache tokens advisory only(Luna1,Sol10); unknown/missing/late/overshoot explicit, not hard cap or zero. Complete acceptance and50runtime cap bind even if partial.
-
-Recording separate envelope:12h absolute window UNSTARTED until first separately released recording action, including admission, approved metadata if first, implementation, coordination/supervision/review/cleanup; waits count,no reset. Advisory3M weighted tokens, no guaranteed quota/hard cutoff. Prefer zero growth; feature expected<=500net runtime with module estimates, maximum lesser of750 or1.5times admitted expected; refactor zero-growth stays. Only brief's three narrow metadata corrections via already-authorized actor and necessary supported restart of qualified isolated BAS test target are conditionally covered. No stronger enrollment/authority/security/access/dependency changes, production/other-service restart. Do neither during diagnostics/amendment. Preserve full neutral+intended-player acceptance,originals and failures.
-
-Normal responsibilities: existing orchestrator admits/steers/independently accepts and never implements; one worker implements and never self-accepts. Existing supervisor audits/records normal knowledge assessments,never admits or directly steers workers. Canonical evidence remains FEEDBACK/QUEUE/brief logs/WORKAROUNDS plus existing scenario issues/decisions and supervisor knowledge. Parent maintains Drive projection/central Registry; return dates,exact source/run/task locators,accepted-versus-runtime state,outcomes/limits,open issues/insights/friction,resource uncertainty and resume conditions. Do not invent automatic Drive publishing or replace local authority. Report stale AM enrollment/deleted-contract link/omitted replacement and lagging PM heartbeat separately; no metadata/team/security mutation implied.
-
-Last checkpoint:66fdce12-2711-439c-8764-764b17d2dce2 terminal23:09:06 after supported interruption; no repair worker,running or pending AM run observed.23:14:37 no running/parked owner listed. HEAD6173505a87cb9a32e888bb049450fa86231221ac; dirty work preserved. Pending intake is not running/accepted work. This proposed amendment neither starts implementation nor closes either outcome or rehabilitation.
+The requester reads progress from `epochs/` and `QUEUE.md`; nothing is pushed
+to Drive and no outside release is needed.
 
 ### BAS-SUP-001 — forecast gap after E18 (2026-10-01, supervisor)
+
+Status: no longer a hold on individual slices (BAS-FB-062); the gap stays a Forecast item.
 
 The E18 Forecast measures 258,853 runtime lines against the 205,000 destination. Its remaining queued slices forecast about 22,752 lines at the recent actual-to-estimate ratio, leaving about 31,101 lines unaccounted for. Before admitting a later ownership slice beyond E19, measure the exact owner/file scopes behind this gap and add deletion-first slices whose forecast can close it. Keep E19's accepted brief and exit gates intact. This is a planning finding, not an epoch acceptance decision.
 
@@ -117,3 +141,20 @@ broad evidence cycles, and make qualification serve delivery.
 | BAS-FB-055 | Translated into E0 directive D3 (two more worker runs, journey-ID slice-log prefixes); E0 accepted 2026-09-29. |
 | BAS-FB-045/047/050/051 | Resolved by the epoch-orchestration plan: Luna-medium workers, infrequent Sol supervision, one orchestrator per goal, old supervision and qualification machinery retired (C1, C2). |
 | BAS-FB-039–044, 046, 048, 049, 052–054 | Resolved before 2026-09-29; see the archive. |
+
+### BAS-RECOVERY-20261004 — approved build repair; consumer recovery still open
+
+Owner authority: Sentinel_2c11fb2cac308191821616e3c8713ed7, “Yes, do all of that properly please,” responding to Sentinel_7a959ef8396481919a7284e5b7a48799. Coordinated recovery uses the existing team, native profile, budget and safeguards. This does not authorize retiring Record/Export or broaden any product decision.
+
+The shared protobuf owner verifier (`cd packages/proto && make verify-committed-gen`) passed without drift. The BAS UI build failure was reproduced as Vite mapping the valid public `@bufbuild/protobuf/wire` import into `dist/esm/index.js/wire` (ENOTDIR). One explicit public wire-export alias was added beside the existing package aliases in ui/vite.config.ts. The same configured production build then passed (4148 modules); generated output and dependencies were not edited. Before/after bytes and hashes are in the task-14 coordinated-recovery receipt directory.
+
+Source-applied/build-verified is not consumer acceptance. Fresh control-plane status still reports the live instance unhealthy (API_PORT unresolved, UI HTTP 503); shadow status retains the Oct3 failed replacement build and no tracked processes. The original owning team must reconcile actual active executions, preserve the qualified quiet window, use the supported scenario lifecycle to retry the original shadow operation, and return its health/build identity plus the blocked consumer's own receipt. Do not infer completion from the old deployed build or launch another leader. Source repair independent review, runtime retry, receiver acknowledgement and E22-R1 acceptance remain OPEN. E22-R2 generated movie-spec ownership and the runtime budget gap remain explicit; deleting features still requires the actual owner choice.
+
+Shared observability/provenance changes were prepared and applied to the existing canonical supervision skill, worker reference and await banner. Focused await UI regressions (3) and type-check pass; native Agent Manager unit run 20261004-015342-4cba1984 fails with two COMPANION_REIMPLEMENTED findings and two TEST_EXECUTION_FAILURE findings (API go test and UI test:coverage) and is not a green certification. Independent native review/admission requires existing caller proof, which this execution context does not have; no anonymous dispatch, credential exchange or new grant was attempted. Preserve this handoff open until the receiving owner acknowledges it and the original operation passes.
+
+
+#### Recovery validation follow-up — 2026-10-04
+
+Complete failed-gate attribution found one defect caused by the await wording repair: the existing RunDetailParts component suite asserted the old “Parked — waiting, not hung” heading. That one assertion was corrected; the existing component suite plus new colocated await regressions now pass all 10 tests. Three contemporary RunsPage investigation-modal cases still fail; their suite mocks RunDetail.js and excludes the changed await component. Global UI branch coverage remains 83.15% versus the 85% gate; no pre-change aggregate baseline exists, so this is not declared unrelated or accepted. Native run 20261004-015342-4cba1984 remains FAIL.
+
+The full contemporary API diagnostic captured four failing packages / 23 test fail events: 19 involve runtime.Caller root helpers under the native -trimpath command; two are the termination fixture parent/subtest (5 * 99 = 495 is below the current default stale threshold 1000); two workflow fixtures fail the current 1000000 micro-USD budget minimum before their intended conformance assertions. Those API/config/budget/fixture sources were not changed. These are reproduced current failures, not reconstructed original-run attribution. The original immutable API tail does not identify every original failed case. Exact receipts and bounded source assessment are in task-14/coordinated-recovery/source-review-notes.md. Distinct native review and original consumer recovery/ack remain OPEN; AUTH-02 is staged/unapplied and supplies no admission proof yet. Nooch normal-resume acknowledgement is unchanged.

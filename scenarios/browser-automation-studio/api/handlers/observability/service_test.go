@@ -2,9 +2,11 @@ package observability
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"github.com/vrooli/browser-automation-studio/internal/testutil"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -73,6 +75,55 @@ func TestService_GetObservability_Happy(t *testing.T) {
 	assert.Equal(t, true, fields["ready"])
 	assert.Equal(t, "standard", proxy.gotDepth)
 	assert.True(t, proxy.gotNoCache)
+}
+
+func TestService_GetObservability_ProxyAndConnectPreserveRedactedCredential(t *testing.T) {
+	for _, state := range []struct {
+		name, currentValue string
+		modified           bool
+	}{
+		{name: "unset"},
+		{name: "set to default", currentValue: ""},
+		{name: "modified", currentValue: "[REDACTED]", modified: true},
+	} {
+		for _, depth := range []string{"standard", "deep"} {
+			t.Run(state.name+"/"+depth, func(t *testing.T) {
+				option := map[string]any{
+					"env_var": "PLAYWRIGHT_DRIVER_ADMIN_SECRET", "current_value": state.currentValue,
+					"default_value": "", "is_modified": state.modified, "description": "recovery auth",
+				}
+				config := map[string]any{
+					"summary": "configuration loaded", "modified_count": 0,
+					"all_options": map[string]any{"internal": []any{option}},
+				}
+				if state.modified {
+					config["modified_count"] = 1
+					config["modified_options"] = []any{map[string]any{
+						"env_var": "PLAYWRIGHT_DRIVER_ADMIN_SECRET", "current_value": state.currentValue, "default_value": "",
+					}}
+				}
+				payload := map[string]any{"depth": depth, "config": config}
+				body, err := json.Marshal(payload)
+				require.NoError(t, err)
+				upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					assert.Equal(t, "/observability", r.URL.Path)
+					assert.Equal(t, depth, r.URL.Query().Get("depth"))
+					w.Header().Set("Content-Type", "application/json")
+					_, _ = w.Write(body)
+				}))
+				defer upstream.Close()
+				t.Setenv("PLAYWRIGHT_DRIVER_URL", upstream.URL)
+				client := newClientForTest(t, &handlers.Handler{})
+				resp, err := client.GetObservability(context.Background(), connect.NewRequest(&observabilityv1.GetObservabilityRequest{Depth: depth}))
+				require.NoError(t, err)
+				encoded, err := json.Marshal(resp.Msg.GetSnapshot().AsMap())
+				require.NoError(t, err)
+				assert.Contains(t, string(encoded), state.currentValue)
+				assert.Equal(t, state.modified, resp.Msg.GetSnapshot().AsMap()["config"].(map[string]any)["modified_count"] == float64(1))
+				assert.Contains(t, string(encoded), "configuration loaded")
+			})
+		}
+	}
 }
 
 func TestService_GetObservability_UpstreamUnavailable(t *testing.T) {

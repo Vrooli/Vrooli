@@ -3,6 +3,7 @@ package export
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -10,12 +11,15 @@ import (
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/enums"
 	bastelemetry "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/domain"
+	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // BuildExecutionTimelinePresentation projects canonical proto entries at the export boundary.
 func BuildExecutionTimelinePresentation(execution *database.ExecutionIndex, pb *bastimeline.ExecutionTimeline) *ExecutionTimeline {
 	out := &ExecutionTimeline{ExecutionID: execution.ID, WorkflowID: execution.WorkflowID, Status: execution.Status, Progress: int(pb.Progress), StartedAt: execution.StartedAt, CompletedAt: execution.CompletedAt, Frames: make([]TimelineFrame, 0, len(pb.Entries)), Logs: make([]TimelineLog, 0, len(pb.Logs))}
+	loadExecutionCaptureGeometry(execution, out)
 	for _, log := range pb.Logs {
 		if log == nil {
 			continue
@@ -32,6 +36,35 @@ func BuildExecutionTimelinePresentation(execution *database.ExecutionIndex, pb *
 		}
 	}
 	return out
+}
+
+func loadExecutionCaptureGeometry(execution *database.ExecutionIndex, out *ExecutionTimeline) {
+	if execution == nil || out == nil || strings.TrimSpace(execution.ResultPath) == "" {
+		return
+	}
+	raw, err := os.ReadFile(filepath.Join(filepath.Dir(execution.ResultPath), "execution.proto.json"))
+	if err != nil {
+		return
+	}
+	var record basexecution.Execution
+	if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(raw, &record); err != nil {
+		return
+	}
+	parameters := record.GetParameters()
+	if parameters == nil {
+		return
+	}
+	out.ViewportWidth, out.ViewportHeight = int(parameters.GetViewportWidth()), int(parameters.GetViewportHeight())
+	profile := parameters.GetBrowserProfile()
+	if fingerprint := profile.GetFingerprint(); fingerprint != nil {
+		if out.ViewportWidth <= 0 {
+			out.ViewportWidth = int(fingerprint.GetViewportWidth())
+		}
+		if out.ViewportHeight <= 0 {
+			out.ViewportHeight = int(fingerprint.GetViewportHeight())
+		}
+		out.DeviceScaleFactor = fingerprint.GetDeviceScaleFactor()
+	}
 }
 
 func presentationFrameForTimelineEntry(entry *bastimeline.TimelineEntry) TimelineFrame {
@@ -135,6 +168,7 @@ func presentationFrameForTimelineEntry(entry *bastimeline.TimelineEntry) Timelin
 		}
 		frame.ElementBoundingBox = telemetry.ElementBoundingBox
 		frame.ClickPosition = telemetry.ClickPosition
+		frame.CursorPosition = telemetry.CursorPosition
 		frame.CursorTrail = telemetry.CursorTrail
 		frame.HighlightRegions = telemetry.HighlightRegions
 		frame.MaskRegions = telemetry.MaskRegions

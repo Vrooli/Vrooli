@@ -249,7 +249,7 @@ export function rawBrowserEventToTimelineEntry(
   );
 
   // Build telemetry
-  entry.telemetry = buildActionTelemetry(raw, boundingBox, cursorPos);
+  entry.telemetry = buildActionTelemetry(raw, boundingBox, cursorPos, actionType);
 
   // Build context
   entry.context = buildEventContext(ctx.sessionId);
@@ -494,7 +494,8 @@ function buildActionDefinition(
 function buildActionTelemetry(
   raw: RawBrowserEvent,
   boundingBox?: BoundingBox,
-  cursorPos?: Point
+  cursorPos?: Point,
+  actionType?: ActionType
 ): ActionTelemetry {
   return create(ActionTelemetrySchema, {
     url: raw.url || '',
@@ -503,6 +504,7 @@ function buildActionTelemetry(
     driverPageId: raw.driverPageId || undefined,
     elementBoundingBox: boundingBox,
     cursorPosition: cursorPos,
+    clickPosition: actionType === ActionType.CLICK ? cursorPos : undefined,
   });
 }
 

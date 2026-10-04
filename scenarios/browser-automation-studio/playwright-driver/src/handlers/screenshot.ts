@@ -1,7 +1,7 @@
 import { BaseHandler, type HandlerContext, type HandlerResult } from './base';
 import type { HandlerInstruction } from '../types';
 import { getScreenshotParams } from '../types';
-import { captureScreenshot, captureCompressedScreenshot } from '../telemetry';
+import { captureScreenshot, captureCompressedScreenshot, ScreenshotExtentRejectedError, UnsupportedFullPageScreenshotError } from '../telemetry/screenshot';
 import { normalizeError } from '../utils';
 
 /**
@@ -21,9 +21,10 @@ export class ScreenshotHandler extends BaseHandler {
       // Extract typed params from action
       const typedParams = instruction.action ? getScreenshotParams(instruction.action) : undefined;
       const params = this.requireTypedParams(typedParams, 'screenshot', instruction.nodeId);
+      const fullPage = typedParams?.fullPage ?? config.telemetry.screenshot.fullPage;
 
       logger.debug('Capturing screenshot', {
-        fullPage: params.fullPage !== false,
+        fullPage,
         quality: params.quality,
       });
 
@@ -34,14 +35,14 @@ export class ScreenshotHandler extends BaseHandler {
         screenshot = await captureCompressedScreenshot(
           page,
           params.quality,
-          params.fullPage !== false,
+          fullPage,
           config.telemetry.screenshot.maxSizeBytes
         );
       } else {
         // Use standard PNG
         screenshot = await captureScreenshot(page, config, {
           selector: typedParams?.selector,
-          fullPage: typedParams?.fullPage,
+          fullPage,
         });
       }
 
@@ -67,6 +68,28 @@ export class ScreenshotHandler extends BaseHandler {
         screenshot,
       };
     } catch (error) {
+      if (error instanceof UnsupportedFullPageScreenshotError) {
+        return {
+          success: false,
+          error: {
+            message: error.message,
+            code: 'FULL_PAGE_SCREENSHOT_UNAVAILABLE_DURING_VIDEO',
+            kind: 'orchestration',
+            retryable: false,
+          },
+        };
+      }
+      if (error instanceof ScreenshotExtentRejectedError) {
+        return {
+          success: false,
+          error: {
+            message: error.message,
+            code: 'SCREENSHOT_EXTENT_REJECTED',
+            kind: 'engine',
+            retryable: false,
+          },
+        };
+      }
       logger.error('Screenshot failed', {
         error: error instanceof Error ? error.message : String(error),
       });

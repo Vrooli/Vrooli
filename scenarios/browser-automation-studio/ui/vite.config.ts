@@ -188,6 +188,7 @@ const ALIASES = {
   '@vrooli/proto-types': path.resolve(__dirname, '../../../packages/proto/gen/typescript'),
   '@bufbuild/protobuf/codegenv2': path.resolve(__dirname, 'node_modules/@bufbuild/protobuf/dist/esm/codegenv2/index.js'),
   '@bufbuild/protobuf/wkt': path.resolve(__dirname, 'node_modules/@bufbuild/protobuf/dist/esm/wkt/index.js'),
+  '@bufbuild/protobuf/wire': path.resolve(__dirname, 'node_modules/@bufbuild/protobuf/dist/esm/wire/index.js'),
   '@bufbuild/protobuf': path.resolve(__dirname, 'node_modules/@bufbuild/protobuf/dist/esm/index.js'),
   '@': path.resolve(__dirname, './src'),
   '@shared': path.resolve(__dirname, './src/shared'),

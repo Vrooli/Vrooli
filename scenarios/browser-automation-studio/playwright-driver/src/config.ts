@@ -869,11 +869,14 @@ export function getObservabilityConfigSummary(): {
       currentStr = String(meta.defaultValue);
     }
 
+    const observableValue = envVar === 'PLAYWRIGHT_DRIVER_ADMIN_SECRET' && currentStr !== ''
+      ? '[REDACTED]'
+      : currentStr;
     const option: ObservabilityConfigOption = {
       env_var: envVar,
       tier: tierName,
       description: meta.description,
-      current_value: currentStr,
+      current_value: observableValue,
       default_value: meta.defaultValue === undefined ? '' : String(meta.defaultValue),
       is_modified: modifiedSet.has(envVar),
       data_type: meta.dataType,
@@ -897,7 +900,9 @@ export function getObservabilityConfigSummary(): {
         env_var: opt.envVar,
         tier: opt.tierName as 'essential' | 'advanced' | 'internal',
         description: opt.description,
-        current_value: String(opt.currentValue),
+        current_value: opt.envVar === 'PLAYWRIGHT_DRIVER_ADMIN_SECRET' && String(opt.currentValue) !== ''
+          ? '[REDACTED]'
+          : String(opt.currentValue),
         default_value: String(opt.defaultValue),
       }))
     : undefined;

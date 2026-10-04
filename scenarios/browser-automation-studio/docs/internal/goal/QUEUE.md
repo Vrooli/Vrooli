@@ -1,5 +1,22 @@
 # BAS queue
 
+## Retirement candidates
+
+- **Potential Record mode + export retirement bundle:** 58,246 gross runtime
+  lines across the disjoint feature-named source roots measured below, versus
+  the 49,178-line destination gap. User-visible loss: browser recording and
+  timeline authoring/review, plus execution replay/video, HTML and folder
+  exports. Callers include the three `record` routes in `ui/src/routes.tsx`,
+  `InlineExecutionViewer`'s ExportDialog, the ReplayExportPage bootstrap and
+  `POST /api/v1/executions/{id}/export`. This gross figure is not a net saving:
+  `api/services/export` also supplies workflow folder reports, and shared
+  consumers/dependencies must be reconciled before claiming this bundle closes
+  the gap. Operator decision requested: whether to scope a precise retirement
+  audit for these two capabilities. No removal is authorized by this
+  candidate.
+- No other live-feature retirement candidate has a measured whole-owner scope
+  large enough to close the gap. See the candidate evidence below.
+
 Order from the operator decisions (D19, D20, D23, D25). One line per slice:
 **enabling** marks a slice that unlocks others; deletion targets are what must be
 gone at close. Line numbers are static estimates; the first epochs re-measure them.
@@ -9,19 +26,23 @@ Each epoch file lives in `epochs/`; the orchestrator moves a slice to Done with 
 ## Forecast
 
 - Destination: runtime inventory ≤205,000 lines. Current no-Git inventory at
-  2026-10-02T08:07:40Z is 257,875 (digest
-  `863d483234eaf15657a1e6a0ab4b79afb57e80f2396d56b497decafdfab03375`), leaving
-  a 52,875-line gap. E19/S13 is accepted at −978 runtime lines from E18.
-- Last five accepted epochs against their briefs: E15 −653/−1,300; E16 0/250-line
-  feature ceiling (not a reduction estimate); E17 −1,394/−2,000; E18 −333/−1,500;
-  E19 −978/−3,000. The four directional refactors removed 3,358 of 7,800
-  estimated lines (43.1%).
+  2026-10-03T04:00:20Z is 254,178, leaving a 49,178-line gap (source digest
+  unchanged at `f24b43325db4e13b2d9f9981f42bfefc119087ef6e91df83e4a51a68371b6479`). E20 is accepted
+  at +5 runtime lines from E19 and stays within its +50-line ceiling; E21 is
+  accepted at −4,081 runtime lines from E20; E22 is accepted at +379 runtime
+  lines against its +500 estimate, within its +750 feature cap.
+- Last five accepted epochs against their briefs: E18 −333/−1,500; E19
+  −978/−3,000; E20 +5/≤50 growth ceiling; E21 −4,081/−4,074; E22
+  +379/+500. E20 and E22 are feature epochs; the four directional refactors
+  removed 6,786 of 10,574 estimated lines (64.2%).
 - The six still-planned module slices identify approximate remaining gaps of
-  Workflow 14,800, Recording 11,867, Workspace UI 7,600, Export 7,000, AI 6,900
-  and Diagnostics 6,000 lines (54,167 total). At the recent ratio this forecasts
-  about 23,320 lines, roughly 29,555 short of the destination. This remains a
-  planning finding: the queue cannot reach 205,000 without additional measured
-  deletion slices and a rebase of category scopes.
+  Workflow 14,800, Recording 7,793, Workspace UI 7,600, Export 7,000, AI 6,900
+  and Diagnostics 6,000 lines (50,093 total). Scaling by the recent directional
+  ratio forecasts about 32,148 lines, roughly 17,030 short of the destination.
+  The queue still cannot reach 205,000 without additional measured deletion
+  slices and a rebase of category scopes. REC-1's 7,793 is the historic
+  Recording gap after subtracting REC-1A's −4,074 estimate; remeasure before
+  admission.
 - First path-level inventory and E18/E19 outcomes remain in the accepted history
   below; category scopes do not reconcile to the older module-table baselines.
 - Initial no-Git scope census on 2026-10-01, using the inventory's runtime
@@ -198,52 +219,295 @@ outcome targets to match a smaller deletion.
   so the historic 7,000-line scope is not yet mapped and must be measured before
   this slice is admitted.
 
+## Candidate evidence
+
+- Gross live-feature source measurement (2026-10-03; `refactor_inventory.py`
+  runtime exclusions applied per root): Recording roots are
+  `ui/src/domains/recording` 25,505/106 files,
+  `ui/src/views/RecordModeView` 148/1,
+  `playwright-driver/src/recording` 8,214/24,
+  `api/handlers/record_mode.go` 1,069/1, and
+  `api/services/live-capture` 2,052/4 = 36,988 lines. Export roots are
+  `api/services/export` 5,615/21,
+  `api/handlers/execution_export.go` 935/1,
+  `ui/src/export` 1,909/10,
+  `ui/src/domains/executions/export` 3,687/22, and
+  `ui/src/domains/exports` 9,112/48 = 21,258 lines. The roots are file-disjoint
+  but not dependency-disjoint: workflow folder export calls Markdown/report
+  helpers in `api/services/export`, and additional shared APIs are outside these
+  roots. These are gross upper bounds, not net savings or a deletion list.
+- Follow-up workflow caller census (2026-10-03):
+  `ui/src/domains/workflows/utils/normalizers.ts` is one implementation used by
+  both the workflow store's API-response normalization and the editor's JSON
+  import; those are two callers, not duplicate normalizer owners. The API's
+  `NormalizeWorkflowDefinitionV2Bytes` is likewise one implementation used by
+  capture, CLI registration and proto conversion; the separate
+  `BuildFlowDefinitionV2ForWrite` is typed write ingress with node/edge
+  referential validation. Sampled UI candidates (`WorkflowBuilder`,
+  `NodePalette`, `ElementPickerModal`) have live view/field/recording callers.
+  This trace found no safe deletion list for WF-1 and does not substantiate the
+  −14,800 historical budget delta. The initial function/caller census is
+  complete for these roots; the wider line-level owner map remains open.
+- The same full-scenario caller search found two unused exported helpers in
+  `ui/src/domains/workflows/utils/normalizers.ts`: `getNodeTypeFromAction`
+  (lines 199–201) and `hasValidAction` (203–205), with no references outside
+  their definitions. Together they are under ten runtime lines and are not a
+  standalone epoch; include them only if a larger evidenced Workflow owner
+  retirement is admitted.
+- A UI production-source scan of all 40 Workflow `.ts`/`.tsx` modules and the
+  636 UI production files found three more uncalled wrappers in
+  `ui/src/domains/workflows/services/workflowApi.ts`:
+  `executeAdhocWorkflowViaApi`, `validateResolvedWorkflowViaApi`, and
+  `getWorkflowVersionViaApi`. The other sampled workflow exports have internal
+  or external callers. The five uncalled helpers/wrappers remain a small
+  candidate bundle (under roughly 35 runtime lines by source review), not an
+  epoch; confirm package-level consumers and tests only if a larger Workflow
+  retirement is found.
+- Separate scenario-wide Go production-source reference scans of exported
+  functions in `api/services/workflow` and the 70 production files under
+  `api/automation` found no function with zero call-site references.
+  The Workflow API/service audit therefore has no evidenced whole-file or
+  exported-function deletion target so far; other `api/automation` and data
+  paths still need role-by-role reconciliation before WF-1 can be estimated.
+- Cross-owner helper scan found two `sanitizeFilename` implementations in
+  `api/services/workflow/export_helpers.go` and
+  `api/services/export/render/utils.go` (same trimming/separator/null-byte
+  rules, distinct empty-name defaults), plus three `copyFile` implementations
+  in workflow export, capture production and execution export. Their close-error
+  handling differs and must be preserved if consolidated. Workflow's
+  `ToInterfaceSlice` delegates to `api/automation/contracts` but adds a required
+  `database.JSONMap` adapter, so it is not a duplicate. These small helper
+  overlaps are candidates to bundle with a larger measured export ownership
+  slice; they do not substantiate WF-1's 14,800-line target.
+- Recording UI census after E21: a source-reference scan covered all 106
+  production TypeScript modules in `ui/src/domains/recording` and 636 UI source
+  files. All default-exported modules have cross-file references; four named
+  runtime helpers have no production or test callers:
+  `timelineItemsToWorkflowNodes`, `clampViewport`, `getPresetSettings`, and
+  `extractDomainFromUrl`. They are small adapters/utilities totaling under
+  roughly 50 lines, not a valid standalone REC-1 epoch. The scan did not find a
+  further orphan file cluster after E21's nine-file removal.
+- Workspace shell caller census (2026-10-03): `routes.tsx` selects one
+  `RootLayout`; `renderApp.tsx` uses the 20-line `AppShell` for readiness and
+  execution updates; `WorkflowEditorView` uses the shared `Sidebar` and 1,126-
+  line `Header`; `RootLayout` and `DashboardViewWrapper` use onboarding's
+  `GuidedTour`/`useGuidedTour`. No duplicate shell owner or removable large-file
+  cluster was established. Five shell-scope named functions have no production
+  references, but are small helpers/hooks and do not support the historical
+  −7,600-line target; confirm their intended status only within a larger
+  measured shell retirement.
+- Export ownership census (2026-10-03): a source scan counted 5,615 lines in
+  21 API export production files, 1,909 lines in the 10-file `ui/src/export`
+  owner, 3,687 lines in 22 execution-export files, and 9,112 lines in 48
+  exports-domain files. These are source totals, not removable-code estimates.
+  `BuildReplaySpecFromExecution` delegates to the sole direct
+  `BuildReplaySpecFromTimeline` generated-contract builder; execution-export
+  handlers merge client input through `BuildReplaySpec`. UI timeline utilities
+  are consumed by `ReplayExportPage` and its bridge. Workflow's
+  `BuildExportPlan` produces a folder/Markdown report and calls shared export
+  renderers; it does not repeat replay-spec or timeline-projection construction.
+  Cross-owner `sanitizeFilename` helpers remain small, with different
+  empty-name defaults. The sampled ownership/caller map establishes no duplicate
+  large export owner or safe deletion list and does not substantiate the
+  historical −7,000-line target. Return if a wider path-to-owner map identifies
+  a concrete whole duplicate owner with measured savings, or the operator
+  revises the export scope/budget boundary.
+- AI ownership rebase (2026-10-03): E13 already removed the parallel Claude
+  navigator, API-owned raw Ollama subprocess client, stale CLI engine selection,
+  and UI command hook. Current wiring constructs one
+  `PlaywrightVisionNavigator`; Connect serves navigation identity/state, the
+  driver vision agent owns the browser loop, and both element-analysis and
+  suggestion paths call the shared role-based `services/ai` client. The UI and
+  CLI invoke the generated `VisionNavigationService` surface. Production search
+  finds no reference to the E13-retired constructors/client/hook. A selected
+  AI-source scan counted 12,775 physical lines across current vision, shared
+  model, AI-handler, driver-AI and recording-navigation roots; these roots do
+  not reconcile to the historic 17,900-line module budget and are not a deletion
+  estimate. No second engine or duplicate model boundary is established by this
+  rebase, so the historical −6,900 target remains unsupported. AI-1 is parked;
+  return if a wider path-to-owner map identifies concrete duplicate ownership
+  and savings, or the operator changes the scope/budget boundary.
+- Diagnostics path census expansion (2026-10-03): name-based production-file
+  matching found 5,016 physical lines in the currently selected observability,
+  driver telemetry, session diagnostic logger, recording diagnostic routes,
+  API telemetry adapters and health-monitor roots. It also found 2,576 lines in
+  the separate UX-metrics API and UI subsystem (service/repository/analyzer,
+  Connect handler, and execution panel). Callers show the observability Connect
+  service fronts the driver collector; sidecar health monitors driver
+  readiness; recording diagnostic routes inspect recording/external-URL state;
+  the session logger attaches browser-context logs; API telemetry adapts
+  execution events; UX metrics persist and present execution-friction analytics.
+  These have distinct data, consumers and lifecycles. The old 7,000-line
+  diagnostics budget does not specify whether UX metrics belongs to it, and
+  these matched paths do not establish an interchangeable or retired owner.
+  Keep DIAG-1 in census; reconcile the historical budget to explicit path
+  ownership before admission. Do not count live UX metrics or health behavior as
+  deletable diagnostics without a separately authorized scope change.
+  Reconciliation against accepted history also shows E1 already removed 6,640
+  runtime lines from dead diagnostics UI, retired operations/RPCs and driver
+  self-test/route surfaces. The old 7,000→1,000 budget predates that accepted
+  reduction and has no current path crosswalk; E1's remaining retained surfaces
+  include live external-URL injection verification. DIAG-1 is parked after the
+  expanded census: do not repeat E1's accepted deletions or infer a new target
+  from the stale module budget. Reopen only if an owner/path reconciliation
+  identifies additional retired code with callers safely removed, or the
+  operator revises the diagnostics scope.
+- REC-1A's 4,074-line candidate was an unreachable legacy UI surface, not a live
+  feature with a verified user-visible loss. A gross Record mode + export
+  source-root option is now listed above because those roots and active callers
+  are measured. Its net removable lines remain unknown due to shared export
+  consumers and unmeasured dependency closure; do not admit a retirement epoch
+  until the operator chooses whether to fund that precise audit. No feature
+  removal is authorized by this note.
+
 ## Next
 
-- E1–E19 have accepted epochs. E3 completed the first S2 tranche and E7 completed
+### Orchestrator handoff — 2026-10-04T16:20Z
+
+- Changed: no epoch or product source; reconciled the prior handoff, worker and
+  owner signals after the timer wake.
+- Verified: the parent run remains active and is the only running Agent
+  Manager run; E22 worker `62b11517-9fd8-4f6a-941a-c7bd1b1a2cdb` is complete.
+  The delivery inbox is empty. `browser-automation-studio status --json`
+  reports the BAS API running and 0 workflows indexed; `vrooli scenario status
+  browser-automation-studio --instance shadow --json` reports the isolated
+  shadow healthy on build identity
+  `sha256:e16bbda1f5ed9d79d12ba591912b24b08962bc4c4fca8512238948b7fa304cbd`.
+- Remaining: no QA disposition is visible through the delivery inbox; the
+  ad-hoc capture still has no indexed workflow for the intended review UI. E22
+  R1 remains blocked on a reviewable playback path or QA repair; R2 remains
+  blocked on the generated movie-spec contract owner. Record/Export audit,
+  DET-SIGNIN-R1, DESK and parked ownership census return conditions are
+  unchanged. No daily requalification was due again on this date.
+- Exact next action: on wake, reconcile a QA/owner response or a newly available
+  persisted playback path for the ad-hoc execution. If one appears, inspect the
+  full current-build clip and known defect intervals in the intended player and
+  update R1. Do not change the generated contract without its owner's decision.
+
+### Orchestrator handoff — 2026-10-04T04:17Z
+
+- Changed: refreshed only `browser-automation-studio@shadow` through the
+  supported lifecycle after the Vite alias repair was recorded as build-verified
+  and a quiet window was confirmed. The start operation succeeded healthy with
+  build identity `sha256:e16bbda1f5ed9d79d12ba591912b24b08962bc4c4fca8512238948b7fa304cbd`;
+  the live BAS was not restarted. No product source changed.
+- Verified: current-build Linux journeys pass 12/12; receipt
+  `~/.vrooli/evidence/bas-goal/journeys-2026-10-04.json`, SHA-256
+  `9b998f6f9903dab0ebfbca5198a8a1de9c545b80687d899fc6d23eeff7eeec54`. A fresh
+  neutral current-build capture `8ed37203-2ff7-49d7-9e1f-f953e1f0edc2` preserved
+  a 14.16s, 1440×900, 25fps VP8 WebM (499,488 bytes; SHA-256
+  `40ec6c8a2a92779f29dcced9bea148c0ac5b78b59ec180e71e1dfde8b09709c2`) and
+  correctly failed step 12 with `requested_extent=full_page`,
+  `actual_extent=not_captured` during native video. The in-app Executions page
+  lists this ad-hoc run as `Unknown Workflow`; selecting it returns
+  `workflow project_id missing` and leaves the page open, so the intended-player
+  full-clip/known-interval comparison is still unverified. Filed one QA report:
+  `knw-1791087389154714359` (`bug-inbox/code-defect/ad-hoc-executions-cannot-open-in-review-ui`).
+  Parent run identity was recovered from `agent-manager run list` after
+  `run identity --json` reported no identity token in this resumed shell.
+- Remaining: E22 R1 has its current-build 12-journey result; intended-player
+  visual review still awaits a reviewable execution path for this ad-hoc capture
+  or the QA repair. E22 R2 still awaits the generated movie-spec contract
+  owner's decision. Record/Export audit, DET-SIGNIN-R1, DESK and parked ownership
+  censuses remain unchanged.
+- Exact next action: on wake, reconcile the QA/owner response or a persisted
+  playback route for the ad-hoc execution. Once available, inspect the full
+  current-build clip and the known defect intervals in the intended player and
+  record the R1 result. Do not widen the capture scope or change the generated
+  contract without its owner decision.
+
+### Orchestrator handoff — 2026-10-03T16:05Z
+
+- Changed: no epoch or product source; reconciled the goal home and current
+  operator inputs after the timer wake.
+- Verified: orchestrator identity remains
+  `70dd81be-0c15-4ef3-9b05-e18aa6ca7ccb`; the wake reports no active or ended
+  children; the team inbox is empty; FEEDBACK has no directive newer than
+  BAS-FB-062. E22 remains recorded as accepted with R1/R2 remainders.
+- Remaining: the Record mode + Export candidate awaits operator direction to
+  scope its precise retirement audit. E22 R1 awaits the logged UI build failure
+  resolution and a quiet shadow window; R2 awaits the generated-contract owner
+  decision. DET-SIGNIN-R1 still awaits dedicated authorized test sites/accounts;
+  DESK awaits Linux health and a native machine. No parked return condition has
+  changed.
+- Exact next action: on the next wake, reconcile new operator, owner or
+  outside-repair evidence. If the operator directs the Record mode + Export
+  audit, map shared dependencies and measure net savings before admitting an
+  epoch. Otherwise keep the destination gap visible and continue only when a
+  parked slice's return condition changes.
+
+### Orchestrator handoff — 2026-10-03T04:00Z
+
+- Changed: this queue only; added the gross Record mode + Export retirement
+  option, expanded Export/AI/Diagnostics ownership evidence, and refreshed the
+  inventory timestamp. No product source changed.
+- Verified: the no-Git inventory is 254,178 runtime lines, gap 49,178, digest
+  `f24b43325db4e13b2d9f9981f42bfefc119087ef6e91df83e4a51a68371b6479`,
+  unchanged from the E22 accepted snapshot. The 58,246-line candidate is gross
+  source scope only; net deletion and shared-consumer closure are unverified.
+- Remaining: E22 R1 waits on the UI build repair and quiet shadow window; E22 R2
+  waits on the generated-contract owner decision; DET-SIGNIN-R1 waits on
+  operator-provided sites/accounts; DESK waits on a native machine. All current
+  deletion-first module slices are parked without a measured safe deletion list.
+- Exact next action: on wake, reconcile new operator/owner or outside-repair
+  evidence. If the operator wants the Record mode + Export option scoped, map
+  its shared dependencies and compute net savings before admitting any epoch;
+  otherwise keep the destination gap visible and continue only when a parked
+  slice's return condition changes.
+
+- E1–E22 have accepted epochs. E3 completed the first S2 tranche and E7 completed
   the BAS-FB-057 remainder. E6 completed S3 under BAS-FB-058:
   all V1 workflows found by scan were migrated, and the six GCT HTTP cases were
   preserved as non-workflows. E2 and E4 record Gremlins as unverified under
   BAS-FB-056.
-0. **Planning hold before the next ownership epoch (BAS-SUP-001).** BAS-FB-060
-   authorizes continued slice planning and raising estimate misses. The owner
-   census and feature-level search now include a 4,074-line Recording UI
-   retirement candidate, but the current combined forecast remains about
-   29,555 lines short. SUP-001 requires measured deletion-first slices whose
-   forecast can close that gap before the next ownership epoch is admitted.
-   Keep the 257,875→205,000 destination and uncovered gap visible; do not turn
-   gross path totals into deletion estimates. The remaining path to the
-   setpoint is not established by inactive UI or compatibility cleanup alone.
-   Before broadening into live feature retirement or changing the setpoint or
-   budget model, get operator direction. The one authorized supervision wake
-   was deduplicated; leave the evidence in this goal home for the supervisor
-   read.
+0. **Order (BAS-FB-062).** The 205k gap no longer holds measured slices. DIAG-REDACT,
+   REC-1A and REC-FIX are accepted; WF-1 is parked after its initial census.
+   Continue the remaining ownership censuses in order and write only
+   evidence-backed retirement candidates for the operator.
+0b. **REC-FIX remainder (E22 accepted with limits).** R1: after the logged UI
+   build issue is resolved and a quiet isolated shadow window is available,
+   rerun the 12 Linux journeys and inspect the full short clip plus known bad
+   intervals in the intended review player against the changed build. R2: obtain
+   the generated movie-spec contract owner's decision and use the governed
+   generation route if timed cursor samples/edit-map support is approved. Until
+   then, the execution review uses retained timed samples and export receipts
+   state edit-map unavailability. Do not retry shadow lifecycle or edit generated
+   code/dependencies before those return conditions hold.
 1. **DET-SIGNIN-R1 (parked).** Qualify a few real sign-ins with persistent
    profiles. Return condition: the operator supplies dedicated, authorized
    test-only target sites and accounts. Until then, keep sign-ins unverified;
    never use personal accounts or credentials. E16's independent local
    detectability and interactive-profile work is accepted below.
-2. **WF-1 — Workflow ownership.** Deletion-first scope and measured budget delta
-   are recorded above; admit only after exact owner/file census.
-3. **REC-1A — Retire unreachable legacy recording UI surfaces (planning
-   candidate, not admitted).** Estimate −4,074 from nine measured runtime files
-   listed in the Forecast; confirm export/test references and preserve the
-   current `UnifiedSidebar`/`TimelineTab`/`UnifiedTimeline` behavior. This is
-   part of the historic Recording delta, not an additive budget. Admit only
-   after the overall SUP-001 forecast gate is met. Remeasure the remaining
-   Recording scope after this candidate.
-4. **REC-1 — Remaining Recording UI ownership.** The historic budget gap is
-   about −11,867 after E18; map additional exact retirements beyond REC-1A and
-   reconcile the candidate paths before setting an estimate.
-5. **WSUI-1 — Workspace shell ownership.** Deletion-first scope and measured
-   budget delta are recorded above; rebase candidate paths before admission.
-6. **EXP-1 — Export pipeline ownership.** Deletion-first scope and measured
-   budget delta are recorded above; exact symbols/callers required at admission.
-7. **AI-1 — AI navigation ownership.** Deletion-first scope and measured budget
-   delta are recorded above; rebase against E13's accepted owner boundary.
-8. **DIAG-1 — Diagnostics ownership.** Deletion-first budget delta recorded
-   above; map the historic budget to current files before admission.
-9. **DESK — Desktop portability epoch** (D22). When Linux is healthy and a native
+2. **WF-1 — Workflow ownership (parked after initial census).** No large
+   deletion-first scope is evidenced by the completed function/caller scans
+   above: the only uncalled UI functions/wrappers total under about 35 runtime
+   lines, and no unused API exported functions were found. Return when a wider
+   path-to-owner map identifies a whole duplicate owner with concrete deletions
+   and a measured estimate, or the operator revises the scope/budget boundary.
+3. **REC-1 — Remaining Recording UI ownership (parked after caller census).**
+   The historic budget gap is about −7,793 after REC-1A's estimated −4,074.
+   Return condition: find a larger concrete duplicate owner with callers mapped
+   and measured savings, or obtain operator direction for live-feature removal.
+4. **WSUI-1 — Workspace shell ownership (parked after caller census).** No
+   duplicate shell owner or large orphan cluster was found. Return condition: a
+   wider map identifies a concrete whole duplicate owner with measured savings,
+   or the operator changes the scope/budget boundary.
+5. **EXP-1 — Export pipeline ownership (parked after caller census).** No
+   duplicate large owner or safe deletion list was established; the historic
+   −7,000 is unsupported by the measured caller map. Return if a wider
+   path-to-owner map finds concrete whole-owner savings, or the operator changes
+   the scope/budget boundary.
+6. **AI-1 — AI navigation ownership (parked after E13 owner rebase).** No second
+   engine or duplicate model boundary was established; the historical −6,900 is
+   unsupported by this selected source map. Return if a wider path-to-owner map
+   shows concrete duplicate ownership and measured savings, or the operator
+   changes the scope/budget boundary.
+7. **DIAG-1 — Diagnostics ownership (parked after expanded census).** E1's
+   accepted −6,640-line retirement predates the stale 7,000→1,000 target;
+   current path evidence separates remaining live readiness, telemetry,
+   observability, recording diagnostics and UX metrics owners. Return only if a
+   concrete additional retired owner is measured or the operator revises scope.
+8. **DESK — Desktop portability epoch** (D22). When Linux is healthy and a native
    machine is available; macOS through minimouse occasionally.
 
 
@@ -259,21 +523,21 @@ Export 29k→22k, Diagnostics 7k→1k, Config 3.1k→1.8k, other 53k→48k.
 
 ## Parked
 
-- **BAS-SUP-001 planning hold** (not an admitted epoch): caller audits found a
-  4,074-line unreachable Recording UI candidate and a much smaller enum
-  compatibility candidate, while the combined forecast remains about 29,555
-  lines short. The remaining retirement amount is not supported by inactive
-  paths. Return condition: operator direction to rebase the historical module
-  budgets or to authorize retirement of specified live feature surfaces; then
-  remeasure, refresh the Forecast and admit only a slice with exact owners and
-  callers. No product paths were changed.
-- **2026-10-02 check-in:** E19 remains the latest accepted epoch; no child worker
-  is active and the team inbox has no new direction. Daily qualification passed
-  12/12 applicable Linux shadow journeys (evidence:
-  `~/.vrooli/evidence/bas-goal/journeys-2026-10-02.json`). Next action: after
-  operator direction satisfies BAS-SUP-001's return condition, remeasure the
-  authorized scope, refresh the Forecast and admit a bounded epoch only if its
-  exact deletion list and estimate close the destination gap.
+- **DET-SIGNIN-R1** — see Next item 1.
+- **WF-1 — Workflow ownership.** Initial function/caller census found only the
+  small helpers and helper overlaps recorded under `## Retirement candidates`;
+  no valid epoch reaches the historical −14,800 target. Return condition: a
+  wider path-to-owner map supports a concrete whole duplicate-owner retirement
+  with measured savings, or the operator changes the scope/budget boundary.
+- **REC-1 — Remaining Recording UI ownership.** The post-E21 scan found four
+  small uncalled helpers but no additional orphan files; their under-50-line
+  bundle is below epoch scale. Return condition: a larger mapped owner boundary
+  supports a valid replace-and-delete epoch, or the operator directs a live
+  feature retirement.
+- **WSUI-1 — Workspace shell ownership.** The caller census found the named
+  shell and onboarding roots live, with no large duplicate/orphan cluster.
+  Return condition: a wider path-to-owner map supports a whole shell-owner
+  retirement with measured savings, or the operator revises the boundary.
 
 ## Qualification findings
 
@@ -285,6 +549,44 @@ Export 29k→22k, Diagnostics 7k→1k, Config 3.1k→1.8k, other 53k→48k.
   can be injected without restarting the shadow.
 
 ## Done
+
+- **E22 — REC-FIX: faithful recording and useful review playback.** ACCEPTED
+  2026-10-03T03:03:00Z with the two named remainders above; current-source
+  screenshot extent/native-video guards, geometry/provenance-aware timed review
+  playback and source/final-spec receipts are in place. Parent reran UI full
+  suite/type-check, driver type-check and focused tests, and affected API Go
+  packages; all passed. Runtime +379 vs +500 estimate (within +750 cap); support
+  +489 vs inferred admission baseline. The 12 post-change Linux journeys and
+  intended-player visual comparison remain unverified after the authorized
+  shadow refresh failed at Vite ENOTDIR; generated movie-spec timed-trail and
+  edit-map representation awaits its owner. Suggested commit:
+  `fix(bas): preserve truthful recording review evidence`.
+- **E21 — REC-1A: retire unreachable legacy recording UI surfaces.** ACCEPTED
+  2026-10-03T01:15:05Z (epochs/E21.md); all nine measured candidate components,
+  their stale recording barrels and the orphan ActionTimeline-only test are
+  removed; the retained unified timeline behavior and `[REQ]` assertions pass.
+  The two active ActionTimeline descriptions now name the retained TimelineTab
+  and TimelineEventCard owners. Orchestrator reran UI type-check, the full UI
+  suite (record-mode 542/542), 12/12 Linux journeys, deletion/caller searches,
+  and no-Git inventory. Runtime is 253,799 (−4,081 vs E20; estimate −4,074);
+  the difference includes 8 barrel lines removed and one Go comment line added.
+  Worker-reported test/support delta is −43. macOS arm64 was not exercised;
+  macOS x64 and Windows remain unavailable. Suggested commit:
+  `refactor(bas): retire unreachable recording UI surfaces`.
+
+- **E20 — DIAG-REDACT: redact recovery credential from observability output.**
+  ACCEPTED 2026-10-03T00:06:33Z (epochs/E20.md); synthetic set/unset/modified
+  cases cover full standard/deep driver responses and caches plus API
+  proxy/Connect output, with metadata and fixture authentication preserved.
+  Orchestrator reran 3 driver Jest suites (68 tests), driver typecheck, and
+  uncached API handler/observability tests; all pass. Runtime 257,880 (+5 from
+  E19, within the +50 ceiling); reported test growth +70, with earlier baseline
+  unavailable. The worker hit the overrun step-back at 9 units/4 estimated,
+  chose park for review, then was stopped by the parent at the reserved window;
+  orchestrator review resolved the return condition. External document,
+  deployed version skew, outer access and universal security remain
+  unverified. Suggested commit: `fix(bas): redact recovery credential from
+  observability output`.
 
 - **E19 — S13: one replay spec.** ACCEPTED 2026-10-01T18:22:37Z (epochs/E19.md);
   generated protobuf `ReplaySpec` is the sole API/UI contract, the Go reflection

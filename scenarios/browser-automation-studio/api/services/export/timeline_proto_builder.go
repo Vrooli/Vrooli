@@ -44,11 +44,14 @@ func BuildReplaySpecFromTimeline(execution *database.ExecutionIndex, workflow *d
 	var startOffset int32
 	canvas := &exportsv1.ReplayDimensions{Width: fallbackViewportWidth, Height: fallbackViewportHeight}
 	viewport := &exportsv1.ReplayDimensions{Width: fallbackViewportWidth, Height: fallbackViewportHeight}
+	deviceScaleFactor := timeline.DeviceScaleFactor
 
 	for index, source := range timeline.Frames {
 		dims := dimensionsForFrame(source)
+		if timeline.ViewportWidth > 0 && timeline.ViewportHeight > 0 {
+			dims = frameDimensions{Width: timeline.ViewportWidth, Height: timeline.ViewportHeight}
+		}
 		if index == 0 && dims.Width > 0 && dims.Height > 0 {
-			canvas = &exportsv1.ReplayDimensions{Width: int32(dims.Width), Height: int32(dims.Height)}
 			viewport = &exportsv1.ReplayDimensions{Width: int32(dims.Width), Height: int32(dims.Height)}
 		}
 		baseDuration := baseFrameDuration(source)
@@ -65,6 +68,9 @@ func BuildReplaySpecFromTimeline(execution *database.ExecutionIndex, workflow *d
 		totalDuration += int32(baseDuration)
 		screenshotID := ""
 		if shot := source.Screenshot; shot != nil {
+			if index == 0 && deviceScaleFactor <= 0 && timeline.ViewportWidth > 0 && shot.Width > 0 {
+				deviceScaleFactor = float64(shot.Width) / float64(timeline.ViewportWidth)
+			}
 			screenshotID = shot.ArtifactID
 			if screenshotID == "" && shot.URL != "" {
 				screenshotID = fmt.Sprintf("%s-frame-%d", execution.ID.String(), index)
@@ -76,18 +82,29 @@ func BuildReplaySpecFromTimeline(execution *database.ExecutionIndex, workflow *d
 				}
 			}
 		}
+		if index == 0 && source.Screenshot != nil && source.Screenshot.Width > 0 && source.Screenshot.Height > 0 {
+			canvas = &exportsv1.ReplayDimensions{Width: int32(source.Screenshot.Width), Height: int32(source.Screenshot.Height)}
+		}
 		transitionIn := timelineTransition(source, true, enterDuration)
 		transitionOut := timelineTransition(source, false, exitDuration)
+		cursorTrail := source.CursorTrail
+		if len(cursorTrail) == 0 && source.CursorPosition != nil {
+			cursorTrail = []*autocontracts.Point{source.CursorPosition}
+		}
+		frameViewport := (*exportsv1.ReplayDimensions)(nil)
+		if timeline.ViewportWidth > 0 && timeline.ViewportHeight > 0 {
+			frameViewport = &exportsv1.ReplayDimensions{Width: int32(timeline.ViewportWidth), Height: int32(timeline.ViewportHeight)}
+		}
 		frame := &exportsv1.ReplayFrame{
 			Index: int32(index), StepIndex: int32(source.StepIndex), NodeId: source.NodeID, StepType: source.StepType,
 			Title: frameTitle(source), Status: source.Status, StartOffsetMs: startOffset, DurationMs: int32(baseDuration), HoldMs: int32(holdDuration),
 			Enter: transitionIn, Exit: transitionOut, ScreenshotAssetId: screenshotID,
-			Viewport: &exportsv1.ReplayDimensions{Width: int32(dims.Width), Height: int32(dims.Height)}, ZoomFactor: source.ZoomFactor,
+			Viewport: frameViewport, ZoomFactor: source.ZoomFactor,
 			HighlightRegions: source.HighlightRegions, MaskRegions: source.MaskRegions, FocusedElement: source.FocusedElement,
 			ElementBoundingBox: source.ElementBoundingBox, NormalizedFocusBounds: normalizeProtoRect(focusedBounds(source), dims),
 			NormalizedElementBounds: normalizeProtoRect(source.ElementBoundingBox, dims), ClickPosition: source.ClickPosition,
-			NormalizedClickPosition: normalizeProtoPoint(source.ClickPosition, dims), CursorTrail: source.CursorTrail,
-			NormalizedCursorTrail: normalizeProtoTrail(source.CursorTrail, dims), ConsoleLogCount: int32(source.ConsoleLogCount),
+			NormalizedClickPosition: normalizeProtoPoint(source.ClickPosition, dims), CursorTrail: cursorTrail,
+			NormalizedCursorTrail: normalizeProtoTrail(cursorTrail, dims), ConsoleLogCount: int32(source.ConsoleLogCount),
 			NetworkEventCount: int32(source.NetworkEventCount), FinalUrl: source.FinalURL, Error: strings.TrimSpace(source.Error),
 			Assertion: timelineAssertion(source.Assertion), Resilience: timelineResilience(source),
 		}
@@ -122,7 +139,7 @@ func BuildReplaySpecFromTimeline(execution *database.ExecutionIndex, workflow *d
 		Cursor:       &exportsv1.ReplayCursor{Style: "halo", AccentColor: accent, Trail: &exportsv1.ReplayCursorTrail{Enabled: true, FadeMs: 650, Weight: 0.16, Opacity: 0.55}, ClickPulse: &exportsv1.ReplayClickPulse{Enabled: true, Radius: 42, DurationMs: 420, Opacity: 0.65}, Scale: 1, InitialPosition: "center", ClickAnimation: "pulse"},
 		Decor:        &exportsv1.ReplayDecor{ChromeTheme: "aurora", BackgroundTheme: "aurora", Background: replayBackground("aurora"), CursorTheme: "white", CursorInitialPosition: "center", CursorClickAnimation: "pulse", CursorScale: 1},
 		Playback:     &exportsv1.ReplayPlayback{Fps: fps, DurationMs: totalDuration, FrameIntervalMs: frameInterval, TotalFrames: totalFrames},
-		Presentation: &exportsv1.ReplayPresentation{Canvas: canvas, Viewport: viewport, BrowserFrame: &exportsv1.ReplayFrameRect{Width: canvas.Width, Height: canvas.Height, Radius: 24}, DeviceScaleFactor: 1},
+		Presentation: &exportsv1.ReplayPresentation{Canvas: canvas, Viewport: viewport, BrowserFrame: &exportsv1.ReplayFrameRect{Width: canvas.Width, Height: canvas.Height, Radius: 24}, DeviceScaleFactor: deviceScaleFactor},
 		CursorMotion: &exportsv1.ReplayCursorMotion{SpeedProfile: defaultCursorSpeedProfile, PathStyle: defaultCursorPathStyle, InitialPosition: "center", ClickAnimation: "pulse", CursorScale: 1},
 		Frames:       frames, Assets: assets, Summary: &exportsv1.ReplaySummary{FrameCount: int32(len(frames)), ScreenshotCount: screenshotCount, TotalDurationMs: totalDuration, MaxFrameDurationMs: maxDuration},
 	}, nil

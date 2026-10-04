@@ -80,6 +80,10 @@ describe('Outcome Builder', () => {
         base64: Buffer.from('image-bytes').toString('base64'),
         width: 800,
         height: 600,
+        media_type: 'image/jpeg',
+        requested_extent: 'full_page',
+        actual_extent: 'full_page',
+        degraded: true,
         capture_time: '2024-01-01T00:00:00.500Z',
       },
       domSnapshot: {
@@ -102,6 +106,12 @@ describe('Outcome Builder', () => {
     expect(outcome.success).toBe(false);
     expect(outcome.failure?.message).toBe('boom');
     expect(outcome.screenshot).toBeDefined();
+    expect(outcome.notes).toMatchObject({
+      screenshot_requested_extent: 'full_page',
+      screenshot_actual_extent: 'full_page',
+      screenshot_media_type: 'image/jpeg',
+      screenshot_degraded: 'true',
+    });
     expect(outcome.domSnapshot).toBeDefined();
     expect(outcome.consoleLogs.length).toBe(1);
     expect(outcome.networkEvents.length).toBe(1);

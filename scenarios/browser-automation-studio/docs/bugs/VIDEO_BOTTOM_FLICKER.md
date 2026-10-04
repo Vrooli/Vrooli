@@ -130,7 +130,12 @@ credentials, external assets, service changes or persistent settings were used.
 - Mixed run `15ce1a8f-ff37-4da9-b258-1716a7a6c255`: fixed 1440×900, DPR 2,
   document height 2112; alternated viewport/full-page/viewport/full-page/viewport
   screenshots. Both full-page captures produced shrunken imagery and about 57%
-  gray area in native WebM: nine frames at 4.64–4.96s and nine at 10.16–10.48s.
+  gray area in native WebM: frames 116–124 (4.64–4.96s) and 254–262
+  (10.16–10.48s), nine frames per burst. Representative decoded comparison
+  frames 115/120/125 and 253/260/263 show normal, shrunken/gray, normal
+  presentation around each event. The archive analysis reports gray fractions
+  0.578 and 0.572 respectively; the video is 378 frames at 25 fps with SHA-256
+  `630f36c595334c59469094bb391075d700a4501d702f622aea7228e9aab63166`.
   DOM measurements between captures remained 1440×900. All steps completed.
 - Matched viewport-only control `fbd825bc-d4b5-4459-9ede-da7238980ee8`:
   357 frames, zero gray-area events and no large image changes after startup.
@@ -148,7 +153,7 @@ capture. Internal compositor/CDP operations were not instrumented; that part of
 the mechanism remains source-supported inference.
 
 [Native diagnosis and reusable isolation procedure](https://docs.google.com/document/d/1ovXTxVRHgKA4z3-zWPJsR9B56JXNYeacl6iV-cppJOg/edit)
-and [separate scope and delivery-route review proposal — execution held pending owner approval](https://docs.google.com/document/d/1P8U8weXPXJTY788NnOYKj2Dx0nthSYHJazo0z3QJ07M/edit)
+and [scope and delivery-route brief (REC-FIX authorized by current local queue and epoch)](https://docs.google.com/document/d/1P8U8weXPXJTY788NnOYKj2Dx0nthSYHJazo0z3QJ07M/edit)
 contain the evidence and approval boundary. Reusable flows, original neutral
 videos, timelines, comparisons and receipts are in Library
 `libfile_8f96b0d25f7081919ec2eb1dd1e16478` (`capture-quality-evidence.zip`),
@@ -162,3 +167,16 @@ proposals, not tested remedies here. No repair is approved by this documentation
 update. Preserve the existing shared SDK ownership and dependency governance;
 do not restore the historical asynchronous BAS CDP override from this report.
 Future capture entrypoint: [Screenshot Node capture-quality procedure](../nodes/screenshot.md#capture-quality-during-native-video).
+
+### REC-FIX source change (2026-10-03)
+
+The driver now reads actual raster dimensions from PNG/JPEG bytes, retries an
+oversized full-page PNG as JPEG at the same extent, and rejects a still that
+remains over the decode budget. A full-page still requested while native video
+is active returns an actionable error. Focused current-source tests cover these
+branches. The isolated shadow could not be rebuilt after the change because its
+Vite UI build failed resolving `@bufbuild/protobuf/dist/esm/index.js/wire`; the
+old shadow result is not post-change proof. The required 12-journey Linux run,
+decoded-frame comparison, and destination-player review therefore remain
+unverified for this change. See the REC-FIX epoch record for the preserved
+baseline hashes and exact lifecycle failure.

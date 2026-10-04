@@ -9,14 +9,17 @@ import (
 
 // ExecutionTimeline represents the replay-friendly view of an execution.
 type ExecutionTimeline struct {
-	ExecutionID uuid.UUID       `json:"execution_id"`
-	WorkflowID  uuid.UUID       `json:"workflow_id"`
-	Status      string          `json:"status"`
-	Progress    int             `json:"progress"`
-	StartedAt   time.Time       `json:"started_at"`
-	CompletedAt *time.Time      `json:"completed_at,omitempty"`
-	Frames      []TimelineFrame `json:"frames"`
-	Logs        []TimelineLog   `json:"logs"`
+	ExecutionID       uuid.UUID       `json:"execution_id"`
+	WorkflowID        uuid.UUID       `json:"workflow_id"`
+	Status            string          `json:"status"`
+	Progress          int             `json:"progress"`
+	StartedAt         time.Time       `json:"started_at"`
+	CompletedAt       *time.Time      `json:"completed_at,omitempty"`
+	Frames            []TimelineFrame `json:"frames"`
+	Logs              []TimelineLog   `json:"logs"`
+	ViewportWidth     int             `json:"viewport_width,omitempty"`
+	ViewportHeight    int             `json:"viewport_height,omitempty"`
+	DeviceScaleFactor float64         `json:"device_scale_factor,omitempty"`
 }
 
 // TimelineFrame captures a single step in the execution timeline.
@@ -41,6 +44,7 @@ type TimelineFrame struct {
 	FocusedElement       *autocontracts.ElementFocus      `json:"focused_element,omitempty"`
 	ElementBoundingBox   *autocontracts.BoundingBox       `json:"element_bounding_box,omitempty"`
 	ClickPosition        *autocontracts.Point             `json:"click_position,omitempty"`
+	CursorPosition       *autocontracts.Point             `json:"cursor_position,omitempty"`
 	CursorTrail          []*autocontracts.Point           `json:"cursor_trail,omitempty"`
 	ZoomFactor           float64                          `json:"zoom_factor,omitempty"`
 	Screenshot           *TimelineScreenshot              `json:"screenshot,omitempty"`

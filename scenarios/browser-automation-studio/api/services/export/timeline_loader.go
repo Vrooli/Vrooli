@@ -10,9 +10,11 @@ import (
 	"github.com/google/uuid"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/automation/driver"
+	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/enums"
 	basevidence "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/evidence"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
+	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -142,5 +144,38 @@ func (l *TimelineLoader) LoadTimeline(ctx context.Context, executionID uuid.UUID
 		return nil, fmt.Errorf("read timeline proto: %w", err)
 	}
 
-	return BuildExecutionTimelinePresentation(execution, pbTimeline), nil
+	presentation := BuildExecutionTimelinePresentation(execution, pbTimeline)
+	if workflow, workflowErr := l.repo.GetWorkflow(ctx, execution.WorkflowID); workflowErr == nil && workflow != nil {
+		loadWorkflowCaptureGeometry(workflow, presentation)
+	}
+	return presentation, nil
+}
+
+func loadWorkflowCaptureGeometry(workflow *database.WorkflowIndex, out *ExecutionTimeline) {
+	if workflow == nil || out == nil || strings.TrimSpace(workflow.FilePath) == "" {
+		return
+	}
+	raw, err := os.ReadFile(workflow.FilePath)
+	if err != nil {
+		return
+	}
+	var definition basworkflows.WorkflowDefinitionV2
+	if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(raw, &definition); err != nil {
+		return
+	}
+	settings := definition.GetSettings()
+	if settings == nil {
+		return
+	}
+	if out.ViewportWidth <= 0 {
+		out.ViewportWidth = int(settings.GetViewportWidth())
+	}
+	if out.ViewportHeight <= 0 {
+		out.ViewportHeight = int(settings.GetViewportHeight())
+	}
+	if out.DeviceScaleFactor <= 0 {
+		if fingerprint := settings.GetBrowserProfile().GetFingerprint(); fingerprint != nil {
+			out.DeviceScaleFactor = fingerprint.GetDeviceScaleFactor()
+		}
+	}
 }
