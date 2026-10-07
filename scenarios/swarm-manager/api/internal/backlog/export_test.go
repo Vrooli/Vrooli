@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vrooli/api-core/apihttptest"
 	"swarm-manager/internal/testutil"
 )
 
@@ -27,7 +28,7 @@ func TestExport_EmptyBacklog(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	h.Export(w, httptest.NewRequest(http.MethodPost, "/api/v1/backlog/export", nil))
-	testutil.AssertStatusOK(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 200)
 	if !strings.Contains(w.Body.String(), "items_count: 0") {
 		t.Error("expected empty export count")
 	}
@@ -40,7 +41,7 @@ func TestExport_WithPRD(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	h.Export(w, httptest.NewRequest(http.MethodPost, "/api/v1/backlog/export", nil))
-	testutil.AssertStatusOK(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 200)
 	if !strings.Contains(w.Body.String(), "This is the PRD content.") {
 		t.Error("expected PRD content")
 	}
@@ -53,7 +54,7 @@ func TestExport_MultipleItemsSortedByPriority(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	h.Export(w, httptest.NewRequest(http.MethodPost, "/api/v1/backlog/export", nil))
-	testutil.AssertStatusOK(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 200)
 	body := w.Body.String()
 	if strings.Index(body, "High") > strings.Index(body, "Low") {
 		t.Error("expected high-priority item first")
@@ -66,7 +67,7 @@ func exportWithBody(t *testing.T, h *Handler, body string) string {
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	h.Export(w, req)
-	testutil.AssertStatusOK(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 200)
 	return w.Body.String()
 }
 

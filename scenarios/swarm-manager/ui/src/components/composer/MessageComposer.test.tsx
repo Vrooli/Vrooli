@@ -7,13 +7,14 @@
  */
 import { describe, expect, it, vi } from "vitest";
 import { createRef } from "react";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, screen } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import { MessageComposer, type MessageComposerHandle } from "./MessageComposer";
 
 function renderComposer(props: Partial<React.ComponentProps<typeof MessageComposer>> = {}) {
   const ref = createRef<MessageComposerHandle>();
   const onChange = vi.fn();
-  render(
+  renderWithCanonicalProviders(
     <MessageComposer
       ref={ref}
       value="typed by hand"

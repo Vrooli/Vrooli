@@ -518,8 +518,8 @@ const ReplayExportPage = () => {
           "relative flex items-center justify-center transition-all duration-500",
           mode === "standalone" ? "w-full" : "h-full w-full",
           {
-            "opacity-100": mode !== "standalone" || controllerRef.current,
-            "opacity-0": mode === "standalone" && !controllerRef.current,
+            "opacity-100": mode === "standalone" || controllerRef.current,
+            "opacity-0": mode !== "standalone" && !controllerRef.current,
           },
         )}
       >
@@ -545,7 +545,7 @@ const ReplayExportPage = () => {
           outroCard={outroCard ?? undefined}
           onFrameChange={handleFrameChange}
           onFrameProgressChange={handleProgressChange}
-          exposeController={handleExposeController}
+          exposeController={mode === "standalone" ? undefined : handleExposeController}
           presentationMode={mode === "standalone" ? "default" : "export"}
           presentationFit={mode === "capture" ? "none" : "contain"}
           presentationBounds={mode === "capture" ? undefined : presentationBounds ?? undefined}

@@ -2,6 +2,8 @@ package agentsessions
 
 import (
 	"encoding/json"
+	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/owneridentity"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -16,11 +18,12 @@ import (
 )
 
 type Handler struct {
-	service *Service
+	runCallerValidator owneridentity.Validator
+	service            *Service
 }
 
 func NewHandler(service *Service) *Handler {
-	return &Handler{service: service}
+	return &Handler{service: service, runCallerValidator: owneridentity.NewClient(owneridentity.Config{Resolver: discovery.NewResolver(discovery.ResolverConfig{})})}
 }
 
 func (h *Handler) RegisterRoutes(r *mux.Router) {
@@ -313,6 +316,16 @@ func (h *Handler) AttachContext(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Start(w http.ResponseWriter, r *http.Request) {
+	verifier := h.runCallerValidator
+	if verifier == nil {
+		verifier = owneridentity.NewClient(owneridentity.Config{Resolver: discovery.NewResolver(discovery.ResolverConfig{})})
+	}
+	ctx, authErr := owneridentity.AuthorizeCreateRunCaller(r.Context(), r.Header, verifier, time.Now())
+	if authErr != nil {
+		http.Error(w, "verified agent-manager caller required", http.StatusUnauthorized)
+		return
+	}
+	r = r.WithContext(ctx)
 	var req apipb.StartAgentSessionRequest
 	if err := httputil.DecodeProtoJSONStrict(r, &req); err != nil {
 		apierr.MapError(w, "[agent-sessions] start", apierr.BadRequest("invalid request body: %s", err))

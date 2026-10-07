@@ -1,7 +1,7 @@
-import { screen } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { useLocation } from "react-router-dom";
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from "vitest";
+import { Route, Routes, useLocation } from "react-router-dom";
 import { selectors } from "../../../consts/selectors";
 import { createTestQueryClient, renderWithProviders } from "../../../test-utils";
 import type { NextActionFeedEntry } from "../../../services/next-action-service";
@@ -22,6 +22,7 @@ import {
   usePlanDataStore,
 } from "../stores/plan-data-store";
 import { PlanBoard } from "./PlanBoard";
+import { defaultApiClient } from "../../../lib/api-client";
 
 function LocationProbe() {
   const location = useLocation();
@@ -530,5 +531,107 @@ describe("PlanBoard", () => {
     expect(popover).toHaveTextContent("Loops back to a title.");
     expect(popover).not.toHaveTextContent("fix/a");
     expect(screen.getByTestId("plan-cycle-resolve")).toHaveTextContent("Open backlog item");
+  });
+});
+
+// These new cases use real plan/operations services and stores. Only their
+// network boundary is controlled; earlier service-injection tests stay intact.
+describe("PlanBoard actual service deep-link reconciliation", () => {
+  const clients: ReturnType<typeof createTestQueryClient>[] = [];
+  const unexpected: string[] = [];
+  let boardResponse: () => Promise<unknown>;
+  let get: MockInstance<typeof defaultApiClient.get>;
+  const originalScroll = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "scrollIntoView");
+  beforeEach(() => {
+    resetStore(); useOperationsStore.getState().reset(); resetOperationsStoreService(); resetPlanStoreService();
+    unexpected.length = 0; boardResponse = async () => makeBoard();
+    // jsdom lacks this browser affordance; keep the real scroll effect and observe it.
+    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", { configurable: true, value: vi.fn() });
+    get = vi.spyOn(defaultApiClient, "get").mockImplementation(async path => {
+      if (path === "/plan" || path.startsWith("/plan?")) return boardResponse();
+      if (path === "/operations" || path.startsWith("/operations?")) return emptyOpsView();
+      if (path === "/next-actions/feed") return { entries: [] };
+      if (path === "/goals") return { items: [] };
+      if (path === "/backlog/summary") return { pending_questions: { items: [] } };
+      if (path === "/settings") return { settings: {} };
+      if (path === "/proposal-sessions" || path.startsWith("/proposal-sessions?")) return { sessions: [] };
+      unexpected.push(path); throw new Error(`Unexpected plan read ${path}`);
+    });
+    vi.spyOn(defaultApiClient, "post").mockImplementation(async path => {
+      if (path === "/backlog/next-actions") return { results: [] };
+      throw new Error(`Unexpected plan write ${path}`);
+    });
+    vi.spyOn(defaultApiClient, "patch").mockRejectedValue(new Error("Unexpected plan patch"));
+    vi.spyOn(defaultApiClient, "delete").mockRejectedValue(new Error("Unexpected plan delete"));
+  });
+  afterEach(() => {
+    clients.splice(0).forEach(c => c.clear()); resetStore(); useOperationsStore.getState().reset();
+    expect(unexpected).toEqual([]); expect(defaultApiClient.patch).not.toHaveBeenCalled(); expect(defaultApiClient.delete).not.toHaveBeenCalled();
+    expect(vi.mocked(defaultApiClient.post).mock.calls.every(([path]) => path === "/backlog/next-actions")).toBe(true);
+    vi.restoreAllMocks(); resetPlanStoreService(); resetOperationsStoreService();
+    if (originalScroll) Object.defineProperty(HTMLElement.prototype, "scrollIntoView", originalScroll); else Reflect.deleteProperty(HTMLElement.prototype, "scrollIntoView");
+  });
+  function mountLink(path: string) {
+    const client = createTestQueryClient(); clients.push(client);
+    return renderWithProviders(<><Routes><Route path="/plan" element={<PlanBoard />} /><Route path="*" element={<div data-testid="destination" />} /></Routes><LocationProbe /></>, { queryClient: client, initialEntries: [path] });
+  }
+  function location() { return screen.getByTestId("location-probe").textContent ?? ""; }
+  it("consumes only select/focus, highlights the exact present card and retains unrelated URL state", async () => {
+    mountLink("/plan?select=backlog-item%2Ffix%2Frunnable&focus=old&retained=owner");
+    const card = await screen.findByTestId("plan-card-backlog-item/fix/runnable");
+    await waitFor(() => expect(card).toHaveClass("ring-2"));
+    await waitFor(() => expect(location()).not.toContain("select=")); expect(location()).not.toContain("focus="); expect(location()).toContain("retained=owner"); expect(screen.queryByTestId("plan-select-miss")).toBeNull();
+    expect(usePlanDataStore.getState().board?.next.groups[1]?.cards[0]?.itemName).toBe("runnable");
+  });
+  it("reveals and highlights a beyond-horizon target instead of reporting a false miss", async () => {
+    mountLink("/plan?select=backlog-item%2Ffix%2Fdeep");
+    const card = await screen.findByTestId("plan-card-backlog-item/fix/deep"); await waitFor(() => expect(card).toHaveClass("ring-2"));
+    expect(screen.queryByTestId("plan-select-miss")).toBeNull(); await waitFor(() => expect(location()).not.toContain("select="));
+  });
+  it("offers exact details for a missing target without replacing the board or filters", async () => {
+    mountLink("/plan?select=backlog-item%2Ffix%2Fmissing&q=owner");
+    expect(await screen.findByTestId("plan-select-miss")).toHaveTextContent("missing");
+    expect(screen.getByTestId("plan-select-miss-details")).toHaveAttribute("href", "/backlog/fix/missing");
+    expect(location()).toContain("q=owner"); await waitFor(() => expect(location()).not.toContain("select="));
+    expect(screen.getByTestId("plan-card-backlog-item/fix/runnable")).toBeVisible();
+    fireEvent.click(screen.getByTestId("plan-select-miss-details")); expect(location()).toContain("/backlog/fix/missing");
+  });
+  it("opens the graph with the exact missed focus and selection without a mutation", async () => {
+    mountLink("/plan?select=backlog-item%2Ffix%2Fmissing"); await screen.findByTestId("plan-select-miss");
+    fireEvent.click(screen.getByTestId("plan-select-miss-graph"));
+    await waitFor(() => expect(new URL(location(), "http://fixture.invalid").pathname).toBe("/graph"));
+    const url = new URL(location(), "http://fixture.invalid"); expect(url.pathname).toBe("/graph"); expect(url.searchParams.get("focus")).toBe("backlog-item/fix/missing"); expect(url.searchParams.get("select")).toBe("backlog-item/fix/missing");
+  });
+  it("dismisses a missing target once without changing the server board or consuming unrelated parameters", async () => {
+    mountLink("/plan?select=backlog-item%2Ffix%2Fmissing&retained=owner"); await screen.findByTestId("plan-select-miss");
+    const before = usePlanDataStore.getState().board; fireEvent.click(screen.getByTestId("plan-select-miss-dismiss"));
+    expect(screen.queryByTestId("plan-select-miss")).toBeNull(); expect(usePlanDataStore.getState().board).toBe(before); expect(location()).toContain("retained=owner");
+    await act(async () => usePlanDataStore.getState().fetchBoard({ force: true })); expect(screen.queryByTestId("plan-select-miss")).toBeNull();
+  });
+  it("clears filters only when requested and promotes an exact newly returned target to a highlight", async () => {
+    mountLink("/plan?select=backlog-item%2Ffix%2Fmissing&q=owner&lane=execute"); await screen.findByTestId("plan-select-miss");
+    fireEvent.click(screen.getByTestId("plan-select-miss-clear")); await waitFor(() => expect(location()).not.toContain("q=")); expect(location()).not.toContain("lane=");
+    boardResponse = async () => makeBoard({ next: { groups: [group("revealed", [itemCard("missing")])], cardCount: 1 } });
+    await act(async () => usePlanDataStore.getState().fetchBoard({ force: true }));
+    await waitFor(() => expect(screen.queryByTestId("plan-select-miss")).toBeNull()); expect(screen.getByTestId("plan-card-backlog-item/fix/missing")).toHaveClass("ring-2");
+    expect(get.mock.calls.filter(([path]) => typeof path === "string" && path.startsWith("/plan" )).length).toBeGreaterThan(1);
+  });
+  it("keeps selection unconsumed while loading and reconciles only after the real service returns a board", async () => {
+    let resolve!: (value: unknown) => void; boardResponse = () => new Promise(r => { resolve = r; });
+    mountLink("/plan?select=backlog-item%2Ffix%2Frunnable&retained=owner");
+    expect(screen.getByTestId(selectors.plan.boardLoading)).toBeVisible(); expect(location()).toContain("select="); expect(screen.queryByTestId("plan-select-miss")).toBeNull();
+    await act(async () => resolve(makeBoard())); await waitFor(() => expect(screen.getByTestId("plan-card-backlog-item/fix/runnable")).toHaveClass("ring-2")); await waitFor(() => expect(location()).not.toContain("select="));
+  });
+  it("preserves the requested target through read refusal and consumes it after an explicit retry succeeds", async () => {
+    boardResponse = async () => { throw new Error("Owner projection refused"); }; mountLink("/plan?select=backlog-item%2Ffix%2Frunnable");
+    expect(await screen.findByTestId(selectors.plan.boardError)).toHaveTextContent("Owner projection refused"); expect(location()).toContain("select=");
+    boardResponse = async () => makeBoard(); fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    await waitFor(() => expect(screen.getByTestId("plan-card-backlog-item/fix/runnable")).toHaveClass("ring-2")); await waitFor(() => expect(location()).not.toContain("select="));
+  });
+  it("keeps the last authoritative board when a later refresh is refused", async () => {
+    mountLink("/plan"); await screen.findByTestId(selectors.plan.board); const before = usePlanDataStore.getState().board;
+    boardResponse = async () => { throw new Error("Refresh authority unavailable"); };
+    await act(async () => usePlanDataStore.getState().fetchBoard({ force: true }));
+    expect(usePlanDataStore.getState().board).toBe(before); expect(screen.getByTestId("plan-card-backlog-item/fix/runnable")).toBeVisible(); expect(usePlanDataStore.getState().error).toBe("Refresh authority unavailable");
   });
 });

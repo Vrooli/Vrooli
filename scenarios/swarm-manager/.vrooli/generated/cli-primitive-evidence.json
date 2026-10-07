@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "swarm-manager",
   "generator": "v1.0.0",
-  "manifest_hash": "59efddfe6d89ca26fb3b6e99fdc5622646cdf2b17a58657fdb0115af7725838a",
+  "manifest_hash": "4e04b13ef046ea886fdaa02a3f0373b45ecc8d4bca0439ae6fccbd9d1972b7bd",
   "commands": [
     {
       "path": "agent-manager metrics-sandbox-adoption",
@@ -272,6 +272,31 @@
       "observed_primitive": "proto_mutation"
     },
     {
+      "path": "effort accept",
+      "group": "effort",
+      "command": "accept"
+    },
+    {
+      "path": "effort admit",
+      "group": "effort",
+      "command": "admit"
+    },
+    {
+      "path": "effort amend",
+      "group": "effort",
+      "command": "amend"
+    },
+    {
+      "path": "effort evidence-complete",
+      "group": "effort",
+      "command": "evidence-complete"
+    },
+    {
+      "path": "effort get",
+      "group": "effort",
+      "command": "get"
+    },
+    {
       "path": "evidence entity",
       "group": "evidence",
       "command": "entity",
@@ -314,12 +339,14 @@
     {
       "path": "execution continuation-halt",
       "group": "execution",
-      "command": "continuation-halt"
+      "command": "continuation-halt",
+      "binding": "."
     },
     {
       "path": "execution continuation-resume",
       "group": "execution",
-      "command": "continuation-resume"
+      "command": "continuation-resume",
+      "binding": "."
     },
     {
       "path": "execution create",

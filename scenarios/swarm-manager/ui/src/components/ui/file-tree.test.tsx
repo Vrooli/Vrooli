@@ -4,7 +4,8 @@
  * [REQ:REQ-P0-004] Tests for file tree component rendering and interactions
  */
 
-import { render, screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import { describe, it, expect, vi } from "vitest";
 import { FileTree } from "./file-tree";
 import type { BacklogFile } from "../../types";
@@ -12,7 +13,7 @@ import type { BacklogFile } from "../../types";
 describe("FileTree", () => {
   // [REQ:REQ-P0-004] Test empty file tree displays empty state
   it("displays empty state when no files", () => {
-    render(<FileTree files={[]} />);
+    renderWithCanonicalProviders(<FileTree files={[]} />);
     expect(screen.getByText("No files yet")).toBeInTheDocument();
   });
 
@@ -23,7 +24,7 @@ describe("FileTree", () => {
       { name: "notes.md", path: "notes.md", type: "file", size: 1024 },
     ];
 
-    render(<FileTree files={files} />);
+    renderWithCanonicalProviders(<FileTree files={files} />);
 
     expect(screen.getByText("spec.json")).toBeInTheDocument();
     expect(screen.getByText("notes.md")).toBeInTheDocument();
@@ -42,7 +43,7 @@ describe("FileTree", () => {
       },
     ];
 
-    render(<FileTree files={files} />);
+    renderWithCanonicalProviders(<FileTree files={files} />);
 
     // Directory should be visible
     expect(screen.getByText("research")).toBeInTheDocument();
@@ -64,7 +65,7 @@ describe("FileTree", () => {
       { name: "spec.json", path: "spec.json", type: "file", size: 256 },
     ];
 
-    render(<FileTree files={files} onFileSelect={onFileSelect} />);
+    renderWithCanonicalProviders(<FileTree files={files} onFileSelect={onFileSelect} />);
 
     fireEvent.click(screen.getByText("spec.json"));
 
@@ -77,7 +78,7 @@ describe("FileTree", () => {
       { name: "spec.json", path: "spec.json", type: "file", size: 256 },
     ];
 
-    render(<FileTree files={files} onItemContextMenu={onItemContextMenu} />);
+    renderWithCanonicalProviders(<FileTree files={files} onItemContextMenu={onItemContextMenu} />);
 
     fireEvent.contextMenu(screen.getByTestId("file-tree-button-spec.json"));
 
@@ -92,7 +93,7 @@ describe("FileTree", () => {
       { name: "medium.txt", path: "medium.txt", type: "file", size: 5000 },
     ];
 
-    render(<FileTree files={files} />);
+    renderWithCanonicalProviders(<FileTree files={files} />);
 
     expect(screen.getByText("500 B")).toBeInTheDocument();
     expect(screen.getByText("4.9 KB")).toBeInTheDocument();
@@ -105,7 +106,7 @@ describe("FileTree", () => {
       { name: "notes.md", path: "notes.md", type: "file", size: 1024 },
     ];
 
-    render(<FileTree files={files} selectedPath="spec.json" />);
+    renderWithCanonicalProviders(<FileTree files={files} selectedPath="spec.json" />);
 
     const selectedButton = screen.getByTestId("file-tree-button-spec.json");
     expect(selectedButton).toHaveClass("bg-cyan-500/20");
@@ -131,7 +132,7 @@ describe("FileTree", () => {
       },
     ];
 
-    render(<FileTree files={files} />);
+    renderWithCanonicalProviders(<FileTree files={files} />);
 
     // First level directory
     expect(screen.getByText("docs")).toBeInTheDocument();
@@ -151,7 +152,7 @@ describe("FileTree", () => {
       { name: "empty-dir", path: "empty-dir", type: "directory", children: [] },
     ];
 
-    render(<FileTree files={files} />);
+    renderWithCanonicalProviders(<FileTree files={files} />);
 
     expect(screen.getByText("empty-dir")).toBeInTheDocument();
     // The expand button should still work (just won't show any children)
@@ -164,7 +165,7 @@ describe("FileTree", () => {
       { name: "spec.json", path: "spec.json", type: "file", size: 256 },
     ];
 
-    render(<FileTree files={files} data-testid="custom-file-tree" />);
+    renderWithCanonicalProviders(<FileTree files={files} data-testid="custom-file-tree" />);
 
     expect(screen.getByTestId("custom-file-tree")).toBeInTheDocument();
   });

@@ -1,4 +1,5 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import { BarChart3 } from "lucide-react";
 import { describe, expect, it } from "vitest";
 import { KeyValueList } from "./key-value-list";
@@ -9,14 +10,14 @@ import { StatsCard } from "./stats-card";
 
 describe("stats primitives", () => {
   it("renders the shared metric card shell with an icon", () => {
-    render(<StatsCard label="Completed" value="12" icon={BarChart3} testId="shared-stat" />);
+    renderWithCanonicalProviders(<StatsCard label="Completed" value="12" icon={BarChart3} testId="shared-stat" />);
 
     expect(screen.getByTestId("shared-stat")).toHaveTextContent("Completed");
     expect(screen.getByTestId("shared-stat")).toHaveTextContent("12");
   });
 
   it("renders progress and list primitives", () => {
-    render(
+    renderWithCanonicalProviders(
       <>
         <ProgressBar value={2} max={4} />
         <SectionLabel icon={BarChart3}>Breakdown</SectionLabel>
@@ -30,7 +31,7 @@ describe("stats primitives", () => {
   });
 
   it("renders an SVG bar chart with point titles", () => {
-    render(
+    renderWithCanonicalProviders(
       <MiniBarChart
         points={[
           { key: "2026-03-17", label: "2026-03-17", value: 3 },

@@ -9,6 +9,7 @@ import (
 	"swarm-manager/internal/testutil"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/apihttptest"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 )
 
@@ -86,8 +87,7 @@ func TestHandlerList_FiltersAgentActivities(t *testing.T) {
 	rec := httptest.NewRecorder()
 
 	router.ServeHTTP(rec, req)
-
-	testutil.AssertStatusOK(t, rec)
+	apihttptest.AssertStatus(t, rec.Result(), 200)
 	if contentType := rec.Header().Get("Content-Type"); contentType != "application/json" {
 		t.Fatalf("expected content-type application/json, got %q", contentType)
 	}
@@ -116,8 +116,7 @@ func TestHandlerList_RejectsInvalidActiveQuery(t *testing.T) {
 	rec := httptest.NewRecorder()
 
 	router.ServeHTTP(rec, req)
-
-	testutil.AssertStatusBadRequest(t, rec)
+	apihttptest.AssertStatus(t, rec.Result(), 400)
 }
 
 func TestHandlerGet_ReturnsAgentActivity(t *testing.T) {
@@ -147,8 +146,7 @@ func TestHandlerGet_ReturnsAgentActivity(t *testing.T) {
 	rec := httptest.NewRecorder()
 
 	router.ServeHTTP(rec, req)
-
-	testutil.AssertStatusOK(t, rec)
+	apihttptest.AssertStatus(t, rec.Result(), 200)
 	resp := testutil.DecodeProtoJSON(t, rec, &apipb.AgentActivityResponse{})
 	if resp.GetActivity().GetActivityId() != "act-1" {
 		t.Fatalf("expected activity act-1, got %q", resp.GetActivity().GetActivityId())
@@ -170,6 +168,5 @@ func TestHandlerGet_NotFound(t *testing.T) {
 	rec := httptest.NewRecorder()
 
 	router.ServeHTTP(rec, req)
-
-	testutil.AssertStatusNotFound(t, rec)
+	apihttptest.AssertStatus(t, rec.Result(), 404)
 }

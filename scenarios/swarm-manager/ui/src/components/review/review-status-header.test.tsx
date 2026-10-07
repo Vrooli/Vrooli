@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import { ReviewStatusHeader } from "./review-status-header";
 import { selectors } from "../../consts/selectors";
 import type { ExecutionRecord, Finalization } from "../../types";
@@ -42,19 +43,19 @@ const defaultProps = {
 
 describe("ReviewStatusHeader", () => {
   it("renders nothing when no execution", () => {
-    const { container } = render(<ReviewStatusHeader {...defaultProps} execution={undefined} />);
+    const { container } = renderWithCanonicalProviders(<ReviewStatusHeader {...defaultProps} execution={undefined} />);
     expect(container.firstChild).toBeNull();
   });
 
   it("renders nothing when active", () => {
-    const { container } = render(
+    const { container } = renderWithCanonicalProviders(
       <ReviewStatusHeader {...defaultProps} execution={makeExecution()} isActive />
     );
     expect(container.firstChild).toBeNull();
   });
 
   it("shows Review for terminal execution without finalization", () => {
-    render(
+    renderWithCanonicalProviders(
       <ReviewStatusHeader
         {...defaultProps}
         execution={makeExecution({ status: "completed" })}
@@ -65,7 +66,7 @@ describe("ReviewStatusHeader", () => {
   });
 
   it("shows Running... when triggering", () => {
-    render(
+    renderWithCanonicalProviders(
       <ReviewStatusHeader
         {...defaultProps}
         execution={makeExecution({ status: "completed" })}
@@ -78,7 +79,7 @@ describe("ReviewStatusHeader", () => {
   });
 
   it("shows Running... when triggering evidence only", () => {
-    render(
+    renderWithCanonicalProviders(
       <ReviewStatusHeader
         {...defaultProps}
         execution={makeExecution({ status: "completed" })}
@@ -95,7 +96,7 @@ describe("ReviewStatusHeader", () => {
       status: "completed",
       finalization: makeFinalization("ready"),
     });
-    render(<ReviewStatusHeader {...defaultProps} execution={exec} />);
+    renderWithCanonicalProviders(<ReviewStatusHeader {...defaultProps} execution={exec} />);
     const btn = screen.getByTestId(selectors.review.primaryAction);
     expect(btn).toHaveTextContent("Rerun Checks");
   });
@@ -105,7 +106,7 @@ describe("ReviewStatusHeader", () => {
       status: "completed",
       finalization: makeFinalization("needs_work"),
     });
-    render(<ReviewStatusHeader {...defaultProps} execution={exec} />);
+    renderWithCanonicalProviders(<ReviewStatusHeader {...defaultProps} execution={exec} />);
     const btn = screen.getByTestId(selectors.review.primaryAction);
     expect(btn).toHaveTextContent("Rerun Checks");
   });
@@ -116,7 +117,7 @@ describe("ReviewStatusHeader", () => {
       status: "validating",
       finalization: makeFinalization("", "running"),
     });
-    render(
+    renderWithCanonicalProviders(
       <ReviewStatusHeader {...defaultProps} execution={exec} onCancelReview={onCancelReview} />
     );
     const btn = screen.getByTestId(selectors.review.stopAction);
@@ -130,7 +131,7 @@ describe("ReviewStatusHeader", () => {
       status: "validating",
       finalization: makeFinalization("", "running"),
     });
-    render(
+    renderWithCanonicalProviders(
       <ReviewStatusHeader {...defaultProps} execution={exec} isCancelling />
     );
     const btn = screen.getByTestId(selectors.review.stopAction);
@@ -140,13 +141,13 @@ describe("ReviewStatusHeader", () => {
 
   it("shows failure reason when present", () => {
     const exec = makeExecution({ status: "failed", failureReason: "OOM killed" });
-    render(<ReviewStatusHeader {...defaultProps} execution={exec} />);
+    renderWithCanonicalProviders(<ReviewStatusHeader {...defaultProps} execution={exec} />);
     expect(screen.getByText("OOM killed")).toBeInTheDocument();
   });
 
   it("shows a View Run link when the execution has a runId and agent-manager URL", () => {
     const exec = makeExecution({ status: "needs_review", runId: "run-77" });
-    render(
+    renderWithCanonicalProviders(
       <ReviewStatusHeader
         {...defaultProps}
         execution={exec}

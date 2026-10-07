@@ -3,6 +3,7 @@ package agentmanager
 import (
 	"context"
 	"fmt"
+	"github.com/vrooli/api-core/owneridentity"
 	"log"
 	"strings"
 	"sync"
@@ -134,6 +135,9 @@ type ExecuteResult struct {
 
 // Execute starts an agent run and waits for completion.
 func (s *AgentService) Execute(ctx context.Context, req ExecuteRequest) (*ExecuteResult, error) {
+	if err := owneridentity.RequireCreateRunCaller(ctx, time.Now()); err != nil {
+		return nil, err
+	}
 	if !s.enabled {
 		return nil, fmt.Errorf("agent-manager not enabled")
 	}
@@ -213,6 +217,9 @@ func (s *AgentService) Execute(ctx context.Context, req ExecuteRequest) (*Execut
 // ExecuteAsync starts an agent run without waiting for completion.
 // Returns the run ID for tracking.
 func (s *AgentService) ExecuteAsync(ctx context.Context, req ExecuteRequest) (string, error) {
+	if err := owneridentity.RequireCreateRunCaller(ctx, time.Now()); err != nil {
+		return "", err
+	}
 	if !s.enabled {
 		return "", fmt.Errorf("agent-manager not enabled")
 	}

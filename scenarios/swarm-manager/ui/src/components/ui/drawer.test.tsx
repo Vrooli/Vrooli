@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeAll } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import { Drawer } from "./drawer";
 
 // jsdom doesn't provide matchMedia (needed by useIsMobile).
@@ -21,7 +22,7 @@ beforeAll(() => {
 
 describe("Drawer", () => {
   it("does not render when isOpen is false", () => {
-    render(
+    renderWithCanonicalProviders(
       <Drawer isOpen={false} onClose={vi.fn()} title="Test">
         <p>content</p>
       </Drawer>,
@@ -30,7 +31,7 @@ describe("Drawer", () => {
   });
 
   it("renders when isOpen is true", () => {
-    render(
+    renderWithCanonicalProviders(
       <Drawer isOpen={true} onClose={vi.fn()} title="Test Title">
         <p>drawer content</p>
       </Drawer>,
@@ -41,7 +42,7 @@ describe("Drawer", () => {
   });
 
   it("renders description when provided", () => {
-    render(
+    renderWithCanonicalProviders(
       <Drawer isOpen={true} onClose={vi.fn()} title="T" description="A description">
         <p>body</p>
       </Drawer>,
@@ -50,7 +51,7 @@ describe("Drawer", () => {
   });
 
   it("renders footer when provided", () => {
-    render(
+    renderWithCanonicalProviders(
       <Drawer isOpen={true} onClose={vi.fn()} title="T" footer={<button>Save</button>}>
         <p>body</p>
       </Drawer>,
@@ -60,7 +61,7 @@ describe("Drawer", () => {
 
   it("calls onClose when the shared mobile dismiss affordance is clicked", () => {
     const onClose = vi.fn();
-    render(
+    renderWithCanonicalProviders(
       <Drawer isOpen={true} onClose={onClose} title="T">
         <p>body</p>
       </Drawer>,
@@ -71,7 +72,7 @@ describe("Drawer", () => {
 
   it("calls onClose on Escape key press", () => {
     const onClose = vi.fn();
-    render(
+    renderWithCanonicalProviders(
       <Drawer isOpen={true} onClose={onClose} title="T">
         <p>body</p>
       </Drawer>,
@@ -81,7 +82,7 @@ describe("Drawer", () => {
   });
 
   it("has correct ARIA attributes", () => {
-    render(
+    renderWithCanonicalProviders(
       <Drawer isOpen={true} onClose={vi.fn()} title="Accessible Title" testId="my-drawer">
         <p>body</p>
       </Drawer>,

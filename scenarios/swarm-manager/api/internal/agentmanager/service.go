@@ -17,6 +17,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/owneridentity"
 	"github.com/vrooli/api-core/scenario"
 )
 
@@ -46,14 +48,15 @@ type Service interface {
 
 // AgentService implements the Service interface.
 type AgentService struct {
-	client       *HTTPClient
-	profileName  string
-	profileKey   string
-	requiredKeys []string
-	profileID    string
-	profileIDs   map[string]string
-	mu           sync.RWMutex
-	enabled      bool
+	createCallerVerifier owneridentity.Validator
+	client               *HTTPClient
+	profileName          string
+	profileKey           string
+	requiredKeys         []string
+	profileID            string
+	profileIDs           map[string]string
+	mu                   sync.RWMutex
+	enabled              bool
 }
 
 // AgentServiceConfig contains configuration for the agent service.
@@ -72,12 +75,13 @@ func NewAgentService(cfg AgentServiceConfig) *AgentService {
 	}
 	client := NewHTTPClientWithTimeout(cfg.Timeout)
 	return &AgentService{
-		client:       client,
-		profileName:  strings.TrimSpace(cfg.ProfileName),
-		profileKey:   strings.TrimSpace(cfg.ProfileKey),
-		requiredKeys: normalizeProfileKeys(cfg.RequiredKeys),
-		profileIDs:   make(map[string]string),
-		enabled:      cfg.Enabled,
+		createCallerVerifier: owneridentity.NewClient(owneridentity.Config{Resolver: discovery.NewResolver(discovery.ResolverConfig{})}),
+		client:               client,
+		profileName:          strings.TrimSpace(cfg.ProfileName),
+		profileKey:           strings.TrimSpace(cfg.ProfileKey),
+		requiredKeys:         normalizeProfileKeys(cfg.RequiredKeys),
+		profileIDs:           make(map[string]string),
+		enabled:              cfg.Enabled,
 	}
 }
 
@@ -176,4 +180,13 @@ func (s *AgentService) Initialize(ctx context.Context) error {
 	slog.Info("reconciled agent profiles", "scenario", resp.Scenario, "created", resp.Created, "updated", resp.Updated, "unchanged", resp.Unchanged, "failed", resp.Failed)
 
 	return nil
+}
+
+// PrepareCreateRunCaller verifies manual goal admission before queue effects.
+func (s *AgentService) PrepareCreateRunCaller(ctx context.Context) (context.Context, error) {
+	verifier := s.createCallerVerifier
+	if verifier == nil {
+		verifier = owneridentity.NewClient(owneridentity.Config{Resolver: discovery.NewResolver(discovery.ResolverConfig{})})
+	}
+	return owneridentity.AuthorizeBoundCreateRunCaller(ctx, verifier, time.Now())
 }

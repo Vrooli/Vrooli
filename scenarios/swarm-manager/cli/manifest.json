@@ -10,37 +10,135 @@
         {
           "name": "get",
           "description": "Inspect retained approval, limits, goal message and launch blockers",
-          "binding": {"kind": "connect-rpc", "service": "DevelopmentService", "method": "GetDevelopment"},
-          "architecture": {"primitive": "proto_list"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DevelopmentService",
+            "method": "GetDevelopment"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "flags": [
+            {
+              "name": "effort-id",
+              "required": true,
+              "description": "Exact retained effort identity"
+            }
+          ]
         },
         {
           "name": "artifact",
           "description": "Read exact retained artifact bytes",
-          "binding": {"kind": "connect-rpc", "service": "DevelopmentService", "method": "GetDevelopmentArtifact"},
-          "architecture": {"primitive": "proto_list"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DevelopmentService",
+            "method": "GetDevelopmentArtifact"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "flags": [
+            {
+              "name": "data",
+              "required": true,
+              "description": "Full typed RPC JSON request; maximum 128 KiB; no inferred actor or authority"
+            }
+          ]
         },
         {
           "name": "approve",
           "description": "Retain a reviewed development target without launching work",
-          "binding": {"kind": "connect-rpc", "service": "DevelopmentService", "method": "ApproveDevelopment"},
-          "architecture": {"primitive": "proto_mutation"},
-          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal", "filesystem:read"]}
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DevelopmentService",
+            "method": "ApproveDevelopment"
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          },
+          "flags": [
+            {
+              "name": "data",
+              "required": true,
+              "description": "Full typed RPC JSON request; maximum 128 KiB; no inferred actor or authority"
+            }
+          ]
         },
         {
           "name": "revoke",
           "description": "Close new dispatch without discarding unresolved usage",
-          "binding": {"kind": "connect-rpc", "service": "DevelopmentService", "method": "RevokeDevelopment"},
-          "architecture": {"primitive": "proto_mutation"},
-          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal", "filesystem:read"]}
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DevelopmentService",
+            "method": "RevokeDevelopment"
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          },
+          "flags": [
+            {
+              "name": "data",
+              "required": true,
+              "description": "Full typed RPC JSON request; maximum 128 KiB; no inferred actor or authority"
+            }
+          ]
         },
         {
           "name": "accept",
           "description": "Accept only independently resolved outcome evidence",
-          "binding": {"kind": "connect-rpc", "service": "DevelopmentService", "method": "AcceptDevelopment"},
-          "architecture": {"primitive": "proto_mutation"},
-          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal", "filesystem:read"]}
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DevelopmentService",
+            "method": "AcceptDevelopment"
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          },
+          "flags": [
+            {
+              "name": "data",
+              "required": true,
+              "description": "Full typed RPC JSON request; maximum 128 KiB; no inferred actor or authority"
+            }
+          ]
         }
       ]
     },
@@ -56,12 +154,24 @@
             "service": "TransitionService",
             "method": "PreviewDevelopment"
           },
-          "architecture": { "primitive": "proto_list" },
+          "architecture": {
+            "primitive": "proto_list"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal", "filesystem:read"]
-          }
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          },
+          "flags": [
+            {
+              "name": "data",
+              "required": true,
+              "description": "Full typed RPC JSON request; maximum 128 KiB; no inferred actor or authority"
+            }
+          ]
         },
         {
           "name": "list",
@@ -2022,62 +2132,142 @@
         {
           "name": "create",
           "description": "Create a draft session (--kind KIND) [--title TEXT] [--starter-job ID] [--json]",
-          "binding": { "kind": "local" },
-          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "attach",
           "description": "Attach typed draft context (--id ID --entity TYPE/REF...) [--json]",
-          "binding": { "kind": "local" },
-          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "start",
           "description": "Start a draft session (--id ID) [--message TEXT] [--json]",
-          "binding": { "kind": "local" },
-          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "continue",
           "description": "Continue a running session (--id ID --message TEXT) [--json]",
-          "binding": { "kind": "local" },
-          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "complete",
           "description": "Refresh and complete a terminal session (--id ID) [--json]",
-          "binding": { "kind": "local" },
-          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "reap",
           "description": "Expire running sessions past the configured TTL [--json]",
-          "binding": { "kind": "local" },
-          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "events",
           "description": "List session run events (--id ID) [--after-sequence N] [--limit N] [--json]",
-          "binding": { "kind": "local" },
-          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "proposal-apply",
           "description": "Apply accepted proposal mutations (--id ID --proposal ID --accept MUTATION_ID...) [--note TEXT] [--json]",
-          "binding": { "kind": "local" },
-          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "proposal-revise",
           "description": "Request proposal revision (--id ID --proposal ID) [--note TEXT] [--json]",
-          "binding": { "kind": "local" },
-          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "proposal-accept-keep",
           "description": "Accept a no-change recommendation (--id ID --proposal ID) [--note TEXT] [--json]",
-          "binding": { "kind": "local" },
-          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "startup-brief",

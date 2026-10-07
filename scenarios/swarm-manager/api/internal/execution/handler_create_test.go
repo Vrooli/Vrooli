@@ -13,6 +13,7 @@ import (
 	"swarm-manager/internal/testutil"
 	"swarm-manager/internal/workflowcontract"
 
+	"github.com/vrooli/api-core/apihttptest"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 )
 
@@ -80,8 +81,7 @@ func TestList_UsesSnapshotWithoutRefreshingRunState(t *testing.T) {
 	rec := httptest.NewRecorder()
 
 	handler.List(rec, req)
-
-	testutil.AssertStatusOK(t, rec)
+	apihttptest.AssertStatus(t, rec.Result(), 200)
 	resp := testutil.DecodeProtoJSON(t, rec, &apipb.ListExecutionResponse{})
 	if len(resp.GetItems()) != 1 {
 		t.Fatalf("expected 1 execution, got %d", len(resp.GetItems()))

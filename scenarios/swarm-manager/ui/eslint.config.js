@@ -108,6 +108,28 @@ export default tseslint.config(
     },
   },
   {
+    // Production must never depend on test-only helpers or feature mocks.
+    // This block leaves test imports and the existing boot harness supported.
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: [
+      "src/**/*.test.{ts,tsx}",
+      "src/**/*.spec.{ts,tsx}",
+      "src/test-utils/**",
+      "src/test-setup.ts",
+      "src/setupTests.ts",
+    ],
+    rules: {
+      "no-restricted-imports": ["error", {
+        patterns: [{ group: [
+          "**/test-utils", "**/test-utils/*",
+          "@/test-utils", "@/test-utils/*",
+          "**/features/*/mocks", "**/features/*/mocks/*",
+          "@/features/*/mocks", "@/features/*/mocks/*",
+        ] }],
+      }],
+    },
+  },
+  {
     files: ["**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}"],
     rules: {
       "@typescript-eslint/await-thenable": "off",

@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/execution"
 	"swarm-manager/internal/promptmanager"
@@ -62,7 +63,7 @@ func scopeExecutionQueuerForTest(t *testing.T, h *Handler, rootDir string, agent
 func createTestItem(t *testing.T, rootDir string, kind BacklogKind, item BacklogItem) {
 	t.Helper()
 	item.Kind = kind
-	testutil.WriteJSONFile(t, filepath.Join(rootDir, backlogKindDirs[kind], item.Name, "spec.json"), item)
+	repocontracttest.WriteJSON(t, filepath.Join(rootDir, backlogKindDirs[kind], item.Name, "spec.json"), item)
 }
 
 func createReadyTestItem(t *testing.T, rootDir string, kind BacklogKind, item BacklogItem) {

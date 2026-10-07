@@ -1,4 +1,5 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import userEvent from "@testing-library/user-event";
 import { useRef, useState } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -61,7 +62,7 @@ describe("Popover", () => {
         };
       });
 
-    render(<AnchoredPopover />);
+    renderWithCanonicalProviders(<AnchoredPopover />);
 
     await user.click(screen.getByRole("button", { name: "Open" }));
 
@@ -83,7 +84,7 @@ describe("Popover", () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
 
-    render(
+    renderWithCanonicalProviders(
       <>
         <button type="button">Outside</button>
         <Popover isOpen onClose={onClose} x={20} y={30} testId="popover">
@@ -97,7 +98,7 @@ describe("Popover", () => {
   });
 
   it("reveals a fixed-position (context-menu) popover at its exact coordinates", () => {
-    render(
+    renderWithCanonicalProviders(
       <Popover isOpen onClose={() => {}} x={20} y={30} testId="fixed-popover">
         Menu
       </Popover>,

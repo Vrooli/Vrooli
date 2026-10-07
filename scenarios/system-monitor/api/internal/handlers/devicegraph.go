@@ -12,6 +12,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/nodereach"
+	"github.com/vrooli/api-core/operatorsession"
 	devicegraphpb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/devicegraph"
 	devicegraphconnect "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/devicegraph/devicegraphconnect"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/apierrors"
@@ -49,7 +50,7 @@ func NewDeviceGraphHandler(graphs collectors.DeviceGraphProvider, log *slog.Logg
 		log:    log,
 		bridge: nodereach.New(nodereach.Config{
 			Token:         firstNonEmpty(os.Getenv("VROOLI_BRIDGE_API_TOKEN"), os.Getenv("VROOLI_API_TOKEN")),
-			TokenProvider: resolveLocalOwnerToken,
+			TokenProvider: operatorsession.LocalOwnerTokenProvider(),
 		}),
 	}
 }

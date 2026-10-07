@@ -3,6 +3,7 @@ package execution
 import (
 	"encoding/json"
 	"errors"
+	"github.com/vrooli/api-core/owneridentity"
 	"io"
 	"net/http"
 	"strings"
@@ -44,7 +45,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 			Effort:          preferences.GetEffort(),
 		}
 	}
-	record, err := h.service.QueueBacklog(r.Context(), req)
+	record, err := h.service.QueueBacklog(owneridentity.WithCreateRunHeaders(r.Context(), r.Header), req)
 	if err != nil {
 		apierr.MapError(w, "[execution] create", err)
 		return

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import userEvent from "@testing-library/user-event";
 import { Trash2 } from "lucide-react";
 import { ActionMenu, ActionMenuSheetContent } from "./action-menu";
@@ -33,7 +34,7 @@ describe("ActionMenu", () => {
     const user = userEvent.setup();
     const onSelect = vi.fn();
 
-    render(
+    renderWithCanonicalProviders(
       <ActionMenu
         label="Test actions"
         triggerTestId="actions-trigger"
@@ -68,7 +69,7 @@ describe("ActionMenu", () => {
     mockDesktopViewport();
     const user = userEvent.setup();
 
-    render(
+    renderWithCanonicalProviders(
       <>
         <p>Elsewhere</p>
         <ActionMenu label="Test actions" triggerTestId="actions-trigger" menuTestId="actions-menu" items={[{ label: "Archive", onSelect: vi.fn() }]} />
@@ -86,7 +87,7 @@ describe("ActionMenu", () => {
     mockDesktopViewport();
     const user = userEvent.setup();
 
-    render(<ActionMenu label="Test actions" triggerTestId="actions-trigger" menuTestId="actions-menu" items={[{ label: "Archive", onSelect: vi.fn() }]} />);
+    renderWithCanonicalProviders(<ActionMenu label="Test actions" triggerTestId="actions-trigger" menuTestId="actions-menu" items={[{ label: "Archive", onSelect: vi.fn() }]} />);
 
     await user.click(screen.getByTestId("actions-trigger"));
     expect(screen.getByTestId("actions-menu")).toBeInTheDocument();
@@ -99,7 +100,7 @@ describe("ActionMenu", () => {
     const user = userEvent.setup();
     const onSelect = vi.fn();
 
-    render(
+    renderWithCanonicalProviders(
       <ActionMenu
         label="Test actions"
         triggerTestId="actions-trigger"
@@ -127,7 +128,7 @@ describe("ActionMenuSheetContent", () => {
     const onSelect = vi.fn();
     const onItemSelected = vi.fn();
 
-    render(
+    renderWithCanonicalProviders(
       <ActionMenuSheetContent
         onItemSelected={onItemSelected}
         items={[

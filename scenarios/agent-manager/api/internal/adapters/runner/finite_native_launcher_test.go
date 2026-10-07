@@ -23,7 +23,7 @@ func finiteLaunchFixture() (isolation.Manifest, *domain.RunConfig, uuid.UUID, La
 	req.RunID = id
 	return m, cfg, id, req
 }
-func TestFiniteSelectorUsesConcreteIsolationBeforeOffMode(t *testing.T) {
+func TestFiniteUnreadySelectorRefusesBeforeLaunchButPlansCodec(t *testing.T) {
 	m, cfg, id, req := finiteLaunchFixture()
 	f, e := NewFiniteNativeFactory(m)
 	if e != nil {
@@ -32,16 +32,18 @@ func TestFiniteSelectorUsesConcreteIsolationBeforeOffMode(t *testing.T) {
 	s := NewLauncherSelector(nil, nil)
 	s.SetFiniteNativeFactory(f)
 	picked := s.PickFor(context.Background(), id, cfg, nil, nil)
-	l, ok := picked.(*finiteNativeLauncher)
-	if !ok {
-		t.Fatalf("finite off mode chose %T", picked)
+	if f.Enabled() {
+		t.Fatal("planning factory advertised launch readiness")
 	}
-	r := l.request
+	if _, e := picked.Launch(context.Background(), req); e == nil {
+		t.Fatal("missing witness launched")
+	}
+	r := isolation.Request{RunID: id.String(), PolicyID: cfg.Admission.Effort.PolicyID, PolicyDigest: cfg.Admission.Effort.PolicyDigest, ProfileDigest: cfg.Admission.EffortIntent.ProfileDigest, Repository: cfg.Admission.EffortIntent.Repository, Deadline: cfg.Admission.Effort.Deadline, Timeout: cfg.Timeout}
 	r.Command = req.Command
 	r.Args = req.Args
 	r.Env = req.Env
 	r.WorkingDir = req.WorkingDir
-	p, e := l.runtime.Plan(context.Background(), r)
+	p, e := f.runtime.Plan(context.Background(), r)
 	if e != nil || !strings.Contains(strings.Join(p.Args, " "), "CODEX_AGENT_TAG="+id.String()) {
 		t.Fatalf("actual native env shim route was not preserved: %v", e)
 	}

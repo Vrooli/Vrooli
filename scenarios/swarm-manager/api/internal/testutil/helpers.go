@@ -3,9 +3,11 @@
 // Package testutil provides shared testing utilities for API handlers.
 //
 // This package consolidates common test patterns into a single flat API:
-//   - HTTP status assertions (AssertStatus*)
+//   - Eventual predicate checks (Eventually)
 //   - Temp file/dir setup and assertions (WriteFile, MakeDir, AssertFileExists…)
-//   - Response body decoding (DecodeJSON, DecodeProtoJSON)
+//
+// HTTP status and JSON decoding use the canonical apihttptest and
+// repocontracttest companions directly at their test callsites.
 //   - Shared fakes for the dispatch/agentmanager seams (NoopInvalidator…)
 //
 // Design Goals:
@@ -19,43 +21,9 @@
 package testutil
 
 import (
-	"net/http"
-	"net/http/httptest"
 	"testing"
 	"time"
 )
-
-// AssertStatus checks that the response has the expected HTTP status code.
-func AssertStatus(tb testing.TB, rec *httptest.ResponseRecorder, expected int) {
-	tb.Helper()
-	if rec.Code != expected {
-		tb.Errorf("expected status %d, got %d: %s", expected, rec.Code, rec.Body.String())
-	}
-}
-
-// AssertStatusOK checks that the response has HTTP 200 status.
-func AssertStatusOK(tb testing.TB, rec *httptest.ResponseRecorder) {
-	tb.Helper()
-	AssertStatus(tb, rec, http.StatusOK)
-}
-
-// AssertStatusCreated checks that the response has HTTP 201 status.
-func AssertStatusCreated(tb testing.TB, rec *httptest.ResponseRecorder) {
-	tb.Helper()
-	AssertStatus(tb, rec, http.StatusCreated)
-}
-
-// AssertStatusNotFound checks that the response has HTTP 404 status.
-func AssertStatusNotFound(tb testing.TB, rec *httptest.ResponseRecorder) {
-	tb.Helper()
-	AssertStatus(tb, rec, http.StatusNotFound)
-}
-
-// AssertStatusBadRequest checks that the response has HTTP 400 status.
-func AssertStatusBadRequest(tb testing.TB, rec *httptest.ResponseRecorder) {
-	tb.Helper()
-	AssertStatus(tb, rec, http.StatusBadRequest)
-}
 
 // Eventually polls predicate until it succeeds or the timeout expires. It is
 // intended for tests that observe fire-and-forget work, where fixed sleeps

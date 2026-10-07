@@ -9,7 +9,7 @@
 import { registerVoiceTransport as registerBrowserVoiceTransport } from "@vrooli/audio-capture-browser";
 import { buildVoiceStreamWsUrl, transcribeAudioWithRetry } from "./api/voice";
 
-export function registerVoiceTransport(): void {
+export function registerScenarioVoiceTransport(): void {
   registerBrowserVoiceTransport({
     buildStreamUrl: (language, sessionId, resumeToken) => buildVoiceStreamWsUrl(language, sessionId, resumeToken),
     transcribeRetained: (blob, language) => transcribeAudioWithRetry(blob, 2, language),

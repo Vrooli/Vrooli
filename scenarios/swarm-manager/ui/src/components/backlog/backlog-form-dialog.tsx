@@ -1,10 +1,11 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Button } from "../ui/button";
 import { Drawer } from "../ui/drawer";
 import { selectors } from "../../consts/selectors";
 import { sanitizeBacklogName } from "../../lib";
 import type { BacklogFormValues, BacklogKind } from "../../types";
 import { useBacklogFormStore } from "../../stores";
+import { buildBacklogFormValues } from "../../stores/backlog-form-store";
 import { BacklogFormIdentitySection, kindLabelFor } from "./backlog-form-identity-section";
 import { BacklogFormDetailsSection } from "./backlog-form-details-section";
 
@@ -44,11 +45,30 @@ export function BacklogFormDialog({
 
   const isEditMode = mode === "edit";
 
+  // Compare the store-owned effective values rather than parent object identity.
+  // Limit property insertion order does not represent a changed owner value.
+  const normalizedInitialValues = buildBacklogFormValues(defaultKind, initialValues);
+  const limits = normalizedInitialValues.executionLimits;
+  const initializationKey = JSON.stringify({
+    isEditMode,
+    defaultKind,
+    values: {
+      ...normalizedInitialValues,
+      executionLimits: limits && Object.fromEntries(
+        Object.entries(limits).sort(([left], [right]) => left.localeCompare(right)),
+      ),
+    },
+  });
+  const initialSnapshot = useRef({ key: initializationKey, values: normalizedInitialValues });
+  if (initialSnapshot.current.key !== initializationKey) {
+    initialSnapshot.current = { key: initializationKey, values: normalizedInitialValues };
+  }
+  const stableInitialValues = initialSnapshot.current.values;
   useEffect(() => {
     if (isOpen) {
-      initialize({ isEditMode, defaultKind, initialValues });
+      initialize({ isEditMode, defaultKind, initialValues: stableInitialValues });
     }
-  }, [isOpen, initialValues, isEditMode, defaultKind, initialize]);
+  }, [isOpen, stableInitialValues, isEditMode, defaultKind, initialize]);
 
   const handleTitleChange = (value: string) => {
     setField("title", value);

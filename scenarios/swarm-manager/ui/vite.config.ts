@@ -67,30 +67,40 @@ export default defineConfig(({ mode }): UserConfig => {
     test: {
       globals: true,
       environment: "jsdom",
-      setupFiles: ["./src/setupTests.ts"],
+      setupFiles: ["./src/test-setup.ts"],
       // The serial-isolation runner profile is expressed here rather than in
       // package scripts, so every invocation has the same bounded worker
       // contract on every host.
       pool: "forks",
       poolOptions: { forks: { minForks: 1, maxForks: 1 } },
-      // The shared audio package is a workspace file: link, so Vitest treats it
-      // as an external dependency and lets Node resolve it — which lands on its
-      // published dist/, whose emitted ESM uses extensionless relative imports
-      // Node cannot resolve. Inlining it routes the import back through Vite,
-      // where the resolve.alias above maps it to the package's TypeScript
-      // source (the same source the app bundle compiles).
-      server: { deps: { inline: [/@vrooli\/audio-capture-browser/] } },
+      // Compile installed governed ESM through Vite, including nested shared
+      // imports. Externalizing a parent can otherwise hand its audio import to
+      // Node before the audio-only inline rule is consulted. This uses installed
+      // package outputs, with no source alias or package-behavior replacement.
+      server: { deps: { inline: [/@vrooli\//] } },
       testTimeout: 30_000,
       hookTimeout: 30_000,
       coverage: {
         provider: "v8",
         reporter: ["json-summary", "json", "text"],
         reportOnFailure: true,
+        include: ["src/**/*.{ts,tsx}"],
+        exclude: [
+          "src/**/*.test.{ts,tsx}",
+          "src/**/*.spec.{ts,tsx}",
+          "src/**/*.d.ts",
+          "src/main.tsx",
+          "src/test-setup.ts",
+          "src/test-utils/**",
+          "src/consts/strings.generated.ts",
+          "src/i18n/locales/**",
+          "src/**/generated/**",
+        ],
         thresholds: {
-          lines: 0,
-          functions: 0,
-          branches: 0,
-          statements: 0,
+          lines: 85,
+          functions: 85,
+          branches: 85,
+          statements: 85,
         },
       },
     },

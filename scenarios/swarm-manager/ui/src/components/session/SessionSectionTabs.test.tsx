@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import { SessionSectionTabs } from "./SessionSectionTabs";
 
 describe("SessionSectionTabs layout", () => {
   it("bounds a tall panel inside a fixed-height parent", () => {
-    render(
+    renderWithCanonicalProviders(
       <div className="flex h-96 min-h-0 flex-col">
         <SessionSectionTabs
           sections={[{

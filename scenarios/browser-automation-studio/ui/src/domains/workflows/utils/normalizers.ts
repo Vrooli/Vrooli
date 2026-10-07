@@ -210,107 +210,6 @@ export function hasValidAction(node: { action?: ActionDefinition }): boolean {
 export type NodeWithAction = Node & { action?: ActionDefinition };
 
 /**
- * Normalizes raw node data from API/storage into valid ReactFlow Node objects.
- * Ensures all required fields exist with proper defaults.
- *
- * V2 Native Format:
- * - If node.action exists, it is the source of truth
- * - node.type is derived from action.type for ReactFlow routing
- * - A missing action remains invalid input; workflow compatibility conversion
- *   belongs at the API ingress boundary, never in the editor.
- */
-export const normalizeNodes = (nodes: unknown[] | undefined | null): NodeWithAction[] => {
-  if (!Array.isArray(nodes)) return [];
-  return nodes.map((node, index) => {
-    const nodeData = node as Record<string, unknown>;
-    const id = nodeData?.id ? String(nodeData.id) : `node-${index + 1}`;
-    const positionData = nodeData?.position as Record<string, unknown> | undefined;
-    const position = {
-      x: Number(positionData?.x ?? 100 + index * 200) || 0,
-      y: Number(positionData?.y ?? 100 + index * 120) || 0,
-    };
-    const data = nodeData?.data && typeof nodeData.data === 'object' ? nodeData.data : {};
-
-    // Get existing action if present
-    const action = nodeData?.action && typeof nodeData.action === 'object'
-      ? (nodeData.action as ActionDefinition)
-      : undefined;
-
-    // React Flow needs a renderer key, but the action remains authoritative.
-    let type = nodeData?.type ? String(nodeData.type) : 'unknown';
-
-    // V2 Native: If action exists, derive type from action.type
-    if (action?.type) {
-      const derivedType = actionTypeToNodeType(action.type);
-      if (derivedType !== 'unknown') {
-        type = derivedType;
-      }
-    }
-
-    const result: NodeWithAction = {
-      ...nodeData,
-      id,
-      type,
-      position,
-      data,
-      action,
-    } as NodeWithAction;
-
-    return result;
-  });
-};
-
-/**
- * Normalizes raw edge data from API/storage into valid ReactFlow Edge objects.
- * Filters out invalid edges that are missing source or target.
- */
-export const normalizeEdges = (edges: unknown[] | undefined | null): Edge[] => {
-  if (!Array.isArray(edges)) return [];
-  return edges
-    .map((edge, index) => {
-      const edgeData = edge as Record<string, unknown>;
-      const id = edgeData?.id ? String(edgeData.id) : `edge-${index + 1}`;
-      const source = edgeData?.source ? String(edgeData.source) : '';
-      const target = edgeData?.target ? String(edgeData.target) : '';
-      if (!source || !target) return null;
-      const normalized: Edge = {
-        ...edgeData,
-        id,
-        source,
-        target,
-      } as Edge;
-      const data = (edgeData?.data && typeof edgeData.data === 'object') ? edgeData.data as Record<string, unknown> : undefined;
-      if (data) {
-        normalized.data = data;
-      }
-      const condition = typeof data?.condition === 'string' ? data.condition : undefined;
-      if (condition === 'if_true' || condition === 'if_false') {
-        const stroke = condition === 'if_true' ? '#4ade80' : '#f87171';
-        normalized.label = condition === 'if_true' ? 'IF TRUE' : 'IF FALSE';
-        normalized.style = { ...(normalized.style ?? {}), stroke };
-      }
-      if (condition === 'loop_body') {
-        normalized.label = 'LOOP BODY';
-        normalized.style = { ...(normalized.style ?? {}), stroke: '#38bdf8' };
-      }
-      if (condition === 'loop_next') {
-        normalized.label = 'AFTER LOOP';
-        normalized.style = { ...(normalized.style ?? {}), stroke: '#7c3aed' };
-      }
-      if (condition === 'loop_continue') {
-        normalized.label = 'CONTINUE';
-        normalized.style = { ...(normalized.style ?? {}), stroke: '#22c55e' };
-      }
-      if (condition === 'loop_break') {
-        normalized.label = 'BREAK';
-        normalized.style = { ...(normalized.style ?? {}), stroke: '#f43f5e' };
-      }
-      return normalized;
-    })
-    .filter(Boolean) as Edge[];
-};
-
-/**
  * Automatically layouts nodes if they don't have valid positions.
  * Uses a simple BFS-based layering algorithm.
  */
@@ -319,15 +218,15 @@ export const autoLayoutNodes = (nodes: Node[], edges: Edge[]): Node[] => {
 
   // Check if we need to layout: if all nodes are at (0,0) or very close, we assume they need layout.
   // Or if the user specifically requested "optional positions", we can check if positions are missing in the raw data.
-  // Since normalizeNodes supplies default (0,0) or index-based positions, we might need a better heuristic.
+  // Since the workflow codec supplies default (0,0) or index-based positions, we might need a better heuristic.
   // For now, let's assume if the first few nodes are all at x=0, we should layout.
-  // Actually, normalizeNodes gives `100 + index * 200` for X.
+  // Actually, the workflow codec gives `100 + index * 200` for X.
   // Let's check if the "raw" positions were missing. But we don't have raw data here.
-  // We can rely on a heuristic: if all nodes have y=0 (which normalizeNodes does NOT do by default, it does `100 + index * 120`),
-  // checking for the default pattern from normalizeNodes might be tricky if we want to support "some positions present".
+  // We can rely on a heuristic: if all nodes have y=0 (which the workflow codec does NOT do by default, it does `100 + index * 120`),
+  // checking for the default pattern from workflow codec node normalization might be tricky if we want to support "some positions present".
   //
   // However, the requirement is: "remove them from all workflows... and add logic which properly spaces them automatically when position data isn't provided."
-  // If we strip positions, normalizeNodes will assign the diagonal layout:
+  // If we strip positions, the workflow codec will assign the diagonal layout:
   // x: 100 + index * 200
   // y: 100 + index * 120
   // We can detect this specific pattern or just always run auto-layout if we detect "default-like" positions.
@@ -336,14 +235,14 @@ export const autoLayoutNodes = (nodes: Node[], edges: Edge[]): Node[] => {
   // If the nodes already have good positions, we might not want to overwrite them.
   // But how do we know?
   //
-  // Let's look at `normalizeNodes` again.
+  // Let's look at the codec again.
   // It assigns defaults if `positionData` is missing.
   //
   // To be safe and explicit, maybe we should export a function that takes the RAW data?
-  // But `WorkflowBuilder` calls `normalizeNodes` then `normalizeEdges`.
+  // But `WorkflowBuilder` normalizes through the workflow codec.
   //
   // Let's implement a layout that respects existing non-default positions?
-  // Or, simpler: If we detect that the nodes are in the "default diagonal" (which is what normalizeNodes does when pos is missing), we re-layout.
+  // Or, simpler: If we detect that the nodes are in the "default diagonal" (which is what the workflow codec does when pos is missing), we re-layout.
   //
   // Default diagonal: x = 100 + i*200, y = 100 + i*120.
   // Let's check if the nodes follow this pattern.

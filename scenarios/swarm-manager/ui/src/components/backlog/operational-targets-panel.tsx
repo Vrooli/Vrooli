@@ -273,7 +273,7 @@ export function OperationalTargetsPanel({
             {targetsExpanded && (
               <div className="space-y-4">
                 {reviewMode && <ReviewProgressBar reviewed={targetReviewStats.reviewed} total={targetReviewStats.total} />}
-                {CRITICALITY_ORDER.map((level) => {
+                {([...CRITICALITY_ORDER, "Other"] as const).map((level) => {
                   const group = groupedTargets[level];
                   if (!group || group.length === 0) return null;
                   return (

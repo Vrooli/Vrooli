@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import { DecisionStreamView } from "./DecisionStreamView";
 import { selectors } from "../../consts/selectors";
 import type { CrossItemQuestion } from "../../lib/command-post-utils";
@@ -87,7 +88,7 @@ beforeEach(() => {
 describe("DecisionStreamView", () => {
   describe("Decision header", () => {
     it("renders a clickable title and counter without the redundant back control", () => {
-      render(<DecisionStreamView {...defaultProps} />);
+      renderWithCanonicalProviders(<DecisionStreamView {...defaultProps} />);
 
       expect(screen.getByTestId(selectors.commandPost.decisionStream.header)).toBeInTheDocument();
       expect(screen.queryByTestId(selectors.commandPost.decisionStream.backButton)).not.toBeInTheDocument();
@@ -101,7 +102,7 @@ describe("DecisionStreamView", () => {
         makeCrossItemQuestion({ question: makeWorkshopQuestion({ id: "d2", topic: "Second" }) }),
         makeCrossItemQuestion({ question: makeWorkshopQuestion({ id: "d3", topic: "Third" }) }),
       ];
-      render(<DecisionStreamView {...defaultProps} questions={questions} />);
+      renderWithCanonicalProviders(<DecisionStreamView {...defaultProps} questions={questions} />);
 
       expect(screen.getByTestId(selectors.commandPost.decisionStream.counter)).toHaveTextContent("1/3");
     });
@@ -111,7 +112,7 @@ describe("DecisionStreamView", () => {
         makeCrossItemQuestion({ question: makeWorkshopQuestion({ id: "d1", topic: "First" }) }),
         makeCrossItemQuestion({ question: makeWorkshopQuestion({ id: "d2", topic: "Restored" }) }),
       ];
-      render(<DecisionStreamView {...defaultProps} questions={questions} currentQuestionId="d2" />);
+      renderWithCanonicalProviders(<DecisionStreamView {...defaultProps} questions={questions} currentQuestionId="d2" />);
 
       expect(screen.getByText("Restored")).toBeInTheDocument();
       expect(screen.getByTestId(selectors.commandPost.decisionStream.counter)).toHaveTextContent("2/2");
@@ -119,7 +120,7 @@ describe("DecisionStreamView", () => {
 
     it("falls back to the first decision and repairs a stale question id", () => {
       const onCurrentQuestionChange = vi.fn();
-      render(<DecisionStreamView {...defaultProps} currentQuestionId="removed-after-refetch" onCurrentQuestionChange={onCurrentQuestionChange} />);
+      renderWithCanonicalProviders(<DecisionStreamView {...defaultProps} currentQuestionId="removed-after-refetch" onCurrentQuestionChange={onCurrentQuestionChange} />);
 
       expect(screen.getByText("Architecture decision")).toBeInTheDocument();
       expect(onCurrentQuestionChange).toHaveBeenCalledWith("d1");
@@ -127,7 +128,7 @@ describe("DecisionStreamView", () => {
 
     it("opens the full backlog item from the title link", () => {
       const onOpenItem = vi.fn();
-      render(<DecisionStreamView {...defaultProps} onOpenItem={onOpenItem} />);
+      renderWithCanonicalProviders(<DecisionStreamView {...defaultProps} onOpenItem={onOpenItem} />);
 
       fireEvent.click(screen.getByTestId(selectors.commandPost.decisionStream.openItemLink));
       expect(onOpenItem).toHaveBeenCalledWith("idea", "dashboard");
@@ -136,7 +137,7 @@ describe("DecisionStreamView", () => {
 
   describe("Removed context panel", () => {
     it("does not render the duplicate item context surface", () => {
-      render(<DecisionStreamView {...defaultProps} />);
+      renderWithCanonicalProviders(<DecisionStreamView {...defaultProps} />);
 
       expect(screen.queryByTestId(selectors.commandPost.decisionStream.contextPanel)).not.toBeInTheDocument();
       expect(screen.queryByTestId(selectors.commandPost.decisionStream.contextToggle)).not.toBeInTheDocument();
@@ -149,7 +150,7 @@ describe("DecisionStreamView", () => {
         makeCrossItemQuestion({ question: makeWorkshopQuestion({ id: "d1" }) }),
         makeCrossItemQuestion({ question: makeWorkshopQuestion({ id: "d2", topic: "Second" }) }),
       ];
-      render(<DecisionStreamView {...defaultProps} questions={questions} />);
+      renderWithCanonicalProviders(<DecisionStreamView {...defaultProps} questions={questions} />);
 
       const back = screen.getByTestId(selectors.commandPost.decisionStream.navBack);
       const skip = screen.getByTestId(selectors.commandPost.decisionStream.navSkip);
@@ -162,7 +163,7 @@ describe("DecisionStreamView", () => {
     });
 
     it("back button is disabled on the first question", () => {
-      render(<DecisionStreamView {...defaultProps} />);
+      renderWithCanonicalProviders(<DecisionStreamView {...defaultProps} />);
 
       const back = screen.getByTestId(selectors.commandPost.decisionStream.navBack);
       expect(back).toBeDisabled();
@@ -170,7 +171,7 @@ describe("DecisionStreamView", () => {
     });
 
     it("shows 'Done' instead of 'Next' on the last question", () => {
-      render(<DecisionStreamView {...defaultProps} />);
+      renderWithCanonicalProviders(<DecisionStreamView {...defaultProps} />);
 
       expect(screen.getByTestId(selectors.commandPost.decisionStream.navNext)).toHaveTextContent("Done");
     });
@@ -180,7 +181,7 @@ describe("DecisionStreamView", () => {
         makeCrossItemQuestion({ question: makeWorkshopQuestion({ id: "d1" }) }),
         makeCrossItemQuestion({ question: makeWorkshopQuestion({ id: "d2", topic: "Second" }) }),
       ];
-      render(<DecisionStreamView {...defaultProps} questions={questions} />);
+      renderWithCanonicalProviders(<DecisionStreamView {...defaultProps} questions={questions} />);
 
       expect(screen.getByTestId(selectors.commandPost.decisionStream.navNext)).toHaveTextContent("Next");
     });
@@ -190,7 +191,7 @@ describe("DecisionStreamView", () => {
         makeCrossItemQuestion({ question: makeWorkshopQuestion({ id: "d1", topic: "First topic" }) }),
         makeCrossItemQuestion({ question: makeWorkshopQuestion({ id: "d2", topic: "Second topic" }) }),
       ];
-      render(<DecisionStreamView {...defaultProps} questions={questions} />);
+      renderWithCanonicalProviders(<DecisionStreamView {...defaultProps} questions={questions} />);
 
       expect(screen.getByText("First topic")).toBeInTheDocument();
 
@@ -202,7 +203,7 @@ describe("DecisionStreamView", () => {
 
     it("snooze calls onSnoozeItem with the correct key", () => {
       const onSnoozeItem = vi.fn();
-      render(<DecisionStreamView {...defaultProps} onSnoozeItem={onSnoozeItem} />);
+      renderWithCanonicalProviders(<DecisionStreamView {...defaultProps} onSnoozeItem={onSnoozeItem} />);
 
       fireEvent.click(screen.getByTestId(selectors.commandPost.decisionStream.navSnooze));
       expect(onSnoozeItem).toHaveBeenCalledWith("backlog:idea/dashboard");
@@ -217,7 +218,7 @@ describe("DecisionStreamView", () => {
         makeCrossItemQuestion({ question: makeWorkshopQuestion({ id: "d3" }) }),
         makeCrossItemQuestion({ question: makeWorkshopQuestion({ id: "d4" }) }),
       ];
-      render(<DecisionStreamView {...defaultProps} questions={questions} />);
+      renderWithCanonicalProviders(<DecisionStreamView {...defaultProps} questions={questions} />);
 
       const progressBar = screen.getByTestId(selectors.commandPost.decisionStream.progressBar);
       const fill = progressBar.firstChild as HTMLElement;
@@ -228,13 +229,13 @@ describe("DecisionStreamView", () => {
 
   describe("Empty state", () => {
     it("renders 'No pending questions' when questions list is empty", () => {
-      render(<DecisionStreamView {...defaultProps} questions={[]} />);
+      renderWithCanonicalProviders(<DecisionStreamView {...defaultProps} questions={[]} />);
 
       expect(screen.getByText("No pending questions")).toBeInTheDocument();
     });
 
     it("empty state has no redundant back button", () => {
-      render(<DecisionStreamView {...defaultProps} questions={[]} />);
+      renderWithCanonicalProviders(<DecisionStreamView {...defaultProps} questions={[]} />);
 
       expect(screen.queryByText("Back to Command Post")).not.toBeInTheDocument();
     });
@@ -243,14 +244,14 @@ describe("DecisionStreamView", () => {
   describe("Keyboard shortcuts", () => {
     it("Escape calls onBack when context panel is collapsed", () => {
       const onBack = vi.fn();
-      render(<DecisionStreamView {...defaultProps} onBack={onBack} />);
+      renderWithCanonicalProviders(<DecisionStreamView {...defaultProps} onBack={onBack} />);
 
       fireEvent.keyDown(window, { key: "Escape" });
       expect(onBack).toHaveBeenCalledOnce();
     });
 
     it("'i' key does not restore the removed context panel", () => {
-      render(<DecisionStreamView {...defaultProps} />);
+      renderWithCanonicalProviders(<DecisionStreamView {...defaultProps} />);
 
       fireEvent.keyDown(window, { key: "i" });
       expect(screen.queryByTestId(selectors.commandPost.decisionStream.contextPanel)).not.toBeInTheDocument();
@@ -259,7 +260,7 @@ describe("DecisionStreamView", () => {
 
   describe("Question content", () => {
     it("renders workshop question with options", () => {
-      render(<DecisionStreamView {...defaultProps} />);
+      renderWithCanonicalProviders(<DecisionStreamView {...defaultProps} />);
 
       expect(screen.getByTestId(selectors.commandPost.decisionStream.questionArea)).toBeInTheDocument();
       expect(screen.getByText("Option Alpha")).toBeInTheDocument();

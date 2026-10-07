@@ -5,13 +5,12 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { screen, waitFor, fireEvent } from "@testing-library/react";
 import { FilePreview } from "./file-preview";
 import { FileServiceProvider } from "../../contexts/FileServiceContext";
 import type { IFileService } from "../../services/file-service-types";
 import { selectors } from "../../consts/selectors";
-import { createTestQueryClient } from "../../test-utils";
+import { createTestQueryClient, renderWithProviders } from "../../test-utils";
 
 vi.mock("../../lib", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../lib")>();
@@ -42,15 +41,12 @@ function createMockFileService(overrides?: Partial<IFileService>): IFileService 
   };
 }
 
-const renderWithProviders = (ui: React.ReactElement, fileService?: IFileService) => {
+const renderFilePreview = (ui: React.ReactElement, fileService?: IFileService) => {
   const queryClient = createTestQueryClient();
   const svc = fileService ?? createMockFileService();
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <FileServiceProvider value={svc}>
-        {ui}
-      </FileServiceProvider>
-    </QueryClientProvider>
+  return renderWithProviders(
+    <FileServiceProvider value={svc}>{ui}</FileServiceProvider>,
+    { queryClient },
   );
 };
 
@@ -64,7 +60,7 @@ describe("FilePreview", () => {
       getFileContent: vi.fn().mockResolvedValue("# Test Content"),
     });
 
-    renderWithProviders(
+    renderFilePreview(
       <FilePreview
         filePath="docs/readme.md"
         fileName="readme.md"
@@ -80,7 +76,7 @@ describe("FilePreview", () => {
       getFileContent: vi.fn().mockReturnValue(new Promise(() => {})),
     });
 
-    renderWithProviders(
+    renderFilePreview(
       <FilePreview
         filePath="test.txt"
         fileName="test.txt"
@@ -96,7 +92,7 @@ describe("FilePreview", () => {
       getFileContent: vi.fn().mockResolvedValue("# Hello World\n\nThis is a test."),
     });
 
-    renderWithProviders(
+    renderFilePreview(
       <FilePreview
         filePath="README.md"
         fileName="README.md"
@@ -111,7 +107,8 @@ describe("FilePreview", () => {
     fireEvent.click(screen.getByLabelText("Show rendered markdown"));
 
     await waitFor(() => {
-      expect(screen.getByTestId("file-preview-markdown")).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Hello World" })).toBeInTheDocument();
+      expect(screen.queryByTestId("file-preview-editor")).not.toBeInTheDocument();
     });
   });
 
@@ -120,7 +117,7 @@ describe("FilePreview", () => {
       getFileContent: vi.fn().mockResolvedValue("# Hello World\n\nThis is a test."),
     });
 
-    renderWithProviders(
+    renderFilePreview(
       <FilePreview
         filePath="README.md"
         fileName="README.md"
@@ -136,7 +133,8 @@ describe("FilePreview", () => {
     fireEvent.click(toggleButton);
 
     await waitFor(() => {
-      expect(screen.getByTestId("file-preview-markdown")).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Hello World" })).toBeInTheDocument();
+      expect(screen.queryByTestId("file-preview-editor")).not.toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByLabelText("Show raw markdown"));
@@ -151,7 +149,7 @@ describe("FilePreview", () => {
       getFileContent: vi.fn().mockResolvedValue("function test() {\n  return true;\n}"),
     });
 
-    renderWithProviders(
+    renderFilePreview(
       <FilePreview
         filePath="src/test.ts"
         fileName="test.ts"
@@ -169,7 +167,7 @@ describe("FilePreview", () => {
       getFileContent: vi.fn().mockResolvedValue("Plain text content"),
     });
 
-    renderWithProviders(
+    renderFilePreview(
       <FilePreview
         filePath="notes.txt"
         fileName="notes.txt"
@@ -194,7 +192,7 @@ describe("FilePreview", () => {
       }),
     });
 
-    renderWithProviders(
+    renderFilePreview(
       <FilePreview
         filePath="notes.txt"
         fileName="notes.txt"
@@ -226,7 +224,7 @@ describe("FilePreview", () => {
   it("renders image preview for image files", () => {
     const svc = createMockFileService();
 
-    renderWithProviders(
+    renderFilePreview(
       <FilePreview
         filePath="images/logo.png"
         fileName="logo.png"
@@ -244,7 +242,7 @@ describe("FilePreview", () => {
       getFileContent: vi.fn().mockRejectedValue(new Error("File not found")),
     });
 
-    renderWithProviders(
+    renderFilePreview(
       <FilePreview
         filePath="missing.txt"
         fileName="missing.txt"
@@ -266,7 +264,7 @@ describe("FilePreview", () => {
       getFileContent: vi.fn().mockResolvedValue('{"title":"Protected spec"}'),
     });
 
-    renderWithProviders(
+    renderFilePreview(
       <FilePreview filePath="spec.json" fileName="spec.json" readOnly />,
       svc,
     );
@@ -281,7 +279,7 @@ describe("FilePreview", () => {
       getFileContent: vi.fn().mockResolvedValue("# Protected"),
     });
 
-    renderWithProviders(
+    renderFilePreview(
       <FilePreview filePath="NOTES.md" fileName="NOTES.md" readOnly />,
       svc,
     );
@@ -296,7 +294,7 @@ describe("FilePreview", () => {
       getFileContent: vi.fn().mockResolvedValue("content"),
     });
 
-    renderWithProviders(
+    renderFilePreview(
       <FilePreview filePath="spec.json" fileName="spec.json" readOnly />,
       svc,
     );
@@ -311,7 +309,7 @@ describe("FilePreview", () => {
       getFileContent: vi.fn().mockResolvedValue("content"),
     });
 
-    renderWithProviders(
+    renderFilePreview(
       <FilePreview filePath="notes.txt" fileName="notes.txt" />,
       svc,
     );
@@ -326,7 +324,7 @@ describe("FilePreview", () => {
       getFileContent: vi.fn().mockResolvedValue("content"),
     });
 
-    renderWithProviders(
+    renderFilePreview(
       <FilePreview
         filePath="src/components/Button.tsx"
         fileName="Button.tsx"

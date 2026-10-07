@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 	"swarm-manager/internal/identity"
 	"swarm-manager/internal/testutil"
 )
@@ -26,7 +27,7 @@ func setupTestStore(t *testing.T) (*FileStore, string) {
 func writeSpecJSON(t *testing.T, rootDir string, kind BacklogKind, name string, data map[string]any) {
 	t.Helper()
 	dir := filepath.Join(rootDir, backlogKindDirs[kind], name)
-	testutil.WriteJSONFile(t, filepath.Join(dir, "spec.json"), data)
+	repocontracttest.WriteJSON(t, filepath.Join(dir, "spec.json"), data)
 }
 
 func TestStore_NewFileStore(t *testing.T) {
@@ -617,7 +618,7 @@ func TestStore_SaveItem(t *testing.T) {
 			"archive_reason":  "superseded",
 			"custom_metadata": map[string]any{"key": "value"},
 		}
-		testutil.WriteJSONFile(t, filepath.Join(itemDir, "spec.json"), initial)
+		repocontracttest.WriteJSON(t, filepath.Join(itemDir, "spec.json"), initial)
 
 		// Save updated item
 		item := BacklogItem{

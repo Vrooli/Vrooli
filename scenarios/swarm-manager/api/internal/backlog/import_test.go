@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/api-core/apihttptest"
 	"swarm-manager/internal/testutil"
 )
 
@@ -87,7 +88,7 @@ type importResp struct {
 
 func parseImportResp(t *testing.T, w *httptest.ResponseRecorder) importResp {
 	t.Helper()
-	testutil.AssertStatusOK(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 200)
 	var resp importResp
 	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("failed to parse response: %v\nbody: %s", err, w.Body.String())
@@ -685,7 +686,7 @@ func TestRoundTrip_ExportEditImport(t *testing.T) {
 	exportReq.ContentLength = 0
 	exportW := httptest.NewRecorder()
 	h.Export(exportW, exportReq)
-	testutil.AssertStatusOK(t, exportW)
+	apihttptest.AssertStatus(t, exportW.Result(), 200)
 
 	exported := exportW.Body.String()
 	if !strings.Contains(exported, "<!-- item:idea/my-app -->") {

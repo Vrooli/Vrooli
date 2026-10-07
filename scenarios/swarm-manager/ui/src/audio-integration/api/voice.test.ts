@@ -74,6 +74,10 @@ vi.mock("@connectrpc/connect", async (importOriginal) => {
   };
 });
 
+// Setup registers the real scenario voice adapter before test mocks are installed.
+// Reload the adapter dependency so these codec tests use their explicit RPC/base mocks.
+beforeEach(() => vi.resetModules());
+
 describe("streamingModeLabel", () => {
   it("maps each enum value to its CLI label", () => {
     expect(streamingModeLabel(StreamingMode.AUTO)).toBe("auto");

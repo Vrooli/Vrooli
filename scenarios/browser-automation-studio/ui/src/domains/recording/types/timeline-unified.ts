@@ -145,17 +145,8 @@ export function timelineEntryToTimelineItem(entry: TimelineEntry): TimelineItem 
   const context = entry.context;
   const mode: TimelineMode = context?.origin?.case === 'sessionId' ? 'recording' : 'execution';
 
-  let selector: string | undefined;
-  // Try to get selector from action params
-  if (entry.action?.params?.case === 'click') {
-    selector = (entry.action.params.value as { selector?: string })?.selector;
-  } else if (entry.action?.params?.case === 'input') {
-    selector = (entry.action.params.value as { selector?: string })?.selector;
-  } else if (entry.action?.params?.case === 'hover') {
-    selector = (entry.action.params.value as { selector?: string })?.selector;
-  } else if (entry.action?.params?.case === 'focus') {
-    selector = (entry.action.params.value as { selector?: string })?.selector;
-  }
+  const params = entry.action?.params;
+  const selector = params?.value && 'selector' in params.value ? params.value.selector : undefined;
 
   // Extract success/error from unified context
   return {
@@ -175,35 +166,35 @@ export function timelineEntryToTimelineItem(entry: TimelineEntry): TimelineItem 
 }
 
 /**
- * TimelineEntry type from useTimeline hook.
+ * TimelineEntry type from the recording journal.
  * Re-declared here to avoid circular imports.
  */
-/**
- * Restore BAS logical page identity onto driver actions before generation.
- * The driver owns driverPageId; the persisted timeline owns the session-local
- * pageId used by workflows. Action IDs are the shared capture identity.
- */
-export function attachTimelinePageIdentities(
-  actions: RecordedAction[],
-  entries: RecordingTimelineEntry[]
-): RecordedAction[] {
-  const pageIdsByActionId = new Map<string, string>();
-  for (const entry of entries) {
-    if (entry.type === 'action' && entry.pageId) {
-      pageIdsByActionId.set(entry.entry.id, entry.pageId);
-    }
-  }
-
-  return actions.map((action) => {
-    const pageId = pageIdsByActionId.get(action.id);
-    return pageId ? { ...action, pageId } : action;
-  });
+/** Convert the journal value only at legacy workflow/replay API boundaries. */
+export function recordingEntryToRecordedAction(entry: RecordingTimelineEntry): RecordedAction | undefined {
+  if (entry.type !== 'action') return undefined;
+  const item = recordingEntryToTimelineItem(entry);
+  const selector = item.selector;
+  return {
+    id: entry.entry.id,
+    sessionId: entry.entry.context?.origin?.case === 'sessionId' ? entry.entry.context.origin.value : '',
+    sequenceNum: entry.entry.sequenceNum,
+    timestamp: entry.entry.timestamp
+      ? new Date(Number(entry.entry.timestamp.seconds) * 1000 + Number(entry.entry.timestamp.nanos ?? 0) / 1_000_000).toISOString()
+      : new Date(0).toISOString(),
+    durationMs: entry.entry.durationMs,
+    actionType: item.actionType as RecordedAction['actionType'],
+    confidence: 0.7,
+    selector: selector ? { primary: selector, candidates: [] } : undefined,
+    payload: item.payload as RecordedAction['payload'],
+    url: item.url ?? '',
+    pageId: entry.pageId,
+  };
 }
 
 /**
- * Convert a useTimeline TimelineEntry to a TimelineItem.
+ * Convert a recording journal TimelineEntry to a TimelineItem.
  * Handles both action entries and page event entries.
- * This is for entries from the /timeline API endpoint (useTimeline hook).
+ * This is for entries from the /timeline API endpoint.
  */
 export function recordingEntryToTimelineItem(
   entry: RecordingTimelineEntry,
@@ -253,6 +244,10 @@ function getActionTypeString(type: number | undefined): string {
     case ProtoActionType.SCREENSHOT: return 'screenshot';
     case ProtoActionType.FOCUS: return 'focus';
     case ProtoActionType.BLUR: return 'blur';
+    case ProtoActionType.EXTRACT: return 'extract';
+    case ProtoActionType.SET_VARIABLE: return 'setVariable';
+    case ProtoActionType.CONDITIONAL: return 'conditional';
+    case ProtoActionType.LOOP: return 'loop';
     default: return 'unknown';
   }
 }
@@ -305,11 +300,17 @@ function timelineEntryPayloadForDisplay(entry: TimelineEntry): Record<string, un
         button: mouseButtonToString(params.value.button),
         clickCount: params.value.clickCount,
         modifiers: keyboardModifiersToStrings(params.value.modifiers),
+        delay: params.value.delayMs,
+        force: params.value.force,
+        scrollIntoView: params.value.scrollIntoView,
       };
     case 'input':
       return {
         text: params.value.value,
         clearFirst: params.value.clearFirst,
+        delay: params.value.delayMs,
+        isSensitive: params.value.isSensitive,
+        submit: params.value.submit,
       };
     case 'scroll':
       return {
@@ -317,24 +318,41 @@ function timelineEntryPayloadForDisplay(entry: TimelineEntry): Record<string, un
         scrollY: params.value.y,
         deltaX: params.value.deltaX,
         deltaY: params.value.deltaY,
+        selector: params.value.selector,
+        behavior: params.value.behavior,
       };
     case 'navigate':
       return {
         targetUrl: params.value.url,
+        waitForSelector: params.value.waitForSelector,
+        timeoutMs: params.value.timeoutMs,
       };
     case 'keyboard':
-      return {
-        key: params.value.key,
-      };
+      return { key: params.value.key, keys: params.value.keys, modifiers: keyboardModifiersToStrings(params.value.modifiers), action: params.value.action };
+    case 'wait':
+      return params.value.waitFor.case === 'durationMs'
+        ? { waitType: 'time', duration: params.value.waitFor.value, timeoutMs: params.value.timeoutMs }
+        : { waitType: 'selector', selector: params.value.waitFor.value, state: params.value.state, timeoutMs: params.value.timeoutMs };
     case 'selectOption':
       if (params.value.selectBy.case === 'value') {
-        return { value: params.value.selectBy.value };
+        return { value: params.value.selectBy.value, timeoutMs: params.value.timeoutMs };
       } else if (params.value.selectBy.case === 'label') {
-        return { selectedText: params.value.selectBy.value };
+        return { selectedText: params.value.selectBy.value, timeoutMs: params.value.timeoutMs };
       } else if (params.value.selectBy.case === 'index') {
-        return { selectedIndex: params.value.selectBy.value };
+        return { selectedIndex: params.value.selectBy.value, timeoutMs: params.value.timeoutMs };
       }
       return {};
+    case 'assert':
+    case 'evaluate':
+    case 'extract':
+    case 'hover':
+    case 'screenshot':
+    case 'focus':
+    case 'blur':
+    case 'setVariable':
+    case 'conditional':
+    case 'loop':
+      return { ...params.value, ...(params.case === 'screenshot' && entry.action?.metadata?.label ? { name: entry.action.metadata.label } : {}) };
     default:
       return {};
   }

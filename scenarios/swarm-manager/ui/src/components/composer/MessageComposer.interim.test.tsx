@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 
 vi.mock("./MicButton", () => ({
   MicButton: ({ onPartialTranscript, onTranscript }: {
@@ -18,7 +19,7 @@ import { MessageComposer } from "./MessageComposer";
 describe("MessageComposer interim transcript", () => {
   it("renders interim text as dotted-underlined content without adding it to the value", () => {
     const onChange = vi.fn();
-    render(<MessageComposer value="settled" onChange={onChange} onSubmit={vi.fn()} onTranscript={vi.fn()} />);
+    renderWithCanonicalProviders(<MessageComposer value="settled" onChange={onChange} onSubmit={vi.fn()} onTranscript={vi.fn()} />);
 
     fireEvent.click(screen.getByTestId("mock-partial"));
 
@@ -31,7 +32,7 @@ describe("MessageComposer interim transcript", () => {
   it("materializes interim text before a user edit and ignores its duplicate final", () => {
     const onChange = vi.fn();
     const onTranscript = vi.fn();
-    render(<MessageComposer value="settled" onChange={onChange} onSubmit={vi.fn()} onTranscript={onTranscript} />);
+    renderWithCanonicalProviders(<MessageComposer value="settled" onChange={onChange} onSubmit={vi.fn()} onTranscript={onTranscript} />);
 
     fireEvent.click(screen.getByTestId("mock-partial"));
     fireEvent.focus(screen.getByRole("textbox"));

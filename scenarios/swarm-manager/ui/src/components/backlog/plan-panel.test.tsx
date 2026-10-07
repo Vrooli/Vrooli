@@ -1,5 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { screen, waitFor, fireEvent } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { PlanPanel } from "./plan-panel";
 import { ApiError } from "../../lib/api-client";
@@ -36,10 +37,10 @@ const createTestQueryClient = () =>
 
 const renderWithProviders = (ui: React.ReactElement) => {
   const queryClient = createTestQueryClient();
-  return render(
+  return renderWithCanonicalProviders(
     <QueryClientProvider client={queryClient}>
       {ui}
-    </QueryClientProvider>,
+    </QueryClientProvider>, { withoutQueryClient: true },
   );
 };
 
@@ -56,6 +57,12 @@ const mockRenderedPlan = {
     role: "execution_spec" as const,
   },
 };
+
+const originalScrollDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "scrollIntoView");
+afterEach(() => {
+  if (originalScrollDescriptor) Object.defineProperty(HTMLElement.prototype, "scrollIntoView", originalScrollDescriptor);
+  else Reflect.deleteProperty(HTMLElement.prototype, "scrollIntoView");
+});
 
 describe("PlanPanel", () => {
   beforeEach(() => {
@@ -222,7 +229,7 @@ describe("PlanPanel", () => {
       vi.mocked(backlogService.getRenderedPlan).mockResolvedValue(mockRenderedPlan);
 
       const scrollIntoView = vi.fn();
-      vi.spyOn(document, "getElementById").mockReturnValue({ scrollIntoView } as unknown as HTMLElement);
+      Object.defineProperty(HTMLElement.prototype, "scrollIntoView", { configurable: true, value: scrollIntoView });
 
       renderWithProviders(<PlanPanel backlogKind="idea" backlogName="test-item" />);
 

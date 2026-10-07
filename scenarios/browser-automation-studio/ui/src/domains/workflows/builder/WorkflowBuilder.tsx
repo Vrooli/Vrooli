@@ -30,7 +30,8 @@ import type {
   WorkflowValidationResult,
 } from "@/types/workflow";
 import { logger } from "@utils/logger";
-import { autoLayoutNodes, normalizeEdges, normalizeNodes } from "../utils/normalizers";
+import { autoLayoutNodes } from "../utils/normalizers";
+import { workflowDefinitionToCanvas } from "@/stores/workflow/utils/codec";
 import { buildActionDefinition } from "@/domains/workflows/utils/normalizers";
 import { validateWorkflowDefinition } from "../validation/workflowValidation";
 import { CustomConnectionLine } from "../components";
@@ -332,9 +333,9 @@ function WorkflowBuilderInner({ projectId, onStartRecording }: WorkflowBuilderPr
       let parsedDefinition: WorkflowDefinition = { nodes: [], edges: [] };
       try {
         parsedDefinition = JSON.parse(codeValue || "{}") as WorkflowDefinition;
-        const initialNodes = normalizeNodes(parsedDefinition?.nodes ?? []);
-        parsedEdges = normalizeEdges(parsedDefinition?.edges ?? []);
-        parsedNodes = autoLayoutNodes(initialNodes, parsedEdges);
+        const canvas = workflowDefinitionToCanvas(parsedDefinition);
+        parsedEdges = canvas.edges;
+        parsedNodes = autoLayoutNodes(canvas.nodes, parsedEdges);
       } catch (error) {
         const message = error instanceof Error ? error.message : "Invalid JSON";
         setCodeError(message);

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { screen, fireEvent, waitFor } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../../test-utils/renderWithProviders";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import type { StatsResponse } from "../../../types/stats";
@@ -162,13 +163,13 @@ function renderWithProviders(ui: React.ReactElement, initialEntries = ["/stats"]
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  return render(
+  return renderWithCanonicalProviders(
     <MemoryRouter initialEntries={initialEntries}>
       <QueryClientProvider client={queryClient}>
         {ui}
         <LocationProbe />
       </QueryClientProvider>
-    </MemoryRouter>,
+    </MemoryRouter>, { withoutRouter: true, withoutQueryClient: true },
   );
 }
 

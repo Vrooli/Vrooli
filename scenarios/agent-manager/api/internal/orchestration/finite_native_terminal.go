@@ -7,11 +7,12 @@ import (
 )
 
 // InstallFiniteNativeIsolation is explicit startup composition, never an HTTP
-// operation. Install before exposing the target. Disabled factory preserves
-// ordinary human/operator paths; enabled target accepts only finite native work.
+// operation. Install before exposing the target. Default absent installation preserves
+// ordinary human/operator paths; installed target accepts only finite native work.
+// Planning-only or disabled factories cannot be installed.
 // All registered native runners must support the exact factory before install.
 func (o *Orchestrator) InstallFiniteNativeIsolation(f *runner.FiniteNativeFactory) error {
-	if f == nil || o.runners == nil {
+	if f == nil || !f.Enabled() || o.runners == nil {
 		return fmt.Errorf("finite native factory/registry missing")
 	}
 	setters := []interface {

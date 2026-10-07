@@ -7,9 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"swarm-manager/internal/testutil"
-
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/apihttptest"
 )
 
 // TestDelete_CascadesMilestoneMembership verifies that deleting an item
@@ -51,7 +50,7 @@ func TestDelete_CascadesMilestoneMembership(t *testing.T) {
 	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "to-delete"})
 	w := httptest.NewRecorder()
 	h.Delete(w, req)
-	testutil.AssertStatus(t, w, http.StatusNoContent)
+	apihttptest.AssertStatus(t, w.Result(), http.StatusNoContent)
 
 	snap, ok := ia.snapshots["my-init"]
 	if !ok {
@@ -78,7 +77,7 @@ func TestDelete_NoMilestone_SkipsForgetItem(t *testing.T) {
 	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "orphan"})
 	w := httptest.NewRecorder()
 	h.Delete(w, req)
-	testutil.AssertStatus(t, w, http.StatusNoContent)
+	apihttptest.AssertStatus(t, w.Result(), http.StatusNoContent)
 }
 
 // TestPatch_MoveMilestone_SyncsBothSides verifies moving an item between
@@ -107,7 +106,7 @@ func TestPatch_MoveMilestone_SyncsBothSides(t *testing.T) {
 	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "the-item"})
 	w := httptest.NewRecorder()
 	h.Update(w, req)
-	testutil.AssertStatus(t, w, http.StatusOK)
+	apihttptest.AssertStatus(t, w.Result(), http.StatusOK)
 
 	if got := ia.snapshots["old-init"].Items; len(got) != 0 {
 		t.Errorf("old-init.items[] should be empty after move, got %v", got)
@@ -139,7 +138,7 @@ func TestPatch_MoveMilestone_UnknownTarget_Rejected(t *testing.T) {
 	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "the-item"})
 	w := httptest.NewRecorder()
 	h.Update(w, req)
-	testutil.AssertStatus(t, w, http.StatusBadRequest)
+	apihttptest.AssertStatus(t, w.Result(), http.StatusBadRequest)
 
 	if got := ia.snapshots["old-init"].Items; len(got) != 1 || got[0] != "idea/the-item" {
 		t.Errorf("old-init.items[] should be untouched on reject, got %v", got)
@@ -168,7 +167,7 @@ func TestPatch_ClearMilestone_RemovesFromOldItems(t *testing.T) {
 	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "the-item"})
 	w := httptest.NewRecorder()
 	h.Update(w, req)
-	testutil.AssertStatus(t, w, http.StatusOK)
+	apihttptest.AssertStatus(t, w.Result(), http.StatusOK)
 
 	if got := ia.snapshots["old-init"].Items; len(got) != 0 {
 		t.Errorf("old-init.items[] should be empty after clear, got %v", got)
@@ -189,7 +188,7 @@ func TestCreate_AttachesToMilestoneMembership(t *testing.T) {
 	req := httptest.NewRequest("POST", "/api/v1/backlog", body)
 	w := httptest.NewRecorder()
 	h.Create(w, req)
-	testutil.AssertStatus(t, w, http.StatusCreated)
+	apihttptest.AssertStatus(t, w.Result(), http.StatusCreated)
 
 	if got := ia.snapshots["my-init"].Items; len(got) != 1 || got[0] != "idea/fresh-item" {
 		t.Errorf("my-init.items[] should contain idea/fresh-item after create, got %v", got)
@@ -207,7 +206,7 @@ func TestCreate_UnknownMilestone_Rejected(t *testing.T) {
 	req := httptest.NewRequest("POST", "/api/v1/backlog", body)
 	w := httptest.NewRecorder()
 	h.Create(w, req)
-	testutil.AssertStatus(t, w, http.StatusBadRequest)
+	apihttptest.AssertStatus(t, w.Result(), http.StatusBadRequest)
 
 	if got := w.Body.String(); !strings.Contains(got, "does not exist") {
 		t.Errorf("expected 'does not exist' in response, got %q", got)

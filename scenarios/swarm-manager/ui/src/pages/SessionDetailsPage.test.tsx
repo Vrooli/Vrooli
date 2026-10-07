@@ -145,6 +145,9 @@ const DRAFT_SESSION: AgentSession = {
 
 function renderPage(initialPath = "/sessions/sess_meta") {
   const queryClient = createTestQueryClient();
+  // Metadata mounts only after the Details tab opens; retain this seeded
+  // URL fixture until its real hook observes it, matching that hook's policy.
+  queryClient.setQueryDefaults(["embedded-service-url"], { gcTime: Infinity });
   queryClient.setQueryData(["embedded-service-url", "agent-manager"], "https://agent.test");
   queryClient.setQueryData(["embedded-service-url", "prompt-manager"], "https://prompt.test");
 

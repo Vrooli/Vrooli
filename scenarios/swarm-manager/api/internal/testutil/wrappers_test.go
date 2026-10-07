@@ -6,25 +6,26 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/vrooli/api-core/apihttptest"
 )
 
-func TestAssertStatusWrappers(t *testing.T) {
+func TestStatusCompanionResponses(t *testing.T) {
 	cases := []struct {
-		name     string
-		status   int
-		assertFn func(testing.TB, *httptest.ResponseRecorder)
+		name   string
+		status int
 	}{
-		{name: "ok", status: http.StatusOK, assertFn: AssertStatusOK},
-		{name: "created", status: http.StatusCreated, assertFn: AssertStatusCreated},
-		{name: "not_found", status: http.StatusNotFound, assertFn: AssertStatusNotFound},
-		{name: "bad_request", status: http.StatusBadRequest, assertFn: AssertStatusBadRequest},
+		{name: "ok", status: http.StatusOK},
+		{name: "created", status: http.StatusCreated},
+		{name: "not_found", status: http.StatusNotFound},
+		{name: "bad_request", status: http.StatusBadRequest},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			rec := httptest.NewRecorder()
 			rec.WriteHeader(tc.status)
-			tc.assertFn(t, rec)
+			apihttptest.AssertStatus(t, rec.Result(), tc.status)
 		})
 	}
 }

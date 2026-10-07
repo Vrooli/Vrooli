@@ -83,23 +83,10 @@ describe("NodeInspectorPanel goal actions", () => {
     });
   });
 
-  it("can create a new goal for an goal node", async () => {
-    const createdGoal = goal("new-goal", ["goal/payments"]);
+  it("can create a new goal for a supported backlog item", async () => {
+    const createdGoal = goal("new-goal", ["execute/payments"]);
     const create = vi.spyOn(goalsService, "create").mockResolvedValue(createdGoal);
-    const node = {
-      id: "goal/payments",
-      type: "goal",
-      position: { x: 0, y: 0 },
-      data: {
-        label: "Payments",
-        entityType: "goal",
-        rawType: "Goal",
-        name: "payments",
-        title: "Payments",
-        status: "active",
-        rollup: { total: 0, completed: 0, in_progress: 0, failed: 0, pending: 0 },
-      },
-    } satisfies GraphNode;
+    const node = makeBacklogNode("backlog-item/execute/payments", { title: "Payments" });
 
     renderInspector(node);
 
@@ -107,7 +94,7 @@ describe("NodeInspectorPanel goal actions", () => {
     await userEvent.click(screen.getByTestId("set-as-goal-create"));
 
     await waitFor(() => {
-      expect(create).toHaveBeenCalledWith({ title: "Payments", targets: ["goal/payments"] });
+      expect(create).toHaveBeenCalledWith({ title: "Payments", targets: ["execute/payments"] });
     });
   });
 
@@ -118,8 +105,28 @@ describe("NodeInspectorPanel goal actions", () => {
 
     expect(screen.queryByTestId("inspector-set-goal")).not.toBeInTheDocument();
     expect(screen.getByTestId("inspector-goal-unsupported")).toHaveTextContent(
-      "Goal targets are available for backlog items and goals.",
+      "Goal targets are available for backlog items.",
     );
+  });
+
+  it("does not create or extend a goal from an unsupported goal reference", () => {
+    const create = vi.spyOn(goalsService, "create");
+    const addTargets = vi.spyOn(goalsService, "addTargets");
+    const node: GraphNode = {
+      id: "goal/payments", type: "goal", position: { x: 0, y: 0 },
+      data: {
+        label: "Payments", entityType: "goal", rawType: "Goal", name: "payments",
+        title: "Payments", status: "active",
+        rollup: { total: 0, completed: 0, in_progress: 0, failed: 0, pending: 0 },
+      },
+    };
+    renderInspector(node);
+    expect(screen.queryByTestId("inspector-set-goal")).not.toBeInTheDocument();
+    expect(screen.getByTestId("inspector-goal-unsupported")).toHaveTextContent(
+      "Goal targets are available for backlog items.",
+    );
+    expect(create).not.toHaveBeenCalled();
+    expect(addTargets).not.toHaveBeenCalled();
   });
 
   it("does not turn synthetic capped backlog nodes into invalid goal refs", () => {

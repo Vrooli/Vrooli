@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../../../test-utils/renderWithProviders";
 import type { ReactElement } from "react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -20,12 +21,12 @@ function renderWithProviders(ui: ReactElement) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
-  return render(
+  return renderWithCanonicalProviders(
     <MemoryRouter>
       <QueryClientProvider client={queryClient}>
         {ui}
       </QueryClientProvider>
-    </MemoryRouter>,
+    </MemoryRouter>, { withoutRouter: true, withoutQueryClient: true },
   );
 }
 

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../../../test-utils/renderWithProviders";
 import userEvent from "@testing-library/user-event";
 import { Layers } from "lucide-react";
 import { SidebarEmptyState } from "./SidebarEmptyState";
@@ -7,7 +8,7 @@ import { selectors } from "../../../../consts/selectors";
 
 describe("SidebarEmptyState", () => {
   it("renders the title and hint when no query is set", () => {
-    render(
+    renderWithCanonicalProviders(
       <SidebarEmptyState
         icon={Layers}
         title="No operating modes registered."
@@ -24,7 +25,7 @@ describe("SidebarEmptyState", () => {
   });
 
   it("swaps the title and hides the hint when a query is set", () => {
-    render(
+    renderWithCanonicalProviders(
       <SidebarEmptyState
         icon={Layers}
         title="No operating modes registered."
@@ -41,7 +42,7 @@ describe("SidebarEmptyState", () => {
 
   it("only renders the Clear search button when both query and onClearSearch are set", async () => {
     const onClearSearch = vi.fn();
-    const { rerender } = render(
+    const { rerender } = renderWithCanonicalProviders(
       <SidebarEmptyState
         icon={Layers}
         title="empty"
@@ -66,7 +67,7 @@ describe("SidebarEmptyState", () => {
   });
 
   it("treats whitespace-only queries as empty", () => {
-    render(
+    renderWithCanonicalProviders(
       <SidebarEmptyState
         icon={Layers}
         title="No matches yet."

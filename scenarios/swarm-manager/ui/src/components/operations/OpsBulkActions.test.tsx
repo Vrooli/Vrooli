@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import userEvent from "@testing-library/user-event";
 import {
   resetOperationsStoreService,
@@ -78,7 +79,7 @@ describe("OpsBulkActions", () => {
     const { service } = makeService();
     setOperationsStoreService(service);
 
-    const { container } = render(<OpsBulkActions />);
+    const { container } = renderWithCanonicalProviders(<OpsBulkActions />);
     expect(container.firstChild).toBeNull();
   });
 
@@ -89,7 +90,7 @@ describe("OpsBulkActions", () => {
     setOperationsStoreService(service);
     await useOperationsStore.getState().refresh();
 
-    render(<OpsBulkActions />);
+    renderWithCanonicalProviders(<OpsBulkActions />);
     expect(screen.getByTestId(selectors.operationsCenter.bulkActionBar)).toBeInTheDocument();
     expect(
       screen.getByTestId(selectors.operationsCenter.bulkStopAll),
@@ -108,7 +109,7 @@ describe("OpsBulkActions", () => {
     await useOperationsStore.getState().refresh();
 
     useOperationsStore.getState().setSelection(["run-a", "run-b"]);
-    render(<OpsBulkActions />);
+    renderWithCanonicalProviders(<OpsBulkActions />);
 
     expect(
       screen.getByTestId(selectors.operationsCenter.bulkStopSelected),
@@ -132,7 +133,7 @@ describe("OpsBulkActions", () => {
     useOperationsStore.getState().setSelection(["run-a"]);
 
     const user = userEvent.setup();
-    render(<OpsBulkActions />);
+    renderWithCanonicalProviders(<OpsBulkActions />);
 
     await user.click(screen.getByTestId(selectors.operationsCenter.bulkStopSelected));
     // ConfirmDialog opens; click "Stop 1".
@@ -156,7 +157,7 @@ describe("OpsBulkActions", () => {
     await useOperationsStore.getState().refresh();
 
     const user = userEvent.setup();
-    render(<OpsBulkActions />);
+    renderWithCanonicalProviders(<OpsBulkActions />);
 
     await user.click(screen.getByTestId(selectors.operationsCenter.bulkStopAll));
     const confirmButton = await screen.findByRole("button", { name: /^Stop 2$/ });
@@ -191,7 +192,7 @@ describe("OpsBulkActions", () => {
     useOperationsStore.getState().setSelection(["run-a", "run-b"]);
 
     const user = userEvent.setup();
-    render(<OpsBulkActions />);
+    renderWithCanonicalProviders(<OpsBulkActions />);
 
     await user.click(screen.getByTestId(selectors.operationsCenter.bulkStopSelected));
     const confirmButton = await screen.findByRole("button", { name: /^Stop 2$/ });
@@ -215,7 +216,7 @@ describe("OpsBulkActions", () => {
       useOperationsStore.getState().setSelectionMode(false);
     });
 
-    const { container } = render(<OpsBulkActions />);
+    const { container } = renderWithCanonicalProviders(<OpsBulkActions />);
     expect(container.firstChild).toBeNull();
   });
 
@@ -229,7 +230,7 @@ describe("OpsBulkActions", () => {
       useOperationsStore.getState().setSelectionMode(false);
     });
 
-    render(<OpsBulkActions />);
+    renderWithCanonicalProviders(<OpsBulkActions />);
     expect(
       screen.queryByTestId(selectors.operationsCenter.bulkActionBar),
     ).toBeNull();
@@ -251,7 +252,7 @@ describe("OpsBulkActions", () => {
     await useOperationsStore.getState().refresh();
     useOperationsStore.getState().setSelection(["run-a"]);
 
-    render(<OpsBulkActions />);
+    renderWithCanonicalProviders(<OpsBulkActions />);
     expect(screen.queryByTestId(selectors.operationsCenter.bulkClearSelection)).toBeInTheDocument();
 
     act(() => {

@@ -1,10 +1,11 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import { describe, expect, it, vi } from "vitest";
 import { ChatThread } from "./ChatThread";
 
 describe("ChatThread", () => {
   it("renders markdown through the shared markdown seam", () => {
-    render(
+    renderWithCanonicalProviders(
       <ChatThread
         messages={[{ id: "m1", role: "assistant", content: "**Ready** to plan." }]}
         testId="chat-thread"
@@ -15,14 +16,14 @@ describe("ChatThread", () => {
   });
 
   it("renders an empty state and waiting indicator", () => {
-    render(<ChatThread messages={[]} isWaiting emptyLabel="Nothing yet." />);
+    renderWithCanonicalProviders(<ChatThread messages={[]} isWaiting emptyLabel="Nothing yet." />);
 
     expect(screen.getByText("Nothing yet.")).toBeInTheDocument();
     expect(screen.getByText("Thinking...")).toBeInTheDocument();
   });
 
   it("renders attachment/footer slots per message", () => {
-    render(
+    renderWithCanonicalProviders(
       <ChatThread
         messages={[{ id: "m1", role: "assistant", content: "Evidence attached.", attachmentIds: ["a1"] }]}
         renderAttachmentPreview={(message) => <span>Attachments: {message.attachmentIds?.length ?? 0}</span>}
@@ -42,7 +43,7 @@ describe("ChatThread scrolling", () => {
     const original = Element.prototype.scrollIntoView;
     Element.prototype.scrollIntoView = scrollIntoView;
     try {
-      const { rerender } = render(
+      const { rerender } = renderWithCanonicalProviders(
         <ChatThread messages={[{ id: "m1", role: "assistant", content: "First" }]} testId="thread" />,
       );
       rerender(
@@ -65,7 +66,7 @@ describe("ChatThread scrolling", () => {
 
   it("does not yank a reader who has scrolled up, and offers a way back", async () => {
     const messages = [{ id: "m1", role: "assistant" as const, content: "First" }];
-    const { rerender } = render(<ChatThread messages={messages} testId="thread" />);
+    const { rerender } = renderWithCanonicalProviders(<ChatThread messages={messages} testId="thread" />);
 
     const pane = screen.getByTestId("thread");
     // jsdom reports zero dimensions, so describe a pane the reader has
@@ -89,7 +90,7 @@ describe("ChatThread scrolling", () => {
 
 describe("ChatThread density", () => {
   it("renders full-width rows with role rules in compact density", () => {
-    render(
+    renderWithCanonicalProviders(
       <ChatThread
         density="compact"
         messages={[
@@ -109,7 +110,7 @@ describe("ChatThread density", () => {
   });
 
   it("keeps speaker-aligned bubbles in comfortable density", () => {
-    render(
+    renderWithCanonicalProviders(
       <ChatThread
         density="comfortable"
         messages={[

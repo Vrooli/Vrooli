@@ -1,4 +1,5 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import { describe, it, expect } from "vitest";
 import { RollupProgressBar, rollupTotal, type GoalRollup } from "./rollup-progress-bar";
 
@@ -28,12 +29,12 @@ describe("rollupTotal", () => {
 
 describe("RollupProgressBar", () => {
   it("renders nothing when total is 0", () => {
-    const { container } = render(<RollupProgressBar rollup={makeRollup()} />);
+    const { container } = renderWithCanonicalProviders(<RollupProgressBar rollup={makeRollup()} />);
     expect(container.firstChild).toBeNull();
   });
 
   it("renders segmented bar with correct segments", () => {
-    render(<RollupProgressBar rollup={makeRollup({ completed: 5, pending: 5 })} />);
+    renderWithCanonicalProviders(<RollupProgressBar rollup={makeRollup({ completed: 5, pending: 5 })} />);
     const bar = screen.getByTestId("rollup-progress-bar");
     expect(bar).toBeDefined();
     // Two segments: completed and pending
@@ -44,14 +45,14 @@ describe("RollupProgressBar", () => {
   });
 
   it("hides failed segment when count is 0", () => {
-    render(<RollupProgressBar rollup={makeRollup({ completed: 3, pending: 2 })} />);
+    renderWithCanonicalProviders(<RollupProgressBar rollup={makeRollup({ completed: 3, pending: 2 })} />);
     const bar = screen.getByTestId("rollup-progress-bar");
     const titles = Array.from(bar.querySelectorAll("[title]")).map((el) => el.getAttribute("title"));
     expect(titles).not.toContain(expect.stringContaining("failed"));
   });
 
   it("shows numeric labels when showLabels is true", () => {
-    render(<RollupProgressBar rollup={makeRollup({ completed: 2, inProgress: 1, pending: 3 })} showLabels />);
+    renderWithCanonicalProviders(<RollupProgressBar rollup={makeRollup({ completed: 2, inProgress: 1, pending: 3 })} showLabels />);
     expect(screen.getByText("2 completed")).toBeDefined();
     expect(screen.getByText("1 in progress")).toBeDefined();
     expect(screen.getByText("3 pending")).toBeDefined();
@@ -59,29 +60,29 @@ describe("RollupProgressBar", () => {
   });
 
   it("hides failed label when showLabels is true but failed count is 0", () => {
-    render(<RollupProgressBar rollup={makeRollup({ completed: 1, pending: 1 })} showLabels />);
+    renderWithCanonicalProviders(<RollupProgressBar rollup={makeRollup({ completed: 1, pending: 1 })} showLabels />);
     expect(screen.queryByText(/failed/)).toBeNull();
   });
 
   it("shows failed label when count > 0", () => {
-    render(<RollupProgressBar rollup={makeRollup({ failed: 2, pending: 1 })} showLabels />);
+    renderWithCanonicalProviders(<RollupProgressBar rollup={makeRollup({ failed: 2, pending: 1 })} showLabels />);
     expect(screen.getByText("2 failed")).toBeDefined();
   });
 
   it("does not show labels by default", () => {
-    render(<RollupProgressBar rollup={makeRollup({ completed: 1, pending: 1 })} />);
+    renderWithCanonicalProviders(<RollupProgressBar rollup={makeRollup({ completed: 1, pending: 1 })} />);
     expect(screen.queryByText("1 completed")).toBeNull();
   });
 
   it("applies custom barHeight class", () => {
-    render(<RollupProgressBar rollup={makeRollup({ completed: 1 })} barHeight="h-1" />);
+    renderWithCanonicalProviders(<RollupProgressBar rollup={makeRollup({ completed: 1 })} barHeight="h-1" />);
     const bar = screen.getByTestId("rollup-progress-bar");
     const inner = bar.querySelector(".h-1");
     expect(inner).not.toBeNull();
   });
 
   it("renders archived completed work through the completed segment when supplied by the backend", () => {
-    render(<RollupProgressBar rollup={makeRollup({ completed: 3, archived: 4 })} showLabels />);
+    renderWithCanonicalProviders(<RollupProgressBar rollup={makeRollup({ completed: 3, archived: 4 })} showLabels />);
     expect(screen.getByText("3 completed")).toBeDefined();
     expect(screen.getByText("3 total")).toBeDefined();
     expect(screen.queryByText(/archived/i)).toBeNull();

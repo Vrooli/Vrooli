@@ -1,9 +1,13 @@
 # Goal — Browser Automation Studio rehabilitation
 
 **Destination.** BAS is fast, reliable, polished, maintainable and production
-ready, with far less technical debt: each concept has one owner, runtime code
-drops from about 281k (measured 2026-09-29, `refactor_inventory.py --no-git`)
-toward 205k lines, and the 24 preservation journeys pass on Linux x64.
+ready: each concept has one owner; all 24 preservation journeys exist and pass
+daily on Linux x64; recordings are faithful and reviewable in the intended
+player (E22 R1/R2); BAS builds and runs on macOS. Runtime code stays at or below
+253,452 lines (2026-10-07, `refactor_inventory.py --no-git`) except within a
+measured feature budget. Further reduction slices need a measured estimate of at
+least 1,000 lines. The line-count phase (283,309 → 253,452) ended 2026-10-07
+under BAS-FB-064.
 
 **Stakes.** BAS failures block Vrooli development, agent browsing, end-to-end
 testing, UI quality work and BAS monetization. The operator reports that the

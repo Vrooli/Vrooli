@@ -1,8 +1,8 @@
+import { renderWithProviders as render } from "../../test-utils/renderWithProviders";
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SessionSummaryCard } from "./session-summary-card";
-import { selectors } from "../../consts/selectors";
 import type { AgentSession } from "../../types";
 
 function makeSession(overrides: Partial<AgentSession> = {}): AgentSession {
@@ -42,8 +42,8 @@ describe("SessionSummaryCard", () => {
         selection={{ selectionMode: true, selected: false, onToggleSelect }}
       />,
     );
-    const row = screen.getByTestId(selectors.agentSessions.contextRow);
-    expect(row).toHaveAttribute("aria-pressed", "false");
+    const row = screen.getByRole("checkbox");
+    expect(row).not.toBeChecked();
     await userEvent.click(row);
     expect(onToggleSelect).toHaveBeenCalledTimes(1);
   });
@@ -56,10 +56,14 @@ describe("SessionSummaryCard", () => {
         selection={{ selectionMode: true, selected: false, disabled: true, disabledReason: "Cap reached", onToggleSelect }}
       />,
     );
-    const row = screen.getByTestId(selectors.agentSessions.contextRow);
+    const row = screen.getByRole("checkbox");
     expect(row).toBeDisabled();
-    expect(row).toHaveAttribute("title", "Cap reached");
+    expect(screen.getByText("Cap reached")).toBeInTheDocument();
     await userEvent.click(row);
+    const content = screen.getByText("Plan quality work");
+    await userEvent.click(content);
+    content.closest<HTMLElement>("[data-rcl-card-shell]")?.focus();
+    await userEvent.keyboard("{Enter} ");
     expect(onToggleSelect).not.toHaveBeenCalled();
   });
 });

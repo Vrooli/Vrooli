@@ -110,7 +110,15 @@ const schemaSQL = `
 			parity_proven INTEGER NOT NULL DEFAULT 0,
 			audited_at TEXT NOT NULL
 		);
-		CREATE INDEX IF NOT EXISTS idx_evidence_subject ON evidence_observations(subject_kind, subject_id);
+		CREATE TABLE IF NOT EXISTS development_producer_receipts (
+ id TEXT PRIMARY KEY, producer TEXT NOT NULL, run_id TEXT NOT NULL,
+ reference_digest TEXT NOT NULL, criterion_id TEXT NOT NULL,
+ content_digest TEXT NOT NULL, binding_bytes BLOB NOT NULL,
+ receipt_bytes BLOB NOT NULL
+);
+CREATE TRIGGER IF NOT EXISTS development_receipt_no_update BEFORE UPDATE ON development_producer_receipts BEGIN SELECT RAISE(ABORT,'immutable development producer receipt'); END;
+CREATE TRIGGER IF NOT EXISTS development_receipt_no_delete BEFORE DELETE ON development_producer_receipts BEGIN SELECT RAISE(ABORT,'immutable development producer receipt'); END;
+CREATE INDEX IF NOT EXISTS idx_evidence_subject ON evidence_observations(subject_kind, subject_id);
 	`
 
 // Schema returns the declarative event-log schema for database.EnsureSchemas.

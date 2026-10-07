@@ -150,7 +150,7 @@ export function useDecisionStreamLogic({
   // Completion
   // ---------------------------------------------------------------------------
 
-  const handleCompletion = useCallback((answeredOverride?: Set<string>) => {
+  const handleCompletion = useCallback((answeredOverride?: Set<string>, skippedOverride?: Set<string>) => {
     setPhase("completing");
     const effectiveAnswered = answeredOverride ?? answeredQuestionKeys;
 
@@ -163,7 +163,7 @@ export function useDecisionStreamLogic({
 
     const results = {
       answeredCount: Math.max(answeredCount, validLocalAnswerCount),
-      skippedCount: skippedIds.size,
+      skippedCount: (skippedOverride ?? skippedIds).size,
       snoozedCount: snoozedItemKeys.size,
       unlockedItems,
     };
@@ -229,7 +229,7 @@ export function useDecisionStreamLogic({
       return a.reviewStatus === "approved" || a.reviewStatus === "flagged";
     });
     if (allDone) {
-      void handleCompletion();
+      void handleCompletion(undefined, newSkipped);
     }
   }, [current, safeIndex, total, skippedIds, activeQuestions, localAnswers, handleCompletion]);
 

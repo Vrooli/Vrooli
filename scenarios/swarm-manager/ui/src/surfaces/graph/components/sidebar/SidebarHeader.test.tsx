@@ -6,7 +6,8 @@
  */
 
 import { beforeEach, describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../../../test-utils/renderWithProviders";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { SidebarHeader } from "./SidebarHeader";
@@ -19,7 +20,7 @@ vi.mock("../../../../hooks/usePendingDecisionCount", () => ({
 }));
 
 function renderHeader(overrides?: Partial<React.ComponentProps<typeof SidebarHeader>>) {
-  return render(
+  return renderWithCanonicalProviders(
     <MemoryRouter>
       <SidebarHeader
         onSettingsOpen={vi.fn()}
@@ -27,7 +28,7 @@ function renderHeader(overrides?: Partial<React.ComponentProps<typeof SidebarHea
         onGoHome={vi.fn()}
         {...overrides}
       />
-    </MemoryRouter>,
+    </MemoryRouter>, { withoutRouter: true },
   );
 }
 

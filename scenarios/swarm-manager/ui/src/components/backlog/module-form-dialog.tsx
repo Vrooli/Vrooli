@@ -32,14 +32,17 @@ export function ModuleFormDialog({
 
   const isEditMode = mode === "edit";
 
+  const initialId = initialValues?.id ?? "";
+  const initialTitle = initialValues?.title ?? "";
+  const initialDescription = initialValues?.description ?? "";
   useEffect(() => {
     if (isOpen) {
-      setId(initialValues?.id ?? "");
-      setTitle(initialValues?.title ?? "");
-      setDescription(initialValues?.description ?? "");
+      setId(initialId);
+      setTitle(initialTitle);
+      setDescription(initialDescription);
       setError(null);
     }
-  }, [isOpen, initialValues]);
+  }, [isOpen, mode, initialId, initialTitle, initialDescription]);
 
   const handleSubmit = () => {
     if (!isEditMode && !id.trim()) {

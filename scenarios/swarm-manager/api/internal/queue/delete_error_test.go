@@ -8,9 +8,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"swarm-manager/internal/testutil"
-
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/apihttptest"
 )
 
 func TestDelete_LoadError(t *testing.T) {
@@ -27,6 +26,5 @@ func TestDelete_LoadError(t *testing.T) {
 	req := httptest.NewRequest(http.MethodDelete, "/api/v1/queue/item-1", bytes.NewBufferString(""))
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
-
-	testutil.AssertStatus(t, rec, http.StatusInternalServerError)
+	apihttptest.AssertStatus(t, rec.Result(), http.StatusInternalServerError)
 }

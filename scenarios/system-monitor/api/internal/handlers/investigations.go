@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/owneridentity"
 	"io"
 	"log/slog"
 	"net/http"
@@ -27,11 +29,12 @@ import (
 
 // InvestigationHandler handles investigation-related requests
 type InvestigationHandler struct {
-	log              *slog.Logger
-	config           *config.Config
-	investigationSvc InvestigationManager
-	scriptSvc        ScriptRunner
-	runHistory       InvestigationRunHistory
+	runCallerValidator owneridentity.Validator
+	log                *slog.Logger
+	config             *config.Config
+	investigationSvc   InvestigationManager
+	scriptSvc          ScriptRunner
+	runHistory         InvestigationRunHistory
 }
 
 func (h *InvestigationHandler) SetRunHistory(history InvestigationRunHistory) { h.runHistory = history }
@@ -39,10 +42,11 @@ func (h *InvestigationHandler) SetRunHistory(history InvestigationRunHistory) { 
 // NewInvestigationHandler creates a new investigation handler
 func NewInvestigationHandler(cfg *config.Config, investigationSvc InvestigationManager, scriptSvc ScriptRunner, log *slog.Logger) *InvestigationHandler {
 	return &InvestigationHandler{
-		log:              log,
-		config:           cfg,
-		investigationSvc: investigationSvc,
-		scriptSvc:        scriptSvc,
+		runCallerValidator: owneridentity.NewClient(owneridentity.Config{Resolver: discovery.NewResolver(discovery.ResolverConfig{})}),
+		log:                log,
+		config:             cfg,
+		investigationSvc:   investigationSvc,
+		scriptSvc:          scriptSvc,
 	}
 }
 
@@ -154,6 +158,11 @@ func (h *InvestigationHandler) PruneRuns(ctx context.Context, req *connect.Reque
 
 // TriggerInvestigation starts a new anomaly investigation via Connect-RPC.
 func (h *InvestigationHandler) TriggerInvestigation(ctx context.Context, req *connect.Request[investigationspb.TriggerInvestigationRequest]) (*connect.Response[investigationspb.TriggerInvestigationResponse], error) {
+	callerCtx, authErr := h.authorizeCreateRunCaller(ctx, req.Header())
+	if authErr != nil {
+		return nil, connect.NewError(connect.CodeUnauthenticated, authErr)
+	}
+	ctx = callerCtx
 	investigation, err := h.investigationSvc.TriggerInvestigation(ctx, req.Msg.GetAutoFix(), req.Msg.GetNote())
 	if err != nil {
 		return nil, connectError(err)
@@ -370,7 +379,11 @@ func (h *InvestigationHandler) HandleGetLatestInvestigation(w http.ResponseWrite
 
 // HandleTriggerInvestigation handles POST /api/v1/investigations/trigger
 func (h *InvestigationHandler) HandleTriggerInvestigation(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	ctx, authErr := h.authorizeCreateRunCaller(r.Context(), r.Header)
+	if authErr != nil {
+		http.Error(w, "verified agent-manager caller required", http.StatusUnauthorized)
+		return
+	}
 
 	var pbReq investigationspb.TriggerInvestigationRequest
 	if err := httputil.DecodeProtoJSON(r, &pbReq); err != nil {
@@ -881,4 +894,12 @@ func protoStepToModel(step *investigationspb.InvestigationStep) models.Investiga
 		m.EndTime = &t
 	}
 	return m
+}
+
+func (h *InvestigationHandler) authorizeCreateRunCaller(ctx context.Context, headers http.Header) (context.Context, error) {
+	verifier := h.runCallerValidator
+	if verifier == nil {
+		verifier = owneridentity.NewClient(owneridentity.Config{Resolver: discovery.NewResolver(discovery.ResolverConfig{})})
+	}
+	return owneridentity.AuthorizeCreateRunCaller(ctx, headers, verifier, time.Now())
 }

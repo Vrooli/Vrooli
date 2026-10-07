@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import { MemoryRouter } from "react-router-dom";
 import { ActivityRow } from "./ActivityRow";
 import { useOperationsStore } from "../../stores/operations-store";
@@ -28,10 +29,10 @@ function row(overrides: Partial<ActivityRowType> = {}): ActivityRowType {
 }
 
 function renderRow(props: Parameters<typeof ActivityRow>[0]) {
-  return render(
+  return renderWithCanonicalProviders(
     <MemoryRouter>
       <ActivityRow {...props} />
-    </MemoryRouter>,
+    </MemoryRouter>, { withoutRouter: true },
   );
 }
 

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 
@@ -53,6 +54,8 @@ type EffortControlStore interface {
 // admission cannot leave a half-written revision in authoritative state.
 type FileEffortControlStore struct {
 	rootDir string
+	// Private persistence seam; nil uses the canonical OS directory flush.
+	syncDirectory func(string) error
 }
 
 // NewFileEffortControlStore roots the store at the given directory.
@@ -91,7 +94,14 @@ func (store *FileEffortControlStore) Load(effortID string) (identity.EffortContr
 }
 
 // Save writes the revision atomically.
-func (store *FileEffortControlStore) Save(control identity.EffortControl) error {
+func (store *FileEffortControlStore) saveUnlocked(control identity.EffortControl) error {
+	return store.saveUnlockedGuarded(control, nil)
+}
+
+// guard is checked immediately before canonical publication. Callers hold their
+// product custody through this entire operation, including directory flush.
+// A post-rename flush error remains a potentially published decision.
+func (store *FileEffortControlStore) saveUnlockedGuarded(control identity.EffortControl, guard func() error) error {
 	path, err := store.path(control.EffortID)
 	if err != nil {
 		return err
@@ -113,15 +123,39 @@ func (store *FileEffortControlStore) Save(control identity.EffortControl) error 
 		os.Remove(tempName)
 		return err
 	}
+	if err := temp.Sync(); err != nil {
+		temp.Close()
+		os.Remove(tempName)
+		return err
+	}
 	if err := temp.Close(); err != nil {
 		os.Remove(tempName)
 		return err
+	}
+	if guard != nil {
+		if err := guard(); err != nil {
+			os.Remove(tempName)
+			return err
+		}
 	}
 	if err := os.Rename(tempName, path); err != nil {
 		os.Remove(tempName)
 		return err
 	}
-	return nil
+	// Native finite installation is Linux-only. Preserve existing Windows
+	// store behavior rather than claim unsupported directory-flush durability.
+	if runtime.GOOS == "windows" {
+		return nil
+	}
+	if store.syncDirectory != nil {
+		return store.syncDirectory(filepath.Dir(path))
+	}
+	dir, err := os.Open(filepath.Dir(path))
+	if err != nil {
+		return err
+	}
+	defer dir.Close()
+	return dir.Sync()
 }
 
 // List returns every admitted effort revision, sorted by effort identity so
@@ -876,6 +910,8 @@ func (service *EffortControlService) Amend(control identity.EffortControl) (iden
 		return identity.EffortControl{}, err
 	}
 	control.Completion = current.Completion
+	control.FiniteCommission = current.FiniteCommission
+	control.Development = current.Development
 	amended, err := control.Amend(current)
 	if err != nil {
 		return identity.EffortControl{}, err

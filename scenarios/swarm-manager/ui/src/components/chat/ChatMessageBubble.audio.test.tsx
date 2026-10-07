@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import { ChatMessageBubble, type ChatMessageSpeakController } from "./ChatMessageBubble";
 import type { ChatMessageView } from "./chat-types";
 
@@ -21,7 +22,7 @@ function makeController(overrides: Partial<ChatMessageSpeakController> = {}): Ch
 describe("ChatMessageBubble speak button", () => {
   it("renders Speak button only on assistant role", () => {
     const ctrl = makeController();
-    const { rerender } = render(<ChatMessageBubble message={makeMessage("assistant")} speak={ctrl} />);
+    const { rerender } = renderWithCanonicalProviders(<ChatMessageBubble message={makeMessage("assistant")} speak={ctrl} />);
     expect(screen.queryByTestId("chat-bubble-speak-m-assistant")).toBeInTheDocument();
 
     rerender(<ChatMessageBubble message={makeMessage("user")} speak={ctrl} />);
@@ -33,14 +34,14 @@ describe("ChatMessageBubble speak button", () => {
 
   it("clicking Speak invokes speak(message.id, content)", () => {
     const ctrl = makeController();
-    render(<ChatMessageBubble message={makeMessage("assistant", "hi there")} speak={ctrl} />);
+    renderWithCanonicalProviders(<ChatMessageBubble message={makeMessage("assistant", "hi there")} speak={ctrl} />);
     fireEvent.click(screen.getByTestId("chat-bubble-speak-m-assistant"));
     expect(ctrl.speak).toHaveBeenCalledWith("m-assistant", "hi there");
   });
 
   it("clicking again while speaking invokes stop()", () => {
     const ctrl = makeController({ speakingMessageId: "m-assistant" });
-    render(<ChatMessageBubble message={makeMessage("assistant")} speak={ctrl} />);
+    renderWithCanonicalProviders(<ChatMessageBubble message={makeMessage("assistant")} speak={ctrl} />);
     fireEvent.click(screen.getByTestId("chat-bubble-speak-m-assistant"));
     expect(ctrl.stop).toHaveBeenCalled();
     expect(ctrl.speak).not.toHaveBeenCalled();
@@ -48,7 +49,7 @@ describe("ChatMessageBubble speak button", () => {
 
   it("shows a loading state while audio is being prepared", () => {
     const ctrl = makeController({ speakingMessageId: "m-assistant", loadingMessageId: "m-assistant" });
-    render(<ChatMessageBubble message={makeMessage("assistant")} speak={ctrl} />);
+    renderWithCanonicalProviders(<ChatMessageBubble message={makeMessage("assistant")} speak={ctrl} />);
     const button = screen.getByTestId("chat-bubble-speak-m-assistant");
 
     expect(button).toBeDisabled();
@@ -62,13 +63,13 @@ describe("ChatMessageBubble speak button", () => {
 
   it("hides the button when audio-tools is unavailable", () => {
     const ctrl = makeController({ unavailable: true });
-    render(<ChatMessageBubble message={makeMessage("assistant")} speak={ctrl} />);
+    renderWithCanonicalProviders(<ChatMessageBubble message={makeMessage("assistant")} speak={ctrl} />);
     expect(screen.queryByTestId("chat-bubble-speak-m-assistant")).not.toBeInTheDocument();
   });
 
   it("hides the button on empty content", () => {
     const ctrl = makeController();
-    render(<ChatMessageBubble message={makeMessage("assistant", "   ")} speak={ctrl} />);
+    renderWithCanonicalProviders(<ChatMessageBubble message={makeMessage("assistant", "   ")} speak={ctrl} />);
     expect(screen.queryByTestId("chat-bubble-speak-m-assistant")).not.toBeInTheDocument();
   });
 });

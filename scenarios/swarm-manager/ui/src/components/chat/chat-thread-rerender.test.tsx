@@ -11,7 +11,8 @@
  * memoization technique, so the implementation is free to change as long as the
  * cost does not come back.
  */
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import { useEffect, useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ChatThread } from "./ChatThread";
@@ -73,7 +74,7 @@ describe("ChatThread re-render cost", () => {
 
   it("does not re-render message bodies when a poll changes nothing", async () => {
     const messages = makeMessages(20);
-    render(<PollingThread messages={messages} polls={5} />);
+    renderWithCanonicalProviders(<PollingThread messages={messages} polls={5} />);
 
     await vi.advanceTimersByTimeAsync(800);
 
@@ -85,7 +86,7 @@ describe("ChatThread re-render cost", () => {
 
   it("renders only the new message when one arrives", async () => {
     const messages = makeMessages(10);
-    const { rerender } = render(<ChatThread messages={messages} testId="thread" />);
+    const { rerender } = renderWithCanonicalProviders(<ChatThread messages={messages} testId="thread" />);
     for (const message of messages) expect(renderCounts.get(message.content)).toBe(1);
 
     const arrival: ChatMessageView = {
@@ -107,7 +108,7 @@ describe("ChatThread re-render cost", () => {
 
   it("re-renders only the message whose content changed", async () => {
     const messages = makeMessages(6);
-    const { rerender } = render(<ChatThread messages={messages} testId="thread" />);
+    const { rerender } = renderWithCanonicalProviders(<ChatThread messages={messages} testId="thread" />);
 
     const edited = messages.map((message, index) =>
       index === 3 ? { ...message, content: "edited body" } : message,

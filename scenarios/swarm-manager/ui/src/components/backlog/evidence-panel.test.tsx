@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import { EvidencePanel } from "./evidence-panel";
 import type { ReviewRound } from "../../services/review-service";
 
@@ -26,7 +27,7 @@ const defaultProps = {
 
 describe("EvidencePanel", () => {
   it("shows gathering copy for actively gathering rounds", () => {
-    render(
+    renderWithCanonicalProviders(
       <EvidencePanel
         {...defaultProps}
         rounds={[makeRound()]}
@@ -38,7 +39,7 @@ describe("EvidencePanel", () => {
   });
 
   it("shows awaiting manual review copy when the review run is parked in needs_review", () => {
-    render(
+    renderWithCanonicalProviders(
       <EvidencePanel
         {...defaultProps}
         rounds={[makeRound({ current_run_status: "needs_review" })]}

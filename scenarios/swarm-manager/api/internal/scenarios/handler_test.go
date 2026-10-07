@@ -3,6 +3,7 @@ package scenarios
 import (
 	"bytes"
 	"context"
+	"github.com/vrooli/api-core/apihttptest"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -13,6 +14,7 @@ import (
 	"swarm-manager/internal/testutil"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 )
 
@@ -152,36 +154,36 @@ func setupTestScenarios(t *testing.T) (string, []ScenarioSource) {
 	// Create test scenario 1 (has PRD.md, so not greenfield)
 	scenario1Path := filepath.Join(scenariosDir, "test-scenario-1")
 	scenario1Dir := filepath.Join(scenario1Path, ".vrooli")
-	testutil.WriteJSONFile(t, filepath.Join(scenario1Dir, "service.json"), map[string]any{
+	repocontracttest.WriteJSON(t, filepath.Join(scenario1Dir, "service.json"), map[string]any{
 		"profile": map[string]any{
 			"name":        "Test Scenario One",
 			"description": "First test scenario",
 			"tags":        []string{"api", "backend"},
 		},
 	})
-	testutil.WriteJSONFile(t, filepath.Join(scenario1Dir, "lighthouse.json"), map[string]int{
+	repocontracttest.WriteJSON(t, filepath.Join(scenario1Dir, "lighthouse.json"), map[string]int{
 		"priority": 1,
 	})
-	testutil.WriteFile(t, filepath.Join(scenario1Path, "PRD.md"), "# PRD")
+	repocontracttest.WriteFile(t, filepath.Join(scenario1Path, "PRD.md"), "# PRD")
 
 	// Create test scenario 2 (no PRD.md, so greenfield)
 	scenario2Path := filepath.Join(scenariosDir, "test-scenario-2")
 	scenario2Dir := filepath.Join(scenario2Path, ".vrooli")
-	testutil.WriteJSONFile(t, filepath.Join(scenario2Dir, "service.json"), map[string]any{
+	repocontracttest.WriteJSON(t, filepath.Join(scenario2Dir, "service.json"), map[string]any{
 		"profile": map[string]any{
 			"name":        "Test Scenario Two",
 			"description": "Second test scenario for frontend",
 			"tags":        []string{"ui", "frontend"},
 		},
 	})
-	testutil.WriteJSONFile(t, filepath.Join(scenario2Dir, "lighthouse.json"), map[string]int{
+	repocontracttest.WriteJSON(t, filepath.Join(scenario2Dir, "lighthouse.json"), map[string]int{
 		"priority": 3,
 	})
 
 	// Create test scenario 3 (no priority set - uses default)
 	scenario3Path := filepath.Join(scenariosDir, "another-scenario")
 	scenario3Dir := filepath.Join(scenario3Path, ".vrooli")
-	testutil.WriteJSONFile(t, filepath.Join(scenario3Dir, "service.json"), map[string]any{
+	repocontracttest.WriteJSON(t, filepath.Join(scenario3Dir, "service.json"), map[string]any{
 		"profile": map[string]any{
 			"name":        "Another Scenario",
 			"description": "Another test scenario",
@@ -225,10 +227,9 @@ func TestList_Empty(t *testing.T) {
 	rec := httptest.NewRecorder()
 
 	handler.List(rec, req)
+	apihttptest.AssertStatus(t, rec.Result(), 200)
 
-	testutil.AssertStatusOK(t, rec)
-
-	resp := testutil.DecodeJSON[listScenariosResponse](t, rec)
+	resp := apihttptest.MustDecodeJSON[listScenariosResponse](t, rec.Body.Bytes())
 	if len(resp.Scenarios) != 0 {
 		t.Errorf("expected 0 scenarios, got %d", len(resp.Scenarios))
 	}
@@ -266,10 +267,9 @@ func TestList_WithScenarios(t *testing.T) {
 	rec := httptest.NewRecorder()
 
 	handler.List(rec, req)
+	apihttptest.AssertStatus(t, rec.Result(), 200)
 
-	testutil.AssertStatusOK(t, rec)
-
-	resp := testutil.DecodeJSON[listScenariosResponse](t, rec)
+	resp := apihttptest.MustDecodeJSON[listScenariosResponse](t, rec.Body.Bytes())
 	if len(resp.Scenarios) != 3 {
 		t.Errorf("expected 3 scenarios, got %d", len(resp.Scenarios))
 	}
@@ -309,10 +309,9 @@ func TestList_Search(t *testing.T) {
 			rec := httptest.NewRecorder()
 
 			handler.List(rec, req)
+			apihttptest.AssertStatus(t, rec.Result(), 200)
 
-			testutil.AssertStatusOK(t, rec)
-
-			resp := testutil.DecodeJSON[listScenariosResponse](t, rec)
+			resp := apihttptest.MustDecodeJSON[listScenariosResponse](t, rec.Body.Bytes())
 			if len(resp.Scenarios) != tt.expectedCount {
 				t.Errorf("expected %d scenarios, got %d", tt.expectedCount, len(resp.Scenarios))
 			}
@@ -343,10 +342,9 @@ func TestList_FilterByTags(t *testing.T) {
 			rec := httptest.NewRecorder()
 
 			handler.List(rec, req)
+			apihttptest.AssertStatus(t, rec.Result(), 200)
 
-			testutil.AssertStatusOK(t, rec)
-
-			resp := testutil.DecodeJSON[listScenariosResponse](t, rec)
+			resp := apihttptest.MustDecodeJSON[listScenariosResponse](t, rec.Body.Bytes())
 			if len(resp.Scenarios) != tt.expectedCount {
 				t.Errorf("expected %d scenarios, got %d", tt.expectedCount, len(resp.Scenarios))
 			}
@@ -366,7 +364,7 @@ func TestList_Sorting(t *testing.T) {
 
 		handler.List(rec, req)
 
-		resp := testutil.DecodeJSON[listScenariosResponse](t, rec)
+		resp := apihttptest.MustDecodeJSON[listScenariosResponse](t, rec.Body.Bytes())
 		if resp.Scenarios[0].Name != "another-scenario" {
 			t.Errorf("expected first scenario 'another-scenario', got %s", resp.Scenarios[0].Name)
 		}
@@ -378,7 +376,7 @@ func TestList_Sorting(t *testing.T) {
 
 		handler.List(rec, req)
 
-		resp := testutil.DecodeJSON[listScenariosResponse](t, rec)
+		resp := apihttptest.MustDecodeJSON[listScenariosResponse](t, rec.Body.Bytes())
 		// Highest priority number should be first
 		if resp.Scenarios[0].Priority != 5 {
 			t.Errorf("expected first scenario priority 5, got %d", resp.Scenarios[0].Priority)
@@ -399,10 +397,9 @@ func TestGet_Success(t *testing.T) {
 	rec := httptest.NewRecorder()
 
 	router.ServeHTTP(rec, req)
+	apihttptest.AssertStatus(t, rec.Result(), 200)
 
-	testutil.AssertStatusOK(t, rec)
-
-	resp := testutil.DecodeJSON[scenarioResponse](t, rec)
+	resp := apihttptest.MustDecodeJSON[scenarioResponse](t, rec.Body.Bytes())
 	scenario := resp.Scenario
 	if scenario.Name != "test-scenario-1" {
 		t.Errorf("expected name 'test-scenario-1', got %s", scenario.Name)
@@ -428,8 +425,7 @@ func TestGet_NotFound(t *testing.T) {
 	rec := httptest.NewRecorder()
 
 	router.ServeHTTP(rec, req)
-
-	testutil.AssertStatusNotFound(t, rec)
+	apihttptest.AssertStatus(t, rec.Result(), 404)
 }
 
 // TestScenario_Structure tests the Scenario struct fields.
@@ -443,7 +439,7 @@ func TestScenario_Structure(t *testing.T) {
 
 	handler.List(rec, req)
 
-	resp := testutil.DecodeJSON[listScenariosResponse](t, rec)
+	resp := apihttptest.MustDecodeJSON[listScenariosResponse](t, rec.Body.Bytes())
 	if len(resp.Scenarios) != 1 {
 		t.Fatalf("expected 1 scenario, got %d", len(resp.Scenarios))
 	}
@@ -479,10 +475,9 @@ func TestUpdateMetadata_Success(t *testing.T) {
 	rec := httptest.NewRecorder()
 
 	router.ServeHTTP(rec, req)
+	apihttptest.AssertStatus(t, rec.Result(), 200)
 
-	testutil.AssertStatusOK(t, rec)
-
-	resp := testutil.DecodeJSON[scenarioResponse](t, rec)
+	resp := apihttptest.MustDecodeJSON[scenarioResponse](t, rec.Body.Bytes())
 	scenario := resp.Scenario
 	if !scenario.IsGreenfield {
 		t.Error("expected isGreenfield to be true")
@@ -505,10 +500,9 @@ func TestUpdateMetadata_ToggleGreenfield(t *testing.T) {
 	rec := httptest.NewRecorder()
 
 	router.ServeHTTP(rec, req)
+	apihttptest.AssertStatus(t, rec.Result(), 200)
 
-	testutil.AssertStatusOK(t, rec)
-
-	resp := testutil.DecodeJSON[scenarioResponse](t, rec)
+	resp := apihttptest.MustDecodeJSON[scenarioResponse](t, rec.Body.Bytes())
 	scenario := resp.Scenario
 	if !scenario.IsGreenfield {
 		t.Error("expected isGreenfield to be true after toggle")
@@ -530,8 +524,7 @@ func TestUpdateMetadata_NotFound(t *testing.T) {
 	rec := httptest.NewRecorder()
 
 	router.ServeHTTP(rec, req)
-
-	testutil.AssertStatusNotFound(t, rec)
+	apihttptest.AssertStatus(t, rec.Result(), 404)
 }
 
 // TestUpdateMetadata_InvalidJSON tests invalid JSON handling.
@@ -549,8 +542,7 @@ func TestUpdateMetadata_InvalidJSON(t *testing.T) {
 	rec := httptest.NewRecorder()
 
 	router.ServeHTTP(rec, req)
-
-	testutil.AssertStatusBadRequest(t, rec)
+	apihttptest.AssertStatus(t, rec.Result(), 400)
 }
 
 // TestUpdateMetadata_PartialUpdate tests that partial updates work.
@@ -576,7 +568,7 @@ func TestUpdateMetadata_PartialUpdate(t *testing.T) {
 	rec2 := httptest.NewRecorder()
 	router.ServeHTTP(rec2, req2)
 
-	resp2 := testutil.DecodeJSON[scenarioResponse](t, rec2)
+	resp2 := apihttptest.MustDecodeJSON[scenarioResponse](t, rec2.Body.Bytes())
 	scenario := resp2.Scenario
 
 	// Final update should be reflected
@@ -600,14 +592,13 @@ func TestUpdateMetadata_PersistsToDisk(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
-
-	testutil.AssertStatusOK(t, rec)
+	apihttptest.AssertStatus(t, rec.Result(), 200)
 
 	// Verify metadata file was created
 	metaPath := filepath.Join(root, "scenarios", "test-scenario-1", ".vrooli", "metadata.json")
 	testutil.AssertFileExists(t, metaPath)
 
-	metadata := testutil.ReadJSONFile[ScenarioMetadata](t, metaPath)
+	metadata := repocontracttest.ReadJSONFileInto[ScenarioMetadata](t, metaPath)
 	if !metadata.IsGreenfield {
 		t.Error("expected isGreenfield true in file")
 	}
@@ -627,7 +618,7 @@ func TestScenario_GreenfieldDefault(t *testing.T) {
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
-	resp := testutil.DecodeJSON[scenarioResponse](t, rec)
+	resp := apihttptest.MustDecodeJSON[scenarioResponse](t, rec.Body.Bytes())
 	scenario := resp.Scenario
 
 	// PRD exists for scenario-1, so greenfield should default false.
@@ -652,10 +643,9 @@ func TestDelete_Success(t *testing.T) {
 	req := httptest.NewRequest("DELETE", "/api/v1/scenarios/test-scenario-1", nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
+	apihttptest.AssertStatus(t, rec.Result(), 200)
 
-	testutil.AssertStatusOK(t, rec)
-
-	response := testutil.DecodeJSON[deleteScenarioResponse](t, rec)
+	response := apihttptest.MustDecodeJSON[deleteScenarioResponse](t, rec.Body.Bytes())
 	if response.Name != "test-scenario-1" {
 		t.Errorf("expected name 'test-scenario-1', got %q", response.Name)
 	}
@@ -682,8 +672,7 @@ func TestDelete_NotFound(t *testing.T) {
 	req := httptest.NewRequest("DELETE", "/api/v1/scenarios/non-existent", nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
-
-	testutil.AssertStatusNotFound(t, rec)
+	apihttptest.AssertStatus(t, rec.Result(), 404)
 }
 
 // TestDelete_WithArchive tests deletion with archive option.
@@ -702,10 +691,9 @@ func TestDelete_WithArchive(t *testing.T) {
 	req := httptest.NewRequest("DELETE", "/api/v1/scenarios/test-scenario-1?archive=true", nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
+	apihttptest.AssertStatus(t, rec.Result(), 200)
 
-	testutil.AssertStatusOK(t, rec)
-
-	response := testutil.DecodeJSON[deleteScenarioResponse](t, rec)
+	response := apihttptest.MustDecodeJSON[deleteScenarioResponse](t, rec.Body.Bytes())
 	if !response.Archived {
 		t.Error("expected archived to be true")
 	}
@@ -722,7 +710,7 @@ func TestDelete_WithArchive(t *testing.T) {
 	specPath := filepath.Join(ideaPath, "spec.json")
 	testutil.AssertFileExists(t, specPath)
 
-	spec := testutil.ReadJSONFile[map[string]any](t, specPath)
+	spec := repocontracttest.ReadJSONFileInto[map[string]any](t, specPath)
 	if spec["sourceScenarioName"] != "test-scenario-1" {
 		t.Fatalf("expected sourceScenarioName test-scenario-1, got %v", spec["sourceScenarioName"])
 	}
@@ -758,8 +746,8 @@ func TestDelete_WithArchive_PreservesFilesInArchiveSubdir(t *testing.T) {
 
 	// Add extra files to scenario-1 for preservation
 	scenario1Path := filepath.Join(root, "scenarios", "test-scenario-1")
-	testutil.WriteFile(t, filepath.Join(scenario1Path, "README.md"), "# Readme")
-	testutil.WriteFile(t, filepath.Join(scenario1Path, "docs", "guide.md"), "guide content")
+	repocontracttest.WriteFile(t, filepath.Join(scenario1Path, "README.md"), "# Readme")
+	repocontracttest.WriteFile(t, filepath.Join(scenario1Path, "docs", "guide.md"), "guide content")
 
 	ideasDir := filepath.Join(root, "scenarios", "swarm-manager", "ideas")
 	testutil.MakeDir(t, ideasDir)
@@ -773,8 +761,7 @@ func TestDelete_WithArchive_PreservesFilesInArchiveSubdir(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
-
-	testutil.AssertStatusOK(t, rec)
+	apihttptest.AssertStatus(t, rec.Result(), 200)
 
 	ideaPath := filepath.Join(ideasDir, "test-scenario-1-archived")
 
@@ -796,7 +783,7 @@ func TestDelete_ProtectedScenarioRejected(t *testing.T) {
 	root := t.TempDir()
 	scenariosDir := filepath.Join(root, "scenarios")
 	swarmManagerPath := filepath.Join(scenariosDir, "swarm-manager")
-	testutil.WriteJSONFile(t, filepath.Join(swarmManagerPath, ".vrooli", "service.json"), map[string]any{
+	repocontracttest.WriteJSON(t, filepath.Join(swarmManagerPath, ".vrooli", "service.json"), map[string]any{
 		"profile": map[string]any{
 			"name":        "Swarm Manager",
 			"description": "Control plane",
@@ -819,8 +806,7 @@ func TestDelete_ProtectedScenarioRejected(t *testing.T) {
 	req := httptest.NewRequest("DELETE", "/api/v1/scenarios/swarm-manager?archive=true", nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
-
-	testutil.AssertStatusBadRequest(t, rec)
+	apihttptest.AssertStatus(t, rec.Result(), 400)
 	testutil.AssertFileExists(t, swarmManagerPath)
 	testutil.AssertFileNotExists(t, filepath.Join(swarmManagerPath, "ideas", "swarm-manager-archived", "spec.json"))
 }
@@ -831,7 +817,7 @@ func TestDelete_WithArchive_DoesNotOverwriteExistingArchiveTarget(t *testing.T) 
 	ideasDir := filepath.Join(root, "scenarios", "swarm-manager", "ideas")
 	existingArchiveDir := filepath.Join(ideasDir, "test-scenario-1-archived")
 	testutil.MakeDir(t, existingArchiveDir)
-	testutil.WriteJSONFile(t, filepath.Join(existingArchiveDir, "spec.json"), map[string]any{
+	repocontracttest.WriteJSON(t, filepath.Join(existingArchiveDir, "spec.json"), map[string]any{
 		"name":  "test-scenario-1-archived",
 		"title": "Existing archive",
 	})
@@ -843,11 +829,10 @@ func TestDelete_WithArchive_DoesNotOverwriteExistingArchiveTarget(t *testing.T) 
 	req := httptest.NewRequest("DELETE", "/api/v1/scenarios/test-scenario-1?archive=true", nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
-
-	testutil.AssertStatus(t, rec, http.StatusConflict)
+	apihttptest.AssertStatus(t, rec.Result(), http.StatusConflict)
 	testutil.AssertFileExists(t, filepath.Join(root, "scenarios", "test-scenario-1"))
 
-	spec := testutil.ReadJSONFile[map[string]any](t, filepath.Join(existingArchiveDir, "spec.json"))
+	spec := repocontracttest.ReadJSONFileInto[map[string]any](t, filepath.Join(existingArchiveDir, "spec.json"))
 	if spec["title"] != "Existing archive" {
 		t.Fatalf("expected existing archive content to remain unchanged, got %#v", spec["title"])
 	}
@@ -856,7 +841,7 @@ func TestDelete_WithArchive_DoesNotOverwriteExistingArchiveTarget(t *testing.T) 
 func TestDelete_WithArchive_UsesConfiguredBacklogRootForExternalScenarioPath(t *testing.T) {
 	root := t.TempDir()
 	externalScenarioPath := filepath.Join(root, "external-scenarios", "test-scenario-1")
-	testutil.WriteFile(t, filepath.Join(externalScenarioPath, "PRD.md"), "# External PRD")
+	repocontracttest.WriteFile(t, filepath.Join(externalScenarioPath, "PRD.md"), "# External PRD")
 
 	ideasDir := filepath.Join(root, "scenarios", "swarm-manager", "ideas")
 	testutil.MakeDir(t, ideasDir)
@@ -876,8 +861,7 @@ func TestDelete_WithArchive_UsesConfiguredBacklogRootForExternalScenarioPath(t *
 	req := httptest.NewRequest("DELETE", "/api/v1/scenarios/test-scenario-1?archive=true", nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
-
-	testutil.AssertStatusOK(t, rec)
+	apihttptest.AssertStatus(t, rec.Result(), 200)
 	testutil.AssertFileNotExists(t, externalScenarioPath)
 	testutil.AssertFileExists(t, filepath.Join(ideasDir, "test-scenario-1-archived", "spec.json"))
 
@@ -898,13 +882,13 @@ func TestDelete_Idempotent(t *testing.T) {
 	req1 := httptest.NewRequest("DELETE", "/api/v1/scenarios/test-scenario-1", nil)
 	rec1 := httptest.NewRecorder()
 	router.ServeHTTP(rec1, req1)
-	testutil.AssertStatusOK(t, rec1)
+	apihttptest.AssertStatus(t, rec1.Result(), 200)
 
 	// Second delete returns 404
 	req2 := httptest.NewRequest("DELETE", "/api/v1/scenarios/test-scenario-1", nil)
 	rec2 := httptest.NewRecorder()
 	router.ServeHTTP(rec2, req2)
-	testutil.AssertStatusNotFound(t, rec2)
+	apihttptest.AssertStatus(t, rec2.Result(), 404)
 }
 
 // TestDeleteResponse_Structure tests DeleteScenarioResponse JSON serialization.
@@ -933,9 +917,9 @@ func TestCopyPreservedFiles_PresetSkipsIgnoredDirs(t *testing.T) {
 	scenarioPath := filepath.Join(root, "scenario")
 	archiveDir := filepath.Join(root, "idea", "archive")
 
-	testutil.WriteFile(t, filepath.Join(scenarioPath, "PRD.md"), "# PRD")
-	testutil.WriteFile(t, filepath.Join(scenarioPath, "docs", "guide.md"), "guide")
-	testutil.WriteFile(t, filepath.Join(scenarioPath, "node_modules", "somepkg", "README.md"), "ignore me")
+	repocontracttest.WriteFile(t, filepath.Join(scenarioPath, "PRD.md"), "# PRD")
+	repocontracttest.WriteFile(t, filepath.Join(scenarioPath, "docs", "guide.md"), "guide")
+	repocontracttest.WriteFile(t, filepath.Join(scenarioPath, "node_modules", "somepkg", "README.md"), "ignore me")
 
 	preset := "documentation"
 	preserved, err := copyPreservedFiles(scenarioPath, archiveDir, &apipb.PreserveFilesRequest{
@@ -965,8 +949,8 @@ func TestCopyPreservedFiles_RejectsPathTraversal(t *testing.T) {
 	scenarioPath := filepath.Join(root, "scenario")
 	archiveDir := filepath.Join(root, "idea", "archive")
 
-	testutil.WriteFile(t, filepath.Join(scenarioPath, "PRD.md"), "# PRD")
-	testutil.WriteFile(t, filepath.Join(root, "outside.md"), "outside")
+	repocontracttest.WriteFile(t, filepath.Join(scenarioPath, "PRD.md"), "# PRD")
+	repocontracttest.WriteFile(t, filepath.Join(root, "outside.md"), "outside")
 
 	preserved, err := copyPreservedFiles(scenarioPath, archiveDir, &apipb.PreserveFilesRequest{
 		Paths: []string{"../outside.md", "PRD.md"},

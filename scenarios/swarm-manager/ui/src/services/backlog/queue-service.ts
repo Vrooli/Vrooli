@@ -46,7 +46,7 @@ export function createQueueMethods(apiClient: IApiClient) {
         ...(options?.startedBy ? { startedBy: options.startedBy } : {}),
         ...(options?.confirm !== undefined ? { confirm: options.confirm } : {}),
         ...(options?.force !== undefined ? { force: options.force } : {}),
-        ...(options?.strategy ? { strategy: options.strategy } : {}),
+        ...(options?.strategy ? { executionMode: options.strategy } : {}),
         ...(options?.maxSlices ? { maxSlices: options.maxSlices } : {}),
         ...((options?.preferredRunner || options?.model || options?.effort) ? { executionPreferences: {
           preferredRunner: options.preferredRunner ?? "",

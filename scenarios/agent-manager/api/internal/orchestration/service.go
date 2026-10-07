@@ -33,6 +33,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/effortauthority"
+	isolation "github.com/vrooli/vrooli/packages/nativeisolation"
 	"strings"
 	"sync"
 	"time"
@@ -152,9 +153,14 @@ type Orchestrator struct {
 	// are admitted into a run. A missing provider is permitted for internal
 	// callers that do not present an owner token; a presented token never
 	// falls back to an unverified identity.
-	ownerIdentity        authn.TokenVerifier
-	effortAuthority      effortauthority.Engine
-	finiteNativeFactory  *runner.FiniteNativeFactory
+	ownerIdentity   authn.TokenVerifier
+	effortAuthority effortauthority.Engine
+	// Admission-only seam is private; production installs a concrete ready
+	// factory. Launch and terminal ownership never use this interface.
+	finiteNativeFactory interface {
+		Enabled() bool
+		CheckBinding(string, isolation.Binding) error
+	}
 	finiteNativeTerminal interface {
 		Terminal(context.Context, string) error
 	}
@@ -772,4 +778,8 @@ func (o *Orchestrator) now() time.Time {
 // provider, client enrollment, credential exchange or grant is inferred.
 func WithEffortAuthority(a effortauthority.Engine) Option {
 	return func(o *Orchestrator) { o.effortAuthority = a }
+}
+
+func (o *Orchestrator) finiteNativeEnabled() bool {
+	return o.finiteNativeFactory != nil && o.finiteNativeFactory.Enabled()
 }

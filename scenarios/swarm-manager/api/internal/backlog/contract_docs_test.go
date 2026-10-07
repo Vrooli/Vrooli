@@ -3,20 +3,23 @@ package backlog
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 func repoRootFromContractDocsTest(t *testing.T) string {
 	t.Helper()
-
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller failed")
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
 	}
-
-	return filepath.Clean(filepath.Join(filepath.Dir(file), "..", "..", "..", "..", ".."))
+	root, err := repocontract.FindRepoRoot(cwd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return root
 }
 
 func readRepoFile(t *testing.T, root, rel string) string {

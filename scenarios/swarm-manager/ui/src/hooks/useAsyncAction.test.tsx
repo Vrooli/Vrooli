@@ -1,4 +1,5 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../test-utils/renderWithProviders";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { ToastProvider } from "../components/ui/toast-provider";
@@ -31,7 +32,7 @@ function Harness({
 }
 
 function renderAction(props: Parameters<typeof Harness>[0]) {
-  return render(<ToastProvider><Harness {...props} /></ToastProvider>);
+  return renderWithCanonicalProviders(<ToastProvider><Harness {...props} /></ToastProvider>);
 }
 
 describe("useAsyncAction", () => {

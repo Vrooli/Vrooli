@@ -1,4 +1,5 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import userEvent from "@testing-library/user-event";
 import { Target } from "lucide-react";
 import { describe, expect, it, vi } from "vitest";
@@ -9,7 +10,7 @@ describe("CompactTabBar", () => {
     const user = userEvent.setup();
     const onValueChange = vi.fn();
 
-    render(
+    renderWithCanonicalProviders(
       <CompactTabBar
         aria-label="Example tabs"
         activeValue="goals"

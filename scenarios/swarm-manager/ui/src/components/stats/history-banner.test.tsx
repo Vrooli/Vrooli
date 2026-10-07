@@ -1,10 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import { HistoryBanner } from "./history-banner";
 
 describe("HistoryBanner", () => {
   it("renders when history is shorter than 30 days", () => {
-    render(
+    renderWithCanonicalProviders(
       <HistoryBanner
         history={{
           earliest_event_at: "2026-04-18T00:00:00Z",
@@ -18,7 +19,7 @@ describe("HistoryBanner", () => {
   });
 
   it("renders nothing when history is ≥ 30 days", () => {
-    const { container } = render(
+    const { container } = renderWithCanonicalProviders(
       <HistoryBanner
         history={{
           earliest_event_at: "2026-01-01T00:00:00Z",
@@ -32,7 +33,7 @@ describe("HistoryBanner", () => {
   });
 
   it("renders nothing when has_history is false", () => {
-    const { container } = render(
+    const { container } = renderWithCanonicalProviders(
       <HistoryBanner
         history={{
           earliest_event_at: "",

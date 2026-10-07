@@ -5,9 +5,13 @@ import { initSpatialNav, getSpatialNav } from "@vrooli/iframe-bridge/spatial";
 import { createElement } from "react";
 import { configureTestProviders } from "@vrooli/api-base/testing";
 import { ToastProvider } from "./components/ui/toast-provider";
+import { registerScenarioVoiceTransport } from "./audio-integration";
 
 // Each test gets the real application controller; jsdom does not compute visibility.
-beforeEach(() => { initSpatialNav({ autoActivate: false, isVisible: () => true }); });
+beforeEach(() => {
+  registerScenarioVoiceTransport();
+  initSpatialNav({ autoActivate: false, isVisible: () => true });
+});
 afterEach(() => { getSpatialNav()?.dispose(); });
 
 configureTestProviders((children) => createElement(ToastProvider, null, children));

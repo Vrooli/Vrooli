@@ -6,7 +6,8 @@
  */
 
 import { QueryClientProvider } from "@tanstack/react-query";
-import { render, waitFor } from "@testing-library/react";
+import { waitFor } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "./test-utils/renderWithProviders";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import { createTestQueryClient } from "./test-utils";
@@ -24,10 +25,10 @@ function renderAt(path: string, theme?: "dark" | "light") {
   window.history.pushState({}, "", path);
   const client = createTestQueryClient();
   if (theme) client.setQueryData(["settings"], { ...DEFAULT_SETTINGS, theme });
-  return render(
+  return renderWithCanonicalProviders(
     <QueryClientProvider client={client}>
       <App />
-    </QueryClientProvider>,
+    </QueryClientProvider>, { withoutRouter: true, withoutQueryClient: true },
   );
 }
 

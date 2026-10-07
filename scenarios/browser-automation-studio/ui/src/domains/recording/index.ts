@@ -39,7 +39,7 @@ export { ProjectSelector } from './conversion/ProjectSelector';
 
 // Hooks
 export { useRecordMode } from './hooks/useRecordMode';
-export { useUnifiedTimeline } from './hooks/useUnifiedTimeline';
+export { useWorkspaceTimeline } from './hooks/useWorkspaceTimeline';
 export { useRecordingSession } from './hooks/useRecordingSession';
 export { useSessionProfiles } from './hooks/useSessionProfiles';
 export { useActionSelection } from './hooks/useActionSelection';
@@ -49,7 +49,7 @@ export { usePerfStats } from './hooks/usePerfStats';
 export { useStorageState } from './hooks/useStorageState';
 export { useServiceWorkers } from './hooks/useServiceWorkers';
 export { useHistory } from './hooks/useHistory';
-export type { UseUnifiedTimelineOptions, UseUnifiedTimelineReturn } from './hooks/useUnifiedTimeline';
+export type { UseWorkspaceTimelineOptions, UseWorkspaceTimelineReturn } from './hooks/useWorkspaceTimeline';
 export type { UseStorageStateResult } from './hooks/useStorageState';
 export type {
   UseServiceWorkersResult,

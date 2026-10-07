@@ -1,11 +1,12 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import { beforeEach, describe, it, expect } from "vitest";
 import { Info } from "lucide-react";
 import { DetailSection } from "./DetailSection";
 
 describe("DetailSection", () => {
   it("renders title and children", () => {
-    render(
+    renderWithCanonicalProviders(
       <DetailSection title="Test Section">
         <p>Section content</p>
       </DetailSection>,
@@ -15,7 +16,7 @@ describe("DetailSection", () => {
   });
 
   it("renders top divider by default", () => {
-    const { container } = render(
+    const { container } = renderWithCanonicalProviders(
       <DetailSection title="With Divider">
         <p>Content</p>
       </DetailSection>,
@@ -27,7 +28,7 @@ describe("DetailSection", () => {
   });
 
   it("hides divider when hideDivider is true", () => {
-    const { container } = render(
+    const { container } = renderWithCanonicalProviders(
       <DetailSection title="No Divider" hideDivider>
         <p>Content</p>
       </DetailSection>,
@@ -38,7 +39,7 @@ describe("DetailSection", () => {
   });
 
   it("renders icon when provided", () => {
-    const { container } = render(
+    const { container } = renderWithCanonicalProviders(
       <DetailSection title="With Icon" icon={Info}>
         <p>Content</p>
       </DetailSection>,
@@ -47,7 +48,7 @@ describe("DetailSection", () => {
   });
 
   it("renders action slot", () => {
-    render(
+    renderWithCanonicalProviders(
       <DetailSection title="With Action" action={<button type="button">Edit</button>}>
         <p>Content</p>
       </DetailSection>,
@@ -56,7 +57,7 @@ describe("DetailSection", () => {
   });
 
   it("forwards data-testid", () => {
-    render(
+    renderWithCanonicalProviders(
       <DetailSection title="Testable" data-testid="my-section">
         <p>Content</p>
       </DetailSection>,
@@ -70,7 +71,7 @@ describe("DetailSection", () => {
     });
 
     it("toggles content and persists state per storageKey", () => {
-      render(
+      renderWithCanonicalProviders(
         <DetailSection title="Collapsible" storageKey="test.section" data-testid="collapsible-section">
           <p>Hidden treasure</p>
         </DetailSection>,
@@ -88,7 +89,7 @@ describe("DetailSection", () => {
     });
 
     it("respects defaultOpen false", () => {
-      render(
+      renderWithCanonicalProviders(
         <DetailSection title="Closed" storageKey="test.closed" defaultOpen={false}>
           <p>Not yet</p>
         </DetailSection>,

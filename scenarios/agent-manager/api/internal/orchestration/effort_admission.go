@@ -219,7 +219,7 @@ func (o *Orchestrator) SyncEffortTerminal(ctx context.Context, b effortauthority
 }
 
 func (o *Orchestrator) prepareEffortRecovery(ctx context.Context, request ResumeFromFailedRunRequest, source *domain.Run, req *CreateRunRequest, task *domain.Task, cfg *domain.RunConfig) error {
-	if o.finiteNativeFactory.Enabled() {
+	if o.finiteNativeEnabled() {
 		return effortauthority.ErrRefused
 	}
 	b := *source.ResolvedConfig.Admission.Effort
@@ -277,7 +277,7 @@ func effortHasOverrides(req *CreateRunRequest) bool {
 // cannot use an expired/revoked grant to reach wake/resume bookkeeping/dispatch.
 // Ordinary AUTH-01 runs retain their owning lifecycle contract.
 func (o *Orchestrator) checkEffortContinuation(ctx context.Context, r *domain.Run) error {
-	if o.finiteNativeFactory.Enabled() {
+	if o.finiteNativeEnabled() {
 		return effortauthority.ErrRefused
 	}
 	if r == nil || r.ResolvedConfig == nil || r.ResolvedConfig.Admission == nil || r.ResolvedConfig.Admission.Effort == nil {

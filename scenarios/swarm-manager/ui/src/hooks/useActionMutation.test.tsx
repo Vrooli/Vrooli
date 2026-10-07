@@ -3,7 +3,8 @@
  * can fail silently. These tests hold that promise to the fire.
  */
 
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../test-utils/renderWithProviders";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
@@ -38,7 +39,7 @@ function Harness<TData>({ options }: { options: ActionMutationOptions<TData, voi
 }
 
 function renderAction<TData>(options: ActionMutationOptions<TData, void>, client = createClient()) {
-  render(<Wrapper client={client}><Harness options={options} /></Wrapper>);
+  renderWithCanonicalProviders(<Wrapper client={client}><Harness options={options} /></Wrapper>, { withoutQueryClient: true });
   return client;
 }
 
@@ -204,7 +205,7 @@ describe("useActionMutation", () => {
       return <button type="button" onClick={() => results.push(mutation.run())}>probe</button>;
     }
 
-    render(<Wrapper client={createClient()}><Probe /></Wrapper>);
+    renderWithCanonicalProviders(<Wrapper client={createClient()}><Probe /></Wrapper>, { withoutQueryClient: true });
     await userEvent.click(screen.getByText("probe"));
     await screen.findByRole("alert");
 

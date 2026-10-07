@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"swarm-manager/internal/testutil"
+	"github.com/vrooli/api-core/apihttptest"
 )
 
 // TestConvergence_AllSourcesAgreeOnDiskState pins the contract that the
@@ -33,7 +33,7 @@ func TestConvergence_AllSourcesAgreeOnDiskState(t *testing.T) {
 	req := httptest.NewRequest("POST", "/api/v1/backlog", body)
 	w := httptest.NewRecorder()
 	h.Create(w, req)
-	testutil.AssertStatus(t, w, http.StatusCreated)
+	apihttptest.AssertStatus(t, w.Result(), http.StatusCreated)
 
 	// Path 2: proposal-driven create via Service.Create directly (this is
 	// the same call proposals.Applier.applyAddItem makes in production).

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"runtime"
 	"testing"
 )
 
@@ -12,8 +11,7 @@ import (
 // implemented by Agent Manager's catalog expander. A one-run declaration must
 // not hand-write the entry, edge, or synthesized end node.
 func TestWorkflowDeclarationsUseSingleRunSugar(t *testing.T) {
-	_, source, _, _ := runtime.Caller(0)
-	dir := filepath.Clean(filepath.Join(filepath.Dir(source), "..", "..", "..", ".vrooli", "agent-manager"))
+	dir := filepath.Join(swarmScenarioRoot(t), ".vrooli", "agent-manager")
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		t.Fatal(err)
@@ -53,8 +51,7 @@ func TestWorkflowDeclarationsUseSingleRunSugar(t *testing.T) {
 }
 
 func TestWorkflowRegistryLinksMatchDeclarations(t *testing.T) {
-	_, source, _, _ := runtime.Caller(0)
-	root := filepath.Clean(filepath.Join(filepath.Dir(source), "..", "..", "..", ".vrooli"))
+	root := filepath.Join(swarmScenarioRoot(t), ".vrooli")
 	registryData, err := os.ReadFile(filepath.Join(root, "swarm-transitions", "registry.json"))
 	if err != nil {
 		t.Fatal(err)

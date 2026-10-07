@@ -13,7 +13,7 @@ import (
 )
 
 func Register(_ support.Dependencies) cliapp.SubcommandGroup {
-	return cliapp.SubcommandGroup{Name: "transitions", Description: "Declared agent transition catalog", Subcommands: []cliapp.Command{listCommand(), startCommand(), applyCommand()}}
+	return cliapp.SubcommandGroup{Name: "transitions", Description: "Declared agent transition catalog", Subcommands: []cliapp.Command{previewDevelopmentCommand(), listCommand(), startCommand(), applyCommand()}}
 }
 
 func client(op cliapp.OperationContext) apiconnect.TransitionServiceClient {
@@ -80,4 +80,24 @@ func applyCommand() cliapp.Command {
 			return cliapp.MutationReport{Result: []string{"Transition result applied."}, Changes: []string{fmt.Sprintf("Outcome: %s", response.GetOutcome()), fmt.Sprintf("Subject: %s", response.GetSubjectRef())}}
 		},
 	))
+}
+
+func previewDevelopmentCommand() cliapp.Command {
+	cmd := cliapp.Command{Name: "preview-development", Description: "Review typed development proposal without approval or launch", NeedsAPI: true, Args: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "data", Description: "Full typed PreviewDevelopment request JSON; max 128 KiB", Required: true}}}}
+	return cmd.WithPrimitive(cliapp.ProtoList(func(op cliapp.OperationContext) (*api.PreviewDevelopmentResponse, error) {
+		req := &api.PreviewDevelopmentRequest{}
+		if err := support.ReadProtoData(op.Flag("data"), req); err != nil {
+			return nil, err
+		}
+		if req.Reference == nil || strings.TrimSpace(req.Reference.EffortId) == "" || req.Proposal == nil {
+			return nil, fmt.Errorf("reference.effort_id and proposal are required")
+		}
+		r, err := client(op).PreviewDevelopment(context.Background(), connect.NewRequest(req))
+		if err != nil {
+			return nil, err
+		}
+		return r.Msg, nil
+	}, func(_ cliapp.OperationContext, r *api.PreviewDevelopmentResponse) cliapp.ListReport {
+		return cliapp.ListReport{Summary: []string{"Read-only development preview; no approval or launch."}, ResultsHeading: "Launch blockers", Results: r.GetLaunchBlockers()}
+	}))
 }

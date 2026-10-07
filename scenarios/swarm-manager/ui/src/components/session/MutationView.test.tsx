@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import { MutationView } from "./MutationView";
 import { PROPOSAL_OPS, type ProposalMutation } from "../../types/proposal";
 import { archetypeFor } from "../../lib/mutation-archetypes";
@@ -12,7 +13,7 @@ import { archetypeFor } from "../../lib/mutation-archetypes";
  */
 
 function renderMutation(mutation: ProposalMutation, base?: Parameters<typeof MutationView>[0]["base"]) {
-  return render(<MutationView mutation={mutation} base={base} />);
+  return renderWithCanonicalProviders(<MutationView mutation={mutation} base={base} />);
 }
 
 /** Minimal but valid payload per op, so every archetype has a real example. */

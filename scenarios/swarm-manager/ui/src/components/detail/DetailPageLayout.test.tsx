@@ -6,7 +6,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import { DetailPageLayout } from "./DetailPageLayout";
 
 let mockIsMobile = false;
@@ -29,7 +30,7 @@ beforeEach(() => {
 
 describe("DetailPageLayout", () => {
   it("renders header and body content", () => {
-    render(
+    renderWithCanonicalProviders(
       <DetailPageLayout header={<div data-testid="test-header">Header</div>}>
         <div data-testid="test-body">Body</div>
       </DetailPageLayout>,
@@ -41,7 +42,7 @@ describe("DetailPageLayout", () => {
   });
 
   it("applies body class overrides", () => {
-    render(
+    renderWithCanonicalProviders(
       <DetailPageLayout header={<div>Header</div>} bodyClassName="test-body-class">
         <div data-testid="test-body">Body</div>
       </DetailPageLayout>,
@@ -51,7 +52,7 @@ describe("DetailPageLayout", () => {
   });
 
   it("keeps body gutters by default", () => {
-    render(
+    renderWithCanonicalProviders(
       <DetailPageLayout header={<div>Header</div>}>
         <div data-testid="test-body">Body</div>
       </DetailPageLayout>,
@@ -64,7 +65,7 @@ describe("DetailPageLayout", () => {
   it("drops body gutters and bounds the height when full-bleed", () => {
     // The Files tab renders its own header; page gutters left it inset from
     // the tab bar and stopped it filling the available height.
-    render(
+    renderWithCanonicalProviders(
       <DetailPageLayout header={<div>Header</div>} fullBleed>
         <div data-testid="test-body">Body</div>
       </DetailPageLayout>,
@@ -79,7 +80,7 @@ describe("DetailPageLayout", () => {
   it("never renders the legacy mobile actions FAB", () => {
     mockIsMobile = true;
 
-    render(
+    renderWithCanonicalProviders(
       <DetailPageLayout header={<div>Header</div>}>
         <div>Body</div>
       </DetailPageLayout>,

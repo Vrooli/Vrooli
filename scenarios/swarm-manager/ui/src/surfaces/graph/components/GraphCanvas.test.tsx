@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../../test-utils/renderWithProviders";
 import React from "react";
 
 const { mockUseGoalMembershipIndex } = vi.hoisted(() => ({
@@ -178,7 +179,7 @@ describe("GraphCanvas", () => {
       ],
     }));
 
-    render(<GraphCanvas />);
+    renderWithCanonicalProviders(<GraphCanvas />, { withoutRouter: true });
 
     await waitFor(() => {
       expect(screen.getByTestId("rendered-node-ids")).toBeInTheDocument();
@@ -227,7 +228,7 @@ describe("GraphCanvas", () => {
       ],
     }));
 
-    render(<GraphCanvas />);
+    renderWithCanonicalProviders(<GraphCanvas />, { withoutRouter: true });
 
     await waitFor(() => {
       expect(screen.getByTestId("rendered-node-ids")).toBeInTheDocument();
@@ -257,7 +258,7 @@ describe("GraphCanvas", () => {
       edges: [],
     }));
 
-    render(<GraphCanvas />);
+    renderWithCanonicalProviders(<GraphCanvas />, { withoutRouter: true });
 
     await waitFor(() => {
       expect(screen.getByTestId("rendered-node-ids").textContent).toContain("execution-record/exec-1");
@@ -289,7 +290,7 @@ describe("GraphCanvas", () => {
       edges: [],
     }));
 
-    render(<GraphCanvas />);
+    renderWithCanonicalProviders(<GraphCanvas />, { withoutRouter: true });
 
     await waitFor(() => {
       expect(mockSetCenter).toHaveBeenCalled();
@@ -320,7 +321,7 @@ describe("GraphCanvas", () => {
       edges: [],
     }));
 
-    render(<GraphCanvas />);
+    renderWithCanonicalProviders(<GraphCanvas />, { withoutRouter: true });
 
     await waitFor(() => {
       expect(screen.getByTestId("rendered-node-ids").textContent).toContain("execution-record/exec-1");
@@ -363,7 +364,7 @@ describe("GraphCanvas", () => {
       },
     }));
 
-    render(<GraphCanvas />);
+    renderWithCanonicalProviders(<GraphCanvas />, { withoutRouter: true });
 
     await waitFor(() => {
       expect(screen.getByTestId("rendered-node-ids").textContent).toContain("scenario/app");
@@ -413,7 +414,7 @@ describe("GraphCanvas", () => {
       },
     }));
 
-    render(<GraphCanvas />);
+    renderWithCanonicalProviders(<GraphCanvas />, { withoutRouter: true });
 
     await waitFor(() => {
       expect(screen.getByTestId("rendered-edge-ids").textContent).toContain("e1");
@@ -454,7 +455,7 @@ describe("GraphCanvas", () => {
       },
     }));
 
-    render(<GraphCanvas />);
+    renderWithCanonicalProviders(<GraphCanvas />, { withoutRouter: true });
 
     await waitFor(() => {
       expect(screen.getByTestId("rendered-node-ids").textContent).toContain("scenario/app");
@@ -486,7 +487,7 @@ describe("GraphCanvas", () => {
       edges: [],
     }));
 
-    render(<GraphCanvas />);
+    renderWithCanonicalProviders(<GraphCanvas />, { withoutRouter: true });
 
     await waitFor(() => {
       expect(screen.getByTestId("rendered-node-ids").textContent).toContain("backlog-item/execute/task-a");
@@ -519,7 +520,7 @@ describe("GraphCanvas", () => {
       edges,
     }));
 
-    render(<GraphCanvas />);
+    renderWithCanonicalProviders(<GraphCanvas />, { withoutRouter: true });
 
     await waitFor(() => {
       expect(screen.getByTestId("rendered-edge-ids").textContent).toContain("member_of:0");
@@ -550,7 +551,7 @@ describe("GraphCanvas", () => {
       ],
     }));
 
-    render(<GraphCanvas />);
+    renderWithCanonicalProviders(<GraphCanvas />, { withoutRouter: true });
 
     await waitFor(() => {
       expect(screen.getByTestId("rendered-node-ids").textContent).toContain("scenario/app");
@@ -583,7 +584,7 @@ describe("GraphCanvas", () => {
       edges,
     }));
 
-    render(<GraphCanvas />);
+    renderWithCanonicalProviders(<GraphCanvas />, { withoutRouter: true });
 
     await waitFor(() => {
       expect(screen.getByTestId("rendered-node-ids").textContent).toContain("backlog-item/execute/task-42");

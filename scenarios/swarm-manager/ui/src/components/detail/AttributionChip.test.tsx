@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import { agentSessionStoreInitialState, useAgentSessionStore } from "../../stores";
 import type { AgentSession } from "../../types";
 import { AttributionChip } from "./AttributionChip";
@@ -36,7 +37,7 @@ describe("AttributionChip", () => {
       sessions: [SESSION],
     });
 
-    render(
+    renderWithCanonicalProviders(
       <AttributionChip
         attribution={{
           type: "agent",
@@ -55,7 +56,7 @@ describe("AttributionChip", () => {
   });
 
   it("renders non-session agent provenance as read-only", () => {
-    render(
+    renderWithCanonicalProviders(
       <AttributionChip
         attribution={{
           type: "agent",
@@ -70,7 +71,7 @@ describe("AttributionChip", () => {
   });
 
   it("renders operator provenance as read-only", () => {
-    render(<AttributionChip attribution={{ type: "operator" }} />);
+    renderWithCanonicalProviders(<AttributionChip attribution={{ type: "operator" }} />);
 
     expect(screen.getByText("Created by operator")).toBeInTheDocument();
   });

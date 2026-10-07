@@ -3,6 +3,7 @@ package execution
 import (
 	"context"
 	"errors"
+	"github.com/vrooli/api-core/owneridentity"
 	"log/slog"
 	"os"
 	"strings"
@@ -79,6 +80,21 @@ func (s *Service) QueueBacklog(ctx context.Context, req CreateRequest) (Record, 
 	if err := s.normalizeExecutionSelection(&req); err != nil {
 		return Record{}, err
 	}
+	var goalCaller context.Context
+	if req.ExecutionMode == transitions.ExecutionModeGoal {
+		if qualifier, ok := s.goalRunCreator.(interface {
+			PrepareCreateRunCaller(context.Context) (context.Context, error)
+		}); ok {
+			qualified, err := qualifier.PrepareCreateRunCaller(ctx)
+			if err != nil {
+				return Record{}, apierr.Wrap(err, 401, "verified goal queue caller required")
+			}
+			goalCaller, err = owneridentity.CarryCreateRunCaller(qualified, context.Background(), time.Now())
+			if err != nil {
+				return Record{}, apierr.Wrap(err, 401, "verified goal queue caller required")
+			}
+		}
+	}
 	policy, err := normalizeBlockerRepairPolicy(req.BlockerRepairPolicy)
 	if err != nil {
 		return Record{}, apierr.BadRequest("%s", err)
@@ -118,6 +134,22 @@ func (s *Service) QueueBacklog(ctx context.Context, req CreateRequest) (Record, 
 		return Record{}, err
 	}
 
+	for id := range s.goalQueueCallers {
+		keep := false
+		if owneridentity.RequireCreateRunCaller(s.goalQueueCallers[id], time.Now()) != nil {
+			delete(s.goalQueueCallers, id)
+			continue
+		}
+		for _, r := range records {
+			if r.ExecutionID == id && (r.Status == StatusPending || r.Status == StatusStarting || r.Status == StatusRunning || r.Status == StatusInterrupted || r.Status == StatusFailed) {
+				keep = true
+				break
+			}
+		}
+		if !keep {
+			delete(s.goalQueueCallers, id)
+		}
+	}
 	// Drop pending records whose backlog item has disappeared — they can
 	// never be started and otherwise consume the queue-depth budget.
 	if filtered, pruned := pruneOrphanedPendingRecords(records, s.itemDir); pruned > 0 {
@@ -137,8 +169,15 @@ func (s *Service) QueueBacklog(ctx context.Context, req CreateRequest) (Record, 
 		return Record{}, err
 	}
 
+	if goalCaller != nil {
+		if s.goalQueueCallers == nil {
+			s.goalQueueCallers = make(map[string]context.Context)
+		}
+		s.goalQueueCallers[record.ExecutionID] = goalCaller
+	}
 	records = append(records, record)
 	if err := s.store.Save(records); err != nil {
+		delete(s.goalQueueCallers, record.ExecutionID)
 		return Record{}, err
 	}
 	s.logExecutionEvent(record, "")

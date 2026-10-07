@@ -104,8 +104,8 @@ export const librarySelectors = {
     "root": "hooks.use-collection",
   },
 
-    "data-display.card-shell": {
-    "root": "data-display.card-shell",
+  "data-display.card-shell": {
+    "root": "data-display.card-shell"
   },
 
     "hooks.use-long-press": {

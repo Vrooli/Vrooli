@@ -3,10 +3,12 @@ package execution
 import (
 	"context"
 	"errors"
+	"github.com/vrooli/api-core/owneridentity"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/agentmanager"
@@ -35,10 +37,30 @@ func (s *Service) startLocked(ctx context.Context, executionID string) (Record, 
 		return Record{}, apierr.Conflict("execution cancellation is pending terminal accounting")
 	}
 	if record.Status == StatusStarting || record.Status == StatusRunning || record.Status == StatusNeedsReview || record.Status == StatusCompleted {
+		if record.Status == StatusCompleted {
+			delete(s.goalQueueCallers, record.ExecutionID)
+		}
 		return record, nil
 	}
 	if record.Status == StatusCanceled {
+		delete(s.goalQueueCallers, record.ExecutionID)
 		return Record{}, apierr.BadRequest("cannot start canceled execution")
+	}
+	if record.ExecutionMode == transitions.ExecutionModeGoal {
+		if _, ok := s.goalRunCreator.(interface {
+			PrepareCreateRunCaller(context.Context) (context.Context, error)
+		}); ok {
+			original := s.goalQueueCallers[record.ExecutionID]
+			if original == nil || owneridentity.RequireCreateRunCaller(original, time.Now()) != nil {
+				delete(s.goalQueueCallers, record.ExecutionID)
+				return Record{}, apierr.Wrap(owneridentity.ErrCreateRunCaller, 401, "goal queue caller expired or unavailable; submit a new authorized queue intent")
+			}
+			var callerErr error
+			ctx, callerErr = owneridentity.CarryCreateRunCaller(original, ctx, time.Now())
+			if callerErr != nil {
+				return Record{}, apierr.Wrap(callerErr, 401, "goal queue caller required")
+			}
+		}
 	}
 	if err := s.checkPlanWork(ctx, record.BacklogKind, record.BacklogName); err != nil {
 		return Record{}, err

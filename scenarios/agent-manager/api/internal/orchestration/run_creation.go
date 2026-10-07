@@ -60,10 +60,10 @@ func (o *Orchestrator) createRun(ctx context.Context, req CreateRunRequest, reco
 			return nil, err
 		}
 	}
-	if req.effort != nil && o.finiteNativeFactory.CheckBinding(req.effort.binding.PolicyID, isolation.Binding{PolicyDigest: req.effort.binding.PolicyDigest, ProfileDigest: req.effort.intent.ProfileDigest, Repository: req.effort.intent.Repository, Deadline: req.effort.binding.Deadline}) != nil {
+	if req.effort != nil && (o.finiteNativeFactory == nil || o.finiteNativeFactory.CheckBinding(req.effort.binding.PolicyID, isolation.Binding{PolicyDigest: req.effort.binding.PolicyDigest, ProfileDigest: req.effort.intent.ProfileDigest, Repository: req.effort.intent.Repository, Deadline: req.effort.binding.Deadline}) != nil) {
 		return nil, effortauthority.ErrRefused
 	}
-	if o.finiteNativeFactory.Enabled() && (req.effort == nil || recovery != nil || req.effort.intent.Effect != "run.create") {
+	if o.finiteNativeEnabled() && (req.effort == nil || recovery != nil || req.effort.intent.Effect != "run.create") {
 		return nil, effortauthority.ErrRefused
 	}
 	reserved := false

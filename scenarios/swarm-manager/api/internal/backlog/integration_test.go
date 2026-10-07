@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/vrooli/api-core/apihttptest"
 	"swarm-manager/internal/execution"
-	"swarm-manager/internal/testutil"
 )
 
 // mockExecutionQueuer implements ExecutionQueuer for testing the confirm:true path.
@@ -113,7 +113,7 @@ func TestGoldenPath_BatchCreateMilestoneQueue(t *testing.T) {
 	}
 
 	w := doBatchCreate(t, h, payload)
-	testutil.AssertStatusCreated(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 201)
 
 	// Verify items on disk.
 	for _, name := range []string{"item-a", "item-b", "item-c"} {
@@ -150,7 +150,7 @@ func TestGoldenPath_BatchCreateMilestoneQueue(t *testing.T) {
 		Confirm: false,
 	}
 	w = doBatchQueue(t, h, previewPayload)
-	testutil.AssertStatusOK(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 200)
 
 	var previewResp batchQueueResponse
 	if err := json.NewDecoder(w.Body).Decode(&previewResp); err != nil {
@@ -171,7 +171,7 @@ func TestGoldenPath_BatchCreateMilestoneQueue(t *testing.T) {
 		Confirm: true,
 	}
 	w = doBatchQueue(t, h, confirmPayload)
-	testutil.AssertStatusOK(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 200)
 
 	var confirmResp batchQueueResponse
 	if err := json.NewDecoder(w.Body).Decode(&confirmResp); err != nil {

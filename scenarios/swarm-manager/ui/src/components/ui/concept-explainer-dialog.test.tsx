@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import userEvent from "@testing-library/user-event";
 import { ConceptExplainerDialog, type ConceptExplainerSection } from "./concept-explainer-dialog";
 import { selectors } from "../../consts/selectors";
@@ -12,7 +13,7 @@ const SECTIONS: ConceptExplainerSection[] = [
 
 describe("ConceptExplainerDialog", () => {
   it("renders nothing when closed", () => {
-    render(
+    renderWithCanonicalProviders(
       <ConceptExplainerDialog
         isOpen={false}
         onClose={() => {}}
@@ -24,7 +25,7 @@ describe("ConceptExplainerDialog", () => {
   });
 
   it("renders title, intro, and sections grouped by heading when open", () => {
-    render(
+    renderWithCanonicalProviders(
       <ConceptExplainerDialog
         isOpen
         onClose={() => {}}
@@ -45,7 +46,7 @@ describe("ConceptExplainerDialog", () => {
   });
 
   it("renders an optional canonical documentation link", () => {
-    render(
+    renderWithCanonicalProviders(
       <ConceptExplainerDialog
         isOpen
         onClose={() => {}}
@@ -63,7 +64,7 @@ describe("ConceptExplainerDialog", () => {
 
   it("calls onClose when the close button is clicked", async () => {
     const onClose = vi.fn();
-    render(
+    renderWithCanonicalProviders(
       <ConceptExplainerDialog
         isOpen
         onClose={onClose}
@@ -76,7 +77,7 @@ describe("ConceptExplainerDialog", () => {
   });
 
   it("honors a custom testId so wrappers can preserve legacy selectors", () => {
-    render(
+    renderWithCanonicalProviders(
       <ConceptExplainerDialog
         isOpen
         onClose={() => {}}

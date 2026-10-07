@@ -109,7 +109,7 @@ describe("PcmVoiceStreamProvider", () => {
     const ws = FakeWebSocket.instances[0];
     expect(ws?.url).toContain("protocol_version=2");
 
-    core.frame?.(new Float32Array([0.1]), 48_000);
+    core.frame?.(new Float32Array(480).fill(0.1), 48_000);
     // Capture frames are coalesced into ~100 ms wire batches, so a single
     // sub-batch frame is journaled and sent when the batch timer fires, not on
     // the next microtask. Waiting past PCM_WIRE_BATCH_FLUSH_MS asserts the
@@ -119,6 +119,25 @@ describe("PcmVoiceStreamProvider", () => {
 
     expect(core.append).toHaveBeenCalledOnce();
     expect(ws?.send).toHaveBeenCalledWith(expect.any(ArrayBuffer));
+  });
+
+  it("does not send a v2 frame while its canonical journal append is unresolved", async () => {
+    let releaseAppend!: () => void;
+    core.append.mockImplementationOnce(() => new Promise<void>((resolve) => { releaseAppend = resolve; }));
+    await provider.start(stream());
+    await Promise.resolve();
+    await Promise.resolve();
+    const ws = FakeWebSocket.instances[0];
+    core.frame?.(new Float32Array(480).fill(0.1), 48_000);
+    await new Promise((resolve) => setTimeout(resolve, PCM_WIRE_BATCH_FLUSH_MS * 2));
+    try {
+      expect(core.append).toHaveBeenCalledOnce();
+      expect(ws?.send).not.toHaveBeenCalled();
+    } finally {
+      releaseAppend?.();
+      await Promise.resolve();
+      await Promise.resolve();
+    }
   });
 
   it("compacts only after a processed acknowledgement", async () => {

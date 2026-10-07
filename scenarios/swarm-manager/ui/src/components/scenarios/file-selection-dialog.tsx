@@ -6,7 +6,7 @@
  * and custom file selection via checkboxes.
  */
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { CheckSquare, Square } from "lucide-react";
 import { Button } from "../ui/button";
 import { Drawer } from "../ui/drawer";
@@ -170,18 +170,22 @@ export function FileSelectionDialog({
   // Get all file paths for select all functionality
   const allFilePaths = useMemo(() => getAllFilePathsFromTree(files), [files]);
 
-  // Restore selection when dialog opens
+  // Restore owner defaults once per open session and semantic default change.
+  // File availability and fresh equivalent prop objects must not erase user intent.
+  const initializedSelection = useRef<string | null>(null);
   useEffect(() => {
-    if (isOpen) {
-      const preset = initialSelection?.preset ?? "";
-      setSelectedPreset(preset);
-      if (preset) {
-        setSelectedPaths(getPathsForPreset(files, preset));
-      } else {
-        setSelectedPaths(new Set<string>(initialSelection?.paths ?? []));
-      }
+    if (!isOpen) {
+      initializedSelection.current = null;
+      return;
     }
-  }, [isOpen, initialSelection, files]);
+    const preset = initialSelection?.preset ?? "";
+    const paths = [...new Set(initialSelection?.paths ?? [])].sort();
+    const key = JSON.stringify([scenarioName, preset, preset ? [] : paths]);
+    if (initializedSelection.current === key) return;
+    initializedSelection.current = key;
+    setSelectedPreset(preset);
+    setSelectedPaths(preset ? getPathsForPreset(files, preset) : new Set(initialSelection?.paths ?? []));
+  }, [isOpen, scenarioName, initialSelection, files]);
 
   // When preset changes, update selected paths
   useEffect(() => {

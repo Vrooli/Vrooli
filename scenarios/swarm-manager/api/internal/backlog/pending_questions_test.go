@@ -2,11 +2,12 @@ package backlog
 
 import (
 	"encoding/json"
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 	"net/http/httptest"
 	"path/filepath"
 	"testing"
 
-	"swarm-manager/internal/testutil"
+	"github.com/vrooli/api-core/apihttptest"
 )
 
 func doPendingQuestions(t *testing.T, h *Handler, query string) *httptest.ResponseRecorder {
@@ -25,10 +26,10 @@ func TestPendingQuestions_ReturnsUnreviewedReviewItems(t *testing.T) {
 	h, rootDir := setupTestHandler(t)
 	createTestItem(t, rootDir, KindIdea, BacklogItem{Name: "pending-review", Title: "Pending Review", Status: StatusBacklog, Priority: 2})
 	itemDir := filepath.Join(rootDir, "ideas", "pending-review")
-	testutil.WriteFile(t, filepath.Join(itemDir, "archive", "PRD.md"), "# PRD\n\n## \U0001f3af Operational Targets\n\n### \U0001f534 P0\n- [ ] OT-P0-001 | Core target | Must support X\n")
+	repocontracttest.WriteFile(t, filepath.Join(itemDir, "archive", "PRD.md"), "# PRD\n\n## \U0001f3af Operational Targets\n\n### \U0001f534 P0\n- [ ] OT-P0-001 | Core target | Must support X\n")
 
 	w := doPendingQuestions(t, h, "")
-	testutil.AssertStatusOK(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 200)
 	var response PendingQuestionsResponse
 	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
 		t.Fatalf("decode response: %v", err)

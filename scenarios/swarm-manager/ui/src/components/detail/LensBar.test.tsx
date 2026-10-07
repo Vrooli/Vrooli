@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import userEvent from "@testing-library/user-event";
 import { Activity, Network } from "lucide-react";
 import { LensBar } from "./LensBar";
@@ -12,7 +13,7 @@ const testLenses: LensOption[] = [
 
 describe("LensBar", () => {
   it("renders correct number of buttons", () => {
-    render(<LensBar nodeId="node-1" lenses={testLenses} onDrillToLens={vi.fn()} />);
+    renderWithCanonicalProviders(<LensBar nodeId="node-1" lenses={testLenses} onDrillToLens={vi.fn()} />);
 
     expect(screen.getByTestId("lens-bar")).toBeInTheDocument();
     expect(screen.getByTestId("lens-bar-plan")).toBeInTheDocument();
@@ -20,7 +21,7 @@ describe("LensBar", () => {
   });
 
   it("renders nothing when lenses array is empty", () => {
-    const { container } = render(<LensBar nodeId="node-1" lenses={[]} onDrillToLens={vi.fn()} />);
+    const { container } = renderWithCanonicalProviders(<LensBar nodeId="node-1" lenses={[]} onDrillToLens={vi.fn()} />);
 
     expect(container.innerHTML).toBe("");
   });
@@ -28,7 +29,7 @@ describe("LensBar", () => {
   it("calls onDrillToLens with correct nodeId and lens on click", async () => {
     const onDrill = vi.fn();
     const user = userEvent.setup();
-    render(<LensBar nodeId="node-42" lenses={testLenses} onDrillToLens={onDrill} />);
+    renderWithCanonicalProviders(<LensBar nodeId="node-42" lenses={testLenses} onDrillToLens={onDrill} />);
 
     await user.click(screen.getByTestId("lens-bar-plan"));
     expect(onDrill).toHaveBeenCalledWith("node-42", "plan");
@@ -40,7 +41,7 @@ describe("LensBar", () => {
   });
 
   it("renders button labels", () => {
-    render(<LensBar nodeId="node-1" lenses={testLenses} onDrillToLens={vi.fn()} />);
+    renderWithCanonicalProviders(<LensBar nodeId="node-1" lenses={testLenses} onDrillToLens={vi.fn()} />);
 
     expect(screen.getByText("View Plan")).toBeInTheDocument();
     expect(screen.getByText("View Focus")).toBeInTheDocument();
@@ -48,7 +49,7 @@ describe("LensBar", () => {
 
   it("renders subset of lenses", () => {
     const subset = testLenses.slice(0, 1);
-    render(<LensBar nodeId="node-1" lenses={subset} onDrillToLens={vi.fn()} />);
+    renderWithCanonicalProviders(<LensBar nodeId="node-1" lenses={subset} onDrillToLens={vi.fn()} />);
 
     expect(screen.getByTestId("lens-bar-plan")).toBeInTheDocument();
     expect(screen.queryByTestId("lens-bar-focus")).not.toBeInTheDocument();

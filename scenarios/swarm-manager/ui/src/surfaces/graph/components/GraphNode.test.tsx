@@ -1,5 +1,6 @@
+import { renderWithProviders as render } from "../../../test-utils/renderWithProviders";
 import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { ReactFlowProvider } from "@xyflow/react";
 import { GraphNode } from "./GraphNode";
@@ -94,30 +95,34 @@ describe("GraphNode — actionable badge", () => {
 
 import { makeGoalNode } from "../test-helpers";
 
-describe("GraphNode — goal active round chip", () => {
-  it("renders the active-round chip with phase label when an active round is present", () => {
-    const node = makeGoalNode("goal/foo", {
+describe("GraphNode — supported goal attention", () => {
+  it("renders persistent attention when the typed goal projection requests it", () => {
+    const node = makeGoalNode("goal/foo", { pulsing: true, pulseMode: "persistent" });
+    renderGraphNode(node.data);
+    const attention = screen.getByText("foo").closest(".relative");
+    expect(attention).toHaveClass("graph-node-attention-pulse");
+    expect(attention).not.toHaveClass("graph-node-pulse");
+  });
+
+  it("renders a one-shot pulse when the typed goal projection requests it", () => {
+    const node = makeGoalNode("goal/foo", { pulsing: true, pulseMode: "oneshot" });
+    renderGraphNode(node.data);
+    expect(screen.getByText("foo").closest(".relative")).toHaveClass("graph-node-pulse");
+  });
+
+  it("does not pulse when the projection has no current attention", () => {
+    renderGraphNode(makeGoalNode("goal/foo", { pulsing: false }).data);
+    const attention = screen.getByText("foo").closest(".relative");
+    expect(attention).not.toHaveClass("graph-node-attention-pulse");
+    expect(attention).not.toHaveClass("graph-node-pulse");
+  });
+
+  it("does not fabricate a current phase from an unsupported legacy round field", () => {
+    renderGraphNode(makeGoalNode("goal/foo", {
       activeRound: { mode: "holistic-loop", phase: "investigate", round: 3, status: "agent_running" },
-      operatingMode: "holistic-loop",
-    });
-    renderGraphNode(node.data);
-    expect(screen.getByTestId("graph-node-active-round-chip")).toHaveTextContent("Investigate");
-  });
-
-  it("does not render the chip on goals without an active round", () => {
-    const node = makeGoalNode("goal/foo", {});
-    renderGraphNode(node.data);
-    expect(screen.queryByTestId("graph-node-active-round-chip")).toBeNull();
-  });
-
-  it("renders the chip in a non-pulsing variant when status is reserved", () => {
-    const node = makeGoalNode("goal/foo", {
-      activeRound: { mode: "holistic-loop", phase: "plan", round: 1, status: "reserved" },
-    });
-    renderGraphNode(node.data);
-    const chip = screen.getByTestId("graph-node-active-round-chip");
-    // Reserved chips use the amber palette; agent_running uses cyan.
-    expect(chip.className).toMatch(/amber/);
+    }).data);
+    expect(screen.queryByTestId("graph-node-active-round-chip")).not.toBeInTheDocument();
+    expect(screen.queryByText("Investigate")).not.toBeInTheDocument();
   });
 });
 

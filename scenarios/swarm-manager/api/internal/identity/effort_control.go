@@ -472,18 +472,20 @@ func (standing CompletionStanding) HumanAccept(actor string) (CompletionStanding
 // immutable candidate-policy binding. Completion standing is runtime state kept
 // in the same aggregate but excluded from the authority digest.
 type EffortControl struct {
-	EffortID         string                 `json:"effort_id"`
-	Slug             string                 `json:"slug,omitempty"`
-	Revision         int64                  `json:"revision"`
-	FamilyID         string                 `json:"family_id,omitempty"`
-	DelegatedActions []string               `json:"delegated_actions,omitempty"`
-	Scope            EffortScope            `json:"scope"`
-	AggregateLimits  AggregateLimits        `json:"aggregate_limits"`
-	RepairLimits     RepairLimits           `json:"repair_limits"`
-	PolicyBinding    PolicyBinding          `json:"policy_binding"`
-	CandidatePolicy  CandidatePolicyBinding `json:"candidate_policy"`
-	WorkReferences   []WorkReference        `json:"work_references,omitempty"`
-	Completion       CompletionStanding     `json:"completion"`
+	EffortID         string                  `json:"effort_id"`
+	Slug             string                  `json:"slug,omitempty"`
+	Revision         int64                   `json:"revision"`
+	FamilyID         string                  `json:"family_id,omitempty"`
+	DelegatedActions []string                `json:"delegated_actions,omitempty"`
+	Scope            EffortScope             `json:"scope"`
+	AggregateLimits  AggregateLimits         `json:"aggregate_limits"`
+	RepairLimits     RepairLimits            `json:"repair_limits"`
+	PolicyBinding    PolicyBinding           `json:"policy_binding"`
+	CandidatePolicy  CandidatePolicyBinding  `json:"candidate_policy"`
+	WorkReferences   []WorkReference         `json:"work_references,omitempty"`
+	Completion       CompletionStanding      `json:"completion"`
+	FiniteCommission *FiniteCommissionRecord `json:"finite_commission,omitempty"`
+	Development      *DevelopmentStanding    `json:"development,omitempty"`
 }
 
 // Validate checks the authored authority of one revision. Completion standing
@@ -542,6 +544,8 @@ func (control EffortControl) Authorizes(action string) bool {
 func (control EffortControl) AuthorityDigest() string {
 	projection := control
 	projection.Completion = CompletionStanding{}
+	projection.FiniteCommission = nil
+	projection.Development = nil
 	projection.DelegatedActions = sortedUnique(projection.DelegatedActions)
 	projection.Scope.Allow = sortedUnique(projection.Scope.Allow)
 	projection.Scope.Deny = sortedUnique(projection.Scope.Deny)

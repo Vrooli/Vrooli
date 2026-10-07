@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import { useLocation } from "react-router-dom";
 import { ScenarioResultCards } from "./scenario-result-cards";
 import { selectors } from "../../consts/selectors";
@@ -62,7 +63,7 @@ describe("ScenarioResultCards", () => {
   }
 
   it("returns null when no finalization", () => {
-    const { container } = render(
+    const { container } = renderWithCanonicalProviders(
       <ScenarioResultCards
         execution={makeExecution({ finalization: undefined })}
 
@@ -72,7 +73,7 @@ describe("ScenarioResultCards", () => {
   });
 
   it("returns null when finalization has empty scenarios", () => {
-    const { container } = render(
+    const { container } = renderWithCanonicalProviders(
       <ScenarioResultCards
         execution={makeExecution({
           finalization: makeFinalization({ scenarios: [] }),
@@ -84,7 +85,7 @@ describe("ScenarioResultCards", () => {
   });
 
   it("returns null when finalization is running", () => {
-    const { container } = render(
+    const { container } = renderWithCanonicalProviders(
       <ScenarioResultCards
         execution={makeExecution({
           finalization: makeFinalization({ status: "running", phase: "reviewing" }),
@@ -96,7 +97,7 @@ describe("ScenarioResultCards", () => {
   });
 
   it("returns null when finalization is pending", () => {
-    const { container } = render(
+    const { container } = renderWithCanonicalProviders(
       <ScenarioResultCards
         execution={makeExecution({
           finalization: makeFinalization({ status: "pending", phase: "scope_detection" }),

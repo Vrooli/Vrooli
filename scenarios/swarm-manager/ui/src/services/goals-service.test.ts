@@ -111,4 +111,53 @@ describe("Goals Service", () => {
     await service.removeTargets("g", ["execute/x"]);
     expect(mockApiClient.delete).toHaveBeenCalledWith("/goals/g/targets", { targets: ["execute/x"] });
   });
+
+  it("preserves cleared editor fields and owner archived disposition", async () => {
+    vi.mocked(mockApiClient.put).mockResolvedValue({ goal: { name: "g", status: "archived", archived_at: "retained-at" }, scope: {} });
+    const result = await service.update("g", { title: "", description: "", priority: 0, targets: [] });
+    expect(mockApiClient.put).toHaveBeenCalledOnce();
+    expect(mockApiClient.put).toHaveBeenCalledWith("/goals/g", { title: "", description: "", priority: 0, targets: [] });
+    expect(result.goal.status).toBe("archived"); expect(result.goal.archivedAt).toBe("retained-at");
+  });
+  it("propagates owner refusal without trying another write", async () => {
+    const refusal = new Error("Owner revision changed"); vi.mocked(mockApiClient.put).mockRejectedValue(refusal);
+    await expect(service.update("g", { title: "Keep editing" })).rejects.toBe(refusal);
+    expect(mockApiClient.put).toHaveBeenCalledOnce(); expect(mockApiClient.post).not.toHaveBeenCalled(); expect(mockApiClient.patch).not.toHaveBeenCalled(); expect(mockApiClient.delete).not.toHaveBeenCalled();
+  });
+  it("returns an empty owner list without inventing a goal", async () => {
+    vi.mocked(mockApiClient.get).mockResolvedValue({ items: [] }); expect(await service.list()).toEqual([]);
+    expect(mockApiClient.get).toHaveBeenCalledOnce(); expect(mockApiClient.post).not.toHaveBeenCalled();
+  });
+  it("keeps milestone membership operations exact and separate", async () => {
+    const wire = { goal: { name: "g", status: "active" }, scope: {} }; vi.mocked(mockApiClient.post).mockResolvedValue(wire); vi.mocked(mockApiClient.delete).mockResolvedValue(wire);
+    await service.assignMilestoneItems("g", "reviewed", ["execute/selected"]); await service.unassignMilestoneItems("g", "reviewed", ["execute/removed"]);
+    expect(mockApiClient.post).toHaveBeenCalledOnce(); expect(mockApiClient.post).toHaveBeenCalledWith("/goals/g/milestones/reviewed/items", { targets: ["execute/selected"] });
+    expect(mockApiClient.delete).toHaveBeenCalledOnce(); expect(mockApiClient.delete).toHaveBeenCalledWith("/goals/g/milestones/reviewed/items", { targets: ["execute/removed"] });
+  });
+  it("decodes nested typed file listings and exact sizes", async () => {
+    vi.mocked(mockApiClient.get).mockResolvedValue({ files: [{ name: "docs", path: "docs", type: "directory", size: "0", children: [{ name: "decision.md", path: "docs/decision.md", type: "file", size: "42" }] }] });
+    const files = await service.getFiles("g"); expect(mockApiClient.get).toHaveBeenCalledWith("/goals/g/files");
+    expect(files[0]).toMatchObject({ name: "docs", path: "docs", type: "directory", size: 0 }); expect(files[0]?.children?.[0]).toMatchObject({ path: "docs/decision.md", type: "file", size: 42 });
+  });
+  it("reads artifact content as text", async () => {
+    vi.mocked(mockApiClient.get).mockResolvedValue("# Retained decision\n"); expect(await service.getFileContent("g", "docs/decision.md")).toBe("# Retained decision\n");
+    expect(mockApiClient.get).toHaveBeenCalledOnce(); expect(mockApiClient.get).toHaveBeenCalledWith("/goals/g/files/docs/decision.md", { responseType: "text" });
+  });
+  it.each(["rename", "move", "copy", "delete"] as const)("translates goal file %s through the actual protobuf contract", async (operation) => {
+    vi.mocked(mockApiClient.patch).mockResolvedValue(operation === "delete" ? { deleted_path: "docs/decision.md" } : { file: { name: "decision.md", path: "reviewed/decision.md", type: "file", size: "42" } });
+    const result = operation === "delete" ? await service.deleteFile("g", "docs/decision.md") : await service[`${operation}File`]("g", "docs/decision.md", "reviewed/decision.md");
+    expect(mockApiClient.patch).toHaveBeenCalledOnce(); expect(mockApiClient.patch).toHaveBeenCalledWith("/goals/g/files", { operation, source_path: "docs/decision.md", ...(operation === "delete" ? {} : { destination_path: "reviewed/decision.md" }) });
+    expect(result).toEqual(operation === "delete" ? { deletedPath: "docs/decision.md" } : { file: expect.objectContaining({ path: "reviewed/decision.md", size: 42 }) });
+  });
+  it("uploads nested text with exact filename and parent path", async () => {
+    vi.mocked(mockApiClient.post).mockResolvedValue({ file: { name: "decision.md", path: "docs/decision.md", type: "file", size: "42" } });
+    expect(await service.saveFileContent("g", "/docs/decision.md", "Retained outcome", "text/markdown")).toMatchObject({ path: "docs/decision.md", size: 42 });
+    expect(mockApiClient.post).toHaveBeenCalledOnce(); const [endpoint, payload, options] = vi.mocked(mockApiClient.post).mock.calls[0]!;
+    expect(endpoint).toBe("/goals/g/files"); expect(options).toEqual({ headers: {} }); expect(payload).toBeInstanceOf(FormData);
+    const data = payload as FormData; expect(data.get("path")).toBe("docs"); const uploaded = data.get("file") as File;
+    expect(uploaded.name).toBe("decision.md"); expect(uploaded.type).toBe("text/markdown"); expect(uploaded.size).toBe(new Blob(["Retained outcome"]).size);
+  });
+  it("rejects upload response without a typed file instead of inventing success", async () => {
+    vi.mocked(mockApiClient.post).mockResolvedValue({}); await expect(service.saveFileContent("g", "decision.md", "Keep these edits")).rejects.toThrow(); expect(mockApiClient.post).toHaveBeenCalledOnce(); expect(mockApiClient.patch).not.toHaveBeenCalled();
+  });
 });

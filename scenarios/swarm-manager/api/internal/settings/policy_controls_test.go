@@ -4,8 +4,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 	"swarm-manager/internal/execution"
-	"swarm-manager/internal/testutil"
 )
 
 // TestDefaultPolicyControlsEqualsDefaultSettingsProjection pins the contract
@@ -138,7 +138,7 @@ func TestLegacyAdaptersDerivedFromProjection(t *testing.T) {
 func TestPolicyControlsAdapterBoundsFromNormalize(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "settings.json")
-	testutil.WriteJSONFile(t, path, map[string]any{
+	repocontracttest.WriteJSON(t, path, map[string]any{
 		"max_fixup_attempts":    99,
 		"agent_max_turns":       1,
 		"agent_timeout_seconds": 1,

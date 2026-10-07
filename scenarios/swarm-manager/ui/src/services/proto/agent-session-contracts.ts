@@ -193,7 +193,7 @@ export function mapProtoAgentSession(protoSession: AgentSession): AgentSessionDo
 
 function mapProtoProposalTarget(target: NonNullable<AgentSession["proposalTarget"]>): AgentSessionProposalTarget {
   return {
-    type: target.type === "goal" ? "goal" : "backlog_item",
+    type: target.type === "goal" || target.type === "capture" ? target.type : "backlog_item",
     ref: target.ref ?? "",
     name: target.name ?? "",
   };

@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../../../test-utils/renderWithProviders";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { agentSessionStoreInitialState, useAgentSessionStore } from "../../../../stores";
 import type { AgentSession } from "../../../../types";
@@ -118,7 +119,7 @@ describe("SessionsTab", () => {
 
   it("renders sidebar cards and opens the selected session", async () => {
     const onOpenSession = vi.fn();
-    render(<SessionsTab searchQuery="" filters={BASE_FILTERS} sort={RECENCY_SORT} onOpenSession={onOpenSession} />);
+    renderWithCanonicalProviders(<SessionsTab searchQuery="" filters={BASE_FILTERS} sort={RECENCY_SORT} onOpenSession={onOpenSession} />);
 
     expect(screen.getByText("Manage stalled goals")).toBeInTheDocument();
     expect(screen.getByText("Swarm operations")).toBeInTheDocument();
@@ -134,7 +135,7 @@ describe("SessionsTab", () => {
   });
 
   it("renders an empty state when filters remove all sessions", () => {
-    render(
+    renderWithCanonicalProviders(
       <SessionsTab
         searchQuery=""
         filters={{ ...BASE_FILTERS, statuses: ["failed"] }}

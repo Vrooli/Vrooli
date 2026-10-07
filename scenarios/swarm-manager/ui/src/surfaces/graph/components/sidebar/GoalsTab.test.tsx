@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../../../test-utils/renderWithProviders";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ComponentProps } from "react";
@@ -57,10 +58,10 @@ function renderTab(overrides: Partial<ComponentProps<typeof GoalsTab>> = {}) {
     onClearSearch: vi.fn(),
     ...overrides,
   };
-  render(
+  renderWithCanonicalProviders(
     <QueryClientProvider client={queryClient}>
       <GoalsTab {...props} />
-    </QueryClientProvider>,
+    </QueryClientProvider>, { withoutQueryClient: true },
   );
   return props;
 }

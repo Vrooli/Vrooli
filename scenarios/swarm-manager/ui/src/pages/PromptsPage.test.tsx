@@ -1,5 +1,6 @@
+import { renderWithProviders as render } from "../test-utils/renderWithProviders";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { PromptsPage } from "./PromptsPage";
 
@@ -69,7 +70,7 @@ describe("PromptsPage", () => {
         description: "Review prompts",
       draft: false,
       usage_type: "direct_runtime",
-        groups: ["capture"],
+        groups: ["execution"],
       trigger_count: 1,
       impact_summary: "Used directly by 1 runtime prompt path.",
       current_content: "Use {{ITEM_FOLDER}} for review evidence",
@@ -85,7 +86,8 @@ describe("PromptsPage", () => {
     render(
       <QueryClientProvider client={queryClient}>
         <PromptsPage />
-      </QueryClientProvider>
+      </QueryClientProvider>,
+      { withoutQueryClient: true },
     );
 
     expect(await screen.findByTestId("prompts-page")).toBeInTheDocument();
@@ -101,7 +103,7 @@ describe("PromptsPage", () => {
     expect(screen.getByText("Execution")).toBeInTheDocument();
     expect(screen.getByText("Prompt Catalog")).toBeInTheDocument();
 
-    const catalogButtons = screen.getAllByRole("button", { name: /Capture Classification/i });
+    const catalogButtons = screen.getAllByRole("button", { name: /Execution Review Agent/i });
     expect(catalogButtons.length).toBeGreaterThan(0);
     const firstCatalogButton = catalogButtons[0];
     if (!firstCatalogButton) {

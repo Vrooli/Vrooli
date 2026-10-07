@@ -8,7 +8,8 @@
  */
 
 import { beforeEach, describe, it, expect, vi } from "vitest";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../../test-utils/renderWithProviders";
 import { MemoryRouter } from "react-router-dom";
 import { WorkspaceHeader } from "./WorkspaceHeader";
 import { selectors } from "../../../consts/selectors";
@@ -16,7 +17,7 @@ import { useOperationsStore } from "../../../stores/operations-store";
 import { createPlanDataInitialState, usePlanDataStore } from "../../plan/stores/plan-data-store";
 
 function renderHeader(overrides?: Partial<React.ComponentProps<typeof WorkspaceHeader>>) {
-  return render(
+  return renderWithCanonicalProviders(
     <MemoryRouter>
       <WorkspaceHeader
         lens="topology"
@@ -28,7 +29,7 @@ function renderHeader(overrides?: Partial<React.ComponentProps<typeof WorkspaceH
         onLensChange={vi.fn()}
         {...overrides}
       />
-    </MemoryRouter>,
+    </MemoryRouter>, { withoutRouter: true },
   );
 }
 

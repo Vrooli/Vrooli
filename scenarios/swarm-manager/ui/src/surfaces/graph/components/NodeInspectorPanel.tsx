@@ -394,7 +394,7 @@ export function NodeInspectorPanel() {
         )}
         {!goalTarget && (
           <p className="border-t border-white/10 pt-3 text-xs text-slate-500" data-testid="inspector-goal-unsupported">
-            Goal targets are available for backlog items and goals.
+            Goal targets are available for backlog items.
           </p>
         )}
       </div>

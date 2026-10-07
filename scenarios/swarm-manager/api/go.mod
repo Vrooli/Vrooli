@@ -15,8 +15,10 @@ require (
 	github.com/vrooli/api-core v0.0.0
 	github.com/vrooli/cli-core v0.0.0
 	github.com/vrooli/measures-go v0.0.0
+	github.com/vrooli/platform-go v0.0.0
 	github.com/vrooli/repo-contract-go v0.0.0
 	github.com/vrooli/searchregister-go v0.0.0
+	github.com/vrooli/vrooli v0.0.0
 	github.com/vrooli/vrooli-cli-go v0.0.0
 	github.com/vrooli/vrooli/packages/capability-registry-go v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
@@ -37,10 +39,13 @@ require (
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/stoewer/go-strcase v1.3.1 // indirect
+	github.com/vrooli/binaryfetch v0.0.0 // indirect
 	github.com/vrooli/envkit-go v0.0.0 // indirect
+	github.com/vrooli/freshness-go v0.0.0 // indirect
 	golang.org/x/exp v0.0.0-20250813145105-42675adae3e6 // indirect
 	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/text v0.32.0 // indirect
+	golang.org/x/tools v0.45.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260526163538-3dc84a4a5aaa // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260526163538-3dc84a4a5aaa // indirect
 	modernc.org/libc v1.72.3 // indirect
@@ -73,3 +78,9 @@ replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch
 replace github.com/vrooli/envkit-go => ../../../packages/envkit-go
 
 replace github.com/vrooli/platform-go => ../../../packages/platform-go
+
+replace github.com/vrooli/cliresolve => ../../../packages/cliresolve
+
+replace github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime => ../../scenario-to-desktop/runtime
+
+replace github.com/vrooli/freshness-go => ../../../packages/freshness-go

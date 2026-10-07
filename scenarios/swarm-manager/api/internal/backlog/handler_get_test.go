@@ -2,6 +2,8 @@ package backlog
 
 import (
 	"encoding/json"
+	"github.com/vrooli/api-core/apihttptest"
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
@@ -25,7 +27,7 @@ func TestList_EmitsExplicitFreshStalenessVerdict(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	h.List(w, httptest.NewRequest("GET", "/api/v1/backlog", nil))
-	testutil.AssertStatusOK(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 200)
 
 	var response map[string]any
 	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
@@ -55,10 +57,9 @@ func TestList_Empty(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	h.List(w, req)
+	apihttptest.AssertStatus(t, w.Result(), 200)
 
-	testutil.AssertStatusOK(t, w)
-
-	resp := testutil.DecodeJSON[backlogListResponse](t, w)
+	resp := apihttptest.MustDecodeJSON[backlogListResponse](t, w.Body.Bytes())
 	if len(resp.Items) != 0 {
 		t.Errorf("expected empty list, got %d items", len(resp.Items))
 	}
@@ -94,10 +95,9 @@ func TestList_WithItems(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	h.List(w, req)
+	apihttptest.AssertStatus(t, w.Result(), 200)
 
-	testutil.AssertStatusOK(t, w)
-
-	resp := testutil.DecodeJSON[backlogListResponse](t, w)
+	resp := apihttptest.MustDecodeJSON[backlogListResponse](t, w.Body.Bytes())
 	if len(resp.Items) != 2 {
 		t.Errorf("expected 2 items, got %d", len(resp.Items))
 	}
@@ -137,8 +137,8 @@ func TestList_ExcludesArchivedByDefault(t *testing.T) {
 	req := httptest.NewRequest("GET", "/api/v1/backlog", nil)
 	w := httptest.NewRecorder()
 	h.List(w, req)
-	testutil.AssertStatusOK(t, w)
-	resp := testutil.DecodeJSON[backlogListResponse](t, w)
+	apihttptest.AssertStatus(t, w.Result(), 200)
+	resp := apihttptest.MustDecodeJSON[backlogListResponse](t, w.Body.Bytes())
 	if len(resp.Items) != 1 {
 		t.Fatalf("expected 1 non-archived item, got %d", len(resp.Items))
 	}
@@ -150,8 +150,8 @@ func TestList_ExcludesArchivedByDefault(t *testing.T) {
 	req = httptest.NewRequest("GET", "/api/v1/backlog?archived=all", nil)
 	w = httptest.NewRecorder()
 	h.List(w, req)
-	testutil.AssertStatusOK(t, w)
-	resp = testutil.DecodeJSON[backlogListResponse](t, w)
+	apihttptest.AssertStatus(t, w.Result(), 200)
+	resp = apihttptest.MustDecodeJSON[backlogListResponse](t, w.Body.Bytes())
 	if len(resp.Items) != 2 {
 		t.Fatalf("expected 2 items with archived=all, got %d", len(resp.Items))
 	}
@@ -160,8 +160,8 @@ func TestList_ExcludesArchivedByDefault(t *testing.T) {
 	req = httptest.NewRequest("GET", "/api/v1/backlog?archived=true", nil)
 	w = httptest.NewRecorder()
 	h.List(w, req)
-	testutil.AssertStatusOK(t, w)
-	resp = testutil.DecodeJSON[backlogListResponse](t, w)
+	apihttptest.AssertStatus(t, w.Result(), 200)
+	resp = apihttptest.MustDecodeJSON[backlogListResponse](t, w.Body.Bytes())
 	if len(resp.Items) != 1 {
 		t.Fatalf("expected 1 archived item, got %d", len(resp.Items))
 	}
@@ -190,10 +190,9 @@ func TestGet_Found(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	h.Get(w, req)
+	apihttptest.AssertStatus(t, w.Result(), 200)
 
-	testutil.AssertStatusOK(t, w)
-
-	resp := testutil.DecodeJSON[backlogItemResponse](t, w)
+	resp := apihttptest.MustDecodeJSON[backlogItemResponse](t, w.Body.Bytes())
 	result := resp.Item
 	if result.Name != "get-test" {
 		t.Errorf("expected name 'get-test', got '%s'", result.Name)
@@ -211,8 +210,7 @@ func TestGet_NotFound(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	h.Get(w, req)
-
-	testutil.AssertStatusNotFound(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 404)
 }
 
 func TestListFiles_And_GetFileContent(t *testing.T) {
@@ -230,16 +228,16 @@ func TestListFiles_And_GetFileContent(t *testing.T) {
 	}
 	createTestItem(t, rootDir, KindIdea, item)
 
-	testutil.WriteFile(t, filepath.Join(rootDir, "ideas", "files-test", "notes.md"), "hello")
+	repocontracttest.WriteFile(t, filepath.Join(rootDir, "ideas", "files-test", "notes.md"), "hello")
 
 	req := httptest.NewRequest("GET", "/api/v1/backlog/idea/files-test/files", nil)
 	req = mux.SetURLVars(req, map[string]string{"kind": "idea", "name": "files-test"})
 	w := httptest.NewRecorder()
 
 	h.ListFiles(w, req)
-	testutil.AssertStatusOK(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 200)
 
-	resp := testutil.DecodeJSON[backlogFilesResponse](t, w)
+	resp := apihttptest.MustDecodeJSON[backlogFilesResponse](t, w.Body.Bytes())
 	if len(resp.Files) == 0 {
 		t.Fatalf("expected files")
 	}
@@ -249,7 +247,7 @@ func TestListFiles_And_GetFileContent(t *testing.T) {
 	contentRec := httptest.NewRecorder()
 
 	h.GetFileContent(contentRec, contentReq)
-	testutil.AssertStatusOK(t, contentRec)
+	apihttptest.AssertStatus(t, contentRec.Result(), 200)
 	if strings.TrimSpace(contentRec.Body.String()) != "hello" {
 		t.Errorf("expected file content")
 	}
@@ -304,9 +302,9 @@ func TestList_FilterBySpawnedFrom(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	h.List(w, req)
-	testutil.AssertStatusOK(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 200)
 
-	resp := testutil.DecodeJSON[backlogListResponse](t, w)
+	resp := apihttptest.MustDecodeJSON[backlogListResponse](t, w.Body.Bytes())
 	if len(resp.Items) != 1 {
 		t.Fatalf("expected 1 item, got %d", len(resp.Items))
 	}
@@ -325,8 +323,8 @@ func TestList_FilterByVerifiedActorID(t *testing.T) {
 	req := httptest.NewRequest("GET", "/api/v1/backlog?actor_id=team/member", nil)
 	w := httptest.NewRecorder()
 	h.List(w, req)
-	testutil.AssertStatusOK(t, w)
-	resp := testutil.DecodeJSON[backlogListResponse](t, w)
+	apihttptest.AssertStatus(t, w.Result(), 200)
+	resp := apihttptest.MustDecodeJSON[backlogListResponse](t, w.Body.Bytes())
 	if len(resp.Items) != 1 || resp.Items[0].Name != "member-item" {
 		t.Fatalf("actor filter returned %#v", resp.Items)
 	}
@@ -354,9 +352,9 @@ func TestList_FilterByPlanRef(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	h.List(w, req)
-	testutil.AssertStatusOK(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 200)
 
-	resp := testutil.DecodeJSON[backlogListResponse](t, w)
+	resp := apihttptest.MustDecodeJSON[backlogListResponse](t, w.Body.Bytes())
 	if len(resp.Items) != 1 {
 		t.Fatalf("expected 1 item, got %d", len(resp.Items))
 	}
@@ -390,8 +388,8 @@ func TestList_FilterByScenario(t *testing.T) {
 		req := httptest.NewRequest("GET", "/api/v1/backlog?scenario=swarm-manager", nil)
 		w := httptest.NewRecorder()
 		h.List(w, req)
-		testutil.AssertStatusOK(t, w)
-		resp := testutil.DecodeJSON[backlogListResponse](t, w)
+		apihttptest.AssertStatus(t, w.Result(), 200)
+		resp := apihttptest.MustDecodeJSON[backlogListResponse](t, w.Body.Bytes())
 		if len(resp.Items) != 1 {
 			t.Fatalf("expected 1 item, got %d", len(resp.Items))
 		}
@@ -404,8 +402,8 @@ func TestList_FilterByScenario(t *testing.T) {
 		req := httptest.NewRequest("GET", "/api/v1/backlog?scenario=swarm-manager,test-genie", nil)
 		w := httptest.NewRecorder()
 		h.List(w, req)
-		testutil.AssertStatusOK(t, w)
-		resp := testutil.DecodeJSON[backlogListResponse](t, w)
+		apihttptest.AssertStatus(t, w.Result(), 200)
+		resp := apihttptest.MustDecodeJSON[backlogListResponse](t, w.Body.Bytes())
 		if len(resp.Items) != 2 {
 			t.Fatalf("expected 2 items, got %d", len(resp.Items))
 		}
@@ -415,8 +413,8 @@ func TestList_FilterByScenario(t *testing.T) {
 		req := httptest.NewRequest("GET", "/api/v1/backlog", nil)
 		w := httptest.NewRecorder()
 		h.List(w, req)
-		testutil.AssertStatusOK(t, w)
-		resp := testutil.DecodeJSON[backlogListResponse](t, w)
+		apihttptest.AssertStatus(t, w.Result(), 200)
+		resp := apihttptest.MustDecodeJSON[backlogListResponse](t, w.Body.Bytes())
 		if len(resp.Items) != 3 {
 			t.Fatalf("expected 3 items, got %d", len(resp.Items))
 		}
@@ -426,8 +424,8 @@ func TestList_FilterByScenario(t *testing.T) {
 		req := httptest.NewRequest("GET", "/api/v1/backlog?scenario=nonexistent", nil)
 		w := httptest.NewRecorder()
 		h.List(w, req)
-		testutil.AssertStatusOK(t, w)
-		resp := testutil.DecodeJSON[backlogListResponse](t, w)
+		apihttptest.AssertStatus(t, w.Result(), 200)
+		resp := apihttptest.MustDecodeJSON[backlogListResponse](t, w.Body.Bytes())
 		if len(resp.Items) != 0 {
 			t.Fatalf("expected 0 items, got %d", len(resp.Items))
 		}
@@ -467,9 +465,9 @@ func TestList_IncludesBlockingMap(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	h.List(w, req)
-	testutil.AssertStatusOK(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 200)
 
-	resp := testutil.DecodeJSON[backlogListWithBlockingResponse](t, w)
+	resp := apihttptest.MustDecodeJSON[backlogListWithBlockingResponse](t, w.Body.Bytes())
 	if len(resp.Items) != 2 {
 		t.Fatalf("expected 2 items, got %d", len(resp.Items))
 	}

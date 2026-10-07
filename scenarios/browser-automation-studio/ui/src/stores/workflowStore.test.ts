@@ -33,12 +33,6 @@ vi.mock('../utils/logger', () => ({
   },
 }));
 
-// Mock workflow normalizers
-vi.mock('../utils/workflowNormalizers', () => ({
-  normalizeNodes: vi.fn((nodes) => nodes),
-  normalizeEdges: vi.fn((edges) => edges),
-}));
-
 // Mock the projects Connect-RPC adapter used by bulkDeleteWorkflows + loadWorkflows.
 const bulkDeleteProjectWorkflowsMock = vi.fn();
 const listProjectWorkflowsMock = vi.fn();

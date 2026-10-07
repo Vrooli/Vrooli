@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/vrooli/api-core/owneridentity"
 	"io"
 	"net/http"
 	"net/url"
@@ -185,6 +186,9 @@ func (c *HTTPClient) CreateTask(ctx context.Context, task *domainpb.Task) (*doma
 
 // CreateRun creates a new run using proto JSON payloads.
 func (c *HTTPClient) CreateRun(ctx context.Context, req *apipb.CreateRunRequest) (*domainpb.Run, error) {
+	if err := owneridentity.RequireCreateRunCaller(ctx, time.Now()); err != nil {
+		return nil, err
+	}
 	body, err := protoJSONMarshal.Marshal(req)
 	if err != nil {
 		return nil, err
@@ -197,7 +201,7 @@ func (c *HTTPClient) CreateRun(ctx context.Context, req *apipb.CreateRunRequest)
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return nil, readErrorResponse(resp)
+		return nil, fmt.Errorf("%s", owneridentity.RedactCreateRunCaller(ctx, readErrorResponse(resp).Error()))
 	}
 
 	var result apipb.CreateRunResponse
@@ -424,7 +428,21 @@ func (c *HTTPClient) doRequest(ctx context.Context, method, path string, body []
 		request.Header.Set("Content-Type", "application/json")
 	}
 
-	resp, err := c.httpClient.Do(request)
+	doer := c.httpClient
+	if method == http.MethodPost && path == "/api/v1/runs" {
+		auth, err := owneridentity.CreateRunAuthorization(ctx, time.Now())
+		if err != nil {
+			return nil, err
+		}
+		request.Header.Set("Authorization", auth)
+		// Production uses *http.Client; injected non-client transports are fixture seams.
+		if client, ok := doer.(*http.Client); ok {
+			copy := *client
+			copy.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+			doer = &copy
+		}
+	}
+	resp, err := doer.Do(request)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrNotAvailable, err)
 	}

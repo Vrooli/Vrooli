@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import { InlineQuestionStepper } from "./inline-question-stepper";
 
 vi.mock("../../services/backlog-service", () => ({
@@ -15,7 +16,7 @@ const question = {
 describe("InlineQuestionStepper", () => {
   it("records an independent review decision and completes", async () => {
     const onAllAnswered = vi.fn();
-    render(<InlineQuestionStepper questions={[question]} backlogKind="idea" backlogName="test-item" onAllAnswered={onAllAnswered} />);
+    renderWithCanonicalProviders(<InlineQuestionStepper questions={[question]} backlogKind="idea" backlogName="test-item" onAllAnswered={onAllAnswered} />);
     fireEvent.click(screen.getByTestId("question-stepper-review-approve"));
     fireEvent.click(screen.getByTestId("question-stepper-next"));
     await waitFor(() => expect(onAllAnswered).toHaveBeenCalledWith({}));

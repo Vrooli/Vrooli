@@ -3,12 +3,11 @@ package backlog
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/vrooli/api-core/apihttptest"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
-
-	"swarm-manager/internal/testutil"
 )
 
 func intPtr(v int) *int { return &v }
@@ -30,9 +29,9 @@ func TestBatchCreate_MilestonePriorityAndDeps_Preview(t *testing.T) {
 	}
 
 	w := doBatchCreate(t, h, payload)
-	testutil.AssertStatusOK(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 200)
 
-	resp := testutil.DecodeJSON[batchCreateResponse](t, w)
+	resp := apihttptest.MustDecodeJSON[batchCreateResponse](t, w.Body.Bytes())
 	if !resp.Preview {
 		t.Fatal("expected preview=true in response")
 	}
@@ -69,7 +68,7 @@ func TestBatchCreate_MilestonePriority_InvalidRange(t *testing.T) {
 	}
 
 	w := doBatchCreate(t, h, payload)
-	testutil.AssertStatusBadRequest(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 400)
 	if !strings.Contains(w.Body.String(), "priority") {
 		t.Errorf("expected priority error, got: %s", w.Body.String())
 	}
@@ -89,7 +88,7 @@ func TestBatchCreate_MilestoneDepends_UnknownRef(t *testing.T) {
 	}
 
 	w := doBatchCreate(t, h, payload)
-	testutil.AssertStatusBadRequest(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 400)
 	if !strings.Contains(w.Body.String(), "ghost-milestone") {
 		t.Errorf("expected unknown-dep error naming the ghost, got: %s", w.Body.String())
 	}
@@ -109,7 +108,7 @@ func TestBatchCreate_MilestoneSelfDepends(t *testing.T) {
 	}
 
 	w := doBatchCreate(t, h, payload)
-	testutil.AssertStatusBadRequest(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 400)
 	if !strings.Contains(w.Body.String(), "self") {
 		t.Errorf("expected self-ref error, got: %s", w.Body.String())
 	}
@@ -129,7 +128,7 @@ func TestBatchCreate_MilestoneDepends_KindNameFormRejected(t *testing.T) {
 	}
 
 	w := doBatchCreate(t, h, payload)
-	testutil.AssertStatusBadRequest(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 400)
 	if !strings.Contains(w.Body.String(), "kind/name") {
 		t.Errorf("expected kind/name rejection, got: %s", w.Body.String())
 	}
@@ -155,7 +154,7 @@ func TestBatchCreate_MilestoneCrossDeps_OrderIndependent(t *testing.T) {
 	}
 
 	w := doBatchCreate(t, h, payload)
-	testutil.AssertStatusCreated(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 201)
 
 	if len(ia.createOrder) != 2 {
 		t.Fatalf("expected 2 Create calls, got %d: %v", len(ia.createOrder), ia.createOrder)
@@ -187,9 +186,9 @@ func TestBatchCreate_MilestoneUpdate_OnPriorityChange(t *testing.T) {
 	}
 
 	w := doBatchCreate(t, h, payload)
-	testutil.AssertStatusOK(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 200)
 
-	resp := testutil.DecodeJSON[batchCreateResponse](t, w)
+	resp := apihttptest.MustDecodeJSON[batchCreateResponse](t, w.Body.Bytes())
 	if len(resp.Milestones) != 1 || resp.Milestones[0].Action != "update" {
 		t.Fatalf("expected action=update for priority change, got %+v", resp.Milestones)
 	}
@@ -222,9 +221,9 @@ func TestBatchCreate_MilestoneUpdate_OnDepsChange(t *testing.T) {
 	}
 
 	w := doBatchCreate(t, h, payload)
-	testutil.AssertStatusOK(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 200)
 
-	resp := testutil.DecodeJSON[batchCreateResponse](t, w)
+	resp := apihttptest.MustDecodeJSON[batchCreateResponse](t, w.Body.Bytes())
 	byName := make(map[string]batchCreateMilestoneResult, len(resp.Milestones))
 	for _, r := range resp.Milestones {
 		byName[r.Name] = r
@@ -262,9 +261,9 @@ func TestBatchCreate_MilestoneReuse_WhenIdentical(t *testing.T) {
 	}
 
 	w := doBatchCreate(t, h, payload)
-	testutil.AssertStatusOK(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 200)
 
-	resp := testutil.DecodeJSON[batchCreateResponse](t, w)
+	resp := apihttptest.MustDecodeJSON[batchCreateResponse](t, w.Body.Bytes())
 	if len(resp.Milestones) != 1 || resp.Milestones[0].Action != "reuse" {
 		t.Fatalf("expected action=reuse for identical spec, got %+v", resp.Milestones)
 	}
@@ -297,7 +296,7 @@ func TestBatchCreate_MilestoneRollback_PreservesPriorityAndDeps(t *testing.T) {
 	}
 
 	w := doBatchCreate(t, h, payload)
-	testutil.AssertStatus(t, w, http.StatusInternalServerError)
+	apihttptest.AssertStatus(t, w.Result(), http.StatusInternalServerError)
 
 	restored := ia.snapshots["preserved"]
 	if restored.Priority != 7 {
@@ -323,8 +322,7 @@ func TestBatchCreate_MilestoneUnknownField_StillRejected(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	h.BatchCreate(w, req)
-
-	testutil.AssertStatusBadRequest(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 400)
 	if !strings.Contains(w.Body.String(), "unknown field") {
 		t.Errorf("expected unknown-field error, got: %s", w.Body.String())
 	}

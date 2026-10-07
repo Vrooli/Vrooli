@@ -3,14 +3,13 @@ import { fromJson } from '@bufbuild/protobuf';
 import { TimelineEntrySchema } from '@vrooli/proto-types/browser-automation-studio/v1/timeline/entry_pb';
 import type { TimelineEntry as RecordingTimelineEntry } from '../api/schemas';
 import {
-  attachTimelinePageIdentities,
+  recordingEntryToRecordedAction,
   mergeTimelineItemsWithAISteps,
   timelineEntryToTimelineItem,
   recordingEntryToTimelineItem,
   workflowNodesToTimelineItems,
   updateTimelineItemStatus,
 } from './timeline-unified';
-import type { RecordedAction } from './types';
 
 /**
  * Test suite for timeline unification and AI reconciliation utilities.
@@ -20,54 +19,30 @@ import type { RecordedAction } from './types';
  * both what happened AND why the AI did it.
  */
 
-// Helper to create test recorded actions
-function createRecordedAction(
-  overrides: Partial<RecordedAction> & { id: string; actionType: RecordedAction['actionType'] }
-): RecordedAction {
-  return {
-    sessionId: 'test-session',
-    sequenceNum: 1,
-    timestamp: new Date().toISOString(),
-    confidence: 1.0,
-    url: 'https://example.com',
-    ...overrides,
-  };
-}
+describe('recordingEntryToRecordedAction', () => {
+  it('projects the journal entry and its logical page identity at the legacy API boundary', () => {
+    const entry: RecordingTimelineEntry = {
+      type: 'action', pageId: 'logical-popup',
+      entry: fromJson(TimelineEntrySchema, {
+        id: 'popup-1', sequence_num: 2, timestamp: '2026-09-24T00:00:01Z',
+        action: { type: 'ACTION_TYPE_CLICK', click: { selector: 'button' } },
+        telemetry: { url: 'https://example.test' },
+        context: { sessionId: 'session' },
+      }, { jsonOptions: { useProtoNames: true } }),
+    };
 
-describe('attachTimelinePageIdentities', () => {
-  it('joins driver actions to durable logical page identities by action ID', () => {
-    const actions = [
-      createRecordedAction({ id: 'main-1', actionType: 'click' }),
-      createRecordedAction({ id: 'popup-1', actionType: 'click' }),
-      createRecordedAction({ id: 'unmatched', actionType: 'click', pageId: 'driver-fallback' }),
-    ];
-    const entries: RecordingTimelineEntry[] = [
-      {
-        type: 'action',
-        pageId: 'logical-main',
-        entry: fromJson(TimelineEntrySchema, {
-          id: 'main-1', sequence_num: 1, timestamp: '2026-09-24T00:00:00Z',
-          action: { type: 'ACTION_TYPE_CLICK', click: { selector: 'button' } },
-        }, { jsonOptions: { useProtoNames: true } }),
-      },
-      {
-        type: 'action',
-        pageId: 'logical-popup',
-        entry: fromJson(TimelineEntrySchema, {
-          id: 'popup-1', sequence_num: 2, timestamp: '2026-09-24T00:00:01Z',
-          action: { type: 'ACTION_TYPE_CLICK', click: { selector: 'button' } },
-        }, { jsonOptions: { useProtoNames: true } }),
-      },
-    ];
+    expect(recordingEntryToRecordedAction(entry)).toMatchObject({
+      id: 'popup-1', sequenceNum: 2, pageId: 'logical-popup',
+      actionType: 'click', selector: { primary: 'button' }, url: 'https://example.test',
+    });
+  });
 
-    const identified = attachTimelinePageIdentities(actions, entries);
-
-    expect(identified.map((action) => action.pageId)).toEqual([
-      'logical-main',
-      'logical-popup',
-      'driver-fallback',
-    ]);
-    expect(actions[0]?.pageId).toBeUndefined();
+  it('does not turn page lifecycle entries into workflow actions', () => {
+    const entry: RecordingTimelineEntry = {
+      type: 'page_event', pageId: 'page',
+      pageEvent: { id: 'event-1', type: 'page_created', pageId: 'page', timestamp: '2026-09-24T00:00:01Z' },
+    };
+    expect(recordingEntryToRecordedAction(entry)).toBeUndefined();
   });
 });
 

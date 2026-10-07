@@ -37,7 +37,7 @@ import App from "./App";
 import { API_BASE } from "./lib/api-client";
 import { describeError } from "./lib/error-utils";
 import { ToastProvider } from "./components/ui/toast-provider";
-import { AudioToolsProvider, createAudioToolsClient, registerVoiceTransport, useHydrateVoiceConfig } from "./audio-integration";
+import { AudioToolsProvider, createAudioToolsClient, registerScenarioVoiceTransport, useHydrateVoiceConfig } from "./audio-integration";
 import { fetchAudioToolsDiscovery } from "./api/discovery";
 import { AudioUnavailableBanner } from "./components/AudioUnavailableBanner";
 import "./styles.css";
@@ -126,7 +126,7 @@ const ensureSEO = () => {
 
 ensureSEO();
 
-registerVoiceTransport();
+registerScenarioVoiceTransport();
 
 // AUDIO-TOOLS DISCOVERY: ask the swarm-manager backend whether audio-tools is
 // reachable BEFORE React mounts. When it is, the browser still talks only to

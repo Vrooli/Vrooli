@@ -1,4 +1,5 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { screen, fireEvent, waitFor } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ConfirmDialog } from "./confirm-dialog";
 
@@ -7,7 +8,7 @@ afterEach(() => {
 });
 
 function renderStrong(overrides = {}) {
-  return render(
+  return renderWithCanonicalProviders(
     <ConfirmDialog
       isOpen
       onClose={vi.fn()}
@@ -48,7 +49,7 @@ describe("ConfirmDialog copy button", () => {
   });
 
   it("does not render a confirmation input (or copy button) for simple deletes", () => {
-    render(
+    renderWithCanonicalProviders(
       <ConfirmDialog
         isOpen
         onClose={vi.fn()}

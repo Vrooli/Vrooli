@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"swarm-manager/internal/testutil"
+	"github.com/vrooli/api-core/apihttptest"
 )
 
 func TestHandler_UpdatePersistError(t *testing.T) {
@@ -31,6 +31,5 @@ func TestHandler_UpdatePersistError(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPut, "/api/v1/settings", bytes.NewBuffer(payload))
 	rec := httptest.NewRecorder()
 	handler.Update(rec, req)
-
-	testutil.AssertStatus(t, rec, http.StatusInternalServerError)
+	apihttptest.AssertStatus(t, rec.Result(), http.StatusInternalServerError)
 }

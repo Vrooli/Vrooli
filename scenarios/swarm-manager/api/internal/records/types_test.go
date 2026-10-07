@@ -4,9 +4,10 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"strings"
 	"testing"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // TestRecordKindMirrorsBacklogKind is an anti-drift gate. To avoid taking a
@@ -15,8 +16,24 @@ import (
 // its Kind* const block. If backlog adds a new kind, this test fails until
 // records adds the same value.
 func TestRecordKindMirrorsBacklogKind(t *testing.T) {
-	_, here, _, _ := runtime.Caller(0)
-	backlogTypes := filepath.Join(filepath.Dir(here), "..", "backlog", "types.go")
+	t.Helper()
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	root, err := repocontract.FindRepoRoot(cwd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	contract, err := repocontract.LoadDefault(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	scenario, err := contract.ScenarioRoot(root, "swarm-manager")
+	if err != nil {
+		t.Fatal(err)
+	}
+	backlogTypes := filepath.Join(scenario, "api", "internal", "backlog", "types.go")
 	data, err := os.ReadFile(backlogTypes)
 	if err != nil {
 		t.Fatalf("read backlog/types.go: %v", err)

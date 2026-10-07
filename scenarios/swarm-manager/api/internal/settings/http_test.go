@@ -10,6 +10,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/vrooli/api-core/apihttptest"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 )
 
@@ -23,8 +24,7 @@ func TestHandler_GetViaRouter(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/settings", nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
-
-	testutil.AssertStatusOK(t, rec)
+	apihttptest.AssertStatus(t, rec.Result(), 200)
 	resp := testutil.DecodeProtoJSON(t, rec, &apipb.SettingsResponse{})
 	if resp.GetSettings().GetTheme() == "" {
 		t.Fatalf("expected settings to be populated")

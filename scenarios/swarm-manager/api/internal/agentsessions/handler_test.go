@@ -3,14 +3,18 @@ package agentsessions
 import (
 	"bytes"
 	"context"
+	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"swarm-manager/internal/agentmanager"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/owneridentity"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -27,7 +31,7 @@ func TestHandlerLifecycleEndpointsUseProtoJSONContracts(t *testing.T) {
 	svc := newTestService(t, spawner)
 	svc.contextResolver = fakeContextResolver{}
 	router := mux.NewRouter()
-	NewHandler(svc).RegisterRoutes(router)
+	newSessionStartFixtureHandler(svc).RegisterRoutes(router)
 
 	createBody := marshalAgentSessionProto(t, &apipb.CreateAgentSessionRequest{
 		Kind:  string(KindSwarmOperations),
@@ -74,7 +78,7 @@ func TestHandlerLifecycleEndpointsUseProtoJSONContracts(t *testing.T) {
 	startBody := marshalAgentSessionProto(t, &apipb.StartAgentSessionRequest{
 		Message: "Draft an operating mode.",
 	})
-	startRec := serveAgentSessionRequest(router, http.MethodPost, "/api/v1/agent-sessions/"+sessionID+"/start", startBody)
+	startRec := serveVerifiedAgentSessionStart(router, "/api/v1/agent-sessions/"+sessionID+"/start", startBody)
 	if startRec.Code != http.StatusOK {
 		t.Fatalf("start status = %d, body = %s", startRec.Code, startRec.Body.String())
 	}
@@ -178,7 +182,7 @@ func TestHandlerDeleteStopsActiveRunAndRejectsInvalidIDs(t *testing.T) {
 	spawner := &fakeSessionSpawner{}
 	svc := newTestService(t, spawner)
 	router := mux.NewRouter()
-	NewHandler(svc).RegisterRoutes(router)
+	newSessionStartFixtureHandler(svc).RegisterRoutes(router)
 
 	createBody := marshalAgentSessionProto(t, &apipb.CreateAgentSessionRequest{
 		Kind:  string(KindMetaOrchestration),
@@ -192,7 +196,7 @@ func TestHandlerDeleteStopsActiveRunAndRejectsInvalidIDs(t *testing.T) {
 	unmarshalAgentSessionProto(t, createRec, &createResp)
 	sessionID := createResp.GetSession().GetId()
 	startBody := marshalAgentSessionProto(t, &apipb.StartAgentSessionRequest{Message: "Plan the next milestone."})
-	startRec := serveAgentSessionRequest(router, http.MethodPost, "/api/v1/agent-sessions/"+sessionID+"/start", startBody)
+	startRec := serveVerifiedAgentSessionStart(router, "/api/v1/agent-sessions/"+sessionID+"/start", startBody)
 	if startRec.Code != http.StatusOK {
 		t.Fatalf("start status = %d, body = %s", startRec.Code, startRec.Body.String())
 	}
@@ -259,5 +263,96 @@ func unmarshalAgentSessionProto(t *testing.T, rec *httptest.ResponseRecorder, ms
 	t.Helper()
 	if err := protojson.Unmarshal(rec.Body.Bytes(), msg); err != nil {
 		t.Fatalf("unmarshal response %q: %v", rec.Body.String(), err)
+	}
+}
+
+// This proof belongs only to disposable positive Start fixtures. The existing
+// general request helper remains anonymous and other lifecycle calls are unchanged.
+const sessionStartFixtureBearer = "disposable-session-start-owner"
+
+type sessionStartFixtureValidator struct {
+	calls int
+}
+
+func (v *sessionStartFixtureValidator) Validate(_ context.Context, token string) (owneridentity.Identity, error) {
+	v.calls++
+	if token != sessionStartFixtureBearer {
+		return owneridentity.Identity{}, errors.New("fixture caller proof refused")
+	}
+	return owneridentity.Identity{Subject: "disposable-session-owner", Scopes: []string{"agent-manager:write"}, ExpiresAt: time.Now().Add(time.Hour)}, nil
+}
+
+var _ owneridentity.Validator = (*sessionStartFixtureValidator)(nil)
+
+func newSessionStartFixtureHandler(svc *Service) *Handler {
+	h := NewHandler(svc)
+	h.runCallerValidator = &sessionStartFixtureValidator{}
+	return h
+}
+
+func serveVerifiedAgentSessionStart(router *mux.Router, target string, body []byte) *httptest.ResponseRecorder {
+	req := httptest.NewRequest(http.MethodPost, target, bytes.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+sessionStartFixtureBearer)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	return rec
+}
+
+type sessionStartUnreadFixtureBody struct {
+	t *testing.T
+}
+
+func (b sessionStartUnreadFixtureBody) Read([]byte) (int, error) {
+	b.t.Fatal("rejected caller reached request body decoding")
+	return 0, errors.New("fixture body must remain unread")
+}
+
+func TestAuth01SessionStartStrictVerifierRefusesBeforeDraftAndSpawnEffects(t *testing.T) {
+	for _, bearer := range []string{"", "wrong-disposable-proof"} {
+		t.Run("offered-"+bearer, func(t *testing.T) {
+			spawner := &fakeSessionSpawner{}
+			svc := newTestService(t, spawner)
+			session, err := svc.Create(context.Background(), CreateRequest{Kind: KindMetaOrchestration, Title: "Retained draft"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			baseline, err := svc.Get(context.Background(), session.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			before, err := json.Marshal(baseline)
+			if err != nil {
+				t.Fatal(err)
+			}
+			validator := &sessionStartFixtureValidator{}
+			h := NewHandler(svc)
+			h.runCallerValidator = validator
+			router := mux.NewRouter()
+			h.RegisterRoutes(router)
+			req := httptest.NewRequest(http.MethodPost, "/api/v1/agent-sessions/"+session.ID+"/start", sessionStartUnreadFixtureBody{t})
+			if bearer != "" {
+				req.Header.Set("Authorization", "Bearer "+bearer)
+			}
+			rec := httptest.NewRecorder()
+			router.ServeHTTP(rec, req)
+			if rec.Code != http.StatusUnauthorized {
+				t.Fatalf("unverified Start status=%d, body=%s", rec.Code, rec.Body.String())
+			}
+			current, err := svc.Get(context.Background(), session.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			after, err := json.Marshal(current)
+			if err != nil || !bytes.Equal(before, after) || spawner.spawnCalls != 0 {
+				t.Fatalf("refusal changed draft or spawned: err=%v spawnCalls=%d", err, spawner.spawnCalls)
+			}
+			wantChecks := 0
+			if bearer != "" {
+				wantChecks = 1
+			}
+			if validator.calls != wantChecks {
+				t.Fatalf("proof verifier calls=%d, want=%d", validator.calls, wantChecks)
+			}
+		})
 	}
 }

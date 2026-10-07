@@ -9,10 +9,10 @@ import {
   type CreateWorkflowResponse,
   type UpdateWorkflowResponse,
 } from '@vrooli/proto-types/browser-automation-studio/v1/api/service_pb';
-import { WorkflowDefinitionV2Schema } from '@vrooli/proto-types/browser-automation-studio/v1/workflows/definition_pb';
 import { logger } from '../../../utils/logger';
 import { parseProtoStrict, protoMessageToJson } from '../../../utils/proto';
 import type { Workflow, WorkflowVersionSummary } from '../types';
+import { workflowDataToCanvas, workflowDefinitionFromProto } from './codec';
 import { isPlainObject } from './viewport';
 
 // ============================================================================
@@ -35,7 +35,7 @@ export const workflowSummaryToPayload = (summary: WorkflowSummary | null | undef
     const summaryJson = toJsonRecord(WorkflowSummarySchema, summary as Message);
     const flowDef = (summary as unknown as { flowDefinition?: Message }).flowDefinition;
     if (flowDef) {
-      const flowJson = toJsonRecord(WorkflowDefinitionV2Schema, flowDef);
+      const flowJson = workflowDefinitionFromProto(flowDef as never);
       if (Object.keys(flowJson).length > 0) {
         summaryJson.flow_definition = flowJson;
       }
@@ -50,29 +50,11 @@ export const workflowSummaryToPayload = (summary: WorkflowSummary | null | undef
   return null;
 };
 
-/**
- * Parse a WorkflowSummary proto message or plain object into a Workflow.
- * Note: This function requires normalizeWorkflowResponse from normalization.ts
- * It's defined here but the implementation is provided via injection.
- */
-export type NormalizeWorkflowFn = (payload: Record<string, unknown>) => Workflow;
-
-let _normalizeWorkflowResponse: NormalizeWorkflowFn | null = null;
-
-export const setNormalizeWorkflowResponse = (fn: NormalizeWorkflowFn): void => {
-  _normalizeWorkflowResponse = fn;
-};
-
 export const parseWorkflowSummaryMessage = (summary: WorkflowSummary | Record<string, unknown> | null | undefined): Workflow | null => {
   const payload = workflowSummaryToPayload(summary as WorkflowSummary);
-  if (!payload) {
-    return null;
-  }
+  if (!payload) return null;
   try {
-    if (!_normalizeWorkflowResponse) {
-      throw new Error('normalizeWorkflowResponse not initialized');
-    }
-    return _normalizeWorkflowResponse(payload);
+    return workflowDataToCanvas(payload);
   } catch (error) {
     logger.error('Failed to normalize workflow from payload', { component: 'WorkflowStore', action: 'parseWorkflowSummary' }, error);
     return null;
@@ -100,12 +82,9 @@ export const parseWorkflowFromCreateProto = (proto: CreateWorkflowResponse | nul
   const summaryPayload = workflowSummaryToPayload(proto.workflow);
   if (!summaryPayload) return null;
   if (proto.flowDefinition) {
-    summaryPayload.flowDefinition = toJsonRecord(WorkflowDefinitionV2Schema, proto.flowDefinition);
+    summaryPayload.flowDefinition = workflowDefinitionFromProto(proto.flowDefinition);
   }
-  if (!_normalizeWorkflowResponse) {
-    throw new Error('normalizeWorkflowResponse not initialized');
-  }
-  return _normalizeWorkflowResponse(summaryPayload);
+  return workflowDataToCanvas(summaryPayload);
 };
 
 export const parseWorkflowFromUpdateResponse = (raw: unknown): Workflow | null => {
@@ -125,12 +104,9 @@ export const parseWorkflowFromUpdateProto = (proto: UpdateWorkflowResponse | nul
   const summaryPayload = workflowSummaryToPayload(proto.workflow);
   if (!summaryPayload) return null;
   if (proto.flowDefinition) {
-    summaryPayload.flowDefinition = toJsonRecord(WorkflowDefinitionV2Schema, proto.flowDefinition);
+    summaryPayload.flowDefinition = workflowDefinitionFromProto(proto.flowDefinition);
   }
-  if (!_normalizeWorkflowResponse) {
-    throw new Error('normalizeWorkflowResponse not initialized');
-  }
-  return _normalizeWorkflowResponse(summaryPayload);
+  return workflowDataToCanvas(summaryPayload);
 };
 
 // ============================================================================

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import {
   buildBacklogActionMenuItems,
   type BacklogActionMenuDetail,
@@ -42,7 +43,7 @@ function renderMenu(actions: ItemActions, overrides: Partial<BacklogActionMenuOp
     onDelete: () => {},
     ...overrides,
   });
-  return render(<ActionMenuSheetContent items={items} />);
+  return renderWithCanonicalProviders(<ActionMenuSheetContent items={items} />);
 }
 
 describe("buildBacklogActionMenuItems", () => {

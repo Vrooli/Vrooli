@@ -13,7 +13,6 @@ import (
 	"testing"
 	"time"
 
-	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/identity"
 	"agent-manager/internal/orchestration/phases"
@@ -99,12 +98,11 @@ func installFixtureNativeFactory(t *testing.T, o *Orchestrator, p effortauthorit
 	t.Helper()
 	// Pure manifest composition qualifies admission only. Dispatcher remains closed;
 	// this fixture never qualifies a host, starts a service, or launches an agent.
-	h := effortauthority.Digest("fixture executable")
-	factory, e := runner.NewFiniteNativeFactory(isolation.Manifest{Enabled: true, Backend: "linux-systemd-service-v1", SystemdRun: isolation.Executable{Path: "/usr/bin/systemd-run", SHA256: h}, Systemctl: isolation.Executable{Path: "/usr/bin/systemctl", SHA256: h}, RootFS: "/var/lib/finite-fixture/image", WorkspaceSource: "/var/lib/finite-fixture/worktree", RootFSDigest: h, NativeUID: 1234, NativeGID: 1234, Isolation: &effortauthority.NativeUIDIsolation{NativeUID: 1234, ProtectedPaths: []string{"/var/lib/finite-authority/key"}}, Bindings: map[string]isolation.Binding{p.ID: {PolicyDigest: effortauthority.Digest(p), ProfileDigest: p.Profiles[profile.ProfileKey], Repository: p.Repository, Deadline: p.Deadline}}, EnvKeys: []string{"PATH", "HOME", "VROOLI_AGENT_IDENTITY_TOKEN"}, NativeBinaries: map[string]string{"/usr/bin/codex": h}})
+	runtime, e := isolation.NewRuntime(fixtureNativeManifest(p, profile))
 	if e != nil {
 		t.Fatal(e)
 	}
-	o.finiteNativeFactory = factory
+	o.finiteNativeFactory = fixtureNativeAdmission{runtime}
 
 }
 func effortRequest(t *testing.T, o *Orchestrator, p effortauthority.Policy, task *domain.Task, profile *domain.AgentProfile, key ed25519.PrivateKey, id string) CreateRunRequest {
@@ -440,4 +438,19 @@ func TestFiniteNativeExactTerminalSettlementEnablesSingleSlotSuccessor(t *testin
 	if len(record.Reservations) != 2 {
 		t.Fatal("successor renewed or forgot aggregate allowance")
 	}
+}
+
+// Synthetic admission-only evidence, never an installed launcher or host proof.
+// Private test code alone assigns this checker; production installation requires
+// concrete factory readiness and a captured continuing witness before admission.
+type fixtureNativeAdmission struct{ runtime *isolation.Runtime }
+
+func (f fixtureNativeAdmission) Enabled() bool { return f.runtime.Enabled() }
+func (f fixtureNativeAdmission) CheckBinding(id string, b isolation.Binding) error {
+	return f.runtime.CheckBinding(id, b)
+}
+
+func fixtureNativeManifest(p effortauthority.Policy, profile *domain.AgentProfile) isolation.Manifest {
+	h := effortauthority.Digest("fixture executable")
+	return isolation.Manifest{Enabled: true, Backend: "linux-systemd-service-v1", SystemdRun: isolation.Executable{Path: "/usr/bin/systemd-run", SHA256: h}, Systemctl: isolation.Executable{Path: "/usr/bin/systemctl", SHA256: h}, RootFS: "/var/lib/finite-fixture/image", WorkspaceSource: "/var/lib/finite-fixture/worktree", RootFSDigest: h, NativeUID: 1234, NativeGID: 1234, Isolation: &effortauthority.NativeUIDIsolation{NativeUID: 1234, ProtectedPaths: []string{"/var/lib/finite-authority/key"}}, Bindings: map[string]isolation.Binding{p.ID: {PolicyDigest: effortauthority.Digest(p), ProfileDigest: p.Profiles[profile.ProfileKey], Repository: p.Repository, Deadline: p.Deadline}}, EnvKeys: []string{"PATH", "HOME", "VROOLI_AGENT_IDENTITY_TOKEN"}, NativeBinaries: map[string]string{"/usr/bin/codex": h}}
 }

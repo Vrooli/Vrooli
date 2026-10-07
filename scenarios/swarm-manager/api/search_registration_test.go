@@ -3,25 +3,38 @@ package main
 import (
 	"context"
 	"errors"
+	"os"
 	"path/filepath"
-	"runtime"
 	"testing"
 
 	"swarm-manager/internal/aisearch"
 
 	aisearchfile "github.com/vrooli/ai-go/search"
+	repocontract "github.com/vrooli/repo-contract-go"
 	searchregister "github.com/vrooli/searchregister-go"
 )
 
-// searchJSONForTest resolves the committed .vrooli/search.json relative to this
-// test file, independent of the process working directory.
+// searchJSONForTest resolves the committed search descriptor through the shared
+// repository contract, including when source paths are trimmed.
 func searchJSONForTest(t *testing.T) string {
 	t.Helper()
-	_, here, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller failed")
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
 	}
-	return filepath.Join(filepath.Dir(here), "..", ".vrooli", "search.json")
+	root, err := repocontract.FindRepoRoot(cwd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	contract, err := repocontract.LoadDefault(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	scenario, err := contract.ScenarioRoot(root, "swarm-manager")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return filepath.Join(scenario, ".vrooli", "search.json")
 }
 
 // TestSearchJSONMapsToValidDescriptor is the Phase 2 guard that swarm-manager's

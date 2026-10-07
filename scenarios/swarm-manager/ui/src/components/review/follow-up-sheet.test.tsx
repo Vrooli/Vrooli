@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { act, render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { act, screen, fireEvent, waitFor } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import { FollowUpSheet } from "./follow-up-sheet";
 import { selectors } from "../../consts/selectors";
 import type { ExecutionRecord, Finalization } from "../../types";
@@ -78,7 +79,7 @@ const defaultProps = {
 };
 
 async function renderSheet(props?: Partial<React.ComponentProps<typeof FollowUpSheet>>) {
-  const result = render(<FollowUpSheet {...defaultProps} {...props} />);
+  const result = renderWithCanonicalProviders(<FollowUpSheet {...defaultProps} {...props} />);
   await act(async () => {
     await Promise.resolve();
   });

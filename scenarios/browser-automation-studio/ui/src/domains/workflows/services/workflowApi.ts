@@ -1,6 +1,5 @@
 import { workflowsClient } from '@/api/workflows';
-import { fromJson } from '@bufbuild/protobuf';
-import { WorkflowDefinitionV2Schema } from '@vrooli/proto-types/browser-automation-studio/v1/workflows/definition_pb';
+import { workflowDefinitionToProto } from '@/stores/workflow/utils/codec';
 import { ChangeSource } from '@vrooli/proto-types/browser-automation-studio/v1/base/shared_pb';
 import {
   CreateWorkflowResponseSchema,
@@ -232,12 +231,8 @@ export const parseChangeSource = (source: string | undefined | null): ChangeSour
 };
 
 /**
- * flowDefinitionFromJson decodes a snake_case proto JSON object (as produced
- * by buildFlowDefinition) into a typed WorkflowDefinitionV2 message accepted
+ * flowDefinitionFromJson routes JSON through the workflow codec into the
+ * generated V2 message accepted
  * by the Connect-RPC client.
  */
-export const flowDefinitionFromJson = (raw: unknown): WorkflowDefinitionV2 =>
-  fromJson(WorkflowDefinitionV2Schema, raw as Parameters<typeof fromJson>[1], {
-    ignoreUnknownFields: true,
-  });
-
+export const flowDefinitionFromJson = (raw: unknown): WorkflowDefinitionV2 => workflowDefinitionToProto(raw);

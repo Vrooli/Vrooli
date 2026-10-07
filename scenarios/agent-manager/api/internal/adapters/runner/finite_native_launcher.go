@@ -2,6 +2,7 @@ package runner
 
 import (
 	"context"
+	"time"
 
 	"agent-manager/internal/domain"
 	"github.com/google/uuid"
@@ -21,17 +22,40 @@ func NewFiniteNativeFactory(manifest isolation.Manifest) (*FiniteNativeFactory, 
 	return &FiniteNativeFactory{rt}, nil
 }
 
+func NewFiniteNativeFactoryWithWitness(manifest isolation.Manifest, witness *isolation.Witness) (*FiniteNativeFactory, error) {
+	rt, e := isolation.NewRuntimeWithWitness(manifest, witness)
+	if e != nil {
+		return nil, e
+	}
+	return &FiniteNativeFactory{rt}, nil
+}
+
+// NewFiniteNativeFactoryWithOwners binds the live witness and exact fixed-unit
+// operation owner. A witness alone never confers permission to start a unit.
+func NewFiniteNativeFactoryWithOwners(manifest isolation.Manifest, witness *isolation.Witness, owner *isolation.FixedUnitOwner) (*FiniteNativeFactory, error) {
+	rt, e := isolation.NewRuntimeWithWitnessAndUnitOwner(manifest, witness, owner)
+	if e != nil {
+		return nil, e
+	}
+	return &FiniteNativeFactory{rt}, nil
+}
+
 // Terminal is the native unit owner's additional settlement gate. Installation
 // uses orchestration.InstallFiniteNativeIsolation to couple launch and settlement.
 func (f *FiniteNativeFactory) Enabled() bool {
-	return f != nil && f.runtime != nil && f.runtime.Enabled()
+	return f != nil && f.runtime != nil && f.runtime.Ready()
 }
 
 func (f *FiniteNativeFactory) CheckBinding(id string, binding isolation.Binding) error {
 	if !f.Enabled() {
 		return isolation.ErrRefused
 	}
-	return f.runtime.CheckBinding(id, binding)
+	if err := f.runtime.CheckBinding(id, binding); err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	return f.runtime.CheckReady(ctx)
 }
 
 func (f *FiniteNativeFactory) Terminal(ctx context.Context, id string) error {
@@ -41,7 +65,7 @@ func (f *FiniteNativeFactory) Terminal(ctx context.Context, id string) error {
 	return f.runtime.Terminal(ctx, id)
 }
 func (f *FiniteNativeFactory) pick(id uuid.UUID, cfg *domain.RunConfig) Launcher {
-	if f == nil || f.runtime == nil || cfg == nil || cfg.Admission == nil || cfg.Admission.Effort == nil || cfg.Admission.EffortIntent == nil {
+	if !f.Enabled() || cfg == nil || cfg.Admission == nil || cfg.Admission.Effort == nil || cfg.Admission.EffortIntent == nil {
 		return newDeniedLauncher("finite native isolation is not installed")
 	}
 	i := cfg.Admission.EffortIntent
@@ -51,7 +75,7 @@ func (f *FiniteNativeFactory) pick(id uuid.UUID, cfg *domain.RunConfig) Launcher
 	if i.Effect != "run.create" || i.ParentRunID != "" || i.SourceRunID != "" {
 		return newDeniedLauncher("finite native child/recovery route is unqualified")
 	}
-	return &finiteNativeLauncher{f.runtime, isolation.Request{RunID: id.String(), PolicyID: b.PolicyID, PolicyDigest: b.PolicyDigest, ProfileDigest: i.ProfileDigest, Repository: i.Repository, Deadline: b.Deadline, Timeout: cfg.Timeout}}
+	return &finiteNativeLauncher{f.runtime, isolation.Request{RunID: id.String(), ReservationKey: i.IdempotencyKey, PolicyID: b.PolicyID, PolicyDigest: b.PolicyDigest, ProfileDigest: i.ProfileDigest, Repository: i.Repository, Deadline: b.Deadline, Timeout: cfg.Timeout}}
 }
 
 type finiteNativeLauncher struct {
@@ -71,7 +95,11 @@ func (l *finiteNativeLauncher) Launch(ctx context.Context, req LaunchRequest) (L
 	r := l.request
 	r.Command = req.Command
 	r.Args = append([]string{}, req.Args...)
-	r.Env = append([]string{}, req.Env...)
+	var e error
+	r.Env, e = l.runtime.PrepareEnvironment(r.Repository, req.Env)
+	if e != nil {
+		return nil, e
+	}
 	r.WorkingDir = req.WorkingDir
 	p, e := l.runtime.Start(ctx, r, req.Stdin)
 	if e != nil {

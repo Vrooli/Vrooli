@@ -77,6 +77,7 @@
     "selector:check": "node scripts/generate-selector-manifest.mjs --check",
     "selector:manifest": "node scripts/generate-selector-manifest.mjs",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "type-check": "tsc --noEmit"
   },
   "type": "module",

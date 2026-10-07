@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import VoiceMicButton from "./VoiceMicButton";
 
 const baseProps = {
@@ -16,7 +17,7 @@ const baseProps = {
 
 describe("VoiceMicButton", () => {
   it("keeps unavailable voice feedback inside the button", () => {
-    render(
+    renderWithCanonicalProviders(
       <VoiceMicButton
         {...baseProps}
         supported={false}
@@ -31,7 +32,7 @@ describe("VoiceMicButton", () => {
   });
 
   it("keeps runtime errors as button state without adding a layout label", () => {
-    render(
+    renderWithCanonicalProviders(
       <VoiceMicButton
         {...baseProps}
         error="The speech backend is unavailable; retry the turn."
@@ -45,7 +46,7 @@ describe("VoiceMicButton", () => {
   });
 
   it("exposes the active durable backend identity on the stable host surface", () => {
-    render(
+    renderWithCanonicalProviders(
       <VoiceMicButton
         {...baseProps}
         backend="whisper"

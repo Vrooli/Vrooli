@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import { ExecutionSummaryCard } from "./execution-summary-card";
 import type { ExecutionRecord } from "../../types";
 
@@ -18,7 +19,7 @@ function makeExecution(overrides: Partial<ExecutionRecord> = {}): ExecutionRecor
 
 describe("ExecutionSummaryCard", () => {
   it("renders the execution summary as row content without its own button", () => {
-    render(<ExecutionSummaryCard item={makeExecution()} />);
+    renderWithCanonicalProviders(<ExecutionSummaryCard item={makeExecution()} />);
     expect(screen.getByText("test-feature")).toBeInTheDocument();
     expect(screen.getByText("needs review")).toBeInTheDocument();
     expect(screen.getByText("Manual")).toBeInTheDocument();

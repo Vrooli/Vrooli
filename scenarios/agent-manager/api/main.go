@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"fmt"
+	"github.com/vrooli/api-core/effortauthority"
 	"log"
 	"net/http"
 	"os"
@@ -80,6 +81,7 @@ func (h *searchControlTokens) get(providerID string) string {
 
 // Server owns lifecycle sequencing around the wiring-owned service graph.
 type Server struct {
+	privatePublication     *effortauthority.ProtectedPublication
 	recovery               *maintenance.Recovery
 	maintenance            *maintenance.Handler
 	lifecycleService       *maintenance.LifecycleService
@@ -145,7 +147,20 @@ func databaseConfigFromLevers(dsn string, storage agentconfig.StorageLevers) cor
 }
 
 // NewServer builds the graph and routes before launching observable recovery.
-func NewServer() (*Server, error) {
+func NewServer() (*Server, error) { return NewServerWithFinite(nil) }
+
+// NewServerWithFinite is a trusted startup composition point. The ordinary
+// entrypoint supplies nil; private finite handlers remain separately unmounted.
+func NewServerWithFinite(finite *orchestration.PreparedFiniteInstallation) (*Server, error) {
+	return newServerWithFiniteOwner(finite, nil)
+}
+func NewServerWithFiniteOwner(owner *orchestration.FiniteOwnerStartup) (*Server, error) {
+	if owner == nil {
+		return nil, effortauthority.ErrRefused
+	}
+	return newServerWithFiniteOwner(nil, owner)
+}
+func newServerWithFiniteOwner(finite *orchestration.PreparedFiniteInstallation, owner *orchestration.FiniteOwnerStartup) (*Server, error) {
 	levers, leversErr := agentconfig.LoadLevers()
 	if levers == nil {
 		defaults := agentconfig.DefaultLevers()
@@ -247,6 +262,37 @@ func NewServer() (*Server, error) {
 		_ = db.Close()
 		return nil, fmt.Errorf("build orchestrator: %w", err)
 	}
+	var privatePublication *effortauthority.ProtectedPublication
+	constructed := false
+	defer func() {
+		if !constructed && privatePublication != nil {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			_ = privatePublication.Close(ctx)
+		}
+	}()
+	if owner != nil {
+		privatePublication, err = owner.PublishReadPhase(context.Background(), deps.Orchestrator)
+		if err != nil {
+			_ = db.Close()
+			return nil, fmt.Errorf("publish finite profile owner: %w", err)
+		}
+		if owner.Live() {
+			if err = owner.Install(context.Background(), deps.Orchestrator); err != nil {
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				_ = privatePublication.Close(ctx)
+				cancel()
+				_ = db.Close()
+				return nil, fmt.Errorf("install exact finite owner: %w", err)
+			}
+		}
+	}
+	if finite != nil {
+		if err := finite.Apply(deps.Orchestrator); err != nil {
+			_ = db.Close()
+			return nil, fmt.Errorf("install finite owner: %w", err)
+		}
+	}
 	deps.Orchestrator.SetConversationSearchNotifier(func(ctx context.Context, operation, runID, eventID string) error {
 		return conversationIndexer.Notify(ctx, conversationsearch.ChangeOperation(operation), runID, eventID)
 	})
@@ -255,6 +301,7 @@ func NewServer() (*Server, error) {
 		return err
 	})
 	srv := &Server{
+		privatePublication: privatePublication,
 		recovery:           maintenance.NewRecovery(),
 		capabilityRegistry: capabilities.NewRegistry(), db: db, fileRoots: fileRoots, router: mux.NewRouter().UseEncodedPath(), orchestrator: deps.Orchestrator,
 		statsService: deps.StatsService, statsRepo: deps.StatsRepository, pricingService: deps.PricingService, pricingRepository: deps.PricingRepository,
@@ -315,7 +362,10 @@ func NewServer() (*Server, error) {
 		return nil, err
 	}
 	srv.setupRoutes()
-	srv.startRecovery()
+	if owner == nil || owner.Live() {
+		srv.startRecovery()
+	}
+	constructed = true
 	return srv, nil
 }
 
@@ -491,6 +541,11 @@ func (s *Server) Router() http.Handler {
 }
 
 func (s *Server) Cleanup() error {
+	if s.privatePublication != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		_ = s.privatePublication.Close(ctx)
+		cancel()
+	}
 	if s.recovery != nil {
 		s.recovery.Stop()
 	}
@@ -505,15 +560,40 @@ func (s *Server) Cleanup() error {
 }
 
 func main() {
+	owner, err := loadProtectedFiniteOwnerStartup(context.Background())
+	if err != nil {
+		log.Fatalf("protected finite startup refused: %v", err)
+	}
+	if owner != nil && owner.CheckStartup() != nil {
+		log.Fatal("protected finite startup expired or outside original window")
+	}
+	runMainWithFiniteOwner(owner)
+}
+func runMainWithFiniteOwner(owner *orchestration.FiniteOwnerStartup) {
+	if err := effortauthority.MainInstallationGate(os.Getenv("VROOLI_FINITE_ENABLED"), owner != nil && owner.Live()); err != nil {
+		log.Fatal(err)
+	}
 	if preflight.Run(preflight.Config{ScenarioName: "agent-manager"}) {
 		return
 	}
-	srv, err := NewServer()
+	var srv *Server
+	var err error
+	if owner == nil {
+		srv, err = NewServer()
+	} else {
+		srv, err = NewServerWithFiniteOwner(owner)
+	}
 	if err != nil {
 		log.Fatalf("failed to initialize server: %v", err)
 	}
-	srv.startSearchRegistration(context.Background())
-	if err := server.Run(server.Config{Handler: srv.Router(), WriteTimeout: 3 * time.Minute, ReadTimeout: time.Minute, Cleanup: func(context.Context) error { return srv.Cleanup() }}); err != nil {
+	if owner == nil {
+		srv.startSearchRegistration(context.Background())
+	}
+	runPublic := server.Run
+	if srv.privatePublication != nil {
+		runPublic = srv.privatePublication.RunPublic
+	}
+	if err := runPublic(server.Config{Handler: srv.Router(), WriteTimeout: 3 * time.Minute, ReadTimeout: time.Minute, Cleanup: func(context.Context) error { return srv.Cleanup() }}); err != nil {
 		log.Fatalf("server error: %v", err)
 	}
 }

@@ -30,7 +30,6 @@ import { executionDetailPath } from "../../../app/routes/route-paths";
 import { RunSheet, type RunSheetTarget } from "../../../components/backlog/run-sheet";
 import { InlineQuestionStepper } from "../../../components/backlog/inline-question-stepper";
 import { useNodePendingQuestions } from "../hooks/useNodePendingQuestions";
-import { parseNodeId } from "../lib/node-id-parser";
 import type {
   GraphNodeData,
   BacklogGraphNodeData,
@@ -52,7 +51,7 @@ const CTA_CONFIG: Record<string, { label: string; icon: LucideIcon }> = {
 // Backlog actions sub-component
 // ---------------------------------------------------------------------------
 
-function BacklogActions({ nodeData, nodeId }: { nodeData: BacklogGraphNodeData; nodeId: string }) {
+function BacklogActions({ nodeData }: { nodeData: BacklogGraphNodeData }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const fetchBacklog = useBacklogStore((s) => s.fetchBacklog);
@@ -80,13 +79,12 @@ function BacklogActions({ nodeData, nodeId }: { nodeData: BacklogGraphNodeData; 
     onSuccess: invalidateAfterAction,
   });
 
-  const followUpMutation = useActionMutation({
-    mutationFn: (executionId: string) =>
-      defaultApiClient.post(API_ENDPOINTS.executionFollowUp(executionId), {}),
-    errorMessage: "Couldn't start the follow-up run",
-    successMessage: "Follow-up run started",
+  const retryMutation = useActionMutation({
+    mutationFn: () => backlogService.retry(nodeData.kind, nodeData.name),
+    errorMessage: "Couldn't retry this backlog item",
+    successMessage: "Retry started",
     successKind: "progress",
-    source: "FocusActions.followUp",
+    source: "FocusActions.backlogRetry",
     onSuccess: invalidateAfterAction,
   });
 
@@ -95,17 +93,13 @@ function BacklogActions({ nodeData, nodeId }: { nodeData: BacklogGraphNodeData; 
     if (cta === "run") {
       setRunModalTarget({ kind: nodeData.kind, name: nodeData.name, title: nodeData.title });
     } else if (cta === "retry") {
-      // Find the latest execution for this item to follow up on.
-      const parsed = parseNodeId(nodeId);
-      if (parsed?.identifier) {
-        followUpMutation.mutate(parsed.identifier);
-      }
+      retryMutation.mutate();
     } else if (cta === "archive") {
       archiveMutation.mutate();
     } else if (cta === "author_plan" || cta === "accept_plan" || cta === "repair_plan" || cta === "review" || cta === "resolve_dependencies" || cta === "view_execution") {
       navigate(`/backlog/${nodeData.kind}/${nodeData.name}`);
     }
-  }, [nextAction?.id, nodeData, nodeId, navigate, followUpMutation, archiveMutation]);
+  }, [nextAction?.id, nodeData, navigate, retryMutation, archiveMutation]);
 
   // The projection is authoritative, including active-work states.
   if (!nextAction || nextAction.id === "none") return null;
@@ -115,7 +109,7 @@ function BacklogActions({ nodeData, nodeId }: { nodeData: BacklogGraphNodeData; 
     label: displayedAction.compactLabel,
     icon: CTA_CONFIG[displayedAction.id === "run" ? "run" : displayedAction.id === "archive" ? "archive" : "followUp"]?.icon ?? Play,
   };
-  const isMutating = archiveMutation.isPending || followUpMutation.isPending;
+  const isMutating = archiveMutation.isPending || retryMutation.isPending;
   const showStepper = pendingQuestions.length > 0;
 
   return (
@@ -303,11 +297,11 @@ interface FocusActionsSectionProps {
   nodeId: string;
 }
 
-export function FocusActionsSection({ nodeData, nodeId }: FocusActionsSectionProps) {
+export function FocusActionsSection({ nodeData }: FocusActionsSectionProps) {
   return (
     <div className="flex flex-col gap-2" data-testid="focus-actions-section">
       {nodeData.entityType === "backlog" && (
-        <BacklogActions nodeData={nodeData as BacklogGraphNodeData} nodeId={nodeId} />
+        <BacklogActions nodeData={nodeData as BacklogGraphNodeData} />
       )}
       {nodeData.entityType === "execution" && (
         <ExecutionActions nodeData={nodeData} />

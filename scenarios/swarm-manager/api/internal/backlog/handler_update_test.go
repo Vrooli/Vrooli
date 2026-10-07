@@ -3,6 +3,7 @@ package backlog
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/vrooli/api-core/apihttptest"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -10,9 +11,8 @@ import (
 	"strings"
 	"testing"
 
-	"swarm-manager/internal/testutil"
-
 	"github.com/gorilla/mux"
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 )
 
 // doUpdate sends a PATCH request to the Update handler and returns the recorder.
@@ -58,9 +58,8 @@ func TestUpdate_Success(t *testing.T) {
 	w := doUpdate(t, h, "idea", "update-test", map[string]any{
 		"status": "ready", "tags": []string{"new"},
 	})
-
-	testutil.AssertStatusOK(t, w)
-	resp := testutil.DecodeJSON[backlogItemResponse](t, w)
+	apihttptest.AssertStatus(t, w.Result(), 200)
+	resp := apihttptest.MustDecodeJSON[backlogItemResponse](t, w.Body.Bytes())
 	if resp.Item.Status != StatusReady {
 		t.Errorf("expected updated status, got '%s'", resp.Item.Status)
 	}
@@ -68,7 +67,7 @@ func TestUpdate_Success(t *testing.T) {
 		t.Errorf("expected updated tags, got %v", got)
 	}
 
-	saved := testutil.ReadJSONFile[BacklogItem](t, filepath.Join(rootDir, "ideas", "update-test", "spec.json"))
+	saved := repocontracttest.ReadJSONFileInto[BacklogItem](t, filepath.Join(rootDir, "ideas", "update-test", "spec.json"))
 	if saved.Status != StatusReady {
 		t.Errorf("expected status ready, got '%s'", saved.Status)
 	}
@@ -89,7 +88,7 @@ func TestUpdate_RejectsUnknownField(t *testing.T) {
 	})
 
 	w := doUpdateRaw(t, h, "idea", "update-test", `{"scope": "scenarios/swarm-manager"}`)
-	testutil.AssertStatusBadRequest(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 400)
 	if !strings.Contains(w.Body.String(), `unknown field "scope"`) {
 		t.Fatalf("expected unknown field error, got: %s", w.Body.String())
 	}
@@ -104,9 +103,9 @@ func TestUpdate_PreservesOmittedFields(t *testing.T) {
 	})
 
 	w := doUpdateRaw(t, h, "idea", "preserve-test", `{"status":"ready"}`)
-	testutil.AssertStatusOK(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 200)
 
-	saved := testutil.ReadJSONFile[BacklogItem](t, filepath.Join(rootDir, "ideas", "preserve-test", "spec.json"))
+	saved := repocontracttest.ReadJSONFileInto[BacklogItem](t, filepath.Join(rootDir, "ideas", "preserve-test", "spec.json"))
 	if saved.Title != "Preserve Test" {
 		t.Fatalf("expected title unchanged, got %q", saved.Title)
 	}
@@ -136,9 +135,9 @@ func TestUpdate_ClearsFields(t *testing.T) {
 		"milestone": "", "effort": "",
 		"acceptance_allow": []string{}, "acceptance_deny": []string{},
 	})
-	testutil.AssertStatusOK(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 200)
 
-	saved := testutil.ReadJSONFile[BacklogItem](t, filepath.Join(rootDir, "research", "clear-test", "spec.json"))
+	saved := repocontracttest.ReadJSONFileInto[BacklogItem](t, filepath.Join(rootDir, "research", "clear-test", "spec.json"))
 	if saved.Description != "" {
 		t.Fatalf("expected description cleared, got %q", saved.Description)
 	}
@@ -167,7 +166,7 @@ func TestUpdate_RejectsNullField(t *testing.T) {
 	createTestItem(t, rootDir, KindIdea, newTestItem("null-test", "Null Test"))
 
 	w := doUpdateRaw(t, h, "idea", "null-test", `{"description":null}`)
-	testutil.AssertStatusBadRequest(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 400)
 	if !strings.Contains(w.Body.String(), "description cannot be null") {
 		t.Fatalf("expected null-field error, got: %s", w.Body.String())
 	}
@@ -184,7 +183,7 @@ func TestSaveItem_PreservesUnknownSpecFields(t *testing.T) {
 		"sourceScenario": "web-console", "preservedFiles": []string{"PRD.md"},
 		"archivedByHuman": true,
 	}
-	testutil.WriteJSONFile(t, filepath.Join(rootDir, "ideas", "metadata-keep", "spec.json"), raw)
+	repocontracttest.WriteJSON(t, filepath.Join(rootDir, "ideas", "metadata-keep", "spec.json"), raw)
 
 	item := BacklogItem{
 		Name: "metadata-keep", Kind: KindIdea, Title: "Metadata Keep Updated",
@@ -218,9 +217,9 @@ func TestUpdate_FailedStatus_Accepted(t *testing.T) {
 	createTestItem(t, rootDir, KindIdea, newTestItem("failed-test", "Failed Test"))
 
 	w := doUpdate(t, h, "idea", "failed-test", map[string]any{"status": "failed"})
-	testutil.AssertStatusOK(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 200)
 
-	saved := testutil.ReadJSONFile[BacklogItem](t, filepath.Join(rootDir, "ideas", "failed-test", "spec.json"))
+	saved := repocontracttest.ReadJSONFileInto[BacklogItem](t, filepath.Join(rootDir, "ideas", "failed-test", "spec.json"))
 	if saved.Status != StatusFailed {
 		t.Errorf("expected status failed, got '%s'", saved.Status)
 	}
@@ -231,7 +230,7 @@ func TestUpdate_QueuedStatus_Rejected(t *testing.T) {
 	createTestItem(t, rootDir, KindIdea, newTestItem("queued-reject", "Queued Reject"))
 
 	w := doUpdate(t, h, "idea", "queued-reject", map[string]any{"status": "queued"})
-	testutil.AssertStatus(t, w, http.StatusBadRequest)
+	apihttptest.AssertStatus(t, w.Result(), http.StatusBadRequest)
 }
 
 func TestUpdate_InProgressStatus_Rejected(t *testing.T) {
@@ -239,7 +238,7 @@ func TestUpdate_InProgressStatus_Rejected(t *testing.T) {
 	createTestItem(t, rootDir, KindIdea, newTestItem("inprog-reject", "InProgress Reject"))
 
 	w := doUpdate(t, h, "idea", "inprog-reject", map[string]any{"status": "in_progress"})
-	testutil.AssertStatus(t, w, http.StatusBadRequest)
+	apihttptest.AssertStatus(t, w.Result(), http.StatusBadRequest)
 }
 
 func TestUpdate_SuggestedStatusRejectedAsTarget(t *testing.T) {
@@ -247,7 +246,7 @@ func TestUpdate_SuggestedStatusRejectedAsTarget(t *testing.T) {
 	createTestItem(t, rootDir, KindIdea, newTestItem("suggested-reject", "Suggested Reject"))
 
 	w := doUpdate(t, h, "idea", "suggested-reject", map[string]any{"status": "suggested"})
-	testutil.AssertStatus(t, w, http.StatusBadRequest)
+	apihttptest.AssertStatus(t, w.Result(), http.StatusBadRequest)
 	if !strings.Contains(w.Body.String(), `status "suggested" is not user-settable`) {
 		t.Fatalf("expected suggested rejection, got: %s", w.Body.String())
 	}
@@ -268,9 +267,9 @@ func TestUpdate_AcceptsSuggestedItem(t *testing.T) {
 			})
 
 			w := doUpdate(t, h, "fix", "accept-suggested-"+string(status), map[string]any{"status": string(status)})
-			testutil.AssertStatusOK(t, w)
+			apihttptest.AssertStatus(t, w.Result(), 200)
 
-			saved := testutil.ReadJSONFile[BacklogItem](t, filepath.Join(rootDir, "fix", "accept-suggested-"+string(status), "spec.json"))
+			saved := repocontracttest.ReadJSONFileInto[BacklogItem](t, filepath.Join(rootDir, "fix", "accept-suggested-"+string(status), "spec.json"))
 			if saved.Status != status {
 				t.Fatalf("status = %q, want %q", saved.Status, status)
 			}
@@ -291,7 +290,7 @@ func TestUpdate_ChangeDependsOn(t *testing.T) {
 	})
 
 	w := doUpdate(t, h, "idea", "beta", map[string]any{"depends_on": []string{"idea/alpha"}})
-	testutil.AssertStatus(t, w, http.StatusOK)
+	apihttptest.AssertStatus(t, w.Result(), http.StatusOK)
 
 	item, err := h.store.LoadItem(KindIdea, "beta")
 	if err != nil {
@@ -302,7 +301,7 @@ func TestUpdate_ChangeDependsOn(t *testing.T) {
 	}
 
 	w = doUpdate(t, h, "idea", "beta", map[string]any{"depends_on": []string{"idea/alpha"}})
-	testutil.AssertStatus(t, w, http.StatusOK)
+	apihttptest.AssertStatus(t, w.Result(), http.StatusOK)
 
 	item, err = h.store.LoadItem(KindIdea, "beta")
 	if err != nil {
@@ -318,14 +317,14 @@ func TestUpdate_WithEffort(t *testing.T) {
 	createTestItem(t, rootDir, KindIdea, newTestItem("update-effort-test", "Update Effort Test"))
 
 	w := doUpdate(t, h, "idea", "update-effort-test", map[string]any{"effort": "M"})
-	testutil.AssertStatusOK(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 200)
 
-	resp := testutil.DecodeJSON[backlogItemResponse](t, w)
+	resp := apihttptest.MustDecodeJSON[backlogItemResponse](t, w.Body.Bytes())
 	if resp.Item.Effort != "M" {
 		t.Errorf("expected effort 'M', got %q", resp.Item.Effort)
 	}
 
-	saved := testutil.ReadJSONFile[BacklogItem](t, filepath.Join(rootDir, "ideas", "update-effort-test", "spec.json"))
+	saved := repocontracttest.ReadJSONFileInto[BacklogItem](t, filepath.Join(rootDir, "ideas", "update-effort-test", "spec.json"))
 	if saved.Effort != "M" {
 		t.Errorf("expected saved effort 'M', got %q", saved.Effort)
 	}
@@ -336,7 +335,7 @@ func TestUpdate_InvalidEffort(t *testing.T) {
 	createTestItem(t, rootDir, KindIdea, newTestItem("update-bad-effort", "Update Bad Effort"))
 
 	w := doUpdate(t, h, "idea", "update-bad-effort", map[string]any{"effort": "XXXL"})
-	testutil.AssertStatusBadRequest(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 400)
 }
 
 func TestUpdate_Acceptance(t *testing.T) {
@@ -347,9 +346,9 @@ func TestUpdate_Acceptance(t *testing.T) {
 		"acceptance_allow": []string{"scenarios/target/src/**"},
 		"acceptance_deny":  []string{"scenarios/target/test/**"},
 	})
-	testutil.AssertStatusOK(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 200)
 
-	resp := testutil.DecodeJSON[backlogItemResponse](t, w)
+	resp := apihttptest.MustDecodeJSON[backlogItemResponse](t, w.Body.Bytes())
 	if len(resp.Item.AcceptanceAllow) != 1 || resp.Item.AcceptanceAllow[0] != "scenarios/target/src/**" {
 		t.Errorf("expected acceptance_allow ['scenarios/target/src/**'], got %v", resp.Item.AcceptanceAllow)
 	}
@@ -357,7 +356,7 @@ func TestUpdate_Acceptance(t *testing.T) {
 		t.Errorf("expected acceptance_deny ['scenarios/target/test/**'], got %v", resp.Item.AcceptanceDeny)
 	}
 
-	saved := testutil.ReadJSONFile[BacklogItem](t, filepath.Join(rootDir, "ideas", "update-acceptance-test", "spec.json"))
+	saved := repocontracttest.ReadJSONFileInto[BacklogItem](t, filepath.Join(rootDir, "ideas", "update-acceptance-test", "spec.json"))
 	if len(saved.AcceptanceAllow) != 1 || saved.AcceptanceAllow[0] != "scenarios/target/src/**" {
 		t.Errorf("expected saved acceptance_allow ['scenarios/target/src/**'], got %v", saved.AcceptanceAllow)
 	}
@@ -368,14 +367,14 @@ func TestUpdate_SpawnedFrom(t *testing.T) {
 	createTestItem(t, rootDir, KindExecute, newTestItem("update-sf-test", "Update SF Test"))
 
 	w := doUpdate(t, h, "execute", "update-sf-test", map[string]any{"spawned_from": "research/my-research"})
-	testutil.AssertStatusOK(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 200)
 
-	resp := testutil.DecodeJSON[backlogItemResponse](t, w)
+	resp := apihttptest.MustDecodeJSON[backlogItemResponse](t, w.Body.Bytes())
 	if resp.Item.SpawnedFrom != "research/my-research" {
 		t.Errorf("expected spawned_from 'research/my-research', got %q", resp.Item.SpawnedFrom)
 	}
 
-	saved := testutil.ReadJSONFile[BacklogItem](t, filepath.Join(rootDir, "execute", "update-sf-test", "spec.json"))
+	saved := repocontracttest.ReadJSONFileInto[BacklogItem](t, filepath.Join(rootDir, "execute", "update-sf-test", "spec.json"))
 	if saved.SpawnedFrom != "research/my-research" {
 		t.Errorf("expected saved spawned_from 'research/my-research', got %q", saved.SpawnedFrom)
 	}
@@ -393,9 +392,9 @@ func TestUpdate_PlanRef(t *testing.T) {
 			"role":     "execution_spec",
 		},
 	})
-	testutil.AssertStatusOK(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 200)
 
-	resp := testutil.DecodeJSON[backlogItemResponse](t, w)
+	resp := apihttptest.MustDecodeJSON[backlogItemResponse](t, w.Body.Bytes())
 	if resp.Item.PlanRef == nil {
 		t.Fatalf("expected response plan_ref")
 	}
@@ -403,7 +402,7 @@ func TestUpdate_PlanRef(t *testing.T) {
 		t.Fatalf("unexpected response plan_ref: %#v", resp.Item.PlanRef)
 	}
 
-	saved := testutil.ReadJSONFile[BacklogItem](t, filepath.Join(rootDir, "execute", "update-plan-ref-test", "spec.json"))
+	saved := repocontracttest.ReadJSONFileInto[BacklogItem](t, filepath.Join(rootDir, "execute", "update-plan-ref-test", "spec.json"))
 	if saved.PlanRef == nil {
 		t.Fatalf("expected saved plan_ref")
 	}

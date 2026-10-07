@@ -53,7 +53,6 @@ describe("CreateWorkFromPlanDialog", () => {
         name: "alpha",
         title: undefined,
         description: undefined,
-        mode: "holistic-loop",
       },
     }));
     expect(onImported).toHaveBeenCalledWith(expect.objectContaining({ slug: "alpha-plan" }));
@@ -94,7 +93,6 @@ describe("CreateWorkFromPlanDialog", () => {
         name: undefined,
         title: undefined,
         description: undefined,
-        mode: undefined,
       },
     }));
     expect(await screen.findByTestId("create-work-result-links")).toHaveTextContent("scratch-adopted-plan");

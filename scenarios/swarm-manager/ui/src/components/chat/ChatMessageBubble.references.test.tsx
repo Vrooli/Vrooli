@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import { ChatMessageBubble } from "./ChatMessageBubble";
 import type { ChatMessageView } from "./chat-types";
 import type { AgentSessionContextItem } from "../../types";
@@ -23,7 +24,7 @@ function message(content: string, context?: AgentSessionContextItem[]): ChatMess
 
 describe("ChatMessageBubble entity references", () => {
   it("renders a resolved reference as an anchor to its detail path", () => {
-    render(
+    renderWithCanonicalProviders(
       <ChatMessageBubble
         message={message("Start `goal:ship-cockpit` next.", [ctxItem({})])}
       />,
@@ -35,14 +36,14 @@ describe("ChatMessageBubble entity references", () => {
   });
 
   it("does not linkify a typed span that has no resolved context entry", () => {
-    render(<ChatMessageBubble message={message("Maybe `goal:ghost`.", [])} />);
+    renderWithCanonicalProviders(<ChatMessageBubble message={message("Maybe `goal:ghost`.", [])} />);
     expect(document.querySelector('a[data-entity-ref="true"]')).toBeNull();
     expect(document.querySelector("code")?.textContent).toBe("goal:ghost");
   });
 
   it("intercepts reference clicks for client-side navigation", () => {
     const onReferenceNavigate = vi.fn();
-    render(
+    renderWithCanonicalProviders(
       <ChatMessageBubble
         message={message("Open `goal:ship-cockpit`.", [ctxItem({})])}
         onReferenceNavigate={onReferenceNavigate}
@@ -54,7 +55,7 @@ describe("ChatMessageBubble entity references", () => {
   });
 
   it("maps backlog context items through the kind/name route", () => {
-    render(
+    renderWithCanonicalProviders(
       <ChatMessageBubble
         message={message("See `backlog:execute/wire-snapshot`.", [
           ctxItem({ type: "backlog_item", ref: "execute/wire-snapshot", nodeId: "backlog-item/execute/wire-snapshot" }),

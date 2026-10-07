@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import { ScenarioSummaryCard } from "./scenario-summary-card";
 import type { Scenario } from "../../types";
 
@@ -19,7 +20,7 @@ function makeScenario(overrides: Partial<Scenario> = {}): Scenario {
 
 describe("ScenarioSummaryCard", () => {
   it("renders the scenario summary as row content without its own button", () => {
-    render(<ScenarioSummaryCard scenario={makeScenario()} />);
+    renderWithCanonicalProviders(<ScenarioSummaryCard scenario={makeScenario()} />);
     expect(screen.getByText("API Server")).toBeInTheDocument();
     expect(screen.getByText("Backend REST API")).toBeInTheDocument();
     expect(screen.getByText("api-server")).toBeInTheDocument();
@@ -28,7 +29,7 @@ describe("ScenarioSummaryCard", () => {
   });
 
   it("falls back to the scenario name when there is no display name", () => {
-    render(<ScenarioSummaryCard scenario={makeScenario({ displayName: "" })} />);
+    renderWithCanonicalProviders(<ScenarioSummaryCard scenario={makeScenario({ displayName: "" })} />);
     expect(screen.getAllByText("api-server")).toHaveLength(2);
   });
 });

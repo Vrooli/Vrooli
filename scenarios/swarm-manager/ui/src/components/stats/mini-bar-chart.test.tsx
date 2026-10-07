@@ -1,4 +1,5 @@
-import { render } from "@testing-library/react";
+
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import { describe, expect, it } from "vitest";
 import { MiniBarChart } from "./mini-bar-chart";
 
@@ -10,7 +11,7 @@ const POINTS = [
 
 describe("MiniBarChart", () => {
   it("sizes the viewBox to a square-scaled pixel box (no aspect-ratio stretch)", () => {
-    const { container } = render(<MiniBarChart points={POINTS} testId="chart" />);
+    const { container } = renderWithCanonicalProviders(<MiniBarChart points={POINTS} testId="chart" />);
     const svg = container.querySelector("svg");
     expect(svg).not.toBeNull();
     // Height matches the requested pixel height, and the viewBox uses the same
@@ -22,7 +23,7 @@ describe("MiniBarChart", () => {
   });
 
   it("renders compact week-start x-axis labels", () => {
-    const { container } = render(<MiniBarChart points={POINTS} testId="chart" />);
+    const { container } = renderWithCanonicalProviders(<MiniBarChart points={POINTS} testId="chart" />);
     const texts = Array.from(container.querySelectorAll("text")).map((t) => t.textContent);
     // "M/D" labels derived from the ISO week-start dates.
     expect(texts).toContain("5/4");

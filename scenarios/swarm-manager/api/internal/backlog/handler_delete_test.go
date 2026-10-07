@@ -5,9 +5,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"swarm-manager/internal/testutil"
-
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/apihttptest"
 )
 
 func TestDelete_Idempotent(t *testing.T) {
@@ -30,14 +29,14 @@ func TestDelete_Idempotent(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	h.Delete(w, req)
-	testutil.AssertStatus(t, w, http.StatusNoContent)
+	apihttptest.AssertStatus(t, w.Result(), http.StatusNoContent)
 
 	req2 := httptest.NewRequest("DELETE", "/api/v1/backlog/idea/delete-test", nil)
 	req2 = mux.SetURLVars(req2, map[string]string{"kind": "idea", "name": "delete-test"})
 	w2 := httptest.NewRecorder()
 
 	h.Delete(w2, req2)
-	testutil.AssertStatus(t, w2, http.StatusNoContent)
+	apihttptest.AssertStatus(t, w2.Result(), http.StatusNoContent)
 }
 
 func TestDelete_CleansDependencyReferences(t *testing.T) {
@@ -98,7 +97,7 @@ func TestDelete_CleansDependencyReferences(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	h.Delete(w, req)
-	testutil.AssertStatus(t, w, http.StatusNoContent)
+	apihttptest.AssertStatus(t, w.Result(), http.StatusNoContent)
 
 	store := NewFileStore(rootDir)
 

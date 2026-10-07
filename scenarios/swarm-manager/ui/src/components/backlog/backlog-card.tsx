@@ -31,8 +31,8 @@ import { NoteIndicator } from "../ui/note-indicator";
 import { SnoozePopover } from "../command-post/SnoozePopover";
 import { snoozeKeyForBacklog } from "../../lib/snooze-utils";
 import { displayLimitsConfig } from "../../config";
-import { CardShell } from "@vrooli/react-component-library/CardShell/1.0.0";
-import type { RowSelection as CardSelection } from "@vrooli/react-component-library/CardShell/1.0.0";
+import { CardShell } from "@vrooli/react-component-library/CardShell/1.0.7";
+import type { RowSelection as CardSelection } from "@vrooli/react-component-library/CardShell/1.0.7";
 
 // All-off ItemActions used when the card renders without a sidebar action
 // context (i.e. the SessionContextPicker pick-mode path, which suppresses

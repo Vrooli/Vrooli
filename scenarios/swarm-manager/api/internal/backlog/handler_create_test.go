@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/vrooli/api-core/apihttptest"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -17,6 +18,7 @@ import (
 
 	"github.com/vrooli/api-core/provenance"
 	"github.com/vrooli/cli-core/cliutil"
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 )
 
 // [REQ:SWM-P0-001] backlog work intake: direct item creation
@@ -38,10 +40,9 @@ func TestCreate_Success(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	h.Create(w, req)
+	apihttptest.AssertStatus(t, w.Result(), 201)
 
-	testutil.AssertStatusCreated(t, w)
-
-	resp := testutil.DecodeJSON[backlogItemResponse](t, w)
+	resp := apihttptest.MustDecodeJSON[backlogItemResponse](t, w.Body.Bytes())
 	result := resp.Item
 
 	if result.Name != "new-test-idea" {
@@ -88,10 +89,9 @@ func TestCreate_StoresAgentProvenanceFromIdentityMiddleware(t *testing.T) {
 	}))(http.HandlerFunc(h.Create))
 
 	handler.ServeHTTP(w, req)
+	apihttptest.AssertStatus(t, w.Result(), 201)
 
-	testutil.AssertStatusCreated(t, w)
-
-	saved := testutil.ReadJSONFile[BacklogItem](t, filepath.Join(rootDir, "ideas", "agent-created-item", "spec.json"))
+	saved := repocontracttest.ReadJSONFileInto[BacklogItem](t, filepath.Join(rootDir, "ideas", "agent-created-item", "spec.json"))
 	if saved.CreatedBy == nil {
 		t.Fatal("expected created_by provenance")
 	}
@@ -116,8 +116,7 @@ func TestCreate_RejectsUnknownField(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	h.Create(w, req)
-
-	testutil.AssertStatusBadRequest(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 400)
 	if !strings.Contains(w.Body.String(), "invalid request body") {
 		t.Fatalf("expected invalid request body error, got: %s", w.Body.String())
 	}
@@ -138,8 +137,7 @@ func TestCreate_RejectsSuggestedStatusField(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	h.Create(w, req)
-
-	testutil.AssertStatusBadRequest(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 400)
 	testutil.AssertFileNotExists(t, filepath.Join(rootDir, "fix", "suggested-create", "spec.json"))
 }
 
@@ -165,9 +163,8 @@ func TestCreate_MultipartWithFiles(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	h.Create(w, req)
-
-	testutil.AssertStatusCreated(t, w)
-	resp := testutil.DecodeJSON[backlogItemResponse](t, w)
+	apihttptest.AssertStatus(t, w.Result(), 201)
+	resp := apihttptest.MustDecodeJSON[backlogItemResponse](t, w.Body.Bytes())
 	if resp.Item.Kind != KindFix {
 		t.Fatalf("kind = %q, want %q", resp.Item.Kind, KindFix)
 	}
@@ -207,8 +204,7 @@ func TestCreate_MultipartRejectsUnsafeFilePathAndRollsBack(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	h.Create(w, req)
-
-	testutil.AssertStatusBadRequest(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 400)
 	testutil.AssertFileNotExists(t, filepath.Join(rootDir, "fix", "unsafe-evidence"))
 }
 
@@ -247,8 +243,7 @@ func TestCreate_MultipartRejectsUnlistedFileAndRollsBack(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	h.Create(w, req)
-
-	testutil.AssertStatusBadRequest(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 400)
 	testutil.AssertFileNotExists(t, filepath.Join(rootDir, "fix", "unlisted-evidence"))
 }
 
@@ -345,15 +340,15 @@ func TestCreate_WithEffort(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	h.Create(w, req)
-	testutil.AssertStatusCreated(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 201)
 
-	resp := testutil.DecodeJSON[backlogItemResponse](t, w)
+	resp := apihttptest.MustDecodeJSON[backlogItemResponse](t, w.Body.Bytes())
 	if resp.Item.Effort != "L" {
 		t.Errorf("expected effort 'L', got %q", resp.Item.Effort)
 	}
 
 	// Verify persisted to disk.
-	saved := testutil.ReadJSONFile[BacklogItem](t, filepath.Join(rootDir, "ideas", "effort-test", "spec.json"))
+	saved := repocontracttest.ReadJSONFileInto[BacklogItem](t, filepath.Join(rootDir, "ideas", "effort-test", "spec.json"))
 	if saved.Effort != "L" {
 		t.Errorf("expected saved effort 'L', got %q", saved.Effort)
 	}
@@ -375,9 +370,9 @@ func TestCreate_EffortNormalizesCase(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	h.Create(w, req)
-	testutil.AssertStatusCreated(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 201)
 
-	resp := testutil.DecodeJSON[backlogItemResponse](t, w)
+	resp := apihttptest.MustDecodeJSON[backlogItemResponse](t, w.Body.Bytes())
 	if resp.Item.Effort != "XL" {
 		t.Errorf("expected effort 'XL', got %q", resp.Item.Effort)
 	}
@@ -399,7 +394,7 @@ func TestCreate_InvalidEffort(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	h.Create(w, req)
-	testutil.AssertStatusBadRequest(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 400)
 }
 
 func TestCreate_EffortOptional(t *testing.T) {
@@ -417,9 +412,9 @@ func TestCreate_EffortOptional(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	h.Create(w, req)
-	testutil.AssertStatusCreated(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 201)
 
-	resp := testutil.DecodeJSON[backlogItemResponse](t, w)
+	resp := apihttptest.MustDecodeJSON[backlogItemResponse](t, w.Body.Bytes())
 	if resp.Item.Effort != "" {
 		t.Errorf("expected empty effort, got %q", resp.Item.Effort)
 	}
@@ -442,9 +437,9 @@ func TestCreate_WithAcceptanceGlobs(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	h.Create(w, req)
-	testutil.AssertStatusCreated(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 201)
 
-	resp := testutil.DecodeJSON[backlogItemResponse](t, w)
+	resp := apihttptest.MustDecodeJSON[backlogItemResponse](t, w.Body.Bytes())
 	if len(resp.Item.AcceptanceAllow) != 2 {
 		t.Errorf("expected 2 allow globs, got %d", len(resp.Item.AcceptanceAllow))
 	}
@@ -452,7 +447,7 @@ func TestCreate_WithAcceptanceGlobs(t *testing.T) {
 		t.Errorf("expected 1 deny glob, got %d", len(resp.Item.AcceptanceDeny))
 	}
 
-	saved := testutil.ReadJSONFile[BacklogItem](t, filepath.Join(rootDir, "fix", "globs-test", "spec.json"))
+	saved := repocontracttest.ReadJSONFileInto[BacklogItem](t, filepath.Join(rootDir, "fix", "globs-test", "spec.json"))
 	if len(saved.AcceptanceAllow) != 2 {
 		t.Errorf("expected 2 saved allow globs, got %d", len(saved.AcceptanceAllow))
 	}
@@ -474,14 +469,14 @@ func TestCreate_WithSpawnedFrom(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	h.Create(w, req)
-	testutil.AssertStatusCreated(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 201)
 
-	resp := testutil.DecodeJSON[backlogItemResponse](t, w)
+	resp := apihttptest.MustDecodeJSON[backlogItemResponse](t, w.Body.Bytes())
 	if resp.Item.SpawnedFrom != "research/agent-identity-standard" {
 		t.Errorf("expected spawned_from 'research/agent-identity-standard', got %q", resp.Item.SpawnedFrom)
 	}
 
-	saved := testutil.ReadJSONFile[BacklogItem](t, filepath.Join(rootDir, "execute", "spawned-item", "spec.json"))
+	saved := repocontracttest.ReadJSONFileInto[BacklogItem](t, filepath.Join(rootDir, "execute", "spawned-item", "spec.json"))
 	if saved.SpawnedFrom != "research/agent-identity-standard" {
 		t.Errorf("expected saved spawned_from 'research/agent-identity-standard', got %q", saved.SpawnedFrom)
 	}

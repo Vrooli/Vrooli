@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../../test-utils/renderWithProviders";
 import { GraphActionLauncher } from "./GraphActionLauncher";
 // Menu entries are addressed through the shared label constants so that
 // rewording a launcher card does not silently break these tests.
@@ -13,7 +14,7 @@ describe("GraphActionLauncher", () => {
 	const onAuthorWorkflow = vi.fn();
     const onCreateFromPlan = vi.fn();
 
-    render(
+    renderWithCanonicalProviders(
       <GraphActionLauncher
         onQuickCapture={onQuickCapture}
         onPlanWork={onPlanWork}
@@ -52,7 +53,7 @@ describe("GraphActionLauncher", () => {
   });
 
   it("disables session actions while busy and shows launcher status outside the menu", () => {
-    render(
+    renderWithCanonicalProviders(
       <GraphActionLauncher
         isBusy
         status="Starting session..."
@@ -77,7 +78,7 @@ describe("GraphActionLauncher", () => {
   it("shows dismissible launcher errors outside the closed menu", () => {
     const onDismissError = vi.fn();
 
-    render(
+    renderWithCanonicalProviders(
       <GraphActionLauncher
         error="Unable to start session."
         onDismissError={onDismissError}
@@ -96,7 +97,7 @@ describe("GraphActionLauncher", () => {
   });
 
   it("closes on Escape", () => {
-    render(
+    renderWithCanonicalProviders(
       <GraphActionLauncher
         onQuickCapture={vi.fn()}
         onPlanWork={vi.fn()}

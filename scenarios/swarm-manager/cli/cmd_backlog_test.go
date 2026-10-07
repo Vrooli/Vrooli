@@ -14,9 +14,9 @@ func TestBacklogWritesPreserveReviewedExecutionContract(t *testing.T) {
 	for _, command := range []string{"create", "update"} {
 		t.Run(command, func(t *testing.T) {
 			payload := map[string]any{
-				"execution_strategy": "adaptive-improvement",
-				"execution_limits":   map[string]any{"max_slices": 128, "max_tokens": "12000000", "max_wall_seconds": "604800", "max_turns": 2000, "max_charge_micro_usd": "1500000000", "max_children": 1024, "max_node_attempts": 2048, "max_retries": 128},
-				"plan_ref":           map[string]any{"provider": "plan-manager", "plan_id": "plan-1", "slug": "approved-campaign", "role": "execution_spec"},
+				"execution_mode":   "goal",
+				"execution_limits": map[string]any{"max_slices": 128, "max_tokens": "12000000", "max_wall_seconds": "604800", "max_turns": 2000, "max_charge_micro_usd": "1500000000", "max_children": 1024, "max_node_attempts": 2048, "max_retries": 128},
+				"plan_ref":         map[string]any{"provider": "plan-manager", "plan_id": "plan-1", "slug": "approved-campaign", "role": "execution_spec"},
 			}
 			if command == "create" {
 				payload["kind"], payload["name"], payload["title"] = "execute", "approved-campaign", "Approved campaign"

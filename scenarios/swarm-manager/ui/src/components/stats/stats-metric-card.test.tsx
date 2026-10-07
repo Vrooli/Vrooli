@@ -7,13 +7,14 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import { StatsMetricCard } from "./stats-metric-card";
 import { InsufficientDataCard } from "./insufficient-data-card";
 
 describe("StatsMetricCard", () => {
   it("renders the value and sample size when sampleSize ≥ minSample", () => {
-    render(
+    renderWithCanonicalProviders(
       <StatsMetricCard
         label="Avg duration"
         value="4.2 min"
@@ -29,7 +30,7 @@ describe("StatsMetricCard", () => {
   });
 
   it("delegates to InsufficientDataCard when sampleSize is zero", () => {
-    render(
+    renderWithCanonicalProviders(
       <StatsMetricCard
         label="Avg duration"
         value="NEVER SHOWN"
@@ -44,7 +45,7 @@ describe("StatsMetricCard", () => {
   });
 
   it("delegates to InsufficientDataCard when sampleSize is below threshold", () => {
-    render(
+    renderWithCanonicalProviders(
       <StatsMetricCard
         label="Success rate"
         value="50%"
@@ -58,7 +59,7 @@ describe("StatsMetricCard", () => {
   });
 
   it("uses the provided reason verbatim when insufficient", () => {
-    render(
+    renderWithCanonicalProviders(
       <StatsMetricCard
         label="Avg duration"
         value="x"
@@ -73,7 +74,7 @@ describe("StatsMetricCard", () => {
 
 describe("InsufficientDataCard", () => {
   it("renders reason and 'have of required' when both provided", () => {
-    render(
+    renderWithCanonicalProviders(
       <InsufficientDataCard
         label="Lead time"
         reason="Need at least 5 completions."

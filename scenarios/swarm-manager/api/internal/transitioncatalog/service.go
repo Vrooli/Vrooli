@@ -43,10 +43,11 @@ type DeterministicDispatcher interface {
 type GateProjection func() (map[string]string, map[string]stats.KindRate)
 
 type Service struct {
-	registry       transitions.Registry
-	runner         Runner
-	deterministic  DeterministicDispatcher
-	gateProjection GateProjection
+	registry           transitions.Registry
+	runner             Runner
+	deterministic      DeterministicDispatcher
+	gateProjection     GateProjection
+	developmentPreview func(context.Context, *api.PreviewDevelopmentRequest) (*api.PreviewDevelopmentResponse, error)
 }
 
 func NewService(registry transitions.Registry, runner Runner, deterministic ...DeterministicDispatcher) *Service {
@@ -207,4 +208,24 @@ func kindProto(kind transitions.Kind) domain.TransitionKind {
 	default:
 		return domain.TransitionKind_TRANSITION_KIND_UNSPECIFIED
 	}
+}
+
+func RegisterRoutesWithDevelopmentPreview(router *mux.Router, registry transitions.Registry, runner Runner, projection GateProjection, preview func(context.Context, *api.PreviewDevelopmentRequest) (*api.PreviewDevelopmentResponse, error), deterministic ...DeterministicDispatcher) {
+	svc := NewServiceWithGateProjection(registry, runner, projection, deterministic...)
+	svc.developmentPreview = preview
+	path, handler := apiconnect.NewTransitionServiceHandler(svc)
+	connectx.RegisterServices(router, connectx.ServiceMount{Path: path, Handler: handler})
+}
+func (s *Service) PreviewDevelopment(ctx context.Context, request *connect.Request[api.PreviewDevelopmentRequest]) (*connect.Response[api.PreviewDevelopmentResponse], error) {
+	if request == nil || request.Msg == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("development preview is required"))
+	}
+	if s == nil || s.developmentPreview == nil {
+		return nil, connect.NewError(connect.CodeUnavailable, errors.New("governed development preview is not installed"))
+	}
+	out, err := s.developmentPreview(ctx, request.Msg)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(out), nil
 }

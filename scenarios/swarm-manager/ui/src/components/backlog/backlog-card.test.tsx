@@ -1,5 +1,6 @@
+import { renderWithProviders as render } from "../../test-utils/renderWithProviders";
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { BacklogCard } from "./backlog-card";
 import type { BacklogCardProps } from "./backlog-card";
@@ -152,7 +153,22 @@ describe("BacklogCard", () => {
       expect(screen.getByText("Pickable Item")).toBeInTheDocument();
       expect(screen.queryByTestId("backlog-card-actions")).not.toBeInTheDocument();
       expect(screen.queryByTestId("status-chip-trigger")).not.toBeInTheDocument();
-      expect(screen.getByTestId("session-context-row")).toHaveAttribute("aria-pressed", "false");
+      expect(screen.getByRole("checkbox")).not.toBeChecked();
+    });
+
+    it("does not toggle a capped row through its content or keyboard", async () => {
+      const onToggleSelect = vi.fn();
+      render(<BacklogCard item={makeItem()} selection={{
+        selectionMode: true, selected: false, disabled: true,
+        disabledReason: "Cap reached", onToggleSelect,
+      }} />);
+      const content = screen.getByText("Test Item");
+      const row = content.closest<HTMLElement>("[data-rcl-card-shell]");
+      expect(row).toHaveAttribute("aria-disabled", "true");
+      await userEvent.click(content);
+      row?.focus();
+      await userEvent.keyboard("{Enter} ");
+      expect(onToggleSelect).not.toHaveBeenCalled();
     });
 
     it("toggles on click and respects the disabled cap state", async () => {
@@ -163,7 +179,7 @@ describe("BacklogCard", () => {
           selection={{ selectionMode: true, selected: false, onToggleSelect }}
         />,
       );
-      await userEvent.click(screen.getByTestId("session-context-row"));
+      await userEvent.click(screen.getByRole("checkbox"));
       expect(onToggleSelect).toHaveBeenCalledTimes(1);
 
       rerender(
@@ -172,9 +188,9 @@ describe("BacklogCard", () => {
           selection={{ selectionMode: true, selected: false, disabled: true, disabledReason: "Cap reached", onToggleSelect }}
         />,
       );
-      const row = screen.getByTestId("session-context-row");
+      const row = screen.getByRole("checkbox");
       expect(row).toBeDisabled();
-      expect(row).toHaveAttribute("title", "Cap reached");
+      expect(screen.getByText("Cap reached")).toBeInTheDocument();
       await userEvent.click(row);
       expect(onToggleSelect).toHaveBeenCalledTimes(1);
     });

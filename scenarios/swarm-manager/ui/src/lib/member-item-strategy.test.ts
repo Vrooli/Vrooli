@@ -25,13 +25,13 @@ describe("member-item-strategy mapping module", () => {
       }
     });
 
-    it("passes genuine modes through untouched", () => {
+    it("classifies retained non-strategy records as legacy", () => {
       expect(resolveModePresentation("holistic-loop")).toEqual({
-        kind: "mode",
+        kind: "legacy",
         mode: "holistic-loop",
       });
       expect(resolveModePresentation("sliced")).toEqual({
-        kind: "mode",
+        kind: "legacy",
         mode: "sliced",
       });
     });
@@ -73,9 +73,9 @@ describe("member-item-strategy mapping module", () => {
       expect(presentModeLabel("holistic-loop", "Holistic Loop!")).toBe("Holistic Loop!");
     });
 
-    it("humanizes genuine mode ids without a server label", () => {
-      expect(presentModeLabel("sliced")).toBe("Phased Plan Drain");
-      expect(presentModeLabel("holistic_loop")).toBe("Holistic Loop");
+    it("preserves legacy wire ids when no server label is available", () => {
+      expect(presentModeLabel("sliced")).toBe("sliced");
+      expect(presentModeLabel("holistic_loop")).toBe("holistic_loop");
     });
   });
 

@@ -132,6 +132,10 @@ type ServiceConfig struct {
 
 // Service owns execution lifecycle logic.
 type Service struct {
+	// Ephemeral original caller proof for manual goal queue entries. Restart
+	// requires a new queue intent; durable records never contain credentials.
+	goalQueueCallers map[string]context.Context
+
 	dataRoot                 string
 	repoRoot                 string
 	selfScenarioName         string

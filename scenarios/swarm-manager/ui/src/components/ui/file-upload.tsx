@@ -252,9 +252,12 @@ export function FileUpload({
               )}
 
               {/* File name */}
-              <span className="flex-1 text-sm text-slate-300 truncate">
-                {upload.file.name}
-              </span>
+              <div className="min-w-0 flex-1">
+                <span className="block truncate text-sm text-slate-300">{upload.file.name}</span>
+                {upload.status === "error" && upload.error && (
+                  <p role="alert" className="mt-1 text-xs text-red-300">{upload.error}</p>
+                )}
+              </div>
 
               {/* File size */}
               <span className="text-xs text-slate-500">

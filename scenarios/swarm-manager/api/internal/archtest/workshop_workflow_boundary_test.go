@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 func TestPlanWorkshopServiceUsesWorkflowBoundaryOnly(t *testing.T) {
@@ -82,9 +83,21 @@ func TestPlanWorkshopReviewDefinitionStaysStructurallySmall(t *testing.T) {
 
 func swarmScenarioRoot(t *testing.T) string {
 	t.Helper()
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("resolve test source")
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
 	}
-	return filepath.Clean(filepath.Join(filepath.Dir(file), "..", "..", ".."))
+	root, err := repocontract.FindRepoRoot(cwd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	contract, err := repocontract.LoadDefault(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	scenario, err := contract.ScenarioRoot(root, "swarm-manager")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return scenario
 }

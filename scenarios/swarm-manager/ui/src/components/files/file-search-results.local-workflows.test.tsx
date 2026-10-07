@@ -1,0 +1,18 @@
+import { useState } from "react";
+import { cleanup,fireEvent,screen } from "@testing-library/react";
+import { renderWithProviders as render } from "../../test-utils";
+import { afterEach,beforeEach,describe,expect,it,vi } from "vitest";
+import { FileSearchInput,FileSearchResultsList,RecentFilesList } from "./file-search-results";
+import type { BacklogFile } from "../../types";
+import { defaultApiClient } from "../../lib/api-client";
+const files:BacklogFile[]=[{name:"Same name.md",path:"first/Same name.md",type:"file"},{name:"Same name.md",path:"second/Same name.md",type:"file"}];
+beforeEach(()=>{for(const method of ["get","post","put","patch","delete"] as const)vi.spyOn(defaultApiClient,method).mockRejectedValue(new Error("Forbidden local file search transport"));vi.stubGlobal("fetch",vi.fn().mockRejectedValue(new Error("Forbidden local file search fetch")));});
+afterEach(()=>{cleanup();try{for(const method of ["get","post","put","patch","delete"] as const)expect(defaultApiClient[method]).not.toHaveBeenCalled();expect(fetch).not.toHaveBeenCalled();}finally{vi.restoreAllMocks();vi.unstubAllGlobals();}});
+describe("local file search requests and exact selected references",()=>{
+ it("preserves typed search text then clears it through the same controlled owner",()=>{const changes=vi.fn();function Owner(){const [query,setQuery]=useState("");return <FileSearchInput fileSearch={query} onFileSearchChange={value=>{changes(value);setQuery(value);}}/>;}render(<Owner/>);expect(screen.queryByRole("button",{name:"Clear search"})).toBeNull();fireEvent.change(screen.getByRole("textbox",{name:"Search files"}),{target:{value:"  Original search  "}});expect(screen.getByRole("textbox",{name:"Search files"})).toHaveValue("  Original search  ");fireEvent.click(screen.getByRole("button",{name:"Clear search"}));expect(changes.mock.calls).toEqual([["  Original search  "],[""]]);expect(screen.queryByRole("button",{name:"Clear search"})).toBeNull();});
+ it("keeps a whitespace-only query free of a clear offer",()=>{const changes=vi.fn();render(<FileSearchInput fileSearch="  " onFileSearchChange={changes}/>);expect(screen.getByRole("textbox",{name:"Search files"})).toHaveValue("  ");expect(screen.queryByRole("button",{name:"Clear search"})).toBeNull();expect(changes).not.toHaveBeenCalled();});
+ it("selects the exact recent file despite identical display names",()=>{const select=vi.fn();render(<RecentFilesList recentFiles={files} onFileSelect={select}/>);fireEvent.click(screen.getAllByRole("button",{name:"Same name.md"})[1]!);expect(select.mock.calls).toEqual([[files[1]]]);});
+ it("does not offer a recent-file action for an empty list",()=>{const select=vi.fn();render(<RecentFilesList recentFiles={[]} onFileSelect={select}/>);expect(screen.queryByTestId("file-recent-list")).toBeNull();expect(select).not.toHaveBeenCalled();});
+ it("retains each match path and forwards the exact chosen file object",()=>{const select=vi.fn();render(<FileSearchResultsList searchResults={files} fileSearch="Same" onFileSelect={select}/>);fireEvent.click(screen.getByRole("button",{name:"Same name.md second/Same name.md"}));expect(select.mock.calls).toEqual([[files[1]]]);expect(screen.getByText("first/Same name.md")).toBeVisible();expect(screen.getByText("second/Same name.md")).toBeVisible();});
+ it("reports the exact trimmed unmatched query without a fabricated selection",()=>{const select=vi.fn();render(<FileSearchResultsList searchResults={[]} fileSearch="  <missing>  " onFileSelect={select}/>);expect(screen.getByText('No files match "<missing>".')).toBeVisible();expect(select).not.toHaveBeenCalled();expect(document.querySelector("missing")).toBeNull();});
+});

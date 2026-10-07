@@ -44,25 +44,9 @@ func NewMetricsHandler(cfg *config.Config, monitorSvc MonitorQuerier, log *slog.
 		monitorSvc: monitorSvc,
 		bridge: nodereach.New(nodereach.Config{
 			Token:         firstNonEmpty(os.Getenv("VROOLI_BRIDGE_API_TOKEN"), os.Getenv("VROOLI_API_TOKEN")),
-			TokenProvider: resolveLocalOwnerToken,
+			TokenProvider: operatorsession.LocalOwnerTokenProvider(),
 		}),
 	}
-}
-
-// resolveLocalOwnerToken lets an installed local Vrooli app use the enrolled
-// operator session without copying a long-lived Bridge credential into its
-// environment. The node client calls this only when no explicit compatibility
-// token is configured, and requests a fresh short-lived session per operation.
-func resolveLocalOwnerToken(_ context.Context) (string, error) {
-	store, err := operatorsession.DefaultFileStore()
-	if err != nil {
-		return "", nil
-	}
-	resolution, err := (operatorsession.LocalResolver{Store: store}).Resolve()
-	if err != nil || strings.TrimSpace(resolution.Token) == "" {
-		return "", nil
-	}
-	return operatorsession.LocalSessionScheme + " " + resolution.Token, nil
 }
 
 // GetCurrentMetrics handles the typed Connect-RPC metrics snapshot contract.

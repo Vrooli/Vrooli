@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/vrooli/api-core/apihttptest"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -13,6 +14,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/agentsessions"
 	"swarm-manager/internal/identity"
@@ -197,7 +199,7 @@ func TestBatchCreate_Success(t *testing.T) {
 	}
 
 	w := doBatchCreate(t, h, payload)
-	testutil.AssertStatusCreated(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 201)
 
 	var resp batchCreateResponse
 	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
@@ -251,8 +253,7 @@ func TestBatchCreate_StampsCreatedByFromRequestProvenance(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	h.BatchCreate(w, req)
-
-	testutil.AssertStatusCreated(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 201)
 	for _, tc := range []struct {
 		kind BacklogKind
 		dir  string
@@ -261,7 +262,7 @@ func TestBatchCreate_StampsCreatedByFromRequestProvenance(t *testing.T) {
 		{kind: KindIdea, dir: "ideas", name: "agent-batch-a"},
 		{kind: KindExecute, dir: "execute", name: "agent-batch-b"},
 	} {
-		saved := testutil.ReadJSONFile[BacklogItem](t, filepath.Join(rootDir, tc.dir, tc.name, "spec.json"))
+		saved := repocontracttest.ReadJSONFileInto[BacklogItem](t, filepath.Join(rootDir, tc.dir, tc.name, "spec.json"))
 		if saved.CreatedBy == nil {
 			t.Fatalf("%s/%s missing created_by", tc.kind, tc.name)
 		}
@@ -311,8 +312,7 @@ func TestBatchCreate_SessionProvenanceRecordsItemAndMilestoneArtifacts(t *testin
 	w := httptest.NewRecorder()
 
 	h.BatchCreate(w, req)
-
-	testutil.AssertStatusCreated(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 201)
 	if len(recorder.artifacts) != 3 {
 		t.Fatalf("artifacts = %d, want 3: %+v", len(recorder.artifacts), recorder.artifacts)
 	}
@@ -373,7 +373,7 @@ func TestApplyAgentSessionBacklogBatchImportCreatesItemsAndArtifacts(t *testing.
 		{kind: KindIdea, dir: "ideas", name: "session-apply-a"},
 		{kind: KindExecute, dir: "execute", name: "session-apply-b"},
 	} {
-		saved := testutil.ReadJSONFile[BacklogItem](t, filepath.Join(rootDir, tc.dir, tc.name, "spec.json"))
+		saved := repocontracttest.ReadJSONFileInto[BacklogItem](t, filepath.Join(rootDir, tc.dir, tc.name, "spec.json"))
 		if saved.CreatedBy == nil || saved.CreatedBy.SessionID != "sess_apply" || saved.CreatedBy.RunID != "run-session-apply" {
 			t.Fatalf("%s/%s created_by = %+v", tc.kind, tc.name, saved.CreatedBy)
 		}
@@ -437,7 +437,7 @@ func TestBatchCreate_WithMilestone(t *testing.T) {
 	}
 
 	w := doBatchCreate(t, h, payload)
-	testutil.AssertStatusCreated(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 201)
 
 	var resp batchCreateResponse
 	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
@@ -471,7 +471,7 @@ func TestBatchCreate_EmptyBatch(t *testing.T) {
 	}
 
 	w := doBatchCreate(t, h, payload)
-	testutil.AssertStatusBadRequest(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 400)
 }
 
 func TestBatchCreate_RejectsUnknownField(t *testing.T) {
@@ -491,8 +491,7 @@ func TestBatchCreate_RejectsUnknownField(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	h.BatchCreate(w, req)
-
-	testutil.AssertStatusBadRequest(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 400)
 	if !strings.Contains(w.Body.String(), `unknown field "scope"`) {
 		t.Fatalf("expected unknown scope field error, got: %s", w.Body.String())
 	}
@@ -513,7 +512,7 @@ func TestBatchCreate_DuplicateNameInBatch(t *testing.T) {
 	}
 
 	w := doBatchCreate(t, h, payload)
-	testutil.AssertStatusBadRequest(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 400)
 
 	// Verify no items were created (all-or-nothing).
 	testutil.AssertFileNotExists(t, filepath.Join(rootDir, "ideas", "same-item", "spec.json"))
@@ -530,7 +529,7 @@ func TestBatchCreate_InvalidItem_RollsBackAll(t *testing.T) {
 	}
 
 	w := doBatchCreate(t, h, payload)
-	testutil.AssertStatusBadRequest(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 400)
 
 	// Verify no items were created.
 	testutil.AssertFileNotExists(t, filepath.Join(rootDir, "ideas", "valid-item", "spec.json"))
@@ -556,7 +555,7 @@ func TestBatchCreate_CycleDetection(t *testing.T) {
 	}
 
 	w := doBatchCreate(t, h, payload)
-	testutil.AssertStatusBadRequest(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 400)
 
 	body := w.Body.String()
 	if !contains(body, "cycle") {
@@ -580,7 +579,7 @@ func TestBatchCreate_WithIntraBatchDependencies(t *testing.T) {
 	}
 
 	w := doBatchCreate(t, h, payload)
-	testutil.AssertStatusCreated(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 201)
 
 	testutil.AssertFileExists(t, filepath.Join(rootDir, "ideas", "item-a", "spec.json"))
 	testutil.AssertFileExists(t, filepath.Join(rootDir, "ideas", "item-b", "spec.json"))
@@ -596,7 +595,7 @@ func TestBatchCreate_DependencyOnNonexistent(t *testing.T) {
 	}
 
 	w := doBatchCreate(t, h, payload)
-	testutil.AssertStatusBadRequest(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 400)
 
 	body := w.Body.String()
 	if !contains(body, "does not exist") {
@@ -621,7 +620,7 @@ func TestBatchCreate_ConflictWithExisting(t *testing.T) {
 	}
 
 	w := doBatchCreate(t, h, payload)
-	testutil.AssertStatus(t, w, http.StatusConflict)
+	apihttptest.AssertStatus(t, w.Result(), http.StatusConflict)
 }
 
 func TestBatchCreate_InvalidKind(t *testing.T) {
@@ -634,7 +633,7 @@ func TestBatchCreate_InvalidKind(t *testing.T) {
 	}
 
 	w := doBatchCreate(t, h, payload)
-	testutil.AssertStatusBadRequest(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 400)
 }
 
 func TestBatchCreate_PriorityValidation(t *testing.T) {
@@ -648,7 +647,7 @@ func TestBatchCreate_PriorityValidation(t *testing.T) {
 	}
 
 	w := doBatchCreate(t, h, payload)
-	testutil.AssertStatusBadRequest(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 400)
 }
 
 // failingSaveStore wraps a FileStore but returns an error on the Nth SaveItem call.
@@ -685,7 +684,7 @@ func TestBatchCreate_SaveFailure_RollsBack(t *testing.T) {
 	}
 
 	w := doBatchCreate(t, h, payload)
-	testutil.AssertStatus(t, w, http.StatusInternalServerError)
+	apihttptest.AssertStatus(t, w.Result(), http.StatusInternalServerError)
 
 	// Verify rollback: both item directories should be cleaned up.
 	okDir := filepath.Join(rootDir, "ideas", "item-ok")
@@ -713,7 +712,7 @@ func TestBatchCreate_ExceedsMaxBatchSize(t *testing.T) {
 
 	payload := batchCreateRequest{Items: items}
 	w := doBatchCreate(t, h, payload)
-	testutil.AssertStatusBadRequest(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 400)
 }
 
 func contains(s, substr string) bool {
@@ -744,7 +743,7 @@ func TestBatchCreate_MilestoneAddItemsFails_RollsBackEverything(t *testing.T) {
 	}
 
 	w := doBatchCreate(t, h, payload)
-	testutil.AssertStatus(t, w, http.StatusInternalServerError)
+	apihttptest.AssertStatus(t, w.Result(), http.StatusInternalServerError)
 	testutil.AssertFileNotExists(t, filepath.Join(rootDir, "ideas", "widget-a", "spec.json"))
 	testutil.AssertFileNotExists(t, filepath.Join(rootDir, "fix", "widget-b", "spec.json"))
 	if _, ok := ia.snapshots["my-init"]; ok {
@@ -766,7 +765,7 @@ func TestBatchCreate_MilestoneCreateFails_Returns500(t *testing.T) {
 	}
 
 	w := doBatchCreate(t, h, payload)
-	testutil.AssertStatus(t, w, http.StatusInternalServerError)
+	apihttptest.AssertStatus(t, w.Result(), http.StatusInternalServerError)
 
 	// Item should NOT be on disk — milestone creation fails before item creation.
 	testutil.AssertFileNotExists(t, filepath.Join(rootDir, "ideas", "orphan-item", "spec.json"))
@@ -786,9 +785,9 @@ func TestBatchCreate_PreviewDoesNotMutateDiskOrMilestones(t *testing.T) {
 	}
 
 	w := doBatchCreate(t, h, payload)
-	testutil.AssertStatusOK(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 200)
 
-	resp := testutil.DecodeJSON[batchCreateResponse](t, w)
+	resp := apihttptest.MustDecodeJSON[batchCreateResponse](t, w.Body.Bytes())
 	if !resp.Preview {
 		t.Fatal("expected preview response")
 	}
@@ -818,7 +817,7 @@ func TestBatchCreate_DependencyValidation_ExistingAndBatch(t *testing.T) {
 	}
 
 	w := doBatchCreate(t, h, payload)
-	testutil.AssertStatusCreated(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 201)
 
 	// Verify both items exist with correct dependencies.
 	testutil.AssertFileExists(t, filepath.Join(rootDir, "ideas", "item-b", "spec.json"))
@@ -832,7 +831,7 @@ func TestBatchCreate_DependencyValidation_ExistingAndBatch(t *testing.T) {
 	}
 
 	w2 := doBatchCreate(t, h, payload2)
-	testutil.AssertStatusBadRequest(t, w2)
+	apihttptest.AssertStatus(t, w2.Result(), 400)
 
 	body := w2.Body.String()
 	if !contains(body, "does not exist") {
@@ -853,9 +852,9 @@ func TestBatchCreate_WithEffort(t *testing.T) {
 	}
 
 	w := doBatchCreate(t, h, payload)
-	testutil.AssertStatusCreated(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 201)
 
-	resp := testutil.DecodeJSON[batchCreateResponse](t, w)
+	resp := apihttptest.MustDecodeJSON[batchCreateResponse](t, w.Body.Bytes())
 	if len(resp.Items) != 2 {
 		t.Fatalf("expected 2 items, got %d", len(resp.Items))
 	}
@@ -878,7 +877,7 @@ func TestBatchCreate_InvalidEffort(t *testing.T) {
 	}
 
 	w := doBatchCreate(t, h, payload)
-	testutil.AssertStatusBadRequest(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 400)
 
 	body := w.Body.String()
 	if !contains(body, "effort must be") {
@@ -896,9 +895,9 @@ func TestBatchCreate_EffortOptional(t *testing.T) {
 	}
 
 	w := doBatchCreate(t, h, payload)
-	testutil.AssertStatusCreated(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 201)
 
-	resp := testutil.DecodeJSON[batchCreateResponse](t, w)
+	resp := apihttptest.MustDecodeJSON[batchCreateResponse](t, w.Body.Bytes())
 	if resp.Items[0].Effort != "" {
 		t.Errorf("expected empty effort, got %q", resp.Items[0].Effort)
 	}
@@ -916,7 +915,7 @@ func TestBatchCreate_PersistsSpawnedFromAndLinearChain(t *testing.T) {
 	}
 
 	w := doBatchCreate(t, h, payload)
-	testutil.AssertStatusCreated(t, w)
+	apihttptest.AssertStatus(t, w.Result(), 201)
 
 	var resp batchCreateResponse
 	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {

@@ -1,4 +1,5 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { Tooltip } from "./tooltip";
@@ -7,7 +8,7 @@ describe("Tooltip", () => {
   it("shows on hover after a delay and hides on mouse leave", async () => {
     const user = userEvent.setup();
 
-    render(
+    renderWithCanonicalProviders(
       <Tooltip content="Helpful context" delayMs={0} testId="tooltip">
         <button type="button">Hover me</button>
       </Tooltip>,
@@ -23,7 +24,7 @@ describe("Tooltip", () => {
   it("shows on focus and hides on Escape", async () => {
     const user = userEvent.setup();
 
-    render(
+    renderWithCanonicalProviders(
       <Tooltip content="Keyboard context" delayMs={0}>
         <button type="button">Focus me</button>
       </Tooltip>,

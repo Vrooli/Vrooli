@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useActionMutation } from "../../hooks/useActionMutation";
 import { CheckCircle2, ChevronDown, FileSearch, GitPullRequestArrow, ListChecks, MessageSquarePlus, RefreshCw, XCircle } from "lucide-react";
@@ -48,6 +48,8 @@ export function ProposalSessionsPanel({ target }: ProposalSessionsPanelProps) {
   const [selectedCards, setSelectedCards] = useState<Set<string>>(new Set());
   const [batchNote, setBatchNote] = useState("");
   const [batchPending, setBatchPending] = useState(false);
+  const batchInFlight = useRef(false);
+  const [batchIssue, setBatchIssue] = useState<string | null>(null);
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [startSheetOpen, setStartSheetOpen] = useState(false);
   const { data: sessions = [], isLoading, error } = useQuery({
@@ -98,15 +100,23 @@ export function ProposalSessionsPanel({ target }: ProposalSessionsPanelProps) {
     setSelectionMode((current) => !current);
     setSelectedCards(new Set());
     setBatchNote("");
+    setBatchIssue(null);
   };
 
+  const canBatchDecide = batchableProposals.some(({ proposal }) => selectedCards.has(proposal.id) && isDecidable(proposal.status));
+  const canBatchRevise = batchableProposals.some(({ proposal }) => selectedCards.has(proposal.id) && isRevisable(proposal.status));
   const batch = async (action: "apply" | "reject" | "revise") => {
+    if (batchInFlight.current) return;
     const cards = batchableProposals.filter(({ proposal }) => selectedCards.has(proposal.id)
       && (action === "revise" ? isRevisable(proposal.status) : isDecidable(proposal.status)));
     if (cards.length === 0) return;
+    batchInFlight.current = true;
     setBatchPending(true);
+    setBatchIssue(null);
     try {
-      await Promise.all(cards.map(({ session, proposal }) => action === "revise"
+      // A failed response can follow a committed decision or a failed follow-up
+      // read. Drain every request and reconcile before offering another action.
+      const results = await Promise.allSettled(cards.map(async ({ session, proposal }) => action === "revise"
         ? proposalSessionService.revise(session.id, proposal.id, batchNote)
         : proposalSessionService.decide(
           session.id,
@@ -114,10 +124,20 @@ export function ProposalSessionsPanel({ target }: ProposalSessionsPanelProps) {
           action === "apply" ? proposalMutations(proposal.payload_json).map((mutation) => mutation.id) : [],
           batchNote,
         )));
-      setSelectedCards(new Set());
-      setBatchNote("");
-      invalidate();
+      const completed = new Set(cards.filter((_card, index) => results[index]?.status === "fulfilled").map(({ proposal }) => proposal.id));
+      const failed = cards.length - completed.size;
+      // Preserve the prior full-success cleanup, including ineligible cards that
+      // never received a request. Partial failure retains every unresolved card.
+      setSelectedCards((current) => failed === 0 ? new Set() : new Set([...current].filter((id) => !completed.has(id))));
+      if (failed === 0) setBatchNote("");
+      else setBatchIssue(`${completed.size} of ${cards.length} proposal requests returned successfully. ${failed} did not return successfully; some changes may already have been saved. Review the current proposal state before trying again.`);
+      try {
+        await queryClient.invalidateQueries({ queryKey }, { throwOnError: true });
+      } catch {
+        setBatchIssue((current) => `${current ? `${current} ` : ""}Couldn't refresh the proposals. Current effects remain uncertain; review the owner state before trying again.`);
+      }
     } finally {
+      batchInFlight.current = false;
       setBatchPending(false);
     }
   };
@@ -135,7 +155,7 @@ export function ProposalSessionsPanel({ target }: ProposalSessionsPanelProps) {
         </h2>
         <div className="flex flex-wrap gap-2">
           {batchableProposals.length > 1 && (
-            <Button size="sm" variant={selectionMode ? "default" : "outline"} onClick={toggleSelectionMode}>
+            <Button size="sm" variant={selectionMode ? "default" : "outline"} disabled={batchPending} onClick={toggleSelectionMode}>
               <ListChecks className="mr-2 h-4 w-4" />
               {selectionMode ? "Done selecting" : "Select proposals"}
             </Button>
@@ -156,15 +176,16 @@ export function ProposalSessionsPanel({ target }: ProposalSessionsPanelProps) {
               <p className="text-xs text-slate-400">Apply the same decision and note to every selected proposal.</p>
             </div>
           </div>
-          <input value={batchNote} onChange={(event) => setBatchNote(event.target.value)} placeholder="Shared decision note (optional)" className="mt-3 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm" />
+          <input value={batchNote} disabled={batchPending} onChange={(event) => setBatchNote(event.target.value)} placeholder="Shared decision note (optional)" className="mt-3 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm" />
           <div className="mt-3 flex flex-wrap gap-2">
-            <Button size="sm" disabled={batchPending} onClick={() => void batch("apply")}><CheckCircle2 className="mr-2 h-4 w-4" />Apply selected</Button>
-            <Button size="sm" variant="outline" disabled={batchPending} onClick={() => void batch("reject")}><XCircle className="mr-2 h-4 w-4" />Reject selected</Button>
-            <Button size="sm" variant="outline" disabled={batchPending} onClick={() => void batch("revise")}><RefreshCw className="mr-2 h-4 w-4" />Request revisions</Button>
+            <Button size="sm" disabled={batchPending || !canBatchDecide} onClick={() => void batch("apply")}><CheckCircle2 className="mr-2 h-4 w-4" />Apply selected</Button>
+            <Button size="sm" variant="outline" disabled={batchPending || !canBatchDecide} onClick={() => void batch("reject")}><XCircle className="mr-2 h-4 w-4" />Reject selected</Button>
+            <Button size="sm" variant="outline" disabled={batchPending || !canBatchRevise} onClick={() => void batch("revise")}><RefreshCw className="mr-2 h-4 w-4" />Request revisions</Button>
           </div>
         </div>
       )}
 
+      {batchIssue && <p role="alert" className="rounded-md border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{batchIssue}</p>}
       {target && <EntityAttachToSessionSheet isOpen={startSheetOpen} onClose={() => setStartSheetOpen(false)} option={{ type: target.type, ref: target.ref, title: target.name }} proposalMode />}
       {error && <p className="rounded-md border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error instanceof Error ? error.message : "Unable to load proposals."}</p>}
       {isLoading ? <p className="py-8 text-sm text-slate-500">Loading proposals…</p> : proposals.length === 0 ? (
@@ -189,6 +210,7 @@ export function ProposalSessionsPanel({ target }: ProposalSessionsPanelProps) {
                   aria-label={`Select ${proposal.summary || "proposal"}`}
                   className="mt-1.5 h-4 w-4 shrink-0 accent-violet-400"
                   checked={selected}
+                  disabled={batchPending}
                   onChange={(event) => setSelectedCards((current) => {
                     const next = new Set(current);
                     if (event.target.checked) next.add(proposal.id); else next.delete(proposal.id);

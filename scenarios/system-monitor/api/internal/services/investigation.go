@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/vrooli/api-core/owneridentity"
 	"log/slog"
 	"os"
 	"sort"
@@ -124,6 +125,9 @@ func (s *InvestigationService) initializeAgentProfile() {
 
 // TriggerInvestigation starts a new investigation
 func (s *InvestigationService) TriggerInvestigation(ctx context.Context, autoFix bool, note string) (*models.Investigation, error) {
+	if err := owneridentity.RequireCreateRunCaller(ctx, time.Now()); err != nil {
+		return nil, err
+	}
 	if s.agentSvc == nil || !s.agentSvc.IsEnabled() {
 		return nil, apierrors.Unavailable("agent-manager")
 	}
@@ -144,6 +148,10 @@ func (s *InvestigationService) TriggerInvestigation(ctx context.Context, autoFix
 		}
 	}
 
+	workerCtx, authErr := owneridentity.CarryCreateRunCaller(ctx, s.shutdownCtx, time.Now())
+	if authErr != nil {
+		return nil, authErr
+	}
 	now := s.clock.Now()
 
 	// Generate investigation ID
@@ -183,7 +191,7 @@ func (s *InvestigationService) TriggerInvestigation(ctx context.Context, autoFix
 	// The worker is bound to the service shutdown context (passed in) so it is
 	// cancelled cleanly on drain; runInvestigation derives its deadline from the
 	// same s.shutdownCtx.
-	go func(_ context.Context) {
+	go func(callerCtx context.Context) {
 		defer func() {
 			if r := recover(); r != nil {
 				s.log.Error("investigation panicked", "investigation_id", investigationID, "panic", r)
@@ -195,8 +203,8 @@ func (s *InvestigationService) TriggerInvestigation(ctx context.Context, autoFix
 					fmt.Sprintf("Investigation failed due to internal error: %v", r), nil)
 			}
 		}()
-		s.runInvestigation(investigationID, autoFix, note)
-	}(s.shutdownCtx)
+		s.runInvestigation(investigationID, autoFix, note, callerCtx)
+	}(workerCtx)
 
 	return investigation, nil
 }
@@ -327,8 +335,12 @@ func (s *InvestigationService) AddInvestigationStep(ctx context.Context, id stri
 }
 
 // runInvestigation performs the actual investigation
-func (s *InvestigationService) runInvestigation(investigationID string, autoFix bool, note string) {
-	ctx, cancel := context.WithTimeout(s.shutdownCtx, 10*time.Minute)
+func (s *InvestigationService) runInvestigation(investigationID string, autoFix bool, note string, callers ...context.Context) {
+	parent := s.shutdownCtx
+	if len(callers) == 1 {
+		parent = callers[0]
+	}
+	ctx, cancel := context.WithTimeout(parent, 10*time.Minute)
 
 	// Update status to in_progress
 	if err := s.UpdateInvestigationStatus(ctx, investigationID, models.StatusInProgress); err != nil {
@@ -352,7 +364,7 @@ func (s *InvestigationService) runInvestigation(investigationID string, autoFix 
 	timestamp := s.clock.Now().Format(time.RFC3339)
 
 	// Execute investigation via agent-manager
-	findings, details, ok := s.performInvestigation(investigationID, cpuUsage, memoryUsage, tcpConnections, timestamp, autoFix, note)
+	findings, details, ok := s.performInvestigation(investigationID, cpuUsage, memoryUsage, tcpConnections, timestamp, autoFix, note, ctx)
 
 	// Cancel the long-running context and create a fresh one for final updates
 	cancel()
@@ -385,7 +397,7 @@ func (s *InvestigationService) runInvestigation(investigationID string, autoFix 
 }
 
 // performInvestigation executes the investigation logic via agent-manager.
-func (s *InvestigationService) performInvestigation(investigationID string, cpuUsage, memoryUsage float64, tcpConnections int, timestamp string, autoFix bool, note string) (string, map[string]interface{}, bool) {
+func (s *InvestigationService) performInvestigation(investigationID string, cpuUsage, memoryUsage float64, tcpConnections int, timestamp string, autoFix bool, note string, callers ...context.Context) (string, map[string]interface{}, bool) {
 	operationMode := "report-only"
 	if autoFix {
 		operationMode = "auto-fix"
@@ -400,7 +412,11 @@ func (s *InvestigationService) performInvestigation(investigationID string, cpuU
 		}, false
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	parent := s.shutdownCtx
+	if len(callers) == 1 {
+		parent = callers[0]
+	}
+	ctx, cancel := context.WithTimeout(parent, 10*time.Minute)
 	defer cancel()
 
 	if !s.agentSvc.IsAvailable(ctx) {

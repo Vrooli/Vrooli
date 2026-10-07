@@ -99,6 +99,26 @@ func TestWriteHTMLBundle_IncludesAssetsAndIndex(t *testing.T) {
 	if !strings.Contains(string(indexHTML), "Demo Flow") {
 		t.Fatalf("expected workflow name in index.html payload")
 	}
+	if !strings.Contains(string(indexHTML), `window.__BAS_EXPORT_BOOTSTRAP__`) ||
+		!strings.Contains(string(indexHTML), `assets/shot-1.png`) {
+		t.Fatalf("expected ReplaySpec bootstrap to point at the bundled screenshot")
+	}
+	if got := spec.GetAssets()[0].GetSource(); got != "/api/v1/screenshots/"+objectNames[0] {
+		t.Fatalf("HTML packaging mutated the saved replay spec asset source: %q", got)
+	}
+	if _, ok := files["export/composer.js"]; !ok {
+		t.Fatalf("built ReplayExportPage entry missing from HTML bundle")
+	}
+	hasReplayPlayer := false
+	for name := range files {
+		if strings.HasPrefix(name, "assets/ReplayPlayer-") && strings.HasSuffix(name, ".js") {
+			hasReplayPlayer = true
+			break
+		}
+	}
+	if !hasReplayPlayer {
+		t.Fatalf("ReplayPlayer chunk missing from HTML bundle")
+	}
 
 	readme, ok := files["README.txt"]
 	if !ok || len(readme) == 0 {

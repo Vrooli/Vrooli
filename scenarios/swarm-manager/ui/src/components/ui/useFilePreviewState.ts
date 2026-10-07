@@ -137,10 +137,11 @@ export function useFilePreviewState({
     },
   });
 
-  // Reset save mutation state on file change
+  // Reset only when the selected file changes, preserving pending/error state.
+  const { reset: resetSaveMutation } = saveMutation;
   useEffect(() => {
-    saveMutation.reset();
-  }, [filePath, saveMutation]);
+    resetSaveMutation();
+  }, [filePath, resetSaveMutation]);
 
   const isSaving = saveMutation.isPending;
   const saveErrorMessage = saveMutation.errorDescription?.message ?? "";

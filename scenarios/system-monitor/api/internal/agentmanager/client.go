@@ -11,6 +11,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/vrooli/api-core/owneridentity"
 	"io"
 	"net/http"
 	"time"
@@ -25,8 +26,9 @@ import (
 
 // Client is an HTTP client for the agent-manager API.
 type Client struct {
-	httpClient *http.Client
-	jsonOpts   protojson.MarshalOptions
+	baseURLResolver func(context.Context) (string, error)
+	httpClient      *http.Client
+	jsonOpts        protojson.MarshalOptions
 }
 
 // NewClient creates a new agent-manager client.
@@ -134,9 +136,12 @@ func (c *Client) GetTask(ctx context.Context, taskID string) (*domainpb.Task, er
 
 // CreateRun starts a new run for a task.
 func (c *Client) CreateRun(ctx context.Context, req *apipb.CreateRunRequest) (*domainpb.Run, error) {
+	if err := owneridentity.RequireCreateRunCaller(ctx, time.Now()); err != nil {
+		return nil, err
+	}
 	var result apipb.CreateRunResponse
 	if err := c.createResource(ctx, "/api/v1/runs", req, &result); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%s", owneridentity.RedactCreateRunCaller(ctx, err.Error()))
 	}
 	return result.Run, nil
 }
@@ -391,10 +396,22 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body []byte
 	}
 	req.Header.Set("Accept", "application/json")
 
-	return c.httpClient.Do(req)
+	client := *c.httpClient
+	if method == http.MethodPost && path == "/api/v1/runs" {
+		auth, err := owneridentity.CreateRunAuthorization(ctx, time.Now())
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Authorization", auth)
+		client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	}
+	return client.Do(req)
 }
 
 func (c *Client) resolveBaseURL(ctx context.Context) (string, error) {
+	if c.baseURLResolver != nil {
+		return c.baseURLResolver(ctx)
+	}
 	url, err := discovery.ResolveScenarioURLDefault(ctx, "agent-manager")
 	if err != nil {
 		return "", fmt.Errorf("resolve agent-manager url: %w", err)

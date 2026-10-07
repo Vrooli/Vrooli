@@ -40,7 +40,7 @@ func TestCooldownEnforced(t *testing.T) {
 	ctx := context.Background()
 
 	// First trigger should succeed
-	inv, err := svc.TriggerInvestigation(ctx, false, "")
+	inv, err := svc.TriggerInvestigation(auth01FixtureCaller(t, ctx), false, "")
 	if err != nil {
 		t.Fatalf("first trigger failed: %v", err)
 	}
@@ -52,7 +52,7 @@ func TestCooldownEnforced(t *testing.T) {
 	clk.Advance(3 * time.Minute)
 
 	// Second trigger should fail due to cooldown
-	_, err = svc.TriggerInvestigation(ctx, false, "")
+	_, err = svc.TriggerInvestigation(auth01FixtureCaller(t, ctx), false, "")
 	if err == nil {
 		t.Fatal("expected cooldown error, got nil")
 	}
@@ -64,7 +64,7 @@ func TestCooldownEnforced(t *testing.T) {
 	clk.Advance(3 * time.Minute) // total 6 min > 5 min cooldown
 
 	// Third trigger should succeed
-	inv2, err := svc.TriggerInvestigation(ctx, false, "")
+	inv2, err := svc.TriggerInvestigation(auth01FixtureCaller(t, ctx), false, "")
 	if err != nil {
 		t.Fatalf("third trigger (post-cooldown) failed: %v", err)
 	}
@@ -80,7 +80,7 @@ func TestCooldownReset(t *testing.T) {
 	ctx := context.Background()
 
 	// Trigger to start cooldown
-	_, err := svc.TriggerInvestigation(ctx, false, "")
+	_, err := svc.TriggerInvestigation(auth01FixtureCaller(t, ctx), false, "")
 	if err != nil {
 		t.Fatalf("first trigger failed: %v", err)
 	}
@@ -94,7 +94,7 @@ func TestCooldownReset(t *testing.T) {
 	}
 
 	// Should be able to trigger immediately
-	inv, err := svc.TriggerInvestigation(ctx, false, "")
+	inv, err := svc.TriggerInvestigation(auth01FixtureCaller(t, ctx), false, "")
 	if err != nil {
 		t.Fatalf("trigger after reset failed: %v", err)
 	}
@@ -109,7 +109,7 @@ func TestInvestigationIDDeterministic(t *testing.T) {
 	svc := newTestInvestigationService(t, clk)
 
 	ctx := context.Background()
-	inv, err := svc.TriggerInvestigation(ctx, false, "")
+	inv, err := svc.TriggerInvestigation(auth01FixtureCaller(t, ctx), false, "")
 	if err != nil {
 		t.Fatalf("trigger failed: %v", err)
 	}
@@ -142,7 +142,7 @@ func TestCooldownStatus(t *testing.T) {
 	}
 
 	// Trigger
-	_, _ = svc.TriggerInvestigation(ctx, false, "")
+	_, _ = svc.TriggerInvestigation(auth01FixtureCaller(t, ctx), false, "")
 
 	// Advance 2 minutes
 	clk.Advance(2 * time.Minute)
@@ -251,7 +251,7 @@ func TestPanicRecovery_MarksInvestigationFailed(t *testing.T) {
 
 	svc := NewInvestigationService(cfg, repo, nil, agent, WithInvestigationClock(clk))
 
-	inv, err := svc.TriggerInvestigation(context.Background(), false, "")
+	inv, err := svc.TriggerInvestigation(auth01FixtureCaller(t, context.Background()), false, "")
 	if err != nil {
 		t.Fatalf("trigger failed: %v", err)
 	}
@@ -285,7 +285,7 @@ func TestExecuteError_MarksInvestigationFailed(t *testing.T) {
 
 	svc := NewInvestigationService(cfg, repo, nil, agent, WithInvestigationClock(clk))
 
-	inv, err := svc.TriggerInvestigation(context.Background(), false, "")
+	inv, err := svc.TriggerInvestigation(auth01FixtureCaller(t, context.Background()), false, "")
 	if err != nil {
 		t.Fatalf("trigger failed: %v", err)
 	}
@@ -341,7 +341,7 @@ func TestAddInvestigationStep_Success(t *testing.T) {
 	ctx := context.Background()
 
 	// First create an investigation
-	inv, err := svc.TriggerInvestigation(ctx, false, "")
+	inv, err := svc.TriggerInvestigation(auth01FixtureCaller(t, ctx), false, "")
 	if err != nil {
 		t.Fatalf("trigger failed: %v", err)
 	}
@@ -384,7 +384,7 @@ func TestTriggerInvestigation_RepoFailureDoesNotConsumeCooldown(t *testing.T) {
 	ctx := context.Background()
 
 	// First trigger fails because the repo rejects CreateInvestigation.
-	_, err := svc.TriggerInvestigation(ctx, false, "")
+	_, err := svc.TriggerInvestigation(auth01FixtureCaller(t, ctx), false, "")
 	if err == nil {
 		t.Fatal("expected error from failing repo, got nil")
 	}
@@ -393,7 +393,7 @@ func TestTriggerInvestigation_RepoFailureDoesNotConsumeCooldown(t *testing.T) {
 	svc.repo = realRepo
 
 	// The cooldown must NOT have been consumed by the failed attempt.
-	inv, err := svc.TriggerInvestigation(ctx, false, "")
+	inv, err := svc.TriggerInvestigation(auth01FixtureCaller(t, ctx), false, "")
 	if err != nil {
 		t.Fatalf("second trigger should succeed (no cooldown consumed), got: %v", err)
 	}

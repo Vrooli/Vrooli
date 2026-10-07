@@ -54,25 +54,34 @@ export function usePlanUrlState(): PlanUrlStateResult {
   const goal = usePlanDataStore((s) => s.goal);
   const setGoal = usePlanDataStore((s) => s.setGoal);
 
+  // A URL read may schedule store updates; its old render must not write them back.
+  const readingUrlRef = useRef(false);
+
   // URL → stores. Deep-equal guard prevents ping-pong with the write effect.
   useEffect(() => {
     const urlState = readPlanStateFromUrl(searchParams);
+    let changed = false;
     if (!filtersEqual(urlState.filters, {
       ...filters,
       windowSeconds,
     })) {
+      changed = true;
       setFilters(urlState.filters);
       setWindowSeconds(urlState.filters.windowSeconds ?? windowSeconds);
     }
     if (urlState.viewMode !== viewMode) {
+      changed = true;
       setViewMode(urlState.viewMode);
     }
     if (urlState.showSnoozed !== showSnoozed) {
+      changed = true;
       setShowSnoozed(urlState.showSnoozed);
     }
     if (urlState.goal !== goal) {
+      changed = true;
       setGoal(urlState.goal);
     }
+    readingUrlRef.current = changed;
     // Intentionally only re-runs on URL changes — store-driven changes
     // flow through the write effect below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -88,8 +97,15 @@ export function usePlanUrlState(): PlanUrlStateResult {
   const stateRef = useRef(state);
   stateRef.current = state;
   useEffect(() => {
-    setSearchParams((prev) => writePlanStateToParams(prev, stateRef.current), { replace: true });
-  }, [filters, viewMode, showSnoozed, windowSeconds, goal, setSearchParams]);
+    if (readingUrlRef.current) {
+      readingUrlRef.current = false;
+      return;
+    }
+    const next = writePlanStateToParams(searchParams, stateRef.current);
+    if (next.toString() !== searchParams.toString()) {
+      setSearchParams(next, { replace: true });
+    }
+  }, [filters, viewMode, showSnoozed, windowSeconds, goal, searchParams, setSearchParams]);
 
   return {
     filters,

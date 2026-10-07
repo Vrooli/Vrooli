@@ -1,4 +1,5 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { ContextChipTray, type ComposerContextChip } from "./ContextChipTray";
@@ -17,7 +18,7 @@ describe("ContextChipTray", () => {
     const onOpen = vi.fn();
     const onRemove = vi.fn();
 
-    render(
+    renderWithCanonicalProviders(
       <ContextChipTray items={[CHIP]} onRemove={onRemove} onOpen={onOpen} testId="tray" />,
     );
 
@@ -38,14 +39,14 @@ describe("ContextChipTray", () => {
     const user = userEvent.setup();
     const onRemove = vi.fn();
 
-    render(<ContextChipTray items={[CHIP]} onRemove={onRemove} testId="tray" />);
+    renderWithCanonicalProviders(<ContextChipTray items={[CHIP]} onRemove={onRemove} testId="tray" />);
 
     await user.click(screen.getByRole("button", { name: "Remove Broken thing" }));
     expect(onRemove).toHaveBeenCalledWith("backlog_item", "fix/broken-thing");
   });
 
   it("can opt out of the composer height constraint for sent-message context", () => {
-    const { container } = render(<ContextChipTray items={[CHIP]} constrainHeight={false} testId="tray" />);
+    const { container } = renderWithCanonicalProviders(<ContextChipTray items={[CHIP]} constrainHeight={false} testId="tray" />);
 
     expect(container.firstChild).not.toHaveClass("max-h-20");
     expect(container.firstChild).not.toHaveClass("overflow-y-auto");

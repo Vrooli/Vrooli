@@ -36,7 +36,7 @@ import type {
 
 // Import utilities
 import { sanitizeViewportSettings } from './utils/viewport';
-import { buildFlowDefinition, sanitizeNodesForPersistence, sanitizeEdgesForPersistence } from './utils/serialization';
+import { canvasToWorkflowDefinition, workflowPayloadToCanvas, workflowDefinitionToProto } from './utils/codec';
 import { computeWorkflowFingerprint } from './utils/fingerprint';
 import {
   parseWorkflowSummaryMessage,
@@ -45,7 +45,6 @@ import {
   parseWorkflowVersionMessage,
 } from './utils/proto';
 import {
-  normalizeWorkflowPayloadOrThrow,
   buildWorkflowLoadState,
 } from './utils/normalization';
 
@@ -134,7 +133,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
       if (!summaryRecord) {
         throw new Error('Workflow not found');
       }
-      const normalized = normalizeWorkflowPayloadOrThrow(summaryRecord, 'loadWorkflow');
+      const normalized = workflowPayloadToCanvas(summaryRecord, 'loadWorkflow');
       set(buildWorkflowLoadState(normalized));
     } catch (error) {
       logger.error('Failed to load workflow', { component: 'WorkflowStore', action: 'loadWorkflow', workflowId: id }, error);
@@ -208,15 +207,8 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
     set({ isSaving: true, lastSaveError: null, hasVersionConflict: effectiveOptions.force ? false : state.hasVersionConflict });
 
     try {
-      const serializableNodes = sanitizeNodesForPersistence(nodes ?? []);
-      const serializableEdges = sanitizeEdgesForPersistence(edges ?? []);
       const sanitizedViewport = sanitizeViewportSettings(currentWorkflow.executionViewport);
-      const flowDefinitionJson = buildFlowDefinition(
-        currentWorkflow.flowDefinition,
-        serializableNodes,
-        serializableEdges,
-        sanitizedViewport,
-      );
+      const flowDefinitionJson = canvasToWorkflowDefinition(currentWorkflow.flowDefinition, nodes ?? [], edges ?? [], sanitizedViewport);
       const expectedVersion = effectiveOptions.force && conflictWorkflow
         ? conflictWorkflow.version
         : currentWorkflow.version;
@@ -231,7 +223,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
           description: currentWorkflow.description ?? '',
           folderPath: currentWorkflow.folderPath ?? '',
           tags: Array.isArray(currentWorkflow.tags) ? currentWorkflow.tags : [],
-          flowDefinition: flowDefinitionFromJson(flowDefinitionJson),
+          flowDefinition: workflowDefinitionToProto(flowDefinitionJson),
           expectedVersion: expectedVersion,
           source: parseChangeSource(source),
           changeDescription,
@@ -407,9 +399,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
     const nextEdges = updates.edges ?? edges;
     const sanitizedViewport = sanitizeViewportSettings(updates.executionViewport ?? currentWorkflow.executionViewport);
     const baseDefinition = updates.flowDefinition ?? currentWorkflow.flowDefinition;
-    const persistedNodes = sanitizeNodesForPersistence(nextNodes as Node[]);
-    const persistedEdges = sanitizeEdgesForPersistence(nextEdges as Edge[] | undefined);
-    const flowDefinition = buildFlowDefinition(baseDefinition, persistedNodes, persistedEdges, sanitizedViewport);
+    const flowDefinition = canvasToWorkflowDefinition(baseDefinition, nextNodes as Node[], nextEdges as Edge[], sanitizedViewport);
 
     const updatedWorkflow = {
       ...currentWorkflow,
@@ -612,7 +602,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
         : null;
       const restoredVersionPayload: ProtoWorkflowVersion | null = proto.restoredVersion ?? null;
 
-      const normalized = normalizeWorkflowPayloadOrThrow(restoredWorkflowPayload, 'restoreWorkflowVersion');
+      const normalized = workflowPayloadToCanvas(restoredWorkflowPayload, 'restoreWorkflowVersion');
 
       const restoredVersionSummary = restoredVersionPayload
         ? parseWorkflowVersionMessage(restoredVersionPayload)
@@ -682,7 +672,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
       if (!summaryRecord) {
         throw new Error('Workflow not found');
       }
-      const normalized = normalizeWorkflowPayloadOrThrow(summaryRecord, 'refreshConflictWorkflow');
+      const normalized = workflowPayloadToCanvas(summaryRecord, 'refreshConflictWorkflow');
       set({
         conflictWorkflow: normalized,
         conflictMetadata: {

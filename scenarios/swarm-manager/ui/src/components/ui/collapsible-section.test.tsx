@@ -6,12 +6,13 @@
  */
 
 import { beforeEach, describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import userEvent from "@testing-library/user-event";
 import { CollapsibleSection } from "./collapsible-section";
 
 function renderSection(storageKey: string, defaultOpen = false) {
-  return render(
+  return renderWithCanonicalProviders(
     <CollapsibleSection
       storageKey={storageKey}
       defaultOpen={defaultOpen}

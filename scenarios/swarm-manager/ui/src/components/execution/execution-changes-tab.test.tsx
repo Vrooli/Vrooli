@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import { ExecutionChangesTab } from "./execution-changes-tab";
 import type { Finalization } from "../../types";
 import { selectors } from "../../consts/selectors";
@@ -26,13 +27,13 @@ const makeFinalization = (overrides?: Partial<Finalization>): Finalization => ({
 
 describe("ExecutionChangesTab", () => {
   it("shows empty state when no finalization", () => {
-    render(<ExecutionChangesTab finalization={undefined} isActive={false} />);
+    renderWithCanonicalProviders(<ExecutionChangesTab finalization={undefined} isActive={false} />);
     expect(screen.getByTestId(selectors.executionDetails.changesEmpty)).toBeInTheDocument();
     expect(screen.getByText(/No sandbox changes available/)).toBeInTheDocument();
   });
 
   it("shows pending message when execution is active", () => {
-    render(<ExecutionChangesTab finalization={undefined} isActive={true} />);
+    renderWithCanonicalProviders(<ExecutionChangesTab finalization={undefined} isActive={true} />);
     expect(screen.getByText(/Changes will be available after/)).toBeInTheDocument();
   });
 
@@ -49,12 +50,12 @@ describe("ExecutionChangesTab", () => {
         },
       ],
     });
-    render(<ExecutionChangesTab finalization={fin} isActive={false} />);
+    renderWithCanonicalProviders(<ExecutionChangesTab finalization={fin} isActive={false} />);
     expect(screen.getByTestId(selectors.executionDetails.changesEmpty)).toBeInTheDocument();
   });
 
   it("renders changed files grouped by scenario", () => {
-    render(<ExecutionChangesTab finalization={makeFinalization()} isActive={false} />);
+    renderWithCanonicalProviders(<ExecutionChangesTab finalization={makeFinalization()} isActive={false} />);
     expect(screen.getByTestId(selectors.executionDetails.changesFileList)).toBeInTheDocument();
     expect(screen.getByText("app-a")).toBeInTheDocument();
     expect(screen.getByText("src/main.ts")).toBeInTheDocument();
@@ -74,12 +75,12 @@ describe("ExecutionChangesTab", () => {
         },
       ],
     });
-    render(<ExecutionChangesTab finalization={fin} isActive={false} />);
+    renderWithCanonicalProviders(<ExecutionChangesTab finalization={fin} isActive={false} />);
     expect(screen.getByText("1 file")).toBeInTheDocument();
   });
 
   it("collapses and expands scenario file list", () => {
-    render(<ExecutionChangesTab finalization={makeFinalization()} isActive={false} />);
+    renderWithCanonicalProviders(<ExecutionChangesTab finalization={makeFinalization()} isActive={false} />);
 
     // Files visible by default (expanded)
     expect(screen.getByText("src/main.ts")).toBeInTheDocument();
@@ -112,7 +113,7 @@ describe("ExecutionChangesTab", () => {
         },
       ],
     });
-    render(<ExecutionChangesTab finalization={fin} isActive={false} />);
+    renderWithCanonicalProviders(<ExecutionChangesTab finalization={fin} isActive={false} />);
     expect(screen.getByText("app-a")).toBeInTheDocument();
     expect(screen.getByText("app-b")).toBeInTheDocument();
   });

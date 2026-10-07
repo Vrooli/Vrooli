@@ -1,4 +1,5 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ToastProvider } from "./toast-provider";
@@ -20,7 +21,7 @@ function Harness({ toasts }: { toasts: ToastInput[] }) {
 }
 
 function renderToasts(toasts: ToastInput[]) {
-  return render(<ToastProvider><Harness toasts={toasts} /></ToastProvider>);
+  return renderWithCanonicalProviders(<ToastProvider><Harness toasts={toasts} /></ToastProvider>);
 }
 
 describe("ToastProvider", () => {
@@ -109,7 +110,7 @@ describe("ToastProvider", () => {
     afterEach(() => vi.useRealTimers());
 
     it("auto-dismisses a success but keeps an error until acknowledged", async () => {
-      render(
+      renderWithCanonicalProviders(
         <ToastProvider>
           <Harness toasts={[
             { kind: "success", message: "Saved" },
@@ -139,7 +140,7 @@ describe("ToastProvider", () => {
         { kind: "success", message: "S4", key: "s4" },
         { kind: "success", message: "S5", key: "s5" },
       ];
-      render(<ToastProvider><Harness toasts={many} /></ToastProvider>);
+      renderWithCanonicalProviders(<ToastProvider><Harness toasts={many} /></ToastProvider>);
 
       for (let i = 0; i < many.length; i += 1) {
         act(() => { screen.getByText(`send-${i}`).click(); });
@@ -155,7 +156,7 @@ describe("ToastProvider", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
 
     // No <ToastProvider> — a page that forgot the wiring must still render.
-    render(<Harness toasts={[{ kind: "error", message: "Nowhere to go" }]} />);
+    renderWithCanonicalProviders(<Harness toasts={[{ kind: "error", message: "Nowhere to go" }]} />, { extraProviders: (children) => children });
     await userEvent.click(screen.getByText("send-0"));
 
     expect(screen.queryByTestId("toast")).toBeNull();

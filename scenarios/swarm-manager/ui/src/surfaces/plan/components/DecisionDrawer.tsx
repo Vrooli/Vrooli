@@ -8,7 +8,7 @@
  * with no way to move past the entry, so the queue dead-ended on its first
  * proposal, and each card printed a second counter beside the first.
  */
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ChevronLeft, ExternalLink, ListOrdered, MessageSquarePlus, Moon, SkipForward } from "lucide-react";
@@ -18,9 +18,12 @@ import { ProposalDecisionStreamView, type ProposalDecisionStreamItem } from "../
 import { ReviewDecisionCard } from "../../../components/backlog/activity-surface/review-decision-card";
 import { RunSheet, type RunSheetTarget } from "../../../components/backlog/run-sheet";
 import { ConfirmDialog } from "../../../components/ui/confirm-dialog";
+import { Button } from "../../../components/ui/button";
+import { ErrorState } from "../../../components/ui/error-state";
+import { errorMessageOf } from "../../../lib/error-utils";
 import { Drawer } from "../../../components/ui/drawer";
 import { Input } from "../../../components/ui/input";
-import { Popover } from "../../../components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@vrooli/react-component-library/Popover/1.2.9";
 import { aggregateCrossItemQuestions } from "../../../lib/command-post-utils";
 import { backlogService, goalsService, integrationStatusService, transitionService } from "../../../services";
 import { defaultApiClient } from "../../../lib/api-client";
@@ -93,6 +96,38 @@ export function DecisionDrawer({ isOpen, onClose, scopeItemKey, currentQuestionI
     staleTime: 15_000,
     enabled: isOpen,
   });
+  // Explicit retry retains the refusal while React Query clears error state.
+  // Cached entries are not actionable until the owner feed succeeds again.
+  const retryInFlight = useRef(false);
+  const [retryPending, setRetryPending] = useState(false);
+  const [retryReason, setRetryReason] = useState<string | null>(null);
+  const retryReasonDataVersion = useRef(0);
+  useEffect(() => {
+    if (!retryPending && feedQuery.isSuccess && !feedQuery.isFetching
+      && feedQuery.dataUpdatedAt > retryReasonDataVersion.current) {
+      setRetryReason(null);
+    }
+  }, [retryPending, feedQuery.isSuccess, feedQuery.isFetching, feedQuery.dataUpdatedAt]);
+  const feedErrorReason = feedQuery.error
+    ? errorMessageOf(feedQuery.error)
+    : retryReason;
+  const feedBlocked = Boolean(feedQuery.error || retryPending || retryReason);
+  const retryFeed = async () => {
+    if (retryInFlight.current || feedQuery.isFetching) return;
+    retryInFlight.current = true;
+    retryReasonDataVersion.current = feedQuery.dataUpdatedAt;
+    setRetryReason(feedErrorReason ?? "Unable to load the decision feed.");
+    setRetryPending(true);
+    try {
+      const result = await feedQuery.refetch();
+      setRetryReason(result.error ? errorMessageOf(result.error) : null);
+    } catch (error) {
+      setRetryReason(errorMessageOf(error));
+    } finally {
+      retryInFlight.current = false;
+      setRetryPending(false);
+    }
+  };
   const summaryQuery = useQuery({
     queryKey: ["backlog-summary"],
     queryFn: () => backlogService.getBacklogSummary(),
@@ -177,7 +212,7 @@ export function DecisionDrawer({ isOpen, onClose, scopeItemKey, currentQuestionI
 
   const variant = entry ? entryVariant(entry, scopedQuestions.length, scopedProposals.length) : "action";
 
-  const footer = entry ? (
+  const footer = entry && !feedBlocked ? (
     <QueueNavBar
       position={boundedPosition}
       total={entries.length}
@@ -196,7 +231,12 @@ export function DecisionDrawer({ isOpen, onClose, scopeItemKey, currentQuestionI
       testId="plan-decision-drawer"
       footer={footer}
     >
-      {entry ? (
+      {feedBlocked ? (
+        <div>
+          <ErrorState error={feedQuery.error} message={feedErrorReason ?? "Unable to load the decision feed."} hideRetry />
+          <Button onClick={() => void retryFeed()} disabled={retryPending || feedQuery.isFetching}>Try again</Button>
+        </div>
+      ) : entry ? (
         <div className="flex h-full min-h-0 flex-col">
           <QueueHeader
             position={boundedPosition}
@@ -263,22 +303,13 @@ function QueueHeader({ position, entries, entry, variantLabel, onJump, onOpen }:
   onOpen: () => void;
 }) {
   const [navigatorOpen, setNavigatorOpen] = useState(false);
-  const [anchor, setAnchor] = useState({ x: 0, y: 0 });
-  const buttonRef = useRef<HTMLButtonElement>(null);
-
-  const openNavigator = () => {
-    const rect = buttonRef.current?.getBoundingClientRect();
-    if (rect) setAnchor({ x: Math.max(8, rect.left - 220), y: rect.bottom + 4 });
-    setNavigatorOpen(true);
-  };
-
   return (
+    <Popover open={navigatorOpen} onOpenChange={setNavigatorOpen} placement="bottom-end" responsive="auto" restoreFocus>
     <div className="shrink-0 border-b border-slate-800 px-3 py-2" data-testid="decision-queue-header">
       <div className="flex items-center justify-between gap-2">
+        <PopoverTrigger asChild>
         <button
-          ref={buttonRef}
           type="button"
-          onClick={openNavigator}
           className="flex items-center gap-1.5 rounded px-1.5 py-0.5 text-xs tabular-nums text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200"
           title="Jump to another decision"
           aria-label={`Decision ${position + 1} of ${entries.length}. Jump to another decision.`}
@@ -287,6 +318,7 @@ function QueueHeader({ position, entries, entry, variantLabel, onJump, onOpen }:
           <ListOrdered className="h-3.5 w-3.5" aria-hidden />
           {position + 1} of {entries.length}
         </button>
+        </PopoverTrigger>
         <span className="text-xs text-slate-500">{variantLabel}</span>
       </div>
       <button
@@ -301,8 +333,6 @@ function QueueHeader({ position, entries, entry, variantLabel, onJump, onOpen }:
 
       <QueueNavigatorPopover
         isOpen={navigatorOpen}
-        onClose={() => setNavigatorOpen(false)}
-        anchor={anchor}
         entries={entries}
         position={position}
         onJump={(next) => {
@@ -311,13 +341,12 @@ function QueueHeader({ position, entries, entry, variantLabel, onJump, onOpen }:
         }}
       />
     </div>
+    </Popover>
   );
 }
 
-function QueueNavigatorPopover({ isOpen, onClose, anchor, entries, position, onJump }: {
+function QueueNavigatorPopover({ isOpen, entries, position, onJump }: {
   isOpen: boolean;
-  onClose: () => void;
-  anchor: { x: number; y: number };
   entries: NextActionFeedEntry[];
   position: number;
   onJump: (position: number) => void;
@@ -336,14 +365,15 @@ function QueueNavigatorPopover({ isOpen, onClose, anchor, entries, position, onJ
 
   const visible = matches.slice(0, NAVIGATOR_VISIBLE_LIMIT);
 
+  // Keep filter state mounted, but remove closed controls immediately.
+  // The provider still owns layer dismissal and focus restoration.
+  if (!isOpen) return null;
+
   return (
-    <Popover
-      isOpen={isOpen}
-      onClose={onClose}
-      x={anchor.x}
-      y={anchor.y}
+    <PopoverContent
+      initialFocus="first"
       className="w-[min(90vw,22rem)] p-2"
-      testId="decision-queue-navigator"
+      data-testid="decision-queue-navigator"
     >
       <Input
         size="sm"
@@ -377,7 +407,7 @@ function QueueNavigatorPopover({ isOpen, onClose, anchor, entries, position, onJ
           Showing {visible.length} of {matches.length} matches — refine the filter to see the rest.
         </p>
       )}
-    </Popover>
+    </PopoverContent>
   );
 }
 

@@ -29,12 +29,11 @@ import { ClearActionsModal, ErrorDetailsModal } from './capture/RecordModeModals
 import { WorkflowCreationForm } from './conversion/WorkflowCreationForm';
 import { WorkflowPickerModal } from './conversion/WorkflowPickerModal';
 import { WorkflowInfoCard } from './timeline/WorkflowInfoCard';
-import type { ReplayPreviewResponse } from './types/types';
+import type { ReplayPreviewResponse, RecordedAction } from './types/types';
 import type { WorkflowSettingsTyped } from '@/types/workflow';
 import { SessionManager } from '@/views/SettingsView/sections/sessions/SessionManager/SessionManager';
 import { useRecordingSession } from './hooks/useRecordingSession';
 import { useSessionProfiles } from './hooks/useSessionProfiles';
-import type { InsertActionData } from './hooks/useRecordMode';
 import { useBrowserNavigation } from './hooks/useBrowserNavigation';
 import { useSessionProfileSelection } from './hooks/useSessionProfileSelection';
 import type { InsertedAction } from './InsertNodeModal';
@@ -53,6 +52,12 @@ import { UnifiedSidebar } from './sidebar';
 import { HumanInterventionOverlay } from './ai-navigation';
 import { useSessionStore } from './stores/sessionStore';
 import { ExportDialog } from '@/domains/executions/export/components/ExportDialog';
+
+interface InsertActionData {
+  actionType: RecordedAction['actionType'];
+  payload?: Record<string, unknown>;
+  selector?: string;
+}
 import { ExportDialogProvider } from '@/domains/executions/export/context/ExportDialogProvider';
 import { buildExportDialogContextValue } from '@/domains/executions/export/context/ExportDialogContext';
 import { ExportSuccessPanel } from '@/domains/exports/ExportSuccessPanel';
@@ -257,14 +262,16 @@ export function RecordModeWorkspace({
     isSidebarOpen, setSidebarOpen, handleSidebarToggle, sidebarActiveTab, setSidebarTab,
     aiSettings, updateAISettings, aiMessages, aiSendMessage, aiAbortNavigation, aiResumeNavigation,
     aiClearConversation, aiIsNavigating, aiAvailableModels, aiHumanIntervention,
-    isRecording, actions, isLoading, error, startRecording, clearActions, insertAction,
+    isRecording, isLoading, error, startRecording, clearActions, insertAction,
     generateWorkflow, validateSelector, replayPreview, isReplaying,
     lowConfidenceCount, mediumConfidenceCount, openPages, activePageId, switchToPage, closePage,
     createPage, isPagesLoading, recentActivityPageId, isTimelineLive,
-    identifiedActions, timelineDisplayItems, pageColorMap, timelineItemCount, selectedActionIndices,
+    identifiedActions, timelineDisplayItems, pageColorMap, timelineItemCount, selectedActionIds,
     selectedIndices, selectedIndicesArray, isSelectionMode, toggleSelectionMode, handleActionClick,
     selectAll, selectNone, exitSelectionMode, handleDeleteAction, handleEditSelector, handleEditPayload,
   } = recordingMode;
+  // Legacy form APIs consume indexes; resolve those indexes from canonical IDs at this boundary.
+  const selectedActionIndices = identifiedActions.flatMap((action, index) => selectedActionIds.includes(action.id) ? [index] : []);
 
   const handleModeChange = useCallback((newMode: TimelineMode) => {
     if (newMode === mode) return;
@@ -364,7 +371,7 @@ export function RecordModeWorkspace({
   // Handle Execute button click - opens workflow picker with optional confirmation
   const handleExecuteClick = useCallback(async () => {
     // If we have unsaved recorded actions, confirm before switching
-    if (actions.length > 0 && !isRecording) {
+    if (identifiedActions.length > 0 && !isRecording) {
       const confirmed = await confirm({
         title: 'Unsaved Recording',
         message: 'You have recorded actions that have not been saved as a workflow. Switching to execution mode will not save these actions. Continue?',
@@ -375,7 +382,7 @@ export function RecordModeWorkspace({
       if (!confirmed) return;
     }
     setShowWorkflowPicker(true);
-  }, [actions.length, isRecording, confirm]);
+  }, [identifiedActions.length, isRecording, confirm]);
 
   // Create session when we have a URL or when in recording mode with a profile
   // (profile may have saved tabs to restore, which provides the initial URL)
@@ -545,7 +552,11 @@ export function RecordModeWorkspace({
   const handleTestSelectedActions = useCallback(
     async (actionIndices: number[]): Promise<ReplayPreviewResponse> => {
       const selected = mode === 'recording'
-        ? actionIndices.map((index) => identifiedActions[index]).filter((action): action is NonNullable<typeof action> => action !== undefined)
+        ? actionIndices
+          .map((index) => timelineDisplayItems[index]?.id)
+          .filter((id): id is string => Boolean(id))
+          .map((id) => identifiedActions.find((action) => action.id === id))
+          .filter((action): action is NonNullable<typeof action> => action !== undefined)
         : [];
       const actionsToReplay = selected.length > 0 ? selected : identifiedActions;
       const results = await replayPreview(
@@ -554,7 +565,7 @@ export function RecordModeWorkspace({
       );
       return results;
     },
-    [identifiedActions, mode, replayPreview]
+    [identifiedActions, timelineDisplayItems, mode, replayPreview]
   );
 
   // Generate workflow from selected actions
@@ -730,7 +741,7 @@ export function RecordModeWorkspace({
           activeTab={sidebarActiveTab}
           onTabChange={setSidebarTab}
           timelineProps={{
-            actions,
+            actions: identifiedActions,
             timelineItems: timelineDisplayItems,
             itemCountOverride: timelineItemCount,
             mode,
@@ -878,7 +889,7 @@ export function RecordModeWorkspace({
                     onPreviewUrlChange={handleNavigate}
                     sessionId={sessionId}
                     activePageId={activePageId}
-                    actions={actions}
+                    actions={identifiedActions}
                     // Viewport state now comes from ViewportProvider context
                     onConnectionStatusChange={setConnectionStatus}
                     hideConnectionIndicator={true}
@@ -900,7 +911,7 @@ export function RecordModeWorkspace({
           )}
           {rightPanelView === 'create-workflow' && (
             <WorkflowCreationForm
-              actions={actions}
+              actions={identifiedActions}
               selectedIndices={selectedActionIndices}
               sessionProfiles={sessionProfiles.profiles}
               sessionProfilesLoading={sessionProfiles.loading}
@@ -926,7 +937,7 @@ export function RecordModeWorkspace({
       {/* Clear confirmation modal */}
       <ClearActionsModal
         open={showClearConfirm}
-        actionCount={actions.length}
+        actionCount={identifiedActions.length}
         onCancel={() => setShowClearConfirm(false)}
         onConfirm={handleClearActions}
       />

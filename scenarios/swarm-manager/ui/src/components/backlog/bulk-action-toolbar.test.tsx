@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import { BulkActionToolbar } from "./bulk-action-toolbar";
 
 describe("BulkActionToolbar", () => {
   const renderToolbar = (selectedCount = 2, onApproveSelected = vi.fn(), onFlagSelected = vi.fn()) =>
-    render(
+    renderWithCanonicalProviders(
       <BulkActionToolbar
         selectedCount={selectedCount}
         onApproveSelected={onApproveSelected}

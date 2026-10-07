@@ -1,4 +1,5 @@
-import { render } from "@testing-library/react";
+import { renderWithProviders as render } from "../test-utils/renderWithProviders";
+
 import { describe, expect, it, vi } from "vitest";
 // @ts-expect-error Vitest executes this parity guard in Node; swarm UI omits Node typings.
 import { readFileSync } from "node:fs";
@@ -70,7 +71,7 @@ describe("consumer audio state parity", () => {
           marker: `data-audio-state="${state}"`,
         },
         player: {
-          file: "AudioPlayerBar.tsx",
+          file: "tts/PlaybackPill.tsx",
           marker: `data-audio-state="${state}"`,
         },
         rejection: {

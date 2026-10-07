@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import { PostRunStatusBadge } from "./post-run-status-badge";
 import type { ExecutionRecord, Finalization, FinalizationWarning } from "../../types";
 
@@ -37,14 +38,14 @@ const makeWarning = (overrides?: Partial<FinalizationWarning>): FinalizationWarn
 
 describe("PostRunStatusBadge", () => {
   it("renders nothing when no finalization", () => {
-    const { container } = render(
+    const { container } = renderWithCanonicalProviders(
       <PostRunStatusBadge execution={makeExecution()} />,
     );
     expect(container.firstChild).toBeNull();
   });
 
   it("renders classification label for completed finalization", () => {
-    render(
+    renderWithCanonicalProviders(
       <PostRunStatusBadge
         execution={makeExecution({ finalization: makeFinalization() })}
       />,
@@ -61,7 +62,7 @@ describe("PostRunStatusBadge", () => {
         }),
       ],
     });
-    render(
+    renderWithCanonicalProviders(
       <PostRunStatusBadge execution={makeExecution({ finalization })} />,
     );
     // Should be visible without clicking expand
@@ -80,7 +81,7 @@ describe("PostRunStatusBadge", () => {
         }),
       ],
     });
-    render(
+    renderWithCanonicalProviders(
       <PostRunStatusBadge execution={makeExecution({ finalization })} />,
     );
     expect(screen.getByTestId("evidence-skip-warning")).toBeInTheDocument();
@@ -96,7 +97,7 @@ describe("PostRunStatusBadge", () => {
         makeWarning({ code: "restart_retry", message: "Restarted twice" }),
       ],
     });
-    render(
+    renderWithCanonicalProviders(
       <PostRunStatusBadge execution={makeExecution({ finalization })} />,
     );
     // Not visible before expand
@@ -120,7 +121,7 @@ describe("PostRunStatusBadge", () => {
         }),
       ],
     });
-    render(
+    renderWithCanonicalProviders(
       <PostRunStatusBadge execution={makeExecution({ finalization })} />,
     );
     // Evidence-skip visible immediately
@@ -138,7 +139,7 @@ describe("PostRunStatusBadge", () => {
       phase: "restarting",
       startedAt: "2026-03-20T00:00:00Z",
     });
-    render(
+    renderWithCanonicalProviders(
       <PostRunStatusBadge
         execution={makeExecution({ status: "validating", finalization })}
       />,

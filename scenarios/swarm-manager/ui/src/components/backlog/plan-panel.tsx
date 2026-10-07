@@ -1,5 +1,5 @@
 import { ExecutionLimitsSummary } from "./execution-limits-summary";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useActionMutation } from "../../hooks/useActionMutation";
 import { errorMessageOf } from "../../lib/error-utils";
@@ -7,7 +7,6 @@ import { Check, Copy, ExternalLink, FileText, List, Loader2 } from "lucide-react
 import { cn } from "../../lib/utils";
 import { defaultQueryOptions } from "../../lib";
 import { MarkdownRenderer } from "@vrooli/react-component-library/markdown-renderer/0";
-import { extractHeadings } from "../../lib/heading-utils";
 import { backlogService } from "../../services";
 import { planWorkshopService } from "../../services/plan-workshop-service";
 import type { BacklogKind } from "../../types";
@@ -57,6 +56,8 @@ export function PlanPanel({
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const tocRef = useRef<HTMLDivElement>(null);
+  const markdownRef = useRef<HTMLDivElement>(null);
+  const [headings, setHeadings] = useState<Array<{ level: number; text: string; element: HTMLElement }>>([]);
 
   useModalBehavior({
     isOpen: tocOpen,
@@ -78,7 +79,13 @@ export function PlanPanel({
 
   const markdown = data?.markdown ?? "";
   const planUrl = usePlanUrl(data?.planRef?.planId || data?.planRef?.slug);
-  const headings = extractHeadings(markdown);
+  // Navigate the headings the renderer actually produced. Its markdown syntax
+  // and inline formatting determine the displayed text; no global IDs are
+  // assumed, so another panel cannot capture this panel's TOC navigation.
+  useLayoutEffect(() => {
+    setHeadings(Array.from(markdownRef.current?.querySelectorAll<HTMLElement>("h1, h2, h3") ?? [])
+      .map((element) => ({ level: Number(element.tagName.slice(1)), text: element.textContent ?? "", element })));
+  }, [markdown, isLoading, error]);
   const planAbsent = isApiError(error) && error.code === "plan_ref_not_found";
   const label = "plan";
   const itemQuery = useQuery({
@@ -133,9 +140,9 @@ export function PlanPanel({
     setTimeout(() => setCopySuccess(false), 2000);
   }, [markdown]);
 
-  const handleTocJump = useCallback((id: string) => {
+  const handleTocJump = useCallback((element: HTMLElement) => {
     setTocOpen(false);
-    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    element.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
 
   if (isLoading) {
@@ -198,7 +205,7 @@ export function PlanPanel({
               >
                 <div className="max-h-72 overflow-y-auto py-1.5">
                   {headings.map((heading, index) => (
-                    <div key={`${heading.id}-${heading.line}`}>
+                    <div key={index}>
                       {heading.level === 1 && index > 0 && <div className="mx-3 my-1 border-t border-white/5" />}
                       <button
                         className={cn(
@@ -206,7 +213,7 @@ export function PlanPanel({
                           "hover:bg-white/5 hover:text-slate-100",
                           TOC_ITEM_STYLES[heading.level],
                         )}
-                        onClick={() => handleTocJump(heading.id)}
+                        onClick={() => handleTocJump(heading.element)}
                       >
                         {heading.text}
                       </button>
@@ -293,7 +300,7 @@ export function PlanPanel({
 
       <div className="flex-1 overflow-y-auto bg-transparent">
         {itemQuery.data?.executionLimits ? <div className="px-4 pt-4"><ExecutionLimitsSummary limits={itemQuery.data.executionLimits} /></div> : null}
-        <MarkdownRenderer content={markdown} className="px-4 py-4" />
+        <div ref={markdownRef}><MarkdownRenderer content={markdown} className="px-4 py-4" /></div>
       </div>
     </div>
   );

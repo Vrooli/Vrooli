@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { screen, waitFor, fireEvent } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import { StalePlanPanel } from "./stale-plan-panel";
 import { extractMissingPaths } from "./stale-plan-utils";
 
@@ -18,7 +19,7 @@ describe("StalePlanPanel", () => {
   });
 
   it("renders the missing paths and the re-workshop button", () => {
-    render(
+    renderWithCanonicalProviders(
       <StalePlanPanel
         kind="research"
         name="agent-sandbox-auditability-contract"
@@ -49,7 +50,7 @@ describe("StalePlanPanel", () => {
 
   it("opens a Plan Workshop review and calls onReWorkshopped when the button is clicked", async () => {
     const onReWorkshopped = vi.fn();
-    render(
+    renderWithCanonicalProviders(
       <StalePlanPanel
         kind="research"
         name="agent-sandbox-auditability-contract"
@@ -72,7 +73,7 @@ describe("StalePlanPanel", () => {
 
   it("calls onCancel when the cancel button is clicked", () => {
     const onCancel = vi.fn();
-    render(
+    renderWithCanonicalProviders(
       <StalePlanPanel
         kind="research"
         name="x"

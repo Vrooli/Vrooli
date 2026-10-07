@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import { SessionArtifactList } from "./SessionArtifactList";
 import type { AgentSessionProposal } from "../../types";
 
@@ -22,7 +23,7 @@ const proposal: AgentSessionProposal = {
 describe("SessionArtifactList start_transition proposals", () => {
   it("renders both verdicts and a distinct approval control when they disagree", async () => {
     const onApplyProposal = vi.fn();
-    render(
+    renderWithCanonicalProviders(
       <SessionArtifactList
         artifacts={[]}
         proposals={[proposal]}
