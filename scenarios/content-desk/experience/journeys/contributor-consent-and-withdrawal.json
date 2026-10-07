@@ -1,0 +1,38 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "contributor-consent-and-withdrawal",
+    "title": "Contributor consent and withdrawal",
+    "purpose": "Demonstrate the accepted contributor consent and withdrawal outcome with exact identities, authority and adverse branches.",
+    "prd_refs": [
+      "OT-P0-029",
+      "OT-P0-030",
+      "OT-P0-028"
+    ]
+  },
+  "steps": [
+    {
+      "page": "contributors",
+      "state": "prepared-brief",
+      "intent": "Inspect included/excluded bounded packet and permitted recipient/use."
+    },
+    {
+      "page": "contributors",
+      "state": "submitted",
+      "intent": "Record verified response and contributor-controlled final wording and scoped consent."
+    },
+    {
+      "page": "contributors",
+      "state": "withdrawn",
+      "intent": "Withdraw before local/provider/in-flight/already-published branches without claiming instant external removal."
+    },
+    {
+      "page": "review",
+      "state": "cancel-requested",
+      "intent": "Surface responsible actor and actual route control/reconciliation evidence."
+    }
+  ],
+  "x-i16-source": "package/documents/dossier-accepted-basis/document-text.md chapter 13 and package/documents/commission-accepted-basis/document-text.md implementation acceptance."
+}

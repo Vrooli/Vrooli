@@ -1,32 +1,32 @@
 ---
-id: vrooli-default
-version: 0.2.0
-name: Vrooli Operational Console
-description: Dense, responsive, customizable operational UI for generated Vrooli scenarios.
+id: content-desk-marketing
+version: 0.3.0
+name: Content Desk Modernist Press
+description: Approved purpose-specific Marketing editorial experience for Content Desk.
 colors:
-  primary: "#2563eb"
-  secondary: "#0891b2"
-  neutral: "#f8fafc"
+  primary: "#1230CD"
+  secondary: "#1230CD"
+  neutral: "#FCFBF7"
   surface: "#ffffff"
-  on-surface: "#0f172a"
+  on-surface: "#171B2E"
   error: "#dc2626"
   success: "#16a34a"
   warning: "#d97706"
 typography:
   body-md:
-    fontFamily: Inter
+    fontFamily: Open Sans
     fontSize: 16px
     fontWeight: "400"
     lineHeight: 1.5
     letterSpacing: 0em
   body-sm:
-    fontFamily: Inter
+    fontFamily: Open Sans
     fontSize: 14px
     fontWeight: "400"
     lineHeight: 1.45
     letterSpacing: 0em
   label-md:
-    fontFamily: Inter
+    fontFamily: Open Sans
     fontSize: 14px
     fontWeight: "600"
     lineHeight: 1.25
@@ -63,8 +63,8 @@ components:
     height: "{spacing.touch}"
     padding: 0 1rem
   button-disabled:
-    backgroundColor: "#cbd5e1"
-    textColor: "#64748b"
+    backgroundColor: "#D6D7D9"
+    textColor: "#5B6070"
     typography: "{typography.label-md}"
     rounded: "{rounded.sm}"
     height: "{spacing.touch}"
@@ -88,8 +88,8 @@ components:
     rounded: "{rounded.md}"
     padding: 0.75rem
   empty-state:
-    backgroundColor: "#f1f5f9"
-    textColor: "#64748b"
+    backgroundColor: "#F4F2ED"
+    textColor: "#5B6070"
     typography: "{typography.body-md}"
     rounded: "{rounded.md}"
     padding: 1.5rem
@@ -112,34 +112,34 @@ components:
     padding: 0 0.75rem
 tokens:
   color:
-    background: "#f8fafc"
+    background: "#FCFBF7"
     shell: "#020617"
     surface: "#ffffff"
-    surfaceMuted: "#f1f5f9"
+    surfaceMuted: "#F4F2ED"
     surfaceRaised: "#ffffff"
-    foreground: "#0f172a"
-    mutedForeground: "#64748b"
-    border: "#cbd5e1"
-    primary: "#2563eb"
+    foreground: "#171B2E"
+    mutedForeground: "#5B6070"
+    border: "#D6D7D9"
+    primary: "#1230CD"
     primaryForeground: "#ffffff"
-    accent: "#0891b2"
+    accent: "#1230CD"
     success: "#16a34a"
     danger: "#dc2626"
     warning: "#d97706"
     info: "#0284c7"
-    darkBackground: "#020617"
-    darkSurface: "#0f172a"
-    darkSurfaceMuted: "#1e293b"
-    darkForeground: "#f8fafc"
-    darkMutedForeground: "#94a3b8"
-    darkBorder: "#334155"
+    darkBackground: "#121829"
+    darkSurface: "#1C2439"
+    darkSurfaceMuted: "#2B3B63"
+    darkForeground: "#F4F1E8"
+    darkMutedForeground: "#BAC3D5"
+    darkBorder: "#46516B"
   radius:
     control: "0.375rem"
     panel: "0.5rem"
     sheet: "1rem"
     pill: "9999px"
   typography:
-    fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+    fontFamily: "Open Sans, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
     monoFamily: "JetBrains Mono, Fira Code, SF Mono, Consolas, Liberation Mono, Menlo, monospace"
     baseSize: "16px"
     lineHeight: "1.5"
@@ -155,16 +155,24 @@ constraints:
   defaultMode: "light"
   supportedModes: ["light", "dark", "system"]
   responsiveBaseline: "mobile-first"
-  dominantPalette: "neutral-operational-with-blue-cyan-and-semantic-status"
+  dominantPalette: "modernist-press-ivory-cobalt-with-semantic-status"
 ---
 
-# Vrooli Operational Console Design
+# Content Desk Marketing Design
 
 `DESIGN.md` is the source of truth for scenario UI decisions. Stack-specific adapters may translate these tokens into CSS, Tailwind, egui, native mobile themes, or future targets, but adapters must not redefine the design language.
 
+## Accepted local contract and source precedence
+
+The complete approved dossier and 47 original selected state references are in `docs/internal/goal/materials/marketing-accepted-v1/`; the exact source/version/state-to-requirement manifest is `docs/internal/goal/selected-state-requirement-map.json`. These original selected compositions govern close fidelity. Historical default-console examples below remain useful implementation guidance only where compatible; universal three-pane geometry, density-over-comfort, unchanged tokens and slate/cyan-only expression are superseded locally.
+
+Today, Plan, Create, Review, Learn and persistent Content each serve their actual job. Use the selected mobile forms with preserved source/revision identity, not a scaled desktop. Interface type is Open Sans; editorial prose uses Liberation Serif or an explicitly justified compatible fallback. Light paper/ink/accent are #FCFBF7/#171B2E/#1230CD; selected M22 dark background/surface/text/accent are #121829/#1C2439/#F4F1E8/#A9BEFF. Preserve semantic success/warning/danger with redundant labels and verify rendered contrast rather than claiming source colors passed.
+
+Permit actual-preview, explicitly contextual conceptual art, typography and no-art forms with provenance and appropriate dark/reduced-data/reduced-motion adaptation. No mandatory image generation. Exact runtime captures, actual phone interaction, 320 CSS px reflow, 200% text, 400% zoom, keyboard/screen reader and 44px targets remain acceptance work. This file describes the approved destination, not implemented fidelity, and changes no other scenario's design.
+
 ## Why this design language fits Content Desk
 
-The token contract is adopted unchanged. This is a **desktop-class authoring
+Content Desk adopts the scoped Marketing 0.3 Modernist Press amendment under the full I16 approval (2026-10-04 20:54 UTC). This is a **desktop-class authoring
 and review application** (D-017), used by one person who moves continuously
 between two modes: making things, and deciding whether they may ship.
 
@@ -208,7 +216,7 @@ That produces six local commitments on top of the shared language:
   word without re-running anything or leaving the surface.
 
 Status semantics, motion rules, responsive transformations, and accessibility
-floors are inherited as binding, with no local deviation.
+floors remain binding; selected Marketing compositions and local light/dark tokens supersede conflicting default expression.
 
 ## How To Read This Document
 

@@ -1,0 +1,2475 @@
+{
+  "selection": "All 47 current candidate_0_3 records; exact unchanged original bytes",
+  "authority": "approval.md",
+  "source_catalogue_sha256": "bd62e7e73249c669a9a48be9fe7e4f2fff6062fa594773142095210a75ac5b40",
+  "path_contract": "All current manifest paths relative to this package root; original production metadata may retain producer-local paths as provenance only",
+  "states": [
+    {
+      "version_id": "0.3/M01-today-v05-desktop",
+      "family": "M01",
+      "dossier_chapters": [
+        1
+      ],
+      "state_brief": {
+        "id": "M01",
+        "job": "Today: resume the exact draft and keep independent decisions distinct",
+        "basis": "D1/r1, source S1/r3; three proposed intentions, no confirmed schedules",
+        "action": "Open LinkedIn draft",
+        "phone": "Prioritize same draft/source/action; independent article review below",
+        "art": "Synthetic artifact preview of source story, not post media or proof of performance"
+      },
+      "native_owners": [
+        "Content Desk"
+      ],
+      "related_dossier_acceptance_cases": [
+        "A1",
+        "A3",
+        "A9"
+      ],
+      "logical_viewport": [
+        1440.0,
+        900.0
+      ],
+      "original_raster_dimensions": [
+        2880,
+        1800
+      ],
+      "atlas_page": 1,
+      "acceptance": "Selected original visual reference accepted through the complete implementation proposal; synthetic displayed content is not real execution or authority",
+      "permitted_adaptations": "Justified responsive, accessibility and truthful real-data adaptations with close visual/interaction comparison; no silent material scope or ownership change",
+      "png": {
+        "path": "design-source/screens/M01-today-v05-desktop.png",
+        "bytes": 294779,
+        "sha256": "6ad12764cd65efcedcca7c37345c81411e3af2565b78948fb912e61a37ea79bc"
+      },
+      "vector": {
+        "path": "design-source/screens/M01-today-v05-desktop.pdf",
+        "bytes": 88494,
+        "sha256": "036ea40ece6d432af01f3d47922243fe90e41c427176805bc3f8de854e0e572f"
+      },
+      "authoring_source": {
+        "path": "design-source/source/draw_workspaces.py",
+        "bytes": 16553,
+        "sha256": "fb11e601e9cce9e1e2945e849aba9f5f33c8a06033c2b2e5262544c5c010d638"
+      },
+      "decoded_image_mode": "RGB",
+      "vector_page_size": [
+        1440.0,
+        900.0
+      ]
+    },
+    {
+      "version_id": "0.3/M01-today-v05-phone",
+      "family": "M01",
+      "dossier_chapters": [
+        1
+      ],
+      "state_brief": {
+        "id": "M01",
+        "job": "Today: resume the exact draft and keep independent decisions distinct",
+        "basis": "D1/r1, source S1/r3; three proposed intentions, no confirmed schedules",
+        "action": "Open LinkedIn draft",
+        "phone": "Prioritize same draft/source/action; independent article review below",
+        "art": "Synthetic artifact preview of source story, not post media or proof of performance"
+      },
+      "native_owners": [
+        "Content Desk"
+      ],
+      "related_dossier_acceptance_cases": [
+        "A1",
+        "A3",
+        "A9"
+      ],
+      "logical_viewport": [
+        390.0,
+        844.0
+      ],
+      "original_raster_dimensions": [
+        780,
+        1688
+      ],
+      "atlas_page": 1,
+      "acceptance": "Selected original visual reference accepted through the complete implementation proposal; synthetic displayed content is not real execution or authority",
+      "permitted_adaptations": "Justified responsive, accessibility and truthful real-data adaptations with close visual/interaction comparison; no silent material scope or ownership change",
+      "png": {
+        "path": "design-source/screens/M01-today-v05-phone.png",
+        "bytes": 117914,
+        "sha256": "211c5b1a7cec1a554533c2ce79d4b7940b74ec8be04c55f6bb9bdd0bac0fae1a"
+      },
+      "vector": {
+        "path": "design-source/screens/M01-today-v05-phone.pdf",
+        "bytes": 67069,
+        "sha256": "5c5f5e58abf61ed7b64fc0038694e2096bb2fd8b77d55876214b0fbb58a0d791"
+      },
+      "authoring_source": {
+        "path": "design-source/source/draw_workspaces.py",
+        "bytes": 16553,
+        "sha256": "fb11e601e9cce9e1e2945e849aba9f5f33c8a06033c2b2e5262544c5c010d638"
+      },
+      "decoded_image_mode": "RGB",
+      "vector_page_size": [
+        390.0,
+        844.0
+      ]
+    },
+    {
+      "version_id": "0.3/M02-strategy-v03-desktop",
+      "family": "M02",
+      "dossier_chapters": [
+        1
+      ],
+      "state_brief": {
+        "id": "M02",
+        "job": "Compare useful content plans under shared effort",
+        "basis": "F2 180 min versus reduced 90 min; no accepted plan",
+        "action": "Review selected plan",
+        "phone": "Sequential alternatives; no implicit Planner reservation"
+      },
+      "native_owners": [
+        "Content Desk",
+        "Marketing canon"
+      ],
+      "related_dossier_acceptance_cases": [
+        "A4",
+        "A5"
+      ],
+      "logical_viewport": [
+        1440.0,
+        900.0
+      ],
+      "original_raster_dimensions": [
+        2880,
+        1800
+      ],
+      "atlas_page": 2,
+      "acceptance": "Selected original visual reference accepted through the complete implementation proposal; synthetic displayed content is not real execution or authority",
+      "permitted_adaptations": "Justified responsive, accessibility and truthful real-data adaptations with close visual/interaction comparison; no silent material scope or ownership change",
+      "png": {
+        "path": "design-source/screens/M02-strategy-v03-desktop.png",
+        "bytes": 276780,
+        "sha256": "b8cbedb7177ff219c2d232b24963c72be3dca9ae4d3ad57cef6431cd2883ce1c"
+      },
+      "vector": {
+        "path": "design-source/screens/M02-strategy-v03-desktop.pdf",
+        "bytes": 67658,
+        "sha256": "b02c3e354eba4ecbdc212db36ab2225d6bf550438ae3031ae1e2954d990ee964"
+      },
+      "authoring_source": {
+        "path": "design-source/source/draw_operations.py",
+        "bytes": 18610,
+        "sha256": "90490761142d3f2672c03a8d7b56365020df253914aa1fc9f343884323425781"
+      },
+      "decoded_image_mode": "RGB",
+      "vector_page_size": [
+        1440.0,
+        900.0
+      ]
+    },
+    {
+      "version_id": "0.3/M02-strategy-v03-phone",
+      "family": "M02",
+      "dossier_chapters": [
+        1
+      ],
+      "state_brief": {
+        "id": "M02",
+        "job": "Compare useful content plans under shared effort",
+        "basis": "F2 180 min versus reduced 90 min; no accepted plan",
+        "action": "Review selected plan",
+        "phone": "Sequential alternatives; no implicit Planner reservation"
+      },
+      "native_owners": [
+        "Content Desk",
+        "Marketing canon"
+      ],
+      "related_dossier_acceptance_cases": [
+        "A4",
+        "A5"
+      ],
+      "logical_viewport": [
+        390.0,
+        844.0
+      ],
+      "original_raster_dimensions": [
+        780,
+        1688
+      ],
+      "atlas_page": 2,
+      "acceptance": "Selected original visual reference accepted through the complete implementation proposal; synthetic displayed content is not real execution or authority",
+      "permitted_adaptations": "Justified responsive, accessibility and truthful real-data adaptations with close visual/interaction comparison; no silent material scope or ownership change",
+      "png": {
+        "path": "design-source/screens/M02-strategy-v03-phone.png",
+        "bytes": 113130,
+        "sha256": "be4c5d43c2b978ef1e818511f3f8836fc633519ba31f0b4e46e6cd18fe730c96"
+      },
+      "vector": {
+        "path": "design-source/screens/M02-strategy-v03-phone.pdf",
+        "bytes": 66916,
+        "sha256": "b00c71131c40403ddbd3ffa59fc1f13b085aca1fbe884df21f97e8194e0f62ca"
+      },
+      "authoring_source": {
+        "path": "design-source/source/draw_operations.py",
+        "bytes": 18610,
+        "sha256": "90490761142d3f2672c03a8d7b56365020df253914aa1fc9f343884323425781"
+      },
+      "decoded_image_mode": "RGB",
+      "vector_page_size": [
+        390.0,
+        844.0
+      ]
+    },
+    {
+      "version_id": "0.3/M03-evidence-v03-desktop",
+      "family": "M03",
+      "dossier_chapters": [
+        4
+      ],
+      "state_brief": {
+        "id": "M03",
+        "job": "Inspect unsupported claim and propose exact repair",
+        "basis": "Unsaved40 percent claim on D1/r1; S1/r3 supports only structure",
+        "action": "Preview wording repair",
+        "phone": "Sentence, source excerpt and repair together"
+      },
+      "native_owners": [
+        "Content Desk",
+        "Offer Desk"
+      ],
+      "related_dossier_acceptance_cases": [
+        "A1",
+        "A7"
+      ],
+      "logical_viewport": [
+        1440.0,
+        900.0
+      ],
+      "original_raster_dimensions": [
+        2880,
+        1800
+      ],
+      "atlas_page": 3,
+      "acceptance": "Selected original visual reference accepted through the complete implementation proposal; synthetic displayed content is not real execution or authority",
+      "permitted_adaptations": "Justified responsive, accessibility and truthful real-data adaptations with close visual/interaction comparison; no silent material scope or ownership change",
+      "png": {
+        "path": "design-source/screens/M03-evidence-v03-desktop.png",
+        "bytes": 234543,
+        "sha256": "d481cfaa7de7c8ea56196dd0d1e9a6c80b60cbf6af73839bdf6166fb7cf1b6ab"
+      },
+      "vector": {
+        "path": "design-source/screens/M03-evidence-v03-desktop.pdf",
+        "bytes": 68036,
+        "sha256": "0eca6a0791cb5b5f399cdbfd550632a18a284443aa0a9be54fe07c7b1ff226f5"
+      },
+      "authoring_source": {
+        "path": "design-source/source/draw_operations.py",
+        "bytes": 18610,
+        "sha256": "90490761142d3f2672c03a8d7b56365020df253914aa1fc9f343884323425781"
+      },
+      "decoded_image_mode": "RGB",
+      "vector_page_size": [
+        1440.0,
+        900.0
+      ]
+    },
+    {
+      "version_id": "0.3/M03-evidence-v03-phone",
+      "family": "M03",
+      "dossier_chapters": [
+        4
+      ],
+      "state_brief": {
+        "id": "M03",
+        "job": "Inspect unsupported claim and propose exact repair",
+        "basis": "Unsaved40 percent claim on D1/r1; S1/r3 supports only structure",
+        "action": "Preview wording repair",
+        "phone": "Sentence, source excerpt and repair together"
+      },
+      "native_owners": [
+        "Content Desk",
+        "Offer Desk"
+      ],
+      "related_dossier_acceptance_cases": [
+        "A1",
+        "A7"
+      ],
+      "logical_viewport": [
+        390.0,
+        844.0
+      ],
+      "original_raster_dimensions": [
+        780,
+        1688
+      ],
+      "atlas_page": 3,
+      "acceptance": "Selected original visual reference accepted through the complete implementation proposal; synthetic displayed content is not real execution or authority",
+      "permitted_adaptations": "Justified responsive, accessibility and truthful real-data adaptations with close visual/interaction comparison; no silent material scope or ownership change",
+      "png": {
+        "path": "design-source/screens/M03-evidence-v03-phone.png",
+        "bytes": 107919,
+        "sha256": "6abfee245e2849b3d3d34328cdd3e790fc0cace1206da6c94b1ab29a86477c7f"
+      },
+      "vector": {
+        "path": "design-source/screens/M03-evidence-v03-phone.pdf",
+        "bytes": 67365,
+        "sha256": "123390d3c9b6a23dd7cf48205f129592556cf1af4b988709f27bcd0c5a0431df"
+      },
+      "authoring_source": {
+        "path": "design-source/source/draw_operations.py",
+        "bytes": 18610,
+        "sha256": "90490761142d3f2672c03a8d7b56365020df253914aa1fc9f343884323425781"
+      },
+      "decoded_image_mode": "RGB",
+      "vector_page_size": [
+        390.0,
+        844.0
+      ]
+    },
+    {
+      "version_id": "0.3/M04-editor-v03-desktop",
+      "family": "M04",
+      "dossier_chapters": [
+        5
+      ],
+      "state_brief": {
+        "id": "M04",
+        "job": "Write source-backed text with a selected optional edit",
+        "basis": "D1/r1 existing; opening proposal not applied; account not selected",
+        "action": "Apply selected opening to draft",
+        "phone": "Named sources/help routes, retained typing position"
+      },
+      "native_owners": [
+        "Content Desk",
+        "optional Prose Studio"
+      ],
+      "related_dossier_acceptance_cases": [
+        "A1",
+        "A2",
+        "A3"
+      ],
+      "logical_viewport": [
+        1440.0,
+        900.0
+      ],
+      "original_raster_dimensions": [
+        2880,
+        1800
+      ],
+      "atlas_page": 4,
+      "acceptance": "Selected original visual reference accepted through the complete implementation proposal; synthetic displayed content is not real execution or authority",
+      "permitted_adaptations": "Justified responsive, accessibility and truthful real-data adaptations with close visual/interaction comparison; no silent material scope or ownership change",
+      "png": {
+        "path": "design-source/screens/M04-editor-v03-desktop.png",
+        "bytes": 317521,
+        "sha256": "4cc1a08383ed1dd07593a0879a43058b0b864bc1d0ce095b134ad3bb801eb018"
+      },
+      "vector": {
+        "path": "design-source/screens/M04-editor-v03-desktop.pdf",
+        "bytes": 68635,
+        "sha256": "c04ea9f58d2db4154b77d628d1201807e1b90a8158532a6affb5d1fb0183d156"
+      },
+      "authoring_source": {
+        "path": "design-source/source/draw_workspaces.py",
+        "bytes": 16553,
+        "sha256": "fb11e601e9cce9e1e2945e849aba9f5f33c8a06033c2b2e5262544c5c010d638"
+      },
+      "decoded_image_mode": "RGB",
+      "vector_page_size": [
+        1440.0,
+        900.0
+      ]
+    },
+    {
+      "version_id": "0.3/M04-editor-v03-phone",
+      "family": "M04",
+      "dossier_chapters": [
+        5
+      ],
+      "state_brief": {
+        "id": "M04",
+        "job": "Write source-backed text with a selected optional edit",
+        "basis": "D1/r1 existing; opening proposal not applied; account not selected",
+        "action": "Apply selected opening to draft",
+        "phone": "Named sources/help routes, retained typing position"
+      },
+      "native_owners": [
+        "Content Desk",
+        "optional Prose Studio"
+      ],
+      "related_dossier_acceptance_cases": [
+        "A1",
+        "A2",
+        "A3"
+      ],
+      "logical_viewport": [
+        390.0,
+        844.0
+      ],
+      "original_raster_dimensions": [
+        780,
+        1688
+      ],
+      "atlas_page": 4,
+      "acceptance": "Selected original visual reference accepted through the complete implementation proposal; synthetic displayed content is not real execution or authority",
+      "permitted_adaptations": "Justified responsive, accessibility and truthful real-data adaptations with close visual/interaction comparison; no silent material scope or ownership change",
+      "png": {
+        "path": "design-source/screens/M04-editor-v03-phone.png",
+        "bytes": 113680,
+        "sha256": "37e504f09134b25541b536820258696643437e552d6ab297fb0995e103f28f36"
+      },
+      "vector": {
+        "path": "design-source/screens/M04-editor-v03-phone.pdf",
+        "bytes": 67217,
+        "sha256": "a9520c6bdc9345415b5c3155d6d3460868a61bc1ef93c72157639833507a65b3"
+      },
+      "authoring_source": {
+        "path": "design-source/source/draw_workspaces.py",
+        "bytes": 16553,
+        "sha256": "fb11e601e9cce9e1e2945e849aba9f5f33c8a06033c2b2e5262544c5c010d638"
+      },
+      "decoded_image_mode": "RGB",
+      "vector_page_size": [
+        390.0,
+        844.0
+      ]
+    },
+    {
+      "version_id": "0.3/M05-plan-v04-desktop",
+      "family": "M05",
+      "dossier_chapters": [
+        6
+      ],
+      "state_brief": {
+        "id": "M05",
+        "job": "Place daypart publication intentions",
+        "basis": "F2 week Oct 12–18, America/New_York; D1 preview basis r1 changed to r2",
+        "action": "Update intention basis after comparison",
+        "phone": "Agenda and selected target editor"
+      },
+      "native_owners": [
+        "Content Desk",
+        "Channel Manager",
+        "Personal Planner"
+      ],
+      "related_dossier_acceptance_cases": [
+        "A4",
+        "A5",
+        "A7"
+      ],
+      "logical_viewport": [
+        1440.0,
+        900.0
+      ],
+      "original_raster_dimensions": [
+        2880,
+        1800
+      ],
+      "atlas_page": 5,
+      "acceptance": "Selected original visual reference accepted through the complete implementation proposal; synthetic displayed content is not real execution or authority",
+      "permitted_adaptations": "Justified responsive, accessibility and truthful real-data adaptations with close visual/interaction comparison; no silent material scope or ownership change",
+      "png": {
+        "path": "design-source/screens/M05-plan-v04-desktop.png",
+        "bytes": 250975,
+        "sha256": "9b8d879ff789467984887b82377f490687722ae4870ec8307b219c7e02b950c0"
+      },
+      "vector": {
+        "path": "design-source/screens/M05-plan-v04-desktop.pdf",
+        "bytes": 47207,
+        "sha256": "1df22c8c9355b1cd9c8811fabf56a5e4d874b55b3013ac54333f1e6023d20cd4"
+      },
+      "authoring_source": {
+        "path": "design-source/source/draw_workspaces.py",
+        "bytes": 16553,
+        "sha256": "fb11e601e9cce9e1e2945e849aba9f5f33c8a06033c2b2e5262544c5c010d638"
+      },
+      "decoded_image_mode": "RGB",
+      "vector_page_size": [
+        1440.0,
+        900.0
+      ]
+    },
+    {
+      "version_id": "0.3/M05-plan-v04-phone",
+      "family": "M05",
+      "dossier_chapters": [
+        6
+      ],
+      "state_brief": {
+        "id": "M05",
+        "job": "Place daypart publication intentions",
+        "basis": "F2 week Oct 12–18, America/New_York; D1 preview basis r1 changed to r2",
+        "action": "Update intention basis after comparison",
+        "phone": "Agenda and selected target editor"
+      },
+      "native_owners": [
+        "Content Desk",
+        "Channel Manager",
+        "Personal Planner"
+      ],
+      "related_dossier_acceptance_cases": [
+        "A4",
+        "A5",
+        "A7"
+      ],
+      "logical_viewport": [
+        390.0,
+        844.0
+      ],
+      "original_raster_dimensions": [
+        780,
+        1688
+      ],
+      "atlas_page": 5,
+      "acceptance": "Selected original visual reference accepted through the complete implementation proposal; synthetic displayed content is not real execution or authority",
+      "permitted_adaptations": "Justified responsive, accessibility and truthful real-data adaptations with close visual/interaction comparison; no silent material scope or ownership change",
+      "png": {
+        "path": "design-source/screens/M05-plan-v04-phone.png",
+        "bytes": 104476,
+        "sha256": "8ffa99060c4d5308da3ccccdf3857fe3eb17ee5a4782e814ffe54ef2b239ae8b"
+      },
+      "vector": {
+        "path": "design-source/screens/M05-plan-v04-phone.pdf",
+        "bytes": 45468,
+        "sha256": "27d111fb9dac017d8f64917b042baac09f36e17f376df3419a535a68fa6edafa"
+      },
+      "authoring_source": {
+        "path": "design-source/source/draw_workspaces.py",
+        "bytes": 16553,
+        "sha256": "fb11e601e9cce9e1e2945e849aba9f5f33c8a06033c2b2e5262544c5c010d638"
+      },
+      "decoded_image_mode": "RGB",
+      "vector_page_size": [
+        390.0,
+        844.0
+      ]
+    },
+    {
+      "version_id": "0.3/M06-review-v04-desktop",
+      "family": "M06",
+      "dossier_chapters": [
+        8
+      ],
+      "state_brief": {
+        "id": "M06",
+        "job": "Review saved r2 as an editorialdecision",
+        "basis": "D1/r2 current, r1 comparison; native scoped decision extension required",
+        "action": "Accept wording only",
+        "phone": "Final reading plus change/restore state"
+      },
+      "native_owners": [
+        "Content Desk"
+      ],
+      "related_dossier_acceptance_cases": [
+        "A1",
+        "A7"
+      ],
+      "logical_viewport": [
+        1440.0,
+        900.0
+      ],
+      "original_raster_dimensions": [
+        2880,
+        1800
+      ],
+      "atlas_page": 6,
+      "acceptance": "Selected original visual reference accepted through the complete implementation proposal; synthetic displayed content is not real execution or authority",
+      "permitted_adaptations": "Justified responsive, accessibility and truthful real-data adaptations with close visual/interaction comparison; no silent material scope or ownership change",
+      "png": {
+        "path": "design-source/screens/M06-review-v04-desktop.png",
+        "bytes": 296727,
+        "sha256": "920c99a5035a4147c51f16861fec6214aad08632152138f593b2fe64a1982548"
+      },
+      "vector": {
+        "path": "design-source/screens/M06-review-v04-desktop.pdf",
+        "bytes": 68505,
+        "sha256": "2fff6aa29d61745804b2665f705a4ba1648ef7de5333c480aa247da35d3427e5"
+      },
+      "authoring_source": {
+        "path": "design-source/source/draw_exemplar.py",
+        "bytes": 9221,
+        "sha256": "fa6f19173bb5a8bf41da225823f90c52a1c0f75321c7139499758e674c5a9e4a"
+      },
+      "decoded_image_mode": "RGB",
+      "vector_page_size": [
+        1440.0,
+        900.0
+      ]
+    },
+    {
+      "version_id": "0.3/M06-review-v04-phone",
+      "family": "M06",
+      "dossier_chapters": [
+        8
+      ],
+      "state_brief": {
+        "id": "M06",
+        "job": "Review saved r2 as an editorialdecision",
+        "basis": "D1/r2 current, r1 comparison; native scoped decision extension required",
+        "action": "Accept wording only",
+        "phone": "Final reading plus change/restore state"
+      },
+      "native_owners": [
+        "Content Desk"
+      ],
+      "related_dossier_acceptance_cases": [
+        "A1",
+        "A7"
+      ],
+      "logical_viewport": [
+        390.0,
+        844.0
+      ],
+      "original_raster_dimensions": [
+        780,
+        1688
+      ],
+      "atlas_page": 6,
+      "acceptance": "Selected original visual reference accepted through the complete implementation proposal; synthetic displayed content is not real execution or authority",
+      "permitted_adaptations": "Justified responsive, accessibility and truthful real-data adaptations with close visual/interaction comparison; no silent material scope or ownership change",
+      "png": {
+        "path": "design-source/screens/M06-review-v04-phone.png",
+        "bytes": 140649,
+        "sha256": "a6b9e6e6b10228acd8687deb77b9dd8cf87ba6da95c719cfbaf9c97c5a47cb76"
+      },
+      "vector": {
+        "path": "design-source/screens/M06-review-v04-phone.pdf",
+        "bytes": 67338,
+        "sha256": "529e5bb6b6ea3e89becd403dfe0d73d44e36c840428260e0e39274e8623b42ee"
+      },
+      "authoring_source": {
+        "path": "design-source/source/draw_exemplar.py",
+        "bytes": 9221,
+        "sha256": "fa6f19173bb5a8bf41da225823f90c52a1c0f75321c7139499758e674c5a9e4a"
+      },
+      "decoded_image_mode": "RGB",
+      "vector_page_size": [
+        390.0,
+        844.0
+      ]
+    },
+    {
+      "version_id": "0.3/M06-review-v04-phone-changes",
+      "family": "M06",
+      "dossier_chapters": [
+        8
+      ],
+      "state_brief": {
+        "id": "M06",
+        "job": "Review saved r2 as an editorialdecision",
+        "basis": "D1/r2 current, r1 comparison; native scoped decision extension required",
+        "action": "Accept wording only",
+        "phone": "Final reading plus change/restore state"
+      },
+      "native_owners": [
+        "Content Desk"
+      ],
+      "related_dossier_acceptance_cases": [
+        "A1",
+        "A7"
+      ],
+      "logical_viewport": [
+        390.0,
+        844.0
+      ],
+      "original_raster_dimensions": [
+        780,
+        1688
+      ],
+      "atlas_page": 7,
+      "acceptance": "Selected original visual reference accepted through the complete implementation proposal; synthetic displayed content is not real execution or authority",
+      "permitted_adaptations": "Justified responsive, accessibility and truthful real-data adaptations with close visual/interaction comparison; no silent material scope or ownership change",
+      "png": {
+        "path": "design-source/screens/M06-review-v04-phone-changes.png",
+        "bytes": 117480,
+        "sha256": "898361fae99cd58f0d8d25bab91a5e68411b664cf28c59ba6fb979d919282051"
+      },
+      "vector": {
+        "path": "design-source/screens/M06-review-v04-phone-changes.pdf",
+        "bytes": 67107,
+        "sha256": "013839fc061525eaf85af44bfaeba2231c55c3f3fbd88b39518d32c98fd2f466"
+      },
+      "authoring_source": {
+        "path": "design-source/source/draw_exemplar.py",
+        "bytes": 9221,
+        "sha256": "fa6f19173bb5a8bf41da225823f90c52a1c0f75321c7139499758e674c5a9e4a"
+      },
+      "decoded_image_mode": "RGB",
+      "vector_page_size": [
+        390.0,
+        844.0
+      ]
+    },
+    {
+      "version_id": "0.3/M07-outcome-v04-desktop",
+      "family": "M07",
+      "dossier_chapters": [
+        8
+      ],
+      "state_brief": {
+        "id": "M07",
+        "job": "Reconcile uncertain externalresult",
+        "basis": "Separate future connected fixture; attempt A7, release package RP2, response unknown",
+        "action": "Check supported status",
+        "phone": "Identity, attempt, safe verification and operator observation"
+      },
+      "native_owners": [
+        "Channel Manager",
+        "Content Desk"
+      ],
+      "related_dossier_acceptance_cases": [
+        "A7"
+      ],
+      "logical_viewport": [
+        1440.0,
+        900.0
+      ],
+      "original_raster_dimensions": [
+        2880,
+        1800
+      ],
+      "atlas_page": 8,
+      "acceptance": "Selected original visual reference accepted through the complete implementation proposal; synthetic displayed content is not real execution or authority",
+      "permitted_adaptations": "Justified responsive, accessibility and truthful real-data adaptations with close visual/interaction comparison; no silent material scope or ownership change",
+      "png": {
+        "path": "design-source/screens/M07-outcome-v04-desktop.png",
+        "bytes": 260201,
+        "sha256": "562a95c450ddecaed4790a5f8340901b0e8da76941103c35169e99895b427a6e"
+      },
+      "vector": {
+        "path": "design-source/screens/M07-outcome-v04-desktop.pdf",
+        "bytes": 46200,
+        "sha256": "f915124339c28ea03fb92d5d839526e73d521c811c37dc2f2914333c8adedb96"
+      },
+      "authoring_source": {
+        "path": "design-source/source/draw_operations.py",
+        "bytes": 18610,
+        "sha256": "90490761142d3f2672c03a8d7b56365020df253914aa1fc9f343884323425781"
+      },
+      "decoded_image_mode": "RGB",
+      "vector_page_size": [
+        1440.0,
+        900.0
+      ]
+    },
+    {
+      "version_id": "0.3/M07-outcome-v04-phone",
+      "family": "M07",
+      "dossier_chapters": [
+        8
+      ],
+      "state_brief": {
+        "id": "M07",
+        "job": "Reconcile uncertain externalresult",
+        "basis": "Separate future connected fixture; attempt A7, release package RP2, response unknown",
+        "action": "Check supported status",
+        "phone": "Identity, attempt, safe verification and operator observation"
+      },
+      "native_owners": [
+        "Channel Manager",
+        "Content Desk"
+      ],
+      "related_dossier_acceptance_cases": [
+        "A7"
+      ],
+      "logical_viewport": [
+        390.0,
+        844.0
+      ],
+      "original_raster_dimensions": [
+        780,
+        1688
+      ],
+      "atlas_page": 8,
+      "acceptance": "Selected original visual reference accepted through the complete implementation proposal; synthetic displayed content is not real execution or authority",
+      "permitted_adaptations": "Justified responsive, accessibility and truthful real-data adaptations with close visual/interaction comparison; no silent material scope or ownership change",
+      "png": {
+        "path": "design-source/screens/M07-outcome-v04-phone.png",
+        "bytes": 108266,
+        "sha256": "b7cee9ffc4dc39cda8d9eb93a3a5b533f3b7b15b466a949cc2197dc7f68aae6b"
+      },
+      "vector": {
+        "path": "design-source/screens/M07-outcome-v04-phone.pdf",
+        "bytes": 66951,
+        "sha256": "12e60d5d445865d65ed26a01d8aec3c9ae56c73575fde9e1f90524c2338bfcaa"
+      },
+      "authoring_source": {
+        "path": "design-source/source/draw_operations.py",
+        "bytes": 18610,
+        "sha256": "90490761142d3f2672c03a8d7b56365020df253914aa1fc9f343884323425781"
+      },
+      "decoded_image_mode": "RGB",
+      "vector_page_size": [
+        390.0,
+        844.0
+      ]
+    },
+    {
+      "version_id": "0.3/M08-learning-v04-desktop",
+      "family": "M08",
+      "dossier_chapters": [
+        9
+      ],
+      "state_brief": {
+        "id": "M08",
+        "job": "Inspect evidence and record an honest observation",
+        "basis": "No publication/audience outcomes in F2; sourcefacts only",
+        "action": "Save private observation/experiment idea",
+        "phone": "Evidence list and selectedquestion"
+      },
+      "native_owners": [
+        "Channel Manager",
+        "Content Desk"
+      ],
+      "related_dossier_acceptance_cases": [
+        "A4",
+        "A7"
+      ],
+      "logical_viewport": [
+        1440.0,
+        900.0
+      ],
+      "original_raster_dimensions": [
+        2880,
+        1800
+      ],
+      "atlas_page": 9,
+      "acceptance": "Selected original visual reference accepted through the complete implementation proposal; synthetic displayed content is not real execution or authority",
+      "permitted_adaptations": "Justified responsive, accessibility and truthful real-data adaptations with close visual/interaction comparison; no silent material scope or ownership change",
+      "png": {
+        "path": "design-source/screens/M08-learning-v04-desktop.png",
+        "bytes": 264760,
+        "sha256": "1d4c6183fc5929d143a90722708ec3b4e797b6697afde239652c6ee438857757"
+      },
+      "vector": {
+        "path": "design-source/screens/M08-learning-v04-desktop.pdf",
+        "bytes": 67849,
+        "sha256": "d1fce298899a62b1794884f5ab2398adc519fc2c8f5cdec712a5a06a0bcdf652"
+      },
+      "authoring_source": {
+        "path": "design-source/source/draw_workspaces.py",
+        "bytes": 16553,
+        "sha256": "fb11e601e9cce9e1e2945e849aba9f5f33c8a06033c2b2e5262544c5c010d638"
+      },
+      "decoded_image_mode": "RGB",
+      "vector_page_size": [
+        1440.0,
+        900.0
+      ]
+    },
+    {
+      "version_id": "0.3/M08-learning-v04-phone",
+      "family": "M08",
+      "dossier_chapters": [
+        9
+      ],
+      "state_brief": {
+        "id": "M08",
+        "job": "Inspect evidence and record an honest observation",
+        "basis": "No publication/audience outcomes in F2; sourcefacts only",
+        "action": "Save private observation/experiment idea",
+        "phone": "Evidence list and selectedquestion"
+      },
+      "native_owners": [
+        "Channel Manager",
+        "Content Desk"
+      ],
+      "related_dossier_acceptance_cases": [
+        "A4",
+        "A7"
+      ],
+      "logical_viewport": [
+        390.0,
+        844.0
+      ],
+      "original_raster_dimensions": [
+        780,
+        1688
+      ],
+      "atlas_page": 9,
+      "acceptance": "Selected original visual reference accepted through the complete implementation proposal; synthetic displayed content is not real execution or authority",
+      "permitted_adaptations": "Justified responsive, accessibility and truthful real-data adaptations with close visual/interaction comparison; no silent material scope or ownership change",
+      "png": {
+        "path": "design-source/screens/M08-learning-v04-phone.png",
+        "bytes": 104249,
+        "sha256": "e29369f53dc42132131c2c85aae27512cc552592794494e0e9c689d318f19965"
+      },
+      "vector": {
+        "path": "design-source/screens/M08-learning-v04-phone.pdf",
+        "bytes": 45364,
+        "sha256": "fb29642e764cc19cdb1816c200b8a824fb72df52c67d8ae938c0e410b2a1667b"
+      },
+      "authoring_source": {
+        "path": "design-source/source/draw_workspaces.py",
+        "bytes": 16553,
+        "sha256": "fb11e601e9cce9e1e2945e849aba9f5f33c8a06033c2b2e5262544c5c010d638"
+      },
+      "decoded_image_mode": "RGB",
+      "vector_page_size": [
+        390.0,
+        844.0
+      ]
+    },
+    {
+      "version_id": "0.3/M09-recovery-v04-desktop",
+      "family": "M09",
+      "dossier_chapters": [
+        10
+      ],
+      "state_brief": {
+        "id": "M09",
+        "job": "Resolve concurrent wording without losing eitherbranch",
+        "basis": "Savedbase r2, remote r3, local branch based on r2",
+        "action": "Preview composed newrevision",
+        "phone": "Sequentialcompare and safe defer"
+      },
+      "native_owners": [
+        "Content Desk"
+      ],
+      "related_dossier_acceptance_cases": [
+        "A8",
+        "A9"
+      ],
+      "logical_viewport": [
+        1440.0,
+        900.0
+      ],
+      "original_raster_dimensions": [
+        2880,
+        1800
+      ],
+      "atlas_page": 10,
+      "acceptance": "Selected original visual reference accepted through the complete implementation proposal; synthetic displayed content is not real execution or authority",
+      "permitted_adaptations": "Justified responsive, accessibility and truthful real-data adaptations with close visual/interaction comparison; no silent material scope or ownership change",
+      "png": {
+        "path": "design-source/screens/M09-recovery-v04-desktop.png",
+        "bytes": 194991,
+        "sha256": "7f66fa1521ef78ee1cf6e3be5c8cc5a82b5b2541c2a19f1b63a76d0f5849100a"
+      },
+      "vector": {
+        "path": "design-source/screens/M09-recovery-v04-desktop.pdf",
+        "bytes": 67564,
+        "sha256": "1732744da66fab327285901c7c440367be8dfbd1c7c3b13da711cc6fb6f9e730"
+      },
+      "authoring_source": {
+        "path": "design-source/source/draw_operations.py",
+        "bytes": 18610,
+        "sha256": "90490761142d3f2672c03a8d7b56365020df253914aa1fc9f343884323425781"
+      },
+      "decoded_image_mode": "RGB",
+      "vector_page_size": [
+        1440.0,
+        900.0
+      ]
+    },
+    {
+      "version_id": "0.3/M09-recovery-v04-phone",
+      "family": "M09",
+      "dossier_chapters": [
+        10
+      ],
+      "state_brief": {
+        "id": "M09",
+        "job": "Resolve concurrent wording without losing eitherbranch",
+        "basis": "Savedbase r2, remote r3, local branch based on r2",
+        "action": "Preview composed newrevision",
+        "phone": "Sequentialcompare and safe defer"
+      },
+      "native_owners": [
+        "Content Desk"
+      ],
+      "related_dossier_acceptance_cases": [
+        "A8",
+        "A9"
+      ],
+      "logical_viewport": [
+        390.0,
+        844.0
+      ],
+      "original_raster_dimensions": [
+        780,
+        1688
+      ],
+      "atlas_page": 10,
+      "acceptance": "Selected original visual reference accepted through the complete implementation proposal; synthetic displayed content is not real execution or authority",
+      "permitted_adaptations": "Justified responsive, accessibility and truthful real-data adaptations with close visual/interaction comparison; no silent material scope or ownership change",
+      "png": {
+        "path": "design-source/screens/M09-recovery-v04-phone.png",
+        "bytes": 99349,
+        "sha256": "62b632cbdd8f58115767f2792446d0bef36c917ebbee2736800238285c600b97"
+      },
+      "vector": {
+        "path": "design-source/screens/M09-recovery-v04-phone.pdf",
+        "bytes": 67168,
+        "sha256": "f86337a2759765e50be4689b5b048dedf370d4d594a8319f79ccb4534791b5eb"
+      },
+      "authoring_source": {
+        "path": "design-source/source/draw_operations.py",
+        "bytes": 18610,
+        "sha256": "90490761142d3f2672c03a8d7b56365020df253914aa1fc9f343884323425781"
+      },
+      "decoded_image_mode": "RGB",
+      "vector_page_size": [
+        390.0,
+        844.0
+      ]
+    },
+    {
+      "version_id": "0.3/M10-ownership-v05",
+      "family": "M10",
+      "dossier_chapters": [
+        2
+      ],
+      "state_brief": {
+        "id": "M10",
+        "job": "Explain native owner/command relationships",
+        "basis": "Captured owners plus proposed seams",
+        "action": "Find owning source; no executable controls",
+        "kind": "conceptual ownership diagram"
+      },
+      "native_owners": [
+        "all native domain owners"
+      ],
+      "related_dossier_acceptance_cases": [
+        "A8",
+        "A10"
+      ],
+      "logical_viewport": [
+        720.0,
+        940.0
+      ],
+      "original_raster_dimensions": [
+        1440,
+        1880
+      ],
+      "atlas_page": 11,
+      "acceptance": "Selected original visual reference accepted through the complete implementation proposal; synthetic displayed content is not real execution or authority",
+      "permitted_adaptations": "Justified responsive, accessibility and truthful real-data adaptations with close visual/interaction comparison; no silent material scope or ownership change",
+      "png": {
+        "path": "design-source/screens/M10-ownership-v05.png",
+        "bytes": 192825,
+        "sha256": "e5d76af5f9738857b61544b6e73d6623804e5f896902836323a757812f59fda2"
+      },
+      "vector": {
+        "path": "design-source/screens/M10-ownership-v05.pdf",
+        "bytes": 31414,
+        "sha256": "aa271f5b738cd964d8dd58d87d21b0b98e5476eaa1705c15d9ac4605e15deff8"
+      },
+      "authoring_source": {
+        "path": "design-source/source/draw_state_specimens.py",
+        "bytes": 9792,
+        "sha256": "f95669f3cbd560916f80aebb6654d223c750c28414e3b69f4163bde2f926f8ba"
+      },
+      "decoded_image_mode": "RGB",
+      "vector_page_size": [
+        720.0,
+        940.0
+      ]
+    },
+    {
+      "version_id": "0.3/M11-contributor-v03-desktop",
+      "family": "M11",
+      "dossier_chapters": [
+        7
+      ],
+      "state_brief": {
+        "id": "M11",
+        "job": "Contributor reads and responds to a bounded packet",
+        "basis": "Fictional Alex, hypothetical authorized packet, no actual handoff",
+        "action": "Submit own wording and selected use permission",
+        "phone": "Samequote, destination and voluntarychoice"
+      },
+      "native_owners": [
+        "Content Desk",
+        "Channel Manager"
+      ],
+      "related_dossier_acceptance_cases": [
+        "A6"
+      ],
+      "logical_viewport": [
+        1440.0,
+        900.0
+      ],
+      "original_raster_dimensions": [
+        2880,
+        1800
+      ],
+      "atlas_page": 12,
+      "acceptance": "Selected original visual reference accepted through the complete implementation proposal; synthetic displayed content is not real execution or authority",
+      "permitted_adaptations": "Justified responsive, accessibility and truthful real-data adaptations with close visual/interaction comparison; no silent material scope or ownership change",
+      "png": {
+        "path": "design-source/screens/M11-contributor-v03-desktop.png",
+        "bytes": 229955,
+        "sha256": "8cbd9b1582f07820d78813418e0b019f52e66fc004be47b8187db49955b495ba"
+      },
+      "vector": {
+        "path": "design-source/screens/M11-contributor-v03-desktop.pdf",
+        "bytes": 67556,
+        "sha256": "686d886b0f56436d318093540b26d667f14232a97ea8ff3ad518373f17265e88"
+      },
+      "authoring_source": {
+        "path": "design-source/source/draw_operations.py",
+        "bytes": 18610,
+        "sha256": "90490761142d3f2672c03a8d7b56365020df253914aa1fc9f343884323425781"
+      },
+      "decoded_image_mode": "RGB",
+      "vector_page_size": [
+        1440.0,
+        900.0
+      ]
+    },
+    {
+      "version_id": "0.3/M11-contributor-v03-phone",
+      "family": "M11",
+      "dossier_chapters": [
+        7
+      ],
+      "state_brief": {
+        "id": "M11",
+        "job": "Contributor reads and responds to a bounded packet",
+        "basis": "Fictional Alex, hypothetical authorized packet, no actual handoff",
+        "action": "Submit own wording and selected use permission",
+        "phone": "Samequote, destination and voluntarychoice"
+      },
+      "native_owners": [
+        "Content Desk",
+        "Channel Manager"
+      ],
+      "related_dossier_acceptance_cases": [
+        "A6"
+      ],
+      "logical_viewport": [
+        390.0,
+        844.0
+      ],
+      "original_raster_dimensions": [
+        780,
+        1688
+      ],
+      "atlas_page": 12,
+      "acceptance": "Selected original visual reference accepted through the complete implementation proposal; synthetic displayed content is not real execution or authority",
+      "permitted_adaptations": "Justified responsive, accessibility and truthful real-data adaptations with close visual/interaction comparison; no silent material scope or ownership change",
+      "png": {
+        "path": "design-source/screens/M11-contributor-v03-phone.png",
+        "bytes": 99720,
+        "sha256": "5a6c97c0e25342945a787d37482eda226f98856b37565a415ba477eb9a98e452"
+      },
+      "vector": {
+        "path": "design-source/screens/M11-contributor-v03-phone.pdf",
+        "bytes": 66796,
+        "sha256": "e42c0edc0155fd11fdd9c7990aa25a73cbfafb2061c68684fe02cda093ce4fd3"
+      },
+      "authoring_source": {
+        "path": "design-source/source/draw_operations.py",
+        "bytes": 18610,
+        "sha256": "90490761142d3f2672c03a8d7b56365020df253914aa1fc9f343884323425781"
+      },
+      "decoded_image_mode": "RGB",
+      "vector_page_size": [
+        390.0,
+        844.0
+      ]
+    },
+    {
+      "version_id": "0.3/M12-simple-v05-desktop",
+      "family": "M12",
+      "dossier_chapters": [
+        11
+      ],
+      "state_brief": {
+        "id": "M12",
+        "job": "Capture one thought without campaign setup",
+        "basis": "Unassigned proposed one-off route; prepared text not natively admitted",
+        "action": "Save private draft when admission qualified",
+        "phone": "Keyboard-open capture and explicit local/saved state"
+      },
+      "native_owners": [
+        "Content Desk"
+      ],
+      "related_dossier_acceptance_cases": [
+        "A3"
+      ],
+      "logical_viewport": [
+        1440.0,
+        900.0
+      ],
+      "original_raster_dimensions": [
+        2880,
+        1800
+      ],
+      "atlas_page": 13,
+      "acceptance": "Selected original visual reference accepted through the complete implementation proposal; synthetic displayed content is not real execution or authority",
+      "permitted_adaptations": "Justified responsive, accessibility and truthful real-data adaptations with close visual/interaction comparison; no silent material scope or ownership change",
+      "png": {
+        "path": "design-source/screens/M12-simple-v05-desktop.png",
+        "bytes": 176366,
+        "sha256": "7ca7b5f042405bdc0d524ec7d3446fe0f03e4d96682ff71d076ade0c9ca22a4e"
+      },
+      "vector": {
+        "path": "design-source/screens/M12-simple-v05-desktop.pdf",
+        "bytes": 87981,
+        "sha256": "7a19bfde8a36c9b1ff12e9b3acce85c9903b4764cdc8c14eea0a9938c351f5d6"
+      },
+      "authoring_source": {
+        "path": "design-source/source/draw_workspaces.py",
+        "bytes": 16553,
+        "sha256": "fb11e601e9cce9e1e2945e849aba9f5f33c8a06033c2b2e5262544c5c010d638"
+      },
+      "decoded_image_mode": "RGB",
+      "vector_page_size": [
+        1440.0,
+        900.0
+      ]
+    },
+    {
+      "version_id": "0.3/M12-simple-v05-phone",
+      "family": "M12",
+      "dossier_chapters": [
+        11
+      ],
+      "state_brief": {
+        "id": "M12",
+        "job": "Capture one thought without campaign setup",
+        "basis": "Unassigned proposed one-off route; prepared text not natively admitted",
+        "action": "Save private draft when admission qualified",
+        "phone": "Keyboard-open capture and explicit local/saved state"
+      },
+      "native_owners": [
+        "Content Desk"
+      ],
+      "related_dossier_acceptance_cases": [
+        "A3"
+      ],
+      "logical_viewport": [
+        390.0,
+        844.0
+      ],
+      "original_raster_dimensions": [
+        780,
+        1688
+      ],
+      "atlas_page": 13,
+      "acceptance": "Selected original visual reference accepted through the complete implementation proposal; synthetic displayed content is not real execution or authority",
+      "permitted_adaptations": "Justified responsive, accessibility and truthful real-data adaptations with close visual/interaction comparison; no silent material scope or ownership change",
+      "png": {
+        "path": "design-source/screens/M12-simple-v05-phone.png",
+        "bytes": 97163,
+        "sha256": "301def78af2e4c60c470f2ce2a39742a8211e7f61c772627fe23a35b51703a07"
+      },
+      "vector": {
+        "path": "design-source/screens/M12-simple-v05-phone.pdf",
+        "bytes": 69097,
+        "sha256": "9ebdab637fb94e57429e98dc071be1d956b5acc92d9fea0d1da5cab801b7d257"
+      },
+      "authoring_source": {
+        "path": "design-source/source/draw_workspaces.py",
+        "bytes": 16553,
+        "sha256": "fb11e601e9cce9e1e2945e849aba9f5f33c8a06033c2b2e5262544c5c010d638"
+      },
+      "decoded_image_mode": "RGB",
+      "vector_page_size": [
+        390.0,
+        844.0
+      ]
+    },
+    {
+      "version_id": "0.3/M13-intake-v06-desktop",
+      "family": "M13",
+      "dossier_chapters": [
+        3
+      ],
+      "state_brief": {
+        "id": "M13",
+        "job": "Bring in existing article with partial media result",
+        "basis": "Real private article identity; synthetic missing image 2 branch",
+        "action": "Save allowed text then resolve media",
+        "phone": "Source, requested operation and unresolved items"
+      },
+      "native_owners": [
+        "Content Desk",
+        "Asset Studio"
+      ],
+      "related_dossier_acceptance_cases": [
+        "A1",
+        "A8"
+      ],
+      "logical_viewport": [
+        1440.0,
+        900.0
+      ],
+      "original_raster_dimensions": [
+        2880,
+        1800
+      ],
+      "atlas_page": 14,
+      "acceptance": "Selected original visual reference accepted through the complete implementation proposal; synthetic displayed content is not real execution or authority",
+      "permitted_adaptations": "Justified responsive, accessibility and truthful real-data adaptations with close visual/interaction comparison; no silent material scope or ownership change",
+      "png": {
+        "path": "design-source/screens/M13-intake-v06-desktop.png",
+        "bytes": 265357,
+        "sha256": "c8ed2b3102766d35a78024aef142345217e5ea6a4c6753ce791c7f8cda4fac68"
+      },
+      "vector": {
+        "path": "design-source/screens/M13-intake-v06-desktop.pdf",
+        "bytes": 67661,
+        "sha256": "8bd37314d7e006888dd7991a6fcd1a248d53964e84bef773a82d33094dac1a8b"
+      },
+      "authoring_source": {
+        "path": "design-source/source/draw_operations.py",
+        "bytes": 18610,
+        "sha256": "90490761142d3f2672c03a8d7b56365020df253914aa1fc9f343884323425781"
+      },
+      "decoded_image_mode": "RGB",
+      "vector_page_size": [
+        1440.0,
+        900.0
+      ]
+    },
+    {
+      "version_id": "0.3/M13-intake-v06-phone",
+      "family": "M13",
+      "dossier_chapters": [
+        3
+      ],
+      "state_brief": {
+        "id": "M13",
+        "job": "Bring in existing article with partial media result",
+        "basis": "Real private article identity; synthetic missing image 2 branch",
+        "action": "Save allowed text then resolve media",
+        "phone": "Source, requested operation and unresolved items"
+      },
+      "native_owners": [
+        "Content Desk",
+        "Asset Studio"
+      ],
+      "related_dossier_acceptance_cases": [
+        "A1",
+        "A8"
+      ],
+      "logical_viewport": [
+        390.0,
+        844.0
+      ],
+      "original_raster_dimensions": [
+        780,
+        1688
+      ],
+      "atlas_page": 14,
+      "acceptance": "Selected original visual reference accepted through the complete implementation proposal; synthetic displayed content is not real execution or authority",
+      "permitted_adaptations": "Justified responsive, accessibility and truthful real-data adaptations with close visual/interaction comparison; no silent material scope or ownership change",
+      "png": {
+        "path": "design-source/screens/M13-intake-v06-phone.png",
+        "bytes": 107200,
+        "sha256": "7a32c705459bc64698f9b1968f9108396867252f2b02bbc235338fa304606ff4"
+      },
+      "vector": {
+        "path": "design-source/screens/M13-intake-v06-phone.pdf",
+        "bytes": 66950,
+        "sha256": "fcebe4bd7aa8cf15a3c4f886f438b40b1938cc0585115f73f978899e15c56845"
+      },
+      "authoring_source": {
+        "path": "design-source/source/draw_operations.py",
+        "bytes": 18610,
+        "sha256": "90490761142d3f2672c03a8d7b56365020df253914aa1fc9f343884323425781"
+      },
+      "decoded_image_mode": "RGB",
+      "vector_page_size": [
+        390.0,
+        844.0
+      ]
+    },
+    {
+      "version_id": "0.3/M14-readiness-v04-desktop",
+      "family": "M14",
+      "dossier_chapters": [
+        7
+      ],
+      "state_brief": {
+        "id": "M14",
+        "job": "Select real destination and inspectaction readiness",
+        "basis": "Illustrative accounts; LinkedIn eligibility unverified, X link-only, subreddit not created",
+        "action": "Review selected identity requirements",
+        "phone": "One account detail without global green check"
+      },
+      "native_owners": [
+        "Channel Manager"
+      ],
+      "related_dossier_acceptance_cases": [
+        "A6",
+        "A7"
+      ],
+      "logical_viewport": [
+        1440.0,
+        900.0
+      ],
+      "original_raster_dimensions": [
+        2880,
+        1800
+      ],
+      "atlas_page": 15,
+      "acceptance": "Selected original visual reference accepted through the complete implementation proposal; synthetic displayed content is not real execution or authority",
+      "permitted_adaptations": "Justified responsive, accessibility and truthful real-data adaptations with close visual/interaction comparison; no silent material scope or ownership change",
+      "png": {
+        "path": "design-source/screens/M14-readiness-v04-desktop.png",
+        "bytes": 243051,
+        "sha256": "d0059988e62a53fe3d0e57c3bfe67b97cbeff0d6fe5fea5296fb2d55607ea2ec"
+      },
+      "vector": {
+        "path": "design-source/screens/M14-readiness-v04-desktop.pdf",
+        "bytes": 45955,
+        "sha256": "9797a11f70bdd0f92218357e3a9fec05b7061568dbe2529ff815f8ba9b7ec8e0"
+      },
+      "authoring_source": {
+        "path": "design-source/source/draw_operations.py",
+        "bytes": 18610,
+        "sha256": "90490761142d3f2672c03a8d7b56365020df253914aa1fc9f343884323425781"
+      },
+      "decoded_image_mode": "RGB",
+      "vector_page_size": [
+        1440.0,
+        900.0
+      ]
+    },
+    {
+      "version_id": "0.3/M14-readiness-v04-phone",
+      "family": "M14",
+      "dossier_chapters": [
+        7
+      ],
+      "state_brief": {
+        "id": "M14",
+        "job": "Select real destination and inspectaction readiness",
+        "basis": "Illustrative accounts; LinkedIn eligibility unverified, X link-only, subreddit not created",
+        "action": "Review selected identity requirements",
+        "phone": "One account detail without global green check"
+      },
+      "native_owners": [
+        "Channel Manager"
+      ],
+      "related_dossier_acceptance_cases": [
+        "A6",
+        "A7"
+      ],
+      "logical_viewport": [
+        390.0,
+        844.0
+      ],
+      "original_raster_dimensions": [
+        780,
+        1688
+      ],
+      "atlas_page": 15,
+      "acceptance": "Selected original visual reference accepted through the complete implementation proposal; synthetic displayed content is not real execution or authority",
+      "permitted_adaptations": "Justified responsive, accessibility and truthful real-data adaptations with close visual/interaction comparison; no silent material scope or ownership change",
+      "png": {
+        "path": "design-source/screens/M14-readiness-v04-phone.png",
+        "bytes": 103778,
+        "sha256": "3568cfc181e0b437cce5c8233ceff1b1a1e3baa1c9deb4177ab8d5891157d447"
+      },
+      "vector": {
+        "path": "design-source/screens/M14-readiness-v04-phone.pdf",
+        "bytes": 45338,
+        "sha256": "2c47822c97ce695443af9b54d9cdfd6b66bb1d39d99bec94f469a995534aecb1"
+      },
+      "authoring_source": {
+        "path": "design-source/source/draw_operations.py",
+        "bytes": 18610,
+        "sha256": "90490761142d3f2672c03a8d7b56365020df253914aa1fc9f343884323425781"
+      },
+      "decoded_image_mode": "RGB",
+      "vector_page_size": [
+        390.0,
+        844.0
+      ]
+    },
+    {
+      "version_id": "0.3/M15-content-v01-desktop",
+      "family": "M15",
+      "dossier_chapters": [
+        2
+      ],
+      "state_brief": {
+        "id": "M15",
+        "job": "Find content independent of lifecycle and inspect family",
+        "basis": "D1/r2, D2 personal X, existing article; same-title cross-project fixture",
+        "action": "Open exact native object",
+        "phone": "Search results with scope and state"
+      },
+      "native_owners": [
+        "Content Desk"
+      ],
+      "related_dossier_acceptance_cases": [
+        "A3",
+        "A8"
+      ],
+      "logical_viewport": [
+        1440.0,
+        900.0
+      ],
+      "original_raster_dimensions": [
+        2880,
+        1800
+      ],
+      "atlas_page": 16,
+      "acceptance": "Selected original visual reference accepted through the complete implementation proposal; synthetic displayed content is not real execution or authority",
+      "permitted_adaptations": "Justified responsive, accessibility and truthful real-data adaptations with close visual/interaction comparison; no silent material scope or ownership change",
+      "png": {
+        "path": "design-source/screens/M15-content-v01-desktop.png",
+        "bytes": 223314,
+        "sha256": "ae36f464adf411da171f6bfbacf5d80ff176755e4ac942dbab61d4290bdb6a29"
+      },
+      "vector": {
+        "path": "design-source/screens/M15-content-v01-desktop.pdf",
+        "bytes": 46536,
+        "sha256": "d1bb53612c82d76e8892c627e8f9285dd884a619a6e37ecc3157db8bb624edc6"
+      },
+      "authoring_source": {
+        "path": "design-source/source/draw_workspaces.py",
+        "bytes": 16553,
+        "sha256": "fb11e601e9cce9e1e2945e849aba9f5f33c8a06033c2b2e5262544c5c010d638"
+      },
+      "decoded_image_mode": "RGB",
+      "vector_page_size": [
+        1440.0,
+        900.0
+      ]
+    },
+    {
+      "version_id": "0.3/M15-content-v01-phone",
+      "family": "M15",
+      "dossier_chapters": [
+        2
+      ],
+      "state_brief": {
+        "id": "M15",
+        "job": "Find content independent of lifecycle and inspect family",
+        "basis": "D1/r2, D2 personal X, existing article; same-title cross-project fixture",
+        "action": "Open exact native object",
+        "phone": "Search results with scope and state"
+      },
+      "native_owners": [
+        "Content Desk"
+      ],
+      "related_dossier_acceptance_cases": [
+        "A3",
+        "A8"
+      ],
+      "logical_viewport": [
+        390.0,
+        844.0
+      ],
+      "original_raster_dimensions": [
+        780,
+        1688
+      ],
+      "atlas_page": 16,
+      "acceptance": "Selected original visual reference accepted through the complete implementation proposal; synthetic displayed content is not real execution or authority",
+      "permitted_adaptations": "Justified responsive, accessibility and truthful real-data adaptations with close visual/interaction comparison; no silent material scope or ownership change",
+      "png": {
+        "path": "design-source/screens/M15-content-v01-phone.png",
+        "bytes": 116844,
+        "sha256": "e0a263ccc3117524ed8d3baebe0049b93f75a8df5d4ce749d0c4464ce64b242c"
+      },
+      "vector": {
+        "path": "design-source/screens/M15-content-v01-phone.pdf",
+        "bytes": 45386,
+        "sha256": "7873aeb2e73f30bc4be193d6848543419ff20ec2af1bde3f3e3fa38da0ed6a70"
+      },
+      "authoring_source": {
+        "path": "design-source/source/draw_workspaces.py",
+        "bytes": 16553,
+        "sha256": "fb11e601e9cce9e1e2945e849aba9f5f33c8a06033c2b2e5262544c5c010d638"
+      },
+      "decoded_image_mode": "RGB",
+      "vector_page_size": [
+        390.0,
+        844.0
+      ]
+    },
+    {
+      "version_id": "0.3/M16-article-v03-desktop",
+      "family": "M16",
+      "dossier_chapters": [
+        5
+      ],
+      "state_brief": {
+        "id": "M16",
+        "job": "Edit true article, thread and silent demo formats",
+        "basis": "Synthetic format state specimens; qualification not established",
+        "action": "Preserve format structure and evidence",
+        "kind": "format canvas specimens"
+      },
+      "native_owners": [
+        "Content Desk",
+        "Asset Studio"
+      ],
+      "related_dossier_acceptance_cases": [
+        "A1",
+        "A2",
+        "A3",
+        "A9"
+      ],
+      "logical_viewport": [
+        1440.0,
+        900.0
+      ],
+      "original_raster_dimensions": [
+        2880,
+        1800
+      ],
+      "atlas_page": 17,
+      "acceptance": "Selected original visual reference accepted through the complete implementation proposal; synthetic displayed content is not real execution or authority",
+      "permitted_adaptations": "Justified responsive, accessibility and truthful real-data adaptations with close visual/interaction comparison; no silent material scope or ownership change",
+      "png": {
+        "path": "design-source/screens/M16-article-v03-desktop.png",
+        "bytes": 997044,
+        "sha256": "1bdf705d7d3e7b0c1d137975158f9d893b873c880527c8c2d799e3ad2040d413"
+      },
+      "vector": {
+        "path": "design-source/screens/M16-article-v03-desktop.pdf",
+        "bytes": 2120439,
+        "sha256": "13468f2818c1476cd1f7bf96cb9cd10e94f0dd1e46bce2b90ebf87bc18d01b5f"
+      },
+      "authoring_source": {
+        "path": "design-source/source/draw_state_specimens.py",
+        "bytes": 9792,
+        "sha256": "f95669f3cbd560916f80aebb6654d223c750c28414e3b69f4163bde2f926f8ba"
+      },
+      "decoded_image_mode": "RGB",
+      "vector_page_size": [
+        1440.0,
+        900.0
+      ]
+    },
+    {
+      "version_id": "0.3/M16-storyboard-v01-desktop",
+      "family": "M16",
+      "dossier_chapters": [
+        5
+      ],
+      "state_brief": {
+        "id": "M16",
+        "job": "Edit true article, thread and silent demo formats",
+        "basis": "Synthetic format state specimens; qualification not established",
+        "action": "Preserve format structure and evidence",
+        "kind": "format canvas specimens"
+      },
+      "native_owners": [
+        "Content Desk",
+        "Asset Studio"
+      ],
+      "related_dossier_acceptance_cases": [
+        "A1",
+        "A2",
+        "A3",
+        "A9"
+      ],
+      "logical_viewport": [
+        1440.0,
+        900.0
+      ],
+      "original_raster_dimensions": [
+        2880,
+        1800
+      ],
+      "atlas_page": 18,
+      "acceptance": "Selected original visual reference accepted through the complete implementation proposal; synthetic displayed content is not real execution or authority",
+      "permitted_adaptations": "Justified responsive, accessibility and truthful real-data adaptations with close visual/interaction comparison; no silent material scope or ownership change",
+      "png": {
+        "path": "design-source/screens/M16-storyboard-v01-desktop.png",
+        "bytes": 196591,
+        "sha256": "d0daa2aea77c6524458a0ba8eadeb2882747ff61916d25b6c0ad0d7b1f07b76a"
+      },
+      "vector": {
+        "path": "design-source/screens/M16-storyboard-v01-desktop.pdf",
+        "bytes": 45806,
+        "sha256": "d3cffa638eb59b13f49b28f23fd81fe16ef48111ec7591b7f723f515dd2e91f2"
+      },
+      "authoring_source": {
+        "path": "design-source/source/draw_state_specimens.py",
+        "bytes": 9792,
+        "sha256": "f95669f3cbd560916f80aebb6654d223c750c28414e3b69f4163bde2f926f8ba"
+      },
+      "decoded_image_mode": "RGB",
+      "vector_page_size": [
+        1440.0,
+        900.0
+      ]
+    },
+    {
+      "version_id": "0.3/M16-thread-v01-desktop",
+      "family": "M16",
+      "dossier_chapters": [
+        5
+      ],
+      "state_brief": {
+        "id": "M16",
+        "job": "Edit true article, thread and silent demo formats",
+        "basis": "Synthetic format state specimens; qualification not established",
+        "action": "Preserve format structure and evidence",
+        "kind": "format canvas specimens"
+      },
+      "native_owners": [
+        "Content Desk",
+        "Asset Studio"
+      ],
+      "related_dossier_acceptance_cases": [
+        "A1",
+        "A2",
+        "A3",
+        "A9"
+      ],
+      "logical_viewport": [
+        1440.0,
+        900.0
+      ],
+      "original_raster_dimensions": [
+        2880,
+        1800
+      ],
+      "atlas_page": 19,
+      "acceptance": "Selected original visual reference accepted through the complete implementation proposal; synthetic displayed content is not real execution or authority",
+      "permitted_adaptations": "Justified responsive, accessibility and truthful real-data adaptations with close visual/interaction comparison; no silent material scope or ownership change",
+      "png": {
+        "path": "design-source/screens/M16-thread-v01-desktop.png",
+        "bytes": 219173,
+        "sha256": "4eb86d64c0e4a635f7873359cc037e0b8e869ada48ce68de479fed5623393d6a"
+      },
+      "vector": {
+        "path": "design-source/screens/M16-thread-v01-desktop.pdf",
+        "bytes": 67465,
+        "sha256": "1f2517c71086765c78c563b8267245353efcf4119ed2c745910a53d83f497fe1"
+      },
+      "authoring_source": {
+        "path": "design-source/source/draw_state_specimens.py",
+        "bytes": 9792,
+        "sha256": "f95669f3cbd560916f80aebb6654d223c750c28414e3b69f4163bde2f926f8ba"
+      },
+      "decoded_image_mode": "RGB",
+      "vector_page_size": [
+        1440.0,
+        900.0
+      ]
+    },
+    {
+      "version_id": "0.3/M17-work-v02-desktop",
+      "family": "M17",
+      "dossier_chapters": [
+        6
+      ],
+      "state_brief": {
+        "id": "M17",
+        "job": "Recover partial plan application",
+        "basis": "Plan accepted; source work persisted; Planner allocation failed; earlier intentions retained at risk",
+        "action": "Resume only unresolved allocation",
+        "phone": "Individual owner receipts with safe next action"
+      },
+      "native_owners": [
+        "Content Desk",
+        "Personal Planner"
+      ],
+      "related_dossier_acceptance_cases": [
+        "A4",
+        "A5"
+      ],
+      "logical_viewport": [
+        1440.0,
+        900.0
+      ],
+      "original_raster_dimensions": [
+        2880,
+        1800
+      ],
+      "atlas_page": 20,
+      "acceptance": "Selected original visual reference accepted through the complete implementation proposal; synthetic displayed content is not real execution or authority",
+      "permitted_adaptations": "Justified responsive, accessibility and truthful real-data adaptations with close visual/interaction comparison; no silent material scope or ownership change",
+      "png": {
+        "path": "design-source/screens/M17-work-v02-desktop.png",
+        "bytes": 245244,
+        "sha256": "6f0cae52de3254c58890da2b6b522973d1ea4f9fbc79606c14f48f5292ec45af"
+      },
+      "vector": {
+        "path": "design-source/screens/M17-work-v02-desktop.pdf",
+        "bytes": 46214,
+        "sha256": "b3a11c79842203ad901f2fd11e2f106cf49f613e5dac1d154d861f8d33431b56"
+      },
+      "authoring_source": {
+        "path": "design-source/source/draw_operations.py",
+        "bytes": 18610,
+        "sha256": "90490761142d3f2672c03a8d7b56365020df253914aa1fc9f343884323425781"
+      },
+      "decoded_image_mode": "RGB",
+      "vector_page_size": [
+        1440.0,
+        900.0
+      ]
+    },
+    {
+      "version_id": "0.3/M17-work-v02-phone",
+      "family": "M17",
+      "dossier_chapters": [
+        6
+      ],
+      "state_brief": {
+        "id": "M17",
+        "job": "Recover partial plan application",
+        "basis": "Plan accepted; source work persisted; Planner allocation failed; earlier intentions retained at risk",
+        "action": "Resume only unresolved allocation",
+        "phone": "Individual owner receipts with safe next action"
+      },
+      "native_owners": [
+        "Content Desk",
+        "Personal Planner"
+      ],
+      "related_dossier_acceptance_cases": [
+        "A4",
+        "A5"
+      ],
+      "logical_viewport": [
+        390.0,
+        844.0
+      ],
+      "original_raster_dimensions": [
+        780,
+        1688
+      ],
+      "atlas_page": 20,
+      "acceptance": "Selected original visual reference accepted through the complete implementation proposal; synthetic displayed content is not real execution or authority",
+      "permitted_adaptations": "Justified responsive, accessibility and truthful real-data adaptations with close visual/interaction comparison; no silent material scope or ownership change",
+      "png": {
+        "path": "design-source/screens/M17-work-v02-phone.png",
+        "bytes": 111098,
+        "sha256": "c221f58cf7d93e5b2b48e036ea5467c337f38777a9c6d7cadfef022cd4f6d17d"
+      },
+      "vector": {
+        "path": "design-source/screens/M17-work-v02-phone.pdf",
+        "bytes": 45251,
+        "sha256": "6f6d9ecfd6dfb0b3cc6f5d19fe4afc9873db11abe032f6cbd0f19a4e238195a2"
+      },
+      "authoring_source": {
+        "path": "design-source/source/draw_operations.py",
+        "bytes": 18610,
+        "sha256": "90490761142d3f2672c03a8d7b56365020df253914aa1fc9f343884323425781"
+      },
+      "decoded_image_mode": "RGB",
+      "vector_page_size": [
+        390.0,
+        844.0
+      ]
+    },
+    {
+      "version_id": "0.3/M18-journey-v02",
+      "family": "M18",
+      "dossier_chapters": [
+        13
+      ],
+      "state_brief": {
+        "id": "M18",
+        "job": "Trace creation→review→intention→release→learning",
+        "basis": "Synthetic design model, no executed commands",
+        "action": "Read transition meaning and failure branch",
+        "kind": "sequence/state diagram"
+      },
+      "native_owners": [
+        "all native domain owners"
+      ],
+      "related_dossier_acceptance_cases": [
+        "A4",
+        "A7",
+        "A10"
+      ],
+      "logical_viewport": [
+        720.0,
+        1030.0
+      ],
+      "original_raster_dimensions": [
+        1440,
+        2060
+      ],
+      "atlas_page": 21,
+      "acceptance": "Selected original visual reference accepted through the complete implementation proposal; synthetic displayed content is not real execution or authority",
+      "permitted_adaptations": "Justified responsive, accessibility and truthful real-data adaptations with close visual/interaction comparison; no silent material scope or ownership change",
+      "png": {
+        "path": "design-source/screens/M18-journey-v02.png",
+        "bytes": 227196,
+        "sha256": "a182bcfc2240c1dcbceac7025687939a50bcd8a9c1803e73e61756feb68aacb3"
+      },
+      "vector": {
+        "path": "design-source/screens/M18-journey-v02.pdf",
+        "bytes": 67686,
+        "sha256": "8d2b16fa094d4bb9a8525cd2862bbd8f243b232a9b66210851820d91a22c999e"
+      },
+      "authoring_source": {
+        "path": "design-source/source/draw_state_specimens.py",
+        "bytes": 9792,
+        "sha256": "f95669f3cbd560916f80aebb6654d223c750c28414e3b69f4163bde2f926f8ba"
+      },
+      "decoded_image_mode": "RGB",
+      "vector_page_size": [
+        720.0,
+        1030.0
+      ]
+    },
+    {
+      "version_id": "0.3/M19-request-changes-v01-phone",
+      "family": "M19",
+      "dossier_chapters": [
+        8
+      ],
+      "state_brief": {
+        "id": "M19",
+        "job": "Inspect source and request anchored changes",
+        "basis": "Retrospectively mapped to exact authored source; see corresponding drawing function and immutable output.",
+        "retrospective_mapping": true
+      },
+      "native_owners": [
+        "Content Desk"
+      ],
+      "related_dossier_acceptance_cases": [
+        "A1",
+        "A7"
+      ],
+      "logical_viewport": [
+        390.0,
+        844.0
+      ],
+      "original_raster_dimensions": [
+        780,
+        1688
+      ],
+      "atlas_page": 22,
+      "acceptance": "Selected original visual reference accepted through the complete implementation proposal; synthetic displayed content is not real execution or authority",
+      "permitted_adaptations": "Justified responsive, accessibility and truthful real-data adaptations with close visual/interaction comparison; no silent material scope or ownership change",
+      "png": {
+        "path": "design-source/screens/M19-request-changes-v01-phone.png",
+        "bytes": 95833,
+        "sha256": "f9cb5cad9e56e051833f0ec53d8ac0ccc6abe581bccfa7beb1d2eecb762f76a7"
+      },
+      "vector": {
+        "path": "design-source/screens/M19-request-changes-v01-phone.pdf",
+        "bytes": 67014,
+        "sha256": "7d2ac3a9b530e3529a2dfae815f9f533fcf265c894706b0187bb509ad12c56d8"
+      },
+      "authoring_source": {
+        "path": "design-source/source/draw_state_specimens.py",
+        "bytes": 9792,
+        "sha256": "f95669f3cbd560916f80aebb6654d223c750c28414e3b69f4163bde2f926f8ba"
+      },
+      "decoded_image_mode": "RGB",
+      "vector_page_size": [
+        390.0,
+        844.0
+      ]
+    },
+    {
+      "version_id": "0.3/M19-source-detail-v01-phone",
+      "family": "M19",
+      "dossier_chapters": [
+        8
+      ],
+      "state_brief": {
+        "id": "M19",
+        "job": "Inspect source and request anchored changes",
+        "basis": "Retrospectively mapped to exact authored source; see corresponding drawing function and immutable output.",
+        "retrospective_mapping": true
+      },
+      "native_owners": [
+        "Content Desk"
+      ],
+      "related_dossier_acceptance_cases": [
+        "A1",
+        "A7"
+      ],
+      "logical_viewport": [
+        390.0,
+        844.0
+      ],
+      "original_raster_dimensions": [
+        780,
+        1688
+      ],
+      "atlas_page": 22,
+      "acceptance": "Selected original visual reference accepted through the complete implementation proposal; synthetic displayed content is not real execution or authority",
+      "permitted_adaptations": "Justified responsive, accessibility and truthful real-data adaptations with close visual/interaction comparison; no silent material scope or ownership change",
+      "png": {
+        "path": "design-source/screens/M19-source-detail-v01-phone.png",
+        "bytes": 100779,
+        "sha256": "bfac657c3eecc3010844304c53471828c1a8e3fa8b3c9b12bf2af4b48ce508bd"
+      },
+      "vector": {
+        "path": "design-source/screens/M19-source-detail-v01-phone.pdf",
+        "bytes": 66952,
+        "sha256": "e0a62a8b31ebc25dedbb6a1eec9818d9174c0e1dd21f54ed201f3ff8ff13f677"
+      },
+      "authoring_source": {
+        "path": "design-source/source/draw_state_specimens.py",
+        "bytes": 9792,
+        "sha256": "f95669f3cbd560916f80aebb6654d223c750c28414e3b69f4163bde2f926f8ba"
+      },
+      "decoded_image_mode": "RGB",
+      "vector_page_size": [
+        390.0,
+        844.0
+      ]
+    },
+    {
+      "version_id": "0.3/M20-states-v01-desktop",
+      "family": "M20",
+      "dossier_chapters": [
+        10
+      ],
+      "state_brief": {
+        "id": "M20",
+        "job": "Distinguish empty, loading and unknown states",
+        "basis": "Retrospectively mapped to exact authored source; see corresponding drawing function and immutable output.",
+        "retrospective_mapping": true
+      },
+      "native_owners": [
+        "Content Desk"
+      ],
+      "related_dossier_acceptance_cases": [
+        "A8",
+        "A9"
+      ],
+      "logical_viewport": [
+        1440.0,
+        900.0
+      ],
+      "original_raster_dimensions": [
+        2880,
+        1800
+      ],
+      "atlas_page": 23,
+      "acceptance": "Selected original visual reference accepted through the complete implementation proposal; synthetic displayed content is not real execution or authority",
+      "permitted_adaptations": "Justified responsive, accessibility and truthful real-data adaptations with close visual/interaction comparison; no silent material scope or ownership change",
+      "png": {
+        "path": "design-source/screens/M20-states-v01-desktop.png",
+        "bytes": 163398,
+        "sha256": "7a7d2af1305ceec3ac71c64981ec44677fdc1ffd9bf50ddf90c88f2606ff36f7"
+      },
+      "vector": {
+        "path": "design-source/screens/M20-states-v01-desktop.pdf",
+        "bytes": 67452,
+        "sha256": "fdb0ebc71cf8d9e2067c2809fb43ce4c30006bab35d5a3eba1b3c0e5e32ac66b"
+      },
+      "authoring_source": {
+        "path": "design-source/source/draw_state_specimens.py",
+        "bytes": 9792,
+        "sha256": "f95669f3cbd560916f80aebb6654d223c750c28414e3b69f4163bde2f926f8ba"
+      },
+      "decoded_image_mode": "RGB",
+      "vector_page_size": [
+        1440.0,
+        900.0
+      ]
+    },
+    {
+      "version_id": "0.3/M21-adaptive-art-v02-desktop",
+      "family": "M21",
+      "dossier_chapters": [
+        11
+      ],
+      "state_brief": {
+        "id": "M21",
+        "job": "Compare actual preview, contextual art and fallback",
+        "basis": "Retrospectively mapped to exact authored source; see corresponding drawing function and immutable output.",
+        "retrospective_mapping": true
+      },
+      "native_owners": [
+        "Content Desk",
+        "Asset Studio",
+        "Brand Manager"
+      ],
+      "related_dossier_acceptance_cases": [
+        "A9"
+      ],
+      "logical_viewport": [
+        1440.0,
+        900.0
+      ],
+      "original_raster_dimensions": [
+        2880,
+        1800
+      ],
+      "atlas_page": 24,
+      "acceptance": "Selected original visual reference accepted through the complete implementation proposal; synthetic displayed content is not real execution or authority",
+      "permitted_adaptations": "Justified responsive, accessibility and truthful real-data adaptations with close visual/interaction comparison; no silent material scope or ownership change",
+      "png": {
+        "path": "design-source/screens/M21-adaptive-art-v02-desktop.png",
+        "bytes": 599911,
+        "sha256": "7d1b1ca2f46d25c6157e47fa169031b507940a6536acc3dca382dd3d1ec9f18b"
+      },
+      "vector": {
+        "path": "design-source/screens/M21-adaptive-art-v02-desktop.pdf",
+        "bytes": 2119916,
+        "sha256": "a588aacb76393c05d9edb8bc155eb0d3d1b3591fca544755a251fd8c5f6313c0"
+      },
+      "authoring_source": {
+        "path": "design-source/source/draw_adaptive.py",
+        "bytes": 3597,
+        "sha256": "44a7211d5ebda6ac3d4bacf17e123ca21665ab36f442f6aaa9c19854ef56e25c"
+      },
+      "decoded_image_mode": "RGB",
+      "vector_page_size": [
+        1440.0,
+        900.0
+      ]
+    },
+    {
+      "version_id": "0.3/M22-dark-editor-v02-desktop",
+      "family": "M22",
+      "dossier_chapters": [
+        11
+      ],
+      "state_brief": {
+        "id": "M22",
+        "job": "Use the editor in dark appearance",
+        "basis": "Retrospectively mapped to exact authored source; see corresponding drawing function and immutable output.",
+        "retrospective_mapping": true
+      },
+      "native_owners": [
+        "Content Desk"
+      ],
+      "related_dossier_acceptance_cases": [
+        "A9"
+      ],
+      "logical_viewport": [
+        1440.0,
+        900.0
+      ],
+      "original_raster_dimensions": [
+        2880,
+        1800
+      ],
+      "atlas_page": 25,
+      "acceptance": "Selected original visual reference accepted through the complete implementation proposal; synthetic displayed content is not real execution or authority",
+      "permitted_adaptations": "Justified responsive, accessibility and truthful real-data adaptations with close visual/interaction comparison; no silent material scope or ownership change",
+      "png": {
+        "path": "design-source/screens/M22-dark-editor-v02-desktop.png",
+        "bytes": 201677,
+        "sha256": "e27b0c6ef0d67a46a136e0d30dd854efcbfdd78c2c69864c96fdee44e36ea3c2"
+      },
+      "vector": {
+        "path": "design-source/screens/M22-dark-editor-v02-desktop.pdf",
+        "bytes": 67432,
+        "sha256": "ab046a561c7f48d74f5640baeb5935a96e46c252a4780df92c40f4459d3b342a"
+      },
+      "authoring_source": {
+        "path": "design-source/source/draw_adaptive.py",
+        "bytes": 3597,
+        "sha256": "44a7211d5ebda6ac3d4bacf17e123ca21665ab36f442f6aaa9c19854ef56e25c"
+      },
+      "decoded_image_mode": "RGB",
+      "vector_page_size": [
+        1440.0,
+        900.0
+      ]
+    },
+    {
+      "version_id": "0.3/M23-assistance-v01-desktop",
+      "family": "M23",
+      "dossier_chapters": [
+        5
+      ],
+      "state_brief": {
+        "id": "M23",
+        "job": "Inspect assistance context and cost limits",
+        "basis": "Retrospectively mapped to exact authored source; see corresponding drawing function and immutable output.",
+        "retrospective_mapping": true
+      },
+      "native_owners": [
+        "Content Desk",
+        "optional Prose Studio"
+      ],
+      "related_dossier_acceptance_cases": [
+        "A2",
+        "A9"
+      ],
+      "logical_viewport": [
+        1440.0,
+        900.0
+      ],
+      "original_raster_dimensions": [
+        2880,
+        1800
+      ],
+      "atlas_page": 26,
+      "acceptance": "Selected original visual reference accepted through the complete implementation proposal; synthetic displayed content is not real execution or authority",
+      "permitted_adaptations": "Justified responsive, accessibility and truthful real-data adaptations with close visual/interaction comparison; no silent material scope or ownership change",
+      "png": {
+        "path": "design-source/screens/M23-assistance-v01-desktop.png",
+        "bytes": 270492,
+        "sha256": "19f602a984274fb6fce7749052bd9f4f1b7e72a5a42b208ed16bdd94dbaecf30"
+      },
+      "vector": {
+        "path": "design-source/screens/M23-assistance-v01-desktop.pdf",
+        "bytes": 67862,
+        "sha256": "0171f4b0bfbe6d5f2c51b6c5e7936308096c0c72c3ad8e913412f5aaa0008558"
+      },
+      "authoring_source": {
+        "path": "design-source/source/draw_handoffs.py",
+        "bytes": 6819,
+        "sha256": "6b6865effc3cab87003a64c88f303c8e16c25698487f7e82fe463f5b416b4860"
+      },
+      "decoded_image_mode": "RGB",
+      "vector_page_size": [
+        1440.0,
+        900.0
+      ]
+    },
+    {
+      "version_id": "0.3/M23-assistance-v01-phone",
+      "family": "M23",
+      "dossier_chapters": [
+        5
+      ],
+      "state_brief": {
+        "id": "M23",
+        "job": "Inspect assistance context and cost limits",
+        "basis": "Retrospectively mapped to exact authored source; see corresponding drawing function and immutable output.",
+        "retrospective_mapping": true
+      },
+      "native_owners": [
+        "Content Desk",
+        "optional Prose Studio"
+      ],
+      "related_dossier_acceptance_cases": [
+        "A2",
+        "A9"
+      ],
+      "logical_viewport": [
+        390.0,
+        844.0
+      ],
+      "original_raster_dimensions": [
+        780,
+        1688
+      ],
+      "atlas_page": 26,
+      "acceptance": "Selected original visual reference accepted through the complete implementation proposal; synthetic displayed content is not real execution or authority",
+      "permitted_adaptations": "Justified responsive, accessibility and truthful real-data adaptations with close visual/interaction comparison; no silent material scope or ownership change",
+      "png": {
+        "path": "design-source/screens/M23-assistance-v01-phone.png",
+        "bytes": 120525,
+        "sha256": "ef06bb48f04801efecfd94b61ba3405b4cf1a4818a6c3278b1c54e4ed5b823e6"
+      },
+      "vector": {
+        "path": "design-source/screens/M23-assistance-v01-phone.pdf",
+        "bytes": 67364,
+        "sha256": "0739b416275f13edeb2893655cedb47bc764de69f75eeaaa107a92fbb44604c5"
+      },
+      "authoring_source": {
+        "path": "design-source/source/draw_handoffs.py",
+        "bytes": 6819,
+        "sha256": "6b6865effc3cab87003a64c88f303c8e16c25698487f7e82fe463f5b416b4860"
+      },
+      "decoded_image_mode": "RGB",
+      "vector_page_size": [
+        390.0,
+        844.0
+      ]
+    },
+    {
+      "version_id": "0.3/M24-release-v03-desktop",
+      "family": "M24",
+      "dossier_chapters": [
+        8
+      ],
+      "state_brief": {
+        "id": "M24",
+        "job": "Authorize one exact future qualified release",
+        "basis": "Retrospectively mapped to exact authored source; see corresponding drawing function and immutable output.",
+        "retrospective_mapping": true
+      },
+      "native_owners": [
+        "Content Desk",
+        "Channel Manager"
+      ],
+      "related_dossier_acceptance_cases": [
+        "A7"
+      ],
+      "logical_viewport": [
+        1440.0,
+        900.0
+      ],
+      "original_raster_dimensions": [
+        2880,
+        1800
+      ],
+      "atlas_page": 27,
+      "acceptance": "Selected original visual reference accepted through the complete implementation proposal; synthetic displayed content is not real execution or authority",
+      "permitted_adaptations": "Justified responsive, accessibility and truthful real-data adaptations with close visual/interaction comparison; no silent material scope or ownership change",
+      "png": {
+        "path": "design-source/screens/M24-release-v03-desktop.png",
+        "bytes": 290487,
+        "sha256": "94a84528206a66cb493a268f5fbaf95da2140cab545e52f3fa7c01d8741123ea"
+      },
+      "vector": {
+        "path": "design-source/screens/M24-release-v03-desktop.pdf",
+        "bytes": 67823,
+        "sha256": "e6c1f8f87168ba26da6fd028104f2776528340838ecf7a743f2f150c84f8e176"
+      },
+      "authoring_source": {
+        "path": "design-source/source/draw_handoffs.py",
+        "bytes": 6819,
+        "sha256": "6b6865effc3cab87003a64c88f303c8e16c25698487f7e82fe463f5b416b4860"
+      },
+      "decoded_image_mode": "RGB",
+      "vector_page_size": [
+        1440.0,
+        900.0
+      ]
+    },
+    {
+      "version_id": "0.3/M24-release-v03-phone",
+      "family": "M24",
+      "dossier_chapters": [
+        8
+      ],
+      "state_brief": {
+        "id": "M24",
+        "job": "Authorize one exact future qualified release",
+        "basis": "Retrospectively mapped to exact authored source; see corresponding drawing function and immutable output.",
+        "retrospective_mapping": true
+      },
+      "native_owners": [
+        "Content Desk",
+        "Channel Manager"
+      ],
+      "related_dossier_acceptance_cases": [
+        "A7"
+      ],
+      "logical_viewport": [
+        390.0,
+        844.0
+      ],
+      "original_raster_dimensions": [
+        780,
+        1688
+      ],
+      "atlas_page": 27,
+      "acceptance": "Selected original visual reference accepted through the complete implementation proposal; synthetic displayed content is not real execution or authority",
+      "permitted_adaptations": "Justified responsive, accessibility and truthful real-data adaptations with close visual/interaction comparison; no silent material scope or ownership change",
+      "png": {
+        "path": "design-source/screens/M24-release-v03-phone.png",
+        "bytes": 126422,
+        "sha256": "41973df1b626187bd6c8deb39a8cb42da63bdf4a1c562ad57649056ee96be495"
+      },
+      "vector": {
+        "path": "design-source/screens/M24-release-v03-phone.pdf",
+        "bytes": 45545,
+        "sha256": "ec84876cc97a14a59bc8ceae22155a63b20a789853bf5801b55b4e6391fd9bdb"
+      },
+      "authoring_source": {
+        "path": "design-source/source/draw_handoffs.py",
+        "bytes": 6819,
+        "sha256": "6b6865effc3cab87003a64c88f303c8e16c25698487f7e82fe463f5b416b4860"
+      },
+      "decoded_image_mode": "RGB",
+      "vector_page_size": [
+        390.0,
+        844.0
+      ]
+    },
+    {
+      "version_id": "0.3/M25-manual-outcome-v02-phone",
+      "family": "M25",
+      "dossier_chapters": [
+        9
+      ],
+      "state_brief": {
+        "id": "M25",
+        "job": "Record manual outcome and incomplete private observation",
+        "basis": "Retrospectively mapped to exact authored source; see corresponding drawing function and immutable output.",
+        "retrospective_mapping": true
+      },
+      "native_owners": [
+        "Channel Manager",
+        "Content Desk"
+      ],
+      "related_dossier_acceptance_cases": [
+        "A7"
+      ],
+      "logical_viewport": [
+        390.0,
+        844.0
+      ],
+      "original_raster_dimensions": [
+        780,
+        1688
+      ],
+      "atlas_page": 28,
+      "acceptance": "Selected original visual reference accepted through the complete implementation proposal; synthetic displayed content is not real execution or authority",
+      "permitted_adaptations": "Justified responsive, accessibility and truthful real-data adaptations with close visual/interaction comparison; no silent material scope or ownership change",
+      "png": {
+        "path": "design-source/screens/M25-manual-outcome-v02-phone.png",
+        "bytes": 106488,
+        "sha256": "80c595c033a064a87e62c60781ee202ac3675ab896ccb688352bd1b42ff5b349"
+      },
+      "vector": {
+        "path": "design-source/screens/M25-manual-outcome-v02-phone.pdf",
+        "bytes": 45532,
+        "sha256": "c0888fcb6aec87e855597e77aefc8608c5912e99654f9fe2a8f26c99cb4f8c00"
+      },
+      "authoring_source": {
+        "path": "design-source/source/draw_handoffs.py",
+        "bytes": 6819,
+        "sha256": "6b6865effc3cab87003a64c88f303c8e16c25698487f7e82fe463f5b416b4860"
+      },
+      "decoded_image_mode": "RGB",
+      "vector_page_size": [
+        390.0,
+        844.0
+      ]
+    },
+    {
+      "version_id": "0.3/M25-observation-v02-phone",
+      "family": "M25",
+      "dossier_chapters": [
+        9
+      ],
+      "state_brief": {
+        "id": "M25",
+        "job": "Record manual outcome and incomplete private observation",
+        "basis": "Retrospectively mapped to exact authored source; see corresponding drawing function and immutable output.",
+        "retrospective_mapping": true
+      },
+      "native_owners": [
+        "Channel Manager",
+        "Content Desk"
+      ],
+      "related_dossier_acceptance_cases": [
+        "A7"
+      ],
+      "logical_viewport": [
+        390.0,
+        844.0
+      ],
+      "original_raster_dimensions": [
+        780,
+        1688
+      ],
+      "atlas_page": 28,
+      "acceptance": "Selected original visual reference accepted through the complete implementation proposal; synthetic displayed content is not real execution or authority",
+      "permitted_adaptations": "Justified responsive, accessibility and truthful real-data adaptations with close visual/interaction comparison; no silent material scope or ownership change",
+      "png": {
+        "path": "design-source/screens/M25-observation-v02-phone.png",
+        "bytes": 103733,
+        "sha256": "cef7e9e5ebe9148432ca07dcbf4d793ca6db0eeb4b9195aafda3e4fd4c69f6b5"
+      },
+      "vector": {
+        "path": "design-source/screens/M25-observation-v02-phone.pdf",
+        "bytes": 66974,
+        "sha256": "10da9c12eceeeb5ca9a1007b8c62152d85e0c305d6c1054cf4a7bc7669b07fdd"
+      },
+      "authoring_source": {
+        "path": "design-source/source/draw_handoffs.py",
+        "bytes": 6819,
+        "sha256": "6b6865effc3cab87003a64c88f303c8e16c25698487f7e82fe463f5b416b4860"
+      },
+      "decoded_image_mode": "RGB",
+      "vector_page_size": [
+        390.0,
+        844.0
+      ]
+    }
+  ]
+}

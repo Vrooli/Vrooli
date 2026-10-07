@@ -1,0 +1,25 @@
+{
+  "source_document": "1y3wD0fEipdbS6InO5sQi4zbRrQEfDZ700dUR0GIXOuc",
+  "export_sha256": "384de04d35c6a82910408dd9057bac9575cb9c402c60e97ac68fb2e7587afdaa",
+  "images": [
+    {
+      "path": "/workspace/shared/i16-design-v03/references/article/original-pdf-image-1.png",
+      "width": 1600,
+      "height": 900,
+      "sha256": "cdc8f35727cea228b458d6e1e21b47b824fbc1d43fe7ef04169c7dc79bc0ef0c"
+    },
+    {
+      "path": "/workspace/shared/i16-design-v03/references/article/original-pdf-image-2.png",
+      "width": 1080,
+      "height": 1350,
+      "sha256": "14f9d1837fdb56e95276740cadd1d58593a198528480e43ac0ec3489b0eb17c4"
+    },
+    {
+      "path": "/workspace/shared/i16-design-v03/references/article/original-pdf-image-3.png",
+      "width": 1080,
+      "height": 1350,
+      "sha256": "5cf990e8013193d1c50c57d245ee3134f2a073712f1aeb48b0327b8fc354c938"
+    }
+  ],
+  "basis": "Exact image streams extracted from current native PDF; no original-native-image byte equivalence asserted."
+}

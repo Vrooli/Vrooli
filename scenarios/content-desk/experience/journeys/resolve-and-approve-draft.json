@@ -6,7 +6,17 @@
     "id": "resolve-and-approve-draft",
     "title": "Resolve evidence and approve a draft",
     "purpose": "Let an operator turn an evidence-blocked draft into an approval-ready publication decision.",
-    "prd_refs": ["OT-P0-005", "OT-P0-011", "OT-P0-014"]
+    "prd_refs": [
+      "OT-P0-005",
+      "OT-P0-011",
+      "OT-P0-014",
+      "OT-P0-006",
+      "OT-P0-007",
+      "OT-P0-008",
+      "OT-P0-009",
+      "OT-P0-022",
+      "OT-P0-023"
+    ]
   },
   "steps": [
     {

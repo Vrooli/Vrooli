@@ -1,0 +1,217 @@
+[
+  {
+    "page": 1,
+    "family": "M01",
+    "sources": [
+      "M01-today-v05-desktop",
+      "M01-today-v05-phone"
+    ]
+  },
+  {
+    "page": 2,
+    "family": "M02",
+    "sources": [
+      "M02-strategy-v03-desktop",
+      "M02-strategy-v03-phone"
+    ]
+  },
+  {
+    "page": 3,
+    "family": "M03",
+    "sources": [
+      "M03-evidence-v03-desktop",
+      "M03-evidence-v03-phone"
+    ]
+  },
+  {
+    "page": 4,
+    "family": "M04",
+    "sources": [
+      "M04-editor-v03-desktop",
+      "M04-editor-v03-phone"
+    ]
+  },
+  {
+    "page": 5,
+    "family": "M05",
+    "sources": [
+      "M05-plan-v04-desktop",
+      "M05-plan-v04-phone"
+    ]
+  },
+  {
+    "page": 6,
+    "family": "M06",
+    "sources": [
+      "M06-review-v04-desktop",
+      "M06-review-v04-phone"
+    ]
+  },
+  {
+    "page": 7,
+    "family": "M06",
+    "sources": [
+      "M06-review-v04-phone-changes"
+    ]
+  },
+  {
+    "page": 8,
+    "family": "M07",
+    "sources": [
+      "M07-outcome-v04-desktop",
+      "M07-outcome-v04-phone"
+    ]
+  },
+  {
+    "page": 9,
+    "family": "M08",
+    "sources": [
+      "M08-learning-v04-desktop",
+      "M08-learning-v04-phone"
+    ]
+  },
+  {
+    "page": 10,
+    "family": "M09",
+    "sources": [
+      "M09-recovery-v04-desktop",
+      "M09-recovery-v04-phone"
+    ]
+  },
+  {
+    "page": 11,
+    "family": "M10",
+    "sources": [
+      "M10-ownership-v05"
+    ]
+  },
+  {
+    "page": 12,
+    "family": "M11",
+    "sources": [
+      "M11-contributor-v03-desktop",
+      "M11-contributor-v03-phone"
+    ]
+  },
+  {
+    "page": 13,
+    "family": "M12",
+    "sources": [
+      "M12-simple-v05-desktop",
+      "M12-simple-v05-phone"
+    ]
+  },
+  {
+    "page": 14,
+    "family": "M13",
+    "sources": [
+      "M13-intake-v06-desktop",
+      "M13-intake-v06-phone"
+    ]
+  },
+  {
+    "page": 15,
+    "family": "M14",
+    "sources": [
+      "M14-readiness-v04-desktop",
+      "M14-readiness-v04-phone"
+    ]
+  },
+  {
+    "page": 16,
+    "family": "M15",
+    "sources": [
+      "M15-content-v01-desktop",
+      "M15-content-v01-phone"
+    ]
+  },
+  {
+    "page": 17,
+    "family": "M16",
+    "sources": [
+      "M16-article-v03-desktop"
+    ]
+  },
+  {
+    "page": 18,
+    "family": "M16",
+    "sources": [
+      "M16-storyboard-v01-desktop"
+    ]
+  },
+  {
+    "page": 19,
+    "family": "M16",
+    "sources": [
+      "M16-thread-v01-desktop"
+    ]
+  },
+  {
+    "page": 20,
+    "family": "M17",
+    "sources": [
+      "M17-work-v02-desktop",
+      "M17-work-v02-phone"
+    ]
+  },
+  {
+    "page": 21,
+    "family": "M18",
+    "sources": [
+      "M18-journey-v02"
+    ]
+  },
+  {
+    "page": 22,
+    "family": "M19",
+    "sources": [
+      "M19-request-changes-v01-phone",
+      "M19-source-detail-v01-phone"
+    ]
+  },
+  {
+    "page": 23,
+    "family": "M20",
+    "sources": [
+      "M20-states-v01-desktop"
+    ]
+  },
+  {
+    "page": 24,
+    "family": "M21",
+    "sources": [
+      "M21-adaptive-art-v02-desktop"
+    ]
+  },
+  {
+    "page": 25,
+    "family": "M22",
+    "sources": [
+      "M22-dark-editor-v02-desktop"
+    ]
+  },
+  {
+    "page": 26,
+    "family": "M23",
+    "sources": [
+      "M23-assistance-v01-desktop",
+      "M23-assistance-v01-phone"
+    ]
+  },
+  {
+    "page": 27,
+    "family": "M24",
+    "sources": [
+      "M24-release-v03-desktop",
+      "M24-release-v03-phone"
+    ]
+  },
+  {
+    "page": 28,
+    "family": "M25",
+    "sources": [
+      "M25-manual-outcome-v02-phone",
+      "M25-observation-v02-phone"
+    ]
+  }
+]

@@ -1,0 +1,296 @@
+{
+  "revision": "R1",
+  "article_title": "How I\u2019m trying to get more useful work from my ChatGPT dot",
+  "provenance": {
+    "method": "Four built-in image-generation calls (three distinct cover scenes and a separately composed portrait) using a visually inspected official Dots reference. Editable SVG typography over raster cover art; fully vector diagrams rendered locally with Inkscape.",
+    "sources": [
+      {
+        "label": "Official dots product page",
+        "url": "https://chatgpt.com/features/dots/",
+        "checked_date_utc": "2026-10-02",
+        "role": "Product image source and visual context; individual asset publication dates not shown"
+      },
+      {
+        "label": "Official goal and activity image",
+        "url": "https://images.ctfassets.net/8su2tbn87fck/koe4nuXekXUfuUGqiAPCS/d8985552b4a8b25fd758373a7e3e4953/bento_goal_desktop.png",
+        "role": "Inspected actual visual input: coral scalloped monocle character, cream panels, coral ground"
+      },
+      {
+        "label": "Official ring mark",
+        "url": "https://images.ctfassets.net/8su2tbn87fck/PulStHeDuz5begF06sEwk/c2080ae53243122046ba61074a5f0bd2/dots-o-updated.svg",
+        "role": "Inspected reference, not copied into output"
+      },
+      {
+        "label": "Official Alfred poster",
+        "url": "https://images.ctfassets.net/8su2tbn87fck/1kV9mVs6c09GY7Fd6Kqe0Y/4cd80b14db0c087697481458a833005e/poster-alfred.webp",
+        "role": "Inspected reference, not depicted in selected output"
+      }
+    ],
+    "new_spend_usd": 0,
+    "publication": "Private preparation only",
+    "editability": "Cover compositions have editable text/layout and embedded generated raster artwork. Diagrams retain editable vector geometry and text.",
+    "identity_limit": "Product characters illustrate the topic; they do not depict the owner’s personal dot.",
+    "fonts": "Installed DejaVu Sans and Liberation Serif. Fonts referenced, not bundled."
+  },
+  "recommendation": "Cover 01 combines the real coral scalloped monocle product character with the author’s personal title and the next-decision gap. The dot presents two unchosen proposals to a human hand; a checked manuscript represents useful work already produced. Cover 02 uses an overhead paper junction; cover 03 uses a miniature decision stage. The selected portrait is separately composed, not cropped.",
+  "assets": [
+    {
+      "name": "cover-01-next-decision",
+      "purpose": "Selected article cover",
+      "width": 1600,
+      "height": 900,
+      "caption": "How I\u2019m trying to get more useful work from my ChatGPT dot. The next useful choice should reach me before I ask. Original conceptual illustration informed by official ChatGPT Dots product references; not a screenshot, endorsement or depiction of my personal dot.",
+      "alt_text": "Original conceptual editorial illustration informed by official ChatGPT Dots product references. A coral scalloped monocle character presents undecided work cards to a human hand. It does not depict the user’s personal dot or a product screenshot.",
+      "inspected_render_widths_px": [
+        1600,
+        500
+      ],
+      "editability": "Embedded generated raster scene with editable SVG typography; the scene itself is not vector-editable.",
+      "sha256": {
+        "png": "a721a5d00357459e838595cb7beadf163612805fafcb7705c987bdef26719b08",
+        "svg": "51ae4112a172295b425826e7dea6821427936b4fde8581ecd5193e67c3a574c3"
+      },
+      "png_url": "https://drive.google.com/file/d/1VazO3K09ijdmEXpDcArwbAIEpviW84wL/view?usp=drivesdk",
+      "svg_url": "https://drive.google.com/file/d/1Te2qzjPksq_gHpbjxBxuPXwn-5EvVq9O/view?usp=drivesdk"
+    },
+    {
+      "name": "cover-01-next-decision-portrait",
+      "purpose": "Selected article cover",
+      "width": 1080,
+      "height": 1350,
+      "caption": "How I\u2019m trying to get more useful work from my ChatGPT dot. The next useful choice should reach me before I ask. Original conceptual illustration informed by official ChatGPT Dots product references; not a screenshot, endorsement or depiction of my personal dot.",
+      "alt_text": "A portrait composition of the coral monocle product-reference character, two undecided proposal cards, a checked manuscript and a human hand poised to choose. Original conceptual editorial illustration, not a screenshot or Froggy’s likeness.",
+      "inspected_render_widths_px": [
+        1080,
+        360
+      ],
+      "editability": "Embedded generated raster scene with editable SVG typography; the scene itself is not vector-editable.",
+      "sha256": {
+        "png": "c7679d10dc28416ea9f80fe54d7f823458a2c0efeb8a750a410daef5221b552a",
+        "svg": "2939ce8133309836d4a95cae073c74cf938640e65a39b7b82d84e451227e81ad"
+      },
+      "png_url": "https://drive.google.com/file/d/1ULoU0868t6AnUcryHqYCwmiFzie3fGR5/view?usp=drivesdk",
+      "svg_url": "https://drive.google.com/file/d/1H634gm2VPAMKAmlzx_cQSBZisZsNr-Mn/view?usp=drivesdk"
+    },
+    {
+      "name": "cover-selected-x-16x9",
+      "purpose": "Selected article cover",
+      "width": 1600,
+      "height": 900,
+      "caption": "How I\u2019m trying to get more useful work from my ChatGPT dot. The next useful choice should reach me before I ask. Original conceptual illustration informed by official ChatGPT Dots product references; not a screenshot, endorsement or depiction of my personal dot.",
+      "alt_text": "Original conceptual editorial illustration informed by official ChatGPT Dots product references. A coral scalloped monocle character presents undecided work cards to a human hand. It does not depict the user’s personal dot or a product screenshot.",
+      "inspected_render_widths_px": [
+        1600,
+        500
+      ],
+      "editability": "Embedded generated raster scene with editable SVG typography; the scene itself is not vector-editable.",
+      "sha256": {
+        "png": "a721a5d00357459e838595cb7beadf163612805fafcb7705c987bdef26719b08",
+        "svg": "51ae4112a172295b425826e7dea6821427936b4fde8581ecd5193e67c3a574c3"
+      },
+      "png_url": "https://drive.google.com/file/d/1nOMzptqLDA3yV__J3GsnLEPrSxeOHm6m/view?usp=drivesdk",
+      "svg_url": "https://drive.google.com/file/d/1uHOKIFaavACps8Ih872IERLZkaiI2KeE/view?usp=drivesdk"
+    },
+    {
+      "name": "cover-02-owner-aperture",
+      "purpose": "Alternative cover",
+      "width": 1600,
+      "height": 900,
+      "caption": "Between assignments. Checked work, future work and an unresolved owner choice meet at a paper junction. Conceptual illustration informed by official ChatGPT dots references, not a screenshot or personal avatar.",
+      "alt_text": "Overhead paper junction on lavender: a coral scalloped monocle character stands between a checked manuscript, an unopened stack and a coral decision card under a poised human hand. Original conceptual illustration informed by official dots artwork; not a product screenshot or the author’s personal dot.",
+      "inspected_render_widths_px": [
+        1600,
+        500
+      ],
+      "editability": "Embedded generated raster scene with editable SVG typography; the scene itself is not vector-editable.",
+      "sha256": {
+        "png": "93f2d07d8bf084c471fea4d75dd61009c6a58d642a441bd94aeb7d738df04074",
+        "svg": "4177419e15e20e15c57c7ed0e34718d4bbbb58aca0a6397ab9c997b60d0f5e36"
+      },
+      "png_url": "https://drive.google.com/file/d/1jNxp_YuwfhtoiWnpAcVof5fbwCRgvPzO/view?usp=drivesdk",
+      "svg_url": "https://drive.google.com/file/d/1DQETC27mXuWL9soV4GNDZQej_3ul9j0w/view?usp=drivesdk"
+    },
+    {
+      "name": "cover-03-inspectable-packets",
+      "purpose": "Alternative cover",
+      "width": 1600,
+      "height": 900,
+      "caption": "The decision stage. The next choice is placed in the foreground, with completed work behind it. Conceptual illustration informed by official ChatGPT dots references, not a screenshot or personal avatar.",
+      "alt_text": "A coral scalloped monocle character stands on a cream miniature stage beside two upright undecided proposal cards. A human hand hovers above them, and checked work rests behind the character. Original conceptual illustration informed by official dots artwork; not a product screenshot or the author’s personal dot.",
+      "inspected_render_widths_px": [
+        1600,
+        500
+      ],
+      "editability": "Embedded generated raster scene with editable SVG typography; the scene itself is not vector-editable.",
+      "sha256": {
+        "png": "5a569b1c52bad3a11b570927aa8b472ed203e8337d7b8495d710ff0cdd497b6a",
+        "svg": "51281bf4c64b82d4db6e45f69c436e6b488a31a01cab34c7b934a5be95d9c87a"
+      },
+      "png_url": "https://drive.google.com/file/d/1DwXXM-rTCB04IBuiKN7V5Oo012c0gFUT/view?usp=drivesdk",
+      "svg_url": "https://drive.google.com/file/d/1abd4rzmfQevFk4GlnJ947SSHa3OslCl-/view?usp=drivesdk"
+    },
+    {
+      "name": "diagram-01-bounded-cycle-wide",
+      "purpose": "Inline figure 1: coordination",
+      "width": 1800,
+      "height": 1120,
+      "caption": "The arrangement I’m testing: one bounded assignment moves through execution and review, while the dot prepares independent next proposals and surfaces ready owner decisions. Dependent work still waits for approval. Wait only when no useful permitted action remains, with an owner answer, task result or agreed check named as the resumption trigger.",
+      "alt_text": "One bounded assignment runs beside parallel lookahead. While approved work runs or awaits review, the dot prepares independent proposals and surfaces ready owner choices that unlock capacity. Dependent work awaits approval. Owner steps define, approve and review. In-scope rework returns to execution. Reassessment can lead to the next proposal. Wait only if no useful permitted action remains, with an owner answer, task result or agreed check named as the resumption trigger.",
+      "inspected_render_widths_px": [
+        1800
+      ],
+      "editability": "Fully editable SVG text and vector geometry.",
+      "sha256": {
+        "png": "752e2ab60647449ebe4daa387cdbe138b01927eb353dcd2ee6207f0f0e68783d",
+        "svg": "23f8c819f931894663ad53ff1eef8bb8f12840c102c9b82b2c708b12b92e4588"
+      },
+      "png_url": "https://drive.google.com/file/d/1k3TivJ86fmDXdaOdrD1O9zY-Jd8kS0pz/view?usp=drivesdk",
+      "svg_url": "https://drive.google.com/file/d/1IZaDpSRLVqgMcgPcON6ARFNTeyJZyak2/view?usp=drivesdk"
+    },
+    {
+      "name": "diagram-01-bounded-cycle-portrait",
+      "purpose": "Inline figure 1: coordination",
+      "width": 1080,
+      "height": 1350,
+      "caption": "The arrangement I’m testing: one bounded assignment moves through execution and review, while the dot prepares independent next proposals and surfaces ready owner decisions. Dependent work still waits for approval. Wait only when no useful permitted action remains, with an owner answer, task result or agreed check named as the resumption trigger.",
+      "alt_text": "Parallel lookahead is shown before and alongside one assignment, not after owner acceptance. While work runs or awaits review, prepare independent next proposals and surface ready choices when approval is pending. Dependent work waits for the owner. Six stages show objective, proposal, approval, execution with in-scope correction, owner review and reassessment. Rework and next-proposal returns are explicit arrows. Wait only when no useful permitted action remains, resuming on an owner answer, task result or named check.",
+      "inspected_render_widths_px": [
+        1080,
+        360
+      ],
+      "editability": "Fully editable SVG text and vector geometry.",
+      "sha256": {
+        "png": "8a9495f69d852d79ca0b79611c05f34541367318dab306c1c6266a28950df7b7",
+        "svg": "53c5f10b2f1835d287cfb03c247f9ad9209f38d0937d2b43af6a12a744770bd0"
+      },
+      "png_url": "https://drive.google.com/file/d/1B4SNhdPeCYsQs_y_QazY2SboH3zqf9PQ/view?usp=drivesdk",
+      "svg_url": "https://drive.google.com/file/d/1UGBQEFkTwAS6SDlrgwL6IKEG01qXgl3d/view?usp=drivesdk"
+    },
+    {
+      "name": "diagram-01-bounded-cycle-mobile",
+      "purpose": "Inline figure 1: coordination",
+      "width": 900,
+      "height": 2900,
+      "caption": "The arrangement I’m testing: one bounded assignment moves through execution and review, while the dot prepares independent next proposals and surfaces ready owner decisions. Dependent work still waits for approval. Wait only when no useful permitted action remains, with an owner answer, task result or agreed check named as the resumption trigger.",
+      "alt_text": "Large-type mobile composition of one bounded assignment with a persistent parallel lookahead band. Independent proposals can be prepared while work runs or awaits review. Pending approval calls for surfacing ready owner decisions; dependent execution still waits for approval. Six steps separate owner decisions from dot work and in-scope rework. Wait only when no useful permitted action remains. Resume on an owner answer, task result or named check.",
+      "inspected_render_widths_px": [
+        900,
+        327
+      ],
+      "editability": "Fully editable SVG text and vector geometry.",
+      "sha256": {
+        "png": "43cd4d564fb5bc95e000d4248d98a4bfcdca3a704ed818e80cea593be9d85fbc",
+        "svg": "4fa30419f2826c80a4bd0527ef2a68dafe3b2c6d70c2edcc738fd2e11a5ec776"
+      },
+      "png_url": "https://drive.google.com/file/d/1QZJBWBoneIo2x3q_CpmmkuSCdS7EbdR1/view?usp=drivesdk",
+      "svg_url": "https://drive.google.com/file/d/1phzn3QLPOkynh6pHfiXv5sRrz_bKug4T/view?usp=drivesdk"
+    },
+    {
+      "name": "diagram-02-recovery-wide",
+      "purpose": "Inline figure 2: recovery",
+      "width": 1800,
+      "height": 1120,
+      "caption": "Recover from the last confirmed state. Perform a known safe step within approval; seek an owner decision if a consequential submission is uncertain or scope must change. The owner may hold. If proceeding, perform the approved next step, then inspect the actual result before marking complete. Never blindly duplicate a submission.",
+      "alt_text": "A missing result triggers inspection of the last confirmed state. Assess whether continuation is known, safe and within approval. If so, perform that known safe step. An uncertain consequential submission or changed scope goes to the owner, who may approve the next step or keep it on hold. Only if proceeding, perform the approved step, then inspect the actual result. A held step does not lead to execution. Attempted does not mean verified. Never blindly duplicate a submission.",
+      "inspected_render_widths_px": [
+        1800
+      ],
+      "editability": "Fully editable SVG text and vector geometry.",
+      "sha256": {
+        "png": "8945e3432fede8a2c09ef6eaa838f3ff5615ceef1778a7109262e197b3981e96",
+        "svg": "7b516953083be72dc411863b5341edbaff80102a2f174367d5fa477e601e215e"
+      },
+      "png_url": "https://drive.google.com/file/d/1ZSlZQYb3wY9IwvKawbLiOLKtaspH6KEq/view?usp=drivesdk",
+      "svg_url": "https://drive.google.com/file/d/1LKA113RrtDuuEyCNb-WjWVUgkRs9TZuO/view?usp=drivesdk"
+    },
+    {
+      "name": "diagram-02-recovery-portrait",
+      "purpose": "Inline figure 2: recovery",
+      "width": 1080,
+      "height": 1350,
+      "caption": "Recover from the last confirmed state. Perform a known safe step within approval; seek an owner decision if a consequential submission is uncertain or scope must change. The owner may hold. If proceeding, perform the approved next step, then inspect the actual result before marking complete. Never blindly duplicate a submission.",
+      "alt_text": "A missing result triggers inspection of the last confirmed state. Assess whether continuation is known, safe and within approval. If so, perform that known safe step. An uncertain consequential submission or changed scope goes to the owner, who may approve the next step or keep it on hold. Only if proceeding, perform the approved step, then inspect the actual result. A held step does not lead to execution. Attempted does not mean verified. Never blindly duplicate a submission.",
+      "inspected_render_widths_px": [
+        1080,
+        360
+      ],
+      "editability": "Fully editable SVG text and vector geometry.",
+      "sha256": {
+        "png": "f12c037647004c18ec38f30191485aec6d3ca6dd6cc59af0ae029b0b98258008",
+        "svg": "61f8b50c88db9e30262f9eaba8b00bc2892ee7e13ed3a9552ee72f4bc3ff6d64"
+      },
+      "png_url": "https://drive.google.com/file/d/1EXbggSoKKdeQZX6hULSVSF4C3oh-trc4/view?usp=drivesdk",
+      "svg_url": "https://drive.google.com/file/d/1OGez1n-DXzASd4MySznRmEI9bW8oBOC2/view?usp=drivesdk"
+    },
+    {
+      "name": "diagram-02-recovery-mobile",
+      "purpose": "Inline figure 2: recovery",
+      "width": 900,
+      "height": 2710,
+      "caption": "Recover from the last confirmed state. Perform a known safe step within approval; seek an owner decision if a consequential submission is uncertain or scope must change. The owner may hold. If proceeding, perform the approved next step, then inspect the actual result before marking complete. Never blindly duplicate a submission.",
+      "alt_text": "A missing result triggers inspection of the last confirmed state. Assess whether continuation is known, safe and within approval. If so, perform that known safe step. An uncertain consequential submission or changed scope goes to the owner, who may approve the next step or keep it on hold. Only if proceeding, perform the approved step, then inspect the actual result. A held step does not lead to execution. Attempted does not mean verified. Never blindly duplicate a submission.",
+      "inspected_render_widths_px": [
+        900,
+        327
+      ],
+      "editability": "Fully editable SVG text and vector geometry.",
+      "sha256": {
+        "png": "06272d23554e89a4dbe3ae3ecbe3209824158be0fbb89bfc5fce924e4b8d44bb",
+        "svg": "44e249f47ec37e0ee732e79a1c605c71c3dc883b1de00a32b734474dad9c7ec4"
+      },
+      "png_url": "https://drive.google.com/file/d/1d_lNqRM5E_15XgekcTcF58JU6WcK_Lym/view?usp=drivesdk",
+      "svg_url": "https://drive.google.com/file/d/19_dxgNNpQR5LbWnPWzt_ZZtuhF6jtNpI/view?usp=drivesdk"
+    },
+    {
+      "name": "cover-directions-contact-sheet",
+      "purpose": "Cover review contact sheet",
+      "width": 1800,
+      "height": 940,
+      "caption": "How I\u2019m trying to get more useful work from my ChatGPT dot. The next useful choice should reach me before I ask. Original conceptual illustration informed by official ChatGPT Dots product references; not a screenshot, endorsement or depiction of my personal dot.",
+      "alt_text": "Three distinct original editorial illustrations informed by the official ChatGPT Dots product character: a character presenting next choices, an overhead paper junction, and a miniature decision stage. Cover 01 is recommended for the strongest personal article hook and recognizable character. No depiction is the user’s avatar or a product screenshot.",
+      "inspected_render_widths_px": [
+        1800,
+        500
+      ],
+      "editability": "Embedded generated raster scene with editable SVG typography; the scene itself is not vector-editable.",
+      "sha256": {
+        "png": "5d39ee5721c70ae5d05cedca868466454a624dc7f891af2a9d8113fbf357763a",
+        "svg": "e88066398096a34b577ec036fc25f09a45ad9e93498c948aaa8d594ac45aec3d"
+      },
+      "png_url": "https://drive.google.com/file/d/1osNBwsUaAxLK4FzI2eio695gFSpl3gjf/view?usp=drivesdk",
+      "svg_url": "https://drive.google.com/file/d/17N-flUJvZP0d_MfWqLQ6hjYvEeKtGLyw/view?usp=drivesdk"
+    }
+  ],
+  "prompts": {
+    "mode": "Built-in image generation",
+    "references": "Official ChatGPT Dots goal image, visually inspected first",
+    "prompts": {
+      "cover01": "Use case: illustration-story. Create a premium editorial cover illustration for a thoughtful first-person essay about learning to give a ChatGPT dot useful ongoing work. Use the attached official ChatGPT Dots reference image only to preserve the distinctive CORAL ORANGE SCALLOPED ROUND CHARACTER with glossy black eyes and one black monocle, and the warm coral / cream / soft lavender product vocabulary. Recompose the entire scene as original editorial art, NOT a screenshot and not official advertising. Wide 16:9 composition. In a tactile clay-and-paper still life, a small coral scalloped monocle character sits at a curved cream desk on the right half. One cream paper packet with a simple small check rests flat beside it, while the character thoughtfully PRESENTS two cream proposal cards upright toward a partial human hand reaching from the upper right; the hand is poised to choose, has NOT chosen yet. Cards have only abstract dark lines and blank circular decision markers; NO written words, numbers, logos, app windows or UI buttons. Visual idea: completed work was easy; surfacing the next useful choice is the missing coordination. Use exquisite soft material rendering, fine paper grain, warm side light, sophisticated coral shadow, subtle lavender desk edge and charcoal details. Bold identifiable mascot silhouette with monocle unobscured. Leave the left 42 percent quiet pale cream negative space for later editorial typography. No circular arrows, no flywheel, no generic loop, no robots, no office stock imagery, no claims of continuous autonomous work. Three-dimensional editorial craft, art-directed magazine quality, visually warm but restrained.",
+      "cover02": "Use case: illustration-story. An original premium editorial conceptual cover for an essay about ChatGPT dots and learning to coordinate delegated work. Use the attached official product image as a reference for the distinctive small CORAL ORANGE SCALLOPED ROUND MASCOT with black eyes and one black monocle, preserving that recognizable character identity. Entirely new art-directed composition, not product UI or screenshot. Wide16:9. Overhead view of a beautiful cream-paper desk on a soft lavender ground. At the center-right the small coral mascot is at a branching junction of THREE paper strips: a finished cream manuscript with a small charcoal check at lower left, a CORAL CHOICE CARD with two empty decision circles held up upright at upper right, and an unopened stack of future work at bottom right. An elegant realistic partial human hand comes in from the top edge hovering above the choice card, visibly not having chosen. The composition must make the difference between finished output and a decision waiting to be surfaced legible without text. Rich tactile paper, editorial still life, sculpted monochrome cream objects, delicate shadows, sophisticated graphic hierarchy, subtle grain. Leave top left third mostly empty lavender for later title. NO readable text, NO circular loop or flywheel, NO robots, NO logos, NO fake screenshots, no continuous-autonomy claim. Shape language and coral cream lavender palette grounded in the supplied real ChatGPT Dots source.",
+      "cover03": "Use case: illustration-story. Create an original high-end magazine cover illustration about a new ChatGPT dot assistant needing a clearer next decision. Attached official reference shows the real distinctive CORAL SCALLOPED ROUND MASCOT with black eyes and one black monocle: use that recognizable character, not a generic AI robot. New widescreen16:9 scene. Architectural miniature in warm cream and coral: a very small cream stage on the lower right, coral monocle dot standing attentively beside TWO tall cream proposal cards presented at the stage edge. Each card has an elegant hollow dark circle and 2 simple dark abstract lines, no text. A finished paper manuscript with a small check lies behind the character. Above them a beautifully sculpted partial human hand hovers, poised to make the next choice. A soft pale lavender arc of light illuminates the decision cards; the rest is calm spacious creamy background. Use strong scale contrast, coral mascot as focal point, warm matte clay sculpture and paper texture, sophisticated museum-like editorial photograph, dimensional but restrained, no distracting detail. Left45percent remains blank cream negative space for later headline. It must feel like a human-and-dot working relationship, uncertain next choice, not infinite productivity. NO words, numbers, app chrome, UI buttons, arrows, loops, generic robots, logos or official advertising.",
+      "cover01_portrait": "Recompose this exact editorial illustration into a tall 4:5 PORTRAIT cover. Preserve the recognizable coral scalloped round mascot with its black monocle and both cream proposal cards with undecided hollow circles, the small completed manuscript bearing a check, the partial human hand poised above cards, and warm paper-and-clay textures. Do not crop away either card or the hand. Keep the complete character and decision scene in the LOWER TWO THIRDS of the portrait, arranged compactly on the curved cream and lavender desk. TOP THIRD is quiet pale cream negative space to hold editorial typography later. Preserve warm coral gradient side lighting. No written text, logos, buttons, app chrome or new objects. This is conceptual editorial art based on the ChatGPT Dots product mascot, not an official screenshot or a personal avatar."
+    }
+  },
+  "delivery_limits": [
+    "The supplemental full-length narrow article PNG failed to upload and is absent from the project preview folder. No blind retry was made. The native illustrated article, standalone narrow diagrams and four X/LinkedIn previews are available.",
+    "Native platform and phone behavior remain untested."
+  ],
+  "revision_status": "R1 image/SVG and platform-preview replacements saved under the original Drive IDs. Native article and companion contain the revised images and verified accurate alt descriptions. Owner acceptance and publication remain pending.",
+  "source_output_comparison": {
+    "png_url": "https://drive.google.com/file/d/18YImDL0wAD_u_VPvNDUwveVdwbyMaaab/view?usp=drivesdk",
+    "svg_url": "https://drive.google.com/file/d/1bbGGBzPeXnZ57LE2Q2aQ4aevvll02MBL/view?usp=drivesdk",
+    "description": "Inspected official reference, earlier generic cover and revised cover shown side by side.",
+    "sha256": {
+      "png": "fea77fde1273c8bfa57e0ed2a9ffea44b50da742e8567531d8ad66dd961996ac",
+      "svg": "53798574acca441795988019dfeea46bc52356ec8e661306f5575f4d1d62d0c6"
+    }
+  },
+  "verification": {
+    "article_native_export_pages": 6,
+    "article_pdf_sha256": "384de04d35c6a82910408dd9057bac9575cb9c402c60e97ac68fb2e7587afdaa",
+    "native_alt": "Three article and four revised companion descriptions updated through the supported Docs editor and confirmed by connector readback; unchanged reuse description preserved.",
+    "native_mobile": "Not tested",
+    "platform_native": "Not tested",
+    "library_versions": "Selected cover, contact sheet and X first-post preview replaced under existing IDs; all current version 2."
+  }
+}

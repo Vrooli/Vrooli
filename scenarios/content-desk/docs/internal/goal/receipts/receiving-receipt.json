@@ -1,0 +1,16 @@
+{
+  "captured_at_utc": "2026-10-04T21:35:55.130261+00:00",
+  "library_file_id": "libfile_1b2342c4c0b881919fbfb89f92e6343d",
+  "version": 1,
+  "file_id": "file_00000000fe3c81f5ac47a6502de8998b",
+  "bytes": 46499875,
+  "sha256": "3e1119c8408a8dc5fc262b777911a0bcb7c7c16e44a924f37d4d22e752e0aeb2",
+  "entries": 209,
+  "hashed_files": 208,
+  "entry_set": "exact",
+  "all_persisted_hashes": "pass",
+  "independent_receipt": "/home/matthalloran8/Documents/Codex/2026-10-02/task-13/marketing-independent/verification-receipt.md",
+  "approval_message": "Sentinel_7062584135208191865fc82f43a4ded8",
+  "approval_at_utc": "2026-10-04T20:54:00Z",
+  "scope": "full implementation preparation and canonical reconciliation; no activation; AUTH holds retained"
+}

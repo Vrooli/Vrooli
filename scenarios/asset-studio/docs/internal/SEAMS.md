@@ -1,5 +1,12 @@
 # Seams — Asset Studio
 
+## Accepted Marketing I16 scope — 2026-10-04
+
+Full owner approval Sentinel_7062584135208191865fc82f43a4ded8 at 20:54 UTC governs the added canonical PRD/requirements targets. See ../../../content-desk/docs/internal/goal/GOAL.md and its exact materials. This is desired contract reconciliation; no new implementation, live qualification or activation is claimed. Existing implementation inventories and historical decisions below remain historical evidence where superseded.
+
+Required new targets own honest external producer/source identity, original digests/bytes/rights and derivative lineage, candidate admission/reconciliation and separately attributable human conformance/release receipts. Content Desk may retain pending candidate links but cannot treat them as released. No fake producing-scenario attribution or private Content Desk blob store.
+
+
 A **seam** is a deliberate boundary where production code calls an
 interface, not a concrete dependency. The fake substitutes through that
 interface in tests; production wires the real implementation once at the

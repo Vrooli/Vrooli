@@ -1,5 +1,14 @@
 # Problems — Content Desk
 
+## Accepted Marketing I16 scope — 2026-10-04
+
+Full owner approval Sentinel_7062584135208191865fc82f43a4ded8 at 20:54 UTC governs the added canonical PRD/requirements targets. See goal/GOAL.md and its exact materials. This is desired contract reconciliation; no new implementation, live qualification or activation is claimed. Existing implementation inventories and historical decisions below remain historical evidence where superseded.
+
+Content Desk owns the full Today/Plan/Create/Review/Learn/Content experience, native structured formats, campaign-free project scope, exact source/revision/method/import/package state and safe recovery. Asset Studio is the media byte/candidate/release owner; Channel Manager owns timed release/actions/outcomes; Planner owns accepted human time. External writing remains first-class and generation optional. D-003 does not prohibit manual/external composition or qualified suggestions; D-013/D-018 hypothetical media ownership, D-015 blanket collaboration deferral and unchanged default-console expression are superseded at this bounded accepted scope. Campaign slots constrain actual campaign-attached drafts, not unrelated projects/collections. Per-variant approval never inherits. The append-only legacy importer does not implement article restore/update. Real provider collection remains qualified, while safe native/manual observations are mandatory.
+
+Work ladder: W0 is reconciled to the approved destination; structural validation and runtime acceptance are separately recorded in the goal receipts. Existing in_progress/complete evidence does not certify widened obligations. CONTENTD-P2-002 historical no-reverification test expectation is superseded by exact independently revised variants and affected support checks; preserve its historical validation record and implement a new regression.
+
+
 Persistent register of known issues, tech debt, and deferred work
 specific to **this** scenario. Future agents read this file to avoid
 re-discovering the same constraint.

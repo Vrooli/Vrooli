@@ -1,0 +1,16 @@
+{
+  "requirement": "CONTENTD-P0-037",
+  "source": "materials/marketing-accepted-v1/documents/dossier-accepted-basis/document-text.md",
+  "chapter": 5,
+  "states": [
+    "M04-editor-v03-desktop",
+    "M16-article-v03-desktop",
+    "M16-thread-v01-desktop",
+    "M16-storyboard-v01-desktop"
+  ],
+  "unillustrated_required_formats": [
+    "image/carousel composition",
+    "video planning/script/handoff"
+  ],
+  "acceptance": "source native-contract tests and exact format-specific UI acceptance; no screenshot implies implementation"
+}

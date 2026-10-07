@@ -123,7 +123,7 @@
       "prd_ref": "OT-P1-004",
       "category": "ledger",
       "criticality": "P1",
-      "description": "Coverage reports what has and has not been marketed, by campaign, lane, channel, and SKU, including how stale each cell is. It replaces a hand-maintained coverage JSON file.",
+      "description": "Coverage reports what has and has not been marketed, by campaign, lane, channel, and SKU, including how stale each cell is. It replaces a hand-maintained coverage JSON file. Distinguish source facts, actual publish coverage and audience outcomes; missing observations are not measured zero or evidence of success. Native owner evidence retains observation freshness.",
       "tags": [
         "ledger",
         "coverage",
@@ -159,7 +159,7 @@
       "prd_ref": "OT-P1-005",
       "category": "integration",
       "criticality": "P1",
-      "description": "Before approving a draft aimed at a specific account, the desk asks Channel Manager whether that account is eligible for the lane. The seam is deliberately one question and one reason — no account state, credentials, or warming detail crosses into this scenario.",
+      "description": "Before approving a draft aimed at a specific account, the desk asks Channel Manager whether that account is eligible for the lane. The seam is deliberately one question and one reason \u2014 no account state, credentials, or warming detail crosses into this scenario. Channel Manager additionally projects action-scoped identity/role, policy/type readiness, format/route capability and freshness through authorized read models; Content Desk stores no credentials or competing account state. X remains link-only.",
       "tags": [
         "channel-manager",
         "accounts",
@@ -188,7 +188,7 @@
       "prd_ref": "OT-P1-006",
       "category": "integration",
       "criticality": "P1",
-      "description": "An approved draft is handed to Channel Manager for release, and the returned URL and platform post id are written back to the ledger. The desk never talks to a platform directly. The gate re-runs at handoff, not only at approval. Approval is a point-in-time judgement over evidence that moves, so a draft approved while a check passed must not release after that check changed. This is the periodic-review idea from the MLR category, reduced to its useful core.",
+      "description": "An approved draft is handed to Channel Manager for release, and the returned URL and platform post id are written back to the ledger. The desk never talks to a platform directly. The gate re-runs at handoff, not only at approval. Approval is a point-in-time judgement over evidence that moves, so a draft approved while a check passed must not release after that check changed. This is the periodic-review idea from the MLR category, reduced to its useful core. Retain native gate revalidation and ledger idempotency; extend exact package and requested-window binding, fingerprint/revision guard, route-specific admissions and reported/verified/partial/unknown outcomes with reconciliation before retry. A timeout is not a definite failed handoff, and immediate submit cannot stand in for future release.",
       "tags": [
         "channel-manager",
         "publishing",
@@ -294,7 +294,7 @@
       "prd_ref": "OT-P1-009",
       "category": "artifacts",
       "criticality": "P1",
-      "description": "A draft carries images produced through image-tools: a banner at a declared aspect ratio and inline figures with alt text and position. This scenario stores a reference and its metadata and never image bytes (D-018) — image-tools owns generation, deterministic resize and crop, and style recipes. Identity-consistent and video media are explicitly not covered here and remain with the deferred asset-production scenario.",
+      "description": "Reconcile legacy image-tools ownership: Asset Studio owns candidate byte/provenance admission, conformance/release and stable versioned media references; image-tools remains an underlying generation/edit mechanism. Content Desk stores candidate/released relationships and metadata, not bytes; asset-release authority is separate from editorial review.",
       "tags": [
         "artifacts",
         "images",
@@ -336,7 +336,7 @@
       "prd_ref": "OT-P1-010",
       "category": "artifacts",
       "criticality": "P1",
-      "description": "One rich-text box cannot serve a thread and a long-form post. A thread is a sequence with per-post character budgets and a visible break structure; a long-form post is prose with headings, a banner slot, and inline figures. Platform-shaped constraints must be visible while writing rather than discovered at publish, which is the failure this surface exists to prevent.",
+      "description": "One rich-text box cannot serve a thread and a long-form post. A thread is a sequence with per-post character budgets and a visible break structure; a long-form post is prose with headings, a banner slot, and inline figures. Platform-shaped constraints must be visible while writing rather than discovered at publish, which is the failure this surface exists to prevent. Required Marketing formats include simple text, ordered threads, long-form illustrated articles, image/carousel composition from released assets and source-linked video planning/script/handoff. Structure, exact preview and account-capability-aware limits are visible; unsupported provider execution remains explicit.",
       "tags": [
         "artifacts",
         "ui",
@@ -372,7 +372,7 @@
       "prd_ref": "OT-P1-011",
       "category": "artifacts",
       "criticality": "P1",
-      "description": "The operator commissions a drafting, evidence-hunting, or review run through agent-manager without leaving the desk. Invocation is scoped to those actions rather than a general assistant, because a queue-shaped workflow is served better by named actions than by a chat box. This does not contradict D-003: generation prompts stay in the paired post-type skills, and this is an invocation surface rather than ownership of the prompt. Agent output lands in the editor as editable content with its provenance recorded, and never on the approval path.",
+      "description": "The operator commissions a drafting, evidence-hunting, or review run through agent-manager without leaving the desk. Invocation is scoped to those actions rather than a general assistant, because a queue-shaped workflow is served better by named actions than by a chat box. This does not contradict D-003: generation prompts stay in the paired post-type skills, and this is an invocation surface rather than ownership of the prompt. Agent output lands in the editor as editable content with its provenance recorded, and never on the approval path. Optional use does not make capability qualification optional in this delivery: expose actual route/context/method/base/span, privacy/cost/cancel/accounting limits; return candidates and adopt through guarded revisions, with no approval/release authority and manual/external path preserved.",
       "tags": [
         "artifacts",
         "agent-manager",
@@ -407,7 +407,7 @@
       "prd_ref": "OT-P1-012",
       "category": "claims",
       "criticality": "P1",
-      "description": "The reviewer sees which spans of the body a cited claim supports, and which assertions carry none. Coverage is the mechanical form of the undeclared-claim problem: author self-reporting is the weakest link in the gate, and an uncovered assertion is exactly what a self-reporting author omits. Making it visible turns a judgement call into something the reviewer can scan.",
+      "description": "The reviewer sees which spans of the body a cited claim supports, and which assertions carry none. Coverage is the mechanical form of the undeclared-claim problem: author self-reporting is the weakest link in the gate, and an uncovered assertion is exactly what a self-reporting author omits. Making it visible turns a judgement call into something the reviewer can scan. Replace raw manual spans with usable anchored inspection; coverage follows revision/quote/source context and remains accessible when stale or unavailable.",
       "tags": [
         "claims",
         "ui",
@@ -443,7 +443,7 @@
       "prd_ref": "OT-P1-013",
       "category": "ledger",
       "criticality": "P1",
-      "description": "A contamination report without a response is a dead end: it names published posts that now contain false statements and offers nothing to do about it. A remediation attaches to the contaminated publish record with a kind — correct in place, publish a correction, retract, or accept and annotate — and a state, so the loop closes and the ledger records what was done rather than only what went wrong. This is the withdrawal capability from the MLR category, without its distribution engine.",
+      "description": "A contamination report without a response is a dead end: it names published posts that now contain false statements and offers nothing to do about it. A remediation attaches to the contaminated publish record with a kind \u2014 correct in place, publish a correction, retract, or accept and annotate \u2014 and a state, so the loop closes and the ledger records what was done rather than only what went wrong. This is the withdrawal capability from the MLR category, without its distribution engine. Preserve remediation history and add route-specific control limits for provider schedules/public corrections, responsible actor and actual cancellation/removal receipts; a corrected private draft does not change an external post.",
       "tags": [
         "ledger",
         "claims",

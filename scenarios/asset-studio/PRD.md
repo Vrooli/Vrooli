@@ -1,8 +1,8 @@
 # Product Requirements Document (PRD)
 
 > **Template Version**: 2.0
-> **Canonical Reference**: `/scenarios/business-health/docs/reference/canonical-prd-template.md`
-> **Validation**: Enforced by `business-health` (the test-genie `business` phase)
+> **Canonical Reference**: `scenarios/business-health/docs/reference/canonical-prd-template.md`
+> **Validation**: Enforced by `business-health` (`validate scenario asset-studio`)
 > **Policy**: Generated once and treated as read-only (checkboxes may auto-update)
 
 ## 🎯 Overview
@@ -36,13 +36,8 @@
 - [ ] OT-P0-016 | Identity conditioning reference | The system shall let an identity version carry references to the conditioning artifacts that reproduce it — a trained adapter, a reference image set, or a look — and shall record those references in the provenance of every artifact rendered from it
 - [ ] OT-P0-017 | Candidate set and selection | The system shall allow one render job to produce several candidate artifacts, shall require an operator to select which candidate proceeds, and shall attribute the job's full cost across the set rather than only to the selected one
 - [ ] OT-P0-018 | Identity authoring and revision | The system shall let an operator create and revise an identity record and its conditioning references directly in the workbench, shall validate it against its kind's schema on write, and shall record whether an operator or an agent produced each revision
-
-> **Two of these targets are schema shape rather than behaviour.** `OT-P0-016`
-> records conditioning-artifact references but does not render from them
-> (`OT-P1-012` does), and `OT-P0-017` establishes job-to-artifact cardinality but
-> not a rich selection surface. Both are P0 because they cannot be retrofitted
-> into the provenance of artifacts already released — see D-017 and D-018. A plan
-> should budget them as columns on existing tables, not as features.
+- [ ] OT-P0-019 | Honest external producer and original media admission | The system shall accept externally authored media through candidate admission with exact original digest/bytes, honest assistant/Drive/other producer identity and source revision, rights, alt/caption/order intent and derivative provenance; preserve per-item definite rejection and unresolved admission outcomes without fake producing-scenario attribution or duplicate ingest.
+- [ ] OT-P0-020 | Exact candidate review and release linkage | The system shall return stable candidate/version/review/release receipts under current human conformance and rights gates; permit Content Desk pending candidate references without treating them as released, preserve exact original and derivative lineage, and enforce scope-authorized reads and separately attributable human release decisions.
 
 ### 🟠 P1 – Should have post-launch
 
@@ -87,3 +82,7 @@
 - Accessibility: WCAG AA contrast in both themes, visible focus states, 44px touch targets, no status conveyed by colour alone, reduced motion respected, and full keyboard reachability for library browse, spec composition, queue inspection, conformance judgement, and release. Every asset carries alt text as a required field rather than an optional one. On mobile the panes become stepwise panels with preserved context rather than a shrunken workbench.
 - Voice & messaging: Precise and operational. A disabled release control always states its reason inline — an unresolved conformance verdict, a non-empty credential-claims field, a missing disclosure flag — because a dead control with no explanation is the failure mode this surface exists to prevent. Cost is always shown before a job is submitted, never only after. A generated frame is always labelled as generated, in the tool as well as on the platform.
 - Branding hooks: Inherits the vrooli-default design kit; replace the generic PWA icons when product branding exists. Keep the seeded web app manifest, service worker, maskable icons, relative install asset URLs, and safe-area tokens valid.
+
+## 📎 Appendix
+
+Accepted full Marketing I16 implementation, owner approval Sentinel_7062584135208191865fc82f43a4ded8 (2026-10-04 20:54 UTC), adds the following specialist-owned outcomes. Governing sources and native goal: ../content-desk/docs/internal/goal/; exact sources in its materials/marketing-accepted-v1/. Existing status/evidence and unsupported runtime routes are not certification of this scope. No activation, external publication, new grants or credentials follow from source reconciliation.

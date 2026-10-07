@@ -14,7 +14,7 @@
       "prd_ref": "OT-P0-001",
       "category": "campaigns",
       "criticality": "P0",
-      "description": "A campaign is the work context a producer draws from: theme, audience keys, channel mix, acquisition and retention hypotheses, linked SKUs, and status. Activation is gated on evidence — a campaign with no supporting research reference cannot leave proposed. This is the structural replacement for 'prevent campaign sprawl when signal is weak' being stated as a wish.",
+      "description": "A campaign is the work context a producer draws from: theme, audience keys, channel mix, acquisition and retention hypotheses, linked SKUs, and status. Activation is gated on evidence \u2014 a campaign with no supporting research reference cannot leave proposed. This is the structural replacement for 'prevent campaign sprawl when signal is weak' being stated as a wish. Preserve the evidence-gated campaign lifecycle while allowing campaign-free drafts under an independent project/subject scope; general Vrooli communication and individual-app campaigns retain distinct purpose, audience, hypothesis and offer basis.",
       "tags": [
         "campaigns",
         "lifecycle",
@@ -50,7 +50,7 @@
       "prd_ref": "OT-P0-002",
       "category": "campaigns",
       "criticality": "P0",
-      "description": "Each campaign declares its artifact slots by channel and format. Drafts consume slots. A draft request beyond the declared budget is refused rather than queued. The budget is the forcing function that keeps in-flight work bounded by design, which also bounds the operator review load.",
+      "description": "Each campaign declares its artifact slots by channel and format. Drafts consume slots. A draft request beyond the declared budget is refused rather than queued. The budget is the forcing function that keeps in-flight work bounded by design, which also bounds the operator review load. Collections, family membership and source links do not consume additional slots; charge a draft once to its actual admitted campaign/channel/format. Shared preparation effort is measured separately from slots and counted once.",
       "tags": [
         "campaigns",
         "budget",
@@ -86,7 +86,7 @@
       "prd_ref": "OT-P0-003",
       "category": "artifacts",
       "criticality": "P0",
-      "description": "The draft lifecycle is the spine of the scenario and is modelled as a declarative flow contract. Illegal transitions are the product: a draft may not reach approved without passing verification, may not leave published, and may not skip review. The transition table is generated from the contract rather than hand-maintained.",
+      "description": "The draft lifecycle is the spine of the scenario and is modelled as a declarative flow contract. Illegal transitions are the product: a draft may not reach approved without passing verification, may not leave published, and may not skip review. The transition table is generated from the contract rather than hand-maintained. Preserve the generated native transition contract and immutable publication history; separate persistence, editorial decision, evidence/media readiness, release and observation dimensions. Corrections, restore-as-new-revision and archival relationships must not rewrite a published historical event.",
       "tags": [
         "artifacts",
         "workflow",
@@ -129,7 +129,7 @@
       "prd_ref": "OT-P0-004",
       "category": "claims",
       "criticality": "P0",
-      "description": "A claim is an assertion that would mislead a reader if false. Claims are first-class records with their own lifecycle, cited by many drafts through a join rather than owned by one. Verify once, cite many. This is what later makes it possible to ask which published posts now carry a false statement. Each citation anchors to the span of draft body it supports. The anchor is P0 because adding it later cannot be backfilled — nobody can reconstruct which sentence an old citation was for — while the coverage view built on it is P1.",
+      "description": "A claim is an assertion that would mislead a reader if false. Claims are first-class records with their own lifecycle, cited by many drafts through a join rather than owned by one. Verify once, cite many. This is what later makes it possible to ask which published posts now carry a false statement. Each citation anchors to the span of draft body it supports. The anchor is P0 because adding it later cannot be backfilled \u2014 nobody can reconstruct which sentence an old citation was for \u2014 while the coverage view built on it is P1. New citations additionally bind exact body revision, declared offset unit, quoted-span digest/context and source pin; ordered items use stable item identities. Stale or ambiguous anchors are not verified support. Historical unknown anchors are not fabricated by backfill.",
       "tags": [
         "claims",
         "storage",
@@ -172,7 +172,7 @@
       "prd_ref": "OT-P0-005",
       "category": "claims",
       "criticality": "P0",
-      "description": "Evidence has strength. A citation is a path, URL, or receipt id and proves only that someone looked. A check is a stored command plus its expected result and is re-runnable. The two are stored distinctly so the gate can require the stronger form where it is cheap — quantitative, existence, and status claims.",
+      "description": "Evidence has strength. A citation is a path, URL, or receipt id and proves only that someone looked. A check is a stored command plus its expected result and is re-runnable. The two are stored distinctly so the gate can require the stronger form where it is cheap \u2014 quantitative, existence, and status claims.",
       "tags": [
         "claims",
         "evidence",
@@ -252,7 +252,7 @@
       "prd_ref": "OT-P0-007",
       "category": "artifacts",
       "criticality": "P0",
-      "description": "Approval is the last human check before a public claim and is never delegated to an agent. The API accepts approval only from an operator identity and records approver, draft, and timestamp as durable attribution. Approval records the acting identity and the capacity it acted in, per D-015; a single-operator install is the case where one actor holds every capacity.",
+      "description": "Approval is the last human check before a public claim and is never delegated to an agent. The API accepts approval only from an operator identity and records approver, draft, and timestamp as durable attribution. Approval records the acting identity and the capacity it acted in, per D-015; a single-operator install is the case where one actor holds every capacity. Native human-only approval remains distinct from a narrower destination-unbound wording decision and from release authorization. Combined human presentation records each exact scope and separate receipt; agent craft verdicts never satisfy this gate.",
       "tags": [
         "artifacts",
         "authorization",
@@ -288,7 +288,7 @@
       "prd_ref": "OT-P0-008",
       "category": "posttypes",
       "criticality": "P0",
-      "description": "The post-type registry holds each type's medium, activation state, paired-skill reference, required fields, and declared failure modes. Activation criteria become executable rather than a rule stated in a README, and an inactive type blocks approval of any draft using it.",
+      "description": "The post-type registry holds each type's medium, activation state, paired-skill reference, required fields, and declared failure modes. Activation criteria become executable rather than a rule stated in a README, and an inactive type blocks approval of any draft using it. Article and simple-post intake must use a genuinely compatible native type/one-off route or expose the missing activation seam; never spoof an active dev-log/spotlight type. Planning unsupported formats does not activate them.",
       "tags": [
         "posttypes",
         "registry",
@@ -324,7 +324,7 @@
       "prd_ref": "OT-P0-009",
       "category": "review",
       "criticality": "P0",
-      "description": "A review run scores a draft against the failure modes its post type declares, recording a verdict and supporting evidence per mode. This covers both craft failure modes and the AI-UGC policy guardrails — no credential claims by a persona, no real-person likeness, no fabricated customer testimonial, disclosure present where required.",
+      "description": "A review run scores a draft against the failure modes its post type declares, recording a verdict and supporting evidence per mode. This covers both craft failure modes and the AI-UGC policy guardrails \u2014 no credential claims by a persona, no real-person likeness, no fabricated customer testimonial, disclosure present where required. Preserve per-type policy/craft scoring. Founder-article route acceptance additionally distinguishes source-aware facts/permissions review from an independent article-only reader-promise, causal-story and payoff review; contributor experience is never generated by review.",
       "tags": [
         "review",
         "scoring",
@@ -367,7 +367,7 @@
       "prd_ref": "OT-P0-010",
       "category": "ledger",
       "criticality": "P0",
-      "description": "The publish record is what shipped: draft, channel, URL, platform post id, series membership, and the prior post in that series. It is the read surface future drafts depend on for inter-post linkage, and the input the learning loop has never had.",
+      "description": "The publish record is what shipped: draft, channel, URL, platform post id, series membership, and the prior post in that series. It is the read surface future drafts depend on for inter-post linkage, and the input the learning loop has never had. Join reported/verified outcomes through native Channel Manager identities and evidence tiers, preserving exact package/account/item and immutable actual-time history. Copy and schedule are not publication; imported history may retain nullable draft references and no fabricated approval.",
       "tags": [
         "ledger",
         "publishing",
@@ -403,7 +403,7 @@
       "prd_ref": "OT-P0-011",
       "category": "ledger",
       "criticality": "P0",
-      "description": "Subject familiarity answers whether a named subject — a scenario, agent, or concept — has already been introduced to a given audience, so a draft introduces it on first mention and stops re-introducing it afterwards.",
+      "description": "Subject familiarity answers whether a named subject \u2014 a scenario, agent, or concept \u2014 has already been introduced to a given audience, so a draft introduces it on first mention and stops re-introducing it afterwards. Only actual authorized publication evidence produces familiarity writeback; import, private copy or draft acceptance does not. Missing familiarity defaults to explanation and visible unknown rather than inferred reader knowledge.",
       "tags": [
         "ledger",
         "audience",
@@ -476,7 +476,7 @@
       "prd_ref": "OT-P0-013",
       "category": "harness",
       "criticality": "P0",
-      "description": "Import is a permanent capability, not a one-shot migration: it performs the initial backfill from the marketing team's existing file-backed state and remains the drift-recovery path. Idempotency is by content-addressed key with a unique index, never by line offset or watermark, because those sources are rewritten and reordered by hand and the first reflow would re-import an entire file as new.",
+      "description": "Import is a permanent capability, not a one-shot migration: it performs the initial backfill from the marketing team's existing file-backed state and remains the drift-recovery path. Idempotency is by content-addressed key with a unique index, never by line offset or watermark, because those sources are rewritten and reordered by hand and the first reflow would re-import an entire file as new. Retain this existing file-backed team-state importer and its content-addressed semantics. New article intake and user archive restore are separate bounded adapters with explicit source-version/target/import intent, preview and conflict policies; they do not silently reinterpret append-only historical import.",
       "tags": [
         "import",
         "idempotency",
@@ -519,7 +519,7 @@
       "prd_ref": "OT-P0-014",
       "category": "ui",
       "criticality": "P0",
-      "description": "The operator workbench is a three-pane desk: queue, draft editor, and a permanently docked inspector holding claims and review verdicts. Approval must be fast, because operator attention is the binding constraint once agents are freer. A disabled approve control always states its reason inline. A disabled approval control always names its specific cause — an unresolved claim, an inactive post type, or an exhausted slot budget.",
+      "description": "The operator workbench is a three-pane desk: queue, draft editor, and a permanently docked inspector holding claims and review verdicts. Approval must be fast, because operator attention is the binding constraint once agents are freer. A disabled approve control always states its reason inline. A disabled approval control always names its specific cause \u2014 an unresolved claim, an inactive post type, or an exhausted slot budget. The accepted Marketing workspace extends the workbench into Today, Plan, Create, Review, Learn and persistent Content with task-specific geometry. Preserve desktop evidence inspection, authoring/review parity, keyboard access and inline specific blocker causes; do not force a queue column into every unrelated task.",
       "tags": [
         "ui",
         "workbench",
@@ -563,7 +563,7 @@
       "prd_ref": "OT-P0-015",
       "category": "artifacts",
       "criticality": "P0",
-      "description": "The operator composes and revises a draft body inside the workbench rather than in an external editor. This is co-equal with review, not secondary to it: a solo operator who must leave the surface to fix a word breaks the ledger the moment they do. Every revision records whether an operator or a commissioned agent produced it, so agent output is always editable content with visible provenance and never a locked result.",
+      "description": "The operator composes and revises a draft body inside the workbench rather than in an external editor. This is co-equal with review, not secondary to it: a solo operator who must leave the surface to fix a word breaks the ledger the moment they do. Every revision records whether an operator or a commissioned agent produced it, so agent output is always editable content with visible provenance and never a locked result. Preserve native immutable revisions and actor provenance while admitting external authorship/method pins, revision-guarded edits, exact compare and restore-as-new-revision; good external work is not regenerated as a storage prerequisite.",
       "tags": [
         "artifacts",
         "authoring",

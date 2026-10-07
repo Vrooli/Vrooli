@@ -1,0 +1,178 @@
+{
+  "artifacts": [
+    {
+      "local_path": "/workspace/scratch/fc82fad4f3b1/marketing-ideation/output/Marketing-A-The-Editorial-Studio-unapproved.png",
+      "library_file_name": "Marketing-A-The-Editorial-Studio-unapproved.png",
+      "library_file_id": "libfile_fc35566951e48191bd25b8f855f176eb",
+      "library_current_version_number": 0,
+      "opaque_version_id": null,
+      "bytes": 1848175,
+      "dimensions": [
+        1586,
+        992
+      ],
+      "sha256": "10b323ae00e39cadfd584abda61590b02c1aae8ae457710d8cdcfdbf3f8b78f0",
+      "prompt_file": "/workspace/scratch/fc82fad4f3b1/marketing-ideation/prompts.json",
+      "lineage_status": "Original A/B/C exploration; C preferred by owner"
+    },
+    {
+      "local_path": "/workspace/scratch/fc82fad4f3b1/marketing-ideation/output/Marketing-B-The-Story-Gallery-unapproved.png",
+      "library_file_name": "Marketing-B-The-Story-Gallery-unapproved.png",
+      "library_file_id": "libfile_4acbf0995c5481919c70bcd333ec4404",
+      "library_current_version_number": 0,
+      "opaque_version_id": null,
+      "bytes": 1701391,
+      "dimensions": [
+        1586,
+        992
+      ],
+      "sha256": "737fa6b862d71897069607b744eb3551780e793e577a16eb13af3568746f505b",
+      "prompt_file": "/workspace/scratch/fc82fad4f3b1/marketing-ideation/prompts.json",
+      "lineage_status": "Original A/B/C exploration; C preferred by owner"
+    },
+    {
+      "local_path": "/workspace/scratch/fc82fad4f3b1/marketing-ideation/output/Marketing-C-The-Modernist-Press-unapproved.png",
+      "library_file_name": "Marketing-C-The-Modernist-Press-unapproved.png",
+      "library_file_id": "libfile_a40d895159dc8191a475796ce68f90be",
+      "library_current_version_number": 0,
+      "opaque_version_id": null,
+      "bytes": 1597894,
+      "dimensions": [
+        1586,
+        992
+      ],
+      "sha256": "31dd5117c0cb7d2ad868863151a99bfe4a99febce5dc91f0212ef238cfe50c55",
+      "prompt_file": "/workspace/scratch/fc82fad4f3b1/marketing-ideation/prompts.json",
+      "lineage_status": "Original A/B/C exploration; C preferred by owner"
+    },
+    {
+      "local_path": "/workspace/scratch/fc82fad4f3b1/marketing-ideation/pages-c/Marketing-C-Create-exploration.png",
+      "library_file_name": "Marketing-C-Create-exploration.png",
+      "library_file_id": "libfile_99fb67d85a44819180a9db03f2e87d67",
+      "library_current_version_number": 0,
+      "opaque_version_id": null,
+      "bytes": 1578937,
+      "dimensions": [
+        1586,
+        992
+      ],
+      "sha256": "c88866f211401abb9e1c0eda580be53f0947b20ab004e9f5790d6f5fbcd8f7ad",
+      "prompt_file": "/workspace/scratch/fc82fad4f3b1/marketing-ideation/pages-c/prompts.json",
+      "lineage_status": "First C main-pages exploration; rejected for repeated homepage structure"
+    },
+    {
+      "local_path": "/workspace/scratch/fc82fad4f3b1/marketing-ideation/pages-c/Marketing-C-Learn-exploration.png",
+      "library_file_name": "Marketing-C-Learn-exploration.png",
+      "library_file_id": "libfile_90b0930d5680819191e9b93f842d5db7",
+      "library_current_version_number": 0,
+      "opaque_version_id": null,
+      "bytes": 1615672,
+      "dimensions": [
+        1586,
+        992
+      ],
+      "sha256": "bad2d43e60bb75123fd821478fa58cec2186b90e32b4bc3726c1e67eff8684c3",
+      "prompt_file": "/workspace/scratch/fc82fad4f3b1/marketing-ideation/pages-c/prompts.json",
+      "lineage_status": "First C main-pages exploration; rejected for repeated homepage structure"
+    },
+    {
+      "local_path": "/workspace/scratch/fc82fad4f3b1/marketing-ideation/pages-c/Marketing-C-Plan-exploration.png",
+      "library_file_name": "Marketing-C-Plan-exploration.png",
+      "library_file_id": "libfile_95164ec1cb288191ac66937eb926d943",
+      "library_current_version_number": 0,
+      "opaque_version_id": null,
+      "bytes": 1555726,
+      "dimensions": [
+        1585,
+        992
+      ],
+      "sha256": "034b0ffd330754ed31afca5e0e69484aca101118d5cb153b9da09c1937a2e30b",
+      "prompt_file": "/workspace/scratch/fc82fad4f3b1/marketing-ideation/pages-c/prompts.json",
+      "lineage_status": "First C main-pages exploration; rejected for repeated homepage structure"
+    },
+    {
+      "local_path": "/workspace/scratch/fc82fad4f3b1/marketing-ideation/pages-c/Marketing-C-Review-exploration.png",
+      "library_file_name": "Marketing-C-Review-exploration.png",
+      "library_file_id": "libfile_b5757a755c188191ae2a8b06ab8c173e",
+      "library_current_version_number": 0,
+      "opaque_version_id": null,
+      "bytes": 1465735,
+      "dimensions": [
+        1586,
+        992
+      ],
+      "sha256": "d72c275f20323dd5608d775aaeb594454fb9e87454b235ca586214e3ffc65b61",
+      "prompt_file": "/workspace/scratch/fc82fad4f3b1/marketing-ideation/pages-c/prompts.json",
+      "lineage_status": "First C main-pages exploration; rejected for repeated homepage structure"
+    },
+    {
+      "local_path": "/workspace/scratch/fc82fad4f3b1/marketing-ideation/task-led-v2/Marketing-C-Create-task-led-v2.png",
+      "library_file_name": "Marketing-C-Create-task-led-v2.png",
+      "library_file_id": "libfile_7247060a64848191adc8f07d82dcd9ec",
+      "library_current_version_number": 0,
+      "opaque_version_id": null,
+      "bytes": 1415191,
+      "dimensions": [
+        1586,
+        992
+      ],
+      "sha256": "da73083e5fae315cc64b88b2c726369755b18d61929254f17f2d1f5513854100",
+      "prompt_file": "/workspace/scratch/fc82fad4f3b1/marketing-ideation/task-led-v2/prompts-and-inspection.json",
+      "lineage_status": "Revised task-specific C main pages; owner review/praise reported by parent, no runtime acceptance"
+    },
+    {
+      "local_path": "/workspace/scratch/fc82fad4f3b1/marketing-ideation/task-led-v2/Marketing-C-Learn-task-led-v2.png",
+      "library_file_name": "Marketing-C-Learn-task-led-v2.png",
+      "library_file_id": "libfile_7c9f10ad90348191878c40f17e5ed75f",
+      "library_current_version_number": 0,
+      "opaque_version_id": null,
+      "bytes": 1201686,
+      "dimensions": [
+        1586,
+        992
+      ],
+      "sha256": "6da281f370c6e5e31fab65e686a42b19e495918111d8ad8cf1fd45d675bb0f07",
+      "prompt_file": "/workspace/scratch/fc82fad4f3b1/marketing-ideation/task-led-v2/prompts-and-inspection.json",
+      "lineage_status": "Revised task-specific C main pages; owner review/praise reported by parent, no runtime acceptance"
+    },
+    {
+      "local_path": "/workspace/scratch/fc82fad4f3b1/marketing-ideation/task-led-v2/Marketing-C-Plan-task-led-v2.png",
+      "library_file_name": "Marketing-C-Plan-task-led-v2.png",
+      "library_file_id": "libfile_012100525b18819191f4fd03ae8cf699",
+      "library_current_version_number": 0,
+      "opaque_version_id": null,
+      "bytes": 1060772,
+      "dimensions": [
+        1586,
+        992
+      ],
+      "sha256": "bea74856cf9911f817bc3670aee2ee9ab1950dcb988197a28e9e34d4b37d70f5",
+      "prompt_file": "/workspace/scratch/fc82fad4f3b1/marketing-ideation/task-led-v2/prompts-and-inspection.json",
+      "lineage_status": "Revised task-specific C main pages; owner review/praise reported by parent, no runtime acceptance"
+    },
+    {
+      "local_path": "/workspace/scratch/fc82fad4f3b1/marketing-ideation/task-led-v2/Marketing-C-Review-task-led-v2.png",
+      "library_file_name": "Marketing-C-Review-task-led-v2.png",
+      "library_file_id": "libfile_d109003497d881919b8c0f3dbb26ca95",
+      "library_current_version_number": 0,
+      "opaque_version_id": null,
+      "bytes": 1425804,
+      "dimensions": [
+        1586,
+        992
+      ],
+      "sha256": "9a216ea5338130490f405d0b4f96c73eb658e4d80a55e8ba96cb1ea3d3fdc09c",
+      "prompt_file": "/workspace/scratch/fc82fad4f3b1/marketing-ideation/task-led-v2/prompts-and-inspection.json",
+      "lineage_status": "Revised task-specific C main pages; owner review/praise reported by parent, no runtime acceptance"
+    }
+  ],
+  "version_note": "Upload results reported current_version_number 0; an opaque version_id was not returned. Local xattrs agree. No public URLs invented.",
+  "generation": "Built-in imagegen; original images preserved; each named file uploaded successfully with image_gen type.",
+  "sources": [
+    "https://docs.google.com/document/d/1LlO2CTsIwHvSlPpjVmdLfjXc2EpulEldwhIS_RVuPko/edit",
+    "https://drive.google.com/file/d/19XDd-rW6fNsnfLdUl5NZ3wNAJXrWiN60/view?usp=drivesdk",
+    "https://drive.google.com/file/d/11GTsntzDYPCkqw_hNJP3PtXdyQeoT6ga/view?usp=drivesdk",
+    "https://drive.google.com/file/d/1YNDKDvGql_UC6jl5m4CUdU2KkAHj0lkD/view?usp=drivesdk"
+  ],
+  "limits": "Static concept images and producer inspection only; no responsive, accessibility, interaction or runtime acceptance."
+}

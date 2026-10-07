@@ -14,7 +14,7 @@
       "prd_ref": "OT-P2-001",
       "category": "ledger",
       "criticality": "P2",
-      "description": "Per-post engagement telemetry, once social accounts and measurement sources exist. Deferred because it cannot be built or validated before there are live accounts producing measurable posts.",
+      "description": "Per-post engagement telemetry, once social accounts and measurement sources exist. Deferred because it cannot be built or validated before there are live accounts producing measurable posts. Its real-provider telemetry activation remains capability/permission-qualified. The accepted delivery nevertheless implements safe native/manual observation intake, exact definition/window/denominator provenance, correction and deduplication contracts through CONTENTD-P0-034; no live account is needed to fake a metric.",
       "tags": [
         "telemetry",
         "deferred"
@@ -35,7 +35,7 @@
       "prd_ref": "OT-P2-002",
       "category": "artifacts",
       "criticality": "P2",
-      "description": "Deriving channel-specific variants from one approved draft, so a single verified claim set serves several platform shapes without re-verification.",
+      "description": "This accepted delivery requires independently editable channel snapshots derived from exact source revisions, with deliberate differences and proposed updates. Reused evidence remains usable only for unchanged supported wording/current scope; derivation never transfers editorial or release approval or silently skips affected verification.",
       "tags": [
         "variants",
         "channels",
@@ -57,7 +57,7 @@
       "prd_ref": "OT-P2-003",
       "category": "integration",
       "criticality": "P2",
-      "description": "Character-consistent and video assets produced by a future asset-production scenario are linked to a draft. Single-image attachment is not this: it moved to P1 through image-tools (D-018). What remains here is the hard problem — identity blocks, drift across frames, and generation spend — which needs persona accounts that do not exist and post types that are all inactive.",
+      "description": "Asset Studio is the current owner of released image and video media references; Content Desk stores links and no bytes. Qualified identity-consistent generation remains conditional. Required image/carousel composition and source-linked video planning/script/handoff do not mandate persona production or universal automated video rendering.",
       "tags": [
         "assets",
         "rich-media",
@@ -79,7 +79,7 @@
       "prd_ref": "OT-P2-004",
       "category": "review",
       "criticality": "P2",
-      "description": "Proposing hook-library promotions from measured post outcomes rather than editorial taste. Depends on telemetry, so it inherits that deferral.",
+      "description": "Proposing hook-library promotions from measured post outcomes rather than editorial taste. Depends on telemetry, so it inherits that deferral. Preserve conditional measured hook promotion; accepted learning can propose a bounded hypothesis/experiment from honest qualitative observations without automatic hook, strategy or post-type adoption.",
       "tags": [
         "hooks",
         "learning",
@@ -101,7 +101,7 @@
       "prd_ref": "OT-P2-005",
       "category": "artifacts",
       "criticality": "P2",
-      "description": "Revision is genuinely conversational in a way that workflow actions are not — tighten this hook, cut the third point. Applied in place inside the open editor rather than as a separate chat surface, so the draft stays the object of attention.",
+      "description": "Revision is genuinely conversational in a way that workflow actions are not \u2014 tighten this hook, cut the third point. Applied in place inside the open editor rather than as a separate chat surface, so the draft stays the object of attention. Conversational scoped revision is required in the accepted Marketing delivery while its earned status stays planned: explanatory answers never expose Apply; proposals compare exact selected base/span and create recoverable provenance-bearing revisions only after guarded adoption.",
       "tags": [
         "artifacts",
         "ui",

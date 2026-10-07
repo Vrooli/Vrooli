@@ -5,9 +5,15 @@
   "page": {
     "id": "dashboard",
     "title": "Dashboard",
-    "routes": ["/"],
+    "routes": [
+      "/"
+    ],
     "purpose": "Give the operator the first useful view of Content Desk and make the primary next action clear.",
-    "prd_refs": ["OT-P0-001"]
+    "prd_refs": [
+      "OT-P0-001",
+      "OT-P0-016",
+      "OT-P0-035"
+    ]
   },
   "states": [
     {
@@ -22,5 +28,6 @@
       "id": "approval-ready",
       "description": "The selected draft has cleared evidence and review checks and awaits an operator decision."
     }
-  ]
+  ],
+  "x-i16-source": "Retain original active page identity and existing states. Add only accepted intent; future replacement/redirect requires route migration evidence."
 }
