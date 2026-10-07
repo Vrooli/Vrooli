@@ -43,11 +43,13 @@ import (
 	internalEntitlements "nutrition-planner/internal/entitlements"
 	internalFeedback "nutrition-planner/internal/feedback"
 	internalJobs "nutrition-planner/internal/jobs"
+	internalNutrition "nutrition-planner/internal/nutrition"
 	internalPlanning "nutrition-planner/internal/planning"
 	internalPortability "nutrition-planner/internal/portability"
 	internalProfile "nutrition-planner/internal/profile"
 	internalRecipe "nutrition-planner/internal/recipe"
 	internalShopping "nutrition-planner/internal/shopping"
+	internalSupplement "nutrition-planner/internal/supplement"
 	internalWorkspace "nutrition-planner/internal/workspace"
 )
 
@@ -86,14 +88,8 @@ func main() {
 		log.Fatalf("Database connection failed: %v", err)
 	}
 
-	if err := database.ApplySchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
-		log.Fatalf("schema initialization failed: %v", err)
-	}
-	if err := internalPlanning.MigrateLegacyPlans(context.Background(), db.Primary()); err != nil {
-		log.Fatalf("legacy plan migration failed: %v", err)
-	}
-	if err := database.VerifyDeclaredColumns(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
-		log.Fatalf("schema verification failed: %v", err)
+	if err := modules.InitializeDatabase(context.Background(), db.Primary()); err != nil {
+		log.Fatalf("database initialization failed: %v", err)
 	}
 	primaryFileRoots, err := scenarioStorageRoots()
 	if err != nil {
@@ -118,7 +114,7 @@ func main() {
 		routineH.Module(db, schedule.System(), log.Default()),
 		workspaceH.ModuleWithService(workspaceService, log.Default()),
 		recipeH.ModuleWithService(recipeService, workspaceService, log.Default()),
-		portabilityH.ModuleWithRestorer(recipeService, workspaceService, internalPlanning.NewSQLiteRepository(db, schedule.System()), internalShopping.NewSQLiteRepository(db, schedule.System()), internalPortability.NewSQLiteRestorer(db, schedule.System()), log.Default()),
+		portabilityH.ModuleWithSchedules(recipeService, workspaceService, internalPlanning.NewSQLiteRepository(db, schedule.System()), internalShopping.NewSQLiteRepository(db, schedule.System()), internalNutrition.NewSQLiteTargetRepository(db, schedule.System()), profileService, internalNutrition.NewSQLiteIntakeRepository(db), internalSupplement.NewSQLiteRepository(db, schedule.System()), internalPortability.NewSQLiteRestorer(db, schedule.System()), log.Default()),
 		profileH.ModuleWithServices(profileService, workspaceService, recipeService, log.Default()),
 		eligibilityH.ModuleWithWorkspace(workspaceService, log.Default()),
 		jobsH.Module(internalJobs.NewSQLiteRepository(db, schedule.System()), workspaceService, log.Default(), internalEntitlements.NewSQLiteRepository(db)),

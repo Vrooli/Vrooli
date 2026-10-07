@@ -9,11 +9,14 @@ const previewWorkspaceImport = vi.hoisted(() => vi.fn());
 const applyWorkspaceImport = vi.hoisted(() => vi.fn());
 const previewRecipesImport = vi.hoisted(() => vi.fn());
 const applyRecipesImport = vi.hoisted(() => vi.fn());
-vi.mock("@connectrpc/connect", () => ({ createClient: () => ({ exportGroceriesCSV, exportRecipePDF, exportWeeklyPDF, exportWorkspace, exportRecipes, previewWorkspaceImport, applyWorkspaceImport, previewRecipesImport, applyRecipesImport }) }));
+const getRestoreCheckpoint = vi.hoisted(() => vi.fn());
+const recoverRestoreCheckpoint = vi.hoisted(() => vi.fn());
+vi.mock("@connectrpc/connect", () => ({ createClient: () => ({ exportGroceriesCSV, exportRecipePDF, exportWeeklyPDF, exportWorkspace, exportRecipes, previewWorkspaceImport, applyWorkspaceImport, previewRecipesImport, applyRecipesImport, getRestoreCheckpoint, recoverRestoreCheckpoint }) }));
 vi.mock("./client", () => ({ transport: {} }));
 
 import { applyWorkspaceImport as applyBackup, exportGroceriesCSV as exportCSV, exportRecipePDF as exportRecipe, exportWeeklyPDF as exportWeek, exportWorkspace as exportBackup, exportRecipes as exportRecipeCollection, previewWorkspaceImport as previewBackup } from "./portability";
 import { applyRecipesImport as applyRecipeImport, previewRecipesImport as previewRecipeImport } from "./portability";
+import { getRestoreCheckpoint as inspectCheckpoint, recoverRestoreCheckpoint as recoverCheckpoint } from "./portability";
 
 describe("portability API", () => {
   beforeEach(() => vi.clearAllMocks());
@@ -48,5 +51,13 @@ describe("portability API", () => {
     applyRecipesImport.mockResolvedValue({ workspaceRevision: 5n, recipesApplied: 1, recipesSkipped: 1, remappedIds: ["r1=r2"] });
     await expect(previewRecipeImport({ workspaceId: "w1", contentJson: "{}" })).resolves.toMatchObject({ recipeCount: 2, conflictCount: 1 });
     await expect(applyRecipeImport({ workspaceId: "w1", expectedWorkspaceRevision: 4n, contentJson: "{}", idempotencyKey: "import-1" })).resolves.toMatchObject({ workspaceRevision: 5n, recipesSkipped: 1 });
+  });
+  it("reads a workspace-scoped checkpoint and sends revision-fenced recovery", async () => {
+    getRestoreCheckpoint.mockResolvedValue({ checkpointId:"cp1",createdAt:"2026-10-07T00:00:00Z",restoreRevision:3n,recipeCount:2,planIncluded:true,omissions:["inventory"] });
+    recoverRestoreCheckpoint.mockResolvedValue({ workspaceRevision:5n,recipesRestored:2,planRestored:true,recoveryCheckpointId:"cp2",omissions:["inventory"] });
+    await expect(inspectCheckpoint({workspaceId:"w1",checkpointId:"cp1"})).resolves.toMatchObject({recipeCount:2,planIncluded:true});
+    await expect(recoverCheckpoint({workspaceId:"w1",checkpointId:"cp1",expectedWorkspaceRevision:4n,idempotencyKey:"key-1"})).resolves.toMatchObject({workspaceRevision:5n,recipesRestored:2});
+    expect(getRestoreCheckpoint).toHaveBeenCalledWith({workspaceId:"w1",checkpointId:"cp1"});
+    expect(recoverRestoreCheckpoint).toHaveBeenCalledWith({workspaceId:"w1",checkpointId:"cp1",expectedWorkspaceRevision:4n,idempotencyKey:"key-1"});
   });
 });

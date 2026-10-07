@@ -22,12 +22,12 @@ export const strings = {
     openNavigation: "layout.openNavigation",
     closeNavigation: "layout.closeNavigation",
     nav: {
-      dashboard: "layout.nav.dashboard",
       settings: "layout.nav.settings",
       today: "layout.nav.today",
       week: "layout.nav.week",
       groceries: "layout.nav.groceries",
-      nutrition: "layout.nav.nutrition",
+      meals: "layout.nav.meals",
+      kitchen: "layout.nav.kitchen",
     },
   },
   theme: {
@@ -39,12 +39,6 @@ export const strings = {
     },
   },
   pages: {
-    dashboard: {
-      title: "pages.dashboard.title",
-      description: "pages.dashboard.description",
-      placeholderTitle: "pages.dashboard.placeholderTitle",
-      placeholderDescription: "pages.dashboard.placeholderDescription",
-    },
     settings: {
       title: "pages.settings.title",
       themeHeading: "pages.settings.themeHeading",

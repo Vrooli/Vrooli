@@ -73,18 +73,6 @@
       "testId": "page-settings-locale",
       "selector": "[data-testid=\"page-settings-locale\"]"
     },
-    "pages.dashboard": {
-      "testId": "page-dashboard",
-      "selector": "[data-testid=\"page-dashboard\"]"
-    },
-    "pages.dashboardHeader": {
-      "testId": "page-dashboard-header",
-      "selector": "[data-testid=\"page-dashboard-header\"]"
-    },
-    "pages.dashboardPlaceholder": {
-      "testId": "page-dashboard-placeholder",
-      "selector": "[data-testid=\"page-dashboard-placeholder\"]"
-    },
     "pages.settings": {
       "testId": "page-settings",
       "selector": "[data-testid=\"page-settings\"]"
@@ -124,12 +112,12 @@
           "name": "key",
           "type": "enum",
           "values": [
-            "dashboard",
             "settings",
             "today",
             "week",
             "groceries",
-            "nutrition"
+            "meals",
+            "kitchen"
           ]
         }
       ]
@@ -143,12 +131,12 @@
           "name": "key",
           "type": "enum",
           "values": [
-            "dashboard",
             "settings",
             "today",
             "week",
             "groceries",
-            "nutrition"
+            "meals",
+            "kitchen"
           ]
         }
       ]
@@ -156,6 +144,6 @@
   },
   "sources": {
     "ui/src/consts/selectors.library.ts": "b59c9936b32366ad576ac2f7b9f9690194df4834f034ef71efa4836e71883eda",
-    "ui/src/consts/selectors.ts": "3aec352f04d1022ef14099fb6baa5e78e13b6f3642dd8b87e29e877873837f89"
+    "ui/src/consts/selectors.ts": "27f9dd3b641b4aabfcbeaacdb3f5aabf1d6e7f80426870c3dfb1c46bd0ddb5e7"
   }
 }

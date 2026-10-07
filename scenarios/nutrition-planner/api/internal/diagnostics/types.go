@@ -23,16 +23,74 @@ type Finding struct {
 	Message, Action string `json:"message,action"`
 }
 type Report struct {
-	WorkspaceID   string           `json:"workspaceId"`
-	GeneratedAt   time.Time        `json:"generatedAt"`
-	SchemaVersion int64            `json:"schemaVersion"`
-	DatabaseOK    bool             `json:"databaseOk"`
-	Providers     []ProviderStatus `json:"providers"`
-	Findings      []Finding        `json:"findings"`
+	WorkspaceID     string                `json:"workspaceId"`
+	GeneratedAt     time.Time             `json:"generatedAt"`
+	SchemaVersion   int64                 `json:"schemaVersion"`
+	DatabaseOK      bool                  `json:"databaseOk"`
+	Providers       []ProviderStatus      `json:"providers"`
+	ImageGeneration ImageGenerationStatus `json:"imageGeneration"`
+	Findings        []Finding             `json:"findings"`
+}
+
+// ImageGenerationStatus keeps readiness, user permission, and dispatch policy
+// separate. A ready Image Tools model is not a cost quote or permission to run.
+type ImageGenerationStatus struct {
+	Capability      string `json:"capability"`
+	Reason          string `json:"reason"`
+	Permission      string `json:"permission"`
+	DispatchAllowed bool   `json:"dispatchAllowed"`
+	QuoteAvailable  bool   `json:"quoteAvailable"`
+}
+
+func ImageGeneration(capability, reason string) ImageGenerationStatus {
+	if capability != "available" && capability != "unavailable" {
+		capability = "unknown"
+	}
+	if reason == "" {
+		reason = "A reliable pre-dispatch cost upper bound is unavailable."
+	}
+	return ImageGenerationStatus{Capability: capability, Reason: reason, Permission: "off", DispatchAllowed: false, QuoteAvailable: false}
+}
+
+// ImageGenerationFromCandidates classifies only successful Image Tools reads.
+// An absent service or failed read cannot prove that capability is unavailable.
+func ImageGenerationFromCandidates(serviceFound, readSucceeded bool, readyStates []string) ImageGenerationStatus {
+	if !serviceFound {
+		return ImageGeneration("unknown", "Image Tools service is unavailable or not discoverable.")
+	}
+	if !readSucceeded {
+		return ImageGeneration("unknown", "Image Tools capability could not be read.")
+	}
+	if len(readyStates) == 0 {
+		return ImageGeneration("unavailable", "Image Tools reports no text-to-image model candidates; no pre-dispatch cost quote is available.")
+	}
+
+	unknownState := false
+	for _, state := range readyStates {
+		if state == "ready" {
+			return ImageGeneration("available", "Image Tools reports a ready local text-to-image model; no pre-dispatch cost quote is available.")
+		}
+		if !knownNonReadyState(state) {
+			unknownState = true
+		}
+	}
+	if unknownState {
+		return ImageGeneration("unknown", "Image Tools returned an unrecognized readiness state; no pre-dispatch cost quote is available.")
+	}
+	return ImageGeneration("unavailable", "Image Tools reports no ready local text-to-image model; no pre-dispatch cost quote is available.")
+}
+
+func knownNonReadyState(state string) bool {
+	switch state {
+	case "needs_model_install", "needs_backend", "needs_backend_manual", "needs_both", "insufficient", "unsupported", "disabled", "derived_pipeline_unproven", "env_not_provisioned", "smoke_failed":
+		return true
+	default:
+		return false
+	}
 }
 
 func Build(ctx context.Context, db SQLExecutor, workspaceID string, now time.Time, providers []ProviderStatus) (Report, error) {
-	report := Report{WorkspaceID: workspaceID, GeneratedAt: now.UTC(), DatabaseOK: true, Providers: providers, Findings: []Finding{}}
+	report := Report{WorkspaceID: workspaceID, GeneratedAt: now.UTC(), DatabaseOK: true, Providers: providers, ImageGeneration: ImageGeneration("unknown", "Image Tools capability has not been checked."), Findings: []Finding{}}
 	if err := db.QueryRowContext(ctx, `PRAGMA user_version`).Scan(&report.SchemaVersion); err != nil {
 		return Report{}, err
 	}

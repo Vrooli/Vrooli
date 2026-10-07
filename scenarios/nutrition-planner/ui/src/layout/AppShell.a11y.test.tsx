@@ -29,6 +29,11 @@ describe("AppShell accessibility", () => {
     await expectNoA11yViolations(container);
   });
 
+  it.each([["/week"], ["/meals"], ["/groceries"], ["/kitchen"]])("keeps the routed %s surface accessible while it loads", async (path) => {
+    const { container } = renderWithProviders(<TestAppRouter initialEntries={[path]} />, { withoutRouter: true });
+    await expectNoA11yViolations(container);
+  });
+
   it("exposes one primary navigation landmark, a main region, and a skip link", () => {
     renderWithProviders(<TestAppRouter initialEntries={["/"]} />, { withoutRouter: true });
 

@@ -17,12 +17,17 @@
 package modules
 
 import (
+	"context"
+	"database/sql"
+	"fmt"
+
 	cookingH "nutrition-planner/handlers/cooking"
 	costH "nutrition-planner/handlers/cost"
 	inventoryH "nutrition-planner/handlers/inventory"
 	cookingDomain "nutrition-planner/internal/cooking"
 	inventoryDomain "nutrition-planner/internal/inventory"
 	"nutrition-planner/internal/module"
+	internalPlanning "nutrition-planner/internal/planning"
 	supplementDomain "nutrition-planner/internal/supplement"
 
 	capsH "nutrition-planner/handlers/capabilities"
@@ -61,6 +66,37 @@ import (
 	supplementv1 "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/supplement"
 	workspacev1 "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/workspace"
 )
+
+// NativeSchemaVersion is the version exposed by SQLite PRAGMA user_version.
+// Advance it only when the shared startup schema and data migrations succeed.
+const NativeSchemaVersion = 1
+
+// InitializeDatabase is the single native bootstrap path used by API startup
+// and populated-predecessor tests. The version receipt is committed only
+// after every schema, data migration and declared-column check succeeds.
+func InitializeDatabase(ctx context.Context, db *sql.DB) error {
+	if err := apidb.ApplySchemas(ctx, db, AllSchemas()...); err != nil {
+		return fmt.Errorf("apply native schemas: %w", err)
+	}
+	if err := internalPlanning.MigrateLegacyPlans(ctx, db); err != nil {
+		return fmt.Errorf("migrate legacy plans: %w", err)
+	}
+	if err := apidb.VerifyDeclaredColumns(ctx, db, AllSchemas()...); err != nil {
+		return fmt.Errorf("verify native schemas: %w", err)
+	}
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin native schema version update: %w", err)
+	}
+	defer tx.Rollback()
+	if _, err := tx.ExecContext(ctx, fmt.Sprintf("PRAGMA user_version = %d", NativeSchemaVersion)); err != nil {
+		return fmt.Errorf("record native schema version: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit native schema version: %w", err)
+	}
+	return nil
+}
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
 // stable order (system endpoints first, then domains alphabetically).

@@ -14,10 +14,12 @@ const previewWorkspaceImport = vi.hoisted(() => vi.fn());
 const applyWorkspaceImport = vi.hoisted(() => vi.fn());
 const previewRecipesImport = vi.hoisted(() => vi.fn());
 const applyRecipesImport = vi.hoisted(() => vi.fn());
+const getRestoreCheckpoint = vi.hoisted(() => vi.fn());
+const recoverRestoreCheckpoint = vi.hoisted(() => vi.fn());
 
 vi.mock("../../api/workspace", () => ({ ensureWorkspace }));
 vi.mock("../../api/recipes", () => ({ listRecipes }));
-vi.mock("../../api/portability", () => ({ exportRecipes, exportWorkspace, exportGroceriesCSV, exportWeeklyPDF, exportRecipePDF, previewWorkspaceImport, applyWorkspaceImport, previewRecipesImport, applyRecipesImport }));
+vi.mock("../../api/portability", () => ({ exportRecipes, exportWorkspace, exportGroceriesCSV, exportWeeklyPDF, exportRecipePDF, previewWorkspaceImport, applyWorkspaceImport, previewRecipesImport, applyRecipesImport, getRestoreCheckpoint, recoverRestoreCheckpoint }));
 
 import { DataTransferPage } from "./DataTransferPage";
 
@@ -27,14 +29,16 @@ describe("DataTransferPage", () => {
     ensureWorkspace.mockResolvedValue({ id: "w1", revision: 2n });
     listRecipes.mockResolvedValue([{ id: "r1", name: "Soup" }]);
     exportRecipes.mockResolvedValue({ filename: "daily-recipes.json", content: "{}", omissions: [] });
-    exportWorkspace.mockResolvedValue({ filename: "daily-workspace.json", content: "{}", omissions: [] });
+    exportWorkspace.mockResolvedValue({ filename: "daily-workspace.json", content: JSON.stringify({ format: "daily.workspace", manifest: { recordKinds: ["workspace", "recipe", "recipe_revision", "plan", "shopping_state", "nutrition_target", "profile", "intake_event", "supplement_schedule", "supplement_schedule_revision"] }, records: [{ kind: "workspace", id: "w1", revision: 2 }, { kind: "recipe" }, { kind: "plan" }, { kind: "shopping_state" }, { kind: "profile" }] }), omissions: [] });
     exportGroceriesCSV.mockResolvedValue({ filename: "daily-groceries.csv", content: "key,label\n", revision: 2n });
     exportWeeklyPDF.mockResolvedValue({ filename: "weekly.pdf", content: new Uint8Array([37, 80, 68, 70]), revision: 2n });
     exportRecipePDF.mockResolvedValue({ filename: "recipe-r1.pdf", content: new Uint8Array([37, 80, 68, 70]) });
-    previewWorkspaceImport.mockResolvedValue({ valid: true, format: "daily.workspace", schemaVersion: 2, recordCount: 3, recordKinds: ["workspace"], omissions: [], errors: [] });
+    previewWorkspaceImport.mockResolvedValue({ valid: true, format: "daily.workspace", schemaVersion: 2, recordCount: 3, recordKinds: ["workspace", "recipe", "recipe_revision", "plan", "shopping_state", "nutrition_target", "profile", "intake_event", "supplement_schedule", "supplement_schedule_revision"], omissions: [], errors: [] });
     applyWorkspaceImport.mockResolvedValue({ workspaceRevision: 3n, recipesApplied: 1, checkpointId: "cp1" });
     previewRecipesImport.mockResolvedValue({ valid: true, format: "daily.recipes", schemaVersion: 2, recipeCount: 1, duplicateCount: 0, conflictCount: 0, errors: [] });
     applyRecipesImport.mockResolvedValue({ workspaceRevision: 3n, recipesApplied: 1, recipesSkipped: 0, remappedIds: [] });
+    getRestoreCheckpoint.mockResolvedValue({ checkpointId:"cp1",createdAt:"2026-10-07T00:00:00Z",restoreRevision:2n,recipeCount:1,planIncluded:true,omissions:["inventory","authentication"] });
+    recoverRestoreCheckpoint.mockResolvedValue({ workspaceRevision:4n,recipesRestored:1,planRestored:true,recoveryCheckpointId:"cp2",omissions:["inventory","authentication"] });
     Object.defineProperty(URL, "createObjectURL", { configurable: true, value: vi.fn(() => "blob:test") });
     Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: vi.fn() });
     vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
@@ -69,17 +73,54 @@ describe("DataTransferPage", () => {
     await userEvent.selectOptions(screen.getByRole("combobox", { name: "PDF paper size" }), "LETTER");
     await userEvent.selectOptions(screen.getByRole("combobox", { name: "Recipe for PDF" }), "r1");
     await userEvent.click(screen.getByRole("button", { name: "Export recipe PDF" }));
-    const file = new File(["{}"], "backup.json", { type: "application/json" });
-    Object.defineProperty(file, "text", { value: async () => "{}" });
+    const backup = JSON.stringify({ manifest: { recordKinds: ["workspace", "recipe"] }, records: [{ kind: "workspace" }, { kind: "recipe" }] });
+    const file = new File([backup], "backup.json", { type: "application/json" });
+    Object.defineProperty(file, "text", { value: async () => backup });
     fireEvent.change(screen.getByLabelText("Choose a native daily JSON file"), { target: { files: [file] } });
     await waitFor(() => expect(screen.getByRole("button", { name: "Restore this validated backup" })).toBeInTheDocument());
+    expect(screen.getByText("Recipe history")).toBeInTheDocument();
+    expect(screen.getByText("Recipes").parentElement).toHaveTextContent("1Replace");
     await userEvent.click(screen.getByRole("button", { name: "Restore this validated backup" }));
     expect(exportRecipes).toHaveBeenCalledWith("w1");
     expect(exportWorkspace).toHaveBeenCalledWith("w1");
     expect(exportWeeklyPDF).toHaveBeenCalledWith({ workspaceId: "w1", expectedRevision: 2n, pageSize: "A4" });
     expect(exportGroceriesCSV).toHaveBeenCalledWith({ workspaceId: "w1", expectedRevision: 2n });
     expect(exportRecipePDF).toHaveBeenCalledWith({ workspaceId: "w1", recipeId: "r1", pageSize: "LETTER" });
-    expect(applyWorkspaceImport).toHaveBeenCalledWith(expect.objectContaining({ workspaceId: "w1", expectedWorkspaceRevision: 2n, contentJson: "{}" }));
+    expect(applyWorkspaceImport).toHaveBeenCalledWith(expect.objectContaining({ workspaceId: "w1", expectedWorkspaceRevision: 2n, contentJson: backup }));
+  });
+
+  it("shows per-family replacement, clear, and legacy preservation counts", async () => {
+    const backup = JSON.stringify({ manifest: { recordKinds: ["workspace", "recipe", "recipe_revision", "plan", "shopping_state", "nutrition_target", "profile", "intake_event", "supplement_schedule", "supplement_schedule_revision"] }, records: [{ kind: "workspace" }, { kind: "recipe" }, { kind: "recipe_revision" }, { kind: "plan" }, { kind: "shopping_state" }, { kind: "supplement_schedule" }, { kind: "supplement_schedule_revision" }] });
+    renderWithProviders(<DataTransferPage />);
+    await waitFor(() => expect(screen.getByRole("option", { name: "Soup" })).toBeInTheDocument());
+    const file = new File([backup], "backup.json", { type: "application/json" });
+    Object.defineProperty(file, "text", { value: async () => backup });
+    fireEvent.change(screen.getByLabelText("Choose a native daily JSON file"), { target: { files: [file] } });
+    await waitFor(() => expect(screen.getByText("Workspace restore impact")).toBeInTheDocument());
+    expect(screen.getByText("Supplement schedules").parentElement).toHaveTextContent("1Replace");
+    expect(screen.getByText("Nutrition targets").parentElement).toHaveTextContent("0Clear");
+    previewWorkspaceImport.mockResolvedValueOnce({ valid: true, format: "daily.workspace", schemaVersion: 2, recordCount: 1, recordKinds: ["workspace"], omissions: ["inventory"], errors: [] });
+    const legacy = new File(["{}"], "legacy.json", { type: "application/json" });
+    Object.defineProperty(legacy, "text", { value: async () => "{}" });
+    fireEvent.change(screen.getByLabelText("Choose a native daily JSON file"), { target: { files: [legacy] } });
+    await waitFor(() => expect(screen.getByText("Unsupported domains omitted and preserved: inventory.")).toBeInTheDocument());
+    expect(screen.getByText("Recipes").parentElement).toHaveTextContent("1—Preserve");
+  });
+
+  it("fails closed when current comparison fails or its revision is stale", async () => {
+    const backup = JSON.stringify({ manifest: { recordKinds: ["workspace"] }, records: [{ kind: "workspace" }] });
+    const file = new File([backup], "backup.json", { type: "application/json" });
+    Object.defineProperty(file, "text", { value: async () => backup });
+    renderWithProviders(<DataTransferPage />);
+    await waitFor(() => expect(screen.getByRole("option", { name: "Soup" })).toBeInTheDocument());
+    exportWorkspace.mockRejectedValueOnce(new Error("comparison down"));
+    fireEvent.change(screen.getByLabelText("Choose a native daily JSON file"), { target: { files: [file] } });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Restore this validated backup" })).toBeDisabled());
+    expect(screen.getByRole("alert")).toHaveTextContent("Retry by selecting the backup again");
+    exportWorkspace.mockResolvedValueOnce({ filename: "current.json", omissions: [], content: JSON.stringify({ format: "daily.workspace", manifest: { recordKinds: ["workspace"] }, records: [{ kind: "workspace", id: "w1", revision: 1 }] }) });
+    fireEvent.change(screen.getByLabelText("Choose a native daily JSON file"), { target: { files: [file] } });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Restore this validated backup" })).toBeDisabled());
+    expect(screen.getByRole("alert")).toHaveTextContent("does not match the active revision");
   });
 
   it("routes a native recipe file through staged conflict review and apply", async () => {
@@ -94,6 +135,26 @@ describe("DataTransferPage", () => {
     await user.click(screen.getByRole("button", { name: "Apply staged recipe import" }));
     expect(previewRecipesImport).toHaveBeenCalledWith({ workspaceId: "w1", contentJson: '{"format":"daily.recipes"}' });
     expect(applyRecipesImport).toHaveBeenCalledWith(expect.objectContaining({ workspaceId: "w1", expectedWorkspaceRevision: 2n, conflictPolicy: "replace" }));
+  });
+
+  it("requires explicit confirmation and reports truthful checkpoint recovery", async () => {
+    renderWithProviders(<DataTransferPage />);
+    await waitFor(() => expect(screen.getByRole("option", { name: "Soup" })).toBeInTheDocument());
+    const file = new File(["{}"], "backup.json", { type: "application/json" });
+    Object.defineProperty(file, "text", { value: async () => "{}" });
+    fireEvent.change(screen.getByLabelText("Choose a native daily JSON file"), { target: { files: [file] } });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Restore this validated backup" })).toBeInTheDocument());
+    await userEvent.click(screen.getByRole("button", { name: "Restore this validated backup" }));
+    await waitFor(() => expect(screen.getByText(/pre-restore checkpoint is ready for review/)).toBeInTheDocument());
+    expect(screen.getByText(/inventory, authentication/)).toBeInTheDocument();
+    const recover = screen.getByRole("button", { name: "Recover this checkpoint" });
+    expect(recover).toBeDisabled();
+    await userEvent.click(screen.getByLabelText(/explicitly want to restore it/));
+    await userEvent.click(recover);
+    await waitFor(() => expect(recoverRestoreCheckpoint).toHaveBeenCalledWith(expect.objectContaining({workspaceId:"w1",checkpointId:"cp1",idempotencyKey:expect.any(String)})));
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(/Recovery complete at revision 4/));
+    expect(screen.getByRole("status")).toHaveTextContent(/shopping state, nutrition targets, profile, intake events, and supplement schedules/);
+    expect(screen.getByRole("status")).toHaveTextContent(/Unsupported domains remain omitted: inventory, authentication/);
   });
 
   it("reports export and restore failures without pretending a file was created", async () => {
@@ -127,7 +188,10 @@ describe("DataTransferPage", () => {
     fireEvent.change(screen.getByLabelText("Choose a native daily JSON file"), { target: { files: [file] } });
     await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("Unable to inspect workspace import."));
     previewWorkspaceImport.mockResolvedValueOnce({ valid: true, format: "daily.workspace", schemaVersion: 2, recordCount: 1, recordKinds: ["workspace"], omissions: [], errors: [] });
-    fireEvent.change(screen.getByLabelText("Choose a native daily JSON file"), { target: { files: [file] } });
+    const validBackup = JSON.stringify({ manifest: { recordKinds: ["workspace"] }, records: [{ kind: "workspace" }] });
+    const validFile = new File([validBackup], "backup.json", { type: "application/json" });
+    Object.defineProperty(validFile, "text", { value: async () => validBackup });
+    fireEvent.change(screen.getByLabelText("Choose a native daily JSON file"), { target: { files: [validFile] } });
     await waitFor(() => expect(screen.getByRole("button", { name: "Restore this validated backup" })).toBeInTheDocument());
     applyWorkspaceImport.mockRejectedValueOnce("restore unavailable");
     await user.click(screen.getByRole("button", { name: "Restore this validated backup" }));
@@ -142,7 +206,7 @@ describe("DataTransferPage", () => {
     vi.clearAllMocks();
     ensureWorkspace.mockResolvedValue({ id: "w1", revision: 2n });
     listRecipes.mockResolvedValue([]);
-    exportWorkspace.mockResolvedValue({ filename: "daily-workspace.json", content: "{}", omissions: ["inventory"] });
+    exportWorkspace.mockResolvedValue({ filename: "daily-workspace.json", content: JSON.stringify({ format: "daily.workspace", manifest: { recordKinds: ["workspace"] }, records: [{ kind: "workspace", id: "w1", revision: 2 }] }), omissions: ["inventory"] });
     renderWithProviders(<DataTransferPage />);
     await waitFor(() => expect(screen.getByRole("button", { name: "Download workspace backup" })).toBeInTheDocument());
     await userEvent.click(screen.getAllByRole("button", { name: "Download workspace backup" }).at(-1)!);
@@ -151,6 +215,6 @@ describe("DataTransferPage", () => {
     const file = new File(["{}"], "backup.json", { type: "application/json" });
     Object.defineProperty(file, "text", { value: async () => "{}" });
     fireEvent.change(screen.getByLabelText("Choose a native daily JSON file"), { target: { files: [file] } });
-    await waitFor(() => expect(screen.getByText("Omissions: inventory")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Unsupported domains omitted and preserved: inventory.")).toBeInTheDocument());
   });
 });

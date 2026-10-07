@@ -37,9 +37,6 @@ const literalSelectors = {
     localeSelect: "page-settings-locale",
   },
   pages: {
-    dashboard: "page-dashboard",
-    dashboardHeader: "page-dashboard-header",
-    dashboardPlaceholder: "page-dashboard-placeholder",
     settings: "page-settings",
     today: "page-today",
     week: "page-week",
@@ -63,12 +60,12 @@ const dynamicSelectorDefinitions = {
         key: {
           type: "enum",
           values: [
-            "dashboard",
             "settings",
             "today",
             "week",
             "groceries",
-            "nutrition",
+            "meals",
+            "kitchen",
           ] as const,
         },
       },
@@ -80,12 +77,12 @@ const dynamicSelectorDefinitions = {
         key: {
           type: "enum",
           values: [
-            "dashboard",
             "settings",
             "today",
             "week",
             "groceries",
-            "nutrition",
+            "meals",
+            "kitchen",
           ] as const,
         },
       },

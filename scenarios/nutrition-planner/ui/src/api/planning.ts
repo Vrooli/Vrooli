@@ -3,6 +3,13 @@ import { PlanningService } from "@vrooli/proto-types/nutrition-planner/v1/planni
 import { transport } from "./client";
 
 const client = createClient(PlanningService, transport);
+export type ExploreFitReason = { code: string; rule: string; reference: string; message: string };
+export type ExploreRecipe = { recipeId: string; name: string; recipeRevision: bigint; fitReasons: ExploreFitReason[]; summary: string };
+export async function exploreRecipes(workspaceId: string): Promise<{ planRevision: bigint; profileRevision: bigint; profileConfigured: boolean; candidates: ExploreRecipe[]; blockingReasons: ExploreFitReason[]; savedRecipeCount: number }> {
+  const response = await client.exploreRecipes({ workspaceId });
+  const mapReason = (reason: ExploreFitReason) => ({ code: reason.code, rule: reason.rule, reference: reason.reference, message: reason.message });
+  return { planRevision: response.planRevision, profileRevision: response.profileRevision, profileConfigured: response.profileConfigured, candidates: response.candidates.map((item) => ({ recipeId: item.recipeId, name: item.name, recipeRevision: item.recipeRevision, fitReasons: item.fitReasons.map(mapReason), summary: item.summary })), blockingReasons: response.blockingReasons.map(mapReason), savedRecipeCount: response.savedRecipeCount };
+}
 export type PlanOccurrence = { date: string; slotName?: string; mode?: string; quantity?: string; recipeId: string; recipeRevision?: number; recipeName: string; reason: string; locked: boolean };
 export type PlanDraft = { occurrences: PlanOccurrence[]; unresolved: { date: string; code: string; message: string }[]; inputReferences: string[]; runId: string; seed: number; currentRevision: bigint };
 

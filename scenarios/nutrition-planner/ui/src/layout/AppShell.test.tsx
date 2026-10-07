@@ -3,7 +3,7 @@
  * landmarks. Page content is exercised in the per-page tests.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, screen, waitFor } from "@testing-library/react";
+import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { renderWithProviders } from "../test-utils";
@@ -47,18 +47,36 @@ describe("AppShell structure (cimode)", () => {
       "today",
       "week",
       "groceries",
-      "nutrition",
+      "meals",
+      "kitchen",
       "settings",
     ] as const) {
       expect(screen.getByTestId(selectors.layout.navLink({ key }))).toBeInTheDocument();
     }
-    for (const key of ["dashboard", "today", "week", "groceries", "nutrition"] as const) expect(screen.getByTestId(selectors.layout.navTab({ key }))).toBeInTheDocument();
+    for (const key of ["today", "week", "groceries", "meals", "kitchen"] as const) expect(screen.getByTestId(selectors.layout.navTab({ key }))).toBeInTheDocument();
+    expect(within(screen.getByTestId(selectors.layout.navigation)).getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual(["/", "/week", "/meals", "/groceries", "/kitchen"]);
+    expect(within(screen.getByTestId(selectors.layout.tabs)).getAllByRole("link").map((link) => link.getAttribute("href"))).toEqual(["/", "/week", "/meals", "/groceries", "/kitchen"]);
   });
 
-  it("marks the current route on settings and keeps Home unselected", () => {
+  it("marks the current route on settings and keeps Today unselected", () => {
     renderShell("/settings");
     expect(screen.getByTestId(selectors.layout.navLink({ key: "settings" }))).toHaveAttribute("aria-current", "page");
-    expect(screen.getByTestId(selectors.layout.navLink({ key: "dashboard" }))).not.toHaveAttribute("aria-current");
+    expect(screen.getByTestId(selectors.layout.navLink({ key: "today" }))).not.toHaveAttribute("aria-current");
+  });
+
+  it("marks each selected destination active in both desktop and phone navigation", () => {
+    const cases = [
+      ["/week", "week"],
+      ["/meals", "meals"],
+      ["/groceries", "groceries"],
+      ["/kitchen", "kitchen"],
+    ] as const;
+    for (const [path, key] of cases) {
+      cleanup();
+      renderShell(path);
+      expect(screen.getByTestId(selectors.layout.navLink({ key }))).toHaveAttribute("aria-current", "page");
+      expect(screen.getByTestId(selectors.layout.navTab({ key }))).toHaveAttribute("aria-current", "page");
+    }
   });
 
   it("opens Settings from the header utility", async () => {
@@ -83,7 +101,7 @@ describe("Locale switching through the shell (real locales)", () => {
   it("renders English copy by default and reflects it on <html>", async () => {
     renderShell();
     // The desktop link and the phone tab both render the label, so there will be ≥1 match.
-    expect((await screen.findAllByText(en.layout.nav.dashboard)).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText(en.layout.nav.today)).length).toBeGreaterThan(0);
     expect(document.documentElement.lang).toBe("en");
     expect(document.documentElement.dir).toBe("ltr");
   });
@@ -95,7 +113,7 @@ describe("Locale switching through the shell (real locales)", () => {
     await user.click(screen.getByRole("option", { name: "日本語" }));
 
     await waitFor(() => {
-      expect(screen.getAllByText(ja.layout.nav.dashboard).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(ja.layout.nav.today).length).toBeGreaterThan(0);
     });
     expect(document.documentElement.lang).toBe("ja");
   });
@@ -108,7 +126,7 @@ describe("Locale switching through the shell (real locales)", () => {
 
     await waitFor(() => {
       expect(document.documentElement.dir).toBe("rtl");
-      expect(screen.getAllByText(ar.layout.nav.dashboard).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(ar.layout.nav.today).length).toBeGreaterThan(0);
     });
   });
 });

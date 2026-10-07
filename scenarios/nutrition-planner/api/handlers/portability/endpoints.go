@@ -10,6 +10,8 @@ var Endpoints = []module.EndpointDescriptor{
 	{ID: "portability_export_workspace", Path: connect.PortabilityServiceExportWorkspaceProcedure, Method: "POST", Summary: "Export supported workspace data", Category: "portability"},
 	{ID: "portability_preview_workspace_import", Path: connect.PortabilityServicePreviewWorkspaceImportProcedure, Method: "POST", Summary: "Validate a workspace import before applying it", Category: "portability"},
 	{ID: "portability_apply_workspace_import", Path: connect.PortabilityServiceApplyWorkspaceImportProcedure, Method: "POST", Summary: "Apply a validated workspace restore atomically", Category: "portability"},
+	{ID: "portability_get_restore_checkpoint", Path: connect.PortabilityServiceGetRestoreCheckpointProcedure, Method: "POST", Summary: "Inspect a saved pre-restore workspace checkpoint", Category: "portability"},
+	{ID: "portability_recover_restore_checkpoint", Path: connect.PortabilityServiceRecoverRestoreCheckpointProcedure, Method: "POST", Summary: "Explicitly recover a workspace from its saved checkpoint", Category: "portability"},
 	{ID: "portability_preview_recipes_import", Path: connect.PortabilityServicePreviewRecipesImportProcedure, Method: "POST", Summary: "Review a recipe collection import before applying it", Category: "portability"},
 	{ID: "portability_apply_recipes_import", Path: connect.PortabilityServiceApplyRecipesImportProcedure, Method: "POST", Summary: "Apply a recipe collection import atomically", Category: "portability"},
 	{ID: "portability_export_groceries_csv", Path: connect.PortabilityServiceExportGroceriesCSVProcedure, Method: "POST", Summary: "Export a grocery checklist as CSV", Category: "portability"},

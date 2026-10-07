@@ -10,12 +10,12 @@
     "openNavigation": "Open navigation",
     "closeNavigation": "Close navigation",
     "nav": {
-      "dashboard": "Home",
-    "settings": "Settings",
-    "today": "Today",
-    "week": "Week",
-    "groceries": "Groceries",
-    "nutrition": "Nutrition"
+      "settings": "Settings",
+      "today": "Today",
+      "week": "Week",
+      "groceries": "Groceries",
+      "meals": "Meals",
+      "kitchen": "Kitchen"
     }
   },
   "theme": {
@@ -27,12 +27,6 @@
     }
   },
   "pages": {
-    "dashboard": {
-      "title": "Home",
-      "description": "The first thing an operator sees. Decide what belongs here before you ship.",
-      "placeholderTitle": "This scenario has not decided its home surface yet",
-      "placeholderDescription": "Open START-HERE, Gate 5, and name the one question this page answers. Replace this placeholder with that surface. The health card beside it is the example of a scenario-owned feature built from library parts."
-    },
     "settings": {
       "title": "Settings",
       "themeHeading": "Appearance",

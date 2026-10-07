@@ -62,3 +62,36 @@ func TestBuildReportsScopedActionableFindings(t *testing.T) {
 		t.Fatalf("workspace leakage: %#v", other.Findings)
 	}
 }
+
+func TestImageGenerationClassificationFailsClosed(t *testing.T) {
+	tests := []struct {
+		name           string
+		serviceFound   bool
+		readSucceeded  bool
+		readyStates    []string
+		wantCapability string
+	}{
+		{name: "service missing", wantCapability: "unknown"},
+		{name: "read failure", serviceFound: true, wantCapability: "unknown"},
+		{name: "empty candidates", serviceFound: true, readSucceeded: true, wantCapability: "unavailable"},
+		{name: "known non-ready candidate", serviceFound: true, readSucceeded: true, readyStates: []string{"needs_model_install"}, wantCapability: "unavailable"},
+		{name: "environment not provisioned", serviceFound: true, readSucceeded: true, readyStates: []string{"env_not_provisioned"}, wantCapability: "unavailable"},
+		{name: "smoke failed", serviceFound: true, readSucceeded: true, readyStates: []string{"smoke_failed"}, wantCapability: "unavailable"},
+		{name: "ready candidate", serviceFound: true, readSucceeded: true, readyStates: []string{"disabled", "ready"}, wantCapability: "available"},
+		{name: "unknown candidate state", serviceFound: true, readSucceeded: true, readyStates: []string{"future_state"}, wantCapability: "unknown"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			status := ImageGenerationFromCandidates(tt.serviceFound, tt.readSucceeded, tt.readyStates)
+			if status.Capability != tt.wantCapability {
+				t.Errorf("capability = %q, want %q", status.Capability, tt.wantCapability)
+			}
+			if status.Permission != "off" || status.QuoteAvailable || status.DispatchAllowed {
+				t.Errorf("classification did not keep generation disabled: %#v", status)
+			}
+			if status.Reason == "" {
+				t.Error("classification reason is empty")
+			}
+		})
+	}
+}

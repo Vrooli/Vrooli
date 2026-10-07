@@ -3,6 +3,7 @@ package recipe
 import (
 	"context"
 	"database/sql"
+	"reflect"
 	"testing"
 
 	"github.com/vrooli/api-core/schedule"
@@ -86,6 +87,60 @@ func TestRecipeYieldAndIngredientsPersistAcrossRevisions(t *testing.T) {
 	}
 	if first.CanonicalYield != "2" || first.Ingredients[0].Amount != "40" {
 		t.Fatalf("create snapshot mutated=%#v", first)
+	}
+}
+
+func TestStructuredRecipeFieldsPersistAcrossNameAndNotesEdit(t *testing.T) {
+	s := NewService(repo(t))
+	ctx := context.Background()
+	method := Method{ID: "stovetop", Name: "Stovetop", Steps: []MethodStep{{
+		ID: "simmer", Instruction: "Simmer the rice", Inputs: []string{"rice"}, Outputs: []string{"bowl"},
+	}}}
+	ingredients := []Ingredient{{ID: "rice", Name: "Rice", Amount: "180", Unit: "g", Preparation: "rinsed"}}
+	groups := []string{"grain-bowl", "weeknight"}
+	appliances := []string{"saucepan", "stove"}
+	allergenEvidence := map[string]string{"sesame": "not-present", "soy": "check-label"}
+	created, err := s.Create(ctx, CreateInput{
+		WorkspaceID: "w1", Name: "Original Bowl", Notes: "Original notes",
+		Methods: []Method{method}, Groups: groups, RequiredAppliances: appliances,
+		AllergenEvidence: allergenEvidence, CanonicalYield: "2", ServingUnit: "bowls",
+		Ingredients: ingredients, OriginalText: "Cook rice, then serve.",
+		SourceURL: "https://example.test/recipe", SourceType: "web",
+	})
+	if err != nil {
+		t.Fatalf("create structured recipe: %v", err)
+	}
+
+	updated, err := s.Update(ctx, UpdateInput{
+		WorkspaceID: "w1", ID: created.ID, ExpectedRevision: created.Revision,
+		Name: "Renamed Bowl", Notes: "Updated notes",
+		Methods: created.Methods, Groups: created.Groups, RequiredAppliances: created.RequiredAppliances,
+		AllergenEvidence: created.AllergenEvidence, CanonicalYield: created.CanonicalYield,
+		ServingUnit: created.ServingUnit, Ingredients: created.Ingredients,
+		OriginalText: created.OriginalText, SourceURL: created.SourceURL, SourceType: created.SourceType,
+	})
+	if err != nil {
+		t.Fatalf("update structured recipe: %v", err)
+	}
+	if updated.Revision != 2 || updated.Name != "Renamed Bowl" || updated.Notes != "Updated notes" {
+		t.Fatalf("updated recipe = %#v", updated)
+	}
+
+	reopened, err := s.GetRevision(ctx, created.ID, "w1", 2)
+	if err != nil {
+		t.Fatalf("retrieve immutable revision 2: %v", err)
+	}
+	if reopened.Revision != 2 || reopened.Name != "Renamed Bowl" || reopened.Notes != "Updated notes" {
+		t.Fatalf("revision 2 identity = %#v", reopened)
+	}
+	if !reflect.DeepEqual(reopened.Methods, created.Methods) ||
+		!reflect.DeepEqual(reopened.Groups, created.Groups) ||
+		!reflect.DeepEqual(reopened.RequiredAppliances, created.RequiredAppliances) ||
+		!reflect.DeepEqual(reopened.AllergenEvidence, created.AllergenEvidence) ||
+		reopened.CanonicalYield != created.CanonicalYield || reopened.ServingUnit != created.ServingUnit ||
+		!reflect.DeepEqual(reopened.Ingredients, created.Ingredients) ||
+		reopened.OriginalText != created.OriginalText || reopened.SourceURL != created.SourceURL || reopened.SourceType != created.SourceType {
+		t.Fatalf("revision 2 lost preserved fields: got %#v, want structured/provenance fields from %#v", reopened, created)
 	}
 }
 

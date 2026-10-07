@@ -53,6 +53,90 @@ func (r *sqliteRepository) SetHaveThis(ctx context.Context, workspaceID, key str
 	return err
 }
 
+// PersistedState reads every portable shopping choice and purchase review,
+// including omitted rows. Inventory events are intentionally not read.
+func (r *sqliteRepository) PersistedState(ctx context.Context, workspaceID string) (PersistedState, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return PersistedState{}, err
+	}
+	defer tx.Rollback()
+	state := PersistedState{Checks: map[string]bool{}, HaveThis: map[string]bool{}, Reviews: []PersistedReview{}}
+	for _, query := range []struct {
+		table string
+		dest  map[string]bool
+		col   string
+	}{{"shopping_checks", state.Checks, "checked"}, {"shopping_have_this", state.HaveThis, "asserted"}} {
+		rows, err := tx.QueryContext(ctx, `SELECT line_key,`+query.col+` FROM `+query.table+` WHERE workspace_id=?`, workspaceID)
+		if err != nil {
+			return PersistedState{}, err
+		}
+		for rows.Next() {
+			var key string
+			var value int
+			if err := rows.Scan(&key, &value); err != nil {
+				rows.Close()
+				return PersistedState{}, err
+			}
+			query.dest[key] = value != 0
+		}
+		if err := rows.Err(); err != nil {
+			rows.Close()
+			return PersistedState{}, err
+		}
+		if err := rows.Close(); err != nil {
+			return PersistedState{}, err
+		}
+	}
+	rows, err := tx.QueryContext(ctx, `SELECT review_id,payload_hash,created_at FROM shopping_purchase_reviews WHERE workspace_id=? ORDER BY review_id`, workspaceID)
+	if err != nil {
+		return PersistedState{}, err
+	}
+	for rows.Next() {
+		var review PersistedReview
+		if err := rows.Scan(&review.ID, &review.PayloadHash, &review.CreatedAt); err != nil {
+			rows.Close()
+			return PersistedState{}, err
+		}
+		state.Reviews = append(state.Reviews, review)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return PersistedState{}, err
+	}
+	if err := rows.Close(); err != nil {
+		return PersistedState{}, err
+	}
+	for i := range state.Reviews {
+		review := &state.Reviews[i]
+		lines, err := tx.QueryContext(ctx, `SELECT line_key,item_id,amount,unit,price,omitted FROM shopping_purchase_review_lines WHERE workspace_id=? AND review_id=? ORDER BY line_key`, workspaceID, review.ID)
+		if err != nil {
+			return PersistedState{}, err
+		}
+		for lines.Next() {
+			var line PersistedLine
+			var omitted int
+			if err := lines.Scan(&line.Key, &line.ItemID, &line.Amount, &line.Unit, &line.Price, &omitted); err != nil {
+				lines.Close()
+				return PersistedState{}, err
+			}
+			line.Omitted = omitted != 0
+			review.Lines = append(review.Lines, line)
+		}
+		if err := lines.Err(); err != nil {
+			lines.Close()
+			return PersistedState{}, err
+		}
+		if err := lines.Close(); err != nil {
+			return PersistedState{}, err
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return PersistedState{}, err
+	}
+	return state, nil
+}
+
 // ConfirmPurchases stores the reviewed trip and appends all actual purchase events
 // in one transaction. Repeating an identical review is safe; changing its payload conflicts.
 func (r *sqliteRepository) ConfirmPurchases(ctx context.Context, workspaceID, reviewID string, lines []PurchaseLine) error {
@@ -140,14 +224,26 @@ func (r *sqliteRepository) ConfirmPurchases(ctx context.Context, workspaceID, re
 
 func (r *sqliteRepository) LatestPurchaseReview(ctx context.Context, workspaceID string) (map[string]PurchaseLine, error) {
 	rows, err := r.db.QueryContext(ctx, `SELECT line_key,item_id,amount,unit,price,omitted FROM shopping_purchase_review_lines WHERE workspace_id=? AND review_id=(SELECT review_id FROM shopping_purchase_reviews WHERE workspace_id=? ORDER BY created_at DESC,review_id DESC LIMIT 1)`, workspaceID, workspaceID)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	defer rows.Close()
 	out := map[string]PurchaseLine{}
 	for rows.Next() {
-		var line PurchaseLine; var amount string; var omitted int
-		if err := rows.Scan(&line.Key,&line.ItemID,&amount,&line.Unit,&line.Price,&omitted); err != nil { return nil, err }
+		var line PurchaseLine
+		var amount string
+		var omitted int
+		if err := rows.Scan(&line.Key, &line.ItemID, &amount, &line.Unit, &line.Price, &omitted); err != nil {
+			return nil, err
+		}
 		line.Omitted = omitted != 0
-		if !line.Omitted { var err error; line.Amount,err = decimalx.Parse(amount); if err != nil { return nil, err } }
+		if !line.Omitted {
+			var err error
+			line.Amount, err = decimalx.Parse(amount)
+			if err != nil {
+				return nil, err
+			}
+		}
 		out[line.Key] = line
 	}
 	return out, rows.Err()

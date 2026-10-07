@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
+import { Code, ConnectError } from "@connectrpc/connect";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "../../test-utils";
 
@@ -25,7 +26,49 @@ vi.mock("../../api/workspace", () => ({ ensureWorkspace: vi.fn().mockResolvedVal
 import { GroceriesPage } from "./GroceriesPage";
 
 describe("GroceriesPage", () => {
-  beforeEach(() => { vi.clearAllMocks(); setShoppingChecked.mockResolvedValue(true); setShoppingHaveThis.mockResolvedValue(true); confirmShoppingPurchases.mockResolvedValue(undefined); listInventoryEvents.mockResolvedValue([]); listInventoryBatches.mockResolvedValue([]); listRecipes.mockResolvedValue([]); getProfile.mockResolvedValue(undefined); exportGroceriesCSV.mockResolvedValue({ filename: "daily-groceries.csv", content: "key,label\n", revision: 1n }); });
+  beforeEach(() => { localStorage.clear(); sessionStorage.clear(); vi.clearAllMocks(); getShoppingPreview.mockReset(); setShoppingChecked.mockResolvedValue(true); setShoppingHaveThis.mockResolvedValue(true); confirmShoppingPurchases.mockResolvedValue(undefined); listInventoryEvents.mockResolvedValue([]); listInventoryBatches.mockResolvedValue([]); listRecipes.mockResolvedValue([]); getProfile.mockResolvedValue(undefined); exportGroceriesCSV.mockResolvedValue({ filename: "daily-groceries.csv", content: "key,label\n", revision: 1n }); });
+  it("separates review from the store checklist and remembers the chosen mode", async () => {
+    getShoppingPreview.mockResolvedValue({ revision: 1n, lines: [
+      { key: "ingredient:rice", label: "rice", need: "300 g", stock: "unknown", missing: "300 g", packageCount: "unknown", price: "unknown", sourceRecipeIds: [], checked: false, haveThis: false },
+      { key: "ingredient:beans", label: "beans", need: "2 cans", stock: "unknown", missing: "2 cans", packageCount: "unknown", price: "unknown", sourceRecipeIds: [], checked: true, haveThis: false },
+    ] });
+    renderWithProviders(<GroceriesPage />);
+    await screen.findByRole("heading", { name: "Review what you need" });
+    expect(screen.getAllByText("Have this · amount not recorded")).toHaveLength(2);
+    await userEvent.click(screen.getByRole("button", { name: "Shop" }));
+    expect(localStorage.getItem("nutrition-planner.groceries.mode")).toBe("shop");
+    expect(screen.getByRole("heading", { name: "Shopping list" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "beans" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Picked up" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("checkbox", { name: "Check rice" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Undo pickup of rice" })).toHaveFocus());
+    expect(screen.queryByRole("button", { name: "Confirm and record purchase" })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Review purchases" }));
+    expect(screen.getByRole("region", { name: "Purchase preview" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Confirm and record purchase" })).toBeInTheDocument();
+    expect(localStorage.getItem("nutrition-planner.groceries.mode")).toBe("review");
+    expect(screen.getByText(/does not record payment, inventory, or eating/i)).toBeInTheDocument();
+  });
+  it("does not treat the first known line amount as a basket estimate", async () => {
+    getShoppingPreview.mockResolvedValue({ revision: 1n, lines: [
+      { key: "ingredient:rice", label: "rice", need: "1 bag", stock: "unknown", missing: "1 bag", packageCount: "1", price: "$4.00", checkoutTotal: "$4.00", sourceRecipeIds: [], checked: false, haveThis: false },
+      { key: "ingredient:beans", label: "beans", need: "2 cans", stock: "unknown", missing: "2 cans", packageCount: "2", price: "$2.00", checkoutTotal: "$4.00", sourceRecipeIds: [], checked: false, haveThis: false },
+    ] });
+    renderWithProviders(<GroceriesPage />);
+    await screen.findByRole("heading", { name: "Review what you need" });
+    expect(screen.getByText("Checkout estimate").nextElementSibling).toHaveTextContent("Not recorded");
+    await userEvent.click(screen.getAllByText("Details and purchase review")[0]!);
+    expect(screen.getAllByText(/Checkout total: \$4\.00/)).toHaveLength(2);
+  });
+  it("keeps basket estimate unavailable when line currencies are mixed or unknown", async () => {
+    getShoppingPreview.mockResolvedValue({ revision: 1n, lines: [
+      { key: "ingredient:rice", label: "rice", need: "1 bag", stock: "unknown", missing: "1 bag", packageCount: "1", price: "USD 4.00", checkoutTotal: "USD 4.00", sourceRecipeIds: [], checked: false, haveThis: false },
+      { key: "ingredient:beans", label: "beans", need: "2 cans", stock: "unknown", missing: "2 cans", packageCount: "unknown", price: "unknown", checkoutTotal: "unknown", sourceRecipeIds: [], checked: false, haveThis: false },
+    ] });
+    renderWithProviders(<GroceriesPage />);
+    await screen.findByRole("heading", { name: "Review what you need" });
+    expect(screen.getByText("Checkout estimate").nextElementSibling).toHaveTextContent("Not recorded");
+  });
   it("shows unknown facts and persists checklist-only state", async () => {
     getShoppingPreview.mockResolvedValue({ revision: 1n, lines: [{ key: "ingredient:rice", label: "rice", need: "unknown", stock: "unknown", missing: "unknown", packageCount: "unknown", price: "unknown", sourceRecipeIds: ["r1"], checked: false, haveThis: false }] });
     renderWithProviders(<GroceriesPage />);
@@ -45,19 +88,22 @@ describe("GroceriesPage", () => {
     await userEvent.click(screen.getByRole("checkbox", { name: "Check rice" }));
     expect(screen.getByRole("checkbox", { name: "Check rice" })).not.toBeChecked();
   });
-  it("confirms reviewed actual quantities and omissions together", async () => {
+  it("previews reviewed actual quantities and omissions before confirming them together", async () => {
     getShoppingPreview.mockResolvedValue({ revision: 1n, lines: [
       { key: "ingredient:rice", label: "rice", need: "100 g", stock: "unknown", missing: "unknown", packageCount: "unknown", price: "unknown", sourceRecipeIds: [], checked: true, haveThis: false, actualQuantity: "", actualUnit: "", actualPrice: "", purchaseOmitted: false },
       { key: "ingredient:beans", label: "beans", need: "2 can", stock: "unknown", missing: "unknown", packageCount: "unknown", price: "unknown", sourceRecipeIds: [], checked: false, haveThis: false, actualQuantity: "", actualUnit: "", actualPrice: "", purchaseOmitted: false },
     ] });
     renderWithProviders(<GroceriesPage />);
-    await waitFor(() => expect(screen.getByRole("button", { name: "Confirm purchases" })).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Preview purchase" })).toBeInTheDocument());
     await userEvent.type(screen.getByRole("textbox", { name: "Actual quantity rice" }), "40");
     await userEvent.clear(screen.getByRole("textbox", { name: "Actual unit rice" }));
     await userEvent.type(screen.getByRole("textbox", { name: "Actual unit rice" }), "g");
     await userEvent.type(screen.getByRole("textbox", { name: "Actual price rice" }), "1.20");
     await userEvent.click(screen.getByRole("checkbox", { name: "Omit beans" }));
-    await userEvent.click(screen.getByRole("button", { name: "Confirm purchases" }));
+    await userEvent.click(screen.getByRole("button", { name: "Preview purchase" }));
+    expect(screen.getByRole("region", { name: "Purchase preview" })).toHaveTextContent("40 g");
+    expect(screen.getByRole("region", { name: "Purchase preview" })).toHaveTextContent("Not purchased");
+    await userEvent.click(screen.getByRole("button", { name: "Confirm and record purchase" }));
     await waitFor(() => expect(confirmShoppingPurchases).toHaveBeenCalledWith(expect.objectContaining({ workspaceId: "w1", lines: [
       expect.objectContaining({ lineKey: "ingredient:rice", itemId: "rice", amount: "40", unit: "g", price: "1.20", omitted: false }),
       expect.objectContaining({ lineKey: "ingredient:beans", itemId: "beans", omitted: true }),
@@ -68,9 +114,73 @@ describe("GroceriesPage", () => {
     getShoppingPreview.mockResolvedValue({ revision: 1n, lines: [{ key: "ingredient:rice", label: "rice", need: "100 g", stock: "40 g", missing: "60 g", packageCount: "unknown", price: "unknown", sourceRecipeIds: [], checked: false, haveThis: false, actualQuantity: "40", actualUnit: "g", actualPrice: "1.20", purchaseOmitted: false }] });
     renderWithProviders(<GroceriesPage />);
     await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("This trip is confirmed"));
-    expect(screen.queryByRole("button", { name: "Confirm purchases" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Preview purchase" })).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Start a new trip" }));
-    expect(screen.getByRole("button", { name: "Confirm purchases" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Preview purchase" })).toBeInTheDocument();
+  });
+  it("locks and restores the exact purchase payload after commit succeeds but preview refresh fails", async () => {
+    const lines = [
+      { key: "ingredient:rice", label: "rice", need: "100 g", stock: "unknown", missing: "unknown", packageCount: "unknown", price: "unknown", sourceRecipeIds: [], checked: false, haveThis: false },
+      { key: "ingredient:beans", label: "beans", need: "2 cans", stock: "unknown", missing: "unknown", packageCount: "unknown", price: "unknown", sourceRecipeIds: [], checked: false, haveThis: false },
+    ];
+    getShoppingPreview.mockResolvedValueOnce({ revision: 1n, lines }).mockRejectedValueOnce(new Error("refresh unavailable")).mockRejectedValueOnce(new Error("reload unavailable")).mockResolvedValue({ revision: 1n, lines });
+    const firstView = renderWithProviders(<GroceriesPage />);
+    await userEvent.type(await screen.findByRole("textbox", { name: "Actual quantity rice" }), "40");
+    await userEvent.type(screen.getByRole("textbox", { name: "Actual price rice" }), "1.20");
+    await userEvent.click(screen.getByRole("checkbox", { name: "Omit beans" }));
+    await userEvent.click(screen.getByRole("button", { name: "Preview purchase" }));
+    await userEvent.click(screen.getByRole("button", { name: "Confirm and record purchase" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("refresh unavailable");
+    expect(screen.getByRole("region", { name: "Purchase preview" })).toHaveTextContent("40 g");
+    expect(screen.getByRole("region", { name: "Purchase preview" })).toHaveTextContent("Actual price: 1.20");
+    expect(screen.getByRole("region", { name: "Purchase preview" })).toHaveTextContent("Not purchased");
+    const firstRequest = structuredClone(confirmShoppingPurchases.mock.calls[0]![0]);
+    const quantity = screen.getByRole("textbox", { name: "Actual quantity rice" });
+    const price = screen.getByRole("textbox", { name: "Actual price rice" });
+    const omit = screen.getByRole("checkbox", { name: "Omit beans" });
+    expect(quantity).toBeDisabled();
+    expect(price).toBeDisabled();
+    expect(omit).toBeDisabled();
+    fireEvent.change(quantity, { target: { value: "99" } });
+    fireEvent.change(price, { target: { value: "99.99" } });
+    fireEvent.click(omit);
+    expect(quantity).toHaveValue("40");
+    expect(price).toHaveValue("1.20");
+    expect(omit).toBeChecked();
+    expect(JSON.parse(sessionStorage.getItem("nutrition-planner.groceries.pending-purchase:w1") || "null")).toEqual(firstRequest);
+
+    firstView.unmount();
+    renderWithProviders(<GroceriesPage />);
+    expect(await screen.findByRole("region", { name: "Purchase preview" })).toHaveTextContent("40 g");
+    expect(await screen.findByRole("alert")).toHaveTextContent("reload unavailable");
+    expect(screen.getByRole("button", { name: "Retry exact confirmation" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Retry exact confirmation" }));
+    await waitFor(() => expect(confirmShoppingPurchases).toHaveBeenCalledTimes(2));
+    expect(confirmShoppingPurchases.mock.calls[1]![0]).toEqual(firstRequest);
+    expect(confirmShoppingPurchases.mock.calls[1]![0].reviewId).toBe(firstRequest.reviewId);
+    await waitFor(() => expect(sessionStorage.getItem("nutrition-planner.groceries.pending-purchase:w1")).toBeNull());
+  });
+
+  it("releases a rejected validation payload so the user can correct it with a new review ID", async () => {
+    const lines = [{ key: "ingredient:rice", label: "rice", need: "100 g", stock: "unknown", missing: "unknown", packageCount: "unknown", price: "unknown", sourceRecipeIds: [], checked: false, haveThis: false }];
+    getShoppingPreview.mockResolvedValue({ revision: 1n, lines });
+    confirmShoppingPurchases.mockRejectedValueOnce(new ConnectError('purchase row "ingredient:rice" requires a positive actual quantity', Code.InvalidArgument));
+    renderWithProviders(<GroceriesPage />);
+    const quantity = await screen.findByRole("textbox", { name: "Actual quantity rice" });
+    await userEvent.type(quantity, "0");
+    await userEvent.click(screen.getByRole("button", { name: "Preview purchase" }));
+    await userEvent.click(screen.getByRole("button", { name: "Confirm and record purchase" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("requires a positive actual quantity");
+    expect(quantity).toBeEnabled();
+    expect(sessionStorage.getItem("nutrition-planner.groceries.pending-purchase:w1")).toBeNull();
+    const rejectedReviewId = confirmShoppingPurchases.mock.calls[0]![0].reviewId;
+
+    await userEvent.clear(quantity);
+    await userEvent.type(quantity, "20");
+    await userEvent.click(screen.getByRole("button", { name: "Confirm and record purchase" }));
+    await waitFor(() => expect(confirmShoppingPurchases).toHaveBeenCalledTimes(2));
+    expect(confirmShoppingPurchases.mock.calls[1]![0].reviewId).not.toBe(rejectedReviewId);
+    expect(confirmShoppingPurchases.mock.calls[1]![0].lines[0]).toMatchObject({ amount: "20", unit: "g" });
   });
   it("prepares and portions a declared recipe batch", async () => {
     getShoppingPreview.mockResolvedValue({ revision: 1n, lines: [] });
@@ -126,8 +236,8 @@ describe("GroceriesPage", () => {
     Object.defineProperty(URL, "revokeObjectURL", { value: revokeObjectURL, configurable: true });
     const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
     renderWithProviders(<GroceriesPage />);
-    await waitFor(() => expect(screen.getByRole("button", { name: "Download grocery CSV" })).toBeInTheDocument());
-    await userEvent.click(screen.getByRole("button", { name: "Download grocery CSV" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Export list" })).toBeInTheDocument());
+    await userEvent.click(screen.getByRole("button", { name: "Export list" }));
     expect(exportGroceriesCSV).toHaveBeenCalledWith({ workspaceId: "w1", expectedRevision: 1n });
     expect(createObjectURL).toHaveBeenCalled();
     expect(revokeObjectURL).toHaveBeenCalledWith("blob:test");

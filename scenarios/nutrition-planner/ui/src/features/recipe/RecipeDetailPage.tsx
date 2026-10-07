@@ -10,6 +10,7 @@ type View = "map" | "read";
 
 export function RecipeDetailPage() {
   const { id = "", revision = "" } = useParams();
+  const returnPath = new URLSearchParams(window.location.search).get("return") || "/meals";
   const navigate = useNavigate();
   const [recipe, setRecipe] = useState<Recipe>();
   const [selectedMethodID, setSelectedMethodID] = useState("");
@@ -37,7 +38,7 @@ export function RecipeDetailPage() {
   }, [id, revision]);
 
   if (state === "loading") return <section aria-labelledby="recipe-detail-heading"><p role="status">Loading recipe revision…</p></section>;
-  if (state === "error" || !recipe) return <section aria-labelledby="recipe-detail-heading"><Link to="/">Back to meals</Link><h1 id="recipe-detail-heading" className="mt-4 text-2xl font-semibold">Recipe unavailable</h1><p role="alert" className="mt-2 text-red-800">{error}</p></section>;
+  if (state === "error" || !recipe) return <section aria-labelledby="recipe-detail-heading"><Link to={returnPath}>Back to Explore</Link><h1 id="recipe-detail-heading" className="mt-4 text-2xl font-semibold">Recipe unavailable</h1><p role="alert" className="mt-2 text-red-800">{error}</p></section>;
 
   const canonicalYield = recipe.canonicalYield ?? "";
   const hasYield = canonicalYield.trim() !== "";
@@ -59,7 +60,7 @@ export function RecipeDetailPage() {
     finally { setStarting(false); }
   }
   return <section aria-labelledby="recipe-detail-heading" className="flex flex-col gap-5">
-    <Link to="/" className="min-h-11 self-start rounded border bg-white px-3 py-2">Back to meals</Link>
+    <Link to={returnPath} className="min-h-11 self-start rounded border bg-white px-3 py-2">Back to {returnPath.startsWith("/meals/explore") ? "Explore" : "meals"}</Link>
     <header><p className="text-sm font-medium uppercase tracking-wide text-cyan-700">Recipe detail · revision {recipe.revision.toString()}</p><h1 id="recipe-detail-heading" className="mt-1 text-3xl font-semibold text-slate-900">{recipe.name}</h1><p className="mt-2 text-slate-600">This page is pinned to revision {recipe.revision.toString()}. Later edits do not change this recipe map.</p></header>
     {hasYield && <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-white p-4"><label className="grid gap-1 text-sm font-medium" htmlFor="recipe-serving-scale">Displayed servings<input id="recipe-serving-scale" className="min-h-11 rounded border px-3" inputMode="decimal" value={yieldAmount} onChange={(event) => setYieldAmount(event.target.value)} /></label><p className="text-sm text-slate-600">Canonical yield: {canonicalYield} {recipe.servingUnit || "servings"}. Scaling changes display amounts only; method times and this revision stay unchanged.</p></div>}
     {recipe.methods.length > 1 && <label className="grid max-w-md gap-1 text-sm font-medium" htmlFor="recipe-method">Preparation method<select id="recipe-method" className="min-h-11 rounded border bg-white px-3" value={method?.id ?? ""} onChange={(event) => setSelectedMethodID(event.target.value)}>{recipe.methods.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name || candidate.id}</option>)}</select></label>}

@@ -6,13 +6,16 @@ import {
 } from "react-router-dom";
 
 import { AppShell } from "../layout/AppShell";
-import { DashboardPage } from "../pages/DashboardPage";
+import { Navigate } from "react-router-dom";
 import { SettingsPage } from "../pages/SettingsPage";
 import { OnboardingPage } from "../features/onboarding/OnboardingPage";
 import { TodayPage } from "../features/today/TodayPage";
 import { WeekPage } from "../features/week/WeekPage";
 import { GroceriesPage } from "../features/groceries/GroceriesPage";
 import { NutritionPage } from "../features/nutrition/NutritionPage";
+import { MealsPage } from "../features/meals/MealsPage";
+import { ExplorePage } from "../features/explore/ExplorePage";
+import { KitchenPage } from "../features/kitchen/KitchenPage";
 import { DataTransferPage } from "../features/transfer/DataTransferPage";
 import { RecipeDetailPage } from "../features/recipe/RecipeDetailPage";
 import { CookSessionPage } from "../features/recipe/CookSessionPage";
@@ -29,14 +32,17 @@ export const routes: RouteObject[] = [
     path: "/",
     element: <AppShell />,
     children: [
-      { index: true, element: <DashboardPage /> },
+      { index: true, element: <TodayPage /> },
       { path: "settings", element: <SettingsPage /> },
       { path: "setup", element: <OnboardingPage /> },
-      { path: "today", element: <TodayPage /> },
+      { path: "today", element: <Navigate to="/" replace /> },
       { path: "recipes/:id/revisions/:revision", element: <RecipeDetailPage /> },
       { path: "cook/:sessionId", element: <CookSessionPage /> },
       { path: "week", element: <WeekPage /> },
       { path: "groceries", element: <GroceriesPage /> },
+      { path: "meals", element: <MealsPage /> },
+      { path: "meals/explore", element: <ExplorePage /> },
+      { path: "kitchen", element: <KitchenPage /> },
       { path: "nutrition", element: <NutritionPage /> },
       { path: "transfer", element: <DataTransferPage /> },
     ],

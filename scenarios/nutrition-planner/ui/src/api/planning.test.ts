@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 const generatePlan = vi.hoisted(() => vi.fn());
+const exploreRecipes = vi.hoisted(() => vi.fn());
 const getPlan = vi.hoisted(() => vi.fn());
 const applyPlan = vi.hoisted(() => vi.fn());
 const previewSwap = vi.hoisted(() => vi.fn());
@@ -7,11 +8,12 @@ const getShoppingPreview = vi.hoisted(() => vi.fn());
 const setShoppingChecked = vi.hoisted(() => vi.fn());
 const recordFeedback = vi.hoisted(() => vi.fn());
 const undoFeedback = vi.hoisted(() => vi.fn());
-vi.mock("@connectrpc/connect", () => ({ createClient: () => ({ generatePlan, getPlan, applyPlan, previewSwap, getShoppingPreview, setShoppingChecked, recordFeedback, undoFeedback }) }));
+vi.mock("@connectrpc/connect", () => ({ createClient: () => ({ generatePlan, exploreRecipes, getPlan, applyPlan, previewSwap, getShoppingPreview, setShoppingChecked, recordFeedback, undoFeedback }) }));
 vi.mock("./client", () => ({ transport: {} }));
-import { applyPlan as apply, generatePlan as generate, getPlan as readPlan, getShoppingPreview as shopping, previewSwap as preview, recordFeedback as record, setShoppingChecked as check, undoFeedback as undo } from "./planning";
+import { applyPlan as apply, exploreRecipes as explore, generatePlan as generate, getPlan as readPlan, getShoppingPreview as shopping, previewSwap as preview, recordFeedback as record, setShoppingChecked as check, undoFeedback as undo } from "./planning";
 describe("planning API", () => {
   beforeEach(() => vi.clearAllMocks());
+  it("returns structured eligibility and blocking reasons with plan revision data", async () => { exploreRecipes.mockResolvedValue({ planRevision: 4n, profileRevision: 2n, profileConfigured: true, savedRecipeCount: 3, candidates: [{ recipeId: "r1", name: "Soup", recipeRevision: 3n, fitReasons: [{ code: "allergen_declared_absent", rule: "peanut", reference: "recipe.allergens.peanut", message: "Declared absent" }], summary: "Notes" }], blockingReasons: [{ code: "excluded_group", rule: "meat", reference: "recipe.groups", message: "Excluded group" }] }); await expect(explore("w1")).resolves.toMatchObject({ planRevision: 4n, profileRevision: 2n, savedRecipeCount: 3, candidates: [{ recipeId: "r1", recipeRevision: 3n, fitReasons: [{ code: "allergen_declared_absent", rule: "peanut", reference: "recipe.allergens.peanut", message: "Declared absent" }] }], blockingReasons: [{ code: "excluded_group", rule: "meat", reference: "recipe.groups", message: "Excluded group" }] }); });
   it("decodes a generated draft", async () => { generatePlan.mockResolvedValue({ draftJson: JSON.stringify({ runId: "seed-0", occurrences: [], unresolved: [], inputReferences: [], seed: 0 }) }); await expect(generate({ workspaceId: "w1", dates: ["2026-09-21"] })).resolves.toMatchObject({ runId: "seed-0" }); expect(generatePlan).toHaveBeenCalledWith(expect.objectContaining({ workspaceId: "w1", dates: ["2026-09-21"] })); });
   it("encodes configured meal slots", async () => { generatePlan.mockResolvedValue({ draftJson: JSON.stringify({ runId: "seed-0", occurrences: [], unresolved: [], inputReferences: [], seed: 0 }) }); await generate({ workspaceId: "w1", dates: ["2026-09-21"], mealSlots: [{ date: "2026-09-21", slotName: "breakfast", mode: "fixed", quantity: "1" }] }); expect(generatePlan).toHaveBeenCalledWith(expect.objectContaining({ mealSlots: [{ date: "2026-09-21", slotName: "breakfast", mode: "fixed", quantity: "1", lockedRecipeId: "" }] })); });
   it("passes locked dinner ids to generation", async () => { generatePlan.mockResolvedValue({ draftJson: JSON.stringify({ runId: "seed-0", occurrences: [], unresolved: [], inputReferences: [], seed: 0 }) }); await generate({ workspaceId: "w1", dates: ["2026-09-21"], lockedRecipeIds: { "2026-09-21": "r1" } }); expect(generatePlan).toHaveBeenCalledWith(expect.objectContaining({ lockedRecipeIds: { "2026-09-21": "r1" } })); });

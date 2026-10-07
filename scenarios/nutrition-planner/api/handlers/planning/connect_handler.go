@@ -75,7 +75,7 @@ func (h *connectHandler) GeneratePlan(ctx context.Context, req *connect.Request[
 	profileRevision := int64(0)
 	if h.profiles != nil {
 		if saved, profileErr := h.profiles.Get(ctx, req.Msg.WorkspaceId); profileErr == nil {
-			active = eligibility.Profile{Revision: saved.Revision, ExcludedGroups: saved.ActiveRules, Allergies: saved.Allergies, Appliances: saved.Appliances}
+			active = eligibility.Profile{Revision: saved.Revision, ExcludedGroups: append(append([]string(nil), saved.ActiveRules...), saved.ExcludedGroups...), Allergies: saved.Allergies, Appliances: saved.Appliances}
 			profileRevision = saved.Revision
 		} else {
 			var notFound profile.ErrNotFound
@@ -143,6 +143,101 @@ func (h *connectHandler) GeneratePlan(ctx context.Context, req *connect.Request[
 		unresolved = append(unresolved, item.Date)
 	}
 	return connect.NewResponse(&v1.GeneratePlanResponse{RunId: draft.RunID, DraftJson: string(raw), UnresolvedDates: unresolved, InputReferences: draft.InputReferences, CurrentRevision: currentRevision}), nil
+}
+
+// ExploreRecipes is the read-only discovery query. It shares the exact eligibility
+// evaluator and saved workspace recipe source used by planning; it never invents
+// catalog content or claims facts that have not been evaluated.
+func (h *connectHandler) ExploreRecipes(ctx context.Context, req *connect.Request[v1.ExploreRecipesRequest]) (*connect.Response[v1.ExploreRecipesResponse], error) {
+	p, ok := identity.PrincipalFromContext(ctx)
+	if !ok {
+		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("verified actor required"))
+	}
+	if req.Msg.WorkspaceId == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("workspace_id is required"))
+	}
+	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, p.Subject); err != nil {
+		return nil, planningWorkspaceError(err)
+	}
+	items, err := h.recipes.List(ctx, req.Msg.WorkspaceId)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	profileState := eligibility.Profile{}
+	profileConfigured := false
+	profileRevision := int64(0)
+	if h.profiles != nil {
+		if saved, profileErr := h.profiles.Get(ctx, req.Msg.WorkspaceId); profileErr == nil {
+			profileConfigured = true
+			profileRevision = saved.Revision
+			profileState = eligibility.Profile{Revision: saved.Revision, ExcludedGroups: append(append([]string(nil), saved.ActiveRules...), saved.ExcludedGroups...), Allergies: saved.Allergies, Appliances: saved.Appliances}
+		} else {
+			var notFound profile.ErrNotFound
+			if !errors.As(profileErr, &notFound) {
+				return nil, connect.NewError(connect.CodeInternal, profileErr)
+			}
+		}
+	}
+	planRevision, _, err := h.plans.Get(ctx, req.Msg.WorkspaceId)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	response := &v1.ExploreRecipesResponse{PlanRevision: planRevision, ProfileRevision: profileRevision, ProfileConfigured: profileConfigured, Candidates: make([]*v1.ExploreRecipeCandidate, 0, len(items)), BlockingReasons: make([]*v1.ExploreFitReason, 0), SavedRecipeCount: int32(len(items))}
+	blockingReasonSet := make(map[string]bool)
+	for _, item := range items {
+		candidate := eligibility.Candidate{Revision: item.Revision, Groups: item.Groups, RequiredAppliances: item.RequiredAppliances, AllergenEvidence: mapEvidence(item.AllergenEvidence), MethodIDs: methodIDs(item.Methods)}
+		decision := eligibility.Evaluate(profileState, candidate)
+		if decision.Status != eligibility.Eligible {
+			for _, reason := range decision.Reasons {
+				key := string(reason.Code) + "\x00" + reason.Rule + "\x00" + reason.Reference
+				if blockingReasonSet[key] {
+					continue
+				}
+				blockingReasonSet[key] = true
+				response.BlockingReasons = append(response.BlockingReasons, &v1.ExploreFitReason{Code: string(reason.Code), Rule: reason.Rule, Reference: reason.Reference, Message: reason.Message})
+			}
+			continue
+		}
+		summary := strings.TrimSpace(item.Notes)
+		if summary == "" {
+			summary = strings.TrimSpace(item.OriginalText)
+		}
+		response.Candidates = append(response.Candidates, &v1.ExploreRecipeCandidate{RecipeId: item.ID, Name: item.Name, RecipeRevision: item.Revision, FitReasons: exploreFitReasons(profileState, candidate, profileConfigured), Summary: summary})
+	}
+	return connect.NewResponse(response), nil
+}
+
+func exploreFitReasons(profileState eligibility.Profile, candidate eligibility.Candidate, configured bool) []*v1.ExploreFitReason {
+	if !configured {
+		return []*v1.ExploreFitReason{{Code: "setup_unconfigured", Rule: "setup", Reference: "workspace.profile", Message: "No setup rules are saved yet; this result is checked only against declared recipe evidence."}}
+	}
+	var reasons []*v1.ExploreFitReason
+	if len(profileState.ExcludedGroups) > 0 {
+		reasons = append(reasons, &v1.ExploreFitReason{Code: "excluded_groups_clear", Rule: strings.Join(profileState.ExcludedGroups, ", "), Reference: "recipe.groups", Message: "No excluded food group is declared for this recipe."})
+	}
+	for _, allergen := range profileState.Allergies {
+		if candidate.AllergenEvidence[allergen] == eligibility.DeclaredAbsent {
+			reasons = append(reasons, &v1.ExploreFitReason{Code: "allergen_declared_absent", Rule: allergen, Reference: "recipe.allergens." + allergen, Message: "Recipe evidence declares this allergen absent within its stated scope."})
+		}
+	}
+	for _, appliance := range candidate.RequiredAppliances {
+		if containsString(profileState.Appliances, appliance) {
+			reasons = append(reasons, &v1.ExploreFitReason{Code: "required_appliance_available", Rule: appliance, Reference: "recipe.method.appliances", Message: "Your saved kitchen includes a required appliance."})
+		}
+	}
+	if len(reasons) == 0 {
+		reasons = append(reasons, &v1.ExploreFitReason{Code: "no_configured_conflicts", Rule: "active setup", Reference: "eligibility-v1", Message: "No conflict was found between the configured food rules and this recipe's declared requirements."})
+	}
+	return reasons
+}
+
+func containsString(values []string, value string) bool {
+	for _, item := range values {
+		if item == value {
+			return true
+		}
+	}
+	return false
 }
 
 func (h *connectHandler) GetPlan(ctx context.Context, req *connect.Request[v1.GetPlanRequest]) (*connect.Response[v1.GetPlanResponse], error) {
@@ -316,7 +411,7 @@ func (h *connectHandler) PreviewSwap(ctx context.Context, req *connect.Request[v
 	}
 	if h.profiles != nil {
 		if saved, profileErr := h.profiles.Get(ctx, req.Msg.WorkspaceId); profileErr == nil {
-			decision := eligibility.Evaluate(eligibility.Profile{Revision: saved.Revision, ExcludedGroups: saved.ActiveRules, Allergies: saved.Allergies, Appliances: saved.Appliances}, eligibility.Candidate{Revision: replacement.Revision, Groups: replacement.Groups, RequiredAppliances: replacement.RequiredAppliances, AllergenEvidence: mapEvidence(replacement.AllergenEvidence), MethodIDs: methodIDs(replacement.Methods)})
+			decision := eligibility.Evaluate(eligibility.Profile{Revision: saved.Revision, ExcludedGroups: append(append([]string(nil), saved.ActiveRules...), saved.ExcludedGroups...), Allergies: saved.Allergies, Appliances: saved.Appliances}, eligibility.Candidate{Revision: replacement.Revision, Groups: replacement.Groups, RequiredAppliances: replacement.RequiredAppliances, AllergenEvidence: mapEvidence(replacement.AllergenEvidence), MethodIDs: methodIDs(replacement.Methods)})
 			if decision.Status != eligibility.Eligible {
 				return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("replacement recipe does not satisfy active rules"))
 			}
@@ -571,13 +666,17 @@ func (h *connectHandler) GetShoppingPreview(ctx context.Context, req *connect.Re
 			return nil, connect.NewError(connect.CodeInternal, err)
 		}
 		actuals, err = h.shopping.LatestPurchaseReview(ctx, req.Msg.WorkspaceId)
-		if err != nil { return nil, connect.NewError(connect.CodeInternal, err) }
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
 	}
 	lines := shopping.Derive(draft, recipes, checked)
 	for i := range lines {
 		lines[i].HaveThis = haveThis[lines[i].Key]
 		if actual, ok := actuals[lines[i].Key]; ok {
-			if !actual.Omitted { lines[i].ActualQuantity = actual.Amount.String() }
+			if !actual.Omitted {
+				lines[i].ActualQuantity = actual.Amount.String()
+			}
 			lines[i].ActualUnit, lines[i].ActualPrice, lines[i].PurchaseOmitted = actual.Unit, actual.Price, actual.Omitted
 		}
 	}

@@ -12,8 +12,11 @@ import { useDialogFocusTrap } from "../../lib/useDialogFocusTrap";
 import { localDateString } from "../../lib/dates";
 import { selectors } from "../../consts/selectors";
 import { scheduledSupplementNutrients } from "../../lib/supplementNutrition";
+import { useTheme } from "../../theme/ThemeProvider";
+import { MealMediaFrame } from "../media/mealMedia";
 
 export function TodayPage() {
+  const { resolved } = useTheme();
   const [draft, setDraft] = useState<PlanDraft>();
   const [savedDraft, setSavedDraft] = useState<PlanDraft>();
   const [hasSavedPlan, setHasSavedPlan] = useState(false);
@@ -165,6 +168,16 @@ export function TodayPage() {
     catch (err) { setError(err instanceof Error ? err.message : "Unable to load this recipe."); }
   }
 
+  function startCookingForOccurrence(target = occurrence) {
+    if (!target?.recipeId) return;
+    if (!target.recipeRevision || target.recipeRevision < 1) {
+      setError("This planned meal has no pinned recipe revision, so cooking cannot be started safely.");
+      return;
+    }
+    setError("");
+    navigate(`/recipes/${encodeURIComponent(target.recipeId)}/revisions/${target.recipeRevision}`);
+  }
+
   return (
     <section data-testid={selectors.pages.today} aria-labelledby="today-heading" className="today-page flex flex-col gap-6">
       <header className="today-page-heading">
@@ -196,15 +209,14 @@ export function TodayPage() {
               {occurrence?.recipeId && <button type="button" className="today-secondary-action" onClick={() => void openRecipe()}>See the recipe map</button>}
               {occurrence?.recipeId && <button type="button" className="today-secondary-action" onClick={() => void openSwap()}>Swap meal</button>}
               {occurrence?.recipeId && <button type="button" className="today-secondary-action" onClick={() => void (feedbackState === "recorded" ? undoEaten() : markEaten())} disabled={feedbackState === "recording"}>{feedbackState === "recording" ? "Recording…" : feedbackState === "recorded" ? "Undo eaten" : "I ate this"}</button>}
-              {hasDraft && <button type="button" className="today-primary-action" onClick={() => void savePlan()} disabled={action === "saving" || staleToday || Boolean(staleSwapReplacement)}>{action === "saving" ? "Saving…" : action === "saved" ? "Saved" : "Let’s make it"}</button>}
+              {hasDraft && <button type="button" className="today-secondary-action" onClick={() => void savePlan()} disabled={action === "saving" || staleToday || Boolean(staleSwapReplacement)}>{action === "saving" ? "Saving plan…" : "Save/Apply plan"}</button>}
+              {occurrence?.recipeId && <button type="button" className="today-primary-action" onClick={() => startCookingForOccurrence()} disabled={!occurrence.recipeRevision || occurrence.recipeRevision < 1}>Start cooking</button>}
             </div>
+            {occurrence?.recipeId && (!occurrence.recipeRevision || occurrence.recipeRevision < 1) && <p className="text-sm text-app-warning">This planned meal has no pinned recipe revision, so cooking cannot be started safely.</p>}
             {action === "saved" && <p role="status" className="today-success">This plan is saved for the workspace.</p>}
             {feedbackState === "recorded" && <p role="status" className="today-success">Recorded as eaten. This explicit feedback is separate from the scheduled plan.</p>}
           </div>
-          <div className="today-hero-scene" aria-label="Meal photo unavailable">
-            <Leaf aria-hidden="true" />
-            <span>Meal photo unavailable</span>
-          </div>
+          <MealMediaFrame className="today-hero-scene" recipeId={occurrence?.recipeId} recipeRevision={occurrence?.recipeRevision} appearance={resolved === "dark" ? "evening" : "light"} label={occurrence?.recipeName ?? "Planned meal"} fallbackText="Meal photo unavailable" />
         </article>
       )}
       {state === "ready" && (
@@ -231,6 +243,7 @@ export function TodayPage() {
           </ol>}
         </section>
       )}
+      {state === "ready" && <section className="today-shopping-footer" aria-label="Plan shopping next step"><div><p>Ready for tonight</p><span>See what your selected plan needs and what is already on hand.</span></div><Link to="/groceries">Review groceries <span aria-hidden="true">›</span></Link></section>}
       {state === "ready" && <section aria-labelledby="today-supplements-heading" className="today-supplements">
         <div className="today-section-heading"><h2 id="today-supplements-heading">Fixed supplements</h2><span>Expected today</span></div>
         <p>Mapped catalog amounts appear in Expected only on confirmed dates. A schedule does not record that a dose was taken; unmapped or incompatible amounts stay unknown.</p>

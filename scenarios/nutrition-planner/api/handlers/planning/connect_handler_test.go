@@ -42,6 +42,7 @@ import (
 	"nutrition-planner/internal/money"
 	internalnutrition "nutrition-planner/internal/nutrition"
 	internal "nutrition-planner/internal/planning"
+	"nutrition-planner/internal/profile"
 	"nutrition-planner/internal/recipe"
 	"nutrition-planner/internal/shopping"
 	internalsupplement "nutrition-planner/internal/supplement"
@@ -887,4 +888,73 @@ func signNoochFixtureJWT(t *testing.T, key *rsa.PrivateKey, issuer, audience, su
 		t.Fatal(err)
 	}
 	return input + "." + base64.RawURLEncoding.EncodeToString(signature)
+}
+
+func TestExploreRecipesUsesSharedEligibilityAndReturnsOnlyEligibleWorkspaceRecipes(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	db.SetMaxOpenConns(1)
+	for _, schema := range []string{workspace.Schema(), recipe.Schema(), profile.Schema(), internal.Schema()} {
+		if _, err := db.Exec(schema); err != nil {
+			t.Fatal(err)
+		}
+	}
+	ctx := context.Background()
+	clock := schedule.System()
+	workspaces := workspace.NewService(workspace.NewSQLiteRepository(db, clock))
+	ownerWorkspace, err := workspaces.Create(ctx, workspace.CreateInput{Name: "Personal", OwnerSubject: "owner"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	recipes := recipe.NewService(recipe.NewSQLiteRepository(db, clock))
+	allowed, err := recipes.Create(ctx, recipe.CreateInput{WorkspaceID: ownerWorkspace.ID, Name: "Bean soup", Notes: "A saved recipe", Groups: []string{"beans"}, AllergenEvidence: map[string]string{"peanut": "declared-absent-within-scope"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = recipes.Create(ctx, recipe.CreateInput{WorkspaceID: ownerWorkspace.ID, Name: "Excluded meal", Groups: []string{"meat"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = recipes.Create(ctx, recipe.CreateInput{WorkspaceID: ownerWorkspace.ID, Name: "Unknown allergen meal", Groups: []string{"beans"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	profiles := profile.NewService(profile.NewSQLiteRepository(db, clock))
+	if _, err := profiles.Apply(ctx, profile.ApplyInput{WorkspaceID: ownerWorkspace.ID, ExcludedGroups: []string{"meat"}, Allergies: []string{"peanut"}}); err != nil {
+		t.Fatal(err)
+	}
+	plans := internal.NewSQLiteRepository(db, clock)
+	handler := NewConnectHandler(workspaces, recipes, profiles, plans, nil, nil, nil)
+	request := connect.NewRequest(&planningv1.ExploreRecipesRequest{WorkspaceId: ownerWorkspace.ID})
+	if _, err := handler.ExploreRecipes(ctx, request); connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("unauthenticated error=%v", err)
+	}
+	ctx = identity.WithPrincipal(ctx, identity.Principal{Kind: identity.ActorHuman, Subject: "owner", Verified: true})
+	response, err := handler.ExploreRecipes(ctx, request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !response.Msg.ProfileConfigured || response.Msg.ProfileRevision == 0 || response.Msg.PlanRevision != 0 || response.Msg.SavedRecipeCount != 3 || len(response.Msg.Candidates) != 1 || len(response.Msg.BlockingReasons) != 2 {
+		t.Fatalf("response=%+v", response.Msg)
+	}
+	got := response.Msg.Candidates[0]
+	if got.RecipeId != allowed.ID || got.RecipeRevision != allowed.Revision || got.Summary != "A saved recipe" || len(got.FitReasons) != 2 {
+		t.Fatalf("candidate=%+v", got)
+	}
+	if got.FitReasons[0].Code != "excluded_groups_clear" || got.FitReasons[1].Code != "allergen_declared_absent" || got.FitReasons[1].Reference != "recipe.allergens.peanut" {
+		t.Fatalf("fit reasons are not grounded in the evaluated profile and recipe facts: %+v", got.FitReasons)
+	}
+	blocking := map[string]bool{}
+	for _, reason := range response.Msg.BlockingReasons {
+		blocking[reason.Code] = true
+	}
+	if !blocking["excluded_group"] || !blocking["allergen_evidence_unknown"] {
+		t.Fatalf("blocking reasons=%+v", response.Msg.BlockingReasons)
+	}
+	if got.Name == "Excluded meal" {
+		t.Fatal("ineligible saved recipe appeared in Explore")
+	}
 }

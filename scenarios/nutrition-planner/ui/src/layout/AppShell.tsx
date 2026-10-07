@@ -7,8 +7,8 @@ import { useTranslation } from "../i18n";
 import { useTheme } from "../theme/ThemeProvider";
 import { NAV_ITEMS, isNavItemActive } from "./navItems";
 
-const primaryNavigation = NAV_ITEMS.filter((item) => ["dashboard", "today", "week", "groceries", "nutrition"].includes(item.key));
-const phoneNavigation = NAV_ITEMS.filter((item) => ["dashboard", "today", "week", "groceries", "nutrition"].includes(item.key));
+const primaryNavigation = NAV_ITEMS.filter((item) => item.key !== "settings");
+const phoneNavigation = primaryNavigation;
 
 export function AppShell() {
   const { t } = useTranslation();

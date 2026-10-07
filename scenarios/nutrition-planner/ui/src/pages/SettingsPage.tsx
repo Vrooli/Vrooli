@@ -73,6 +73,11 @@ export function SettingsPage() {
         {!diagnostics && !diagnosticsError && <p role="status" className="mt-3 text-sm text-slate-600">Checking workspace data…</p>}
         {diagnostics && <>
           <p className="mt-3 text-sm text-slate-700">Database: {diagnostics.databaseOk ? "available" : "unavailable"} · Schema version: {diagnostics.schemaVersion}</p>
+          <section aria-labelledby="image-generation-heading" className="mt-4 rounded border border-slate-200 bg-slate-50 p-3">
+            <h3 id="image-generation-heading" className="font-medium text-slate-900">Image generation</h3>
+            <p className="mt-1 text-sm text-slate-700">Image Tools capability: {diagnostics.imageGeneration?.capability ?? "unknown"}</p>
+            <p className="mt-1 text-sm text-slate-600">Permission: Off. {diagnostics.imageGeneration?.reason ?? "Capability status is unavailable."} Manual dispatch is disabled because no reliable pre-dispatch cost upper bound is available.</p>
+          </section>
           {diagnostics.findings.length === 0 ? <p className="mt-3 text-sm text-emerald-700">No material data-health findings for the current workspace.</p> : <ul className="mt-3 space-y-3" aria-label="Data health findings">
             {diagnostics.findings.map((finding) => <li key={finding.code} className="rounded border border-amber-200 bg-amber-50 p-3 text-sm"><p className="font-medium text-amber-950">{finding.message} ({finding.count})</p><p className="mt-1 text-amber-900">{finding.action}</p></li>)}
           </ul>}

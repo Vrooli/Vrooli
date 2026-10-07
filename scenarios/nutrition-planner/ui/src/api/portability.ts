@@ -4,6 +4,16 @@ import { transport } from "./client";
 
 const client = createClient(PortabilityService, transport);
 
+export async function getRestoreCheckpoint(input: { workspaceId: string; checkpointId: string }): Promise<{ checkpointId: string; createdAt: string; restoreRevision: bigint; recipeCount: number; planIncluded: boolean; omissions: string[] }> {
+  const response = await client.getRestoreCheckpoint(input);
+  return { checkpointId: response.checkpointId, createdAt: response.createdAt, restoreRevision: response.restoreRevision, recipeCount: response.recipeCount, planIncluded: response.planIncluded, omissions: response.omissions };
+}
+
+export async function recoverRestoreCheckpoint(input: { workspaceId: string; checkpointId: string; expectedWorkspaceRevision: bigint; idempotencyKey: string }): Promise<{ workspaceRevision: bigint; recipesRestored: number; planRestored: boolean; recoveryCheckpointId: string; omissions: string[] }> {
+  const response = await client.recoverRestoreCheckpoint(input);
+  return { workspaceRevision: response.workspaceRevision, recipesRestored: response.recipesRestored, planRestored: response.planRestored, recoveryCheckpointId: response.recoveryCheckpointId, omissions: response.omissions };
+}
+
 export async function exportGroceriesCSV(input: { workspaceId: string; expectedRevision: bigint }): Promise<{ filename: string; content: string; revision: bigint }> {
   const response = await client.exportGroceriesCSV(input);
   return { filename: response.filename, content: response.contentCsv, revision: response.revision };

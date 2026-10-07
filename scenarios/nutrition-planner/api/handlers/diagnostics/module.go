@@ -1,13 +1,18 @@
 package diagnostics
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"os"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/identity"
+	modelsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/models"
+	modelsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/models/models_v1connect"
 	internal "nutrition-planner/internal/diagnostics"
 	"nutrition-planner/internal/module"
 	"nutrition-planner/internal/workspace"
@@ -49,8 +54,30 @@ func (h *moduleHandler) handle(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
+	report.ImageGeneration = imageGenerationStatus(req.Context())
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(report)
+}
+
+// imageGenerationStatus calls Image Tools' read-only operation-candidate
+// surface. It never selects a model, submits work, or contacts a model provider.
+func imageGenerationStatus(ctx context.Context) internal.ImageGenerationStatus {
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	baseURL, err := discovery.ResolveScenarioURLDefault(ctx, "image-tools")
+	if err != nil || baseURL == "" {
+		return internal.ImageGenerationFromCandidates(false, false, nil)
+	}
+	client := modelsconnect.NewModelsServiceClient(&http.Client{Timeout: 2 * time.Second}, baseURL)
+	response, err := client.ListOperationModels(ctx, connect.NewRequest(&modelsv1.ListOperationModelsRequest{Operation: "text_to_image"}))
+	if err != nil {
+		return internal.ImageGenerationFromCandidates(true, false, nil)
+	}
+	readyStates := make([]string, 0, len(response.Msg.GetCandidates()))
+	for _, candidate := range response.Msg.GetCandidates() {
+		readyStates = append(readyStates, candidate.GetReadyState())
+	}
+	return internal.ImageGenerationFromCandidates(true, true, readyStates)
 }
 
 var now = func() time.Time { return time.Now().UTC() }

@@ -35,7 +35,7 @@ export async function createRecipe(input: { workspaceId: string; name: string; n
   return response.recipe;
 }
 
-export async function updateRecipe(input: { workspaceId: string; id: string; expectedRevision: bigint; name: string; notes?: string; originalText?: string; sourceUrl?: string; sourceType?: string }): Promise<Recipe> {
+export async function updateRecipe(input: { workspaceId: string; id: string; expectedRevision: bigint; name: string; notes?: string; originalText?: string; sourceUrl?: string; sourceType?: string; methods?: Recipe["methods"]; groups?: string[]; requiredAppliances?: string[]; allergenEvidence?: Record<string, string>; canonicalYield?: string; servingUnit?: string; ingredients?: Recipe["ingredients"] }): Promise<Recipe> {
   const response = await client.updateRecipe({
     workspaceId: input.workspaceId,
     id: input.id,
@@ -45,6 +45,13 @@ export async function updateRecipe(input: { workspaceId: string; id: string; exp
     originalText: input.originalText ?? "",
     sourceUrl: input.sourceUrl ?? "",
     sourceType: input.sourceType ?? "manual",
+    methods: input.methods ?? [],
+    groups: input.groups ?? [],
+    requiredAppliances: input.requiredAppliances ?? [],
+    allergenEvidence: input.allergenEvidence ?? {},
+    canonicalYield: input.canonicalYield ?? "",
+    servingUnit: input.servingUnit ?? "",
+    ingredients: input.ingredients ?? [],
     idempotencyKey: crypto.randomUUID(),
   });
   if (!response.recipe) throw new Error("The API returned no updated meal.");

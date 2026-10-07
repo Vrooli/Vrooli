@@ -14,26 +14,26 @@ import (
 )
 
 type Line struct {
-	Key           string           `json:"key"`
-	Label         string           `json:"label"`
-	Need          string           `json:"need"`
-	Stock         string           `json:"stock"`
-	Missing       string           `json:"missing"`
-	PackageCount  string           `json:"packageCount"`
-	Price         string           `json:"price"`
-	PortionCost   string           `json:"portionCost,omitempty"`
-	CheckoutTotal string           `json:"checkoutTotal,omitempty"`
-	ActualSpend   string           `json:"actualSpend,omitempty"`
-	ItemID        string           `json:"-"`
-	Unit          string           `json:"-"`
-	Amount        decimalx.Decimal `json:"-"`
-	SourceRecipes []string         `json:"sourceRecipeIds,omitempty"`
-	Checked       bool             `json:"checked"`
-	HaveThis      bool             `json:"haveThis"`
-	ActualQuantity string          `json:"actualQuantity,omitempty"`
-	ActualUnit     string          `json:"actualUnit,omitempty"`
-	ActualPrice    string          `json:"actualPrice,omitempty"`
-	PurchaseOmitted bool           `json:"purchaseOmitted,omitempty"`
+	Key             string           `json:"key"`
+	Label           string           `json:"label"`
+	Need            string           `json:"need"`
+	Stock           string           `json:"stock"`
+	Missing         string           `json:"missing"`
+	PackageCount    string           `json:"packageCount"`
+	Price           string           `json:"price"`
+	PortionCost     string           `json:"portionCost,omitempty"`
+	CheckoutTotal   string           `json:"checkoutTotal,omitempty"`
+	ActualSpend     string           `json:"actualSpend,omitempty"`
+	ItemID          string           `json:"-"`
+	Unit            string           `json:"-"`
+	Amount          decimalx.Decimal `json:"-"`
+	SourceRecipes   []string         `json:"sourceRecipeIds,omitempty"`
+	Checked         bool             `json:"checked"`
+	HaveThis        bool             `json:"haveThis"`
+	ActualQuantity  string           `json:"actualQuantity,omitempty"`
+	ActualUnit      string           `json:"actualUnit,omitempty"`
+	ActualPrice     string           `json:"actualPrice,omitempty"`
+	PurchaseOmitted bool             `json:"purchaseOmitted,omitempty"`
 }
 
 type Change struct {
@@ -101,6 +101,35 @@ type PurchaseLine struct {
 	Amount      decimalx.Decimal
 	Unit, Price string
 	Omitted     bool
+}
+
+// PersistedState is the user-authored portion of the shopping domain that is
+// safe to include in a workspace backup. It deliberately excludes inventory.
+type PersistedState struct {
+	Checks   map[string]bool   `json:"checks"`
+	HaveThis map[string]bool   `json:"haveThis"`
+	Reviews  []PersistedReview `json:"reviews"`
+}
+
+type PersistedReview struct {
+	ID          string          `json:"id"`
+	PayloadHash string          `json:"payloadHash"`
+	CreatedAt   string          `json:"createdAt"`
+	Lines       []PersistedLine `json:"lines"`
+}
+
+type PersistedLine struct {
+	Key     string `json:"key"`
+	ItemID  string `json:"itemId"`
+	Amount  string `json:"amount"`
+	Unit    string `json:"unit"`
+	Price   string `json:"price"`
+	Omitted bool   `json:"omitted"`
+}
+
+type PortableRepository interface {
+	Repository
+	PersistedState(context.Context, string) (PersistedState, error)
 }
 
 type Evidence struct {

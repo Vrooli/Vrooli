@@ -10,6 +10,7 @@ export type DiagnosticsReport = {
   schemaVersion: number;
   databaseOk: boolean;
   providers: ProviderStatus[];
+  imageGeneration: { capability: "available" | "unavailable" | "unknown"; reason: string; permission: "off"; dispatchAllowed: false; quoteAvailable: false };
   findings: HealthFinding[];
 };
 
