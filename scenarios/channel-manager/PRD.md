@@ -1,8 +1,8 @@
 # Product Requirements Document (PRD)
 
 > **Template Version**: 2.0
-> **Canonical Reference**: `/scenarios/business-health/docs/reference/canonical-prd-template.md`
-> **Validation**: Enforced by `business-health` (the test-genie `business` phase)
+> **Canonical Reference**: `scenarios/business-health/docs/reference/canonical-prd-template.md`
+> **Validation**: Enforced by `business-health` (`validate scenario channel-manager`)
 > **Policy**: Generated once and treated as read-only (checkboxes may auto-update)
 
 ## 🎯 Overview
@@ -36,7 +36,10 @@
 - [ ] OT-P0-016 | Signal capture and baseline | The system shall record per-identity distribution metrics over time and shall maintain a rolling baseline per metric.
 - [ ] OT-P0-017 | Flag on distribution decay | The system shall raise a flag carrying the evidence that triggered it, shall pause that identity's queue, and shall take no corrective action automatically.
 - [ ] OT-P0-018 | Program provenance surfaced | The system shall carry each program's provenance and shall expose it wherever that program is displayed or applied.
-- [x] OT-P0-019 | Operator console | The system shall provide a UI for the identity roster, the day's due actions, warming progress, and signal history.
+- [ ] OT-P0-019 | Operator console | The system shall provide a UI for the identity roster, the day's due actions, warming progress, and signal history.
+- [ ] OT-P0-020 | Exact timed publication package admission | The system shall bind an immutable exact draft/package/media revision, authorized actor, destination identity, route and original-zone requested instant/window in release admission; enforce current eligibility, consent, cadence and asset-use reservation at final admission; return same-request replay and reject changed payload under the same key without immediate-release substitution.
+- [ ] OT-P0-021 | Route-aware uncertain and partial outcome recovery | The system shall retain stable ordered-item and attempt identities, admission/dispatch/provider-held/scheduled/cancel-requested/partial/unknown outcomes and durable reconciliation lookup; recover lost responses and late receipts without duplicate external effects, report actual provider amend/cancel/control limits, and record manual owner reports distinctly from verified outcomes.
+- [ ] OT-P0-022 | Versioned observation and correction lineage | The system shall retain release/item/package/account identity with metric definition/version, interval, source, observation time, unit/denominator and limits; deduplicate identical samples, preserve unknown values and append correction/conflict/supersession lineage for Content Desk learning without fabricating causality.
 
 ### 🟠 P1 – Should have post-launch
 
@@ -82,6 +85,4 @@
 
 ## 📎 Appendix
 
-- Counterpart contract: `scenarios/content-desk/docs/concepts/INTEGRATIONS.md` specifies this scenario's boundary from the other side — exactly two questions cross it, eligibility never fails open, and release is idempotent.
-- Canon: `docs/marketing/strategy/CHANNELS.md` (per-platform rules, account purpose tags, and the rule that credentials and handles never live in canon) and `docs/marketing/strategy/patterns/ai-ugc-personas.md` (persona disclosure and the banned-claim set).
-- Predecessor: `social-media-scheduler` was retired 2026-07-28. It had not compiled since 2025-09-08 and had no consumers; nothing was migrated.
+Accepted full Marketing I16 implementation, owner approval Sentinel_7062584135208191865fc82f43a4ded8 (2026-10-04 20:54 UTC), adds the following specialist-owned outcomes. Governing sources and native goal: ../content-desk/docs/internal/goal/; exact sources in its materials/marketing-accepted-v1/. Existing status/evidence and unsupported runtime routes are not certification of this scope. No activation, external publication, new grants or credentials follow from source reconciliation.

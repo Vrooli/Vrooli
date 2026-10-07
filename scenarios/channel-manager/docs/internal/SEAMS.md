@@ -1,5 +1,12 @@
 # Seams — Channel Manager
 
+## Accepted Marketing I16 scope — 2026-10-04
+
+Full owner approval Sentinel_7062584135208191865fc82f43a4ded8 at 20:54 UTC governs the added canonical PRD/requirements targets. See ../../../content-desk/docs/internal/goal/GOAL.md and its exact materials. This is desired contract reconciliation; no new implementation, live qualification or activation is claimed. Existing implementation inventories and historical decisions below remain historical evidence where superseded.
+
+Required new targets own exact immutable package/actor/destination/window admission, final eligibility/cadence/consent/asset reservation, stable ordered-item/attempt identity, uncertain/partial/cancellation reconciliation and versioned observation corrections. Immediate release plus unrelated enqueue is insufficient. Keep manual, provider-held/scheduled and verified outcomes distinct; unsupported provider controls remain explicit. No Marketing-private release or metrics implementation replaces this owner.
+
+
 A **seam** is a deliberate boundary where production code calls an
 interface, not a concrete dependency. The fake substitutes through that
 interface in tests; production wires the real implementation once at the

@@ -1,5 +1,44 @@
 package support
 
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"strconv"
+	"time"
+)
+
+// ScanDuration keeps smart-scan response decoding at the transport boundary.
+// The API currently exposes Go time.Duration values as JSON nanoseconds, while
+// older/proxied responses may expose the human-readable string form.
+type ScanDuration string
+
+func (d *ScanDuration) UnmarshalJSON(data []byte) error {
+	data = bytes.TrimSpace(data)
+	if bytes.Equal(data, []byte("null")) {
+		*d = ""
+		return nil
+	}
+
+	if len(data) > 0 && data[0] == '"' {
+		var value string
+		if err := json.Unmarshal(data, &value); err != nil {
+			return err
+		}
+		*d = ScanDuration(value)
+		return nil
+	}
+
+	nanoseconds, err := strconv.ParseInt(string(data), 10, 64)
+	if err != nil {
+		return fmt.Errorf("duration must be a string or nanoseconds integer: %w", err)
+	}
+	*d = ScanDuration(time.Duration(nanoseconds).String())
+	return nil
+}
+
+func (d ScanDuration) String() string { return string(d) }
+
 type CommandRun struct {
 	Command    string `json:"command"`
 	ExitCode   int    `json:"exit_code"`
@@ -110,16 +149,16 @@ type SmartScanResult struct {
 	FilesAnalyzed int           `json:"files_analyzed"`
 	IssuesFound   int           `json:"issues_found"`
 	BatchResults  []BatchResult `json:"batch_results"`
-	Duration      string        `json:"duration"`
+	Duration      ScanDuration  `json:"duration"`
 	Errors        []string      `json:"errors,omitempty"`
 }
 
 type BatchResult struct {
-	BatchID  int       `json:"batch_id"`
-	Files    []string  `json:"files"`
-	Issues   []AIIssue `json:"issues"`
-	Duration string    `json:"duration"`
-	Error    string    `json:"error,omitempty"`
+	BatchID  int          `json:"batch_id"`
+	Files    []string     `json:"files"`
+	Issues   []AIIssue    `json:"issues"`
+	Duration ScanDuration `json:"duration"`
+	Error    string       `json:"error,omitempty"`
 }
 
 type AIIssue struct {

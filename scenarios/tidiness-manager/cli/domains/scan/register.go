@@ -425,8 +425,8 @@ func batchRows(batches []support.BatchResult) []string {
 		if strings.TrimSpace(batch.Error) != "" {
 			line += " | error: " + batch.Error
 		}
-		if strings.TrimSpace(batch.Duration) != "" {
-			line += " | duration: " + batch.Duration
+		if strings.TrimSpace(batch.Duration.String()) != "" {
+			line += " | duration: " + batch.Duration.String()
 		}
 		rows = append(rows, line)
 	}

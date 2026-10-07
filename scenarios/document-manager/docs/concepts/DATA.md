@@ -35,7 +35,7 @@ No external storage resource is declared. Embeddings live in SQLite
 beside the units they describe, and the `retrieval` domain queries them.
 That is deliberate, and it is an established pattern here rather than an
 exception: multiple scenarios declare their own embedding tables, with
-`calendar.event_embeddings` and `text-tools.text_embeddings` as the
+`source-ledger.embeddings` and `text-tools.text_embeddings` as the
 worked examples.
 
 The load-bearing distinction is **owning a table** versus **touching
