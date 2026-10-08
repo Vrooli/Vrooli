@@ -71,8 +71,18 @@ type SystemSettings struct {
 	CpuEscalationDebounceTicks   int32   `protobuf:"varint,21,opt,name=cpu_escalation_debounce_ticks,json=cpuEscalationDebounceTicks,proto3" json:"cpu_escalation_debounce_ticks,omitempty"`
 	CpuSustainedWindowTicks      int32   `protobuf:"varint,22,opt,name=cpu_sustained_window_ticks,json=cpuSustainedWindowTicks,proto3" json:"cpu_sustained_window_ticks,omitempty"`
 	CpuPressureThreshold         float64 `protobuf:"fixed64,23,opt,name=cpu_pressure_threshold,json=cpuPressureThreshold,proto3" json:"cpu_pressure_threshold,omitempty"`
-	unknownFields                protoimpl.UnknownFields
-	sizeCache                    protoimpl.SizeCache
+	// Seconds an alert condition must hold before an alert opens, and stay
+	// clear before it resolves. 0 selects the default (300).
+	AlertSustainSeconds int32 `protobuf:"varint,24,opt,name=alert_sustain_seconds,json=alertSustainSeconds,proto3" json:"alert_sustain_seconds,omitempty"`
+	// Linux memory-pressure level boundaries. PSI values are percentages of
+	// wall time over the 60-second window; swap-in rates are bytes per second.
+	// 0 selects the default for each.
+	MemoryPressureSomeAvg60ElevatedPercent     float64 `protobuf:"fixed64,25,opt,name=memory_pressure_some_avg60_elevated_percent,json=memoryPressureSomeAvg60ElevatedPercent,proto3" json:"memory_pressure_some_avg60_elevated_percent,omitempty"`
+	MemoryPressureFullAvg60CriticalPercent     float64 `protobuf:"fixed64,26,opt,name=memory_pressure_full_avg60_critical_percent,json=memoryPressureFullAvg60CriticalPercent,proto3" json:"memory_pressure_full_avg60_critical_percent,omitempty"`
+	MemoryPressureSwapInElevatedBytesPerSecond float64 `protobuf:"fixed64,27,opt,name=memory_pressure_swap_in_elevated_bytes_per_second,json=memoryPressureSwapInElevatedBytesPerSecond,proto3" json:"memory_pressure_swap_in_elevated_bytes_per_second,omitempty"`
+	MemoryPressureSwapInCriticalBytesPerSecond float64 `protobuf:"fixed64,28,opt,name=memory_pressure_swap_in_critical_bytes_per_second,json=memoryPressureSwapInCriticalBytesPerSecond,proto3" json:"memory_pressure_swap_in_critical_bytes_per_second,omitempty"`
+	unknownFields                              protoimpl.UnknownFields
+	sizeCache                                  protoimpl.SizeCache
 }
 
 func (x *SystemSettings) Reset() {
@@ -262,6 +272,41 @@ func (x *SystemSettings) GetCpuSustainedWindowTicks() int32 {
 func (x *SystemSettings) GetCpuPressureThreshold() float64 {
 	if x != nil {
 		return x.CpuPressureThreshold
+	}
+	return 0
+}
+
+func (x *SystemSettings) GetAlertSustainSeconds() int32 {
+	if x != nil {
+		return x.AlertSustainSeconds
+	}
+	return 0
+}
+
+func (x *SystemSettings) GetMemoryPressureSomeAvg60ElevatedPercent() float64 {
+	if x != nil {
+		return x.MemoryPressureSomeAvg60ElevatedPercent
+	}
+	return 0
+}
+
+func (x *SystemSettings) GetMemoryPressureFullAvg60CriticalPercent() float64 {
+	if x != nil {
+		return x.MemoryPressureFullAvg60CriticalPercent
+	}
+	return 0
+}
+
+func (x *SystemSettings) GetMemoryPressureSwapInElevatedBytesPerSecond() float64 {
+	if x != nil {
+		return x.MemoryPressureSwapInElevatedBytesPerSecond
+	}
+	return 0
+}
+
+func (x *SystemSettings) GetMemoryPressureSwapInCriticalBytesPerSecond() float64 {
+	if x != nil {
+		return x.MemoryPressureSwapInCriticalBytesPerSecond
 	}
 	return 0
 }
@@ -620,7 +665,10 @@ type GetMaintenanceStateResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Whether the operation succeeded.
 	Success bool `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
-	// Current maintenance state (active/inactive).
+	// Current maintenance state (active/inactive). This is the platform
+	// maintenance-orchestrator contract: "active" means monitoring is running
+	// normally, "inactive" means it has been paused (for example during a
+	// maintenance window). It does not mean "in maintenance".
 	MaintenanceState string `protobuf:"bytes,2,opt,name=maintenance_state,json=maintenanceState,proto3" json:"maintenance_state,omitempty"`
 	// Error message (if failed).
 	Error         string `protobuf:"bytes,3,opt,name=error,proto3" json:"error,omitempty"`
@@ -793,8 +841,7 @@ var File_system_monitor_v1_settings_settings_proto protoreflect.FileDescriptor
 
 const file_system_monitor_v1_settings_settings_proto_rawDesc = "" +
 	"\n" +
-	")system-monitor/v1/settings/settings.proto\x12!vrooli.system_monitor.v1.settings\x1a\x1cgoogle/api/annotations.proto\"\x82\n" +
-	"\n" +
+	")system-monitor/v1/settings/settings.proto\x12!vrooli.system_monitor.v1.settings\x1a\x1cgoogle/api/annotations.proto\"\xbe\r\n" +
 	"\x0eSystemSettings\x12\x16\n" +
 	"\x06active\x18\x01 \x01(\bR\x06active\x12<\n" +
 	"\x1ametric_collection_interval\x18\x02 \x01(\x05R\x18metricCollectionInterval\x12<\n" +
@@ -819,7 +866,12 @@ const file_system_monitor_v1_settings_settings_proto_rawDesc = "" +
 	"\x1fcpu_escalation_cooldown_seconds\x18\x14 \x01(\x05R\x1ccpuEscalationCooldownSeconds\x12A\n" +
 	"\x1dcpu_escalation_debounce_ticks\x18\x15 \x01(\x05R\x1acpuEscalationDebounceTicks\x12;\n" +
 	"\x1acpu_sustained_window_ticks\x18\x16 \x01(\x05R\x17cpuSustainedWindowTicks\x124\n" +
-	"\x16cpu_pressure_threshold\x18\x17 \x01(\x01R\x14cpuPressureThreshold\"\x14\n" +
+	"\x16cpu_pressure_threshold\x18\x17 \x01(\x01R\x14cpuPressureThreshold\x122\n" +
+	"\x15alert_sustain_seconds\x18\x18 \x01(\x05R\x13alertSustainSeconds\x12[\n" +
+	"+memory_pressure_some_avg60_elevated_percent\x18\x19 \x01(\x01R&memoryPressureSomeAvg60ElevatedPercent\x12[\n" +
+	"+memory_pressure_full_avg60_critical_percent\x18\x1a \x01(\x01R&memoryPressureFullAvg60CriticalPercent\x12e\n" +
+	"1memory_pressure_swap_in_elevated_bytes_per_second\x18\x1b \x01(\x01R*memoryPressureSwapInElevatedBytesPerSecond\x12e\n" +
+	"1memory_pressure_swap_in_critical_bytes_per_second\x18\x1c \x01(\x01R*memoryPressureSwapInCriticalBytesPerSecond\"\x14\n" +
 	"\x12GetSettingsRequest\"\x94\x01\n" +
 	"\x13GetSettingsResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12M\n" +

@@ -17,7 +17,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class PipelineConfig(_message.Message):
-    __slots__ = ("scenario_name", "platforms", "skip_preflight", "skip_smoke_test", "stop_on_failure", "deployment_mode", "framework", "template_type", "webhook_url", "proxy_url", "bundle_manifest_path", "resource_artifact_root", "tool_artifact_root", "location_mode", "clean", "sign", "publish", "distribute", "distribution_targets", "version", "preflight_timeout_seconds", "preflight_secrets", "stop_after_stage", "resume_from_stage", "parent_pipeline_id", "idempotency_key", "stages", "artifact_trust_mode", "update_config", "native_extension", "platform_targets", "expected_artifact_digests", "deploy", "artifact_manifest_digest", "journey_id")
+    __slots__ = ("scenario_name", "strategy_id", "optimization_profile", "platforms", "skip_preflight", "skip_smoke_test", "stop_on_failure", "deployment_mode", "framework", "template_type", "webhook_url", "proxy_url", "bundle_manifest_path", "resource_artifact_root", "tool_artifact_root", "location_mode", "clean", "sign", "publish", "distribute", "distribution_targets", "version", "preflight_timeout_seconds", "preflight_secrets", "stop_after_stage", "resume_from_stage", "parent_pipeline_id", "idempotency_key", "stages", "artifact_trust_mode", "update_config", "native_extension", "platform_targets", "expected_artifact_digests", "deploy", "artifact_manifest_digest", "journey_id")
     class PreflightSecretsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -33,6 +33,8 @@ class PipelineConfig(_message.Message):
         value: str
         def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
     SCENARIO_NAME_FIELD_NUMBER: _ClassVar[int]
+    STRATEGY_ID_FIELD_NUMBER: _ClassVar[int]
+    OPTIMIZATION_PROFILE_FIELD_NUMBER: _ClassVar[int]
     PLATFORMS_FIELD_NUMBER: _ClassVar[int]
     SKIP_PREFLIGHT_FIELD_NUMBER: _ClassVar[int]
     SKIP_SMOKE_TEST_FIELD_NUMBER: _ClassVar[int]
@@ -68,6 +70,8 @@ class PipelineConfig(_message.Message):
     ARTIFACT_MANIFEST_DIGEST_FIELD_NUMBER: _ClassVar[int]
     JOURNEY_ID_FIELD_NUMBER: _ClassVar[int]
     scenario_name: str
+    strategy_id: str
+    optimization_profile: ElectronOptimizationProfile
     platforms: _containers.RepeatedScalarFieldContainer[_common_pb2.Platform]
     skip_preflight: bool
     skip_smoke_test: bool
@@ -102,7 +106,19 @@ class PipelineConfig(_message.Message):
     deploy: DeployConfig
     artifact_manifest_digest: str
     journey_id: str
-    def __init__(self, scenario_name: _Optional[str] = ..., platforms: _Optional[_Iterable[_Union[_common_pb2.Platform, str]]] = ..., skip_preflight: _Optional[bool] = ..., skip_smoke_test: _Optional[bool] = ..., stop_on_failure: _Optional[bool] = ..., deployment_mode: _Optional[_Union[_common_pb2.DeploymentMode, str]] = ..., framework: _Optional[_Union[_common_pb2.Framework, str]] = ..., template_type: _Optional[_Union[_common_pb2.TemplateType, str]] = ..., webhook_url: _Optional[str] = ..., proxy_url: _Optional[str] = ..., bundle_manifest_path: _Optional[str] = ..., resource_artifact_root: _Optional[str] = ..., tool_artifact_root: _Optional[str] = ..., location_mode: _Optional[str] = ..., clean: _Optional[bool] = ..., sign: _Optional[bool] = ..., publish: _Optional[bool] = ..., distribute: _Optional[bool] = ..., distribution_targets: _Optional[_Iterable[str]] = ..., version: _Optional[str] = ..., preflight_timeout_seconds: _Optional[int] = ..., preflight_secrets: _Optional[_Mapping[str, str]] = ..., stop_after_stage: _Optional[_Union[_common_pb2.StageName, str]] = ..., resume_from_stage: _Optional[_Union[_common_pb2.StageName, str]] = ..., parent_pipeline_id: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., stages: _Optional[_Iterable[_Union[_common_pb2.StageName, str]]] = ..., artifact_trust_mode: _Optional[str] = ..., update_config: _Optional[_Union[_update_config_pb2.UpdateConfig, _Mapping]] = ..., native_extension: _Optional[_Union[_config_pb2.NativeExtension, _Mapping]] = ..., platform_targets: _Optional[_Iterable[str]] = ..., expected_artifact_digests: _Optional[_Mapping[str, str]] = ..., deploy: _Optional[_Union[DeployConfig, _Mapping]] = ..., artifact_manifest_digest: _Optional[str] = ..., journey_id: _Optional[str] = ...) -> None: ...
+    def __init__(self, scenario_name: _Optional[str] = ..., strategy_id: _Optional[str] = ..., optimization_profile: _Optional[_Union[ElectronOptimizationProfile, _Mapping]] = ..., platforms: _Optional[_Iterable[_Union[_common_pb2.Platform, str]]] = ..., skip_preflight: _Optional[bool] = ..., skip_smoke_test: _Optional[bool] = ..., stop_on_failure: _Optional[bool] = ..., deployment_mode: _Optional[_Union[_common_pb2.DeploymentMode, str]] = ..., framework: _Optional[_Union[_common_pb2.Framework, str]] = ..., template_type: _Optional[_Union[_common_pb2.TemplateType, str]] = ..., webhook_url: _Optional[str] = ..., proxy_url: _Optional[str] = ..., bundle_manifest_path: _Optional[str] = ..., resource_artifact_root: _Optional[str] = ..., tool_artifact_root: _Optional[str] = ..., location_mode: _Optional[str] = ..., clean: _Optional[bool] = ..., sign: _Optional[bool] = ..., publish: _Optional[bool] = ..., distribute: _Optional[bool] = ..., distribution_targets: _Optional[_Iterable[str]] = ..., version: _Optional[str] = ..., preflight_timeout_seconds: _Optional[int] = ..., preflight_secrets: _Optional[_Mapping[str, str]] = ..., stop_after_stage: _Optional[_Union[_common_pb2.StageName, str]] = ..., resume_from_stage: _Optional[_Union[_common_pb2.StageName, str]] = ..., parent_pipeline_id: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., stages: _Optional[_Iterable[_Union[_common_pb2.StageName, str]]] = ..., artifact_trust_mode: _Optional[str] = ..., update_config: _Optional[_Union[_update_config_pb2.UpdateConfig, _Mapping]] = ..., native_extension: _Optional[_Union[_config_pb2.NativeExtension, _Mapping]] = ..., platform_targets: _Optional[_Iterable[str]] = ..., expected_artifact_digests: _Optional[_Mapping[str, str]] = ..., deploy: _Optional[_Union[DeployConfig, _Mapping]] = ..., artifact_manifest_digest: _Optional[str] = ..., journey_id: _Optional[str] = ...) -> None: ...
+
+class ElectronOptimizationProfile(_message.Message):
+    __slots__ = ("shared_runtime_readiness", "secure_custom_scheme_ui", "v8_snapshot_code_cache", "electron_fuses")
+    SHARED_RUNTIME_READINESS_FIELD_NUMBER: _ClassVar[int]
+    SECURE_CUSTOM_SCHEME_UI_FIELD_NUMBER: _ClassVar[int]
+    V8_SNAPSHOT_CODE_CACHE_FIELD_NUMBER: _ClassVar[int]
+    ELECTRON_FUSES_FIELD_NUMBER: _ClassVar[int]
+    shared_runtime_readiness: bool
+    secure_custom_scheme_ui: bool
+    v8_snapshot_code_cache: bool
+    electron_fuses: bool
+    def __init__(self, shared_runtime_readiness: _Optional[bool] = ..., secure_custom_scheme_ui: _Optional[bool] = ..., v8_snapshot_code_cache: _Optional[bool] = ..., electron_fuses: _Optional[bool] = ...) -> None: ...
 
 class DeployConfig(_message.Message):
     __slots__ = ("target_name", "scenario_name", "remote_profile", "app_key", "update_url", "release_id", "channel", "deployment_manager_profile_id", "gate_timeout", "gate_poll_interval", "candidate_id", "destination_revision_id", "authorization_epoch", "readiness_review_key")
@@ -476,10 +492,24 @@ class PipelineStatus(_message.Message):
     def __init__(self, pipeline_id: _Optional[str] = ..., scenario_name: _Optional[str] = ..., status: _Optional[_Union[_common_pb2.StageStatus, str]] = ..., current_stage: _Optional[_Union[_common_pb2.StageName, str]] = ..., progress_percent: _Optional[int] = ..., progress_message: _Optional[str] = ..., current_state: _Optional[str] = ..., stages: _Optional[_Mapping[str, StageResult]] = ..., stage_order: _Optional[_Iterable[_Union[_common_pb2.StageName, str]]] = ..., config: _Optional[_Union[PipelineConfig, _Mapping]] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., completed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., error: _Optional[str] = ..., final_artifacts: _Optional[_Mapping[str, str]] = ..., stopped_after_stage: _Optional[_Union[_common_pb2.StageName, str]] = ..., parent_pipeline_id: _Optional[str] = ..., idempotency_key: _Optional[str] = ...) -> None: ...
 
 class PipelineRunRequest(_message.Message):
-    __slots__ = ("config",)
+    __slots__ = ("config", "scenario_name", "strategy_id", "shared_runtime_readiness", "secure_custom_scheme_ui", "v8_snapshot_code_cache", "electron_fuses", "skip_smoke_test")
     CONFIG_FIELD_NUMBER: _ClassVar[int]
+    SCENARIO_NAME_FIELD_NUMBER: _ClassVar[int]
+    STRATEGY_ID_FIELD_NUMBER: _ClassVar[int]
+    SHARED_RUNTIME_READINESS_FIELD_NUMBER: _ClassVar[int]
+    SECURE_CUSTOM_SCHEME_UI_FIELD_NUMBER: _ClassVar[int]
+    V8_SNAPSHOT_CODE_CACHE_FIELD_NUMBER: _ClassVar[int]
+    ELECTRON_FUSES_FIELD_NUMBER: _ClassVar[int]
+    SKIP_SMOKE_TEST_FIELD_NUMBER: _ClassVar[int]
     config: PipelineConfig
-    def __init__(self, config: _Optional[_Union[PipelineConfig, _Mapping]] = ...) -> None: ...
+    scenario_name: str
+    strategy_id: str
+    shared_runtime_readiness: bool
+    secure_custom_scheme_ui: bool
+    v8_snapshot_code_cache: bool
+    electron_fuses: bool
+    skip_smoke_test: bool
+    def __init__(self, config: _Optional[_Union[PipelineConfig, _Mapping]] = ..., scenario_name: _Optional[str] = ..., strategy_id: _Optional[str] = ..., shared_runtime_readiness: _Optional[bool] = ..., secure_custom_scheme_ui: _Optional[bool] = ..., v8_snapshot_code_cache: _Optional[bool] = ..., electron_fuses: _Optional[bool] = ..., skip_smoke_test: _Optional[bool] = ...) -> None: ...
 
 class PipelineRunResponse(_message.Message):
     __slots__ = ("pipeline_id", "message")

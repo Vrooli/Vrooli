@@ -102,6 +102,7 @@ service AccountsService {
   // Issue a short-lived offline credential from already-provisioned local
   // break-glass material. The caller must save the response owner-only.
   rpc IssueBreakGlass(IssueBreakGlassRequest) returns (IssueBreakGlassResponse);
+
 }
 
 // Account is the wire shape for a single account resource. Never carries a

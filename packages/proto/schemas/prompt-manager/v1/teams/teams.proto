@@ -42,6 +42,10 @@ service TeamsService {
   rpc AddKnowledge(AddKnowledgeRequest) returns (KnowledgeEntry);
   rpc UpdateKnowledge(UpdateKnowledgeRequest) returns (KnowledgeEntry);
   rpc DeleteKnowledge(DeleteKnowledgeRequest) returns (DeleteKnowledgeResponse);
+  // CloseKnowledge records that a knowledge entry (typically an inbox row)
+  // is resolved. The corpus is append-only, so closure is an appended record;
+  // default listings hide closed entries.
+  rpc CloseKnowledge(CloseKnowledgeRequest) returns (KnowledgeEntry);
 }
 
 // Existing objective declaration; edits stay with the objective owner.
@@ -204,14 +208,42 @@ message KnowledgeEntry {
   string caller = 7;
   string caller_note = 8;
   google.protobuf.Struct attribution = 9;
+  // Present when the entry has been closed; set only on listings that
+  // include closed entries.
+  KnowledgeClosure closure = 10;
+}
+// KnowledgeClosure records why and by whom a knowledge entry was resolved.
+message KnowledgeClosure {
+  string knowledge_id = 1;
+  // One of: fixed, stale, duplicate-of, routed-to.
+  string reason = 2;
+  // Duplicate entry id (duplicate-of) or routed destination (routed-to).
+  string ref = 3;
+  string note = 4;
+  string actor = 5;
+  string at = 6;
 }
 message ListKnowledgeRequest {
   string team_id = 1;
   string topic = 2;
   string topic_prefix = 3;
   int32 last = 4;
+  // Include closed entries (with their closure) in the listing.
+  bool include_closed = 5;
 }
-message ListKnowledgeResponse { string team_id = 1; repeated KnowledgeEntry entries = 2; }
+message ListKnowledgeResponse {
+  string team_id = 1;
+  repeated KnowledgeEntry entries = 2;
+  // Number of entries matching the filters before `last` was applied.
+  int32 total = 3;
+}
+message CloseKnowledgeRequest {
+  string team_id = 1;
+  string knowledge_id = 2;
+  string reason = 3;
+  string ref = 4;
+  string note = 5;
+}
 message AddKnowledgeRequest {
   string team_id = 1;
   string topic = 2;

@@ -92,6 +92,56 @@ class ApplyWorkspaceImportResponse(_message.Message):
     checkpoint_id: str
     def __init__(self, workspace_revision: _Optional[int] = ..., recipes_applied: _Optional[int] = ..., checkpoint_id: _Optional[str] = ...) -> None: ...
 
+class GetRestoreCheckpointRequest(_message.Message):
+    __slots__ = ("workspace_id", "checkpoint_id")
+    WORKSPACE_ID_FIELD_NUMBER: _ClassVar[int]
+    CHECKPOINT_ID_FIELD_NUMBER: _ClassVar[int]
+    workspace_id: str
+    checkpoint_id: str
+    def __init__(self, workspace_id: _Optional[str] = ..., checkpoint_id: _Optional[str] = ...) -> None: ...
+
+class GetRestoreCheckpointResponse(_message.Message):
+    __slots__ = ("checkpoint_id", "created_at", "restore_revision", "recipe_count", "plan_included", "omissions")
+    CHECKPOINT_ID_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    RESTORE_REVISION_FIELD_NUMBER: _ClassVar[int]
+    RECIPE_COUNT_FIELD_NUMBER: _ClassVar[int]
+    PLAN_INCLUDED_FIELD_NUMBER: _ClassVar[int]
+    OMISSIONS_FIELD_NUMBER: _ClassVar[int]
+    checkpoint_id: str
+    created_at: str
+    restore_revision: int
+    recipe_count: int
+    plan_included: bool
+    omissions: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, checkpoint_id: _Optional[str] = ..., created_at: _Optional[str] = ..., restore_revision: _Optional[int] = ..., recipe_count: _Optional[int] = ..., plan_included: _Optional[bool] = ..., omissions: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class RecoverRestoreCheckpointRequest(_message.Message):
+    __slots__ = ("workspace_id", "checkpoint_id", "expected_workspace_revision", "idempotency_key")
+    WORKSPACE_ID_FIELD_NUMBER: _ClassVar[int]
+    CHECKPOINT_ID_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_WORKSPACE_REVISION_FIELD_NUMBER: _ClassVar[int]
+    IDEMPOTENCY_KEY_FIELD_NUMBER: _ClassVar[int]
+    workspace_id: str
+    checkpoint_id: str
+    expected_workspace_revision: int
+    idempotency_key: str
+    def __init__(self, workspace_id: _Optional[str] = ..., checkpoint_id: _Optional[str] = ..., expected_workspace_revision: _Optional[int] = ..., idempotency_key: _Optional[str] = ...) -> None: ...
+
+class RecoverRestoreCheckpointResponse(_message.Message):
+    __slots__ = ("workspace_revision", "recipes_restored", "plan_restored", "recovery_checkpoint_id", "omissions")
+    WORKSPACE_REVISION_FIELD_NUMBER: _ClassVar[int]
+    RECIPES_RESTORED_FIELD_NUMBER: _ClassVar[int]
+    PLAN_RESTORED_FIELD_NUMBER: _ClassVar[int]
+    RECOVERY_CHECKPOINT_ID_FIELD_NUMBER: _ClassVar[int]
+    OMISSIONS_FIELD_NUMBER: _ClassVar[int]
+    workspace_revision: int
+    recipes_restored: int
+    plan_restored: bool
+    recovery_checkpoint_id: str
+    omissions: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, workspace_revision: _Optional[int] = ..., recipes_restored: _Optional[int] = ..., plan_restored: _Optional[bool] = ..., recovery_checkpoint_id: _Optional[str] = ..., omissions: _Optional[_Iterable[str]] = ...) -> None: ...
+
 class PreviewRecipesImportRequest(_message.Message):
     __slots__ = ("workspace_id", "content_json")
     WORKSPACE_ID_FIELD_NUMBER: _ClassVar[int]

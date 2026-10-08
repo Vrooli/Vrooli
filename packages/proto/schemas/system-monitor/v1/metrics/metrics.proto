@@ -216,6 +216,75 @@ message MemoryMetrics {
   PagingMetrics paging = 6;
   FragmentationMetrics fragmentation = 7;
   repeated ProcessInfo top_paging_processes = 8;
+
+  // Platform-neutral memory-pressure verdict with the raw signals behind it.
+  MemoryPressureReading memory_pressure = 9;
+}
+
+// MemoryPressureReading is the cross-platform memory-pressure verdict.
+//
+// A host can report a healthy memory_usage while it thrashes swap; this
+// reading is derived from stall and paging evidence instead. The level comes
+// from the operating system's own pressure verdict where one exists (macOS
+// kern.memorystatus_vm_pressure_level, Windows low-memory resource
+// notification) and from PSI plus swap-in rate on Linux.
+message MemoryPressureReading {
+  // normal | elevated | critical | unknown. unknown means no supported signal
+  // could produce a verdict; it is never a synonym for normal.
+  string level = 1;
+
+  // Mechanism that produced the level, e.g. "linux psi + swap-in rate".
+  string level_source = 2;
+
+  // Which signal and boundary determined the level.
+  string level_reason = 3;
+
+  // Raw platform signals keyed by stable name (psi_some_avg60,
+  // swap_in_bytes_per_second, native_pressure_level, ...). Every signal the
+  // contract defines is present; ones this platform cannot measure carry
+  // unsupported_reason and are never reported as zero.
+  map<string, MetricValue> signals = 4;
+
+  // Top processes by major-fault rate, then swapped memory. Populated only
+  // when level is elevated or critical.
+  repeated MemoryPressureContributor contributors = 5;
+
+  // measured | not_requested | unsupported | failed
+  string contributors_status = 6;
+  string contributors_reason = 7;
+
+  google.protobuf.Timestamp observed_at = 8;
+
+  // Operating system the reading came from (linux, darwin, windows).
+  string platform = 9;
+}
+
+// MemoryPressureContributor is one process ranked by paging activity.
+message MemoryPressureContributor {
+  int32 pid = 1;
+  string name = 2;
+
+  // Owning scenario from process attribution, or "unknown".
+  string owner = 3;
+
+  // Fault rate over the sampler interval. Its meaning depends on
+  // fault_counter; see fault_status before reading it.
+  double major_faults_per_second = 4;
+
+  // measured | not_yet_sampled | unsupported
+  string fault_status = 5;
+
+  // Native counter behind major_faults_per_second, e.g. "linux majflt",
+  // "macos ri_pageins", "windows PageFaultCount (hard and soft faults)".
+  string fault_counter = 6;
+
+  // Swapped (Linux VmSwap) or pagefile-backed (Windows PagefileUsage) memory.
+  int64 swap_kb = 7;
+
+  // measured | unsupported
+  string swap_status = 8;
+
+  int64 rss_kb = 9;
 }
 
 // NetworkMetrics contains network-related metrics.

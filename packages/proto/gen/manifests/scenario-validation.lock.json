@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "scenario-validation",
-  "input_digest": "sha256:e086351a9aece1f179fb52c17e4bbd45372b76b5161d21cca87f5fe1732acf71",
+  "input_digest": "sha256:2c399e85dc3c5146d939a2c19f28c7488a05fc0df894582f0e82b7473aa85e18",
   "input_files": [
     "schemas/common/v1/evidence.proto",
     "schemas/common/v1/maturity.proto",
@@ -20,12 +20,12 @@
     }
   },
   "outputs": {
-    "gen/go/scenario-validation/v1/scenariovalidationv1connect/validation.connect.go": "sha256:169c0b69a9de400fe7b4d546f0366874c3866c019ffdcd59e8eed0dd4194312d",
-    "gen/go/scenario-validation/v1/validation.pb.go": "sha256:84f1c85f467671cb26eb53e7c7a8ea75079df3b616bfa38b28a038d4a0649339",
+    "gen/go/scenario-validation/v1/scenariovalidationv1connect/validation.connect.go": "sha256:6e258af1c825c0c0a2b1af00839b2bcef0cc5b5cf012964a91ce2430ee2a76ba",
+    "gen/go/scenario-validation/v1/validation.pb.go": "sha256:1ab7691ee51fa8bf9a4fd7d04757ebd1ec85c3e63b1f04346e17a6c8c9d5d8f7",
     "gen/python/scenario_validation/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/scenario_validation/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/scenario_validation/v1/validation_pb2.py": "sha256:b6cac566882349c2af1a15c0b8d78be4aab4917460be67f77d1aadd981297d13",
-    "gen/python/scenario_validation/v1/validation_pb2.pyi": "sha256:30bdf71da47b52ac7db7ec9af65052c602f9d60de62874aebd9b27bfb3c5647a",
-    "gen/typescript/scenario-validation/v1/validation_pb.ts": "sha256:0ddb734150a4893b45f039c5af0386a5060a4a2f66ad35daefc6b39ac57a02b7"
+    "gen/python/scenario_validation/v1/validation_pb2.py": "sha256:54ac43416417af6cc0bf6b5bbfa5dd8bdbbf0ff9a8da8bc42a077f88d14b622f",
+    "gen/python/scenario_validation/v1/validation_pb2.pyi": "sha256:997c7eea719971ebb885325d42209844cacf14290e49ff4b00c84bb88ae7631f",
+    "gen/typescript/scenario-validation/v1/validation_pb.ts": "sha256:e14259167a994168b96392656b5962a53614e99a947abc542099edfb8a5ef0f7"
   }
 }

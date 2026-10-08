@@ -84,6 +84,18 @@ message SystemSettings {
   int32 cpu_escalation_debounce_ticks = 21;
   int32 cpu_sustained_window_ticks = 22;
   double cpu_pressure_threshold = 23;
+
+  // Seconds an alert condition must hold before an alert opens, and stay
+  // clear before it resolves. 0 selects the default (300).
+  int32 alert_sustain_seconds = 24;
+
+  // Linux memory-pressure level boundaries. PSI values are percentages of
+  // wall time over the 60-second window; swap-in rates are bytes per second.
+  // 0 selects the default for each.
+  double memory_pressure_some_avg60_elevated_percent = 25;
+  double memory_pressure_full_avg60_critical_percent = 26;
+  double memory_pressure_swap_in_elevated_bytes_per_second = 27;
+  double memory_pressure_swap_in_critical_bytes_per_second = 28;
 }
 
 // =============================================================================
@@ -152,7 +164,10 @@ message GetMaintenanceStateResponse {
   // Whether the operation succeeded.
   bool success = 1;
 
-  // Current maintenance state (active/inactive).
+  // Current maintenance state (active/inactive). This is the platform
+  // maintenance-orchestrator contract: "active" means monitoring is running
+  // normally, "inactive" means it has been paused (for example during a
+  // maintenance window). It does not mean "in maintenance".
   string maintenance_state = 2;
 
   // Error message (if failed).

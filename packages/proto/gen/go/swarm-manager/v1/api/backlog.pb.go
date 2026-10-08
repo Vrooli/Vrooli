@@ -726,7 +726,9 @@ type ListBacklogItemsResponse struct {
 	Items []*domain.BacklogItem  `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
 	// Per-item blocking state keyed by "kind/name". Only includes items that
 	// have dependencies; items without deps are omitted (not blocked).
-	Blocking      map[string]*ItemBlockingInfo `protobuf:"bytes,2,rep,name=blocking,proto3" json:"blocking,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Blocking map[string]*ItemBlockingInfo `protobuf:"bytes,2,rep,name=blocking,proto3" json:"blocking,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Number of items that matched the filters before any limit was applied.
+	Total         int32 `protobuf:"varint,3,opt,name=total,proto3" json:"total,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -775,6 +777,13 @@ func (x *ListBacklogItemsResponse) GetBlocking() map[string]*ItemBlockingInfo {
 	return nil
 }
 
+func (x *ListBacklogItemsResponse) GetTotal() int32 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
 // ListBacklogItemsRequest carries every filter supported by the operator list
 // surface. Optional booleans distinguish an omitted filter from false.
 type ListBacklogItemsRequest struct {
@@ -788,7 +797,13 @@ type ListBacklogItemsRequest struct {
 	PlanRef     *string                `protobuf:"bytes,7,opt,name=plan_ref,json=planRef,proto3,oneof" json:"plan_ref,omitempty"`
 	Stale       *bool                  `protobuf:"varint,8,opt,name=stale,proto3,oneof" json:"stale,omitempty"`
 	// Verified team-member/profile identity that filed the item.
-	ActorId       *string `protobuf:"bytes,9,opt,name=actor_id,json=actorId,proto3,oneof" json:"actor_id,omitempty"`
+	ActorId *string `protobuf:"bytes,9,opt,name=actor_id,json=actorId,proto3,oneof" json:"actor_id,omitempty"`
+	// Match-any tag filter: an item is returned when it carries at least one of
+	// these tags (exact, case-sensitive match). Empty means no tag filter.
+	Tags []string `protobuf:"bytes,10,rep,name=tags,proto3" json:"tags,omitempty"`
+	// Maximum number of items returned after filtering and sorting. Zero or
+	// unset means no limit; total still reports the full matched count.
+	Limit         *int32 `protobuf:"varint,11,opt,name=limit,proto3,oneof" json:"limit,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -884,6 +899,20 @@ func (x *ListBacklogItemsRequest) GetActorId() string {
 		return *x.ActorId
 	}
 	return ""
+}
+
+func (x *ListBacklogItemsRequest) GetTags() []string {
+	if x != nil {
+		return x.Tags
+	}
+	return nil
+}
+
+func (x *ListBacklogItemsRequest) GetLimit() int32 {
+	if x != nil && x.Limit != nil {
+		return *x.Limit
+	}
+	return 0
 }
 
 // DeleteBacklogItemRequest identifies one backlog item to delete. Deletion is
@@ -4103,13 +4132,14 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"\x10ItemBlockingInfo\x12\x18\n" +
 	"\ablocked\x18\x01 \x01(\bR\ablocked\x12*\n" +
 	"\x11blocking_dep_keys\x18\x02 \x03(\tR\x0fblockingDepKeys\x12#\n" +
-	"\rall_forceable\x18\x03 \x01(\bR\fallForceable\"\xaa\x02\n" +
+	"\rall_forceable\x18\x03 \x01(\bR\fallForceable\"\xc0\x02\n" +
 	"\x18ListBacklogItemsResponse\x12A\n" +
 	"\x05items\x18\x01 \x03(\v2+.vrooli.swarm_manager.v1.domain.BacklogItemR\x05items\x12_\n" +
-	"\bblocking\x18\x02 \x03(\v2C.vrooli.swarm_manager.v1.api.ListBacklogItemsResponse.BlockingEntryR\bblocking\x1aj\n" +
+	"\bblocking\x18\x02 \x03(\v2C.vrooli.swarm_manager.v1.api.ListBacklogItemsResponse.BlockingEntryR\bblocking\x12\x14\n" +
+	"\x05total\x18\x03 \x01(\x05R\x05total\x1aj\n" +
 	"\rBlockingEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12C\n" +
-	"\x05value\x18\x02 \x01(\v2-.vrooli.swarm_manager.v1.api.ItemBlockingInfoR\x05value:\x028\x01\"\xa2\x03\n" +
+	"\x05value\x18\x02 \x01(\v2-.vrooli.swarm_manager.v1.api.ItemBlockingInfoR\x05value:\x028\x01\"\xe4\x03\n" +
 	"\x17ListBacklogItemsRequest\x12\x14\n" +
 	"\x05kinds\x18\x01 \x03(\tR\x05kinds\x12\x1a\n" +
 	"\bstatuses\x18\x02 \x03(\tR\bstatuses\x12G\n" +
@@ -4120,12 +4150,16 @@ const file_swarm_manager_v1_api_backlog_proto_rawDesc = "" +
 	"hasPlanRef\x88\x01\x01\x12\x1e\n" +
 	"\bplan_ref\x18\a \x01(\tH\x02R\aplanRef\x88\x01\x01\x12\x19\n" +
 	"\x05stale\x18\b \x01(\bH\x03R\x05stale\x88\x01\x01\x12\x1e\n" +
-	"\bactor_id\x18\t \x01(\tH\x04R\aactorId\x88\x01\x01B\x0f\n" +
+	"\bactor_id\x18\t \x01(\tH\x04R\aactorId\x88\x01\x01\x12\x12\n" +
+	"\x04tags\x18\n" +
+	" \x03(\tR\x04tags\x12\"\n" +
+	"\x05limit\x18\v \x01(\x05B\a\xbaH\x04\x1a\x02(\x00H\x05R\x05limit\x88\x01\x01B\x0f\n" +
 	"\r_spawned_fromB\x0f\n" +
 	"\r_has_plan_refB\v\n" +
 	"\t_plan_refB\b\n" +
 	"\x06_staleB\v\n" +
-	"\t_actor_id\"T\n" +
+	"\t_actor_idB\b\n" +
+	"\x06_limit\"T\n" +
 	"\x18DeleteBacklogItemRequest\x12\x1b\n" +
 	"\x04kind\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04kind\x12\x1b\n" +
 	"\x04name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\"5\n" +

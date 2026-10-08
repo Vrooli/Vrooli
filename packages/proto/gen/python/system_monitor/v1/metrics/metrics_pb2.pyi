@@ -215,7 +215,7 @@ class CPUMetrics(_message.Message):
     def __init__(self, usage: _Optional[float] = ..., top_processes: _Optional[_Iterable[_Union[ProcessInfo, _Mapping]]] = ..., load_average: _Optional[_Iterable[float]] = ..., usage_state: _Optional[_Union[MetricValue, _Mapping]] = ..., context_switches_per_second: _Optional[_Union[MetricValue, _Mapping]] = ..., interrupts_per_second: _Optional[_Union[MetricValue, _Mapping]] = ..., load_average_state: _Optional[_Union[MetricValue, _Mapping]] = ..., normalized_load_1: _Optional[_Union[MetricValue, _Mapping]] = ..., normalized_load_5: _Optional[_Union[MetricValue, _Mapping]] = ..., run_queue_depth: _Optional[_Union[MetricValue, _Mapping]] = ..., cpu_psi_some_avg10: _Optional[_Union[MetricValue, _Mapping]] = ..., cpu_psi_full_avg10: _Optional[_Union[MetricValue, _Mapping]] = ..., mode_breakdown: _Optional[_Mapping[str, MetricValue]] = ..., per_core_utilization: _Optional[_Mapping[str, MetricValue]] = ..., core_imbalance_index: _Optional[_Union[MetricValue, _Mapping]] = ..., quota_throttling: _Optional[_Union[MetricValue, _Mapping]] = ..., frequency_derate_ratio: _Optional[_Union[MetricValue, _Mapping]] = ..., thermal_throttle_evidence: _Optional[_Union[MetricValue, _Mapping]] = ..., fork_rate: _Optional[_Union[MetricValue, _Mapping]] = ..., thermal_trip_point_celsius: _Optional[_Union[MetricValue, _Mapping]] = ..., top_cpu_seconds_processes: _Optional[_Iterable[_Union[ProcessInfo, _Mapping]]] = ..., historical_cpu_attribution: _Optional[_Union[ProcessTimelineResponse, _Mapping]] = ...) -> None: ...
 
 class MemoryMetrics(_message.Message):
-    __slots__ = ("usage", "top_processes", "swap_usage", "disk_usage", "paging", "fragmentation", "top_paging_processes")
+    __slots__ = ("usage", "top_processes", "swap_usage", "disk_usage", "paging", "fragmentation", "top_paging_processes", "memory_pressure")
     USAGE_FIELD_NUMBER: _ClassVar[int]
     TOP_PROCESSES_FIELD_NUMBER: _ClassVar[int]
     SWAP_USAGE_FIELD_NUMBER: _ClassVar[int]
@@ -223,6 +223,7 @@ class MemoryMetrics(_message.Message):
     PAGING_FIELD_NUMBER: _ClassVar[int]
     FRAGMENTATION_FIELD_NUMBER: _ClassVar[int]
     TOP_PAGING_PROCESSES_FIELD_NUMBER: _ClassVar[int]
+    MEMORY_PRESSURE_FIELD_NUMBER: _ClassVar[int]
     usage: float
     top_processes: _containers.RepeatedCompositeFieldContainer[ProcessInfo]
     swap_usage: SwapInfo
@@ -230,7 +231,59 @@ class MemoryMetrics(_message.Message):
     paging: PagingMetrics
     fragmentation: FragmentationMetrics
     top_paging_processes: _containers.RepeatedCompositeFieldContainer[ProcessInfo]
-    def __init__(self, usage: _Optional[float] = ..., top_processes: _Optional[_Iterable[_Union[ProcessInfo, _Mapping]]] = ..., swap_usage: _Optional[_Union[SwapInfo, _Mapping]] = ..., disk_usage: _Optional[_Union[DiskInfo, _Mapping]] = ..., paging: _Optional[_Union[PagingMetrics, _Mapping]] = ..., fragmentation: _Optional[_Union[FragmentationMetrics, _Mapping]] = ..., top_paging_processes: _Optional[_Iterable[_Union[ProcessInfo, _Mapping]]] = ...) -> None: ...
+    memory_pressure: MemoryPressureReading
+    def __init__(self, usage: _Optional[float] = ..., top_processes: _Optional[_Iterable[_Union[ProcessInfo, _Mapping]]] = ..., swap_usage: _Optional[_Union[SwapInfo, _Mapping]] = ..., disk_usage: _Optional[_Union[DiskInfo, _Mapping]] = ..., paging: _Optional[_Union[PagingMetrics, _Mapping]] = ..., fragmentation: _Optional[_Union[FragmentationMetrics, _Mapping]] = ..., top_paging_processes: _Optional[_Iterable[_Union[ProcessInfo, _Mapping]]] = ..., memory_pressure: _Optional[_Union[MemoryPressureReading, _Mapping]] = ...) -> None: ...
+
+class MemoryPressureReading(_message.Message):
+    __slots__ = ("level", "level_source", "level_reason", "signals", "contributors", "contributors_status", "contributors_reason", "observed_at", "platform")
+    class SignalsEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: MetricValue
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[MetricValue, _Mapping]] = ...) -> None: ...
+    LEVEL_FIELD_NUMBER: _ClassVar[int]
+    LEVEL_SOURCE_FIELD_NUMBER: _ClassVar[int]
+    LEVEL_REASON_FIELD_NUMBER: _ClassVar[int]
+    SIGNALS_FIELD_NUMBER: _ClassVar[int]
+    CONTRIBUTORS_FIELD_NUMBER: _ClassVar[int]
+    CONTRIBUTORS_STATUS_FIELD_NUMBER: _ClassVar[int]
+    CONTRIBUTORS_REASON_FIELD_NUMBER: _ClassVar[int]
+    OBSERVED_AT_FIELD_NUMBER: _ClassVar[int]
+    PLATFORM_FIELD_NUMBER: _ClassVar[int]
+    level: str
+    level_source: str
+    level_reason: str
+    signals: _containers.MessageMap[str, MetricValue]
+    contributors: _containers.RepeatedCompositeFieldContainer[MemoryPressureContributor]
+    contributors_status: str
+    contributors_reason: str
+    observed_at: _timestamp_pb2.Timestamp
+    platform: str
+    def __init__(self, level: _Optional[str] = ..., level_source: _Optional[str] = ..., level_reason: _Optional[str] = ..., signals: _Optional[_Mapping[str, MetricValue]] = ..., contributors: _Optional[_Iterable[_Union[MemoryPressureContributor, _Mapping]]] = ..., contributors_status: _Optional[str] = ..., contributors_reason: _Optional[str] = ..., observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., platform: _Optional[str] = ...) -> None: ...
+
+class MemoryPressureContributor(_message.Message):
+    __slots__ = ("pid", "name", "owner", "major_faults_per_second", "fault_status", "fault_counter", "swap_kb", "swap_status", "rss_kb")
+    PID_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    OWNER_FIELD_NUMBER: _ClassVar[int]
+    MAJOR_FAULTS_PER_SECOND_FIELD_NUMBER: _ClassVar[int]
+    FAULT_STATUS_FIELD_NUMBER: _ClassVar[int]
+    FAULT_COUNTER_FIELD_NUMBER: _ClassVar[int]
+    SWAP_KB_FIELD_NUMBER: _ClassVar[int]
+    SWAP_STATUS_FIELD_NUMBER: _ClassVar[int]
+    RSS_KB_FIELD_NUMBER: _ClassVar[int]
+    pid: int
+    name: str
+    owner: str
+    major_faults_per_second: float
+    fault_status: str
+    fault_counter: str
+    swap_kb: int
+    swap_status: str
+    rss_kb: int
+    def __init__(self, pid: _Optional[int] = ..., name: _Optional[str] = ..., owner: _Optional[str] = ..., major_faults_per_second: _Optional[float] = ..., fault_status: _Optional[str] = ..., fault_counter: _Optional[str] = ..., swap_kb: _Optional[int] = ..., swap_status: _Optional[str] = ..., rss_kb: _Optional[int] = ...) -> None: ...
 
 class NetworkMetrics(_message.Message):
     __slots__ = ("tcp_states", "port_usage", "network_stats", "connection_pools", "established_rate", "time_wait_rate", "close_wait_rate", "connections_opened_rate", "connections_closed_rate", "interfaces", "ownership", "endpoints", "capabilities", "verdict")

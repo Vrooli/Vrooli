@@ -127,6 +127,9 @@ const (
 	// TeamsServiceDeleteKnowledgeProcedure is the fully-qualified name of the TeamsService's
 	// DeleteKnowledge RPC.
 	TeamsServiceDeleteKnowledgeProcedure = "/vrooli.prompt_manager.v1.teams.TeamsService/DeleteKnowledge"
+	// TeamsServiceCloseKnowledgeProcedure is the fully-qualified name of the TeamsService's
+	// CloseKnowledge RPC.
+	TeamsServiceCloseKnowledgeProcedure = "/vrooli.prompt_manager.v1.teams.TeamsService/CloseKnowledge"
 )
 
 // TeamsServiceClient is a client for the vrooli.prompt_manager.v1.teams.TeamsService service.
@@ -165,6 +168,10 @@ type TeamsServiceClient interface {
 	AddKnowledge(context.Context, *connect.Request[teams.AddKnowledgeRequest]) (*connect.Response[teams.KnowledgeEntry], error)
 	UpdateKnowledge(context.Context, *connect.Request[teams.UpdateKnowledgeRequest]) (*connect.Response[teams.KnowledgeEntry], error)
 	DeleteKnowledge(context.Context, *connect.Request[teams.DeleteKnowledgeRequest]) (*connect.Response[teams.DeleteKnowledgeResponse], error)
+	// CloseKnowledge records that a knowledge entry (typically an inbox row)
+	// is resolved. The corpus is append-only, so closure is an appended record;
+	// default listings hide closed entries.
+	CloseKnowledge(context.Context, *connect.Request[teams.CloseKnowledgeRequest]) (*connect.Response[teams.KnowledgeEntry], error)
 }
 
 // NewTeamsServiceClient constructs a client for the vrooli.prompt_manager.v1.teams.TeamsService
@@ -382,6 +389,12 @@ func NewTeamsServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(teamsServiceMethods.ByName("DeleteKnowledge")),
 			connect.WithClientOptions(opts...),
 		),
+		closeKnowledge: connect.NewClient[teams.CloseKnowledgeRequest, teams.KnowledgeEntry](
+			httpClient,
+			baseURL+TeamsServiceCloseKnowledgeProcedure,
+			connect.WithSchema(teamsServiceMethods.ByName("CloseKnowledge")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -421,6 +434,7 @@ type teamsServiceClient struct {
 	addKnowledge                 *connect.Client[teams.AddKnowledgeRequest, teams.KnowledgeEntry]
 	updateKnowledge              *connect.Client[teams.UpdateKnowledgeRequest, teams.KnowledgeEntry]
 	deleteKnowledge              *connect.Client[teams.DeleteKnowledgeRequest, teams.DeleteKnowledgeResponse]
+	closeKnowledge               *connect.Client[teams.CloseKnowledgeRequest, teams.KnowledgeEntry]
 }
 
 // ListTeams calls vrooli.prompt_manager.v1.teams.TeamsService.ListTeams.
@@ -595,6 +609,11 @@ func (c *teamsServiceClient) DeleteKnowledge(ctx context.Context, req *connect.R
 	return c.deleteKnowledge.CallUnary(ctx, req)
 }
 
+// CloseKnowledge calls vrooli.prompt_manager.v1.teams.TeamsService.CloseKnowledge.
+func (c *teamsServiceClient) CloseKnowledge(ctx context.Context, req *connect.Request[teams.CloseKnowledgeRequest]) (*connect.Response[teams.KnowledgeEntry], error) {
+	return c.closeKnowledge.CallUnary(ctx, req)
+}
+
 // TeamsServiceHandler is an implementation of the vrooli.prompt_manager.v1.teams.TeamsService
 // service.
 type TeamsServiceHandler interface {
@@ -632,6 +651,10 @@ type TeamsServiceHandler interface {
 	AddKnowledge(context.Context, *connect.Request[teams.AddKnowledgeRequest]) (*connect.Response[teams.KnowledgeEntry], error)
 	UpdateKnowledge(context.Context, *connect.Request[teams.UpdateKnowledgeRequest]) (*connect.Response[teams.KnowledgeEntry], error)
 	DeleteKnowledge(context.Context, *connect.Request[teams.DeleteKnowledgeRequest]) (*connect.Response[teams.DeleteKnowledgeResponse], error)
+	// CloseKnowledge records that a knowledge entry (typically an inbox row)
+	// is resolved. The corpus is append-only, so closure is an appended record;
+	// default listings hide closed entries.
+	CloseKnowledge(context.Context, *connect.Request[teams.CloseKnowledgeRequest]) (*connect.Response[teams.KnowledgeEntry], error)
 }
 
 // NewTeamsServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -845,6 +868,12 @@ func NewTeamsServiceHandler(svc TeamsServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(teamsServiceMethods.ByName("DeleteKnowledge")),
 		connect.WithHandlerOptions(opts...),
 	)
+	teamsServiceCloseKnowledgeHandler := connect.NewUnaryHandler(
+		TeamsServiceCloseKnowledgeProcedure,
+		svc.CloseKnowledge,
+		connect.WithSchema(teamsServiceMethods.ByName("CloseKnowledge")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.prompt_manager.v1.teams.TeamsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case TeamsServiceListTeamsProcedure:
@@ -915,6 +944,8 @@ func NewTeamsServiceHandler(svc TeamsServiceHandler, opts ...connect.HandlerOpti
 			teamsServiceUpdateKnowledgeHandler.ServeHTTP(w, r)
 		case TeamsServiceDeleteKnowledgeProcedure:
 			teamsServiceDeleteKnowledgeHandler.ServeHTTP(w, r)
+		case TeamsServiceCloseKnowledgeProcedure:
+			teamsServiceCloseKnowledgeHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -1058,4 +1089,8 @@ func (UnimplementedTeamsServiceHandler) UpdateKnowledge(context.Context, *connec
 
 func (UnimplementedTeamsServiceHandler) DeleteKnowledge(context.Context, *connect.Request[teams.DeleteKnowledgeRequest]) (*connect.Response[teams.DeleteKnowledgeResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.prompt_manager.v1.teams.TeamsService.DeleteKnowledge is not implemented"))
+}
+
+func (UnimplementedTeamsServiceHandler) CloseKnowledge(context.Context, *connect.Request[teams.CloseKnowledgeRequest]) (*connect.Response[teams.KnowledgeEntry], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.prompt_manager.v1.teams.TeamsService.CloseKnowledge is not implemented"))
 }

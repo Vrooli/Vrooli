@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file nutrition-planner/v1/portability/portability.proto.
  */
 export const file_nutrition_planner_v1_portability_portability: GenFile = /*@__PURE__*/
-  fileDesc("CjJudXRyaXRpb24tcGxhbm5lci92MS9wb3J0YWJpbGl0eS9wb3J0YWJpbGl0eS5wcm90bxIndnJvb2xpLm51dHJpdGlvbl9wbGFubmVyLnYxLnBvcnRhYmlsaXR5IiwKFEV4cG9ydFJlY2lwZXNSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoCSJoChVFeHBvcnRSZWNpcGVzUmVzcG9uc2USDgoGZm9ybWF0GAEgASgJEhYKDnNjaGVtYV92ZXJzaW9uGAIgASgFEhQKDGNvbnRlbnRfanNvbhgDIAEoCRIRCglvbWlzc2lvbnMYBCADKAkiLgoWRXhwb3J0V29ya3NwYWNlUmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAkigQEKF0V4cG9ydFdvcmtzcGFjZVJlc3BvbnNlEg4KBmZvcm1hdBgBIAEoCRIWCg5zY2hlbWFfdmVyc2lvbhgCIAEoBRIUCgxjb250ZW50X2pzb24YAyABKAkSEQoJb21pc3Npb25zGAQgAygJEhUKDXBsYW5fcmV2aXNpb24YBSABKAMiSwodUHJldmlld1dvcmtzcGFjZUltcG9ydFJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgJEhQKDGNvbnRlbnRfanNvbhgCIAEoCSKmAQoeUHJldmlld1dvcmtzcGFjZUltcG9ydFJlc3BvbnNlEg0KBXZhbGlkGAEgASgIEg4KBmZvcm1hdBgCIAEoCRIWCg5zY2hlbWFfdmVyc2lvbhgDIAEoBRIUCgxyZWNvcmRfY291bnQYBCABKAUSFAoMcmVjb3JkX2tpbmRzGAUgAygJEhEKCW9taXNzaW9ucxgGIAMoCRIOCgZlcnJvcnMYByADKAkihwEKG0FwcGx5V29ya3NwYWNlSW1wb3J0UmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAkSIwobZXhwZWN0ZWRfd29ya3NwYWNlX3JldmlzaW9uGAIgASgDEhQKDGNvbnRlbnRfanNvbhgDIAEoCRIXCg9pZGVtcG90ZW5jeV9rZXkYBCABKAkiagocQXBwbHlXb3Jrc3BhY2VJbXBvcnRSZXNwb25zZRIaChJ3b3Jrc3BhY2VfcmV2aXNpb24YASABKAMSFwoPcmVjaXBlc19hcHBsaWVkGAIgASgFEhUKDWNoZWNrcG9pbnRfaWQYAyABKAkiSQobUHJldmlld1JlY2lwZXNJbXBvcnRSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoCRIUCgxjb250ZW50X2pzb24YAiABKAkirAEKHFByZXZpZXdSZWNpcGVzSW1wb3J0UmVzcG9uc2USDQoFdmFsaWQYASABKAgSDgoGZm9ybWF0GAIgASgJEhYKDnNjaGVtYV92ZXJzaW9uGAMgASgFEhQKDHJlY2lwZV9jb3VudBgEIAEoBRIXCg9kdXBsaWNhdGVfY291bnQYBSABKAUSFgoOY29uZmxpY3RfY291bnQYBiABKAUSDgoGZXJyb3JzGAcgAygJIp4BChlBcHBseVJlY2lwZXNJbXBvcnRSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoCRIjChtleHBlY3RlZF93b3Jrc3BhY2VfcmV2aXNpb24YAiABKAMSFAoMY29udGVudF9qc29uGAMgASgJEhcKD2lkZW1wb3RlbmN5X2tleRgEIAEoCRIXCg9jb25mbGljdF9wb2xpY3kYBSABKAkigAEKGkFwcGx5UmVjaXBlc0ltcG9ydFJlc3BvbnNlEhoKEndvcmtzcGFjZV9yZXZpc2lvbhgBIAEoAxIXCg9yZWNpcGVzX2FwcGxpZWQYAiABKAUSFwoPcmVjaXBlc19za2lwcGVkGAMgASgFEhQKDHJlbWFwcGVkX2lkcxgEIAMoCSJMChlFeHBvcnRHcm9jZXJpZXNDU1ZSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoCRIZChFleHBlY3RlZF9yZXZpc2lvbhgCIAEoAyJVChpFeHBvcnRHcm9jZXJpZXNDU1ZSZXNwb25zZRIQCghmaWxlbmFtZRgBIAEoCRITCgtjb250ZW50X2NzdhgCIAEoCRIQCghyZXZpc2lvbhgDIAEoAyJUChZFeHBvcnRSZWNpcGVQREZSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoCRIRCglyZWNpcGVfaWQYAiABKAkSEQoJcGFnZV9zaXplGAMgASgJIlwKFkV4cG9ydFdlZWtseVBERlJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgJEhkKEWV4cGVjdGVkX3JldmlzaW9uGAIgASgDEhEKCXBhZ2Vfc2l6ZRgDIAEoCSJIChFFeHBvcnRQREZSZXNwb25zZRIQCghmaWxlbmFtZRgBIAEoCRIPCgdjb250ZW50GAIgASgMEhAKCHJldmlzaW9uGAMgASgDMpYLChJQb3J0YWJpbGl0eVNlcnZpY2USjgEKDUV4cG9ydFJlY2lwZXMSPS52cm9vbGkubnV0cml0aW9uX3BsYW5uZXIudjEucG9ydGFiaWxpdHkuRXhwb3J0UmVjaXBlc1JlcXVlc3QaPi52cm9vbGkubnV0cml0aW9uX3BsYW5uZXIudjEucG9ydGFiaWxpdHkuRXhwb3J0UmVjaXBlc1Jlc3BvbnNlEpQBCg9FeHBvcnRXb3Jrc3BhY2USPy52cm9vbGkubnV0cml0aW9uX3BsYW5uZXIudjEucG9ydGFiaWxpdHkuRXhwb3J0V29ya3NwYWNlUmVxdWVzdBpALnZyb29saS5udXRyaXRpb25fcGxhbm5lci52MS5wb3J0YWJpbGl0eS5FeHBvcnRXb3Jrc3BhY2VSZXNwb25zZRKpAQoWUHJldmlld1dvcmtzcGFjZUltcG9ydBJGLnZyb29saS5udXRyaXRpb25fcGxhbm5lci52MS5wb3J0YWJpbGl0eS5QcmV2aWV3V29ya3NwYWNlSW1wb3J0UmVxdWVzdBpHLnZyb29saS5udXRyaXRpb25fcGxhbm5lci52MS5wb3J0YWJpbGl0eS5QcmV2aWV3V29ya3NwYWNlSW1wb3J0UmVzcG9uc2USowEKFEFwcGx5V29ya3NwYWNlSW1wb3J0EkQudnJvb2xpLm51dHJpdGlvbl9wbGFubmVyLnYxLnBvcnRhYmlsaXR5LkFwcGx5V29ya3NwYWNlSW1wb3J0UmVxdWVzdBpFLnZyb29saS5udXRyaXRpb25fcGxhbm5lci52MS5wb3J0YWJpbGl0eS5BcHBseVdvcmtzcGFjZUltcG9ydFJlc3BvbnNlEqMBChRQcmV2aWV3UmVjaXBlc0ltcG9ydBJELnZyb29saS5udXRyaXRpb25fcGxhbm5lci52MS5wb3J0YWJpbGl0eS5QcmV2aWV3UmVjaXBlc0ltcG9ydFJlcXVlc3QaRS52cm9vbGkubnV0cml0aW9uX3BsYW5uZXIudjEucG9ydGFiaWxpdHkuUHJldmlld1JlY2lwZXNJbXBvcnRSZXNwb25zZRKdAQoSQXBwbHlSZWNpcGVzSW1wb3J0EkIudnJvb2xpLm51dHJpdGlvbl9wbGFubmVyLnYxLnBvcnRhYmlsaXR5LkFwcGx5UmVjaXBlc0ltcG9ydFJlcXVlc3QaQy52cm9vbGkubnV0cml0aW9uX3BsYW5uZXIudjEucG9ydGFiaWxpdHkuQXBwbHlSZWNpcGVzSW1wb3J0UmVzcG9uc2USnQEKEkV4cG9ydEdyb2Nlcmllc0NTVhJCLnZyb29saS5udXRyaXRpb25fcGxhbm5lci52MS5wb3J0YWJpbGl0eS5FeHBvcnRHcm9jZXJpZXNDU1ZSZXF1ZXN0GkMudnJvb2xpLm51dHJpdGlvbl9wbGFubmVyLnYxLnBvcnRhYmlsaXR5LkV4cG9ydEdyb2Nlcmllc0NTVlJlc3BvbnNlEo4BCg9FeHBvcnRSZWNpcGVQREYSPy52cm9vbGkubnV0cml0aW9uX3BsYW5uZXIudjEucG9ydGFiaWxpdHkuRXhwb3J0UmVjaXBlUERGUmVxdWVzdBo6LnZyb29saS5udXRyaXRpb25fcGxhbm5lci52MS5wb3J0YWJpbGl0eS5FeHBvcnRQREZSZXNwb25zZRKOAQoPRXhwb3J0V2Vla2x5UERGEj8udnJvb2xpLm51dHJpdGlvbl9wbGFubmVyLnYxLnBvcnRhYmlsaXR5LkV4cG9ydFdlZWtseVBERlJlcXVlc3QaOi52cm9vbGkubnV0cml0aW9uX3BsYW5uZXIudjEucG9ydGFiaWxpdHkuRXhwb3J0UERGUmVzcG9uc2VCYFpeZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9udXRyaXRpb24tcGxhbm5lci92MS9wb3J0YWJpbGl0eTtwb3J0YWJpbGl0eV92MWIGcHJvdG8z");
+  fileDesc("CjJudXRyaXRpb24tcGxhbm5lci92MS9wb3J0YWJpbGl0eS9wb3J0YWJpbGl0eS5wcm90bxIndnJvb2xpLm51dHJpdGlvbl9wbGFubmVyLnYxLnBvcnRhYmlsaXR5IiwKFEV4cG9ydFJlY2lwZXNSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoCSJoChVFeHBvcnRSZWNpcGVzUmVzcG9uc2USDgoGZm9ybWF0GAEgASgJEhYKDnNjaGVtYV92ZXJzaW9uGAIgASgFEhQKDGNvbnRlbnRfanNvbhgDIAEoCRIRCglvbWlzc2lvbnMYBCADKAkiLgoWRXhwb3J0V29ya3NwYWNlUmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAkigQEKF0V4cG9ydFdvcmtzcGFjZVJlc3BvbnNlEg4KBmZvcm1hdBgBIAEoCRIWCg5zY2hlbWFfdmVyc2lvbhgCIAEoBRIUCgxjb250ZW50X2pzb24YAyABKAkSEQoJb21pc3Npb25zGAQgAygJEhUKDXBsYW5fcmV2aXNpb24YBSABKAMiSwodUHJldmlld1dvcmtzcGFjZUltcG9ydFJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgJEhQKDGNvbnRlbnRfanNvbhgCIAEoCSKmAQoeUHJldmlld1dvcmtzcGFjZUltcG9ydFJlc3BvbnNlEg0KBXZhbGlkGAEgASgIEg4KBmZvcm1hdBgCIAEoCRIWCg5zY2hlbWFfdmVyc2lvbhgDIAEoBRIUCgxyZWNvcmRfY291bnQYBCABKAUSFAoMcmVjb3JkX2tpbmRzGAUgAygJEhEKCW9taXNzaW9ucxgGIAMoCRIOCgZlcnJvcnMYByADKAkihwEKG0FwcGx5V29ya3NwYWNlSW1wb3J0UmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAkSIwobZXhwZWN0ZWRfd29ya3NwYWNlX3JldmlzaW9uGAIgASgDEhQKDGNvbnRlbnRfanNvbhgDIAEoCRIXCg9pZGVtcG90ZW5jeV9rZXkYBCABKAkiagocQXBwbHlXb3Jrc3BhY2VJbXBvcnRSZXNwb25zZRIaChJ3b3Jrc3BhY2VfcmV2aXNpb24YASABKAMSFwoPcmVjaXBlc19hcHBsaWVkGAIgASgFEhUKDWNoZWNrcG9pbnRfaWQYAyABKAkiSgobR2V0UmVzdG9yZUNoZWNrcG9pbnRSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoCRIVCg1jaGVja3BvaW50X2lkGAIgASgJIqMBChxHZXRSZXN0b3JlQ2hlY2twb2ludFJlc3BvbnNlEhUKDWNoZWNrcG9pbnRfaWQYASABKAkSEgoKY3JlYXRlZF9hdBgCIAEoCRIYChByZXN0b3JlX3JldmlzaW9uGAMgASgDEhQKDHJlY2lwZV9jb3VudBgEIAEoBRIVCg1wbGFuX2luY2x1ZGVkGAUgASgIEhEKCW9taXNzaW9ucxgGIAMoCSKMAQofUmVjb3ZlclJlc3RvcmVDaGVja3BvaW50UmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAkSFQoNY2hlY2twb2ludF9pZBgCIAEoCRIjChtleHBlY3RlZF93b3Jrc3BhY2VfcmV2aXNpb24YAyABKAMSFwoPaWRlbXBvdGVuY3lfa2V5GAQgASgJIqIBCiBSZWNvdmVyUmVzdG9yZUNoZWNrcG9pbnRSZXNwb25zZRIaChJ3b3Jrc3BhY2VfcmV2aXNpb24YASABKAMSGAoQcmVjaXBlc19yZXN0b3JlZBgCIAEoBRIVCg1wbGFuX3Jlc3RvcmVkGAMgASgIEh4KFnJlY292ZXJ5X2NoZWNrcG9pbnRfaWQYBCABKAkSEQoJb21pc3Npb25zGAUgAygJIkkKG1ByZXZpZXdSZWNpcGVzSW1wb3J0UmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAkSFAoMY29udGVudF9qc29uGAIgASgJIqwBChxQcmV2aWV3UmVjaXBlc0ltcG9ydFJlc3BvbnNlEg0KBXZhbGlkGAEgASgIEg4KBmZvcm1hdBgCIAEoCRIWCg5zY2hlbWFfdmVyc2lvbhgDIAEoBRIUCgxyZWNpcGVfY291bnQYBCABKAUSFwoPZHVwbGljYXRlX2NvdW50GAUgASgFEhYKDmNvbmZsaWN0X2NvdW50GAYgASgFEg4KBmVycm9ycxgHIAMoCSKeAQoZQXBwbHlSZWNpcGVzSW1wb3J0UmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAkSIwobZXhwZWN0ZWRfd29ya3NwYWNlX3JldmlzaW9uGAIgASgDEhQKDGNvbnRlbnRfanNvbhgDIAEoCRIXCg9pZGVtcG90ZW5jeV9rZXkYBCABKAkSFwoPY29uZmxpY3RfcG9saWN5GAUgASgJIoABChpBcHBseVJlY2lwZXNJbXBvcnRSZXNwb25zZRIaChJ3b3Jrc3BhY2VfcmV2aXNpb24YASABKAMSFwoPcmVjaXBlc19hcHBsaWVkGAIgASgFEhcKD3JlY2lwZXNfc2tpcHBlZBgDIAEoBRIUCgxyZW1hcHBlZF9pZHMYBCADKAkiTAoZRXhwb3J0R3JvY2VyaWVzQ1NWUmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAkSGQoRZXhwZWN0ZWRfcmV2aXNpb24YAiABKAMiVQoaRXhwb3J0R3JvY2VyaWVzQ1NWUmVzcG9uc2USEAoIZmlsZW5hbWUYASABKAkSEwoLY29udGVudF9jc3YYAiABKAkSEAoIcmV2aXNpb24YAyABKAMiVAoWRXhwb3J0UmVjaXBlUERGUmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAkSEQoJcmVjaXBlX2lkGAIgASgJEhEKCXBhZ2Vfc2l6ZRgDIAEoCSJcChZFeHBvcnRXZWVrbHlQREZSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoCRIZChFleHBlY3RlZF9yZXZpc2lvbhgCIAEoAxIRCglwYWdlX3NpemUYAyABKAkiSAoRRXhwb3J0UERGUmVzcG9uc2USEAoIZmlsZW5hbWUYASABKAkSDwoHY29udGVudBgCIAEoDBIQCghyZXZpc2lvbhgDIAEoAzLuDQoSUG9ydGFiaWxpdHlTZXJ2aWNlEo4BCg1FeHBvcnRSZWNpcGVzEj0udnJvb2xpLm51dHJpdGlvbl9wbGFubmVyLnYxLnBvcnRhYmlsaXR5LkV4cG9ydFJlY2lwZXNSZXF1ZXN0Gj4udnJvb2xpLm51dHJpdGlvbl9wbGFubmVyLnYxLnBvcnRhYmlsaXR5LkV4cG9ydFJlY2lwZXNSZXNwb25zZRKUAQoPRXhwb3J0V29ya3NwYWNlEj8udnJvb2xpLm51dHJpdGlvbl9wbGFubmVyLnYxLnBvcnRhYmlsaXR5LkV4cG9ydFdvcmtzcGFjZVJlcXVlc3QaQC52cm9vbGkubnV0cml0aW9uX3BsYW5uZXIudjEucG9ydGFiaWxpdHkuRXhwb3J0V29ya3NwYWNlUmVzcG9uc2USqQEKFlByZXZpZXdXb3Jrc3BhY2VJbXBvcnQSRi52cm9vbGkubnV0cml0aW9uX3BsYW5uZXIudjEucG9ydGFiaWxpdHkuUHJldmlld1dvcmtzcGFjZUltcG9ydFJlcXVlc3QaRy52cm9vbGkubnV0cml0aW9uX3BsYW5uZXIudjEucG9ydGFiaWxpdHkuUHJldmlld1dvcmtzcGFjZUltcG9ydFJlc3BvbnNlEqMBChRBcHBseVdvcmtzcGFjZUltcG9ydBJELnZyb29saS5udXRyaXRpb25fcGxhbm5lci52MS5wb3J0YWJpbGl0eS5BcHBseVdvcmtzcGFjZUltcG9ydFJlcXVlc3QaRS52cm9vbGkubnV0cml0aW9uX3BsYW5uZXIudjEucG9ydGFiaWxpdHkuQXBwbHlXb3Jrc3BhY2VJbXBvcnRSZXNwb25zZRKjAQoUR2V0UmVzdG9yZUNoZWNrcG9pbnQSRC52cm9vbGkubnV0cml0aW9uX3BsYW5uZXIudjEucG9ydGFiaWxpdHkuR2V0UmVzdG9yZUNoZWNrcG9pbnRSZXF1ZXN0GkUudnJvb2xpLm51dHJpdGlvbl9wbGFubmVyLnYxLnBvcnRhYmlsaXR5LkdldFJlc3RvcmVDaGVja3BvaW50UmVzcG9uc2USrwEKGFJlY292ZXJSZXN0b3JlQ2hlY2twb2ludBJILnZyb29saS5udXRyaXRpb25fcGxhbm5lci52MS5wb3J0YWJpbGl0eS5SZWNvdmVyUmVzdG9yZUNoZWNrcG9pbnRSZXF1ZXN0GkkudnJvb2xpLm51dHJpdGlvbl9wbGFubmVyLnYxLnBvcnRhYmlsaXR5LlJlY292ZXJSZXN0b3JlQ2hlY2twb2ludFJlc3BvbnNlEqMBChRQcmV2aWV3UmVjaXBlc0ltcG9ydBJELnZyb29saS5udXRyaXRpb25fcGxhbm5lci52MS5wb3J0YWJpbGl0eS5QcmV2aWV3UmVjaXBlc0ltcG9ydFJlcXVlc3QaRS52cm9vbGkubnV0cml0aW9uX3BsYW5uZXIudjEucG9ydGFiaWxpdHkuUHJldmlld1JlY2lwZXNJbXBvcnRSZXNwb25zZRKdAQoSQXBwbHlSZWNpcGVzSW1wb3J0EkIudnJvb2xpLm51dHJpdGlvbl9wbGFubmVyLnYxLnBvcnRhYmlsaXR5LkFwcGx5UmVjaXBlc0ltcG9ydFJlcXVlc3QaQy52cm9vbGkubnV0cml0aW9uX3BsYW5uZXIudjEucG9ydGFiaWxpdHkuQXBwbHlSZWNpcGVzSW1wb3J0UmVzcG9uc2USnQEKEkV4cG9ydEdyb2Nlcmllc0NTVhJCLnZyb29saS5udXRyaXRpb25fcGxhbm5lci52MS5wb3J0YWJpbGl0eS5FeHBvcnRHcm9jZXJpZXNDU1ZSZXF1ZXN0GkMudnJvb2xpLm51dHJpdGlvbl9wbGFubmVyLnYxLnBvcnRhYmlsaXR5LkV4cG9ydEdyb2Nlcmllc0NTVlJlc3BvbnNlEo4BCg9FeHBvcnRSZWNpcGVQREYSPy52cm9vbGkubnV0cml0aW9uX3BsYW5uZXIudjEucG9ydGFiaWxpdHkuRXhwb3J0UmVjaXBlUERGUmVxdWVzdBo6LnZyb29saS5udXRyaXRpb25fcGxhbm5lci52MS5wb3J0YWJpbGl0eS5FeHBvcnRQREZSZXNwb25zZRKOAQoPRXhwb3J0V2Vla2x5UERGEj8udnJvb2xpLm51dHJpdGlvbl9wbGFubmVyLnYxLnBvcnRhYmlsaXR5LkV4cG9ydFdlZWtseVBERlJlcXVlc3QaOi52cm9vbGkubnV0cml0aW9uX3BsYW5uZXIudjEucG9ydGFiaWxpdHkuRXhwb3J0UERGUmVzcG9uc2VCYFpeZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9udXRyaXRpb24tcGxhbm5lci92MS9wb3J0YWJpbGl0eTtwb3J0YWJpbGl0eV92MWIGcHJvdG8z");
 
 /**
  * @generated from message vrooli.nutrition_planner.v1.portability.ExportRecipesRequest
@@ -244,6 +244,139 @@ export const ApplyWorkspaceImportResponseSchema: GenMessage<ApplyWorkspaceImport
   messageDesc(file_nutrition_planner_v1_portability_portability, 7);
 
 /**
+ * @generated from message vrooli.nutrition_planner.v1.portability.GetRestoreCheckpointRequest
+ */
+export type GetRestoreCheckpointRequest = Message<"vrooli.nutrition_planner.v1.portability.GetRestoreCheckpointRequest"> & {
+  /**
+   * @generated from field: string workspace_id = 1;
+   */
+  workspaceId: string;
+
+  /**
+   * @generated from field: string checkpoint_id = 2;
+   */
+  checkpointId: string;
+};
+
+/**
+ * Describes the message vrooli.nutrition_planner.v1.portability.GetRestoreCheckpointRequest.
+ * Use `create(GetRestoreCheckpointRequestSchema)` to create a new message.
+ */
+export const GetRestoreCheckpointRequestSchema: GenMessage<GetRestoreCheckpointRequest> = /*@__PURE__*/
+  messageDesc(file_nutrition_planner_v1_portability_portability, 8);
+
+/**
+ * @generated from message vrooli.nutrition_planner.v1.portability.GetRestoreCheckpointResponse
+ */
+export type GetRestoreCheckpointResponse = Message<"vrooli.nutrition_planner.v1.portability.GetRestoreCheckpointResponse"> & {
+  /**
+   * @generated from field: string checkpoint_id = 1;
+   */
+  checkpointId: string;
+
+  /**
+   * @generated from field: string created_at = 2;
+   */
+  createdAt: string;
+
+  /**
+   * @generated from field: int64 restore_revision = 3;
+   */
+  restoreRevision: bigint;
+
+  /**
+   * @generated from field: int32 recipe_count = 4;
+   */
+  recipeCount: number;
+
+  /**
+   * @generated from field: bool plan_included = 5;
+   */
+  planIncluded: boolean;
+
+  /**
+   * @generated from field: repeated string omissions = 6;
+   */
+  omissions: string[];
+};
+
+/**
+ * Describes the message vrooli.nutrition_planner.v1.portability.GetRestoreCheckpointResponse.
+ * Use `create(GetRestoreCheckpointResponseSchema)` to create a new message.
+ */
+export const GetRestoreCheckpointResponseSchema: GenMessage<GetRestoreCheckpointResponse> = /*@__PURE__*/
+  messageDesc(file_nutrition_planner_v1_portability_portability, 9);
+
+/**
+ * @generated from message vrooli.nutrition_planner.v1.portability.RecoverRestoreCheckpointRequest
+ */
+export type RecoverRestoreCheckpointRequest = Message<"vrooli.nutrition_planner.v1.portability.RecoverRestoreCheckpointRequest"> & {
+  /**
+   * @generated from field: string workspace_id = 1;
+   */
+  workspaceId: string;
+
+  /**
+   * @generated from field: string checkpoint_id = 2;
+   */
+  checkpointId: string;
+
+  /**
+   * @generated from field: int64 expected_workspace_revision = 3;
+   */
+  expectedWorkspaceRevision: bigint;
+
+  /**
+   * @generated from field: string idempotency_key = 4;
+   */
+  idempotencyKey: string;
+};
+
+/**
+ * Describes the message vrooli.nutrition_planner.v1.portability.RecoverRestoreCheckpointRequest.
+ * Use `create(RecoverRestoreCheckpointRequestSchema)` to create a new message.
+ */
+export const RecoverRestoreCheckpointRequestSchema: GenMessage<RecoverRestoreCheckpointRequest> = /*@__PURE__*/
+  messageDesc(file_nutrition_planner_v1_portability_portability, 10);
+
+/**
+ * @generated from message vrooli.nutrition_planner.v1.portability.RecoverRestoreCheckpointResponse
+ */
+export type RecoverRestoreCheckpointResponse = Message<"vrooli.nutrition_planner.v1.portability.RecoverRestoreCheckpointResponse"> & {
+  /**
+   * @generated from field: int64 workspace_revision = 1;
+   */
+  workspaceRevision: bigint;
+
+  /**
+   * @generated from field: int32 recipes_restored = 2;
+   */
+  recipesRestored: number;
+
+  /**
+   * @generated from field: bool plan_restored = 3;
+   */
+  planRestored: boolean;
+
+  /**
+   * @generated from field: string recovery_checkpoint_id = 4;
+   */
+  recoveryCheckpointId: string;
+
+  /**
+   * @generated from field: repeated string omissions = 5;
+   */
+  omissions: string[];
+};
+
+/**
+ * Describes the message vrooli.nutrition_planner.v1.portability.RecoverRestoreCheckpointResponse.
+ * Use `create(RecoverRestoreCheckpointResponseSchema)` to create a new message.
+ */
+export const RecoverRestoreCheckpointResponseSchema: GenMessage<RecoverRestoreCheckpointResponse> = /*@__PURE__*/
+  messageDesc(file_nutrition_planner_v1_portability_portability, 11);
+
+/**
  * @generated from message vrooli.nutrition_planner.v1.portability.PreviewRecipesImportRequest
  */
 export type PreviewRecipesImportRequest = Message<"vrooli.nutrition_planner.v1.portability.PreviewRecipesImportRequest"> & {
@@ -263,7 +396,7 @@ export type PreviewRecipesImportRequest = Message<"vrooli.nutrition_planner.v1.p
  * Use `create(PreviewRecipesImportRequestSchema)` to create a new message.
  */
 export const PreviewRecipesImportRequestSchema: GenMessage<PreviewRecipesImportRequest> = /*@__PURE__*/
-  messageDesc(file_nutrition_planner_v1_portability_portability, 8);
+  messageDesc(file_nutrition_planner_v1_portability_portability, 12);
 
 /**
  * @generated from message vrooli.nutrition_planner.v1.portability.PreviewRecipesImportResponse
@@ -310,7 +443,7 @@ export type PreviewRecipesImportResponse = Message<"vrooli.nutrition_planner.v1.
  * Use `create(PreviewRecipesImportResponseSchema)` to create a new message.
  */
 export const PreviewRecipesImportResponseSchema: GenMessage<PreviewRecipesImportResponse> = /*@__PURE__*/
-  messageDesc(file_nutrition_planner_v1_portability_portability, 9);
+  messageDesc(file_nutrition_planner_v1_portability_portability, 13);
 
 /**
  * @generated from message vrooli.nutrition_planner.v1.portability.ApplyRecipesImportRequest
@@ -347,7 +480,7 @@ export type ApplyRecipesImportRequest = Message<"vrooli.nutrition_planner.v1.por
  * Use `create(ApplyRecipesImportRequestSchema)` to create a new message.
  */
 export const ApplyRecipesImportRequestSchema: GenMessage<ApplyRecipesImportRequest> = /*@__PURE__*/
-  messageDesc(file_nutrition_planner_v1_portability_portability, 10);
+  messageDesc(file_nutrition_planner_v1_portability_portability, 14);
 
 /**
  * @generated from message vrooli.nutrition_planner.v1.portability.ApplyRecipesImportResponse
@@ -379,7 +512,7 @@ export type ApplyRecipesImportResponse = Message<"vrooli.nutrition_planner.v1.po
  * Use `create(ApplyRecipesImportResponseSchema)` to create a new message.
  */
 export const ApplyRecipesImportResponseSchema: GenMessage<ApplyRecipesImportResponse> = /*@__PURE__*/
-  messageDesc(file_nutrition_planner_v1_portability_portability, 11);
+  messageDesc(file_nutrition_planner_v1_portability_portability, 15);
 
 /**
  * @generated from message vrooli.nutrition_planner.v1.portability.ExportGroceriesCSVRequest
@@ -401,7 +534,7 @@ export type ExportGroceriesCSVRequest = Message<"vrooli.nutrition_planner.v1.por
  * Use `create(ExportGroceriesCSVRequestSchema)` to create a new message.
  */
 export const ExportGroceriesCSVRequestSchema: GenMessage<ExportGroceriesCSVRequest> = /*@__PURE__*/
-  messageDesc(file_nutrition_planner_v1_portability_portability, 12);
+  messageDesc(file_nutrition_planner_v1_portability_portability, 16);
 
 /**
  * @generated from message vrooli.nutrition_planner.v1.portability.ExportGroceriesCSVResponse
@@ -428,7 +561,7 @@ export type ExportGroceriesCSVResponse = Message<"vrooli.nutrition_planner.v1.po
  * Use `create(ExportGroceriesCSVResponseSchema)` to create a new message.
  */
 export const ExportGroceriesCSVResponseSchema: GenMessage<ExportGroceriesCSVResponse> = /*@__PURE__*/
-  messageDesc(file_nutrition_planner_v1_portability_portability, 13);
+  messageDesc(file_nutrition_planner_v1_portability_portability, 17);
 
 /**
  * @generated from message vrooli.nutrition_planner.v1.portability.ExportRecipePDFRequest
@@ -455,7 +588,7 @@ export type ExportRecipePDFRequest = Message<"vrooli.nutrition_planner.v1.portab
  * Use `create(ExportRecipePDFRequestSchema)` to create a new message.
  */
 export const ExportRecipePDFRequestSchema: GenMessage<ExportRecipePDFRequest> = /*@__PURE__*/
-  messageDesc(file_nutrition_planner_v1_portability_portability, 14);
+  messageDesc(file_nutrition_planner_v1_portability_portability, 18);
 
 /**
  * @generated from message vrooli.nutrition_planner.v1.portability.ExportWeeklyPDFRequest
@@ -482,7 +615,7 @@ export type ExportWeeklyPDFRequest = Message<"vrooli.nutrition_planner.v1.portab
  * Use `create(ExportWeeklyPDFRequestSchema)` to create a new message.
  */
 export const ExportWeeklyPDFRequestSchema: GenMessage<ExportWeeklyPDFRequest> = /*@__PURE__*/
-  messageDesc(file_nutrition_planner_v1_portability_portability, 15);
+  messageDesc(file_nutrition_planner_v1_portability_portability, 19);
 
 /**
  * @generated from message vrooli.nutrition_planner.v1.portability.ExportPDFResponse
@@ -509,7 +642,7 @@ export type ExportPDFResponse = Message<"vrooli.nutrition_planner.v1.portability
  * Use `create(ExportPDFResponseSchema)` to create a new message.
  */
 export const ExportPDFResponseSchema: GenMessage<ExportPDFResponse> = /*@__PURE__*/
-  messageDesc(file_nutrition_planner_v1_portability_portability, 16);
+  messageDesc(file_nutrition_planner_v1_portability_portability, 20);
 
 /**
  * @generated from service vrooli.nutrition_planner.v1.portability.PortabilityService
@@ -546,6 +679,22 @@ export const PortabilityService: GenService<{
     methodKind: "unary";
     input: typeof ApplyWorkspaceImportRequestSchema;
     output: typeof ApplyWorkspaceImportResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.nutrition_planner.v1.portability.PortabilityService.GetRestoreCheckpoint
+   */
+  getRestoreCheckpoint: {
+    methodKind: "unary";
+    input: typeof GetRestoreCheckpointRequestSchema;
+    output: typeof GetRestoreCheckpointResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.nutrition_planner.v1.portability.PortabilityService.RecoverRestoreCheckpoint
+   */
+  recoverRestoreCheckpoint: {
+    methodKind: "unary";
+    input: typeof RecoverRestoreCheckpointRequestSchema;
+    output: typeof RecoverRestoreCheckpointResponseSchema;
   },
   /**
    * @generated from rpc vrooli.nutrition_planner.v1.portability.PortabilityService.PreviewRecipesImport

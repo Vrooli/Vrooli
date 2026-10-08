@@ -1,0 +1,163 @@
+syntax = "proto3";
+
+package vrooli.system_monitor.v1.alerts;
+
+import "google/api/annotations.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/alerts;alerts";
+
+// =============================================================================
+// ALERTS DOMAIN
+// =============================================================================
+//
+// @stability beta
+//
+// Server-owned alert state. The API evaluates every alert rule against the
+// scheduler-owned metric snapshot, persists one open alert per rule/key once
+// a condition has held for the configured sustain duration, and resolves it
+// after the condition has stayed clear for the same duration. Clients (CLI,
+// UI, other scenarios) read this surface; they never derive alerts locally.
+//
+// USAGE CONTEXTS:
+//   - CLI `system-monitor status`, `alerts`, and `watch`
+//   - System Monitor UI active-alerts panel
+//
+// =============================================================================
+
+// Alert is one persisted alert record.
+message Alert {
+  // Stable alert identifier.
+  string id = 1;
+
+  // Alert kind. "condition" alerts are lifecycle-managed by the rule
+  // evaluator (open → resolved). "threshold_violation" and "anomaly" records
+  // are point-in-time events that are created already resolved.
+  string type = 2;
+
+  // Severity: warning or critical for condition alerts; low/medium/high/
+  // critical for legacy event records.
+  string severity = 3;
+
+  // Human-readable description of the condition.
+  string message = 4;
+
+  // Rule that produced the alert (condition alerts only), e.g.
+  // "memory_pressure", "cpu_usage".
+  string rule_id = 5;
+
+  // Deduplication key within the rule. Most rules use one host-wide key.
+  string key = 6;
+
+  // Metric the rule evaluated and its value at the most recent update.
+  string metric_name = 7;
+  double metric_value = 8;
+
+  // Boundary the value crossed (0 when the rule has no single numeric
+  // boundary).
+  double threshold = 9;
+
+  // When the alert opened.
+  google.protobuf.Timestamp opened_at = 10;
+
+  // When the alert resolved; absent while open.
+  google.protobuf.Timestamp resolved_at = 11;
+
+  // Acknowledgement, when an operator has acknowledged the alert.
+  google.protobuf.Timestamp acked_at = 12;
+  string acked_by = 13;
+
+  // True once a sustained critical condition has been escalated into the
+  // anomaly → investigation pipeline.
+  bool escalated = 14;
+
+  // Anomaly identifier recorded for the escalation, when escalated.
+  string anomaly_id = 15;
+
+  // Rule-specific evidence (for example memory-pressure signals and top
+  // contributors).
+  google.protobuf.Struct details = 16;
+}
+
+// RuleState reports whether a rule could evaluate on this host and what it
+// observed most recently. An unsupported rule never raises or clears an
+// alert; it is reported here instead of being treated as healthy.
+message RuleState {
+  string rule_id = 1;
+
+  // supported | unsupported | failed
+  string status = 2;
+
+  // Why the rule could not evaluate (unsupported/failed only).
+  string reason = 3;
+
+  // Whether at least one key of the rule currently meets its condition.
+  bool condition_active = 4;
+
+  // When the current condition (if any) was first observed. A condition
+  // becomes an alert once it has held for sustain_seconds.
+  google.protobuf.Timestamp pending_since = 5;
+
+  // Most recent evaluation time.
+  google.protobuf.Timestamp evaluated_at = 6;
+}
+
+// ListAlertsRequest selects alerts.
+message ListAlertsRequest {
+  // active (default) | resolved | all
+  string status = 1;
+
+  // When true, point-in-time event records (threshold_violation, anomaly)
+  // are included. Default: condition alerts only.
+  bool include_events = 2;
+
+  // Maximum number of alerts to return (default 100, max 1000).
+  int32 limit = 3;
+}
+
+// ListAlertsResponse returns alerts plus the evaluator's rule states.
+message ListAlertsResponse {
+  repeated Alert alerts = 1;
+  repeated RuleState rules = 2;
+
+  // Most recent evaluator pass; absent when the evaluator has not run (for
+  // example because monitoring is inactive).
+  google.protobuf.Timestamp evaluated_at = 3;
+
+  // Seconds a condition must hold (and stay clear) before an alert opens
+  // (resolves).
+  int32 sustain_seconds = 4;
+
+  // Whether monitoring is active. When false the evaluator does not run and
+  // the alert list is not a statement about current host health.
+  bool monitoring_active = 5;
+}
+
+// AcknowledgeAlertRequest acknowledges one alert.
+message AcknowledgeAlertRequest {
+  string id = 1;
+  string acked_by = 2;
+}
+
+// AcknowledgeAlertResponse returns the acknowledged alert.
+message AcknowledgeAlertResponse {
+  Alert alert = 1;
+}
+
+// AlertsService exposes server-owned alert state.
+service AlertsService {
+  // ListAlerts returns persisted alerts and the current rule states.
+  rpc ListAlerts(ListAlertsRequest) returns (ListAlertsResponse) {
+    option (google.api.http) = {get: "/api/v1/alerts"};
+  }
+
+  // AcknowledgeAlert records an operator acknowledgement. It does not
+  // resolve the alert; resolution follows the condition.
+  rpc AcknowledgeAlert(AcknowledgeAlertRequest) returns (AcknowledgeAlertResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/alerts/{id}/acknowledge"
+      body: "*"
+    };
+  }
+}

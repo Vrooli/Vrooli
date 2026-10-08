@@ -1,0 +1,113 @@
+syntax = "proto3";
+
+package vrooli.performance_health.v1.packaged;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/performance-health/v1/packaged;packaged_v1";
+
+// @layer 0
+// @domain performance-health
+// @stability beta
+//
+// PackagedLaunchMeasurement is the portable measurement contract shared by
+// delivery ramps. Platform-specific observations belong in platform_detail;
+// generic launch marks and metrics remain usable by future mobile ramps.
+message PackagedLaunchMeasurement {
+  string schema_version = 1;
+  string sample_id = 2;
+  string scenario = 3;
+  string ramp = 4;
+  string strategy = 5;
+  string platform = 6;
+  string captured_at = 7;
+  string experiment_id = 8;
+  string host_fingerprint = 9;
+  string artifact_digest = 10;
+  string condition = 11;
+  string display = 12;
+  string profiler_mode = 13;
+  string power_state = 14;
+  repeated LaunchMark marks = 15;
+  repeated Metric metrics = 16;
+  repeated ProcessRole process_roles = 17;
+  string app_interactive_source = 18;
+  PlatformDetail platform_detail = 19;
+  OptimizationToggles toggle_attribution = 20;
+  JourneyEvidence journey_evidence = 21;
+}
+
+message JourneyEvidence {
+  string journey_id = 1;
+  string capture_id = 2;
+  string disposition = 3;
+  string degraded_reason = 4;
+}
+
+message OptimizationToggles {
+  bool shared_runtime_readiness = 1;
+  bool secure_custom_scheme_ui = 2;
+  bool v8_snapshot_code_cache = 3;
+  bool electron_fuses = 4;
+}
+
+message LaunchMark {
+  string name = 1;
+  int64 elapsed_ns = 2;
+  Availability availability = 3;
+}
+
+message Metric {
+  string name = 1;
+  double value = 2;
+  string unit = 3;
+  Availability availability = 4;
+}
+
+message Availability {
+  enum State {
+    STATE_UNSPECIFIED = 0;
+    STATE_AVAILABLE = 1;
+    STATE_UNAVAILABLE = 2;
+  }
+  State state = 1;
+  string reason = 2;
+}
+
+// role is an open string taxonomy. generic_role uses shell_main,
+// webview_renderer, webview_gpu, webview_other, backend, or unknown. An
+// engine-specific role is mapped to one generic role by mapped_generic_role.
+message ProcessRole {
+  string role = 1;
+  string generic_role = 2;
+  int32 process_count = 3;
+  double rss_mb = 4;
+  double pss_mb = 5;
+  double uss_mb = 6;
+  Availability availability = 7;
+}
+
+message PlatformDetail {
+  oneof detail {
+    LinuxDesktopDetail linux_desktop = 1;
+  }
+}
+
+message LinuxDesktopDetail {
+  double artifact_page_cache_residency_pct = 1;
+}
+
+// PackagedService is the governed RPC surface for packaged experiment
+// validation, capture and reporting. JSON payloads preserve the versioned
+// packaged-experiment.v1 and packaged-comparison.v1 contracts without
+// duplicating their evolving schemas here.
+service PackagedService {
+  rpc ValidateExperiment(ExperimentRequest) returns (ExperimentResponse);
+  rpc Capture(CaptureRequest) returns (CaptureResponse);
+  rpc Report(ReportRequest) returns (ReportResponse);
+}
+
+message ExperimentRequest { string manifest_json = 1; }
+message ExperimentResponse { bool valid = 1; string error = 2; }
+message CaptureRequest { string request_json = 1; }
+message CaptureResponse { string result_json = 1; }
+message ReportRequest { string query_json = 1; }
+message ReportResponse { string report_json = 1; string markdown = 2; }

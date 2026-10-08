@@ -108,6 +108,9 @@ enum FactFamily {
   // cartographer. Code Facts exposes the contract and caches returned facts,
   // but does not infer domain ownership itself.
   FACT_FAMILY_FILE_DOMAIN = 11;
+  // STACK describes declared component and resource stack facts, preserving
+  // unknown values with evidence instead of inferring unsupported claims.
+  FACT_FAMILY_STACK = 12;
   FACT_FAMILY_ALL = 99;
 }
 

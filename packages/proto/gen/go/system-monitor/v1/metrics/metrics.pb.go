@@ -1012,8 +1012,10 @@ type MemoryMetrics struct {
 	Paging             *PagingMetrics        `protobuf:"bytes,6,opt,name=paging,proto3" json:"paging,omitempty"`
 	Fragmentation      *FragmentationMetrics `protobuf:"bytes,7,opt,name=fragmentation,proto3" json:"fragmentation,omitempty"`
 	TopPagingProcesses []*ProcessInfo        `protobuf:"bytes,8,rep,name=top_paging_processes,json=topPagingProcesses,proto3" json:"top_paging_processes,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// Platform-neutral memory-pressure verdict with the raw signals behind it.
+	MemoryPressure *MemoryPressureReading `protobuf:"bytes,9,opt,name=memory_pressure,json=memoryPressure,proto3" json:"memory_pressure,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *MemoryMetrics) Reset() {
@@ -1095,6 +1097,257 @@ func (x *MemoryMetrics) GetTopPagingProcesses() []*ProcessInfo {
 	return nil
 }
 
+func (x *MemoryMetrics) GetMemoryPressure() *MemoryPressureReading {
+	if x != nil {
+		return x.MemoryPressure
+	}
+	return nil
+}
+
+// MemoryPressureReading is the cross-platform memory-pressure verdict.
+//
+// A host can report a healthy memory_usage while it thrashes swap; this
+// reading is derived from stall and paging evidence instead. The level comes
+// from the operating system's own pressure verdict where one exists (macOS
+// kern.memorystatus_vm_pressure_level, Windows low-memory resource
+// notification) and from PSI plus swap-in rate on Linux.
+type MemoryPressureReading struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// normal | elevated | critical | unknown. unknown means no supported signal
+	// could produce a verdict; it is never a synonym for normal.
+	Level string `protobuf:"bytes,1,opt,name=level,proto3" json:"level,omitempty"`
+	// Mechanism that produced the level, e.g. "linux psi + swap-in rate".
+	LevelSource string `protobuf:"bytes,2,opt,name=level_source,json=levelSource,proto3" json:"level_source,omitempty"`
+	// Which signal and boundary determined the level.
+	LevelReason string `protobuf:"bytes,3,opt,name=level_reason,json=levelReason,proto3" json:"level_reason,omitempty"`
+	// Raw platform signals keyed by stable name (psi_some_avg60,
+	// swap_in_bytes_per_second, native_pressure_level, ...). Every signal the
+	// contract defines is present; ones this platform cannot measure carry
+	// unsupported_reason and are never reported as zero.
+	Signals map[string]*MetricValue `protobuf:"bytes,4,rep,name=signals,proto3" json:"signals,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Top processes by major-fault rate, then swapped memory. Populated only
+	// when level is elevated or critical.
+	Contributors []*MemoryPressureContributor `protobuf:"bytes,5,rep,name=contributors,proto3" json:"contributors,omitempty"`
+	// measured | not_requested | unsupported | failed
+	ContributorsStatus string                 `protobuf:"bytes,6,opt,name=contributors_status,json=contributorsStatus,proto3" json:"contributors_status,omitempty"`
+	ContributorsReason string                 `protobuf:"bytes,7,opt,name=contributors_reason,json=contributorsReason,proto3" json:"contributors_reason,omitempty"`
+	ObservedAt         *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
+	// Operating system the reading came from (linux, darwin, windows).
+	Platform      string `protobuf:"bytes,9,opt,name=platform,proto3" json:"platform,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MemoryPressureReading) Reset() {
+	*x = MemoryPressureReading{}
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MemoryPressureReading) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MemoryPressureReading) ProtoMessage() {}
+
+func (x *MemoryPressureReading) ProtoReflect() protoreflect.Message {
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MemoryPressureReading.ProtoReflect.Descriptor instead.
+func (*MemoryPressureReading) Descriptor() ([]byte, []int) {
+	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *MemoryPressureReading) GetLevel() string {
+	if x != nil {
+		return x.Level
+	}
+	return ""
+}
+
+func (x *MemoryPressureReading) GetLevelSource() string {
+	if x != nil {
+		return x.LevelSource
+	}
+	return ""
+}
+
+func (x *MemoryPressureReading) GetLevelReason() string {
+	if x != nil {
+		return x.LevelReason
+	}
+	return ""
+}
+
+func (x *MemoryPressureReading) GetSignals() map[string]*MetricValue {
+	if x != nil {
+		return x.Signals
+	}
+	return nil
+}
+
+func (x *MemoryPressureReading) GetContributors() []*MemoryPressureContributor {
+	if x != nil {
+		return x.Contributors
+	}
+	return nil
+}
+
+func (x *MemoryPressureReading) GetContributorsStatus() string {
+	if x != nil {
+		return x.ContributorsStatus
+	}
+	return ""
+}
+
+func (x *MemoryPressureReading) GetContributorsReason() string {
+	if x != nil {
+		return x.ContributorsReason
+	}
+	return ""
+}
+
+func (x *MemoryPressureReading) GetObservedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ObservedAt
+	}
+	return nil
+}
+
+func (x *MemoryPressureReading) GetPlatform() string {
+	if x != nil {
+		return x.Platform
+	}
+	return ""
+}
+
+// MemoryPressureContributor is one process ranked by paging activity.
+type MemoryPressureContributor struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Pid   int32                  `protobuf:"varint,1,opt,name=pid,proto3" json:"pid,omitempty"`
+	Name  string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	// Owning scenario from process attribution, or "unknown".
+	Owner string `protobuf:"bytes,3,opt,name=owner,proto3" json:"owner,omitempty"`
+	// Fault rate over the sampler interval. Its meaning depends on
+	// fault_counter; see fault_status before reading it.
+	MajorFaultsPerSecond float64 `protobuf:"fixed64,4,opt,name=major_faults_per_second,json=majorFaultsPerSecond,proto3" json:"major_faults_per_second,omitempty"`
+	// measured | not_yet_sampled | unsupported
+	FaultStatus string `protobuf:"bytes,5,opt,name=fault_status,json=faultStatus,proto3" json:"fault_status,omitempty"`
+	// Native counter behind major_faults_per_second, e.g. "linux majflt",
+	// "macos ri_pageins", "windows PageFaultCount (hard and soft faults)".
+	FaultCounter string `protobuf:"bytes,6,opt,name=fault_counter,json=faultCounter,proto3" json:"fault_counter,omitempty"`
+	// Swapped (Linux VmSwap) or pagefile-backed (Windows PagefileUsage) memory.
+	SwapKb int64 `protobuf:"varint,7,opt,name=swap_kb,json=swapKb,proto3" json:"swap_kb,omitempty"`
+	// measured | unsupported
+	SwapStatus    string `protobuf:"bytes,8,opt,name=swap_status,json=swapStatus,proto3" json:"swap_status,omitempty"`
+	RssKb         int64  `protobuf:"varint,9,opt,name=rss_kb,json=rssKb,proto3" json:"rss_kb,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MemoryPressureContributor) Reset() {
+	*x = MemoryPressureContributor{}
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MemoryPressureContributor) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MemoryPressureContributor) ProtoMessage() {}
+
+func (x *MemoryPressureContributor) ProtoReflect() protoreflect.Message {
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MemoryPressureContributor.ProtoReflect.Descriptor instead.
+func (*MemoryPressureContributor) Descriptor() ([]byte, []int) {
+	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *MemoryPressureContributor) GetPid() int32 {
+	if x != nil {
+		return x.Pid
+	}
+	return 0
+}
+
+func (x *MemoryPressureContributor) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *MemoryPressureContributor) GetOwner() string {
+	if x != nil {
+		return x.Owner
+	}
+	return ""
+}
+
+func (x *MemoryPressureContributor) GetMajorFaultsPerSecond() float64 {
+	if x != nil {
+		return x.MajorFaultsPerSecond
+	}
+	return 0
+}
+
+func (x *MemoryPressureContributor) GetFaultStatus() string {
+	if x != nil {
+		return x.FaultStatus
+	}
+	return ""
+}
+
+func (x *MemoryPressureContributor) GetFaultCounter() string {
+	if x != nil {
+		return x.FaultCounter
+	}
+	return ""
+}
+
+func (x *MemoryPressureContributor) GetSwapKb() int64 {
+	if x != nil {
+		return x.SwapKb
+	}
+	return 0
+}
+
+func (x *MemoryPressureContributor) GetSwapStatus() string {
+	if x != nil {
+		return x.SwapStatus
+	}
+	return ""
+}
+
+func (x *MemoryPressureContributor) GetRssKb() int64 {
+	if x != nil {
+		return x.RssKb
+	}
+	return 0
+}
+
 // NetworkMetrics contains network-related metrics.
 type NetworkMetrics struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -1125,7 +1378,7 @@ type NetworkMetrics struct {
 
 func (x *NetworkMetrics) Reset() {
 	*x = NetworkMetrics{}
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[7]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1137,7 +1390,7 @@ func (x *NetworkMetrics) String() string {
 func (*NetworkMetrics) ProtoMessage() {}
 
 func (x *NetworkMetrics) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[7]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1150,7 +1403,7 @@ func (x *NetworkMetrics) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NetworkMetrics.ProtoReflect.Descriptor instead.
 func (*NetworkMetrics) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{7}
+	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *NetworkMetrics) GetTcpStates() *TCPConnectionStates {
@@ -1274,7 +1527,7 @@ type NetworkInterface struct {
 
 func (x *NetworkInterface) Reset() {
 	*x = NetworkInterface{}
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[8]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1286,7 +1539,7 @@ func (x *NetworkInterface) String() string {
 func (*NetworkInterface) ProtoMessage() {}
 
 func (x *NetworkInterface) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[8]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1299,7 +1552,7 @@ func (x *NetworkInterface) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NetworkInterface.ProtoReflect.Descriptor instead.
 func (*NetworkInterface) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{8}
+	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *NetworkInterface) GetName() string {
@@ -1409,7 +1662,7 @@ type NetworkOwnership struct {
 
 func (x *NetworkOwnership) Reset() {
 	*x = NetworkOwnership{}
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[9]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1421,7 +1674,7 @@ func (x *NetworkOwnership) String() string {
 func (*NetworkOwnership) ProtoMessage() {}
 
 func (x *NetworkOwnership) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[9]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1434,7 +1687,7 @@ func (x *NetworkOwnership) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NetworkOwnership.ProtoReflect.Descriptor instead.
 func (*NetworkOwnership) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{9}
+	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *NetworkOwnership) GetOwners() []*NetworkOwner {
@@ -1498,7 +1751,7 @@ type NetworkOwner struct {
 
 func (x *NetworkOwner) Reset() {
 	*x = NetworkOwner{}
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[10]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1510,7 +1763,7 @@ func (x *NetworkOwner) String() string {
 func (*NetworkOwner) ProtoMessage() {}
 
 func (x *NetworkOwner) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[10]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1523,7 +1776,7 @@ func (x *NetworkOwner) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NetworkOwner.ProtoReflect.Descriptor instead.
 func (*NetworkOwner) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{10}
+	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *NetworkOwner) GetPid() int32 {
@@ -1570,7 +1823,7 @@ type NetworkEndpoint struct {
 
 func (x *NetworkEndpoint) Reset() {
 	*x = NetworkEndpoint{}
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[11]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1582,7 +1835,7 @@ func (x *NetworkEndpoint) String() string {
 func (*NetworkEndpoint) ProtoMessage() {}
 
 func (x *NetworkEndpoint) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[11]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1595,7 +1848,7 @@ func (x *NetworkEndpoint) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NetworkEndpoint.ProtoReflect.Descriptor instead.
 func (*NetworkEndpoint) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{11}
+	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *NetworkEndpoint) GetScope() string {
@@ -1653,7 +1906,7 @@ type NetworkCapabilities struct {
 
 func (x *NetworkCapabilities) Reset() {
 	*x = NetworkCapabilities{}
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[12]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1665,7 +1918,7 @@ func (x *NetworkCapabilities) String() string {
 func (*NetworkCapabilities) ProtoMessage() {}
 
 func (x *NetworkCapabilities) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[12]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1678,7 +1931,7 @@ func (x *NetworkCapabilities) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NetworkCapabilities.ProtoReflect.Descriptor instead.
 func (*NetworkCapabilities) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{12}
+	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *NetworkCapabilities) GetTcpStates() *MetricValue {
@@ -1727,7 +1980,7 @@ type NetworkVerdict struct {
 
 func (x *NetworkVerdict) Reset() {
 	*x = NetworkVerdict{}
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[13]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1739,7 +1992,7 @@ func (x *NetworkVerdict) String() string {
 func (*NetworkVerdict) ProtoMessage() {}
 
 func (x *NetworkVerdict) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[13]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1752,7 +2005,7 @@ func (x *NetworkVerdict) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NetworkVerdict.ProtoReflect.Descriptor instead.
 func (*NetworkVerdict) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{13}
+	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *NetworkVerdict) GetState() string {
@@ -1795,7 +2048,7 @@ type SystemHealth struct {
 
 func (x *SystemHealth) Reset() {
 	*x = SystemHealth{}
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[14]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1807,7 +2060,7 @@ func (x *SystemHealth) String() string {
 func (*SystemHealth) ProtoMessage() {}
 
 func (x *SystemHealth) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[14]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1820,7 +2073,7 @@ func (x *SystemHealth) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SystemHealth.ProtoReflect.Descriptor instead.
 func (*SystemHealth) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{14}
+	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *SystemHealth) GetFileDescriptors() *FileDescriptorInfo {
@@ -1877,7 +2130,7 @@ type GPUMetrics struct {
 
 func (x *GPUMetrics) Reset() {
 	*x = GPUMetrics{}
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[15]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1889,7 +2142,7 @@ func (x *GPUMetrics) String() string {
 func (*GPUMetrics) ProtoMessage() {}
 
 func (x *GPUMetrics) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[15]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1902,7 +2155,7 @@ func (x *GPUMetrics) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GPUMetrics.ProtoReflect.Descriptor instead.
 func (*GPUMetrics) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{15}
+	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *GPUMetrics) GetSummary() *GPUSummary {
@@ -1961,7 +2214,7 @@ type GPUSummary struct {
 
 func (x *GPUSummary) Reset() {
 	*x = GPUSummary{}
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[16]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1973,7 +2226,7 @@ func (x *GPUSummary) String() string {
 func (*GPUSummary) ProtoMessage() {}
 
 func (x *GPUSummary) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[16]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1986,7 +2239,7 @@ func (x *GPUSummary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GPUSummary.ProtoReflect.Descriptor instead.
 func (*GPUSummary) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{16}
+	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *GPUSummary) GetTotalUtilizationPercent() float64 {
@@ -2068,7 +2321,7 @@ type GPUDeviceMetrics struct {
 
 func (x *GPUDeviceMetrics) Reset() {
 	*x = GPUDeviceMetrics{}
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[17]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2080,7 +2333,7 @@ func (x *GPUDeviceMetrics) String() string {
 func (*GPUDeviceMetrics) ProtoMessage() {}
 
 func (x *GPUDeviceMetrics) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[17]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2093,7 +2346,7 @@ func (x *GPUDeviceMetrics) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GPUDeviceMetrics.ProtoReflect.Descriptor instead.
 func (*GPUDeviceMetrics) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{17}
+	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *GPUDeviceMetrics) GetIndex() int32 {
@@ -2213,7 +2466,7 @@ type GPUProcessInfo struct {
 
 func (x *GPUProcessInfo) Reset() {
 	*x = GPUProcessInfo{}
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[18]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2225,7 +2478,7 @@ func (x *GPUProcessInfo) String() string {
 func (*GPUProcessInfo) ProtoMessage() {}
 
 func (x *GPUProcessInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[18]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2238,7 +2491,7 @@ func (x *GPUProcessInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GPUProcessInfo.ProtoReflect.Descriptor instead.
 func (*GPUProcessInfo) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{18}
+	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *GPUProcessInfo) GetPid() int32 {
@@ -2307,7 +2560,7 @@ type ProcessInfo struct {
 
 func (x *ProcessInfo) Reset() {
 	*x = ProcessInfo{}
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[19]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2319,7 +2572,7 @@ func (x *ProcessInfo) String() string {
 func (*ProcessInfo) ProtoMessage() {}
 
 func (x *ProcessInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[19]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2332,7 +2585,7 @@ func (x *ProcessInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProcessInfo.ProtoReflect.Descriptor instead.
 func (*ProcessInfo) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{19}
+	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *ProcessInfo) GetPid() int32 {
@@ -2439,7 +2692,7 @@ type PagingMetrics struct {
 
 func (x *PagingMetrics) Reset() {
 	*x = PagingMetrics{}
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[20]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2451,7 +2704,7 @@ func (x *PagingMetrics) String() string {
 func (*PagingMetrics) ProtoMessage() {}
 
 func (x *PagingMetrics) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[20]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2464,7 +2717,7 @@ func (x *PagingMetrics) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PagingMetrics.ProtoReflect.Descriptor instead.
 func (*PagingMetrics) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{20}
+	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *PagingMetrics) GetSwapInPerSecond() *MetricValue {
@@ -2515,7 +2768,7 @@ type FragmentationMetrics struct {
 
 func (x *FragmentationMetrics) Reset() {
 	*x = FragmentationMetrics{}
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[21]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2527,7 +2780,7 @@ func (x *FragmentationMetrics) String() string {
 func (*FragmentationMetrics) ProtoMessage() {}
 
 func (x *FragmentationMetrics) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[21]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2540,7 +2793,7 @@ func (x *FragmentationMetrics) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FragmentationMetrics.ProtoReflect.Descriptor instead.
 func (*FragmentationMetrics) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{21}
+	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *FragmentationMetrics) GetMaxFreeOrder() *MetricValue {
@@ -2598,7 +2851,7 @@ type TCPConnectionStates struct {
 
 func (x *TCPConnectionStates) Reset() {
 	*x = TCPConnectionStates{}
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[22]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2610,7 +2863,7 @@ func (x *TCPConnectionStates) String() string {
 func (*TCPConnectionStates) ProtoMessage() {}
 
 func (x *TCPConnectionStates) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[22]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2623,7 +2876,7 @@ func (x *TCPConnectionStates) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TCPConnectionStates.ProtoReflect.Descriptor instead.
 func (*TCPConnectionStates) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{22}
+	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *TCPConnectionStates) GetEstablished() int32 {
@@ -2726,7 +2979,7 @@ type ConnectionPool struct {
 
 func (x *ConnectionPool) Reset() {
 	*x = ConnectionPool{}
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[23]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2738,7 +2991,7 @@ func (x *ConnectionPool) String() string {
 func (*ConnectionPool) ProtoMessage() {}
 
 func (x *ConnectionPool) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[23]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2751,7 +3004,7 @@ func (x *ConnectionPool) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConnectionPool.ProtoReflect.Descriptor instead.
 func (*ConnectionPool) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{23}
+	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *ConnectionPool) GetName() string {
@@ -2822,7 +3075,7 @@ type NetworkStatistics struct {
 
 func (x *NetworkStatistics) Reset() {
 	*x = NetworkStatistics{}
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[24]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2834,7 +3087,7 @@ func (x *NetworkStatistics) String() string {
 func (*NetworkStatistics) ProtoMessage() {}
 
 func (x *NetworkStatistics) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[24]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2847,7 +3100,7 @@ func (x *NetworkStatistics) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NetworkStatistics.ProtoReflect.Descriptor instead.
 func (*NetworkStatistics) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{24}
+	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *NetworkStatistics) GetBandwidthInMbps() float64 {
@@ -2904,7 +3157,7 @@ type ServiceHealth struct {
 
 func (x *ServiceHealth) Reset() {
 	*x = ServiceHealth{}
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[25]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2916,7 +3169,7 @@ func (x *ServiceHealth) String() string {
 func (*ServiceHealth) ProtoMessage() {}
 
 func (x *ServiceHealth) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[25]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2929,7 +3182,7 @@ func (x *ServiceHealth) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServiceHealth.ProtoReflect.Descriptor instead.
 func (*ServiceHealth) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{25}
+	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *ServiceHealth) GetName() string {
@@ -2982,7 +3235,7 @@ type CertificateInfo struct {
 
 func (x *CertificateInfo) Reset() {
 	*x = CertificateInfo{}
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[26]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2994,7 +3247,7 @@ func (x *CertificateInfo) String() string {
 func (*CertificateInfo) ProtoMessage() {}
 
 func (x *CertificateInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[26]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3007,7 +3260,7 @@ func (x *CertificateInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CertificateInfo.ProtoReflect.Descriptor instead.
 func (*CertificateInfo) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{26}
+	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *CertificateInfo) GetDomain() string {
@@ -3046,7 +3299,7 @@ type SwapInfo struct {
 
 func (x *SwapInfo) Reset() {
 	*x = SwapInfo{}
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[27]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3058,7 +3311,7 @@ func (x *SwapInfo) String() string {
 func (*SwapInfo) ProtoMessage() {}
 
 func (x *SwapInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[27]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3071,7 +3324,7 @@ func (x *SwapInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SwapInfo.ProtoReflect.Descriptor instead.
 func (*SwapInfo) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{27}
+	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *SwapInfo) GetUsed() int64 {
@@ -3110,7 +3363,7 @@ type DiskInfo struct {
 
 func (x *DiskInfo) Reset() {
 	*x = DiskInfo{}
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[28]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3122,7 +3375,7 @@ func (x *DiskInfo) String() string {
 func (*DiskInfo) ProtoMessage() {}
 
 func (x *DiskInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[28]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3135,7 +3388,7 @@ func (x *DiskInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiskInfo.ProtoReflect.Descriptor instead.
 func (*DiskInfo) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{28}
+	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *DiskInfo) GetUsed() int64 {
@@ -3177,7 +3430,7 @@ type DiskPartitionInfo struct {
 
 func (x *DiskPartitionInfo) Reset() {
 	*x = DiskPartitionInfo{}
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[29]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3189,7 +3442,7 @@ func (x *DiskPartitionInfo) String() string {
 func (*DiskPartitionInfo) ProtoMessage() {}
 
 func (x *DiskPartitionInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[29]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3202,7 +3455,7 @@ func (x *DiskPartitionInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiskPartitionInfo.ProtoReflect.Descriptor instead.
 func (*DiskPartitionInfo) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{29}
+	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *DiskPartitionInfo) GetDevice() string {
@@ -3281,7 +3534,7 @@ type DiskUsageEntry struct {
 
 func (x *DiskUsageEntry) Reset() {
 	*x = DiskUsageEntry{}
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[30]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3293,7 +3546,7 @@ func (x *DiskUsageEntry) String() string {
 func (*DiskUsageEntry) ProtoMessage() {}
 
 func (x *DiskUsageEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[30]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3306,7 +3559,7 @@ func (x *DiskUsageEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiskUsageEntry.ProtoReflect.Descriptor instead.
 func (*DiskUsageEntry) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{30}
+	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *DiskUsageEntry) GetPath() string {
@@ -3353,7 +3606,7 @@ type DiskDetailResponse struct {
 
 func (x *DiskDetailResponse) Reset() {
 	*x = DiskDetailResponse{}
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[31]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3365,7 +3618,7 @@ func (x *DiskDetailResponse) String() string {
 func (*DiskDetailResponse) ProtoMessage() {}
 
 func (x *DiskDetailResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[31]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3378,7 +3631,7 @@ func (x *DiskDetailResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiskDetailResponse.ProtoReflect.Descriptor instead.
 func (*DiskDetailResponse) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{31}
+	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *DiskDetailResponse) GetPartitions() []*DiskPartitionInfo {
@@ -3443,7 +3696,7 @@ type PortUsageInfo struct {
 
 func (x *PortUsageInfo) Reset() {
 	*x = PortUsageInfo{}
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[32]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3455,7 +3708,7 @@ func (x *PortUsageInfo) String() string {
 func (*PortUsageInfo) ProtoMessage() {}
 
 func (x *PortUsageInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[32]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3468,7 +3721,7 @@ func (x *PortUsageInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PortUsageInfo.ProtoReflect.Descriptor instead.
 func (*PortUsageInfo) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{32}
+	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *PortUsageInfo) GetUsed() int32 {
@@ -3500,7 +3753,7 @@ type FileDescriptorInfo struct {
 
 func (x *FileDescriptorInfo) Reset() {
 	*x = FileDescriptorInfo{}
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[33]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3512,7 +3765,7 @@ func (x *FileDescriptorInfo) String() string {
 func (*FileDescriptorInfo) ProtoMessage() {}
 
 func (x *FileDescriptorInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[33]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3525,7 +3778,7 @@ func (x *FileDescriptorInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FileDescriptorInfo.ProtoReflect.Descriptor instead.
 func (*FileDescriptorInfo) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{33}
+	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *FileDescriptorInfo) GetUsed() int32 {
@@ -3565,7 +3818,7 @@ type InotifyWatcherInfo struct {
 
 func (x *InotifyWatcherInfo) Reset() {
 	*x = InotifyWatcherInfo{}
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[34]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3577,7 +3830,7 @@ func (x *InotifyWatcherInfo) String() string {
 func (*InotifyWatcherInfo) ProtoMessage() {}
 
 func (x *InotifyWatcherInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[34]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3590,7 +3843,7 @@ func (x *InotifyWatcherInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InotifyWatcherInfo.ProtoReflect.Descriptor instead.
 func (*InotifyWatcherInfo) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{34}
+	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *InotifyWatcherInfo) GetSupported() bool {
@@ -3657,7 +3910,7 @@ type ProcessMonitorData struct {
 
 func (x *ProcessMonitorData) Reset() {
 	*x = ProcessMonitorData{}
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[35]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3669,7 +3922,7 @@ func (x *ProcessMonitorData) String() string {
 func (*ProcessMonitorData) ProtoMessage() {}
 
 func (x *ProcessMonitorData) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[35]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3682,7 +3935,7 @@ func (x *ProcessMonitorData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProcessMonitorData.ProtoReflect.Descriptor instead.
 func (*ProcessMonitorData) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{35}
+	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *ProcessMonitorData) GetProcessHealth() *ProcessHealthInfo {
@@ -3738,7 +3991,7 @@ type ProcessTimelineEntry struct {
 
 func (x *ProcessTimelineEntry) Reset() {
 	*x = ProcessTimelineEntry{}
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[36]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3750,7 +4003,7 @@ func (x *ProcessTimelineEntry) String() string {
 func (*ProcessTimelineEntry) ProtoMessage() {}
 
 func (x *ProcessTimelineEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[36]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3763,7 +4016,7 @@ func (x *ProcessTimelineEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProcessTimelineEntry.ProtoReflect.Descriptor instead.
 func (*ProcessTimelineEntry) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{36}
+	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *ProcessTimelineEntry) GetOwner() string {
@@ -3865,7 +4118,7 @@ type ProcessTimelineResponse struct {
 
 func (x *ProcessTimelineResponse) Reset() {
 	*x = ProcessTimelineResponse{}
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[37]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3877,7 +4130,7 @@ func (x *ProcessTimelineResponse) String() string {
 func (*ProcessTimelineResponse) ProtoMessage() {}
 
 func (x *ProcessTimelineResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[37]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3890,7 +4143,7 @@ func (x *ProcessTimelineResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProcessTimelineResponse.ProtoReflect.Descriptor instead.
 func (*ProcessTimelineResponse) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{37}
+	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *ProcessTimelineResponse) GetWindowSeconds() int32 {
@@ -3959,7 +4212,7 @@ type ProcessHealthInfo struct {
 
 func (x *ProcessHealthInfo) Reset() {
 	*x = ProcessHealthInfo{}
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[38]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3971,7 +4224,7 @@ func (x *ProcessHealthInfo) String() string {
 func (*ProcessHealthInfo) ProtoMessage() {}
 
 func (x *ProcessHealthInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[38]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3984,7 +4237,7 @@ func (x *ProcessHealthInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProcessHealthInfo.ProtoReflect.Descriptor instead.
 func (*ProcessHealthInfo) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{38}
+	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *ProcessHealthInfo) GetTotalProcesses() int32 {
@@ -4034,7 +4287,7 @@ type InfrastructureMonitorData struct {
 
 func (x *InfrastructureMonitorData) Reset() {
 	*x = InfrastructureMonitorData{}
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[39]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4046,7 +4299,7 @@ func (x *InfrastructureMonitorData) String() string {
 func (*InfrastructureMonitorData) ProtoMessage() {}
 
 func (x *InfrastructureMonitorData) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[39]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4059,7 +4312,7 @@ func (x *InfrastructureMonitorData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InfrastructureMonitorData.ProtoReflect.Descriptor instead.
 func (*InfrastructureMonitorData) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{39}
+	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *InfrastructureMonitorData) GetDatabasePools() []*ConnectionPool {
@@ -4110,7 +4363,7 @@ type MessageQueueInfo struct {
 
 func (x *MessageQueueInfo) Reset() {
 	*x = MessageQueueInfo{}
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[40]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4122,7 +4375,7 @@ func (x *MessageQueueInfo) String() string {
 func (*MessageQueueInfo) ProtoMessage() {}
 
 func (x *MessageQueueInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[40]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4135,7 +4388,7 @@ func (x *MessageQueueInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MessageQueueInfo.ProtoReflect.Descriptor instead.
 func (*MessageQueueInfo) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{40}
+	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *MessageQueueInfo) GetRedisPubsub() *RedisPubSubInfo {
@@ -4163,7 +4416,7 @@ type RedisPubSubInfo struct {
 
 func (x *RedisPubSubInfo) Reset() {
 	*x = RedisPubSubInfo{}
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[41]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4175,7 +4428,7 @@ func (x *RedisPubSubInfo) String() string {
 func (*RedisPubSubInfo) ProtoMessage() {}
 
 func (x *RedisPubSubInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[41]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4188,7 +4441,7 @@ func (x *RedisPubSubInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RedisPubSubInfo.ProtoReflect.Descriptor instead.
 func (*RedisPubSubInfo) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{41}
+	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *RedisPubSubInfo) GetSubscribers() int32 {
@@ -4217,7 +4470,7 @@ type BackgroundJobsInfo struct {
 
 func (x *BackgroundJobsInfo) Reset() {
 	*x = BackgroundJobsInfo{}
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[42]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4229,7 +4482,7 @@ func (x *BackgroundJobsInfo) String() string {
 func (*BackgroundJobsInfo) ProtoMessage() {}
 
 func (x *BackgroundJobsInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[42]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4242,7 +4495,7 @@ func (x *BackgroundJobsInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BackgroundJobsInfo.ProtoReflect.Descriptor instead.
 func (*BackgroundJobsInfo) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{42}
+	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *BackgroundJobsInfo) GetPending() int32 {
@@ -4279,7 +4532,7 @@ type StorageIOInfo struct {
 
 func (x *StorageIOInfo) Reset() {
 	*x = StorageIOInfo{}
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[43]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4291,7 +4544,7 @@ func (x *StorageIOInfo) String() string {
 func (*StorageIOInfo) ProtoMessage() {}
 
 func (x *StorageIOInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[43]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4304,7 +4557,7 @@ func (x *StorageIOInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StorageIOInfo.ProtoReflect.Descriptor instead.
 func (*StorageIOInfo) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{43}
+	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *StorageIOInfo) GetDiskQueueDepth() float64 {
@@ -4346,7 +4599,7 @@ type GetCurrentMetricsRequest struct {
 
 func (x *GetCurrentMetricsRequest) Reset() {
 	*x = GetCurrentMetricsRequest{}
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[44]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4358,7 +4611,7 @@ func (x *GetCurrentMetricsRequest) String() string {
 func (*GetCurrentMetricsRequest) ProtoMessage() {}
 
 func (x *GetCurrentMetricsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[44]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4371,7 +4624,7 @@ func (x *GetCurrentMetricsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCurrentMetricsRequest.ProtoReflect.Descriptor instead.
 func (*GetCurrentMetricsRequest) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{44}
+	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *GetCurrentMetricsRequest) GetFresh() bool {
@@ -4392,7 +4645,7 @@ type GetCurrentMetricsResponse struct {
 
 func (x *GetCurrentMetricsResponse) Reset() {
 	*x = GetCurrentMetricsResponse{}
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[45]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4404,7 +4657,7 @@ func (x *GetCurrentMetricsResponse) String() string {
 func (*GetCurrentMetricsResponse) ProtoMessage() {}
 
 func (x *GetCurrentMetricsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[45]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4417,7 +4670,7 @@ func (x *GetCurrentMetricsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCurrentMetricsResponse.ProtoReflect.Descriptor instead.
 func (*GetCurrentMetricsResponse) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{45}
+	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *GetCurrentMetricsResponse) GetMetrics() *MetricsResponse {
@@ -4436,7 +4689,7 @@ type GetDetailedMetricsRequest struct {
 
 func (x *GetDetailedMetricsRequest) Reset() {
 	*x = GetDetailedMetricsRequest{}
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[46]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4448,7 +4701,7 @@ func (x *GetDetailedMetricsRequest) String() string {
 func (*GetDetailedMetricsRequest) ProtoMessage() {}
 
 func (x *GetDetailedMetricsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[46]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4461,7 +4714,7 @@ func (x *GetDetailedMetricsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDetailedMetricsRequest.ProtoReflect.Descriptor instead.
 func (*GetDetailedMetricsRequest) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{46}
+	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{48}
 }
 
 // GetDetailedMetricsResponse returns comprehensive system metrics.
@@ -4475,7 +4728,7 @@ type GetDetailedMetricsResponse struct {
 
 func (x *GetDetailedMetricsResponse) Reset() {
 	*x = GetDetailedMetricsResponse{}
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[47]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4487,7 +4740,7 @@ func (x *GetDetailedMetricsResponse) String() string {
 func (*GetDetailedMetricsResponse) ProtoMessage() {}
 
 func (x *GetDetailedMetricsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[47]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4500,7 +4753,7 @@ func (x *GetDetailedMetricsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDetailedMetricsResponse.ProtoReflect.Descriptor instead.
 func (*GetDetailedMetricsResponse) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{47}
+	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *GetDetailedMetricsResponse) GetMetrics() *DetailedMetrics {
@@ -4522,7 +4775,7 @@ type GetNetworkDiagnosticRequest struct {
 
 func (x *GetNetworkDiagnosticRequest) Reset() {
 	*x = GetNetworkDiagnosticRequest{}
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[48]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4534,7 +4787,7 @@ func (x *GetNetworkDiagnosticRequest) String() string {
 func (*GetNetworkDiagnosticRequest) ProtoMessage() {}
 
 func (x *GetNetworkDiagnosticRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[48]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4547,7 +4800,7 @@ func (x *GetNetworkDiagnosticRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetNetworkDiagnosticRequest.ProtoReflect.Descriptor instead.
 func (*GetNetworkDiagnosticRequest) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{48}
+	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{50}
 }
 
 func (x *GetNetworkDiagnosticRequest) GetTopN() int32 {
@@ -4580,7 +4833,7 @@ type GetNetworkDiagnosticResponse struct {
 
 func (x *GetNetworkDiagnosticResponse) Reset() {
 	*x = GetNetworkDiagnosticResponse{}
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[49]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4592,7 +4845,7 @@ func (x *GetNetworkDiagnosticResponse) String() string {
 func (*GetNetworkDiagnosticResponse) ProtoMessage() {}
 
 func (x *GetNetworkDiagnosticResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[49]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4605,7 +4858,7 @@ func (x *GetNetworkDiagnosticResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetNetworkDiagnosticResponse.ProtoReflect.Descriptor instead.
 func (*GetNetworkDiagnosticResponse) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{49}
+	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{51}
 }
 
 func (x *GetNetworkDiagnosticResponse) GetSnapshot() *NetworkDiagnosticSnapshot {
@@ -4629,7 +4882,7 @@ type NetworkDiagnosticSnapshot struct {
 
 func (x *NetworkDiagnosticSnapshot) Reset() {
 	*x = NetworkDiagnosticSnapshot{}
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[50]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[52]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4641,7 +4894,7 @@ func (x *NetworkDiagnosticSnapshot) String() string {
 func (*NetworkDiagnosticSnapshot) ProtoMessage() {}
 
 func (x *NetworkDiagnosticSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[50]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[52]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4654,7 +4907,7 @@ func (x *NetworkDiagnosticSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NetworkDiagnosticSnapshot.ProtoReflect.Descriptor instead.
 func (*NetworkDiagnosticSnapshot) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{50}
+	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{52}
 }
 
 func (x *NetworkDiagnosticSnapshot) GetOwnership() *NetworkOwnership {
@@ -4708,7 +4961,7 @@ type GetProcessMonitorRequest struct {
 
 func (x *GetProcessMonitorRequest) Reset() {
 	*x = GetProcessMonitorRequest{}
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[51]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[53]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4720,7 +4973,7 @@ func (x *GetProcessMonitorRequest) String() string {
 func (*GetProcessMonitorRequest) ProtoMessage() {}
 
 func (x *GetProcessMonitorRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[51]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[53]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4733,7 +4986,7 @@ func (x *GetProcessMonitorRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetProcessMonitorRequest.ProtoReflect.Descriptor instead.
 func (*GetProcessMonitorRequest) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{51}
+	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{53}
 }
 
 // GetProcessMonitorResponse returns process monitoring data.
@@ -4747,7 +5000,7 @@ type GetProcessMonitorResponse struct {
 
 func (x *GetProcessMonitorResponse) Reset() {
 	*x = GetProcessMonitorResponse{}
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[52]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[54]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4759,7 +5012,7 @@ func (x *GetProcessMonitorResponse) String() string {
 func (*GetProcessMonitorResponse) ProtoMessage() {}
 
 func (x *GetProcessMonitorResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[52]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[54]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4772,7 +5025,7 @@ func (x *GetProcessMonitorResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetProcessMonitorResponse.ProtoReflect.Descriptor instead.
 func (*GetProcessMonitorResponse) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{52}
+	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{54}
 }
 
 func (x *GetProcessMonitorResponse) GetData() *ProcessMonitorData {
@@ -4799,7 +5052,7 @@ type GetProcessTimelineRequest struct {
 
 func (x *GetProcessTimelineRequest) Reset() {
 	*x = GetProcessTimelineRequest{}
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[53]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[55]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4811,7 +5064,7 @@ func (x *GetProcessTimelineRequest) String() string {
 func (*GetProcessTimelineRequest) ProtoMessage() {}
 
 func (x *GetProcessTimelineRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[53]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[55]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4824,7 +5077,7 @@ func (x *GetProcessTimelineRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetProcessTimelineRequest.ProtoReflect.Descriptor instead.
 func (*GetProcessTimelineRequest) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{53}
+	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{55}
 }
 
 func (x *GetProcessTimelineRequest) GetWindowSeconds() int32 {
@@ -4866,7 +5119,7 @@ type GetProcessTimelineResponse struct {
 
 func (x *GetProcessTimelineResponse) Reset() {
 	*x = GetProcessTimelineResponse{}
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[54]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[56]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4878,7 +5131,7 @@ func (x *GetProcessTimelineResponse) String() string {
 func (*GetProcessTimelineResponse) ProtoMessage() {}
 
 func (x *GetProcessTimelineResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[54]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[56]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4891,7 +5144,7 @@ func (x *GetProcessTimelineResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetProcessTimelineResponse.ProtoReflect.Descriptor instead.
 func (*GetProcessTimelineResponse) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{54}
+	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{56}
 }
 
 func (x *GetProcessTimelineResponse) GetTimeline() *ProcessTimelineResponse {
@@ -4910,7 +5163,7 @@ type GetInfrastructureMonitorRequest struct {
 
 func (x *GetInfrastructureMonitorRequest) Reset() {
 	*x = GetInfrastructureMonitorRequest{}
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[55]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[57]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4922,7 +5175,7 @@ func (x *GetInfrastructureMonitorRequest) String() string {
 func (*GetInfrastructureMonitorRequest) ProtoMessage() {}
 
 func (x *GetInfrastructureMonitorRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[55]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[57]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4935,7 +5188,7 @@ func (x *GetInfrastructureMonitorRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetInfrastructureMonitorRequest.ProtoReflect.Descriptor instead.
 func (*GetInfrastructureMonitorRequest) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{55}
+	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{57}
 }
 
 // GetInfrastructureMonitorResponse returns infrastructure monitoring data.
@@ -4949,7 +5202,7 @@ type GetInfrastructureMonitorResponse struct {
 
 func (x *GetInfrastructureMonitorResponse) Reset() {
 	*x = GetInfrastructureMonitorResponse{}
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[56]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[58]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4961,7 +5214,7 @@ func (x *GetInfrastructureMonitorResponse) String() string {
 func (*GetInfrastructureMonitorResponse) ProtoMessage() {}
 
 func (x *GetInfrastructureMonitorResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[56]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[58]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4974,7 +5227,7 @@ func (x *GetInfrastructureMonitorResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetInfrastructureMonitorResponse.ProtoReflect.Descriptor instead.
 func (*GetInfrastructureMonitorResponse) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{56}
+	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{58}
 }
 
 func (x *GetInfrastructureMonitorResponse) GetData() *InfrastructureMonitorData {
@@ -4997,7 +5250,7 @@ type GetMetricsTimelineRequest struct {
 
 func (x *GetMetricsTimelineRequest) Reset() {
 	*x = GetMetricsTimelineRequest{}
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[57]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[59]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5009,7 +5262,7 @@ func (x *GetMetricsTimelineRequest) String() string {
 func (*GetMetricsTimelineRequest) ProtoMessage() {}
 
 func (x *GetMetricsTimelineRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[57]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[59]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5022,7 +5275,7 @@ func (x *GetMetricsTimelineRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetMetricsTimelineRequest.ProtoReflect.Descriptor instead.
 func (*GetMetricsTimelineRequest) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{57}
+	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{59}
 }
 
 func (x *GetMetricsTimelineRequest) GetWindowSeconds() int32 {
@@ -5050,7 +5303,7 @@ type GetMetricsTimelineResponse struct {
 
 func (x *GetMetricsTimelineResponse) Reset() {
 	*x = GetMetricsTimelineResponse{}
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[58]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[60]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5062,7 +5315,7 @@ func (x *GetMetricsTimelineResponse) String() string {
 func (*GetMetricsTimelineResponse) ProtoMessage() {}
 
 func (x *GetMetricsTimelineResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[58]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[60]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5075,7 +5328,7 @@ func (x *GetMetricsTimelineResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetMetricsTimelineResponse.ProtoReflect.Descriptor instead.
 func (*GetMetricsTimelineResponse) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{58}
+	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{60}
 }
 
 func (x *GetMetricsTimelineResponse) GetTimeline() *MetricsTimelineResponse {
@@ -5094,7 +5347,7 @@ type GetDiskDetailRequest struct {
 
 func (x *GetDiskDetailRequest) Reset() {
 	*x = GetDiskDetailRequest{}
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[59]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[61]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5106,7 +5359,7 @@ func (x *GetDiskDetailRequest) String() string {
 func (*GetDiskDetailRequest) ProtoMessage() {}
 
 func (x *GetDiskDetailRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[59]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[61]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5119,7 +5372,7 @@ func (x *GetDiskDetailRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDiskDetailRequest.ProtoReflect.Descriptor instead.
 func (*GetDiskDetailRequest) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{59}
+	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{61}
 }
 
 // GetDiskDetailResponse returns disk usage details.
@@ -5133,7 +5386,7 @@ type GetDiskDetailResponse struct {
 
 func (x *GetDiskDetailResponse) Reset() {
 	*x = GetDiskDetailResponse{}
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[60]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[62]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5145,7 +5398,7 @@ func (x *GetDiskDetailResponse) String() string {
 func (*GetDiskDetailResponse) ProtoMessage() {}
 
 func (x *GetDiskDetailResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[60]
+	mi := &file_system_monitor_v1_metrics_metrics_proto_msgTypes[62]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5158,7 +5411,7 @@ func (x *GetDiskDetailResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDiskDetailResponse.ProtoReflect.Descriptor instead.
 func (*GetDiskDetailResponse) Descriptor() ([]byte, []int) {
-	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{60}
+	return file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP(), []int{62}
 }
 
 func (x *GetDiskDetailResponse) GetData() *DiskDetailResponse {
@@ -5286,7 +5539,7 @@ const file_system_monitor_v1_metrics_metrics_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\v2-.vrooli.system_monitor.v1.metrics.MetricValueR\x05value:\x028\x01\x1at\n" +
 	"\x17PerCoreUtilizationEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12C\n" +
-	"\x05value\x18\x02 \x01(\v2-.vrooli.system_monitor.v1.metrics.MetricValueR\x05value:\x028\x01J\x04\b\x04\x10\x05J\x04\b\x05\x10\x06R\x10context_switchesR\x10total_goroutines\"\xae\x04\n" +
+	"\x05value\x18\x02 \x01(\v2-.vrooli.system_monitor.v1.metrics.MetricValueR\x05value:\x028\x01J\x04\b\x04\x10\x05J\x04\b\x05\x10\x06R\x10context_switchesR\x10total_goroutines\"\x90\x05\n" +
 	"\rMemoryMetrics\x12\x14\n" +
 	"\x05usage\x18\x01 \x01(\x01R\x05usage\x12R\n" +
 	"\rtop_processes\x18\x02 \x03(\v2-.vrooli.system_monitor.v1.metrics.ProcessInfoR\ftopProcesses\x12I\n" +
@@ -5296,7 +5549,33 @@ const file_system_monitor_v1_metrics_metrics_proto_rawDesc = "" +
 	"disk_usage\x18\x05 \x01(\v2*.vrooli.system_monitor.v1.metrics.DiskInfoR\tdiskUsage\x12G\n" +
 	"\x06paging\x18\x06 \x01(\v2/.vrooli.system_monitor.v1.metrics.PagingMetricsR\x06paging\x12\\\n" +
 	"\rfragmentation\x18\a \x01(\v26.vrooli.system_monitor.v1.metrics.FragmentationMetricsR\rfragmentation\x12_\n" +
-	"\x14top_paging_processes\x18\b \x03(\v2-.vrooli.system_monitor.v1.metrics.ProcessInfoR\x12topPagingProcessesJ\x04\b\x03\x10\x04R\x0fgrowth_patterns\"\xdf\t\n" +
+	"\x14top_paging_processes\x18\b \x03(\v2-.vrooli.system_monitor.v1.metrics.ProcessInfoR\x12topPagingProcesses\x12`\n" +
+	"\x0fmemory_pressure\x18\t \x01(\v27.vrooli.system_monitor.v1.metrics.MemoryPressureReadingR\x0ememoryPressureJ\x04\b\x03\x10\x04R\x0fgrowth_patterns\"\xda\x04\n" +
+	"\x15MemoryPressureReading\x12\x14\n" +
+	"\x05level\x18\x01 \x01(\tR\x05level\x12!\n" +
+	"\flevel_source\x18\x02 \x01(\tR\vlevelSource\x12!\n" +
+	"\flevel_reason\x18\x03 \x01(\tR\vlevelReason\x12^\n" +
+	"\asignals\x18\x04 \x03(\v2D.vrooli.system_monitor.v1.metrics.MemoryPressureReading.SignalsEntryR\asignals\x12_\n" +
+	"\fcontributors\x18\x05 \x03(\v2;.vrooli.system_monitor.v1.metrics.MemoryPressureContributorR\fcontributors\x12/\n" +
+	"\x13contributors_status\x18\x06 \x01(\tR\x12contributorsStatus\x12/\n" +
+	"\x13contributors_reason\x18\a \x01(\tR\x12contributorsReason\x12;\n" +
+	"\vobserved_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"observedAt\x12\x1a\n" +
+	"\bplatform\x18\t \x01(\tR\bplatform\x1ai\n" +
+	"\fSignalsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12C\n" +
+	"\x05value\x18\x02 \x01(\v2-.vrooli.system_monitor.v1.metrics.MetricValueR\x05value:\x028\x01\"\xa7\x02\n" +
+	"\x19MemoryPressureContributor\x12\x10\n" +
+	"\x03pid\x18\x01 \x01(\x05R\x03pid\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x14\n" +
+	"\x05owner\x18\x03 \x01(\tR\x05owner\x125\n" +
+	"\x17major_faults_per_second\x18\x04 \x01(\x01R\x14majorFaultsPerSecond\x12!\n" +
+	"\ffault_status\x18\x05 \x01(\tR\vfaultStatus\x12#\n" +
+	"\rfault_counter\x18\x06 \x01(\tR\ffaultCounter\x12\x17\n" +
+	"\aswap_kb\x18\a \x01(\x03R\x06swapKb\x12\x1f\n" +
+	"\vswap_status\x18\b \x01(\tR\n" +
+	"swapStatus\x12\x15\n" +
+	"\x06rss_kb\x18\t \x01(\x03R\x05rssKb\"\xdf\t\n" +
 	"\x0eNetworkMetrics\x12T\n" +
 	"\n" +
 	"tcp_states\x18\x01 \x01(\v25.vrooli.system_monitor.v1.metrics.TCPConnectionStatesR\ttcpStates\x12N\n" +
@@ -5679,7 +5958,7 @@ func file_system_monitor_v1_metrics_metrics_proto_rawDescGZIP() []byte {
 	return file_system_monitor_v1_metrics_metrics_proto_rawDescData
 }
 
-var file_system_monitor_v1_metrics_metrics_proto_msgTypes = make([]protoimpl.MessageInfo, 65)
+var file_system_monitor_v1_metrics_metrics_proto_msgTypes = make([]protoimpl.MessageInfo, 68)
 var file_system_monitor_v1_metrics_metrics_proto_goTypes = []any{
 	(*MetricsResponse)(nil),                  // 0: vrooli.system_monitor.v1.metrics.MetricsResponse
 	(*MetricValue)(nil),                      // 1: vrooli.system_monitor.v1.metrics.MetricValue
@@ -5688,68 +5967,71 @@ var file_system_monitor_v1_metrics_metrics_proto_goTypes = []any{
 	(*DetailedMetrics)(nil),                  // 4: vrooli.system_monitor.v1.metrics.DetailedMetrics
 	(*CPUMetrics)(nil),                       // 5: vrooli.system_monitor.v1.metrics.CPUMetrics
 	(*MemoryMetrics)(nil),                    // 6: vrooli.system_monitor.v1.metrics.MemoryMetrics
-	(*NetworkMetrics)(nil),                   // 7: vrooli.system_monitor.v1.metrics.NetworkMetrics
-	(*NetworkInterface)(nil),                 // 8: vrooli.system_monitor.v1.metrics.NetworkInterface
-	(*NetworkOwnership)(nil),                 // 9: vrooli.system_monitor.v1.metrics.NetworkOwnership
-	(*NetworkOwner)(nil),                     // 10: vrooli.system_monitor.v1.metrics.NetworkOwner
-	(*NetworkEndpoint)(nil),                  // 11: vrooli.system_monitor.v1.metrics.NetworkEndpoint
-	(*NetworkCapabilities)(nil),              // 12: vrooli.system_monitor.v1.metrics.NetworkCapabilities
-	(*NetworkVerdict)(nil),                   // 13: vrooli.system_monitor.v1.metrics.NetworkVerdict
-	(*SystemHealth)(nil),                     // 14: vrooli.system_monitor.v1.metrics.SystemHealth
-	(*GPUMetrics)(nil),                       // 15: vrooli.system_monitor.v1.metrics.GPUMetrics
-	(*GPUSummary)(nil),                       // 16: vrooli.system_monitor.v1.metrics.GPUSummary
-	(*GPUDeviceMetrics)(nil),                 // 17: vrooli.system_monitor.v1.metrics.GPUDeviceMetrics
-	(*GPUProcessInfo)(nil),                   // 18: vrooli.system_monitor.v1.metrics.GPUProcessInfo
-	(*ProcessInfo)(nil),                      // 19: vrooli.system_monitor.v1.metrics.ProcessInfo
-	(*PagingMetrics)(nil),                    // 20: vrooli.system_monitor.v1.metrics.PagingMetrics
-	(*FragmentationMetrics)(nil),             // 21: vrooli.system_monitor.v1.metrics.FragmentationMetrics
-	(*TCPConnectionStates)(nil),              // 22: vrooli.system_monitor.v1.metrics.TCPConnectionStates
-	(*ConnectionPool)(nil),                   // 23: vrooli.system_monitor.v1.metrics.ConnectionPool
-	(*NetworkStatistics)(nil),                // 24: vrooli.system_monitor.v1.metrics.NetworkStatistics
-	(*ServiceHealth)(nil),                    // 25: vrooli.system_monitor.v1.metrics.ServiceHealth
-	(*CertificateInfo)(nil),                  // 26: vrooli.system_monitor.v1.metrics.CertificateInfo
-	(*SwapInfo)(nil),                         // 27: vrooli.system_monitor.v1.metrics.SwapInfo
-	(*DiskInfo)(nil),                         // 28: vrooli.system_monitor.v1.metrics.DiskInfo
-	(*DiskPartitionInfo)(nil),                // 29: vrooli.system_monitor.v1.metrics.DiskPartitionInfo
-	(*DiskUsageEntry)(nil),                   // 30: vrooli.system_monitor.v1.metrics.DiskUsageEntry
-	(*DiskDetailResponse)(nil),               // 31: vrooli.system_monitor.v1.metrics.DiskDetailResponse
-	(*PortUsageInfo)(nil),                    // 32: vrooli.system_monitor.v1.metrics.PortUsageInfo
-	(*FileDescriptorInfo)(nil),               // 33: vrooli.system_monitor.v1.metrics.FileDescriptorInfo
-	(*InotifyWatcherInfo)(nil),               // 34: vrooli.system_monitor.v1.metrics.InotifyWatcherInfo
-	(*ProcessMonitorData)(nil),               // 35: vrooli.system_monitor.v1.metrics.ProcessMonitorData
-	(*ProcessTimelineEntry)(nil),             // 36: vrooli.system_monitor.v1.metrics.ProcessTimelineEntry
-	(*ProcessTimelineResponse)(nil),          // 37: vrooli.system_monitor.v1.metrics.ProcessTimelineResponse
-	(*ProcessHealthInfo)(nil),                // 38: vrooli.system_monitor.v1.metrics.ProcessHealthInfo
-	(*InfrastructureMonitorData)(nil),        // 39: vrooli.system_monitor.v1.metrics.InfrastructureMonitorData
-	(*MessageQueueInfo)(nil),                 // 40: vrooli.system_monitor.v1.metrics.MessageQueueInfo
-	(*RedisPubSubInfo)(nil),                  // 41: vrooli.system_monitor.v1.metrics.RedisPubSubInfo
-	(*BackgroundJobsInfo)(nil),               // 42: vrooli.system_monitor.v1.metrics.BackgroundJobsInfo
-	(*StorageIOInfo)(nil),                    // 43: vrooli.system_monitor.v1.metrics.StorageIOInfo
-	(*GetCurrentMetricsRequest)(nil),         // 44: vrooli.system_monitor.v1.metrics.GetCurrentMetricsRequest
-	(*GetCurrentMetricsResponse)(nil),        // 45: vrooli.system_monitor.v1.metrics.GetCurrentMetricsResponse
-	(*GetDetailedMetricsRequest)(nil),        // 46: vrooli.system_monitor.v1.metrics.GetDetailedMetricsRequest
-	(*GetDetailedMetricsResponse)(nil),       // 47: vrooli.system_monitor.v1.metrics.GetDetailedMetricsResponse
-	(*GetNetworkDiagnosticRequest)(nil),      // 48: vrooli.system_monitor.v1.metrics.GetNetworkDiagnosticRequest
-	(*GetNetworkDiagnosticResponse)(nil),     // 49: vrooli.system_monitor.v1.metrics.GetNetworkDiagnosticResponse
-	(*NetworkDiagnosticSnapshot)(nil),        // 50: vrooli.system_monitor.v1.metrics.NetworkDiagnosticSnapshot
-	(*GetProcessMonitorRequest)(nil),         // 51: vrooli.system_monitor.v1.metrics.GetProcessMonitorRequest
-	(*GetProcessMonitorResponse)(nil),        // 52: vrooli.system_monitor.v1.metrics.GetProcessMonitorResponse
-	(*GetProcessTimelineRequest)(nil),        // 53: vrooli.system_monitor.v1.metrics.GetProcessTimelineRequest
-	(*GetProcessTimelineResponse)(nil),       // 54: vrooli.system_monitor.v1.metrics.GetProcessTimelineResponse
-	(*GetInfrastructureMonitorRequest)(nil),  // 55: vrooli.system_monitor.v1.metrics.GetInfrastructureMonitorRequest
-	(*GetInfrastructureMonitorResponse)(nil), // 56: vrooli.system_monitor.v1.metrics.GetInfrastructureMonitorResponse
-	(*GetMetricsTimelineRequest)(nil),        // 57: vrooli.system_monitor.v1.metrics.GetMetricsTimelineRequest
-	(*GetMetricsTimelineResponse)(nil),       // 58: vrooli.system_monitor.v1.metrics.GetMetricsTimelineResponse
-	(*GetDiskDetailRequest)(nil),             // 59: vrooli.system_monitor.v1.metrics.GetDiskDetailRequest
-	(*GetDiskDetailResponse)(nil),            // 60: vrooli.system_monitor.v1.metrics.GetDiskDetailResponse
-	nil,                                      // 61: vrooli.system_monitor.v1.metrics.CPUMetrics.ModeBreakdownEntry
-	nil,                                      // 62: vrooli.system_monitor.v1.metrics.CPUMetrics.PerCoreUtilizationEntry
-	nil,                                      // 63: vrooli.system_monitor.v1.metrics.FragmentationMetrics.CompactionRatesEntry
-	nil,                                      // 64: vrooli.system_monitor.v1.metrics.FragmentationMetrics.BuddyinfoEntry
-	(*timestamppb.Timestamp)(nil),            // 65: google.protobuf.Timestamp
+	(*MemoryPressureReading)(nil),            // 7: vrooli.system_monitor.v1.metrics.MemoryPressureReading
+	(*MemoryPressureContributor)(nil),        // 8: vrooli.system_monitor.v1.metrics.MemoryPressureContributor
+	(*NetworkMetrics)(nil),                   // 9: vrooli.system_monitor.v1.metrics.NetworkMetrics
+	(*NetworkInterface)(nil),                 // 10: vrooli.system_monitor.v1.metrics.NetworkInterface
+	(*NetworkOwnership)(nil),                 // 11: vrooli.system_monitor.v1.metrics.NetworkOwnership
+	(*NetworkOwner)(nil),                     // 12: vrooli.system_monitor.v1.metrics.NetworkOwner
+	(*NetworkEndpoint)(nil),                  // 13: vrooli.system_monitor.v1.metrics.NetworkEndpoint
+	(*NetworkCapabilities)(nil),              // 14: vrooli.system_monitor.v1.metrics.NetworkCapabilities
+	(*NetworkVerdict)(nil),                   // 15: vrooli.system_monitor.v1.metrics.NetworkVerdict
+	(*SystemHealth)(nil),                     // 16: vrooli.system_monitor.v1.metrics.SystemHealth
+	(*GPUMetrics)(nil),                       // 17: vrooli.system_monitor.v1.metrics.GPUMetrics
+	(*GPUSummary)(nil),                       // 18: vrooli.system_monitor.v1.metrics.GPUSummary
+	(*GPUDeviceMetrics)(nil),                 // 19: vrooli.system_monitor.v1.metrics.GPUDeviceMetrics
+	(*GPUProcessInfo)(nil),                   // 20: vrooli.system_monitor.v1.metrics.GPUProcessInfo
+	(*ProcessInfo)(nil),                      // 21: vrooli.system_monitor.v1.metrics.ProcessInfo
+	(*PagingMetrics)(nil),                    // 22: vrooli.system_monitor.v1.metrics.PagingMetrics
+	(*FragmentationMetrics)(nil),             // 23: vrooli.system_monitor.v1.metrics.FragmentationMetrics
+	(*TCPConnectionStates)(nil),              // 24: vrooli.system_monitor.v1.metrics.TCPConnectionStates
+	(*ConnectionPool)(nil),                   // 25: vrooli.system_monitor.v1.metrics.ConnectionPool
+	(*NetworkStatistics)(nil),                // 26: vrooli.system_monitor.v1.metrics.NetworkStatistics
+	(*ServiceHealth)(nil),                    // 27: vrooli.system_monitor.v1.metrics.ServiceHealth
+	(*CertificateInfo)(nil),                  // 28: vrooli.system_monitor.v1.metrics.CertificateInfo
+	(*SwapInfo)(nil),                         // 29: vrooli.system_monitor.v1.metrics.SwapInfo
+	(*DiskInfo)(nil),                         // 30: vrooli.system_monitor.v1.metrics.DiskInfo
+	(*DiskPartitionInfo)(nil),                // 31: vrooli.system_monitor.v1.metrics.DiskPartitionInfo
+	(*DiskUsageEntry)(nil),                   // 32: vrooli.system_monitor.v1.metrics.DiskUsageEntry
+	(*DiskDetailResponse)(nil),               // 33: vrooli.system_monitor.v1.metrics.DiskDetailResponse
+	(*PortUsageInfo)(nil),                    // 34: vrooli.system_monitor.v1.metrics.PortUsageInfo
+	(*FileDescriptorInfo)(nil),               // 35: vrooli.system_monitor.v1.metrics.FileDescriptorInfo
+	(*InotifyWatcherInfo)(nil),               // 36: vrooli.system_monitor.v1.metrics.InotifyWatcherInfo
+	(*ProcessMonitorData)(nil),               // 37: vrooli.system_monitor.v1.metrics.ProcessMonitorData
+	(*ProcessTimelineEntry)(nil),             // 38: vrooli.system_monitor.v1.metrics.ProcessTimelineEntry
+	(*ProcessTimelineResponse)(nil),          // 39: vrooli.system_monitor.v1.metrics.ProcessTimelineResponse
+	(*ProcessHealthInfo)(nil),                // 40: vrooli.system_monitor.v1.metrics.ProcessHealthInfo
+	(*InfrastructureMonitorData)(nil),        // 41: vrooli.system_monitor.v1.metrics.InfrastructureMonitorData
+	(*MessageQueueInfo)(nil),                 // 42: vrooli.system_monitor.v1.metrics.MessageQueueInfo
+	(*RedisPubSubInfo)(nil),                  // 43: vrooli.system_monitor.v1.metrics.RedisPubSubInfo
+	(*BackgroundJobsInfo)(nil),               // 44: vrooli.system_monitor.v1.metrics.BackgroundJobsInfo
+	(*StorageIOInfo)(nil),                    // 45: vrooli.system_monitor.v1.metrics.StorageIOInfo
+	(*GetCurrentMetricsRequest)(nil),         // 46: vrooli.system_monitor.v1.metrics.GetCurrentMetricsRequest
+	(*GetCurrentMetricsResponse)(nil),        // 47: vrooli.system_monitor.v1.metrics.GetCurrentMetricsResponse
+	(*GetDetailedMetricsRequest)(nil),        // 48: vrooli.system_monitor.v1.metrics.GetDetailedMetricsRequest
+	(*GetDetailedMetricsResponse)(nil),       // 49: vrooli.system_monitor.v1.metrics.GetDetailedMetricsResponse
+	(*GetNetworkDiagnosticRequest)(nil),      // 50: vrooli.system_monitor.v1.metrics.GetNetworkDiagnosticRequest
+	(*GetNetworkDiagnosticResponse)(nil),     // 51: vrooli.system_monitor.v1.metrics.GetNetworkDiagnosticResponse
+	(*NetworkDiagnosticSnapshot)(nil),        // 52: vrooli.system_monitor.v1.metrics.NetworkDiagnosticSnapshot
+	(*GetProcessMonitorRequest)(nil),         // 53: vrooli.system_monitor.v1.metrics.GetProcessMonitorRequest
+	(*GetProcessMonitorResponse)(nil),        // 54: vrooli.system_monitor.v1.metrics.GetProcessMonitorResponse
+	(*GetProcessTimelineRequest)(nil),        // 55: vrooli.system_monitor.v1.metrics.GetProcessTimelineRequest
+	(*GetProcessTimelineResponse)(nil),       // 56: vrooli.system_monitor.v1.metrics.GetProcessTimelineResponse
+	(*GetInfrastructureMonitorRequest)(nil),  // 57: vrooli.system_monitor.v1.metrics.GetInfrastructureMonitorRequest
+	(*GetInfrastructureMonitorResponse)(nil), // 58: vrooli.system_monitor.v1.metrics.GetInfrastructureMonitorResponse
+	(*GetMetricsTimelineRequest)(nil),        // 59: vrooli.system_monitor.v1.metrics.GetMetricsTimelineRequest
+	(*GetMetricsTimelineResponse)(nil),       // 60: vrooli.system_monitor.v1.metrics.GetMetricsTimelineResponse
+	(*GetDiskDetailRequest)(nil),             // 61: vrooli.system_monitor.v1.metrics.GetDiskDetailRequest
+	(*GetDiskDetailResponse)(nil),            // 62: vrooli.system_monitor.v1.metrics.GetDiskDetailResponse
+	nil,                                      // 63: vrooli.system_monitor.v1.metrics.CPUMetrics.ModeBreakdownEntry
+	nil,                                      // 64: vrooli.system_monitor.v1.metrics.CPUMetrics.PerCoreUtilizationEntry
+	nil,                                      // 65: vrooli.system_monitor.v1.metrics.MemoryPressureReading.SignalsEntry
+	nil,                                      // 66: vrooli.system_monitor.v1.metrics.FragmentationMetrics.CompactionRatesEntry
+	nil,                                      // 67: vrooli.system_monitor.v1.metrics.FragmentationMetrics.BuddyinfoEntry
+	(*timestamppb.Timestamp)(nil),            // 68: google.protobuf.Timestamp
 }
 var file_system_monitor_v1_metrics_metrics_proto_depIdxs = []int32{
-	65,  // 0: vrooli.system_monitor.v1.metrics.MetricsResponse.timestamp:type_name -> google.protobuf.Timestamp
+	68,  // 0: vrooli.system_monitor.v1.metrics.MetricsResponse.timestamp:type_name -> google.protobuf.Timestamp
 	1,   // 1: vrooli.system_monitor.v1.metrics.MetricsResponse.cpu:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
 	1,   // 2: vrooli.system_monitor.v1.metrics.MetricsResponse.memory:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
 	1,   // 3: vrooli.system_monitor.v1.metrics.MetricsResponse.connections:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
@@ -5758,8 +6040,8 @@ var file_system_monitor_v1_metrics_metrics_proto_depIdxs = []int32{
 	1,   // 6: vrooli.system_monitor.v1.metrics.MetricsResponse.swap_traffic:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
 	1,   // 7: vrooli.system_monitor.v1.metrics.MetricsResponse.major_faults:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
 	1,   // 8: vrooli.system_monitor.v1.metrics.MetricsResponse.fragmentation_index:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	65,  // 9: vrooli.system_monitor.v1.metrics.MetricValue.observed_at:type_name -> google.protobuf.Timestamp
-	65,  // 10: vrooli.system_monitor.v1.metrics.MetricTimelineSample.timestamp:type_name -> google.protobuf.Timestamp
+	68,  // 9: vrooli.system_monitor.v1.metrics.MetricValue.observed_at:type_name -> google.protobuf.Timestamp
+	68,  // 10: vrooli.system_monitor.v1.metrics.MetricTimelineSample.timestamp:type_name -> google.protobuf.Timestamp
 	1,   // 11: vrooli.system_monitor.v1.metrics.MetricTimelineSample.cpu:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
 	1,   // 12: vrooli.system_monitor.v1.metrics.MetricTimelineSample.memory:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
 	1,   // 13: vrooli.system_monitor.v1.metrics.MetricTimelineSample.connections:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
@@ -5784,11 +6066,11 @@ var file_system_monitor_v1_metrics_metrics_proto_depIdxs = []int32{
 	2,   // 32: vrooli.system_monitor.v1.metrics.MetricsTimelineResponse.samples:type_name -> vrooli.system_monitor.v1.metrics.MetricTimelineSample
 	5,   // 33: vrooli.system_monitor.v1.metrics.DetailedMetrics.cpu_details:type_name -> vrooli.system_monitor.v1.metrics.CPUMetrics
 	6,   // 34: vrooli.system_monitor.v1.metrics.DetailedMetrics.memory_details:type_name -> vrooli.system_monitor.v1.metrics.MemoryMetrics
-	7,   // 35: vrooli.system_monitor.v1.metrics.DetailedMetrics.network_details:type_name -> vrooli.system_monitor.v1.metrics.NetworkMetrics
-	15,  // 36: vrooli.system_monitor.v1.metrics.DetailedMetrics.gpu_details:type_name -> vrooli.system_monitor.v1.metrics.GPUMetrics
-	14,  // 37: vrooli.system_monitor.v1.metrics.DetailedMetrics.system_details:type_name -> vrooli.system_monitor.v1.metrics.SystemHealth
-	65,  // 38: vrooli.system_monitor.v1.metrics.DetailedMetrics.timestamp:type_name -> google.protobuf.Timestamp
-	19,  // 39: vrooli.system_monitor.v1.metrics.CPUMetrics.top_processes:type_name -> vrooli.system_monitor.v1.metrics.ProcessInfo
+	9,   // 35: vrooli.system_monitor.v1.metrics.DetailedMetrics.network_details:type_name -> vrooli.system_monitor.v1.metrics.NetworkMetrics
+	17,  // 36: vrooli.system_monitor.v1.metrics.DetailedMetrics.gpu_details:type_name -> vrooli.system_monitor.v1.metrics.GPUMetrics
+	16,  // 37: vrooli.system_monitor.v1.metrics.DetailedMetrics.system_details:type_name -> vrooli.system_monitor.v1.metrics.SystemHealth
+	68,  // 38: vrooli.system_monitor.v1.metrics.DetailedMetrics.timestamp:type_name -> google.protobuf.Timestamp
+	21,  // 39: vrooli.system_monitor.v1.metrics.CPUMetrics.top_processes:type_name -> vrooli.system_monitor.v1.metrics.ProcessInfo
 	1,   // 40: vrooli.system_monitor.v1.metrics.CPUMetrics.usage_state:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
 	1,   // 41: vrooli.system_monitor.v1.metrics.CPUMetrics.context_switches_per_second:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
 	1,   // 42: vrooli.system_monitor.v1.metrics.CPUMetrics.interrupts_per_second:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
@@ -5798,128 +6080,133 @@ var file_system_monitor_v1_metrics_metrics_proto_depIdxs = []int32{
 	1,   // 46: vrooli.system_monitor.v1.metrics.CPUMetrics.run_queue_depth:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
 	1,   // 47: vrooli.system_monitor.v1.metrics.CPUMetrics.cpu_psi_some_avg10:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
 	1,   // 48: vrooli.system_monitor.v1.metrics.CPUMetrics.cpu_psi_full_avg10:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	61,  // 49: vrooli.system_monitor.v1.metrics.CPUMetrics.mode_breakdown:type_name -> vrooli.system_monitor.v1.metrics.CPUMetrics.ModeBreakdownEntry
-	62,  // 50: vrooli.system_monitor.v1.metrics.CPUMetrics.per_core_utilization:type_name -> vrooli.system_monitor.v1.metrics.CPUMetrics.PerCoreUtilizationEntry
+	63,  // 49: vrooli.system_monitor.v1.metrics.CPUMetrics.mode_breakdown:type_name -> vrooli.system_monitor.v1.metrics.CPUMetrics.ModeBreakdownEntry
+	64,  // 50: vrooli.system_monitor.v1.metrics.CPUMetrics.per_core_utilization:type_name -> vrooli.system_monitor.v1.metrics.CPUMetrics.PerCoreUtilizationEntry
 	1,   // 51: vrooli.system_monitor.v1.metrics.CPUMetrics.core_imbalance_index:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
 	1,   // 52: vrooli.system_monitor.v1.metrics.CPUMetrics.quota_throttling:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
 	1,   // 53: vrooli.system_monitor.v1.metrics.CPUMetrics.frequency_derate_ratio:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
 	1,   // 54: vrooli.system_monitor.v1.metrics.CPUMetrics.thermal_throttle_evidence:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
 	1,   // 55: vrooli.system_monitor.v1.metrics.CPUMetrics.fork_rate:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
 	1,   // 56: vrooli.system_monitor.v1.metrics.CPUMetrics.thermal_trip_point_celsius:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	19,  // 57: vrooli.system_monitor.v1.metrics.CPUMetrics.top_cpu_seconds_processes:type_name -> vrooli.system_monitor.v1.metrics.ProcessInfo
-	37,  // 58: vrooli.system_monitor.v1.metrics.CPUMetrics.historical_cpu_attribution:type_name -> vrooli.system_monitor.v1.metrics.ProcessTimelineResponse
-	19,  // 59: vrooli.system_monitor.v1.metrics.MemoryMetrics.top_processes:type_name -> vrooli.system_monitor.v1.metrics.ProcessInfo
-	27,  // 60: vrooli.system_monitor.v1.metrics.MemoryMetrics.swap_usage:type_name -> vrooli.system_monitor.v1.metrics.SwapInfo
-	28,  // 61: vrooli.system_monitor.v1.metrics.MemoryMetrics.disk_usage:type_name -> vrooli.system_monitor.v1.metrics.DiskInfo
-	20,  // 62: vrooli.system_monitor.v1.metrics.MemoryMetrics.paging:type_name -> vrooli.system_monitor.v1.metrics.PagingMetrics
-	21,  // 63: vrooli.system_monitor.v1.metrics.MemoryMetrics.fragmentation:type_name -> vrooli.system_monitor.v1.metrics.FragmentationMetrics
-	19,  // 64: vrooli.system_monitor.v1.metrics.MemoryMetrics.top_paging_processes:type_name -> vrooli.system_monitor.v1.metrics.ProcessInfo
-	22,  // 65: vrooli.system_monitor.v1.metrics.NetworkMetrics.tcp_states:type_name -> vrooli.system_monitor.v1.metrics.TCPConnectionStates
-	32,  // 66: vrooli.system_monitor.v1.metrics.NetworkMetrics.port_usage:type_name -> vrooli.system_monitor.v1.metrics.PortUsageInfo
-	24,  // 67: vrooli.system_monitor.v1.metrics.NetworkMetrics.network_stats:type_name -> vrooli.system_monitor.v1.metrics.NetworkStatistics
-	23,  // 68: vrooli.system_monitor.v1.metrics.NetworkMetrics.connection_pools:type_name -> vrooli.system_monitor.v1.metrics.ConnectionPool
-	1,   // 69: vrooli.system_monitor.v1.metrics.NetworkMetrics.established_rate:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 70: vrooli.system_monitor.v1.metrics.NetworkMetrics.time_wait_rate:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 71: vrooli.system_monitor.v1.metrics.NetworkMetrics.close_wait_rate:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 72: vrooli.system_monitor.v1.metrics.NetworkMetrics.connections_opened_rate:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 73: vrooli.system_monitor.v1.metrics.NetworkMetrics.connections_closed_rate:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	8,   // 74: vrooli.system_monitor.v1.metrics.NetworkMetrics.interfaces:type_name -> vrooli.system_monitor.v1.metrics.NetworkInterface
-	9,   // 75: vrooli.system_monitor.v1.metrics.NetworkMetrics.ownership:type_name -> vrooli.system_monitor.v1.metrics.NetworkOwnership
-	11,  // 76: vrooli.system_monitor.v1.metrics.NetworkMetrics.endpoints:type_name -> vrooli.system_monitor.v1.metrics.NetworkEndpoint
-	12,  // 77: vrooli.system_monitor.v1.metrics.NetworkMetrics.capabilities:type_name -> vrooli.system_monitor.v1.metrics.NetworkCapabilities
-	13,  // 78: vrooli.system_monitor.v1.metrics.NetworkMetrics.verdict:type_name -> vrooli.system_monitor.v1.metrics.NetworkVerdict
-	1,   // 79: vrooli.system_monitor.v1.metrics.NetworkInterface.received_bytes:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 80: vrooli.system_monitor.v1.metrics.NetworkInterface.transmitted_bytes:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 81: vrooli.system_monitor.v1.metrics.NetworkInterface.received_packets:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 82: vrooli.system_monitor.v1.metrics.NetworkInterface.transmitted_packets:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 83: vrooli.system_monitor.v1.metrics.NetworkInterface.receive_errors:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 84: vrooli.system_monitor.v1.metrics.NetworkInterface.transmit_errors:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 85: vrooli.system_monitor.v1.metrics.NetworkInterface.receive_drops:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 86: vrooli.system_monitor.v1.metrics.NetworkInterface.transmit_drops:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 87: vrooli.system_monitor.v1.metrics.NetworkInterface.receive_bytes_per_second:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 88: vrooli.system_monitor.v1.metrics.NetworkInterface.transmit_bytes_per_second:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	10,  // 89: vrooli.system_monitor.v1.metrics.NetworkOwnership.owners:type_name -> vrooli.system_monitor.v1.metrics.NetworkOwner
-	1,   // 90: vrooli.system_monitor.v1.metrics.NetworkEndpoint.age_seconds:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 91: vrooli.system_monitor.v1.metrics.NetworkCapabilities.tcp_states:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 92: vrooli.system_monitor.v1.metrics.NetworkCapabilities.interface_counters:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 93: vrooli.system_monitor.v1.metrics.NetworkCapabilities.transport_counters:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 94: vrooli.system_monitor.v1.metrics.NetworkCapabilities.ownership:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 95: vrooli.system_monitor.v1.metrics.NetworkCapabilities.endpoints:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	33,  // 96: vrooli.system_monitor.v1.metrics.SystemHealth.file_descriptors:type_name -> vrooli.system_monitor.v1.metrics.FileDescriptorInfo
-	25,  // 97: vrooli.system_monitor.v1.metrics.SystemHealth.service_dependencies:type_name -> vrooli.system_monitor.v1.metrics.ServiceHealth
-	26,  // 98: vrooli.system_monitor.v1.metrics.SystemHealth.certificates:type_name -> vrooli.system_monitor.v1.metrics.CertificateInfo
-	34,  // 99: vrooli.system_monitor.v1.metrics.SystemHealth.inotify_watchers:type_name -> vrooli.system_monitor.v1.metrics.InotifyWatcherInfo
-	16,  // 100: vrooli.system_monitor.v1.metrics.GPUMetrics.summary:type_name -> vrooli.system_monitor.v1.metrics.GPUSummary
-	17,  // 101: vrooli.system_monitor.v1.metrics.GPUMetrics.devices:type_name -> vrooli.system_monitor.v1.metrics.GPUDeviceMetrics
-	18,  // 102: vrooli.system_monitor.v1.metrics.GPUDeviceMetrics.processes:type_name -> vrooli.system_monitor.v1.metrics.GPUProcessInfo
-	1,   // 103: vrooli.system_monitor.v1.metrics.ProcessInfo.cpu_seconds_state:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 104: vrooli.system_monitor.v1.metrics.PagingMetrics.swap_in_per_second:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 105: vrooli.system_monitor.v1.metrics.PagingMetrics.swap_out_per_second:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 106: vrooli.system_monitor.v1.metrics.PagingMetrics.swap_traffic_pages_per_second:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 107: vrooli.system_monitor.v1.metrics.PagingMetrics.major_faults_per_second:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 108: vrooli.system_monitor.v1.metrics.PagingMetrics.page_faults_per_second:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 109: vrooli.system_monitor.v1.metrics.FragmentationMetrics.max_free_order:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 110: vrooli.system_monitor.v1.metrics.FragmentationMetrics.low_order_share:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 111: vrooli.system_monitor.v1.metrics.FragmentationMetrics.compaction_failure_ratio:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	63,  // 112: vrooli.system_monitor.v1.metrics.FragmentationMetrics.compaction_rates:type_name -> vrooli.system_monitor.v1.metrics.FragmentationMetrics.CompactionRatesEntry
-	64,  // 113: vrooli.system_monitor.v1.metrics.FragmentationMetrics.buddyinfo:type_name -> vrooli.system_monitor.v1.metrics.FragmentationMetrics.BuddyinfoEntry
-	65,  // 114: vrooli.system_monitor.v1.metrics.ServiceHealth.last_check:type_name -> google.protobuf.Timestamp
-	29,  // 115: vrooli.system_monitor.v1.metrics.DiskDetailResponse.partitions:type_name -> vrooli.system_monitor.v1.metrics.DiskPartitionInfo
-	30,  // 116: vrooli.system_monitor.v1.metrics.DiskDetailResponse.top_directories:type_name -> vrooli.system_monitor.v1.metrics.DiskUsageEntry
-	30,  // 117: vrooli.system_monitor.v1.metrics.DiskDetailResponse.largest_files:type_name -> vrooli.system_monitor.v1.metrics.DiskUsageEntry
-	65,  // 118: vrooli.system_monitor.v1.metrics.DiskDetailResponse.timestamp:type_name -> google.protobuf.Timestamp
-	38,  // 119: vrooli.system_monitor.v1.metrics.ProcessMonitorData.process_health:type_name -> vrooli.system_monitor.v1.metrics.ProcessHealthInfo
-	19,  // 120: vrooli.system_monitor.v1.metrics.ProcessMonitorData.resource_matrix:type_name -> vrooli.system_monitor.v1.metrics.ProcessInfo
-	65,  // 121: vrooli.system_monitor.v1.metrics.ProcessMonitorData.timestamp:type_name -> google.protobuf.Timestamp
-	65,  // 122: vrooli.system_monitor.v1.metrics.ProcessTimelineEntry.first_seen:type_name -> google.protobuf.Timestamp
-	65,  // 123: vrooli.system_monitor.v1.metrics.ProcessTimelineEntry.last_seen:type_name -> google.protobuf.Timestamp
-	36,  // 124: vrooli.system_monitor.v1.metrics.ProcessTimelineResponse.entries:type_name -> vrooli.system_monitor.v1.metrics.ProcessTimelineEntry
-	65,  // 125: vrooli.system_monitor.v1.metrics.ProcessTimelineResponse.covered_start:type_name -> google.protobuf.Timestamp
-	65,  // 126: vrooli.system_monitor.v1.metrics.ProcessTimelineResponse.covered_end:type_name -> google.protobuf.Timestamp
-	19,  // 127: vrooli.system_monitor.v1.metrics.ProcessHealthInfo.zombie_processes:type_name -> vrooli.system_monitor.v1.metrics.ProcessInfo
-	19,  // 128: vrooli.system_monitor.v1.metrics.ProcessHealthInfo.high_thread_count:type_name -> vrooli.system_monitor.v1.metrics.ProcessInfo
-	19,  // 129: vrooli.system_monitor.v1.metrics.ProcessHealthInfo.leak_candidates:type_name -> vrooli.system_monitor.v1.metrics.ProcessInfo
-	23,  // 130: vrooli.system_monitor.v1.metrics.InfrastructureMonitorData.database_pools:type_name -> vrooli.system_monitor.v1.metrics.ConnectionPool
-	23,  // 131: vrooli.system_monitor.v1.metrics.InfrastructureMonitorData.http_client_pools:type_name -> vrooli.system_monitor.v1.metrics.ConnectionPool
-	40,  // 132: vrooli.system_monitor.v1.metrics.InfrastructureMonitorData.message_queues:type_name -> vrooli.system_monitor.v1.metrics.MessageQueueInfo
-	43,  // 133: vrooli.system_monitor.v1.metrics.InfrastructureMonitorData.storage_io:type_name -> vrooli.system_monitor.v1.metrics.StorageIOInfo
-	65,  // 134: vrooli.system_monitor.v1.metrics.InfrastructureMonitorData.timestamp:type_name -> google.protobuf.Timestamp
-	41,  // 135: vrooli.system_monitor.v1.metrics.MessageQueueInfo.redis_pubsub:type_name -> vrooli.system_monitor.v1.metrics.RedisPubSubInfo
-	42,  // 136: vrooli.system_monitor.v1.metrics.MessageQueueInfo.background_jobs:type_name -> vrooli.system_monitor.v1.metrics.BackgroundJobsInfo
-	0,   // 137: vrooli.system_monitor.v1.metrics.GetCurrentMetricsResponse.metrics:type_name -> vrooli.system_monitor.v1.metrics.MetricsResponse
-	4,   // 138: vrooli.system_monitor.v1.metrics.GetDetailedMetricsResponse.metrics:type_name -> vrooli.system_monitor.v1.metrics.DetailedMetrics
-	50,  // 139: vrooli.system_monitor.v1.metrics.GetNetworkDiagnosticResponse.snapshot:type_name -> vrooli.system_monitor.v1.metrics.NetworkDiagnosticSnapshot
-	9,   // 140: vrooli.system_monitor.v1.metrics.NetworkDiagnosticSnapshot.ownership:type_name -> vrooli.system_monitor.v1.metrics.NetworkOwnership
-	11,  // 141: vrooli.system_monitor.v1.metrics.NetworkDiagnosticSnapshot.endpoints:type_name -> vrooli.system_monitor.v1.metrics.NetworkEndpoint
-	35,  // 142: vrooli.system_monitor.v1.metrics.GetProcessMonitorResponse.data:type_name -> vrooli.system_monitor.v1.metrics.ProcessMonitorData
-	37,  // 143: vrooli.system_monitor.v1.metrics.GetProcessTimelineResponse.timeline:type_name -> vrooli.system_monitor.v1.metrics.ProcessTimelineResponse
-	39,  // 144: vrooli.system_monitor.v1.metrics.GetInfrastructureMonitorResponse.data:type_name -> vrooli.system_monitor.v1.metrics.InfrastructureMonitorData
-	3,   // 145: vrooli.system_monitor.v1.metrics.GetMetricsTimelineResponse.timeline:type_name -> vrooli.system_monitor.v1.metrics.MetricsTimelineResponse
-	31,  // 146: vrooli.system_monitor.v1.metrics.GetDiskDetailResponse.data:type_name -> vrooli.system_monitor.v1.metrics.DiskDetailResponse
-	1,   // 147: vrooli.system_monitor.v1.metrics.CPUMetrics.ModeBreakdownEntry.value:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 148: vrooli.system_monitor.v1.metrics.CPUMetrics.PerCoreUtilizationEntry.value:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	1,   // 149: vrooli.system_monitor.v1.metrics.FragmentationMetrics.CompactionRatesEntry.value:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
-	44,  // 150: vrooli.system_monitor.v1.metrics.MetricsService.GetCurrentMetrics:input_type -> vrooli.system_monitor.v1.metrics.GetCurrentMetricsRequest
-	46,  // 151: vrooli.system_monitor.v1.metrics.MetricsService.GetDetailedMetrics:input_type -> vrooli.system_monitor.v1.metrics.GetDetailedMetricsRequest
-	48,  // 152: vrooli.system_monitor.v1.metrics.MetricsService.GetNetworkDiagnostic:input_type -> vrooli.system_monitor.v1.metrics.GetNetworkDiagnosticRequest
-	51,  // 153: vrooli.system_monitor.v1.metrics.MetricsService.GetProcessMonitor:input_type -> vrooli.system_monitor.v1.metrics.GetProcessMonitorRequest
-	53,  // 154: vrooli.system_monitor.v1.metrics.MetricsService.GetProcessTimeline:input_type -> vrooli.system_monitor.v1.metrics.GetProcessTimelineRequest
-	55,  // 155: vrooli.system_monitor.v1.metrics.MetricsService.GetInfrastructureMonitor:input_type -> vrooli.system_monitor.v1.metrics.GetInfrastructureMonitorRequest
-	57,  // 156: vrooli.system_monitor.v1.metrics.MetricsService.GetMetricsTimeline:input_type -> vrooli.system_monitor.v1.metrics.GetMetricsTimelineRequest
-	59,  // 157: vrooli.system_monitor.v1.metrics.MetricsService.GetDiskDetail:input_type -> vrooli.system_monitor.v1.metrics.GetDiskDetailRequest
-	45,  // 158: vrooli.system_monitor.v1.metrics.MetricsService.GetCurrentMetrics:output_type -> vrooli.system_monitor.v1.metrics.GetCurrentMetricsResponse
-	47,  // 159: vrooli.system_monitor.v1.metrics.MetricsService.GetDetailedMetrics:output_type -> vrooli.system_monitor.v1.metrics.GetDetailedMetricsResponse
-	49,  // 160: vrooli.system_monitor.v1.metrics.MetricsService.GetNetworkDiagnostic:output_type -> vrooli.system_monitor.v1.metrics.GetNetworkDiagnosticResponse
-	52,  // 161: vrooli.system_monitor.v1.metrics.MetricsService.GetProcessMonitor:output_type -> vrooli.system_monitor.v1.metrics.GetProcessMonitorResponse
-	54,  // 162: vrooli.system_monitor.v1.metrics.MetricsService.GetProcessTimeline:output_type -> vrooli.system_monitor.v1.metrics.GetProcessTimelineResponse
-	56,  // 163: vrooli.system_monitor.v1.metrics.MetricsService.GetInfrastructureMonitor:output_type -> vrooli.system_monitor.v1.metrics.GetInfrastructureMonitorResponse
-	58,  // 164: vrooli.system_monitor.v1.metrics.MetricsService.GetMetricsTimeline:output_type -> vrooli.system_monitor.v1.metrics.GetMetricsTimelineResponse
-	60,  // 165: vrooli.system_monitor.v1.metrics.MetricsService.GetDiskDetail:output_type -> vrooli.system_monitor.v1.metrics.GetDiskDetailResponse
-	158, // [158:166] is the sub-list for method output_type
-	150, // [150:158] is the sub-list for method input_type
-	150, // [150:150] is the sub-list for extension type_name
-	150, // [150:150] is the sub-list for extension extendee
-	0,   // [0:150] is the sub-list for field type_name
+	21,  // 57: vrooli.system_monitor.v1.metrics.CPUMetrics.top_cpu_seconds_processes:type_name -> vrooli.system_monitor.v1.metrics.ProcessInfo
+	39,  // 58: vrooli.system_monitor.v1.metrics.CPUMetrics.historical_cpu_attribution:type_name -> vrooli.system_monitor.v1.metrics.ProcessTimelineResponse
+	21,  // 59: vrooli.system_monitor.v1.metrics.MemoryMetrics.top_processes:type_name -> vrooli.system_monitor.v1.metrics.ProcessInfo
+	29,  // 60: vrooli.system_monitor.v1.metrics.MemoryMetrics.swap_usage:type_name -> vrooli.system_monitor.v1.metrics.SwapInfo
+	30,  // 61: vrooli.system_monitor.v1.metrics.MemoryMetrics.disk_usage:type_name -> vrooli.system_monitor.v1.metrics.DiskInfo
+	22,  // 62: vrooli.system_monitor.v1.metrics.MemoryMetrics.paging:type_name -> vrooli.system_monitor.v1.metrics.PagingMetrics
+	23,  // 63: vrooli.system_monitor.v1.metrics.MemoryMetrics.fragmentation:type_name -> vrooli.system_monitor.v1.metrics.FragmentationMetrics
+	21,  // 64: vrooli.system_monitor.v1.metrics.MemoryMetrics.top_paging_processes:type_name -> vrooli.system_monitor.v1.metrics.ProcessInfo
+	7,   // 65: vrooli.system_monitor.v1.metrics.MemoryMetrics.memory_pressure:type_name -> vrooli.system_monitor.v1.metrics.MemoryPressureReading
+	65,  // 66: vrooli.system_monitor.v1.metrics.MemoryPressureReading.signals:type_name -> vrooli.system_monitor.v1.metrics.MemoryPressureReading.SignalsEntry
+	8,   // 67: vrooli.system_monitor.v1.metrics.MemoryPressureReading.contributors:type_name -> vrooli.system_monitor.v1.metrics.MemoryPressureContributor
+	68,  // 68: vrooli.system_monitor.v1.metrics.MemoryPressureReading.observed_at:type_name -> google.protobuf.Timestamp
+	24,  // 69: vrooli.system_monitor.v1.metrics.NetworkMetrics.tcp_states:type_name -> vrooli.system_monitor.v1.metrics.TCPConnectionStates
+	34,  // 70: vrooli.system_monitor.v1.metrics.NetworkMetrics.port_usage:type_name -> vrooli.system_monitor.v1.metrics.PortUsageInfo
+	26,  // 71: vrooli.system_monitor.v1.metrics.NetworkMetrics.network_stats:type_name -> vrooli.system_monitor.v1.metrics.NetworkStatistics
+	25,  // 72: vrooli.system_monitor.v1.metrics.NetworkMetrics.connection_pools:type_name -> vrooli.system_monitor.v1.metrics.ConnectionPool
+	1,   // 73: vrooli.system_monitor.v1.metrics.NetworkMetrics.established_rate:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 74: vrooli.system_monitor.v1.metrics.NetworkMetrics.time_wait_rate:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 75: vrooli.system_monitor.v1.metrics.NetworkMetrics.close_wait_rate:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 76: vrooli.system_monitor.v1.metrics.NetworkMetrics.connections_opened_rate:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 77: vrooli.system_monitor.v1.metrics.NetworkMetrics.connections_closed_rate:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	10,  // 78: vrooli.system_monitor.v1.metrics.NetworkMetrics.interfaces:type_name -> vrooli.system_monitor.v1.metrics.NetworkInterface
+	11,  // 79: vrooli.system_monitor.v1.metrics.NetworkMetrics.ownership:type_name -> vrooli.system_monitor.v1.metrics.NetworkOwnership
+	13,  // 80: vrooli.system_monitor.v1.metrics.NetworkMetrics.endpoints:type_name -> vrooli.system_monitor.v1.metrics.NetworkEndpoint
+	14,  // 81: vrooli.system_monitor.v1.metrics.NetworkMetrics.capabilities:type_name -> vrooli.system_monitor.v1.metrics.NetworkCapabilities
+	15,  // 82: vrooli.system_monitor.v1.metrics.NetworkMetrics.verdict:type_name -> vrooli.system_monitor.v1.metrics.NetworkVerdict
+	1,   // 83: vrooli.system_monitor.v1.metrics.NetworkInterface.received_bytes:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 84: vrooli.system_monitor.v1.metrics.NetworkInterface.transmitted_bytes:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 85: vrooli.system_monitor.v1.metrics.NetworkInterface.received_packets:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 86: vrooli.system_monitor.v1.metrics.NetworkInterface.transmitted_packets:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 87: vrooli.system_monitor.v1.metrics.NetworkInterface.receive_errors:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 88: vrooli.system_monitor.v1.metrics.NetworkInterface.transmit_errors:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 89: vrooli.system_monitor.v1.metrics.NetworkInterface.receive_drops:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 90: vrooli.system_monitor.v1.metrics.NetworkInterface.transmit_drops:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 91: vrooli.system_monitor.v1.metrics.NetworkInterface.receive_bytes_per_second:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 92: vrooli.system_monitor.v1.metrics.NetworkInterface.transmit_bytes_per_second:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	12,  // 93: vrooli.system_monitor.v1.metrics.NetworkOwnership.owners:type_name -> vrooli.system_monitor.v1.metrics.NetworkOwner
+	1,   // 94: vrooli.system_monitor.v1.metrics.NetworkEndpoint.age_seconds:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 95: vrooli.system_monitor.v1.metrics.NetworkCapabilities.tcp_states:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 96: vrooli.system_monitor.v1.metrics.NetworkCapabilities.interface_counters:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 97: vrooli.system_monitor.v1.metrics.NetworkCapabilities.transport_counters:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 98: vrooli.system_monitor.v1.metrics.NetworkCapabilities.ownership:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 99: vrooli.system_monitor.v1.metrics.NetworkCapabilities.endpoints:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	35,  // 100: vrooli.system_monitor.v1.metrics.SystemHealth.file_descriptors:type_name -> vrooli.system_monitor.v1.metrics.FileDescriptorInfo
+	27,  // 101: vrooli.system_monitor.v1.metrics.SystemHealth.service_dependencies:type_name -> vrooli.system_monitor.v1.metrics.ServiceHealth
+	28,  // 102: vrooli.system_monitor.v1.metrics.SystemHealth.certificates:type_name -> vrooli.system_monitor.v1.metrics.CertificateInfo
+	36,  // 103: vrooli.system_monitor.v1.metrics.SystemHealth.inotify_watchers:type_name -> vrooli.system_monitor.v1.metrics.InotifyWatcherInfo
+	18,  // 104: vrooli.system_monitor.v1.metrics.GPUMetrics.summary:type_name -> vrooli.system_monitor.v1.metrics.GPUSummary
+	19,  // 105: vrooli.system_monitor.v1.metrics.GPUMetrics.devices:type_name -> vrooli.system_monitor.v1.metrics.GPUDeviceMetrics
+	20,  // 106: vrooli.system_monitor.v1.metrics.GPUDeviceMetrics.processes:type_name -> vrooli.system_monitor.v1.metrics.GPUProcessInfo
+	1,   // 107: vrooli.system_monitor.v1.metrics.ProcessInfo.cpu_seconds_state:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 108: vrooli.system_monitor.v1.metrics.PagingMetrics.swap_in_per_second:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 109: vrooli.system_monitor.v1.metrics.PagingMetrics.swap_out_per_second:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 110: vrooli.system_monitor.v1.metrics.PagingMetrics.swap_traffic_pages_per_second:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 111: vrooli.system_monitor.v1.metrics.PagingMetrics.major_faults_per_second:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 112: vrooli.system_monitor.v1.metrics.PagingMetrics.page_faults_per_second:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 113: vrooli.system_monitor.v1.metrics.FragmentationMetrics.max_free_order:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 114: vrooli.system_monitor.v1.metrics.FragmentationMetrics.low_order_share:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 115: vrooli.system_monitor.v1.metrics.FragmentationMetrics.compaction_failure_ratio:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	66,  // 116: vrooli.system_monitor.v1.metrics.FragmentationMetrics.compaction_rates:type_name -> vrooli.system_monitor.v1.metrics.FragmentationMetrics.CompactionRatesEntry
+	67,  // 117: vrooli.system_monitor.v1.metrics.FragmentationMetrics.buddyinfo:type_name -> vrooli.system_monitor.v1.metrics.FragmentationMetrics.BuddyinfoEntry
+	68,  // 118: vrooli.system_monitor.v1.metrics.ServiceHealth.last_check:type_name -> google.protobuf.Timestamp
+	31,  // 119: vrooli.system_monitor.v1.metrics.DiskDetailResponse.partitions:type_name -> vrooli.system_monitor.v1.metrics.DiskPartitionInfo
+	32,  // 120: vrooli.system_monitor.v1.metrics.DiskDetailResponse.top_directories:type_name -> vrooli.system_monitor.v1.metrics.DiskUsageEntry
+	32,  // 121: vrooli.system_monitor.v1.metrics.DiskDetailResponse.largest_files:type_name -> vrooli.system_monitor.v1.metrics.DiskUsageEntry
+	68,  // 122: vrooli.system_monitor.v1.metrics.DiskDetailResponse.timestamp:type_name -> google.protobuf.Timestamp
+	40,  // 123: vrooli.system_monitor.v1.metrics.ProcessMonitorData.process_health:type_name -> vrooli.system_monitor.v1.metrics.ProcessHealthInfo
+	21,  // 124: vrooli.system_monitor.v1.metrics.ProcessMonitorData.resource_matrix:type_name -> vrooli.system_monitor.v1.metrics.ProcessInfo
+	68,  // 125: vrooli.system_monitor.v1.metrics.ProcessMonitorData.timestamp:type_name -> google.protobuf.Timestamp
+	68,  // 126: vrooli.system_monitor.v1.metrics.ProcessTimelineEntry.first_seen:type_name -> google.protobuf.Timestamp
+	68,  // 127: vrooli.system_monitor.v1.metrics.ProcessTimelineEntry.last_seen:type_name -> google.protobuf.Timestamp
+	38,  // 128: vrooli.system_monitor.v1.metrics.ProcessTimelineResponse.entries:type_name -> vrooli.system_monitor.v1.metrics.ProcessTimelineEntry
+	68,  // 129: vrooli.system_monitor.v1.metrics.ProcessTimelineResponse.covered_start:type_name -> google.protobuf.Timestamp
+	68,  // 130: vrooli.system_monitor.v1.metrics.ProcessTimelineResponse.covered_end:type_name -> google.protobuf.Timestamp
+	21,  // 131: vrooli.system_monitor.v1.metrics.ProcessHealthInfo.zombie_processes:type_name -> vrooli.system_monitor.v1.metrics.ProcessInfo
+	21,  // 132: vrooli.system_monitor.v1.metrics.ProcessHealthInfo.high_thread_count:type_name -> vrooli.system_monitor.v1.metrics.ProcessInfo
+	21,  // 133: vrooli.system_monitor.v1.metrics.ProcessHealthInfo.leak_candidates:type_name -> vrooli.system_monitor.v1.metrics.ProcessInfo
+	25,  // 134: vrooli.system_monitor.v1.metrics.InfrastructureMonitorData.database_pools:type_name -> vrooli.system_monitor.v1.metrics.ConnectionPool
+	25,  // 135: vrooli.system_monitor.v1.metrics.InfrastructureMonitorData.http_client_pools:type_name -> vrooli.system_monitor.v1.metrics.ConnectionPool
+	42,  // 136: vrooli.system_monitor.v1.metrics.InfrastructureMonitorData.message_queues:type_name -> vrooli.system_monitor.v1.metrics.MessageQueueInfo
+	45,  // 137: vrooli.system_monitor.v1.metrics.InfrastructureMonitorData.storage_io:type_name -> vrooli.system_monitor.v1.metrics.StorageIOInfo
+	68,  // 138: vrooli.system_monitor.v1.metrics.InfrastructureMonitorData.timestamp:type_name -> google.protobuf.Timestamp
+	43,  // 139: vrooli.system_monitor.v1.metrics.MessageQueueInfo.redis_pubsub:type_name -> vrooli.system_monitor.v1.metrics.RedisPubSubInfo
+	44,  // 140: vrooli.system_monitor.v1.metrics.MessageQueueInfo.background_jobs:type_name -> vrooli.system_monitor.v1.metrics.BackgroundJobsInfo
+	0,   // 141: vrooli.system_monitor.v1.metrics.GetCurrentMetricsResponse.metrics:type_name -> vrooli.system_monitor.v1.metrics.MetricsResponse
+	4,   // 142: vrooli.system_monitor.v1.metrics.GetDetailedMetricsResponse.metrics:type_name -> vrooli.system_monitor.v1.metrics.DetailedMetrics
+	52,  // 143: vrooli.system_monitor.v1.metrics.GetNetworkDiagnosticResponse.snapshot:type_name -> vrooli.system_monitor.v1.metrics.NetworkDiagnosticSnapshot
+	11,  // 144: vrooli.system_monitor.v1.metrics.NetworkDiagnosticSnapshot.ownership:type_name -> vrooli.system_monitor.v1.metrics.NetworkOwnership
+	13,  // 145: vrooli.system_monitor.v1.metrics.NetworkDiagnosticSnapshot.endpoints:type_name -> vrooli.system_monitor.v1.metrics.NetworkEndpoint
+	37,  // 146: vrooli.system_monitor.v1.metrics.GetProcessMonitorResponse.data:type_name -> vrooli.system_monitor.v1.metrics.ProcessMonitorData
+	39,  // 147: vrooli.system_monitor.v1.metrics.GetProcessTimelineResponse.timeline:type_name -> vrooli.system_monitor.v1.metrics.ProcessTimelineResponse
+	41,  // 148: vrooli.system_monitor.v1.metrics.GetInfrastructureMonitorResponse.data:type_name -> vrooli.system_monitor.v1.metrics.InfrastructureMonitorData
+	3,   // 149: vrooli.system_monitor.v1.metrics.GetMetricsTimelineResponse.timeline:type_name -> vrooli.system_monitor.v1.metrics.MetricsTimelineResponse
+	33,  // 150: vrooli.system_monitor.v1.metrics.GetDiskDetailResponse.data:type_name -> vrooli.system_monitor.v1.metrics.DiskDetailResponse
+	1,   // 151: vrooli.system_monitor.v1.metrics.CPUMetrics.ModeBreakdownEntry.value:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 152: vrooli.system_monitor.v1.metrics.CPUMetrics.PerCoreUtilizationEntry.value:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 153: vrooli.system_monitor.v1.metrics.MemoryPressureReading.SignalsEntry.value:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	1,   // 154: vrooli.system_monitor.v1.metrics.FragmentationMetrics.CompactionRatesEntry.value:type_name -> vrooli.system_monitor.v1.metrics.MetricValue
+	46,  // 155: vrooli.system_monitor.v1.metrics.MetricsService.GetCurrentMetrics:input_type -> vrooli.system_monitor.v1.metrics.GetCurrentMetricsRequest
+	48,  // 156: vrooli.system_monitor.v1.metrics.MetricsService.GetDetailedMetrics:input_type -> vrooli.system_monitor.v1.metrics.GetDetailedMetricsRequest
+	50,  // 157: vrooli.system_monitor.v1.metrics.MetricsService.GetNetworkDiagnostic:input_type -> vrooli.system_monitor.v1.metrics.GetNetworkDiagnosticRequest
+	53,  // 158: vrooli.system_monitor.v1.metrics.MetricsService.GetProcessMonitor:input_type -> vrooli.system_monitor.v1.metrics.GetProcessMonitorRequest
+	55,  // 159: vrooli.system_monitor.v1.metrics.MetricsService.GetProcessTimeline:input_type -> vrooli.system_monitor.v1.metrics.GetProcessTimelineRequest
+	57,  // 160: vrooli.system_monitor.v1.metrics.MetricsService.GetInfrastructureMonitor:input_type -> vrooli.system_monitor.v1.metrics.GetInfrastructureMonitorRequest
+	59,  // 161: vrooli.system_monitor.v1.metrics.MetricsService.GetMetricsTimeline:input_type -> vrooli.system_monitor.v1.metrics.GetMetricsTimelineRequest
+	61,  // 162: vrooli.system_monitor.v1.metrics.MetricsService.GetDiskDetail:input_type -> vrooli.system_monitor.v1.metrics.GetDiskDetailRequest
+	47,  // 163: vrooli.system_monitor.v1.metrics.MetricsService.GetCurrentMetrics:output_type -> vrooli.system_monitor.v1.metrics.GetCurrentMetricsResponse
+	49,  // 164: vrooli.system_monitor.v1.metrics.MetricsService.GetDetailedMetrics:output_type -> vrooli.system_monitor.v1.metrics.GetDetailedMetricsResponse
+	51,  // 165: vrooli.system_monitor.v1.metrics.MetricsService.GetNetworkDiagnostic:output_type -> vrooli.system_monitor.v1.metrics.GetNetworkDiagnosticResponse
+	54,  // 166: vrooli.system_monitor.v1.metrics.MetricsService.GetProcessMonitor:output_type -> vrooli.system_monitor.v1.metrics.GetProcessMonitorResponse
+	56,  // 167: vrooli.system_monitor.v1.metrics.MetricsService.GetProcessTimeline:output_type -> vrooli.system_monitor.v1.metrics.GetProcessTimelineResponse
+	58,  // 168: vrooli.system_monitor.v1.metrics.MetricsService.GetInfrastructureMonitor:output_type -> vrooli.system_monitor.v1.metrics.GetInfrastructureMonitorResponse
+	60,  // 169: vrooli.system_monitor.v1.metrics.MetricsService.GetMetricsTimeline:output_type -> vrooli.system_monitor.v1.metrics.GetMetricsTimelineResponse
+	62,  // 170: vrooli.system_monitor.v1.metrics.MetricsService.GetDiskDetail:output_type -> vrooli.system_monitor.v1.metrics.GetDiskDetailResponse
+	163, // [163:171] is the sub-list for method output_type
+	155, // [155:163] is the sub-list for method input_type
+	155, // [155:155] is the sub-list for extension type_name
+	155, // [155:155] is the sub-list for extension extendee
+	0,   // [0:155] is the sub-list for field type_name
 }
 
 func init() { file_system_monitor_v1_metrics_metrics_proto_init() }
@@ -5937,18 +6224,18 @@ func file_system_monitor_v1_metrics_metrics_proto_init() {
 	}
 	file_system_monitor_v1_metrics_metrics_proto_msgTypes[2].OneofWrappers = []any{}
 	file_system_monitor_v1_metrics_metrics_proto_msgTypes[4].OneofWrappers = []any{}
-	file_system_monitor_v1_metrics_metrics_proto_msgTypes[14].OneofWrappers = []any{}
-	file_system_monitor_v1_metrics_metrics_proto_msgTypes[17].OneofWrappers = []any{}
-	file_system_monitor_v1_metrics_metrics_proto_msgTypes[18].OneofWrappers = []any{}
-	file_system_monitor_v1_metrics_metrics_proto_msgTypes[53].OneofWrappers = []any{}
-	file_system_monitor_v1_metrics_metrics_proto_msgTypes[57].OneofWrappers = []any{}
+	file_system_monitor_v1_metrics_metrics_proto_msgTypes[16].OneofWrappers = []any{}
+	file_system_monitor_v1_metrics_metrics_proto_msgTypes[19].OneofWrappers = []any{}
+	file_system_monitor_v1_metrics_metrics_proto_msgTypes[20].OneofWrappers = []any{}
+	file_system_monitor_v1_metrics_metrics_proto_msgTypes[55].OneofWrappers = []any{}
+	file_system_monitor_v1_metrics_metrics_proto_msgTypes[59].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_system_monitor_v1_metrics_metrics_proto_rawDesc), len(file_system_monitor_v1_metrics_metrics_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   65,
+			NumMessages:   68,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

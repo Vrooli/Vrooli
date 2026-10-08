@@ -42,6 +42,14 @@ message PipelineConfig {
   // Name of the scenario to deploy (required).
   string scenario_name = 1 [(buf.validate.field).string.min_len = 1];
 
+  // Registered ramp-neutral packaging strategy identifier. Empty selects the
+  // desktop ramp's recorded default.
+  string strategy_id = 36;
+
+  // Independent, attributable Electron optimization switches. Allowed only
+  // with electron-optimized; absent switches remain disabled.
+  ElectronOptimizationProfile optimization_profile = 37;
+
   // Target platforms to build for.
   // Empty means current platform only.
   repeated vrooli.scenario_to_desktop.v1.shared.Platform platforms = 2;
@@ -166,6 +174,13 @@ message PipelineConfig {
   // Optional provider/platform journey capability to execute during smoke.
   // Empty selects the deployment-mode default journey.
   string journey_id = 35;
+}
+
+message ElectronOptimizationProfile {
+  bool shared_runtime_readiness = 1;
+  bool secure_custom_scheme_ui = 2;
+  bool v8_snapshot_code_cache = 3;
+  bool electron_fuses = 4;
 }
 
 message DeployConfig {
@@ -443,6 +458,16 @@ message PipelineStatus {
 message PipelineRunRequest {
   // Embedded configuration.
   PipelineConfig config = 1;
+  // Flat governed selectors let programs start a pinned strategy cell without
+  // constructing the entire nested PipelineConfig message. When config is
+  // present, these fields override only the matching values.
+  string scenario_name = 2;
+  string strategy_id = 3;
+  bool shared_runtime_readiness = 4;
+  bool secure_custom_scheme_ui = 5;
+  bool v8_snapshot_code_cache = 6;
+  bool electron_fuses = 7;
+  bool skip_smoke_test = 8;
 }
 
 // PipelineRunResponse is returned when a pipeline is started.

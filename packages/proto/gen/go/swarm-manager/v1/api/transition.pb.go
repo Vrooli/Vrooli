@@ -466,7 +466,7 @@ var File_swarm_manager_v1_api_transition_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_api_transition_proto_rawDesc = "" +
 	"\n" +
-	"%swarm-manager/v1/api/transition.proto\x12\x1bvrooli.swarm_manager.v1.api\x1a(swarm-manager/v1/domain/transition.proto\x1a&swarm-manager/v1/shared/plan_ref.proto\"\x18\n" +
+	"%swarm-manager/v1/api/transition.proto\x12\x1bvrooli.swarm_manager.v1.api\x1a(swarm-manager/v1/domain/transition.proto\x1a&swarm-manager/v1/api/development.proto\x1a&swarm-manager/v1/shared/plan_ref.proto\"\x18\n" +
 	"\x16ListTransitionsRequest\"g\n" +
 	"\x17ListTransitionsResponse\x12L\n" +
 	"\vtransitions\x18\x01 \x03(\v2*.vrooli.swarm_manager.v1.domain.TransitionR\vtransitions\"\xc4\x02\n" +
@@ -503,8 +503,9 @@ const file_swarm_manager_v1_api_transition_proto_rawDesc = "" +
 	"\x11definition_digest\x18\a \x01(\tR\x10definitionDigest\x12%\n" +
 	"\x0eentity_version\x18\b \x01(\tR\rentityVersion\x12\x1f\n" +
 	"\vapply_state\x18\t \x01(\tR\n" +
-	"applyState2\x8d\x03\n" +
-	"\x11TransitionService\x12|\n" +
+	"applyState2\x95\x04\n" +
+	"\x11TransitionService\x12\x85\x01\n" +
+	"\x12PreviewDevelopment\x126.vrooli.swarm_manager.v1.api.PreviewDevelopmentRequest\x1a7.vrooli.swarm_manager.v1.api.PreviewDevelopmentResponse\x12|\n" +
 	"\x0fListTransitions\x123.vrooli.swarm_manager.v1.api.ListTransitionsRequest\x1a4.vrooli.swarm_manager.v1.api.ListTransitionsResponse\x12|\n" +
 	"\x0fStartTransition\x123.vrooli.swarm_manager.v1.api.StartTransitionRequest\x1a4.vrooli.swarm_manager.v1.api.StartTransitionResponse\x12|\n" +
 	"\x0fApplyTransition\x123.vrooli.swarm_manager.v1.api.ApplyTransitionRequest\x1a4.vrooli.swarm_manager.v1.api.ApplyTransitionResponseBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3"
@@ -523,31 +524,35 @@ func file_swarm_manager_v1_api_transition_proto_rawDescGZIP() []byte {
 
 var file_swarm_manager_v1_api_transition_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_swarm_manager_v1_api_transition_proto_goTypes = []any{
-	(*ListTransitionsRequest)(nil),  // 0: vrooli.swarm_manager.v1.api.ListTransitionsRequest
-	(*ListTransitionsResponse)(nil), // 1: vrooli.swarm_manager.v1.api.ListTransitionsResponse
-	(*StartTransitionRequest)(nil),  // 2: vrooli.swarm_manager.v1.api.StartTransitionRequest
-	(*SubjectReference)(nil),        // 3: vrooli.swarm_manager.v1.api.SubjectReference
-	(*StartTransitionResponse)(nil), // 4: vrooli.swarm_manager.v1.api.StartTransitionResponse
-	(*ApplyTransitionRequest)(nil),  // 5: vrooli.swarm_manager.v1.api.ApplyTransitionRequest
-	(*ApplyTransitionResponse)(nil), // 6: vrooli.swarm_manager.v1.api.ApplyTransitionResponse
-	nil,                             // 7: vrooli.swarm_manager.v1.api.StartTransitionRequest.OperatorInputsEntry
-	(*domain.Transition)(nil),       // 8: vrooli.swarm_manager.v1.domain.Transition
+	(*ListTransitionsRequest)(nil),     // 0: vrooli.swarm_manager.v1.api.ListTransitionsRequest
+	(*ListTransitionsResponse)(nil),    // 1: vrooli.swarm_manager.v1.api.ListTransitionsResponse
+	(*StartTransitionRequest)(nil),     // 2: vrooli.swarm_manager.v1.api.StartTransitionRequest
+	(*SubjectReference)(nil),           // 3: vrooli.swarm_manager.v1.api.SubjectReference
+	(*StartTransitionResponse)(nil),    // 4: vrooli.swarm_manager.v1.api.StartTransitionResponse
+	(*ApplyTransitionRequest)(nil),     // 5: vrooli.swarm_manager.v1.api.ApplyTransitionRequest
+	(*ApplyTransitionResponse)(nil),    // 6: vrooli.swarm_manager.v1.api.ApplyTransitionResponse
+	nil,                                // 7: vrooli.swarm_manager.v1.api.StartTransitionRequest.OperatorInputsEntry
+	(*domain.Transition)(nil),          // 8: vrooli.swarm_manager.v1.domain.Transition
+	(*PreviewDevelopmentRequest)(nil),  // 9: vrooli.swarm_manager.v1.api.PreviewDevelopmentRequest
+	(*PreviewDevelopmentResponse)(nil), // 10: vrooli.swarm_manager.v1.api.PreviewDevelopmentResponse
 }
 var file_swarm_manager_v1_api_transition_proto_depIdxs = []int32{
-	8, // 0: vrooli.swarm_manager.v1.api.ListTransitionsResponse.transitions:type_name -> vrooli.swarm_manager.v1.domain.Transition
-	3, // 1: vrooli.swarm_manager.v1.api.StartTransitionRequest.subject_ref:type_name -> vrooli.swarm_manager.v1.api.SubjectReference
-	7, // 2: vrooli.swarm_manager.v1.api.StartTransitionRequest.operator_inputs:type_name -> vrooli.swarm_manager.v1.api.StartTransitionRequest.OperatorInputsEntry
-	0, // 3: vrooli.swarm_manager.v1.api.TransitionService.ListTransitions:input_type -> vrooli.swarm_manager.v1.api.ListTransitionsRequest
-	2, // 4: vrooli.swarm_manager.v1.api.TransitionService.StartTransition:input_type -> vrooli.swarm_manager.v1.api.StartTransitionRequest
-	5, // 5: vrooli.swarm_manager.v1.api.TransitionService.ApplyTransition:input_type -> vrooli.swarm_manager.v1.api.ApplyTransitionRequest
-	1, // 6: vrooli.swarm_manager.v1.api.TransitionService.ListTransitions:output_type -> vrooli.swarm_manager.v1.api.ListTransitionsResponse
-	4, // 7: vrooli.swarm_manager.v1.api.TransitionService.StartTransition:output_type -> vrooli.swarm_manager.v1.api.StartTransitionResponse
-	6, // 8: vrooli.swarm_manager.v1.api.TransitionService.ApplyTransition:output_type -> vrooli.swarm_manager.v1.api.ApplyTransitionResponse
-	6, // [6:9] is the sub-list for method output_type
-	3, // [3:6] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	8,  // 0: vrooli.swarm_manager.v1.api.ListTransitionsResponse.transitions:type_name -> vrooli.swarm_manager.v1.domain.Transition
+	3,  // 1: vrooli.swarm_manager.v1.api.StartTransitionRequest.subject_ref:type_name -> vrooli.swarm_manager.v1.api.SubjectReference
+	7,  // 2: vrooli.swarm_manager.v1.api.StartTransitionRequest.operator_inputs:type_name -> vrooli.swarm_manager.v1.api.StartTransitionRequest.OperatorInputsEntry
+	9,  // 3: vrooli.swarm_manager.v1.api.TransitionService.PreviewDevelopment:input_type -> vrooli.swarm_manager.v1.api.PreviewDevelopmentRequest
+	0,  // 4: vrooli.swarm_manager.v1.api.TransitionService.ListTransitions:input_type -> vrooli.swarm_manager.v1.api.ListTransitionsRequest
+	2,  // 5: vrooli.swarm_manager.v1.api.TransitionService.StartTransition:input_type -> vrooli.swarm_manager.v1.api.StartTransitionRequest
+	5,  // 6: vrooli.swarm_manager.v1.api.TransitionService.ApplyTransition:input_type -> vrooli.swarm_manager.v1.api.ApplyTransitionRequest
+	10, // 7: vrooli.swarm_manager.v1.api.TransitionService.PreviewDevelopment:output_type -> vrooli.swarm_manager.v1.api.PreviewDevelopmentResponse
+	1,  // 8: vrooli.swarm_manager.v1.api.TransitionService.ListTransitions:output_type -> vrooli.swarm_manager.v1.api.ListTransitionsResponse
+	4,  // 9: vrooli.swarm_manager.v1.api.TransitionService.StartTransition:output_type -> vrooli.swarm_manager.v1.api.StartTransitionResponse
+	6,  // 10: vrooli.swarm_manager.v1.api.TransitionService.ApplyTransition:output_type -> vrooli.swarm_manager.v1.api.ApplyTransitionResponse
+	7,  // [7:11] is the sub-list for method output_type
+	3,  // [3:7] is the sub-list for method input_type
+	3,  // [3:3] is the sub-list for extension type_name
+	3,  // [3:3] is the sub-list for extension extendee
+	0,  // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_swarm_manager_v1_api_transition_proto_init() }
@@ -555,6 +560,7 @@ func file_swarm_manager_v1_api_transition_proto_init() {
 	if File_swarm_manager_v1_api_transition_proto != nil {
 		return
 	}
+	file_swarm_manager_v1_api_development_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

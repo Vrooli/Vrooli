@@ -125,6 +125,54 @@ class PreviewSwapResponse(_message.Message):
     affected_dates: _containers.RepeatedScalarFieldContainer[str]
     def __init__(self, revision: _Optional[int] = ..., preview_json: _Optional[str] = ..., affected_dates: _Optional[_Iterable[str]] = ...) -> None: ...
 
+class ExploreRecipesRequest(_message.Message):
+    __slots__ = ("workspace_id",)
+    WORKSPACE_ID_FIELD_NUMBER: _ClassVar[int]
+    workspace_id: str
+    def __init__(self, workspace_id: _Optional[str] = ...) -> None: ...
+
+class ExploreFitReason(_message.Message):
+    __slots__ = ("code", "rule", "reference", "message")
+    CODE_FIELD_NUMBER: _ClassVar[int]
+    RULE_FIELD_NUMBER: _ClassVar[int]
+    REFERENCE_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    code: str
+    rule: str
+    reference: str
+    message: str
+    def __init__(self, code: _Optional[str] = ..., rule: _Optional[str] = ..., reference: _Optional[str] = ..., message: _Optional[str] = ...) -> None: ...
+
+class ExploreRecipeCandidate(_message.Message):
+    __slots__ = ("recipe_id", "name", "recipe_revision", "fit_reasons", "summary")
+    RECIPE_ID_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    RECIPE_REVISION_FIELD_NUMBER: _ClassVar[int]
+    FIT_REASONS_FIELD_NUMBER: _ClassVar[int]
+    SUMMARY_FIELD_NUMBER: _ClassVar[int]
+    recipe_id: str
+    name: str
+    recipe_revision: int
+    fit_reasons: _containers.RepeatedCompositeFieldContainer[ExploreFitReason]
+    summary: str
+    def __init__(self, recipe_id: _Optional[str] = ..., name: _Optional[str] = ..., recipe_revision: _Optional[int] = ..., fit_reasons: _Optional[_Iterable[_Union[ExploreFitReason, _Mapping]]] = ..., summary: _Optional[str] = ...) -> None: ...
+
+class ExploreRecipesResponse(_message.Message):
+    __slots__ = ("plan_revision", "profile_revision", "profile_configured", "candidates", "blocking_reasons", "saved_recipe_count")
+    PLAN_REVISION_FIELD_NUMBER: _ClassVar[int]
+    PROFILE_REVISION_FIELD_NUMBER: _ClassVar[int]
+    PROFILE_CONFIGURED_FIELD_NUMBER: _ClassVar[int]
+    CANDIDATES_FIELD_NUMBER: _ClassVar[int]
+    BLOCKING_REASONS_FIELD_NUMBER: _ClassVar[int]
+    SAVED_RECIPE_COUNT_FIELD_NUMBER: _ClassVar[int]
+    plan_revision: int
+    profile_revision: int
+    profile_configured: bool
+    candidates: _containers.RepeatedCompositeFieldContainer[ExploreRecipeCandidate]
+    blocking_reasons: _containers.RepeatedCompositeFieldContainer[ExploreFitReason]
+    saved_recipe_count: int
+    def __init__(self, plan_revision: _Optional[int] = ..., profile_revision: _Optional[int] = ..., profile_configured: _Optional[bool] = ..., candidates: _Optional[_Iterable[_Union[ExploreRecipeCandidate, _Mapping]]] = ..., blocking_reasons: _Optional[_Iterable[_Union[ExploreFitReason, _Mapping]]] = ..., saved_recipe_count: _Optional[int] = ...) -> None: ...
+
 class GetShoppingPreviewRequest(_message.Message):
     __slots__ = ("workspace_id", "expected_revision")
     WORKSPACE_ID_FIELD_NUMBER: _ClassVar[int]

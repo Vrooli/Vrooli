@@ -27,6 +27,9 @@ const (
 	// DurableValidationRunServiceName is the fully-qualified name of the DurableValidationRunService
 	// service.
 	DurableValidationRunServiceName = "vrooli.scenario_validation.v1.DurableValidationRunService"
+	// SelectedValidationRunServiceName is the fully-qualified name of the SelectedValidationRunService
+	// service.
+	SelectedValidationRunServiceName = "vrooli.scenario_validation.v1.SelectedValidationRunService"
 )
 
 // These constants are the fully-qualified names of the RPCs defined in this package. They're
@@ -64,6 +67,9 @@ const (
 	// DurableValidationRunServiceAbortValidationRunProcedure is the fully-qualified name of the
 	// DurableValidationRunService's AbortValidationRun RPC.
 	DurableValidationRunServiceAbortValidationRunProcedure = "/vrooli.scenario_validation.v1.DurableValidationRunService/AbortValidationRun"
+	// SelectedValidationRunServiceStartSelectedValidationRunProcedure is the fully-qualified name of
+	// the SelectedValidationRunService's StartSelectedValidationRun RPC.
+	SelectedValidationRunServiceStartSelectedValidationRunProcedure = "/vrooli.scenario_validation.v1.SelectedValidationRunService/StartSelectedValidationRun"
 )
 
 // ScenarioValidationServiceClient is a client for the
@@ -444,4 +450,78 @@ func (UnimplementedDurableValidationRunServiceHandler) WaitValidationRun(context
 
 func (UnimplementedDurableValidationRunServiceHandler) AbortValidationRun(context.Context, *connect.Request[v1.AbortValidationRunRequest]) (*connect.Response[v1.AbortValidationRunResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_validation.v1.DurableValidationRunService.AbortValidationRun is not implemented"))
+}
+
+// SelectedValidationRunServiceClient is a client for the
+// vrooli.scenario_validation.v1.SelectedValidationRunService service.
+type SelectedValidationRunServiceClient interface {
+	StartSelectedValidationRun(context.Context, *connect.Request[v1.StartValidationRunRequest]) (*connect.Response[v1.StartValidationRunResponse], error)
+}
+
+// NewSelectedValidationRunServiceClient constructs a client for the
+// vrooli.scenario_validation.v1.SelectedValidationRunService service. By default, it uses the
+// Connect protocol with the binary Protobuf Codec, asks for gzipped responses, and sends
+// uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the connect.WithGRPC() or
+// connect.WithGRPCWeb() options.
+//
+// The URL supplied here should be the base URL for the Connect or gRPC server (for example,
+// http://api.acme.com or https://acme.com/grpc).
+func NewSelectedValidationRunServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) SelectedValidationRunServiceClient {
+	baseURL = strings.TrimRight(baseURL, "/")
+	selectedValidationRunServiceMethods := v1.File_scenario_validation_v1_validation_proto.Services().ByName("SelectedValidationRunService").Methods()
+	return &selectedValidationRunServiceClient{
+		startSelectedValidationRun: connect.NewClient[v1.StartValidationRunRequest, v1.StartValidationRunResponse](
+			httpClient,
+			baseURL+SelectedValidationRunServiceStartSelectedValidationRunProcedure,
+			connect.WithSchema(selectedValidationRunServiceMethods.ByName("StartSelectedValidationRun")),
+			connect.WithClientOptions(opts...),
+		),
+	}
+}
+
+// selectedValidationRunServiceClient implements SelectedValidationRunServiceClient.
+type selectedValidationRunServiceClient struct {
+	startSelectedValidationRun *connect.Client[v1.StartValidationRunRequest, v1.StartValidationRunResponse]
+}
+
+// StartSelectedValidationRun calls
+// vrooli.scenario_validation.v1.SelectedValidationRunService.StartSelectedValidationRun.
+func (c *selectedValidationRunServiceClient) StartSelectedValidationRun(ctx context.Context, req *connect.Request[v1.StartValidationRunRequest]) (*connect.Response[v1.StartValidationRunResponse], error) {
+	return c.startSelectedValidationRun.CallUnary(ctx, req)
+}
+
+// SelectedValidationRunServiceHandler is an implementation of the
+// vrooli.scenario_validation.v1.SelectedValidationRunService service.
+type SelectedValidationRunServiceHandler interface {
+	StartSelectedValidationRun(context.Context, *connect.Request[v1.StartValidationRunRequest]) (*connect.Response[v1.StartValidationRunResponse], error)
+}
+
+// NewSelectedValidationRunServiceHandler builds an HTTP handler from the service implementation. It
+// returns the path on which to mount the handler and the handler itself.
+//
+// By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
+// and JSON codecs. They also support gzip compression.
+func NewSelectedValidationRunServiceHandler(svc SelectedValidationRunServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	selectedValidationRunServiceMethods := v1.File_scenario_validation_v1_validation_proto.Services().ByName("SelectedValidationRunService").Methods()
+	selectedValidationRunServiceStartSelectedValidationRunHandler := connect.NewUnaryHandler(
+		SelectedValidationRunServiceStartSelectedValidationRunProcedure,
+		svc.StartSelectedValidationRun,
+		connect.WithSchema(selectedValidationRunServiceMethods.ByName("StartSelectedValidationRun")),
+		connect.WithHandlerOptions(opts...),
+	)
+	return "/vrooli.scenario_validation.v1.SelectedValidationRunService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case SelectedValidationRunServiceStartSelectedValidationRunProcedure:
+			selectedValidationRunServiceStartSelectedValidationRunHandler.ServeHTTP(w, r)
+		default:
+			http.NotFound(w, r)
+		}
+	})
+}
+
+// UnimplementedSelectedValidationRunServiceHandler returns CodeUnimplemented from all methods.
+type UnimplementedSelectedValidationRunServiceHandler struct{}
+
+func (UnimplementedSelectedValidationRunServiceHandler) StartSelectedValidationRun(context.Context, *connect.Request[v1.StartValidationRunRequest]) (*connect.Response[v1.StartValidationRunResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_validation.v1.SelectedValidationRunService.StartSelectedValidationRun is not implemented"))
 }

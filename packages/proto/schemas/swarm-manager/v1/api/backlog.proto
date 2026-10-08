@@ -230,6 +230,8 @@ message ListBacklogItemsResponse {
   // Per-item blocking state keyed by "kind/name". Only includes items that
   // have dependencies; items without deps are omitted (not blocked).
   map<string, ItemBlockingInfo> blocking = 2;
+  // Number of items that matched the filters before any limit was applied.
+  int32 total = 3;
 }
 
 // ArchivedFilter controls whether archived backlog items are excluded, shown
@@ -254,6 +256,12 @@ message ListBacklogItemsRequest {
   optional bool stale = 8;
   // Verified team-member/profile identity that filed the item.
   optional string actor_id = 9;
+  // Match-any tag filter: an item is returned when it carries at least one of
+  // these tags (exact, case-sensitive match). Empty means no tag filter.
+  repeated string tags = 10;
+  // Maximum number of items returned after filtering and sorting. Zero or
+  // unset means no limit; total still reports the full matched count.
+  optional int32 limit = 11 [(buf.validate.field).int32.gte = 0];
 }
 
 // DeleteBacklogItemRequest identifies one backlog item to delete. Deletion is

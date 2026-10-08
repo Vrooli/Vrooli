@@ -525,6 +525,286 @@ func (x *ApplyWorkspaceImportResponse) GetCheckpointId() string {
 	return ""
 }
 
+type GetRestoreCheckpointRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	CheckpointId  string                 `protobuf:"bytes,2,opt,name=checkpoint_id,json=checkpointId,proto3" json:"checkpoint_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRestoreCheckpointRequest) Reset() {
+	*x = GetRestoreCheckpointRequest{}
+	mi := &file_nutrition_planner_v1_portability_portability_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRestoreCheckpointRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRestoreCheckpointRequest) ProtoMessage() {}
+
+func (x *GetRestoreCheckpointRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_nutrition_planner_v1_portability_portability_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRestoreCheckpointRequest.ProtoReflect.Descriptor instead.
+func (*GetRestoreCheckpointRequest) Descriptor() ([]byte, []int) {
+	return file_nutrition_planner_v1_portability_portability_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *GetRestoreCheckpointRequest) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+func (x *GetRestoreCheckpointRequest) GetCheckpointId() string {
+	if x != nil {
+		return x.CheckpointId
+	}
+	return ""
+}
+
+type GetRestoreCheckpointResponse struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	CheckpointId    string                 `protobuf:"bytes,1,opt,name=checkpoint_id,json=checkpointId,proto3" json:"checkpoint_id,omitempty"`
+	CreatedAt       string                 `protobuf:"bytes,2,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	RestoreRevision int64                  `protobuf:"varint,3,opt,name=restore_revision,json=restoreRevision,proto3" json:"restore_revision,omitempty"`
+	RecipeCount     int32                  `protobuf:"varint,4,opt,name=recipe_count,json=recipeCount,proto3" json:"recipe_count,omitempty"`
+	PlanIncluded    bool                   `protobuf:"varint,5,opt,name=plan_included,json=planIncluded,proto3" json:"plan_included,omitempty"`
+	Omissions       []string               `protobuf:"bytes,6,rep,name=omissions,proto3" json:"omissions,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *GetRestoreCheckpointResponse) Reset() {
+	*x = GetRestoreCheckpointResponse{}
+	mi := &file_nutrition_planner_v1_portability_portability_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRestoreCheckpointResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRestoreCheckpointResponse) ProtoMessage() {}
+
+func (x *GetRestoreCheckpointResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_nutrition_planner_v1_portability_portability_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRestoreCheckpointResponse.ProtoReflect.Descriptor instead.
+func (*GetRestoreCheckpointResponse) Descriptor() ([]byte, []int) {
+	return file_nutrition_planner_v1_portability_portability_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *GetRestoreCheckpointResponse) GetCheckpointId() string {
+	if x != nil {
+		return x.CheckpointId
+	}
+	return ""
+}
+
+func (x *GetRestoreCheckpointResponse) GetCreatedAt() string {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return ""
+}
+
+func (x *GetRestoreCheckpointResponse) GetRestoreRevision() int64 {
+	if x != nil {
+		return x.RestoreRevision
+	}
+	return 0
+}
+
+func (x *GetRestoreCheckpointResponse) GetRecipeCount() int32 {
+	if x != nil {
+		return x.RecipeCount
+	}
+	return 0
+}
+
+func (x *GetRestoreCheckpointResponse) GetPlanIncluded() bool {
+	if x != nil {
+		return x.PlanIncluded
+	}
+	return false
+}
+
+func (x *GetRestoreCheckpointResponse) GetOmissions() []string {
+	if x != nil {
+		return x.Omissions
+	}
+	return nil
+}
+
+type RecoverRestoreCheckpointRequest struct {
+	state                     protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId               string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	CheckpointId              string                 `protobuf:"bytes,2,opt,name=checkpoint_id,json=checkpointId,proto3" json:"checkpoint_id,omitempty"`
+	ExpectedWorkspaceRevision int64                  `protobuf:"varint,3,opt,name=expected_workspace_revision,json=expectedWorkspaceRevision,proto3" json:"expected_workspace_revision,omitempty"`
+	IdempotencyKey            string                 `protobuf:"bytes,4,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
+}
+
+func (x *RecoverRestoreCheckpointRequest) Reset() {
+	*x = RecoverRestoreCheckpointRequest{}
+	mi := &file_nutrition_planner_v1_portability_portability_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecoverRestoreCheckpointRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecoverRestoreCheckpointRequest) ProtoMessage() {}
+
+func (x *RecoverRestoreCheckpointRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_nutrition_planner_v1_portability_portability_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecoverRestoreCheckpointRequest.ProtoReflect.Descriptor instead.
+func (*RecoverRestoreCheckpointRequest) Descriptor() ([]byte, []int) {
+	return file_nutrition_planner_v1_portability_portability_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *RecoverRestoreCheckpointRequest) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+func (x *RecoverRestoreCheckpointRequest) GetCheckpointId() string {
+	if x != nil {
+		return x.CheckpointId
+	}
+	return ""
+}
+
+func (x *RecoverRestoreCheckpointRequest) GetExpectedWorkspaceRevision() int64 {
+	if x != nil {
+		return x.ExpectedWorkspaceRevision
+	}
+	return 0
+}
+
+func (x *RecoverRestoreCheckpointRequest) GetIdempotencyKey() string {
+	if x != nil {
+		return x.IdempotencyKey
+	}
+	return ""
+}
+
+type RecoverRestoreCheckpointResponse struct {
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceRevision    int64                  `protobuf:"varint,1,opt,name=workspace_revision,json=workspaceRevision,proto3" json:"workspace_revision,omitempty"`
+	RecipesRestored      int32                  `protobuf:"varint,2,opt,name=recipes_restored,json=recipesRestored,proto3" json:"recipes_restored,omitempty"`
+	PlanRestored         bool                   `protobuf:"varint,3,opt,name=plan_restored,json=planRestored,proto3" json:"plan_restored,omitempty"`
+	RecoveryCheckpointId string                 `protobuf:"bytes,4,opt,name=recovery_checkpoint_id,json=recoveryCheckpointId,proto3" json:"recovery_checkpoint_id,omitempty"`
+	Omissions            []string               `protobuf:"bytes,5,rep,name=omissions,proto3" json:"omissions,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *RecoverRestoreCheckpointResponse) Reset() {
+	*x = RecoverRestoreCheckpointResponse{}
+	mi := &file_nutrition_planner_v1_portability_portability_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecoverRestoreCheckpointResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecoverRestoreCheckpointResponse) ProtoMessage() {}
+
+func (x *RecoverRestoreCheckpointResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_nutrition_planner_v1_portability_portability_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecoverRestoreCheckpointResponse.ProtoReflect.Descriptor instead.
+func (*RecoverRestoreCheckpointResponse) Descriptor() ([]byte, []int) {
+	return file_nutrition_planner_v1_portability_portability_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *RecoverRestoreCheckpointResponse) GetWorkspaceRevision() int64 {
+	if x != nil {
+		return x.WorkspaceRevision
+	}
+	return 0
+}
+
+func (x *RecoverRestoreCheckpointResponse) GetRecipesRestored() int32 {
+	if x != nil {
+		return x.RecipesRestored
+	}
+	return 0
+}
+
+func (x *RecoverRestoreCheckpointResponse) GetPlanRestored() bool {
+	if x != nil {
+		return x.PlanRestored
+	}
+	return false
+}
+
+func (x *RecoverRestoreCheckpointResponse) GetRecoveryCheckpointId() string {
+	if x != nil {
+		return x.RecoveryCheckpointId
+	}
+	return ""
+}
+
+func (x *RecoverRestoreCheckpointResponse) GetOmissions() []string {
+	if x != nil {
+		return x.Omissions
+	}
+	return nil
+}
+
 type PreviewRecipesImportRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
@@ -535,7 +815,7 @@ type PreviewRecipesImportRequest struct {
 
 func (x *PreviewRecipesImportRequest) Reset() {
 	*x = PreviewRecipesImportRequest{}
-	mi := &file_nutrition_planner_v1_portability_portability_proto_msgTypes[8]
+	mi := &file_nutrition_planner_v1_portability_portability_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -547,7 +827,7 @@ func (x *PreviewRecipesImportRequest) String() string {
 func (*PreviewRecipesImportRequest) ProtoMessage() {}
 
 func (x *PreviewRecipesImportRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_nutrition_planner_v1_portability_portability_proto_msgTypes[8]
+	mi := &file_nutrition_planner_v1_portability_portability_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -560,7 +840,7 @@ func (x *PreviewRecipesImportRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PreviewRecipesImportRequest.ProtoReflect.Descriptor instead.
 func (*PreviewRecipesImportRequest) Descriptor() ([]byte, []int) {
-	return file_nutrition_planner_v1_portability_portability_proto_rawDescGZIP(), []int{8}
+	return file_nutrition_planner_v1_portability_portability_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *PreviewRecipesImportRequest) GetWorkspaceId() string {
@@ -592,7 +872,7 @@ type PreviewRecipesImportResponse struct {
 
 func (x *PreviewRecipesImportResponse) Reset() {
 	*x = PreviewRecipesImportResponse{}
-	mi := &file_nutrition_planner_v1_portability_portability_proto_msgTypes[9]
+	mi := &file_nutrition_planner_v1_portability_portability_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -604,7 +884,7 @@ func (x *PreviewRecipesImportResponse) String() string {
 func (*PreviewRecipesImportResponse) ProtoMessage() {}
 
 func (x *PreviewRecipesImportResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_nutrition_planner_v1_portability_portability_proto_msgTypes[9]
+	mi := &file_nutrition_planner_v1_portability_portability_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -617,7 +897,7 @@ func (x *PreviewRecipesImportResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PreviewRecipesImportResponse.ProtoReflect.Descriptor instead.
 func (*PreviewRecipesImportResponse) Descriptor() ([]byte, []int) {
-	return file_nutrition_planner_v1_portability_portability_proto_rawDescGZIP(), []int{9}
+	return file_nutrition_planner_v1_portability_portability_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *PreviewRecipesImportResponse) GetValid() bool {
@@ -682,7 +962,7 @@ type ApplyRecipesImportRequest struct {
 
 func (x *ApplyRecipesImportRequest) Reset() {
 	*x = ApplyRecipesImportRequest{}
-	mi := &file_nutrition_planner_v1_portability_portability_proto_msgTypes[10]
+	mi := &file_nutrition_planner_v1_portability_portability_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -694,7 +974,7 @@ func (x *ApplyRecipesImportRequest) String() string {
 func (*ApplyRecipesImportRequest) ProtoMessage() {}
 
 func (x *ApplyRecipesImportRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_nutrition_planner_v1_portability_portability_proto_msgTypes[10]
+	mi := &file_nutrition_planner_v1_portability_portability_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -707,7 +987,7 @@ func (x *ApplyRecipesImportRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApplyRecipesImportRequest.ProtoReflect.Descriptor instead.
 func (*ApplyRecipesImportRequest) Descriptor() ([]byte, []int) {
-	return file_nutrition_planner_v1_portability_portability_proto_rawDescGZIP(), []int{10}
+	return file_nutrition_planner_v1_portability_portability_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ApplyRecipesImportRequest) GetWorkspaceId() string {
@@ -757,7 +1037,7 @@ type ApplyRecipesImportResponse struct {
 
 func (x *ApplyRecipesImportResponse) Reset() {
 	*x = ApplyRecipesImportResponse{}
-	mi := &file_nutrition_planner_v1_portability_portability_proto_msgTypes[11]
+	mi := &file_nutrition_planner_v1_portability_portability_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -769,7 +1049,7 @@ func (x *ApplyRecipesImportResponse) String() string {
 func (*ApplyRecipesImportResponse) ProtoMessage() {}
 
 func (x *ApplyRecipesImportResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_nutrition_planner_v1_portability_portability_proto_msgTypes[11]
+	mi := &file_nutrition_planner_v1_portability_portability_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -782,7 +1062,7 @@ func (x *ApplyRecipesImportResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApplyRecipesImportResponse.ProtoReflect.Descriptor instead.
 func (*ApplyRecipesImportResponse) Descriptor() ([]byte, []int) {
-	return file_nutrition_planner_v1_portability_portability_proto_rawDescGZIP(), []int{11}
+	return file_nutrition_planner_v1_portability_portability_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ApplyRecipesImportResponse) GetWorkspaceRevision() int64 {
@@ -823,7 +1103,7 @@ type ExportGroceriesCSVRequest struct {
 
 func (x *ExportGroceriesCSVRequest) Reset() {
 	*x = ExportGroceriesCSVRequest{}
-	mi := &file_nutrition_planner_v1_portability_portability_proto_msgTypes[12]
+	mi := &file_nutrition_planner_v1_portability_portability_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -835,7 +1115,7 @@ func (x *ExportGroceriesCSVRequest) String() string {
 func (*ExportGroceriesCSVRequest) ProtoMessage() {}
 
 func (x *ExportGroceriesCSVRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_nutrition_planner_v1_portability_portability_proto_msgTypes[12]
+	mi := &file_nutrition_planner_v1_portability_portability_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -848,7 +1128,7 @@ func (x *ExportGroceriesCSVRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExportGroceriesCSVRequest.ProtoReflect.Descriptor instead.
 func (*ExportGroceriesCSVRequest) Descriptor() ([]byte, []int) {
-	return file_nutrition_planner_v1_portability_portability_proto_rawDescGZIP(), []int{12}
+	return file_nutrition_planner_v1_portability_portability_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ExportGroceriesCSVRequest) GetWorkspaceId() string {
@@ -876,7 +1156,7 @@ type ExportGroceriesCSVResponse struct {
 
 func (x *ExportGroceriesCSVResponse) Reset() {
 	*x = ExportGroceriesCSVResponse{}
-	mi := &file_nutrition_planner_v1_portability_portability_proto_msgTypes[13]
+	mi := &file_nutrition_planner_v1_portability_portability_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -888,7 +1168,7 @@ func (x *ExportGroceriesCSVResponse) String() string {
 func (*ExportGroceriesCSVResponse) ProtoMessage() {}
 
 func (x *ExportGroceriesCSVResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_nutrition_planner_v1_portability_portability_proto_msgTypes[13]
+	mi := &file_nutrition_planner_v1_portability_portability_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -901,7 +1181,7 @@ func (x *ExportGroceriesCSVResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExportGroceriesCSVResponse.ProtoReflect.Descriptor instead.
 func (*ExportGroceriesCSVResponse) Descriptor() ([]byte, []int) {
-	return file_nutrition_planner_v1_portability_portability_proto_rawDescGZIP(), []int{13}
+	return file_nutrition_planner_v1_portability_portability_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *ExportGroceriesCSVResponse) GetFilename() string {
@@ -936,7 +1216,7 @@ type ExportRecipePDFRequest struct {
 
 func (x *ExportRecipePDFRequest) Reset() {
 	*x = ExportRecipePDFRequest{}
-	mi := &file_nutrition_planner_v1_portability_portability_proto_msgTypes[14]
+	mi := &file_nutrition_planner_v1_portability_portability_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -948,7 +1228,7 @@ func (x *ExportRecipePDFRequest) String() string {
 func (*ExportRecipePDFRequest) ProtoMessage() {}
 
 func (x *ExportRecipePDFRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_nutrition_planner_v1_portability_portability_proto_msgTypes[14]
+	mi := &file_nutrition_planner_v1_portability_portability_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -961,7 +1241,7 @@ func (x *ExportRecipePDFRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExportRecipePDFRequest.ProtoReflect.Descriptor instead.
 func (*ExportRecipePDFRequest) Descriptor() ([]byte, []int) {
-	return file_nutrition_planner_v1_portability_portability_proto_rawDescGZIP(), []int{14}
+	return file_nutrition_planner_v1_portability_portability_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *ExportRecipePDFRequest) GetWorkspaceId() string {
@@ -996,7 +1276,7 @@ type ExportWeeklyPDFRequest struct {
 
 func (x *ExportWeeklyPDFRequest) Reset() {
 	*x = ExportWeeklyPDFRequest{}
-	mi := &file_nutrition_planner_v1_portability_portability_proto_msgTypes[15]
+	mi := &file_nutrition_planner_v1_portability_portability_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1008,7 +1288,7 @@ func (x *ExportWeeklyPDFRequest) String() string {
 func (*ExportWeeklyPDFRequest) ProtoMessage() {}
 
 func (x *ExportWeeklyPDFRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_nutrition_planner_v1_portability_portability_proto_msgTypes[15]
+	mi := &file_nutrition_planner_v1_portability_portability_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1021,7 +1301,7 @@ func (x *ExportWeeklyPDFRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExportWeeklyPDFRequest.ProtoReflect.Descriptor instead.
 func (*ExportWeeklyPDFRequest) Descriptor() ([]byte, []int) {
-	return file_nutrition_planner_v1_portability_portability_proto_rawDescGZIP(), []int{15}
+	return file_nutrition_planner_v1_portability_portability_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *ExportWeeklyPDFRequest) GetWorkspaceId() string {
@@ -1056,7 +1336,7 @@ type ExportPDFResponse struct {
 
 func (x *ExportPDFResponse) Reset() {
 	*x = ExportPDFResponse{}
-	mi := &file_nutrition_planner_v1_portability_portability_proto_msgTypes[16]
+	mi := &file_nutrition_planner_v1_portability_portability_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1068,7 +1348,7 @@ func (x *ExportPDFResponse) String() string {
 func (*ExportPDFResponse) ProtoMessage() {}
 
 func (x *ExportPDFResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_nutrition_planner_v1_portability_portability_proto_msgTypes[16]
+	mi := &file_nutrition_planner_v1_portability_portability_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1081,7 +1361,7 @@ func (x *ExportPDFResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExportPDFResponse.ProtoReflect.Descriptor instead.
 func (*ExportPDFResponse) Descriptor() ([]byte, []int) {
-	return file_nutrition_planner_v1_portability_portability_proto_rawDescGZIP(), []int{16}
+	return file_nutrition_planner_v1_portability_portability_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *ExportPDFResponse) GetFilename() string {
@@ -1144,7 +1424,29 @@ const file_nutrition_planner_v1_portability_portability_proto_rawDesc = "" +
 	"\x1cApplyWorkspaceImportResponse\x12-\n" +
 	"\x12workspace_revision\x18\x01 \x01(\x03R\x11workspaceRevision\x12'\n" +
 	"\x0frecipes_applied\x18\x02 \x01(\x05R\x0erecipesApplied\x12#\n" +
-	"\rcheckpoint_id\x18\x03 \x01(\tR\fcheckpointId\"c\n" +
+	"\rcheckpoint_id\x18\x03 \x01(\tR\fcheckpointId\"e\n" +
+	"\x1bGetRestoreCheckpointRequest\x12!\n" +
+	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12#\n" +
+	"\rcheckpoint_id\x18\x02 \x01(\tR\fcheckpointId\"\xf3\x01\n" +
+	"\x1cGetRestoreCheckpointResponse\x12#\n" +
+	"\rcheckpoint_id\x18\x01 \x01(\tR\fcheckpointId\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\x02 \x01(\tR\tcreatedAt\x12)\n" +
+	"\x10restore_revision\x18\x03 \x01(\x03R\x0frestoreRevision\x12!\n" +
+	"\frecipe_count\x18\x04 \x01(\x05R\vrecipeCount\x12#\n" +
+	"\rplan_included\x18\x05 \x01(\bR\fplanIncluded\x12\x1c\n" +
+	"\tomissions\x18\x06 \x03(\tR\tomissions\"\xd2\x01\n" +
+	"\x1fRecoverRestoreCheckpointRequest\x12!\n" +
+	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12#\n" +
+	"\rcheckpoint_id\x18\x02 \x01(\tR\fcheckpointId\x12>\n" +
+	"\x1bexpected_workspace_revision\x18\x03 \x01(\x03R\x19expectedWorkspaceRevision\x12'\n" +
+	"\x0fidempotency_key\x18\x04 \x01(\tR\x0eidempotencyKey\"\xf5\x01\n" +
+	" RecoverRestoreCheckpointResponse\x12-\n" +
+	"\x12workspace_revision\x18\x01 \x01(\x03R\x11workspaceRevision\x12)\n" +
+	"\x10recipes_restored\x18\x02 \x01(\x05R\x0frecipesRestored\x12#\n" +
+	"\rplan_restored\x18\x03 \x01(\bR\fplanRestored\x124\n" +
+	"\x16recovery_checkpoint_id\x18\x04 \x01(\tR\x14recoveryCheckpointId\x12\x1c\n" +
+	"\tomissions\x18\x05 \x03(\tR\tomissions\"c\n" +
 	"\x1bPreviewRecipesImportRequest\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12!\n" +
 	"\fcontent_json\x18\x02 \x01(\tR\vcontentJson\"\xfe\x01\n" +
@@ -1186,12 +1488,14 @@ const file_nutrition_planner_v1_portability_portability_proto_rawDesc = "" +
 	"\x11ExportPDFResponse\x12\x1a\n" +
 	"\bfilename\x18\x01 \x01(\tR\bfilename\x12\x18\n" +
 	"\acontent\x18\x02 \x01(\fR\acontent\x12\x1a\n" +
-	"\brevision\x18\x03 \x01(\x03R\brevision2\x96\v\n" +
+	"\brevision\x18\x03 \x01(\x03R\brevision2\xee\r\n" +
 	"\x12PortabilityService\x12\x8e\x01\n" +
 	"\rExportRecipes\x12=.vrooli.nutrition_planner.v1.portability.ExportRecipesRequest\x1a>.vrooli.nutrition_planner.v1.portability.ExportRecipesResponse\x12\x94\x01\n" +
 	"\x0fExportWorkspace\x12?.vrooli.nutrition_planner.v1.portability.ExportWorkspaceRequest\x1a@.vrooli.nutrition_planner.v1.portability.ExportWorkspaceResponse\x12\xa9\x01\n" +
 	"\x16PreviewWorkspaceImport\x12F.vrooli.nutrition_planner.v1.portability.PreviewWorkspaceImportRequest\x1aG.vrooli.nutrition_planner.v1.portability.PreviewWorkspaceImportResponse\x12\xa3\x01\n" +
 	"\x14ApplyWorkspaceImport\x12D.vrooli.nutrition_planner.v1.portability.ApplyWorkspaceImportRequest\x1aE.vrooli.nutrition_planner.v1.portability.ApplyWorkspaceImportResponse\x12\xa3\x01\n" +
+	"\x14GetRestoreCheckpoint\x12D.vrooli.nutrition_planner.v1.portability.GetRestoreCheckpointRequest\x1aE.vrooli.nutrition_planner.v1.portability.GetRestoreCheckpointResponse\x12\xaf\x01\n" +
+	"\x18RecoverRestoreCheckpoint\x12H.vrooli.nutrition_planner.v1.portability.RecoverRestoreCheckpointRequest\x1aI.vrooli.nutrition_planner.v1.portability.RecoverRestoreCheckpointResponse\x12\xa3\x01\n" +
 	"\x14PreviewRecipesImport\x12D.vrooli.nutrition_planner.v1.portability.PreviewRecipesImportRequest\x1aE.vrooli.nutrition_planner.v1.portability.PreviewRecipesImportResponse\x12\x9d\x01\n" +
 	"\x12ApplyRecipesImport\x12B.vrooli.nutrition_planner.v1.portability.ApplyRecipesImportRequest\x1aC.vrooli.nutrition_planner.v1.portability.ApplyRecipesImportResponse\x12\x9d\x01\n" +
 	"\x12ExportGroceriesCSV\x12B.vrooli.nutrition_planner.v1.portability.ExportGroceriesCSVRequest\x1aC.vrooli.nutrition_planner.v1.portability.ExportGroceriesCSVResponse\x12\x8e\x01\n" +
@@ -1210,47 +1514,55 @@ func file_nutrition_planner_v1_portability_portability_proto_rawDescGZIP() []byt
 	return file_nutrition_planner_v1_portability_portability_proto_rawDescData
 }
 
-var file_nutrition_planner_v1_portability_portability_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_nutrition_planner_v1_portability_portability_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_nutrition_planner_v1_portability_portability_proto_goTypes = []any{
-	(*ExportRecipesRequest)(nil),           // 0: vrooli.nutrition_planner.v1.portability.ExportRecipesRequest
-	(*ExportRecipesResponse)(nil),          // 1: vrooli.nutrition_planner.v1.portability.ExportRecipesResponse
-	(*ExportWorkspaceRequest)(nil),         // 2: vrooli.nutrition_planner.v1.portability.ExportWorkspaceRequest
-	(*ExportWorkspaceResponse)(nil),        // 3: vrooli.nutrition_planner.v1.portability.ExportWorkspaceResponse
-	(*PreviewWorkspaceImportRequest)(nil),  // 4: vrooli.nutrition_planner.v1.portability.PreviewWorkspaceImportRequest
-	(*PreviewWorkspaceImportResponse)(nil), // 5: vrooli.nutrition_planner.v1.portability.PreviewWorkspaceImportResponse
-	(*ApplyWorkspaceImportRequest)(nil),    // 6: vrooli.nutrition_planner.v1.portability.ApplyWorkspaceImportRequest
-	(*ApplyWorkspaceImportResponse)(nil),   // 7: vrooli.nutrition_planner.v1.portability.ApplyWorkspaceImportResponse
-	(*PreviewRecipesImportRequest)(nil),    // 8: vrooli.nutrition_planner.v1.portability.PreviewRecipesImportRequest
-	(*PreviewRecipesImportResponse)(nil),   // 9: vrooli.nutrition_planner.v1.portability.PreviewRecipesImportResponse
-	(*ApplyRecipesImportRequest)(nil),      // 10: vrooli.nutrition_planner.v1.portability.ApplyRecipesImportRequest
-	(*ApplyRecipesImportResponse)(nil),     // 11: vrooli.nutrition_planner.v1.portability.ApplyRecipesImportResponse
-	(*ExportGroceriesCSVRequest)(nil),      // 12: vrooli.nutrition_planner.v1.portability.ExportGroceriesCSVRequest
-	(*ExportGroceriesCSVResponse)(nil),     // 13: vrooli.nutrition_planner.v1.portability.ExportGroceriesCSVResponse
-	(*ExportRecipePDFRequest)(nil),         // 14: vrooli.nutrition_planner.v1.portability.ExportRecipePDFRequest
-	(*ExportWeeklyPDFRequest)(nil),         // 15: vrooli.nutrition_planner.v1.portability.ExportWeeklyPDFRequest
-	(*ExportPDFResponse)(nil),              // 16: vrooli.nutrition_planner.v1.portability.ExportPDFResponse
+	(*ExportRecipesRequest)(nil),             // 0: vrooli.nutrition_planner.v1.portability.ExportRecipesRequest
+	(*ExportRecipesResponse)(nil),            // 1: vrooli.nutrition_planner.v1.portability.ExportRecipesResponse
+	(*ExportWorkspaceRequest)(nil),           // 2: vrooli.nutrition_planner.v1.portability.ExportWorkspaceRequest
+	(*ExportWorkspaceResponse)(nil),          // 3: vrooli.nutrition_planner.v1.portability.ExportWorkspaceResponse
+	(*PreviewWorkspaceImportRequest)(nil),    // 4: vrooli.nutrition_planner.v1.portability.PreviewWorkspaceImportRequest
+	(*PreviewWorkspaceImportResponse)(nil),   // 5: vrooli.nutrition_planner.v1.portability.PreviewWorkspaceImportResponse
+	(*ApplyWorkspaceImportRequest)(nil),      // 6: vrooli.nutrition_planner.v1.portability.ApplyWorkspaceImportRequest
+	(*ApplyWorkspaceImportResponse)(nil),     // 7: vrooli.nutrition_planner.v1.portability.ApplyWorkspaceImportResponse
+	(*GetRestoreCheckpointRequest)(nil),      // 8: vrooli.nutrition_planner.v1.portability.GetRestoreCheckpointRequest
+	(*GetRestoreCheckpointResponse)(nil),     // 9: vrooli.nutrition_planner.v1.portability.GetRestoreCheckpointResponse
+	(*RecoverRestoreCheckpointRequest)(nil),  // 10: vrooli.nutrition_planner.v1.portability.RecoverRestoreCheckpointRequest
+	(*RecoverRestoreCheckpointResponse)(nil), // 11: vrooli.nutrition_planner.v1.portability.RecoverRestoreCheckpointResponse
+	(*PreviewRecipesImportRequest)(nil),      // 12: vrooli.nutrition_planner.v1.portability.PreviewRecipesImportRequest
+	(*PreviewRecipesImportResponse)(nil),     // 13: vrooli.nutrition_planner.v1.portability.PreviewRecipesImportResponse
+	(*ApplyRecipesImportRequest)(nil),        // 14: vrooli.nutrition_planner.v1.portability.ApplyRecipesImportRequest
+	(*ApplyRecipesImportResponse)(nil),       // 15: vrooli.nutrition_planner.v1.portability.ApplyRecipesImportResponse
+	(*ExportGroceriesCSVRequest)(nil),        // 16: vrooli.nutrition_planner.v1.portability.ExportGroceriesCSVRequest
+	(*ExportGroceriesCSVResponse)(nil),       // 17: vrooli.nutrition_planner.v1.portability.ExportGroceriesCSVResponse
+	(*ExportRecipePDFRequest)(nil),           // 18: vrooli.nutrition_planner.v1.portability.ExportRecipePDFRequest
+	(*ExportWeeklyPDFRequest)(nil),           // 19: vrooli.nutrition_planner.v1.portability.ExportWeeklyPDFRequest
+	(*ExportPDFResponse)(nil),                // 20: vrooli.nutrition_planner.v1.portability.ExportPDFResponse
 }
 var file_nutrition_planner_v1_portability_portability_proto_depIdxs = []int32{
 	0,  // 0: vrooli.nutrition_planner.v1.portability.PortabilityService.ExportRecipes:input_type -> vrooli.nutrition_planner.v1.portability.ExportRecipesRequest
 	2,  // 1: vrooli.nutrition_planner.v1.portability.PortabilityService.ExportWorkspace:input_type -> vrooli.nutrition_planner.v1.portability.ExportWorkspaceRequest
 	4,  // 2: vrooli.nutrition_planner.v1.portability.PortabilityService.PreviewWorkspaceImport:input_type -> vrooli.nutrition_planner.v1.portability.PreviewWorkspaceImportRequest
 	6,  // 3: vrooli.nutrition_planner.v1.portability.PortabilityService.ApplyWorkspaceImport:input_type -> vrooli.nutrition_planner.v1.portability.ApplyWorkspaceImportRequest
-	8,  // 4: vrooli.nutrition_planner.v1.portability.PortabilityService.PreviewRecipesImport:input_type -> vrooli.nutrition_planner.v1.portability.PreviewRecipesImportRequest
-	10, // 5: vrooli.nutrition_planner.v1.portability.PortabilityService.ApplyRecipesImport:input_type -> vrooli.nutrition_planner.v1.portability.ApplyRecipesImportRequest
-	12, // 6: vrooli.nutrition_planner.v1.portability.PortabilityService.ExportGroceriesCSV:input_type -> vrooli.nutrition_planner.v1.portability.ExportGroceriesCSVRequest
-	14, // 7: vrooli.nutrition_planner.v1.portability.PortabilityService.ExportRecipePDF:input_type -> vrooli.nutrition_planner.v1.portability.ExportRecipePDFRequest
-	15, // 8: vrooli.nutrition_planner.v1.portability.PortabilityService.ExportWeeklyPDF:input_type -> vrooli.nutrition_planner.v1.portability.ExportWeeklyPDFRequest
-	1,  // 9: vrooli.nutrition_planner.v1.portability.PortabilityService.ExportRecipes:output_type -> vrooli.nutrition_planner.v1.portability.ExportRecipesResponse
-	3,  // 10: vrooli.nutrition_planner.v1.portability.PortabilityService.ExportWorkspace:output_type -> vrooli.nutrition_planner.v1.portability.ExportWorkspaceResponse
-	5,  // 11: vrooli.nutrition_planner.v1.portability.PortabilityService.PreviewWorkspaceImport:output_type -> vrooli.nutrition_planner.v1.portability.PreviewWorkspaceImportResponse
-	7,  // 12: vrooli.nutrition_planner.v1.portability.PortabilityService.ApplyWorkspaceImport:output_type -> vrooli.nutrition_planner.v1.portability.ApplyWorkspaceImportResponse
-	9,  // 13: vrooli.nutrition_planner.v1.portability.PortabilityService.PreviewRecipesImport:output_type -> vrooli.nutrition_planner.v1.portability.PreviewRecipesImportResponse
-	11, // 14: vrooli.nutrition_planner.v1.portability.PortabilityService.ApplyRecipesImport:output_type -> vrooli.nutrition_planner.v1.portability.ApplyRecipesImportResponse
-	13, // 15: vrooli.nutrition_planner.v1.portability.PortabilityService.ExportGroceriesCSV:output_type -> vrooli.nutrition_planner.v1.portability.ExportGroceriesCSVResponse
-	16, // 16: vrooli.nutrition_planner.v1.portability.PortabilityService.ExportRecipePDF:output_type -> vrooli.nutrition_planner.v1.portability.ExportPDFResponse
-	16, // 17: vrooli.nutrition_planner.v1.portability.PortabilityService.ExportWeeklyPDF:output_type -> vrooli.nutrition_planner.v1.portability.ExportPDFResponse
-	9,  // [9:18] is the sub-list for method output_type
-	0,  // [0:9] is the sub-list for method input_type
+	8,  // 4: vrooli.nutrition_planner.v1.portability.PortabilityService.GetRestoreCheckpoint:input_type -> vrooli.nutrition_planner.v1.portability.GetRestoreCheckpointRequest
+	10, // 5: vrooli.nutrition_planner.v1.portability.PortabilityService.RecoverRestoreCheckpoint:input_type -> vrooli.nutrition_planner.v1.portability.RecoverRestoreCheckpointRequest
+	12, // 6: vrooli.nutrition_planner.v1.portability.PortabilityService.PreviewRecipesImport:input_type -> vrooli.nutrition_planner.v1.portability.PreviewRecipesImportRequest
+	14, // 7: vrooli.nutrition_planner.v1.portability.PortabilityService.ApplyRecipesImport:input_type -> vrooli.nutrition_planner.v1.portability.ApplyRecipesImportRequest
+	16, // 8: vrooli.nutrition_planner.v1.portability.PortabilityService.ExportGroceriesCSV:input_type -> vrooli.nutrition_planner.v1.portability.ExportGroceriesCSVRequest
+	18, // 9: vrooli.nutrition_planner.v1.portability.PortabilityService.ExportRecipePDF:input_type -> vrooli.nutrition_planner.v1.portability.ExportRecipePDFRequest
+	19, // 10: vrooli.nutrition_planner.v1.portability.PortabilityService.ExportWeeklyPDF:input_type -> vrooli.nutrition_planner.v1.portability.ExportWeeklyPDFRequest
+	1,  // 11: vrooli.nutrition_planner.v1.portability.PortabilityService.ExportRecipes:output_type -> vrooli.nutrition_planner.v1.portability.ExportRecipesResponse
+	3,  // 12: vrooli.nutrition_planner.v1.portability.PortabilityService.ExportWorkspace:output_type -> vrooli.nutrition_planner.v1.portability.ExportWorkspaceResponse
+	5,  // 13: vrooli.nutrition_planner.v1.portability.PortabilityService.PreviewWorkspaceImport:output_type -> vrooli.nutrition_planner.v1.portability.PreviewWorkspaceImportResponse
+	7,  // 14: vrooli.nutrition_planner.v1.portability.PortabilityService.ApplyWorkspaceImport:output_type -> vrooli.nutrition_planner.v1.portability.ApplyWorkspaceImportResponse
+	9,  // 15: vrooli.nutrition_planner.v1.portability.PortabilityService.GetRestoreCheckpoint:output_type -> vrooli.nutrition_planner.v1.portability.GetRestoreCheckpointResponse
+	11, // 16: vrooli.nutrition_planner.v1.portability.PortabilityService.RecoverRestoreCheckpoint:output_type -> vrooli.nutrition_planner.v1.portability.RecoverRestoreCheckpointResponse
+	13, // 17: vrooli.nutrition_planner.v1.portability.PortabilityService.PreviewRecipesImport:output_type -> vrooli.nutrition_planner.v1.portability.PreviewRecipesImportResponse
+	15, // 18: vrooli.nutrition_planner.v1.portability.PortabilityService.ApplyRecipesImport:output_type -> vrooli.nutrition_planner.v1.portability.ApplyRecipesImportResponse
+	17, // 19: vrooli.nutrition_planner.v1.portability.PortabilityService.ExportGroceriesCSV:output_type -> vrooli.nutrition_planner.v1.portability.ExportGroceriesCSVResponse
+	20, // 20: vrooli.nutrition_planner.v1.portability.PortabilityService.ExportRecipePDF:output_type -> vrooli.nutrition_planner.v1.portability.ExportPDFResponse
+	20, // 21: vrooli.nutrition_planner.v1.portability.PortabilityService.ExportWeeklyPDF:output_type -> vrooli.nutrition_planner.v1.portability.ExportPDFResponse
+	11, // [11:22] is the sub-list for method output_type
+	0,  // [0:11] is the sub-list for method input_type
 	0,  // [0:0] is the sub-list for extension type_name
 	0,  // [0:0] is the sub-list for extension extendee
 	0,  // [0:0] is the sub-list for field type_name
@@ -1267,7 +1579,7 @@ func file_nutrition_planner_v1_portability_portability_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_nutrition_planner_v1_portability_portability_proto_rawDesc), len(file_nutrition_planner_v1_portability_portability_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   17,
+			NumMessages:   21,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

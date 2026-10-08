@@ -204,7 +204,7 @@ class ValidationRunError(_message.Message):
     def __init__(self, code: _Optional[_Union[ValidationRunErrorCode, str]] = ..., message: _Optional[str] = ..., retryable: _Optional[bool] = ...) -> None: ...
 
 class ValidationRun(_message.Message):
-    __slots__ = ("run_id", "scenario", "path", "idempotency_key", "parent_run_id", "state", "created_at", "started_at", "completed_at", "estimated_remaining", "preliminary_static_result", "terminal_result", "error", "artifact_references", "cancellation_requested")
+    __slots__ = ("run_id", "scenario", "path", "idempotency_key", "parent_run_id", "state", "created_at", "started_at", "completed_at", "estimated_remaining", "preliminary_static_result", "terminal_result", "error", "artifact_references", "cancellation_requested", "browser_case_selector")
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     PATH_FIELD_NUMBER: _ClassVar[int]
@@ -220,6 +220,7 @@ class ValidationRun(_message.Message):
     ERROR_FIELD_NUMBER: _ClassVar[int]
     ARTIFACT_REFERENCES_FIELD_NUMBER: _ClassVar[int]
     CANCELLATION_REQUESTED_FIELD_NUMBER: _ClassVar[int]
+    BROWSER_CASE_SELECTOR_FIELD_NUMBER: _ClassVar[int]
     run_id: str
     scenario: str
     path: str
@@ -235,23 +236,32 @@ class ValidationRun(_message.Message):
     error: ValidationRunError
     artifact_references: _containers.RepeatedCompositeFieldContainer[_any_pb2.Any]
     cancellation_requested: bool
-    def __init__(self, run_id: _Optional[str] = ..., scenario: _Optional[str] = ..., path: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., parent_run_id: _Optional[str] = ..., state: _Optional[_Union[ValidationRunState, str]] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., completed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., estimated_remaining: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., preliminary_static_result: _Optional[_Union[ValidateScenarioResponse, _Mapping]] = ..., terminal_result: _Optional[_Union[ValidateScenarioResponse, _Mapping]] = ..., error: _Optional[_Union[ValidationRunError, _Mapping]] = ..., artifact_references: _Optional[_Iterable[_Union[_any_pb2.Any, _Mapping]]] = ..., cancellation_requested: _Optional[bool] = ...) -> None: ...
+    browser_case_selector: BrowserCaseSelector
+    def __init__(self, run_id: _Optional[str] = ..., scenario: _Optional[str] = ..., path: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., parent_run_id: _Optional[str] = ..., state: _Optional[_Union[ValidationRunState, str]] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., completed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., estimated_remaining: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., preliminary_static_result: _Optional[_Union[ValidateScenarioResponse, _Mapping]] = ..., terminal_result: _Optional[_Union[ValidateScenarioResponse, _Mapping]] = ..., error: _Optional[_Union[ValidationRunError, _Mapping]] = ..., artifact_references: _Optional[_Iterable[_Union[_any_pb2.Any, _Mapping]]] = ..., cancellation_requested: _Optional[bool] = ..., browser_case_selector: _Optional[_Union[BrowserCaseSelector, _Mapping]] = ...) -> None: ...
 
 class StartValidationRunRequest(_message.Message):
-    __slots__ = ("scenario", "path", "idempotency_key", "parent_run_id", "desktop_binding", "capability_subset")
+    __slots__ = ("scenario", "path", "idempotency_key", "parent_run_id", "desktop_binding", "capability_subset", "browser_case_selector")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     PATH_FIELD_NUMBER: _ClassVar[int]
     IDEMPOTENCY_KEY_FIELD_NUMBER: _ClassVar[int]
     PARENT_RUN_ID_FIELD_NUMBER: _ClassVar[int]
     DESKTOP_BINDING_FIELD_NUMBER: _ClassVar[int]
     CAPABILITY_SUBSET_FIELD_NUMBER: _ClassVar[int]
+    BROWSER_CASE_SELECTOR_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     path: str
     idempotency_key: str
     parent_run_id: str
     desktop_binding: DesktopValidationBinding
     capability_subset: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, scenario: _Optional[str] = ..., path: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., parent_run_id: _Optional[str] = ..., desktop_binding: _Optional[_Union[DesktopValidationBinding, _Mapping]] = ..., capability_subset: _Optional[_Iterable[str]] = ...) -> None: ...
+    browser_case_selector: BrowserCaseSelector
+    def __init__(self, scenario: _Optional[str] = ..., path: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., parent_run_id: _Optional[str] = ..., desktop_binding: _Optional[_Union[DesktopValidationBinding, _Mapping]] = ..., capability_subset: _Optional[_Iterable[str]] = ..., browser_case_selector: _Optional[_Union[BrowserCaseSelector, _Mapping]] = ...) -> None: ...
+
+class BrowserCaseSelector(_message.Message):
+    __slots__ = ("case_paths",)
+    CASE_PATHS_FIELD_NUMBER: _ClassVar[int]
+    case_paths: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, case_paths: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class DesktopValidationBinding(_message.Message):
     __slots__ = ("target_id", "cdp_endpoint", "renderer_id", "renderer_url", "renderer_title", "scenario_name", "artifact_digest", "context_id", "profile_id", "cdp_transport", "workflow_path", "workflow_id")

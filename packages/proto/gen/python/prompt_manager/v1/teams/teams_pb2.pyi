@@ -620,7 +620,7 @@ class ExportClaudeCodeTeamResponse(_message.Message):
     def __init__(self, team_id: _Optional[str] = ..., export: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...
 
 class KnowledgeEntry(_message.Message):
-    __slots__ = ("id", "at", "topic", "content", "source", "supersedes", "caller", "caller_note", "attribution")
+    __slots__ = ("id", "at", "topic", "content", "source", "supersedes", "caller", "caller_note", "attribution", "closure")
     ID_FIELD_NUMBER: _ClassVar[int]
     AT_FIELD_NUMBER: _ClassVar[int]
     TOPIC_FIELD_NUMBER: _ClassVar[int]
@@ -630,6 +630,7 @@ class KnowledgeEntry(_message.Message):
     CALLER_FIELD_NUMBER: _ClassVar[int]
     CALLER_NOTE_FIELD_NUMBER: _ClassVar[int]
     ATTRIBUTION_FIELD_NUMBER: _ClassVar[int]
+    CLOSURE_FIELD_NUMBER: _ClassVar[int]
     id: str
     at: str
     topic: str
@@ -639,27 +640,62 @@ class KnowledgeEntry(_message.Message):
     caller: str
     caller_note: str
     attribution: _struct_pb2.Struct
-    def __init__(self, id: _Optional[str] = ..., at: _Optional[str] = ..., topic: _Optional[str] = ..., content: _Optional[str] = ..., source: _Optional[str] = ..., supersedes: _Optional[str] = ..., caller: _Optional[str] = ..., caller_note: _Optional[str] = ..., attribution: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...
+    closure: KnowledgeClosure
+    def __init__(self, id: _Optional[str] = ..., at: _Optional[str] = ..., topic: _Optional[str] = ..., content: _Optional[str] = ..., source: _Optional[str] = ..., supersedes: _Optional[str] = ..., caller: _Optional[str] = ..., caller_note: _Optional[str] = ..., attribution: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., closure: _Optional[_Union[KnowledgeClosure, _Mapping]] = ...) -> None: ...
+
+class KnowledgeClosure(_message.Message):
+    __slots__ = ("knowledge_id", "reason", "ref", "note", "actor", "at")
+    KNOWLEDGE_ID_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    REF_FIELD_NUMBER: _ClassVar[int]
+    NOTE_FIELD_NUMBER: _ClassVar[int]
+    ACTOR_FIELD_NUMBER: _ClassVar[int]
+    AT_FIELD_NUMBER: _ClassVar[int]
+    knowledge_id: str
+    reason: str
+    ref: str
+    note: str
+    actor: str
+    at: str
+    def __init__(self, knowledge_id: _Optional[str] = ..., reason: _Optional[str] = ..., ref: _Optional[str] = ..., note: _Optional[str] = ..., actor: _Optional[str] = ..., at: _Optional[str] = ...) -> None: ...
 
 class ListKnowledgeRequest(_message.Message):
-    __slots__ = ("team_id", "topic", "topic_prefix", "last")
+    __slots__ = ("team_id", "topic", "topic_prefix", "last", "include_closed")
     TEAM_ID_FIELD_NUMBER: _ClassVar[int]
     TOPIC_FIELD_NUMBER: _ClassVar[int]
     TOPIC_PREFIX_FIELD_NUMBER: _ClassVar[int]
     LAST_FIELD_NUMBER: _ClassVar[int]
+    INCLUDE_CLOSED_FIELD_NUMBER: _ClassVar[int]
     team_id: str
     topic: str
     topic_prefix: str
     last: int
-    def __init__(self, team_id: _Optional[str] = ..., topic: _Optional[str] = ..., topic_prefix: _Optional[str] = ..., last: _Optional[int] = ...) -> None: ...
+    include_closed: bool
+    def __init__(self, team_id: _Optional[str] = ..., topic: _Optional[str] = ..., topic_prefix: _Optional[str] = ..., last: _Optional[int] = ..., include_closed: _Optional[bool] = ...) -> None: ...
 
 class ListKnowledgeResponse(_message.Message):
-    __slots__ = ("team_id", "entries")
+    __slots__ = ("team_id", "entries", "total")
     TEAM_ID_FIELD_NUMBER: _ClassVar[int]
     ENTRIES_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_FIELD_NUMBER: _ClassVar[int]
     team_id: str
     entries: _containers.RepeatedCompositeFieldContainer[KnowledgeEntry]
-    def __init__(self, team_id: _Optional[str] = ..., entries: _Optional[_Iterable[_Union[KnowledgeEntry, _Mapping]]] = ...) -> None: ...
+    total: int
+    def __init__(self, team_id: _Optional[str] = ..., entries: _Optional[_Iterable[_Union[KnowledgeEntry, _Mapping]]] = ..., total: _Optional[int] = ...) -> None: ...
+
+class CloseKnowledgeRequest(_message.Message):
+    __slots__ = ("team_id", "knowledge_id", "reason", "ref", "note")
+    TEAM_ID_FIELD_NUMBER: _ClassVar[int]
+    KNOWLEDGE_ID_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    REF_FIELD_NUMBER: _ClassVar[int]
+    NOTE_FIELD_NUMBER: _ClassVar[int]
+    team_id: str
+    knowledge_id: str
+    reason: str
+    ref: str
+    note: str
+    def __init__(self, team_id: _Optional[str] = ..., knowledge_id: _Optional[str] = ..., reason: _Optional[str] = ..., ref: _Optional[str] = ..., note: _Optional[str] = ...) -> None: ...
 
 class AddKnowledgeRequest(_message.Message):
     __slots__ = ("team_id", "topic", "content", "caller_note", "source", "supersedes")

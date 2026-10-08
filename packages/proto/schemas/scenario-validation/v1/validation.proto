@@ -73,6 +73,14 @@ service DurableValidationRunService {
   rpc AbortValidationRun(AbortValidationRunRequest) returns (AbortValidationRunResponse);
 }
 
+// Selector-required start has a separate additive service so existing durable
+// provider handlers keep their interface. Selected clients MUST use this
+// operation: older peers return Unimplemented before work rather than ignoring
+// an additive selector field and accidentally starting their default suite.
+service SelectedValidationRunService {
+  rpc StartSelectedValidationRun(StartValidationRunRequest) returns (StartValidationRunResponse);
+}
+
 // DescribeProviderRequest is intentionally empty: provider identity and
 // contract facts are properties of the provider process, never of a target.
 // Do not add target-selection fields here — route those through
@@ -266,6 +274,8 @@ message ValidationRun {
   ValidationRunError error = 13;
   repeated google.protobuf.Any artifact_references = 14;
   bool cancellation_requested = 15;
+  // Frozen request selection, retained through terminal and restart readback.
+  BrowserCaseSelector browser_case_selector = 16;
 }
 
 message StartValidationRunRequest {
@@ -282,6 +292,14 @@ message StartValidationRunRequest {
   // engine; omission means the normal static/browser validation path.
   DesktopValidationBinding desktop_binding = 5;
   repeated string capability_subset = 6;
+  // Absent runs the default catalog. Present-empty is invalid, never all.
+  // Paths are normalized, registered BAS cases; flows are not selectable.
+  // Use StartSelectedValidationRun when this field is present.
+  BrowserCaseSelector browser_case_selector = 7;
+}
+
+message BrowserCaseSelector {
+  repeated string case_paths = 1;
 }
 
 // DesktopValidationBinding identifies a target-owned desktop renderer for a

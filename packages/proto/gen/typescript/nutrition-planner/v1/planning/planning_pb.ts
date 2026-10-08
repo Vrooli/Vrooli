@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file nutrition-planner/v1/planning/planning.proto.
  */
 export const file_nutrition_planner_v1_planning_planning: GenFile = /*@__PURE__*/
-  fileDesc("CixudXRyaXRpb24tcGxhbm5lci92MS9wbGFubmluZy9wbGFubmluZy5wcm90bxIkdnJvb2xpLm51dHJpdGlvbl9wbGFubmVyLnYxLnBsYW5uaW5nImUKCE1lYWxTbG90EgwKBGRhdGUYASABKAkSEQoJc2xvdF9uYW1lGAIgASgJEgwKBG1vZGUYAyABKAkSGAoQbG9ja2VkX3JlY2lwZV9pZBgEIAEoCRIQCghxdWFudGl0eRgFIAEoCSL2AgoTR2VuZXJhdGVQbGFuUmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAkSDQoFZGF0ZXMYAiADKAkSaQoRbG9ja2VkX3JlY2lwZV9pZHMYAyADKAsyTi52cm9vbGkubnV0cml0aW9uX3BsYW5uZXIudjEucGxhbm5pbmcuR2VuZXJhdGVQbGFuUmVxdWVzdC5Mb2NrZWRSZWNpcGVJZHNFbnRyeRIMCgRzZWVkGAQgASgDEhMKC2Nvc3Rfd2VpZ2h0GAUgASgBEhUKDWVmZm9ydF93ZWlnaHQYBiABKAESGQoRcmVwZXRpdGlvbl93ZWlnaHQYByABKAESQgoKbWVhbF9zbG90cxgIIAMoCzIuLnZyb29saS5udXRyaXRpb25fcGxhbm5lci52MS5wbGFubmluZy5NZWFsU2xvdBo2ChRMb2NrZWRSZWNpcGVJZHNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIogBChRHZW5lcmF0ZVBsYW5SZXNwb25zZRIOCgZydW5faWQYASABKAkSEgoKZHJhZnRfanNvbhgCIAEoCRIYChB1bnJlc29sdmVkX2RhdGVzGAMgAygJEhgKEGlucHV0X3JlZmVyZW5jZXMYBCADKAkSGAoQY3VycmVudF9yZXZpc2lvbhgFIAEoAyJKCg5HZXRQbGFuUmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAkSEQoJZnJvbV9kYXRlGAIgASgJEg8KB3RvX2RhdGUYAyABKAkiUQoPR2V0UGxhblJlc3BvbnNlEhgKEGN1cnJlbnRfcmV2aXNpb24YASABKAMSEgoKZHJhZnRfanNvbhgCIAEoCRIQCghoYXNfcGxhbhgDIAEoCCJXChBBcHBseVBsYW5SZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoCRIZChFleHBlY3RlZF9yZXZpc2lvbhgCIAEoAxISCgpkcmFmdF9qc29uGAMgASgJIjgKEUFwcGx5UGxhblJlc3BvbnNlEhAKCHJldmlzaW9uGAEgASgDEhEKCXBsYW5fanNvbhgCIAEoCSKmAQoSUHJldmlld1N3YXBSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoCRIZChFleHBlY3RlZF9yZXZpc2lvbhgCIAEoAxIMCgRkYXRlGAMgASgJEh0KFXJlcGxhY2VtZW50X3JlY2lwZV9pZBgEIAEoCRIfChdyZXBsYWNlX21hdGNoaW5nX2Z1dHVyZRgFIAEoCBIRCglzbG90X25hbWUYBiABKAkiVQoTUHJldmlld1N3YXBSZXNwb25zZRIQCghyZXZpc2lvbhgBIAEoAxIUCgxwcmV2aWV3X2pzb24YAiABKAkSFgoOYWZmZWN0ZWRfZGF0ZXMYAyADKAkiTAoZR2V0U2hvcHBpbmdQcmV2aWV3UmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAkSGQoRZXhwZWN0ZWRfcmV2aXNpb24YAiABKAMi3wIKDFNob3BwaW5nTGluZRILCgNrZXkYASABKAkSDQoFbGFiZWwYAiABKAkSDAoEbmVlZBgDIAEoCRINCgVzdG9jaxgEIAEoCRIPCgdtaXNzaW5nGAUgASgJEhUKDXBhY2thZ2VfY291bnQYBiABKAkSDQoFcHJpY2UYByABKAkSGQoRc291cmNlX3JlY2lwZV9pZHMYCCADKAkSDwoHY2hlY2tlZBgJIAEoCBIUCgxwb3J0aW9uX2Nvc3QYCiABKAkSFgoOY2hlY2tvdXRfdG90YWwYCyABKAkSFAoMYWN0dWFsX3NwZW5kGAwgASgJEhEKCWhhdmVfdGhpcxgNIAEoCBIXCg9hY3R1YWxfcXVhbnRpdHkYDiABKAkSEwoLYWN0dWFsX3VuaXQYDyABKAkSFAoMYWN0dWFsX3ByaWNlGBAgASgJEhgKEHB1cmNoYXNlX29taXR0ZWQYESABKAgicQoaR2V0U2hvcHBpbmdQcmV2aWV3UmVzcG9uc2USEAoIcmV2aXNpb24YASABKAMSQQoFbGluZXMYAiADKAsyMi52cm9vbGkubnV0cml0aW9uX3BsYW5uZXIudjEucGxhbm5pbmcuU2hvcHBpbmdMaW5lIlQKGVNldFNob3BwaW5nQ2hlY2tlZFJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgJEhAKCGxpbmVfa2V5GAIgASgJEg8KB2NoZWNrZWQYAyABKAgiLQoaU2V0U2hvcHBpbmdDaGVja2VkUmVzcG9uc2USDwoHY2hlY2tlZBgBIAEoCCJXChpTZXRTaG9wcGluZ0hhdmVUaGlzUmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAkSEAoIbGluZV9rZXkYAiABKAkSEQoJaGF2ZV90aGlzGAMgASgIIjAKG1NldFNob3BwaW5nSGF2ZVRoaXNSZXNwb25zZRIRCgloYXZlX3RoaXMYASABKAgieQoWU2hvcHBpbmdQdXJjaGFzZUFjdHVhbBIQCghsaW5lX2tleRgBIAEoCRIPCgdpdGVtX2lkGAIgASgJEg4KBmFtb3VudBgDIAEoCRIMCgR1bml0GAQgASgJEg0KBXByaWNlGAUgASgJEg8KB29taXR0ZWQYBiABKAgilwEKH0NvbmZpcm1TaG9wcGluZ1B1cmNoYXNlc1JlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgJEhEKCXJldmlld19pZBgCIAEoCRJLCgVsaW5lcxgDIAMoCzI8LnZyb29saS5udXRyaXRpb25fcGxhbm5lci52MS5wbGFubmluZy5TaG9wcGluZ1B1cmNoYXNlQWN0dWFsIjUKIENvbmZpcm1TaG9wcGluZ1B1cmNoYXNlc1Jlc3BvbnNlEhEKCWNvbmZpcm1lZBgBIAEoCCKLAQoVUmVjb3JkRmVlZGJhY2tSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoCRIZChFleHBlY3RlZF9yZXZpc2lvbhgCIAEoAxIMCgRkYXRlGAMgASgJEhEKCXJlY2lwZV9pZBgEIAEoCRIPCgdwb3J0aW9uGAUgASgJEg8KB21pbnV0ZXMYBiABKAUiWwoWUmVjb3JkRmVlZGJhY2tSZXNwb25zZRIMCgRkYXRlGAEgASgJEhEKCXJlY2lwZV9pZBgCIAEoCRIPCgdwb3J0aW9uGAMgASgJEg8KB21pbnV0ZXMYBCABKAUiOQoTVW5kb0ZlZWRiYWNrUmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAkSDAoEZGF0ZRgCIAEoCSImChRVbmRvRmVlZGJhY2tSZXNwb25zZRIOCgZ1bmRvbmUYASABKAgypwsKD1BsYW5uaW5nU2VydmljZRKFAQoMR2VuZXJhdGVQbGFuEjkudnJvb2xpLm51dHJpdGlvbl9wbGFubmVyLnYxLnBsYW5uaW5nLkdlbmVyYXRlUGxhblJlcXVlc3QaOi52cm9vbGkubnV0cml0aW9uX3BsYW5uZXIudjEucGxhbm5pbmcuR2VuZXJhdGVQbGFuUmVzcG9uc2USdgoHR2V0UGxhbhI0LnZyb29saS5udXRyaXRpb25fcGxhbm5lci52MS5wbGFubmluZy5HZXRQbGFuUmVxdWVzdBo1LnZyb29saS5udXRyaXRpb25fcGxhbm5lci52MS5wbGFubmluZy5HZXRQbGFuUmVzcG9uc2USfAoJQXBwbHlQbGFuEjYudnJvb2xpLm51dHJpdGlvbl9wbGFubmVyLnYxLnBsYW5uaW5nLkFwcGx5UGxhblJlcXVlc3QaNy52cm9vbGkubnV0cml0aW9uX3BsYW5uZXIudjEucGxhbm5pbmcuQXBwbHlQbGFuUmVzcG9uc2USggEKC1ByZXZpZXdTd2FwEjgudnJvb2xpLm51dHJpdGlvbl9wbGFubmVyLnYxLnBsYW5uaW5nLlByZXZpZXdTd2FwUmVxdWVzdBo5LnZyb29saS5udXRyaXRpb25fcGxhbm5lci52MS5wbGFubmluZy5QcmV2aWV3U3dhcFJlc3BvbnNlEpcBChJHZXRTaG9wcGluZ1ByZXZpZXcSPy52cm9vbGkubnV0cml0aW9uX3BsYW5uZXIudjEucGxhbm5pbmcuR2V0U2hvcHBpbmdQcmV2aWV3UmVxdWVzdBpALnZyb29saS5udXRyaXRpb25fcGxhbm5lci52MS5wbGFubmluZy5HZXRTaG9wcGluZ1ByZXZpZXdSZXNwb25zZRKXAQoSU2V0U2hvcHBpbmdDaGVja2VkEj8udnJvb2xpLm51dHJpdGlvbl9wbGFubmVyLnYxLnBsYW5uaW5nLlNldFNob3BwaW5nQ2hlY2tlZFJlcXVlc3QaQC52cm9vbGkubnV0cml0aW9uX3BsYW5uZXIudjEucGxhbm5pbmcuU2V0U2hvcHBpbmdDaGVja2VkUmVzcG9uc2USmgEKE1NldFNob3BwaW5nSGF2ZVRoaXMSQC52cm9vbGkubnV0cml0aW9uX3BsYW5uZXIudjEucGxhbm5pbmcuU2V0U2hvcHBpbmdIYXZlVGhpc1JlcXVlc3QaQS52cm9vbGkubnV0cml0aW9uX3BsYW5uZXIudjEucGxhbm5pbmcuU2V0U2hvcHBpbmdIYXZlVGhpc1Jlc3BvbnNlEqkBChhDb25maXJtU2hvcHBpbmdQdXJjaGFzZXMSRS52cm9vbGkubnV0cml0aW9uX3BsYW5uZXIudjEucGxhbm5pbmcuQ29uZmlybVNob3BwaW5nUHVyY2hhc2VzUmVxdWVzdBpGLnZyb29saS5udXRyaXRpb25fcGxhbm5lci52MS5wbGFubmluZy5Db25maXJtU2hvcHBpbmdQdXJjaGFzZXNSZXNwb25zZRKLAQoOUmVjb3JkRmVlZGJhY2sSOy52cm9vbGkubnV0cml0aW9uX3BsYW5uZXIudjEucGxhbm5pbmcuUmVjb3JkRmVlZGJhY2tSZXF1ZXN0GjwudnJvb2xpLm51dHJpdGlvbl9wbGFubmVyLnYxLnBsYW5uaW5nLlJlY29yZEZlZWRiYWNrUmVzcG9uc2UShQEKDFVuZG9GZWVkYmFjaxI5LnZyb29saS5udXRyaXRpb25fcGxhbm5lci52MS5wbGFubmluZy5VbmRvRmVlZGJhY2tSZXF1ZXN0GjoudnJvb2xpLm51dHJpdGlvbl9wbGFubmVyLnYxLnBsYW5uaW5nLlVuZG9GZWVkYmFja1Jlc3BvbnNlQlpaWGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vbnV0cml0aW9uLXBsYW5uZXIvdjEvcGxhbm5pbmc7cGxhbm5pbmdfdjFiBnByb3RvMw");
+  fileDesc("CixudXRyaXRpb24tcGxhbm5lci92MS9wbGFubmluZy9wbGFubmluZy5wcm90bxIkdnJvb2xpLm51dHJpdGlvbl9wbGFubmVyLnYxLnBsYW5uaW5nImUKCE1lYWxTbG90EgwKBGRhdGUYASABKAkSEQoJc2xvdF9uYW1lGAIgASgJEgwKBG1vZGUYAyABKAkSGAoQbG9ja2VkX3JlY2lwZV9pZBgEIAEoCRIQCghxdWFudGl0eRgFIAEoCSL2AgoTR2VuZXJhdGVQbGFuUmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAkSDQoFZGF0ZXMYAiADKAkSaQoRbG9ja2VkX3JlY2lwZV9pZHMYAyADKAsyTi52cm9vbGkubnV0cml0aW9uX3BsYW5uZXIudjEucGxhbm5pbmcuR2VuZXJhdGVQbGFuUmVxdWVzdC5Mb2NrZWRSZWNpcGVJZHNFbnRyeRIMCgRzZWVkGAQgASgDEhMKC2Nvc3Rfd2VpZ2h0GAUgASgBEhUKDWVmZm9ydF93ZWlnaHQYBiABKAESGQoRcmVwZXRpdGlvbl93ZWlnaHQYByABKAESQgoKbWVhbF9zbG90cxgIIAMoCzIuLnZyb29saS5udXRyaXRpb25fcGxhbm5lci52MS5wbGFubmluZy5NZWFsU2xvdBo2ChRMb2NrZWRSZWNpcGVJZHNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIogBChRHZW5lcmF0ZVBsYW5SZXNwb25zZRIOCgZydW5faWQYASABKAkSEgoKZHJhZnRfanNvbhgCIAEoCRIYChB1bnJlc29sdmVkX2RhdGVzGAMgAygJEhgKEGlucHV0X3JlZmVyZW5jZXMYBCADKAkSGAoQY3VycmVudF9yZXZpc2lvbhgFIAEoAyJKCg5HZXRQbGFuUmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAkSEQoJZnJvbV9kYXRlGAIgASgJEg8KB3RvX2RhdGUYAyABKAkiUQoPR2V0UGxhblJlc3BvbnNlEhgKEGN1cnJlbnRfcmV2aXNpb24YASABKAMSEgoKZHJhZnRfanNvbhgCIAEoCRIQCghoYXNfcGxhbhgDIAEoCCJXChBBcHBseVBsYW5SZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoCRIZChFleHBlY3RlZF9yZXZpc2lvbhgCIAEoAxISCgpkcmFmdF9qc29uGAMgASgJIjgKEUFwcGx5UGxhblJlc3BvbnNlEhAKCHJldmlzaW9uGAEgASgDEhEKCXBsYW5fanNvbhgCIAEoCSKmAQoSUHJldmlld1N3YXBSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoCRIZChFleHBlY3RlZF9yZXZpc2lvbhgCIAEoAxIMCgRkYXRlGAMgASgJEh0KFXJlcGxhY2VtZW50X3JlY2lwZV9pZBgEIAEoCRIfChdyZXBsYWNlX21hdGNoaW5nX2Z1dHVyZRgFIAEoCBIRCglzbG90X25hbWUYBiABKAkiVQoTUHJldmlld1N3YXBSZXNwb25zZRIQCghyZXZpc2lvbhgBIAEoAxIUCgxwcmV2aWV3X2pzb24YAiABKAkSFgoOYWZmZWN0ZWRfZGF0ZXMYAyADKAkiLQoVRXhwbG9yZVJlY2lwZXNSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoCSJSChBFeHBsb3JlRml0UmVhc29uEgwKBGNvZGUYASABKAkSDAoEcnVsZRgCIAEoCRIRCglyZWZlcmVuY2UYAyABKAkSDwoHbWVzc2FnZRgEIAEoCSKwAQoWRXhwbG9yZVJlY2lwZUNhbmRpZGF0ZRIRCglyZWNpcGVfaWQYASABKAkSDAoEbmFtZRgCIAEoCRIXCg9yZWNpcGVfcmV2aXNpb24YAyABKAMSSwoLZml0X3JlYXNvbnMYBCADKAsyNi52cm9vbGkubnV0cml0aW9uX3BsYW5uZXIudjEucGxhbm5pbmcuRXhwbG9yZUZpdFJlYXNvbhIPCgdzdW1tYXJ5GAUgASgJIqUCChZFeHBsb3JlUmVjaXBlc1Jlc3BvbnNlEhUKDXBsYW5fcmV2aXNpb24YASABKAMSGAoQcHJvZmlsZV9yZXZpc2lvbhgCIAEoAxIaChJwcm9maWxlX2NvbmZpZ3VyZWQYAyABKAgSUAoKY2FuZGlkYXRlcxgEIAMoCzI8LnZyb29saS5udXRyaXRpb25fcGxhbm5lci52MS5wbGFubmluZy5FeHBsb3JlUmVjaXBlQ2FuZGlkYXRlElAKEGJsb2NraW5nX3JlYXNvbnMYBSADKAsyNi52cm9vbGkubnV0cml0aW9uX3BsYW5uZXIudjEucGxhbm5pbmcuRXhwbG9yZUZpdFJlYXNvbhIaChJzYXZlZF9yZWNpcGVfY291bnQYBiABKAUiTAoZR2V0U2hvcHBpbmdQcmV2aWV3UmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAkSGQoRZXhwZWN0ZWRfcmV2aXNpb24YAiABKAMi3wIKDFNob3BwaW5nTGluZRILCgNrZXkYASABKAkSDQoFbGFiZWwYAiABKAkSDAoEbmVlZBgDIAEoCRINCgVzdG9jaxgEIAEoCRIPCgdtaXNzaW5nGAUgASgJEhUKDXBhY2thZ2VfY291bnQYBiABKAkSDQoFcHJpY2UYByABKAkSGQoRc291cmNlX3JlY2lwZV9pZHMYCCADKAkSDwoHY2hlY2tlZBgJIAEoCBIUCgxwb3J0aW9uX2Nvc3QYCiABKAkSFgoOY2hlY2tvdXRfdG90YWwYCyABKAkSFAoMYWN0dWFsX3NwZW5kGAwgASgJEhEKCWhhdmVfdGhpcxgNIAEoCBIXCg9hY3R1YWxfcXVhbnRpdHkYDiABKAkSEwoLYWN0dWFsX3VuaXQYDyABKAkSFAoMYWN0dWFsX3ByaWNlGBAgASgJEhgKEHB1cmNoYXNlX29taXR0ZWQYESABKAgicQoaR2V0U2hvcHBpbmdQcmV2aWV3UmVzcG9uc2USEAoIcmV2aXNpb24YASABKAMSQQoFbGluZXMYAiADKAsyMi52cm9vbGkubnV0cml0aW9uX3BsYW5uZXIudjEucGxhbm5pbmcuU2hvcHBpbmdMaW5lIlQKGVNldFNob3BwaW5nQ2hlY2tlZFJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgJEhAKCGxpbmVfa2V5GAIgASgJEg8KB2NoZWNrZWQYAyABKAgiLQoaU2V0U2hvcHBpbmdDaGVja2VkUmVzcG9uc2USDwoHY2hlY2tlZBgBIAEoCCJXChpTZXRTaG9wcGluZ0hhdmVUaGlzUmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAkSEAoIbGluZV9rZXkYAiABKAkSEQoJaGF2ZV90aGlzGAMgASgIIjAKG1NldFNob3BwaW5nSGF2ZVRoaXNSZXNwb25zZRIRCgloYXZlX3RoaXMYASABKAgieQoWU2hvcHBpbmdQdXJjaGFzZUFjdHVhbBIQCghsaW5lX2tleRgBIAEoCRIPCgdpdGVtX2lkGAIgASgJEg4KBmFtb3VudBgDIAEoCRIMCgR1bml0GAQgASgJEg0KBXByaWNlGAUgASgJEg8KB29taXR0ZWQYBiABKAgilwEKH0NvbmZpcm1TaG9wcGluZ1B1cmNoYXNlc1JlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgJEhEKCXJldmlld19pZBgCIAEoCRJLCgVsaW5lcxgDIAMoCzI8LnZyb29saS5udXRyaXRpb25fcGxhbm5lci52MS5wbGFubmluZy5TaG9wcGluZ1B1cmNoYXNlQWN0dWFsIjUKIENvbmZpcm1TaG9wcGluZ1B1cmNoYXNlc1Jlc3BvbnNlEhEKCWNvbmZpcm1lZBgBIAEoCCKLAQoVUmVjb3JkRmVlZGJhY2tSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoCRIZChFleHBlY3RlZF9yZXZpc2lvbhgCIAEoAxIMCgRkYXRlGAMgASgJEhEKCXJlY2lwZV9pZBgEIAEoCRIPCgdwb3J0aW9uGAUgASgJEg8KB21pbnV0ZXMYBiABKAUiWwoWUmVjb3JkRmVlZGJhY2tSZXNwb25zZRIMCgRkYXRlGAEgASgJEhEKCXJlY2lwZV9pZBgCIAEoCRIPCgdwb3J0aW9uGAMgASgJEg8KB21pbnV0ZXMYBCABKAUiOQoTVW5kb0ZlZWRiYWNrUmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAkSDAoEZGF0ZRgCIAEoCSImChRVbmRvRmVlZGJhY2tSZXNwb25zZRIOCgZ1bmRvbmUYASABKAgytQwKD1BsYW5uaW5nU2VydmljZRKFAQoMR2VuZXJhdGVQbGFuEjkudnJvb2xpLm51dHJpdGlvbl9wbGFubmVyLnYxLnBsYW5uaW5nLkdlbmVyYXRlUGxhblJlcXVlc3QaOi52cm9vbGkubnV0cml0aW9uX3BsYW5uZXIudjEucGxhbm5pbmcuR2VuZXJhdGVQbGFuUmVzcG9uc2USdgoHR2V0UGxhbhI0LnZyb29saS5udXRyaXRpb25fcGxhbm5lci52MS5wbGFubmluZy5HZXRQbGFuUmVxdWVzdBo1LnZyb29saS5udXRyaXRpb25fcGxhbm5lci52MS5wbGFubmluZy5HZXRQbGFuUmVzcG9uc2USfAoJQXBwbHlQbGFuEjYudnJvb2xpLm51dHJpdGlvbl9wbGFubmVyLnYxLnBsYW5uaW5nLkFwcGx5UGxhblJlcXVlc3QaNy52cm9vbGkubnV0cml0aW9uX3BsYW5uZXIudjEucGxhbm5pbmcuQXBwbHlQbGFuUmVzcG9uc2USggEKC1ByZXZpZXdTd2FwEjgudnJvb2xpLm51dHJpdGlvbl9wbGFubmVyLnYxLnBsYW5uaW5nLlByZXZpZXdTd2FwUmVxdWVzdBo5LnZyb29saS5udXRyaXRpb25fcGxhbm5lci52MS5wbGFubmluZy5QcmV2aWV3U3dhcFJlc3BvbnNlEosBCg5FeHBsb3JlUmVjaXBlcxI7LnZyb29saS5udXRyaXRpb25fcGxhbm5lci52MS5wbGFubmluZy5FeHBsb3JlUmVjaXBlc1JlcXVlc3QaPC52cm9vbGkubnV0cml0aW9uX3BsYW5uZXIudjEucGxhbm5pbmcuRXhwbG9yZVJlY2lwZXNSZXNwb25zZRKXAQoSR2V0U2hvcHBpbmdQcmV2aWV3Ej8udnJvb2xpLm51dHJpdGlvbl9wbGFubmVyLnYxLnBsYW5uaW5nLkdldFNob3BwaW5nUHJldmlld1JlcXVlc3QaQC52cm9vbGkubnV0cml0aW9uX3BsYW5uZXIudjEucGxhbm5pbmcuR2V0U2hvcHBpbmdQcmV2aWV3UmVzcG9uc2USlwEKElNldFNob3BwaW5nQ2hlY2tlZBI/LnZyb29saS5udXRyaXRpb25fcGxhbm5lci52MS5wbGFubmluZy5TZXRTaG9wcGluZ0NoZWNrZWRSZXF1ZXN0GkAudnJvb2xpLm51dHJpdGlvbl9wbGFubmVyLnYxLnBsYW5uaW5nLlNldFNob3BwaW5nQ2hlY2tlZFJlc3BvbnNlEpoBChNTZXRTaG9wcGluZ0hhdmVUaGlzEkAudnJvb2xpLm51dHJpdGlvbl9wbGFubmVyLnYxLnBsYW5uaW5nLlNldFNob3BwaW5nSGF2ZVRoaXNSZXF1ZXN0GkEudnJvb2xpLm51dHJpdGlvbl9wbGFubmVyLnYxLnBsYW5uaW5nLlNldFNob3BwaW5nSGF2ZVRoaXNSZXNwb25zZRKpAQoYQ29uZmlybVNob3BwaW5nUHVyY2hhc2VzEkUudnJvb2xpLm51dHJpdGlvbl9wbGFubmVyLnYxLnBsYW5uaW5nLkNvbmZpcm1TaG9wcGluZ1B1cmNoYXNlc1JlcXVlc3QaRi52cm9vbGkubnV0cml0aW9uX3BsYW5uZXIudjEucGxhbm5pbmcuQ29uZmlybVNob3BwaW5nUHVyY2hhc2VzUmVzcG9uc2USiwEKDlJlY29yZEZlZWRiYWNrEjsudnJvb2xpLm51dHJpdGlvbl9wbGFubmVyLnYxLnBsYW5uaW5nLlJlY29yZEZlZWRiYWNrUmVxdWVzdBo8LnZyb29saS5udXRyaXRpb25fcGxhbm5lci52MS5wbGFubmluZy5SZWNvcmRGZWVkYmFja1Jlc3BvbnNlEoUBCgxVbmRvRmVlZGJhY2sSOS52cm9vbGkubnV0cml0aW9uX3BsYW5uZXIudjEucGxhbm5pbmcuVW5kb0ZlZWRiYWNrUmVxdWVzdBo6LnZyb29saS5udXRyaXRpb25fcGxhbm5lci52MS5wbGFubmluZy5VbmRvRmVlZGJhY2tSZXNwb25zZUJaWlhnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL251dHJpdGlvbi1wbGFubmVyL3YxL3BsYW5uaW5nO3BsYW5uaW5nX3YxYgZwcm90bzM");
 
 /**
  * @generated from message vrooli.nutrition_planner.v1.planning.MealSlot
@@ -311,6 +311,134 @@ export const PreviewSwapResponseSchema: GenMessage<PreviewSwapResponse> = /*@__P
   messageDesc(file_nutrition_planner_v1_planning_planning, 8);
 
 /**
+ * @generated from message vrooli.nutrition_planner.v1.planning.ExploreRecipesRequest
+ */
+export type ExploreRecipesRequest = Message<"vrooli.nutrition_planner.v1.planning.ExploreRecipesRequest"> & {
+  /**
+   * @generated from field: string workspace_id = 1;
+   */
+  workspaceId: string;
+};
+
+/**
+ * Describes the message vrooli.nutrition_planner.v1.planning.ExploreRecipesRequest.
+ * Use `create(ExploreRecipesRequestSchema)` to create a new message.
+ */
+export const ExploreRecipesRequestSchema: GenMessage<ExploreRecipesRequest> = /*@__PURE__*/
+  messageDesc(file_nutrition_planner_v1_planning_planning, 9);
+
+/**
+ * @generated from message vrooli.nutrition_planner.v1.planning.ExploreFitReason
+ */
+export type ExploreFitReason = Message<"vrooli.nutrition_planner.v1.planning.ExploreFitReason"> & {
+  /**
+   * @generated from field: string code = 1;
+   */
+  code: string;
+
+  /**
+   * @generated from field: string rule = 2;
+   */
+  rule: string;
+
+  /**
+   * @generated from field: string reference = 3;
+   */
+  reference: string;
+
+  /**
+   * @generated from field: string message = 4;
+   */
+  message: string;
+};
+
+/**
+ * Describes the message vrooli.nutrition_planner.v1.planning.ExploreFitReason.
+ * Use `create(ExploreFitReasonSchema)` to create a new message.
+ */
+export const ExploreFitReasonSchema: GenMessage<ExploreFitReason> = /*@__PURE__*/
+  messageDesc(file_nutrition_planner_v1_planning_planning, 10);
+
+/**
+ * @generated from message vrooli.nutrition_planner.v1.planning.ExploreRecipeCandidate
+ */
+export type ExploreRecipeCandidate = Message<"vrooli.nutrition_planner.v1.planning.ExploreRecipeCandidate"> & {
+  /**
+   * @generated from field: string recipe_id = 1;
+   */
+  recipeId: string;
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name: string;
+
+  /**
+   * @generated from field: int64 recipe_revision = 3;
+   */
+  recipeRevision: bigint;
+
+  /**
+   * @generated from field: repeated vrooli.nutrition_planner.v1.planning.ExploreFitReason fit_reasons = 4;
+   */
+  fitReasons: ExploreFitReason[];
+
+  /**
+   * @generated from field: string summary = 5;
+   */
+  summary: string;
+};
+
+/**
+ * Describes the message vrooli.nutrition_planner.v1.planning.ExploreRecipeCandidate.
+ * Use `create(ExploreRecipeCandidateSchema)` to create a new message.
+ */
+export const ExploreRecipeCandidateSchema: GenMessage<ExploreRecipeCandidate> = /*@__PURE__*/
+  messageDesc(file_nutrition_planner_v1_planning_planning, 11);
+
+/**
+ * @generated from message vrooli.nutrition_planner.v1.planning.ExploreRecipesResponse
+ */
+export type ExploreRecipesResponse = Message<"vrooli.nutrition_planner.v1.planning.ExploreRecipesResponse"> & {
+  /**
+   * @generated from field: int64 plan_revision = 1;
+   */
+  planRevision: bigint;
+
+  /**
+   * @generated from field: int64 profile_revision = 2;
+   */
+  profileRevision: bigint;
+
+  /**
+   * @generated from field: bool profile_configured = 3;
+   */
+  profileConfigured: boolean;
+
+  /**
+   * @generated from field: repeated vrooli.nutrition_planner.v1.planning.ExploreRecipeCandidate candidates = 4;
+   */
+  candidates: ExploreRecipeCandidate[];
+
+  /**
+   * @generated from field: repeated vrooli.nutrition_planner.v1.planning.ExploreFitReason blocking_reasons = 5;
+   */
+  blockingReasons: ExploreFitReason[];
+
+  /**
+   * @generated from field: int32 saved_recipe_count = 6;
+   */
+  savedRecipeCount: number;
+};
+
+/**
+ * Describes the message vrooli.nutrition_planner.v1.planning.ExploreRecipesResponse.
+ * Use `create(ExploreRecipesResponseSchema)` to create a new message.
+ */
+export const ExploreRecipesResponseSchema: GenMessage<ExploreRecipesResponse> = /*@__PURE__*/
+  messageDesc(file_nutrition_planner_v1_planning_planning, 12);
+
+/**
  * @generated from message vrooli.nutrition_planner.v1.planning.GetShoppingPreviewRequest
  */
 export type GetShoppingPreviewRequest = Message<"vrooli.nutrition_planner.v1.planning.GetShoppingPreviewRequest"> & {
@@ -330,7 +458,7 @@ export type GetShoppingPreviewRequest = Message<"vrooli.nutrition_planner.v1.pla
  * Use `create(GetShoppingPreviewRequestSchema)` to create a new message.
  */
 export const GetShoppingPreviewRequestSchema: GenMessage<GetShoppingPreviewRequest> = /*@__PURE__*/
-  messageDesc(file_nutrition_planner_v1_planning_planning, 9);
+  messageDesc(file_nutrition_planner_v1_planning_planning, 13);
 
 /**
  * @generated from message vrooli.nutrition_planner.v1.planning.ShoppingLine
@@ -427,7 +555,7 @@ export type ShoppingLine = Message<"vrooli.nutrition_planner.v1.planning.Shoppin
  * Use `create(ShoppingLineSchema)` to create a new message.
  */
 export const ShoppingLineSchema: GenMessage<ShoppingLine> = /*@__PURE__*/
-  messageDesc(file_nutrition_planner_v1_planning_planning, 10);
+  messageDesc(file_nutrition_planner_v1_planning_planning, 14);
 
 /**
  * @generated from message vrooli.nutrition_planner.v1.planning.GetShoppingPreviewResponse
@@ -449,7 +577,7 @@ export type GetShoppingPreviewResponse = Message<"vrooli.nutrition_planner.v1.pl
  * Use `create(GetShoppingPreviewResponseSchema)` to create a new message.
  */
 export const GetShoppingPreviewResponseSchema: GenMessage<GetShoppingPreviewResponse> = /*@__PURE__*/
-  messageDesc(file_nutrition_planner_v1_planning_planning, 11);
+  messageDesc(file_nutrition_planner_v1_planning_planning, 15);
 
 /**
  * @generated from message vrooli.nutrition_planner.v1.planning.SetShoppingCheckedRequest
@@ -476,7 +604,7 @@ export type SetShoppingCheckedRequest = Message<"vrooli.nutrition_planner.v1.pla
  * Use `create(SetShoppingCheckedRequestSchema)` to create a new message.
  */
 export const SetShoppingCheckedRequestSchema: GenMessage<SetShoppingCheckedRequest> = /*@__PURE__*/
-  messageDesc(file_nutrition_planner_v1_planning_planning, 12);
+  messageDesc(file_nutrition_planner_v1_planning_planning, 16);
 
 /**
  * @generated from message vrooli.nutrition_planner.v1.planning.SetShoppingCheckedResponse
@@ -493,7 +621,7 @@ export type SetShoppingCheckedResponse = Message<"vrooli.nutrition_planner.v1.pl
  * Use `create(SetShoppingCheckedResponseSchema)` to create a new message.
  */
 export const SetShoppingCheckedResponseSchema: GenMessage<SetShoppingCheckedResponse> = /*@__PURE__*/
-  messageDesc(file_nutrition_planner_v1_planning_planning, 13);
+  messageDesc(file_nutrition_planner_v1_planning_planning, 17);
 
 /**
  * @generated from message vrooli.nutrition_planner.v1.planning.SetShoppingHaveThisRequest
@@ -520,7 +648,7 @@ export type SetShoppingHaveThisRequest = Message<"vrooli.nutrition_planner.v1.pl
  * Use `create(SetShoppingHaveThisRequestSchema)` to create a new message.
  */
 export const SetShoppingHaveThisRequestSchema: GenMessage<SetShoppingHaveThisRequest> = /*@__PURE__*/
-  messageDesc(file_nutrition_planner_v1_planning_planning, 14);
+  messageDesc(file_nutrition_planner_v1_planning_planning, 18);
 
 /**
  * @generated from message vrooli.nutrition_planner.v1.planning.SetShoppingHaveThisResponse
@@ -537,7 +665,7 @@ export type SetShoppingHaveThisResponse = Message<"vrooli.nutrition_planner.v1.p
  * Use `create(SetShoppingHaveThisResponseSchema)` to create a new message.
  */
 export const SetShoppingHaveThisResponseSchema: GenMessage<SetShoppingHaveThisResponse> = /*@__PURE__*/
-  messageDesc(file_nutrition_planner_v1_planning_planning, 15);
+  messageDesc(file_nutrition_planner_v1_planning_planning, 19);
 
 /**
  * @generated from message vrooli.nutrition_planner.v1.planning.ShoppingPurchaseActual
@@ -579,7 +707,7 @@ export type ShoppingPurchaseActual = Message<"vrooli.nutrition_planner.v1.planni
  * Use `create(ShoppingPurchaseActualSchema)` to create a new message.
  */
 export const ShoppingPurchaseActualSchema: GenMessage<ShoppingPurchaseActual> = /*@__PURE__*/
-  messageDesc(file_nutrition_planner_v1_planning_planning, 16);
+  messageDesc(file_nutrition_planner_v1_planning_planning, 20);
 
 /**
  * @generated from message vrooli.nutrition_planner.v1.planning.ConfirmShoppingPurchasesRequest
@@ -606,7 +734,7 @@ export type ConfirmShoppingPurchasesRequest = Message<"vrooli.nutrition_planner.
  * Use `create(ConfirmShoppingPurchasesRequestSchema)` to create a new message.
  */
 export const ConfirmShoppingPurchasesRequestSchema: GenMessage<ConfirmShoppingPurchasesRequest> = /*@__PURE__*/
-  messageDesc(file_nutrition_planner_v1_planning_planning, 17);
+  messageDesc(file_nutrition_planner_v1_planning_planning, 21);
 
 /**
  * @generated from message vrooli.nutrition_planner.v1.planning.ConfirmShoppingPurchasesResponse
@@ -623,7 +751,7 @@ export type ConfirmShoppingPurchasesResponse = Message<"vrooli.nutrition_planner
  * Use `create(ConfirmShoppingPurchasesResponseSchema)` to create a new message.
  */
 export const ConfirmShoppingPurchasesResponseSchema: GenMessage<ConfirmShoppingPurchasesResponse> = /*@__PURE__*/
-  messageDesc(file_nutrition_planner_v1_planning_planning, 18);
+  messageDesc(file_nutrition_planner_v1_planning_planning, 22);
 
 /**
  * @generated from message vrooli.nutrition_planner.v1.planning.RecordFeedbackRequest
@@ -665,7 +793,7 @@ export type RecordFeedbackRequest = Message<"vrooli.nutrition_planner.v1.plannin
  * Use `create(RecordFeedbackRequestSchema)` to create a new message.
  */
 export const RecordFeedbackRequestSchema: GenMessage<RecordFeedbackRequest> = /*@__PURE__*/
-  messageDesc(file_nutrition_planner_v1_planning_planning, 19);
+  messageDesc(file_nutrition_planner_v1_planning_planning, 23);
 
 /**
  * @generated from message vrooli.nutrition_planner.v1.planning.RecordFeedbackResponse
@@ -697,7 +825,7 @@ export type RecordFeedbackResponse = Message<"vrooli.nutrition_planner.v1.planni
  * Use `create(RecordFeedbackResponseSchema)` to create a new message.
  */
 export const RecordFeedbackResponseSchema: GenMessage<RecordFeedbackResponse> = /*@__PURE__*/
-  messageDesc(file_nutrition_planner_v1_planning_planning, 20);
+  messageDesc(file_nutrition_planner_v1_planning_planning, 24);
 
 /**
  * @generated from message vrooli.nutrition_planner.v1.planning.UndoFeedbackRequest
@@ -719,7 +847,7 @@ export type UndoFeedbackRequest = Message<"vrooli.nutrition_planner.v1.planning.
  * Use `create(UndoFeedbackRequestSchema)` to create a new message.
  */
 export const UndoFeedbackRequestSchema: GenMessage<UndoFeedbackRequest> = /*@__PURE__*/
-  messageDesc(file_nutrition_planner_v1_planning_planning, 21);
+  messageDesc(file_nutrition_planner_v1_planning_planning, 25);
 
 /**
  * @generated from message vrooli.nutrition_planner.v1.planning.UndoFeedbackResponse
@@ -736,7 +864,7 @@ export type UndoFeedbackResponse = Message<"vrooli.nutrition_planner.v1.planning
  * Use `create(UndoFeedbackResponseSchema)` to create a new message.
  */
 export const UndoFeedbackResponseSchema: GenMessage<UndoFeedbackResponse> = /*@__PURE__*/
-  messageDesc(file_nutrition_planner_v1_planning_planning, 22);
+  messageDesc(file_nutrition_planner_v1_planning_planning, 26);
 
 /**
  * @generated from service vrooli.nutrition_planner.v1.planning.PlanningService
@@ -773,6 +901,14 @@ export const PlanningService: GenService<{
     methodKind: "unary";
     input: typeof PreviewSwapRequestSchema;
     output: typeof PreviewSwapResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.nutrition_planner.v1.planning.PlanningService.ExploreRecipes
+   */
+  exploreRecipes: {
+    methodKind: "unary";
+    input: typeof ExploreRecipesRequestSchema;
+    output: typeof ExploreRecipesResponseSchema;
   },
   /**
    * @generated from rpc vrooli.nutrition_planner.v1.planning.PlanningService.GetShoppingPreview

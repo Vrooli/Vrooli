@@ -25,7 +25,7 @@ _sym_db = _symbol_database.Default()
 from notification_hub.v1.shared import types_pb2 as notification__hub_dot_v1_dot_shared_dot_types__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n5notification-hub/v1/conversations/conversations.proto\x12(vrooli.notification_hub.v1.conversations\x1a&notification-hub/v1/shared/types.proto\"\xc3\x01\n\nAskRequest\x12\x1a\n\x08question\x18\x01 \x01(\tR\x08question\x12\'\n\x0f\x61llowed_answers\x18\x02 \x03(\tR\x0e\x61llowedAnswers\x12\x1a\n\x08\x64\x65\x61\x64line\x18\x03 \x01(\tR\x08\x64\x65\x61\x64line\x12+\n\x11sensitivity_label\x18\x04 \x01(\tR\x10sensitivityLabel\x12\'\n\x0fidempotency_key\x18\x05 \x01(\tR\x0eidempotencyKey\"y\n\x0b\x41skResponse\x12\x15\n\x06\x61sk_id\x18\x01 \x01(\tR\x05\x61skId\x12S\n\x0cnotification\x18\x02 \x01(\x0b\x32/.vrooli.notification_hub.v1.shared.NotificationR\x0cnotification\">\n\rAnswerRequest\x12\x15\n\x06\x61sk_id\x18\x01 \x01(\tR\x05\x61skId\x12\x16\n\x06\x61nswer\x18\x02 \x01(\tR\x06\x61nswer\"`\n\x0e\x41nswerResponse\x12\x15\n\x06\x61sk_id\x18\x01 \x01(\tR\x05\x61skId\x12\x16\n\x06\x61nswer\x18\x02 \x01(\tR\x06\x61nswer\x12\x1f\n\x0b\x61nswered_at\x18\x03 \x01(\tR\nansweredAt\"@\n\x0bWaitRequest\x12\x15\n\x06\x61sk_id\x18\x01 \x01(\tR\x05\x61skId\x12\x1a\n\x08\x64\x65\x61\x64line\x18\x02 \x01(\tR\x08\x64\x65\x61\x64line\"k\n\x0cWaitResponse\x12\x15\n\x06\x61sk_id\x18\x01 \x01(\tR\x05\x61skId\x12\x14\n\x05state\x18\x02 \x01(\tR\x05state\x12\x16\n\x06\x61nswer\x18\x03 \x01(\tR\x06\x61nswer\x12\x16\n\x06reason\x18\x04 \x01(\tR\x06reason2\xfe\x02\n\x14\x43onversationsService\x12r\n\x03\x41sk\x12\x34.vrooli.notification_hub.v1.conversations.AskRequest\x1a\x35.vrooli.notification_hub.v1.conversations.AskResponse\x12{\n\x06\x41nswer\x12\x37.vrooli.notification_hub.v1.conversations.AnswerRequest\x1a\x38.vrooli.notification_hub.v1.conversations.AnswerResponse\x12u\n\x04Wait\x12\x35.vrooli.notification_hub.v1.conversations.WaitRequest\x1a\x36.vrooli.notification_hub.v1.conversations.WaitResponseBcZagithub.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/conversations;conversations_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n5notification-hub/v1/conversations/conversations.proto\x12(vrooli.notification_hub.v1.conversations\x1a&notification-hub/v1/shared/types.proto\"3\n\tAskOption\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05label\x18\x02 \x01(\tR\x05label\"\xeb\x03\n\nAskRequest\x12\x1a\n\x08question\x18\x01 \x01(\tR\x08question\x12\'\n\x0f\x61llowed_answers\x18\x02 \x03(\tR\x0e\x61llowedAnswers\x12\x1a\n\x08\x64\x65\x61\x64line\x18\x03 \x01(\tR\x08\x64\x65\x61\x64line\x12+\n\x11sensitivity_label\x18\x04 \x01(\tR\x10sensitivityLabel\x12\'\n\x0fidempotency_key\x18\x05 \x01(\tR\x0eidempotencyKey\x12M\n\x07options\x18\x06 \x03(\x0b\x32\x33.vrooli.notification_hub.v1.conversations.AskOptionR\x07options\x12 \n\x0brecommended\x18\x07 \x01(\tR\x0brecommended\x12\x33\n\x15recommendation_reason\x18\x08 \x01(\tR\x14recommendationReason\x12%\n\x0e\x64\x65\x66\x61ult_answer\x18\t \x01(\tR\rdefaultAnswer\x12\x1e\n\nreversible\x18\n \x01(\x08R\nreversible\x12\x18\n\x07urgency\x18\x0b \x01(\tR\x07urgency\x12\x1f\n\x0b\x63ontext_url\x18\x0c \x01(\tR\ncontextUrl\"y\n\x0b\x41skResponse\x12\x15\n\x06\x61sk_id\x18\x01 \x01(\tR\x05\x61skId\x12S\n\x0cnotification\x18\x02 \x01(\x0b\x32/.vrooli.notification_hub.v1.shared.NotificationR\x0cnotification\"R\n\rAnswerRequest\x12\x15\n\x06\x61sk_id\x18\x01 \x01(\tR\x05\x61skId\x12\x16\n\x06\x61nswer\x18\x02 \x01(\tR\x06\x61nswer\x12\x12\n\x04note\x18\x03 \x01(\tR\x04note\"t\n\x0e\x41nswerResponse\x12\x15\n\x06\x61sk_id\x18\x01 \x01(\tR\x05\x61skId\x12\x16\n\x06\x61nswer\x18\x02 \x01(\tR\x06\x61nswer\x12\x1f\n\x0b\x61nswered_at\x18\x03 \x01(\tR\nansweredAt\x12\x12\n\x04late\x18\x04 \x01(\x08R\x04late\"@\n\x0bWaitRequest\x12\x15\n\x06\x61sk_id\x18\x01 \x01(\tR\x05\x61skId\x12\x1a\n\x08\x64\x65\x61\x64line\x18\x02 \x01(\tR\x08\x64\x65\x61\x64line\"k\n\x0cWaitResponse\x12\x15\n\x06\x61sk_id\x18\x01 \x01(\tR\x05\x61skId\x12\x14\n\x05state\x18\x02 \x01(\tR\x05state\x12\x16\n\x06\x61nswer\x18\x03 \x01(\tR\x06\x61nswer\x12\x16\n\x06reason\x18\x04 \x01(\tR\x06reason\"\xc5\x07\n\x03\x41sk\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\'\n\x0fnotification_id\x18\x02 \x01(\tR\x0enotificationId\x12\x1a\n\x08question\x18\x03 \x01(\tR\x08question\x12M\n\x07options\x18\x04 \x03(\x0b\x32\x33.vrooli.notification_hub.v1.conversations.AskOptionR\x07options\x12 \n\x0brecommended\x18\x05 \x01(\tR\x0brecommended\x12\x33\n\x15recommendation_reason\x18\x06 \x01(\tR\x14recommendationReason\x12%\n\x0e\x64\x65\x66\x61ult_answer\x18\x07 \x01(\tR\rdefaultAnswer\x12\x1e\n\nreversible\x18\x08 \x01(\x08R\nreversible\x12\x18\n\x07urgency\x18\t \x01(\tR\x07urgency\x12\x1f\n\x0b\x63ontext_url\x18\n \x01(\tR\ncontextUrl\x12\x1a\n\x08\x64\x65\x61\x64line\x18\x0b \x01(\tR\x08\x64\x65\x61\x64line\x12\x14\n\x05state\x18\x0c \x01(\tR\x05state\x12\x16\n\x06reason\x18\r \x01(\tR\x06reason\x12\x16\n\x06\x61nswer\x18\x0e \x01(\tR\x06\x61nswer\x12!\n\x0c\x61nswer_label\x18\x0f \x01(\tR\x0b\x61nswerLabel\x12\x12\n\x04note\x18\x10 \x01(\tR\x04note\x12\x1f\n\x0b\x61nswered_by\x18\x11 \x01(\tR\nansweredBy\x12\x1f\n\x0b\x61nswered_at\x18\x12 \x01(\tR\nansweredAt\x12\x12\n\x04late\x18\x13 \x01(\x08R\x04late\x12,\n\x12\x64\x65\x66\x61ult_applied_at\x18\x14 \x01(\tR\x10\x64\x65\x66\x61ultAppliedAt\x12,\n\x12\x66irst_delivered_at\x18\x15 \x01(\tR\x10\x66irstDeliveredAt\x12.\n\x13\x64\x65\x66\x61ult_eligible_at\x18\x16 \x01(\tR\x11\x64\x65\x66\x61ultEligibleAt\x12\x16\n\x06source\x18\x17 \x01(\tR\x06source\x12*\n\x11source_event_type\x18\x18 \x01(\tR\x0fsourceEventType\x12#\n\rrequester_ref\x18\x19 \x01(\tR\x0crequesterRef\x12\x1f\n\x0bresolved_at\x18\x1a \x01(\tR\nresolvedAt\x12\x1d\n\ncreated_at\x18\x1b \x01(\tR\tcreatedAt\x12\x1d\n\nupdated_at\x18\x1c \x01(\tR\tupdatedAt\"&\n\rGetAskRequest\x12\x15\n\x06\x61sk_id\x18\x01 \x01(\tR\x05\x61skId\"Q\n\x0eGetAskResponse\x12?\n\x03\x61sk\x18\x01 \x01(\x0b\x32-.vrooli.notification_hub.v1.conversations.AskR\x03\x61sk\"D\n\x0fListAsksRequest\x12\x1b\n\topen_only\x18\x01 \x01(\x08R\x08openOnly\x12\x14\n\x05limit\x18\x02 \x01(\x05R\x05limit\"U\n\x10ListAsksResponse\x12\x41\n\x04\x61sks\x18\x01 \x03(\x0b\x32-.vrooli.notification_hub.v1.conversations.AskR\x04\x61sks2\xff\x04\n\x14\x43onversationsService\x12r\n\x03\x41sk\x12\x34.vrooli.notification_hub.v1.conversations.AskRequest\x1a\x35.vrooli.notification_hub.v1.conversations.AskResponse\x12{\n\x06\x41nswer\x12\x37.vrooli.notification_hub.v1.conversations.AnswerRequest\x1a\x38.vrooli.notification_hub.v1.conversations.AnswerResponse\x12u\n\x04Wait\x12\x35.vrooli.notification_hub.v1.conversations.WaitRequest\x1a\x36.vrooli.notification_hub.v1.conversations.WaitResponse\x12{\n\x06GetAsk\x12\x37.vrooli.notification_hub.v1.conversations.GetAskRequest\x1a\x38.vrooli.notification_hub.v1.conversations.GetAskResponse\x12\x81\x01\n\x08ListAsks\x12\x39.vrooli.notification_hub.v1.conversations.ListAsksRequest\x1a:.vrooli.notification_hub.v1.conversations.ListAsksResponseBcZagithub.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/conversations;conversations_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -33,18 +33,30 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'notification_hub.v1.convers
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'Zagithub.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/conversations;conversations_v1'
-  _globals['_ASKREQUEST']._serialized_start=140
-  _globals['_ASKREQUEST']._serialized_end=335
-  _globals['_ASKRESPONSE']._serialized_start=337
-  _globals['_ASKRESPONSE']._serialized_end=458
-  _globals['_ANSWERREQUEST']._serialized_start=460
-  _globals['_ANSWERREQUEST']._serialized_end=522
-  _globals['_ANSWERRESPONSE']._serialized_start=524
-  _globals['_ANSWERRESPONSE']._serialized_end=620
-  _globals['_WAITREQUEST']._serialized_start=622
-  _globals['_WAITREQUEST']._serialized_end=686
-  _globals['_WAITRESPONSE']._serialized_start=688
-  _globals['_WAITRESPONSE']._serialized_end=795
-  _globals['_CONVERSATIONSSERVICE']._serialized_start=798
-  _globals['_CONVERSATIONSSERVICE']._serialized_end=1180
+  _globals['_ASKOPTION']._serialized_start=139
+  _globals['_ASKOPTION']._serialized_end=190
+  _globals['_ASKREQUEST']._serialized_start=193
+  _globals['_ASKREQUEST']._serialized_end=684
+  _globals['_ASKRESPONSE']._serialized_start=686
+  _globals['_ASKRESPONSE']._serialized_end=807
+  _globals['_ANSWERREQUEST']._serialized_start=809
+  _globals['_ANSWERREQUEST']._serialized_end=891
+  _globals['_ANSWERRESPONSE']._serialized_start=893
+  _globals['_ANSWERRESPONSE']._serialized_end=1009
+  _globals['_WAITREQUEST']._serialized_start=1011
+  _globals['_WAITREQUEST']._serialized_end=1075
+  _globals['_WAITRESPONSE']._serialized_start=1077
+  _globals['_WAITRESPONSE']._serialized_end=1184
+  _globals['_ASK']._serialized_start=1187
+  _globals['_ASK']._serialized_end=2152
+  _globals['_GETASKREQUEST']._serialized_start=2154
+  _globals['_GETASKREQUEST']._serialized_end=2192
+  _globals['_GETASKRESPONSE']._serialized_start=2194
+  _globals['_GETASKRESPONSE']._serialized_end=2275
+  _globals['_LISTASKSREQUEST']._serialized_start=2277
+  _globals['_LISTASKSREQUEST']._serialized_end=2345
+  _globals['_LISTASKSRESPONSE']._serialized_start=2347
+  _globals['_LISTASKSRESPONSE']._serialized_end=2432
+  _globals['_CONVERSATIONSSERVICE']._serialized_start=2435
+  _globals['_CONVERSATIONSSERVICE']._serialized_end=3074
 # @@protoc_insertion_point(module_scope)

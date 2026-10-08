@@ -45,6 +45,12 @@ const (
 	// PortabilityServiceApplyWorkspaceImportProcedure is the fully-qualified name of the
 	// PortabilityService's ApplyWorkspaceImport RPC.
 	PortabilityServiceApplyWorkspaceImportProcedure = "/vrooli.nutrition_planner.v1.portability.PortabilityService/ApplyWorkspaceImport"
+	// PortabilityServiceGetRestoreCheckpointProcedure is the fully-qualified name of the
+	// PortabilityService's GetRestoreCheckpoint RPC.
+	PortabilityServiceGetRestoreCheckpointProcedure = "/vrooli.nutrition_planner.v1.portability.PortabilityService/GetRestoreCheckpoint"
+	// PortabilityServiceRecoverRestoreCheckpointProcedure is the fully-qualified name of the
+	// PortabilityService's RecoverRestoreCheckpoint RPC.
+	PortabilityServiceRecoverRestoreCheckpointProcedure = "/vrooli.nutrition_planner.v1.portability.PortabilityService/RecoverRestoreCheckpoint"
 	// PortabilityServicePreviewRecipesImportProcedure is the fully-qualified name of the
 	// PortabilityService's PreviewRecipesImport RPC.
 	PortabilityServicePreviewRecipesImportProcedure = "/vrooli.nutrition_planner.v1.portability.PortabilityService/PreviewRecipesImport"
@@ -69,6 +75,8 @@ type PortabilityServiceClient interface {
 	ExportWorkspace(context.Context, *connect.Request[portability.ExportWorkspaceRequest]) (*connect.Response[portability.ExportWorkspaceResponse], error)
 	PreviewWorkspaceImport(context.Context, *connect.Request[portability.PreviewWorkspaceImportRequest]) (*connect.Response[portability.PreviewWorkspaceImportResponse], error)
 	ApplyWorkspaceImport(context.Context, *connect.Request[portability.ApplyWorkspaceImportRequest]) (*connect.Response[portability.ApplyWorkspaceImportResponse], error)
+	GetRestoreCheckpoint(context.Context, *connect.Request[portability.GetRestoreCheckpointRequest]) (*connect.Response[portability.GetRestoreCheckpointResponse], error)
+	RecoverRestoreCheckpoint(context.Context, *connect.Request[portability.RecoverRestoreCheckpointRequest]) (*connect.Response[portability.RecoverRestoreCheckpointResponse], error)
 	PreviewRecipesImport(context.Context, *connect.Request[portability.PreviewRecipesImportRequest]) (*connect.Response[portability.PreviewRecipesImportResponse], error)
 	ApplyRecipesImport(context.Context, *connect.Request[portability.ApplyRecipesImportRequest]) (*connect.Response[portability.ApplyRecipesImportResponse], error)
 	ExportGroceriesCSV(context.Context, *connect.Request[portability.ExportGroceriesCSVRequest]) (*connect.Response[portability.ExportGroceriesCSVResponse], error)
@@ -112,6 +120,18 @@ func NewPortabilityServiceClient(httpClient connect.HTTPClient, baseURL string, 
 			connect.WithSchema(portabilityServiceMethods.ByName("ApplyWorkspaceImport")),
 			connect.WithClientOptions(opts...),
 		),
+		getRestoreCheckpoint: connect.NewClient[portability.GetRestoreCheckpointRequest, portability.GetRestoreCheckpointResponse](
+			httpClient,
+			baseURL+PortabilityServiceGetRestoreCheckpointProcedure,
+			connect.WithSchema(portabilityServiceMethods.ByName("GetRestoreCheckpoint")),
+			connect.WithClientOptions(opts...),
+		),
+		recoverRestoreCheckpoint: connect.NewClient[portability.RecoverRestoreCheckpointRequest, portability.RecoverRestoreCheckpointResponse](
+			httpClient,
+			baseURL+PortabilityServiceRecoverRestoreCheckpointProcedure,
+			connect.WithSchema(portabilityServiceMethods.ByName("RecoverRestoreCheckpoint")),
+			connect.WithClientOptions(opts...),
+		),
 		previewRecipesImport: connect.NewClient[portability.PreviewRecipesImportRequest, portability.PreviewRecipesImportResponse](
 			httpClient,
 			baseURL+PortabilityServicePreviewRecipesImportProcedure,
@@ -147,15 +167,17 @@ func NewPortabilityServiceClient(httpClient connect.HTTPClient, baseURL string, 
 
 // portabilityServiceClient implements PortabilityServiceClient.
 type portabilityServiceClient struct {
-	exportRecipes          *connect.Client[portability.ExportRecipesRequest, portability.ExportRecipesResponse]
-	exportWorkspace        *connect.Client[portability.ExportWorkspaceRequest, portability.ExportWorkspaceResponse]
-	previewWorkspaceImport *connect.Client[portability.PreviewWorkspaceImportRequest, portability.PreviewWorkspaceImportResponse]
-	applyWorkspaceImport   *connect.Client[portability.ApplyWorkspaceImportRequest, portability.ApplyWorkspaceImportResponse]
-	previewRecipesImport   *connect.Client[portability.PreviewRecipesImportRequest, portability.PreviewRecipesImportResponse]
-	applyRecipesImport     *connect.Client[portability.ApplyRecipesImportRequest, portability.ApplyRecipesImportResponse]
-	exportGroceriesCSV     *connect.Client[portability.ExportGroceriesCSVRequest, portability.ExportGroceriesCSVResponse]
-	exportRecipePDF        *connect.Client[portability.ExportRecipePDFRequest, portability.ExportPDFResponse]
-	exportWeeklyPDF        *connect.Client[portability.ExportWeeklyPDFRequest, portability.ExportPDFResponse]
+	exportRecipes            *connect.Client[portability.ExportRecipesRequest, portability.ExportRecipesResponse]
+	exportWorkspace          *connect.Client[portability.ExportWorkspaceRequest, portability.ExportWorkspaceResponse]
+	previewWorkspaceImport   *connect.Client[portability.PreviewWorkspaceImportRequest, portability.PreviewWorkspaceImportResponse]
+	applyWorkspaceImport     *connect.Client[portability.ApplyWorkspaceImportRequest, portability.ApplyWorkspaceImportResponse]
+	getRestoreCheckpoint     *connect.Client[portability.GetRestoreCheckpointRequest, portability.GetRestoreCheckpointResponse]
+	recoverRestoreCheckpoint *connect.Client[portability.RecoverRestoreCheckpointRequest, portability.RecoverRestoreCheckpointResponse]
+	previewRecipesImport     *connect.Client[portability.PreviewRecipesImportRequest, portability.PreviewRecipesImportResponse]
+	applyRecipesImport       *connect.Client[portability.ApplyRecipesImportRequest, portability.ApplyRecipesImportResponse]
+	exportGroceriesCSV       *connect.Client[portability.ExportGroceriesCSVRequest, portability.ExportGroceriesCSVResponse]
+	exportRecipePDF          *connect.Client[portability.ExportRecipePDFRequest, portability.ExportPDFResponse]
+	exportWeeklyPDF          *connect.Client[portability.ExportWeeklyPDFRequest, portability.ExportPDFResponse]
 }
 
 // ExportRecipes calls vrooli.nutrition_planner.v1.portability.PortabilityService.ExportRecipes.
@@ -178,6 +200,18 @@ func (c *portabilityServiceClient) PreviewWorkspaceImport(ctx context.Context, r
 // vrooli.nutrition_planner.v1.portability.PortabilityService.ApplyWorkspaceImport.
 func (c *portabilityServiceClient) ApplyWorkspaceImport(ctx context.Context, req *connect.Request[portability.ApplyWorkspaceImportRequest]) (*connect.Response[portability.ApplyWorkspaceImportResponse], error) {
 	return c.applyWorkspaceImport.CallUnary(ctx, req)
+}
+
+// GetRestoreCheckpoint calls
+// vrooli.nutrition_planner.v1.portability.PortabilityService.GetRestoreCheckpoint.
+func (c *portabilityServiceClient) GetRestoreCheckpoint(ctx context.Context, req *connect.Request[portability.GetRestoreCheckpointRequest]) (*connect.Response[portability.GetRestoreCheckpointResponse], error) {
+	return c.getRestoreCheckpoint.CallUnary(ctx, req)
+}
+
+// RecoverRestoreCheckpoint calls
+// vrooli.nutrition_planner.v1.portability.PortabilityService.RecoverRestoreCheckpoint.
+func (c *portabilityServiceClient) RecoverRestoreCheckpoint(ctx context.Context, req *connect.Request[portability.RecoverRestoreCheckpointRequest]) (*connect.Response[portability.RecoverRestoreCheckpointResponse], error) {
+	return c.recoverRestoreCheckpoint.CallUnary(ctx, req)
 }
 
 // PreviewRecipesImport calls
@@ -215,6 +249,8 @@ type PortabilityServiceHandler interface {
 	ExportWorkspace(context.Context, *connect.Request[portability.ExportWorkspaceRequest]) (*connect.Response[portability.ExportWorkspaceResponse], error)
 	PreviewWorkspaceImport(context.Context, *connect.Request[portability.PreviewWorkspaceImportRequest]) (*connect.Response[portability.PreviewWorkspaceImportResponse], error)
 	ApplyWorkspaceImport(context.Context, *connect.Request[portability.ApplyWorkspaceImportRequest]) (*connect.Response[portability.ApplyWorkspaceImportResponse], error)
+	GetRestoreCheckpoint(context.Context, *connect.Request[portability.GetRestoreCheckpointRequest]) (*connect.Response[portability.GetRestoreCheckpointResponse], error)
+	RecoverRestoreCheckpoint(context.Context, *connect.Request[portability.RecoverRestoreCheckpointRequest]) (*connect.Response[portability.RecoverRestoreCheckpointResponse], error)
 	PreviewRecipesImport(context.Context, *connect.Request[portability.PreviewRecipesImportRequest]) (*connect.Response[portability.PreviewRecipesImportResponse], error)
 	ApplyRecipesImport(context.Context, *connect.Request[portability.ApplyRecipesImportRequest]) (*connect.Response[portability.ApplyRecipesImportResponse], error)
 	ExportGroceriesCSV(context.Context, *connect.Request[portability.ExportGroceriesCSVRequest]) (*connect.Response[portability.ExportGroceriesCSVResponse], error)
@@ -251,6 +287,18 @@ func NewPortabilityServiceHandler(svc PortabilityServiceHandler, opts ...connect
 		PortabilityServiceApplyWorkspaceImportProcedure,
 		svc.ApplyWorkspaceImport,
 		connect.WithSchema(portabilityServiceMethods.ByName("ApplyWorkspaceImport")),
+		connect.WithHandlerOptions(opts...),
+	)
+	portabilityServiceGetRestoreCheckpointHandler := connect.NewUnaryHandler(
+		PortabilityServiceGetRestoreCheckpointProcedure,
+		svc.GetRestoreCheckpoint,
+		connect.WithSchema(portabilityServiceMethods.ByName("GetRestoreCheckpoint")),
+		connect.WithHandlerOptions(opts...),
+	)
+	portabilityServiceRecoverRestoreCheckpointHandler := connect.NewUnaryHandler(
+		PortabilityServiceRecoverRestoreCheckpointProcedure,
+		svc.RecoverRestoreCheckpoint,
+		connect.WithSchema(portabilityServiceMethods.ByName("RecoverRestoreCheckpoint")),
 		connect.WithHandlerOptions(opts...),
 	)
 	portabilityServicePreviewRecipesImportHandler := connect.NewUnaryHandler(
@@ -293,6 +341,10 @@ func NewPortabilityServiceHandler(svc PortabilityServiceHandler, opts ...connect
 			portabilityServicePreviewWorkspaceImportHandler.ServeHTTP(w, r)
 		case PortabilityServiceApplyWorkspaceImportProcedure:
 			portabilityServiceApplyWorkspaceImportHandler.ServeHTTP(w, r)
+		case PortabilityServiceGetRestoreCheckpointProcedure:
+			portabilityServiceGetRestoreCheckpointHandler.ServeHTTP(w, r)
+		case PortabilityServiceRecoverRestoreCheckpointProcedure:
+			portabilityServiceRecoverRestoreCheckpointHandler.ServeHTTP(w, r)
 		case PortabilityServicePreviewRecipesImportProcedure:
 			portabilityServicePreviewRecipesImportHandler.ServeHTTP(w, r)
 		case PortabilityServiceApplyRecipesImportProcedure:
@@ -326,6 +378,14 @@ func (UnimplementedPortabilityServiceHandler) PreviewWorkspaceImport(context.Con
 
 func (UnimplementedPortabilityServiceHandler) ApplyWorkspaceImport(context.Context, *connect.Request[portability.ApplyWorkspaceImportRequest]) (*connect.Response[portability.ApplyWorkspaceImportResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.nutrition_planner.v1.portability.PortabilityService.ApplyWorkspaceImport is not implemented"))
+}
+
+func (UnimplementedPortabilityServiceHandler) GetRestoreCheckpoint(context.Context, *connect.Request[portability.GetRestoreCheckpointRequest]) (*connect.Response[portability.GetRestoreCheckpointResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.nutrition_planner.v1.portability.PortabilityService.GetRestoreCheckpoint is not implemented"))
+}
+
+func (UnimplementedPortabilityServiceHandler) RecoverRestoreCheckpoint(context.Context, *connect.Request[portability.RecoverRestoreCheckpointRequest]) (*connect.Response[portability.RecoverRestoreCheckpointResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.nutrition_planner.v1.portability.PortabilityService.RecoverRestoreCheckpoint is not implemented"))
 }
 
 func (UnimplementedPortabilityServiceHandler) PreviewRecipesImport(context.Context, *connect.Request[portability.PreviewRecipesImportRequest]) (*connect.Response[portability.PreviewRecipesImportResponse], error) {

@@ -42,6 +42,12 @@ const (
 	// ConversationsServiceWaitProcedure is the fully-qualified name of the ConversationsService's Wait
 	// RPC.
 	ConversationsServiceWaitProcedure = "/vrooli.notification_hub.v1.conversations.ConversationsService/Wait"
+	// ConversationsServiceGetAskProcedure is the fully-qualified name of the ConversationsService's
+	// GetAsk RPC.
+	ConversationsServiceGetAskProcedure = "/vrooli.notification_hub.v1.conversations.ConversationsService/GetAsk"
+	// ConversationsServiceListAsksProcedure is the fully-qualified name of the ConversationsService's
+	// ListAsks RPC.
+	ConversationsServiceListAsksProcedure = "/vrooli.notification_hub.v1.conversations.ConversationsService/ListAsks"
 )
 
 // ConversationsServiceClient is a client for the
@@ -50,6 +56,11 @@ type ConversationsServiceClient interface {
 	Ask(context.Context, *connect.Request[conversations.AskRequest]) (*connect.Response[conversations.AskResponse], error)
 	Answer(context.Context, *connect.Request[conversations.AnswerRequest]) (*connect.Response[conversations.AnswerResponse], error)
 	Wait(context.Context, *connect.Request[conversations.WaitRequest]) (*connect.Response[conversations.WaitResponse], error)
+	// GetAsk reads one ask for the answer page.
+	GetAsk(context.Context, *connect.Request[conversations.GetAskRequest]) (*connect.Response[conversations.GetAskResponse], error)
+	// ListAsks reads asks newest first; open_only limits it to asks that still
+	// wait for an answer.
+	ListAsks(context.Context, *connect.Request[conversations.ListAsksRequest]) (*connect.Response[conversations.ListAsksResponse], error)
 }
 
 // NewConversationsServiceClient constructs a client for the
@@ -82,14 +93,28 @@ func NewConversationsServiceClient(httpClient connect.HTTPClient, baseURL string
 			connect.WithSchema(conversationsServiceMethods.ByName("Wait")),
 			connect.WithClientOptions(opts...),
 		),
+		getAsk: connect.NewClient[conversations.GetAskRequest, conversations.GetAskResponse](
+			httpClient,
+			baseURL+ConversationsServiceGetAskProcedure,
+			connect.WithSchema(conversationsServiceMethods.ByName("GetAsk")),
+			connect.WithClientOptions(opts...),
+		),
+		listAsks: connect.NewClient[conversations.ListAsksRequest, conversations.ListAsksResponse](
+			httpClient,
+			baseURL+ConversationsServiceListAsksProcedure,
+			connect.WithSchema(conversationsServiceMethods.ByName("ListAsks")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // conversationsServiceClient implements ConversationsServiceClient.
 type conversationsServiceClient struct {
-	ask    *connect.Client[conversations.AskRequest, conversations.AskResponse]
-	answer *connect.Client[conversations.AnswerRequest, conversations.AnswerResponse]
-	wait   *connect.Client[conversations.WaitRequest, conversations.WaitResponse]
+	ask      *connect.Client[conversations.AskRequest, conversations.AskResponse]
+	answer   *connect.Client[conversations.AnswerRequest, conversations.AnswerResponse]
+	wait     *connect.Client[conversations.WaitRequest, conversations.WaitResponse]
+	getAsk   *connect.Client[conversations.GetAskRequest, conversations.GetAskResponse]
+	listAsks *connect.Client[conversations.ListAsksRequest, conversations.ListAsksResponse]
 }
 
 // Ask calls vrooli.notification_hub.v1.conversations.ConversationsService.Ask.
@@ -107,12 +132,27 @@ func (c *conversationsServiceClient) Wait(ctx context.Context, req *connect.Requ
 	return c.wait.CallUnary(ctx, req)
 }
 
+// GetAsk calls vrooli.notification_hub.v1.conversations.ConversationsService.GetAsk.
+func (c *conversationsServiceClient) GetAsk(ctx context.Context, req *connect.Request[conversations.GetAskRequest]) (*connect.Response[conversations.GetAskResponse], error) {
+	return c.getAsk.CallUnary(ctx, req)
+}
+
+// ListAsks calls vrooli.notification_hub.v1.conversations.ConversationsService.ListAsks.
+func (c *conversationsServiceClient) ListAsks(ctx context.Context, req *connect.Request[conversations.ListAsksRequest]) (*connect.Response[conversations.ListAsksResponse], error) {
+	return c.listAsks.CallUnary(ctx, req)
+}
+
 // ConversationsServiceHandler is an implementation of the
 // vrooli.notification_hub.v1.conversations.ConversationsService service.
 type ConversationsServiceHandler interface {
 	Ask(context.Context, *connect.Request[conversations.AskRequest]) (*connect.Response[conversations.AskResponse], error)
 	Answer(context.Context, *connect.Request[conversations.AnswerRequest]) (*connect.Response[conversations.AnswerResponse], error)
 	Wait(context.Context, *connect.Request[conversations.WaitRequest]) (*connect.Response[conversations.WaitResponse], error)
+	// GetAsk reads one ask for the answer page.
+	GetAsk(context.Context, *connect.Request[conversations.GetAskRequest]) (*connect.Response[conversations.GetAskResponse], error)
+	// ListAsks reads asks newest first; open_only limits it to asks that still
+	// wait for an answer.
+	ListAsks(context.Context, *connect.Request[conversations.ListAsksRequest]) (*connect.Response[conversations.ListAsksResponse], error)
 }
 
 // NewConversationsServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -140,6 +180,18 @@ func NewConversationsServiceHandler(svc ConversationsServiceHandler, opts ...con
 		connect.WithSchema(conversationsServiceMethods.ByName("Wait")),
 		connect.WithHandlerOptions(opts...),
 	)
+	conversationsServiceGetAskHandler := connect.NewUnaryHandler(
+		ConversationsServiceGetAskProcedure,
+		svc.GetAsk,
+		connect.WithSchema(conversationsServiceMethods.ByName("GetAsk")),
+		connect.WithHandlerOptions(opts...),
+	)
+	conversationsServiceListAsksHandler := connect.NewUnaryHandler(
+		ConversationsServiceListAsksProcedure,
+		svc.ListAsks,
+		connect.WithSchema(conversationsServiceMethods.ByName("ListAsks")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.notification_hub.v1.conversations.ConversationsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ConversationsServiceAskProcedure:
@@ -148,6 +200,10 @@ func NewConversationsServiceHandler(svc ConversationsServiceHandler, opts ...con
 			conversationsServiceAnswerHandler.ServeHTTP(w, r)
 		case ConversationsServiceWaitProcedure:
 			conversationsServiceWaitHandler.ServeHTTP(w, r)
+		case ConversationsServiceGetAskProcedure:
+			conversationsServiceGetAskHandler.ServeHTTP(w, r)
+		case ConversationsServiceListAsksProcedure:
+			conversationsServiceListAsksHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -167,4 +223,12 @@ func (UnimplementedConversationsServiceHandler) Answer(context.Context, *connect
 
 func (UnimplementedConversationsServiceHandler) Wait(context.Context, *connect.Request[conversations.WaitRequest]) (*connect.Response[conversations.WaitResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.notification_hub.v1.conversations.ConversationsService.Wait is not implemented"))
+}
+
+func (UnimplementedConversationsServiceHandler) GetAsk(context.Context, *connect.Request[conversations.GetAskRequest]) (*connect.Response[conversations.GetAskResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.notification_hub.v1.conversations.ConversationsService.GetAsk is not implemented"))
+}
+
+func (UnimplementedConversationsServiceHandler) ListAsks(context.Context, *connect.Request[conversations.ListAsksRequest]) (*connect.Response[conversations.ListAsksResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.notification_hub.v1.conversations.ConversationsService.ListAsks is not implemented"))
 }

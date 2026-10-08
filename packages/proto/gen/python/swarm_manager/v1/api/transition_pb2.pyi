@@ -1,4 +1,5 @@
 from swarm_manager.v1.domain import transition_pb2 as _transition_pb2
+from swarm_manager.v1.api import development_pb2 as _development_pb2
 from swarm_manager.v1.shared import plan_ref_pb2 as _plan_ref_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor

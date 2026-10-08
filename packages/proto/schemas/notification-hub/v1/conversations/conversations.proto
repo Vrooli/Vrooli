@@ -6,14 +6,99 @@ import "notification-hub/v1/shared/types.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/conversations;conversations_v1";
 
+// Asks are durable operator decisions. Reads (GetAsk, ListAsks, Wait) never
+// change an ask; only an answer or the hub's deadline sweep does.
 service ConversationsService {
   rpc Ask(AskRequest) returns (AskResponse);
   rpc Answer(AnswerRequest) returns (AnswerResponse);
   rpc Wait(WaitRequest) returns (WaitResponse);
+  // GetAsk reads one ask for the answer page.
+  rpc GetAsk(GetAskRequest) returns (GetAskResponse);
+  // ListAsks reads asks newest first; open_only limits it to asks that still
+  // wait for an answer.
+  rpc ListAsks(ListAsksRequest) returns (ListAsksResponse);
 }
-message AskRequest { string question = 1; repeated string allowed_answers = 2; string deadline = 3; string sensitivity_label = 4; string idempotency_key = 5; }
+
+// AskOption is one structured answer. key is what the requester receives;
+// label is what the operator sees.
+message AskOption { string key = 1; string label = 2; }
+
+message AskRequest {
+  string question = 1;
+  // Answer keys. Ignored when options is set; kept for existing callers.
+  repeated string allowed_answers = 2;
+  string deadline = 3;
+  string sensitivity_label = 4;
+  string idempotency_key = 5;
+  // Structured answers, shown in this order (the recommended one first in the UI).
+  repeated AskOption options = 6;
+  // One option key.
+  string recommended = 7;
+  string recommendation_reason = 8;
+  // One option key; requires reversible. Applied only after the deadline and
+  // at least the hub floor (12 h) after the first delivered receipt.
+  string default_answer = 9;
+  bool reversible = 10;
+  // low, normal, high (default), or critical.
+  string urgency = 11;
+  string context_url = 12;
+}
 message AskResponse { string ask_id = 1; shared.Notification notification = 2; }
-message AnswerRequest { string ask_id = 1; string answer = 2; }
-message AnswerResponse { string ask_id = 1; string answer = 2; string answered_at = 3; }
+
+message AnswerRequest {
+  string ask_id = 1;
+  string answer = 2;
+  // Optional operator note, stored verbatim and returned to the requester.
+  string note = 3;
+}
+message AnswerResponse {
+  string ask_id = 1;
+  string answer = 2;
+  string answered_at = 3;
+  // True when this answer supersedes an applied default.
+  bool late = 4;
+}
+
 message WaitRequest { string ask_id = 1; string deadline = 2; }
 message WaitResponse { string ask_id = 1; string state = 2; string answer = 3; string reason = 4; }
+
+// Ask is the read model of one ask.
+message Ask {
+  string id = 1;
+  string notification_id = 2;
+  string question = 3;
+  repeated AskOption options = 4;
+  string recommended = 5;
+  string recommendation_reason = 6;
+  string default_answer = 7;
+  bool reversible = 8;
+  string urgency = 9;
+  string context_url = 10;
+  string deadline = 11;
+  // pending, escalated, answered, defaulted, or expired.
+  string state = 12;
+  string reason = 13;
+  string answer = 14;
+  string answer_label = 15;
+  string note = 16;
+  // The owner subject, or "default" for an applied default.
+  string answered_by = 17;
+  string answered_at = 18;
+  bool late = 19;
+  string default_applied_at = 20;
+  // Empty means the operator has not been reached yet.
+  string first_delivered_at = 21;
+  // When the default can apply: max(deadline, first_delivered_at + floor).
+  // Empty without a default or without a delivered receipt.
+  string default_eligible_at = 22;
+  string source = 23;
+  string source_event_type = 24;
+  string requester_ref = 25;
+  string resolved_at = 26;
+  string created_at = 27;
+  string updated_at = 28;
+}
+message GetAskRequest { string ask_id = 1; }
+message GetAskResponse { Ask ask = 1; }
+message ListAsksRequest { bool open_only = 1; int32 limit = 2; }
+message ListAsksResponse { repeated Ask asks = 1; }

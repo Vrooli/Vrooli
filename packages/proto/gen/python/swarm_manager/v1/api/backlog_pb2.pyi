@@ -144,7 +144,7 @@ class ItemBlockingInfo(_message.Message):
     def __init__(self, blocked: _Optional[bool] = ..., blocking_dep_keys: _Optional[_Iterable[str]] = ..., all_forceable: _Optional[bool] = ...) -> None: ...
 
 class ListBacklogItemsResponse(_message.Message):
-    __slots__ = ("items", "blocking")
+    __slots__ = ("items", "blocking", "total")
     class BlockingEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -154,12 +154,14 @@ class ListBacklogItemsResponse(_message.Message):
         def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[ItemBlockingInfo, _Mapping]] = ...) -> None: ...
     ITEMS_FIELD_NUMBER: _ClassVar[int]
     BLOCKING_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_FIELD_NUMBER: _ClassVar[int]
     items: _containers.RepeatedCompositeFieldContainer[_backlog_pb2.BacklogItem]
     blocking: _containers.MessageMap[str, ItemBlockingInfo]
-    def __init__(self, items: _Optional[_Iterable[_Union[_backlog_pb2.BacklogItem, _Mapping]]] = ..., blocking: _Optional[_Mapping[str, ItemBlockingInfo]] = ...) -> None: ...
+    total: int
+    def __init__(self, items: _Optional[_Iterable[_Union[_backlog_pb2.BacklogItem, _Mapping]]] = ..., blocking: _Optional[_Mapping[str, ItemBlockingInfo]] = ..., total: _Optional[int] = ...) -> None: ...
 
 class ListBacklogItemsRequest(_message.Message):
-    __slots__ = ("kinds", "statuses", "archived", "scenarios", "spawned_from", "has_plan_ref", "plan_ref", "stale", "actor_id")
+    __slots__ = ("kinds", "statuses", "archived", "scenarios", "spawned_from", "has_plan_ref", "plan_ref", "stale", "actor_id", "tags", "limit")
     KINDS_FIELD_NUMBER: _ClassVar[int]
     STATUSES_FIELD_NUMBER: _ClassVar[int]
     ARCHIVED_FIELD_NUMBER: _ClassVar[int]
@@ -169,6 +171,8 @@ class ListBacklogItemsRequest(_message.Message):
     PLAN_REF_FIELD_NUMBER: _ClassVar[int]
     STALE_FIELD_NUMBER: _ClassVar[int]
     ACTOR_ID_FIELD_NUMBER: _ClassVar[int]
+    TAGS_FIELD_NUMBER: _ClassVar[int]
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
     kinds: _containers.RepeatedScalarFieldContainer[str]
     statuses: _containers.RepeatedScalarFieldContainer[str]
     archived: ArchivedFilter
@@ -178,7 +182,9 @@ class ListBacklogItemsRequest(_message.Message):
     plan_ref: str
     stale: bool
     actor_id: str
-    def __init__(self, kinds: _Optional[_Iterable[str]] = ..., statuses: _Optional[_Iterable[str]] = ..., archived: _Optional[_Union[ArchivedFilter, str]] = ..., scenarios: _Optional[_Iterable[str]] = ..., spawned_from: _Optional[str] = ..., has_plan_ref: _Optional[bool] = ..., plan_ref: _Optional[str] = ..., stale: _Optional[bool] = ..., actor_id: _Optional[str] = ...) -> None: ...
+    tags: _containers.RepeatedScalarFieldContainer[str]
+    limit: int
+    def __init__(self, kinds: _Optional[_Iterable[str]] = ..., statuses: _Optional[_Iterable[str]] = ..., archived: _Optional[_Union[ArchivedFilter, str]] = ..., scenarios: _Optional[_Iterable[str]] = ..., spawned_from: _Optional[str] = ..., has_plan_ref: _Optional[bool] = ..., plan_ref: _Optional[str] = ..., stale: _Optional[bool] = ..., actor_id: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., limit: _Optional[int] = ...) -> None: ...
 
 class DeleteBacklogItemRequest(_message.Message):
     __slots__ = ("kind", "name")

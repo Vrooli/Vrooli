@@ -7,7 +7,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class SystemSettings(_message.Message):
-    __slots__ = ("active", "metric_collection_interval", "anomaly_detection_interval", "threshold_check_interval", "cooldown_period_seconds", "cpu_threshold", "memory_threshold", "disk_threshold", "metrics_retention_days", "retention_check_interval_seconds", "retention_run_on_startup", "compact_after_retention", "disk_high_percent", "disk_critical_percent", "disk_escalation_cooldown_seconds", "disk_escalation_debounce_ticks", "disk_fast_fill_jump_percent", "cpu_high_percent", "cpu_critical_percent", "cpu_escalation_cooldown_seconds", "cpu_escalation_debounce_ticks", "cpu_sustained_window_ticks", "cpu_pressure_threshold")
+    __slots__ = ("active", "metric_collection_interval", "anomaly_detection_interval", "threshold_check_interval", "cooldown_period_seconds", "cpu_threshold", "memory_threshold", "disk_threshold", "metrics_retention_days", "retention_check_interval_seconds", "retention_run_on_startup", "compact_after_retention", "disk_high_percent", "disk_critical_percent", "disk_escalation_cooldown_seconds", "disk_escalation_debounce_ticks", "disk_fast_fill_jump_percent", "cpu_high_percent", "cpu_critical_percent", "cpu_escalation_cooldown_seconds", "cpu_escalation_debounce_ticks", "cpu_sustained_window_ticks", "cpu_pressure_threshold", "alert_sustain_seconds", "memory_pressure_some_avg60_elevated_percent", "memory_pressure_full_avg60_critical_percent", "memory_pressure_swap_in_elevated_bytes_per_second", "memory_pressure_swap_in_critical_bytes_per_second")
     ACTIVE_FIELD_NUMBER: _ClassVar[int]
     METRIC_COLLECTION_INTERVAL_FIELD_NUMBER: _ClassVar[int]
     ANOMALY_DETECTION_INTERVAL_FIELD_NUMBER: _ClassVar[int]
@@ -31,6 +31,11 @@ class SystemSettings(_message.Message):
     CPU_ESCALATION_DEBOUNCE_TICKS_FIELD_NUMBER: _ClassVar[int]
     CPU_SUSTAINED_WINDOW_TICKS_FIELD_NUMBER: _ClassVar[int]
     CPU_PRESSURE_THRESHOLD_FIELD_NUMBER: _ClassVar[int]
+    ALERT_SUSTAIN_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    MEMORY_PRESSURE_SOME_AVG60_ELEVATED_PERCENT_FIELD_NUMBER: _ClassVar[int]
+    MEMORY_PRESSURE_FULL_AVG60_CRITICAL_PERCENT_FIELD_NUMBER: _ClassVar[int]
+    MEMORY_PRESSURE_SWAP_IN_ELEVATED_BYTES_PER_SECOND_FIELD_NUMBER: _ClassVar[int]
+    MEMORY_PRESSURE_SWAP_IN_CRITICAL_BYTES_PER_SECOND_FIELD_NUMBER: _ClassVar[int]
     active: bool
     metric_collection_interval: int
     anomaly_detection_interval: int
@@ -54,7 +59,12 @@ class SystemSettings(_message.Message):
     cpu_escalation_debounce_ticks: int
     cpu_sustained_window_ticks: int
     cpu_pressure_threshold: float
-    def __init__(self, active: _Optional[bool] = ..., metric_collection_interval: _Optional[int] = ..., anomaly_detection_interval: _Optional[int] = ..., threshold_check_interval: _Optional[int] = ..., cooldown_period_seconds: _Optional[int] = ..., cpu_threshold: _Optional[float] = ..., memory_threshold: _Optional[float] = ..., disk_threshold: _Optional[float] = ..., metrics_retention_days: _Optional[int] = ..., retention_check_interval_seconds: _Optional[int] = ..., retention_run_on_startup: _Optional[bool] = ..., compact_after_retention: _Optional[bool] = ..., disk_high_percent: _Optional[float] = ..., disk_critical_percent: _Optional[float] = ..., disk_escalation_cooldown_seconds: _Optional[int] = ..., disk_escalation_debounce_ticks: _Optional[int] = ..., disk_fast_fill_jump_percent: _Optional[float] = ..., cpu_high_percent: _Optional[float] = ..., cpu_critical_percent: _Optional[float] = ..., cpu_escalation_cooldown_seconds: _Optional[int] = ..., cpu_escalation_debounce_ticks: _Optional[int] = ..., cpu_sustained_window_ticks: _Optional[int] = ..., cpu_pressure_threshold: _Optional[float] = ...) -> None: ...
+    alert_sustain_seconds: int
+    memory_pressure_some_avg60_elevated_percent: float
+    memory_pressure_full_avg60_critical_percent: float
+    memory_pressure_swap_in_elevated_bytes_per_second: float
+    memory_pressure_swap_in_critical_bytes_per_second: float
+    def __init__(self, active: _Optional[bool] = ..., metric_collection_interval: _Optional[int] = ..., anomaly_detection_interval: _Optional[int] = ..., threshold_check_interval: _Optional[int] = ..., cooldown_period_seconds: _Optional[int] = ..., cpu_threshold: _Optional[float] = ..., memory_threshold: _Optional[float] = ..., disk_threshold: _Optional[float] = ..., metrics_retention_days: _Optional[int] = ..., retention_check_interval_seconds: _Optional[int] = ..., retention_run_on_startup: _Optional[bool] = ..., compact_after_retention: _Optional[bool] = ..., disk_high_percent: _Optional[float] = ..., disk_critical_percent: _Optional[float] = ..., disk_escalation_cooldown_seconds: _Optional[int] = ..., disk_escalation_debounce_ticks: _Optional[int] = ..., disk_fast_fill_jump_percent: _Optional[float] = ..., cpu_high_percent: _Optional[float] = ..., cpu_critical_percent: _Optional[float] = ..., cpu_escalation_cooldown_seconds: _Optional[int] = ..., cpu_escalation_debounce_ticks: _Optional[int] = ..., cpu_sustained_window_ticks: _Optional[int] = ..., cpu_pressure_threshold: _Optional[float] = ..., alert_sustain_seconds: _Optional[int] = ..., memory_pressure_some_avg60_elevated_percent: _Optional[float] = ..., memory_pressure_full_avg60_critical_percent: _Optional[float] = ..., memory_pressure_swap_in_elevated_bytes_per_second: _Optional[float] = ..., memory_pressure_swap_in_critical_bytes_per_second: _Optional[float] = ...) -> None: ...
 
 class GetSettingsRequest(_message.Message):
     __slots__ = ()

@@ -44,6 +44,9 @@ const (
 	// PlanningServicePreviewSwapProcedure is the fully-qualified name of the PlanningService's
 	// PreviewSwap RPC.
 	PlanningServicePreviewSwapProcedure = "/vrooli.nutrition_planner.v1.planning.PlanningService/PreviewSwap"
+	// PlanningServiceExploreRecipesProcedure is the fully-qualified name of the PlanningService's
+	// ExploreRecipes RPC.
+	PlanningServiceExploreRecipesProcedure = "/vrooli.nutrition_planner.v1.planning.PlanningService/ExploreRecipes"
 	// PlanningServiceGetShoppingPreviewProcedure is the fully-qualified name of the PlanningService's
 	// GetShoppingPreview RPC.
 	PlanningServiceGetShoppingPreviewProcedure = "/vrooli.nutrition_planner.v1.planning.PlanningService/GetShoppingPreview"
@@ -71,6 +74,7 @@ type PlanningServiceClient interface {
 	GetPlan(context.Context, *connect.Request[planning.GetPlanRequest]) (*connect.Response[planning.GetPlanResponse], error)
 	ApplyPlan(context.Context, *connect.Request[planning.ApplyPlanRequest]) (*connect.Response[planning.ApplyPlanResponse], error)
 	PreviewSwap(context.Context, *connect.Request[planning.PreviewSwapRequest]) (*connect.Response[planning.PreviewSwapResponse], error)
+	ExploreRecipes(context.Context, *connect.Request[planning.ExploreRecipesRequest]) (*connect.Response[planning.ExploreRecipesResponse], error)
 	GetShoppingPreview(context.Context, *connect.Request[planning.GetShoppingPreviewRequest]) (*connect.Response[planning.GetShoppingPreviewResponse], error)
 	SetShoppingChecked(context.Context, *connect.Request[planning.SetShoppingCheckedRequest]) (*connect.Response[planning.SetShoppingCheckedResponse], error)
 	SetShoppingHaveThis(context.Context, *connect.Request[planning.SetShoppingHaveThisRequest]) (*connect.Response[planning.SetShoppingHaveThisResponse], error)
@@ -113,6 +117,12 @@ func NewPlanningServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			httpClient,
 			baseURL+PlanningServicePreviewSwapProcedure,
 			connect.WithSchema(planningServiceMethods.ByName("PreviewSwap")),
+			connect.WithClientOptions(opts...),
+		),
+		exploreRecipes: connect.NewClient[planning.ExploreRecipesRequest, planning.ExploreRecipesResponse](
+			httpClient,
+			baseURL+PlanningServiceExploreRecipesProcedure,
+			connect.WithSchema(planningServiceMethods.ByName("ExploreRecipes")),
 			connect.WithClientOptions(opts...),
 		),
 		getShoppingPreview: connect.NewClient[planning.GetShoppingPreviewRequest, planning.GetShoppingPreviewResponse](
@@ -160,6 +170,7 @@ type planningServiceClient struct {
 	getPlan                  *connect.Client[planning.GetPlanRequest, planning.GetPlanResponse]
 	applyPlan                *connect.Client[planning.ApplyPlanRequest, planning.ApplyPlanResponse]
 	previewSwap              *connect.Client[planning.PreviewSwapRequest, planning.PreviewSwapResponse]
+	exploreRecipes           *connect.Client[planning.ExploreRecipesRequest, planning.ExploreRecipesResponse]
 	getShoppingPreview       *connect.Client[planning.GetShoppingPreviewRequest, planning.GetShoppingPreviewResponse]
 	setShoppingChecked       *connect.Client[planning.SetShoppingCheckedRequest, planning.SetShoppingCheckedResponse]
 	setShoppingHaveThis      *connect.Client[planning.SetShoppingHaveThisRequest, planning.SetShoppingHaveThisResponse]
@@ -186,6 +197,11 @@ func (c *planningServiceClient) ApplyPlan(ctx context.Context, req *connect.Requ
 // PreviewSwap calls vrooli.nutrition_planner.v1.planning.PlanningService.PreviewSwap.
 func (c *planningServiceClient) PreviewSwap(ctx context.Context, req *connect.Request[planning.PreviewSwapRequest]) (*connect.Response[planning.PreviewSwapResponse], error) {
 	return c.previewSwap.CallUnary(ctx, req)
+}
+
+// ExploreRecipes calls vrooli.nutrition_planner.v1.planning.PlanningService.ExploreRecipes.
+func (c *planningServiceClient) ExploreRecipes(ctx context.Context, req *connect.Request[planning.ExploreRecipesRequest]) (*connect.Response[planning.ExploreRecipesResponse], error) {
+	return c.exploreRecipes.CallUnary(ctx, req)
 }
 
 // GetShoppingPreview calls vrooli.nutrition_planner.v1.planning.PlanningService.GetShoppingPreview.
@@ -227,6 +243,7 @@ type PlanningServiceHandler interface {
 	GetPlan(context.Context, *connect.Request[planning.GetPlanRequest]) (*connect.Response[planning.GetPlanResponse], error)
 	ApplyPlan(context.Context, *connect.Request[planning.ApplyPlanRequest]) (*connect.Response[planning.ApplyPlanResponse], error)
 	PreviewSwap(context.Context, *connect.Request[planning.PreviewSwapRequest]) (*connect.Response[planning.PreviewSwapResponse], error)
+	ExploreRecipes(context.Context, *connect.Request[planning.ExploreRecipesRequest]) (*connect.Response[planning.ExploreRecipesResponse], error)
 	GetShoppingPreview(context.Context, *connect.Request[planning.GetShoppingPreviewRequest]) (*connect.Response[planning.GetShoppingPreviewResponse], error)
 	SetShoppingChecked(context.Context, *connect.Request[planning.SetShoppingCheckedRequest]) (*connect.Response[planning.SetShoppingCheckedResponse], error)
 	SetShoppingHaveThis(context.Context, *connect.Request[planning.SetShoppingHaveThisRequest]) (*connect.Response[planning.SetShoppingHaveThisResponse], error)
@@ -264,6 +281,12 @@ func NewPlanningServiceHandler(svc PlanningServiceHandler, opts ...connect.Handl
 		PlanningServicePreviewSwapProcedure,
 		svc.PreviewSwap,
 		connect.WithSchema(planningServiceMethods.ByName("PreviewSwap")),
+		connect.WithHandlerOptions(opts...),
+	)
+	planningServiceExploreRecipesHandler := connect.NewUnaryHandler(
+		PlanningServiceExploreRecipesProcedure,
+		svc.ExploreRecipes,
+		connect.WithSchema(planningServiceMethods.ByName("ExploreRecipes")),
 		connect.WithHandlerOptions(opts...),
 	)
 	planningServiceGetShoppingPreviewHandler := connect.NewUnaryHandler(
@@ -312,6 +335,8 @@ func NewPlanningServiceHandler(svc PlanningServiceHandler, opts ...connect.Handl
 			planningServiceApplyPlanHandler.ServeHTTP(w, r)
 		case PlanningServicePreviewSwapProcedure:
 			planningServicePreviewSwapHandler.ServeHTTP(w, r)
+		case PlanningServiceExploreRecipesProcedure:
+			planningServiceExploreRecipesHandler.ServeHTTP(w, r)
 		case PlanningServiceGetShoppingPreviewProcedure:
 			planningServiceGetShoppingPreviewHandler.ServeHTTP(w, r)
 		case PlanningServiceSetShoppingCheckedProcedure:
@@ -347,6 +372,10 @@ func (UnimplementedPlanningServiceHandler) ApplyPlan(context.Context, *connect.R
 
 func (UnimplementedPlanningServiceHandler) PreviewSwap(context.Context, *connect.Request[planning.PreviewSwapRequest]) (*connect.Response[planning.PreviewSwapResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.nutrition_planner.v1.planning.PlanningService.PreviewSwap is not implemented"))
+}
+
+func (UnimplementedPlanningServiceHandler) ExploreRecipes(context.Context, *connect.Request[planning.ExploreRecipesRequest]) (*connect.Response[planning.ExploreRecipesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.nutrition_planner.v1.planning.PlanningService.ExploreRecipes is not implemented"))
 }
 
 func (UnimplementedPlanningServiceHandler) GetShoppingPreview(context.Context, *connect.Request[planning.GetShoppingPreviewRequest]) (*connect.Response[planning.GetShoppingPreviewResponse], error) {
