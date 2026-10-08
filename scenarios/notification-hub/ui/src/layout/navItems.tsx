@@ -1,5 +1,6 @@
 import {
   Home,
+  Inbox,
   Settings,
 } from "lucide-react";
 import { strings } from "../consts/strings";
@@ -14,6 +15,7 @@ export interface NavItem {
   /** Selector parameter; stable across locales. */
   key:
     | "dashboard"
+    | "asks"
     | "settings";
   /** Router path. */
   path: string;
@@ -25,6 +27,7 @@ export interface NavItem {
 
 export const NAV_ITEMS: readonly NavItem[] = [
   { key: "dashboard", path: "/", end: true, labelKey: strings.layout.nav.dashboard },
+  { key: "asks", path: "/asks", labelKey: strings.layout.nav.asks },
   { key: "settings", path: "/settings", labelKey: strings.layout.nav.settings },
 ];
 
@@ -35,5 +38,7 @@ export function iconForItem(item: NavItem) {
       return <Settings aria-hidden className={iconClass} />;
     case "dashboard":
       return <Home aria-hidden className={iconClass} />;
+    case "asks":
+      return <Inbox aria-hidden className={iconClass} />;
   }
 }

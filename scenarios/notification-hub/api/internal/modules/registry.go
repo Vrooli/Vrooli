@@ -30,6 +30,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	healthH "notification-hub/handlers/health"
+	identityH "notification-hub/handlers/identity"
 	conversationSchema "notification-hub/internal/conversations"
 	localdb "notification-hub/internal/database"
 	deliverySchema "notification-hub/internal/delivery"
@@ -40,6 +41,7 @@ import (
 
 	conversationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/conversations"
 	deliveryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/delivery"
+	identityv1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/identity"
 	notificationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/notifications"
 	recipientsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/recipients"
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/routing"
@@ -55,6 +57,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, capsH.Endpoints...)
 	out = append(out, conversationH.Endpoints...)
 	out = append(out, deliveryH.Endpoints...)
+	out = append(out, identityH.Endpoints...)
 	out = append(out, notificationH.Endpoints...)
 	out = append(out, recipientsH.Endpoints...)
 	out = append(out, routingH.Endpoints...)
@@ -86,6 +89,7 @@ func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
 		{Module: "conversations", File: conversationv1.File_notification_hub_v1_conversations_conversations_proto},
 		{Module: "delivery", File: deliveryv1.File_notification_hub_v1_delivery_delivery_proto},
+		{Module: "identity", File: identityv1.File_notification_hub_v1_identity_identity_proto},
 		{Module: "notifications", File: notificationv1.File_notification_hub_v1_notifications_notifications_proto},
 		{Module: "recipients", File: recipientsv1.File_notification_hub_v1_recipients_recipients_proto},
 		{Module: "routing", File: routingv1.File_notification_hub_v1_routing_routing_proto},

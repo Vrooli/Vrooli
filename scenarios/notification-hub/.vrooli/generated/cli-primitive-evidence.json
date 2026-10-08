@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "notification-hub",
   "generator": "v1.0.0",
-  "manifest_hash": "3327eae4aa13a4ebe48f3b5d712eec6374bbfcee10b5fd49998c890ccf6670c0",
+  "manifest_hash": "5ccf262ea52d745441829b0008c92ce37ad7bb650d272c86216cc3440762c3e0",
   "commands": [
     {
       "path": "channels status",
@@ -23,6 +23,18 @@
       "group": "conversations",
       "command": "ask",
       "binding": "ConversationsService.Ask"
+    },
+    {
+      "path": "conversations get",
+      "group": "conversations",
+      "command": "get",
+      "binding": "ConversationsService.GetAsk"
+    },
+    {
+      "path": "conversations list",
+      "group": "conversations",
+      "command": "list",
+      "binding": "ConversationsService.ListAsks"
     },
     {
       "path": "conversations wait",

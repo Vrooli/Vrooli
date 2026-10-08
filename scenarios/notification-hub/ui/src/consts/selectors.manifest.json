@@ -69,6 +69,74 @@
       "testId": "page-settings",
       "selector": "[data-testid=\"page-settings\"]"
     },
+    "pages.asks": {
+      "testId": "page-asks",
+      "selector": "[data-testid=\"page-asks\"]"
+    },
+    "pages.ask": {
+      "testId": "page-ask",
+      "selector": "[data-testid=\"page-ask\"]"
+    },
+    "asks.list": {
+      "testId": "asks-list",
+      "selector": "[data-testid=\"asks-list\"]"
+    },
+    "asks.item": {
+      "testId": "asks-item",
+      "selector": "[data-testid=\"asks-item\"]"
+    },
+    "asks.empty": {
+      "testId": "asks-empty",
+      "selector": "[data-testid=\"asks-empty\"]"
+    },
+    "asks.question": {
+      "testId": "ask-question",
+      "selector": "[data-testid=\"ask-question\"]"
+    },
+    "asks.option": {
+      "testId": "ask-option",
+      "selector": "[data-testid=\"ask-option\"]"
+    },
+    "asks.note": {
+      "testId": "ask-note",
+      "selector": "[data-testid=\"ask-note\"]"
+    },
+    "asks.status": {
+      "testId": "ask-status",
+      "selector": "[data-testid=\"ask-status\"]"
+    },
+    "asks.defaultNotice": {
+      "testId": "ask-default-notice",
+      "selector": "[data-testid=\"ask-default-notice\"]"
+    },
+    "session.form": {
+      "testId": "session-form",
+      "selector": "[data-testid=\"session-form\"]"
+    },
+    "session.email": {
+      "testId": "session-email",
+      "selector": "[data-testid=\"session-email\"]"
+    },
+    "session.password": {
+      "testId": "session-password",
+      "selector": "[data-testid=\"session-password\"]"
+    },
+    "session.submit": {
+      "testId": "session-submit",
+      "selector": "[data-testid=\"session-submit\"]"
+    },
+    "session.error": {
+      "testId": "session-error",
+      "selector": "[data-testid=\"session-error\"]"
+    },
+    "session.signedIn": {
+      "testId": "session-signed-in",
+      "selector": "[data-testid=\"session-signed-in\"]"
+    },
+    "session.signOut": {
+      "testId": "session-sign-out",
+      "selector": "[data-testid=\"session-sign-out\"]"
+    },
     "errorBoundary.root": {
       "testId": "error-boundary-root",
       "selector": "[data-testid=\"error-boundary-root\"]"
@@ -149,6 +217,7 @@
           "type": "enum",
           "values": [
             "dashboard",
+            "asks",
             "settings"
           ]
         }
@@ -189,7 +258,7 @@
   },
   "sources": {
     "ui/src/consts/selectors.library.ts": "82dcb76a0ac8cd7a85dcd37f63c4b3cf67e17b0d5f5a110351a377e81d3df8ec",
-    "ui/src/consts/selectors.ts": "b08d3b2bcd60525d1a5178fe76bae41892ff2f12062ee16ca20082cfd95c1233",
+    "ui/src/consts/selectors.ts": "9deee8fc3e32a0f51b9d15ab7e5f4c14273e17748b494a7f675f5e30f53e4d7b",
     "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
   }
 }

@@ -46,10 +46,21 @@ func EventWebhookWithTemplates(service *hub.Service, secret string, templates fu
 }
 
 func EventWebhookWithTemplatesAndSensitivity(service *hub.Service, secret string, templates func() map[string]EventTemplate, sensitivity func() map[string]string) http.Handler {
+	return EventWebhookFromSecretSource(service, StaticSecret(secret), templates, sensitivity)
+}
+
+// EventWebhookFromSecretSource reads the signing secret per request, so a
+// secret that becomes resolvable after boot is used without a restart. An
+// unavailable secret fails closed with 401.
+func EventWebhookFromSecretSource(service *hub.Service, secretSource SecretSource, templates func() map[string]EventTemplate, sensitivity func() map[string]string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
+		}
+		secret := ""
+		if secretSource != nil {
+			secret = secretSource()
 		}
 		body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
 		if err != nil || strings.TrimSpace(secret) == "" || !validSignature(body, r.Header.Get("X-Vrooli-Events-Signature"), secret) {
@@ -67,6 +78,31 @@ func EventWebhookWithTemplatesAndSensitivity(service *hub.Service, secret string
 		}
 		if payload.Title != "" || payload.Body != "" || payload.SensitivityLabel != "" {
 			writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("%v: producers cannot provide title, body, or sensitivity_label", ErrProducerOwnedCopy))
+			return
+		}
+		if IsDecisionRequest(payload.EventType) {
+			if eventID == "" {
+				writeJSONError(w, http.StatusBadRequest, "event_id is required")
+				return
+			}
+			recipient := service.ResolveRecipient(r.Context())
+			if recipient == "" {
+				recipient = payload.SourceScenario
+			}
+			spec, specErr := DecisionAskSpec(recipient, payload.SourceScenario, payload.EventType, eventID, payload.Payload, time.Now().UTC())
+			if specErr == nil {
+				var ask hub.AskRecord
+				ask, _, specErr = service.AskWithSpec(r.Context(), spec)
+				if specErr == nil {
+					writeJSON(w, http.StatusAccepted, map[string]string{"ask_id": ask.ID, "event_id": eventID})
+					return
+				}
+			}
+			status := http.StatusInternalServerError
+			if errors.Is(specErr, hub.ErrInvalidArgument) {
+				status = http.StatusBadRequest
+			}
+			writeJSONError(w, status, specErr.Error())
 			return
 		}
 		var configured map[string]EventTemplate
@@ -91,7 +127,18 @@ func EventWebhookWithTemplatesAndSensitivity(service *hub.Service, secret string
 			recipient = payload.SourceScenario
 		}
 		if payload.EventType == "incident.remediation_approval_requested.v1" {
-			askID, _, askErr := service.Ask(r.Context(), recipient, rendered.Body, []string{"approve", "reject"}, time.Now().UTC().Add(24*time.Hour), rendered.SensitivityLabel, eventID)
+			ask, _, askErr := service.AskWithSpec(r.Context(), hub.AskSpec{
+				Recipient:        recipient,
+				Title:            rendered.Title,
+				Question:         rendered.Body,
+				Options:          []hub.AskOption{{Key: "approve", Label: "Approve"}, {Key: "reject", Label: "Reject"}},
+				Deadline:         time.Now().UTC().Add(24 * time.Hour),
+				SensitivityLabel: rendered.SensitivityLabel,
+				IdempotencyKey:   eventID,
+				Source:           payload.SourceScenario,
+				SourceEventType:  payload.EventType,
+			})
+			askID := ask.ID
 			if askErr != nil {
 				status := http.StatusInternalServerError
 				if errors.Is(askErr, hub.ErrInvalidArgument) {
@@ -233,16 +280,48 @@ func nonEmpty(value, fallback string) string {
 	return value
 }
 
+// Subscription names owned by the hub. The operator configures the pattern
+// of the first; the decision subscription is part of the ask contract.
+const (
+	eventSubscriptionName    = "notification-hub-events"
+	decisionSubscriptionName = "notification-hub-decisions"
+)
+
+// SubscriptionSpec is one named vrooli-events subscription delivered to the
+// hub's webhook.
+type SubscriptionSpec struct {
+	Name    string
+	Pattern string
+}
+
 // EnsureEventSubscription makes the optional vrooli-events integration
 // durable and idempotent. It is startup reconciliation rather than a new
 // control plane: the events scenario remains the owner of subscription state
 // and retry delivery.
 func EnsureEventSubscription(ctx context.Context, baseURL, target, pattern string) error {
+	return EnsureEventSubscriptions(ctx, baseURL, target, []SubscriptionSpec{{Name: eventSubscriptionName, Pattern: pattern}})
+}
+
+// EnsureDecisionSubscription reconciles the subscription that turns every
+// *.decision_requested.v1 event into an ask.
+func EnsureDecisionSubscription(ctx context.Context, baseURL, target string) error {
+	return EnsureEventSubscriptions(ctx, baseURL, target, []SubscriptionSpec{{Name: decisionSubscriptionName, Pattern: DecisionRequestPattern}})
+}
+
+// EnsureEventSubscriptions reconciles each named subscription to the hub's
+// webhook. An enabled subscription with the same target and pattern is kept;
+// one with the same name is updated in place; the unnamed legacy row of the
+// primary subscription is adopted; anything else is created.
+func EnsureEventSubscriptions(ctx context.Context, baseURL, target string, specs []SubscriptionSpec) error {
 	baseURL = strings.TrimRight(strings.TrimSpace(baseURL), "/")
 	target = strings.TrimSpace(target)
-	pattern = strings.TrimSpace(pattern)
-	if baseURL == "" || target == "" || pattern == "" {
+	if baseURL == "" || target == "" || len(specs) == 0 {
 		return ErrEventIntegrationUnconfigured
+	}
+	for _, spec := range specs {
+		if strings.TrimSpace(spec.Pattern) == "" || strings.TrimSpace(spec.Name) == "" {
+			return ErrEventIntegrationUnconfigured
+		}
 	}
 	client := &http.Client{Timeout: 10 * time.Second}
 	listURL := baseURL + "/api/v1/subscriptions?owner=notification-hub"
@@ -260,64 +339,70 @@ func EnsureEventSubscription(ctx context.Context, baseURL, target, pattern strin
 	}
 	var existing []struct {
 		ID             int64  `json:"id"`
+		Name           string `json:"name"`
 		EventPattern   string `json:"event_pattern"`
 		DeliveryTarget string `json:"delivery_target"`
 		Enabled        bool   `json:"enabled"`
 	}
-	if err := json.NewDecoder(response.Body).Decode(&existing); err == nil {
+	_ = json.NewDecoder(response.Body).Decode(&existing)
+	for _, spec := range specs {
+		pattern := strings.TrimSpace(spec.Pattern)
+		var update int64
+		satisfied := false
 		for _, item := range existing {
-			if item.Enabled && item.DeliveryTarget == target {
-				if item.EventPattern == pattern {
-					return nil
-				}
-				// vrooli-events treats PUT as a full resource replacement. Keep
-				// the owner-controlled identity and delivery type in the update;
-				// sending only the changed fields would fail validation and leave
-				// a legacy pattern active.
-				updateBody, marshalErr := json.Marshal(map[string]any{
-					"name":            "notification-hub-events",
-					"owner_scenario":  "notification-hub",
-					"event_pattern":   pattern,
-					"delivery_type":   "webhook",
-					"delivery_target": target,
-					"enabled":         true,
-				})
-				if marshalErr != nil {
-					return marshalErr
-				}
-				update, requestErr := http.NewRequestWithContext(ctx, http.MethodPut, fmt.Sprintf("%s/api/v1/subscriptions/%d", baseURL, item.ID), bytes.NewReader(updateBody))
-				if requestErr != nil {
-					return requestErr
-				}
-				update.Header.Set("Content-Type", "application/json")
-				updated, doErr := client.Do(update)
-				if doErr != nil {
-					return fmt.Errorf("update event subscription: %w", doErr)
-				}
-				defer updated.Body.Close()
-				if updated.StatusCode >= 400 {
-					return fmt.Errorf("update event subscription returned %s", updated.Status)
-				}
-				return nil
+			if !item.Enabled || item.DeliveryTarget != target {
+				continue
+			}
+			if item.EventPattern == pattern {
+				satisfied = true
+				break
+			}
+			if update == 0 && (item.Name == spec.Name || (item.Name == "" && spec.Name == eventSubscriptionName)) {
+				update = item.ID
 			}
 		}
+		if satisfied {
+			continue
+		}
+		// vrooli-events treats PUT as a full resource replacement. Keep the
+		// owner-controlled identity and delivery type in the update; sending
+		// only the changed fields would fail validation and leave a legacy
+		// pattern active.
+		body, err := json.Marshal(map[string]any{
+			"name":            spec.Name,
+			"owner_scenario":  "notification-hub",
+			"event_pattern":   pattern,
+			"delivery_type":   "webhook",
+			"delivery_target": target,
+			"enabled":         true,
+		})
+		if err != nil {
+			return err
+		}
+		method, url, verb := http.MethodPost, baseURL+"/api/v1/subscriptions", "create"
+		if update != 0 {
+			method, url, verb = http.MethodPut, fmt.Sprintf("%s/api/v1/subscriptions/%d", baseURL, update), "update"
+		}
+		if err := sendSubscription(ctx, client, method, url, body); err != nil {
+			return fmt.Errorf("%s event subscription %s: %w", verb, spec.Name, err)
+		}
 	}
-	body, err := json.Marshal(map[string]any{"name": "notification-hub-events", "owner_scenario": "notification-hub", "event_pattern": pattern, "delivery_type": "webhook", "delivery_target": target, "enabled": true})
-	if err != nil {
-		return err
-	}
-	request, err = http.NewRequestWithContext(ctx, http.MethodPost, baseURL+"/api/v1/subscriptions", bytes.NewReader(body))
+	return nil
+}
+
+func sendSubscription(ctx context.Context, client *http.Client, method, url string, body []byte) error {
+	request, err := http.NewRequestWithContext(ctx, method, url, bytes.NewReader(body))
 	if err != nil {
 		return err
 	}
 	request.Header.Set("Content-Type", "application/json")
-	response, err = client.Do(request)
+	response, err := client.Do(request)
 	if err != nil {
-		return fmt.Errorf("create event subscription: %w", err)
+		return err
 	}
 	defer response.Body.Close()
 	if response.StatusCode >= 400 {
-		return fmt.Errorf("create event subscription returned %s", response.Status)
+		return fmt.Errorf("vrooli-events returned %s", response.Status)
 	}
 	return nil
 }

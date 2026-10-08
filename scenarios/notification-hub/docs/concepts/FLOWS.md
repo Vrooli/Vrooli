@@ -96,10 +96,12 @@ sequenceDiagram
 is it online, and may this caller send it anything. It carries the call
 and learns nothing about notifications.
 
-### Ask, answer, escalate
+### Ask, answer, escalate, default
 
 An ask is an ordinary notification carrying a question, plus a durable
-pending record that outlives an API restart.
+pending record that outlives an API restart. Asks default to `high`
+urgency, so a quiet window holds both the ask and any escalation; only a
+`critical` ask may pass a window that allows a critical override.
 
 ```mermaid
 stateDiagram-v2
@@ -110,13 +112,25 @@ stateDiagram-v2
     escalated --> escalated: next chain step
     escalated --> expired: chain exhausted or deadline reached
     pending --> expired: deadline reached, no chain
+    pending --> defaulted: reversible default, deadline passed, floor elapsed since first delivered receipt
+    defaulted --> answered: one late operator answer supersedes the default
     answered --> [*]
     expired --> [*]
 ```
 
-The blocking call returns on `answered` or `expired`. It never returns on
-`escalated`, which is an intermediate state. A caller that disconnects
-does not cancel the ask; the answer is still recorded.
+A reversible ask with a default never escalates or expires. The one-minute
+sweep applies its default only when the deadline has passed **and** at least
+the floor (12 h, `VROOLI_NOTIFICATION_ASK_DEFAULT_FLOOR`) has passed since the
+first delivered receipt. With no delivered receipt the ask stays `pending`
+with the reason "operator not reached", so a default never fires on a
+decision nobody saw.
+
+Reads never change an ask. The blocking call returns on `answered`,
+`defaulted` or `expired`; when the caller's own deadline passes first it
+returns the open state and the ask keeps waiting for the operator. A caller
+that disconnects does not cancel the ask; the answer is still recorded.
+Every terminal transition publishes `notification_hub.ask.resolved.v1`
+(see [`INTEGRATIONS.md`](INTEGRATIONS.md)).
 
 ## State Machines
 
@@ -124,7 +138,7 @@ does not cancel the ask; the answer is still recorded.
 |---|---|---|---|
 | notifications | `pending`, `held`, `routed`, `delivered`, `failed`, `unroutable`, `suppressed` | `pending` to `delivered` without a routing decision; any terminal state to any other state; remaining in `pending` past the sweeper interval | `flow.json` contract, generated model, replay tests, plus a sweeper test that proves no record stays `pending` |
 | delivery attempt | `scheduled`, `in_flight`, `delivered`, `retry_scheduled`, `failed` | `retry_scheduled` after the retry budget is spent; `in_flight` without a parent routing decision | `flow.json` contract and replay tests |
-| ask | `pending`, `escalated`, `answered`, `expired` | `answered` after `expired`; escalation past the end of the chain | `flow.json` contract, deadline sweeper tests |
+| ask | `pending`, `escalated`, `answered`, `defaulted`, `expired` | `answered` after `expired`; `defaulted` without a delivered receipt or for a non-reversible ask; a second answer after a late answer; escalation past the end of the chain | deadline sweeper and ask tests (`internal/hub/asks_test.go`) |
 | push subscription | `active`, `stale`, `gone` | `gone` back to `active` without a new subscribe; sending to `gone` | Repository constraint plus a delivery-path guard |
 | hold | `held`, `released` | Releasing twice; releasing before the window closes | Unique release record per hold |
 

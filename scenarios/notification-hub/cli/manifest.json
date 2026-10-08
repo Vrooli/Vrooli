@@ -1,12 +1,12 @@
 {
-  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
-  "name": "notification-hub",
-  "description": "Notification Hub — owner notification delivery and decision surface.",
-  "groups": [
+  "$schema":"../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name":"notification-hub",
+  "description":"Notification Hub — owner notification delivery and decision surface.",
+  "groups":[
     {
-      "name": "notifications",
-      "description": "Accept and inspect notifications.",
-      "commands": [
+      "name":"notifications",
+      "description":"Accept and inspect notifications.",
+      "commands":[
         {"name":"send","description":"Accept a notification and return its durable id.","flags":[{"name":"title"},{"name":"body","required":true},{"name":"urgency","values":["low","normal","high","critical"]},{"name":"sensitivity-label","required":true},{"name":"idempotency-key","required":true},{"name":"dedupe-key"},{"name":"scheduled-at"},{"name":"digest-window-seconds"}],"binding":{"kind":"connect-rpc","service":"NotificationsService","method":"Send"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal"]}},
         {"name":"relay","description":"Accept a bridge-safe base64 notification payload.","flags":[{"name":"payload-base64","required":true}],"binding":{"kind":"connect-rpc","service":"NotificationsService","method":"Relay"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal"]}},
         {"name":"get","description":"Read a notification and its receipts.","positionals":[{"name":"id","required":true}],"binding":{"kind":"connect-rpc","service":"NotificationsService","method":"Get"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
@@ -33,9 +33,11 @@
       "name":"conversations",
       "description":"Answer an operator question.",
       "commands":[
-        {"name":"ask","description":"Ask the operator a question and persist its deadline.","flags":[{"name":"question","required":true},{"name":"deadline","required":true},{"name":"sensitivity-label","required":true},{"name":"idempotency-key","required":true}],"binding":{"kind":"connect-rpc","service":"ConversationsService","method":"Ask"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal"]}},
-        {"name":"answer","description":"Record an answer to a pending notification question.","flags":[{"name":"ask-id","required":true},{"name":"answer","required":true}],"binding":{"kind":"connect-rpc","service":"ConversationsService","method":"Answer"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal"]}},
-        {"name":"wait","description":"Wait for an answer or the supplied deadline.","flags":[{"name":"ask-id","required":true},{"name":"deadline","required":true}],"binding":{"kind":"connect-rpc","service":"ConversationsService","method":"Wait"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}}
+        {"name":"ask","description":"Ask the operator a question and persist its deadline.","flags":[{"name":"question","required":true},{"name":"option","required":true,"repeatable":true,"description":"An allowed answer as key or key=label; repeat for each answer (at least two)."},{"name":"recommend","description":"The recommended option key; shown first."},{"name":"recommend-reason","description":"One sentence on why the recommendation is best."},{"name":"default","description":"Option key applied if unanswered; needs --reversible. Applies after the deadline and at least 12 h after delivery."},{"name":"reversible","bool":true,"description":"The decision can be undone later (required for --default)."},{"name":"urgency","values":["low","normal","high","critical"],"description":"Default high; only critical may pass quiet hours."},{"name":"context-url","description":"Link for more detail."},{"name":"deadline","required":true,"description":"RFC 3339 time or a duration from now such as 24h."},{"name":"sensitivity-label","required":true},{"name":"idempotency-key","required":true}],"binding":{"kind":"connect-rpc","service":"ConversationsService","method":"Ask"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"answer","description":"Record an answer to a pending notification question.","flags":[{"name":"ask-id","required":true},{"name":"answer","required":true},{"name":"note","description":"Optional note, stored verbatim and returned to the requester."}],"binding":{"kind":"connect-rpc","service":"ConversationsService","method":"Answer"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"wait","description":"Wait for an answer or the supplied deadline; the ask stays open when the deadline passes first.","flags":[{"name":"ask-id","required":true},{"name":"deadline","required":true,"description":"RFC 3339 time or a duration from now such as 10m."}],"binding":{"kind":"connect-rpc","service":"ConversationsService","method":"Wait"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"get","description":"Read one ask without changing it.","positionals":[{"name":"ask-id","required":true}],"binding":{"kind":"connect-rpc","service":"ConversationsService","method":"GetAsk"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"list","description":"List your asks, newest first.","flags":[{"name":"open","bool":true,"description":"Only asks that still wait for an answer."},{"name":"limit","description":"At most this many (default 50)."}],"binding":{"kind":"connect-rpc","service":"ConversationsService","method":"ListAsks"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}}
       ]
     },
     {
@@ -60,5 +62,9 @@
   ],
   "measures":{"domains":[]},
   "exceptions":[],
-  "omitted":[]
+  "omitted":[
+    {"service":"IdentityService","method":"Login","reason":"Same-origin browser session facade for the installed web app (HttpOnly cookie); the CLI presents its own scenario-authenticator bearer token instead."},
+    {"service":"IdentityService","method":"GetSession","reason":"Same-origin browser session facade for the installed web app (HttpOnly cookie); the CLI presents its own scenario-authenticator bearer token instead."},
+    {"service":"IdentityService","method":"Logout","reason":"Same-origin browser session facade for the installed web app (HttpOnly cookie); the CLI presents its own scenario-authenticator bearer token instead."}
+  ]
 }

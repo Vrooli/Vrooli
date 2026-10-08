@@ -64,7 +64,7 @@ them, so no import-graph edge should be expected as evidence.
 
 | Scenario | Status | Startup Policy | Contract |
 |---|---|---|---|
-| `scenario-authenticator` | required | `try_start` | Identity for every authenticated surface. Tokens are RS256 and verified locally against the published JWKS through `api-core/owneridentity`; there is no per-request authorization callback. This scenario issues no API key, stores no password, and owns no profile table (OT-P0-007). |
+| `scenario-authenticator` | required | `try_start` | Identity for every authenticated surface. Tokens are RS256 and verified locally against the published JWKS through `api-core/owneridentity`; there is no per-request authorization callback. This scenario issues no API key, stores no password, and owns no profile table (OT-P0-007). The installed web app signs in through the hub's same-origin `IdentityService` facade, which forwards to the authenticator and keeps the access and 7-day refresh tokens in HttpOnly cookies; `GetSession` renews an expired session, and browser calls never receive a token in a body. |
 | `tunnel-manager` | required | `try_start` | Stable public origin for the installed progressive web app. A Web Push subscription is bound to an origin and dies with it, so this scenario is a core-seed member and its hostname is never auto-expired (OT-P0-015). |
 | `vrooli-bridge` | optional | `ignore` | The **reach plane** only: which machines exist, whether they are online, and whether this caller may send them anything. Cross-node delivery dispatches this scenario's cataloged `notification-hub notifications relay` verb to a remote machine; the bridge vocabulary is derived from the shared scope catalog. Durable dispatch is chosen over a synchronous relay call so a delivery survives a node that is briefly offline (OT-P1-001). |
 | `vrooli-events` | optional | `ignore` | Inbound webhook delivery from durable subscriptions to this scenario's REST receiver (OT-P1-003). |
@@ -92,13 +92,59 @@ them, so no import-graph edge should be expected as evidence.
 
 ## Event Subscription Reconciliation
 
-When `VROOLI_EVENTS_API_BASE`, `VROOLI_NOTIFICATION_EVENTS_WEBHOOK_URL`,
-and `VROOLI_NOTIFICATION_EVENTS_PATTERN` are configured, startup performs
-an idempotent subscription reconciliation against `vrooli-events`. The
-events scenario owns matching, durable queueing, retries, signing, and
-subscription health; this scenario owns only the receiver and translation
-into a durable notification. If reconciliation or the upstream scenario is
-unavailable, direct Connect-RPC and CLI ingress remain unaffected.
+At startup the API reconciles two named subscriptions in `vrooli-events`,
+both delivered to `POST /api/v1/integrations/events`:
+
+| Name | Pattern | Purpose |
+|---|---|---|
+| `notification-hub-events` | operator-configured (default `incident.**`, `PUT /api/v1/config/event-integration`) | Incident notifications and autoheal remediation approvals |
+| `notification-hub-decisions` | `**.decision_requested.v1` | Operator decisions from any scenario (Agent Manager first) |
+
+Reconciliation is idempotent. The events scenario owns matching, durable
+queueing, retries, signing, and subscription health; this scenario owns only
+the receiver and the translation into a durable notification or ask. If
+reconciliation or the upstream scenario is unavailable, direct Connect-RPC
+and CLI ingress remain unaffected.
+
+**Signature.** vrooli-events signs every delivery with HMAC-SHA256 over the
+exact body (`X-Vrooli-Events-Signature: sha256=<hex>`). The receiver verifies
+with the same secret the publisher uses, resolved the same way:
+`VROOLI_EVENTS_WEBHOOK_SECRET` when set, otherwise the credential authority
+entry `vrooli/vrooli-events` field `agent-manager-webhook-secret`. The value is
+resolved lazily, cached after the first success, retried at most every 30 s
+while unavailable, and never logged. An unavailable secret fails closed (401).
+
+### Decision requests (`*.decision_requested.v1`)
+
+The producer sends facts; the hub owns the copy. The event id is the
+idempotency key, so a redelivery or re-publish returns the same ask and
+sends nothing new.
+
+| Field | Required | Meaning |
+|---|---|---|
+| `question` | yes | One sentence, at most 600 characters |
+| `options` | yes | 2–8 `{key, label}`; the key is what the requester gets back |
+| `recommended` | yes | One option key, shown first |
+| `recommendation_reason` | no | At most 300 characters |
+| `default_answer` | no | One option key; allowed only with `reversible: true` |
+| `reversible` | with a default | The decision can be undone later |
+| `deadline` | no | RFC 3339; defaults to 24 h after receipt |
+| `urgency` | no | `low`, `normal`, `high` (default) or `critical`; only `critical` can pass a quiet window, and only when that window allows it |
+| `subject` | no | Short name shown in the title ("Decision needed: BAS") |
+| `context_url` | no | Link for more detail |
+| `correlation` | no | String map (at most 1 KB) echoed verbatim in the resolution event |
+
+### Ask resolution (`notification_hub.ask.resolved.v1`)
+
+Every terminal transition of an ask (answered, defaulted, expired, and a late
+answer after a default) publishes one event through Vrooli Events with source
+`notification-hub`. The payload carries `ask_id`, `state`, `answer`,
+`answer_label`, `note`, `answered_by` (`default` for a default),
+`answered_at`, `by_default`, `late`, `default_answer`, `reason`, `source`,
+`source_event_type`, `requester_ref` (the event id or idempotency key that
+opened the ask), `correlation`, and `resolved_at`. Publication uses an outbox:
+a failed publish is retried by the one-minute sweep, and the event id is
+derived from the content, so a retry is deduplicated by vrooli-events.
 
 ## Cross-References
 

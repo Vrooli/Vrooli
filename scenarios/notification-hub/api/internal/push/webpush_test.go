@@ -60,3 +60,16 @@ func TestLoadOrCreatePrivateKeyIsStableAndPrivate(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, sender.PublicKeyValue())
 }
+
+func TestStructuredPayloadCarriesTheDeepLinkForTheServiceWorker(t *testing.T) {
+	payload := structuredPayload(Message{Title: "Decision needed", Body: "Close or re-aim?", ID: "notification-1", URL: "asks/ask-1"})
+	require.JSONEq(t, `{"title":"Decision needed","body":"Close or re-aim?","id":"notification-1","url":"asks/ask-1"}`, payload)
+}
+
+func TestVAPIDSubjectReplacesLocalhostContactWithHTTPSOrigin(t *testing.T) {
+	// Apple's push service answers 403 BadJwtToken for a localhost contact.
+	require.Equal(t, "https://hub.example", vapidSubject("mailto:notification-hub@localhost", "https://hub.example"))
+	require.Equal(t, "https://hub.example", vapidSubject("https://localhost:8080", "https://hub.example/"))
+	require.Equal(t, "mailto:ops@example.com", vapidSubject("mailto:ops@example.com", "https://hub.example"))
+	require.Equal(t, "mailto:notification-hub@localhost", vapidSubject("mailto:notification-hub@localhost", "http://127.0.0.1:20001"))
+}

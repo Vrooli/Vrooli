@@ -21,14 +21,16 @@ type recordingSender struct {
 	mu       sync.Mutex
 	attempts int
 	contents []string
+	messages []hub.PushMessage
 	errors   []error
 }
 
-func (s *recordingSender) Send(_ context.Context, _ hub.PushSubscription, _, body string) (string, error) {
+func (s *recordingSender) Send(_ context.Context, _ hub.PushSubscription, message hub.PushMessage) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.attempts++
-	s.contents = append(s.contents, body)
+	s.contents = append(s.contents, message.Body)
+	s.messages = append(s.messages, message)
 	index := s.attempts - 1
 	if index < len(s.errors) && s.errors[index] != nil {
 		return "", s.errors[index]
@@ -38,7 +40,7 @@ func (s *recordingSender) Send(_ context.Context, _ hub.PushSubscription, _, bod
 
 type goneSender struct{}
 
-func (goneSender) Send(context.Context, hub.PushSubscription, string, string) (string, error) {
+func (goneSender) Send(context.Context, hub.PushSubscription, hub.PushMessage) (string, error) {
 	return "", goneTestError{}
 }
 
@@ -411,7 +413,7 @@ func TestAsk_AnswerIsValidatedAndWaitReturnsChosenAction(t *testing.T) {
 	service.SetClockForTest(clock)
 	askID, _, err := service.Ask(context.Background(), "alice", "approve", []string{"yes", "no"}, clock.now.Add(time.Minute), "public", "ask-answer-1")
 	require.NoError(t, err)
-	require.NoError(t, service.Answer(context.Background(), askID, "yes", "owner"))
+	require.NoError(t, service.Answer(context.Background(), askID, "yes", "alice"))
 	state, answer, _, err := service.Wait(context.Background(), askID, clock.now.Add(time.Minute))
 	require.NoError(t, err)
 	require.Equal(t, "answered", state)

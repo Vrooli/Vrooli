@@ -14,26 +14,43 @@ const escalationSlice = 5 * time.Minute
 // It is deliberately exported so the scenario's acceptance tests and an
 // operator can trigger the same durable worker action without waiting for the
 // background sweep.
+//
+// A reversible ask with a default never escalates or expires: the sweep
+// applies its default once it is due (see applyDefaultIfDue). Every other
+// overdue ask follows the recipient's escalation chain and then expires.
 func (s *Service) ProcessEscalations(ctx context.Context) error {
 	now := s.clock.Now().UTC()
-	rows, err := s.db.QueryContext(ctx, `SELECT id, notification_id FROM asks WHERE state IN ('pending', 'escalated') AND deadline <= ? ORDER BY deadline`, now.Format(time.RFC3339Nano))
+	rows, err := s.db.QueryContext(ctx, `SELECT id, notification_id, default_answer, reversible FROM asks WHERE state IN ('pending', 'escalated') AND deadline <= ? ORDER BY deadline`, now.Format(time.RFC3339Nano))
 	if err != nil {
 		return err
 	}
 	defer rows.Close()
-	var due [][2]string
+	type dueAsk struct {
+		id, notificationID, defaultAnswer string
+		reversible                        bool
+	}
+	var due []dueAsk
 	for rows.Next() {
-		var item [2]string
-		if err := rows.Scan(&item[0], &item[1]); err != nil {
+		var item dueAsk
+		var reversible int
+		if err := rows.Scan(&item.id, &item.notificationID, &item.defaultAnswer, &reversible); err != nil {
 			return err
 		}
+		item.reversible = reversible != 0
 		due = append(due, item)
 	}
 	if err := rows.Err(); err != nil {
 		return err
 	}
+	_ = rows.Close()
 	for _, item := range due {
-		if err := s.escalateAsk(ctx, item[0], item[1]); err != nil {
+		if item.defaultAnswer != "" && item.reversible {
+			if err := s.applyDefaultIfDue(ctx, item.id); err != nil {
+				return err
+			}
+			continue
+		}
+		if err := s.escalateAsk(ctx, item.id, item.notificationID); err != nil {
 			return err
 		}
 	}
@@ -55,8 +72,22 @@ func (s *Service) escalateAsk(ctx context.Context, askID, notificationID string)
 	}
 	now := s.clock.Now().UTC()
 	if used >= len(chain.Steps) {
-		_, err := s.db.ExecContext(ctx, `UPDATE asks SET state='expired', reason='escalation chain exhausted without an answer', updated_at=? WHERE id=? AND state IN ('pending','escalated')`, now.Format(time.RFC3339Nano), askID)
-		return err
+		nowText := now.Format(time.RFC3339Nano)
+		result, err := s.db.ExecContext(ctx, `UPDATE asks SET state='expired', reason='escalation chain exhausted without an answer', resolved_at=?, resolution_published_at='', updated_at=? WHERE id=? AND state IN ('pending','escalated')`, nowText, nowText, askID)
+		if err != nil {
+			return err
+		}
+		if changed, _ := result.RowsAffected(); changed == 1 {
+			s.kickResolutions(ctx)
+		}
+		return nil
+	}
+	// An escalation is a new notification to the operator, so it waits out a
+	// quiet window exactly as the original ask did; the next sweep retries.
+	if quiet, quietErr := s.inQuietWindow(ctx, n.RequestedBy, n.Urgency, now); quietErr != nil {
+		return quietErr
+	} else if quiet {
+		return nil
 	}
 	step := chain.Steps[used]
 	targets, err := s.channelTargets(ctx, n.RequestedBy)

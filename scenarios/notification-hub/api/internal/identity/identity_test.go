@@ -36,3 +36,15 @@ func TestSubject_RequiresVerifiedBearerIdentity(t *testing.T) {
 		t.Fatalf("verified subject = %q, err=%v", subject, err)
 	}
 }
+
+func TestSubjectAcceptsTheOwnerCookieWhenNoBearerIsSent(t *testing.T) {
+	headers := http.Header{}
+	headers.Add("Cookie", (&http.Cookie{Name: OwnerCookieName, Value: "cookie-token"}).String())
+	if got := Token(headers); got != "cookie-token" {
+		t.Fatalf("cookie token = %q", got)
+	}
+	headers.Set("Authorization", "Bearer bearer-token")
+	if got := Token(headers); got != "bearer-token" {
+		t.Fatalf("bearer token = %q, want the bearer to win", got)
+	}
+}

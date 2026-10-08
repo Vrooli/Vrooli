@@ -8,6 +8,7 @@ import { recipientsClient, registerBrowserPushSubscription } from "../api/notifi
 import { fetchEventIntegrationConfig, updateEventIntegrationConfig, type EventIntegrationConfig } from "../api/integrations";
 import { useEffect, useState } from "react";
 import { getInjectedConfig } from "@vrooli/api-base";
+import { SessionPanel, useSession } from "../features/session/SessionGate";
 
 const THEME_CHOICES: readonly ThemeChoice[] = ["light", "dark", "system"];
 
@@ -20,7 +21,10 @@ export function SettingsPage() {
   const { t } = useTranslation();
   const currentLocale = getCurrentLocale();
   const { choice, setTheme } = useTheme();
-  const devices = useQuery({ queryKey: ["recipient-devices"], queryFn: () => recipientsClient.listDevices({}) });
+  const session = useSession();
+  const signedIn = Boolean(session.data?.signedIn);
+  // Devices (and the VAPID key) are owner data: read them once signed in.
+  const devices = useQuery({ queryKey: ["recipient-devices", session.data?.subject], queryFn: () => recipientsClient.listDevices({}), enabled: signedIn });
   const eventConfig = useQuery({ queryKey: ["event-integration-config"], queryFn: fetchEventIntegrationConfig });
   const [eventForm, setEventForm] = useState<EventIntegrationConfig>({ events_api_base: "", webhook_url: "", pattern: "incident.*", sensitivity_by_severity: { critical: "critical", warning: "sensitive", informational: "public" } });
   const eventUpdate = useMutation({ mutationFn: updateEventIntegrationConfig, onSuccess: (config) => setEventForm(config) });
@@ -30,12 +34,30 @@ export function SettingsPage() {
     if (eventConfig.data) setEventForm(eventConfig.data);
   }, [eventConfig.data]);
 
-	  const enablePush = async () => {
-    const publicKey = devices.data?.vapidPublicKey
+  const enablePush = async () => {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+      // iOS exposes Web Push only to Home Screen apps, never to a Safari tab.
+      setPushMessage("This browser does not offer push here. On iPhone, tap Share → Add to Home Screen, open Notification Hub from the Home Screen icon, then try again.");
+      return;
+    }
+    // Read the key at tap time: the cached device query may still be loading
+    // or retrying, and an empty cache must not read as "not configured".
+    let publicKey = devices.data?.vapidPublicKey;
+    let keyError = "";
+    if (!publicKey && signedIn) {
+      try {
+        publicKey = (await recipientsClient.listDevices({})).vapidPublicKey;
+      } catch (error) {
+        keyError = error instanceof Error ? error.message : String(error);
+      }
+    }
+    publicKey = publicKey
       || getInjectedConfig()?.VAPID_PUBLIC_KEY as string | undefined
       || import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined;
-    if (!publicKey || !("serviceWorker" in navigator) || !("PushManager" in window)) {
-      setPushMessage("Push is not configured for this origin yet.");
+    if (!publicKey) {
+      if (keyError) setPushMessage(`Could not load this hub's push key: ${keyError}`);
+      else if (!signedIn) setPushMessage("Sign in before enabling notifications.");
+      else setPushMessage("This hub has no push key configured.");
       return;
     }
     try {
@@ -104,7 +126,8 @@ export function SettingsPage() {
       <div className="flex flex-col gap-3">
         <h3 className="text-sm font-semibold uppercase text-app-muted-foreground">Notification devices</h3>
         <p className="text-sm text-app-muted-foreground">Register this browser, inspect paired channels, and keep sensitive content governed by channel approval.</p>
-        <Button type="button" variant="primary" onClick={() => void enablePush()}>Enable browser notifications</Button>
+        <SessionPanel />
+        {signedIn && <Button type="button" variant="primary" onClick={() => void enablePush()}>Enable browser notifications</Button>}
         {pushMessage && <p role="status" className="text-sm text-app-muted-foreground">{pushMessage}</p>}
         <ul className="space-y-2 text-sm" aria-label="Registered notification devices">
           {devices.data?.devices.map((device) => <li key={device.id} className="rounded border border-app-border px-3 py-2">{device.name} <span className="text-app-muted-foreground">{device.channels.join(", ") || "no channels"}</span></li>)}

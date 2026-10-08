@@ -42,6 +42,9 @@ type Subscription struct {
 	Endpoint string
 	P256DH   string
 	Auth     string
+	// Origin is the https page origin that registered the subscription. It
+	// stands in for an unusable VAPID contact (see vapidSubject).
+	Origin string
 }
 
 type Sender struct {
@@ -152,7 +155,20 @@ func newSender(privateKey *ecdsa.PrivateKey, publicKey []byte, subject string) *
 	return &Sender{Client: http.DefaultClient, PrivateKey: privateKey, PublicKey: publicKey, Subject: strings.TrimSpace(subject), TTL: 86400, Now: time.Now}
 }
 
+// Message is the decrypted payload the service worker reads. ID becomes the
+// notification tag; URL is the page a tap opens, relative to the worker scope.
+type Message struct {
+	Title string `json:"title"`
+	Body  string `json:"body"`
+	ID    string `json:"id,omitempty"`
+	URL   string `json:"url,omitempty"`
+}
+
 func (s *Sender) Send(ctx context.Context, subscription Subscription, title, body string) (string, error) {
+	return s.SendMessage(ctx, subscription, Message{Title: title, Body: body})
+}
+
+func (s *Sender) SendMessage(ctx context.Context, subscription Subscription, message Message) (string, error) {
 	if s == nil || s.PrivateKey == nil || len(s.PublicKey) == 0 {
 		return "", errors.New("web push sender is not configured")
 	}
@@ -174,11 +190,11 @@ func (s *Sender) Send(ctx context.Context, subscription Subscription, title, bod
 	if err != nil {
 		return "", fmt.Errorf("decode subscription auth secret: %w", err)
 	}
-	encrypted, err := encrypt([]byte(structuredPayload(title, body)), clientKey, auth)
+	encrypted, err := encrypt([]byte(structuredPayload(message)), clientKey, auth)
 	if err != nil {
 		return "", err
 	}
-	jwt, err := s.vapidJWT(u)
+	jwt, err := s.vapidJWT(u, vapidSubject(s.Subject, subscription.Origin))
 	if err != nil {
 		return "", err
 	}
@@ -199,11 +215,14 @@ func (s *Sender) Send(ctx context.Context, subscription Subscription, title, bod
 		return "", err
 	}
 	defer resp.Body.Close()
-	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 1024))
+	detail, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
 	if resp.StatusCode == http.StatusGone || resp.StatusCode == http.StatusNotFound {
 		return "", GoneError{}
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		if reason := strings.TrimSpace(string(detail)); reason != "" {
+			return "", fmt.Errorf("push provider returned status %d: %s", resp.StatusCode, reason)
+		}
 		return "", fmt.Errorf("push provider returned status %d", resp.StatusCode)
 	}
 	provider := resp.Header.Get("Location")
@@ -213,15 +232,35 @@ func (s *Sender) Send(ctx context.Context, subscription Subscription, title, bod
 	return provider, nil
 }
 
-func structuredPayload(title, body string) string {
-	encoded, _ := json.Marshal(map[string]string{"title": title, "body": body})
+func structuredPayload(message Message) string {
+	encoded, _ := json.Marshal(message)
 	return string(encoded)
 }
 
-func (s *Sender) vapidJWT(endpoint *url.URL) (string, error) {
+// vapidSubject returns the configured contact unless it names a localhost
+// address, which Apple's push service rejects (403 BadJwtToken); the
+// subscription's https origin is then the contact.
+func vapidSubject(configured, origin string) string {
+	configured = strings.TrimSpace(configured)
+	host := strings.ToLower(configured)
+	if at := strings.LastIndex(host, "@"); at >= 0 {
+		host = host[at+1:]
+	} else if u, err := url.Parse(host); err == nil {
+		host = u.Hostname()
+	}
+	if host != "localhost" && !strings.HasSuffix(host, ".localhost") {
+		return configured
+	}
+	if u, err := url.Parse(strings.TrimSpace(origin)); err == nil && u.Scheme == "https" && u.Host != "" {
+		return "https://" + u.Host
+	}
+	return configured
+}
+
+func (s *Sender) vapidJWT(endpoint *url.URL, subject string) (string, error) {
 	now := s.Now().UTC()
 	header := encodeJSON(map[string]string{"alg": "ES256", "typ": "JWT"})
-	claims := encodeJSON(map[string]any{"aud": endpoint.Scheme + "://" + endpoint.Host, "exp": now.Add(12 * time.Hour).Unix(), "sub": s.Subject})
+	claims := encodeJSON(map[string]any{"aud": endpoint.Scheme + "://" + endpoint.Host, "exp": now.Add(12 * time.Hour).Unix(), "sub": subject})
 	unsigned := header + "." + claims
 	digest := sha256.Sum256([]byte(unsigned))
 	r, ss, err := ecdsa.Sign(rand.Reader, s.PrivateKey, digest[:])

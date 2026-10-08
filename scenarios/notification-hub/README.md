@@ -101,6 +101,29 @@ Run tests with `make test` (which runs `vrooli scenario test`) or invoke
 `test-genie execute notification-hub --preset comprehensive` directly for
 finer-grained presets.
 
+## Register Your Phone
+
+The owner is whoever passes the Cloudflare Access login for the hub's public
+origin, as in vrooli-onboarding. There is no Vrooli password step. The hub
+verifies the `Cf-Access-Jwt-Assertion` header against the Access application
+that tunnel-manager reports for this route, and the signed-in owner is the
+recipient of asks (`notifications.recipient` when set, otherwise `operator`).
+
+1. Open `https://notification-hub.itsagitime.com` in Safari and pass the
+   Cloudflare login.
+2. Tap Share, then **Add to Home Screen**.
+3. Open the app from the new icon. A home-screen app keeps its own cookies,
+   separate from Safari's. If it shows the Cloudflare login, pass it once.
+4. Open **Settings**, tap **Enable browser notifications**, then tap
+   **Allow**.
+5. Tell the coordinator "phone registered".
+
+What to expect afterwards: when the Cloudflare Access session expires, the
+next open of the app, or the next tap on a push, shows the Cloudflare login
+first and then the ask. Push delivery itself does not depend on that session.
+The scenario-authenticator email and password sign-in remains for browsers
+without an Access login, such as `http://localhost:<UI_PORT>`.
+
 ## Documentation Map
 
 | Need | Start Here |

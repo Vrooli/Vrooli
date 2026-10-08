@@ -37,6 +37,27 @@ const literalSelectors = {
   pages: {
     dashboard: "page-dashboard",
     settings: "page-settings",
+    asks: "page-asks",
+    ask: "page-ask",
+  },
+  asks: {
+    list: "asks-list",
+    item: "asks-item",
+    empty: "asks-empty",
+    question: "ask-question",
+    option: "ask-option",
+    note: "ask-note",
+    status: "ask-status",
+    defaultNotice: "ask-default-notice",
+  },
+  session: {
+    form: "session-form",
+    email: "session-email",
+    password: "session-password",
+    submit: "session-submit",
+    error: "session-error",
+    signedIn: "session-signed-in",
+    signOut: "session-sign-out",
   },
   errorBoundary: {
     root: "error-boundary-root",
@@ -54,6 +75,7 @@ const dynamicSelectorDefinitions = {
           type: "enum",
           values: [
             "dashboard",
+            "asks",
             "settings",
           ] as const,
         },

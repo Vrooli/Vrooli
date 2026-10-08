@@ -6,13 +6,13 @@ package hub
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
@@ -41,10 +41,17 @@ type PushSubscription struct {
 	ID, Endpoint, P256DH, Auth, Origin string
 }
 
+// PushMessage is the payload a browser receives. Tag collapses repeats of
+// one notification; URL is the page the notification opens, relative to the
+// UI's service-worker scope ("" opens the app root).
+type PushMessage struct {
+	Title, Body, Tag, URL string
+}
+
 // PushSender is intentionally narrow. Production wires the RFC 8291 sender;
 // tests inject deterministic senders that can fail or succeed per attempt.
 type PushSender interface {
-	Send(context.Context, PushSubscription, string, string) (string, error)
+	Send(context.Context, PushSubscription, PushMessage) (string, error)
 }
 
 // SubscriptionGone is implemented by transports when a provider has
@@ -71,13 +78,13 @@ type ChannelDelivery interface {
 
 type unavailablePush struct{}
 
-func (unavailablePush) Send(context.Context, PushSubscription, string, string) (string, error) {
+func (unavailablePush) Send(context.Context, PushSubscription, PushMessage) (string, error) {
 	return "", errors.New("web push sender is not configured")
 }
 
 type Service struct {
 	db                *database.RoutedDB
-	clock             Clock
+	clock             *swappableClock
 	log               *log.Logger
 	mu                sync.RWMutex
 	push              PushSender
@@ -87,8 +94,12 @@ type Service struct {
 	channel           ChannelDelivery
 	defaultRecipient  string
 	recipientResolver func(context.Context) string
+	ownerFallback     string
 	webPushPublicKey  string
 	worker            chan string
+	askDefaultFloor   time.Duration
+	resolutions       askResolutions
+	processLocks      [processLockStripes]sync.Mutex
 }
 
 func New(db *database.RoutedDB, clock Clock, logger *log.Logger) *Service {
@@ -98,7 +109,7 @@ func New(db *database.RoutedDB, clock Clock, logger *log.Logger) *Service {
 	if logger == nil {
 		logger = log.Default()
 	}
-	s := &Service{db: db, clock: clock, log: logger, push: unavailablePush{}, email: unavailableEmail{}, desktop: unavailableDesktop{}, worker: make(chan string, 128)}
+	s := &Service{db: db, clock: newSwappableClock(clock), log: logger, push: unavailablePush{}, email: unavailableEmail{}, desktop: unavailableDesktop{}, worker: make(chan string, 128)}
 	go s.runWorker()
 	return s
 }
@@ -175,22 +186,40 @@ func (s *Service) SetRecipientResolver(resolve func(context.Context) string) {
 	s.mu.Unlock()
 }
 
+// OperatorSubject is the owner's recipient subject when no recipient is
+// configured. A Cloudflare Access login is the owner, so the owner the app
+// signs in as and the recipient of inbound asks are the same subject without
+// a setting.
+const OperatorSubject = "operator"
+
+// SetOwnerFallback supplies the recipient used when neither the override nor
+// the operator state names one (OperatorSubject in production).
+func (s *Service) SetOwnerFallback(subject string) {
+	s.mu.Lock()
+	s.ownerFallback = strings.TrimSpace(subject)
+	s.mu.Unlock()
+}
+
 // ResolveRecipient answers who an inbound integration's notification is for:
-// the explicit override first, then the operator state, else "". A caller
-// that gets "" must record the notification as unroutable with
-// RecipientSettingHint so the fix is named, never silently drop it.
+// the explicit override first, then the operator state, then the owner
+// fallback, else "". A caller that gets "" must record the notification as
+// unroutable with RecipientSettingHint so the fix is named, never silently
+// drop it.
 func (s *Service) ResolveRecipient(ctx context.Context) string {
 	s.mu.RLock()
 	override := s.defaultRecipient
 	resolve := s.recipientResolver
+	fallback := s.ownerFallback
 	s.mu.RUnlock()
 	if override != "" {
 		return override
 	}
 	if resolve != nil {
-		return strings.TrimSpace(resolve(ctx))
+		if recipient := strings.TrimSpace(resolve(ctx)); recipient != "" {
+			return recipient
+		}
 	}
-	return ""
+	return fallback
 }
 
 // RecipientSettingHint names the settings that route an integration's
@@ -204,12 +233,25 @@ func (s *Service) DefaultRecipient() string {
 }
 
 // SetClockForTest replaces the clock seam for deterministic routing tests.
+// The swap is atomic because the background worker reads the clock.
 func (s *Service) SetClockForTest(clock Clock) {
 	if clock == nil {
 		return
 	}
-	s.clock = clock
+	s.clock.set(clock)
 }
+
+type swappableClock struct{ current atomic.Pointer[Clock] }
+
+func newSwappableClock(clock Clock) *swappableClock {
+	c := &swappableClock{}
+	c.set(clock)
+	return c
+}
+
+func (c *swappableClock) set(clock Clock) { c.current.Store(&clock) }
+
+func (c *swappableClock) Now() time.Time { return (*c.current.Load()).Now() }
 
 type systemClock struct{}
 
@@ -250,8 +292,22 @@ type QuietWindow struct {
 }
 
 func (s *Service) Send(ctx context.Context, in SendInput) (Notification, error) {
+	n, created, err := s.persistNotification(ctx, in)
+	if err != nil {
+		return Notification{}, err
+	}
+	if created {
+		s.dispatch(n.ID)
+	}
+	return n, nil
+}
+
+// persistNotification makes a notification durable without scheduling it.
+// created is false when the idempotency key already names a notification,
+// which is then returned unchanged.
+func (s *Service) persistNotification(ctx context.Context, in SendInput) (Notification, bool, error) {
 	if strings.TrimSpace(in.RequestedBy) == "" || strings.TrimSpace(in.Body) == "" || strings.TrimSpace(in.SensitivityLabel) == "" || strings.TrimSpace(in.IdempotencyKey) == "" {
-		return Notification{}, fmt.Errorf("%w: requested_by, body, sensitivity_label, and idempotency_key are required", ErrInvalidArgument)
+		return Notification{}, false, fmt.Errorf("%w: requested_by, body, sensitivity_label, and idempotency_key are required", ErrInvalidArgument)
 	}
 	if in.Urgency == "" {
 		in.Urgency = "normal"
@@ -260,14 +316,14 @@ func (s *Service) Send(ctx context.Context, in SendInput) (Notification, error) 
 		in.DedupeWindow = DefaultDedupeWind
 	}
 	if err := s.EnsureRecipient(ctx, in.RequestedBy); err != nil {
-		return Notification{}, err
+		return Notification{}, false, err
 	}
 	now := s.clock.Now().UTC().Format(time.RFC3339Nano)
 	scheduledAt := ""
 	if !in.ScheduledAt.IsZero() {
 		scheduledAt = in.ScheduledAt.UTC().Format(time.RFC3339Nano)
 		if in.ScheduledAt.Before(s.clock.Now()) {
-			return Notification{}, fmt.Errorf("%w: scheduled_at must be in the future", ErrInvalidArgument)
+			return Notification{}, false, fmt.Errorf("%w: scheduled_at must be in the future", ErrInvalidArgument)
 		}
 	}
 	digestKey := ""
@@ -278,21 +334,25 @@ func (s *Service) Send(ctx context.Context, in SendInput) (Notification, error) 
 	_, err := s.db.ExecContext(ctx, `INSERT INTO notifications (id, requested_by, title, body, urgency, sensitivity_label, idempotency_key, dedupe_key, dedupe_window_seconds, scheduled_at, digest_key, digest_window_seconds, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, n.ID, n.RequestedBy, n.Title, n.Body, n.Urgency, n.SensitivityLabel, n.IdempotencyKey, n.DedupeKey, int(in.DedupeWindow.Seconds()), n.ScheduledAt, n.DigestKey, n.DigestWindowSeconds, now, now)
 	if err != nil {
 		if existing, lookupErr := s.findByIdempotency(ctx, in.RequestedBy, in.IdempotencyKey); lookupErr == nil {
-			return existing, nil
+			return existing, false, nil
 		}
-		return Notification{}, fmt.Errorf("persist notification: %w", err)
+		return Notification{}, false, fmt.Errorf("persist notification: %w", err)
 	}
 	if err := s.appendEvent(ctx, n.ID, "pending", "accepted before routing", now); err != nil {
-		return Notification{}, err
+		return Notification{}, false, err
 	}
-	// The id is durable before this channel is scheduled. A caller never waits
-	// on a provider to learn that its request exists.
+	return n, true, nil
+}
+
+// dispatch schedules routing for a durable notification. The id is durable
+// before this channel is scheduled, so a caller never waits on a provider to
+// learn that its request exists.
+func (s *Service) dispatch(id string) {
 	select {
-	case s.worker <- n.ID:
+	case s.worker <- id:
 	default:
-		go func() { s.worker <- n.ID }()
+		go func() { s.worker <- id }()
 	}
-	return n, nil
 }
 
 func (s *Service) findByIdempotency(ctx context.Context, requestedBy, key string) (Notification, error) {
@@ -355,6 +415,9 @@ func (s *Service) runWorker() {
 			if err := s.ProcessEscalations(context.Background()); err != nil {
 				s.log.Printf("process ask escalations: %v", err)
 			}
+			if err := s.PublishPendingResolutions(context.Background()); err != nil {
+				s.log.Printf("publish ask resolutions: %v", err)
+			}
 		}
 	}
 }
@@ -387,7 +450,24 @@ func (s *Service) recoverPending(ctx context.Context) {
 	}
 }
 
+// processLocks serializes Process per notification. The worker, the
+// recovery sweep, and an explicit deliver call can all reach the same id; two
+// concurrent passes would each see a non-terminal state and deliver twice.
+// Striping bounds memory regardless of how many notifications exist.
+const processLockStripes = 64
+
+func (s *Service) lockNotification(id string) func() {
+	var hash uint32 = 2166136261
+	for i := 0; i < len(id); i++ {
+		hash = (hash ^ uint32(id[i])) * 16777619
+	}
+	lock := &s.processLocks[hash%processLockStripes]
+	lock.Lock()
+	return lock.Unlock
+}
+
 func (s *Service) Process(ctx context.Context, id string) error {
+	defer s.lockNotification(id)()
 	n, _, err := s.Get(ctx, id)
 	if err != nil {
 		return err
@@ -573,7 +653,7 @@ func (s *Service) deliverTarget(ctx context.Context, target channelTarget, n Not
 		if err != nil {
 			return "", err
 		}
-		return push.Send(ctx, sub, n.Title, body)
+		return push.Send(ctx, sub, PushMessage{Title: n.Title, Body: body, Tag: n.ID, URL: s.askPath(ctx, n.ID)})
 	case "email":
 		return email.Send(ctx, target.Address, n.Title, body)
 	case "macos_notification", "imessage", "linux_notification":
@@ -866,82 +946,21 @@ func (s *Service) ChannelsStatus(ctx context.Context, recipient, machine string)
 	return status, nil
 }
 
+// Ask opens an ask whose answers are their own labels. It is the direct
+// (Connect) entry point; AskWithSpec carries the full contract.
 func (s *Service) Ask(ctx context.Context, recipient string, question string, allowed []string, deadline time.Time, sensitivity, key string) (string, Notification, error) {
-	if deadline.IsZero() || len(allowed) == 0 {
-		return "", Notification{}, fmt.Errorf("%w: deadline and allowed answers are required", ErrInvalidArgument)
-	}
-	n, err := s.Send(ctx, SendInput{RequestedBy: recipient, Title: "Decision required", Body: question, Urgency: "critical", SensitivityLabel: sensitivity, IdempotencyKey: key})
-	if err != nil {
-		return "", Notification{}, err
-	}
-	var existingAskID string
-	if err := s.db.QueryRowContext(ctx, `SELECT asks.id FROM asks JOIN notifications ON notifications.id = asks.notification_id WHERE notifications.requested_by = ? AND notifications.idempotency_key = ?`, recipient, key).Scan(&existingAskID); err == nil && existingAskID != "" {
-		return existingAskID, n, nil
-	}
-	encoded, _ := json.Marshal(allowed)
-	id := uuid.NewString()
-	now := s.clock.Now().UTC().Format(time.RFC3339Nano)
-	_, err = s.db.ExecContext(ctx, `INSERT INTO asks (id, notification_id, question, allowed_answers, deadline, state, reason, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'pending', '', ?, ?)`, id, n.ID, question, string(encoded), deadline.UTC().Format(time.RFC3339Nano), now, now)
-	return id, n, err
-}
-
-func (s *Service) Answer(ctx context.Context, askID, answer, actor string) error {
-	var allowedJSON, state, deadline string
-	if err := s.db.QueryRowContext(ctx, `SELECT allowed_answers, state, deadline FROM asks WHERE id = ?`, askID).Scan(&allowedJSON, &state, &deadline); err != nil {
-		return err
-	}
-	if state != "pending" && state != "escalated" {
-		return fmt.Errorf("ask is already %s", state)
-	}
-	var allowed []string
-	_ = json.Unmarshal([]byte(allowedJSON), &allowed)
-	found := false
+	options := make([]AskOption, 0, len(allowed))
 	for _, value := range allowed {
-		if value == answer {
-			found = true
-		}
+		options = append(options, AskOption{Key: value, Label: value})
 	}
-	if !found {
-		return fmt.Errorf("answer is not one of the allowed answers")
-	}
-	now := s.clock.Now().UTC().Format(time.RFC3339Nano)
-	_, err := s.db.ExecContext(ctx, `INSERT INTO answers (id, ask_id, answer, answered_by, answered_at) VALUES (?, ?, ?, ?, ?)`, uuid.NewString(), askID, answer, actor, now)
-	if err != nil {
-		return err
-	}
-	_, err = s.db.ExecContext(ctx, `UPDATE asks SET state='answered', updated_at=? WHERE id=?`, now, askID)
-	return err
+	record, n, err := s.AskWithSpec(ctx, AskSpec{Recipient: recipient, Question: question, Options: options, Deadline: deadline, SensitivityLabel: sensitivity, IdempotencyKey: key})
+	return record.ID, n, err
 }
 
-func (s *Service) Wait(ctx context.Context, askID string, deadline time.Time) (string, string, string, error) {
-	ticker := time.NewTicker(25 * time.Millisecond)
-	defer ticker.Stop()
-	for {
-		_ = s.ProcessEscalations(ctx)
-		var state, reason string
-		var answer sql.NullString
-		err := s.db.QueryRowContext(ctx, `SELECT state, reason FROM asks WHERE id = ?`, askID).Scan(&state, &reason)
-		if err != nil {
-			return "", "", "", err
-		}
-		if state == "answered" {
-			_ = s.db.QueryRowContext(ctx, `SELECT answer FROM answers WHERE ask_id = ?`, askID).Scan(&answer)
-			return state, answer.String, reason, nil
-		}
-		if state == "expired" {
-			return state, "", reason, nil
-		}
-		if !deadline.IsZero() && !s.clock.Now().Before(deadline) {
-			now := s.clock.Now().UTC().Format(time.RFC3339Nano)
-			_, _ = s.db.ExecContext(ctx, `UPDATE asks SET state='expired', reason='caller deadline expired', updated_at=? WHERE id=? AND state IN ('pending','escalated')`, now, askID)
-			return "expired", "", "caller deadline expired", nil
-		}
-		select {
-		case <-ctx.Done():
-			return "", "", "", ctx.Err()
-		case <-ticker.C:
-		}
-	}
+// Answer records an operator answer without a note.
+func (s *Service) Answer(ctx context.Context, askID, answer, actor string) error {
+	_, err := s.AnswerAsk(ctx, AnswerInput{AskID: askID, Answer: answer, Actor: actor})
+	return err
 }
 
 func (s *Service) Retain(ctx context.Context, before time.Time) (int64, error) {

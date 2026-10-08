@@ -10,7 +10,8 @@
     "bottomNavLabel": "モバイルナビゲーション",
     "nav": {
       "dashboard": "ダッシュボード",
-      "settings": "設定"
+      "settings": "設定",
+      "asks": "判断"
     }
   },
   "theme": {
@@ -80,5 +81,39 @@
       "primary-navigation": "メインナビゲーション",
       "skip-to-content": "コンテンツへスキップ"
     }
+  },
+  "asks": {
+    "list": {
+      "title": "判断",
+      "empty": "待っている判断はありません。",
+      "loadError": "判断を読み込めませんでした。"
+    },
+    "detail": {
+      "loading": "判断を読み込み中…",
+      "notFound": "この判断は見つからないか、あなた宛てではありません。",
+      "recommended": "おすすめ",
+      "defaultIn": "回答がない場合、{{time}}後に{{option}}が適用されます。",
+      "defaultWaiting": "回答がない場合、期限後かつ通知が届いてから12時間以上たってから{{option}}が適用されます。",
+      "noteLabel": "メモを追加（任意）",
+      "answered": "回答: {{option}}",
+      "defaulted": "{{option}}が既定で適用されました。一度だけ選び直せます。あなたの回答が優先されます。",
+      "expired": "この判断は回答がないまま期限切れになりました。",
+      "sending": "送信中…",
+      "saveError": "回答は保存されませんでした: {{message}}",
+      "more": "詳細",
+      "back": "すべての判断"
+    }
+  },
+  "session": {
+    "title": "サインイン",
+    "intro": "判断に回答し通知を受け取るには、Vrooli アカウントでサインインしてください。",
+    "email": "メールアドレス",
+    "password": "パスワード",
+    "submit": "サインイン",
+    "submitting": "サインイン中…",
+    "invalid": "メールアドレスまたはパスワードが違います。",
+    "unavailable": "現在サインインできません。もう一度お試しください。",
+    "signedInAs": "{{email}} としてサインイン中",
+    "signOut": "サインアウト"
   }
 }

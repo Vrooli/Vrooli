@@ -72,11 +72,15 @@ func TestDeliverTargetRoutesLinuxNotification(t *testing.T) {
 }
 
 // The recipient of an inbound integration is the explicit override, then the
-// operator-state resolver; with neither the caller falls back and the
-// setting hint names the fix.
+// operator-state resolver, then the owner fallback (the subject a Cloudflare
+// Access login signs in as); with none the caller falls back and the setting
+// hint names the fix.
 func TestRecipientResolvesFromOperatorStateBeforeSourceFallback(t *testing.T) {
 	service := &Service{}
 	require.Equal(t, "", service.ResolveRecipient(context.Background()))
+	service.SetOwnerFallback(OperatorSubject)
+	service.SetRecipientResolver(func(context.Context) string { return "" })
+	require.Equal(t, OperatorSubject, service.ResolveRecipient(context.Background()))
 	service.SetRecipientResolver(func(context.Context) string { return " operator@host " })
 	require.Equal(t, "operator@host", service.ResolveRecipient(context.Background()))
 	service.SetDefaultRecipient("override")

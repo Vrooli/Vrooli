@@ -56,6 +56,7 @@ export const strings = {
     nav: {
       dashboard: "layout.nav.dashboard",
       settings: "layout.nav.settings",
+      asks: "layout.nav.asks",
     },
     sidebarLabel: "layout.sidebarLabel",
   },
@@ -95,6 +96,40 @@ export const strings = {
       system: "theme.choice.system",
     },
     switcherLabel: "theme.switcherLabel",
+  },
+  asks: {
+    list: {
+      title: "asks.list.title",
+      empty: "asks.list.empty",
+      loadError: "asks.list.loadError",
+    },
+    detail: {
+      loading: "asks.detail.loading",
+      notFound: "asks.detail.notFound",
+      recommended: "asks.detail.recommended",
+      defaultIn: "asks.detail.defaultIn",
+      defaultWaiting: "asks.detail.defaultWaiting",
+      noteLabel: "asks.detail.noteLabel",
+      answered: "asks.detail.answered",
+      defaulted: "asks.detail.defaulted",
+      expired: "asks.detail.expired",
+      sending: "asks.detail.sending",
+      saveError: "asks.detail.saveError",
+      more: "asks.detail.more",
+      back: "asks.detail.back",
+    },
+  },
+  session: {
+    title: "session.title",
+    intro: "session.intro",
+    email: "session.email",
+    password: "session.password",
+    submit: "session.submit",
+    submitting: "session.submitting",
+    invalid: "session.invalid",
+    unavailable: "session.unavailable",
+    signedInAs: "session.signedInAs",
+    signOut: "session.signOut",
   },
 } as const;
 

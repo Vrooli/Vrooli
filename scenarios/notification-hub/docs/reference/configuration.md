@@ -31,6 +31,10 @@ ports as outbound source ports. See the project-level port allocation reference
 | _(none)_ | — | The SQLite file location is **not** configurable through the environment. It is resolved from the scenario's own identity by `api-core/storage`, so no inherited variable can point one scenario at another's database. To relocate storage for a test run, set `VROOLI_STORAGE_ROOT`, which redirects the whole class tree and stays scenario-agnostic. |
 | `API_TOKEN` | unset | Shared bearer token for CLI ↔ API auth (only enforce in production deployments). |
 | `UI_BASE_URL` | (resolved by `@vrooli/api-base`) | External UI URL when the scenario is iframe-embedded. |
+| `VROOLI_EVENTS_WEBHOOK_SECRET` | credential authority `vrooli/vrooli-events` field `agent-manager-webhook-secret` | Override for the secret that verifies signed vrooli-events deliveries. Leave unset: the API resolves the stored credential exactly as the publisher does. |
+| `VROOLI_NOTIFICATION_RECIPIENT` | `notifications.recipient` in operator state | Owner subject that receives event-driven notifications and asks. |
+| `VROOLI_AUTH_COOKIE_SECURE` | `true` behind HTTPS (`X-Forwarded-Proto: https`) | Forces the `Secure` flag on the owner session cookies on or off. Leave unset. |
+| `VROOLI_NOTIFICATION_ASK_DEFAULT_FLOOR` | `12h` | Minimum time between an ask's first delivered receipt and applying its default (Go duration). Lower it only for fixtures such as the delivery canary. |
 
 The browser UI does not read `API_PORT` directly. It resolves API calls through
 the UI origin, and `ui/server.js` proxies `/api/*` plus the scenario's Connect

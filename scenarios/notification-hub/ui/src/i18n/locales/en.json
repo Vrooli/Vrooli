@@ -43,7 +43,8 @@
     "bottomNavLabel": "Mobile navigation",
     "nav": {
       "dashboard": "Dashboard",
-      "settings": "Settings"
+      "settings": "Settings",
+      "asks": "Decisions"
     },
     "sidebarLabel": "Primary navigation"
   },
@@ -83,5 +84,39 @@
       "system": "System"
     },
     "switcherLabel": "Theme"
+  },
+  "asks": {
+    "list": {
+      "title": "Decisions",
+      "empty": "No decisions are waiting for you.",
+      "loadError": "Decisions could not be loaded."
+    },
+    "detail": {
+      "loading": "Loading decision…",
+      "notFound": "This decision was not found, or it is not addressed to you.",
+      "recommended": "Recommended",
+      "defaultIn": "If you do not answer, {{option}} applies in {{time}}.",
+      "defaultWaiting": "If you do not answer, {{option}} applies after the deadline, at least 12 hours after this reached you.",
+      "noteLabel": "Add a note (optional)",
+      "answered": "Answered: {{option}}",
+      "defaulted": "{{option}} was applied by default. You can still choose once; your answer replaces it.",
+      "expired": "This decision expired without an answer.",
+      "sending": "Sending…",
+      "saveError": "Your answer was not saved: {{message}}",
+      "more": "More detail",
+      "back": "All decisions"
+    }
+  },
+  "session": {
+    "title": "Sign in",
+    "intro": "Sign in with your Vrooli account to answer decisions and receive notifications.",
+    "email": "Email",
+    "password": "Password",
+    "submit": "Sign in",
+    "submitting": "Signing in…",
+    "invalid": "Email or password is wrong.",
+    "unavailable": "Sign-in is unavailable right now. Try again.",
+    "signedInAs": "Signed in as {{email}}",
+    "signOut": "Sign out"
   }
 }

@@ -90,7 +90,23 @@
       "id": "conversations_wait",
       "path": "/vrooli.notification_hub.v1.conversations.ConversationsService/Wait",
       "method": "POST",
-      "summary": "Block until an ask is answered or expires",
+      "summary": "Block until an ask is resolved or the caller deadline passes",
+      "description": "",
+      "category": "conversations"
+    },
+    {
+      "id": "conversations_get_ask",
+      "path": "/vrooli.notification_hub.v1.conversations.ConversationsService/GetAsk",
+      "method": "POST",
+      "summary": "Read one ask without changing it",
+      "description": "",
+      "category": "conversations"
+    },
+    {
+      "id": "conversations_list_asks",
+      "path": "/vrooli.notification_hub.v1.conversations.ConversationsService/ListAsks",
+      "method": "POST",
+      "summary": "List the owner's asks, optionally only open ones",
       "description": "",
       "category": "conversations"
     },
@@ -117,6 +133,30 @@
       "summary": "Report delivery counts, failure rates, and latency",
       "description": "",
       "category": "delivery"
+    },
+    {
+      "id": "identity_login",
+      "path": "/vrooli.notification_hub.v1.identity.IdentityService/Login",
+      "method": "POST",
+      "summary": "Sign in through scenario-authenticator and set the owner session cookie",
+      "description": "",
+      "category": "identity"
+    },
+    {
+      "id": "identity_get_session",
+      "path": "/vrooli.notification_hub.v1.identity.IdentityService/GetSession",
+      "method": "POST",
+      "summary": "Report the signed-in owner, renewing an expired session",
+      "description": "",
+      "category": "identity"
+    },
+    {
+      "id": "identity_logout",
+      "path": "/vrooli.notification_hub.v1.identity.IdentityService/Logout",
+      "method": "POST",
+      "summary": "Clear the owner session cookies",
+      "description": "",
+      "category": "identity"
     },
     {
       "id": "notifications_send",

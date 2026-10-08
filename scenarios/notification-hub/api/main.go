@@ -10,9 +10,11 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"notification-hub/internal/capabilities"
 	"notification-hub/internal/hub"
+	internalidentity "notification-hub/internal/identity"
 	"notification-hub/internal/integrations"
 	"notification-hub/internal/modules"
 	"notification-hub/internal/push"
@@ -36,6 +38,7 @@ import (
 	conversationH "notification-hub/handlers/conversations"
 	deliveryH "notification-hub/handlers/delivery"
 	healthH "notification-hub/handlers/health"
+	identityH "notification-hub/handlers/identity"
 	notificationH "notification-hub/handlers/notifications"
 	recipientsH "notification-hub/handlers/recipients"
 	routingH "notification-hub/handlers/routing"
@@ -43,8 +46,8 @@ import (
 
 type pushAdapter struct{ sender *push.Sender }
 
-func (a pushAdapter) Send(ctx context.Context, subscription hub.PushSubscription, title, body string) (string, error) {
-	return a.sender.Send(ctx, push.Subscription{Endpoint: subscription.Endpoint, P256DH: subscription.P256DH, Auth: subscription.Auth}, title, body)
+func (a pushAdapter) Send(ctx context.Context, subscription hub.PushSubscription, message hub.PushMessage) (string, error) {
+	return a.sender.SendMessage(ctx, push.Subscription{Endpoint: subscription.Endpoint, P256DH: subscription.P256DH, Auth: subscription.Auth, Origin: subscription.Origin}, push.Message{Title: message.Title, Body: message.Body, ID: message.Tag, URL: message.URL})
 }
 
 // scenarioStorageRoots resolves all filesystem storage classes once at
@@ -104,6 +107,7 @@ func main() {
 	service := hub.New(db, schedule.System(), log.Default())
 	service.SetDefaultRecipient(strings.TrimSpace(os.Getenv("VROOLI_NOTIFICATION_RECIPIENT")))
 	service.SetRecipientResolver(integrations.OperatorStateRecipient())
+	service.SetOwnerFallback(hub.OperatorSubject)
 	configureWebPush(service, fileRoots)
 	posture := "personal"
 	if state, postureErr := trustposture.LoadWorkingTree(); postureErr != nil {
@@ -111,7 +115,8 @@ func main() {
 	} else {
 		posture = string(state.Posture)
 	}
-	ownerVerifier := owneridentity.NewClient(owneridentity.Config{Resolver: discovery.NewResolver(discovery.ResolverConfig{})})
+	scenarioResolver := discovery.NewResolver(discovery.ResolverConfig{})
+	ownerVerifier := owneridentity.NewClient(owneridentity.Config{Resolver: scenarioResolver})
 	service.SetEmailSender(hub.NewSMTPSenderFromEnvironment(os.Getenv))
 	service.SetDesktopSender(hub.NewDesktopSender())
 	slog.Info("desktop notification transport selected", "platform", runtime.GOOS)
@@ -149,6 +154,22 @@ func main() {
 	} else {
 		slog.Info("vrooli-events subscription reconciled", "pattern", eventConfig.Get().Pattern)
 	}
+	if err := integrations.EnsureDecisionSubscription(context.Background(), eventConfig.Get().EventsAPIBase, eventConfig.Get().WebhookURL); err != nil {
+		slog.Error("vrooli-events decision subscription reconciliation failed", "error", err)
+	} else {
+		slog.Info("vrooli-events decision subscription reconciled", "pattern", integrations.DecisionRequestPattern)
+	}
+	// The webhook verifies with the publisher's own signing secret: the
+	// environment override, then the credential authority. The value is
+	// never logged.
+	webhookSecret := integrations.CachedSecret(func() (string, error) {
+		return integrations.ResolveEventsWebhookSecret(os.Getenv)
+	}, func(err error) {
+		slog.Warn("vrooli-events webhook secret unavailable; signed event deliveries are rejected until it resolves", "error", err)
+	})
+	slog.Info("vrooli-events webhook secret", "resolved", webhookSecret() != "")
+	service.SetResolutionPublisher(integrations.EventsPublisher{BaseURL: func() string { return eventConfig.Get().EventsAPIBase }})
+	configureAskDefaultFloor(service)
 
 	srv := server.New(
 		server.Deps{Clock: schedule.System(), Logger: log.Default()},
@@ -159,6 +180,7 @@ func main() {
 		routingH.ModuleWithVerifier(service, ownerVerifier),
 		deliveryH.ModuleWithVerifier(service, ownerVerifier),
 		conversationH.ModuleWithVerifier(service, ownerVerifier),
+		identityH.Module(internalidentity.Forwarder{Resolver: scenarioResolver}, ownerVerifier),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development
@@ -166,7 +188,7 @@ func main() {
 	// runtime test DB pool without restarting this scenario.
 	rootMux := http.NewServeMux()
 	devrouting.RegisterWithFileRoots(rootMux, db, fileRoots)
-	rootMux.Handle("/api/v1/integrations/events", integrations.EventWebhookWithTemplatesAndSensitivity(service, os.Getenv("VROOLI_EVENTS_WEBHOOK_SECRET"), func() map[string]integrations.EventTemplate {
+	rootMux.Handle("/api/v1/integrations/events", integrations.EventWebhookFromSecretSource(service, webhookSecret, func() map[string]integrations.EventTemplate {
 		return eventConfig.Get().Templates
 	}, func() map[string]string { return eventConfig.Get().SensitivityBySeverity }))
 	rootMux.Handle("/api/v1/integrations/deliveries", integrations.DeliveryProjectionHandler(service))
@@ -174,7 +196,14 @@ func main() {
 		return integrations.EnsureEventSubscription(context.Background(), config.EventsAPIBase, config.WebhookURL, config.Pattern)
 	}))
 
-	rootMux.Handle("/", srv.Handler())
+	// The owner's Cloudflare Access login is verified for the Connect API
+	// only. The signed event webhook and the routes above keep their own
+	// authentication, and Wait stays readable without an owner.
+	ownerAuth := internalidentity.OwnerAuthenticator{
+		Providers:    internalidentity.OwnerProvidersFromEnvironment(os.Getenv, scenarioResolver, "notification-hub"),
+		OwnerSubject: service.ResolveRecipient,
+	}
+	rootMux.Handle("/", ownerAuth.Middleware(srv.Handler()))
 
 	// apihttp.TestModeMiddleware reads X-Vrooli-Test-Mode: 1 and marks the
 	// request context so *database.RoutedDB routes the call to the
@@ -187,6 +216,23 @@ func main() {
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
+}
+
+// configureAskDefaultFloor reads the minimum time between the first
+// delivered receipt and applying an ask's default (Go duration, default 12h).
+// Lowering it is for fixtures such as the delivery canary.
+func configureAskDefaultFloor(service *hub.Service) {
+	value := strings.TrimSpace(os.Getenv("VROOLI_NOTIFICATION_ASK_DEFAULT_FLOOR"))
+	if value == "" {
+		return
+	}
+	floor, err := time.ParseDuration(value)
+	if err != nil || floor <= 0 {
+		slog.Warn("ignoring invalid VROOLI_NOTIFICATION_ASK_DEFAULT_FLOOR; using the 12h floor", "value", value)
+		return
+	}
+	service.SetAskDefaultFloor(floor)
+	slog.Info("ask default floor configured", "floor", floor.String())
 }
 
 func configureWebPush(service *hub.Service, fileRoots *filerouting.RoutedRoots) {
