@@ -16,7 +16,7 @@ import {
   useRefreshProposal,
   useWithdrawProposal,
 } from "../../lib/hooks-proposals";
-import { effortLabel, flagMeta, freshnessMeta, kindMarker, resolutionMeta, shortOid } from "./model";
+import { effortLabel, epochsLabel, flagMeta, freshnessMeta, kindMarker, proposalEpochs, resolutionMeta, shortOid } from "./model";
 import { useSessionState } from "./sessionState";
 
 interface ProposalDetailProps {
@@ -74,6 +74,7 @@ export function ProposalDetail({
     setDraft({ subject: next.subject ?? subject, body: next.body ?? body, revision: draft?.revision ?? proposal.revision });
 
   const isOpen = proposal.state === ProposalState.OPEN;
+  const epochs = proposalEpochs(proposal);
   const freshness = proposal.freshness;
   const freshnessInfo = freshnessMeta(freshness?.state);
   const isFresh = freshness?.state === FreshnessState.FRESH;
@@ -138,12 +139,18 @@ export function ProposalDetail({
 
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-3 py-3">
         <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
-          {proposal.work?.epoch && <span className="rounded border border-blue-900/70 bg-blue-950/40 px-1.5 py-0.5 font-mono text-blue-200">{proposal.work.epoch}</span>}
+          {epochs.length > 0 && <span className="rounded border border-blue-900/70 bg-blue-950/40 px-1.5 py-0.5 font-mono text-blue-200">{epochsLabel(epochs)}</span>}
           {proposal.work?.effortRef && <span className="rounded border border-slate-700 bg-slate-950 px-1.5 py-0.5 text-slate-300" title={proposal.work.effortRef}>{effortLabel(proposal.work.effortRef)}</span>}
           {proposal.work && proposal.work.runIds.length > 0 && <span className="text-slate-500">{proposal.work.runIds.length} run{proposal.work.runIds.length === 1 ? "" : "s"}</span>}
           <span className="text-slate-500">by {proposal.createdBy?.subject || "unknown"}{proposal.createdBy?.kind ? ` (${proposal.createdBy.kind})` : ""}</span>
           {proposal.branch && <span className="text-slate-500">on {proposal.branch} @ {shortOid(proposal.baseHead)}</span>}
         </div>
+
+        {epochs.length > 1 && (
+          <p className="rounded-md border border-blue-900/60 bg-blue-950/20 px-3 py-2 text-xs text-blue-200" data-testid="proposal-folded">
+            One commit for {epochs.length} accepted epochs ({epochs.join(", ")}). Earlier open proposals that shared files or went stale were folded into this one; their records stay in history as superseded.
+          </p>
+        )}
 
         {isOpen && !isFresh && (
           <div className="space-y-2 rounded-md border border-amber-800/60 bg-amber-950/20 p-3 text-xs text-amber-200" role="status" data-testid="proposal-stale">

@@ -84,3 +84,25 @@ export function effortLabel(effortRef: string): string {
 export function shortOid(oid: string): string {
   return oid ? oid.slice(0, 10) : "";
 }
+
+/** Epochs a proposal carries, oldest first, from its Vrooli-Epoch trailers.
+ *  A proposal that folded earlier open proposals of its effort carries
+ *  several; others carry their own epoch. */
+export function proposalEpochs(proposal: Proposal): string[] {
+  const epochs: string[] = [];
+  for (const trailer of proposal.message?.trailers ?? []) {
+    const epoch = trailer.key.toLowerCase() === "vrooli-epoch" ? /#(E\d+)$/.exec(trailer.value.trim())?.[1] : undefined;
+    if (epoch && !epochs.includes(epoch)) epochs.push(epoch);
+  }
+  const own = proposal.work?.epoch;
+  if (own && !epochs.includes(own)) epochs.push(own);
+  return epochs;
+}
+
+/** "E27", "E28–E33" for a consecutive run, otherwise "E28, E30, E33". */
+export function epochsLabel(epochs: string[]): string {
+  if (epochs.length <= 1) return epochs[0] ?? "";
+  const numbers = epochs.map((epoch) => Number(epoch.slice(1)));
+  const consecutive = numbers.every((value, index) => index === 0 || value === (numbers[index - 1] ?? Number.NaN) + 1);
+  return consecutive ? `${epochs[0]}–${epochs[epochs.length - 1]}` : epochs.join(", ");
+}

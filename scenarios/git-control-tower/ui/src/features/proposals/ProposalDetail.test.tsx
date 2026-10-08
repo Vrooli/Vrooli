@@ -34,6 +34,20 @@ beforeEach(() => {
 });
 
 describe("ProposalDetail", () => {
+  it("explains a proposal that commits several folded epochs", () => {
+    const effort = "effort:browser-automation-studio-rehabilitation";
+    renderDetail({
+      work: { effortRef: effort, epoch: "E33" },
+      message: { subject: "bas: E33", trailers: ["E31", "E33"].map((epoch) => ({ key: "Vrooli-Epoch", value: `${effort}#${epoch}`, kind: "epoch", known: true })) },
+    });
+    expect(screen.getByTestId("proposal-folded")).toHaveTextContent("One commit for 2 accepted epochs (E31, E33)");
+  });
+
+  it("shows no fold note for a single-epoch proposal", () => {
+    renderDetail();
+    expect(screen.queryByTestId("proposal-folded")).not.toBeInTheDocument();
+  });
+
   it("lists files with flags, opens a file's diff and shows trailer chips", () => {
     const { onOpenDiff } = renderDetail();
     const files = screen.getByTestId("proposal-files");

@@ -274,6 +274,7 @@ func (s *Server) initServices() {
 	}
 	s.initProposalService()
 	s.startBaselineCollectionReconciler()
+	s.startProposalDigest()
 	s.reviewJobStore.StartCleanup(10 * time.Minute)
 	s.scenarioLocator = NewScenarioLocator(30 * time.Second)
 	s.envelopeCache = NewEnvelopeCache(60 * time.Second)

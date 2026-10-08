@@ -92,11 +92,14 @@ type Actor struct {
 func (a Actor) IsHuman() bool { return a.Verified && a.Kind == "human" }
 
 type Work struct {
-	EffortRef      string   `json:"effort_ref,omitempty"`
-	EffortRevision string   `json:"effort_revision,omitempty"`
-	Epoch          string   `json:"epoch,omitempty"`
-	RunIDs         []string `json:"run_ids,omitempty"`
-	Plans          []string `json:"plans,omitempty"`
+	EffortRef      string `json:"effort_ref,omitempty"`
+	EffortRevision string `json:"effort_revision,omitempty"`
+	Epoch          string `json:"epoch,omitempty"`
+	// FoldedEpochs are earlier epochs whose open proposals this one folded,
+	// oldest first.
+	FoldedEpochs []string `json:"folded_epochs,omitempty"`
+	RunIDs       []string `json:"run_ids,omitempty"`
+	Plans        []string `json:"plans,omitempty"`
 }
 
 type Message struct {
@@ -145,6 +148,18 @@ type Evidence struct {
 	MetricAfter        string   `json:"metric_after,omitempty"`
 }
 
+// Fold records an earlier open proposal of the same effort that a newer
+// proposal absorbed. The folded proposal stays in history as superseded.
+type Fold struct {
+	ID      string `json:"id"`
+	Epoch   string `json:"epoch,omitempty"`
+	Subject string `json:"subject,omitempty"`
+	Reason  string `json:"reason"`
+	// Paths are the folded proposal's files, so a same-epoch replacement of
+	// the combined proposal keeps carrying them.
+	Paths []string `json:"paths,omitempty"`
+}
+
 type Event struct {
 	Action    string    `json:"action"`
 	Actor     Actor     `json:"actor"`
@@ -169,6 +184,7 @@ type Proposal struct {
 	Digest       string      `json:"digest"`
 	CommitOID    string      `json:"commit_oid,omitempty"`
 	SupersededBy string      `json:"superseded_by,omitempty"`
+	Folds        []Fold      `json:"folds,omitempty"`
 	Events       []Event     `json:"events,omitempty"`
 	CreatedAt    time.Time   `json:"created_at"`
 	UpdatedAt    time.Time   `json:"updated_at"`

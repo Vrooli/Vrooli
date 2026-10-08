@@ -2,7 +2,7 @@ import { useState } from "react";
 import { ChevronDown, ChevronRight, FileCode2, GitPullRequestDraft, Loader2 } from "lucide-react";
 import type { Proposal } from "@vrooli/proto-types/git-control-tower/v1/proposals/proposals_pb";
 import { Badge } from "../../components/ui/badge";
-import { effortLabel, flagCounts, flagMeta, freshnessMeta } from "./model";
+import { effortLabel, epochsLabel, flagCounts, flagMeta, freshnessMeta, proposalEpochs } from "./model";
 
 interface ProposalQueueProps {
   proposals: Proposal[];
@@ -45,6 +45,7 @@ export function ProposalQueue({ proposals, openCount, isLoading = false, error, 
 function ProposalCard({ proposal, onOpen }: { proposal: Proposal; onOpen: () => void }) {
   const freshness = freshnessMeta(proposal.freshness?.state);
   const work = proposal.work;
+  const epochs = proposalEpochs(proposal);
   return (
     <button
       type="button"
@@ -60,7 +61,15 @@ function ProposalCard({ proposal, onOpen }: { proposal: Proposal; onOpen: () => 
         <Badge variant={freshness.tone} title={freshness.hint} data-testid="proposal-freshness">{freshness.label}</Badge>
       </div>
       <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px]">
-        {work?.epoch && <span className="rounded border border-blue-900/70 bg-blue-950/40 px-1.5 py-0.5 font-mono text-blue-200">{work.epoch}</span>}
+        {epochs.length > 0 && (
+          <span
+            className="rounded border border-blue-900/70 bg-blue-950/40 px-1.5 py-0.5 font-mono text-blue-200"
+            title={epochs.length > 1 ? `One commit for ${epochs.length} accepted epochs: ${epochs.join(", ")}` : undefined}
+            data-testid="proposal-epochs"
+          >
+            {epochsLabel(epochs)}
+          </span>
+        )}
         {work?.effortRef && (
           <span className="max-w-[12rem] truncate rounded border border-slate-700 bg-slate-950 px-1.5 py-0.5 text-slate-300" title={work.effortRef}>
             {effortLabel(work.effortRef)}

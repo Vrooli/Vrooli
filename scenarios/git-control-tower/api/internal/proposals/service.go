@@ -14,7 +14,6 @@ import (
 const (
 	maxAnchorFiles   = 50000
 	maxProposalPaths = 2000
-	maxOpenPerEffort = 5
 )
 
 // Service owns proposal lifecycle rules. It never stages or commits outside
@@ -115,10 +114,15 @@ type CreateRequest struct {
 }
 
 type CreateResult struct {
-	View         View
-	Issues       []trailers.Issue
-	Stored       bool
-	SupersededID string
+	View   View
+	Issues []trailers.Issue
+	Stored bool
+	// SupersededID is the first proposal this one replaced or folded;
+	// SupersededIDs lists all of them in the order they were marked.
+	SupersededID  string
+	SupersededIDs []string
+	// NotSuperseded lists folded proposals a concurrent writer kept open.
+	NotSuperseded []string
 }
 
 // Create builds a proposal from listed paths, checks them against the anchor
@@ -153,29 +157,28 @@ func (s *Service) Create(ctx context.Context, repo Repo, req CreateRequest) (Cre
 		return CreateResult{}, err
 	}
 
-	// A new proposal for the same effort and epoch supersedes the open one;
-	// otherwise an effort may hold only a few open proposals at once.
-	var replaced []Proposal
-	if work.EffortRef != "" {
-		openForEffort, err := s.store.List(ctx, ListFilter{RepositoryID: repo.ID, EffortRef: work.EffortRef, Limit: 200})
-		if err != nil {
-			return CreateResult{}, err
-		}
-		for _, old := range openForEffort {
-			if work.Epoch != "" && old.Work.Epoch == work.Epoch {
-				replaced = append(replaced, old)
-			}
-		}
-		if remaining := len(openForEffort) - len(replaced); remaining >= maxOpenPerEffort {
-			return CreateResult{}, fmt.Errorf("%w: effort %s already has %d open proposals; withdraw or apply some first", ErrInvalid, work.EffortRef, remaining)
-		}
+	// A new proposal for the same effort and epoch supersedes the open one,
+	// and it folds earlier open proposals of the effort that share a path
+	// with it or have drifted. No count of open proposals ever refuses it.
+	plan, err := s.planFold(ctx, repo, work, paths)
+	if err != nil {
+		return CreateResult{}, err
 	}
+	carried, carriedExcluded, err := carriedFiles(ctx, repo, snapshot, plan.carried)
+	if err != nil {
+		return CreateResult{}, err
+	}
+	files = append(files, carried...)
+	sort.Slice(files, func(i, j int) bool { return files[i].Path < files[j].Path })
+	excluded = withoutPaths(append(excluded, carriedExcluded...), files)
+	work, omittedRuns := foldWork(work, plan)
+	replaced := plan.replaced
 
 	now := s.now()
 	proposal := Proposal{
 		ID: s.newID("gctp-"), RepositoryID: repo.ID, State: StateOpen, Revision: 1, CreatedBy: req.Actor,
 		BaseHead: snapshot.head, Branch: snapshot.branch, Work: work, Files: files, Excluded: excluded,
-		Evidence: req.Evidence, CreatedAt: now, UpdatedAt: now,
+		Evidence: req.Evidence, Folds: plan.folds, CreatedAt: now, UpdatedAt: now,
 	}
 	if hasAnchor {
 		proposal.Evidence.AnchorID = anchor.ID
@@ -186,7 +189,10 @@ func (s *Service) Create(ctx context.Context, repo Repo, req CreateRequest) (Cre
 			subject, body, operatorEdited, carriedFrom = old.Message.Subject, old.Message.Body, true, old.ID
 		}
 	}
-	proposal.Message = buildMessage(proposal.ID, work, subject, body, req.Trailers, operatorEdited)
+	if summary := foldSummary(plan, omittedRuns); summary != "" && !operatorEdited {
+		body = strings.TrimSpace(strings.TrimSpace(body) + "\n\n" + summary)
+	}
+	proposal.Message = buildMessage(proposal.ID, work, subject, body, append(append([]trailers.Entry(nil), req.Trailers...), foldedTrailers(plan)...), operatorEdited)
 	issues := trailers.Validate(proposal.Message.Subject, proposal.Message.Body, proposal.Message.Trailers, trailers.ValidateOptions{AgentAuthored: !req.Actor.IsHuman()})
 	if !req.Actor.IsHuman() && trailers.HasErrors(issues) {
 		return CreateResult{Issues: issues}, &ValidationError{Issues: issues}
@@ -196,6 +202,9 @@ func (s *Service) Create(ctx context.Context, repo Repo, req CreateRequest) (Cre
 	if carriedFrom != "" {
 		detail += "; operator message carried from " + carriedFrom
 	}
+	if folded := foldDetail(plan); folded != "" {
+		detail += "; " + folded
+	}
 	proposal.Events = []Event{{Action: "created", Actor: req.Actor, Revision: 1, Detail: detail, Timestamp: now}}
 
 	result := CreateResult{Issues: issues}
@@ -204,12 +213,19 @@ func (s *Service) Create(ctx context.Context, repo Repo, req CreateRequest) (Cre
 			return CreateResult{}, err
 		}
 		result.Stored = true
-		for _, old := range replaced {
+		for _, old := range append(append([]Proposal(nil), replaced...), plan.folded...) {
 			old.State, old.SupersededBy, old.UpdatedAt = StateSuperseded, proposal.ID, now
-			old.Events = append(old.Events, Event{Action: "superseded", Actor: req.Actor, Revision: old.Revision, Detail: "replaced by " + proposal.ID, Timestamp: now})
-			if err := s.store.Update(ctx, old, old.Revision, StateOpen); err == nil {
+			old.Events = append(old.Events, Event{Action: "superseded", Actor: req.Actor, Revision: old.Revision, Detail: supersedeDetail(old, plan, proposal.ID, work.Epoch), Timestamp: now})
+			if err := s.store.Update(ctx, old, old.Revision, StateOpen); err != nil {
+				// A concurrent edit or apply won; the old proposal stays
+				// open and its shared paths show as other_open_proposal.
+				result.NotSuperseded = append(result.NotSuperseded, old.ID)
+				continue
+			}
+			if result.SupersededID == "" {
 				result.SupersededID = old.ID
 			}
+			result.SupersededIDs = append(result.SupersededIDs, old.ID)
 		}
 	}
 	views, err := s.views(ctx, repo, []Proposal{proposal})
@@ -256,7 +272,7 @@ func normalizeWork(work Work) Work {
 // caller's trailers in their order, with exact duplicates collapsed.
 func buildMessage(id string, work Work, subject, body string, extra []trailers.Entry, operatorEdited bool) Message {
 	entries := trailers.WorkEntries(trailers.Work{
-		EffortRef: work.EffortRef, EffortRevision: work.EffortRevision, Epoch: work.Epoch,
+		EffortRef: work.EffortRef, EffortRevision: work.EffortRevision, Epoch: work.Epoch, FoldedEpochs: work.FoldedEpochs,
 		RunIDs: work.RunIDs, Plans: work.Plans, ProposalID: id,
 	})
 	for _, entry := range extra {

@@ -22,6 +22,21 @@ describe("ProposalQueue", () => {
     expect(cards[1]).toHaveTextContent("Drifted");
   });
 
+  it("labels a proposal that folded earlier epochs with every epoch it commits", () => {
+    const effort = "effort:browser-automation-studio-rehabilitation";
+    const combined = proposalFixture({
+      work: { effortRef: effort, epoch: "E33" },
+      message: {
+        subject: "bas: E33",
+        trailers: ["E28", "E29", "E30", "E31", "E32", "E33"].map((epoch) => ({ key: "Vrooli-Epoch", value: `${effort}#${epoch}`, kind: "epoch", known: true })),
+      },
+    });
+    renderWithProviders(<ProposalQueue proposals={[combined]} openCount={1} onOpen={vi.fn()} />);
+    const chip = screen.getByTestId("proposal-epochs");
+    expect(chip).toHaveTextContent("E28–E33");
+    expect(chip).toHaveAttribute("title", "One commit for 6 accepted epochs: E28, E29, E30, E31, E32, E33");
+  });
+
   it("opens a proposal from its card", () => {
     const onOpen = vi.fn();
     renderWithProviders(<ProposalQueue proposals={[proposalFixture()]} openCount={1} onOpen={onOpen} />);

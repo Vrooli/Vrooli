@@ -71,8 +71,29 @@ changed paths in the anchor scope that are not listed are recorded in
 `mixed_prior_uncommitted`. Shared paths (`other_open_proposal`), Workspace
 Sandbox pending paths (`sandbox_pending`) and `already_staged` are computed when
 read. A new proposal for the same effort and epoch supersedes the open one and
-keeps operator message edits. Agent-created messages must pass trailer grammar;
+keeps operator message edits.
+
+`create` never refuses because an effort has many open proposals. It folds
+every open proposal of the same effort that shares a path with it, that has
+drifted, or that shares a path with one already folded, into one combined
+proposal: the union of paths at current content, a `Vrooli-Epoch` trailer per
+epoch, the runs of every epoch (up to the 20-run trailer limit), and a body
+paragraph naming each folded epoch. Folded proposals become `superseded` with
+`superseded_by` and a history line; they are never deleted
+(`list --state superseded`). A folded path that is now clean is recorded in
+`excluded` as `now_clean`. Fresh proposals that share nothing stay separate.
+The created event and the CLI's `Folded …` line name each folded proposal.
+Agent-created messages must pass trailer grammar;
 an agent `Co-Authored-By` is refused because the operator is always the author.
+
+**Waiting digest (off by default).** With `GCT_PROPOSAL_DIGEST_ENABLED=true`
+in the API environment, GCT publishes at most one Vrooli Events domain event per
+UTC day, `git_control_tower.proposals.waiting.v1`, listing the open proposals
+older than `GCT_PROPOSAL_DIGEST_MIN_AGE` (default `12h`). The facts are
+`check_id`, `severity` (`informational`), `message`, `count`, `oldest_hours`
+and `proposal_ids`; Notification Hub writes the notification copy. Notification
+Hub delivers it to the phone only when its notification pattern includes
+`git_control_tower.**` (default `incident.**`).
 
 `approve` refuses, naming each path, when content drifted from the reviewed
 blobs, when HEAD moved and the move touched a proposal path (`base_moved`), or

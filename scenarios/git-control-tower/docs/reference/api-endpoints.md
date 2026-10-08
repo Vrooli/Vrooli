@@ -105,7 +105,7 @@ principal and asserted run are recorded on every revision.
 | Method | Notes |
 | --- | --- |
 | `AnchorScope` | Records HEAD plus sha256 and git blob ID of each dirty file in the scope globs. |
-| `CreateProposal` | Hashes listed paths against the anchor, records flags and exclusions, renders the trailer-linked message; `validate_only` stores nothing. Supersedes the open proposal for the same effort and epoch. |
+| `CreateProposal` | Hashes listed paths against the anchor, records flags and exclusions, renders the trailer-linked message; `validate_only` stores nothing. Supersedes the open proposal for the same effort and epoch, and folds open proposals of the effort that share a path or drifted into one combined proposal; never refused for the number of open proposals. |
 | `ListProposals` / `GetProposal` | Proposals with read-time flags and freshness (`fresh`, `drifted`, `base_moved`). |
 | `EditProposal` | New revision against `expected_revision`; unknown trailers and operator order are kept. |
 | `WithdrawProposal` / `RefreshProposal` | Withdraw keeps history; refresh re-hashes into a new revision and drops paths that are now clean. |

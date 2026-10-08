@@ -7,11 +7,14 @@ type Work struct {
 	EffortRef      string
 	EffortRevision string
 	// Epoch is "E<n>"; it renders self-contained as "<effort ref>#E<n>".
-	Epoch      string
-	RunIDs     []string
-	Plans      []string
-	Continues  string
-	ProposalID string
+	Epoch string
+	// FoldedEpochs are earlier epochs of the same effort carried by this
+	// commit, oldest first. They render before Epoch.
+	FoldedEpochs []string
+	RunIDs       []string
+	Plans        []string
+	Continues    string
+	ProposalID   string
 }
 
 // NormalizeEpoch returns "E<n>" for "E27", "e27" or "27".
@@ -42,6 +45,11 @@ func WorkEntries(work Work) []Entry {
 			value += "@" + revision
 		}
 		add("Vrooli-Effort", value)
+	}
+	for _, folded := range work.FoldedEpochs {
+		if epoch := NormalizeEpoch(folded); epoch != "" {
+			add("Vrooli-Epoch", effort+"#"+epoch)
+		}
 	}
 	if epoch := NormalizeEpoch(work.Epoch); epoch != "" {
 		add("Vrooli-Epoch", effort+"#"+epoch)

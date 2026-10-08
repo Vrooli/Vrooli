@@ -39,6 +39,8 @@ func (s *Store) ensureSchema(ctx context.Context) error {
 			created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
 		`CREATE INDEX IF NOT EXISTS idx_gct_proposals_queue ON gct_proposals(repository_id, state, created_at)`,
 		`CREATE INDEX IF NOT EXISTS idx_gct_proposals_work ON gct_proposals(repository_id, effort_ref, epoch, state)`,
+		`CREATE TABLE IF NOT EXISTS gct_proposal_digests (
+			day TEXT PRIMARY KEY, proposal_count INTEGER NOT NULL, sent_at TEXT NOT NULL)`,
 	} {
 		if _, err := s.db.ExecContext(ctx, statement); err != nil {
 			return fmt.Errorf("create proposal schema: %w", err)

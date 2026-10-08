@@ -213,6 +213,19 @@ func TestCreateMergesRequestFileFlagsAndCreatorRun(t *testing.T) {
 	}
 }
 
+func TestCreateReportsFoldedProposals(t *testing.T) {
+	proposal := openProposal()
+	proposal.Events = []*proposalsv1.ProposalEvent{{Action: "created", Detail: "3 files; folded gctp-aaaaaaaaaaaa (E25, overlapping_paths: a.go); gctp-bbbbbbbbbbbb (E26, drifted)"}}
+	impl := &recordingServer{proposal: proposal}
+	out := serve(t, impl, "")
+	if err := runCreate(nil, []string{"--effort", "effort:bas", "--epoch", "E27", "--subject", "bas: E27", "a.go"}); err != nil {
+		t.Fatal(err)
+	}
+	if want := "Folded gctp-aaaaaaaaaaaa (E25, overlapping_paths: a.go); gctp-bbbbbbbbbbbb (E26, drifted)\n"; !strings.Contains(out.String(), want) {
+		t.Fatalf("output missing %q:\n%s", want, out.String())
+	}
+}
+
 func TestManifestCoversProposalService(t *testing.T) {
 	raw, err := os.ReadFile(filepath.Join("..", "..", "manifest.json"))
 	if err != nil {

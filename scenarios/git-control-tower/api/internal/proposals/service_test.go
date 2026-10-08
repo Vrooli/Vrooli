@@ -147,7 +147,8 @@ func TestSharedPathsAndStagedPathsAreReadTimeFlags(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	second, err := svc.Create(context.Background(), repo, CreateRequest{Work: Work{EffortRef: "effort:bas", Epoch: "E2"}, Subject: "two", Paths: []string{"shared.go"}, Actor: agentActor})
+	// Another effort shares the path; the same effort would fold it instead.
+	second, err := svc.Create(context.Background(), repo, CreateRequest{Work: Work{EffortRef: "effort:other", Epoch: "E2"}, Subject: "two", Paths: []string{"shared.go"}, Actor: agentActor})
 	if err != nil {
 		t.Fatal(err)
 	}

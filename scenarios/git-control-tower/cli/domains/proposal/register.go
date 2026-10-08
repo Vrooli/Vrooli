@@ -71,7 +71,7 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 		NeedsAPI:    true,
 		Subcommands: []cliapp.Command{
 			{Name: "anchor", NeedsAPI: true, Description: "Fingerprint files already dirty in a scope at epoch admission (--effort REF --epoch E<n> --scope GLOB...)", Run: func(a []string) error { return runAnchor(core, a) }},
-			{Name: "create", NeedsAPI: true, Description: "Create a proposal from listed paths (--request-file F | --effort --epoch --subject [--body-file] --path P... [--run ID...]); --validate-only stores nothing", Run: func(a []string) error { return runCreate(core, a) }},
+			{Name: "create", NeedsAPI: true, Description: "Create a proposal from listed paths (--request-file F | --effort --epoch --subject [--body-file] --path P... [--run ID...]); folds open proposals of the effort that share a path or drifted; --validate-only stores nothing", Run: func(a []string) error { return runCreate(core, a) }},
 			{Name: "list", NeedsAPI: true, Description: "List proposals with freshness ([--state open|committed|withdrawn|superseded|all] [--effort REF])", Run: func(a []string) error { return runList(core, a) }},
 			{Name: "show", NeedsAPI: true, Description: "Show one proposal: files, flags, exclusions, message and history (ID [--message])", Run: func(a []string) error { return runShow(core, a) }},
 			{Name: "edit", NeedsAPI: true, Description: "Edit subject, body or trailers, or drop files (ID --revision N [--subject S] [--body-file F] [--trailer K=V...] [--remove-path P...])", Run: func(a []string) error { return runEdit(core, a) }},
@@ -233,6 +233,13 @@ func runCreate(core *cliapp.ScenarioApp, args []string) error {
 	fmt.Fprintf(output, "%s proposal %s r%d: %d files, %d excluded\n", verb, p.GetId(), p.GetRevision(), len(p.GetFiles()), len(p.GetExcluded()))
 	if id := resp.Msg.GetSupersededId(); id != "" {
 		fmt.Fprintf(output, "Superseded %s\n", id)
+	}
+	// Earlier open proposals of the effort that share a path or drifted are
+	// folded into this one; the created event names each of them.
+	if events := p.GetEvents(); len(events) > 0 {
+		if _, folded, ok := strings.Cut(events[0].GetDetail(), "folded "); ok {
+			fmt.Fprintf(output, "Folded %s\n", folded)
+		}
 	}
 	printIssues(resp.Msg.GetIssues())
 	printFiles(p)
