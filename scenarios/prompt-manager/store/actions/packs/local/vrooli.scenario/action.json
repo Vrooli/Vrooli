@@ -1,0 +1,32 @@
+{
+  "kind": "action",
+  "schemaVersion": 1,
+  "id": "vrooli.scenario",
+  "name": "scenario-test-wait",
+  "status": "active",
+  "owner": {
+    "type": "project",
+    "id": "vrooli"
+  },
+  "command": {
+    "argv": [
+      "vrooli",
+      "scenario",
+      "test",
+      "wait",
+      "{{scenario}}",
+      "{{run_id}}",
+      "--json"
+    ]
+  },
+  "permissions": {
+    "filesystemWrite": true,
+    "processStart": true
+  },
+  "validation": {
+    "mode": "contract"
+  },
+  "revision": 2,
+  "createdAt": "2026-06-14T23:29:16Z",
+  "updatedAt": "2026-06-16T00:00:00Z"
+}

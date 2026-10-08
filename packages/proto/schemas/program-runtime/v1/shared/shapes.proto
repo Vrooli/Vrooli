@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package vrooli.program_runtime.v1.shared;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/shared;shared_v1";
+
+message ProgramShape {
+  string shape_key = 1;
+  repeated string binding_ids = 2;
+  int64 binding_count = 3;
+  int64 occurrences = 4;
+  int64 agent_runs = 5;
+  int64 operator_runs = 6;
+  int64 test_runs = 7;
+  int64 replay_runs = 8;
+  int64 sessions = 9;
+  string first_seen = 10;
+  string last_seen = 11;
+  string exemplar_program_id = 12;
+  int64 exemplar_bytes = 13;
+  string covered_by = 14;
+  string covered_reason = 15;
+  string state = 16;
+  string dominant_scenario = 17;
+}

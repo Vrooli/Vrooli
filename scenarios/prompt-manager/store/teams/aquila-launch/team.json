@@ -1,0 +1,76 @@
+{
+  "archived": true,
+  "coordination": {
+    "pattern": "leader-led",
+    "leadAgentId": "aquila-launch-coordinator",
+    "reportingMode": "leader",
+    "messagingMode": "in-session",
+    "capabilities": {
+      "showOrgContext": true,
+      "injectInbox": false,
+      "allowPeerTriggers": false,
+      "showTaskBoardGuidance": true,
+      "showKnowledgeLogGuidance": true,
+      "requireHandoff": true
+    }
+  },
+  "createdAt": "2026-09-13T21:55:43Z",
+  "displayName": "Aquila Launch",
+  "effortRefs": [
+    "workspace:/home/matthalloran8/Vrooli#aquila-launch-2026-09-17"
+  ],
+  "enabled": false,
+  "execution": {
+    "queuePolicy": "serialized",
+    "maxConcurrentRuns": 1
+  },
+  "id": "aquila-launch",
+  "kind": "team",
+  "lifetime": "finite",
+  "mission": "Coordinate the finite Aquila launch effort through its accepted plan family, bounded coordinator wakes, owner-backed work, evidence, and terminal closure.",
+  "operatingContract": {
+    "schemaVersion": 1,
+    "governance": {},
+    "documents": {
+      "planOfRecord": [],
+      "sharedState": []
+    },
+    "knowledgeTopics": {
+      "effort-wake/*": {
+        "ownerMemberId": "aquila-launch-coordinator",
+        "supersedesPrevious": false,
+        "retention": "append-only"
+      }
+    },
+    "members": {
+      "aquila-launch-coordinator": {
+        "lane": "Coordinate the finite effort; reconcile owner state, perform only qualified bounded coordinator work, retain evidence, and stop at blockers or terminal evidence.",
+        "allowedWrites": [
+          {
+            "kind": "knowledge"
+          },
+          {
+            "kind": "handoff"
+          }
+        ],
+        "safetyCriticalRules": [
+          "The effort reference is an attribution edge, not an authority grant.",
+          "Do not start, cancel, repair, or replace owner work without qualified control and the exact retained identity.",
+          "Do not resume this team or its legacy driver during migration; scheduling remains disabled until qualification is reviewed.",
+          "Retain exact effort, plan, run, task, revision, and evidence references in every handoff."
+        ],
+        "readOnlyModeBehavior": {
+          "stillWriteKnowledge": true,
+          "stillWriteHandoff": true
+        }
+      }
+    }
+  },
+  "purpose": "delivery",
+  "revision": 4,
+  "runtime": {
+    "mode": "single-process"
+  },
+  "schemaVersion": 1,
+  "updatedAt": "2026-09-14T14:57:10Z"
+}

@@ -1,0 +1,28 @@
+{
+ "provider_id": "scenario-dependency-analyzer.scenarios",
+  "lifecycle": "LIFECYCLE_PRODUCTION",
+  "provider_group": "scenario-dependency-analyzer",
+  "bucket": "BUCKET_REUSE",
+  "type": "scenarios",
+  "description": "Scenario connection graph — what a scenario depends on and what depends on it (its reverse dependents). Route here for 'what does X depend on', 'what depends on X', 'X's dependencies / dependents', and the cross-scenario dependency/connection graph. Do NOT route here for a scenario's purpose, anatomy, responsibilities, or internal domains — that is architecture-cartographer's domain-map. Connection-only.",
+  "endpoint": {
+    "http_json": {
+      "scenario_id": "scenario-dependency-analyzer",
+      "path": "/vrooli.scenario_dependency_analyzer.v1.graph.InterfaceGraphService/SearchInterfaceGraph",
+      "method": "HTTP_METHOD_POST",
+      "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}}}",
+      "headers": { "Content-Type": "application/json" }
+    }
+  },
+  "result_mapping": {
+    "results_path": "results",
+    "id_field": "scenario",
+    "title_field": "scenario",
+    "snippet_field": "summary",
+    "score_field": "relevanceScore",
+    "path_field": "scenario",
+    "score_scale": "SCORE_SCALE_COSINE_0_1"
+  },
+  "scope": "SCOPE_PROJECT",
+  "state": "PROVIDER_STATE_ACTIVE"
+}

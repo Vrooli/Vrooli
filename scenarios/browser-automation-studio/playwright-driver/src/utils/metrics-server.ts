@@ -13,9 +13,12 @@ import { metrics } from './metrics';
  * Create and start a metrics HTTP server.
  *
  * @param port - Port to listen on
+ * @param host - Interface to bind. Defaults to loopback: metrics describe this
+ *   driver process to whatever supervises it locally, so there is no reason to
+ *   accept connections from off-host.
  * @returns Promise resolving to the server instance
  */
-export function createMetricsServer(port: number): Promise<Server> {
+export function createMetricsServer(port: number, host = '127.0.0.1'): Promise<Server> {
   return new Promise((resolve, reject) => {
     const server = createServer((req, res) => {
       if (req.url === '/metrics') {
@@ -46,10 +49,11 @@ export function createMetricsServer(port: number): Promise<Server> {
       }
     });
 
-    server.listen(port, '0.0.0.0', () => {
+    server.listen(port, host, () => {
       logger.info('Metrics server listening', {
         port,
-        url: `http://0.0.0.0:${port}/metrics`,
+        host,
+        url: `http://${host}:${port}/metrics`,
       });
       resolve(server);
     });

@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "strategies": [
+    {"strategy_id":"android-adb","observe":"adb exec-out screencap -p","actuate":"adb shell input tap <x> <y>","unavailable_reason":"Install/start android-sdk, authorize USB debugging, and accept the RSA prompt."},
+    {"strategy_id":"host-desktop","observe":"import -window root png:-","actuate":"xdotool mousemove <x> <y> click 1","unavailable_reason":"Set DISPLAY and install ImageMagick import plus xdotool."},
+    {"strategy_id":"ios-simctl","observe":"xcrun simctl io <udid> screenshot --type=png -","actuate":"xcrun simctl io <udid> ...","unavailable_reason":"Install Xcode and an iOS Simulator runtime, then boot a simulator."},
+    {"strategy_id":"ios-xcuitest","observe":"XCTest attachment screenshot","actuate":"XCUITest coordinate or element action","unavailable_reason":"Join Apple Developer Program for signing and attach/trust an iPhone to a macOS node."},
+    {"strategy_id":"ios-mirror","observe":"iPhone Mirroring frame","actuate":"macOS Accessibility event","unavailable_reason":"Pair iPhone Mirroring on a macOS node and grant Accessibility and Screen Recording permissions."}
+  ],
+  "guarantee": "Each strategy has a recorded protocol identity and an unavailable disposition can be replayed without hardware."
+}

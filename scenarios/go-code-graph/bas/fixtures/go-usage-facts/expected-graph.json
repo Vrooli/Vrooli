@@ -1,0 +1,2374 @@
+{
+  "nodes": [
+    {
+      "id": "file:consumer/consumer.go",
+      "kind": "file",
+      "name": "consumer.go",
+      "path": "consumer/consumer.go",
+      "attributes": [
+        [
+          "is_test",
+          "false"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "lines",
+          "20"
+        ],
+        [
+          "package_id",
+          "package:example.com/usagefacts/consumer"
+        ]
+      ]
+    },
+    {
+      "id": "file:producer/producer.go",
+      "kind": "file",
+      "name": "producer.go",
+      "path": "producer/producer.go",
+      "attributes": [
+        [
+          "is_test",
+          "false"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "lines",
+          "21"
+        ],
+        [
+          "package_id",
+          "package:example.com/usagefacts/producer"
+        ]
+      ]
+    },
+    {
+      "id": "go_call:package:example.com/usagefacts/consumer:consumer/consumer.go:12",
+      "kind": "go_call",
+      "name": "writer.WriteThing",
+      "path": "consumer/consumer.go",
+      "attributes": [
+        [
+          "argument_types",
+          "context.Context,*example.com/usagefacts/producer.Response"
+        ],
+        [
+          "callee",
+          "writer.WriteThing"
+        ],
+        [
+          "callee_kind",
+          "go_method"
+        ],
+        [
+          "callee_package",
+          "example.com/usagefacts/producer"
+        ],
+        [
+          "callee_symbol",
+          "go_method:package:example.com/usagefacts/producer:WriteThing"
+        ],
+        [
+          "enclosing_symbol",
+          "Send"
+        ],
+        [
+          "end_column",
+          "37"
+        ],
+        [
+          "end_line",
+          "14"
+        ],
+        [
+          "file_id",
+          "file:consumer/consumer.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:example.com/usagefacts/consumer"
+        ],
+        [
+          "receiver_type",
+          "example.com/usagefacts/producer.Writer"
+        ],
+        [
+          "start_column",
+          "9"
+        ],
+        [
+          "start_line",
+          "14"
+        ]
+      ]
+    },
+    {
+      "id": "go_call:package:example.com/usagefacts/consumer:consumer/consumer.go:20",
+      "kind": "go_call",
+      "name": "service.WriteThing",
+      "path": "consumer/consumer.go",
+      "attributes": [
+        [
+          "argument_types",
+          "context.Context,*example.com/usagefacts/producer.Response"
+        ],
+        [
+          "callee",
+          "service.WriteThing"
+        ],
+        [
+          "callee_kind",
+          "go_method"
+        ],
+        [
+          "callee_package",
+          "example.com/usagefacts/producer"
+        ],
+        [
+          "callee_symbol",
+          "go_method:package:example.com/usagefacts/producer:WriteThing"
+        ],
+        [
+          "enclosing_symbol",
+          "SendConcrete"
+        ],
+        [
+          "end_column",
+          "56"
+        ],
+        [
+          "end_line",
+          "19"
+        ],
+        [
+          "file_id",
+          "file:consumer/consumer.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:example.com/usagefacts/consumer"
+        ],
+        [
+          "receiver_type",
+          "example.com/usagefacts/producer.Service"
+        ],
+        [
+          "start_column",
+          "9"
+        ],
+        [
+          "start_line",
+          "19"
+        ]
+      ]
+    },
+    {
+      "id": "go_call:package:example.com/usagefacts/consumer:consumer/consumer.go:24",
+      "kind": "go_call",
+      "name": "prod.NewResponse",
+      "path": "consumer/consumer.go",
+      "attributes": [
+        [
+          "argument_types",
+          "string"
+        ],
+        [
+          "callee",
+          "prod.NewResponse"
+        ],
+        [
+          "callee_kind",
+          "go_func"
+        ],
+        [
+          "callee_package",
+          "example.com/usagefacts/producer"
+        ],
+        [
+          "callee_symbol",
+          "go_func:package:example.com/usagefacts/producer:NewResponse"
+        ],
+        [
+          "enclosing_symbol",
+          "SendConcrete"
+        ],
+        [
+          "end_column",
+          "55"
+        ],
+        [
+          "end_line",
+          "19"
+        ],
+        [
+          "file_id",
+          "file:consumer/consumer.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:example.com/usagefacts/consumer"
+        ],
+        [
+          "start_column",
+          "33"
+        ],
+        [
+          "start_line",
+          "19"
+        ]
+      ]
+    },
+    {
+      "id": "go_call:package:example.com/usagefacts/consumer:consumer/consumer.go:7",
+      "kind": "go_call",
+      "name": "Println",
+      "path": "consumer/consumer.go",
+      "attributes": [
+        [
+          "argument_types",
+          "string"
+        ],
+        [
+          "callee",
+          "Println"
+        ],
+        [
+          "callee_kind",
+          "go_func"
+        ],
+        [
+          "callee_package",
+          "fmt"
+        ],
+        [
+          "callee_symbol",
+          "go_func:package:fmt:Println"
+        ],
+        [
+          "enclosing_symbol",
+          "Send"
+        ],
+        [
+          "end_column",
+          "20"
+        ],
+        [
+          "end_line",
+          "12"
+        ],
+        [
+          "file_id",
+          "file:consumer/consumer.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:example.com/usagefacts/consumer"
+        ],
+        [
+          "start_column",
+          "2"
+        ],
+        [
+          "start_line",
+          "12"
+        ]
+      ]
+    },
+    {
+      "id": "go_func:package:example.com/usagefacts/consumer:Send",
+      "kind": "go_func",
+      "name": "Send",
+      "path": "consumer/consumer.go",
+      "attributes": [
+        [
+          "exported",
+          "true"
+        ],
+        [
+          "file_id",
+          "file:consumer/consumer.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:example.com/usagefacts/consumer"
+        ]
+      ]
+    },
+    {
+      "id": "go_func:package:example.com/usagefacts/consumer:SendConcrete",
+      "kind": "go_func",
+      "name": "SendConcrete",
+      "path": "consumer/consumer.go",
+      "attributes": [
+        [
+          "exported",
+          "true"
+        ],
+        [
+          "file_id",
+          "file:consumer/consumer.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:example.com/usagefacts/consumer"
+        ]
+      ]
+    },
+    {
+      "id": "go_func:package:example.com/usagefacts/producer:NewResponse",
+      "kind": "go_func",
+      "name": "NewResponse",
+      "path": "producer/producer.go",
+      "attributes": [
+        [
+          "exported",
+          "true"
+        ],
+        [
+          "file_id",
+          "file:producer/producer.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:example.com/usagefacts/producer"
+        ]
+      ]
+    },
+    {
+      "id": "go_import_spec:package:example.com/usagefacts/consumer:consumer/consumer.go:1",
+      "kind": "go_import_spec",
+      "name": "context",
+      "path": "consumer/consumer.go",
+      "attributes": [
+        [
+          "alias",
+          ""
+        ],
+        [
+          "end_column",
+          "11"
+        ],
+        [
+          "end_line",
+          "4"
+        ],
+        [
+          "file_id",
+          "file:consumer/consumer.go"
+        ],
+        [
+          "import_path",
+          "context"
+        ],
+        [
+          "is_blank",
+          "false"
+        ],
+        [
+          "is_dot",
+          "false"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:example.com/usagefacts/consumer"
+        ],
+        [
+          "start_column",
+          "2"
+        ],
+        [
+          "start_line",
+          "4"
+        ]
+      ]
+    },
+    {
+      "id": "go_import_spec:package:example.com/usagefacts/consumer:consumer/consumer.go:2",
+      "kind": "go_import_spec",
+      "name": "fmt",
+      "path": "consumer/consumer.go",
+      "attributes": [
+        [
+          "alias",
+          "."
+        ],
+        [
+          "end_column",
+          "9"
+        ],
+        [
+          "end_line",
+          "5"
+        ],
+        [
+          "file_id",
+          "file:consumer/consumer.go"
+        ],
+        [
+          "import_path",
+          "fmt"
+        ],
+        [
+          "is_blank",
+          "false"
+        ],
+        [
+          "is_dot",
+          "true"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:example.com/usagefacts/consumer"
+        ],
+        [
+          "start_column",
+          "2"
+        ],
+        [
+          "start_line",
+          "5"
+        ]
+      ]
+    },
+    {
+      "id": "go_import_spec:package:example.com/usagefacts/consumer:consumer/consumer.go:3",
+      "kind": "go_import_spec",
+      "name": "net/http/pprof",
+      "path": "consumer/consumer.go",
+      "attributes": [
+        [
+          "alias",
+          "_"
+        ],
+        [
+          "end_column",
+          "20"
+        ],
+        [
+          "end_line",
+          "6"
+        ],
+        [
+          "file_id",
+          "file:consumer/consumer.go"
+        ],
+        [
+          "import_path",
+          "net/http/pprof"
+        ],
+        [
+          "is_blank",
+          "true"
+        ],
+        [
+          "is_dot",
+          "false"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:example.com/usagefacts/consumer"
+        ],
+        [
+          "start_column",
+          "2"
+        ],
+        [
+          "start_line",
+          "6"
+        ]
+      ]
+    },
+    {
+      "id": "go_import_spec:package:example.com/usagefacts/consumer:consumer/consumer.go:4",
+      "kind": "go_import_spec",
+      "name": "example.com/usagefacts/producer",
+      "path": "consumer/consumer.go",
+      "attributes": [
+        [
+          "alias",
+          "prod"
+        ],
+        [
+          "end_column",
+          "40"
+        ],
+        [
+          "end_line",
+          "8"
+        ],
+        [
+          "file_id",
+          "file:consumer/consumer.go"
+        ],
+        [
+          "import_path",
+          "example.com/usagefacts/producer"
+        ],
+        [
+          "is_blank",
+          "false"
+        ],
+        [
+          "is_dot",
+          "false"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:example.com/usagefacts/consumer"
+        ],
+        [
+          "start_column",
+          "2"
+        ],
+        [
+          "start_line",
+          "8"
+        ]
+      ]
+    },
+    {
+      "id": "go_import_spec:package:example.com/usagefacts/producer:producer/producer.go:1",
+      "kind": "go_import_spec",
+      "name": "context",
+      "path": "producer/producer.go",
+      "attributes": [
+        [
+          "alias",
+          ""
+        ],
+        [
+          "end_column",
+          "17"
+        ],
+        [
+          "end_line",
+          "3"
+        ],
+        [
+          "file_id",
+          "file:producer/producer.go"
+        ],
+        [
+          "import_path",
+          "context"
+        ],
+        [
+          "is_blank",
+          "false"
+        ],
+        [
+          "is_dot",
+          "false"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:example.com/usagefacts/producer"
+        ],
+        [
+          "start_column",
+          "8"
+        ],
+        [
+          "start_line",
+          "3"
+        ]
+      ]
+    },
+    {
+      "id": "go_interface:package:example.com/usagefacts/producer:Writer",
+      "kind": "go_interface",
+      "name": "Writer",
+      "path": "producer/producer.go",
+      "attributes": [
+        [
+          "exported",
+          "true"
+        ],
+        [
+          "file_id",
+          "file:producer/producer.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:example.com/usagefacts/producer"
+        ]
+      ]
+    },
+    {
+      "id": "go_method:package:example.com/usagefacts/producer:WriteThing",
+      "kind": "go_method",
+      "name": "WriteThing",
+      "path": "producer/producer.go",
+      "attributes": [
+        [
+          "exported",
+          "true"
+        ],
+        [
+          "file_id",
+          "file:producer/producer.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:example.com/usagefacts/producer"
+        ]
+      ]
+    },
+    {
+      "id": "go_reference:package:example.com/usagefacts/consumer:consumer/consumer.go:10",
+      "kind": "go_reference",
+      "name": "Response",
+      "path": "consumer/consumer.go",
+      "attributes": [
+        [
+          "enclosing_symbol",
+          "Send"
+        ],
+        [
+          "end_column",
+          "24"
+        ],
+        [
+          "end_line",
+          "13"
+        ],
+        [
+          "file_id",
+          "file:consumer/consumer.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:example.com/usagefacts/consumer"
+        ],
+        [
+          "referenced_kind",
+          "go_type"
+        ],
+        [
+          "referenced_name",
+          "Response"
+        ],
+        [
+          "referenced_package",
+          "example.com/usagefacts/producer"
+        ],
+        [
+          "referenced_symbol",
+          "go_type:package:example.com/usagefacts/producer:Response"
+        ],
+        [
+          "start_column",
+          "16"
+        ],
+        [
+          "start_line",
+          "13"
+        ]
+      ]
+    },
+    {
+      "id": "go_reference:package:example.com/usagefacts/consumer:consumer/consumer.go:11",
+      "kind": "go_reference",
+      "name": "Value",
+      "path": "consumer/consumer.go",
+      "attributes": [
+        [
+          "enclosing_symbol",
+          "Send"
+        ],
+        [
+          "end_column",
+          "30"
+        ],
+        [
+          "end_line",
+          "13"
+        ],
+        [
+          "file_id",
+          "file:consumer/consumer.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:example.com/usagefacts/consumer"
+        ],
+        [
+          "referenced_kind",
+          "go_var"
+        ],
+        [
+          "referenced_name",
+          "Value"
+        ],
+        [
+          "referenced_package",
+          "example.com/usagefacts/producer"
+        ],
+        [
+          "referenced_symbol",
+          "go_var:package:example.com/usagefacts/producer:Value"
+        ],
+        [
+          "start_column",
+          "25"
+        ],
+        [
+          "start_line",
+          "13"
+        ]
+      ]
+    },
+    {
+      "id": "go_reference:package:example.com/usagefacts/consumer:consumer/consumer.go:13",
+      "kind": "go_reference",
+      "name": "writer",
+      "path": "consumer/consumer.go",
+      "attributes": [
+        [
+          "enclosing_symbol",
+          "Send"
+        ],
+        [
+          "end_column",
+          "15"
+        ],
+        [
+          "end_line",
+          "14"
+        ],
+        [
+          "file_id",
+          "file:consumer/consumer.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:example.com/usagefacts/consumer"
+        ],
+        [
+          "referenced_kind",
+          "go_var"
+        ],
+        [
+          "referenced_name",
+          "writer"
+        ],
+        [
+          "referenced_package",
+          "example.com/usagefacts/consumer"
+        ],
+        [
+          "referenced_symbol",
+          "go_var:package:example.com/usagefacts/consumer:writer"
+        ],
+        [
+          "start_column",
+          "9"
+        ],
+        [
+          "start_line",
+          "14"
+        ]
+      ]
+    },
+    {
+      "id": "go_reference:package:example.com/usagefacts/consumer:consumer/consumer.go:14",
+      "kind": "go_reference",
+      "name": "WriteThing",
+      "path": "consumer/consumer.go",
+      "attributes": [
+        [
+          "enclosing_symbol",
+          "Send"
+        ],
+        [
+          "end_column",
+          "26"
+        ],
+        [
+          "end_line",
+          "14"
+        ],
+        [
+          "file_id",
+          "file:consumer/consumer.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:example.com/usagefacts/consumer"
+        ],
+        [
+          "referenced_kind",
+          "go_method"
+        ],
+        [
+          "referenced_name",
+          "WriteThing"
+        ],
+        [
+          "referenced_package",
+          "example.com/usagefacts/producer"
+        ],
+        [
+          "referenced_symbol",
+          "go_method:package:example.com/usagefacts/producer:WriteThing"
+        ],
+        [
+          "start_column",
+          "16"
+        ],
+        [
+          "start_line",
+          "14"
+        ]
+      ]
+    },
+    {
+      "id": "go_reference:package:example.com/usagefacts/consumer:consumer/consumer.go:15",
+      "kind": "go_reference",
+      "name": "ctx",
+      "path": "consumer/consumer.go",
+      "attributes": [
+        [
+          "enclosing_symbol",
+          "Send"
+        ],
+        [
+          "end_column",
+          "30"
+        ],
+        [
+          "end_line",
+          "14"
+        ],
+        [
+          "file_id",
+          "file:consumer/consumer.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:example.com/usagefacts/consumer"
+        ],
+        [
+          "referenced_kind",
+          "go_var"
+        ],
+        [
+          "referenced_name",
+          "ctx"
+        ],
+        [
+          "referenced_package",
+          "example.com/usagefacts/consumer"
+        ],
+        [
+          "referenced_symbol",
+          "go_var:package:example.com/usagefacts/consumer:ctx"
+        ],
+        [
+          "start_column",
+          "27"
+        ],
+        [
+          "start_line",
+          "14"
+        ]
+      ]
+    },
+    {
+      "id": "go_reference:package:example.com/usagefacts/consumer:consumer/consumer.go:16",
+      "kind": "go_reference",
+      "name": "resp",
+      "path": "consumer/consumer.go",
+      "attributes": [
+        [
+          "enclosing_symbol",
+          "Send"
+        ],
+        [
+          "end_column",
+          "36"
+        ],
+        [
+          "end_line",
+          "14"
+        ],
+        [
+          "file_id",
+          "file:consumer/consumer.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:example.com/usagefacts/consumer"
+        ],
+        [
+          "referenced_kind",
+          "go_var"
+        ],
+        [
+          "referenced_name",
+          "resp"
+        ],
+        [
+          "referenced_package",
+          "example.com/usagefacts/consumer"
+        ],
+        [
+          "referenced_symbol",
+          "go_var:package:example.com/usagefacts/consumer:resp"
+        ],
+        [
+          "start_column",
+          "32"
+        ],
+        [
+          "start_line",
+          "14"
+        ]
+      ]
+    },
+    {
+      "id": "go_reference:package:example.com/usagefacts/consumer:consumer/consumer.go:17",
+      "kind": "go_reference",
+      "name": "Context",
+      "path": "consumer/consumer.go",
+      "attributes": [
+        [
+          "enclosing_symbol",
+          "SendConcrete"
+        ],
+        [
+          "end_column",
+          "38"
+        ],
+        [
+          "end_line",
+          "17"
+        ],
+        [
+          "file_id",
+          "file:consumer/consumer.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:example.com/usagefacts/consumer"
+        ],
+        [
+          "referenced_kind",
+          "go_interface"
+        ],
+        [
+          "referenced_name",
+          "Context"
+        ],
+        [
+          "referenced_package",
+          "context"
+        ],
+        [
+          "referenced_symbol",
+          "go_interface:package:context:Context"
+        ],
+        [
+          "start_column",
+          "31"
+        ],
+        [
+          "start_line",
+          "17"
+        ]
+      ]
+    },
+    {
+      "id": "go_reference:package:example.com/usagefacts/consumer:consumer/consumer.go:19",
+      "kind": "go_reference",
+      "name": "Service",
+      "path": "consumer/consumer.go",
+      "attributes": [
+        [
+          "enclosing_symbol",
+          "SendConcrete"
+        ],
+        [
+          "end_column",
+          "25"
+        ],
+        [
+          "end_line",
+          "18"
+        ],
+        [
+          "file_id",
+          "file:consumer/consumer.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:example.com/usagefacts/consumer"
+        ],
+        [
+          "referenced_kind",
+          "go_type"
+        ],
+        [
+          "referenced_name",
+          "Service"
+        ],
+        [
+          "referenced_package",
+          "example.com/usagefacts/producer"
+        ],
+        [
+          "referenced_symbol",
+          "go_type:package:example.com/usagefacts/producer:Service"
+        ],
+        [
+          "start_column",
+          "18"
+        ],
+        [
+          "start_line",
+          "18"
+        ]
+      ]
+    },
+    {
+      "id": "go_reference:package:example.com/usagefacts/consumer:consumer/consumer.go:21",
+      "kind": "go_reference",
+      "name": "service",
+      "path": "consumer/consumer.go",
+      "attributes": [
+        [
+          "enclosing_symbol",
+          "SendConcrete"
+        ],
+        [
+          "end_column",
+          "16"
+        ],
+        [
+          "end_line",
+          "19"
+        ],
+        [
+          "file_id",
+          "file:consumer/consumer.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:example.com/usagefacts/consumer"
+        ],
+        [
+          "referenced_kind",
+          "go_var"
+        ],
+        [
+          "referenced_name",
+          "service"
+        ],
+        [
+          "referenced_package",
+          "example.com/usagefacts/consumer"
+        ],
+        [
+          "referenced_symbol",
+          "go_var:package:example.com/usagefacts/consumer:service"
+        ],
+        [
+          "start_column",
+          "9"
+        ],
+        [
+          "start_line",
+          "19"
+        ]
+      ]
+    },
+    {
+      "id": "go_reference:package:example.com/usagefacts/consumer:consumer/consumer.go:22",
+      "kind": "go_reference",
+      "name": "WriteThing",
+      "path": "consumer/consumer.go",
+      "attributes": [
+        [
+          "enclosing_symbol",
+          "SendConcrete"
+        ],
+        [
+          "end_column",
+          "27"
+        ],
+        [
+          "end_line",
+          "19"
+        ],
+        [
+          "file_id",
+          "file:consumer/consumer.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:example.com/usagefacts/consumer"
+        ],
+        [
+          "referenced_kind",
+          "go_method"
+        ],
+        [
+          "referenced_name",
+          "WriteThing"
+        ],
+        [
+          "referenced_package",
+          "example.com/usagefacts/producer"
+        ],
+        [
+          "referenced_symbol",
+          "go_method:package:example.com/usagefacts/producer:WriteThing"
+        ],
+        [
+          "start_column",
+          "17"
+        ],
+        [
+          "start_line",
+          "19"
+        ]
+      ]
+    },
+    {
+      "id": "go_reference:package:example.com/usagefacts/consumer:consumer/consumer.go:23",
+      "kind": "go_reference",
+      "name": "ctx",
+      "path": "consumer/consumer.go",
+      "attributes": [
+        [
+          "enclosing_symbol",
+          "SendConcrete"
+        ],
+        [
+          "end_column",
+          "31"
+        ],
+        [
+          "end_line",
+          "19"
+        ],
+        [
+          "file_id",
+          "file:consumer/consumer.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:example.com/usagefacts/consumer"
+        ],
+        [
+          "referenced_kind",
+          "go_var"
+        ],
+        [
+          "referenced_name",
+          "ctx"
+        ],
+        [
+          "referenced_package",
+          "example.com/usagefacts/consumer"
+        ],
+        [
+          "referenced_symbol",
+          "go_var:package:example.com/usagefacts/consumer:ctx"
+        ],
+        [
+          "start_column",
+          "28"
+        ],
+        [
+          "start_line",
+          "19"
+        ]
+      ]
+    },
+    {
+      "id": "go_reference:package:example.com/usagefacts/consumer:consumer/consumer.go:25",
+      "kind": "go_reference",
+      "name": "NewResponse",
+      "path": "consumer/consumer.go",
+      "attributes": [
+        [
+          "enclosing_symbol",
+          "SendConcrete"
+        ],
+        [
+          "end_column",
+          "49"
+        ],
+        [
+          "end_line",
+          "19"
+        ],
+        [
+          "file_id",
+          "file:consumer/consumer.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:example.com/usagefacts/consumer"
+        ],
+        [
+          "referenced_kind",
+          "go_func"
+        ],
+        [
+          "referenced_name",
+          "NewResponse"
+        ],
+        [
+          "referenced_package",
+          "example.com/usagefacts/producer"
+        ],
+        [
+          "referenced_symbol",
+          "go_func:package:example.com/usagefacts/producer:NewResponse"
+        ],
+        [
+          "start_column",
+          "38"
+        ],
+        [
+          "start_line",
+          "19"
+        ]
+      ]
+    },
+    {
+      "id": "go_reference:package:example.com/usagefacts/consumer:consumer/consumer.go:5",
+      "kind": "go_reference",
+      "name": "Context",
+      "path": "consumer/consumer.go",
+      "attributes": [
+        [
+          "enclosing_symbol",
+          "Send"
+        ],
+        [
+          "end_column",
+          "30"
+        ],
+        [
+          "end_line",
+          "11"
+        ],
+        [
+          "file_id",
+          "file:consumer/consumer.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:example.com/usagefacts/consumer"
+        ],
+        [
+          "referenced_kind",
+          "go_interface"
+        ],
+        [
+          "referenced_name",
+          "Context"
+        ],
+        [
+          "referenced_package",
+          "context"
+        ],
+        [
+          "referenced_symbol",
+          "go_interface:package:context:Context"
+        ],
+        [
+          "start_column",
+          "23"
+        ],
+        [
+          "start_line",
+          "11"
+        ]
+      ]
+    },
+    {
+      "id": "go_reference:package:example.com/usagefacts/consumer:consumer/consumer.go:6",
+      "kind": "go_reference",
+      "name": "Writer",
+      "path": "consumer/consumer.go",
+      "attributes": [
+        [
+          "enclosing_symbol",
+          "Send"
+        ],
+        [
+          "end_column",
+          "50"
+        ],
+        [
+          "end_line",
+          "11"
+        ],
+        [
+          "file_id",
+          "file:consumer/consumer.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:example.com/usagefacts/consumer"
+        ],
+        [
+          "referenced_kind",
+          "go_interface"
+        ],
+        [
+          "referenced_name",
+          "Writer"
+        ],
+        [
+          "referenced_package",
+          "example.com/usagefacts/producer"
+        ],
+        [
+          "referenced_symbol",
+          "go_interface:package:example.com/usagefacts/producer:Writer"
+        ],
+        [
+          "start_column",
+          "44"
+        ],
+        [
+          "start_line",
+          "11"
+        ]
+      ]
+    },
+    {
+      "id": "go_reference:package:example.com/usagefacts/consumer:consumer/consumer.go:8",
+      "kind": "go_reference",
+      "name": "Println",
+      "path": "consumer/consumer.go",
+      "attributes": [
+        [
+          "enclosing_symbol",
+          "Send"
+        ],
+        [
+          "end_column",
+          "9"
+        ],
+        [
+          "end_line",
+          "12"
+        ],
+        [
+          "file_id",
+          "file:consumer/consumer.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:example.com/usagefacts/consumer"
+        ],
+        [
+          "referenced_kind",
+          "go_func"
+        ],
+        [
+          "referenced_name",
+          "Println"
+        ],
+        [
+          "referenced_package",
+          "fmt"
+        ],
+        [
+          "referenced_symbol",
+          "go_func:package:fmt:Println"
+        ],
+        [
+          "start_column",
+          "2"
+        ],
+        [
+          "start_line",
+          "12"
+        ]
+      ]
+    },
+    {
+      "id": "go_reference:package:example.com/usagefacts/producer:producer/producer.go:10",
+      "kind": "go_reference",
+      "name": "Value",
+      "path": "producer/producer.go",
+      "attributes": [
+        [
+          "enclosing_symbol",
+          "NewResponse"
+        ],
+        [
+          "end_column",
+          "24"
+        ],
+        [
+          "end_line",
+          "20"
+        ],
+        [
+          "file_id",
+          "file:producer/producer.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:example.com/usagefacts/producer"
+        ],
+        [
+          "referenced_kind",
+          "go_var"
+        ],
+        [
+          "referenced_name",
+          "Value"
+        ],
+        [
+          "referenced_package",
+          "example.com/usagefacts/producer"
+        ],
+        [
+          "referenced_symbol",
+          "go_var:package:example.com/usagefacts/producer:Value"
+        ],
+        [
+          "start_column",
+          "19"
+        ],
+        [
+          "start_line",
+          "20"
+        ]
+      ]
+    },
+    {
+      "id": "go_reference:package:example.com/usagefacts/producer:producer/producer.go:11",
+      "kind": "go_reference",
+      "name": "value",
+      "path": "producer/producer.go",
+      "attributes": [
+        [
+          "enclosing_symbol",
+          "NewResponse"
+        ],
+        [
+          "end_column",
+          "31"
+        ],
+        [
+          "end_line",
+          "20"
+        ],
+        [
+          "file_id",
+          "file:producer/producer.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:example.com/usagefacts/producer"
+        ],
+        [
+          "referenced_kind",
+          "go_var"
+        ],
+        [
+          "referenced_name",
+          "value"
+        ],
+        [
+          "referenced_package",
+          "example.com/usagefacts/producer"
+        ],
+        [
+          "referenced_symbol",
+          "go_var:package:example.com/usagefacts/producer:value"
+        ],
+        [
+          "start_column",
+          "26"
+        ],
+        [
+          "start_line",
+          "20"
+        ]
+      ]
+    },
+    {
+      "id": "go_reference:package:example.com/usagefacts/producer:producer/producer.go:2",
+      "kind": "go_reference",
+      "name": "Context",
+      "path": "producer/producer.go",
+      "attributes": [
+        [
+          "enclosing_symbol",
+          ""
+        ],
+        [
+          "end_column",
+          "28"
+        ],
+        [
+          "end_line",
+          "10"
+        ],
+        [
+          "file_id",
+          "file:producer/producer.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:example.com/usagefacts/producer"
+        ],
+        [
+          "referenced_kind",
+          "go_interface"
+        ],
+        [
+          "referenced_name",
+          "Context"
+        ],
+        [
+          "referenced_package",
+          "context"
+        ],
+        [
+          "referenced_symbol",
+          "go_interface:package:context:Context"
+        ],
+        [
+          "start_column",
+          "21"
+        ],
+        [
+          "start_line",
+          "10"
+        ]
+      ]
+    },
+    {
+      "id": "go_reference:package:example.com/usagefacts/producer:producer/producer.go:3",
+      "kind": "go_reference",
+      "name": "Response",
+      "path": "producer/producer.go",
+      "attributes": [
+        [
+          "enclosing_symbol",
+          ""
+        ],
+        [
+          "end_column",
+          "39"
+        ],
+        [
+          "end_line",
+          "10"
+        ],
+        [
+          "file_id",
+          "file:producer/producer.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:example.com/usagefacts/producer"
+        ],
+        [
+          "referenced_kind",
+          "go_type"
+        ],
+        [
+          "referenced_name",
+          "Response"
+        ],
+        [
+          "referenced_package",
+          "example.com/usagefacts/producer"
+        ],
+        [
+          "referenced_symbol",
+          "go_type:package:example.com/usagefacts/producer:Response"
+        ],
+        [
+          "start_column",
+          "31"
+        ],
+        [
+          "start_line",
+          "10"
+        ]
+      ]
+    },
+    {
+      "id": "go_reference:package:example.com/usagefacts/producer:producer/producer.go:4",
+      "kind": "go_reference",
+      "name": "Service",
+      "path": "producer/producer.go",
+      "attributes": [
+        [
+          "enclosing_symbol",
+          "Service.WriteThing"
+        ],
+        [
+          "end_column",
+          "14"
+        ],
+        [
+          "end_line",
+          "15"
+        ],
+        [
+          "file_id",
+          "file:producer/producer.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:example.com/usagefacts/producer"
+        ],
+        [
+          "referenced_kind",
+          "go_type"
+        ],
+        [
+          "referenced_name",
+          "Service"
+        ],
+        [
+          "referenced_package",
+          "example.com/usagefacts/producer"
+        ],
+        [
+          "referenced_symbol",
+          "go_type:package:example.com/usagefacts/producer:Service"
+        ],
+        [
+          "start_column",
+          "7"
+        ],
+        [
+          "start_line",
+          "15"
+        ]
+      ]
+    },
+    {
+      "id": "go_reference:package:example.com/usagefacts/producer:producer/producer.go:5",
+      "kind": "go_reference",
+      "name": "Context",
+      "path": "producer/producer.go",
+      "attributes": [
+        [
+          "enclosing_symbol",
+          "Service.WriteThing"
+        ],
+        [
+          "end_column",
+          "44"
+        ],
+        [
+          "end_line",
+          "15"
+        ],
+        [
+          "file_id",
+          "file:producer/producer.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:example.com/usagefacts/producer"
+        ],
+        [
+          "referenced_kind",
+          "go_interface"
+        ],
+        [
+          "referenced_name",
+          "Context"
+        ],
+        [
+          "referenced_package",
+          "context"
+        ],
+        [
+          "referenced_symbol",
+          "go_interface:package:context:Context"
+        ],
+        [
+          "start_column",
+          "37"
+        ],
+        [
+          "start_line",
+          "15"
+        ]
+      ]
+    },
+    {
+      "id": "go_reference:package:example.com/usagefacts/producer:producer/producer.go:6",
+      "kind": "go_reference",
+      "name": "Response",
+      "path": "producer/producer.go",
+      "attributes": [
+        [
+          "enclosing_symbol",
+          "Service.WriteThing"
+        ],
+        [
+          "end_column",
+          "57"
+        ],
+        [
+          "end_line",
+          "15"
+        ],
+        [
+          "file_id",
+          "file:producer/producer.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:example.com/usagefacts/producer"
+        ],
+        [
+          "referenced_kind",
+          "go_type"
+        ],
+        [
+          "referenced_name",
+          "Response"
+        ],
+        [
+          "referenced_package",
+          "example.com/usagefacts/producer"
+        ],
+        [
+          "referenced_symbol",
+          "go_type:package:example.com/usagefacts/producer:Response"
+        ],
+        [
+          "start_column",
+          "49"
+        ],
+        [
+          "start_line",
+          "15"
+        ]
+      ]
+    },
+    {
+      "id": "go_reference:package:example.com/usagefacts/producer:producer/producer.go:7",
+      "kind": "go_reference",
+      "name": "Response",
+      "path": "producer/producer.go",
+      "attributes": [
+        [
+          "enclosing_symbol",
+          "NewResponse"
+        ],
+        [
+          "end_column",
+          "41"
+        ],
+        [
+          "end_line",
+          "19"
+        ],
+        [
+          "file_id",
+          "file:producer/producer.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:example.com/usagefacts/producer"
+        ],
+        [
+          "referenced_kind",
+          "go_type"
+        ],
+        [
+          "referenced_name",
+          "Response"
+        ],
+        [
+          "referenced_package",
+          "example.com/usagefacts/producer"
+        ],
+        [
+          "referenced_symbol",
+          "go_type:package:example.com/usagefacts/producer:Response"
+        ],
+        [
+          "start_column",
+          "33"
+        ],
+        [
+          "start_line",
+          "19"
+        ]
+      ]
+    },
+    {
+      "id": "go_reference:package:example.com/usagefacts/producer:producer/producer.go:9",
+      "kind": "go_reference",
+      "name": "Response",
+      "path": "producer/producer.go",
+      "attributes": [
+        [
+          "enclosing_symbol",
+          "NewResponse"
+        ],
+        [
+          "end_column",
+          "18"
+        ],
+        [
+          "end_line",
+          "20"
+        ],
+        [
+          "file_id",
+          "file:producer/producer.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:example.com/usagefacts/producer"
+        ],
+        [
+          "referenced_kind",
+          "go_type"
+        ],
+        [
+          "referenced_name",
+          "Response"
+        ],
+        [
+          "referenced_package",
+          "example.com/usagefacts/producer"
+        ],
+        [
+          "referenced_symbol",
+          "go_type:package:example.com/usagefacts/producer:Response"
+        ],
+        [
+          "start_column",
+          "10"
+        ],
+        [
+          "start_line",
+          "20"
+        ]
+      ]
+    },
+    {
+      "id": "go_type:package:example.com/usagefacts/producer:Response",
+      "kind": "go_type",
+      "name": "Response",
+      "path": "producer/producer.go",
+      "attributes": [
+        [
+          "exported",
+          "true"
+        ],
+        [
+          "file_id",
+          "file:producer/producer.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:example.com/usagefacts/producer"
+        ]
+      ]
+    },
+    {
+      "id": "go_type:package:example.com/usagefacts/producer:Service",
+      "kind": "go_type",
+      "name": "Service",
+      "path": "producer/producer.go",
+      "attributes": [
+        [
+          "exported",
+          "true"
+        ],
+        [
+          "file_id",
+          "file:producer/producer.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:example.com/usagefacts/producer"
+        ]
+      ]
+    },
+    {
+      "id": "go_type_usage:package:example.com/usagefacts/consumer:consumer/consumer.go:18",
+      "kind": "go_type_usage",
+      "name": "prod.Service",
+      "path": "consumer/consumer.go",
+      "attributes": [
+        [
+          "address_of",
+          "false"
+        ],
+        [
+          "enclosing_symbol",
+          "SendConcrete"
+        ],
+        [
+          "end_column",
+          "27"
+        ],
+        [
+          "end_line",
+          "18"
+        ],
+        [
+          "file_id",
+          "file:consumer/consumer.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:example.com/usagefacts/consumer"
+        ],
+        [
+          "resolved_type",
+          "example.com/usagefacts/producer.Service"
+        ],
+        [
+          "start_column",
+          "13"
+        ],
+        [
+          "start_line",
+          "18"
+        ],
+        [
+          "type",
+          "prod.Service"
+        ],
+        [
+          "usage",
+          "composite_literal"
+        ]
+      ]
+    },
+    {
+      "id": "go_type_usage:package:example.com/usagefacts/consumer:consumer/consumer.go:9",
+      "kind": "go_type_usage",
+      "name": "prod.Response",
+      "path": "consumer/consumer.go",
+      "attributes": [
+        [
+          "address_of",
+          "true"
+        ],
+        [
+          "enclosing_symbol",
+          "Send"
+        ],
+        [
+          "end_column",
+          "37"
+        ],
+        [
+          "end_line",
+          "13"
+        ],
+        [
+          "file_id",
+          "file:consumer/consumer.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:example.com/usagefacts/consumer"
+        ],
+        [
+          "resolved_type",
+          "example.com/usagefacts/producer.Response"
+        ],
+        [
+          "start_column",
+          "11"
+        ],
+        [
+          "start_line",
+          "13"
+        ],
+        [
+          "type",
+          "prod.Response"
+        ],
+        [
+          "usage",
+          "composite_literal"
+        ]
+      ]
+    },
+    {
+      "id": "go_type_usage:package:example.com/usagefacts/producer:producer/producer.go:8",
+      "kind": "go_type_usage",
+      "name": "Response",
+      "path": "producer/producer.go",
+      "attributes": [
+        [
+          "address_of",
+          "true"
+        ],
+        [
+          "enclosing_symbol",
+          "NewResponse"
+        ],
+        [
+          "end_column",
+          "32"
+        ],
+        [
+          "end_line",
+          "20"
+        ],
+        [
+          "file_id",
+          "file:producer/producer.go"
+        ],
+        [
+          "language",
+          "go"
+        ],
+        [
+          "package_id",
+          "package:example.com/usagefacts/producer"
+        ],
+        [
+          "resolved_type",
+          "example.com/usagefacts/producer.Response"
+        ],
+        [
+          "start_column",
+          "10"
+        ],
+        [
+          "start_line",
+          "20"
+        ],
+        [
+          "type",
+          "Response"
+        ],
+        [
+          "usage",
+          "composite_literal"
+        ]
+      ]
+    },
+    {
+      "id": "package:example.com/usagefacts/consumer",
+      "kind": "package",
+      "name": "consumer",
+      "path": "example.com/usagefacts/consumer",
+      "attributes": [
+        [
+          "import_path",
+          "example.com/usagefacts/consumer"
+        ],
+        [
+          "internal",
+          "false"
+        ],
+        [
+          "language",
+          "go"
+        ]
+      ]
+    },
+    {
+      "id": "package:example.com/usagefacts/producer",
+      "kind": "package",
+      "name": "producer",
+      "path": "example.com/usagefacts/producer",
+      "attributes": [
+        [
+          "import_path",
+          "example.com/usagefacts/producer"
+        ],
+        [
+          "internal",
+          "false"
+        ],
+        [
+          "language",
+          "go"
+        ]
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "id": "import:package:example.com/usagefacts/consumer->package:context",
+      "kind": "import",
+      "from": "package:example.com/usagefacts/consumer",
+      "to": "package:context",
+      "attributes": [
+        [
+          "symbol_ids",
+          "go_interface:package:context:Context"
+        ],
+        [
+          "symbol_kinds",
+          "go_interface"
+        ],
+        [
+          "test_only",
+          "false"
+        ]
+      ]
+    },
+    {
+      "id": "import:package:example.com/usagefacts/consumer->package:example.com/usagefacts/producer",
+      "kind": "import",
+      "from": "package:example.com/usagefacts/consumer",
+      "to": "package:example.com/usagefacts/producer",
+      "attributes": [
+        [
+          "symbol_ids",
+          "go_func:package:example.com/usagefacts/producer:NewResponse,go_interface:package:example.com/usagefacts/producer:Writer,go_method:package:example.com/usagefacts/producer:WriteThing,go_type:package:example.com/usagefacts/producer:Response,go_type:package:example.com/usagefacts/producer:Service,go_var:package:example.com/usagefacts/producer:Value"
+        ],
+        [
+          "symbol_kinds",
+          "go_func,go_interface,go_method,go_type,go_var"
+        ],
+        [
+          "test_only",
+          "false"
+        ]
+      ]
+    },
+    {
+      "id": "import:package:example.com/usagefacts/consumer->package:fmt",
+      "kind": "import",
+      "from": "package:example.com/usagefacts/consumer",
+      "to": "package:fmt",
+      "attributes": [
+        [
+          "symbol_ids",
+          "go_func:package:fmt:Println"
+        ],
+        [
+          "symbol_kinds",
+          "go_func"
+        ],
+        [
+          "test_only",
+          "false"
+        ]
+      ]
+    },
+    {
+      "id": "import:package:example.com/usagefacts/consumer->package:net/http/pprof",
+      "kind": "import",
+      "from": "package:example.com/usagefacts/consumer",
+      "to": "package:net/http/pprof",
+      "attributes": [
+        [
+          "test_only",
+          "false"
+        ]
+      ]
+    },
+    {
+      "id": "import:package:example.com/usagefacts/producer->package:context",
+      "kind": "import",
+      "from": "package:example.com/usagefacts/producer",
+      "to": "package:context",
+      "attributes": [
+        [
+          "symbol_ids",
+          "go_interface:package:context:Context"
+        ],
+        [
+          "symbol_kinds",
+          "go_interface"
+        ],
+        [
+          "test_only",
+          "false"
+        ]
+      ]
+    }
+  ]
+}

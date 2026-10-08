@@ -1,0 +1,107 @@
+{
+  "description": "`ui-health search query \"\u003ctext\u003e\"` returns ranked UI-surface results (components, pages, features, hooks) across all adopting scenarios in AI mode, with `ComponentProvenance` fields (CUSTOM / ADOPTED_UNMODIFIED / ADOPTED_MODIFIED / UNKNOWN), library, library_version, source_sha256, and drift_hash where applicable; `--mode text` falls back to substring matching when Ollama or Qdrant is unavailable.",
+  "module_id": "MOD-P0-002",
+  "prd_ref": "OT-P0-002",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "cli",
+      "dependencies": [
+        "REQ-P0-006",
+        "REQ-P0-007"
+      ],
+      "description": "The CLI command `ui-health search query \"\u003ctext\u003e\"` must return ranked UI-surface results (components, pages, features, hooks) across all adopting scenarios. In AI mode (default), results are ranked via Qdrant vector similarity using embeddings from the Ollama `embedding.default` role. Each result must include ComponentProvenance fields: adoption status (CUSTOM / ADOPTED_UNMODIFIED / ADOPTED_MODIFIED / UNKNOWN), library, library_version, source_sha256, and drift_hash. When `--mode text` is specified, or when Ollama or Qdrant is unavailable, the command falls back to substring matching.",
+      "id": "REQ-P0-003",
+      "prd_ref": "OT-P0-002",
+      "status": "draft",
+      "title": "Semantic UI-Surface Search with AI and Text Fallback",
+      "validation": [
+        {
+          "notes": "ComponentProvenance fields (adoption_status, library, library_version, source_sha256, drift_hash) are all present in search result objects",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Adoption status enum covers CUSTOM, ADOPTED_UNMODIFIED, ADOPTED_MODIFIED, UNKNOWN values",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Fallback logic activates when Ollama is unreachable",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Fallback logic activates when Qdrant is unreachable",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "`--mode text` flag bypasses AI embedding path entirely and uses substring matching",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run semantic search query against an indexed corpus and confirm results are ranked by relevance score",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Simulate Ollama unavailability and confirm `--mode text` fallback returns substring-matched results without error",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Confirm search results span multiple adopting scenarios when more than one scenario is indexed",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Confirm ComponentProvenance fields are populated from Qdrant payload for ADOPTED_MODIFIED results",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Semantic search query returns results within 3 seconds for an index of 10,000 surface records",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Developers can discover which scenarios use a given component or page by searching free text",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Provenance metadata is surfaced alongside search results to enable adoption auditing",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Semantic UI-surface search"
+}

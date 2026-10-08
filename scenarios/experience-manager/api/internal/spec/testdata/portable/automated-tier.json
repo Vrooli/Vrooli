@@ -1,0 +1,10 @@
+{
+  "claims": [
+    {
+      "id": "illegal-tier",
+      "type": "element-present",
+      "statement": "This claim uses a retired tier name.",
+      "tier": "automated"
+    }
+  ]
+}

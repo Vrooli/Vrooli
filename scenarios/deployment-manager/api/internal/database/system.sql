@@ -1,0 +1,2 @@
+-- Reserved for cross-domain SQLite primitives. Domain tables belong to the
+-- owning internal domain schema and are registered through modules.AllSchemas.

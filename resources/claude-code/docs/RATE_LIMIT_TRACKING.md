@@ -96,18 +96,6 @@ resource-claude-code reset-usage all  # Options: hourly, daily, weekly, all
 
 ## Future Improvements
 
-### TODO: LiteLLM Fallback
-When rate limits are hit, automatically fallback to LiteLLM:
-1. Check if LiteLLM resource is available
-2. Switch execution backend to LiteLLM API
-3. Convert Claude prompt format to LiteLLM format
-4. Manage fallback state and recovery
-
-See TODO comments in:
-- `lib/common.sh:check_usage_limits()` lines 349-354, 361-362
-- `lib/execute.sh:claude_code::run()` lines 79-83
-- `lib/execute.sh` rate limit handler lines 185-189
-
 ### Potential Enhancements
 
 1. **API Integration**: If Anthropic provides a usage API, integrate directly

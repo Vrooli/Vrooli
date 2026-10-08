@@ -61,7 +61,7 @@ func setupTestDirectory(t *testing.T) *TestEnvironment {
 	// Create necessary subdirectories
 	dirs := []string{"data", "logs"}
 	for _, dir := range dirs {
-		if err := os.MkdirAll(filepath.Join(tempDir, dir), 0755); err != nil {
+		if err := os.MkdirAll(filepath.Join(tempDir, dir), 0o755); err != nil {
 			os.RemoveAll(tempDir)
 			t.Fatalf("Failed to create %s directory: %v", dir, err)
 		}

@@ -1,0 +1,99 @@
+{
+  "schemaVersion": 6,
+  "kind": "temporal",
+  "flowId": "notes.attachment-upload.api",
+  "domain": "notes",
+  "description": "API-side attachment upload orchestration from request receipt through byte storage and metadata recording.",
+  "model": {
+    "module": "ApiAttachmentUploadWorkflow",
+    "seed": "2026051001",
+    "maxSteps": 6,
+    "traceCount": 8,
+    "verify": {
+      "invariants": [
+        "TypeOK",
+        "TerminalClosure",
+        "IllegalTransitionsPreserveState",
+        "MetadataRequiresBytesStored"
+      ]
+    }
+  },
+  "states": [
+    { "id": "received", "quint": "Received", "initial": true },
+    { "id": "bytes_stored", "quint": "BytesStored" },
+    { "id": "metadata_recorded", "quint": "MetadataRecorded", "terminal": true },
+    { "id": "failed", "quint": "Failed", "terminal": true }
+  ],
+  "events": [
+    { "id": "store_bytes", "quint": "StoreBytes" },
+    { "id": "record_metadata", "quint": "RecordMetadata" },
+    { "id": "fail", "quint": "Fail" }
+  ],
+  "transitionDefaults": {
+    "invalid": { "to": "self", "wantError": true },
+    "terminal": { "to": "self", "wantError": true }
+  },
+  "transitions": [
+    { "from": "received", "event": "store_bytes", "to": "bytes_stored" },
+    { "from": "received", "event": "fail", "to": "failed" },
+    { "from": "bytes_stored", "event": "record_metadata", "to": "metadata_recorded" },
+    { "from": "bytes_stored", "event": "fail", "to": "failed" }
+  ],
+  "invariants": [
+    { "id": "type_ok", "quint": "TypeOK", "description": "Model variables remain inside declared state and event sets." },
+    { "id": "terminal_closure", "quint": "TerminalClosure", "description": "Terminal states cannot transition to another status." },
+    { "id": "illegal_transitions_preserve_state", "quint": "IllegalTransitionsPreserveState", "description": "Rejected transitions are state preserving." },
+    {
+      "id": "metadata_requires_bytes_stored",
+      "quint": "MetadataRequiresBytesStored",
+      "description": "Metadata recording can only be valid after bytes are stored.",
+      "expression": "not(isValid(status, RecordMetadata)) or status == BytesStored"
+    }
+  ],
+  "traces": [
+    {
+      "name": "successful_upload",
+      "initial": "received",
+      "steps": [
+        { "event": "store_bytes", "want": "bytes_stored", "wantError": false },
+        { "event": "record_metadata", "want": "metadata_recorded", "wantError": false }
+      ]
+    },
+    {
+      "name": "store_failure",
+      "initial": "received",
+      "steps": [
+        { "event": "fail", "want": "failed", "wantError": false },
+        { "event": "record_metadata", "want": "failed", "wantError": true }
+      ]
+    },
+    {
+      "name": "metadata_failure",
+      "initial": "received",
+      "steps": [
+        { "event": "store_bytes", "want": "bytes_stored", "wantError": false },
+        { "event": "fail", "want": "failed", "wantError": false }
+      ]
+    }
+  ],
+  "runtime": {
+    "go": {
+      "package": "flow",
+      "statusType": "AttachmentUploadStatus",
+      "eventType": "AttachmentUploadEvent",
+      "constantPrefix": "AttachmentUpload"
+    },
+    "sideEffects": [
+      "BlobStore write failure returns before metadata is created.",
+      "Metadata creation failure deletes the stored blob.",
+      "Missing note during metadata creation deletes the stored blob."
+    ]
+  },
+  "replay": {
+    "transition": {
+      "function": "TransitionAttachmentUpload",
+      "stateType": "AttachmentUploadState",
+      "statusField": "Status"
+    }
+  }
+}

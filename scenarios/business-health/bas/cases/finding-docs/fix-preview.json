@@ -1,0 +1,104 @@
+{
+  "metadata": {
+    "name": "fix-preview",
+    "description": "Findings + fix-preview flow: validates a scenario, waits for the findings list, then triggers a deterministic fix preview and asserts the diff renders. Proves the finding → PreviewFix → diff affordance end-to-end. Uses the react-vite template scenario, which carries starter-template findings with deterministic fixers.",
+    "requirement": "BH-UX-004",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "surface": "findings"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1280,
+    "viewport_height": 800
+  },
+  "nodes": [
+    {
+      "id": "navigate-findings",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "business-health",
+          "scenario_path": "/findings",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Open the findings surface" }
+      }
+    },
+    {
+      "id": "wait-picker",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/scenarioPicker.input",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Scenario picker input visible" }
+      }
+    },
+    {
+      "id": "enter-scenario",
+      "action": {
+        "type": "ACTION_TYPE_INPUT",
+        "input": {
+          "selector": "@selector/scenarioPicker.input",
+          "value": "landing-page-react-vite",
+          "clear_first": true
+        },
+        "metadata": { "label": "Type a scenario that carries fixable findings" }
+      }
+    },
+    {
+      "id": "validate",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/scenarioPicker.submit"
+        },
+        "metadata": { "label": "Validate the scenario" }
+      },
+      "execution_settings": { "wait_after_ms": 1000 }
+    },
+    {
+      "id": "wait-list",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/findings.list",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        },
+        "metadata": { "label": "Findings list visible" }
+      }
+    },
+    {
+      "id": "preview-fix",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/findings.previewFix"
+        },
+        "metadata": { "label": "Preview the deterministic fix for a finding" }
+      },
+      "execution_settings": { "wait_after_ms": 1000 }
+    },
+    {
+      "id": "assert-diff",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/findings.fixDiff",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 15000,
+          "failure_message": "Fix diff did not render — PreviewFix returned no candidates or the diff view failed to mount."
+        },
+        "metadata": { "label": "Assert the fix diff rendered" }
+      }
+    }
+  ]
+}

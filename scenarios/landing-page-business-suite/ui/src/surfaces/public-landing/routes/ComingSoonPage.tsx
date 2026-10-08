@@ -45,7 +45,7 @@ export function ComingSoonPage({ branding }: ComingSoonPageProps) {
 
   return (
     <div
-      className="min-h-screen flex flex-col items-center justify-center px-4"
+      className="min-h-full flex flex-col items-center justify-center px-4"
       style={{ backgroundColor }}
     >
       {/* Gradient background effect */}
@@ -92,7 +92,7 @@ export function ComingSoonPage({ branding }: ComingSoonPageProps) {
           </div>
 
           {/* Email Form */}
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={(event) => { void handleSubmit(event); }} className="space-y-4">
             <div>
               <label htmlFor="email" className="sr-only">
                 Email address
@@ -105,7 +105,6 @@ export function ComingSoonPage({ branding }: ComingSoonPageProps) {
                   type="email"
                   id="email"
                   name="email"
-                  size="md"
                   value={email}
                   onChange={(e) => {
                     setEmail(e.target.value);
@@ -113,7 +112,7 @@ export function ComingSoonPage({ branding }: ComingSoonPageProps) {
                   }}
                   placeholder="Enter your email"
                   disabled={status === 'loading' || status === 'success'}
-                  className="pl-10 pr-4 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50"
+                  className="px-4 py-3 pl-10 pr-4 text-base focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50"
                 />
               </div>
             </div>

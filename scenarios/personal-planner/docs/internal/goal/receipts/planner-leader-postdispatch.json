@@ -1,0 +1,59 @@
+{
+  "finiteLeader": {
+    "effortRef": "effort:personal-planner-I18",
+    "acceptedRevision": "sha256:8ea48135bcbfd758c0ca08f4235ece3b32b6869b307bd2fd7214a96a46627783",
+    "coordinatorPromptRef": "repo:scenarios/personal-planner/docs/internal/goal/GOAL.md",
+    "sourceRefs": [
+      "repo:scenarios/personal-planner/docs/internal/goal/GOAL.md",
+      "repo:scenarios/personal-planner/docs/internal/goal/AUTHORIZATION.md",
+      "repo:scenarios/personal-planner/docs/internal/goal/QUEUE.md",
+      "repo:scenarios/personal-planner/docs/internal/goal/TARGETS.md"
+    ],
+    "keepAlive": true
+  },
+  "finiteLeaderState": {
+    "agentId": "personal-planner-delivery-orchestrator",
+    "binding": {
+      "acceptedRevision": "sha256:8ea48135bcbfd758c0ca08f4235ece3b32b6869b307bd2fd7214a96a46627783",
+      "coordinatorPromptRef": "repo:scenarios/personal-planner/docs/internal/goal/GOAL.md",
+      "effortRef": "effort:personal-planner-I18",
+      "keepAlive": true,
+      "sourceRefs": [
+        "repo:scenarios/personal-planner/docs/internal/goal/GOAL.md",
+        "repo:scenarios/personal-planner/docs/internal/goal/AUTHORIZATION.md",
+        "repo:scenarios/personal-planner/docs/internal/goal/QUEUE.md",
+        "repo:scenarios/personal-planner/docs/internal/goal/TARGETS.md"
+      ]
+    },
+    "createdAt": "2026-10-03T02:50:49.309779888Z",
+    "dispatchStarted": true,
+    "id": "50c76510-7167-46ba-82d3-fc7002195d7b",
+    "profileKey": "prompt-manager/delivery-orchestrator",
+    "runId": "58257550-4062-40d8-aa7d-ffa4f01d279f",
+    "status": "RUN_STATUS_PENDING",
+    "taskId": "096c52a1-8735-4654-abd5-4c1c1e96de11",
+    "taskStarted": true,
+    "teamId": "personal-planner-delivery",
+    "version": 1
+  },
+  "teamId": "personal-planner-delivery",
+  "agentId": "personal-planner-delivery-orchestrator",
+  "enabled": true,
+  "teamEnabled": true,
+  "effectiveState": "scheduled",
+  "controlState": "active",
+  "scheduled": true,
+  "schedule": "*/30 * * * *",
+  "profileKey": "prompt-manager/delivery-orchestrator",
+  "consecutiveFailures": 0,
+  "lifecycleState": "healthy",
+  "lastExecution": {
+    "startedAt": "2026-10-03T02:50:49.550334120Z",
+    "status": "running",
+    "runId": "58257550-4062-40d8-aa7d-ffa4f01d279f",
+    "logPath": "."
+  },
+  "nextExecution": "2026-10-02T23:00:00-04:00",
+  "createdAt": "2026-10-03T02:45:58Z",
+  "updatedAt": "2026-10-03T02:50:54Z"
+}

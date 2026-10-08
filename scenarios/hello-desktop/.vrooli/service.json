@@ -1,0 +1,131 @@
+{
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "storage": {
+    "entries": {},
+    "rationale": "No scenario-owned persistent directory was found in the canonical repository storage paths; the scenario uses external storage, generated test paths, or ephemeral runtime state."
+  },
+  "maturity": "greenfield",
+  "service": {
+    "parent": "vrooli",
+    "name": "hello-desktop",
+    "displayName": "Hello Desktop",
+    "description": "Minimal self-contained fixture for verifying the Vrooli desktop delivery pipeline.",
+    "version": "0.1.0",
+    "type": "helper",
+    "category": "deployment",
+    "capabilities": [
+      "desktop-delivery-fixture"
+    ]
+  },
+  "runtime": {
+    "kind": "long_running",
+    "auto_restart_default": false
+  },
+  "cli": {
+    "enabled": true,
+    "command": "hello-desktop",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "hello-desktop"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Hello Desktop API",
+      "range": "23100-23200"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "Hello Desktop UI",
+      "range": "23201-23300"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Hello Desktop API health check",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 30000
+        }
+      ],
+      "startup_grace_period": 5000
+    }
+  },
+  "dependencies": {
+    "resources": {}
+  },
+  "tier_feasibility": {
+    "dependencies": {
+      "resources": {}
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.mjs"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
+    }
+  }
+}

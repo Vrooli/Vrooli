@@ -33,11 +33,14 @@
   ],
   "metadata": {
     "description": "Validates node palette category expansion and collapse functionality",
+    "execution_mode": "mutating",
     "labels": {
-      "reset": "none"
+      "requires_confirmation": "true",
+      "reset": "none",
+      "routed_isolation": "true"
     },
-    "version": "1",
-    "execution_mode": "observer"
+    "name": "Palette Category Expand",
+    "version": "1"
   },
   "nodes": [
     {
@@ -108,8 +111,7 @@
         "type": "ACTION_TYPE_CLICK"
       },
       "execution_settings": {
-        "continue_on_error": true,
-        "wait_after_ms": 1000
+        "continue_on_error": true
       },
       "id": "click-first-category"
     },

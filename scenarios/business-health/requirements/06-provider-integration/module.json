@@ -1,0 +1,137 @@
+{
+  "_metadata": {
+    "description": "The delegated-provider contract with test-genie: ScenarioValidationService, maturity ladders, ExecutionMetrics, business-phase takeover, facade rerouting.",
+    "last_validated_at": "2026-07-02T05:26:48-04:00",
+    "module": "provider-integration",
+    "prd_ref": "OT-P0-002",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "BH-PRV-001",
+      "title": "ScenarioValidationService with native detail",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "api",
+      "criticality": "P0",
+      "description": "ValidateScenario answers the shared scenario-validation proto with a valid assessment, real ExecutionMetrics, and a BusinessContractReport native detail message (per-capability rollups, matrix rows, drift entries).",
+      "tags": [
+        "connect-rpc",
+        "provider"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned ref: api/handlers/validation/handler_test.go. Fixture target yields valid assessment + metrics; native detail round-trips."
+        }
+      ]
+    },
+    {
+      "id": "BH-PRV-002",
+      "title": "Provider-contract conformance on all five dimensions",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "api",
+      "criticality": "P0",
+      "description": "test-genie provider-contract check business-health <target> --json passes all five dimensions; fleet-wide provider-contract scan reports no new hard violations from this provider.",
+      "tags": [
+        "conformance",
+        "provider-contract"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Run test-genie provider-contract check + scan at Phase 7; record output in the phase log."
+        }
+      ]
+    },
+    {
+      "id": "BH-PRV-003",
+      "title": "Delegated business phase preserves codes and posture",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "api",
+      "criticality": "P0",
+      "description": "The business phase runs delegated with phase name, FINDING_SOURCE_BUSINESS, ordering, and the advisory severity cap (max ERROR, never BLOCKER) preserved; finding codes match the native phase so afids stay stable.",
+      "tags": [
+        "delegation",
+        "afid-stability",
+        "d3"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned ref: api/internal/assessment/severity_test.go. Severity cap enforced in the assessment builder; code-set parity assertions."
+        }
+      ]
+    },
+    {
+      "id": "BH-PRV-004",
+      "title": "Maturity spec loads and matches identity",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "api",
+      "criticality": "P0",
+      "description": ".vrooli/maturity.json loads via assessment.LoadSpecFromScenario, passes ValidateSpec, and RequireIdentity matches the scenario id; every emitted finding code appears in exactly one capability mapping.",
+      "tags": [
+        "maturity",
+        "spec"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned ref: api/internal/assessment/spec_test.go. Load + validate + identity + code-coverage assertions."
+        }
+      ]
+    },
+    {
+      "id": "BH-PRV-005",
+      "title": "Facade rerouting keeps agent UX unchanged",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "category": "cli",
+      "criticality": "P0",
+      "description": "vrooli scenario requirements <verb> routes contract verbs (validate, report, lint-prd, drift, phase, init, manual-log) to business-health and sync/snapshot to test-genie with no change in agent-facing UX.",
+      "tags": [
+        "facade",
+        "cli"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned ref: internal/cli/scenariohandlers/tool_runtime_test.go. Route table assertions in the root CLI repo tests."
+        }
+      ]
+    },
+    {
+      "id": "BH-PRV-006",
+      "title": "Legacy surfaces removed with fleet green",
+      "status": "planned",
+      "prd_ref": "OT-P0-006",
+      "category": "integration",
+      "criticality": "P0",
+      "description": "The retired control-tower scenario directory and scenario-auditor's prd_* shim provider are deleted; repo-wide grep finds references only in append-only history; test-genie, business-health, and scenario-auditor suites are green after removal.",
+      "tags": [
+        "removal",
+        "d6"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Phase 11 final gates: provider-contract scan, fleet status, three suites, baseline diff vs the §9 anchor."
+        }
+      ]
+    }
+  ]
+}

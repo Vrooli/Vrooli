@@ -1,0 +1,77 @@
+package cliout
+
+import (
+	"bytes"
+	"encoding/json"
+	"errors"
+	"io"
+
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/structpb"
+)
+
+// WriteProtoJSON writes a proto message as the canonical CLI JSON: snake_case
+// field names, every field present (EmitUnpopulated), and standard
+// encoding/json formatting (2-space indent, single space after the colon).
+//
+// protojson's own marshaler emits non-standard, intentionally non-deterministic
+// whitespace (e.g. two spaces after the colon). We marshal compact and re-indent
+// through encoding/json so the wire shape matches the rest of the CLI's output
+// byte-for-byte in formatting — every vrooli.cli.v1 contract looks identical to
+// the hand-rolled JSON it replaced, only typed.
+func WriteProtoJSON(w io.Writer, msg proto.Message) error {
+	return writeProtoJSON(w, msg, true)
+}
+
+// WriteProtoJSONCamel is WriteProtoJSON with camelCase (proto json_name) field
+// names. Use it only for the handful of contracts whose pre-proto wire format
+// was camelCase, so the migration stays byte-faithful.
+func WriteProtoJSONCamel(w io.Writer, msg proto.Message) error {
+	return writeProtoJSON(w, msg, false)
+}
+
+// WriteJSONValue adapts an existing JSON-shaped value to the canonical CLI
+// output seam. It is intended for legacy root commands whose result types do
+// not yet have a dedicated protobuf contract.
+func WriteJSONValue(w io.Writer, value any) error {
+	message, err := NewJSONValue(value)
+	if err != nil {
+		return err
+	}
+	return WriteProtoJSON(w, message)
+}
+
+// NewJSONValue converts an arbitrary JSON-shaped value to the protobuf value
+// used by the canonical CLI renderer.
+func NewJSONValue(value any) (*structpb.Value, error) {
+	raw, err := json.Marshal(value)
+	if err != nil {
+		return nil, err
+	}
+	var decoded any
+	if err := json.Unmarshal(raw, &decoded); err != nil {
+		return nil, err
+	}
+	return structpb.NewValue(decoded)
+}
+
+func writeProtoJSON(w io.Writer, msg proto.Message, useProtoNames bool) error {
+	if w == nil {
+		return errors.New("writer is required")
+	}
+	compact, err := protojson.MarshalOptions{
+		UseProtoNames:   useProtoNames,
+		EmitUnpopulated: true,
+	}.Marshal(msg)
+	if err != nil {
+		return err
+	}
+	var buf bytes.Buffer
+	if err := json.Indent(&buf, compact, "", "  "); err != nil {
+		return err
+	}
+	buf.WriteByte('\n')
+	_, err = w.Write(buf.Bytes())
+	return err
+}

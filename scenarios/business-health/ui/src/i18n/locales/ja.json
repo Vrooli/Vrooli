@@ -1,0 +1,222 @@
+{
+  "_comment": "このファイルには2種類の補間があります。(1) 生成時: Business Health のような大文字スネークケースのプレースホルダーは、`vrooli scenario generate` がシナリオビルド前に置換します。実行時にはリテラル表示値として扱われます。(2) 実行時: {{count}} のようなトークンは i18next の補間で、`t(key, { count })` によりレンダー時に置換されます。アンダースコアで始まるキー（このキーのような）はセンチネルで、コード生成・パリティテスト・未使用キー監査からスキップされます。",
+  "app": {
+    "title": "Business Health"
+  },
+  "layout": {
+    "sidebarLabel": "メインナビゲーション",
+    "bottomNavLabel": "モバイルナビゲーション",
+    "mainLabel": "メインコンテンツ",
+    "nav": {
+      "dashboard": "ダッシュボード",
+      "matrix": "マトリクス",
+      "fleet": "フリート",
+      "wizard": "ウィザード",
+      "findings": "指摘事項",
+      "settings": "設定"
+    }
+  },
+  "theme": {
+    "switcherLabel": "テーマ",
+    "choice": {
+      "light": "ライト",
+      "dark": "ダーク",
+      "system": "システム"
+    }
+  },
+  "pages": {
+    "dashboard": {
+      "title": "ダッシュボード",
+      "description": "シナリオのヘルスと主要指標の概要。製品の成長に合わせてこれらのカードを実際のサーフェスに置き換えてください。",
+      "statPlaceholderLabel": "指標"
+    },
+    "settings": {
+      "title": "設定",
+      "themeHeading": "外観",
+      "localeHeading": "言語"
+    }
+  },
+  "health": {
+    "title": "API ステータス",
+    "loading": "API のステータスを確認中…",
+    "error": "API に接続できません。`vrooli scenario start` でシナリオが起動していることを確認してください。",
+    "refresh": "再読み込み",
+    "refreshCount": "{{count}} 回更新しました",
+    "statusLabel": "ステータス:",
+    "serviceLabel": "サービス:",
+    "timestampLabel": "タイムスタンプ:"
+  },
+  "notifications": {
+    "summary": "{{count}} 件の通知"
+  },
+  "errors": {
+    "canceled": "Operation canceled.",
+    "unknown": "An unknown error occurred.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "deadline_exceeded": "Operation timed out.",
+    "not_found": "Resource not found.",
+    "already_exists": "Already exists.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "aborted": "Operation aborted.",
+    "out_of_range": "Out of range.",
+    "unimplemented": "Not yet implemented.",
+    "internal": "Something went wrong. Please try again.",
+    "unavailable": "Service temporarily unavailable.",
+    "data_loss": "Data loss detected.",
+    "unauthenticated": "Please sign in to continue."
+  },
+  "locale": {
+    "switcherLabel": "言語"
+  },
+  "errorBoundary": {
+    "title": "問題が発生しました",
+    "message": "ページの表示中に予期しないエラーが発生しました。再試行するか、解決しない場合はページを再読み込みしてください。",
+    "retry": "再試行"
+  },
+  "common": {
+    "scenarioLabel": "シナリオ",
+    "scenarioPlaceholder": "シナリオのスラッグ（例: business-health）",
+    "load": "読み込む",
+    "recentLabel": "最近",
+    "clearRecent": "履歴を消去",
+    "chooseScenario": "上にシナリオのスラッグを入力して開始します。",
+    "close": "閉じる"
+  },
+  "matrix": {
+    "title": "トレーサビリティマトリクス",
+    "description": "運用目標を要件・検証・ライブエビデンスに紐付けて表示します。",
+    "loading": "トレーサビリティマトリクスを構築中…",
+    "error": "このシナリオのマトリクスを読み込めませんでした。",
+    "empty": "このシナリオにはまだ運用目標や要件がありません。",
+    "degraded": "エビデンスの一部が利用できませんでした: {{reason}}",
+    "registry": {
+      "modules": "モジュール",
+      "requirements": "要件",
+      "targets": "運用目標",
+      "starter": "スターターテンプレート"
+    },
+    "orphanTarget": "孤立した目標 — 紐付く要件がありません。",
+    "orphanRequirement": "未リンクの要件 — PRD 参照が解決しません。",
+    "unproven": "未証明の主張",
+    "checked": "確定済み",
+    "unchecked": "未確定",
+    "evidence": {
+      "live": "ライブ: {{status}}",
+      "stale": "古い",
+      "manual": "手動",
+      "none": "エビデンスなし",
+      "syncedAt": "{{when}} に同期",
+      "expired": "証明が期限切れ",
+      "expires": "{{when}} に期限切れ",
+      "attestedBy": "{{who}} が証明"
+    },
+    "drawer": {
+      "title": "要件の詳細",
+      "validations": "宣言された検証",
+      "refExists": "参照は解決します",
+      "refMissing": "参照がありません",
+      "noValidations": "検証は宣言されていません。",
+      "evidenceHeading": "エビデンス",
+      "attestHeading": "手動検証を記録",
+      "attestBy": "証明者",
+      "attestByPlaceholder": "エージェントまたは運用者 ID",
+      "attestNotes": "メモ",
+      "attestNotesPlaceholder": "検証した内容",
+      "attestSubmit": "証明を記録",
+      "attestSuccess": "証明を記録しました。"
+    }
+  },
+  "fleet": {
+    "title": "フリート",
+    "description": "すべてのシナリオをビジネス契約の負債でワースト順に採点します。",
+    "loading": "フリートをスキャン中…",
+    "error": "フリートスキャンに失敗しました。",
+    "empty": "シナリオが見つかりませんでした。",
+    "refresh": "再スキャン",
+    "asOf": "{{when}} にスキャン",
+    "filterPlaceholder": "シナリオで絞り込み…",
+    "filter": {
+      "starter": "スターターレジストリ",
+      "laggard": "テンプレート遅延",
+      "unproven": "未証明の主張"
+    },
+    "tile": {
+      "scanned": "スキャン済み",
+      "passing": "合格",
+      "starter": "スターターレジストリ",
+      "laggard": "テンプレート遅延"
+    },
+    "column": {
+      "scenario": "シナリオ",
+      "status": "ステータス",
+      "errors": "エラー",
+      "warnings": "警告",
+      "autofix": "自動修正可",
+      "orphans": "孤立",
+      "unproven": "未証明",
+      "template": "テンプレート",
+      "debt": "負債"
+    },
+    "passed": "合格",
+    "failed": "不合格",
+    "errorsHeading": "{{count}} 件のシナリオを採点できませんでした",
+    "noMatches": "現在のフィルターに一致するシナリオはありません。"
+  },
+  "wizard": {
+    "title": "契約ウィザード",
+    "description": "ガイド付きインタビューでシナリオの PRD と要件を作成します。",
+    "loading": "インタビューを読み込み中…",
+    "error": "ウィザードセッションを開始できませんでした。",
+    "reset": "最初からやり直す",
+    "progress": "{{total}} 件中 {{answered}} 件回答済み",
+    "required": "必須",
+    "optional": "任意",
+    "listAdd": "エントリを追加",
+    "listRemove": "削除",
+    "otTitlePlaceholder": "成果のタイトル",
+    "otDescPlaceholder": "提供する価値",
+    "submit": "回答を保存",
+    "saving": "保存中…",
+    "complete": "必須の質問はすべて回答済みです。",
+    "sectionPreviewHeading": "これまでの回答",
+    "sectionPreviewEmpty": "保存した回答がここに表示されます。",
+    "previewButton": "スキャフォールドをプレビュー",
+    "previewLoading": "スキャフォールドを生成中…",
+    "previewHeading": "スキャフォールドのプレビュー",
+    "previewBlocking": "適用する前に次を完了してください:",
+    "apply": "スキャフォールドを適用",
+    "applying": "アーティファクトを書き込み中…",
+    "applied": "{{count}} 件のファイルを書き込みました。",
+    "residual": "適用後の残存指摘事項:",
+    "hintsHeading": "類似の機能がすでに存在します",
+    "hintScore": "一致度 {{score}}"
+  },
+  "findings": {
+    "title": "指摘事項",
+    "description": "改善ドキュメントと確定的な修正が付いたビジネス契約の指摘事項。",
+    "loading": "シナリオを検証中…",
+    "error": "このシナリオの検証に失敗しました。",
+    "empty": "指摘事項なし — このシナリオのビジネス契約は健全です。",
+    "verdict": "判定: {{status}}",
+    "degraded": "劣化モードで検証しました: {{reason}}",
+    "remediationHeading": "修正方法",
+    "docLink": "改善ドキュメント: {{path}}",
+    "location": "場所: {{location}}",
+    "autofix": "自動修正可",
+    "previewFix": "修正をプレビュー",
+    "previewLoading": "修正を計算中…",
+    "applyFix": "修正を適用",
+    "applying": "適用中…",
+    "fixEmpty": "このシナリオに利用できる確定的な修正はありません。",
+    "fixApplied": "{{count}} 件の編集を適用しました。",
+    "noFixable": "これらの指摘事項に確定的な修正はありません。"
+  },
+  "diff": {
+    "added": "+{{count}}",
+    "removed": "-{{count}}",
+    "newFile": "新規ファイル",
+    "empty": "変更なし。"
+  }
+}

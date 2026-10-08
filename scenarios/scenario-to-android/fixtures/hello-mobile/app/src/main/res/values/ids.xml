@@ -1,0 +1,4 @@
+<resources>
+    <item name="hello_mobile_input" type="id" />
+    <item name="hello_mobile_notification" type="id" />
+</resources>

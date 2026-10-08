@@ -1,0 +1,440 @@
+/**
+ * CreatePanel tests — the Create-mode inspector. AI-op discovery is mocked and
+ * the `UseCreate` lifecycle is a hand-built fake, so the panel's generation-op
+ * list, prompt gating, run wiring, masked-op mask brush, install gate, and
+ * accessibility are exercised in isolation (the lifecycle itself is covered by
+ * useCreate.test).
+ */
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { cleanup, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+
+import { create, type MessageInitShape } from "@bufbuild/protobuf";
+import {
+  ConsentWeight,
+  DeploymentTier,
+  SafetyPolicySchema,
+  type SafetyPolicy,
+} from "@vrooli/proto-types/image-tools/v1/safety/safety_pb";
+
+import { expectNoA11yViolations, renderWithProviders } from "../../test-utils";
+import { selectors } from "../../consts/selectors";
+import { setLocale } from "../../i18n";
+import { makeAIMocks, makeSelectedModel } from "./mocks/ai";
+import { makeModelsMocks } from "../models/mocks/models";
+import { makeModel } from "../models/mocks/factories";
+
+vi.mock("../../api/ai", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../api/ai")>();
+  return { ...actual, ...makeAIMocks() };
+});
+
+// The panel renders <ModelPickerButton/>, which fires a real `selectModel`
+// query for its trigger label. Mock the models API so the panel renders
+// hermetically (no network) — the picker itself is covered by its own tests.
+vi.mock("../../api/models", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../api/models")>();
+  return { ...actual, ...makeModelsMocks() };
+});
+
+const policyMock = vi.hoisted(
+  (): { data: SafetyPolicy | undefined; error: unknown; isLoading: boolean } => ({
+    data: undefined,
+    error: null,
+    isLoading: false,
+  }),
+);
+vi.mock("../safety/useSafetyPolicy", () => ({
+  useSafetyPolicy: () => policyMock,
+  SAFETY_POLICY_QUERY_KEY: ["safety-policy"],
+}));
+
+import { CreatePanel } from "./CreatePanel";
+import type { UseCreate } from "./useCreate";
+
+const PNG = new File(["bytes"], "in.png", { type: "image/png" });
+
+const fakeCreate = (overrides: Partial<UseCreate> = {}): UseCreate => ({
+  phase: "idle",
+  model: null,
+  progress: { percent: 0, message: "", state: "unspecified" },
+  tier: "",
+  warnings: [],
+  error: null,
+  consentBlocked: false,
+  results: [],
+  requestedCount: 1,
+  preview: vi.fn(),
+  start: vi.fn(),
+  installAndRun: vi.fn(),
+  cancel: vi.fn(),
+  retry: vi.fn(),
+  dismiss: vi.fn(),
+  ...overrides,
+});
+
+const renderPanel = (create: UseCreate, input: File | null = null, inputUrl: string | null = null) =>
+  renderWithProviders(
+    <CreatePanel
+      create={create}
+      input={input}
+      inputUrl={inputUrl}
+      onSendToCanvas={vi.fn()}
+      onSendToEnhance={vi.fn()}
+    />,
+  );
+
+beforeEach(async () => {
+  await setLocale("en");
+});
+
+afterEach(() => {
+  cleanup();
+  vi.clearAllMocks();
+  policyMock.data = undefined;
+});
+
+const publicPolicy = (
+  overrides: MessageInitShape<typeof SafetyPolicySchema> = {},
+): SafetyPolicy =>
+  create(SafetyPolicySchema, {
+    tier: DeploymentTier.PUBLIC,
+    requireConsent: true,
+    opWeights: [
+      { operation: "text_to_image", weight: ConsentWeight.NONE },
+      { operation: "edit_instruct", weight: ConsentWeight.HIGH },
+    ],
+    ...overrides,
+  });
+
+describe("CreatePanel", () => {
+  it("populates the generation-op list from discovery and shows the prompt", async () => {
+    renderPanel(fakeCreate());
+    await waitFor(() => {
+      expect(
+        screen.getByTestId(selectors.workspace.createAction({ name: "text_to_image" })),
+      ).toBeInTheDocument();
+    });
+    expect(
+      screen.getByTestId(selectors.workspace.createAction({ name: "inpaint" })),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTestId(selectors.workspace.createAction({ name: "edit_instruct" })),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.workspace.create.prompt)).toBeInTheDocument();
+  });
+
+  it("gates run on a non-empty prompt, then starts text-to-image with the prompt", async () => {
+    const user = userEvent.setup();
+    const create = fakeCreate();
+    renderPanel(create);
+
+    const run = await screen.findByTestId(selectors.workspace.create.run);
+    expect(run).toBeDisabled();
+
+    await user.type(screen.getByTestId(selectors.workspace.create.prompt), "a serene lake");
+    expect(run).toBeEnabled();
+    await user.click(run);
+
+    expect(create.start).toHaveBeenCalledWith(
+      "text_to_image",
+      expect.objectContaining({ prompt: "a serene lake" }),
+      undefined,
+      undefined,
+    );
+  });
+
+  it("shows the mask brush and gates a masked op until a mask exists", async () => {
+    const user = userEvent.setup();
+    renderPanel(fakeCreate(), PNG, "blob:img");
+
+    await user.click(
+      await screen.findByTestId(selectors.workspace.createAction({ name: "inpaint" })),
+    );
+
+    expect(screen.getByTestId(selectors.workspace.mask.root)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.workspace.create.needsMask)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.workspace.create.run)).toBeDisabled();
+  });
+
+  it("renders the install gate and installs on click", async () => {
+    const create = fakeCreate({
+      phase: "needs-install",
+      model: makeSelectedModel({ id: "sd-1.5", name: "sd-1.5", installed: false }),
+    });
+    const user = userEvent.setup();
+    renderPanel(create);
+
+    const gate = await screen.findByTestId(selectors.workspace.create.installGate);
+    expect(gate).toBeInTheDocument();
+    await user.click(screen.getByTestId(selectors.workspace.create.install));
+    expect(create.installAndRun).toHaveBeenCalledTimes(1);
+  });
+
+  it("has no detectable accessibility violations", async () => {
+    const { container } = renderPanel(fakeCreate());
+    await screen.findByTestId(selectors.workspace.create.prompt);
+    await expectNoA11yViolations(container);
+  });
+
+  it("threads size, seed, variations, negative and BYOK into the params", async () => {
+    const user = userEvent.setup();
+    const create = fakeCreate();
+    renderPanel(create);
+
+    await user.type(
+      await screen.findByTestId(selectors.workspace.create.prompt),
+      "a serene lake",
+    );
+
+    // Size is offered only for text_to_image — pick the landscape preset.
+    await user.click(screen.getByRole("radio", { name: /landscape/i }));
+    // Bump the variation count to 3.
+    await user.click(within(screen.getByTestId(selectors.workspace.create.variations)).getByText("3"));
+
+    // Lock a seed via the number input + the lock toggle.
+    await user.type(screen.getByTestId(selectors.workspace.create.seed), "42");
+    await user.click(screen.getByTestId(selectors.workspace.create.seedLock));
+
+    // Advanced disclosure: negative prompt, BYOK. (The model override moved out of
+    // a free-text input and into the host-aware ModelPickerButton — covered there.)
+    await user.type(screen.getByTestId(selectors.workspace.create.negative), "blurry");
+    await user.click(screen.getByTestId(selectors.workspace.create.byok));
+
+    await user.click(screen.getByTestId(selectors.workspace.create.run));
+
+    expect(create.start).toHaveBeenCalledWith(
+      "text_to_image",
+      expect.objectContaining({
+        prompt: "a serene lake",
+        negativePrompt: "blurry",
+        width: 768,
+        height: 512,
+        variations: 3,
+        seed: 42n,
+        allowByok: true,
+      }),
+      undefined,
+      undefined,
+    );
+  });
+
+  it("randomizes and locks the seed when the dice control is used", async () => {
+    const user = userEvent.setup();
+    const create = fakeCreate();
+    renderPanel(create);
+
+    await user.type(
+      await screen.findByTestId(selectors.workspace.create.prompt),
+      "a serene lake",
+    );
+    await user.click(screen.getByTestId(selectors.workspace.create.seedRandomize));
+
+    // A number input is empty (value null) until randomize seeds it.
+    const seed = screen.getByTestId(selectors.workspace.create.seed);
+    expect(seed).not.toHaveValue(null);
+    // Randomize also engages the lock so the value sticks across runs.
+    expect(screen.getByTestId(selectors.workspace.create.seedLock)).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+
+    await user.click(screen.getByTestId(selectors.workspace.create.run));
+    expect(create.start).toHaveBeenCalledWith(
+      "text_to_image",
+      expect.objectContaining({ seed: expect.any(BigInt) }),
+      undefined,
+      undefined,
+    );
+  });
+
+  it("passes the current canvas image to an image-required op and shows the uses-current hint", async () => {
+    const user = userEvent.setup();
+    const create = fakeCreate();
+    renderPanel(create, PNG, "blob:img");
+
+    await user.click(
+      await screen.findByTestId(selectors.workspace.createAction({ name: "image_to_image" })),
+    );
+    expect(screen.getByTestId(selectors.workspace.create.usesCurrent)).toBeInTheDocument();
+    // image_to_image is prompt-driven, so a prompt is still required.
+    await user.type(screen.getByTestId(selectors.workspace.create.prompt), "watercolor style");
+    await user.click(screen.getByTestId(selectors.workspace.create.run));
+
+    expect(create.start).toHaveBeenCalledWith(
+      "image_to_image",
+      expect.objectContaining({ prompt: "watercolor style" }),
+      PNG,
+      undefined,
+    );
+  });
+
+  it("shows the needs-image hint for an image-required op with no canvas image", async () => {
+    const user = userEvent.setup();
+    renderPanel(fakeCreate(), null);
+
+    await user.click(
+      await screen.findByTestId(selectors.workspace.createAction({ name: "image_to_image" })),
+    );
+    expect(screen.getByTestId(selectors.workspace.create.needsImage)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.workspace.create.run)).toBeDisabled();
+  });
+
+  it("renders the host-aware model picker trigger inside the model badge", async () => {
+    const { modelsClient } = await import("../../api/models");
+    const { makeSelectModelResponse } = await import("../models/mocks/factories");
+    vi.mocked(modelsClient.selectModel).mockResolvedValue(
+      makeSelectModelResponse({ model: makeModel({ id: "sd-1.5", name: "sd-1.5" }) }),
+    );
+    renderPanel(fakeCreate());
+    const badge = await screen.findByTestId(selectors.workspace.create.modelBadge);
+    // The static "model detected" label was replaced by the picker trigger.
+    const trigger = within(badge).getByTestId(selectors.models.pickerTrigger);
+    expect(trigger).toBeInTheDocument();
+    await waitFor(() => expect(trigger.textContent).toContain("sd-1.5"));
+  });
+
+  it("shows live per-variation progress with a cancel control while running", async () => {
+    const create = fakeCreate({
+      phase: "running",
+      progress: { percent: 30, message: "produced 1/3", state: "running" },
+      tier: "local-cpu",
+      requestedCount: 3,
+    });
+    const user = userEvent.setup();
+    renderPanel(create);
+
+    const progress = await screen.findByTestId(selectors.workspace.create.progress);
+    // The "produced i/N" marker is localized into the produced row.
+    expect(progress.textContent).toMatch(/1.*3/);
+    await user.click(screen.getByTestId(selectors.workspace.create.cancel));
+    expect(create.cancel).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows a raw status message while running when there is no produced marker", async () => {
+    const create = fakeCreate({
+      phase: "running",
+      progress: { percent: 10, message: "warming up the model", state: "running" },
+    });
+    renderPanel(create);
+    expect(await screen.findByText(/warming up the model/)).toBeInTheDocument();
+  });
+
+  it("shows the installing spinner while the model installs", async () => {
+    const create = fakeCreate({ phase: "installing" });
+    renderPanel(create);
+    expect(await screen.findByTestId(selectors.workspace.create.progress)).toBeInTheDocument();
+  });
+
+  it("lists fallback warnings, the success count, and the failure with retry", async () => {
+    const user = userEvent.setup();
+    const succeeded = fakeCreate({
+      phase: "succeeded",
+      warnings: ["fell back to CPU"],
+      results: [
+        {
+          index: 0,
+          result: {
+            kind: "image",
+            url: "blob:v0",
+            width: 512,
+            height: 512,
+            format: "png",
+            jobId: "gen-1",
+          },
+          outputFile: PNG,
+        },
+      ],
+    });
+    const { unmount } = renderPanel(succeeded);
+    expect((await screen.findByTestId(selectors.workspace.create.warnings)).textContent).toContain(
+      "fell back to CPU",
+    );
+    expect(screen.getByTestId(selectors.workspace.create.succeeded)).toBeInTheDocument();
+    unmount();
+
+    const failed = fakeCreate({ phase: "failed", error: "out of memory" });
+    renderPanel(failed);
+    const fail = await screen.findByTestId(selectors.workspace.create.failed);
+    expect(fail.textContent).toContain("out of memory");
+    await user.click(screen.getByTestId(selectors.workspace.create.retry));
+    expect(failed.retry).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders the discovery loading and error states", async () => {
+    const { listAIOperations } = await import("../../api/ai");
+    vi.mocked(listAIOperations).mockRejectedValueOnce(new Error("ai down"));
+    renderPanel(fakeCreate());
+    expect(await screen.findByTestId(selectors.workspace.create.error)).toBeInTheDocument();
+  });
+
+  describe("consent gate", () => {
+    it("shows no consent checkbox on the local tier (requireConsent off)", async () => {
+      policyMock.data = publicPolicy({ tier: DeploymentTier.LOCAL, requireConsent: false });
+      const user = userEvent.setup();
+      renderPanel(fakeCreate(), PNG, "blob:img");
+
+      await user.click(
+        await screen.findByTestId(selectors.workspace.createAction({ name: "edit_instruct" })),
+      );
+      expect(screen.queryByTestId(selectors.workspace.create.consent)).not.toBeInTheDocument();
+    });
+
+    it("requires consent for a high-weight op on the public tier and threads it into params", async () => {
+      policyMock.data = publicPolicy();
+      const user = userEvent.setup();
+      const createHook = fakeCreate();
+      renderPanel(createHook, PNG, "blob:img");
+
+      await user.click(
+        await screen.findByTestId(selectors.workspace.createAction({ name: "edit_instruct" })),
+      );
+      // edit_instruct is prompt-driven; supply a prompt so only consent gates run.
+      await user.type(screen.getByTestId(selectors.workspace.create.prompt), "make it sunset");
+
+      const consent = screen.getByTestId(selectors.workspace.create.consent);
+      expect(consent).toBeInTheDocument();
+      expect(screen.getByTestId(selectors.workspace.create.run)).toBeDisabled();
+      expect(screen.getByTestId(selectors.workspace.create.consentRequired)).toBeInTheDocument();
+
+      await user.click(consent);
+      expect(screen.getByTestId(selectors.workspace.create.run)).toBeEnabled();
+      await user.click(screen.getByTestId(selectors.workspace.create.run));
+
+      expect(createHook.start).toHaveBeenCalledWith(
+        "edit_instruct",
+        expect.objectContaining({ consentAffirmed: true }),
+        PNG,
+        undefined,
+      );
+    });
+
+    it("does not gate a none-weight op even on the public tier", async () => {
+      policyMock.data = publicPolicy();
+      const user = userEvent.setup();
+      renderPanel(fakeCreate());
+
+      // text_to_image is the default first generation op (none-weight).
+      await user.type(
+        await screen.findByTestId(selectors.workspace.create.prompt),
+        "a serene lake",
+      );
+      expect(screen.queryByTestId(selectors.workspace.create.consent)).not.toBeInTheDocument();
+      expect(screen.getByTestId(selectors.workspace.create.run)).toBeEnabled();
+    });
+
+    it("surfaces a 403 consent rejection with the actionable hint", async () => {
+      policyMock.data = publicPolicy();
+      const failed = fakeCreate({
+        phase: "failed",
+        error: "forbidden: consent required to edit people",
+        consentBlocked: true,
+      });
+      renderPanel(failed, PNG, "blob:img");
+
+      const fail = await screen.findByTestId(selectors.workspace.create.failed);
+      expect(fail.textContent).toContain("consent required to edit people");
+      expect(screen.getByTestId(selectors.workspace.create.consentBlocked)).toBeInTheDocument();
+    });
+  });
+});

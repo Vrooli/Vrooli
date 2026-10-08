@@ -1,0 +1,11 @@
+[
+  {
+    "rule": "prose_topic_leak",
+    "severity": "error",
+    "owner_key": "team:marketing-crew/researcher",
+    "pattern": "cli-knowledge-add-topic",
+    "team": "marketing-crew",
+    "member": "researcher",
+    "prefix": "campaign-draft/<slug>"
+  }
+]

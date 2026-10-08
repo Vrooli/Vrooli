@@ -18,7 +18,7 @@ interface KPICardProps {
 export function KPICard({
   title,
   value,
-  subtitle: _subtitle,
+  subtitle,
   trend,
   trendLabel,
   icon,
@@ -85,6 +85,7 @@ export function KPICard({
         {icon && <div className="text-muted-foreground">{icon}</div>}
       </div>
       <p className="mt-1 text-xl sm:text-2xl font-semibold tabular-nums">{value}</p>
+      {subtitle && <p className="mt-1 text-xs text-muted-foreground">{subtitle}</p>}
       {trend !== undefined && (
         <span className={`mt-1 flex items-center gap-1 text-xs ${getTrendColor()}`}>
           {getTrendIcon()}

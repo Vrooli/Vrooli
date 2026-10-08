@@ -1,0 +1,18 @@
+{
+  "id": "hello-mobile",
+  "status": "source-present-artifact-buildable",
+  "package_name": "com.vrooli.hello.mobile",
+  "deep_link": "vrooli-hello://home",
+  "required_surfaces": [
+    "named input hello-mobile-input",
+    "named notification hello-mobile-notification",
+    "state persistence across background and process death",
+    "permission-denial-safe startup",
+    "offline state and recovery",
+    "update migration without data loss"
+  ],
+  "build_output": "scenarios/scenario-to-android/fixtures/hello-mobile/app/build/outputs/apk/debug/app-debug.apk",
+  "build_command": "gradle --offline=false :app:assembleDebug",
+  "owner": "scenario-to-android",
+  "note": "The source project is buildable and produces the declared debug APK. Physical conformance evidence still requires installing that artifact on an attached device."
+}

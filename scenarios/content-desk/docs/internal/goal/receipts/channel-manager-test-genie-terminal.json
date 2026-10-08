@@ -1,0 +1,232 @@
+{
+  "success": false,
+  "verdict": "FAIL",
+  "status": "failed",
+  "scenario": "channel-manager",
+  "runId": "20261004-214915-e572031e",
+  "executionId": "20261004-214915-e572031e",
+  "phaseSummary": {
+    "total": 2,
+    "passed": 1,
+    "failed": 1,
+    "skipped": 0,
+    "durationSeconds": 2,
+    "observationCount": 0
+  },
+  "phases": [
+    {
+      "name": "business",
+      "status": "failed",
+      "durationSeconds": 1,
+      "logPath": "",
+      "error": "",
+      "classification": "",
+      "remediation": "",
+      "runnabilityVerdict": "",
+      "runnabilityReason": "",
+      "observations": null,
+      "phasePresentation": {
+        "contract_version": "v1",
+        "provider": "business-health",
+        "phase": "business",
+        "current_level": "L0",
+        "current_level_label": "Unavailable",
+        "next_level": "L1",
+        "ceiling_level": "L3",
+        "blocking_finding_codes": [
+          "business_status_unearned:CHANMGR-P0-019"
+        ],
+        "next_action": "No unproven claims; every status earned, not asserted.",
+        "next_action_reason": "lowest current level with required/blocking findings ERROR evolvability_gap debt=1",
+        "focus_capability_id": "evidence_traceability",
+        "focus_capability_label": "Evidence Traceability",
+        "north_star": "Every claim is provably current.",
+        "capabilities": [
+          {
+            "id": "evidence_traceability",
+            "label": "Evidence Traceability",
+            "current_level": "L0",
+            "current_level_label": "Unavailable",
+            "next_level": "L1",
+            "current_summary": "Requirement statuses are pure assertion.",
+            "next_unlock": "No unproven claims; every status earned, not asserted.",
+            "blocking_finding_codes": [
+              "business_status_unearned:CHANMGR-P0-019"
+            ],
+            "priority_rank": 1,
+            "priority_reason": "lowest current level with required/blocking findings ERROR evolvability_gap debt=1",
+            "findings": [
+              {
+                "code": "business_evidence_stale",
+                "severity": "FINDING_SEVERITY_WARNING",
+                "count": 1,
+                "message": "suite runs exist but no requirements-sync snapshot was written",
+                "locations": [
+                  "coverage/requirements-sync/latest.json"
+                ],
+                "remediation": "Run the comprehensive suite (`vrooli scenario test \u003cscenario\u003e`); sync refreshes the snapshot during execution.",
+                "fix_affordance": 2
+              },
+              {
+                "code": "business_status_unearned:CHANMGR-P0-019",
+                "severity": "FINDING_SEVERITY_ERROR",
+                "count": 1,
+                "message": "requirement CHANMGR-P0-019 is declared complete but no requirements-sync snapshot exists to earn it",
+                "locations": [
+                  "requirements/"
+                ],
+                "remediation": "Revert the status to what evidence supports, then earn the change through a comprehensive suite run.",
+                "fix_affordance": 2
+              }
+            ]
+          },
+          {
+            "id": "prd_contract",
+            "label": "PRD Contract",
+            "current_level": "L3",
+            "current_level_label": "Complete",
+            "current_summary": "The PRD is a trustworthy statement of intent.",
+            "clean": true,
+            "priority_rank": 2,
+            "priority_reason": "lowest current level"
+          },
+          {
+            "id": "requirements_registry",
+            "label": "Requirements Registry",
+            "current_level": "L3",
+            "current_level_label": "Complete",
+            "current_summary": "The registry is a complete, falsifiable claim set.",
+            "clean": true,
+            "priority_rank": 3,
+            "priority_reason": "lowest current level"
+          },
+          {
+            "id": "intent_linkage",
+            "label": "Intent Linkage",
+            "current_level": "L3",
+            "current_level_label": "Complete",
+            "current_summary": "The intent spine is fully closed.",
+            "clean": true,
+            "priority_rank": 4,
+            "priority_reason": "lowest current level"
+          }
+        ],
+        "documentation_topics": [
+          "business maturity next move",
+          "business business_status_unearned:CHANMGR-P0-019 canonical fix"
+        ]
+      },
+      "findingsSummary": {
+        "errors": 1,
+        "warnings": 1,
+        "total": 2
+      }
+    },
+    {
+      "name": "structure",
+      "status": "passed",
+      "durationSeconds": 1,
+      "logPath": "",
+      "error": "",
+      "classification": "",
+      "remediation": "",
+      "runnabilityVerdict": "",
+      "runnabilityReason": "",
+      "observations": null,
+      "phasePresentation": {
+        "contract_version": "v1",
+        "provider": "structure-health",
+        "phase": "structure",
+        "current_level": "L3",
+        "current_level_label": "Complete",
+        "ceiling_level": "L3",
+        "clean": true,
+        "next_action": "Maximum cross-kind structure maturity.",
+        "next_action_reason": "lowest current level",
+        "focus_capability_id": "cross_kind_structure",
+        "focus_capability_label": "Cross-Kind Structure",
+        "north_star": "Cross-kind structural conformance is clean.",
+        "at_maximum": true,
+        "capabilities": [
+          {
+            "id": "cross_kind_structure",
+            "label": "Cross-Kind Structure",
+            "current_level": "L3",
+            "current_level_label": "Complete",
+            "current_summary": "Cross-kind structural conformance is clean.",
+            "clean": true,
+            "priority_rank": 1,
+            "priority_reason": "lowest current level"
+          },
+          {
+            "id": "surface_skeleton",
+            "label": "Surface Skeleton",
+            "current_level": "L3",
+            "current_level_label": "Complete",
+            "current_summary": "Surface skeleton is clean.",
+            "clean": true,
+            "priority_rank": 2,
+            "priority_reason": "lowest current level"
+          },
+          {
+            "id": "lifecycle_wiring",
+            "label": "Lifecycle Wiring",
+            "current_level": "L3",
+            "current_level_label": "Complete",
+            "current_summary": "Lifecycle wiring is clean.",
+            "clean": true,
+            "priority_rank": 3,
+            "priority_reason": "lowest current level"
+          },
+          {
+            "id": "production_serving",
+            "label": "Production Serving",
+            "current_level": "L3",
+            "current_level_label": "Complete",
+            "current_summary": "Production-serving posture is clean.",
+            "clean": true,
+            "priority_rank": 4,
+            "priority_reason": "lowest current level"
+          },
+          {
+            "id": "profile_conformance",
+            "label": "Profile Conformance",
+            "current_level": "L3",
+            "current_level_label": "Complete",
+            "current_summary": "Profile conformance is clean.",
+            "clean": true,
+            "priority_rank": 5,
+            "priority_reason": "lowest current level"
+          },
+          {
+            "id": "identity_contract",
+            "label": "Identity Contract",
+            "current_level": "L2",
+            "current_level_label": "Complete",
+            "current_summary": "Scenario identity is clean.",
+            "clean": true,
+            "priority_rank": 6,
+            "priority_reason": "lowest current level"
+          }
+        ]
+      },
+      "findingsSummary": {}
+    }
+  ],
+  "topPriority": {
+    "phase": "business",
+    "provider": "business-health",
+    "currentLevel": "L0",
+    "currentLevelLabel": "Unavailable",
+    "nextLevel": "L1",
+    "nextMove": "No unproven claims; every status earned, not asserted.",
+    "nextMoveReason": "lowest current level with required/blocking findings ERROR evolvability_gap debt=1",
+    "priorityCapabilityId": "evidence_traceability",
+    "priorityCapabilityLabel": "Evidence Traceability",
+    "docSearchTopic": "business maturity next move",
+    "blockingFindingCodes": [
+      "business_status_unearned:CHANMGR-P0-019"
+    ]
+  },
+  "terminalSnapshotSchemaVersion": 1
+}

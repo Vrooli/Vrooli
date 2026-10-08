@@ -1,47 +1,77 @@
 {
-  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
+    "parent": "vrooli",
     "name": "scenario-to-ios",
     "displayName": "Scenario to iOS",
-    "description": "Scenario to iOS conversion tool",
-    "parent": "vrooli",
-    "type": "scenario",
-    "category": "general",
-    "tags": [],
-    "maintainers": [
-      {
-        "name": "Vrooli Team",
-        "email": "support@vrooli.com",
-        "url": "https://github.com/Vrooli"
-      }
-    ],
-    "repository": {
-      "type": "git",
-      "url": "https://github.com/Vrooli/Vrooli",
-      "directory": "/scenarios/scenario-to-ios"
+    "description": "Turn any Vrooli scenario into a distributable iOS application with evidence-backed validation on simulators and physical devices.",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
+    "tags": [
+      "react-ui",
+      "go-api"
+    ]
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.6.5"
     },
-    "license": "MIT",
-    "homepage": "https://github.com/Vrooli/Vrooli",
-    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
-    "support": {
-      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    "generated_at": "2026-08-11T02:43:04Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
     },
-    "version": "1.0.0"
+    "manifest_sha": "f92252b0f99e9f3fd3da46518cafe5070f4ffd964be4fe99c972b4dceb2ae219",
+    "content_sha": "bc3fa68a1c296246e175f9617f42f2f19794b7638c8767eb83c57fc5f0d0eef2"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "scenario-to-ios",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
+    },
+    "source_build": {
+      "kind": "go_module"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "scenario-to-ios"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    }
   },
   "ports": {
     "api": {
       "env_var": "API_PORT",
-      "description": "Scenario to iOS API port",
+      "description": "Go API server",
       "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "20000-24999"
     }
   },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
-      "description": "Scenario to iOS health check configuration",
+      "description": "Standard API/UI health checks",
       "endpoints": {
-        "api": "/health"
+        "api": "/health",
+        "ui": "/health"
       },
       "checks": [
         {
@@ -49,82 +79,209 @@
           "type": "http",
           "target": "http://localhost:${API_PORT}/health",
           "critical": true,
+          "timeout": 10000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
           "timeout": 5000,
           "interval": 30000
         }
       ],
-      "timeout": 5000,
-      "interval": 30000,
-      "startup_grace_period": 10000
-    },
-    "develop": {
-      "description": "Start scenario-to-ios API server",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./scenario-to-ios-api",
-          "description": "Start Go API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/scenario-to-ios-api"
-          }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Scenario to iOS API running on http://localhost:${API_PORT}'",
-          "description": "Display API access URL"
-        }
-      ]
-    },
-    "test": {
-      "description": "Comprehensive phased testing for scenario-to-ios",
-      "steps": [
-        {
-          "name": "run-phased-tests",
-          "run": "test-genie execute scenario-to-ios --preset comprehensive",
-          "description": "Execute phased scenario test suite"
-        }
-      ]
-    },
-    "setup": {
-      "description": "Build Scenario to iOS API",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/scenario-to-ios-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "scenario-to-ios",
-            "targets": [
-              "scenario-to-ios"
-            ]
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "build-api",
-          "run": "cd api && go build -o scenario-to-ios-api .",
-          "description": "Build Go API binary"
-        },
-        {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI tool"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Scenario to iOS initialized\\n  API: http://localhost:${API_PORT}\\n  CLI: scenario-to-ios --help'",
-          "description": "Display service access URLs"
-        }
-      ]
+      "startup_grace_period": 15000
     }
   },
   "dependencies": {
-    "resources": {}
+    "resources": {},
+    "scenarios": {
+      "vrooli-bridge": {
+        "purpose": "Reach plane for the macOS node that performs every build, simulator run, and physical-device session. No Apple toolchain runs on Linux, so remote execution is this ramp's normal path rather than a fallback.",
+        "required": true,
+        "degraded_behavior": "Every native iOS target reports unavailable carrying the reach reason. Linux-host rows remain unsupported, which is a different and terminal state that must not be collapsed into unavailable.",
+        "startup_policy": "must_start"
+      },
+      "device-control": {
+        "purpose": "Every device verb under a held lease, across the ios-simctl, ios-xcuitest, and ios-mirror strategies. This ramp implements no device driving of its own.",
+        "required": true,
+        "degraded_behavior": "Journey cells report unavailable naming device-control as the missing capability. The ramp never drives simctl or a device directly, because that would bypass leases and audit — and the mirroring strategy is physically single-session, so a missing lease guarantees corruption.",
+        "startup_policy": "must_start"
+      },
+      "deployment-manager": {
+        "purpose": "Consumes this ramp's reference-only common.v1.TargetVerdict and owns the cross-ramp release gate.",
+        "required": true,
+        "degraded_behavior": "The local gate still computes and evidence is retained; verdict emission retries. Evidence is never discarded because the consumer is down.",
+        "startup_policy": "must_start"
+      },
+      "browser-automation-studio": {
+        "purpose": "Executes a scenario's own named web-content flows against the generated app's WKWebView, so an author writes a flow once and it replays on iOS unchanged.",
+        "required": true,
+        "degraded_behavior": "Web-content chapters report unavailable; native shell chapters still execute and the run reports partial honestly rather than passing.",
+        "startup_policy": "must_start"
+      },
+      "backdrop-studio": {
+        "purpose": "Provides the typed backdrop composition contract used by the iOS journey adapter for scenario-owned web-content flows.",
+        "required": true,
+        "degraded_behavior": "Journey web-content chapters report unavailable with the missing backdrop capability; the ramp never silently replaces the typed client.",
+        "startup_policy": "must_start"
+      },
+      "secrets-manager": {
+        "purpose": "Holds certificates, provisioning profiles, and App Store Connect API keys by reference so no signing material exists in this repository, in a generated project, or in evidence.",
+        "required": true,
+        "degraded_behavior": "Builds requiring a signed artifact report unavailable naming the enrollment or certificate rung. The ramp never generates an ad-hoc signing identity as a fallback.",
+        "startup_policy": "must_start"
+      },
+      "hello-mobile": {
+        "purpose": "Conformance fixture. The ramp must be provable end to end without depending on any product scenario's correctness, and it is simultaneously the transport-symmetry proof because it builds on a remote node.",
+        "required": false,
+        "degraded_behavior": "The ramp's own conformance proof cannot run. Product scenario deliveries are unaffected.",
+        "startup_policy": "try_start"
+      }
+    }
+  },
+  "credentials": {
+    "descriptors": [
+      {
+        "logical_id": "vrooli/scenario-to-ios",
+        "field": "apple-developer-program",
+        "label": "Apple Developer Program enrollment",
+        "description": "External enrollment prerequisite for signed iOS delivery. This is an operator-owned account state, not a secret and not a success flag supplied by the scenario.",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://developer.apple.com/programs/enroll/"
+      },
+      {
+        "logical_id": "vrooli/scenario-to-ios",
+        "field": "apple-verified-identity",
+        "label": "Verified Apple developer identity",
+        "description": "Apple identity verification prerequisite for the selected release context.",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://developer.apple.com/account/"
+      },
+      {
+        "logical_id": "vrooli/scenario-to-ios",
+        "field": "apple-signing-identity",
+        "label": "Apple signing identity reference",
+        "description": "Reference to the certificate and provisioning material held by secrets-manager; signing material never belongs in onboarding state or generated projects.",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://developer.apple.com/help/account/create-certificates/create-a-certificate-signing-request/"
+      },
+      {
+        "logical_id": "vrooli/scenario-to-ios",
+        "field": "apple-team-id",
+        "label": "Apple team ID",
+        "description": "Public team identifier matched against the signing identity and App Store Connect record; it is not enrollment proof.",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://developer.apple.com/account/"
+      },
+      {
+        "logical_id": "vrooli/scenario-to-ios",
+        "field": "apple-bundle-id",
+        "label": "Apple bundle ID",
+        "description": "Bundle identifier shared by the generated app, provisioning profile, and App Store Connect record.",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://developer.apple.com/account/resources/identifiers/list"
+      },
+      {
+        "logical_id": "vrooli/scenario-to-ios",
+        "field": "apple-provisioning-profile",
+        "label": "Apple provisioning profile reference",
+        "description": "Reference to the profile held by secrets-manager for the selected bundle and device/distribution context; expiry and renewal remain visible owner actions.",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://developer.apple.com/help/account/manage-profiles/create-a-development-provisioning-profile/"
+      },
+      {
+        "logical_id": "vrooli/scenario-to-ios",
+        "field": "app-store-connect-api-key",
+        "label": "App Store Connect API key reference",
+        "description": "Reference to the App Store Connect private key held by secrets-manager for upload and listing operations. It is an alternative to an Apple ID app-specific password, not a second signing identity.",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://developer.apple.com/help/app-store-connect/manage-api-access/create-api-keys/"
+      },
+      {
+        "logical_id": "vrooli/scenario-to-ios",
+        "field": "app-store-connect-issuer-id",
+        "label": "App Store Connect issuer ID",
+        "description": "Public issuer identifier paired with the App Store Connect API key reference.",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://appstoreconnect.apple.com/access/api"
+      },
+      {
+        "logical_id": "vrooli/scenario-to-ios",
+        "field": "app-store-connect-key-id",
+        "label": "App Store Connect key ID",
+        "description": "Public key identifier paired with the App Store Connect API key reference.",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://appstoreconnect.apple.com/access/api"
+      },
+      {
+        "logical_id": "vrooli/scenario-to-ios",
+        "field": "testflight-access",
+        "label": "TestFlight access",
+        "description": "App Store Connect access and app setup required for TestFlight distribution.",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://appstoreconnect.apple.com/"
+      },
+      {
+        "logical_id": "vrooli/scenario-to-ios",
+        "field": "app-store-listing",
+        "label": "App Store listing",
+        "description": "Completed App Store Connect app record and listing for the selected release context.",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://appstoreconnect.apple.com/"
+      },
+      {
+        "logical_id": "vrooli/scenario-to-ios",
+        "field": "app-store-link",
+        "label": "Apple App Store public link",
+        "description": "Public listing URL after publication. A link never establishes that signing, review, or the selected bundle is valid.",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://appstoreconnect.apple.com/"
+      }
+    ]
+  },
+  "environment": {},
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
   }
 }

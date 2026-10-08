@@ -1,0 +1,193 @@
+{
+  "id": "d01ba298-f1bc-4c50-b52d-264ee15ab2c7",
+  "project_id": "0c037e4d-dd01-4c3b-a23b-0e6a9e3ac9ff",
+  "name": "web-console-deterministic-incomplete-coverage",
+  "folder_path": "/bas/cases/02-messages/02-voice",
+  "description": "Uses the real Web Console mic control and its same-origin voice-stream proxy with a WAV-backed fake microphone. A bounded upstream close fires only after the first PCM frame reaches Audio Tools; the user must see the recoverable incomplete-coverage error and be able to export the metadata-only diagnostic rather than receive a false successful final.",
+  "metadata": {
+    "name": "web-console-deterministic-incomplete-coverage",
+    "description": "Uses the real Web Console mic control and its same-origin voice-stream proxy with a WAV-backed fake microphone. A bounded upstream close fires only after the first PCM frame reaches Audio Tools; the user must see the recoverable incomplete-coverage error and be able to export the metadata-only diagnostic rather than receive a false successful final.",
+    "execution_mode": "mutating",
+    "reset": "none",
+    "labels": {
+      "reset": "none",
+      "requires_confirmation": "true",
+      "routed_isolation": "true"
+    }
+  },
+  "tags": [
+    "reset:none",
+    "media_fixture:microphone",
+    "evidence_lane:deterministic_browser_fault",
+    "capability:continuous-dictation-recovery"
+  ],
+  "version": 1,
+  "created_at": "2026-07-12T19:35:00Z",
+  "updated_at": "2026-07-12T19:35:00Z",
+  "flow_definition": {
+    "settings": {
+      "viewport_width": 1440,
+      "viewport_height": 900,
+      "fake_media": {
+        "microphone_wav": "bas/fixtures/dictation-reference.wav"
+      }
+    },
+    "nodes": [
+      {
+        "id": "navigate-workspace",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "timeout_ms": 30000,
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "web-console",
+            "scenario_path": "/?stt_test_mode=1&stt_test_fault=close_after_chunk:1#/workspace"
+          },
+          "metadata": {
+            "label": "Open Web Console with a bounded post-capture coverage fault"
+          }
+        }
+      },
+      {
+        "id": "wait-microphone-control",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/voice.micButton",
+            "state": "WAIT_STATE_UNSPECIFIED",
+            "timeout_ms": 30000
+          },
+          "metadata": {
+            "label": "Wait for the product microphone control"
+          }
+        }
+      },
+      {
+        "id": "start-wav-backed-capture",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/voice.micButton"
+          },
+          "metadata": {
+            "label": "Start real getUserMedia capture through the Web Console proxy"
+          }
+        }
+      },
+      {
+        "id": "feed-fixture",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 4000
+          },
+          "metadata": {
+            "label": "Allow the WAV fixture to produce journaled PCM"
+          }
+        }
+      },
+      {
+        "id": "wait-recovery-error",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/voice.errorTooltip",
+            "state": "WAIT_STATE_UNSPECIFIED",
+            "timeout_ms": 15000
+          },
+          "metadata": {
+            "label": "Wait for the visible incomplete-coverage recovery error"
+          }
+        }
+      },
+      {
+        "id": "assert-recovery-error",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/voice.errorTooltip",
+            "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+            "expected": {
+              "string_value": "Streaming connection closed after deterministic qualification chunk limit"
+            },
+            "timeout_ms": 5000
+          },
+          "metadata": {
+            "label": "Assert that the user sees unconfirmed audio coverage"
+          }
+        }
+      },
+      {
+        "id": "assert-safe-diagnostic",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/voice.exportDiagnostic",
+            "mode": "ASSERTION_MODE_EXISTS",
+            "timeout_ms": 5000
+          },
+          "metadata": {
+            "label": "Assert that the failed turn offers a metadata-only diagnostic export"
+          }
+        }
+      },
+      {
+        "id": "capture-recovery-evidence",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": true
+          },
+          "metadata": {
+            "label": "Capture Web Console recovery evidence"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "source": "navigate-workspace",
+        "target": "wait-microphone-control",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e2",
+        "source": "wait-microphone-control",
+        "target": "start-wav-backed-capture",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e3",
+        "source": "start-wav-backed-capture",
+        "target": "feed-fixture",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e4",
+        "source": "feed-fixture",
+        "target": "wait-recovery-error",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e5",
+        "source": "wait-recovery-error",
+        "target": "assert-recovery-error",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e6",
+        "source": "assert-recovery-error",
+        "target": "assert-safe-diagnostic",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e7",
+        "source": "assert-safe-diagnostic",
+        "target": "capture-recovery-evidence",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      }
+    ]
+  }
+}

@@ -16,11 +16,12 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/database"
 )
 
 // ManifestBuilder orchestrates deployment manifest generation.
@@ -30,12 +31,29 @@ type ManifestBuilder struct {
 	resourceResolver  ResourceResolver
 	summaryBuilder    *SummaryBuilder
 	bundlePlanBuilder *BundlePlanBuilder
+	clock             ManifestClock
 	logger            *Logger
 }
 
+// ManifestClock supplies wall-clock time for deployment manifests.
+//
+// seam: ManifestClock keeps generated manifest timestamps deterministic in
+// deployment tests. The API server wires systemManifestClock; tests provide a
+// fixed implementation through NewManifestBuilderWithDepsAndClock.
+type ManifestClock interface {
+	Now() time.Time
+}
+
+type systemManifestClock struct{}
+
+func (systemManifestClock) Now() time.Time { return time.Now() }
+
+var _ ManifestClock = systemManifestClock{}
+
 // ManifestBuilderConfig configures ManifestBuilder construction.
 type ManifestBuilderConfig struct {
-	DB     *sql.DB
+	DB     *database.RoutedDB
+	Clock  ManifestClock
 	Logger *Logger
 }
 
@@ -55,6 +73,7 @@ func NewManifestBuilder(cfg ManifestBuilderConfig) *ManifestBuilder {
 		resourceResolver:  resourceResolver,
 		summaryBuilder:    NewSummaryBuilder(),
 		bundlePlanBuilder: NewBundlePlanBuilder(),
+		clock:             manifestClockOrSystem(cfg.Clock),
 		logger:            cfg.Logger,
 	}
 }
@@ -67,14 +86,34 @@ func NewManifestBuilderWithDeps(
 	resourceResolver ResourceResolver,
 	logger *Logger,
 ) *ManifestBuilder {
+	return NewManifestBuilderWithDepsAndClock(secretStore, analyzerClient, resourceResolver, systemManifestClock{}, logger)
+}
+
+// NewManifestBuilderWithDepsAndClock creates a ManifestBuilder with explicit
+// dependencies and a deterministic clock for tests.
+func NewManifestBuilderWithDepsAndClock(
+	secretStore SecretStore,
+	analyzerClient AnalyzerClient,
+	resourceResolver ResourceResolver,
+	clock ManifestClock,
+	logger *Logger,
+) *ManifestBuilder {
 	return &ManifestBuilder{
 		secretStore:       secretStore,
 		analyzerClient:    analyzerClient,
 		resourceResolver:  resourceResolver,
 		summaryBuilder:    NewSummaryBuilder(),
 		bundlePlanBuilder: NewBundlePlanBuilder(),
+		clock:             manifestClockOrSystem(clock),
 		logger:            logger,
 	}
+}
+
+func manifestClockOrSystem(clock ManifestClock) ManifestClock {
+	if clock == nil {
+		return systemManifestClock{}
+	}
+	return clock
 }
 
 // Build generates a deployment manifest for the given request.
@@ -93,6 +132,9 @@ func (b *ManifestBuilder) Build(ctx context.Context, req DeploymentManifestReque
 	tier := strings.TrimSpace(strings.ToLower(req.Tier))
 	if scenario == "" || tier == "" {
 		return nil, fmt.Errorf("scenario and tier are required")
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
 	}
 
 	// Resolve effective resources
@@ -147,7 +189,7 @@ func (b *ManifestBuilder) Build(ctx context.Context, req DeploymentManifestReque
 	manifest := &DeploymentManifest{
 		Scenario:      scenario,
 		Tier:          tier,
-		GeneratedAt:   time.Now(),
+		GeneratedAt:   b.clock.Now(),
 		Resources:     resourcesList,
 		Secrets:       entries,
 		BundleSecrets: bundlePlans,
@@ -213,7 +255,7 @@ func (b *ManifestBuilder) buildFallbackManifest(scenario, tier string, resources
 	manifest := &DeploymentManifest{
 		Scenario:    scenario,
 		Tier:        tier,
-		GeneratedAt: time.Now(),
+		GeneratedAt: b.clock.Now(),
 		Resources:   defaultResources,
 		Secrets:     entries,
 		Summary:     summary,
@@ -256,13 +298,7 @@ func convertAnalyzerDependencies(report *analyzerDeploymentReport) []DependencyI
 		if len(dep.TierSupport) > 0 {
 			insight.TierSupport = make(map[string]DependencyTierSupportView, len(dep.TierSupport))
 			for tier, support := range dep.TierSupport {
-				insight.TierSupport[tier] = DependencyTierSupportView{
-					Supported:    support.Supported,
-					FitnessScore: support.FitnessScore,
-					Notes:        support.Notes,
-					Reason:       support.Reason,
-					Alternatives: support.Alternatives,
-				}
+				insight.TierSupport[tier] = DependencyTierSupportView(support)
 			}
 		}
 

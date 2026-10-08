@@ -1,7 +1,14 @@
-import { resolveApiBase, buildApiUrl } from '@vrooli/api-base';
+import { DEFAULT_API_SUFFIX, resolveApiBase, buildApiUrl } from '@vrooli/api-base';
 import { isRecord, safeParseJson } from '../lib/utils';
 
 export const API_BASE = resolveApiBase({ appendSuffix: true });
+
+// Connect RPC endpoints are mounted at the scenario origin, while the legacy
+// JSON endpoints continue to use the versioned REST suffix. Resolve once so
+// the two transports cannot drift in proxy, desktop, or remote deployments.
+export const CONNECT_API_BASE = API_BASE.endsWith(DEFAULT_API_SUFFIX)
+  ? API_BASE.slice(0, -DEFAULT_API_SUFFIX.length)
+  : API_BASE;
 
 /**
  * API error types for graceful degradation and user-friendly messages.
@@ -23,13 +30,18 @@ export class ApiError extends Error {
   readonly status?: number;
   readonly retryable: boolean;
   readonly userMessage: string;
+  /** Stable machine-readable cause, when the endpoint provides one. */
+  readonly reason?: string;
+  /** Seconds the server asked the client to wait before retrying. */
+  readonly retryAfterSeconds?: number;
 
   constructor(
     message: string,
     type: ApiErrorType,
     status?: number,
     userMessage?: string,
-    retryableOverride?: boolean
+    retryableOverride?: boolean,
+    details?: { reason?: string; retryAfterSeconds?: number }
   ) {
     super(message);
     this.name = 'ApiError';
@@ -40,6 +52,8 @@ export class ApiError extends Error {
       ? retryableOverride
       : ['network', 'timeout', 'server_error', 'rate_limited'].includes(type);
     this.userMessage = userMessage ?? getDefaultUserMessage(type);
+    this.reason = details?.reason;
+    this.retryAfterSeconds = details?.retryAfterSeconds;
   }
 }
 
@@ -101,14 +115,15 @@ export async function apiCall<T>(endpoint: string, options: ApiCallOptions = {})
 
   // Create abort controller for timeout handling
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeout);
+  const timeoutId = setTimeout(() => { controller.abort(); }, timeout);
+  const headers = {
+    'Content-Type': 'application/json',
+    ...Object.fromEntries(new Headers(fetchOptions.headers).entries()),
+  };
 
   try {
     const res = await fetch(url, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...fetchOptions.headers,
-      },
+      headers,
       credentials: 'include',
       signal: controller.signal,
       ...fetchOptions,
@@ -132,6 +147,8 @@ export async function apiCall<T>(endpoint: string, options: ApiCallOptions = {})
       let userMessage: string | undefined;
       let errorTypeOverride: ApiErrorType | undefined;
       let retryableOverride: boolean | undefined;
+      let reason: string | undefined;
+      const retryAfterHeader = Number.parseInt((res.headers as Headers | undefined)?.get('Retry-After') ?? '', 10);
       const parsed = safeParseJson(errorText);
       if (isRecord(parsed)) {
         const errorValue = parsed.error;
@@ -149,29 +166,33 @@ export async function apiCall<T>(endpoint: string, options: ApiCallOptions = {})
         if (typeof parsed.retryable === 'boolean') {
           retryableOverride = parsed.retryable;
         }
+        if (typeof parsed.reason === 'string' && parsed.reason) {
+          reason = parsed.reason;
+        }
       }
 
       throw new ApiError(
-        `API call failed (${res.status}): ${errorText}`,
+        `API call failed (${String(res.status)}): ${errorText}`,
         errorTypeOverride ?? errorType,
         res.status,
         userMessage,
-        retryableOverride
+        retryableOverride,
+        { reason, retryAfterSeconds: Number.isFinite(retryAfterHeader) ? retryAfterHeader : undefined }
       );
     }
 
     if (typeof (res as { json?: () => Promise<unknown> }).json === 'function') {
-      return res.json() as Promise<T>;
+      return await res.json() as T;
     }
 
-    return Promise.resolve(undefined as unknown as T);
+    return await Promise.resolve(undefined as unknown as T);
   } catch (err) {
     clearTimeout(timeoutId);
 
     // Handle abort (timeout)
     if (err instanceof Error && err.name === 'AbortError') {
       throw new ApiError(
-        `Request to ${endpoint} timed out after ${timeout}ms`,
+        `Request to ${endpoint} timed out after ${String(timeout)}ms`,
         'timeout',
         undefined,
         'The request took too long. Please try again.'
@@ -241,7 +262,7 @@ export async function apiPost<T>(endpoint: string, body?: unknown, options?: Omi
   return apiCall<T>(endpoint, {
     ...options,
     method: 'POST',
-    body: body ? JSON.stringify(body) : undefined,
+    body: body === undefined ? undefined : JSON.stringify(body),
   });
 }
 
@@ -252,7 +273,7 @@ export async function apiPut<T>(endpoint: string, body?: unknown, options?: Omit
   return apiCall<T>(endpoint, {
     ...options,
     method: 'PUT',
-    body: body ? JSON.stringify(body) : undefined,
+    body: body === undefined ? undefined : JSON.stringify(body),
   });
 }
 
@@ -263,6 +284,6 @@ export async function apiDelete<T>(endpoint: string, body?: unknown, options?: O
   return apiCall<T>(endpoint, {
     ...options,
     method: 'DELETE',
-    body: body ? JSON.stringify(body) : undefined,
+    body: body === undefined ? undefined : JSON.stringify(body),
   });
 }

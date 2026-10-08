@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "scenario": "tech-tree-designer",
+  "input_digest": "sha256:71ad4765a95a9559567dd85954f1b8b201ecb32df38e205e66ccbc285627fa24",
+  "input_files": [
+    "schemas/tech-tree-designer/v1/errors/errors.proto",
+    "schemas/tech-tree-designer/v1/graph/graph.proto",
+    "schemas/tech-tree-designer/v1/health/health.proto",
+    "schemas/tech-tree-designer/v1/ontology/ontology.proto",
+    "schemas/tech-tree-designer/v1/planning/planning.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/tech-tree-designer/v1/errors/errors.pb.go": "sha256:905d1b6bcf7b0c622d00f37bf1f54786d57928a877dd94b4ae823a59c750c880",
+    "gen/go/tech-tree-designer/v1/graph/graph.pb.go": "sha256:f3e185e0e6f77252813fa126c03681a21a0c51d06b08e1c613c29fda16ba482b",
+    "gen/go/tech-tree-designer/v1/graph/graph_v1connect/graph.connect.go": "sha256:689dcb14ea7f869143acaa495a466fe93ac35739bd5876b3fec9bd8fac4b9d75",
+    "gen/go/tech-tree-designer/v1/health/health.pb.go": "sha256:d0be42737103b713fa9e7f03c6d8ee2d9d00d873fe5a6894779594bd381ff978",
+    "gen/go/tech-tree-designer/v1/ontology/ontology.pb.go": "sha256:64af50b391e957688df858b32f3d2c14db3b14a59914c222393910ac846e5e79",
+    "gen/go/tech-tree-designer/v1/ontology/ontology_v1connect/ontology.connect.go": "sha256:c93062902e6e781760477ce0ea219548448fec2532ce46f30575649bc7cf248b",
+    "gen/go/tech-tree-designer/v1/planning/planning.pb.go": "sha256:6b714a55f8f5260bb9305e2cfe31f9a8a56f5b9954343413e187b34bfb556a90",
+    "gen/go/tech-tree-designer/v1/planning/planning_v1connect/planning.connect.go": "sha256:416dd22e91f43cebc44e59e20a9a5785b017c3fc8f5ed35a560207d771ea70cd",
+    "gen/python/tech_tree_designer/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/tech_tree_designer/v1/errors/errors_pb2.py": "sha256:3cb3c1e3bd73f339b60d0ecd7b96109aafe6e32b89335c4f3806bc7090d17d1f",
+    "gen/python/tech_tree_designer/v1/errors/errors_pb2.pyi": "sha256:4fab4b85533131b72b50e57a69d84a6878a0c10aa64e5b6791a598b7b9716dd1",
+    "gen/python/tech_tree_designer/v1/errors/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/tech_tree_designer/v1/graph/graph_pb2.py": "sha256:027260972a64c1787a43cf83d2f1f376ee21292a8ce8e6a3c602d7dd0125c416",
+    "gen/python/tech_tree_designer/v1/graph/graph_pb2.pyi": "sha256:b6d8142a84a7d02a7e833709acff6f7bf278539c7d8455b476239e43887618e6",
+    "gen/python/tech_tree_designer/v1/graph/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/tech_tree_designer/v1/health/health_pb2.py": "sha256:d9bfd17c170542729aa6512537a1bfc5897e250c90fada19f49fd1c5d7000ab5",
+    "gen/python/tech_tree_designer/v1/health/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
+    "gen/python/tech_tree_designer/v1/health/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/tech_tree_designer/v1/ontology/ontology_pb2.py": "sha256:fa7a914694edd34d6b7e6a55e04fb86e022ae6559bb1b36fefcae0fa61ef42b4",
+    "gen/python/tech_tree_designer/v1/ontology/ontology_pb2.pyi": "sha256:f0ed069624ffe40670609a90e1c921a824d1bd015b58f96dd0c1564a80f12faa",
+    "gen/python/tech_tree_designer/v1/ontology/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/tech_tree_designer/v1/planning/planning_pb2.py": "sha256:4dce5a4331daa3309070b330f9c7e89f01c07d43addd45aa7e5394ad49c37d52",
+    "gen/python/tech_tree_designer/v1/planning/planning_pb2.pyi": "sha256:646ce1b69656fa9a418f63667701f87a519b9a70fc961f8463380e45557fca22",
+    "gen/python/tech_tree_designer/v1/planning/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/tech_tree_designer/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/typescript/tech-tree-designer/v1/errors/errors_pb.ts": "sha256:60e30bf7bd306e1051e31157ce7c731543ee6d24ca90d90aedf6a49a38113a6b",
+    "gen/typescript/tech-tree-designer/v1/graph/graph_pb.ts": "sha256:eec828bc5943e4666ca1bc743944037db88b40c91b1d71c8abd77a592a7e5576",
+    "gen/typescript/tech-tree-designer/v1/health/health_pb.ts": "sha256:8cab4123ed33d69aa937cbd15b0d1c7b17882d2848c598f44010081775cf4ddf",
+    "gen/typescript/tech-tree-designer/v1/ontology/ontology_pb.ts": "sha256:48b71363ed539589b293a96ab507e6fbbe54e78827fbdc6ffdf4dbe8485d590c",
+    "gen/typescript/tech-tree-designer/v1/planning/planning_pb.ts": "sha256:33e30f0128c20fd2136497e9a62157963090ecb9cf11a2ee01617333dff8b59c"
+  }
+}

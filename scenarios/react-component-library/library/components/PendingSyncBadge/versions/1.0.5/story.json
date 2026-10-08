@@ -1,0 +1,35 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "PendingStory",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "status"
+        }
+      ],
+      "id": "pending",
+      "mode": "live",
+      "name": "Pending sync",
+      "role": "anatomy"
+    },
+    {"id":"loading-boundary","name":"loading","args":{"state":"loading"},"expect":[{"kind":"role","role":"status"}],"role":"boundary","mode":"pinned"},
+    {"id":"error","name":"Sync error","args":{"state":"error"},"expect":[{"kind":"role","role":"status"}],"role":"boundary","mode":"pinned"}
+  ],
+  "title": "PendingSyncBadge"
+}

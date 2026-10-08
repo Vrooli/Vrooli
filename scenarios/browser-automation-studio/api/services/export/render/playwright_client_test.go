@@ -6,18 +6,18 @@ import (
 
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 
-	"github.com/vrooli/browser-automation-studio/services/export"
+	exportsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/exports"
 )
 
 func TestBuildPlaywrightCaptureInstructions_FrameCount(t *testing.T) {
 	spec := &ReplayMovieSpec{
-		Summary: export.ExportSummary{
+		Summary: &exportsv1.ReplaySummary{
 			TotalDurationMs: 5000,
 		},
-		Playback: export.ExportPlayback{
+		Playback: &exportsv1.ReplayPlayback{
 			FrameIntervalMs: 500,
 		},
-		Frames: []export.ExportFrame{{DurationMs: 500}},
+		Frames: []*exportsv1.ReplayFrame{{DurationMs: 500}},
 	}
 	instr, err := buildPlaywrightCaptureInstructions("http://example.com/export", spec, 500)
 	if err != nil {
@@ -31,13 +31,13 @@ func TestBuildPlaywrightCaptureInstructions_FrameCount(t *testing.T) {
 
 func TestBuildPlaywrightCaptureInstructions_ClampCount(t *testing.T) {
 	spec := &ReplayMovieSpec{
-		Summary: export.ExportSummary{
+		Summary: &exportsv1.ReplaySummary{
 			TotalDurationMs: 999999,
 		},
-		Playback: export.ExportPlayback{
+		Playback: &exportsv1.ReplayPlayback{
 			FrameIntervalMs: 10,
 		},
-		Frames: []export.ExportFrame{{DurationMs: 10}},
+		Frames: []*exportsv1.ReplayFrame{{DurationMs: 10}},
 	}
 	instr, err := buildPlaywrightCaptureInstructions("http://example.com/export", spec, 10)
 	if err != nil {
@@ -51,9 +51,9 @@ func TestBuildPlaywrightCaptureInstructions_ClampCount(t *testing.T) {
 
 func TestBuildPlaywrightCaptureInstructions_ScreenshotIsViewportOnly(t *testing.T) {
 	spec := &ReplayMovieSpec{
-		Summary:  export.ExportSummary{TotalDurationMs: 2000},
-		Playback: export.ExportPlayback{FrameIntervalMs: 1000},
-		Frames:   []export.ExportFrame{{DurationMs: 1000}},
+		Summary:  &exportsv1.ReplaySummary{TotalDurationMs: 2000},
+		Playback: &exportsv1.ReplayPlayback{FrameIntervalMs: 1000},
+		Frames:   []*exportsv1.ReplayFrame{{DurationMs: 1000}},
 	}
 	instr, err := buildPlaywrightCaptureInstructions("http://example.com/export", spec, 1000)
 	if err != nil {
@@ -97,9 +97,9 @@ func TestBuildPlaywrightCaptureInstructions_ScreenshotIsViewportOnly(t *testing.
 
 func TestBuildPlaywrightCaptureInstructions_InitialInstructions(t *testing.T) {
 	spec := &ReplayMovieSpec{
-		Summary:  export.ExportSummary{TotalDurationMs: 1000},
-		Playback: export.ExportPlayback{FrameIntervalMs: 1000},
-		Frames:   []export.ExportFrame{{DurationMs: 1000}},
+		Summary:  &exportsv1.ReplaySummary{TotalDurationMs: 1000},
+		Playback: &exportsv1.ReplayPlayback{FrameIntervalMs: 1000},
+		Frames:   []*exportsv1.ReplayFrame{{DurationMs: 1000}},
 	}
 	instr, err := buildPlaywrightCaptureInstructions("http://localhost:3000/export", spec, 1000)
 	if err != nil {
@@ -134,9 +134,9 @@ func TestBuildPlaywrightCaptureInstructions_InitialInstructions(t *testing.T) {
 
 func TestBuildPlaywrightCaptureInstructions_WaitScreenshotAlternation(t *testing.T) {
 	spec := &ReplayMovieSpec{
-		Summary:  export.ExportSummary{TotalDurationMs: 3000},
-		Playback: export.ExportPlayback{FrameIntervalMs: 1000},
-		Frames:   []export.ExportFrame{{DurationMs: 1000}},
+		Summary:  &exportsv1.ReplaySummary{TotalDurationMs: 3000},
+		Playback: &exportsv1.ReplayPlayback{FrameIntervalMs: 1000},
+		Frames:   []*exportsv1.ReplayFrame{{DurationMs: 1000}},
 	}
 	instr, err := buildPlaywrightCaptureInstructions("http://example.com/export", spec, 1000)
 	if err != nil {
@@ -156,9 +156,9 @@ func TestBuildPlaywrightCaptureInstructions_WaitScreenshotAlternation(t *testing
 
 func TestBuildPlaywrightCaptureInstructions_DefaultDuration(t *testing.T) {
 	spec := &ReplayMovieSpec{
-		Summary:  export.ExportSummary{TotalDurationMs: 0},
-		Playback: export.ExportPlayback{FrameIntervalMs: 0},
-		Frames:   []export.ExportFrame{{DurationMs: 0}},
+		Summary:  &exportsv1.ReplaySummary{TotalDurationMs: 0},
+		Playback: &exportsv1.ReplayPlayback{FrameIntervalMs: 0},
+		Frames:   []*exportsv1.ReplayFrame{{DurationMs: 0}},
 	}
 	// With zero duration and zero interval, should use defaults and not panic
 	instr, err := buildPlaywrightCaptureInstructions("http://example.com/export", spec, 0)
@@ -172,9 +172,9 @@ func TestBuildPlaywrightCaptureInstructions_DefaultDuration(t *testing.T) {
 
 func TestBuildPlaywrightCaptureInstructions_NegativeCaptureInterval(t *testing.T) {
 	spec := &ReplayMovieSpec{
-		Summary:  export.ExportSummary{TotalDurationMs: 5000},
-		Playback: export.ExportPlayback{FrameIntervalMs: 100},
-		Frames:   []export.ExportFrame{{DurationMs: 100}},
+		Summary:  &exportsv1.ReplaySummary{TotalDurationMs: 5000},
+		Playback: &exportsv1.ReplayPlayback{FrameIntervalMs: 100},
+		Frames:   []*exportsv1.ReplayFrame{{DurationMs: 100}},
 	}
 	// Negative interval should be treated as default (1000ms), not panic or error
 	instr, err := buildPlaywrightCaptureInstructions("http://example.com/export", spec, -500)
@@ -189,9 +189,9 @@ func TestBuildPlaywrightCaptureInstructions_NegativeCaptureInterval(t *testing.T
 func TestBuildPlaywrightCaptureInstructions_FallbackDuration(t *testing.T) {
 	// When TotalDurationMs is 0 but DurationMs is set, should use DurationMs
 	spec := &ReplayMovieSpec{
-		Summary:  export.ExportSummary{TotalDurationMs: 0},
-		Playback: export.ExportPlayback{DurationMs: 3000, FrameIntervalMs: 1000},
-		Frames:   []export.ExportFrame{{DurationMs: 1000}},
+		Summary:  &exportsv1.ReplaySummary{TotalDurationMs: 0},
+		Playback: &exportsv1.ReplayPlayback{DurationMs: 3000, FrameIntervalMs: 1000},
+		Frames:   []*exportsv1.ReplayFrame{{DurationMs: 1000}},
 	}
 	instr, err := buildPlaywrightCaptureInstructions("http://example.com/export", spec, 1000)
 	if err != nil {
@@ -210,9 +210,9 @@ func TestBuildPlaywrightCaptureInstructions_FallbackDuration(t *testing.T) {
 // that manifest as bottom-of-frame flickering in assembled videos.
 func TestBuildPlaywrightCaptureInstructions_ViewportStabilization(t *testing.T) {
 	spec := &ReplayMovieSpec{
-		Summary:  export.ExportSummary{TotalDurationMs: 1000},
-		Playback: export.ExportPlayback{FrameIntervalMs: 1000},
-		Frames:   []export.ExportFrame{{DurationMs: 1000}},
+		Summary:  &exportsv1.ReplaySummary{TotalDurationMs: 1000},
+		Playback: &exportsv1.ReplayPlayback{FrameIntervalMs: 1000},
+		Frames:   []*exportsv1.ReplayFrame{{DurationMs: 1000}},
 	}
 	instr, err := buildPlaywrightCaptureInstructions("http://example.com/export", spec, 1000)
 	if err != nil {
@@ -272,9 +272,9 @@ func TestBuildPlaywrightCaptureInstructions_ViewportStabilization(t *testing.T) 
 
 func TestBuildPlaywrightCaptureInstructions_SingleFrame(t *testing.T) {
 	spec := &ReplayMovieSpec{
-		Summary:  export.ExportSummary{TotalDurationMs: 100},
-		Playback: export.ExportPlayback{FrameIntervalMs: 1000},
-		Frames:   []export.ExportFrame{{DurationMs: 100}},
+		Summary:  &exportsv1.ReplaySummary{TotalDurationMs: 100},
+		Playback: &exportsv1.ReplayPlayback{FrameIntervalMs: 1000},
+		Frames:   []*exportsv1.ReplayFrame{{DurationMs: 100}},
 	}
 	instr, err := buildPlaywrightCaptureInstructions("http://example.com/export", spec, 1000)
 	if err != nil {

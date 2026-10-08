@@ -1,0 +1,11 @@
+{
+  "composition": "ledger-river",
+  "slots": {
+    "posture": {
+      "shape": "meta",
+      "role": "primary",
+      "whenUnbound": "decorative"
+    }
+  },
+  "generatedFrom": "ui/src/scenes"
+}

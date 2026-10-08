@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="360" viewBox="0 0 760 360" role="img" aria-labelledby="title desc">
+<title id="title">The reply confirms A while the editor shows B</title>
+<desc id="desc">A hypothetical sequence. In the editor the user saves revision A, Launch on Friday. While that request is in flight, the user changes the text to revision B, Launch on Monday. Storage saves A and returns a success reply for A. At the end B is still unsaved. Editing continues independently while the save request is in flight.</desc>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#41566d"/></marker></defs>
+<rect width="760" height="360" fill="#ffffff"/>
+<g font-family="DejaVu Sans, sans-serif" fill="#152838">
+<text x="58" y="28" font-size="20" font-weight="700">The reply confirms A while the editor shows B</text>
+<text x="58" y="57" font-size="15" fill="#536473">Intended behavior · hypothetical sequence · time runs downward</text>
+<text x="78" y="96" font-size="18" font-weight="700">Editor</text>
+<text x="553" y="96" font-size="18" font-weight="700">Storage</text>
+<line x1="38" y1="115" x2="38" y2="314" stroke="#a9b6c2" stroke-width="2" marker-end="url(#arrow)"/>
+<line x1="510" y1="112" x2="510" y2="305" stroke="#d4dce2" stroke-width="2"/>
+<text x="77" y="136" font-size="18" font-weight="700">Save A</text>
+<text x="77" y="159" font-size="18">“Launch on Friday”</text>
+<path d="M 304 145 L 509 175" stroke="#41566d" stroke-width="2.5" fill="none" marker-end="url(#arrow)"/>
+<text x="346" y="132" font-size="15" fill="#536473">send A</text>
+<circle cx="510" cy="180" r="5" fill="#41566d"/>
+<text x="553" y="184" font-size="18" font-weight="700">A saved</text>
+<text x="553" y="207" font-size="18">Friday</text>
+<text x="77" y="218" font-size="18" font-weight="700">Edit B</text>
+<text x="77" y="242" font-size="18">“Launch on Monday”</text>
+<text x="77" y="267" font-size="15" fill="#8b542d">B has not been sent</text>
+<path d="M 509 228 L 304 295" stroke="#41566d" stroke-width="2.5" fill="none" marker-end="url(#arrow)"/>
+<text x="375" y="287" font-size="15" fill="#536473">reply for A</text>
+<text x="77" y="315" font-size="18" font-weight="700">B is still unsaved</text>
+<text x="553" y="315" font-size="18">Stored copy: A</text>
+<text x="58" y="345" font-size="15" fill="#536473">The reply may confirm A. It must leave B’s unsaved state intact.</text>
+</g>
+</svg>

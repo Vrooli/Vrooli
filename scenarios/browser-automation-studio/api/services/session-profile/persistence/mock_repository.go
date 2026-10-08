@@ -2,6 +2,7 @@
 package persistence
 
 import (
+	"encoding/json"
 	"errors"
 	"sort"
 	"sync"
@@ -85,23 +86,36 @@ func (r *MockRepository) Create(profile *SessionProfile) error {
 	return nil
 }
 
-// Save atomically persists the entire profile.
-func (r *MockRepository) Save(profile *SessionProfile) error {
+// Update isolates the callback from acknowledged state until it succeeds.
+func (r *MockRepository) Update(id ProfileID, modify func(*SessionProfile) error) (*SessionProfile, error) {
+	if r.GetErr != nil {
+		return nil, r.GetErr
+	}
 	if r.SaveErr != nil {
-		return r.SaveErr
+		return nil, r.SaveErr
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if profile == nil {
-		return errors.New("profile is nil")
+	current, ok := r.profiles[id]
+	if !ok {
+		return nil, ErrProfileNotFound
 	}
-	if profile.ID == "" {
-		return errors.New("profile id is required")
+	data, err := json.Marshal(current)
+	if err != nil {
+		return nil, err
 	}
-	// Store a copy to prevent mutation
-	copy := *profile
-	r.profiles[profile.ID] = &copy
-	return nil
+	var candidate SessionProfile
+	if err := json.Unmarshal(data, &candidate); err != nil {
+		return nil, err
+	}
+	if err := modify(&candidate); err != nil {
+		return nil, err
+	}
+	if candidate.ID != id {
+		return nil, errors.New("profile update cannot change identity")
+	}
+	r.profiles[id] = &candidate
+	return &candidate, nil
 }
 
 // Delete removes a profile by ID.

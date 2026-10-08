@@ -1,0 +1,20 @@
+{
+  "executionId": "execution-example",
+  "phaseId": "phase-example",
+  "phaseGeneration": "1",
+  "ruleVersion": "recommended-read-only.v1",
+  "now": "2026-09-06T12:00:00Z",
+  "knownOwnerWait": false,
+  "attempts": [],
+  "newEvidence": 0,
+  "budgetUsed": 0,
+  "budgetTotal": 0,
+  "terminal": false,
+  "terminalMismatch": true,
+  "disabled": false,
+  "investigationWorkload": false,
+  "investigatorDepth": 0,
+  "existingCount": 0,
+  "concurrentExecution": 0,
+  "concurrentGlobal": 0
+}

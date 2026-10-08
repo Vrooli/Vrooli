@@ -1,8 +1,8 @@
 import { fromJson, toJson, type JsonReadOptions, type JsonWriteOptions, type Message, type DescMessage, type JsonValue } from '@bufbuild/protobuf';
 
-// Allow unknown fields to handle cases where API returns fields with different names
-// than what the proto schema expects (e.g., execution_id -> executionId vs json_name="id")
-const readOptions: Partial<JsonReadOptions> = { ignoreUnknownFields: true };
+// Reject unknown fields at every typed boundary. Callers that consume an
+// intentionally legacy payload must normalize it before invoking this helper.
+const readOptions: Partial<JsonReadOptions> = { ignoreUnknownFields: false };
 const writeOptions: Partial<JsonWriteOptions> = { useProtoFieldName: true };
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>

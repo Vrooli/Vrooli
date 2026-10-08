@@ -1,0 +1,27 @@
+{
+  "description": "Embeddable UI component (audio-tools voice-button pattern) and a stable internal API contract so rich-media-studio composes image ops without reimplementing them.",
+  "module_id": "MOD-P2-001",
+  "prd_ref": "OT-P2-001",
+  "priority": "P2",
+  "requirements": [
+    {
+      "category": "integration",
+      "dependencies": [],
+      "description": "Embeddable UI component (audio-tools voice-button pattern) and a stable internal API contract so rich-media-studio composes image ops without reimplementing them.",
+      "id": "IMG-P2-001",
+      "prd_ref": "OT-P2-001",
+      "status": "planned",
+      "title": "rich-media-studio Consumption Integration",
+      "validation": [
+        {
+          "notes": "Embeddable component and stable contract documented for consumers",
+          "phase": "manual",
+          "ref": "docs/concepts/INTEGRATIONS.md",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ],
+  "title": "rich-media-studio Consumption Integration"
+}

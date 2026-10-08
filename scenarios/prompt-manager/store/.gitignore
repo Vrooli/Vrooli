@@ -1,0 +1,20 @@
+# Runtime state and rebuildable caches live under ~/.vrooli/{data,cache}/vrooli/prompt-manager/
+# (see docs/concepts/STORAGE_CLASSES.md). These patterns are defensive: writers no longer target
+# these paths, but the rules keep accidental in-tree writes from being staged.
+
+# Rebuildable indexes (RuntimeCache)
+indexes/
+
+# Top-level runtime (RuntimeData)
+heartbeat-active-runs.json
+team-queue-*.json
+
+# Per-member runtime (RuntimeData)
+teams/*/members/*/heartbeat.json
+teams/*/members/*/last-handoff.md
+teams/*/members/*/inbox.json
+teams/*/members/*/logs/
+
+# Per-team shared runtime (RuntimeData)
+teams/*/shared/*.jsonl
+teams/*/shared/tasks.json

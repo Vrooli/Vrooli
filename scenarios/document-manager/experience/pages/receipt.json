@@ -1,0 +1,32 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": { "id": "receipt", "title": "Receipt", "routes": ["/receipt"], "purpose": "Show live document processing receipts with an explicit local residency summary, privacy class, MIME, and parse tier.", "prd_refs": ["OT-P0-014", "OT-P0-015"] },
+  "priorities": [
+    { "statement": "Locality is stated in the summary and on every visible processing step." },
+    { "statement": "Privacy class and processing tier remain readable beside the document identity." },
+    { "statement": "An empty receipt is distinct from a loaded receipt list." }
+  ],
+  "states": [
+    { "id": "default", "description": "Receipt documents are loaded with local processing and tier details." },
+    { "id": "empty", "description": "The receipt API is reachable but no documents have processing receipts." },
+    { "id": "error", "description": "The receipt API failed and the surface remains usable with an empty state." }
+  ],
+  "elements": [
+    { "id": "receipt-region", "role": "region", "name": "Receipt" },
+    { "id": "step-timeline", "role": "list", "name": "Processing timeline" },
+    { "id": "residency-summary", "role": "status", "name": "Residency summary" }
+  ],
+  "claims": [
+    { "id": "receipt-region-present", "type": "element-present", "statement": "The receipt exposes a named processing timeline region.", "tier": "machine", "elements": ["receipt-region", "step-timeline"], "states": ["default", "empty", "error"] },
+    { "id": "residency-summary-visible", "type": "element-present", "statement": "The loaded receipt states Local in a dedicated residency summary.", "tier": "machine", "elements": ["residency-summary"], "states": ["default"] },
+    { "id": "receipt-keyboard-reachable", "type": "element-present", "statement": "The processing timeline is exposed in normal document order to assistive technology.", "tier": "machine", "elements": ["step-timeline"], "states": ["default", "empty"] },
+    { "id": "receipt-states-covered", "type": "state-covered", "statement": "Populated, empty, and error states are distinct.", "tier": "machine", "elements": ["receipt-region"], "states": ["default", "empty", "error"] }
+  ],
+  "bindings": { "elements": {
+    "receipt-region": { "testid": "page-receipt" },
+    "step-timeline": { "testid": "receipt-timeline" },
+    "residency-summary": { "testid": "receipt-residency-summary" }
+  }}
+}

@@ -8,88 +8,88 @@
     "surface": "ui",
     "capability": "04-ui-dashboard",
     "reset": "none",
-    "version": 1,
+    "version": "1",
     "execution_mode": "observer"
   },
   "settings": {
-    "executionViewport": {
-      "width": 1440,
-      "height": 900,
-      "preset": "desktop"
-    }
+    "viewport_width": 1440,
+    "viewport_height": 900
   },
   "nodes": [
     {
       "id": "navigate-dashboard",
-      "type": "navigate",
-      "data": {
-        "label": "Navigate to dashboard",
-        "destinationType": "url",
-        "url": "http://localhost:{{UI_PORT}}/dashboard"
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "tidiness-manager",
+          "scenario_path": "/dashboard",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Navigate to dashboard"
+        }
       }
     },
     {
-      "id": "wait-for-page",
-      "type": "wait",
-      "data": {
-        "label": "Wait for page to load",
-        "waitType": "duration",
-        "durationMs": 1000,
-        "timeoutMs": 3000
+      "id": "wait-for-table",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/scenarioTable",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Wait for scenario table"
+        }
       }
     },
     {
       "id": "evaluate-theme",
-      "type": "evaluate",
-      "data": {
-        "label": "Check background color is dark",
-        "expression": "window.getComputedStyle(document.body).backgroundColor"
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "window.getComputedStyle(document.body).backgroundColor"
+        },
+        "metadata": {
+          "label": "Check background color is dark"
+        }
       }
     },
     {
       "id": "assert-table-exists",
-      "type": "assert",
-      "data": {
-        "label": "Verify table exists in dark theme",
-        "selector": "@selector/scenarioTable",
-        "assertMode": "exists",
-        "failureMessage": "Table should be visible in dark theme"
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/scenarioTable",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "Table should be visible in dark theme"
+        },
+        "metadata": {
+          "label": "Verify table exists in dark theme"
+        }
       }
     },
     {
       "id": "capture-theme",
-      "type": "screenshot",
-      "data": {
-        "label": "Capture dark theme state",
-        "fullPage": true,
-        "waitForMs": 500
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": true
+        },
+        "metadata": {
+          "label": "Capture dark theme state"
+        }
       }
     }
   ],
   "edges": [
-    {
-      "id": "e1",
-      "source": "navigate-dashboard",
-      "target": "wait-for-page",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e2",
-      "source": "wait-for-page",
-      "target": "evaluate-theme",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e3",
-      "source": "evaluate-theme",
-      "target": "assert-table-exists",
-      "type": "smoothstep"
-    },
-    {
-      "id": "e4",
-      "source": "assert-table-exists",
-      "target": "capture-theme",
-      "type": "smoothstep"
-    }
+    { "id": "e1", "source": "navigate-dashboard", "target": "wait-for-table", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e2", "source": "wait-for-table", "target": "evaluate-theme", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e3", "source": "evaluate-theme", "target": "assert-table-exists", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e4", "source": "assert-table-exists", "target": "capture-theme", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
   ]
 }

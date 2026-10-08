@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package vrooli.vrooli_events.v1.domain;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain;domain";
+
+message ReceiptAggregateRequest {
+  google.protobuf.Timestamp since = 1;
+  google.protobuf.Timestamp until = 2;
+  string target_scenario = 3;
+  string operation = 4;
+}
+
+message ReceiptAggregate {
+  string target_scenario = 1;
+  string operation = 2;
+  int64 invocation_count = 3;
+  int64 distinct_verified_callers = 4;
+  int64 unattributed_remainder = 5;
+  string last_invoked_at = 6;
+}
+
+message ReceiptAggregateResponse {
+  repeated ReceiptAggregate aggregates = 1;
+  string window_since = 2;
+  string window_until = 3;
+}
+
+service ReceiptAggregateService {
+  rpc AggregateReceipts(ReceiptAggregateRequest) returns (ReceiptAggregateResponse);
+}

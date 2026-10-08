@@ -1,10 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
+import { renderWithProviders } from "@vrooli/api-base/testing";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './card';
 
 describe('Card Component', () => {
   it('renders card with all sections', () => {
-    render(
+    renderWithProviders(
       <Card>
         <CardHeader>
           <CardTitle>Test Title</CardTitle>
@@ -22,7 +23,7 @@ describe('Card Component', () => {
   });
 
   it('renders card with custom className', () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <Card className="custom-class">
         <CardContent>Content</CardContent>
       </Card>
@@ -32,7 +33,7 @@ describe('Card Component', () => {
   });
 
   it('renders CardTitle without description', () => {
-    render(
+    renderWithProviders(
       <Card>
         <CardHeader>
           <CardTitle>Solo Title</CardTitle>

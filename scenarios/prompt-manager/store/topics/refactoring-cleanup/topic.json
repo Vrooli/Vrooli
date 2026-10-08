@@ -1,0 +1,18 @@
+{
+  "kind": "topic",
+  "schemaVersion": 1,
+  "id": "refactoring-cleanup",
+  "name": "Refactoring \u0026 cleanup",
+  "description": "Refactoring and cleaning up existing code: restructuring, removing dead code and duplication, unifying utilities, and reducing cognitive load.",
+  "parentTopicId": "architecture",
+  "skills": [
+    "refactor",
+    "code-cleanup",
+    "utils-unification",
+    "cognitive-load-reduction"
+  ],
+  "status": "active",
+  "revision": 1,
+  "createdAt": "2026-06-04T17:35:16Z",
+  "updatedAt": "2026-06-04T17:35:16Z"
+}

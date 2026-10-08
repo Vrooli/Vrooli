@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+package vrooli.scenario_authenticator.v1.mfa;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-authenticator/v1/mfa;mfa_v1";
+
+// MFAService owns human second-factor enrollment. The access token identifies
+// the account; the service never accepts a caller-supplied account id.
+service MFAService {
+  rpc BeginEnrollment(BeginEnrollmentRequest) returns (BeginEnrollmentResponse);
+  rpc ConfirmEnrollment(ConfirmEnrollmentRequest) returns (ConfirmEnrollmentResponse);
+  rpc RemoveEnrollment(RemoveEnrollmentRequest) returns (RemoveEnrollmentResponse);
+}
+
+message BeginEnrollmentRequest {
+  string access_token = 1;
+}
+
+message BeginEnrollmentResponse {
+  string enrollment_id = 1;
+  string provisioning_uri = 2;
+  google.protobuf.Timestamp expires_at = 3;
+}
+
+message ConfirmEnrollmentRequest {
+  string access_token = 1;
+  string enrollment_id = 2;
+  string totp_code = 3;
+}
+
+message ConfirmEnrollmentResponse {
+  repeated string recovery_codes = 1;
+  google.protobuf.Timestamp enrolled_at = 2;
+}
+
+message RemoveEnrollmentRequest {
+  string access_token = 1;
+}
+
+message RemoveEnrollmentResponse {}

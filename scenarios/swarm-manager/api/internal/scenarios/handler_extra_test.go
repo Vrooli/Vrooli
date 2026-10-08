@@ -1,12 +1,12 @@
 package scenarios
 
 import (
+	"github.com/vrooli/api-core/apihttptest"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/gorilla/mux"
-	"swarm-manager/internal/testutil"
 )
 
 func TestHandler_LoadAllAndLoad(t *testing.T) {
@@ -43,9 +43,8 @@ func TestHandler_RegisterRoutes(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/scenarios", nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
-
-	testutil.AssertStatusOK(t, rec)
-	resp := testutil.DecodeJSON[listScenariosResponse](t, rec)
+	apihttptest.AssertStatus(t, rec.Result(), 200)
+	resp := apihttptest.MustDecodeJSON[listScenariosResponse](t, rec.Body.Bytes())
 	if len(resp.Scenarios) != 3 {
 		t.Fatalf("expected 3 scenarios, got %d", len(resp.Scenarios))
 	}

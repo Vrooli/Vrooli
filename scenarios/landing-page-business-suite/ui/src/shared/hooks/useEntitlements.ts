@@ -54,7 +54,7 @@ export function useEntitlements() {
     setError(null);
 
     try {
-      const payload = await getEntitlements(trimmed);
+      const payload = await getEntitlements();
       setEntitlements(payload);
     } catch (err) {
       setEntitlements(null);
@@ -65,7 +65,7 @@ export function useEntitlements() {
   }, [email]);
 
   useEffect(() => {
-    refresh();
+    void refresh();
   }, [refresh]);
 
   return { email, setEmail, entitlements, loading, error, refresh };

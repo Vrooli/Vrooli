@@ -1,0 +1,12 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-ui-manifest.schema.json",
+  "title": "Command Center UI manifest",
+  "description": "Declares the ambient board shell disposition for Command Center.",
+  "schemaVersion": "2.0.0",
+  "shell": {
+    "archetype": "ambient-display",
+    "asset": "AmbientDisplayShell",
+    "entry": "ui/src/components/AmbientShell.tsx",
+    "export": "AmbientShell"
+  }
+}

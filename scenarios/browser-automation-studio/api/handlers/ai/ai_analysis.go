@@ -4,16 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/constants"
-	"github.com/vrooli/browser-automation-studio/internal/httpjson"
-	"github.com/vrooli/browser-automation-studio/middleware"
+	modelai "github.com/vrooli/browser-automation-studio/services/ai"
 	"github.com/vrooli/browser-automation-studio/services/credits"
-	"github.com/vrooli/browser-automation-studio/services/entitlement"
 )
 
 // DOMExtractor defines the interface for extracting DOM trees.
@@ -28,7 +25,7 @@ type ElementAnalyzer interface {
 	Analyze(ctx context.Context, url, intent string) ([]ElementInfo, error)
 }
 
-// AIAnalysisHandler handles AI-powered element analysis using Ollama.
+// AIAnalysisHandler handles AI-powered element analysis through the shared AI model service.
 // It focuses on HTTP concerns and delegates domain logic to an ElementAnalyzer.
 type AIAnalysisHandler struct {
 	log           *logrus.Logger
@@ -40,8 +37,8 @@ type AIAnalysisHandler struct {
 type aiAnalysisConfig struct {
 	analyzer      ElementAnalyzer
 	domExtractor  DOMExtractor
-	ollamaClient  OllamaClient
-	model         string
+	modelClient   modelai.RolePromptClient
+	role          string
 	timeout       time.Duration
 	creditService credits.CreditService
 }
@@ -56,17 +53,17 @@ func WithDOMExtractor(extractor DOMExtractor) AIAnalysisOption {
 	}
 }
 
-// WithAIAnalysisOllamaClient sets a custom Ollama client for AI analysis.
-func WithAIAnalysisOllamaClient(client OllamaClient) AIAnalysisOption {
+// WithAIAnalysisModelClient sets the shared model service used for analysis.
+func WithAIAnalysisModelClient(client modelai.RolePromptClient) AIAnalysisOption {
 	return func(cfg *aiAnalysisConfig) {
-		cfg.ollamaClient = client
+		cfg.modelClient = client
 	}
 }
 
-// WithAIAnalysisModel sets the Ollama model to use for AI analysis.
-func WithAIAnalysisModel(model string) AIAnalysisOption {
+// WithAIAnalysisRole sets the AI model role to use for AI analysis.
+func WithAIAnalysisRole(role string) AIAnalysisOption {
 	return func(cfg *aiAnalysisConfig) {
-		cfg.model = model
+		cfg.role = role
 	}
 }
 
@@ -94,7 +91,7 @@ func WithAIAnalysisCreditService(svc credits.CreditService) AIAnalysisOption {
 // NewAIAnalysisHandler creates a new AI analysis handler with optional configuration.
 func NewAIAnalysisHandler(log *logrus.Logger, domHandler *DOMHandler, opts ...AIAnalysisOption) *AIAnalysisHandler {
 	cfg := aiAnalysisConfig{
-		model:   "llama3.2:3b",
+		role:    defaultAIModelRole,
 		timeout: constants.AIAnalysisTimeout,
 	}
 
@@ -108,16 +105,16 @@ func NewAIAnalysisHandler(log *logrus.Logger, domHandler *DOMHandler, opts ...AI
 		if domExtractor == nil && domHandler != nil {
 			domExtractor = domHandler
 		}
-		ollamaClient := cfg.ollamaClient
-		if ollamaClient == nil {
-			ollamaClient = NewDefaultOllamaClient(log)
+		modelClient := cfg.modelClient
+		if modelClient == nil {
+			modelClient = modelai.NewOpenRouterClient(log)
 		}
 
 		analyzer = &AIElementAnalyzer{
 			log:          log,
 			domExtractor: domExtractor,
-			ollamaClient: ollamaClient,
-			model:        cfg.model,
+			modelClient:  modelClient,
+			role:         cfg.role,
 		}
 	}
 
@@ -129,80 +126,63 @@ func NewAIAnalysisHandler(log *logrus.Logger, domHandler *DOMHandler, opts ...AI
 	}
 }
 
-// AIAnalyzeElements handles POST /api/v1/ai-analyze-elements.
-func (h *AIAnalysisHandler) AIAnalyzeElements(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	var req AIAnalyzeRequest
-	if err := httpjson.Decode(w, r, &req); err != nil {
-		h.log.WithError(err).Error("Failed to decode AI analyze request")
-		RespondError(w, ErrInvalidRequest)
-		return
+// RunAIAnalyze is the transport-agnostic core of the AI element analysis
+// endpoint. Returns a CreditCheckError when the user is not entitled to run
+// the operation; other errors wrap the underlying analyzer failure.
+func (h *AIAnalysisHandler) RunAIAnalyze(ctx context.Context, url, intent, userID string, hasBYOK bool) ([]ElementInfo, error) {
+	if strings.TrimSpace(url) == "" {
+		return nil, ErrMissingURL
+	}
+	if strings.TrimSpace(intent) == "" {
+		return nil, ErrMissingIntent
 	}
 
-	if req.URL == "" || req.Intent == "" {
-		RespondError(w, ErrMissingRequiredField.WithDetails(map[string]string{"fields": "url, intent"}))
-		return
-	}
-
-	// Check AI operation permission (tier + credits)
-	var userID string
-	hasBYOK := middleware.HasBYOKKey(ctx)
 	if h.creditService != nil {
-		userID = entitlement.UserIdentityFromContext(ctx)
 		if userID == "" {
 			userID = "anonymous"
 		}
-
 		canProceed, errCode, errMsg, remaining, err := h.creditService.CanPerformAIOperation(ctx, userID, credits.OpAIElementAnalyze, hasBYOK)
-		if err != nil {
+		if err != nil && h.log != nil {
 			h.log.WithError(err).Warn("ai_analysis: failed to check AI operation permission")
 		} else if !canProceed {
-			status := http.StatusForbidden
-			if errCode == "INSUFFICIENT_CREDITS" {
-				status = http.StatusPaymentRequired
-			}
-			RespondError(w, &APIError{
-				Status:  status,
-				Code:    errCode,
-				Message: errMsg,
-				Details: map[string]string{"remaining": fmt.Sprintf("%d", remaining)},
-			})
-			return
+			return nil, &CreditCheckError{Code: errCode, Message: errMsg, Remaining: remaining}
 		}
 	}
 
-	h.log.WithFields(logrus.Fields{
-		"url":    req.URL,
-		"intent": req.Intent,
-	}).Info("AI analyzing elements")
-
-	ctx, cancel := context.WithTimeout(ctx, h.timeout)
-	defer cancel()
-
-	suggestions, err := h.analyzeElementsWithAI(ctx, req.URL, req.Intent)
-	if err != nil {
-		h.log.WithError(err).Error("Failed to analyze elements with AI")
-		RespondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "ai_analyze_elements", "error": err.Error()}))
-		return
+	if h.log != nil {
+		h.log.WithFields(logrus.Fields{"url": url, "intent": intent}).Info("AI analyzing elements")
 	}
 
-	// Charge credits after successful AI operation (BYOK users get logged with 0 cost)
+	timeout := h.timeout
+	if timeout <= 0 {
+		timeout = constants.AIAnalysisTimeout
+	}
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	suggestions, err := h.analyzeElementsWithAI(ctx, url, intent)
+	if err != nil {
+		return nil, fmt.Errorf("ai_analyze_elements: %w", err)
+	}
+
 	if h.creditService != nil && userID != "" {
 		if _, err := h.creditService.Charge(ctx, credits.ChargeRequest{
 			UserIdentity: userID,
 			Operation:    credits.OpAIElementAnalyze,
 			IsBYOK:       hasBYOK,
-		}); err != nil {
+		}); err != nil && h.log != nil {
 			h.log.WithError(err).Warn("ai_analysis: failed to charge credits")
 		}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(suggestions); err != nil {
-		h.log.WithError(err).Warn("Failed to encode AI analysis response")
-	}
+	return suggestions, nil
 }
+
+// ErrMissingIntent signals that AIAnalyzeElements received an empty intent.
+var ErrMissingIntent = fmt.Errorf("intent is required")
+
+// Avoid unused-import warning when none of the remaining helpers use json.
+var _ = json.NewEncoder
 
 // analyzeElementsWithAI delegates to the injected analyzer.
 func (h *AIAnalysisHandler) analyzeElementsWithAI(ctx context.Context, url, intent string) ([]ElementInfo, error) {
@@ -212,15 +192,15 @@ func (h *AIAnalysisHandler) analyzeElementsWithAI(ctx context.Context, url, inte
 	return h.analyzer.Analyze(ctx, url, intent)
 }
 
-// AIElementAnalyzer owns the domain logic for DOM extraction and Ollama prompting.
+// AIElementAnalyzer owns the domain logic for DOM extraction and model prompting.
 type AIElementAnalyzer struct {
 	log          *logrus.Logger
 	domExtractor DOMExtractor
-	ollamaClient OllamaClient
-	model        string
+	modelClient  modelai.RolePromptClient
+	role         string
 }
 
-// Analyze extracts the DOM for the given URL and asks the Ollama model for element suggestions.
+// Analyze extracts the DOM for the given URL and asks the configured AI model role for element suggestions.
 func (a *AIElementAnalyzer) Analyze(ctx context.Context, url, intent string) ([]ElementInfo, error) {
 	if a.domExtractor == nil {
 		return nil, fmt.Errorf("DOM extractor not configured")
@@ -245,7 +225,7 @@ func (a *AIElementAnalyzer) Analyze(ctx context.Context, url, intent string) ([]
 		}).Info("Extracted DOM tree")
 	}
 
-	// Create a prompt for Ollama to analyze the DOM and suggest elements
+	// Create a prompt for the model service to analyze the DOM and suggest elements.
 	prompt := fmt.Sprintf(`You are an expert web automation assistant. Analyze this DOM tree and help identify the best elements to interact with based on the user's intent.
 
 URL: %s
@@ -284,52 +264,52 @@ Example format:
   }
 ]`, url, intent, domData)
 
-	// Query Ollama via the client interface
-	responseText, err := a.ollamaClient.Query(ctx, a.model, prompt)
+	// Query the shared model service through its role-aware interface.
+	modelResponse, err := a.modelClient.ExecutePromptWithRole(ctx, a.role, prompt)
 	if err != nil {
-		return nil, fmt.Errorf("failed to call ollama API: %w", err)
+		return nil, fmt.Errorf("failed to call AI model service: %w", err)
 	}
 
-	// Log the raw Ollama response for debugging
+	// Log the raw AI model response for debugging
 	previewLen := 200
-	if len(responseText) < previewLen {
-		previewLen = len(responseText)
+	if len(modelResponse) < previewLen {
+		previewLen = len(modelResponse)
 	}
 	if a.log != nil {
 		a.log.WithFields(logrus.Fields{
-			"model":            a.model,
-			"response_length":  len(responseText),
-			"response_preview": responseText[:previewLen],
-		}).Info("Received Ollama response")
+			"role":             a.role,
+			"response_length":  len(modelResponse),
+			"response_preview": modelResponse[:previewLen],
+		}).Info("Received AI model response")
 	}
 
 	// Parse the JSON response from the model
 	var suggestions []ElementInfo
 
 	// First try direct parsing
-	if err := json.Unmarshal([]byte(responseText), &suggestions); err != nil {
+	if err := json.Unmarshal([]byte(modelResponse), &suggestions); err != nil {
 		// Clean up common issues in the response
 		// Remove any escape sequences
-		responseText = strings.ReplaceAll(responseText, "\\r", "")
-		responseText = strings.ReplaceAll(responseText, "\\n", "\n")
-		responseText = strings.ReplaceAll(responseText, "\\\"", "\"")
-		responseText = strings.ReplaceAll(responseText, "\\\\", "\\")
+		modelResponse = strings.ReplaceAll(modelResponse, "\\r", "")
+		modelResponse = strings.ReplaceAll(modelResponse, "\\n", "\n")
+		modelResponse = strings.ReplaceAll(modelResponse, "\\\"", "\"")
+		modelResponse = strings.ReplaceAll(modelResponse, "\\\\", "\\")
 
 		// Try to find and extract just the JSON array
-		startIdx := strings.Index(responseText, "[")
-		endIdx := strings.LastIndex(responseText, "]")
+		startIdx := strings.Index(modelResponse, "[")
+		endIdx := strings.LastIndex(modelResponse, "]")
 
 		if startIdx != -1 && endIdx != -1 && endIdx > startIdx {
-			jsonStr := responseText[startIdx : endIdx+1]
+			jsonStr := modelResponse[startIdx : endIdx+1]
 
 			// Clean up the extracted JSON
 			jsonStr = strings.TrimSpace(jsonStr)
 
 			// Try parsing the cleaned JSON
 			if err := json.Unmarshal([]byte(jsonStr), &suggestions); err != nil {
-				origPreview := responseText
-				if len(responseText) > 300 {
-					origPreview = responseText[:300]
+				origPreview := modelResponse
+				if len(modelResponse) > 300 {
+					origPreview = modelResponse[:300]
 				}
 				cleanedPreview := jsonStr
 				if len(jsonStr) > 300 {
@@ -361,12 +341,12 @@ Example format:
 			}
 		} else {
 			if a.log != nil {
-				a.log.WithField("response", responseText).Error("No valid JSON found in AI response")
+				a.log.WithField("response", modelResponse).Error("No valid JSON found in AI response")
 			}
 			// Return debug info about what we received
-			respPreview := responseText
-			if len(responseText) > 100 {
-				respPreview = responseText[:100]
+			respPreview := modelResponse
+			if len(modelResponse) > 100 {
+				respPreview = modelResponse[:100]
 			}
 			return []ElementInfo{{
 				Text:       "No JSON found in response",

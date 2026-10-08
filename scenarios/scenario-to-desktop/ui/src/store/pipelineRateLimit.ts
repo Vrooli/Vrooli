@@ -34,7 +34,10 @@ export function createRateLimiter(): RateLimiter {
     const now = Date.now();
 
     // Reset backoff after quiet period
-    if (lastCreationTime > 0 && now - lastCreationTime > RATE_LIMIT_RESET_AFTER_MS) {
+    if (
+      lastCreationTime > 0 &&
+      now - lastCreationTime > RATE_LIMIT_RESET_AFTER_MS
+    ) {
       currentCooldownMs = RATE_LIMIT_INITIAL_COOLDOWN_MS;
       pipelineCreationTimestamps = [];
     }
@@ -44,15 +47,15 @@ export function createRateLimiter(): RateLimiter {
       const remainingMs = cooldownUntil - now;
       console.warn(
         `[PipelineStore] Rate limited: too many pipeline creations. ` +
-        `Cooldown: ${Math.ceil(remainingMs / 1000)}s remaining. ` +
-        `This usually indicates a bug causing infinite pipeline creation.`
+          `Cooldown: ${String(Math.ceil(remainingMs / 1000))}s remaining. ` +
+          `This usually indicates a bug causing infinite pipeline creation.`,
       );
-      return `Rate limited: please wait ${Math.ceil(remainingMs / 1000)} seconds before creating another pipeline`;
+      return `Rate limited: please wait ${String(Math.ceil(remainingMs / 1000))} seconds before creating another pipeline`;
     }
 
     // Clean old timestamps outside the window
     pipelineCreationTimestamps = pipelineCreationTimestamps.filter(
-      (ts) => now - ts < RATE_LIMIT_WINDOW_MS
+      (ts) => now - ts < RATE_LIMIT_WINDOW_MS,
     );
 
     // Check if we've exceeded the rate limit
@@ -60,15 +63,18 @@ export function createRateLimiter(): RateLimiter {
       // Trigger exponential backoff
       cooldownUntil = now + currentCooldownMs;
       console.error(
-        `[PipelineStore] RATE LIMIT TRIGGERED: ${pipelineCreationTimestamps.length} pipelines ` +
-        `created in ${RATE_LIMIT_WINDOW_MS / 1000}s. Enforcing ${currentCooldownMs / 1000}s cooldown. ` +
-        `This is likely a bug - check for infinite effect loops in React components.`
+        `[PipelineStore] RATE LIMIT TRIGGERED: ${String(pipelineCreationTimestamps.length)} pipelines ` +
+          `created in ${String(RATE_LIMIT_WINDOW_MS / 1000)}s. Enforcing ${String(currentCooldownMs / 1000)}s cooldown. ` +
+          `This is likely a bug - check for infinite effect loops in React components.`,
       );
 
       // Double the cooldown for next time (exponential backoff)
-      currentCooldownMs = Math.min(currentCooldownMs * 2, RATE_LIMIT_MAX_COOLDOWN_MS);
+      currentCooldownMs = Math.min(
+        currentCooldownMs * 2,
+        RATE_LIMIT_MAX_COOLDOWN_MS,
+      );
 
-      return `Rate limited: ${RATE_LIMIT_MAX_CREATIONS} pipelines created in ${RATE_LIMIT_WINDOW_MS / 1000}s. Please wait.`;
+      return `Rate limited: ${String(RATE_LIMIT_MAX_CREATIONS)} pipelines created in ${String(RATE_LIMIT_WINDOW_MS / 1000)}s. Please wait.`;
     }
 
     return null; // OK to proceed

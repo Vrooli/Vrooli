@@ -1,0 +1,187 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "vrooli-bridge.qualification",
+  "version": "1",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Admit one bounded Bridge qualification request, refuse unauthorized or malformed target scope before owner admission, and return a durable Test Genie receipt that can be resumed by id.",
+  "inputs": {
+    "request_key": {
+      "type": "string",
+      "required": true,
+      "description": "Stable qualification request identity. Reusing it with the same inputs attaches to the same owner operation; changed inputs are a conflict."
+    },
+    "candidate_digest": {
+      "type": "string",
+      "required": true,
+      "description": "Immutable sha256:<64 lowercase hex> candidate identity."
+    },
+    "target_ids": {
+      "type": "array",
+      "required": true,
+      "description": "Explicit target identities in this qualification request."
+    },
+    "authorized_target_ids": {
+      "type": "array",
+      "default": [],
+      "description": "Target identities covered by the caller's explicit authority."
+    },
+    "authorization_ref": {
+      "type": "string",
+      "default": "",
+      "description": "Opaque owner-grant reference. The program records the reference, never a credential value."
+    },
+    "phases": {
+      "type": "array",
+      "default": [
+        "business",
+        "storage",
+        "contracts"
+      ],
+      "description": "Bounded Test Genie phases required for this qualification attempt. The current owner uses contracts for the retired integration CLI/API lane."
+    },
+    "evidence_cells": {
+      "type": "array",
+      "default": [],
+      "description": "Existing cell observations. Each row has cell_id and a status of passed, failed, stale, unavailable, or pending."
+    },
+    "plan_only": {
+      "type": "boolean",
+      "default": false,
+      "description": "Return the admitted intent without creating the owner operation. Used for safe contract inspection."
+    }
+  },
+  "assumptions": [
+    "Test Genie owns validation admission, execution, evidence, idempotency, and one server-owned wait.",
+    "Target authorization is supplied by an owner-controlled grant reference; this program does not mint or infer authority.",
+    "Native target effects and release promotion remain later Bridge qualification obligations."
+  ],
+  "invariants": [
+    "Validate request and target authority before calling any binding.",
+    "Never mutate a target; the only admitted effect is creating a Test Genie validation operation.",
+    "Never convert pending, stale, unavailable, or failed cells into passed cells.",
+    "Return at most eight evidence-cell rows and one owner receipt.",
+    "Return one bounded envelope on every path.",
+    "A receipt is not a passing result until its owner terminal evidence is read."
+  ],
+  "bindings": [
+    {
+      "id": "test-genie/validation/create",
+      "effect": "write"
+    }
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "refused",
+        "failed",
+        "unavailable"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "act",
+        "report"
+      ]
+    },
+    "signals": {
+      "request": "Normalized request identity, candidate digest, target count, and bounded phase selection.",
+      "authority": "Whether every requested target is covered by the explicit authority input.",
+      "cells": "Capped evidence-cell observations with their original status.",
+      "intent": "Exact owner validation intent when admission is planned.",
+      "receipt": "Owner receipt identity and terminal state when Test Genie admits the request.",
+      "wait_command": "One server-owned wait command for a non-terminal receipt.",
+      "resume_command": "One owner get command for the retained receipt."
+    },
+    "errors": {
+      "classes": [
+        "invalid_input",
+        "no_grant",
+        "not_run_eligible",
+        "scenario_unreachable",
+        "remote_error",
+        "deadline_exceeded",
+        "binding_error",
+        "idempotency_conflict",
+        "no_governed_binding",
+        "kernel_runtime"
+      ]
+    },
+    "evidence": "Opaque authorization reference, candidate digest, receipt id, and cell references; never secret values."
+  },
+  "budget": {
+    "wall_ms": 120000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 8,
+    "output_bytes": 65536
+  },
+  "fixtures": [
+    {
+      "id": "missing-request-key",
+      "inputs": {},
+      "expect": {
+        "admission_error": "invalid_argument"
+      },
+      "requires": [
+        "test-genie"
+      ]
+    },
+    {
+      "id": "unauthorized-target",
+      "inputs": {
+        "request_key": "bridge-fixture-unauthorized",
+        "candidate_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "target_ids": [
+          "fixture-production-host"
+        ],
+        "authorized_target_ids": [],
+        "authorization_ref": "",
+        "plan_only": true
+      },
+      "expect": {
+        "status": [
+          "refused"
+        ]
+      },
+      "requires": [
+        "test-genie"
+      ]
+    },
+    {
+      "id": "valid-admission-plan",
+      "inputs": {
+        "request_key": "bridge-fixture-admission",
+        "candidate_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "target_ids": [
+          "fixture-alpha"
+        ],
+        "authorized_target_ids": [
+          "fixture-alpha"
+        ],
+        "authorization_ref": "fixture-owner-grant",
+        "phases": [
+          "business"
+        ],
+        "plan_only": true
+      },
+      "expect": {
+        "status": [
+          "ok"
+        ]
+      },
+      "requires": [
+        "test-genie"
+      ]
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "test-genie",
+  "verbs": [
+    "validate",
+    "tasks.get"
+  ]
+}

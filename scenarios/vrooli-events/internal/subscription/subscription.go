@@ -1,6 +1,8 @@
 // Package subscription implements persistent subscription management for
 // event-driven consumers. Subscriptions define which events to forward and
 // how (SSE or webhook).
+//
+// DOC: docs/guides/creating-subscriptions.md
 package subscription
 
 import (
@@ -41,6 +43,18 @@ type Health struct {
 	Status              string `json:"status"` // "active", "circuit_broken"
 }
 
+// QueuedDelivery is a durable attempt to fan an event out to one webhook.
+// PayloadJSON is stored with the queue row so retries do not depend on event
+// retention or a second lookup path.
+type QueuedDelivery struct {
+	ID             int64
+	SubscriptionID int64
+	EventID        string
+	PayloadJSON    string
+	Attempts       int
+	NextAttemptAt  time.Time
+}
+
 // ListFilters defines filters for listing subscriptions.
 type ListFilters struct {
 	Owner   string
@@ -57,4 +71,12 @@ type Store interface {
 	Delete(ctx context.Context, id int64) error
 	GetHealth(ctx context.Context, id int64) (Health, error)
 	Close() error
+}
+
+type QueueStore interface {
+	Store
+	Enqueue(ctx context.Context, subscriptionID int64, eventID, payload string) error
+	Due(ctx context.Context, limit int) ([]QueuedDelivery, error)
+	MarkDelivered(ctx context.Context, deliveryID, subscriptionID int64, at time.Time) error
+	MarkFailed(ctx context.Context, deliveryID, subscriptionID int64, reason string, next time.Time, deadLetter bool) error
 }

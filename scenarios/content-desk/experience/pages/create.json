@@ -1,0 +1,128 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "create",
+    "title": "Create",
+    "routes": [
+      "/create"
+    ],
+    "purpose": "Write and adapt the exact native draft in a format-shaped canvas with permanent desktop evidence context.",
+    "prd_refs": [
+      "OT-P0-017",
+      "OT-P0-018",
+      "OT-P0-020",
+      "OT-P0-021",
+      "OT-P0-023",
+      "OT-P0-031",
+      "OT-P0-033",
+      "OT-P0-037"
+    ]
+  },
+  "states": [
+    {
+      "id": "default",
+      "description": "The default state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "simple-post",
+      "description": "The simple post state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "article",
+      "description": "The article state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "thread",
+      "description": "The thread state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "image-carousel",
+      "description": "The image carousel state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "video-storyboard",
+      "description": "The video storyboard state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "proposal-comparison",
+      "description": "The proposal comparison state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "stale-proposal",
+      "description": "The stale proposal state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "keyboard-open",
+      "description": "The keyboard open state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "local-branch",
+      "description": "The local branch state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "save-outcome-unknown",
+      "description": "The save outcome unknown state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "loading",
+      "description": "The loading state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "empty",
+      "description": "The empty state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "partial",
+      "description": "The partial state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "stale",
+      "description": "The stale state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "request-error",
+      "description": "The request error state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "permission-denied",
+      "description": "The permission denied state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "offline",
+      "description": "The offline state is distinguishable with its truthful basis and a permitted next action."
+    }
+  ],
+  "claims": [
+    {
+      "id": "create-outcome-1",
+      "type": "custom",
+      "statement": "The draft scope, revision, truthful save state and selected evidence remain perceivable through writing and assistance.",
+      "tier": "aspirational",
+      "rationale": "Accepted target intent; no running selector or runtime attestation is asserted."
+    },
+    {
+      "id": "create-outcome-2",
+      "type": "custom",
+      "statement": "Apply shows the selected old and proposed text and produces a guarded new revision; an explanatory answer has no Apply action.",
+      "tier": "aspirational",
+      "rationale": "Accepted target intent; no running selector or runtime attestation is asserted."
+    }
+  ],
+  "x-i16-source": {
+    "dossier": "package/documents/dossier-accepted-basis/document-text.md",
+    "selected_visuals": [
+      "design-source/screens/M04-editor-v03-desktop.png",
+      "design-source/screens/M04-editor-v03-phone.png",
+      "design-source/screens/M12-simple-v05-desktop.png",
+      "design-source/screens/M12-simple-v05-phone.png",
+      "design-source/screens/M16-article-v03-desktop.png",
+      "design-source/screens/M16-storyboard-v01-desktop.png",
+      "design-source/screens/M16-thread-v01-desktop.png",
+      "design-source/screens/M22-dark-editor-v02-desktop.png",
+      "design-source/screens/M23-assistance-v01-desktop.png",
+      "design-source/screens/M23-assistance-v01-phone.png"
+    ]
+  }
+}

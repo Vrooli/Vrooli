@@ -26,4 +26,3 @@ func (s *WorkflowService) listAllProjectWorkflows(ctx context.Context, projectID
 	}
 	return all, nil
 }
-

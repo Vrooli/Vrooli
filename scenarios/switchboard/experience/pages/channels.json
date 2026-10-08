@@ -1,0 +1,289 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "channels",
+    "title": "Channels",
+    "routes": [
+      "/channels",
+      "/channels/:channelId"
+    ],
+    "purpose": "The catalogue of every channel this install could use, ordered by how much work each one takes, with unavailable ones shown as a prompt to satisfy their requirement rather than as options that fail three screens later.",
+    "prd_refs": [
+      "OT-P0-001",
+      "OT-P1-012",
+      "OT-P1-013",
+      "OT-P1-010",
+      "OT-P2-008"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Which channels can be attached right now, on this host"
+    },
+    {
+      "statement": "How much setup each one actually takes, before starting"
+    },
+    {
+      "statement": "Why an unavailable channel is unavailable, and what would fix it"
+    },
+    {
+      "statement": "Which attached channels are healthy and which have stopped working"
+    },
+    {
+      "statement": "Which capabilities are a paid convenience rather than a locked feature"
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "Available channels are listed first, ordered by declared setup friction."
+    },
+    {
+      "id": "loading",
+      "description": "Availability is being computed from host facts."
+    },
+    {
+      "id": "empty",
+      "description": "No descriptor loaded, which is a configuration fault and is stated as one."
+    },
+    {
+      "id": "partial",
+      "description": "Availability for some channels could not be computed; those are marked unknown rather than available."
+    },
+    {
+      "id": "stale",
+      "description": "Availability is cached; its age is stated."
+    },
+    {
+      "id": "request-error",
+      "description": "The catalogue could not be read; a retry is offered."
+    },
+    {
+      "id": "permission-denied",
+      "description": "The signed-in person may not attach channels."
+    }
+  ],
+  "elements": [
+    {
+      "id": "catalog",
+      "role": "list",
+      "name": "Channels"
+    },
+    {
+      "id": "channel-row",
+      "role": "listitem",
+      "name": "Channel"
+    },
+    {
+      "id": "friction-indicator",
+      "role": "img",
+      "name": "Setup effort"
+    },
+    {
+      "id": "availability-status",
+      "role": "status",
+      "name": "Availability"
+    },
+    {
+      "id": "requirement-prompt",
+      "role": "link",
+      "name": "Satisfy this requirement"
+    },
+    {
+      "id": "attach-action",
+      "role": "button",
+      "name": "Attach"
+    },
+    {
+      "id": "gated-note",
+      "role": "note",
+      "name": "Included with a subscription"
+    },
+    {
+      "id": "health-status",
+      "role": "status",
+      "name": "Channel health"
+    },
+    {
+      "id": "show-all-action",
+      "role": "button",
+      "name": "Show all channels"
+    }
+  ],
+  "claims": [
+    {
+      "id": "friction-ordering",
+      "type": "reading-order",
+      "statement": "Available channels appear in ascending order of the setup friction their descriptor declares.",
+      "tier": "aspirational",
+      "elements": [
+        "catalog"
+      ],
+      "states": [
+        "default"
+      ],
+      "rationale": "OT-P1-013. Ordering is derived from data so a new channel lands in the right place by arriving."
+    },
+    {
+      "id": "no-dead-ends",
+      "type": "element-absent",
+      "statement": "A channel whose requirements are unmet is never presented as a selectable attach action.",
+      "tier": "aspirational",
+      "elements": [
+        "attach-action",
+        "requirement-prompt"
+      ],
+      "states": [
+        "default"
+      ],
+      "rationale": "OT-P1-012. Letting somebody start an attach that cannot finish is the worst outcome on this page."
+    },
+    {
+      "id": "unavailable-states-the-fix",
+      "type": "element-present",
+      "statement": "An unavailable channel names the unmet requirement and links to the action that would satisfy it.",
+      "tier": "aspirational",
+      "elements": [
+        "availability-status",
+        "requirement-prompt"
+      ],
+      "states": [
+        "default"
+      ]
+    },
+    {
+      "id": "unknown-is-not-available",
+      "type": "state-distinct",
+      "statement": "A channel whose availability could not be computed is perceivably distinct from one known to be available.",
+      "tier": "aspirational",
+      "elements": [
+        "availability-status"
+      ],
+      "states": [
+        "partial"
+      ],
+      "rationale": "Treating unknown as available produces exactly the dead end the previous claim forbids."
+    },
+    {
+      "id": "effort-before-commitment",
+      "type": "element-present",
+      "statement": "Setup effort is legible before the attach action is used, not discovered during it.",
+      "tier": "aspirational",
+      "elements": [
+        "friction-indicator"
+      ],
+      "states": [
+        "default"
+      ]
+    },
+    {
+      "id": "gated-is-honest",
+      "type": "element-present",
+      "statement": "A gated channel states that it is a paid convenience and that the same capability is available with the operator's own credentials.",
+      "tier": "aspirational",
+      "elements": [
+        "gated-note"
+      ],
+      "states": [
+        "default"
+      ],
+      "rationale": "The monetisation contract forbids gating a capability a self-hoster could run themselves; the surface has to say so."
+    },
+    {
+      "id": "catalog-truncates",
+      "type": "custom",
+      "statement": "At most five channels are shown before the show-all action, so the screen never becomes a decision-paralysis list.",
+      "tier": "manual",
+      "elements": [
+        "catalog",
+        "show-all-action"
+      ],
+      "states": [
+        "default"
+      ]
+    },
+    {
+      "id": "no-channel-branch",
+      "type": "custom",
+      "statement": "Every per-channel label, limit and capability shown on this page is read from the descriptor.",
+      "tier": "manual",
+      "elements": [
+        "channel-row"
+      ],
+      "rationale": "OT-P0-002. If the console hardcodes a channel name, the descriptor stopped being the source of truth."
+    },
+    {
+      "id": "empty-is-a-fault",
+      "type": "element-present",
+      "statement": "An empty catalogue is presented as a configuration fault naming the descriptor directory, not as an ordinary empty state.",
+      "tier": "aspirational",
+      "states": [
+        "empty"
+      ]
+    },
+    {
+      "id": "dark-parity",
+      "type": "dark-parity",
+      "statement": "Availability and health states stay distinct in both themes.",
+      "tier": "aspirational"
+    }
+  ],
+  "regions": [
+    {
+      "id": "catalog-region",
+      "purpose": "Channel descriptors with availability computed from host facts.",
+      "required": true,
+      "component": {
+        "local": "async-region"
+      },
+      "lifecycle": {
+        "kind": "async",
+        "states": [
+          "loading",
+          "ready",
+          "empty",
+          "partial",
+          "error"
+        ]
+      }
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "catalog": {
+        "testid": "channels-catalog"
+      },
+      "channel-row": {
+        "testid": "channels-row"
+      },
+      "friction-indicator": {
+        "testid": "channels-friction"
+      },
+      "availability-status": {
+        "testid": "channels-availability"
+      },
+      "requirement-prompt": {
+        "testid": "channels-requirement"
+      },
+      "attach-action": {
+        "testid": "channels-attach"
+      },
+      "gated-note": {
+        "testid": "channels-gated"
+      },
+      "health-status": {
+        "testid": "channels-health"
+      },
+      "show-all-action": {
+        "testid": "channels-show-all"
+      }
+    },
+    "regions": {
+      "catalog-region": {
+        "testid": "channels-catalog-region"
+      }
+    }
+  }
+}

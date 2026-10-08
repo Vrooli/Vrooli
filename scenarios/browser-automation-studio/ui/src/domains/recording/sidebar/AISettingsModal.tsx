@@ -4,13 +4,12 @@
  * Modal for configuring AI navigation settings:
  * - Vision model selection
  * - Max steps configuration
- * - Cost estimation display
+ * - Provider-neutral routing explanation
  */
 
 import { useState, useCallback, useEffect } from 'react';
 import { type AISettings } from './types';
 import { type VisionModelSpec } from '../ai-navigation/types';
-import { formatCost, estimateNavigationCost } from './useAISettings';
 
 // ============================================================================
 // Helper Functions
@@ -19,14 +18,12 @@ import { formatCost, estimateNavigationCost } from './useAISettings';
 /**
  * Get tier badge color classes.
  */
-function getTierBadgeClass(tier: 'budget' | 'standard' | 'premium'): string {
+function getTierBadgeClass(tier: 'local' | 'remote'): string {
   switch (tier) {
-    case 'budget':
+    case 'local':
       return 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300';
-    case 'standard':
+    case 'remote':
       return 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300';
-    case 'premium':
-      return 'bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300';
   }
 }
 
@@ -69,12 +66,6 @@ export function AISettingsModal({
       setMaxSteps(currentSettings.maxSteps);
     }
   }, [isOpen, currentSettings]);
-
-  // Get selected model spec for cost calculation
-  const selectedModel = availableModels.find((m) => m.id === selectedModelId) ?? availableModels[0];
-
-  // Calculate estimated cost
-  const estimatedCost = selectedModel ? estimateNavigationCost(selectedModel, maxSteps) : 0;
 
   // Handle save
   const handleSave = useCallback(() => {
@@ -177,10 +168,6 @@ export function AISettingsModal({
                     )}
                   </div>
 
-                  {/* Cost */}
-                  <div className="text-xs text-gray-500 text-right">
-                    ~{formatCost(model.inputCostPer1MTokens)}/M in
-                  </div>
                 </button>
               ))}
             </div>
@@ -207,20 +194,14 @@ export function AISettingsModal({
               <span>50 (Thorough)</span>
             </div>
             <p className="text-xs text-gray-500 mt-2">
-              More steps allow AI to complete complex tasks but increase cost.
+              More steps allow AI to complete complex tasks. Usage and any applicable charge are reported by AI Gateway.
             </p>
           </div>
 
-          {/* Cost Estimate */}
+          {/* Routing note */}
           <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600 dark:text-gray-400">Estimated cost per navigation:</span>
-              <span className="text-lg font-semibold text-gray-900 dark:text-white">
-                {formatCost(estimatedCost)}
-              </span>
-            </div>
             <p className="text-xs text-gray-500 mt-2">
-              Actual cost depends on page complexity and number of steps taken. The AI may complete tasks in fewer steps.
+              Local-first uses the local multimodal route before hosted fallback. Hosted vision stays within the same AI Gateway boundary.
             </p>
           </div>
         </div>

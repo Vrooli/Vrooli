@@ -3,6 +3,24 @@
 ## Overview
 An interactive, data-driven application for tracking and forecasting fall foliage peaks across North America. Combines real-time weather data, historical patterns, and predictive modeling to help travelers plan the perfect autumn trip.
 
+## What You Get
+- Lifecycle-managed Go API with health, region, foliage, weather, prediction, report, and trip endpoints
+- Browser UI with map exploration, time slider, reports, photo gallery, trip planning, and CSV/JSON exports
+- Go CLI domains for regions, foliage, reports, and trips
+- PostgreSQL-backed persistence with sample-data fallback for degraded read-only exploration
+- Ollama-backed prediction path with typical-peak fallback when AI is unavailable
+
+## Documentation Map
+- Start here: [docs/START-HERE.md](docs/START-HERE.md)
+- Quick start: [docs/QUICKSTART.md](docs/QUICKSTART.md)
+- Architecture: [docs/concepts/ARCHITECTURE.md](docs/concepts/ARCHITECTURE.md)
+- API reference: [docs/reference/api-endpoints.md](docs/reference/api-endpoints.md)
+- CLI reference: [docs/reference/cli-commands.md](docs/reference/cli-commands.md)
+- Configuration: [docs/reference/configuration.md](docs/reference/configuration.md)
+- Progress log: [docs/internal/PROGRESS.md](docs/internal/PROGRESS.md)
+- Problem log: [docs/internal/PROBLEMS.md](docs/internal/PROBLEMS.md)
+- Requirements: [requirements/README.md](requirements/README.md)
+
 ## Purpose
 - **Travel Planning**: Help users find peak foliage times for trip planning
 - **Visual Discovery**: Interactive map with time slider for exploring foliage progression
@@ -31,12 +49,17 @@ An interactive, data-driven application for tracking and forecasting fall foliag
 ## Dependencies
 - Uses shared `ollama` workflow for AI predictions
 - Leverages `rate-limiter` for API call management
-- Weather data integration through n8n workflows
+- Weather data integration through direct API/CLI flows backed by PostgreSQL weather records
 
 ## Revenue Model
 - Freemium with basic map access
 - Premium features: detailed forecasts, trip planning, photo galleries
 - Potential partnerships with travel agencies and tourism boards
+
+## Customize Safely
+Use `make setup`, `make start`, `make test`, `make logs`, and `make stop` from this directory. These commands delegate to the Vrooli lifecycle system, which owns process naming, ports, logging, health checks, and resource setup.
+
+Keep API response changes additive unless the UI and CLI consumers are updated together. Requirement-linked tests use `[REQ:...]` comments; preserve those tags when editing tests so coverage sync remains accurate.
 
 ## Usage
 

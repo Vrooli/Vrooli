@@ -11,15 +11,12 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
-	"os"
-	"path/filepath"
-	"strings"
 
 	"agent-inbox/config"
 	"agent-inbox/handlers"
 	"agent-inbox/integrations"
+	schema "agent-inbox/internal/core"
 	"agent-inbox/persistence"
 	"agent-inbox/services"
 
@@ -30,58 +27,6 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// =============================================================================
-// SQLite DSN Builder
-// =============================================================================
-
-// sqliteDSN resolves the SQLite database file path and returns a DSN with pragmas.
-func sqliteDSN() (string, error) {
-	// Check scenario-specific env var first
-	if path := strings.TrimSpace(os.Getenv("AI_SQLITE_PATH")); path != "" {
-		return sqliteFileDSN(path)
-	}
-	// Check generic env vars
-	if path := strings.TrimSpace(os.Getenv("SQLITE_PATH")); path != "" {
-		return sqliteFileDSN(path)
-	}
-	if path := strings.TrimSpace(os.Getenv("SQLITE_DB")); path != "" {
-		return sqliteFileDSN(path)
-	}
-	if dsn := strings.TrimSpace(os.Getenv("DATABASE_URL")); strings.HasPrefix(dsn, "file:") {
-		return dsn, nil
-	}
-
-	// Default path
-	dataRoot := strings.TrimSpace(os.Getenv("SQLITE_DATABASE_PATH"))
-	if dataRoot == "" {
-		dataRoot = strings.TrimSpace(os.Getenv("VROOLI_DATA"))
-	}
-	if dataRoot == "" {
-		home, _ := os.UserHomeDir()
-		if home == "" {
-			home = "."
-		}
-		dataRoot = filepath.Join(home, ".vrooli", "data", "sqlite", "databases")
-	}
-
-	return sqliteFileDSN(filepath.Join(dataRoot, "agent-inbox.db"))
-}
-
-func sqliteFileDSN(path string) (string, error) {
-	if strings.HasPrefix(path, "file:") {
-		return path, nil
-	}
-
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return "", fmt.Errorf("prepare sqlite directory: %w", err)
-	}
-
-	return fmt.Sprintf(
-		"file:%s?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=cache_size(-2000)&_pragma=synchronous(NORMAL)&_pragma=temp_store(MEMORY)",
-		path,
-	), nil
-}
-
 func main() {
 	// Preflight checks
 	if preflight.Run(preflight.Config{
@@ -90,15 +35,11 @@ func main() {
 		return
 	}
 
-	// Build SQLite DSN and connect
-	dsn, err := sqliteDSN()
-	if err != nil {
-		log.Fatalf("sqlite configuration failed: %v", err)
-	}
-
+	// The database is resolved from this scenario's own identity, so no
+	// inherited environment can point it at a sibling's file.
 	db, err := database.Connect(context.Background(), database.Config{
-		Driver:       "sqlite",
-		DSN:          dsn,
+		Driver:       database.DriverSQLite,
+		Scenario:     "agent-inbox",
 		MaxOpenConns: 1,
 		MaxIdleConns: 1,
 	})
@@ -124,8 +65,7 @@ func main() {
 	// The adapter bridges persistence.Repository to services.AsyncOperationRepository
 	asyncRepoAdapter := newAsyncRepoAdapter(repo)
 	toolExecutor := integrations.NewToolExecutor()
-	toolRegistry := services.NewToolRegistry(repo, toolExecutor)
-	asyncTracker := services.NewAsyncTrackerService(toolRegistry, toolExecutor, asyncRepoAdapter)
+	asyncTracker := services.NewAsyncTrackerService(toolExecutor, asyncRepoAdapter)
 
 	// Recover any active async operations from prior crash/restart
 	if err := asyncTracker.RecoverOperations(context.Background()); err != nil {
@@ -151,9 +91,9 @@ func main() {
 	// Start background sync from prompt-manager
 	skillsSvc.Start()
 
-	// Create handlers with all dependencies (pass pre-configured async tracker, shared executor, and registry)
+	// Create handlers with all dependencies (pass pre-configured async tracker and shared executor)
 	ollamaClient := integrations.NewOllamaClient()
-	h := handlers.New(repo, ollamaClient, storage, asyncTracker, toolExecutor, toolRegistry)
+	h := handlers.New(repo, ollamaClient, storage, asyncTracker, toolExecutor)
 	h.Templates = templatesSvc
 	h.Skills = skillsSvc
 
@@ -182,6 +122,10 @@ func main() {
 	router := registerRoutes(h, uploadHandlers)
 
 	// Start server with graceful shutdown
+
+	if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(schema.Schema)); err != nil {
+		log.Fatalf("database schema initialization failed: %v", err)
+	}
 	if err := server.Run(server.Config{
 		Handler: gorillahandlers.RecoveryHandler()(router),
 		Cleanup: func(ctx context.Context) error {

@@ -1,0 +1,171 @@
+{
+  "_metadata": {
+    "module": "native-companion",
+    "description": "Portal Everywhere mandatory acceptance obligations; planned evidence is not completion.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "SCENARIOTODESKTOP-EVERYWHERE-PKG-01",
+      "title": "Vanilla regression",
+      "status": "planned",
+      "prd_ref": "OT-P0-011",
+      "category": "pkg",
+      "criticality": "P0",
+      "description": "Given a non-Portal vanilla consumer is generated, when the extension mechanism is present, scenario-to-desktop shall ensure: The ordinary package still builds and runs.",
+      "tags": [
+        "portal-everywhere",
+        "PKG-01"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case PKG-01 in the scenario-to-desktop producer suite. Required assertion: The ordinary package still builds and runs. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "SCENARIOTODESKTOP-EVERYWHERE-PKG-02",
+      "title": "Unknown extension",
+      "status": "planned",
+      "prd_ref": "OT-P0-011",
+      "category": "pkg",
+      "criticality": "P0",
+      "description": "Given a package declares an unsupported extension version, when generation starts, scenario-to-desktop shall ensure: It fails with a typed compatibility reason.",
+      "tags": [
+        "portal-everywhere",
+        "PKG-02"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case PKG-02 in the scenario-to-desktop producer suite. Required assertion: It fails with a typed compatibility reason. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "SCENARIOTODESKTOP-EVERYWHERE-PKG-03",
+      "title": "Clean install",
+      "status": "planned",
+      "prd_ref": "OT-P0-012",
+      "category": "pkg",
+      "criticality": "P0",
+      "description": "Given a primary host has no prior Portal installation, when the candidate installs, scenario-to-desktop shall ensure: Its declared profile opens with correct readiness.",
+      "tags": [
+        "portal-everywhere",
+        "PKG-03"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case PKG-03 in the scenario-to-desktop producer suite. Required assertion: Its declared profile opens with correct readiness. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "SCENARIOTODESKTOP-EVERYWHERE-PKG-04",
+      "title": "Update continuity",
+      "status": "planned",
+      "prd_ref": "OT-P0-012",
+      "category": "pkg",
+      "criticality": "P0",
+      "description": "Given a supported predecessor contains user state, when the candidate updates it, scenario-to-desktop shall ensure: Conversation state and helper identity are preserved.",
+      "tags": [
+        "portal-everywhere",
+        "PKG-04"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case PKG-04 in the scenario-to-desktop producer suite. Required assertion: Conversation state and helper identity are preserved. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "SCENARIOTODESKTOP-EVERYWHERE-PKG-05",
+      "title": "Interrupted update",
+      "status": "planned",
+      "prd_ref": "OT-P0-012",
+      "category": "pkg",
+      "criticality": "P0",
+      "description": "Given an update is interrupted, when the app recovers, scenario-to-desktop shall ensure: It runs a coherent version or reports recovery without corrupt state.",
+      "tags": [
+        "portal-everywhere",
+        "PKG-05"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case PKG-05 in the scenario-to-desktop producer suite. Required assertion: It runs a coherent version or reports recovery without corrupt state. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "SCENARIOTODESKTOP-EVERYWHERE-PKG-06",
+      "title": "Uninstall policy",
+      "status": "planned",
+      "prd_ref": "OT-P0-012",
+      "category": "pkg",
+      "criticality": "P0",
+      "description": "Given the user chooses the documented retention option, when uninstall runs, scenario-to-desktop shall ensure: Only owned artifacts are removed accordingly.",
+      "tags": [
+        "portal-everywhere",
+        "PKG-06"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case PKG-06 in the scenario-to-desktop producer suite. Required assertion: Only owned artifacts are removed accordingly. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "SCENARIOTODESKTOP-EVERYWHERE-PKG-07",
+      "title": "Artifact identity",
+      "status": "planned",
+      "prd_ref": "OT-P0-012",
+      "category": "pkg",
+      "criticality": "P0",
+      "description": "Given a candidate was tested, when release readiness is evaluated, scenario-to-desktop shall ensure: Its digest matches the tested bytes.",
+      "tags": [
+        "portal-everywhere",
+        "PKG-07"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case PKG-07 in the scenario-to-desktop producer suite. Required assertion: Its digest matches the tested bytes. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    },
+    {
+      "id": "SCENARIOTODESKTOP-EVERYWHERE-PKG-08",
+      "title": "Native privilege isolation",
+      "status": "planned",
+      "prd_ref": "OT-P0-011",
+      "category": "pkg",
+      "criticality": "P0",
+      "description": "Given a package loads remote scenario content, when the content attempts host access, scenario-to-desktop shall ensure: Sandbox and IPC policy deny it.",
+      "tags": [
+        "portal-everywhere",
+        "PKG-08"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Implement acceptance case PKG-08 in the scenario-to-desktop producer suite. Required assertion: Sandbox and IPC policy deny it. Retain producer receipt, source fingerprint, and applicable live support row. No passing evidence exists yet."
+        }
+      ]
+    }
+  ]
+}

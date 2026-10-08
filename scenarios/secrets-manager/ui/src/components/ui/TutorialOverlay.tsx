@@ -58,12 +58,15 @@ export const TutorialOverlay = ({
     };
   }, [dragging, offset.x, offset.y]);
 
-  // Scroll to anchor target when provided
+  // Focus moves within this frame without scrolling the embedding host.
   useEffect(() => {
     if (!anchorId) return;
     const target = document.getElementById(anchorId);
     if (target) {
-      target.scrollIntoView({ behavior: "smooth", block: "center" });
+      if (!target.hasAttribute("tabindex")) {
+        target.setAttribute("tabindex", "-1");
+      }
+      target.focus({ preventScroll: false });
       target.classList.add("tutorial-highlight");
       return () => {
         target.classList.remove("tutorial-highlight");
@@ -116,7 +119,7 @@ export const TutorialOverlay = ({
             ) : null}
           </div>
         </div>
-        <Button variant="ghost" size="sm" onClick={onClose}>
+        <Button variant="ghost" size="sm" onClick={onClose} aria-label="Close tutorial">
           <X className="h-4 w-4 text-white/70" />
         </Button>
       </div>

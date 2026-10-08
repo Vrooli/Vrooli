@@ -1,0 +1,22 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "patterns.undoable-destructive-action",
+  "deprecatedVersions": [
+    "1.0.3",
+    "1.0.5",
+    "1.0.6",
+    "1.0.7",
+    "1.0.4"
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.0.3",
+    "1.0.5",
+    "1.0.6",
+    "1.0.7",
+    "1.0.4"
+  ],
+  "latest": "1.0.8",
+  "libraryId": "react-component-library:UndoableDestructiveAction"
+}

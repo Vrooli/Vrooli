@@ -11,15 +11,15 @@ import (
 	"strings"
 	"time"
 
+	"prompt-manager/cli/internal/appctx"
+
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
-
-	"prompt-manager/cli/internal/appctx"
 )
 
 // TestRequest is the request body for testing a skill
 type TestRequest struct {
-	Model       string            `json:"model"`
+	Role        string            `json:"role"`
 	Variables   map[string]string `json:"variables,omitempty"`
 	MaxTokens   *int              `json:"maxTokens,omitempty"`
 	Temperature *float64          `json:"temperature,omitempty"`
@@ -28,7 +28,7 @@ type TestRequest struct {
 // TestResponse is the response from testing a skill
 type TestResponse struct {
 	TestID       string    `json:"testId"`
-	Model        string    `json:"model"`
+	Role         string    `json:"role"`
 	Response     string    `json:"response"`
 	ResponseTime float64   `json:"responseTime"`
 	TokenCount   int       `json:"tokenCount"`
@@ -39,7 +39,7 @@ type TestResponse struct {
 type TestResult struct {
 	ID           string    `json:"id"`
 	SkillID      string    `json:"skillId"`
-	Model        string    `json:"model"`
+	Role         string    `json:"role"`
 	InputVars    *string   `json:"inputVariables,omitempty"`
 	Response     *string   `json:"response,omitempty"`
 	ResponseTime *float64  `json:"responseTime,omitempty"`
@@ -101,7 +101,7 @@ Subcommands:
 
 func cmdRun(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("run", flag.ContinueOnError)
-	model := fs.String("model", "llama3.2", "Ollama model to use")
+	role := fs.String("role", "chat.small", "Ollama role to use")
 	vars := fs.String("vars", "", "Variables in key=value,key2=value2 format")
 	maxTokens := fs.Int("max-tokens", 1000, "Maximum tokens in response")
 	temperature := fs.Float64("temperature", 0.7, "Temperature for generation")
@@ -111,7 +111,7 @@ func cmdRun(ctx appctx.Context, args []string) error {
 	}
 
 	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: test run <skill-id> [--model=llama3.2] [--vars=key=value] [--max-tokens=1000] [--temperature=0.7]")
+		return fmt.Errorf("usage: test run <skill-id> [--role=chat.small] [--vars=key=value] [--max-tokens=1000] [--temperature=0.7]")
 	}
 	skillID := fs.Arg(0)
 
@@ -128,13 +128,15 @@ func cmdRun(ctx appctx.Context, args []string) error {
 	}
 
 	req := TestRequest{
-		Model:       *model,
+		Role:        *role,
 		Variables:   variables,
 		MaxTokens:   maxTokens,
 		Temperature: temperature,
 	}
 
-	fmt.Printf("Testing skill %s with %s...\n", skillID, *model)
+	if !*jsonOut {
+		fmt.Printf("Testing skill %s with %s...\n", skillID, *role)
+	}
 
 	var resp TestResponse
 	if err := ctx.Post(fmt.Sprintf("/skills/%s/test", skillID), req, &resp); err != nil {
@@ -190,12 +192,16 @@ func cmdHistory(ctx appctx.Context, args []string) error {
 		if r.TokenCount != nil {
 			tokens = fmt.Sprintf("%d tokens", *r.TokenCount)
 		}
+		shortID := r.ID
+		if len(shortID) > 8 {
+			shortID = shortID[:8]
+		}
 		fmt.Printf("  %s - %s - %s %s [%s]\n",
 			r.TestedAt.Format("2006-01-02 15:04"),
-			r.Model,
+			r.Role,
 			responseTime,
 			tokens,
-			r.ID[:8])
+			shortID)
 	}
 	return nil
 }

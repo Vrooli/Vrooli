@@ -1,8 +1,41 @@
 {
   "extends": "./tsconfig.node.json",
   "compilerOptions": {
+    // ╔══════════════════════════════════════════════════════════════════════════╗
+    // ║  SAFETY-CRITICAL RULES - DO NOT REMOVE OR WEAKEN                         ║
+    // ║                                                                          ║
+    // ║  These rules prevent runtime crashes like:                               ║
+    // ║  - "X is not a function"                                                 ║
+    // ║  - "Cannot read property Y of undefined"                                 ║
+    // ║  - "undefined is not iterable"                                           ║
+    // ║                                                                          ║
+    // ║  If you encounter type errors from these rules:                          ║
+    // ║  ✅ DO: Use optional chaining (?.) or null checks (if (x) { ... })       ║
+    // ║  ✅ DO: Use nullish coalescing (??) for defaults                         ║
+    // ║  ✅ DO: Add proper type guards before accessing properties               ║
+    // ║  ❌ DON'T: Use non-null assertion (!) - it hides bugs, use ?? instead    ║
+    // ║  ❌ DON'T: Use type assertions (as X) to silence errors                  ║
+    // ║  ❌ DON'T: Add @ts-ignore or @ts-expect-error comments                   ║
+    // ║  ❌ DON'T: Remove or weaken these rules                                  ║
+    // ║                                                                          ║
+    // ║  These rules exist because UI crashes are the #1 production issue.       ║
+    // ║  Removing them WILL cause crashes that are much harder to debug than     ║
+    // ║  the type errors they produce at compile time.                           ║
+    // ╚══════════════════════════════════════════════════════════════════════════╝
+    // Type-checking only. Vite owns the build; a bare `tsc` in this directory
+    // must never emit .js next to the sources, because vite resolves .js before
+    // .ts and would silently build the stale copies instead of the real ones.
+    "noEmit": true,
     "jsx": "react-jsx",
-    "types": ["vite/client", "vitest/globals", "@testing-library/jest-dom"]
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "types": ["vite/client", "vitest/globals", "@testing-library/jest-dom", "node"],
+    "baseUrl": ".",
+    "paths": {
+      "react": ["./node_modules/@types/react/index.d.ts"],
+      "react/jsx-runtime": ["./node_modules/@types/react/jsx-runtime.d.ts"],
+      "lucide-react": ["./node_modules/lucide-react/dist/lucide-react.d.ts"]
+    }
   },
   "include": ["src", "vite.config.ts"],
   "exclude": ["dist"]

@@ -1,0 +1,250 @@
+syntax = "proto3";
+
+package vrooli.scenario_to_repository.v1.source;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-repository/v1/source;source_v1";
+
+// SourceRepositoryService owns one-way, reproducible source distributions.
+// The monorepo remains canonical. No method in this service mutates Git or a
+// remote destination; publication is represented as a human handoff.
+service SourceRepositoryService {
+  rpc AnalyzeClosure(AnalyzeClosureRequest) returns (ClosureResponse);
+  rpc AssembleExport(AssembleExportRequest) returns (ArtifactResponse);
+  rpc VerifyExport(VerifyExportRequest) returns (VerificationResponse);
+  rpc PreparePublication(PreparePublicationRequest) returns (PublicationPreviewResponse);
+  rpc ListDistributions(ListDistributionsRequest) returns (ListDistributionsResponse);
+  rpc GetDistribution(GetDistributionRequest) returns (DistributionResponse);
+  rpc GetDistributionContents(GetDistributionContentsRequest) returns (DistributionContentsResponse);
+  rpc GetPublicationHandoff(GetPublicationHandoffRequest) returns (PublicationHandoffResponse);
+  rpc GetDistributionDrift(GetDistributionDriftRequest) returns (DistributionDriftResponse);
+}
+
+message AnalyzeClosureRequest {
+  string scenario = 1;
+  string source_root = 2;
+  string source_digest = 3;
+  string recipe_digest = 4;
+  ExportRecipe recipe = 5;
+  SourceSnapshot snapshot = 6;
+}
+
+message ExportRecipe {
+  int32 schema_version = 1;
+  string scenario = 2;
+  string mode = 3;
+  string closure_ref = 4;
+  string publish_policy_ref = 5;
+  string runtime_profile_ref = 6;
+  string archive_format = 7;
+  bool deterministic = 8;
+  string recipe_digest = 9;
+}
+
+message SourceSnapshot {
+  string scenario = 1;
+  string source_digest = 2;
+  string closure_digest = 3;
+  google.protobuf.Timestamp captured_at = 4;
+  string standing = 5;
+}
+
+message SourceFile {
+  string source_path = 1;
+  string export_path = 2;
+  string sha256 = 3;
+  uint32 mode = 4;
+  repeated string reason_refs = 5;
+}
+
+message ClosureNode {
+  string id = 1;
+  string kind = 2;
+}
+
+message RewriteProposal {
+  string kind = 1;
+  string proposal_ref = 2;
+}
+
+message SourceClosure {
+  string source_digest = 1;
+  string scenario = 2;
+  repeated ClosureNode nodes = 3;
+  repeated SourceFile files = 4;
+  repeated RewriteProposal rewrites = 5;
+  repeated string unresolved = 6;
+  string closure_digest = 7;
+}
+
+message ClosureResponse { SourceClosure closure = 1; }
+
+message AssembleExportRequest {
+  string scenario = 1;
+  string source_root = 2;
+  string source_digest = 3;
+  string recipe_yaml = 4;
+  string output_path = 5;
+}
+
+message ArtifactManifestEntry {
+  string path = 1;
+  string sha256 = 2;
+  uint32 mode = 3;
+  string source_path = 4;
+  uint64 size_bytes = 5;
+}
+
+message Artifact {
+  string artifact_id = 1;
+  string source_digest = 2;
+  string recipe_digest = 3;
+  string closure_digest = 4;
+  repeated ArtifactManifestEntry files = 5;
+  string manifest_digest = 6;
+  string archive_digest = 7;
+  string archive_path = 8;
+  string status = 9;
+}
+
+message ArtifactResponse { Artifact artifact = 1; }
+
+message VerifyExportRequest {
+  string artifact_id = 1;
+  string archive_path = 2;
+  string expected_archive_digest = 3;
+  string verification_environment = 4;
+}
+
+message VerificationResponse {
+  string verification_id = 1;
+  string artifact_id = 2;
+  string status = 3;
+  repeated string gates_passed = 4;
+  repeated string failures = 5;
+  string receipt_digest = 6;
+  google.protobuf.Timestamp verified_at = 7;
+}
+
+message PreparePublicationRequest {
+  string distribution_id = 1;
+  string artifact_id = 2;
+  string destination_kind = 3;
+  string destination_reference = 4;
+  string expected_revision = 5;
+}
+
+message PublicationPreviewResponse {
+  string distribution_id = 1;
+  string artifact_id = 2;
+  string status = 3;
+  string human_action = 4;
+  string readback_oracle = 5;
+  repeated string preconditions = 6;
+}
+
+message ListDistributionsRequest {
+  string scenario = 1;
+  string repository_context = 2;
+  int32 limit = 3;
+}
+
+message ListDistributionsResponse {
+  repeated Distribution distributions = 1;
+  string source_of_truth = 2;
+  google.protobuf.Timestamp observed_at = 3;
+  string freshness = 4;
+  string unavailable_reason = 5;
+}
+
+message GetDistributionRequest { string distribution_id = 1; }
+
+message Distribution {
+  string distribution_id = 1;
+  string scenario = 2;
+  string source_digest = 3;
+  string recipe_digest = 4;
+  string artifact_id = 5;
+  string verification_status = 6;
+  string publication_status = 7;
+  string destination_kind = 8;
+  string destination_reference = 9;
+  string last_verified_revision = 10;
+  google.protobuf.Timestamp updated_at = 11;
+  string closure_digest = 12;
+  string policy_digest = 13;
+  string artifact_digest = 14;
+  string verification_receipt = 15;
+  string deployment_manager_decision = 16;
+  string source_of_truth = 17;
+  google.protobuf.Timestamp source_timestamp = 18;
+  string freshness = 19;
+  string drift_state = 20;
+  string destination_revision = 21;
+  string readback_receipt = 22;
+  string workflow_url = 23;
+}
+
+message DistributionResponse { Distribution distribution = 1; }
+
+message GetDistributionContentsRequest { string distribution_id = 1; }
+
+message DistributionContent {
+  string path = 1;
+  string source_path = 2;
+  string category = 3;
+  string digest = 4;
+  uint64 size_bytes = 5;
+}
+
+message DistributionExclusion {
+  string path = 1;
+  string category = 2;
+  string safe_reason = 3;
+}
+
+message DistributionContentsResponse {
+  string distribution_id = 1;
+  repeated DistributionContent contents = 2;
+  repeated DistributionExclusion exclusions = 3;
+  repeated string unresolved_obligations = 4;
+  repeated string runtime_requirements = 5;
+  string source_of_truth = 6;
+  google.protobuf.Timestamp observed_at = 7;
+  string freshness = 8;
+}
+
+message GetPublicationHandoffRequest { string distribution_id = 1; }
+
+message PublicationHandoffResponse {
+  string distribution_id = 1;
+  string artifact_id = 2;
+  string artifact_digest = 3;
+  string destination = 4;
+  string status = 5;
+  string human_action = 6;
+  string readback_oracle = 7;
+  repeated string preconditions = 8;
+  string approval_reference = 9;
+  string source_of_truth = 10;
+  google.protobuf.Timestamp observed_at = 11;
+  string freshness = 12;
+}
+
+message GetDistributionDriftRequest { string distribution_id = 1; }
+
+message DistributionDriftResponse {
+  string distribution_id = 1;
+  string state = 2;
+  bool source_changed = 3;
+  bool destination_changed = 4;
+  string current_source_digest = 5;
+  string recorded_source_digest = 6;
+  string current_artifact_digest = 7;
+  string recorded_artifact_digest = 8;
+  repeated string actions = 9;
+  string source_of_truth = 10;
+  google.protobuf.Timestamp observed_at = 11;
+  string freshness = 12;
+}

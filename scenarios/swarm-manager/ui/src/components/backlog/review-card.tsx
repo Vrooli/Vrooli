@@ -1,6 +1,6 @@
 /**
  * Renders a single requirement or target as a reviewable card.
- * Mirrors the WorkshopItemCard interaction pattern with approve/flag/comment actions.
+ * Renders approve, flag, and comment actions for an independent review item.
  *
  * Uses optimistic local state: clicking Approve/Flag immediately updates the visual
  * appearance while the API call is in flight. The `currentStatus` prop from the server

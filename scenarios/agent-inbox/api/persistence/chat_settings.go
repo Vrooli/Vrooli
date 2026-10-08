@@ -5,32 +5,30 @@ package persistence
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
-	"fmt"
 
 	"agent-inbox/domain"
 )
 
-// GetChatSettings retrieves just model and tools_enabled for a chat.
-func (r *Repository) GetChatSettings(ctx context.Context, chatID string) (model string, toolsEnabled bool, err error) {
-	err = r.db.QueryRowContext(ctx, "SELECT model, tools_enabled FROM chats WHERE id = $1", chatID).Scan(&model, &toolsEnabled)
+// GetChatSettings retrieves just the model for a chat.
+func (r *Repository) GetChatSettings(ctx context.Context, chatID string) (model string, err error) {
+	err = r.db.QueryRowContext(ctx, "SELECT model FROM chats WHERE id = $1", chatID).Scan(&model)
 	if err == sql.ErrNoRows {
-		return "", false, nil
+		return "", nil
 	}
-	return model, toolsEnabled, err
+	return model, err
 }
 
-// GetChatSettingsWithWebSearch retrieves model, tools_enabled, and web_search_enabled for a chat.
-func (r *Repository) GetChatSettingsWithWebSearch(ctx context.Context, chatID string) (model string, toolsEnabled bool, webSearchEnabled bool, err error) {
+// GetChatSettingsWithWebSearch retrieves model and web_search_enabled for a chat.
+func (r *Repository) GetChatSettingsWithWebSearch(ctx context.Context, chatID string) (model string, webSearchEnabled bool, err error) {
 	var webSearchNull sql.NullBool
-	err = r.db.QueryRowContext(ctx, "SELECT model, tools_enabled, web_search_enabled FROM chats WHERE id = $1", chatID).Scan(&model, &toolsEnabled, &webSearchNull)
+	err = r.db.QueryRowContext(ctx, "SELECT model, web_search_enabled FROM chats WHERE id = $1", chatID).Scan(&model, &webSearchNull)
 	if err == sql.ErrNoRows {
-		return "", false, false, nil
+		return "", false, nil
 	}
 	if webSearchNull.Valid {
 		webSearchEnabled = webSearchNull.Bool
 	}
-	return model, toolsEnabled, webSearchEnabled, err
+	return model, webSearchEnabled, err
 }
 
 // GetWebSearchEnabled returns the web search setting for a chat.
@@ -56,43 +54,21 @@ func (r *Repository) SetWebSearchEnabled(ctx context.Context, chatID string, ena
 
 // Active Template Operations
 
-// SetActiveTemplate sets the active template and its suggested tool IDs for a chat.
-// This is used to track which template's tools should remain enabled until used.
-func (r *Repository) SetActiveTemplate(ctx context.Context, chatID, templateID string, toolIDs []string) error {
-	toolIDsJSON, err := json.Marshal(toolIDs)
-	if err != nil {
-		return fmt.Errorf("failed to marshal tool IDs: %w", err)
-	}
-	_, err = r.db.ExecContext(ctx, `
-		UPDATE chats SET active_template_id = $1, active_template_tool_ids = $2, updated_at = datetime('now') WHERE id = $3
-	`, sql.NullString{String: templateID, Valid: templateID != ""}, string(toolIDsJSON), chatID)
+// SetActiveTemplate sets the active template for a chat.
+func (r *Repository) SetActiveTemplate(ctx context.Context, chatID, templateID string) error {
+	_, err := r.db.ExecContext(ctx, `
+		UPDATE chats SET active_template_id = $1, updated_at = datetime('now') WHERE id = $2
+	`, sql.NullString{String: templateID, Valid: templateID != ""}, chatID)
 	return err
 }
 
 // ClearActiveTemplate removes the active template state from a chat.
-// Called when a template tool is used or when the user manually deactivates.
+// Called when the user manually deactivates a template.
 func (r *Repository) ClearActiveTemplate(ctx context.Context, chatID string) error {
 	_, err := r.db.ExecContext(ctx, `
-		UPDATE chats SET active_template_id = NULL, active_template_tool_ids = NULL, updated_at = datetime('now') WHERE id = $1
+		UPDATE chats SET active_template_id = NULL, updated_at = datetime('now') WHERE id = $1
 	`, chatID)
 	return err
-}
-
-// GetActiveTemplateToolIDs returns the active template's tool IDs for a chat.
-// Used to check if an executed tool matches a template-suggested tool.
-func (r *Repository) GetActiveTemplateToolIDs(ctx context.Context, chatID string) ([]string, error) {
-	var toolIDs sql.NullString
-	err := r.db.QueryRowContext(ctx, `SELECT COALESCE(active_template_tool_ids, '[]') FROM chats WHERE id = $1`, chatID).Scan(&toolIDs)
-	if err == sql.ErrNoRows {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	if toolIDs.Valid {
-		return parseArrayString(toolIDs.String), nil
-	}
-	return []string{}, nil
 }
 
 // Agent Mode Operations

@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package vrooli.portal.v1.search;
+
+import "portal/v1/shared/common.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/portal/v1/search;search_v1";
+
+// SearchService is Portal's API-mediated search-hub surface. The UI never
+// calls search-hub directly so Portal can measure latency and degradation.
+service SearchService {
+  rpc Suggest(SuggestRequest) returns (SuggestResponse);
+}
+
+message SuggestRequest {
+  string query = 1;
+  repeated string types = 2;
+  int32 limit = 3;
+  string group = 4;
+}
+
+message SuggestResponse {
+  repeated vrooli.portal.v1.shared.SearchHit hits = 1;
+  bool degraded = 2;
+  string reason = 3;
+  int64 latency_ms = 4;
+}

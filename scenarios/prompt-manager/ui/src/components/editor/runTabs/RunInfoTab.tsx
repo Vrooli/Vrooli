@@ -9,12 +9,13 @@
 
 import { useState, useEffect } from 'react'
 import { Clock, Timer, Tag, Key, Calendar, Hash, AlertCircle, ExternalLink, Loader2, Users } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import { getRunDetails, retryRun, type RunDetails } from '@/services/heartbeatService'
 import { CopyButton } from '@/components/shared/EventsDisplay'
 import { toast } from '@/hooks/use-toast'
-import { useSelectionStore } from '@/stores/selectionStore'
 import { useTeamEditorStore } from '@/hooks/useTeamEditorStore'
+import { teamDetailPath } from '@/app/routes/route-paths'
 
 interface RunInfoTabProps {
   runId: string
@@ -66,6 +67,7 @@ function truncateId(id: string, chars = 8): string {
 }
 
 export function RunInfoTab({ runId, className }: RunInfoTabProps) {
+  const navigate = useNavigate()
   const [runDetails, setRunDetails] = useState<RunDetails | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -213,7 +215,7 @@ export function RunInfoTab({ runId, className }: RunInfoTabProps) {
                     const teamId = runDetails?.teamId // eslint-disable-line @typescript-eslint/no-unnecessary-condition -- runDetails can be null at click time
                     const agentId = runDetails?.agentId // eslint-disable-line @typescript-eslint/no-unnecessary-condition -- runDetails can be null at click time
                     if (teamId && agentId) {
-                      useSelectionStore.getState().setSelectedTeamId(teamId)
+                      navigate(teamDetailPath(teamId, { tab: 'members', member: agentId }))
                       useTeamEditorStore.getState().setSelectedMemberId(agentId)
                     }
                   }}

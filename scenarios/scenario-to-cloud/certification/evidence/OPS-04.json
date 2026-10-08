@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "case_id": "OPS-04",
+  "verdict": "passed",
+  "lane": "package",
+  "requirement_refs": [
+    "STC-P0-043"
+  ],
+  "candidate": {
+    "release_digest": "sha256:package-lane-fixture-plan",
+    "configuration_digest": "",
+    "closure_digest": ""
+  },
+  "target": {
+    "machine_id": "in-memory-sqlite",
+    "architecture": "amd64",
+    "os": "linux"
+  },
+  "operation_refs": [
+    "op-1",
+    "op-2",
+    "op-3",
+    "op-4",
+    "op-5",
+    "op-6",
+    "op-7",
+    "op-8",
+    "op-9",
+    "op-10",
+    "op-11",
+    "op-12"
+  ],
+  "validation_receipt_ref": "go test ./perfbudget/ -run TestRepeatedUpdateCyclesLeaveNoAccumulation -race (2026-09-09, PASS)",
+  "artifact_refs": [
+    "api/perfbudget/cycles_test.go#TestRepeatedUpdateCyclesLeaveNoAccumulation",
+    "certification/budgets.json#phase_23.management_process.post_cleanup_growth",
+    "certification/budgets.json#phase_23.retention_budgets.recovery_points"
+  ],
+  "assertions": [
+    "12 update cycles through operations.Service over persistence.Repository: every operation terminal succeeded with one fence per cycle",
+    "after every cycle ListNonTerminal is empty and the terminal record holds no worker_id, lease_expires_at or active_step",
+    "goroutines, open fds and RSS after the cycles stay within phase_23.management_process.post_cleanup_growth of the baseline snapshot",
+    "recovery points under phase_23.retention_budgets.recovery_points: kept set bounded by keep_last + protected; active and predecessor release points never deleted",
+    "persistence.PruneTerminalOperations under the frozen 90-day window deletes nothing fresh; a far-future cutoff deletes every terminal record except the protected id"
+  ],
+  "observed_at": "2026-09-09T18:30:00Z",
+  "limitations": [
+    "package lane only: soak, real_vps and qemu lanes pending EXT-09, EXT-01 and EXT-06",
+    "no target files or processes exist in this lane; target-side accumulation (bundle cache, receipts under <runtime-home>/deployments) is covered by bundle.PlanVPSBundleGC planning only, not by an observed target inventory",
+    "terminal operation-record retention is proven through persistence.PruneTerminalOperations (protected ids and non-terminal records kept); no scheduler invokes it yet, so on a real target records accumulate until an owner wires the 90-day prune"
+  ]
+}

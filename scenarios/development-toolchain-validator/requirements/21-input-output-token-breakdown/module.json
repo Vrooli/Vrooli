@@ -1,0 +1,18 @@
+{
+  "module_id": "MOD-P2-005",
+  "prd_ref": "OT-P2-005",
+  "priority": "P2",
+  "title": "Input/Output Token Breakdown",
+  "description": "Surface input vs output token split per validation run. Depends on upstream agent-manager exposing the split in RunSummary (currently only combined tokens_used is exposed).",
+  "requirements": [
+    {
+      "id": "REQ-P2-005",
+      "prd_ref": "OT-P2-005",
+      "title": "Consume input/output split + render",
+      "description": "Once agent-manager's RunSummary exposes input_tokens + output_tokens, extend ValidationRecord schema, persist them on run capture, and render the split in CLI/UI alongside the combined total. Blocked on the upstream change.",
+      "category": "integration",
+      "status": "planned",
+      "validation": []
+    }
+  ]
+}

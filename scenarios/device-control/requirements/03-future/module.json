@@ -1,0 +1,70 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P2 operational targets.",
+    "module": "P2-targets",
+    "priority": "P2",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P2",
+      "description": "A single flow spanning two or more devices for cross-device handoff, with per-device leases held for the flow duration.",
+      "id": "DVC-P2-001",
+      "prd_ref": "OT-P2-001",
+      "status": "planned",
+      "title": "Multi-device flows",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "integration phase — planned test `api/flows/multidevice_test.go::TestMultiDeviceFlowHoldsPerDeviceLeases`. A flow spanning two devices holds a lease on each for the flow duration and releases both on terminal state."
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "Run a flow on a schedule or in response to an event, with the same lease, audit and evidence guarantees as an interactive run.",
+      "id": "DVC-P2-002",
+      "prd_ref": "OT-P2-002",
+      "status": "planned",
+      "title": "Scheduled and event-triggered flows",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "integration phase — planned test `api/flows/schedule_test.go::TestScheduledFlowKeepsLeaseAuditAndEvidenceGuarantees`. A scheduled or event-triggered run carries the same lease, audit and evidence guarantees as an interactive run."
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "Extend across device classes as new transports become trusted, using the same floor and conformance suite rather than new engines.",
+      "id": "DVC-P2-003",
+      "prd_ref": "OT-P2-003",
+      "status": "planned",
+      "title": "Additional device classes",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "unit phase — planned test `api/strategy/registry_test.go::TestNewDeviceClassNeedsOnlyFloorAndSuite`. Registering a new device class requires only the floor implementation and a passing conformance suite — no executor change."
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "Export and import flows between owners so the declared capability requirements travel with the flow and are checked against the importing fleet before a run is attempted.",
+      "id": "DVC-P2-004",
+      "prd_ref": "OT-P2-004",
+      "status": "planned",
+      "title": "Flow sharing with carried capability requirements",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "unit phase — planned test `api/flows/portability_test.go::TestImportedFlowIsCheckedAgainstImportingFleet`. An imported flow carries its capability requirements and is checked against the importing fleet before any run is attempted."
+        }
+      ]
+    }
+  ]
+}

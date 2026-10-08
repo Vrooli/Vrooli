@@ -1,0 +1,247 @@
+{
+  "schemaVersion": 1,
+  "selectors": {
+    "nav.stream": {
+      "testId": "nav-stream",
+      "selector": "[data-testid=\"nav-stream\"]"
+    },
+    "nav.analytics": {
+      "testId": "nav-analytics",
+      "selector": "[data-testid=\"nav-analytics\"]"
+    },
+    "nav.events": {
+      "testId": "nav-events",
+      "selector": "[data-testid=\"nav-events\"]"
+    },
+    "nav.settings": {
+      "testId": "nav-settings",
+      "selector": "[data-testid=\"nav-settings\"]"
+    },
+    "nav.healthIndicator": {
+      "testId": "nav-health-indicator",
+      "selector": "[data-testid=\"nav-health-indicator\"]"
+    },
+    "stream.pauseButton": {
+      "testId": "stream-pause-button",
+      "selector": "[data-testid=\"stream-pause-button\"]"
+    },
+    "stream.clearButton": {
+      "testId": "stream-clear-button",
+      "selector": "[data-testid=\"stream-clear-button\"]"
+    },
+    "stream.typeFilter": {
+      "testId": "stream-type-filter",
+      "selector": "[data-testid=\"stream-type-filter\"]"
+    },
+    "stream.sourceFilter": {
+      "testId": "stream-source-filter",
+      "selector": "[data-testid=\"stream-source-filter\"]"
+    },
+    "stream.resetFilters": {
+      "testId": "stream-reset-filters",
+      "selector": "[data-testid=\"stream-reset-filters\"]"
+    },
+    "stream.eventCount": {
+      "testId": "stream-event-count",
+      "selector": "[data-testid=\"stream-event-count\"]"
+    },
+    "stream.connectionStatus": {
+      "testId": "stream-connection-status",
+      "selector": "[data-testid=\"stream-connection-status\"]"
+    },
+    "analytics.totalEvents": {
+      "testId": "analytics-total-events",
+      "selector": "[data-testid=\"analytics-total-events\"]"
+    },
+    "analytics.storeSize": {
+      "testId": "analytics-store-size",
+      "selector": "[data-testid=\"analytics-store-size\"]"
+    },
+    "analytics.subscribers": {
+      "testId": "analytics-subscribers",
+      "selector": "[data-testid=\"analytics-subscribers\"]"
+    },
+    "analytics.systemStatus": {
+      "testId": "analytics-system-status",
+      "selector": "[data-testid=\"analytics-system-status\"]"
+    },
+    "eventLog.table": {
+      "testId": "event-log-table",
+      "selector": "[data-testid=\"event-log-table\"]"
+    },
+    "eventLog.typeFilter": {
+      "testId": "event-log-type-filter",
+      "selector": "[data-testid=\"event-log-type-filter\"]"
+    },
+    "eventLog.sourceFilter": {
+      "testId": "event-log-source-filter",
+      "selector": "[data-testid=\"event-log-source-filter\"]"
+    },
+    "eventLog.correlationFilter": {
+      "testId": "event-log-correlation-filter",
+      "selector": "[data-testid=\"event-log-correlation-filter\"]"
+    },
+    "eventLog.limitSelect": {
+      "testId": "event-log-limit-select",
+      "selector": "[data-testid=\"event-log-limit-select\"]"
+    },
+    "eventLog.resetFilters": {
+      "testId": "event-log-reset-filters",
+      "selector": "[data-testid=\"event-log-reset-filters\"]"
+    },
+    "eventLog.refreshButton": {
+      "testId": "event-log-refresh-button",
+      "selector": "[data-testid=\"event-log-refresh-button\"]"
+    },
+    "eventDetail.panel": {
+      "testId": "event-detail-panel",
+      "selector": "[data-testid=\"event-detail-panel\"]"
+    },
+    "eventDetail.closeButton": {
+      "testId": "event-detail-close",
+      "selector": "[data-testid=\"event-detail-close\"]"
+    },
+    "eventDetail.eventId": {
+      "testId": "event-detail-id",
+      "selector": "[data-testid=\"event-detail-id\"]"
+    },
+    "eventDetail.eventType": {
+      "testId": "event-detail-type",
+      "selector": "[data-testid=\"event-detail-type\"]"
+    },
+    "eventDetail.payload": {
+      "testId": "event-detail-payload",
+      "selector": "[data-testid=\"event-detail-payload\"]"
+    },
+    "eventDetail.metadata": {
+      "testId": "event-detail-metadata",
+      "selector": "[data-testid=\"event-detail-metadata\"]"
+    },
+    "settings.retentionTime": {
+      "testId": "settings-retention-time",
+      "selector": "[data-testid=\"settings-retention-time\"]"
+    },
+    "settings.retentionSize": {
+      "testId": "settings-retention-size",
+      "selector": "[data-testid=\"settings-retention-size\"]"
+    },
+    "settings.pruneInterval": {
+      "testId": "settings-prune-interval",
+      "selector": "[data-testid=\"settings-prune-interval\"]"
+    },
+    "scenarioMetrics.page": {
+      "testId": "scenario-metrics-page",
+      "selector": "[data-testid=\"scenario-metrics-page\"]"
+    },
+    "scenarioMetrics.table": {
+      "testId": "scenario-metrics-table",
+      "selector": "[data-testid=\"scenario-metrics-table\"]"
+    },
+    "scenarioMetrics.sortOutbound": {
+      "testId": "sort-outbound",
+      "selector": "[data-testid=\"sort-outbound\"]"
+    },
+    "scenarioMetrics.sortInbound": {
+      "testId": "sort-inbound",
+      "selector": "[data-testid=\"sort-inbound\"]"
+    },
+    "scenarioMetrics.sortErrorRate": {
+      "testId": "sort-errorRate",
+      "selector": "[data-testid=\"sort-errorRate\"]"
+    },
+    "correlationTrace.page": {
+      "testId": "correlation-trace-page",
+      "selector": "[data-testid=\"correlation-trace-page\"]"
+    },
+    "correlationTrace.correlationInput": {
+      "testId": "trace-correlation-input",
+      "selector": "[data-testid=\"trace-correlation-input\"]"
+    },
+    "correlationTrace.searchButton": {
+      "testId": "trace-search-button",
+      "selector": "[data-testid=\"trace-search-button\"]"
+    },
+    "correlationTrace.timeline": {
+      "testId": "trace-timeline",
+      "selector": "[data-testid=\"trace-timeline\"]"
+    },
+    "policies.page": {
+      "testId": "policies-page",
+      "selector": "[data-testid=\"policies-page\"]"
+    },
+    "policies.table": {
+      "testId": "policies-table",
+      "selector": "[data-testid=\"policies-table\"]"
+    },
+    "policies.newButton": {
+      "testId": "policies-new-button",
+      "selector": "[data-testid=\"policies-new-button\"]"
+    },
+    "policies.newForm": {
+      "testId": "policies-new-form",
+      "selector": "[data-testid=\"policies-new-form\"]"
+    },
+    "circuitBreakers.page": {
+      "testId": "circuit-breakers-page",
+      "selector": "[data-testid=\"circuit-breakers-page\"]"
+    },
+    "circuitBreakers.table": {
+      "testId": "circuit-breakers-table",
+      "selector": "[data-testid=\"circuit-breakers-table\"]"
+    },
+    "circuitBreakers.overrideForm": {
+      "testId": "cb-override-form",
+      "selector": "[data-testid=\"cb-override-form\"]"
+    },
+    "subscriptions.page": {
+      "testId": "subscriptions-page",
+      "selector": "[data-testid=\"subscriptions-page\"]"
+    },
+    "subscriptions.table": {
+      "testId": "subscriptions-table",
+      "selector": "[data-testid=\"subscriptions-table\"]"
+    },
+    "subscriptions.newButton": {
+      "testId": "subscriptions-new-button",
+      "selector": "[data-testid=\"subscriptions-new-button\"]"
+    },
+    "subscriptions.newForm": {
+      "testId": "subscriptions-new-form",
+      "selector": "[data-testid=\"subscriptions-new-form\"]"
+    },
+    "compliance.page": {
+      "testId": "compliance-page",
+      "selector": "[data-testid=\"compliance-page\"]"
+    },
+    "compliance.table": {
+      "testId": "compliance-table",
+      "selector": "[data-testid=\"compliance-table\"]"
+    }
+  },
+  "dynamicSelectors": {
+    "eventTable.rowByIndex": {
+      "description": "Event table row by index",
+      "selectorPattern": "[data-testid=\"event-row-${index}\"]",
+      "params": [
+        {
+          "name": "index",
+          "type": "number"
+        }
+      ]
+    },
+    "eventTable.rowByEventId": {
+      "description": "Event table row by event ID",
+      "selectorPattern": "[data-testid=\"event-row\"][data-event-id=\"${eventId}\"]",
+      "params": [
+        {
+          "name": "eventId",
+          "type": "string"
+        }
+      ]
+    }
+  },
+  "sources": {
+    "ui/src/consts/selectors.library.ts": "b59c9936b32366ad576ac2f7b9f9690194df4834f034ef71efa4836e71883eda",
+    "ui/src/consts/selectors.ts": "f05dda8ba46ad7c8c576deb2355c51baea7754defcef0d6e3a91ad6600584d1e"
+  }
+}

@@ -1,0 +1,153 @@
+// AUTO-GENERATED — do not edit by hand.
+//
+// Source : src/i18n/locales/en.json
+// Codegen: scripts/gen-strings.mjs (invoked automatically by
+//          vite-plugin-strings-codegen on dev start, HMR of en.json, and
+//          build start; also available as `pnpm strings:gen` and
+//          `pnpm strings:check`).
+//
+// See src/consts/strings.ts for the registry's purpose, why it exists, and
+// how to use it. This file mirrors the shape of en.json with each leaf
+// replaced by its dotted key path — that's the value the i18next `t()`
+// function takes as its first argument.
+
+export const strings = {
+  $schema: "$schema",
+  $text: "$text",
+  "Changes saved successfully": {
+    "": "Changes saved successfully.",
+  },
+  "Disabled states retain the same geometry and clearly communicate that the action is unavailable": {
+    "": "Disabled states retain the same geometry and clearly communicate that the action is unavailable.",
+  },
+  "Request in progress": "Request in progress",
+  Saved: "Saved",
+  app: {
+    description: "app.description",
+    eyebrow: "app.eyebrow",
+    title: "app.title",
+  },
+  "aria-label": "aria-label",
+  asset: "asset",
+  capability: "capability",
+  children: "children",
+  clsx: "clsx",
+  component: "component",
+  default: "default",
+  defaultValue: "defaultValue",
+  description: "description",
+  detail: "detail",
+  dialog: "dialog",
+  errorBoundary: {
+    message: "errorBoundary.message",
+    retry: "errorBoundary.retry",
+    title: "errorBoundary.title",
+  },
+  errors: {
+    aborted: "errors.aborted",
+    already_exists: "errors.already_exists",
+    canceled: "errors.canceled",
+    data_loss: "errors.data_loss",
+    deadline_exceeded: "errors.deadline_exceeded",
+    failed_precondition: "errors.failed_precondition",
+    internal: "errors.internal",
+    invalid_argument: "errors.invalid_argument",
+    not_found: "errors.not_found",
+    out_of_range: "errors.out_of_range",
+    permission_denied: "errors.permission_denied",
+    resource_exhausted: "errors.resource_exhausted",
+    unauthenticated: "errors.unauthenticated",
+    unavailable: "errors.unavailable",
+    unimplemented: "errors.unimplemented",
+    unknown: "errors.unknown",
+  },
+  example: "example",
+  export: "export",
+  fixture: "fixture",
+  format: "format",
+  health: {
+    error: "health.error",
+    loading: "health.loading",
+    refresh: "health.refresh",
+    refreshCount: "health.refreshCount",
+    refreshCount_one: "health.refreshCount_one",
+    serviceLabel: "health.serviceLabel",
+    statusLabel: "health.statusLabel",
+    timestampLabel: "health.timestampLabel",
+    title: "health.title",
+  },
+  iconName: "iconName",
+  id: "id",
+  kind: "kind",
+  label: "label",
+  layout: {
+    bottomNavLabel: "layout.bottomNavLabel",
+    nav: {
+      dashboard: "layout.nav.dashboard",
+      settings: "layout.nav.settings",
+    },
+    sidebarLabel: "layout.sidebarLabel",
+  },
+  libraryId: "libraryId",
+  locale: {
+    switcherLabel: "locale.switcherLabel",
+  },
+  "lucide-react": "lucide-react",
+  mode: "mode",
+  module: "module",
+  name: "name",
+  notifications: {
+    summary: "notifications.summary",
+    summary_one: "notifications.summary_one",
+    summary_zero: "notifications.summary_zero",
+  },
+  pages: {
+    dashboard: {
+      description: "pages.dashboard.description",
+      statPlaceholderLabel: "pages.dashboard.statPlaceholderLabel",
+      title: "pages.dashboard.title",
+    },
+    settings: {
+      localeHeading: "pages.settings.localeHeading",
+      themeHeading: "pages.settings.themeHeading",
+      title: "pages.settings.title",
+    },
+  },
+  path: "path",
+  placeholder: "placeholder",
+  provenance: "provenance",
+  purpose: "purpose",
+  react: "react",
+  "react-component-library:useEscapeKey": "react-component-library:useEscapeKey",
+  ref: "ref",
+  region: "region",
+  resolvedAt: "resolvedAt",
+  role: "role",
+  schema: "schema",
+  schemaVersion: "schemaVersion",
+  selector: "selector",
+  size: "size",
+  statement: "statement",
+  status: "status",
+  storyRef: "storyRef",
+  "tailwind-merge": "tailwind-merge",
+  testid: "testid",
+  theme: {
+    choice: {
+      dark: "theme.choice.dark",
+      light: "theme.choice.light",
+      system: "theme.choice.system",
+    },
+    switcherLabel: "theme.switcherLabel",
+  },
+  tier: "tier",
+  title: "title",
+  tone: "tone",
+  true: "true",
+  type: "type",
+  value: "value",
+  variant: "variant",
+  version: "version",
+} as const;
+
+export type Strings = typeof strings;

@@ -1,0 +1,69 @@
+syntax = "proto3";
+
+package vrooli.personal_planner.v1.forecasts;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/personal-planner/v1/forecasts;forecasts_v1";
+
+message Forecast {
+  string generated_at = 1;
+  string freshness = 2;
+  string input_fingerprint = 3;
+  string horizon_start = 4;
+  string horizon_end = 5;
+  string algorithm_version = 6;
+  string central_finish = 7;
+  string cautious_finish = 8;
+  string result_state = 9;
+  string risk_state = 10;
+  string explanation = 11;
+  int64 known_work_minutes = 12;
+  int64 available_minutes = 13;
+  int64 reserve_minutes = 14;
+  int64 unresolved_work_count = 15;
+  repeated CommitmentOutlook commitment_outlooks = 16;
+  string snapshot_id = 17;
+  string previous_snapshot_id = 18;
+  string change_explanation = 19;
+}
+
+message CommitmentOutlook {
+  string id = 1;
+  string result = 2;
+  string promised_boundary = 3;
+  string forecast_finish = 4;
+  string risk_state = 5;
+  string explanation = 6;
+}
+
+message GetForecastRequest {
+  string local_date = 1;
+  string timezone = 2;
+  int32 horizon_days = 3;
+}
+
+message GetForecastResponse { Forecast forecast = 1; }
+
+message ForecastSnapshotSummary {
+  string id = 1;
+  string generated_at = 2;
+  string input_fingerprint = 3;
+  string horizon_start = 4;
+  string horizon_end = 5;
+  string central_finish = 6;
+  string cautious_finish = 7;
+  string result_state = 8;
+  string risk_state = 9;
+  string explanation = 10;
+  string previous_snapshot_id = 11;
+  string change_explanation = 12;
+}
+
+message ListForecastSnapshotsRequest { int32 limit = 1; }
+message ListForecastSnapshotsResponse {
+  repeated ForecastSnapshotSummary snapshots = 1;
+}
+
+service ForecastsService {
+  rpc GetForecast(GetForecastRequest) returns (GetForecastResponse);
+  rpc ListForecastSnapshots(ListForecastSnapshotsRequest) returns (ListForecastSnapshotsResponse);
+}

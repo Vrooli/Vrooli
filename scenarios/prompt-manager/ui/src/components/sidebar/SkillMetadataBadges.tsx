@@ -6,6 +6,7 @@
 import { Star, Activity } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Skill } from '@/types'
+import { isThirdPartySkill } from '@/lib/skillOrigin'
 
 interface SkillMetadataBadgesProps {
   skill: Skill
@@ -18,6 +19,7 @@ const FOLDER_COLORS: Record<string, string> = {
   core: 'bg-blue-400',
   local: 'bg-green-400',
   drafts: 'bg-amber-400',
+  vendor: 'bg-violet-400',
 }
 
 function getHealthColor(score: number): string {
@@ -40,6 +42,17 @@ export function SkillMetadataBadges({ skill, healthScore, className }: SkillMeta
         <span className={cn('w-1.5 h-1.5 rounded-full', FOLDER_COLORS[skill.folder] ?? 'bg-muted')} />
         <span className="capitalize">{skill.folder}</span>
       </span>
+
+      {/* Third-party badge */}
+      {isThirdPartySkill(skill) && (
+        <span
+          className="px-1 py-0.5 text-[8px] font-medium bg-violet-500/20 text-violet-300 rounded leading-none"
+          title={`Third-party skill from ${skill.origin?.sourceUrl}`}
+          data-testid="skill-third-party-badge"
+        >
+          Third-party
+        </span>
+      )}
 
       {/* Draft badge */}
       {skill.draft && (
@@ -99,6 +112,13 @@ export function SkillMetadataCompact({ skill, healthScore, className }: SkillMet
         <span className={cn('w-1.5 h-1.5 rounded-full', FOLDER_COLORS[skill.folder] ?? 'bg-muted')} />
         {skill.folder}
       </span>
+
+      {/* Third-party badge */}
+      {isThirdPartySkill(skill) && (
+        <span className="text-violet-300" title={`Third-party skill from ${skill.origin?.sourceUrl}`}>
+          third-party
+        </span>
+      )}
 
       {/* Draft badge */}
       {skill.draft && (

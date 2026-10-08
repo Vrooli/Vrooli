@@ -5,8 +5,8 @@ _Last reviewed: 2025-11-08_
 ## Context Snapshot
 - The automation stack (`api/automation/{executor,engine,recorder,events}`) orchestrates `navigate`, `wait`, `click`, `type`, `extract`, `screenshot`, and loop/branching nodes against Playwright through `PlaywrightEngine`. Outcomes are normalized into contracts payloads, persisted via `DBRecorder`, and streamed via `WSHubSink`, capturing console + network telemetry, element bounding boxes, click coordinates, and highlight/mask/zoom metadata.
 - React Flow payloads store nodes and edges; the compiler normalises the DAG and preserves branching metadata for runtime evaluation, but loop constructs and richer compile-time validation are still pending.
-- The WebSocket hub (`api/websocket/hub.go`) streams structured `execution.*`, `step.*`, and `step.heartbeat` events consumed by the UI replay panel and CLI watcher. Cursor overlays for the UI remain roadmap work, but the CLI now emits heartbeat health states and can trigger replay exports directly.
-- Artifact persistence includes MinIO-backed screenshots, per-step telemetry bundles, cursor trails, replay-ready `timeline_frame` payloads, and JSON replay export packages. DOM snapshots and automated video rendering remain future milestones.
+- The WebSocket hub (`api/websocket/hub.go`) streams structured `execution.*`, `step.*`, and `step.heartbeat` events consumed by the UI replay panel and CLI watcher. Replay cursor overlays use observed pointer samples only when viewport geometry is available; missing geometry is reported and suppresses the overlay. The CLI emits heartbeat health states and can trigger replay exports directly.
+- Artifact persistence includes MinIO-backed screenshots, per-step telemetry bundles, distinct cursor position, click and trail telemetry, replay-ready timeline payloads, and JSON replay export packages. Missing pointer telemetry is not replaced with an invented route. Timeline entry timestamps carry action/click time; raw step-outcome artifacts retain cursor sample `recorded_at` and `elapsed_ms`. The execution review player restores those samples and advances the observed cursor with frame progress when CSS viewport geometry is available. The generated movie-spec `ReplayFrame.cursor_trail` remains `Point[]` and drops per-sample times, so timed cursor playback is not preserved in rendered movie exports. When an export frame contract has no standalone cursor-position field, a single observed position can be carried as a one-point trail.
 
 ## Objectives
 1. Execute arbitrarily complex workflows (branching, loops, conditions) against Playwright with first-class actions (navigate, click, type, evaluate, extract, assertions).
@@ -20,10 +20,10 @@ _Last reviewed: 2025-11-08_
 WorkflowService.ExecuteWorkflow ---> Workflow Graph Compiler ---> Execution Plan
            |                                                      |
            v                                                      v
-   ExecutionRegistry (Postgres) <---- Session Manager ----> Playwright Driver API
+   ExecutionRegistry (SQLite) <---- Session Manager ----> Playwright Driver API
            |                                                      |
            v                                                      v
- WebSocket Hub <---- Telemetry Streamer ---- per-step events ----> Artifact Store (Postgres + MinIO)
+ WebSocket Hub <---- Telemetry Streamer ---- per-step events ----> Artifact Store (SQLite + MinIO)
 ```
 
 ## Component Breakdown
@@ -121,7 +121,7 @@ Each executor calls `emit(ExecutionEvent)` multiple times: start, progress updat
 | `execution.failed`     | `error_code`, `message`, `stack`, `failing_step`                                                 |
 | `execution.completed`  | `duration_ms`, `success_count`, `failure_count`, `artifact_manifest`                             |
 
-The hub simply broadcasts the JSON; richer routing (per-execution subscriptions) remains via `Client.ExecutionID` filtering. Heartbeat cadence defaults to 2s and can be tuned (or disabled with `0`) using `BAS_EXECUTION_HEARTBEAT_INTERVAL_MS` (alias `BROWSERLESS_HEARTBEAT_INTERVAL` for Go-duration strings).
+The hub simply broadcasts the JSON; richer routing (per-execution subscriptions) remains via `Client.ExecutionID` filtering. Heartbeat cadence defaults to 2s and can be tuned (or disabled with `0`) using `BAS_EXECUTION_HEARTBEAT_INTERVAL_MS`.
 
 ### 5. Artifact Persistence
 
@@ -151,7 +151,7 @@ Screenshot customization pipeline:
 
 ### 7. CLI & UI Integration Notes
 - **UI:** Replace `socket.io-client` usage with native `WebSocket`, subscribe to new event types, update stores to build filmstrip + log timeline from streamed payloads.
-- **CLI:** `execution watch` listens to the same WebSocket and renders textual logs + heartbeat health, while `execution export` retrieves replay packages (use `--output` to persist the JSON for renderers).
+- **CLI:** `execution watch` listens to the same WebSocket and renders textual logs + heartbeat health. `executions replay-package <execution-id>` retrieves the versioned, storage-independent replay package for renderer consumers.
 - Provide a shared TypeScript schema (`ui/src/types/executionEvents.ts`) generated from Go structs via `quicktype` or manual definitions to keep payloads in sync.
 
 ## Implementation Phases
@@ -323,3 +323,12 @@ Adopting hierarchical plans preserves our acyclic compiler guarantees, keeps tel
 - Continue expanding Playwright driver instruction coverage (downloads, tracing, advanced assertions)
 - Add HAR/trace/video artifact storage for desktop exports
 - Update `docs/action-plan.md` as milestones land.
+
+For deliberate visual checkpoints, set execution parameters to
+`{"artifactConfig":{"profile":"checkpoints"}}`. This profile retains explicit
+Screenshot actions, assertions, and extracted data, while disabling automatic
+step screenshots (including navigation and failures). Add a Screenshot action at
+each page state you intend to review. Use `validation` when automatic diagnostic
+frames are desired, and the normal replay profiles for a complete storyboard.
+The `none` profile and custom screenshot-retention toggle keep their existing
+behavior; `checkpoints` is an explicit opt-in.

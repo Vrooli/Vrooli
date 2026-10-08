@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from "react";
 import { CheckCircle, AlertCircle, X } from "lucide-react";
 
 type ToastType = "success" | "error";
@@ -29,22 +29,36 @@ interface ToastProviderProps {
 
 export function ToastProvider({ children }: ToastProviderProps) {
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const sequence = useRef(0);
+  const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  const mounted = useRef(false);
+
+  useEffect(() => {
+    mounted.current = true;
+    const activeTimers = timers.current;
+    return () => {
+      mounted.current = false;
+      for (const timer of activeTimers.values()) clearTimeout(timer);
+      activeTimers.clear();
+    };
+  }, []);
+
+  const dismissToast = useCallback((id: string) => {
+    clearTimeout(timers.current.get(id));
+    timers.current.delete(id);
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
 
   const showToast = useCallback((message: string, type: ToastType) => {
-    const id = Math.random().toString(36).substring(7);
+    if (!mounted.current) return;
+    const id = String(++sequence.current);
     const newToast: Toast = { id, message, type };
 
     setToasts((prev) => [...prev, newToast]);
 
     // Auto-dismiss after 5 seconds
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 5000);
-  }, []);
-
-  const dismissToast = (id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  };
+    timers.current.set(id, setTimeout(() => dismissToast(id), 5000));
+  }, [dismissToast]);
 
   return (
     <ToastContext.Provider value={{ showToast }}>

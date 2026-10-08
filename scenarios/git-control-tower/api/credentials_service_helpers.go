@@ -10,6 +10,9 @@ import (
 
 // UpdateRemoteURL updates a remote's URL.
 func UpdateRemoteURL(ctx context.Context, deps CredentialsDeps, req RemoteURLUpdateRequest) (*RemoteURLUpdateResponse, error) {
+	if err := requireHumanMutation(ctx, "update remote URL"); err != nil {
+		return nil, err
+	}
 	if deps.Git == nil {
 		return nil, fmt.Errorf("git runner is required")
 	}

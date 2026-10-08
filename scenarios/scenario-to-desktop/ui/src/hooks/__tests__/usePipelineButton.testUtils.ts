@@ -6,19 +6,17 @@ import { vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
 
-// Mock the API module
-vi.mock("../../lib/api", () => ({
+const mocks = vi.hoisted(() => ({
   runPipeline: vi.fn(),
   getPipelineStatus: vi.fn(),
   checkWineStatus: vi.fn(),
 }));
 
-// Import mocks after setting up vi.mock
-import { runPipeline, getPipelineStatus, checkWineStatus } from "../../lib/api";
+vi.mock("../../lib/api", () => mocks);
 
-export const mockRunPipeline = runPipeline as ReturnType<typeof vi.fn>;
-export const mockGetPipelineStatus = getPipelineStatus as ReturnType<typeof vi.fn>;
-export const mockCheckWineStatus = checkWineStatus as ReturnType<typeof vi.fn>;
+export const mockRunPipeline = mocks.runPipeline;
+export const mockGetPipelineStatus = mocks.getPipelineStatus;
+export const mockCheckWineStatus = mocks.checkWineStatus;
 
 // Create a wrapper with QueryClientProvider
 export function createWrapper() {
@@ -29,7 +27,11 @@ export function createWrapper() {
     },
   });
   return function Wrapper({ children }: { children: React.ReactNode }) {
-    return React.createElement(QueryClientProvider, { client: queryClient }, children);
+    return React.createElement(
+      QueryClientProvider,
+      { client: queryClient },
+      children,
+    );
   };
 }
 
@@ -42,7 +44,7 @@ export const localStorageMock = (() => {
       store[key] = value;
     }),
     removeItem: vi.fn((key: string) => {
-      delete store[key];
+      Reflect.deleteProperty(store, key);
     }),
     clear: vi.fn(() => {
       store = {};

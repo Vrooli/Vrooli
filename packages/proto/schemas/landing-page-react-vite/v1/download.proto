@@ -1,0 +1,111 @@
+syntax = "proto3";
+
+package landing_page_react_vite.v1;
+
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-react-vite/v1;landing_page_react_vite_v1";
+
+// =============================================================================
+// DOWNLOAD DOMAIN
+// =============================================================================
+//
+// @layer 1
+// @domain download
+// @imports none
+// @stability stable
+//
+// Downloadable app catalog (desktop apps per platform) plus the entitlement
+// gate that authorizes a download. Gated assets require an active/trialing
+// subscription for the caller identity; ungated assets are returned without an
+// entitlement lookup. These messages also feed the aggregated landing config.
+//
+// =============================================================================
+
+// DownloadStorefront is an external store link for an app (e.g. App Store).
+message DownloadStorefront {
+  string store = 1;
+  string label = 2;
+  string url = 3;
+  string badge = 4;
+}
+
+// DownloadAsset is a single platform artifact for an app.
+message DownloadAsset {
+  int64 id = 1;
+  string bundle_key = 2;
+  string app_key = 3;
+  // Platform: windows|mac|linux.
+  string platform = 4;
+  string artifact_url = 5;
+  string release_version = 6;
+  string release_notes = 7;
+  string checksum = 8;
+  // When true, the caller must have an active/trialing subscription.
+  bool requires_entitlement = 9;
+  google.protobuf.Struct metadata = 10;
+}
+
+// DownloadApp is a downloadable app with its per-platform assets.
+message DownloadApp {
+  string bundle_key = 1;
+  string app_key = 2;
+  string name = 3;
+  string tagline = 4;
+  string description = 5;
+  string install_overview = 6;
+  repeated string install_steps = 7;
+  repeated DownloadStorefront storefronts = 8;
+  google.protobuf.Struct metadata = 9;
+  int32 display_order = 10;
+  repeated DownloadAsset platforms = 11;
+}
+
+// AuthorizeDownloadRequest requests authorization for a platform artifact.
+// The caller identity is resolved from the request context (header/query).
+message AuthorizeDownloadRequest {
+  string app = 1;
+  string platform = 2;
+}
+
+// AuthorizeDownloadResponse returns the authorized artifact.
+message AuthorizeDownloadResponse {
+  DownloadAsset asset = 1;
+}
+
+// ListDownloadAppsRequest lists all download apps (admin).
+message ListDownloadAppsRequest {}
+
+// ListDownloadAppsResponse returns the download apps with their assets.
+message ListDownloadAppsResponse {
+  repeated DownloadApp apps = 1;
+}
+
+// SaveDownloadAppRequest upserts a download app and its assets. app_key in the
+// path identifies the target; the body carries the full desired state.
+message SaveDownloadAppRequest {
+  string app_key = 1;
+  DownloadApp app = 2;
+}
+
+// CreateDownloadAppRequest creates a new download app and its assets.
+message CreateDownloadAppRequest {
+  DownloadApp app = 1;
+}
+
+// DownloadAppResponse returns a single download app.
+message DownloadAppResponse {
+  DownloadApp app = 1;
+}
+
+// DownloadService serves the download catalog and the entitlement gate.
+service DownloadService {
+  // Authorizes a platform artifact download for the caller (public, gated).
+  rpc AuthorizeDownload(AuthorizeDownloadRequest) returns (AuthorizeDownloadResponse);
+  // Lists all download apps (admin).
+  rpc ListDownloadApps(ListDownloadAppsRequest) returns (ListDownloadAppsResponse);
+  // Creates a download app (admin).
+  rpc CreateDownloadApp(CreateDownloadAppRequest) returns (DownloadAppResponse);
+  // Upserts a download app by key (admin).
+  rpc SaveDownloadApp(SaveDownloadAppRequest) returns (DownloadAppResponse);
+}

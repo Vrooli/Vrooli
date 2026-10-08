@@ -1,0 +1,11 @@
+{
+  "claims": [
+    {
+      "id": "named-element",
+      "type": "element-present",
+      "statement": "The named control is rendered.",
+      "tier": "machine",
+      "elements": ["control"]
+    }
+  ]
+}

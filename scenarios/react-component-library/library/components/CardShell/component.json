@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "data-display.card-shell",
+  "deprecatedVersions": [],
+  "designStyles": [
+    {
+      "affinity": "native",
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.0.4",
+    "1.0.3",
+    "1.0.2"
+  ],
+  "latest": "1.0.5",
+  "libraryId": "react-component-library:CardShell"
+}

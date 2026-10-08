@@ -1,0 +1,24 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "nooch-delivery-orchestrator",
+  "displayName": "Nooch Delivery Orchestrator",
+  "description": "Orchestrate the owner-approved Nooch finite delivery through native epochs; own goal home and independent acceptance; never implement product work.",
+  "status": "active",
+  "appearance": {
+    "body": "#3B82F6",
+    "head": "#F59E0B",
+    "accent": "#10B981"
+  },
+  "tags": [
+    "delivery",
+    "orchestration",
+    "nutrition-planner"
+  ],
+  "fileOrder": [
+    "AGENT.md"
+  ],
+  "revision": 1,
+  "createdAt": "2026-10-03T05:27:30Z",
+  "updatedAt": "2026-10-03T05:27:30Z"
+}

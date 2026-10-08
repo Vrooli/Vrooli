@@ -3,12 +3,7 @@
  */
 
 import { useMemo } from "react";
-import {
-  Loader2,
-  CheckCircle2,
-  XCircle,
-  Circle,
-} from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, Circle } from "lucide-react";
 import { Button } from "../ui/button";
 import {
   useSidebarStore,
@@ -18,40 +13,57 @@ import {
   SECTION_TO_STAGE,
   type SectionId,
 } from "../../store/sidebarStore";
-import { usePipelineStore, selectCurrentStage } from "../../store";
+import {
+  usePipelineStore,
+  selectCurrentStage,
+  stageResultKey,
+  type PipelineStore,
+} from "../../store";
 import { cn } from "../../lib/utils";
+import { StageStatus } from "@vrooli/proto-types/scenario-to-desktop/v1/shared/common_pb";
 
 /** Status indicator styles */
-const STATUS_STYLES = {
-  pending: {
+const STATUS_STYLES: Partial<
+  Record<
+    StageStatus,
+    {
+      border: string;
+      bg: string;
+      icon: typeof Circle;
+      iconClass: string;
+      numberBg: string;
+    }
+  >
+> = {
+  [StageStatus.PENDING]: {
     border: "border-slate-600",
     bg: "bg-slate-950/30",
     icon: Circle,
     iconClass: "text-slate-500",
     numberBg: "bg-slate-800",
   },
-  running: {
+  [StageStatus.RUNNING]: {
     border: "border-blue-500",
     bg: "bg-blue-950/30",
     icon: Loader2,
     iconClass: "text-blue-400 animate-spin",
     numberBg: "bg-blue-600",
   },
-  completed: {
+  [StageStatus.COMPLETED]: {
     border: "border-green-500",
     bg: "bg-green-950/30",
     icon: CheckCircle2,
     iconClass: "text-green-400",
     numberBg: "bg-green-600",
   },
-  failed: {
+  [StageStatus.FAILED]: {
     border: "border-red-500",
     bg: "bg-red-950/30",
     icon: XCircle,
     iconClass: "text-red-400",
     numberBg: "bg-red-600",
   },
-  skipped: {
+  [StageStatus.SKIPPED]: {
     border: "border-slate-600",
     bg: "bg-slate-950/30",
     icon: Circle,
@@ -67,7 +79,10 @@ interface SidebarNavigationProps {
   collapsed?: boolean;
 }
 
-export function SidebarNavigation({ onSectionClick, collapsed = false }: SidebarNavigationProps) {
+export function SidebarNavigation({
+  onSectionClick,
+  collapsed = false,
+}: SidebarNavigationProps) {
   const activeSection = useSidebarStore((s) => s.activeSection);
   const currentStage = usePipelineStore(selectCurrentStage);
 
@@ -81,7 +96,9 @@ export function SidebarNavigation({ onSectionClick, collapsed = false }: Sidebar
             index={index}
             isActive={activeSection === sectionId}
             isCurrentStage={SECTION_TO_STAGE[sectionId] === currentStage}
-            onClick={() => onSectionClick(sectionId)}
+            onClick={() => {
+              onSectionClick(sectionId);
+            }}
             collapsed={collapsed}
           />
         ))}
@@ -99,18 +116,30 @@ interface SectionNavItemProps {
   collapsed: boolean;
 }
 
-function SectionNavItem({ sectionId, index, isActive, isCurrentStage, onClick, collapsed }: SectionNavItemProps) {
+function SectionNavItem({
+  sectionId,
+  index,
+  isActive,
+  isCurrentStage,
+  onClick,
+  collapsed,
+}: SectionNavItemProps) {
   const stage = SECTION_TO_STAGE[sectionId];
   // Memoize the selector to prevent infinite re-renders
   const stageSelector = useMemo(
-    () => (state: { pipelineStatus: { stages?: Record<string, { status?: string }> } | null }) =>
-      stage ? (state.pipelineStatus?.stages?.[stage]?.status ?? "pending") : null,
-    [stage]
+    () => (state: PipelineStore) =>
+      stage
+        ? (state.pipelineStatus?.stages[stageResultKey(stage)]?.status ??
+          StageStatus.PENDING)
+        : null,
+    [stage],
   );
   const stageStatus = usePipelineStore(stageSelector);
 
   // Get pipeline status for configuration section special handling
-  const _pipelineStatusValue = usePipelineStore((s) => s.pipelineStatus?.status);
+  const _pipelineStatusValue = usePipelineStore(
+    (s) => s.pipelineStatus?.status,
+  );
   const pipelineStages = usePipelineStore((s) => s.pipelineStatus?.stages);
 
   // Configuration section status logic:
@@ -118,18 +147,22 @@ function SectionNavItem({ sectionId, index, isActive, isCurrentStage, onClick, c
   // - Show "completed" ONLY when a subsequent stage is actually running or completed
   //   (not just when pipeline status is "pending" - that means config is being processed)
   // - Other sections use their actual stage status
-  let status: string | null;
+  let status: StageStatus | null;
   if (sectionId === "configuration") {
     // Check if any actual pipeline stage has started running or completed
     // This means configuration has been accepted and pipeline is executing stages
-    const hasActiveOrCompletedStage = pipelineStages && Object.values(pipelineStages).some(
-      (s) => s?.status === "running" || s?.status === "completed"
-    );
-    status = hasActiveOrCompletedStage ? "completed" : null;
+    const hasActiveOrCompletedStage =
+      pipelineStages &&
+      Object.values(pipelineStages).some(
+        (s) =>
+          s.status === StageStatus.RUNNING ||
+          s.status === StageStatus.COMPLETED,
+      );
+    status = hasActiveOrCompletedStage ? StageStatus.COMPLETED : null;
   } else {
-    status = stageStatus ?? "pending";
+    status = stageStatus ?? StageStatus.PENDING;
   }
-  const statusStyle = status ? STATUS_STYLES[status as keyof typeof STATUS_STYLES] : null;
+  const statusStyle = status ? STATUS_STYLES[status] : null;
 
   const Icon = SECTION_ICONS[sectionId];
   const { label, description } = SECTION_METADATA[sectionId];
@@ -153,9 +186,10 @@ function SectionNavItem({ sectionId, index, isActive, isCurrentStage, onClick, c
             "w-10 h-10 p-0 relative",
             isActive && "bg-blue-500/20 text-blue-400",
             isCurrentStage && !isActive && "ring-2 ring-blue-500/50",
-            statusStyle?.bg
+            statusStyle?.bg,
           )}
           title={label}
+          aria-label={label}
         >
           <Icon className="h-4 w-4" />
           {status && (
@@ -177,9 +211,14 @@ function SectionNavItem({ sectionId, index, isActive, isCurrentStage, onClick, c
           "w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-all",
           "hover:bg-white/5",
           isActive && "bg-blue-500/10 border-l-4 border-blue-500 pl-2.5",
-          !isActive && isCurrentStage && "ring-1 ring-blue-500/50 bg-blue-950/20",
-          !isActive && !isCurrentStage && statusStyle?.border && `border-l-2 ${statusStyle.border} pl-3`,
-          !isCurrentStage && statusStyle?.bg
+          !isActive &&
+            isCurrentStage &&
+            "ring-1 ring-blue-500/50 bg-blue-950/20",
+          !isActive &&
+            !isCurrentStage &&
+            statusStyle?.border &&
+            `border-l-2 ${statusStyle.border} pl-3`,
+          !isCurrentStage && statusStyle?.bg,
         )}
       >
         {/* Index number with status-based coloring */}
@@ -187,7 +226,7 @@ function SectionNavItem({ sectionId, index, isActive, isCurrentStage, onClick, c
           className={cn(
             "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-medium transition-colors",
             numberBgClass,
-            isCurrentStage && status === "running" && "animate-pulse"
+            isCurrentStage && status === StageStatus.RUNNING && "animate-pulse",
           )}
         >
           {index}
@@ -200,20 +239,26 @@ function SectionNavItem({ sectionId, index, isActive, isCurrentStage, onClick, c
               className={cn(
                 "font-medium truncate",
                 isActive ? "text-blue-400" : "text-slate-200",
-                isCurrentStage && !isActive && "text-blue-300"
+                isCurrentStage && !isActive && "text-blue-300",
               )}
             >
               {label}
             </span>
             {status && (
-              <StatusIcon className={cn("h-4 w-4 shrink-0", statusStyle?.iconClass)} />
+              <StatusIcon
+                className={cn("h-4 w-4 shrink-0", statusStyle?.iconClass)}
+              />
             )}
           </div>
-          <p className={cn(
-            "text-xs truncate",
-            isCurrentStage ? "text-blue-400/70" : "text-slate-500"
-          )}>
-            {isCurrentStage && status === "running" ? "Running..." : description}
+          <p
+            className={cn(
+              "text-xs truncate",
+              isCurrentStage ? "text-blue-400/70" : "text-slate-500",
+            )}
+          >
+            {isCurrentStage && status === StageStatus.RUNNING
+              ? "Running..."
+              : description}
           </p>
         </div>
       </button>

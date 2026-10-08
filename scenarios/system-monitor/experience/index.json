@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-index",
+  "contract": { "kind": "scenario-experience", "schema": "scenario-experience-spec/v1" },
+  "schemaVersion": "1.0.0",
+  "scenario": "system-monitor",
+  "description": "System Monitor's governed operational-console experience contract.",
+  "pages": [
+    { "id": "dashboard", "path": "pages/dashboard.json", "title": "Dashboard", "status": "active" },
+    { "id": "cpu", "path": "pages/cpu.json", "title": "CPU Metrics", "status": "active" },
+    { "id": "memory", "path": "pages/memory.json", "title": "Memory Metrics", "status": "active" },
+    { "id": "network", "path": "pages/network.json", "title": "Network Metrics", "status": "active" },
+    { "id": "disk", "path": "pages/disk.json", "title": "Disk Metrics", "status": "active" },
+    { "id": "gpu", "path": "pages/gpu.json", "title": "GPU Metrics", "status": "active" },
+    { "id": "logs", "path": "pages/logs.json", "title": "Logs", "status": "active" },
+    { "id": "forensics", "path": "pages/forensics.json", "title": "Forensics", "status": "active" },
+    { "id": "capacity", "path": "pages/capacity.json", "title": "Capacity", "status": "active" }
+  ]
+}

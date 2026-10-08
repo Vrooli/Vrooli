@@ -1,0 +1,39 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "controls.switch",
+  "deprecatedVersions": [
+    "1.0.2",
+    "1.0.4",
+    "1.0.10",
+    "1.0.5",
+    "1.0.6",
+    "1.0.7",
+    "1.0.8",
+    "1.0.9",
+    "1.0.11"
+  ],
+  "designStyles": [
+    {
+      "affinity": "native",
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.0.4",
+    "1.0.3",
+    "1.0.2",
+    "1.0.5",
+    "1.0.9",
+    "1.0.8",
+    "1.0.7",
+    "1.0.6",
+    "1.0.10",
+    "1.0.11",
+    "1.0.12"
+  ],
+  "latest": "1.0.13",
+  "libraryId": "react-component-library:Switch"
+}

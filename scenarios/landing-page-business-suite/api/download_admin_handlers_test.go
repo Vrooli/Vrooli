@@ -15,7 +15,6 @@ import (
 
 func TestHandleAdminListDownloadApps_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadApps(t, db)
 
 	// Insert test apps
@@ -52,7 +51,6 @@ func TestHandleAdminListDownloadApps_Success(t *testing.T) {
 
 func TestHandleAdminListDownloadApps_Empty(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadApps(t, db)
 
 	downloads := NewDownloadService(db)
@@ -91,7 +89,6 @@ func TestHandleAdminListDownloadApps_Empty(t *testing.T) {
 
 func TestHandleAdminCreateDownloadApp_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadApps(t, db)
 
 	downloads := NewDownloadService(db)
@@ -130,7 +127,6 @@ func TestHandleAdminCreateDownloadApp_Success(t *testing.T) {
 
 func TestHandleAdminCreateDownloadApp_InvalidJSON(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	downloads := NewDownloadService(db)
 	plans := newTestPlanService(t, "create_invalid")
@@ -150,7 +146,6 @@ func TestHandleAdminCreateDownloadApp_InvalidJSON(t *testing.T) {
 
 func TestHandleAdminCreateDownloadApp_ValidationError(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	downloads := NewDownloadService(db)
 	plans := newTestPlanService(t, "create_validation")
@@ -172,7 +167,6 @@ func TestHandleAdminCreateDownloadApp_ValidationError(t *testing.T) {
 
 func TestHandleAdminCreateDownloadApp_WithPlatforms(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadApps(t, db)
 
 	downloads := NewDownloadService(db)
@@ -222,7 +216,6 @@ func TestHandleAdminCreateDownloadApp_WithPlatforms(t *testing.T) {
 
 func TestHandleAdminSaveDownloadApp_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadApps(t, db)
 
 	// Create existing app
@@ -262,7 +255,6 @@ func TestHandleAdminSaveDownloadApp_Success(t *testing.T) {
 
 func TestHandleAdminSaveDownloadApp_MissingPathParam(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	downloads := NewDownloadService(db)
 	plans := newTestPlanService(t, "save_missing")
@@ -284,7 +276,6 @@ func TestHandleAdminSaveDownloadApp_MissingPathParam(t *testing.T) {
 
 func TestHandleAdminSaveDownloadApp_EmptyPathParam(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	downloads := NewDownloadService(db)
 	plans := newTestPlanService(t, "save_empty")
@@ -311,7 +302,6 @@ func TestHandleAdminSaveDownloadApp_EmptyPathParam(t *testing.T) {
 
 func TestHandleAdminDeleteDownloadApp_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadApps(t, db)
 
 	// Create app to delete
@@ -337,7 +327,6 @@ func TestHandleAdminDeleteDownloadApp_Success(t *testing.T) {
 
 func TestHandleAdminDeleteDownloadApp_NotFound(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadApps(t, db)
 
 	downloads := NewDownloadService(db)

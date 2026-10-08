@@ -85,7 +85,7 @@ export function handleHealth(
   let activeRecordings = 0;
   for (const id of sessionIds) {
     try {
-      const session = sessionManager.getSession(id);
+      const session = sessionManager.peekSession(id);
       if (session.pipelineManager?.isRecording()) {
         activeRecordings++;
       }

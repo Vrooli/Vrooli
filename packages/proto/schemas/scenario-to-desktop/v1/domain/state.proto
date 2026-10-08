@@ -1,0 +1,67 @@
+syntax = "proto3";
+
+package vrooli.scenario_to_desktop.v1.domain;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain;domain";
+
+// StateRequest identifies the scenario whose durable desktop-generation state is read or changed.
+message StateRequest {
+  string scenario_name = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message LoadScenarioStateRequest {
+  string scenario_name = 1 [(buf.validate.field).string.min_len = 1];
+  bool include_logs = 2;
+  bool validate_manifest = 3;
+  optional string manifest_path = 4;
+}
+
+// StateResponse preserves the deliberately extensible persisted state document.
+// Form and stage result fields evolve with desktop generator capabilities, so their
+// payload remains a protobuf Struct rather than an untyped transport-specific JSON blob.
+message StateResponse {
+  optional google.protobuf.Struct payload = 1;
+  bool found = 2;
+}
+
+message SaveScenarioStateRequest {
+  string scenario_name = 1 [(buf.validate.field).string.min_len = 1];
+  google.protobuf.Struct payload = 2;
+}
+
+message ScenarioStateLogRequest {
+  string scenario_name = 1 [(buf.validate.field).string.min_len = 1];
+  string service_id = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+message ScenarioStateLogResponse {
+  optional google.protobuf.Struct payload = 1;
+  bool found = 2;
+}
+
+message CheckScenarioStateRequest {
+  string scenario_name = 1 [(buf.validate.field).string.min_len = 1];
+  google.protobuf.Struct current_config = 2;
+}
+
+message InvalidateScenarioStateRequest {
+  string scenario_name = 1 [(buf.validate.field).string.min_len = 1];
+  string from_stage = 2 [(buf.validate.field).string.min_len = 1];
+  optional string reason = 3;
+}
+
+message StateOperationResponse {
+  google.protobuf.Struct payload = 1;
+}
+
+service StateService {
+  rpc LoadScenarioState(LoadScenarioStateRequest) returns (StateResponse);
+  rpc SaveScenarioState(SaveScenarioStateRequest) returns (StateOperationResponse);
+  rpc DeleteScenarioState(StateRequest) returns (StateOperationResponse);
+  rpc CheckScenarioState(CheckScenarioStateRequest) returns (StateOperationResponse);
+  rpc GetScenarioStateLog(ScenarioStateLogRequest) returns (ScenarioStateLogResponse);
+  rpc InvalidateScenarioState(InvalidateScenarioStateRequest) returns (StateOperationResponse);
+}

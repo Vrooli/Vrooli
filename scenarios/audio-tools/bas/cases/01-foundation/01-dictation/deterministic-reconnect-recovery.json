@@ -1,0 +1,169 @@
+{
+  "id": "4c0f73d0-6f53-4e17-9f3c-2e8d79d2a6e1",
+  "project_id": "0238b793-8b5e-42ff-a42a-7b495da99b7f",
+  "name": "audio-tools-deterministic-reconnect-recovery",
+  "folder_path": "/bas/cases/01-foundation/01-dictation",
+  "description": "Verifies that a one-shot server-injected WebSocket close after the first received PCM chunk reconnects and completes the WAV-backed Dictation Studio transcript.",
+  "tags": [
+    "reset:none",
+    "requirements_json:[\"ATD-P0-001\"]",
+    "media_fixture:microphone",
+    "evidence_lane:deterministic_browser_fault"
+  ],
+  "version": 1,
+  "created_at": "2026-08-03T14:00:00Z",
+  "updated_at": "2026-08-03T14:00:00Z",
+  "metadata": {
+    "name": "audio-tools-deterministic-reconnect-recovery",
+    "description": "Verify the real browser capture path reconnects after a received-chunk socket close.",
+    "labels": {
+      "requires_confirmation": "true",
+      "routed_isolation": "true",
+      "spec_entry_id": "dictation-studio"
+    },
+    "execution_mode": "mutating"
+  },
+  "flow_definition": {
+    "metadata": {
+      "name": "audio-tools-deterministic-reconnect-recovery",
+      "description": "Verify reconnect and retained-journal replay produce a completed transcript.",
+      "execution_mode": "mutating"
+    },
+    "settings": {
+      "viewport_width": 390,
+      "viewport_height": 844,
+      "fake_media": {
+        "microphone_wav": "bas/fixtures/dictation-reference.wav"
+      }
+    },
+    "nodes": [
+      {
+        "id": "navigate-dictation",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "timeout_ms": 30000,
+            "wait_until": "NAVIGATE_WAIT_EVENT_UNSPECIFIED",
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_UNSPECIFIED",
+            "scenario": "audio-tools",
+            "scenario_path": "/dictation-studio?stt_test_mode=1&stt_test_fault=backend_restart"
+          },
+          "metadata": { "label": "Open Dictation Studio with the one-shot reconnect fault" }
+        }
+      },
+      {
+        "id": "wait-recorder",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": { "selector": "@selector/dictationStudio.recordStart", "state": "WAIT_STATE_UNSPECIFIED", "timeout_ms": 15000 },
+          "metadata": { "label": "Wait for the recorder" }
+        }
+      },
+      {
+        "id": "start-fake-microphone",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": { "selector": "@selector/dictationStudio.recordStart" },
+          "metadata": { "label": "Start WAV-backed PCM capture" }
+        }
+      },
+      {
+        "id": "wait-stream-connected",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": { "selector": "@selector/dictationStudio.streamStatus", "state": "WAIT_STATE_UNSPECIFIED", "timeout_ms": 45000 },
+          "metadata": { "label": "Wait for the initial PCM-v2 stream" }
+        }
+      },
+      {
+        "id": "assert-recording-ready",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/dictationStudio.recordStart",
+            "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+            "expected": { "string_value": "true" },
+            "attribute_name": "aria-pressed",
+            "timeout_ms": 15000
+          },
+          "metadata": { "label": "Assert the browser is actively capturing before the injected close" }
+        }
+      },
+      {
+        "id": "feed-fixture",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": { "duration_ms": 8000 },
+          "metadata": { "label": "Allow the fixture to trigger the one-shot socket close and replay" }
+        }
+      },
+      {
+        "id": "assert-recovering",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/dictationStudio.turnCaptureStatus",
+            "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+            "expected": { "string_value": "true" },
+            "attribute_name": "data-has-captured-audio",
+            "timeout_ms": 5000
+          },
+          "metadata": { "label": "Assert retained PCM remains available across the interruption" }
+        }
+      },
+      {
+        "id": "stop-capture",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": { "selector": "@selector/dictationStudio.recordStart" },
+          "metadata": { "label": "Stop capture after reconnect recovery" }
+        }
+      },
+      {
+        "id": "assert-final-transcript",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/dictationStudio.finalTranscript",
+            "mode": "ASSERTION_MODE_EXISTS",
+            "timeout_ms": 30000
+          },
+          "metadata": { "label": "Assert the recovered stream produced a non-empty final transcript" }
+        }
+      },
+      {
+        "id": "assert-captured-state",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/dictationStudio.recordState",
+            "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+            "expected": { "string_value": "Clip captured." },
+            "timeout_ms": 5000
+          },
+          "metadata": { "label": "Assert the recorder reached its completed captured state" }
+        }
+      },
+      {
+        "id": "capture-reconnect-evidence",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": { "full_page": true },
+          "metadata": { "label": "Capture the recovered transcript and terminal diagnostic" }
+        }
+      }
+    ],
+    "edges": [
+      { "id": "e1", "source": "navigate-dictation", "target": "wait-recorder", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+      { "id": "e2", "source": "wait-recorder", "target": "start-fake-microphone", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+      { "id": "e3", "source": "start-fake-microphone", "target": "wait-stream-connected", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+      { "id": "e4", "source": "wait-stream-connected", "target": "assert-recording-ready", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+      { "id": "e5", "source": "assert-recording-ready", "target": "feed-fixture", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+      { "id": "e6", "source": "feed-fixture", "target": "assert-recovering", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+      { "id": "e7", "source": "assert-recovering", "target": "stop-capture", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+      { "id": "e8", "source": "stop-capture", "target": "assert-final-transcript", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+      { "id": "e9", "source": "assert-final-transcript", "target": "assert-captured-state", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+      { "id": "e10", "source": "assert-captured-state", "target": "capture-reconnect-evidence", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" }
+    ]
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "rembg",
+  "storage": {
+    "entries": {},
+    "rationale": "This tool has no tool-owned persistent storage in the supported Vrooli workflow; the explicit empty declaration records that caches or credentials are owned by the invoking workflow."
+  },
+  "description": "rembg background-removal CLI for image-tools (Python/pip)",
+  "commands": [
+    "rembg"
+  ],
+  "versionArgs": [
+    "--version"
+  ],
+  "manual": true,
+  "installHint": "Python tool — install with `pipx install \"rembg[cli]\"` (or `pip install \"rembg[cli]\"`). Not a single-binary release, so it is not auto-fetched.",
+  "bundling": "host-required",
+  "capability": "media-processing",
+  "capability_role": "primary",
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "macos": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "windows": {
+      "status": "unqualified",
+      "evidence": null
+    }
+  }
+}

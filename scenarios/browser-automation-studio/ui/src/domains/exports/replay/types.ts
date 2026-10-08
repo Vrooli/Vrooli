@@ -110,6 +110,8 @@ export interface ReplayRetryHistoryEntry {
 export interface ReplayFrame {
   id: string;
   stepIndex: number;
+  /** Timestamp carried by the source timeline entry for click/action provenance. */
+  observedAt?: string;
   nodeId?: string;
   /** Page ID for multi-page workflows (v2 execution plans). */
   pageId?: string;
@@ -125,6 +127,10 @@ export interface ReplayFrame {
   consoleLogCount?: number;
   networkEventCount?: number;
   screenshot?: ReplayScreenshot | null;
+  /** CSS viewport dimensions for cursor and element telemetry. */
+  viewport?: Dimensions;
+  /** Capture DPR, kept separate from CSS viewport and screenshot raster size. */
+  deviceScaleFactor?: number;
   highlightRegions?: ReplayRegion[];
   maskRegions?: ReplayRegion[];
   focusedElement?: {
@@ -132,8 +138,12 @@ export interface ReplayFrame {
     boundingBox?: ReplayBoundingBox;
   } | null;
   elementBoundingBox?: ReplayBoundingBox | null;
+  cursorPosition?: ReplayPoint | null;
   clickPosition?: ReplayPoint | null;
   cursorTrail?: ReplayPoint[];
+  /** Timestamped raw outcome samples, when the execution artifact retained them. */
+  cursorTrailSamples?: Array<ReplayPoint & { recordedAt?: string; elapsedMs?: number }>;
+  cursorProvenance?: 'observed' | 'edited' | 'derived' | 'missing';
   zoomFactor?: number;
   assertion?: {
     mode?: string;
@@ -266,6 +276,8 @@ export interface ReplayPlayerProps {
   presentationFit?: ReplayFitMode;
   presentationBounds?: Dimensions;
   allowPointerEditing?: boolean;
+  /** Fail the review gate when any frame lacks observed or edited cursor data. */
+  cursorRequired?: boolean;
   presentationDimensions?: ReplayPlayerPresentationDimensions;
   watermark?: WatermarkSettings;
   introCard?: IntroCardSettings;

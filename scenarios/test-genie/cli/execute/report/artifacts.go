@@ -6,8 +6,11 @@ import (
 	"sort"
 	"strings"
 
-	execTypes "test-genie/cli/internal/execute"
+	"github.com/vrooli/vrooli/packages/artifactpaths"
+
 	"test-genie/cli/internal/repo"
+
+	execTypes "test-genie/cli/internal/execute"
 )
 
 // CollectArtifactRoots gathers unique artifact directories from phase logs.
@@ -88,20 +91,20 @@ func DescribeCoverage(scenario string, phases []execTypes.Phase) []string {
 	// Unit coverage - only show if unit phase ran
 	if phaseRan(phases, "unit") {
 		coverageDirs := []string{
-			filepath.Join(paths.ScenarioDir, "coverage", "unit", "go"),
-			filepath.Join(paths.ScenarioDir, "coverage", "integration"),
-			filepath.Join(paths.ScenarioDir, "coverage", "test-genie"),
+			artifactpaths.ScenarioPath(paths.ScenarioDir, artifactpaths.CoverageRoot, "unit", "go"),
+			artifactpaths.ScenarioPath(paths.ScenarioDir, artifactpaths.CoverageRoot, "integration"),
+			artifactpaths.ScenarioPath(paths.ScenarioDir, artifactpaths.CoverageRoot, "test-genie"),
 		}
 		for _, dir := range coverageDirs {
 			if repo.Exists(dir) {
 				lines = append(lines, fmt.Sprintf("coverage: %s", dir))
 			}
 		}
-		goHTML := filepath.Join(paths.ScenarioDir, "coverage", "unit", "go", "coverage.html")
+		goHTML := artifactpaths.ScenarioPath(paths.ScenarioDir, artifactpaths.CoverageRoot, "unit", "go", "coverage.html")
 		if repo.Exists(goHTML) {
 			lines = append(lines, fmt.Sprintf("go coverage html: %s", goHTML))
 		}
-		nodeHTML := filepath.Join(paths.ScenarioDir, "ui", "coverage", "lcov-report", "index.html")
+		nodeHTML := artifactpaths.ScenarioPath(paths.ScenarioDir, "ui", artifactpaths.CoverageRoot, "lcov-report", "index.html")
 		if repo.Exists(nodeHTML) {
 			lines = append(lines, fmt.Sprintf("node coverage html: %s", nodeHTML))
 		}
@@ -109,7 +112,7 @@ func DescribeCoverage(scenario string, phases []execTypes.Phase) []string {
 
 	// Lighthouse - only show if performance phase ran
 	if phaseRan(phases, "performance") {
-		lighthouse := filepath.Join(paths.ScenarioDir, "coverage", "lighthouse")
+		lighthouse := artifactpaths.ScenarioPath(paths.ScenarioDir, artifactpaths.CoverageRoot, "lighthouse")
 		if repo.Exists(lighthouse) {
 			lines = append(lines, fmt.Sprintf("lighthouse: %s", lighthouse))
 		}

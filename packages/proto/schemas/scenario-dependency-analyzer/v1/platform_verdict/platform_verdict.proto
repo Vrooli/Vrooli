@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+package vrooli.scenario_dependency_analyzer.v1.platform_verdict;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-dependency-analyzer/v1/platform_verdict;platform_verdict_v1";
+
+// PlatformVerdictService is the single typed owner of scenario fleet
+// deployability. It derives each scenario's host-OS verdict from its declared
+// resource/scenario dependency closure and reports authored overrides.
+service PlatformVerdictService {
+  rpc ListPlatformVerdicts(ListPlatformVerdictsRequest) returns (ListPlatformVerdictsResponse);
+}
+
+message ListPlatformVerdictsRequest {
+  // Optional scenario filter. Empty returns the whole fleet.
+  string scenario = 1;
+  bool refresh = 2;
+}
+
+message ListPlatformVerdictsResponse {
+  bool available = 1;
+  string reason = 2;
+  string computed_at = 3;
+  repeated ScenarioPlatformVerdict scenarios = 4;
+  repeated FleetDependencyBlock docker_blocked = 5;
+  repeated FleetTierUpgrade tier_upgrades = 6;
+}
+
+message FleetDependencyBlock {
+  string scenario = 1;
+  string host_os = 2;
+  string dependency = 3;
+  string reason = 4;
+}
+
+message FleetTierUpgrade {
+  string scenario = 1;
+  string host_os = 2;
+  string current_tier = 3;
+  string next_tier = 4;
+  string change = 5;
+  string blocking_dependency = 6;
+}
+
+message ScenarioPlatformVerdict {
+  string scenario = 1;
+  repeated PlatformVerdict platforms = 2;
+  bool overridden = 3;
+  string override_reason = 4;
+}
+
+message PlatformVerdict {
+  string host_os = 1;
+  string status = 2;
+  string reason = 3;
+  string blocking_dependency = 4;
+  bool derived = 5;
+  bool overridden = 6;
+  string reason_code = 7;
+}

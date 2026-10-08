@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"github.com/vrooli/browser-automation-studio/internal/testutil"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -12,14 +13,17 @@ import (
 	"testing"
 	"time"
 
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
+
 	"github.com/sirupsen/logrus"
+	"github.com/vrooli/browser-automation-studio/config"
+	"github.com/vrooli/browser-automation-studio/services/entitlement"
 )
 
 // ============================================================================
 // BAS→LPBS Integration Tests
 //
-// These tests use httptest.NewServer to mock the LPBS server and verify
+// These tests use the shared cleanup-managed HTTP test server to mock LPBS and verify
 // the full HTTP flow including auth headers, JSON marshaling, and retry logic.
 // ============================================================================
 
@@ -46,6 +50,8 @@ type mockLPBSServer struct {
 	Server      *httptest.Server
 	mu          sync.Mutex
 	requests    []lpbsRequest
+	requestSeen chan struct{}
+	completed   int
 	failedCount int32
 }
 
@@ -65,6 +71,58 @@ func (m *mockLPBSServer) Len() int {
 	return len(m.requests)
 }
 
+func (m *mockLPBSServer) WaitForRequests(t *testing.T, want int) []lpbsRequest {
+	t.Helper()
+	timer := time.NewTimer(3 * time.Second)
+	defer timer.Stop()
+	for {
+		requests := m.GetRequests()
+		m.mu.Lock()
+		completed := m.completed
+		m.mu.Unlock()
+		if completed >= want {
+			return requests
+		}
+		select {
+		case <-m.requestSeen:
+		case <-timer.C:
+			t.Fatalf("timed out waiting for %d LPBS requests; got %d", want, m.Len())
+		}
+	}
+}
+
+func (m *mockLPBSServer) recordCompletion() {
+	m.mu.Lock()
+	m.completed++
+	m.mu.Unlock()
+	select {
+	case m.requestSeen <- struct{}{}:
+	default:
+	}
+}
+
+func waitForOutboxDrain(t *testing.T, svc *Service, user string) {
+	t.Helper()
+	timer := time.NewTimer(3 * time.Second)
+	defer timer.Stop()
+	ticker := time.NewTicker(time.Millisecond)
+	defer ticker.Stop()
+	for {
+		pending, err := svc.PendingOutboxCount(context.Background(), user)
+		if err != nil {
+			t.Fatalf("check outbox backlog: %v", err)
+		}
+		if pending == 0 {
+			return
+		}
+		select {
+		case <-ticker.C:
+		case <-timer.C:
+			t.Fatalf("timed out waiting for %d outbox reports to drain", pending)
+		}
+	}
+}
+
 // Close shuts down the mock server.
 func (m *mockLPBSServer) Close() {
 	m.Server.Close()
@@ -80,9 +138,10 @@ func (m *mockLPBSServer) URL() string {
 func mockLPBSHTTPServer(t *testing.T, opts mockLPBSOptions) *mockLPBSServer {
 	t.Helper()
 
-	mock := &mockLPBSServer{}
+	mock := &mockLPBSServer{requestSeen: make(chan struct{}, 32)}
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer mock.recordCompletion()
 		// Capture request details
 		body, _ := io.ReadAll(r.Body)
 		defer r.Body.Close()
@@ -147,13 +206,16 @@ func createTestServiceWithLPBSURL(t *testing.T, lpbsURL, lpbsSecret string) (*Se
 	log.SetLevel(logrus.ErrorLevel)
 
 	svc := NewService(ServiceOptions{
-		DB:           db,
-		Logger:       log,
-		Dialect:      "sqlite",
-		LPBSURL:      lpbsURL,
-		LPBSSecret:   lpbsSecret,
-		AppBundleKey: "browser-automation-studio",
+		DB:              db,
+		Logger:          log,
+		LPBSURL:         lpbsURL,
+		EntitlementSvc:  entitlement.NewService(config.EntitlementConfig{ServiceURL: lpbsURL}, log),
+		LPBSAccessToken: func(context.Context) (string, error) { return lpbsSecret, nil },
+		AppBundleKey:    "browser-automation-studio",
 	})
+	drainCtx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	svc.StartOutboxDrainer(drainCtx, 10*time.Millisecond)
 
 	return svc, db
 }
@@ -187,14 +249,9 @@ func TestIntegration_LPBSUsageReport_FullHTTPFlow(t *testing.T) {
 		t.Fatalf("Charge() returned error: %v", err)
 	}
 
-	// Wait for async LPBS report to complete
-	time.Sleep(200 * time.Millisecond)
-
 	// Verify LPBS received the request
-	requests := mock.GetRequests()
-	if len(requests) == 0 {
-		t.Fatal("Expected LPBS to receive a request, got none")
-	}
+	requests := mock.WaitForRequests(t, 1)
+	waitForOutboxDrain(t, svc, "test@example.com")
 
 	req := requests[0]
 
@@ -221,6 +278,40 @@ func TestIntegration_LPBSUsageReport_FullHTTPFlow(t *testing.T) {
 	}
 }
 
+func TestIntegration_LPBSUsageOutboxSurvivesServiceRestart(t *testing.T) {
+	mock := mockLPBSHTTPServer(t, mockLPBSOptions{requireAuth: true, expectedToken: "restart-token"})
+	defer mock.Close()
+	db := createTestDB(t)
+	defer db.Close()
+
+	access := func(context.Context) (string, error) { return "restart-token", nil }
+	first := NewService(ServiceOptions{
+		DB: db, Logger: logrus.New(), LPBSURL: mock.URL(),
+		LPBSAccessToken: access, AppBundleKey: "browser-automation-studio",
+	})
+	report := lpbsUsageReport{UserIdentity: "restart@example.com", LimitKey: "workflow_executions", UsageAmount: 1, Amount: 1, OperationID: "restart-operation", AppBundleKey: "browser-automation-studio"}
+	if err := first.monetizationOutbox.Enqueue(context.Background(), usageFromLPBSReport(report)); err != nil {
+		t.Fatalf("enqueue before restart: %v", err)
+	}
+
+	// A fresh service instance represents the process after a crash/restart.
+	second := NewService(ServiceOptions{
+		DB: db, Logger: logrus.New(), LPBSURL: mock.URL(),
+		LPBSAccessToken: access, AppBundleKey: "browser-automation-studio",
+	})
+	delivered, err := second.DrainOutbox(context.Background(), 10)
+	if err != nil || delivered != 1 {
+		t.Fatalf("restart drain delivered=%d err=%v", delivered, err)
+	}
+	var status string
+	if err := db.QueryRow("SELECT status FROM monetization_usage_outbox WHERE operation_id = ?", report.OperationID).Scan(&status); err != nil {
+		t.Fatalf("read durable outbox status: %v", err)
+	}
+	if status != "delivered" {
+		t.Fatalf("outbox status = %q, want delivered", status)
+	}
+}
+
 func TestIntegration_LPBSUsageReport_AuthTokenValidation(t *testing.T) {
 	mock := mockLPBSHTTPServer(t, mockLPBSOptions{
 		requireAuth:   true,
@@ -242,13 +333,8 @@ func TestIntegration_LPBSUsageReport_AuthTokenValidation(t *testing.T) {
 		t.Fatalf("Charge() returned error: %v", err)
 	}
 
-	// Wait for async LPBS report
-	time.Sleep(200 * time.Millisecond)
-
-	requests := mock.GetRequests()
-	if len(requests) == 0 {
-		t.Fatal("Expected LPBS to receive a request")
-	}
+	requests := mock.WaitForRequests(t, 1)
+	waitForOutboxDrain(t, svc, "test@example.com")
 
 	// Verify Authorization header format
 	expectedAuth := "Bearer correct-token"
@@ -282,12 +368,8 @@ func TestIntegration_LPBSUsageReport_RequestBodyFormat(t *testing.T) {
 		t.Fatalf("Charge() returned error: %v", err)
 	}
 
-	time.Sleep(200 * time.Millisecond)
-
-	requests := mock.GetRequests()
-	if len(requests) == 0 {
-		t.Fatal("Expected LPBS to receive a request")
-	}
+	requests := mock.WaitForRequests(t, 1)
+	waitForOutboxDrain(t, svc, "user@example.com")
 
 	body := requests[0].Body
 
@@ -378,8 +460,8 @@ func TestIntegration_LPBSUsageReport_RetryWithBackoff(t *testing.T) {
 		t.Fatalf("Charge() returned error: %v", err)
 	}
 
-	// Wait for retries (500ms + 1s + some buffer = 2s)
-	time.Sleep(2500 * time.Millisecond)
+	// Wait for all retry responses rather than sleeping through the backoff window.
+	mock.WaitForRequests(t, 3)
 
 	// Should have 3 attempts (2 failures + 1 success)
 	if mock.Len() < 3 {
@@ -414,13 +496,8 @@ func TestIntegration_LPBSUsageReport_AuthFailure(t *testing.T) {
 		t.Error("Expected WasCharged=true despite LPBS auth failure")
 	}
 
-	// Wait for LPBS request
-	time.Sleep(200 * time.Millisecond)
-
 	// Verify request was made (and presumably rejected by LPBS)
-	if mock.Len() == 0 {
-		t.Error("Expected at least one request to LPBS")
-	}
+	_ = mock.WaitForRequests(t, 1)
 }
 
 func TestIntegration_LPBSUsageReport_BYOKOperation(t *testing.T) {
@@ -444,12 +521,8 @@ func TestIntegration_LPBSUsageReport_BYOKOperation(t *testing.T) {
 		t.Fatalf("Charge() returned error: %v", err)
 	}
 
-	time.Sleep(200 * time.Millisecond)
-
-	requests := mock.GetRequests()
-	if len(requests) == 0 {
-		t.Fatal("Expected LPBS to receive a request for BYOK operations")
-	}
+	requests := mock.WaitForRequests(t, 1)
+	waitForOutboxDrain(t, svc, "test@example.com")
 
 	body := requests[0].Body
 
@@ -485,12 +558,11 @@ func TestIntegration_LPBSUsageReport_MultipleCharges(t *testing.T) {
 		}
 	}
 
-	// Wait for all async reports
-	time.Sleep(500 * time.Millisecond)
-
 	// Should have 3 reports to LPBS
-	if mock.Len() != 3 {
-		t.Errorf("Expected 3 LPBS reports, got %d", mock.Len())
+	requests := mock.WaitForRequests(t, 3)
+	waitForOutboxDrain(t, svc, "test@example.com")
+	if len(requests) != 3 {
+		t.Errorf("Expected 3 LPBS reports, got %d", len(requests))
 	}
 }
 
@@ -503,9 +575,8 @@ func TestIntegration_LPBSUsageReport_NoURLConfigured(t *testing.T) {
 	log.SetLevel(logrus.ErrorLevel)
 
 	svc := NewService(ServiceOptions{
-		DB:      db,
-		Logger:  log,
-		Dialect: "sqlite",
+		DB:     db,
+		Logger: log,
 		// No LPBSURL configured
 	})
 
@@ -553,9 +624,8 @@ func TestIntegration_LPBSUsageReport_DifferentOperationTypes(t *testing.T) {
 		}
 	}
 
-	time.Sleep(500 * time.Millisecond)
-
-	requests := mock.GetRequests()
+	requests := mock.WaitForRequests(t, len(operations))
+	waitForOutboxDrain(t, svc, "test@example.com")
 	if len(requests) != len(operations) {
 		t.Errorf("Expected %d LPBS reports, got %d", len(operations), len(requests))
 	}
@@ -606,12 +676,8 @@ func TestIntegration_LPBSUsageReport_CostCalculation(t *testing.T) {
 				t.Fatalf("Charge() returned error: %v", err)
 			}
 
-			time.Sleep(200 * time.Millisecond)
-
-			requests := mock.GetRequests()
-			if len(requests) == 0 {
-				t.Fatal("Expected LPBS to receive a request")
-			}
+			requests := mock.WaitForRequests(t, 1)
+			waitForOutboxDrain(t, svc, "test@example.com")
 
 			if requests[0].Body.UsageAmount != tc.expectedUsage {
 				t.Errorf("Expected usage_amount %d, got %d", tc.expectedUsage, requests[0].Body.UsageAmount)

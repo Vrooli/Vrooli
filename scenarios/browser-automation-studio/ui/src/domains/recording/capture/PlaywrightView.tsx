@@ -24,10 +24,11 @@
  * If not provided, falls back to frame dimensions (which may be wrong on HiDPI).
  */
 
-import { useCallback, useEffect, useRef } from 'react';
+import { Profiler, memo, useCallback, useEffect, useRef } from 'react';
 import { useFrameStream, type PageMetadata, type StreamConnectionStatus } from './useFrameStream';
 import { useInputForwarding } from './useInputForwarding';
 import type { FrameStats } from '../hooks/useFrameStats';
+import { onProfilerRender } from '@/lib/profiler';
 
 // Re-export types for consumers
 export type { FrameStats } from '../hooks/useFrameStats';
@@ -35,14 +36,10 @@ export type { PageMetadata, StreamConnectionStatus } from './useFrameStream';
 
 interface PlaywrightViewProps {
   sessionId: string;
-  /** Optional page ID for multi-tab sessions. When provided, frames are received for this specific page. */
-  pageId?: string;
-  quality?: number;
-  fps?: number;
+  /** Selected page; null disables the viewer, omission follows the active page. */
+  pageId?: string | null;
   onStreamError?: (message: string) => void;
   refreshToken?: number;
-  /** Whether to use WebSocket for frame updates (default: true) */
-  useWebSocketFrames?: boolean;
   /** Logical viewport dimensions (for coordinate mapping, independent of device pixel ratio) */
   viewport?: { width: number; height: number };
   /** Callback to receive frame statistics updates */
@@ -61,14 +58,11 @@ interface PlaywrightViewProps {
   isViewportSyncing?: boolean;
 }
 
-export function PlaywrightView({
+export const PlaywrightView = memo(function PlaywrightView({
   sessionId,
   pageId,
-  quality = 65,
-  fps = 30,
   onStreamError,
   refreshToken,
-  useWebSocketFrames = true,
   viewport,
   onStatsUpdate,
   onPageMetadataChange,
@@ -93,14 +87,12 @@ export function PlaywrightView({
   } = useFrameStream({
     sessionId,
     pageId,
-    quality,
-    fps,
-    useWebSocketFrames,
     refreshToken,
     onStreamError,
     onStatsUpdate,
     onPageMetadataChange,
     onConnectionStatusChange,
+    enableTimestampState: !hideConnectionIndicator,
   });
 
   // Input forwarding hook
@@ -207,6 +199,7 @@ export function PlaywrightView({
   );
 
   return (
+    <Profiler id="PlaywrightView" onRender={onProfilerRender}>
     <div
       ref={containerRef}
       tabIndex={0}
@@ -285,5 +278,6 @@ export function PlaywrightView({
         </div>
       )}
     </div>
+    </Profiler>
   );
-}
+});

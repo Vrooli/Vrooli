@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"scenario-to-desktop-runtime/infra"
-	"scenario-to-desktop-runtime/manifest"
-	"scenario-to-desktop-runtime/ports"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/infra"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/ports"
 )
 
 func TestManagerAllocate(t *testing.T) {
@@ -29,6 +29,25 @@ func TestManagerAllocate(t *testing.T) {
 						Ports: &manifest.ServicePorts{
 							Requested: []manifest.PortRequest{
 								{Name: "http", Range: manifest.PortRange{Min: 47000, Max: 47100}},
+							},
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "explicit range below default range",
+			manifest: &manifest.Manifest{
+				Ports: &manifest.PortRules{
+					DefaultRange: &manifest.PortRange{Min: 47000, Max: 47100},
+				},
+				Services: []manifest.Service{
+					{
+						ID: "authenticator",
+						Ports: &manifest.ServicePorts{
+							Requested: []manifest.PortRequest{
+								{Name: "api", Range: manifest.PortRange{Min: 39000, Max: 39099}},
 							},
 						},
 					},
@@ -120,6 +139,30 @@ func TestManagerAllocate(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestManagerAllocateAssignsIPCFromSharedRange(t *testing.T) {
+	m := &manifest.Manifest{
+		IPC:   manifest.IPC{Host: "127.0.0.1", Port: 0},
+		Ports: &manifest.PortRules{DefaultRange: &manifest.PortRange{Min: 47000, Max: 47100}},
+		Services: []manifest.Service{{
+			ID: "api",
+			Ports: &manifest.ServicePorts{Requested: []manifest.PortRequest{{
+				Name: "http", Range: manifest.PortRange{Min: 47000, Max: 47100},
+			}}},
+		}},
+	}
+	manager := ports.NewManager(m, infra.RealNetworkDialer{})
+	if err := manager.Allocate(); err != nil {
+		t.Fatalf("Allocate() failed: %v", err)
+	}
+	servicePort, err := manager.Resolve("api", "http")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m.IPC.Port < 47000 || m.IPC.Port > 47100 || m.IPC.Port == servicePort {
+		t.Fatalf("IPC port %d was not allocated distinctly from service port %d", m.IPC.Port, servicePort)
 	}
 }
 
@@ -298,6 +341,31 @@ func TestManagerAllocateFailsWhenRangeExhausted(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "no free port in 47000-47001") {
 		t.Fatalf("Allocate() error = %v, want message about exhausted range", err)
+	}
+}
+
+func TestManagerAllocateRejectsOccupiedSinglePortRange(t *testing.T) {
+	m := &manifest.Manifest{
+		Ports:    &manifest.PortRules{DefaultRange: &manifest.PortRange{Min: 47000, Max: 48000}},
+		Services: []manifest.Service{{ID: "ui", Ports: &manifest.ServicePorts{Requested: []manifest.PortRequest{{Name: "ui", Range: manifest.PortRange{Min: 48000, Max: 48000}}}}}},
+	}
+	pm := ports.NewManager(m, &stubDialer{availability: map[int]bool{48000: false}})
+	if err := pm.Allocate(); err == nil || !strings.Contains(err.Error(), "no free port in 48000-48000") {
+		t.Fatalf("Allocate() error = %v, want occupied single-port range error", err)
+	}
+}
+
+func TestManagerAllocateAdvancesWithinBandAfterOccupiedFirstPort(t *testing.T) {
+	m := &manifest.Manifest{
+		Ports:    &manifest.PortRules{DefaultRange: &manifest.PortRange{Min: 47000, Max: 48000}},
+		Services: []manifest.Service{{ID: "ui", Ports: &manifest.ServicePorts{Requested: []manifest.PortRequest{{Name: "ui", Range: manifest.PortRange{Min: 48000, Max: 48002}}}}}},
+	}
+	pm := ports.NewManager(m, &stubDialer{availability: map[int]bool{48000: false, 48001: true, 48002: true}})
+	if err := pm.Allocate(); err != nil {
+		t.Fatalf("Allocate() error = %v", err)
+	}
+	if got, err := pm.Resolve("ui", "ui"); err != nil || got != 48001 {
+		t.Fatalf("Resolve(ui, ui) = %d, %v; want 48001", got, err)
 	}
 }
 

@@ -100,7 +100,7 @@ var File_swarm_manager_v1_api_agent_manager_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_api_agent_manager_proto_rawDesc = "" +
 	"\n" +
-	"(swarm-manager/v1/api/agent_manager.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"\xba\x01\n" +
+	"(swarm-manager/v1/api/agent_manager.proto\x12\x1bvrooli.swarm_manager.v1.api\x1a\x1bbuf/validate/validate.proto\"\xba\x01\n" +
 	"\x1aAgentManagerStatusResponse\x12\x18\n" +
 	"\aenabled\x18\x01 \x01(\bR\aenabled\x12\x1c\n" +
 	"\tavailable\x18\x02 \x01(\bR\tavailable\x12\x1f\n" +
@@ -124,7 +124,7 @@ func file_swarm_manager_v1_api_agent_manager_proto_rawDescGZIP() []byte {
 
 var file_swarm_manager_v1_api_agent_manager_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_swarm_manager_v1_api_agent_manager_proto_goTypes = []any{
-	(*AgentManagerStatusResponse)(nil), // 0: swarm_manager.v1.AgentManagerStatusResponse
+	(*AgentManagerStatusResponse)(nil), // 0: vrooli.swarm_manager.v1.api.AgentManagerStatusResponse
 }
 var file_swarm_manager_v1_api_agent_manager_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type

@@ -1,0 +1,240 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "unit-health.test-quality-sample",
+  "version": "1",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Select and review a bounded test cohort without editing source.",
+  "inputs": {
+    "scenario": {
+      "type": "string",
+      "required": true
+    },
+    "workspace": {
+      "type": "string",
+      "default": "api"
+    },
+    "sample_size": {
+      "type": "integer",
+      "default": 12
+    },
+    "seed": {
+      "type": "string",
+      "required": true
+    },
+    "source_identity": {
+      "type": "string",
+      "required": true
+    },
+    "selection": {
+      "type": "string",
+      "default": "stratified"
+    },
+    "include_controls": {
+      "type": "boolean",
+      "default": true
+    },
+    "review_mode": {
+      "type": "string",
+      "default": "advisory"
+    },
+    "candidates": {
+      "type": "array",
+      "default": []
+    },
+    "classifications": {
+      "type": "array",
+      "default": []
+    },
+    "review_ai": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "assumptions": [
+    "Unit Health owns the candidate inventory: the live path folds its validation read's test-quality results into one candidate per test",
+    "AI labels are advisory observations and never rule verdicts"
+  ],
+  "invariants": [
+    "Read only; no test or source edits",
+    "At most 64 candidates are materialized and one bounded envelope is printed",
+    "Missing or stale evidence remains unknown"
+  ],
+  "bindings": [
+    {
+      "id": "unit-health/validate/scenario",
+      "effect": "read"
+    },
+    {
+      "id": "unit-health/validate/test-body",
+      "effect": "read",
+      "optional": true
+    },
+    {
+      "id": "ai-gateway/inference/run-batch",
+      "effect": "read",
+      "optional": true
+    }
+  ],
+  "verbs": [
+    "gather",
+    "ai.batch"
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "refused",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "classify",
+        "report"
+      ]
+    },
+    "signals": {
+      "cohort": "bounded candidate and selection metadata",
+      "observations": "advisory labels"
+    },
+    "errors": {
+      "classes": [
+        "invalid_input",
+        "privacy_refused",
+        "insufficient_context",
+        "body_over_limit",
+        "scenario_unreachable",
+        "source_drift",
+        "partial_results",
+        "output_budget_exhausted",
+        "binding_error",
+        "kernel_runtime",
+        "remote_error",
+        "no_governed_binding"
+      ]
+    },
+    "evidence": "source, policy, selection, and provider identities"
+  },
+  "budget": {
+    "wall_ms": 30000,
+    "inference_calls": 1,
+    "delegated_runs": 0,
+    "materialize_limit": 64,
+    "output_bytes": 65536
+  },
+  "fixtures": [
+    {
+      "id": "valid",
+      "inputs": {
+        "scenario": "unit-health",
+        "seed": "fixture-1",
+        "source_identity": "sha256:fixture",
+        "sample_size": 2,
+        "candidates": [
+          {
+            "testId": "TestA",
+            "file": "a_test.go",
+            "workspace": "api",
+            "framework": "go",
+            "testKind": "handler",
+            "staticStatus": "violation"
+          },
+          {
+            "testId": "TestB",
+            "file": "b_test.go",
+            "workspace": "api",
+            "framework": "go",
+            "testKind": "handler",
+            "staticStatus": "checked_clean"
+          }
+        ],
+        "review_ai": false
+      },
+      "expect": {
+        "status": [
+          "partial"
+        ]
+      }
+    },
+    {
+      "id": "invalid-mode",
+      "inputs": {
+        "scenario": "unit-health",
+        "seed": "fixture-1",
+        "source_identity": "sha256:fixture",
+        "review_mode": "blocking"
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      }
+    },
+    {
+      "id": "source-drift",
+      "inputs": {
+        "scenario": "unit-health",
+        "seed": "fixture-1",
+        "source_identity": "sha256:fixture",
+        "sample_size": 1,
+        "candidates": [
+          {
+            "testId": "TestA",
+            "file": "a_test.go",
+            "workspace": "api",
+            "framework": "go",
+            "testKind": "handler",
+            "staticStatus": "checked_clean",
+            "sourceDigest": "sha256:other"
+          }
+        ]
+      },
+      "expect": {
+        "status": [
+          "unavailable"
+        ]
+      }
+    },
+    {
+      "id": "live-review",
+      "inputs": {
+        "scenario": "unit-health",
+        "seed": "fixture-live-review",
+        "source_identity": "sha256:fixture",
+        "sample_size": 2,
+        "review_ai": true
+      },
+      "requires": ["unit-health", "ai-gateway"],
+      "expect": {
+        "status": ["ok", "partial", "unavailable"]
+      }
+    },
+    {
+      "id": "live-inventory",
+      "inputs": {
+        "scenario": "unit-health",
+        "seed": "fixture-live",
+        "source_identity": "sha256:live",
+        "sample_size": 4
+      },
+      "expect": {
+        "status": [
+          "ok",
+          "partial",
+          "unavailable"
+        ]
+      },
+      "requires": [
+        "unit-health"
+      ]
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "unit-health-improve"
+}

@@ -15,6 +15,7 @@ import {
   Copy,
   CheckCircle2,
   AlertTriangle,
+  Archive,
   Play,
   FileStack,
   Container,
@@ -32,6 +33,7 @@ import {
   File,
   LockOpen,
 } from "lucide-react";
+import { RetentionTab } from "./settings/RetentionTab";
 import {
   Dialog,
   DialogContent,
@@ -1607,7 +1609,8 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
             Settings
           </DialogTitle>
           <DialogDescription>
-            Configure sandbox drivers, execution defaults, and isolation profiles.
+            Configure sandbox drivers, execution defaults, isolation profiles, and diff-archive
+            retention.
           </DialogDescription>
         </DialogHeader>
 
@@ -1624,6 +1627,10 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
             <TabsTrigger value="profiles">
               <Shield className="h-4 w-4 mr-1.5" />
               Isolation Profiles
+            </TabsTrigger>
+            <TabsTrigger value="retention">
+              <Archive className="h-4 w-4 mr-1.5" />
+              Retention
             </TabsTrigger>
             <TabsTrigger value="danger">
               <AlertTriangle className="h-4 w-4 mr-1.5" />
@@ -1642,6 +1649,10 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 
             <TabsContent value="profiles">
               <ProfilesTab />
+            </TabsContent>
+
+            <TabsContent value="retention">
+              <RetentionTab />
             </TabsContent>
 
             <TabsContent value="danger">

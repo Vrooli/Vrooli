@@ -1,0 +1,486 @@
+syntax = "proto3";
+
+package browser_automation_studio.v1.exports;
+
+import "buf/validate/validate.proto";
+import "browser-automation-studio/v1/base/geometry.proto";
+import "browser-automation-studio/v1/domain/selectors.proto";
+import "browser-automation-studio/v1/timeline/entry.proto";
+import "common/v1/types.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/exports;exports";
+
+// =============================================================================
+// EXPORTS DOMAIN — persisted export library (video/gif/JSON/HTML replays).
+// =============================================================================
+//
+// @stability beta
+//
+// ExportsService owns the persisted export-library record set: rendered
+// replays (mp4/gif), JSON export packages, and HTML interactive replays
+// produced by the replay export pipeline. Each row tracks metadata about
+// the produced artifact (name, format, storage URL, duration, file size,
+// AI-generated caption, status).
+//
+// The actual replay-export bytes path (POST /executions/{id}/export) stays
+// on chi as a RESTException because it streams binary content and writes
+// to a caller-supplied output_dir. ExportsService is exclusively the
+// metadata/library + lifecycle surface.
+//
+// USAGE CONTEXTS:
+//   - API:  api/handlers/exports_service/service.go
+//   - UI:   ui/src/api/exports.ts (export store + library views)
+//   - CLI:  bas exports list | get | create | update | delete | status |
+//                  generate-caption | reveal | open-folder
+// =============================================================================
+
+service ExportsService {
+  // ListExports lists exports, optionally filtered by execution_id or
+  // workflow_id. When neither filter is supplied returns the full library
+  // page (limit/offset honored).
+  rpc ListExports(ListExportsRequest) returns (ListExportsResponse);
+
+  // CreateExport records a new export library row. The caller has already
+  // produced the underlying artifact (mp4/gif/json/html) and supplies the
+  // storage URL and computed metadata.
+  rpc CreateExport(CreateExportRequest) returns (CreateExportResponse);
+
+  // GetExport returns a single export row by id.
+  rpc GetExport(GetExportRequest) returns (GetExportResponse);
+
+  // UpdateExport applies a partial update to an export row. Unset fields
+  // are left unchanged. Server-managed columns (id, execution_id,
+  // workflow_id, created_at) cannot be updated.
+  rpc UpdateExport(UpdateExportRequest) returns (UpdateExportResponse);
+
+  // DeleteExport removes an export row. The underlying storage file is
+  // intentionally not deleted; cleanup is handled by TTL rules or periodic
+  // jobs (see handler comment in legacy DeleteExport).
+  rpc DeleteExport(DeleteExportRequest) returns (DeleteExportResponse);
+
+  // GetExportStatus returns a compact status snapshot for reconnection
+  // scenarios (status, format, name, storage_url, file_size_bytes, error).
+  rpc GetExportStatus(GetExportStatusRequest) returns (GetExportStatusResponse);
+
+  // GenerateExportCaption asks the configured AI provider for a short
+  // social/share caption for the export. Persists the generated caption
+  // and returns it together with the updated export.
+  rpc GenerateExportCaption(GenerateExportCaptionRequest) returns (GenerateExportCaptionResponse);
+
+  // RevealExport opens the system file manager and selects/highlights the
+  // export's storage file (equivalent to "Show in Finder" / "Show in
+  // Explorer"). Linux falls back to opening the containing folder.
+  rpc RevealExport(RevealExportRequest) returns (RevealExportResponse);
+
+  // OpenExportFolder opens the folder containing the export's storage
+  // file in the system file manager (no selection).
+  rpc OpenExportFolder(OpenExportFolderRequest) returns (OpenExportFolderResponse);
+}
+
+// =============================================================================
+// Shared messages
+// =============================================================================
+
+// ReplaySpec is the canonical API and UI contract for replay rendering and
+// saved replay export settings. Field names preserve the existing JSON wire
+// shape; renderers may project it into presentation-specific structures.
+message ReplaySpec {
+  string version = 1;
+  google.protobuf.Timestamp generated_at = 2;
+  ReplayExecutionMetadata execution = 3;
+  ReplayTheme theme = 4;
+  ReplayCursor cursor = 5;
+  ReplayDecor decor = 6;
+  ReplayWatermark watermark = 7;
+  ReplayIntroCard intro_card = 8;
+  ReplayOutroCard outro_card = 9;
+  ReplayPlayback playback = 10;
+  ReplayPresentation presentation = 11;
+  ReplayCursorMotion cursor_motion = 12;
+  repeated ReplayFrame frames = 13;
+  repeated ReplayAsset assets = 14;
+  ReplaySummary summary = 15;
+}
+
+message ReplayExecutionMetadata {
+  string execution_id = 1;
+  string workflow_id = 2;
+  string workflow_name = 3;
+  string status = 4;
+  google.protobuf.Timestamp started_at = 5;
+  google.protobuf.Timestamp completed_at = 6;
+  int32 progress = 7;
+  int32 total_duration_ms = 8;
+}
+
+message ReplayTheme {
+  repeated string background_gradient = 1;
+  string background_pattern = 2;
+  string accent_color = 3;
+  string surface_color = 4;
+  string ambient_glow = 5;
+  ReplayBrowserChrome browser_chrome = 6;
+}
+
+message ReplayBrowserChrome {
+  bool visible = 1;
+  string variant = 2;
+  string title = 3;
+  bool show_address = 4;
+  string accent_color = 5;
+}
+
+message ReplayCursor {
+  string style = 1;
+  string accent_color = 2;
+  ReplayCursorTrail trail = 3;
+  ReplayClickPulse click_pulse = 4;
+  double scale = 5;
+  string initial_position = 6;
+  string click_animation = 7;
+}
+
+message ReplayDecor {
+  string chrome_theme = 1;
+  string background_theme = 2;
+  google.protobuf.Struct background = 3;
+  string cursor_theme = 4;
+  string cursor_initial_position = 5;
+  string cursor_click_animation = 6;
+  double cursor_scale = 7;
+}
+
+message ReplayWatermark {
+  bool enabled = 1;
+  string asset_id = 2;
+  string position = 3;
+  int32 size = 4;
+  int32 opacity = 5;
+  int32 margin = 6;
+}
+
+message ReplayIntroCard {
+  bool enabled = 1;
+  string title = 2;
+  string subtitle = 3;
+  string logo_asset_id = 4;
+  string background_asset_id = 5;
+  string background_color = 6;
+  string text_color = 7;
+  int32 duration_ms = 8;
+}
+
+message ReplayOutroCard {
+  bool enabled = 1;
+  string title = 2;
+  string cta_text = 3;
+  string cta_url = 4;
+  string logo_asset_id = 5;
+  string background_asset_id = 6;
+  string background_color = 7;
+  string text_color = 8;
+  int32 duration_ms = 9;
+}
+
+message ReplayPlayback {
+  int32 fps = 1;
+  int32 duration_ms = 2;
+  int32 frame_interval_ms = 3;
+  int32 total_frames = 4;
+}
+
+message ReplayDimensions { int32 width = 1; int32 height = 2; }
+message ReplayFrameRect { int32 x = 1; int32 y = 2; int32 width = 3; int32 height = 4; int32 radius = 5; }
+
+message ReplayPresentation {
+  ReplayDimensions canvas = 1;
+  ReplayDimensions viewport = 2;
+  ReplayFrameRect browser_frame = 3;
+  double device_scale_factor = 4;
+}
+
+message ReplayCursorMotion {
+  string speed_profile = 1;
+  string path_style = 2;
+  string initial_position = 3;
+  string click_animation = 4;
+  double cursor_scale = 5;
+}
+
+message ReplayCursorTrail {
+  bool enabled = 1;
+  int32 fade_ms = 2;
+  double weight = 3;
+  double opacity = 4;
+}
+
+message ReplayClickPulse {
+  bool enabled = 1;
+  double radius = 2;
+  int32 duration_ms = 3;
+  double opacity = 4;
+}
+
+message ReplayFrame {
+  int32 index = 1;
+  int32 step_index = 2;
+  string node_id = 3;
+  string step_type = 4;
+  string title = 5;
+  string status = 6;
+  int32 start_offset_ms = 7;
+  int32 duration_ms = 8;
+  int32 hold_ms = 9;
+  ReplayTransition enter = 10;
+  ReplayTransition exit = 11;
+  string screenshot_asset_id = 12;
+  ReplayDimensions viewport = 13;
+  double zoom_factor = 14;
+  repeated HighlightRegion highlight_regions = 15;
+  repeated MaskRegion mask_regions = 16;
+  ElementFocus focused_element = 17;
+  BoundingBox element_bounding_box = 18;
+  ReplayNormalizedRect normalized_focus_bounds = 19;
+  ReplayNormalizedRect normalized_element_bounds = 20;
+  Point click_position = 21;
+  ReplayNormalizedPoint normalized_click_position = 22;
+  repeated Point cursor_trail = 23;
+  repeated ReplayNormalizedPoint normalized_cursor_trail = 24;
+  int32 console_log_count = 25;
+  int32 network_event_count = 26;
+  string final_url = 27;
+  string error = 28;
+  ReplayAssertionOutcome assertion = 29;
+  ReplayResilience resilience = 30;
+}
+
+message ReplayResilience {
+  int32 attempt = 1;
+  int32 max_attempts = 2;
+  int32 configured_retries = 3;
+  int32 delay_ms = 4;
+  double backoff_factor = 5;
+  repeated RetryHistoryEntry history = 6;
+}
+
+message RetryHistoryEntry {
+  int32 attempt = 1;
+  bool success = 2;
+  int32 duration_ms = 3;
+  int32 call_duration_ms = 4;
+  string error = 5;
+}
+
+message ReplayAssertionOutcome {
+  optional string mode = 1;
+  optional string selector = 2;
+  common.v1.JsonValue expected = 3;
+  common.v1.JsonValue actual = 4;
+  bool success = 5;
+  bool negated = 6;
+  bool case_sensitive = 7;
+  optional string message = 8;
+}
+
+message ReplayTransition { string type = 1; int32 duration_ms = 2; string easing = 3; }
+message ReplayAsset { string id = 1; string type = 2; string source = 3; string thumbnail = 4; int32 width = 5; int32 height = 6; optional int64 size_bytes = 7; }
+message ReplaySummary { int32 frame_count = 1; int32 screenshot_count = 2; int32 total_duration_ms = 3; int32 max_frame_duration_ms = 4; }
+message ReplayNormalizedPoint { double x = 1; double y = 2; }
+message ReplayNormalizedRect { double x = 1; double y = 2; double width = 3; double height = 4; }
+
+// Export is the canonical representation of a single export-library row.
+message Export {
+  string id = 1;
+  string execution_id = 2;
+  // Optional workflow this export was rendered from.
+  string workflow_id = 3;
+  string name = 4;
+  // Format: "mp4" | "gif" | "json" | "html".
+  string format = 5;
+  // Free-form export settings blob (theme preset, cursor preset, etc.).
+  google.protobuf.Struct settings = 6;
+  string storage_url = 7;
+  string thumbnail_url = 8;
+  // Nullable; absent when not yet measured.
+  optional int64 file_size_bytes = 9;
+  optional int32 duration_ms = 10;
+  optional int32 frame_count = 11;
+  string ai_caption = 12;
+  google.protobuf.Timestamp ai_caption_generated_at = 13;
+  // Status: "pending" | "processing" | "completed" | "failed".
+  string status = 14;
+  string error = 15;
+  google.protobuf.Timestamp created_at = 16;
+  google.protobuf.Timestamp updated_at = 17;
+  // Joined convenience fields.
+  string workflow_name = 18;
+  google.protobuf.Timestamp execution_date = 19;
+}
+
+// =============================================================================
+// ListExports
+// =============================================================================
+
+message ListExportsRequest {
+  // Optional. Filter by execution UUID. Mutually-preferred over
+  // workflow_id when both are set (matches legacy precedence).
+  string execution_id = 1;
+  // Optional. Filter by workflow UUID.
+  string workflow_id = 2;
+  // Pagination. Server applies defaults when zero/negative.
+  int32 limit = 3;
+  int32 offset = 4;
+}
+
+message ListExportsResponse {
+  repeated Export exports = 1;
+  int32 total = 2;
+}
+
+// =============================================================================
+// CreateExport
+// =============================================================================
+
+message CreateExportRequest {
+  // Required. Execution this export was rendered from.
+  string execution_id = 1 [(buf.validate.field).string.uuid = true];
+  // Optional. Workflow id (if known).
+  string workflow_id = 2;
+  // Required. Display name.
+  string name = 3 [(buf.validate.field).string.min_len = 1];
+  // Required. One of "mp4" | "gif" | "json" | "html" (case-insensitive).
+  string format = 4 [(buf.validate.field).string.min_len = 1];
+  google.protobuf.Struct settings = 5;
+  string storage_url = 6;
+  string thumbnail_url = 7;
+  optional int64 file_size_bytes = 8;
+  optional int32 duration_ms = 9;
+  optional int32 frame_count = 10;
+  // Optional. One of "pending" | "processing" | "completed" | "failed".
+  // Defaults to "completed".
+  string status = 11;
+}
+
+message CreateExportResponse {
+  string export_id = 1;
+  // "created" on success.
+  string status = 2;
+  Export export = 3;
+}
+
+// =============================================================================
+// GetExport
+// =============================================================================
+
+message GetExportRequest {
+  string id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message GetExportResponse {
+  Export export = 1;
+}
+
+// =============================================================================
+// UpdateExport
+// =============================================================================
+
+message UpdateExportRequest {
+  string id = 1 [(buf.validate.field).string.uuid = true];
+  string name = 2;
+  google.protobuf.Struct settings = 3;
+  string storage_url = 4;
+  string thumbnail_url = 5;
+  optional int64 file_size_bytes = 6;
+  optional int32 duration_ms = 7;
+  optional int32 frame_count = 8;
+  string ai_caption = 9;
+  string status = 10;
+  string error = 11;
+}
+
+message UpdateExportResponse {
+  string export_id = 1;
+  // "updated" on success.
+  string status = 2;
+  Export export = 3;
+}
+
+// =============================================================================
+// DeleteExport
+// =============================================================================
+
+message DeleteExportRequest {
+  string id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message DeleteExportResponse {
+  string export_id = 1;
+  // "deleted" on success.
+  string status = 2;
+}
+
+// =============================================================================
+// GetExportStatus
+// =============================================================================
+
+message GetExportStatusRequest {
+  string id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message GetExportStatusResponse {
+  string export_id = 1;
+  string execution_id = 2;
+  // "pending" | "processing" | "completed" | "failed".
+  string status = 3;
+  string format = 4;
+  string name = 5;
+  string storage_url = 6;
+  optional int64 file_size_bytes = 7;
+  string error = 8;
+}
+
+// =============================================================================
+// GenerateExportCaption
+// =============================================================================
+
+message GenerateExportCaptionRequest {
+  string id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message GenerateExportCaptionResponse {
+  string export_id = 1;
+  string caption = 2;
+  Export export = 3;
+}
+
+// =============================================================================
+// RevealExport
+// =============================================================================
+
+message RevealExportRequest {
+  string id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message RevealExportResponse {
+  string export_id = 1;
+  string path = 2;
+  // "revealed" on success.
+  string status = 3;
+}
+
+// =============================================================================
+// OpenExportFolder
+// =============================================================================
+
+message OpenExportFolderRequest {
+  string id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message OpenExportFolderResponse {
+  string export_id = 1;
+  string folder = 2;
+  // "opened" on success.
+  string status = 3;
+}

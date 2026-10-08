@@ -52,7 +52,7 @@ func NewManager(opts ...ManagerOption) *Manager {
 // GetOrCreateActivePipeline returns the active pipeline for a scenario.
 // If no active pipeline exists, it creates a new one in "idle" state (not running).
 // Returns the pipeline status and whether it was newly created.
-func (m *Manager) GetOrCreateActivePipeline(ctx context.Context, scenarioName string, defaultConfig *Config) (*Status, bool, error) {
+func (m *Manager) GetOrCreateActivePipeline(ctx context.Context, scenarioName string, defaultConfig *PipelineConfig) (*Status, bool, error) {
 	if m.orchestrator == nil {
 		return nil, false, fmt.Errorf("orchestrator not configured")
 	}
@@ -107,7 +107,7 @@ func (m *Manager) GetOrCreateActivePipeline(ctx context.Context, scenarioName st
 // CreateNewPipeline archives the current active pipeline and creates a new idle one.
 // Returns the new pipeline status and the archived pipeline ID (if any).
 // The new pipeline is created in "idle" state, ready to be configured and started.
-func (m *Manager) CreateNewPipeline(ctx context.Context, scenarioName string, config *Config) (*Status, string, error) {
+func (m *Manager) CreateNewPipeline(ctx context.Context, scenarioName string, config *PipelineConfig) (*Status, string, error) {
 	if m.orchestrator == nil {
 		return nil, "", fmt.Errorf("orchestrator not configured")
 	}
@@ -242,7 +242,7 @@ func (m *Manager) GetActivePipelineStatus(scenarioName string) (*Status, bool) {
 // If the pipeline is idle, updates its config and starts it.
 // If already running, returns the current status.
 // If completed/failed, creates a new pipeline with config, updates index store, and starts it.
-func (m *Manager) StartActivePipeline(ctx context.Context, scenarioName string, configOverrides *Config) (*Status, error) {
+func (m *Manager) StartActivePipeline(ctx context.Context, scenarioName string, configOverrides *PipelineConfig) (*Status, error) {
 	if m.orchestrator == nil {
 		return nil, fmt.Errorf("orchestrator not configured")
 	}
@@ -270,7 +270,7 @@ func (m *Manager) StartActivePipeline(ctx context.Context, scenarioName string, 
 	case StatusIdle:
 		// Pipeline is idle - update config if provided and start it
 		if configOverrides != nil {
-			if err := m.orchestrator.(*DefaultOrchestrator).UpdatePipelineConfig(status.PipelineID, configOverrides); err != nil {
+			if err := m.updateIdlePipelineConfig(status.PipelineID, configOverrides); err != nil {
 				return nil, fmt.Errorf("failed to update pipeline config: %w", err)
 			}
 		}
@@ -330,7 +330,7 @@ func (m *Manager) StartActivePipeline(ctx context.Context, scenarioName string, 
 // This is similar to StartActivePipeline but waits for the pipeline to finish.
 // Returns the final status when complete, failed, or cancelled.
 // Returns an error if the timeout is exceeded or the pipeline disappears.
-func (m *Manager) StartActivePipelineBlocking(ctx context.Context, scenarioName string, configOverrides *Config, timeoutSecs int) (*Status, error) {
+func (m *Manager) StartActivePipelineBlocking(ctx context.Context, scenarioName string, configOverrides *PipelineConfig, timeoutSecs int) (*Status, error) {
 	if m.orchestrator == nil {
 		return nil, fmt.Errorf("orchestrator not configured")
 	}
@@ -358,7 +358,7 @@ func (m *Manager) StartActivePipelineBlocking(ctx context.Context, scenarioName 
 	case StatusIdle:
 		// Pipeline is idle - update config if provided and start it
 		if configOverrides != nil {
-			if err := m.orchestrator.(*DefaultOrchestrator).UpdatePipelineConfig(status.PipelineID, configOverrides); err != nil {
+			if err := m.updateIdlePipelineConfig(status.PipelineID, configOverrides); err != nil {
 				return nil, fmt.Errorf("failed to update pipeline config: %w", err)
 			}
 		}
@@ -416,6 +416,17 @@ func (m *Manager) StartActivePipelineBlocking(ctx context.Context, scenarioName 
 	}
 }
 
+func (m *Manager) updateIdlePipelineConfig(pipelineID string, config *PipelineConfig) error {
+	updater, ok := m.orchestrator.(ConfigUpdatingOrchestrator)
+	if !ok {
+		return fmt.Errorf("orchestrator does not support updating idle pipeline configuration")
+	}
+	if err := updater.UpdatePipelineConfig(pipelineID, config); err != nil {
+		return fmt.Errorf("failed to update pipeline config: %w", err)
+	}
+	return nil
+}
+
 // pollForCompletion polls for pipeline completion until it finishes or times out.
 func (m *Manager) pollForCompletion(ctx context.Context, pipelineID string, timeoutSecs int) (*Status, error) {
 	// Delegate to the orchestrator's blocking implementation
@@ -439,8 +450,8 @@ func (m *Manager) pollForCompletion(ctx context.Context, pipelineID string, time
 }
 
 // buildConfig creates a pipeline config, applying defaults from the provided config.
-func (m *Manager) buildConfig(scenarioName string, userConfig *Config) *Config {
-	config := &Config{
+func (m *Manager) buildConfig(scenarioName string, userConfig *PipelineConfig) *PipelineConfig {
+	config := &PipelineConfig{
 		ScenarioName: scenarioName,
 	}
 
@@ -457,10 +468,14 @@ func (m *Manager) buildConfig(scenarioName string, userConfig *Config) *Config {
 		config.WebhookURL = userConfig.WebhookURL
 		config.ProxyURL = userConfig.ProxyURL
 		config.BundleManifestPath = userConfig.BundleManifestPath
+		config.ResourceArtifactRoot = userConfig.ResourceArtifactRoot
+		config.ToolArtifactRoot = userConfig.ToolArtifactRoot
 		config.Clean = userConfig.Clean
 		config.Sign = userConfig.Sign
 		config.Publish = userConfig.Publish
 		config.DeployConfig = userConfig.DeployConfig
+		config.ArtifactTrustMode = userConfig.ArtifactTrustMode
+		config.ArtifactManifestDigest = userConfig.ArtifactManifestDigest
 		config.Version = userConfig.Version
 		config.setVersionRollback(userConfig.versionRollback)
 		config.PreflightTimeoutSeconds = userConfig.PreflightTimeoutSeconds
@@ -469,6 +484,7 @@ func (m *Manager) buildConfig(scenarioName string, userConfig *Config) *Config {
 		config.ResumeFromStage = userConfig.ResumeFromStage
 		config.ParentPipelineID = userConfig.ParentPipelineID
 		config.IdempotencyKey = userConfig.IdempotencyKey
+		config.ExpectedArtifactDigests = copyStringMap(userConfig.ExpectedArtifactDigests)
 	}
 
 	return config

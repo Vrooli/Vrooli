@@ -77,25 +77,6 @@ export const SCROLL_STEP_MIN_DELAY_MS = 10;
 export const SCROLL_STEP_MAX_DELAY_MS = 30;
 
 /**
- * Base duration for smooth scroll animation (ms).
- * Final duration = base + (distance / SCROLL_DURATION_DISTANCE_FACTOR).
- */
-export const SMOOTH_SCROLL_BASE_DURATION_MS = 300;
-
-/**
- * Distance factor for smooth scroll duration calculation.
- * Duration increases by 1ms per this many pixels of distance.
- * Trade-off: Lower = faster long scrolls, higher = more time for content to load.
- */
-export const SMOOTH_SCROLL_DISTANCE_FACTOR = 10;
-
-/**
- * Maximum smooth scroll duration cap (ms).
- * Prevents extremely long scroll animations on very tall pages.
- */
-export const SMOOTH_SCROLL_MAX_DURATION_MS = 1000;
-
-/**
  * Default number of points in a natural mouse movement path.
  * Trade-off: Higher = smoother curves, more realistic; lower = faster.
  */

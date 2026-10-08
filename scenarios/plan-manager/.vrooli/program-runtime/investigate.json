@@ -1,0 +1,131 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "plan-manager.investigate",
+  "version": "1",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Compose one plan-owned trigger observation and domain brief into a bounded Agent Manager investigation.",
+  "inputs": {
+    "caller_key": {
+      "type": "string",
+      "required": true,
+      "description": "Stable trigger occurrence key."
+    },
+    "execution_id": {
+      "type": "string",
+      "required": true,
+      "description": "Exact Plan Manager execution identity."
+    },
+    "phase_id": {
+      "type": "string",
+      "required": true,
+      "description": "Exact phase identity."
+    },
+    "phase_generation": {
+      "type": "string",
+      "required": true,
+      "description": "Phase generation used for trigger correlation."
+    },
+    "question": {
+      "type": "string",
+      "required": true,
+      "description": "Versioned domain question; it cannot authorize mutation."
+    },
+    "run_ids": {
+      "type": "array",
+      "required": true,
+      "description": "Explicit evidence run IDs, at most eight."
+    },
+    "brief_ref": {
+      "type": "string",
+      "description": "Plan-owned domain brief reference."
+    },
+    "wait_seconds": {
+      "type": "integer",
+      "default": 30,
+      "description": "One bounded collection wait, capped at 300 seconds."
+    }
+  },
+  "assumptions": [
+    "Plan Manager owns trigger eligibility and supplies the current execution, phase generation, and brief reference.",
+    "agent-manager.investigate is the registered reusable library entry and owns finite diagnosis, evidence, and result identity.",
+    "A pending nested result remains pending; this wrapper does not poll, retry, or apply recommendations."
+  ],
+  "invariants": [
+    "Exactly one library investigation call is made after validation.",
+    "The caller key, plan execution identity, phase generation, brief reference, question, explicit run IDs, and optional typed brief evidence are passed as bounded context.",
+    "No plan state mutation or subject intervention is performed by this program.",
+    "The envelope is printed exactly once on every path."
+  ],
+  "bindings": [],
+  "verbs": [
+    "lib"
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "refused",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "delegate",
+        "report"
+      ]
+    },
+    "signals": {
+      "summary": "Nested investigation identity, standing, and diagnostic-only disposition."
+    },
+    "errors": {
+      "classes": [
+        "invalid_input",
+        "scenario_unreachable",
+        "no_output",
+        "binding_error",
+        "deadline_exceeded",
+        "remote_error",
+        "no_governed_binding"
+      ]
+    },
+    "evidence": "Trigger, execution, phase, brief, and nested investigation identities."
+  },
+  "fixtures": [
+    {
+      "id": "missing-question",
+      "inputs": {
+        "caller_key": "fixture-1",
+        "execution_id": "exec-1",
+        "phase_id": "phase-1",
+        "phase_generation": "1",
+        "question": "",
+        "run_ids": [
+          "run-1"
+        ]
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      },
+      "requires": [
+        "plan-manager"
+      ]
+    }
+  ],
+  "budget": {
+    "wall_ms": 600000,
+    "inference_calls": 0,
+    "delegated_runs": 1,
+    "materialize_limit": 1,
+    "async": true,
+    "async_reason": "nested diagnosis may exceed the synchronous submission bound"
+  },
+  "rung": "S3",
+  "owner_skill": "plan-manager"
+}

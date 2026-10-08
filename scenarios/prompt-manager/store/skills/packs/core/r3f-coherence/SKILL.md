@@ -1,3 +1,23 @@
+---
+name: "r3f-coherence"
+description: "React Three Fiber performance patterns - prevent re-renders, optimize useFrame, and maintain 60fps rendering in 3D scenes"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer","react","performance"]
+  tags: ["skill"]
+  icon: "box"
+  status: "active"
+  revision: 46
+  createdAt: "2026-01-25T00:00:00Z"
+  updatedAt: "2026-02-05T01:02:03Z"
+  requires:
+    scenarios: ["prompt-manager"]
+    commands: ["prompt-manager skill", "prompt-manager skill read"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: React Three Fiber Coherence
 
 Prioritize **performance-first 3D development** using React Three Fiber patterns that prevent re-renders, optimize animation loops, and maintain architectural coherence across 3D scenes.
@@ -7,7 +27,7 @@ Your goal is to ensure 3D codebases achieve **60fps rendering without React re-r
 Do **not** break existing functionality, regress visual fidelity, or introduce new features. All changes must maintain or improve performance and structural consistency.
 
 Required reading:
-- `prompt-manager skills read visited-tracker-tools`
+- `prompt-manager skill read visited-tracker-tools`
 
 ---
 
@@ -474,16 +494,15 @@ Use the `visited-tracker-tools` skill for tracking visited files, with LOCATION 
 
 | Skill | Focus | When to Use Together |
 |-------|-------|---------------------|
-| react-coherence | General React architecture | R3F coherence extends React coherence patterns to 3D |
-| react-stability | Crash prevention | Stability patterns apply equally to R3F components |
+| ui-health | React coherence & stability | R3F extends React coherence and crash-prevention patterns (state architecture, error boundaries, defensive access) to 3D |
 | performance | General optimization | After R3F-specific fixes, apply general perf patterns |
 
 Optional reading:
-- `prompt-manager skills read react-coherence react-stability performance`
+- `prompt-manager skill read ui-health performance`
 
 **Recommended sequence for R3F work:**
 1. **r3f-coherence** (audit) → find re-render bugs and animation issues
-2. **react-stability** → ensure error boundaries and defensive patterns
+2. **ui-health** → ensure error boundaries and defensive patterns
 3. **performance** → bundle size, code splitting for 3D assets
 
 ---

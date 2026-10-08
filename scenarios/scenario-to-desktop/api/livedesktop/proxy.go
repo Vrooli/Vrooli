@@ -1,11 +1,12 @@
 package livedesktop
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
-	"time"
+	"sync"
 
 	"github.com/gorilla/websocket"
 )
@@ -50,13 +51,28 @@ func (h *Handler) handleVNCProxy(w http.ResponseWriter, r *http.Request) {
 
 	session.Touch()
 
-	// Bidirectional proxy
+	// Bidirectional proxy. Closing either connection unblocks both readers, and
+	// the upgraded request context closes them if the client disconnects.
 	done := make(chan struct{}, 2)
+	var closeOnce sync.Once
+	closeConnections := func() {
+		closeOnce.Do(func() {
+			_ = browserConn.Close()
+			_ = vncConn.Close()
+		})
+	}
+	stopContextClose := context.AfterFunc(r.Context(), closeConnections)
+	defer stopContextClose()
 
 	// Browser → VNC
-	go func() {
+	go func(ctx context.Context) {
 		defer func() { done <- struct{}{} }()
 		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
 			msgType, data, err := browserConn.ReadMessage()
 			if err != nil {
 				if !websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway) &&
@@ -70,12 +86,17 @@ func (h *Handler) handleVNCProxy(w http.ResponseWriter, r *http.Request) {
 			}
 			session.Touch()
 		}
-	}()
+	}(r.Context())
 
 	// VNC → Browser
-	go func() {
+	go func(ctx context.Context) {
 		defer func() { done <- struct{}{} }()
 		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
 			msgType, data, err := vncConn.ReadMessage()
 			if err != nil {
 				if !websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway) &&
@@ -88,13 +109,10 @@ func (h *Handler) handleVNCProxy(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
-	}()
+	}(r.Context())
 
 	// Wait for either direction to finish
 	<-done
-
-	// Set a deadline so the other goroutine doesn't hang
-	_ = browserConn.SetReadDeadline(time.Now())
-	_ = vncConn.SetReadDeadline(time.Now())
+	closeConnections()
 	<-done
 }

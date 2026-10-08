@@ -22,9 +22,14 @@ Authenticates an admin user.
 ```json
 {
   "email": "admin@localhost",
-  "password": "changeme123"
+  "password": "<replace-at-deploy>",
+  "totp_code": "123456"
 }
 ```
+
+`totp_code` is an authenticator-app code or a recovery code. Omit it on the
+first attempt; when two-factor authentication is on, a correct password
+returns `failed_precondition` and the client asks for the code.
 
 **Response:**
 ```json
@@ -38,7 +43,80 @@ Authenticates an admin user.
 Sets session cookie for subsequent requests.
 
 **Errors:**
-- `401 Unauthorized` - Invalid credentials
+- `401 Unauthorized` / `unauthenticated` - Invalid credentials or wrong two-factor code
+- `failed_precondition` - Password accepted; two-factor code required
+- `429` / `resource_exhausted` - Too many failures for this email (5 / 15 min) or client IP (20 / 15 min)
+
+---
+
+### Two-factor authentication
+
+All require an admin session except `reset`. Sensitive operations additionally
+require recent administrator reauthentication; clients should handle the
+stable `admin_reauthentication_required` reason by calling the reauthentication
+procedure and retrying once.
+
+`POST /landing_page_business_suite.v1.AdminAuthService/Reauthenticate` verifies
+the current password and TOTP or recovery code for the current admin session.
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/admin/mfa` | `{enabled, enabled_at, recovery_codes_left, enrollment_in_progress}` |
+| POST | `/admin/mfa/enroll` | Start setup; returns `{secret, otpauth_uri}` shown once. Login policy is unchanged until confirmed |
+| POST | `/admin/mfa/confirm` | `{code}` → turns two-factor on and returns ten one-use `recovery_codes` |
+| POST | `/admin/mfa/disable` | `{code}` (authenticator or recovery code) → turns two-factor off |
+| POST | `/admin/mfa/recovery-codes` | `{code}` → replaces all recovery codes |
+| POST | `/admin/mfa/reset` | `{email}`; **service credential only** (browser sessions are refused). Operator recovery for a lost authenticator and lost recovery codes; the CLI wraps it as `landing-page-business-suite admin-mfa-reset --email <email>` |
+| POST | `/admin/admin-credentials/reset` | `{email, new_password?, new_email?}`; **service credential only** (browser sessions are refused). Operator recovery for a locked-out administrator. Updates the stored bcrypt hash, mirrors the new password into the `admin-default-password` authority value so a restart cannot revert it, revokes the account's sessions, and records a security event. The password is never echoed. |
+
+Secrets are sealed with the generated `admin-mfa-encryption-key` ring;
+recovery codes are stored as bcrypt hashes.
+
+The service-principal recovery endpoints are the only `/admin/*` mutating
+surfaces besides downloads, API keys, Stripe settings, and remote-profile
+write-through that may cross a stored remote-profile session; the allowlist is
+exact and server-enforced (`remoteProfileProxyAllowlist`).
+
+---
+
+### GET /admin/auth/delivery
+
+Customer sign-in email outcomes for the last 24 hours:
+`{window_hours, delivery, delivery_24h: {sent, failed, delivered, bounced, deferred, dropped, last_error, last_webhook_event}}`.
+
+**Authentication:** Admin session or metrics reader token
+
+### GET /admin/auth/email-readiness
+
+Returns read-only From-domain, alignment, SPF, DKIM, DMARC, and signed-webhook
+readiness checks. Statuses are `pass`, `warn`, or `fail`; DNS and provider
+settings are never modified.
+
+**Authentication:** Admin session required. CLI: `landing-page-business-suite admin-email-readiness`.
+
+### GET /admin/provider-credentials
+
+Returns the cached verdicts of the hourly provider-credential verification:
+`{results: [{provider, capability, status, detail, checked_at}]}` where status
+is `pass`, `fail`, `not_configured` or `unknown` (the provider could not be
+reached). Providers are `sendgrid`, `smtp` and `stripe`.
+
+Presence is not usability, so these are authentication attempts rather than
+configuration reads: SendGrid is asked for the key's scopes, the relay is asked
+to accept a login over TLS and then quits, and Stripe is asked for its account
+after its key mode is compared with the declared mode. Nothing is sent and
+nothing is created, and a detail never contains a credential value.
+
+**Authentication:** Admin session required.
+
+### POST /admin/auth/delivery-probe
+
+Accepts `{to}` and sends a sign-in email tagged with probe context. The CLI
+prints the request ID and polls normalized provider status for up to five
+minutes. This proves provider acceptance and mailbox-server delivery, not inbox
+placement.
+
+**Authentication:** Admin session required.
 
 ---
 
@@ -143,7 +221,8 @@ Updates the admin email and/or password. `current_password` is required for all 
 
 Remote profiles let the admin UI/CLI manage a deployed LPBS instance by storing an encrypted
 `admin_session` cookie and proxying allowlisted admin requests. Remote sessions are encrypted
-at rest using `LPBS_REMOTE_PROFILE_ENCRYPTION_KEY` (or `LPBS_API_KEY_ENCRYPTION_KEY` fallback).
+at rest using the independent credential-authority-backed
+`remote-profile-encryption-key` ring.
 
 ### GET /admin/remote-profiles
 
@@ -247,7 +326,7 @@ Logs in to the remote LPBS instance and stores the remote session cookie.
 ```json
 {
   "email": "admin@localhost",
-  "password": "changeme123"
+  "password": "your-remote-admin-password"
 }
 ```
 
@@ -374,7 +453,9 @@ Revokes one incoming connector session on the current LPBS instance.
 
 ### POST /admin/remote-profiles/{id}/proxy
 
-Proxies an allowlisted remote admin request using the stored remote session cookie.
+Proxies an allowlisted remote admin request using the configured remote profile
+authentication. Session profiles use the encrypted remote session cookie;
+service profiles use the sealed destination service secret as a bearer token.
 
 **Authentication:** Admin session required
 
@@ -398,6 +479,21 @@ Proxies an allowlisted remote admin request using the stored remote session cook
 - `/admin/download-artifacts`
 - `/admin/download-assets`
 - `/admin/download-apps`
+
+The proxy also permits these exact Connect settings procedures, always with
+`POST` and the Connect protocol header:
+
+- `/landing_page_business_suite.v1.AdministrationService/ListAPIKeys`
+- `/landing_page_business_suite.v1.AdministrationService/CreateAPIKey`
+- `/landing_page_business_suite.v1.AdministrationService/DeleteAPIKey`
+- `/landing_page_business_suite.v1.AdministrationService/TestAPIKey`
+- `/landing_page_business_suite.v1.AdministrationService/SetAPIKeyActive`
+- `/landing_page_business_suite.v1.StripeSettingsService/GetStripeSettings`
+- `/landing_page_business_suite.v1.StripeSettingsService/UpdateStripeSettings`
+
+Secret reveal procedures and arbitrary Connect methods remain unavailable. The
+remote profile identifies the target; credentials are never returned by profile
+reads or forwarded from caller headers.
 
 **Response:** Pass-through status + body from remote LPBS
 
@@ -600,6 +696,142 @@ Deletes an asset.
 
 ---
 
+## Download Storage
+
+Download bucket credentials are owned by the host credential authority. The
+settings row stores only non-secret configuration; the API projects credential
+values back as presence flags and never serializes them.
+
+### GET /admin/download-storage
+
+Returns the current storage settings. Non-secret fields fall back to deployment
+defaults when unset (bucket `<bundle-key>-downloads`, region `us-east-1`,
+prefix `artifacts`, signed URL TTL `900`), so the admin portal always opens with
+a usable starting point that the operator may override.
+
+**Authentication:** Admin session required
+
+**Response:**
+```json
+{
+  "settings": {
+    "provider": "s3",
+    "bucket": "business-suite-downloads",
+    "region": "us-east-1",
+    "endpoint": "",
+    "force_path_style": false,
+    "default_prefix": "artifacts",
+    "signed_url_ttl_seconds": 900,
+    "public_base_url": "",
+    "access_key_id_set": true,
+    "secret_access_key_set": true,
+    "session_token_set": false,
+    "credentials_from_authority": true,
+    "settings_row_available": true,
+    "access_key_id_state": "configured",
+    "secret_access_key_state": "configured",
+    "session_token_state": "missing",
+    "credentials_source": "authority",
+    "session_token_optional": true
+  },
+  "credentials_guide": {
+    "identity": "vrooli/landing-page-business-suite",
+    "bucket": "business-suite-downloads",
+    "region": "us-east-1",
+    "policy_name": "VrooliDeliveryBucketAccess",
+    "policy_document": "{ ... }",
+    "iam_users": { "local": "vrooli-lpbs-local", "production": "vrooli-lpbs-prod" },
+    "steps": [ { "number": 1, "title": "Sign in to AWS", "detail": "..." } ],
+    "warnings": [ "..." ],
+    "local_commands": [ "vrooli credentials provision ..." ],
+    "production_commands": [ "..." ],
+    "rotation_steps": [ "..." ],
+    "session_token_note": "...",
+    "private_bucket_note": "..."
+  }
+}
+```
+
+The per-field `*_state` values are the canonical presence vocabulary:
+`configured`, `missing`, `unavailable`, or `authority_error`. `unavailable` and
+`authority_error` mean the authority could not answer; they must never be
+treated as an absent credential. `credentials_guide` always carries the complete
+AWS and Vrooli provisioning instructions for the configured bucket.
+
+### PUT /admin/download-storage
+
+Updates storage settings. Non-secret fields are persisted to
+`download_storage_settings`.
+
+**Authentication:** Admin session required
+
+**Request:**
+```json
+{
+  "provider": "s3",
+  "bucket": "business-suite-downloads",
+  "region": "us-east-1",
+  "default_prefix": "artifacts",
+  "signed_url_ttl_seconds": 900,
+  "access_key_id": "AKIA...",
+  "secret_access_key": "…"
+}
+```
+
+`access_key_id`, `secret_access_key`, and `session_token` are **written through
+to the host credential authority** (`vrooli/landing-page-business-suite`
+`delivery-s3-*` fields); they are never stored in the settings row. An empty
+string clears the stored value. Supplying a credential without an available
+credential authority is rejected.
+
+### POST /admin/download-storage/test
+
+Runs the two-level delivery validation and returns a structured result. The
+required access key ID and secret access key must be present, then the bucket is
+proven to accept object **list, write, read, and delete** with a uniquely named
+canary under the internal `.vrooli/healthchecks/<uuid>` prefix that is always
+deleted. The bucket's region must agree with the configured region. A
+discoverable bucket alone is not sufficient.
+
+**Authentication:** Admin session required
+
+**Success response (200):**
+```json
+{ "success": true, "validation": { "ready": true, "bucket": "vrooli-bucket", "region": "us-east-1", "latency_ms": 42 } }
+```
+
+**Failure response (non-2xx):** returns `error`, `error_type` (the stable
+diagnostic code), and the full `validation` object, including
+`validation.diagnostic`:
+
+```json
+{
+  "error": "write readiness object: PutObject denied on bucket \"vrooli-bucket\"",
+  "error_type": "put_object_denied",
+  "validation": {
+    "ready": false,
+    "bucket": "vrooli-bucket",
+    "region": "us-east-1",
+    "diagnostic": {
+      "code": "put_object_denied",
+      "summary": "write readiness object: PutObject denied on bucket \"vrooli-bucket\"",
+      "operation": "PutObject",
+      "bucket": "vrooli-bucket",
+      "region": "us-east-1",
+      "remediation": "Add s3:PutObject for the bucket object ARN to the VrooliDeliveryBucketAccess policy.",
+      "retryable": false
+    }
+  }
+}
+```
+
+Diagnostics never include credentials, authorization headers, signatures,
+session tokens, or complete presigned URLs. If cleanup fails after a successful
+write, the code is `cleanup_failed` and the non-sensitive `canary_key` is
+retained for later removal.
+
+---
+
 ## Download App Management
 
 ### GET /admin/download-apps
@@ -707,6 +939,6 @@ Resets all data to demo defaults.
 
 ## See Also
 
-- [API Overview](README.md)
+- [API Overview](OVERVIEW.md)
 - [Admin Guide](../../guides/ADMIN_GUIDE.md) - Using the admin portal
 - [Payments](payments.md) - Stripe settings

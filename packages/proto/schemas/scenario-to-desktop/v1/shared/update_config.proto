@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package vrooli.scenario_to_desktop.v1.shared;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/shared;shared";
+
+// GitHubUpdateConfig configures GitHub Releases as the update provider.
+message GitHubUpdateConfig {
+  string owner = 1;
+  string repo = 2;
+  optional bool private = 3;
+}
+
+// GenericUpdateConfig configures a self-hosted update server.
+message GenericUpdateConfig {
+  string url = 1;
+  optional string channel_path = 2;
+}
+
+// UpdateConfig configures automatic updates for a desktop application.
+// This contract is shared by desktop generation and pipeline orchestration.
+message UpdateConfig {
+  optional string channel = 1;
+  optional string provider = 2;
+  optional bool auto_check = 3;
+  optional GitHubUpdateConfig github = 10;
+  optional GenericUpdateConfig generic = 11;
+}

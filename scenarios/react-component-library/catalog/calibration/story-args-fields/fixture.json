@@ -1,0 +1,1 @@
+{"gate":"story-args-fields","assetId":"calibration-story-args-fields","runner":"external","requiredFailureCode":"catalog.args_fields_hand_authored","description":"Derived prop fields are calibrated by the corpus gate and its drift report."}

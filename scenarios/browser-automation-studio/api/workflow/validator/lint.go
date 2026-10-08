@@ -7,13 +7,9 @@ import (
 	"regexp"
 	"sort"
 	"strings"
-	"sync"
 )
 
 var (
-	selectorOnce      sync.Once
-	selectorValues    map[string]struct{}
-	selectorSource    string
 	dataTestIDPattern = regexp.MustCompile(`(?i)data-testid\s*=\s*(?:"([^"]+)"|'([^']+)')`)
 
 	// Patterns for detecting unresolved tokens that should have been substituted
@@ -379,19 +375,15 @@ func applyNodeRule(rule nodeRule, nodeID, nodeType string, idx int, data map[str
 }
 
 func loadSelectorSet() map[string]struct{} {
-	selectorOnce.Do(func() {
-		manifest, source, err := loadSelectorManifest("")
-		if err != nil {
-			selectorValues = nil
-			return
-		}
-		selectorSource = source
-		selectorValues = make(map[string]struct{}, len(manifest))
-		for testID := range manifest {
-			selectorValues[testID] = struct{}{}
-		}
-	})
-	return selectorValues
+	manifest, _, err := loadSelectorManifest("")
+	if err != nil {
+		return nil
+	}
+	values := make(map[string]struct{}, len(manifest))
+	for id := range manifest {
+		values[id] = struct{}{}
+	}
+	return values
 }
 
 // Node-specific lint functions moved to node_linters.go

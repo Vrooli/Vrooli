@@ -124,30 +124,20 @@ func normalizeStringSlice(slice []string) []string {
 
 // normalizePhase normalizes a phase name to lowercase.
 func normalizePhase(phase string) string {
-	normalized := strings.ToLower(strings.TrimSpace(phase))
-
-	// Map common aliases
+	key := strings.ToLower(strings.TrimSpace(phase))
+	// Requirement files historically used these classification aliases. Keep
+	// the compatibility boundary in the requirements parser; the orchestrator's
+	// descriptor identity remains alias-free and provider-owned.
 	aliases := map[string]string{
-		"unit-test":        "unit",
-		"unit_test":        "unit",
-		"unittest":         "unit",
-		"integration-test": "integration",
-		"integration_test": "integration",
-		"integrationtest":  "integration",
-		"e2e":              "integration",
-		"business-logic":   "business",
-		"business_logic":   "business",
-		"struct":           "structure",
-		"deps":             "dependencies",
-		"perf":             "performance",
-		"playbook":         "playbooks",
+		"unit-test": "unit", "unit_test": "unit", "unittest": "unit",
+		"integration-test": "integration", "integration_test": "integration",
+		"e2e": "workflow", "business-logic": "business", "struct": "structure",
+		"deps": "dependencies", "perf": "performance", "playbook": "workflow",
 	}
-
-	if mapped, ok := aliases[normalized]; ok {
-		return mapped
+	if canonical, ok := aliases[key]; ok {
+		return canonical
 	}
-
-	return normalized
+	return key
 }
 
 // NormalizeID normalizes a requirement ID for consistent comparison.
@@ -182,10 +172,11 @@ func ExtractPhaseFromRef(ref string) string {
 		return "integration"
 	}
 
-	// Playbook patterns
+	// Workflow patterns. `playbooks` remains an accepted user-facing alias, but
+	// requirement evidence should store the canonical Test Genie phase.
 	if strings.Contains(normalized, "playbook") ||
 		strings.HasPrefix(normalized, "bas/") {
-		return "playbooks"
+		return "workflow"
 	}
 
 	// BATS test patterns

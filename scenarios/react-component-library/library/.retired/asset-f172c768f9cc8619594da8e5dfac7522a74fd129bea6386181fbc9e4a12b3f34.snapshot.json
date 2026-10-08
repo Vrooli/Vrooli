@@ -1,0 +1,170 @@
+{
+  "Component": {
+    "ID": "f8df82a0-df06-4097-b256-6745d009d941",
+    "CatalogID": "react-component-library:PageFrame",
+    "LibraryID": "react-component-library:PageFrame",
+    "Slug": "PageFrame",
+    "DisplayName": "Page Frame",
+    "Description": "Reusable page frame component implementation for the React component library.",
+    "Slot": "ui-pattern",
+    "Category": "legacy",
+    "SourcePath": "components/PageFrame/versions/1.0.3/PageFrame.tsx",
+    "Version": "1.0.3",
+    "LatestVersion": "1.0.3",
+    "DraftVersion": "",
+    "ManifestPath": "components/PageFrame/component.json",
+    "Tags": null,
+    "IndexedAt": "2026-09-03T00:21:27.330506561Z",
+    "UpdatedAt": "2026-09-07T22:09:40.014351461Z",
+    "Headers": {
+      "catalogExpects": "[]",
+      "catalogId": "react-component-library:PageFrame",
+      "catalogSatisfies": "null",
+      "displayName": "Page Frame",
+      "tags": "[\"layout\",\"navigation\",\"frame\"]",
+      "warning": "Managed by React Component Library. Preserve this header when editing adopted copies."
+    },
+    "DesignStyles": null,
+    "AssetKind": "component",
+    "Dependencies": [
+      {
+        "LibraryID": "react-component-library:ClassMerge",
+        "Version": "1.0.2",
+        "Kind": ""
+      },
+      {
+        "LibraryID": "react-component-library:StyleSheet",
+        "Version": "1.0.0",
+        "Kind": ""
+      }
+    ],
+    "Expects": [],
+    "Satisfies": null,
+    "CatalogDomain": "",
+    "CatalogDomainOrder": 0,
+    "CatalogRung": 0,
+    "CatalogRungName": "",
+    "TransitiveDependentCount": 0,
+    "Metrics": {
+      "DirectAdoptionCount": 0,
+      "EffectiveAdoptionCount": 0,
+      "VersionCount": 1,
+      "VersionAdoptions": null
+    },
+    "KitCompatibility": {
+      "Verdict": "universal",
+      "CompatibleKitIDs": [
+        "switchboard-console",
+        "vrooli-command-display",
+        "vrooli-conversion-landing",
+        "vrooli-default"
+      ],
+      "UnsatisfiedProperties": null
+    }
+  },
+  "Versions": [
+    {
+      "ID": "61623f16-1bbc-445a-8c81-e3024fdcdf51",
+      "ComponentID": "f8df82a0-df06-4097-b256-6745d009d941",
+      "LibraryID": "react-component-library:PageFrame",
+      "Version": "1.0.3",
+      "Status": "released",
+      "SourcePath": "components/PageFrame/versions/1.0.3/PageFrame.tsx",
+      "Content": "/**\n * @libraryId react-component-library:PageFrame\n * @displayName Page Frame\n * @version 1.0.3\n * @tags [\"layout\",\"navigation\",\"frame\"]\n * @deps {\"react\":\"^18\"}\n * @warning Managed by React Component Library. Preserve this header when editing adopted copies.\n */\nimport { withClassName } from \"@vrooli/react-component-library/ClassMerge/1\";\nimport { StyleSheet } from \"@vrooli/react-component-library/StyleSheet/1\";\n\nimport type { ReactNode } from \"react\";\n\nconst pageFrameStyles = `\n[data-rcl-page-frame] { min-height: 100vh; display: grid; grid-template-columns: minmax(14rem, 18rem) minmax(0, 1fr); background: var(--color-background); color: var(--color-foreground); }\n[data-rcl-page-frame-nav] { min-width: 0; padding: var(--space-md); border-inline-end: var(--border-hairline) solid var(--color-border); background: var(--color-surface); }\n[data-rcl-page-frame-content] { min-width: 0; padding: clamp(var(--space-md), 4vw, var(--space-2xl)); }\n.rcl-page-frame-skip { position: fixed; inset-block-start: var(--space-sm); inset-inline-start: var(--space-sm); z-index: 2; transform: translateY(-180%); padding: var(--space-xs) var(--space-sm); border-radius: var(--radius-control); background: var(--color-primary); color: var(--color-primary-foreground); font-weight: 700; text-decoration: none; transition: transform 160ms ease; }\n\n@media (max-width: 720px) { [data-rcl-page-frame] { grid-template-columns: 1fr; } [data-rcl-page-frame-nav] { border-inline-end: 0; border-block-end: var(--border-hairline) solid var(--color-border); padding: var(--space-sm); } [data-rcl-page-frame-content] { padding: var(--space-sm); } }\n`;\n\nexport interface PageFrameProps {\n  regions?: Record\u003cstring, ReactNode\u003e;\n  fixture?: { asset?: string; dataShapes?: string[] };\n  children?: ReactNode;\n  title?: string;\n}\n\n// PageFrame is intentionally small: the frame owns document landmarks and\n// region placement, while the framed asset owns its own behavior and props.\n// This gives preview a real composition boundary without adding a second\n// slot vocabulary to the catalog.\nexport const PageFrame = withClassName(function PageFrame({\n  regions = {},\n  fixture,\n  children,\n  title = \"Preview page\",\n}: PageFrameProps) {\n  const navigation = regions.navigation;\n  const content = regions.content ?? children;\n  return (\n    \u003c\u003e\n      \u003cStyleSheet name=\"page-frame-1-0-1\" css={pageFrameStyles} /\u003e\n      \u003cdiv data-testid=\"page-frame\" data-frame-asset=\"navigation.page\" data-rcl-page-frame\u003e\n        \u003ca href=\"#page-frame-content\" className=\"rcl-page-frame-skip\"\u003e\n          Skip to content\n        \u003c/a\u003e\n        \u003cdiv data-frame-region=\"navigation\" data-rcl-page-frame-nav\u003e\n          {navigation}\n        \u003c/div\u003e\n        \u003cmain\n          id=\"page-frame-content\"\n          data-frame-region=\"content\"\n          aria-label={title}\n          data-rcl-page-frame-content\n        \u003e\n          {content}\n          {fixture?.asset ? (\n            \u003coutput\n              data-frame-fixture={fixture.asset}\n              style={{\n                position: \"absolute\",\n                inlineSize: 1,\n                blockSize: 1,\n                overflow: \"hidden\",\n                clipPath: \"inset(50%)\",\n                whiteSpace: \"nowrap\",\n              }}\n            \u003e\n              {fixture.asset}\n            \u003c/output\u003e\n          ) : null}\n        \u003c/main\u003e\n      \u003c/div\u003e\n    \u003c/\u003e\n  );\n});\n",
+      "ContentSHA256": "d16840424fe0d2824d06166bd1c407e13e6bdf556c453b33c0bfd6e49fd13a98",
+      "ChangelogMD": "",
+      "IndexedAt": "2026-09-07T22:09:40.015838901Z",
+      "CreatedAt": "2026-09-03T00:21:27.331222431Z",
+      "ReleasedAt": "2026-09-03T00:21:27.331222431Z",
+      "Presence": "materialized",
+      "Headers": null,
+      "Files": [
+        {
+          "Path": "PageFrame.tsx",
+          "Content": "/**\n * @libraryId react-component-library:PageFrame\n * @displayName Page Frame\n * @version 1.0.3\n * @tags [\"layout\",\"navigation\",\"frame\"]\n * @deps {\"react\":\"^18\"}\n * @warning Managed by React Component Library. Preserve this header when editing adopted copies.\n */\nimport { withClassName } from \"@vrooli/react-component-library/ClassMerge/1\";\nimport { StyleSheet } from \"@vrooli/react-component-library/StyleSheet/1\";\n\nimport type { ReactNode } from \"react\";\n\nconst pageFrameStyles = `\n[data-rcl-page-frame] { min-height: 100vh; display: grid; grid-template-columns: minmax(14rem, 18rem) minmax(0, 1fr); background: var(--color-background); color: var(--color-foreground); }\n[data-rcl-page-frame-nav] { min-width: 0; padding: var(--space-md); border-inline-end: var(--border-hairline) solid var(--color-border); background: var(--color-surface); }\n[data-rcl-page-frame-content] { min-width: 0; padding: clamp(var(--space-md), 4vw, var(--space-2xl)); }\n.rcl-page-frame-skip { position: fixed; inset-block-start: var(--space-sm); inset-inline-start: var(--space-sm); z-index: 2; transform: translateY(-180%); padding: var(--space-xs) var(--space-sm); border-radius: var(--radius-control); background: var(--color-primary); color: var(--color-primary-foreground); font-weight: 700; text-decoration: none; transition: transform 160ms ease; }\n\n@media (max-width: 720px) { [data-rcl-page-frame] { grid-template-columns: 1fr; } [data-rcl-page-frame-nav] { border-inline-end: 0; border-block-end: var(--border-hairline) solid var(--color-border); padding: var(--space-sm); } [data-rcl-page-frame-content] { padding: var(--space-sm); } }\n`;\n\nexport interface PageFrameProps {\n  regions?: Record\u003cstring, ReactNode\u003e;\n  fixture?: { asset?: string; dataShapes?: string[] };\n  children?: ReactNode;\n  title?: string;\n}\n\n// PageFrame is intentionally small: the frame owns document landmarks and\n// region placement, while the framed asset owns its own behavior and props.\n// This gives preview a real composition boundary without adding a second\n// slot vocabulary to the catalog.\nexport const PageFrame = withClassName(function PageFrame({\n  regions = {},\n  fixture,\n  children,\n  title = \"Preview page\",\n}: PageFrameProps) {\n  const navigation = regions.navigation;\n  const content = regions.content ?? children;\n  return (\n    \u003c\u003e\n      \u003cStyleSheet name=\"page-frame-1-0-1\" css={pageFrameStyles} /\u003e\n      \u003cdiv data-testid=\"page-frame\" data-frame-asset=\"navigation.page\" data-rcl-page-frame\u003e\n        \u003ca href=\"#page-frame-content\" className=\"rcl-page-frame-skip\"\u003e\n          Skip to content\n        \u003c/a\u003e\n        \u003cdiv data-frame-region=\"navigation\" data-rcl-page-frame-nav\u003e\n          {navigation}\n        \u003c/div\u003e\n        \u003cmain\n          id=\"page-frame-content\"\n          data-frame-region=\"content\"\n          aria-label={title}\n          data-rcl-page-frame-content\n        \u003e\n          {content}\n          {fixture?.asset ? (\n            \u003coutput\n              data-frame-fixture={fixture.asset}\n              style={{\n                position: \"absolute\",\n                inlineSize: 1,\n                blockSize: 1,\n                overflow: \"hidden\",\n                clipPath: \"inset(50%)\",\n                whiteSpace: \"nowrap\",\n              }}\n            \u003e\n              {fixture.asset}\n            \u003c/output\u003e\n          ) : null}\n        \u003c/main\u003e\n      \u003c/div\u003e\n    \u003c/\u003e\n  );\n});\n",
+          "ContentSHA256": "d16840424fe0d2824d06166bd1c407e13e6bdf556c453b33c0bfd6e49fd13a98",
+          "IsEntry": true,
+          "Slot": ""
+        },
+        {
+          "Path": "dependencies.json",
+          "Content": "{\n  \"schemaVersion\": 2,\n  \"libraryId\": \"react-component-library:PageFrame\",\n  \"version\": \"1.0.3\",\n  \"resolvedAt\": \"2026-09-02T07:03:55.053Z\",\n  \"dependencies\": [\n    {\n      \"libraryId\": \"react-component-library:ClassMerge\",\n      \"major\": 1,\n      \"observed\": \"1.0.2\",\n      \"rank\": 1\n    },\n    {\n      \"libraryId\": \"react-component-library:StyleSheet\",\n      \"major\": 1,\n      \"observed\": \"1.0.0\",\n      \"rank\": 1\n    }\n  ]\n}\n",
+          "ContentSHA256": "26314710769cc1dad42ad65496ceb031567c4708e9c93693b2ff7f218b5d8ac1",
+          "IsEntry": false,
+          "Slot": ""
+        },
+        {
+          "Path": "story.json",
+          "Content": "{\n  \"$schema\": \"../../../../../../.vrooli/schemas/story-contract.schema.json\",\n  \"args\": {\n    \"fields\": []\n  },\n  \"environment\": {\n    \"fixtures\": []\n  },\n  \"kind\": \"component\",\n  \"schemaVersion\": 5,\n  \"stories\": [\n    {\n      \"args\": {},\n      \"id\": \"default\",\n      \"mode\": \"pinned\",\n      \"name\": \"Default\",\n      \"role\": \"anatomy\",\n      \"expect\": [\n        {\n          \"kind\": \"visible\",\n          \"selector\": \"body\"\n        }\n      ]\n    }\n  ],\n  \"title\": \"Page Frame\"\n}\n",
+          "ContentSHA256": "1bb052dfc2e6abb5e046d1be31a5b3f42b3a63bc033a80f16368c1f9e9454aac",
+          "IsEntry": false,
+          "Slot": ""
+        },
+        {
+          "Path": "story.tsx",
+          "Content": "// Preview contract exports for PageFrame 1.0.3.\n// The declarative story contract owns expectations; this module supplies the\n// typed specimen seam for versions whose composition is supplied by a harness.\nexport function Default() { return null; }\n",
+          "ContentSHA256": "35a99721d657bac777cae19b127e0bba2e267a4e754392af334b8419a5300d2f",
+          "IsEntry": false,
+          "Slot": ""
+        }
+      ],
+      "Dependencies": [
+        {
+          "LibraryID": "react-component-library:ClassMerge",
+          "Version": "1.0.2",
+          "Kind": ""
+        },
+        {
+          "LibraryID": "react-component-library:StyleSheet",
+          "Version": "1.0.0",
+          "Kind": ""
+        }
+      ],
+      "DependencyLockPresent": true,
+      "RequiredTokens": [
+        "--border-hairline",
+        "--color-background",
+        "--color-border",
+        "--color-foreground",
+        "--color-primary",
+        "--color-primary-foreground",
+        "--color-surface",
+        "--radius-control",
+        "--space-2xl",
+        "--space-md",
+        "--space-sm",
+        "--space-xs"
+      ],
+      "RequiredTokenPatterns": null,
+      "KitCompatibility": {
+        "Verdict": "universal",
+        "CompatibleKitIDs": [
+          "switchboard-console",
+          "vrooli-command-display",
+          "vrooli-conversion-landing",
+          "vrooli-default"
+        ],
+        "UnsatisfiedProperties": null
+      },
+      "ExperienceContract": "",
+      "ParityReport": null
+    }
+  ],
+  "Stories": [
+    {
+      "ID": "ecc63975-6615-41a9-9ea9-09c76ecde9f6",
+      "ComponentID": "f8df82a0-df06-4097-b256-6745d009d941",
+      "LibraryID": "react-component-library:PageFrame",
+      "Version": "1.0.3",
+      "SchemaVersion": 5,
+      "Kind": "component",
+      "Title": "Page Frame",
+      "ArgsJSON": "{\"fields\":[]}",
+      "EnvironmentJSON": "{\"fixtures\":[]}",
+      "StoriesJSON": "[{\"id\":\"default\",\"name\":\"Default\",\"role\":\"anatomy\",\"mode\":\"pinned\",\"args\":{},\"expect\":[{\"kind\":\"visible\",\"selector\":\"body\"}]}]",
+      "ContractJSON": "{\"schemaVersion\":5,\"$schema\":\"../../../../../../.vrooli/schemas/story-contract.schema.json\",\"kind\":\"component\",\"title\":\"Page Frame\",\"args\":{\"fields\":[]},\"environment\":{\"fixtures\":[]},\"stories\":[{\"id\":\"default\",\"name\":\"Default\",\"role\":\"anatomy\",\"mode\":\"pinned\",\"args\":{},\"expect\":[{\"kind\":\"visible\",\"selector\":\"body\"}]}]}",
+      "SourcePath": "components/PageFrame/versions/1.0.3/story.json",
+      "IndexedAt": "2026-09-07T22:09:40.015838901Z"
+    }
+  ]
+}

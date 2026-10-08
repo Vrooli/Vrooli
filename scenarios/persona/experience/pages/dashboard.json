@@ -1,0 +1,63 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "dashboard",
+    "title": "What Needs You",
+    "routes": [
+      "/"
+    ],
+    "purpose": "Answer one question on arrival: is anything waiting on me right now, and what is it. Everything else on this page is secondary to that.",
+    "prd_refs": [
+      "OT-P0-007",
+      "OT-P0-001",
+      "OT-P1-005"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Open handoffs come first and are never below the fold \u2014 a blocked flow is the only thing on this page with a deadline."
+    },
+    {
+      "statement": "A persona that is degraded (expiring document, failing mailbox, dead code route) is surfaced before it breaks a flow, not after."
+    },
+    {
+      "statement": "Counts are never the headline. 'Three things need you' is less useful than naming the oldest one."
+    },
+    {
+      "statement": "The page must be honest when a dependency is down: a stale view is labelled stale rather than shown as current.",
+      "notes": "agent-manager unreachable means act-as is refused system-wide; the operator learns that here first."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "At least one handoff is open and at least one persona is configured."
+    },
+    {
+      "id": "empty",
+      "description": "No personas exist yet. The page becomes a single call to create the first one, not an empty grid."
+    },
+    {
+      "id": "empty-quiet",
+      "description": "Personas exist and nothing is blocked. This is the success state and should read as calm, not as missing data."
+    },
+    {
+      "id": "partial",
+      "description": "Handoffs load but persona health does not, or the reverse. Each region reports its own failure without blanking the page."
+    },
+    {
+      "id": "stale",
+      "description": "A dependency is unreachable and the view is older than its refresh interval. Explicitly labelled with its age."
+    },
+    {
+      "id": "loading",
+      "description": "First paint before either region resolves."
+    },
+    {
+      "id": "request-error",
+      "description": "The API is unreachable. The page says so plainly and offers retry."
+    }
+  ]
+}

@@ -1,0 +1,62 @@
+{
+  "_metadata": {
+    "module": "cli-surface",
+    "description": "Go CLI exposing components, adoptions, and versions verbs against the local API per cli-steer conventions.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "CL-001",
+      "title": "`react-component-library` provides components, adoptions, versions, themes subcommand trees",
+      "status": "planned",
+      "prd_ref": "OT-P0-007",
+      "category": "cli",
+      "criticality": "P0",
+      "description": "Subcommand groups: `components {list,get,search,index,content get|set}`, `adoptions {list,create,refresh,preview}`, `versions {list,show}`, `themes {builtin list|show, from-scenario}`. Each verb prints default human-readable output and accepts `--json` to switch to machine-readable per `cli-steer`.",
+      "tags": ["cli"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "planned",
+          "notes": "Per-domain CLI tests invoke the built binary against a stub API and assert exit code + parseable output."
+        }
+      ]
+    },
+    {
+      "id": "CL-002",
+      "title": "CLI exits non-zero on API errors with a single-line human message",
+      "status": "planned",
+      "prd_ref": "OT-P0-007",
+      "category": "cli",
+      "criticality": "P0",
+      "description": "On 4xx/5xx, the CLI prints `Error: <message>` to stderr and exits with the documented exit codes (2 for client errors, 3 for server errors, 4 for transport errors). `--json` prints a structured error object instead.",
+      "tags": ["cli", "errors"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "planned",
+          "notes": "CLI test stubs the API to return 400/500/connection-refused and asserts exit code + output."
+        }
+      ]
+    },
+    {
+      "id": "CL-003",
+      "title": "CLI auto-discovers the local API port via the lifecycle metadata",
+      "status": "planned",
+      "prd_ref": "OT-P0-007",
+      "category": "cli",
+      "criticality": "P0",
+      "description": "Without explicit `--api-base`, the CLI resolves the API port from `vrooli scenario port react-component-library API_PORT` (or the equivalent registry call). Explicit `--api-base` overrides.",
+      "tags": ["cli", "lifecycle"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "planned",
+          "notes": "CLI test mocks lifecycle resolution and asserts the resolved URL."
+        }
+      ]
+    }
+  ]
+}

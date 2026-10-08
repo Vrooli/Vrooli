@@ -76,7 +76,7 @@ func (c *playwrightCaptureClient) Capture(ctx context.Context, spec *ReplayMovie
 	if c == nil {
 		return nil, fmt.Errorf("playwright capture client not configured")
 	}
-	if spec == nil || len(spec.Frames) == 0 {
+	if spec == nil || len(spec.GetFrames()) == 0 {
 		return nil, fmt.Errorf("movie spec missing frames")
 	}
 	if strings.TrimSpace(c.exportPageURL) == "" {
@@ -156,12 +156,12 @@ func (c *playwrightCaptureClient) Capture(ctx context.Context, spec *ReplayMovie
 }
 
 func buildPlaywrightCaptureInstructions(exportPageURL string, spec *ReplayMovieSpec, captureInterval int) ([]autocontracts.CompiledInstruction, error) {
-	totalMs := spec.Summary.TotalDurationMs
-	if totalMs <= 0 && spec.Playback.DurationMs > 0 {
-		totalMs = spec.Playback.DurationMs
+	totalMs := int(spec.GetSummary().GetTotalDurationMs())
+	if totalMs <= 0 && int(spec.GetPlayback().GetDurationMs()) > 0 {
+		totalMs = int(spec.GetPlayback().GetDurationMs())
 	}
 	if totalMs <= 0 {
-		totalMs = captureInterval * len(spec.Frames)
+		totalMs = captureInterval * len(spec.GetFrames())
 	}
 	if totalMs <= 0 {
 		totalMs = 5000
@@ -288,11 +288,7 @@ func (r *inMemoryCaptureRecorder) RecordTelemetry(_ context.Context, _ autocontr
 	return nil
 }
 
-func (r *inMemoryCaptureRecorder) MarkCrash(_ context.Context, _ uuid.UUID, _ autocontracts.StepFailure) error {
-	return nil
-}
-
-func (r *inMemoryCaptureRecorder) UpdateCheckpoint(_ context.Context, _ uuid.UUID, _ int, _ int) error {
+func (r *inMemoryCaptureRecorder) RecordCheckpoint(context.Context, executionwriter.Checkpoint) error {
 	return nil // In-memory recorder doesn't persist checkpoints
 }
 
@@ -307,3 +303,9 @@ func (r *inMemoryCaptureRecorder) SetArtifactConfig(_ *config.ArtifactCollection
 func (r *inMemoryCaptureRecorder) GetArtifactConfig() config.ArtifactCollectionSettings {
 	return config.DefaultArtifactSettings() // In-memory recorder uses default (collect all)
 }
+
+func (r *inMemoryCaptureRecorder) SetArtifactConfigForExecution(_ uuid.UUID, _ *config.ArtifactCollectionSettings) {
+	// In-memory recorder ignores per-execution artifact config - collects everything.
+}
+
+func (r *inMemoryCaptureRecorder) ForgetExecution(_ uuid.UUID) {}

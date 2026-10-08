@@ -1,0 +1,61 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "conformance",
+    "title": "AI Conformance",
+    "routes": ["/conformance"],
+    "purpose": "Let operators run or inspect AI inference conformance scans, understand maturity level results, and identify which scenarios need migration or investigation.",
+    "prd_refs": ["OT-P0-005", "OT-P1-003"]
+  },
+  "priorities": [
+    {
+      "statement": "Show findings by scenario, maturity level, severity, and fix path."
+    },
+    {
+      "statement": "Distinguish advisory lower-maturity findings from failing higher-maturity requirements."
+    },
+    {
+      "statement": "Make approved exceptions visible with owner, reason, expiry, and replacement plan."
+    }
+  ],
+  "states": [
+    { "id": "default", "description": "Scan controls are available before a scan result exists." },
+    { "id": "submitting", "description": "Scenario scan is in flight." },
+    { "id": "success", "description": "Maturity level, findings, and recommendations are visible." },
+    { "id": "request-error", "description": "The scan failed and the error is visible." }
+  ],
+  "elements": [
+    { "id": "conformance-region", "role": "region", "name": "AI conformance" },
+    { "id": "scan-form", "role": "form", "description": "Scenario scan controls." },
+    { "id": "scan-action", "role": "button", "name": "Scan scenario" },
+    { "id": "scan-result", "role": "region", "description": "Maturity, findings, and recommendations." }
+  ],
+  "claims": [
+    {
+      "id": "scan-controls-present",
+      "type": "element-present",
+      "statement": "AI conformance scan controls are visible before findings are shown.",
+      "tier": "machine",
+      "elements": ["scan-form", "scan-action"],
+      "states": ["default"]
+    },
+    {
+      "id": "scan-result-after-controls",
+      "type": "reading-order",
+      "statement": "Scan controls precede the result region in reading order.",
+      "tier": "machine",
+      "elements": ["scan-form", "scan-result"],
+      "states": ["default", "success"]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "conformance-region": { "testid": "page-conformance" },
+      "scan-form": { "testid": "conformance-form" },
+      "scan-action": { "testid": "conformance-submit" },
+      "scan-result": { "testid": "conformance-result" }
+    }
+  }
+}

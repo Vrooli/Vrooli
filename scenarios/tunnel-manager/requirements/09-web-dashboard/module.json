@@ -1,206 +1,119 @@
 {
-  "module": "web-dashboard",
-  "description": "React UI dashboard for tunnel status and route management",
-  "prd_refs": [
-    "OT-P1-005"
-  ],
+  "_metadata": {
+    "module": "ui",
+    "description": "Web UI dashboard (5-surface): Overview, Exposure (lease management), Recovery & Events, Metrics, and Audit, on the vrooli-default design kit.",
+    "prd_ref": "PRD.md",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
   "requirements": [
     {
-      "id": "UI-001",
-      "title": "Tunnel health overview panel",
-      "description": "Top-level panel showing: tunnel status (healthy/degraded/critical), HA connections gauge, error rate, RTT, uptime, management mode badge",
-      "prd_ref": "OT-P1-005",
+      "id": "DASH-001",
+      "title": "Render the five operator dashboard surfaces",
+      "status": "complete",
+      "prd_ref": "OT-P1-004",
+      "category": "ui",
       "criticality": "P1",
-      "children": [
-        "UI-001A",
-        "UI-001B"
+      "description": "The dashboard provides five navigable surfaces \u2014 Overview, Exposure, Recovery & Events, Metrics, and Audit \u2014 each rendering live backend state.",
+      "tags": [
+        "dashboard",
+        "5-surface"
       ],
-      "status": "complete"
-    },
-    {
-      "id": "UI-001A",
-      "title": "Health status badge",
-      "description": "Display color-coded health status badge (green=healthy, yellow=degraded, red=critical) as primary visual indicator",
-      "prd_ref": "OT-P1-005",
-      "criticality": "P1",
-      "children": [
-        "UI-001A1"
-      ],
-      "status": "complete"
-    },
-    {
-      "id": "UI-001A1",
-      "title": "Health metric cards",
-      "description": "Show HA connections, error rate, RTT, and uptime as individual metric cards with values",
-      "prd_ref": "OT-P1-005",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
           "phase": "ui",
-          "status": "complete",
-          "ref": "ui/src/components/TunnelStatus.test.tsx"
+          "status": "implemented",
+          "ref": "ui/src/features/overview/OverviewPanel.test.tsx"
         }
-      ],
-      "status": "complete"
+      ]
     },
     {
-      "id": "UI-001B",
-      "title": "Management mode display",
-      "description": "Show current management mode (local/remote) as a badge in the health overview",
-      "prd_ref": "OT-P1-005",
+      "id": "DASH-002",
+      "title": "Manage leases from the Exposure surface",
+      "status": "complete",
+      "prd_ref": "OT-P1-004",
+      "category": "ui",
       "criticality": "P1",
+      "description": "The Exposure surface lists routes with tier and lease state and lets the operator request, extend, and revoke leases, reflecting the resulting state.",
+      "tags": [
+        "exposure-ui",
+        "lease-management"
+      ],
       "validation": [
         {
           "type": "test",
           "phase": "ui",
-          "status": "complete",
-          "ref": "ui/src/components/TunnelStatus.test.tsx"
+          "status": "implemented",
+          "ref": "ui/src/features/exposure/ExposurePanel.test.tsx"
         }
-      ],
-      "status": "complete"
+      ]
     },
     {
-      "id": "UI-002",
-      "title": "Route status table",
-      "description": "Table/list of all published routes showing: subdomain, scenario name, port, internal probe status, external probe status, last checked timestamp. Color-coded by status (green/yellow/red).",
-      "prd_ref": "OT-P1-005",
+      "id": "DASH-003",
+      "title": "Display color-coded health on the Overview surface",
+      "status": "complete",
+      "prd_ref": "OT-P1-004",
+      "category": "ui",
       "criticality": "P1",
-      "children": [
-        "UI-002A",
-        "UI-002B"
+      "description": "The Overview surface shows tunnel and per-route health with green/yellow/red color coding for quick at-a-glance status, using accessible roles and WCAG AA contrast.",
+      "tags": [
+        "overview",
+        "health",
+        "a11y"
       ],
-      "status": "complete"
-    },
-    {
-      "id": "UI-002A",
-      "title": "Route column display",
-      "description": "Show subdomain, scenario name, port, and probe status columns in the route table",
-      "prd_ref": "OT-P1-005",
-      "criticality": "P1",
-      "children": [
-        "UI-002A1"
-      ],
-      "status": "complete"
-    },
-    {
-      "id": "UI-002A1",
-      "title": "Status color coding in table",
-      "description": "Color-code probe status cells (green/yellow/red) based on internal and external probe results",
-      "prd_ref": "OT-P1-005",
-      "criticality": "P1",
       "validation": [
         {
           "type": "test",
           "phase": "ui",
-          "status": "complete",
-          "ref": "ui/src/components/RouteTable.test.tsx"
+          "status": "implemented",
+          "ref": "ui/src/features/overview/OverviewPanel.test.tsx"
         }
-      ],
-      "status": "complete"
+      ]
     },
     {
-      "id": "UI-002B",
-      "title": "Last checked timestamp",
-      "description": "Show relative time since last probe check for each route row",
-      "prd_ref": "OT-P1-005",
+      "id": "DASH-004",
+      "title": "Show metrics, recovery events, and audit findings on their surfaces",
+      "status": "complete",
+      "prd_ref": "OT-P1-004",
+      "category": "ui",
       "criticality": "P1",
+      "description": "The Metrics surface charts cloudflared time-series, Recovery & Events lists recovery attempts/outcomes, and Audit lists port-compliance findings, each from live API data.",
+      "tags": [
+        "metrics",
+        "recovery-events",
+        "audit-ui"
+      ],
       "validation": [
         {
           "type": "test",
           "phase": "ui",
-          "status": "complete",
-          "ref": "ui/src/components/RouteTable.test.tsx"
+          "status": "implemented",
+          "ref": "ui/src/features/metrics/MetricsPanel.test.tsx"
         }
-      ],
-      "status": "complete"
+      ]
     },
     {
-      "id": "UI-003",
-      "title": "Recovery event timeline",
-      "description": "Chronological list of recent recovery events showing: timestamp, trigger, action, outcome. Filterable by date range.",
-      "prd_ref": "OT-P1-005",
+      "id": "DASH-005",
+      "title": "Expose public asset policy without weakening the primary application",
+      "status": "complete",
+      "prd_ref": "OT-P1-008",
+      "category": "ui",
       "criticality": "P1",
+      "description": "The Governance/Access surface reports the global /public/* bypass capability, per-host effective policy, ownership, and dry-run changes while clearly preserving authentication for the primary application.",
+      "tags": [
+        "public-assets",
+        "access-policy",
+        "security"
+      ],
       "validation": [
         {
           "type": "test",
           "phase": "ui",
-          "status": "complete",
-          "ref": "ui/src/components/RecoveryTimeline.test.tsx"
+          "status": "implemented",
+          "ref": "ui/src/features/access/AccessPanel.test.tsx"
         }
-      ],
-      "status": "complete"
-    },
-    {
-      "id": "UI-004",
-      "title": "Port compliance audit view",
-      "description": "Panel showing audit results: compliant/non-compliant/missing routes with details. Includes 'Run Audit' button for on-demand checks.",
-      "prd_ref": "OT-P1-005",
-      "criticality": "P1",
-      "validation": [
-        {
-          "type": "test",
-          "phase": "ui",
-          "status": "complete",
-          "ref": "ui/src/components/AuditView.test.tsx"
-        }
-      ],
-      "status": "complete"
-    },
-    {
-      "id": "UI-005",
-      "title": "Route management form",
-      "description": "Add/edit/remove routes from the manifest via the UI. Includes validation (no duplicate subdomains/ports) and 'Sync Config' button.",
-      "prd_ref": "OT-P1-005",
-      "criticality": "P1",
-      "children": [
-        "UI-005A",
-        "UI-005B"
-      ],
-      "status": "complete"
-    },
-    {
-      "id": "UI-005A",
-      "title": "Form input validation",
-      "description": "Validate form inputs: no duplicate subdomains/ports, valid port ranges, required fields",
-      "prd_ref": "OT-P1-005",
-      "criticality": "P1",
-      "children": [
-        "UI-005A1"
-      ],
-      "status": "complete"
-    },
-    {
-      "id": "UI-005A1",
-      "title": "Inline validation error display",
-      "description": "Show validation errors inline next to form fields with descriptive messages",
-      "prd_ref": "OT-P1-005",
-      "criticality": "P1",
-      "validation": [
-        {
-          "type": "test",
-          "phase": "ui",
-          "status": "complete",
-          "ref": "ui/src/components/RouteForm.test.tsx"
-        }
-      ],
-      "status": "complete"
-    },
-    {
-      "id": "UI-005B",
-      "title": "Config sync trigger",
-      "description": "Sync Config button triggers config push to cloudflared (local or remote mode)",
-      "prd_ref": "OT-P1-005",
-      "criticality": "P1",
-      "validation": [
-        {
-          "type": "test",
-          "phase": "ui",
-          "status": "complete",
-          "ref": "ui/src/components/RouteForm.test.tsx"
-        }
-      ],
-      "status": "complete"
+      ]
     }
   ]
 }

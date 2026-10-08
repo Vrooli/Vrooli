@@ -1,0 +1,252 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vrooli.dev/schemas/react-vite/temporal-flow.json",
+  "title": "Temporal Flow Contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "flowId",
+    "domain",
+    "description",
+    "model",
+    "states",
+    "events",
+    "transitionDefaults",
+    "transitions",
+    "invariants",
+    "traces",
+    "runtime",
+    "replay"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 6 },
+    "kind": { "const": "temporal" },
+    "flowId": { "type": "string", "minLength": 1 },
+    "domain": { "type": "string", "minLength": 1 },
+    "description": { "type": "string", "minLength": 1 },
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["module", "seed", "maxSteps", "traceCount", "verify"],
+      "properties": {
+        "module": { "type": "string", "minLength": 1 },
+        "seed": { "type": "string", "minLength": 1 },
+        "maxSteps": { "type": "integer", "minimum": 1 },
+        "traceCount": { "type": "integer", "minimum": 1 },
+        "verify": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["invariants"],
+          "properties": {
+            "invariants": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      }
+    },
+    "states": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/state" }
+    },
+    "events": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/event" }
+    },
+    "transitions": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/transition" }
+    },
+    "transitionDefaults": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["invalid"],
+      "properties": {
+        "invalid": { "$ref": "#/$defs/defaultTransition" },
+        "terminal": { "$ref": "#/$defs/defaultTransition" }
+      }
+    },
+    "invariants": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/invariant" }
+    },
+    "traces": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/trace" }
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "go": { "$ref": "#/$defs/goRuntime" },
+        "typescript": { "$ref": "#/$defs/typescriptRuntime" },
+        "sideEffects": { "type": "array", "items": { "type": "string" } },
+        "staleCompletion": { "type": "string" }
+      }
+    },
+    "replay": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["transition"],
+      "properties": {
+        "transition": { "$ref": "#/$defs/replayTransition" }
+      }
+    }
+  },
+  "oneOf": [
+    {
+      "properties": {
+        "runtime": { "required": ["go"], "not": { "required": ["typescript"] } }
+      }
+    },
+    {
+      "properties": {
+        "runtime": { "required": ["typescript"], "not": { "required": ["go"] } }
+      }
+    }
+  ],
+  "$defs": {
+    "goRuntime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["package", "statusType", "eventType", "constantPrefix"],
+      "properties": {
+        "package": { "type": "string", "minLength": 1 },
+        "statusType": { "type": "string", "minLength": 1 },
+        "eventType": { "type": "string", "minLength": 1 },
+        "constantPrefix": { "type": "string", "minLength": 1 }
+      }
+    },
+    "typescriptRuntime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["statusType", "eventType", "statusesConst", "eventsConst", "formalExpectationConst"],
+      "properties": {
+        "statusType": { "type": "string", "minLength": 1 },
+        "eventType": { "type": "string", "minLength": 1 },
+        "statusesConst": { "type": "string", "minLength": 1 },
+        "eventsConst": { "type": "string", "minLength": 1 },
+        "formalExpectationConst": { "type": "string", "minLength": 1 },
+        "stateUnionType": { "type": "string", "minLength": 1 },
+        "eventUnionType": { "type": "string", "minLength": 1 },
+        "payloadTypes": {
+          "type": "object",
+          "additionalProperties": { "type": "string", "minLength": 1 }
+        },
+        "stateVariants": { "$ref": "#/$defs/typescriptVariants" },
+        "eventVariants": { "$ref": "#/$defs/typescriptVariants" }
+      }
+    },
+    "typescriptVariants": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": { "type": "string", "minLength": 1 }
+      }
+    },
+    "replayTransition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["function"],
+      "properties": {
+        "function": { "type": "string", "minLength": 1 },
+        "stateType": { "type": "string", "minLength": 1 },
+        "statusField": { "type": "string", "minLength": 1 },
+        "statusAccessor": { "type": "string", "minLength": 1 }
+      }
+    },
+    "state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "quint"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "quint": { "type": "string", "minLength": 1 },
+        "initial": { "type": "boolean" },
+        "terminal": { "type": "boolean" }
+      }
+    },
+    "event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "quint"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "quint": { "type": "string", "minLength": 1 }
+      }
+    },
+    "defaultTransition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["to", "wantError"],
+      "properties": {
+        "to": { "type": "string", "minLength": 1 },
+        "wantError": { "type": "boolean" }
+      }
+    },
+    "transition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from", "event", "to"],
+      "properties": {
+        "from": { "$ref": "#/$defs/stringOrStringArray" },
+        "event": { "$ref": "#/$defs/stringOrStringArray" },
+        "to": { "type": "string", "minLength": 1 },
+        "wantError": { "type": "boolean" }
+      }
+    },
+    "invariant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "quint", "description"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "quint": { "type": "string", "minLength": 1 },
+        "description": { "type": "string", "minLength": 1 },
+        "expression": { "type": "string", "minLength": 1 }
+      }
+    },
+    "trace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "initial", "steps"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "initial": { "type": "string", "minLength": 1 },
+        "steps": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/traceStep" }
+        }
+      }
+    },
+    "traceStep": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["event", "want", "wantError"],
+      "properties": {
+        "event": { "type": "string", "minLength": 1 },
+        "want": { "type": "string", "minLength": 1 },
+        "wantError": { "type": "boolean" }
+      }
+    },
+    "stringOrStringArray": {
+      "oneOf": [
+        { "type": "string", "minLength": 1 },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      ]
+    }
+  }
+}

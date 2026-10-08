@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 5,
+  "kind": "component",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    { "id": "default", "name": "Default", "args": {}, "expect": [{ "kind": "visible", "selector": "[data-testid='run-ladder']" }], "role": "anatomy" },
+    { "id": "empty", "name": "No phases yet", "args": {"phases": []}, "expect": [{ "kind": "visible", "selector": "[data-testid='run-ladder']" }], "role": "boundary", "mode": "pinned" },
+    { "id": "loading", "name": "Active phase", "args": {"runId": "run-42", "phases": [{"id": "prepare", "label": "Preparing", "state": "active"}], "reconnecting": true}, "expect": [{ "kind": "role", "role": "status" }, { "kind": "visible", "selector": "[data-testid='run-ladder']" }], "role": "boundary", "mode": "pinned" },
+    { "id": "error", "name": "Failed phase", "args": {"phases": [{"id": "publish", "label": "Publish", "state": "failed", "detail": "The publish service returned an error."}]}, "expect": [{ "kind": "visible", "selector": "[data-testid='run-ladder']" }], "role": "boundary", "mode": "pinned" },
+    { "id": "one", "name": "One phase", "args": {"phases": [{"id": "prepare", "label": "Prepare", "state": "complete"}], "items": [{"name": "manifest", "outcome": "succeeded"}]}, "expect": [{ "kind": "visible", "selector": "[data-testid='run-ladder']" }], "role": "boundary", "mode": "pinned" },
+    { "id": "many", "name": "Many phases", "args": {"phases": [{"id": "one", "label": "One", "state": "complete"}, {"id": "two", "label": "Two", "state": "complete"}, {"id": "three", "label": "Three", "state": "active"}, {"id": "four", "label": "Four", "state": "pending"}, {"id": "five", "label": "Five", "state": "pending"}], "items": [{"name": "one", "outcome": "succeeded"}, {"name": "two", "outcome": "running"}, {"name": "three", "outcome": "pending"}]}, "expect": [{ "kind": "visible", "selector": "[data-testid='run-ladder']" }], "role": "boundary", "mode": "pinned" },
+    { "id": "overflow", "name": "Long phase detail", "args": {"phases": [{"id": "publish", "label": "Publish release", "state": "active", "detail": "This phase detail is intentionally long so progress copy remains readable when a run includes a verbose operational explanation that must wrap within the ladder."}]}, "expect": [{ "kind": "visible", "selector": "[data-testid='run-ladder']" }], "role": "boundary", "mode": "pinned" }
+  ]
+}

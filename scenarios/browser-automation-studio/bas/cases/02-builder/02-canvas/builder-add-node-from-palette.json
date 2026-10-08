@@ -57,11 +57,15 @@
   ],
   "metadata": {
     "description": "Validates adding a node from the palette to the canvas via drag-and-drop",
+    "execution_mode": "mutating",
     "labels": {
-      "reset": "full"
+      "requires_confirmation": "true",
+      "reset": "full",
+      "routed_isolation": "true",
+      "seed": "bas/seeds/seed.go"
     },
-    "version": "1",
-    "execution_mode": "mutating"
+    "name": "Builder Add Node From Palette",
+    "version": "1"
   },
   "nodes": [
     {
@@ -126,7 +130,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "(() => { const card = document.querySelector('@selector/nodePalette.cards.navigate'); if (!card) return null; const rect = card.getBoundingClientRect(); return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }; })()",
+          "expression": "(() =\u003e { const card = document.querySelector('@selector/nodePalette.cards.navigate'); if (!card) return null; const rect = card.getBoundingClientRect(); return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }; })()",
           "store_result": "nodePalettePosition"
         },
         "metadata": {
@@ -139,7 +143,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "(() => { const canvas = document.querySelector('@selector/workflowBuilder.canvas.root'); if (!canvas) return null; const rect = canvas.getBoundingClientRect(); return { x: rect.left + 400, y: rect.top + 300 }; })()",
+          "expression": "(() =\u003e { const canvas = document.querySelector('@selector/workflowBuilder.canvas.root'); if (!canvas) return null; const rect = canvas.getBoundingClientRect(); return { x: rect.left + 400, y: rect.top + 300 }; })()",
           "store_result": "canvasDropPosition"
         },
         "metadata": {
@@ -153,16 +157,14 @@
       "action": {
         "drag_drop": {
           "source_selector": "@selector/nodePalette.cards.navigate",
-          "target_selector": ".react-flow__pane",
+          "target_selector": "@selector/workflowBuilder.canvas.root",
+          "target_offset_x": 300,
           "timeout_ms": 10000
         },
         "metadata": {
           "label": "Drag navigate node from palette to canvas"
         },
         "type": "ACTION_TYPE_DRAG_DROP"
-      },
-      "execution_settings": {
-        "wait_after_ms": 2000
       },
       "id": "drag-navigate-node"
     },
@@ -182,7 +184,7 @@
     {
       "action": {
         "evaluate": {
-          "expression": "(() => { const initial = Number(${@store/initialNodeCount} || 0); const final = Number(${@store/finalNodeCount} || 0); return Number.isFinite(initial) && Number.isFinite(final) && final > initial; })()",
+          "expression": "Number('${@store/finalNodeCount}') > Number('${@store/initialNodeCount}')",
           "store_result": "nodeWasAdded"
         },
         "metadata": {

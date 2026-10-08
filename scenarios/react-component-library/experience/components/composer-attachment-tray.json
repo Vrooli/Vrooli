@@ -1,0 +1,101 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "component": {
+    "id": "composer-attachment-tray",
+    "title": "Composer Attachment Tray",
+    "purpose": "Keep attachments understandable and recoverable without losing healthy items.",
+    "storyRef": "../../library/components/ComposerAttachmentTray/versions/1.0.2/story.json"
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "Default attachment presentation."
+    },
+    {
+      "id": "empty",
+      "example": "empty",
+      "description": "Empty attachment presentation."
+    },
+    {
+      "id": "loading",
+      "example": "loading",
+      "description": "Loading attachment presentation."
+    },
+    {
+      "id": "success",
+      "example": "success",
+      "description": "Success attachment presentation."
+    },
+    {
+      "id": "partial",
+      "example": "partial",
+      "description": "Partial attachment presentation."
+    },
+    {
+      "id": "request-error",
+      "example": "request-error",
+      "description": "Request error attachment presentation."
+    },
+    {
+      "id": "retry",
+      "example": "retry",
+      "description": "Retry attachment presentation."
+    }
+  ],
+  "elements": [
+    {
+      "id": "tray",
+      "role": "group",
+      "description": "Named attachment group."
+    },
+    {
+      "id": "status",
+      "role": "status",
+      "description": "Attachment count and reorder or removal feedback."
+    }
+  ],
+  "claims": [
+    {
+      "id": "partial-preservation",
+      "type": "manual-review",
+      "statement": "A failed attachment retains its recovery action without removing healthy attachments.",
+      "tier": "manual",
+      "states": [
+        "partial",
+        "request-error"
+      ]
+    },
+    {
+      "id": "keyboard-reorder",
+      "type": "manual-review",
+      "statement": "Move controls reorder attachments without dragging and announce the resulting position.",
+      "tier": "manual",
+      "states": [
+        "default"
+      ]
+    },
+    {
+      "id": "remove-focus",
+      "type": "manual-review",
+      "statement": "Removing an attachment places focus on the next available attachment action or the tray.",
+      "tier": "manual",
+      "states": [
+        "default",
+        "success"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "tray": {
+        "selector": "[data-rcl-composer-attachments]"
+      },
+      "status": {
+        "selector": "[data-rcl-composer-attachment-summary]"
+      }
+    }
+  }
+}

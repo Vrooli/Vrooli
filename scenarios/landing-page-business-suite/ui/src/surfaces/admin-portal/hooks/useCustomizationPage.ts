@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { Variant, VariantStats, AnalyticsSummary } from '../../../shared/api';
 import { useInlineAlert } from '../../../shared/ui/useInlineAlert';
 import { useToast } from '../../../shared/ui/useToast';
-import { loadVariantEditorData } from '../controllers/variantEditorController';
+import { presentationEditorPath } from '../config/navigation.utils';
 import {
   type WeightStatus,
   type StaleVariantEntry,
@@ -70,7 +70,7 @@ export interface UseCustomizationPageReturn {
   operationAlert: ReturnType<typeof useInlineAlert>['alert'];
   clearOperationAlert: () => void;
 
-  // Ref for scroll
+  // Ref for the variant list and its focusable actions.
   variantListRef: React.RefObject<HTMLDivElement>;
 
   // Constants
@@ -137,6 +137,7 @@ export function useCustomizationPage(): UseCustomizationPageReturn {
   const [appliedFocusSlug, setAppliedFocusSlug] = useState<string | null>(null);
   const [appliedSectionFocusSlug, setAppliedSectionFocusSlug] = useState<string | null>(null);
   const variantListRef = useRef<HTMLDivElement>(null);
+  const sectionFocusRequestRef = useRef(0);
 
   // URL params
   const focusSlug = searchParams.get('focus');
@@ -164,8 +165,8 @@ export function useCustomizationPage(): UseCustomizationPageReturn {
 
   // Initial load
   useEffect(() => {
-    fetchVariants();
-    fetchAnalyticsSnapshot();
+    void fetchVariants();
+    void fetchAnalyticsSnapshot();
   }, [fetchVariants, fetchAnalyticsSnapshot]);
 
   // Derived: active/archived variants
@@ -281,7 +282,7 @@ export function useCustomizationPage(): UseCustomizationPageReturn {
         setVariants((prev) =>
           prev.map((v) => (v.slug === slug ? { ...v, weight: nextWeight } : v))
         );
-        toast.success(`Traffic weight updated to ${nextWeight}%`, 'Weight saved');
+        toast.success(`Traffic weight updated to ${String(nextWeight)}%`, 'Weight saved');
       } catch (err) {
         showOperationError(err, () => persistWeight(slug, nextWeight));
         setWeightDrafts((prev) => ({
@@ -312,7 +313,10 @@ export function useCustomizationPage(): UseCustomizationPageReturn {
     setAttentionOnly(true);
     setVariantQuery(slug);
     requestAnimationFrame(() => {
-      variantListRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      const variantAction = Array.from(
+        variantListRef.current?.querySelectorAll<HTMLButtonElement>('button[data-testid]') ?? []
+      ).find((element) => element.dataset.testid === `edit-variant-${slug}`);
+      variantAction?.focus();
     });
   }, []);
 
@@ -334,8 +338,8 @@ export function useCustomizationPage(): UseCustomizationPageReturn {
   }, [navigate]);
 
   const openVariantPreview = useCallback((slug: string) => {
-    window.open(`/?variant=${slug}`, '_blank');
-  }, []);
+    navigate(presentationEditorPath(slug) + '#presentation-preview');
+  }, [navigate]);
 
   const clearSectionFocusParams = useCallback(() => {
     const next = new URLSearchParams(searchParams);
@@ -345,31 +349,9 @@ export function useCustomizationPage(): UseCustomizationPageReturn {
   }, [searchParams, setSearchParams]);
 
   const navigateToSectionEditor = useCallback(
-    async (slug: string, options?: { sectionId?: number; sectionType?: string }) => {
-      try {
-        if (options?.sectionId) {
-          navigate(`/admin/customization/variants/${slug}/sections/${options.sectionId}`);
-          return true;
-        }
-
-        const desiredType = options?.sectionType;
-        const data = await loadVariantEditorData(slug);
-        const target = desiredType
-          ? data.sections.find((section) => section.section_type === desiredType)
-          : data.sections[0];
-
-        if (target?.id) {
-          navigate(`/admin/customization/variants/${slug}/sections/${target.id}`);
-          return true;
-        }
-
-        navigate(`/admin/customization/variants/${slug}`);
-        return false;
-      } catch (navError) {
-        console.error('Failed to resolve section editor for variant', slug, navError);
-        navigate(`/admin/customization/variants/${slug}`);
-        return false;
-      }
+    (slug: string, _options?: { sectionId?: number; sectionType?: string }) => {
+      navigate(presentationEditorPath(slug));
+      return Promise.resolve(true);
     },
     [navigate]
   );
@@ -397,20 +379,23 @@ export function useCustomizationPage(): UseCustomizationPageReturn {
       return;
     }
 
-    let cancelled = false;
-    (async () => {
+    const requestId = sectionFocusRequestRef.current + 1;
+    sectionFocusRequestRef.current = requestId;
+    void (async () => {
       const success = await navigateToSectionEditor(focusSlug, {
         sectionId: focusSectionId ?? undefined,
         sectionType: focusSectionType ?? undefined,
       });
-      if (!cancelled && success) {
+      if (success && sectionFocusRequestRef.current === requestId) {
         setAppliedSectionFocusSlug(focusSlug);
         clearSectionFocusParams();
       }
     })();
 
     return () => {
-      cancelled = true;
+      if (sectionFocusRequestRef.current === requestId) {
+        sectionFocusRequestRef.current += 1;
+      }
     };
   }, [
     focusSlug,

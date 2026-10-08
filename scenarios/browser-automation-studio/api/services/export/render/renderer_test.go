@@ -11,17 +11,17 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"github.com/vrooli/browser-automation-studio/services/export"
+	exportsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/exports"
 )
 
 func TestEstimateReplayRenderTimeoutBounds(t *testing.T) {
 	smallSpec := &ReplayMovieSpec{
-		Playback: export.ExportPlayback{
+		Playback: &exportsv1.ReplayPlayback{
 			FrameIntervalMs: 40,
 			TotalFrames:     5,
 		},
-		Summary: export.ExportSummary{TotalDurationMs: 200},
-		Frames:  []export.ExportFrame{{Index: 0, DurationMs: 200}},
+		Summary: &exportsv1.ReplaySummary{TotalDurationMs: 200},
+		Frames:  []*exportsv1.ReplayFrame{{Index: 0, DurationMs: 200}},
 	}
 
 	duration := EstimateReplayRenderTimeout(smallSpec)
@@ -33,12 +33,12 @@ func TestEstimateReplayRenderTimeoutBounds(t *testing.T) {
 	}
 
 	hugeSpec := &ReplayMovieSpec{
-		Playback: export.ExportPlayback{
+		Playback: &exportsv1.ReplayPlayback{
 			FrameIntervalMs: 20,
 			TotalFrames:     120000,
 		},
-		Summary: export.ExportSummary{TotalDurationMs: 2400000},
-		Frames:  make([]export.ExportFrame, 0),
+		Summary: &exportsv1.ReplaySummary{TotalDurationMs: 2400000},
+		Frames:  make([]*exportsv1.ReplayFrame, 0),
 	}
 
 	bigDuration := EstimateReplayRenderTimeout(hugeSpec)
@@ -65,7 +65,7 @@ func TestRender_NilSpec(t *testing.T) {
 func TestRender_EmptyFrames(t *testing.T) {
 	r := newTestRenderer(t)
 	spec := &ReplayMovieSpec{
-		Frames: []export.ExportFrame{},
+		Frames: []*exportsv1.ReplayFrame{},
 	}
 	_, err := r.Render(t.Context(), spec, RenderFormatMP4, "test.mp4")
 	if err == nil {
@@ -76,7 +76,7 @@ func TestRender_EmptyFrames(t *testing.T) {
 func TestRender_UnsupportedFormat(t *testing.T) {
 	r := newTestRenderer(t)
 	spec := &ReplayMovieSpec{
-		Frames: []export.ExportFrame{{DurationMs: 100}},
+		Frames: []*exportsv1.ReplayFrame{{DurationMs: 100}},
 	}
 	_, err := r.Render(t.Context(), spec, "webm", "test.webm")
 	if err == nil {
@@ -137,9 +137,9 @@ func TestRenderCapture_ContiguousFrameNumbering(t *testing.T) {
 	r.videoEncoder = &MockVideoEncoder{}
 
 	spec := &ReplayMovieSpec{
-		Playback: export.ExportPlayback{FrameIntervalMs: 100},
-		Summary:  export.ExportSummary{TotalDurationMs: 500},
-		Frames:   []export.ExportFrame{{DurationMs: 100}},
+		Playback: &exportsv1.ReplayPlayback{FrameIntervalMs: 100},
+		Summary:  &exportsv1.ReplaySummary{TotalDurationMs: 500},
+		Frames:   []*exportsv1.ReplayFrame{{DurationMs: 100}},
 	}
 
 	media, err := r.renderCapture(t.Context(), spec, RenderFormatMP4, "test.mp4", 100)
@@ -191,9 +191,9 @@ func TestRenderCapture_AllEmptyFrames(t *testing.T) {
 	r.videoEncoder = &MockVideoEncoder{}
 
 	spec := &ReplayMovieSpec{
-		Playback: export.ExportPlayback{FrameIntervalMs: 100},
-		Summary:  export.ExportSummary{TotalDurationMs: 200},
-		Frames:   []export.ExportFrame{{DurationMs: 100}},
+		Playback: &exportsv1.ReplayPlayback{FrameIntervalMs: 100},
+		Summary:  &exportsv1.ReplaySummary{TotalDurationMs: 200},
+		Frames:   []*exportsv1.ReplayFrame{{DurationMs: 100}},
 	}
 
 	_, err := r.renderCapture(t.Context(), spec, RenderFormatMP4, "test.mp4", 100)
@@ -211,9 +211,9 @@ func TestRenderCapture_NilCaptureResponse(t *testing.T) {
 	r.captureClient = client
 
 	spec := &ReplayMovieSpec{
-		Playback: export.ExportPlayback{FrameIntervalMs: 100},
-		Summary:  export.ExportSummary{TotalDurationMs: 100},
-		Frames:   []export.ExportFrame{{DurationMs: 100}},
+		Playback: &exportsv1.ReplayPlayback{FrameIntervalMs: 100},
+		Summary:  &exportsv1.ReplaySummary{TotalDurationMs: 100},
+		Frames:   []*exportsv1.ReplayFrame{{DurationMs: 100}},
 	}
 
 	_, err := r.renderCapture(t.Context(), spec, RenderFormatMP4, "test.mp4", 100)
@@ -231,9 +231,9 @@ func TestRenderCapture_CaptureError(t *testing.T) {
 	r.captureClient = client
 
 	spec := &ReplayMovieSpec{
-		Playback: export.ExportPlayback{FrameIntervalMs: 100},
-		Summary:  export.ExportSummary{TotalDurationMs: 100},
-		Frames:   []export.ExportFrame{{DurationMs: 100}},
+		Playback: &exportsv1.ReplayPlayback{FrameIntervalMs: 100},
+		Summary:  &exportsv1.ReplaySummary{TotalDurationMs: 100},
+		Frames:   []*exportsv1.ReplayFrame{{DurationMs: 100}},
 	}
 
 	_, err := r.renderCapture(t.Context(), spec, RenderFormatMP4, "test.mp4", 100)
@@ -263,9 +263,9 @@ func TestRenderCapture_GIFFormat(t *testing.T) {
 	r.videoEncoder = &MockVideoEncoder{}
 
 	spec := &ReplayMovieSpec{
-		Playback: export.ExportPlayback{FrameIntervalMs: 100},
-		Summary:  export.ExportSummary{TotalDurationMs: 200},
-		Frames:   []export.ExportFrame{{DurationMs: 100}},
+		Playback: &exportsv1.ReplayPlayback{FrameIntervalMs: 100},
+		Summary:  &exportsv1.ReplaySummary{TotalDurationMs: 200},
+		Frames:   []*exportsv1.ReplayFrame{{DurationMs: 100}},
 	}
 
 	media, err := r.renderCapture(t.Context(), spec, RenderFormatGIF, "test.gif", 100)
@@ -308,9 +308,9 @@ func TestRenderCapture_DefaultFPS(t *testing.T) {
 	r.videoEncoder = &MockVideoEncoder{}
 
 	spec := &ReplayMovieSpec{
-		Playback: export.ExportPlayback{FrameIntervalMs: 100},
-		Summary:  export.ExportSummary{TotalDurationMs: 100},
-		Frames:   []export.ExportFrame{{DurationMs: 100}},
+		Playback: &exportsv1.ReplayPlayback{FrameIntervalMs: 100},
+		Summary:  &exportsv1.ReplaySummary{TotalDurationMs: 100},
+		Frames:   []*exportsv1.ReplayFrame{{DurationMs: 100}},
 	}
 
 	media, err := r.renderCapture(t.Context(), spec, RenderFormatMP4, "test.mp4", 100)
@@ -347,9 +347,9 @@ func TestRenderCapture_InvalidBase64Frame(t *testing.T) {
 	r.videoEncoder = &MockVideoEncoder{}
 
 	spec := &ReplayMovieSpec{
-		Playback: export.ExportPlayback{FrameIntervalMs: 100},
-		Summary:  export.ExportSummary{TotalDurationMs: 100},
-		Frames:   []export.ExportFrame{{DurationMs: 100}},
+		Playback: &exportsv1.ReplayPlayback{FrameIntervalMs: 100},
+		Summary:  &exportsv1.ReplaySummary{TotalDurationMs: 100},
+		Frames:   []*exportsv1.ReplayFrame{{DurationMs: 100}},
 	}
 
 	_, err := r.renderCapture(t.Context(), spec, RenderFormatMP4, "test.mp4", 100)
@@ -370,9 +370,9 @@ func TestRenderCapture_CancelledContext(t *testing.T) {
 	r.captureClient = client
 
 	spec := &ReplayMovieSpec{
-		Playback: export.ExportPlayback{FrameIntervalMs: 100},
-		Summary:  export.ExportSummary{TotalDurationMs: 100},
-		Frames:   []export.ExportFrame{{DurationMs: 100}},
+		Playback: &exportsv1.ReplayPlayback{FrameIntervalMs: 100},
+		Summary:  &exportsv1.ReplaySummary{TotalDurationMs: 100},
+		Frames:   []*exportsv1.ReplayFrame{{DurationMs: 100}},
 	}
 
 	_, err := r.renderCapture(ctx, spec, RenderFormatMP4, "test.mp4", 100)
@@ -401,9 +401,9 @@ func TestRenderCapture_EncoderError(t *testing.T) {
 	r.videoEncoder = &MockVideoEncoder{AssembleVideoErr: fmt.Errorf("encoder failed")}
 
 	spec := &ReplayMovieSpec{
-		Playback: export.ExportPlayback{FrameIntervalMs: 100},
-		Summary:  export.ExportSummary{TotalDurationMs: 100},
-		Frames:   []export.ExportFrame{{DurationMs: 100}},
+		Playback: &exportsv1.ReplayPlayback{FrameIntervalMs: 100},
+		Summary:  &exportsv1.ReplaySummary{TotalDurationMs: 100},
+		Frames:   []*exportsv1.ReplayFrame{{DurationMs: 100}},
 	}
 
 	_, err := r.renderCapture(t.Context(), spec, RenderFormatMP4, "test.mp4", 100)
@@ -432,9 +432,9 @@ func TestRenderCapture_GIFConversionError(t *testing.T) {
 	r.videoEncoder = &MockVideoEncoder{ConvertGIFErr: fmt.Errorf("gif conversion failed")}
 
 	spec := &ReplayMovieSpec{
-		Playback: export.ExportPlayback{FrameIntervalMs: 100},
-		Summary:  export.ExportSummary{TotalDurationMs: 100},
-		Frames:   []export.ExportFrame{{DurationMs: 100}},
+		Playback: &exportsv1.ReplayPlayback{FrameIntervalMs: 100},
+		Summary:  &exportsv1.ReplaySummary{TotalDurationMs: 100},
+		Frames:   []*exportsv1.ReplayFrame{{DurationMs: 100}},
 	}
 
 	_, err := r.renderCapture(t.Context(), spec, RenderFormatGIF, "test.gif", 100)

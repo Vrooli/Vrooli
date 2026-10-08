@@ -9,10 +9,17 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"landing-page-business-suite/cli/domains/health"
+	"landing-page-business-suite/cli/internal/support"
 )
 
 func withAPIBase(t *testing.T, base string) {
 	t.Helper()
+	// NewApp persists admin sessions alongside the core CLI config. Isolate that
+	// directory so a real local login or a previous test cannot alter readiness
+	// preconditions for this test.
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	const envKey = "LANDING_PAGE_BUSINESS_SUITE_API_BASE"
 	previous, had := os.LookupEnv(envKey)
 	if err := os.Setenv(envKey, base); err != nil {
@@ -29,6 +36,10 @@ func withAPIBase(t *testing.T, base string) {
 
 func TestServiceAuthStatusRequireEnabledPassesWhenConfigured(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/health" {
+			_, _ = w.Write([]byte(`{"status":"healthy"}`))
+			return
+		}
 		if r.Method != http.MethodGet || r.URL.Path != "/api/v1/usage/health" {
 			t.Fatalf("unexpected request: %s %s", r.Method, r.URL.Path)
 		}
@@ -42,13 +53,17 @@ func TestServiceAuthStatusRequireEnabledPassesWhenConfigured(t *testing.T) {
 		t.Fatalf("NewApp() error: %v", err)
 	}
 
-	if err := app.cmdServiceAuthStatus([]string{"--require-enabled"}); err != nil {
+	if err := app.Run([]string{"service-auth-status", "--require-enabled"}); err != nil {
 		t.Fatalf("cmdServiceAuthStatus returned error: %v", err)
 	}
 }
 
 func TestServiceAuthStatusRequireEnabledFailsWhenDisabled(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/health" {
+			_, _ = w.Write([]byte(`{"status":"healthy"}`))
+			return
+		}
 		if r.Method != http.MethodGet || r.URL.Path != "/api/v1/usage/health" {
 			t.Fatalf("unexpected request: %s %s", r.Method, r.URL.Path)
 		}
@@ -62,18 +77,18 @@ func TestServiceAuthStatusRequireEnabledFailsWhenDisabled(t *testing.T) {
 		t.Fatalf("NewApp() error: %v", err)
 	}
 
-	err = app.cmdServiceAuthStatus([]string{"--require-enabled"})
+	err = health.RunServiceAuthStatus(app.dependencies(), []string{"--require-enabled"})
 	if err == nil {
 		t.Fatal("expected error when service auth is disabled")
 	}
-	if !strings.Contains(err.Error(), "Next steps:") {
+	if !strings.Contains(err.Error(), "Next Steps:") {
 		t.Fatalf("expected next-step guidance, got: %v", err)
 	}
 }
 
 func withAdminSession(t *testing.T, app *App, apiBase string) {
 	t.Helper()
-	if err := app.saveAdminSession(adminSessionConfig{
+	if err := app.dependencies().SaveAdminSession(support.AdminSessionConfig{
 		Session: "test-admin-session",
 		APIBase: apiBase,
 	}); err != nil {
@@ -84,6 +99,10 @@ func withAdminSession(t *testing.T, app *App, apiBase string) {
 func TestRemoteProfilesLoginAcceptsTagSelector(t *testing.T) {
 	var sawList, sawLogin bool
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/health" {
+			_, _ = w.Write([]byte(`{"status":"healthy"}`))
+			return
+		}
 		switch {
 		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/admin/remote-profiles":
 			sawList = true
@@ -114,7 +133,7 @@ func TestRemoteProfilesLoginAcceptsTagSelector(t *testing.T) {
 	}
 	withAdminSession(t, app, server.URL)
 
-	if err := app.cmdRemoteProfilesLogin([]string{"--tag", "prod", "--email", "admin@example.com", "--password", "secret"}); err != nil {
+	if err := app.Run([]string{"remote-profiles-login", "--tag", "prod", "--email", "admin@example.com", "--password", "secret"}); err != nil {
 		t.Fatalf("cmdRemoteProfilesLogin returned error: %v", err)
 	}
 	if !sawList {
@@ -128,6 +147,10 @@ func TestRemoteProfilesLoginAcceptsTagSelector(t *testing.T) {
 func TestRemoteProfilesLoginAcceptsProfileIDFlag(t *testing.T) {
 	var sawList, sawLogin bool
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/health" {
+			_, _ = w.Write([]byte(`{"status":"healthy"}`))
+			return
+		}
 		switch {
 		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/admin/remote-profiles":
 			sawList = true
@@ -148,7 +171,7 @@ func TestRemoteProfilesLoginAcceptsProfileIDFlag(t *testing.T) {
 	}
 	withAdminSession(t, app, server.URL)
 
-	if err := app.cmdRemoteProfilesLogin([]string{"--profile-id", "22", "--email", "admin@example.com", "--password", "secret"}); err != nil {
+	if err := app.Run([]string{"remote-profiles-login", "--profile-id", "22", "--email", "admin@example.com", "--password", "secret"}); err != nil {
 		t.Fatalf("cmdRemoteProfilesLogin returned error: %v", err)
 	}
 	if sawList {
@@ -162,6 +185,10 @@ func TestRemoteProfilesLoginAcceptsProfileIDFlag(t *testing.T) {
 func TestRemoteProfilesTestAcceptsTagSelector(t *testing.T) {
 	var sawList, sawTest bool
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/health" {
+			_, _ = w.Write([]byte(`{"status":"healthy"}`))
+			return
+		}
 		switch {
 		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/admin/remote-profiles":
 			sawList = true
@@ -182,7 +209,7 @@ func TestRemoteProfilesTestAcceptsTagSelector(t *testing.T) {
 	}
 	withAdminSession(t, app, server.URL)
 
-	if err := app.cmdRemoteProfilesTest([]string{"--tag", "prod"}); err != nil {
+	if err := app.Run([]string{"remote-profiles-test", "--tag", "prod"}); err != nil {
 		t.Fatalf("cmdRemoteProfilesTest returned error: %v", err)
 	}
 	if !sawList {
@@ -195,7 +222,13 @@ func TestRemoteProfilesTestAcceptsTagSelector(t *testing.T) {
 
 func TestDeployReadinessReportsFailuresWhenUnconfigured(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/health" {
+			_, _ = w.Write([]byte(`{"status":"healthy"}`))
+			return
+		}
 		switch {
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/admin/download-storage/test":
+			_, _ = w.Write([]byte(`{"ok":false}`))
 		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/usage/health":
 			_, _ = w.Write([]byte(`{"healthy":true,"database_connected":true,"service_auth_configured":false,"service_auth_mode":"disabled"}`))
 		default:
@@ -210,7 +243,7 @@ func TestDeployReadinessReportsFailuresWhenUnconfigured(t *testing.T) {
 		t.Fatalf("NewApp() error: %v", err)
 	}
 
-	err = app.cmdDeployReadiness([]string{"--domain", "example.com"})
+	err = app.Run([]string{"deploy-readiness", "--domain", "example.com"})
 	if err == nil {
 		t.Fatal("expected deploy readiness to fail without admin session/service auth")
 	}
@@ -221,6 +254,10 @@ func TestDeployReadinessReportsFailuresWhenUnconfigured(t *testing.T) {
 
 func TestDeployReadinessPassesWithProfileTag(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/health" {
+			_, _ = w.Write([]byte(`{"status":"healthy"}`))
+			return
+		}
 		switch {
 		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/admin/download-storage/test":
 			_, _ = w.Write([]byte(`{"ok":true}`))
@@ -246,13 +283,17 @@ func TestDeployReadinessPassesWithProfileTag(t *testing.T) {
 	}
 	withAdminSession(t, app, server.URL)
 
-	if err := app.cmdDeployReadiness([]string{"--profile-tag", "prod"}); err != nil {
+	if err := app.Run([]string{"deploy-readiness", "--profile-tag", "prod"}); err != nil {
 		t.Fatalf("cmdDeployReadiness returned error: %v", err)
 	}
 }
 
 func TestDeployReadinessDoesNotSuggestRemoteLoginWhenBlockedByAdminSession(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/health" {
+			_, _ = w.Write([]byte(`{"status":"healthy"}`))
+			return
+		}
 		switch {
 		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/usage/health":
 			_, _ = w.Write([]byte(`{"healthy":true,"database_connected":true,"service_auth_configured":false,"service_auth_mode":"disabled"}`))
@@ -276,7 +317,7 @@ func TestDeployReadinessDoesNotSuggestRemoteLoginWhenBlockedByAdminSession(t *te
 	os.Stdout = w
 	t.Cleanup(func() { os.Stdout = originalStdout })
 
-	runErr := app.cmdDeployReadiness([]string{"--profile-tag", "prod", "--domain", "example.com"})
+	runErr := health.RunDeployReadiness(app.dependencies(), []string{"--profile-tag", "prod", "--domain", "example.com"})
 	_ = w.Close()
 	var buf bytes.Buffer
 	_, _ = io.Copy(&buf, r)

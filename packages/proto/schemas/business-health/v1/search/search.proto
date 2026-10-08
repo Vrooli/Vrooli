@@ -1,0 +1,84 @@
+syntax = "proto3";
+
+package vrooli.business_health.v1.search;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/business-health/v1/search;search_v1";
+
+// =============================================================================
+// INTENT SEARCH SERVICE
+// =============================================================================
+//
+// @layer 0
+// @domain business-health
+// @stability beta
+//
+// SearchService answers semantic queries over the fleet-wide intent corpus:
+// one document per PRD overview, per operational target, and per requirement
+// (type-faceted single corpus — plan decision D5). It backs the
+// `business-health.intent` search-hub leaf (BUCKET_STATE, answer-space cells
+// #34 capability map and #22 intent), the wizard's capability-dedup hook, and
+// the `business-health search` CLI verbs.
+//
+// Pointer-only rule (cell #22): results carry anchors into PRD.md /
+// requirements files — never synthesized "why" prose.
+// =============================================================================
+
+service SearchService {
+  rpc Search(SearchRequest) returns (SearchResponse);
+  rpc Status(StatusRequest) returns (StatusResponse);
+}
+
+enum Mode {
+  MODE_UNSPECIFIED = 0;
+  // Dense semantic search (reranked when the reranker is reachable).
+  MODE_AI = 1;
+  // Keyword fallback (works with qdrant/ollama down).
+  MODE_TEXT = 2;
+}
+
+message SearchRequest {
+  string query = 1;
+  int32 limit = 2;
+  Mode mode = 3;
+}
+
+message SearchResponse {
+  repeated IntentHit results = 1;
+  // Mode actually used (AI may degrade to TEXT).
+  Mode mode = 2;
+  // Non-empty when the AI path degraded.
+  string degraded_reason = 3;
+}
+
+// IntentHit is one intent-corpus result, pointer-only.
+message IntentHit {
+  // Stable corpus id (e.g. "image-tools/OT-P0-004" or "image-tools/IMG-P0-004").
+  string id = 1;
+  // Scenario the intent belongs to.
+  string scenario = 2;
+  // Facet: "prd_overview" | "operational_target" | "requirement".
+  string type = 3;
+  string title = 4;
+  string snippet = 5;
+  // Anchor into the owning artifact (e.g. "scenarios/image-tools/PRD.md#OT-P0-004").
+  string anchor = 6;
+  // prd_ref for requirement hits ("" otherwise).
+  string prd_ref = 7;
+  float score = 8;
+  // True when the score sits below the confidence floor.
+  bool weak = 9;
+}
+
+message StatusRequest {}
+
+message StatusResponse {
+  bool available = 1;
+  bool ollama_up = 2;
+  bool qdrant_up = 3;
+  bool reranker_up = 4;
+  int64 indexed = 5;
+  string collection = 6;
+  string detail = 7;
+  // RFC3339 timestamp of the most recent corpus reconcile.
+  string last_reconcile_at = 8;
+}

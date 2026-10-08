@@ -45,14 +45,16 @@
      * STABILITY CRITICAL: noUncheckedIndexedAccess
      * This setting makes array/object indexing return T | undefined.
      * It prevents silent null crashes when accessing array[i] or obj[key].
-     * DO NOT REMOVE - see react-stability skill Section 0 for rationale.
+     * DO NOT REMOVE - see ui-health skill for rationale.
      */
     "noUncheckedIndexedAccess": true,
 
     /* Paths */
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "react": ["./node_modules/@types/react"],
+      "react/jsx-runtime": ["./node_modules/@types/react/jsx-runtime"]
     }
   },
   "include": ["src"],

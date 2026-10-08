@@ -1,0 +1,74 @@
+{
+  "metadata": {
+    "description": "Generated observer smoke for active experience page condition.",
+    "execution_mode": "observer",
+    "labels": {
+      "reset": "none",
+      "spec_entry_id": "condition",
+      "surface": "experience-condition"
+    },
+    "name": "experience-condition-spec-smoke",
+    "requirement": "OT-P0-003",
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": {
+          "label": "Open Condition"
+        },
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "infrastructure-manager",
+          "scenario_path": "/condition",
+          "timeout_ms": 30000,
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+        },
+        "type": "ACTION_TYPE_NAVIGATE"
+      },
+      "id": "navigate-condition"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Primary binding visible"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid=\"condition-history\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      },
+      "id": "wait-condition-primary-binding"
+    },
+    {
+      "id": "wait-condition-readings-lifecycle",
+      "action": {
+        "metadata": { "label": "Condition readings lifecycle" },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": { "selector": "[data-testid=\"condition-readings\"][data-experience-state=\"loading\"], [data-testid=\"condition-readings\"][data-experience-state=\"ready\"], [data-testid=\"condition-readings\"][data-experience-state=\"partial\"]", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000 }
+      }
+    },
+    {
+      "id": "wait-condition-trust-lifecycle",
+      "action": {
+        "metadata": { "label": "Condition trust lifecycle" },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": { "selector": "[data-testid=\"condition-trust\"][data-experience-state=\"loading\"], [data-testid=\"condition-trust\"][data-experience-state=\"ready\"]", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000 }
+      }
+    },
+    {
+      "id": "wait-condition-availability-lifecycle",
+      "action": {
+        "metadata": { "label": "Condition source availability lifecycle" },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": { "selector": "[data-testid=\"condition-availability\"][data-experience-state=\"loading\"], [data-testid=\"condition-availability\"][data-experience-state=\"ready\"]", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000 }
+      }
+    }
+  ],
+  "settings": {
+    "viewport_height": 800,
+    "viewport_width": 1280
+  }
+}

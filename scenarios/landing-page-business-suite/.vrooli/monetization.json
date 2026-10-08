@@ -1,0 +1,23 @@
+{
+  "$schema": "https://schemas.vrooli.dev/monetization.schema.json",
+  "version": 2,
+  "bundle_key": "business_suite",
+  "app_key": "landing-page-business-suite",
+  "requires_entitlement": true,
+  "account_surface_paths": ["api/routes.go"],
+  "journey_probe_paths": ["api/monetization_journey.go"],
+  "features": [
+    {
+      "key": "subscription_entitlements",
+      "class": "A",
+      "enforcement_paths": ["api/routes.go"]
+    }
+  ],
+  "meters": [
+    {
+      "limit_key": "ai_credits",
+      "class": "A",
+      "enforcement_paths": ["api/internal/commerce/account_service.go"]
+    }
+  ]
+}

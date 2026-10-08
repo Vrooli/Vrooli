@@ -35,7 +35,7 @@ func setupTestServer(t *testing.T) (*Server, sqlmock.Sqlmock) {
 	profilesRepo := profiles.NewSQLRepository(db)
 
 	srv := &Server{
-		Config:              &Config{Port: "8080"},
+		Config:              &RuntimeConfig{Port: "8080"},
 		DB:                  db,
 		Router:              mux.NewRouter(),
 		ProfilesRepo:        profilesRepo,
@@ -50,6 +50,7 @@ func setupTestServer(t *testing.T) (*Server, sqlmock.Sqlmock) {
 		ProfilesHandler:     profiles.NewHandler(profilesRepo, logFn),
 	}
 	srv.setupRoutes()
+	mountDomainHandlerTests(srv)
 
 	return srv, mock
 }
@@ -191,10 +192,12 @@ func TestHandleCreateProfile(t *testing.T) {
 			},
 			wantStatus: http.StatusCreated,
 			setupMock: func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
 				mock.ExpectExec("INSERT INTO profiles").
 					WillReturnResult(sqlmock.NewResult(1, 1))
 				mock.ExpectExec("INSERT INTO profile_versions").
 					WillReturnResult(sqlmock.NewResult(1, 1))
+				mock.ExpectCommit()
 			},
 		},
 		{

@@ -1,0 +1,134 @@
+syntax = "proto3";
+
+package vrooli.swarm_manager.v1.domain;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domain";
+
+// =============================================================================
+// PLAN DOMAIN
+// =============================================================================
+//
+// @stability beta
+//
+// Plan-board projection records for the swarm-manager Plan lens: a
+// Now/Next/Later/Done board computed from dependency-wave peeling and the
+// gates read-model. Wave membership is ordinal ("how many dependency layers
+// from runnable"), never clock time.
+//
+// =============================================================================
+
+// PlanLaneStatus mirrors the operations lane utilization for the Now header.
+message PlanLaneStatus {
+  string lane = 1;
+  int32 active = 2;
+  int32 capacity = 3;
+}
+
+// PlanNowSummary carries Now-column header counts. Now cards themselves come
+// from the operations endpoint (GET /api/v1/operations), not this projection.
+message PlanNowSummary {
+  int32 active_count = 1;
+  int32 queue_depth = 2;
+  int32 max_queue_depth = 3;
+  repeated PlanLaneStatus lanes = 4;
+}
+
+// PlanGate is a human or agent decision point projected from existing
+// sources (pending workshop decisions, review states, capture
+// classification, workshop readiness). Read-model only — no storage.
+message PlanGate {
+  string id = 1;
+  // decide | review | classify | workshop
+  string kind = 2;
+  // backlog | execution | capture
+  string owner_type = 3;
+  string owner_kind = 4;
+  string owner_name = 5;
+  string owner_title = 6;
+  // Number of pending questions / unreviewed units behind this gate.
+  int32 count = 7;
+  // Item keys (kind/name) directly blocked while this gate is open.
+  repeated string blocks = 8;
+  string decidable_since = 9;
+  // Workshop-gate hint: workshop | finalize.
+  string suggested = 10;
+}
+
+// PlanCard is one board card: a backlog item, a gate, or a recent outcome.
+message PlanCard {
+  // Canonical node id (backlog-item/<kind>/<name>, capture/<id>,
+  // execution-record/<id>) — matches graph node ids so Focus bridging works.
+  string id = 1;
+  // item | gate | outcome
+  string card_type = 2;
+  // Primary action: run | workshop | finalize | decide | review | classify | none
+  string action = 3;
+  string item_kind = 4;
+  string item_name = 5;
+  string title = 6;
+  string status = 7;
+  int32 priority = 8;
+  // Dependency wave index; 0 = runnable now, -1 = trapped in a cycle.
+  int32 wave = 9;
+  string milestone = 10;
+  string effort = 11;
+  // Populated when card_type == gate.
+  PlanGate gate = 12;
+  // ok | failed | needs_review — populated when card_type == outcome.
+  string outcome = 13;
+  string finished_at = 14;
+  string execution_id = 15;
+  // Count of items transitively unblocked when this card resolves.
+  int32 unblocks = 16;
+}
+
+// PlanCardGroup is an ordered group of cards within a column (e.g. a
+// nearest-blocker group in Later, or the gates band in Next).
+message PlanCardGroup {
+  string id = 1;
+  string label = 2;
+  // none | gate | items | cycle
+  string blocker_kind = 3;
+  // Gate id when blocker_kind == gate.
+  string gate_id = 4;
+  // Blocking item keys when blocker_kind == items.
+  repeated string blocker_keys = 5;
+  repeated PlanCard cards = 6;
+}
+
+// PlanColumn is one board column's card groups.
+message PlanColumn {
+  repeated PlanCardGroup groups = 1;
+  int32 card_count = 2;
+}
+
+// PlanEtaBand is a p50/p80 completion estimate for the board's remaining work,
+// divided by execute-lane capacity and including gate-wait, with an explicit
+// basis/confidence label that honestly degrades to "priors only" under cold
+// start. Hours are the raw estimate; the *_label fields are humanized.
+message PlanEtaBand {
+  double p50_hours = 1;
+  double p80_hours = 2;
+  string p50_label = 3;
+  string p80_label = 4;
+  // live | backfill | priors | default | mixed
+  string basis = 5;
+  // "27 samples" vs "priors only"
+  string basis_label = 6;
+  // low | medium | high
+  string confidence = 7;
+  int32 remaining_items = 8;
+  int32 lane_capacity = 9;
+}
+
+// PlanBoardMeta carries projection metadata and cycle diagnostics.
+message PlanBoardMeta {
+  string generated_at = 1;
+  int32 window_seconds = 2;
+  int32 max_wave = 3;
+  // Human-readable dependency-cycle paths ("a -> b -> a"), one per cycle.
+  repeated string cycles = 4;
+  // Completion estimate for the board's remaining work; absent when there is
+  // nothing to estimate or the estimator is not wired.
+  PlanEtaBand eta = 5;
+}

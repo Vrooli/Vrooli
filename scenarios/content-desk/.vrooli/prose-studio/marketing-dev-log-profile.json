@@ -1,0 +1,57 @@
+{
+  "schema_version": "1",
+  "kind": "profile",
+  "key": "content-desk/marketing-dev-log-profile",
+  "created_by": "content-desk",
+  "record": {
+    "style_refs": [
+      "content-desk/marketing-dev-log-style"
+    ],
+    "sampler": {
+      "kind": "vs_standard",
+      "k": 5,
+      "tau": 0.7,
+      "temperature_stance": "role_default",
+      "max_output_tokens": 1400
+    },
+    "selection_policy": "coverage",
+    "measurement_tiers": [
+      "deterministic_and_semantic"
+    ],
+    "gateway_role": "write.diverse",
+    "locality": "remote_only",
+    "budget": {
+      "max_output_tokens": 1400,
+      "max_session_cost_micros": 1000000
+    },
+    "context_policy": {
+      "full_text_token_budget": 4096,
+      "summarize_beyond": 4096,
+      "always_full_previous": true,
+      "declared_context_ceiling": 8192
+    },
+    "constraints": {
+      "min_words": 650,
+      "max_words": 1400,
+      "required_format": "essay",
+      "min_artifacts": 1
+    },
+    "coherence_thresholds": {
+      "max_cross_section_repetition": 0.55,
+      "max_style_drift": 0.35,
+      "max_semantic_section_repetition": 0.86,
+      "min_section_novelty": 0.65
+    },
+    "_min_section_novelty_basis": "Provisional, and set to apply pressure rather than to guard a regression. Measured over 62 committed section transitions in 19 assembled documents: median 0.724, p25 0.686, p10 0.645, p5 0.591, minimum 0.559, and flat across position (0.721, 0.758, 0.735, 0.719 by section index) which is what makes one floor usable at every position. 0.65 sits between p10 and p25, so roughly the weakest tenth of transitions this scenario currently produces become ineligible and are rerolled under negative conditioning. A floor at the observed minimum would only catch output worse than anything yet seen, which guards against regression while doing nothing about the defect the judge actually named. Recalibrate once post-gate transitions exist, because this corpus was measured entirely before the gate applied any pressure and the distribution it describes is the ungated one.",
+    "composition": {
+      "target_section_words": 350,
+      "min_sections": 4,
+      "max_sections": 7,
+      "section_word_tolerance": 0.25,
+      "section_format": "rich_prose",
+      "max_repair_rounds": 2
+    },
+    "_max_semantic_section_repetition_basis": "Provisional. Measured section-level values on documents that passed every other gate: 0.8199, 0.8184, 0.8297 (4 sections, nomic-embed-text 768d). Paragraph-level calibration against the known-bad 2026-08-17 article gives 0.7622 bad vs 0.6877 good, so the measure separates in the right direction but its absolute level depends on how many units are compared. 0.86 sits above the observed good band and below any measured bad document; it is set to fire on worse-than-observed rather than calibrated from a labelled corpus, and needs a bad 4-section example to anchor properly.",
+    "_min_artifacts_basis": "One distinct declared artifact per section, not more. The floor exists so that no section can be written entirely in the abstract, which is the register the previous instruction forced by forbidding invented implementation details while supplying nothing quotable. It is deliberately the weakest useful value: four artifacts are declared for this brief and a four-section document that required two per section would have to repeat them, which is concreteness theatre rather than concreteness. The document-level floor in the eval spec asks the complementary question of whether the article as a whole showed enough. Provisional; raise only against measured post-gate output."
+  }
+}

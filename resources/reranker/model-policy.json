@@ -1,0 +1,67 @@
+{
+  "schema_version": "2026-08-15",
+  "roles": {
+    "rerank.default": {
+      "model": "BAAI/bge-reranker-v2-m3",
+      "fallbacks": ["Alibaba-NLP/gte-reranker-modernbert-base"],
+      "required_capabilities": ["rerank"],
+      "description": "Dedicated cross-encoder for the second stage of Search Hub retrieval.",
+      "preference": 10,
+      "provenance": {
+        "source_kind": "measured_policy",
+        "confidence": "high",
+        "source": "resources/reranker/docs/README.md and router.routing evaluation",
+        "observed_at": "2026-08-15",
+        "sample_count": 1
+      }
+    }
+  },
+  "models": {
+    "BAAI/bge-reranker-v2-m3": {
+      "family": "bge-reranker",
+      "capabilities": ["rerank"],
+      "context_window_tokens": 8192,
+      "disk_bytes": 2288171164,
+      "resident_bytes": 1447034880,
+      "default_eligible": true,
+      "use_case_notes": "Preferred multilingual cross-encoder. Measured on the composed router.routing corpus and observed resident on the reference NVIDIA host.",
+      "caveats": ["GPU resident bytes depend on CUDA driver and request concurrency."],
+      "measurement": {
+        "suite_id": "router.routing",
+        "measured_at": "2026-08-15",
+        "sample_count": 213,
+        "top1": 0.4882629108,
+        "top3": 0.8653846154,
+        "latency_p95_ms": 4418,
+        "evidence": "search-hub evals run router.routing; run 8f0d219e-5bac-4dba-bb5f-c05589a8a910"
+      }
+    },
+    "Alibaba-NLP/gte-reranker-modernbert-base": {
+      "family": "gte-reranker-modernbert",
+      "capabilities": ["rerank"],
+      "context_window_tokens": 8192,
+      "disk_bytes": 602021760,
+      "resident_bytes": 633339904,
+      "default_eligible": false,
+      "use_case_notes": "Measured fallback candidate for constrained hosts; activation populates the relocatable cache before the managed service restart.",
+      "caveats": ["This smaller ModernBERT model must retain a visible router.routing measurement before promotion."],
+      "measurement": {
+        "suite_id": "router.routing",
+        "measured_at": "2026-08-15",
+        "sample_count": 213,
+        "top1": 0.4895104895,
+        "top3": 0.9,
+        "latency_p95_ms": 14561,
+        "evidence": "search-hub evals run router.routing; run 34828196-3a79-4c47-a254-b728989c5fd1"
+      }
+    }
+  },
+  "constraints": {
+    "preferred_bytes": 1447034880,
+    "floor_bytes": 268435456,
+    "resident_model_budget_percent": 60,
+    "max_loaded_models_policy": 1,
+    "role": "rerank.default",
+    "measurement_required": true
+  }
+}

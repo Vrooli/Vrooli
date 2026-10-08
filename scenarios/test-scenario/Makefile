@@ -1,36 +1,66 @@
-.PHONY: start run test test-unit test-integration test-performance test-dependencies test-business logs stop clean
+# Test Scenario Scenario Makefile
+#
+# This Makefile ensures scenarios are always run through the Vrooli lifecycle system.
+# NEVER run scenarios directly (./api/test-scenario-api). ALWAYS use these commands.
+#
+# Usage:
+#   make       - Show help
+#   make start - Start this scenario
+#   make stop  - Stop this scenario
+#   make test  - Run scenario tests
+#   make logs  - Show scenario logs
+#   make clean - Clean build artifacts
+#
+# This Makefile is a thin wrapper. All user-facing output (status, banners,
+# colors) is owned by the `vrooli scenario` CLI itself.
 
-start:
-	@echo "Starting test-scenario"
+.PHONY: help start run stop restart test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check setup open
 
+.DEFAULT_GOAL := help
+
+SCENARIO_NAME := $(notdir $(CURDIR))
+
+# Shared toolchain floor (mk/toolchain.mk) and build targets (mk/scenario.mk); a custom body for one of them is declared in SCENARIO_CUSTOM_TARGETS.
+-include ../../mk/scenario.mk
+
+help: ## Show this help message
+	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  %-12s %s\n", $$1, $$2}'
+
+start: ## Start this scenario
+	@vrooli scenario start $(SCENARIO_NAME)
+
+stop: ## Stop this scenario
+	@vrooli scenario stop $(SCENARIO_NAME)
+
+restart: ## Restart this scenario
+	@vrooli scenario restart $(SCENARIO_NAME)
+
+test: ## Run scenario tests
+	@vrooli scenario test $(SCENARIO_NAME)
+
+logs: ## Show scenario logs
+	@vrooli scenario logs $(SCENARIO_NAME) --tail 50
+
+status: ## Show scenario status
+	@vrooli scenario status $(SCENARIO_NAME)
+
+clean: ## Clean build artifacts
+	@rm -rf ui/dist 2>/dev/null || true
+	@rm -f api/$(SCENARIO_NAME)-api api/$(SCENARIO_NAME) 2>/dev/null || true
+
+fmt: fmt-go fmt-ui ## Format all code
+
+lint: lint-go lint-ui ## Lint all code
+
+check: fmt lint test ## Run full quality gates
+
+setup: ## Run scenario setup lifecycle
+	@vrooli scenario setup "$(SCENARIO_NAME)"
+
+open: ## Open the scenario in a browser
+	@vrooli scenario open "$(SCENARIO_NAME)"
+
+# Development shortcuts
 run: start
-
-test:
-	test-genie execute test-scenario --preset comprehensive
-
-test-unit:
-	test-genie execute test-scenario --phases unit
-
-test-integration:
-	test-genie execute test-scenario --phases integration
-
-test-performance:
-	test-genie execute test-scenario --phases performance
-
-test-dependencies:
-	test-genie execute test-scenario --phases dependencies
-
-test-business:
-	test-genie execute test-scenario --phases business
-
-logs:
-	@echo "Displaying logs for test-scenario"
-
-stop:
-	@echo "Stopping test-scenario"
-
-clean:
-	@echo "Cleaning test artifacts"
-	rm -rf coverage/
-	rm -f api/test-scenario api/test-scenario.test
-	find . -name "*.test" -type f -delete
+dev: start

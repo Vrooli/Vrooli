@@ -1,0 +1,1 @@
+{"type":"object","required":["schemaVersion","bars"],"properties":{"schemaVersion":{"const":"1.0.0"},"bars":{"type":"array"},"notGradeable":{"type":"array"}}}

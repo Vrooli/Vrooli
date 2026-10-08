@@ -1,0 +1,48 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "vault",
+  "storage": {
+    "entries": {
+      "token_cache": {
+        "rung": "owned",
+        "path": "$USER_HOME/.vault-token",
+        "kind": "file",
+        "class": "config",
+        "sensitive": true,
+        "regenerable": false,
+        "rationale": "The Vault CLI token helper caches the authenticated token in the user's home directory."
+      }
+    },
+    "rationale": "Vault owns a sensitive user-level token cache when CLI login is used."
+  },
+  "description": "HashiCorp Vault CLI for secrets management and credential operations",
+  "commands": [
+    "vault"
+  ],
+  "versionArgs": [
+    "version"
+  ],
+  "handler": "vault",
+  "packages": {
+    "brew": "hashicorp/tap/vault",
+    "winget": "Hashicorp.Vault"
+  },
+  "installHint": "Install the Vault CLI from https://developer.hashicorp.com/vault/install",
+  "bundling": "host-required",
+  "capability": "credential-storage",
+  "capability_role": "primary",
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "macos": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "windows": {
+      "status": "unqualified",
+      "evidence": null
+    }
+  }
+}

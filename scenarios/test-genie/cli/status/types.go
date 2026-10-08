@@ -8,15 +8,6 @@ type Response struct {
 	Version      string                 `json:"version"`
 	Dependencies map[string]interface{} `json:"dependencies"`
 	Operations   struct {
-		Queue struct {
-			Pending             int64 `json:"pending"`
-			Queued              int64 `json:"queued"`
-			Delegated           int64 `json:"delegated"`
-			Stale               int64 `json:"stale"`
-			Running             int64 `json:"running"`
-			Failed              int64 `json:"failed"`
-			OldestQueuedAgeSecs int64 `json:"oldestQueuedAgeSeconds"`
-		} `json:"queue"`
 		LastExecution *ExecutionSummary `json:"lastExecution"`
 	} `json:"operations"`
 }

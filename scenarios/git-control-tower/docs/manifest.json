@@ -1,0 +1,91 @@
+{
+  "$schema": "../../.vrooli/schemas/scenario-docs-manifest.schema.json",
+  "version": "2.0.0",
+  "title": "Git Control Tower Documentation",
+  "description": "Evidence-backed repository advisory, review, collaboration, and human-controlled Git operations.",
+  "defaultDocument": "QUICKSTART.md",
+  "contract": {
+    "kind": "scenario-docs",
+    "template": "react-vite",
+    "schema": "scenario-docs-manifest/v2",
+    "maturityValues": ["missing", "stub", "draft", "active", "not-applicable", "deferred", "retired"],
+    "stages": ["generated", "oriented", "implemented", "validated", "deployable", "monetizable"],
+    "extensionRule": "Register every durable scenario document and keep product contracts, operations, references, and internal evidence distinct."
+  },
+  "sections": [
+    {
+      "id": "root",
+      "title": "Scenario Contract",
+      "documents": [
+        {"path": "../README.md", "docType": "readme", "title": "README", "description": "Scenario overview and operator entrypoint", "maturity": "active", "requiredBy": ["generated"], "completion": "required"},
+        {"path": "../PRD.md", "docType": "prd", "title": "Product Requirements", "description": "Product intent, operational targets, and capability scope", "maturity": "active", "requiredBy": ["oriented"], "completion": "required"},
+        {"path": "../DESIGN.md", "docType": "design", "title": "Design Contract", "description": "Diff-first advisory workspace and interaction contract", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
+        {"path": "manifest.json", "docType": "manifest", "title": "Documentation Manifest", "description": "Machine-readable documentation contract", "maturity": "active", "requiredBy": ["generated"], "completion": "required"},
+        {"path": "QUICKSTART.md", "docType": "quickstart", "title": "Quickstart", "description": "Local setup, lifecycle, and validation entrypoint", "maturity": "active", "requiredBy": ["generated"], "completion": "required"}
+      ]
+    },
+    {
+      "id": "concepts",
+      "title": "Concepts",
+      "documents": [
+        {"path": "concepts/ARCHITECTURE.md", "docType": "architecture", "title": "Architecture", "description": "Domain boundaries, evidence flow, and ownership", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
+        {"path": "concepts/GLOSSARY.md", "docType": "glossary", "title": "Glossary", "description": "Scenario vocabulary", "maturity": "active", "requiredBy": ["oriented"], "completion": "required"},
+        {"path": "baseline-model.md", "docType": "baseline-model", "title": "Baseline Model", "description": "Durable regression evidence and comparison model", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"}
+      ]
+    },
+    {
+      "id": "reference",
+      "title": "Reference",
+      "documents": [
+        {"path": "reference/api-endpoints.md", "docType": "api-reference", "title": "API Endpoints", "description": "HTTP and Connect service surface", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
+        {"path": "reference/cli-commands.md", "docType": "cli-reference", "title": "CLI Commands", "description": "Control-plane command surface", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
+        {"path": "reference/configuration.md", "docType": "configuration", "title": "Configuration", "description": "Policy, repository, and runtime configuration", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"}
+      ]
+    },
+    {
+      "id": "operations",
+      "title": "Operations",
+      "documents": [
+        {"path": "operations/ADVISORY-OPERATIONS.md", "docType": "runbook", "title": "Advisory Operations", "description": "Failure, recovery, retention, and activation runbook", "maturity": "active", "requiredBy": ["validated"], "completion": "required"},
+        {"path": "source-distribution-integration.md", "docType": "integration", "title": "Source Distribution Integration", "description": "Cross-plan source sharing boundary", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"}
+      ]
+    },
+    {
+      "id": "internal",
+      "title": "Internal Evidence",
+      "documents": [
+        {"path": "internal/ACCEPTANCE-DOSSIER.md", "docType": "acceptance-dossier", "title": "Acceptance Dossier", "description": "Living deliverable evidence ledger", "maturity": "active", "requiredBy": ["validated"], "completion": "required"},
+        {"path": "internal/AUTHORITY-MATRIX.md", "docType": "authority-matrix", "title": "Authority Matrix", "description": "Transport-to-effect authority contract", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
+        {"path": "internal/DOMAIN-MAP.md", "docType": "domain-map", "title": "Domain Map", "description": "Domain ownership and dependency diagram", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
+        {"path": "internal/SEAMS.md", "docType": "seams", "title": "Seams", "description": "Mockable boundaries and owner contracts", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
+        {"path": "internal/INVARIANTS.md", "docType": "invariants", "title": "Invariants", "description": "Normative durability and evidence invariants", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
+        {"path": "internal/ERROR-SEMANTICS.md", "docType": "error-semantics", "title": "Error Semantics", "description": "Failure and recovery vocabulary", "maturity": "active", "requiredBy": ["validated"], "completion": "required"},
+        {"path": "internal/SECURITY-POSTURE.md", "docType": "security-posture", "title": "Security Posture", "description": "Authority, privacy, and safety posture", "maturity": "active", "requiredBy": ["validated"], "completion": "required"},
+        {"path": "internal/SAFETY-ADMISSION-REPORT.md", "docType": "safety-admission", "title": "Safety Admission", "description": "Command and fixture safety audit", "maturity": "active", "requiredBy": ["validated"], "completion": "required"},
+        {"path": "internal/PROBLEMS.md", "docType": "problems", "title": "Problems", "description": "Known issues and work-ladder standing", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
+        {"path": "internal/PROGRESS.md", "docType": "progress", "title": "Progress", "description": "Durable implementation progress", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
+        {"path": "internal/ASSUMPTIONS.md", "docType": "assumptions", "title": "Assumptions", "description": "Explicit operating assumptions", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
+        {"path": "internal/TEMPORAL-FLOWS.md", "docType": "temporal-flows", "title": "Temporal Flows", "description": "Durable lifecycle and concurrency flows", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
+        {"path": "internal/COHERENCE-NOTES.md", "docType": "coherence-notes", "title": "Coherence Notes", "description": "Cross-surface implementation notes", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
+        {"path": "internal/HOST-COLLABORATION-CONTRACT.md", "docType": "host-contract", "title": "Host Collaboration Contract", "description": "Neutral provider capability contract", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
+        {"path": "internal/MENTION-CONTRACT.md", "docType": "mention-contract", "title": "Mention Contract", "description": "Normalized mention and reply-outbox contract", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
+        {"path": "internal/PROVENANCE-SEARCH-CONTRACT.md", "docType": "provenance-contract", "title": "Provenance Search Contract", "description": "Visibility-safe provenance search binding", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
+        {"path": "internal/RETIRED-COMPATIBILITY-LEDGER.md", "docType": "compatibility-ledger", "title": "Retired Compatibility Ledger", "description": "Retired paths and migration evidence", "maturity": "active", "requiredBy": ["validated"], "completion": "required"},
+        {"path": "internal/BACKLOG-RECONCILIATION.md", "docType": "backlog-reconciliation", "title": "Backlog Reconciliation", "description": "Historical obligations and current ownership", "maturity": "active", "requiredBy": ["oriented"], "completion": "required"},
+        {"path": "internal/MATURITY-SCOPE-ASSESSMENT.md", "docType": "maturity-assessment", "title": "Maturity Scope Assessment", "description": "Dated maturity source and scope", "maturity": "active", "requiredBy": ["oriented"], "completion": "required"},
+        {"path": "internal/RESEARCH.md", "docType": "research", "title": "Research", "description": "Research findings and open questions", "maturity": "draft", "requiredBy": ["oriented"], "completion": "optional"},
+        {"path": "internal/CHANGES_LIST_REDESIGN.md", "docType": "redesign", "title": "Changes List Redesign", "description": "Diff-first workspace design evidence", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
+        {"path": "internal/MOBILE_REGRESSION_ORACLE.md", "docType": "mobile-oracle", "title": "Mobile Regression Oracle", "description": "Responsive regression cases and expected behavior", "maturity": "active", "requiredBy": ["validated"], "completion": "required"},
+        {"path": "internal/CLOUDFLARE-ACCESS-INTEGRATION.md", "docType": "integration", "title": "Cloudflare Access Integration", "description": "Provider binding, authority behavior, and operator verification", "maturity": "active", "requiredBy": ["validated"], "completion": "required"}
+      ]
+    },
+    {
+      "id": "performance",
+      "title": "Performance",
+      "documents": [
+        {"path": "perf/2026-05-03-after-fixes.md", "docType": "performance-audit", "title": "Performance After Fixes", "description": "Measured performance comparison", "maturity": "active", "requiredBy": ["validated"], "completion": "required"},
+        {"path": "perf/2026-05-03-history-markdown-resize.md", "docType": "performance-audit", "title": "History Markdown Resize Audit", "description": "History and resize performance findings", "maturity": "active", "requiredBy": ["validated"], "completion": "required"}
+      ]
+    }
+  ]
+}

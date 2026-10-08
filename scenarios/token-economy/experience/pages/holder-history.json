@@ -1,0 +1,142 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "holder-history",
+    "title": "My Activity",
+    "routes": [
+      "/me/history"
+    ],
+    "purpose": "Let a holder reconstruct exactly why their balance is what it is, including corrections, without ever showing another holder's activity.",
+    "prd_refs": [
+      "OT-P0-012",
+      "OT-P0-010",
+      "OT-P0-006"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Every change to the balance is accounted for, in order, with the reason recorded at the time."
+    },
+    {
+      "statement": "A correction is shown beside what it corrected, never in place of it.",
+      "notes": "This is what makes the economy teachable rather than arbitrary — the mistake and its fix are both true."
+    },
+    {
+      "statement": "An upcoming expiry is visible before it happens.",
+      "notes": "A balance that vanishes without warning destroys the trust the journal exists to build."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "Ordered history with reasons."
+    },
+    {
+      "id": "loading",
+      "description": "History is being fetched."
+    },
+    {
+      "id": "empty",
+      "description": "No activity yet; the page explains what will appear here."
+    },
+    {
+      "id": "partial",
+      "description": "Older history could not be loaded; what is shown is labelled as incomplete."
+    },
+    {
+      "id": "request-error",
+      "description": "History could not be loaded."
+    },
+    {
+      "id": "permission-denied",
+      "description": "The authenticated holder does not match the requested holder; nothing is rendered."
+    },
+    {
+      "id": "stale",
+      "description": "Showing cached history after a failed refresh, labelled as such rather than presented as current."
+    }
+  ],
+  "elements": [
+    {
+      "id": "history-list",
+      "role": "list",
+      "name": "Activity",
+      "description": "Every event affecting this holder, newest first."
+    },
+    {
+      "id": "history-entry",
+      "role": "listitem",
+      "name": "Activity entry",
+      "description": "One event with its amount, reason and time."
+    },
+    {
+      "id": "correction-link",
+      "role": "note",
+      "name": "Correction",
+      "description": "Marks an entry as correcting an earlier one and points at it."
+    },
+    {
+      "id": "expiry-notice",
+      "role": "alert",
+      "name": "Expiring soon",
+      "description": "Warns that part of the balance will expire."
+    }
+  ],
+  "claims": [
+    {
+      "id": "every-change-accounted",
+      "type": "state-covered",
+      "statement": "The default state accounts for every balance change with a reason; no entry renders without one.",
+      "tier": "aspirational",
+      "states": [
+        "default"
+      ]
+    },
+    {
+      "id": "correction-shown-beside-original",
+      "type": "element-present",
+      "statement": "A compensating event is displayed alongside the event it corrects, and the original remains visible.",
+      "tier": "aspirational",
+      "elements": [
+        "history-entry",
+        "correction-link"
+      ]
+    },
+    {
+      "id": "expiry-warned-in-advance",
+      "type": "element-present",
+      "statement": "An upcoming expiry is surfaced before the balance changes.",
+      "tier": "aspirational",
+      "elements": [
+        "expiry-notice"
+      ]
+    },
+    {
+      "id": "history-isolation",
+      "type": "state-covered",
+      "statement": "The permission-denied state renders no events and does not disclose whether the requested holder exists.",
+      "tier": "aspirational",
+      "states": [
+        "permission-denied"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "history-list": {
+        "testid": "holder-history-list"
+      },
+      "history-entry": {
+        "testid": "holder-history-entry"
+      },
+      "correction-link": {
+        "testid": "holder-correction-link"
+      },
+      "expiry-notice": {
+        "testid": "holder-expiry-notice"
+      }
+    }
+  }
+}

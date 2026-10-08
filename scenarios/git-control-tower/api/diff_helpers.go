@@ -50,12 +50,18 @@ const (
 	binaryUnsupported
 )
 
+// binaryImageExtensions lists raster image formats whose bytes cannot be shown
+// as text and are therefore base64-encoded for the client.
+//
+// SVG is deliberately absent: it is XML text, so git diffs it line by line and
+// so do we. Treating it as binary hid its source, its hunks, and its line counts
+// behind an opaque base64 blob. It is still previewable as an image — that is a
+// rendering decision the client makes from the extension, not a transport one.
 var binaryImageExtensions = map[string]struct{}{
 	".png":  {},
 	".jpg":  {},
 	".jpeg": {},
 	".gif":  {},
-	".svg":  {},
 	".webp": {},
 	".ico":  {},
 	".bmp":  {},
@@ -82,14 +88,30 @@ func detectBinaryKind(path string, data []byte) binaryKind {
 	if kind != binaryNone {
 		return kind
 	}
-	sample := data
-	if len(sample) > binarySampleBytes {
-		sample = sample[:binarySampleBytes]
-	}
-	if isBinaryData(sample) {
+	if isBinaryData(binarySample(data)) {
 		return binaryUnsupported
 	}
 	return binaryNone
+}
+
+// binarySample returns the leading bytes used to classify content, truncated on
+// a UTF-8 rune boundary. Cutting mid-rune would leave a trailing partial
+// sequence that isBinaryData reads as invalid UTF-8, misreporting a text file
+// with any multi-byte character near the cutoff as binary.
+func binarySample(data []byte) []byte {
+	if len(data) <= binarySampleBytes {
+		return data
+	}
+	sample := data[:binarySampleBytes]
+	// A UTF-8 sequence is at most 4 bytes, so at most 3 trailing bytes can be
+	// the start of a rune that continues past the cutoff.
+	for i := 0; i < utf8.UTFMax-1 && len(sample) > 0; i++ {
+		if r, size := utf8.DecodeLastRune(sample); r != utf8.RuneError || size > 1 {
+			break
+		}
+		sample = sample[:len(sample)-1]
+	}
+	return sample
 }
 
 func isBinaryData(sample []byte) bool {

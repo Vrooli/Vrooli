@@ -12,6 +12,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { AIMessage, AIMessageStatus, AINavigationStep } from './types';
 import type { BrowserAction } from '../ai-navigation/types';
+import { displayActionDetail, displayActionPreview, redactActionUrl } from '../utils/actionDisplay';
 import { EntitlementErrorCard } from './EntitlementErrorCard';
 
 // ============================================================================
@@ -176,6 +177,11 @@ function truncateUrl(url: string, maxLength = 40): string {
   }
 }
 
+function formatActionDetail(action: BrowserAction, field: 'value' | 'text' | 'result', value: string): string {
+  const displayValue = displayActionDetail(action, field, value);
+  return displayValue.length > 0 ? displayValue : '(empty)';
+}
+
 function getActionIcon(actionType: BrowserAction['type']): JSX.Element {
   const iconClass = "w-3.5 h-3.5";
   switch (actionType) {
@@ -199,17 +205,28 @@ function getActionIcon(actionType: BrowserAction['type']): JSX.Element {
       return <CheckCircleIcon className={iconClass} />;
     case 'request_human':
       return <HandIcon className={iconClass} />;
+    case 'find':
+    case 'read':
+      return <EyeIcon className={iconClass} />;
+    case 'evaluate':
+      return <CommandIcon className={iconClass} />;
+    case 'tabs':
+      return <ListIcon className={iconClass} />;
+    case 'drag':
+    case 'zoom':
+      return <ArrowsIcon className={iconClass} />;
     default:
       return <MousePointerIcon className={iconClass} />;
   }
 }
 
 function getActionLabel(action: BrowserAction): string {
+  const preview = displayActionPreview(action);
   switch (action.type) {
     case 'click':
       return 'Click';
     case 'type':
-      return action.text ? `Type "${action.text.slice(0, 20)}${action.text.length > 20 ? '...' : ''}"` : 'Type';
+      return preview ? `Type "${preview.slice(0, 20)}${preview.length > 20 ? '...' : ''}"` : 'Type';
     case 'scroll':
       return `Scroll ${action.direction || 'down'}`;
     case 'navigate':
@@ -217,7 +234,7 @@ function getActionLabel(action: BrowserAction): string {
     case 'hover':
       return 'Hover';
     case 'select':
-      return action.text ? `Select "${action.text}"` : 'Select';
+      return preview ? `Select "${preview}"` : 'Select';
     case 'wait':
       return 'Wait';
     case 'keypress':
@@ -226,6 +243,18 @@ function getActionLabel(action: BrowserAction): string {
       return 'Done';
     case 'request_human':
       return 'Request Help';
+    case 'find':
+      return 'Find';
+    case 'read':
+      return 'Read';
+    case 'evaluate':
+      return 'Evaluate';
+    case 'tabs':
+      return 'Tabs';
+    case 'drag':
+      return 'Drag';
+    case 'zoom':
+      return 'Zoom';
     default:
       return action.type;
   }
@@ -254,6 +283,12 @@ function getStatusConfig(status: AIMessageStatus): {
         icon: <StopIcon className="w-3 h-3 animate-pulse" />,
         label: 'Stopping',
         className: 'bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300',
+      };
+    case 'observation_unavailable':
+      return {
+        icon: <XCircleIcon className="w-3 h-3" />,
+        label: 'Connection lost',
+        className: 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300',
       };
     case 'completed':
       return {
@@ -345,6 +380,7 @@ function TimelineStep({ step, isRunning, isAborting, isLatest }: TimelineStepPro
   const isCurrentlyAborting = isAborting && isLatest;
   const hasError = !!step.error;
   const hasReasoning = !!step.reasoning;
+  const detailsId = `ai-navigation-step-details-${step.id}`;
 
   // Determine node color and ring
   // - Error: red border
@@ -376,6 +412,8 @@ function TimelineStep({ step, isRunning, isAborting, isLatest }: TimelineStepPro
         <button
           type="button"
           onClick={() => setIsExpanded(!isExpanded)}
+          aria-expanded={isExpanded}
+          aria-controls={detailsId}
           className="w-full flex items-center gap-2 px-3 py-2 bg-white/50 dark:bg-gray-800/50 hover:bg-gray-100/50 dark:hover:bg-gray-700/50 transition-colors text-left"
         >
           <span className="flex-shrink-0 w-5 h-5 rounded-full bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 text-xs font-bold flex items-center justify-center">
@@ -398,15 +436,15 @@ function TimelineStep({ step, isRunning, isAborting, isLatest }: TimelineStepPro
         {step.currentUrl && (
           <div className="flex items-center gap-2 px-3 py-1.5 text-xs border-t border-gray-200 dark:border-gray-700">
             <GlobeIcon className="w-3 h-3 flex-shrink-0 text-gray-400" />
-            <span className="font-mono text-gray-600 dark:text-gray-400 truncate" title={step.currentUrl}>
-              {truncateUrl(step.currentUrl)}
+            <span className="font-mono text-gray-600 dark:text-gray-400 truncate" title={redactActionUrl(step.currentUrl)}>
+              {truncateUrl(redactActionUrl(step.currentUrl))}
             </span>
           </div>
         )}
 
         {/* Expandable content */}
         {isExpanded && (
-          <>
+          <div id={detailsId}>
             {/* Reasoning */}
             {hasReasoning && (
               <div className="px-3 py-2 bg-purple-50/50 dark:bg-purple-900/10 border-l-2 border-purple-400 border-t border-gray-200 dark:border-gray-700">
@@ -420,8 +458,41 @@ function TimelineStep({ step, isRunning, isAborting, isLatest }: TimelineStepPro
             )}
 
             {/* Action-specific details */}
-            {(step.action.coordinates || (step.action.url && step.action.type === 'navigate')) && (
+            {(step.action.coordinates || step.action.selector || step.action.value !== undefined || step.action.text !== undefined ||
+              step.action.result !== undefined || step.action.success !== undefined || (step.action.url && step.action.type === 'navigate')) && (
               <div className="px-3 py-2 space-y-1.5 border-t border-gray-200 dark:border-gray-700">
+                {step.action.selector && (
+                  <div className="text-xs text-gray-600 dark:text-gray-400">
+                    <span className="font-medium">Selector:</span>{' '}
+                    <span className="font-mono break-all">{step.action.selector}</span>
+                  </div>
+                )}
+                {step.action.value !== undefined && (
+                  <div className="text-xs text-gray-600 dark:text-gray-400">
+                    <span className="font-medium">Value:</span>{' '}
+                    <span className="font-mono break-all">{formatActionDetail(step.action, 'value', step.action.value)}</span>
+                  </div>
+                )}
+                {step.action.text !== undefined && (
+                  <div className="text-xs text-gray-600 dark:text-gray-400">
+                    <span className="font-medium">Text:</span>{' '}
+                    <span className="break-words">{formatActionDetail(step.action, 'text', step.action.text)}</span>
+                  </div>
+                )}
+                {step.action.result !== undefined && (
+                  <div className="text-xs text-gray-600 dark:text-gray-400">
+                    <span className="font-medium">Result:</span>{' '}
+                    <span className="break-words">{formatActionDetail(step.action, 'result', step.action.result)}</span>
+                  </div>
+                )}
+                {step.action.success !== undefined && (
+                  <div className="text-xs text-gray-600 dark:text-gray-400">
+                    <span className="font-medium">Outcome:</span>{' '}
+                    <span className={step.action.success ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
+                      {step.action.success ? 'Success' : 'Failed'}
+                    </span>
+                  </div>
+                )}
                 {step.action.coordinates && (
                   <div className="text-xs bg-gray-100 dark:bg-gray-700/50 rounded px-2 py-1 font-mono text-gray-600 dark:text-gray-400 inline-block">
                     ({step.action.coordinates.x}, {step.action.coordinates.y})
@@ -431,12 +502,12 @@ function TimelineStep({ step, isRunning, isAborting, isLatest }: TimelineStepPro
                 {step.action.url && step.action.type === 'navigate' && (
                   <div className="text-xs text-gray-600 dark:text-gray-400">
                     <span className="font-medium">To:</span>{' '}
-                    <span className="font-mono">{truncateUrl(step.action.url)}</span>
+                    <span className="font-mono">{truncateUrl(redactActionUrl(step.action.url))}</span>
                   </div>
                 )}
               </div>
             )}
-          </>
+          </div>
         )}
 
         {/* Error display - always visible if present */}
@@ -470,18 +541,20 @@ function NavigationTimeline({ message, onAbort, onHumanDone }: NavigationTimelin
   const isDoneAction = lastStep?.action.type === 'done';
   const effectiveStatus = isDoneAction && (status === 'running' || status === 'pending') ? 'completed' : status;
   // isRunning means we're actively navigating (show skeleton, progress bar, etc.)
-  const isRunning = (effectiveStatus === 'running' || effectiveStatus === 'pending') && !isDoneAction;
+  const isRunning = (effectiveStatus === 'running' || effectiveStatus === 'pending' || effectiveStatus === 'observation_unavailable') && !isDoneAction;
   // isAborting means we're in the process of stopping (show different UI state)
   const isAborting = effectiveStatus === 'aborting';
   // isInProgress means we're either running or aborting (for skeleton and progress display)
   const isInProgress = isRunning || isAborting;
   const isAwaitingHuman = effectiveStatus === 'awaiting_human';
   const statusConfig = getStatusConfig(effectiveStatus);
+  const timelineContentId = `ai-navigation-content-${message.id}`;
 
   // Auto-scroll to latest step (only when not collapsed)
   useEffect(() => {
     if (isRunning && !isCollapsed && latestStepRef.current) {
-      latestStepRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      // Embedded webviews and test DOMs may not implement scrollIntoView.
+      latestStepRef.current.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
     }
   }, [steps.length, isRunning, isCollapsed]);
 
@@ -493,6 +566,8 @@ function NavigationTimeline({ message, onAbort, onHumanDone }: NavigationTimelin
         <button
           type="button"
           onClick={() => setIsCollapsed(!isCollapsed)}
+          aria-expanded={!isCollapsed}
+          aria-controls={timelineContentId}
           className="w-full text-left hover:opacity-80 transition-opacity"
         >
           <div className="flex items-start gap-2">
@@ -528,6 +603,7 @@ function NavigationTimeline({ message, onAbort, onHumanDone }: NavigationTimelin
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); onAbort(); }}
+              aria-label="Stop navigation"
               className="ml-auto p-1 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition-colors"
               title="Stop Navigation"
             >
@@ -559,7 +635,7 @@ function NavigationTimeline({ message, onAbort, onHumanDone }: NavigationTimelin
 
       {/* Collapsible content */}
       {!isCollapsed && (
-        <>
+        <div id={timelineContentId}>
           {/* Timeline container */}
           {steps.length > 0 && (
             <div className="relative border-l border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/50 px-3 py-3">
@@ -654,6 +730,13 @@ function NavigationTimeline({ message, onAbort, onHumanDone }: NavigationTimelin
               </div>
             )}
 
+            {effectiveStatus === 'observation_unavailable' && message.error && (
+              <div className="flex items-start gap-2 text-yellow-700 dark:text-yellow-300">
+                <XCircleIcon className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                <span className="text-sm">{message.error}. The navigation may still be active; stop it before starting another request.</span>
+              </div>
+            )}
+
             {effectiveStatus === 'aborted' && (
               <div className="flex items-center gap-2 text-yellow-700 dark:text-yellow-300">
                 <XCircleIcon className="w-4 h-4" />
@@ -680,6 +763,7 @@ function NavigationTimeline({ message, onAbort, onHumanDone }: NavigationTimelin
             {message.canAbort && isRunning && !isAborting && onAbort && (
               <button
                 onClick={(e) => { e.stopPropagation(); onAbort(); }}
+                aria-label="Stop navigation"
                 className="mt-2 w-full px-3 py-1.5 text-xs font-medium text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-900/30 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors border border-red-200 dark:border-red-800 flex items-center justify-center gap-1.5"
               >
                 <StopIcon className="w-3.5 h-3.5" />
@@ -687,7 +771,7 @@ function NavigationTimeline({ message, onAbort, onHumanDone }: NavigationTimelin
               </button>
             )}
           </div>
-        </>
+        </div>
       )}
     </div>
   );

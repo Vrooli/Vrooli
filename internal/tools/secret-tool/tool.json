@@ -1,0 +1,38 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "secret-tool",
+  "storage": {
+    "entries": {},
+    "rationale": "This tool has no tool-owned persistent storage in the supported Vrooli workflow; the explicit empty declaration records that caches or credentials are owned by the invoking workflow."
+  },
+  "description": "libsecret Secret Service command client used only by the Linux managed-resource credential store",
+  "commands": [
+    "secret-tool"
+  ],
+  "versionArgs": [],
+  "defaultPackage": "libsecret-tools",
+  "packages": {
+    "apt": "libsecret-tools",
+    "dnf": "libsecret",
+    "pacman": "libsecret",
+    "apk": "libsecret"
+  },
+  "installHint": "Install libsecret-tools, then start and unlock a user Secret Service session before starting a shared managed resource.",
+  "bundling": "host-required",
+  "capability": "credential-storage",
+  "capability_role": "peer",
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "macos": {
+      "status": "unsupported",
+      "evidence": "This host OS has no declaration for the provider native command surface."
+    },
+    "windows": {
+      "status": "unsupported",
+      "evidence": "This host OS has no declaration for the provider native command surface."
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "id": ".",
+  "name": "Experience Manager",
+  "short_name": "experience-manager",
+  "description": "Experience-axis authority: machine-checkable UX spec contract (experience/), form-based authoring and workshop studio, and validation of built UIs against declared experience intent.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "manifest-icon-192.maskable.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "manifest-icon-512.maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

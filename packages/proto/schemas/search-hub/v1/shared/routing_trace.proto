@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package vrooli.search_hub.v1.shared;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/shared;shared_v1";
+
+// Bounded evidence for one automatic provider-selection decision. Ranks are
+// 1-based; zero means that the provider was absent from that stage's retained
+// window. This is diagnostic evidence only and never changes grading labels.
+message ProviderRoutingEvidence {
+  string provider_id = 1;
+  int32 dense_rank = 2;
+  double dense_score = 3;
+  int32 lexical_rank = 4;
+  double lexical_score = 5;
+  bool in_evidence_union = 6;
+  int32 cross_encoder_rank = 7;
+  double cross_encoder_score = 8;
+  bool selected = 9;
+}
+
+// Auditable, bounded trace of the automatic provider-selection ladder. The
+// trace is populated for federated routing evaluation and is intentionally
+// small enough to persist with every compared case.
+message RoutingTrace {
+  string strategy_name = 1;
+  string index_status = 2;
+  string index_reason = 3;
+  repeated string dense_top_provider_ids = 4;
+  repeated string lexical_top_provider_ids = 5;
+  repeated ProviderRoutingEvidence candidates = 6;
+  repeated string selected_provider_ids = 7;
+  string selection_reason = 8;
+  string returned_evidence = 9;
+  string unavailable_reason = 10;
+}

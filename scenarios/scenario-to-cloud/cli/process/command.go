@@ -37,7 +37,7 @@ Commands:
   kill <deployment-id> <pid>                Kill a process by PID
   restart <deployment-id> <type> <name>     Restart a scenario or resource
   control <deployment-id> <action> [type]   Start/stop/restart processes
-  vps-action <deployment-id> <action>       VPS-level actions (reboot, shutdown)
+  vps-action <deployment-id> <action>       VPS-level actions (cleanup, stop_vrooli)
 
 Run 'scenario-to-cloud process <command> -h' for command-specific options.`)
 	return nil
@@ -259,6 +259,8 @@ Examples:
 func runVPSAction(client *Client, args []string) error {
 	var deploymentID, action string
 	jsonOutput := false
+	cleanupLevel := 0
+	confirmation := ""
 
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
@@ -266,15 +268,33 @@ func runVPSAction(client *Client, args []string) error {
 			fmt.Println(`Usage: scenario-to-cloud process vps-action <deployment-id> <action>
 
 Arguments:
-  action  VPS action: reboot, shutdown, start
+  action  VPS action: reboot, shutdown, start, stop_vrooli, cleanup
 
 Flags:
-  --json  Output raw JSON
+  --cleanup-level <1-5>  Required for cleanup
+  --confirmation <text>  Typed confirmation for effectful actions
+  --json                 Output raw JSON
 
 WARNING: These actions affect the entire VPS!`)
 			return nil
 		case "--json":
 			jsonOutput = true
+		case "--cleanup-level":
+			if i+1 >= len(args) {
+				return fmt.Errorf("--cleanup-level requires a value")
+			}
+			i++
+			level, err := strconv.Atoi(args[i])
+			if err != nil {
+				return fmt.Errorf("invalid cleanup level: %s", args[i])
+			}
+			cleanupLevel = level
+		case "--confirmation":
+			if i+1 >= len(args) {
+				return fmt.Errorf("--confirmation requires a value")
+			}
+			i++
+			confirmation = args[i]
 		default:
 			if !strings.HasPrefix(args[i], "-") {
 				if deploymentID == "" {
@@ -290,12 +310,12 @@ WARNING: These actions affect the entire VPS!`)
 		return fmt.Errorf("usage: scenario-to-cloud process vps-action <deployment-id> <action>")
 	}
 
-	validActions := map[string]bool{"reboot": true, "shutdown": true, "start": true}
+	validActions := map[string]bool{"reboot": true, "shutdown": true, "start": true, "stop_vrooli": true, "cleanup": true}
 	if !validActions[action] {
-		return fmt.Errorf("action must be 'reboot', 'shutdown', or 'start', got: %s", action)
+		return fmt.Errorf("action must be 'reboot', 'shutdown', 'start', 'stop_vrooli', or 'cleanup', got: %s", action)
 	}
 
-	req := VPSActionRequest{Action: action}
+	req := VPSActionRequest{Action: action, CleanupLevel: cleanupLevel, Confirmation: confirmation}
 	body, resp, err := client.VPSAction(deploymentID, req)
 	if err != nil {
 		return err

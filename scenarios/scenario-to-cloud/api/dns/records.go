@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	mdns "github.com/miekg/dns"
-
 	"scenario-to-cloud/domain"
+
+	mdns "github.com/miekg/dns"
 )
 
 // LookupRecordSet returns common DNS records for a domain using system resolvers.

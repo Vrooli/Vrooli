@@ -1,0 +1,149 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "web-search.research",
+  "version": "2",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Answer one question through the owner evidence policy with complete source-linked output; current evidence is the default.",
+  "inputs": {
+    "query": {
+      "type": "string",
+      "required": true
+    },
+    "effort": {
+      "type": "string",
+      "default": "l2",
+      "enum": [
+        "l0",
+        "l1",
+        "l2"
+      ]
+    },
+    "max_age_seconds": {
+      "type": "integer",
+      "default": 0
+    },
+    "source_domains": {
+      "type": "array"
+    },
+    "minimum_sources": {
+      "type": "integer",
+      "default": 1
+    },
+    "top_n": {
+      "type": "integer",
+      "default": 5
+    },
+    "capture": {
+      "type": "boolean",
+      "default": false
+    },
+    "finding_id": {
+      "type": "string"
+    },
+    "parent_run_id": {
+      "type": "string"
+    }
+  },
+  "assumptions": [
+    "web-search owns evidence policy and is reachable; stored reuse requires an explicit age budget."
+  ],
+  "invariants": [
+    "The program calls the owner Answer operation once.",
+    "Claim text and its citations stay together.",
+    "Finding use is recorded only by explicit outcome feedback, never on retrieval."
+  ],
+  "bindings": [
+    {
+      "id": "web-search/research/answer",
+      "effect": "write"
+    }
+  ],
+  "verbs": [
+    "capture",
+    "tasks.get",
+    "validate"
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "refused",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "act",
+        "report"
+      ]
+    },
+    "signals": {
+      "brief": "Complete summary and selected citations",
+      "results": "At most ten raw hits",
+      "answer_kind": "stored_finding, cited_synthesis, raw_hits, none",
+      "gaps": "Unresolved evidence requirements",
+      "checked_at": "Source retrieval time",
+      "live_calls": "Live owner calls in this attempt",
+      "finding_ids": "Findings contributing to answer",
+      "captured_finding_ids": "Findings persisted by this attempt"
+    },
+    "errors": {
+      "classes": [
+        "invalid_input",
+        "binding_error",
+        "scenario_unreachable",
+        "no_grant",
+        "remote_error",
+        "no_governed_binding"
+      ]
+    },
+    "evidence": "finding ids read or written"
+  },
+  "budget": {
+    "wall_ms": 120000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 50,
+    "output_bytes": 65536
+  },
+  "fixtures": [
+    {
+      "id": "bad-query",
+      "inputs": {
+        "query": ""
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      },
+      "requires": [
+        "web-search"
+      ]
+    },
+    {
+      "id": "current-live",
+      "inputs": {
+        "query": "Python documentation",
+        "effort": "l0"
+      },
+      "expect": {
+        "status": [
+          "ok",
+          "partial",
+          "unavailable"
+        ]
+      },
+      "requires": [
+        "web-search"
+      ]
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "web-search"
+}

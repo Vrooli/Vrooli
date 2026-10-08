@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "selectors": {},
+  "dynamicSelectors": {},
+  "sources": {
+    "ui/src/consts/selectors.library.ts": "b59c9936b32366ad576ac2f7b9f9690194df4834f034ef71efa4836e71883eda",
+    "ui/src/consts/selectors.ts": "0da3fce647d6706c3ca7fe2bcf74902ea9907e1a01d86d258885868c30dc1131"
+  }
+}

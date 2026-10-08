@@ -7,20 +7,21 @@ Scenario-level control surface for browser-automation-studio across the Go API, 
 | Lever | Set via | Default | When to move |
 |-------|---------|---------|--------------|
 | Execution budget & per-step limits | Workflow metadata `executionTimeoutMs`/`defaultTimeoutMs`; API `BAS_EXECUTION_*`; driver `EXECUTION_*` | API dynamic ≈ `30s + steps*10s` (subflows 15s/step, clamp 90s–4.5m); driver 30s default / 45s navigation / 30s waits / 15s assertions | Raise for flaky/slow sites; lower for CI fail fast. Keep driver < API < HTTP client (5m). |
-| Selector probes & heartbeats | `BAS_EXECUTION_DEFAULT_ENTRY_TIMEOUT_MS`, `BAS_EXECUTION_MIN_ENTRY_TIMEOUT_MS`, `BAS_EXECUTION_HEARTBEAT_INTERVAL_MS` (`BROWSERLESS_HEARTBEAT_INTERVAL` alias) | 3000ms entry / 250ms floor / 2000ms heartbeats (0 = off) | Increase entry timeout for slow rendering; shorten for fixtures to catch missing selectors quickly. Lengthen or disable heartbeats if clients are bandwidth-constrained; tighten for closer liveness tracking. |
+| Selector probes & heartbeats | `BAS_EXECUTION_DEFAULT_ENTRY_TIMEOUT_MS`, `BAS_EXECUTION_MIN_ENTRY_TIMEOUT_MS`, `BAS_EXECUTION_HEARTBEAT_INTERVAL_MS` | 3000ms entry / 250ms floor / 2000ms heartbeats (0 = off) | Increase entry timeout for slow rendering; shorten for fixtures to catch missing selectors quickly. Lengthen or disable heartbeats if clients are bandwidth-constrained; tighten for closer liveness tracking. |
 | Session concurrency/pooling | Driver `MAX_SESSIONS`, `SESSION_POOL_SIZE`, `SESSION_IDLE_TIMEOUT_MS`; engine capabilities mirror driver | 10 concurrent / pool 5 / idle 5m | Raise pool/idle for reuse-heavy runs; cap lower for resource-constrained nodes. Keep `maxConcurrent >= poolSize`. |
 | Telemetry backpressure | `BAS_EVENTS_PER_EXECUTION_BUFFER`, `BAS_EVENTS_PER_ATTEMPT_BUFFER`, `BAS_WS_CLIENT_*` | 200 per execution / 50 per attempt; WS send 256 / binary 120 / read 512 | Raise for verbose console/network/heartbeat streams or UX metrics; lower on memory pressure. Droppable events are heartbeat/telemetry/screenshot; completion/failure stay guaranteed. |
 | Recording quality & archive bounds | `BAS_RECORDING_DEFAULT_*`, `BAS_RECORDING_MAX_ARCHIVE_BYTES`, `BAS_RECORDING_MAX_FRAMES`, driver recording toggles | 1280x720, 6 FPS, JPEG 55; 200MB archive; 400 frames; 90s idle timeout | Raise quality/FPS for demos; lower for CI to reduce bandwidth and processing. Trim archive/frame caps when running many parallel recordings. |
+| Default artifact profile | `BAS_ARTIFACT_DEFAULT_PROFILE` (per-execution `ExecutionParameters.artifact_config.profile` overrides) | `standard` (screenshots, console, extracted data, assertions; **no** DOM snapshots or network capture) | Leave on `standard` for normal/test-heavy local use to curb `recordings/` growth (DOM snapshots are a top storage category). Set to `full` when debugging needs DOM/network/cursor artifacts; `minimal`/`none` for the leanest runs. |
 | Replay/export workload | `BAS_REPLAY_CAPTURE_INTERVAL_MS`, `BAS_REPLAY_MAX_CAPTURE_FRAMES`, `BAS_REPLAY_RENDER_TIMEOUT_MS`, `BAS_EXPORT_FRAME_INTERVAL_MS`, `FFMPEG_BIN` | 40ms interval, 720 frames, 16m render timeout | Tighten for CI to avoid long ffmpeg runs; loosen for customer-ready exports. |
 | DOM/AI extraction limits | `BAS_AI_DOM_*`, `BAS_AI_PREVIEW_*` | Depth 6, nodes 800, text 120 chars, waits 750/1200ms; preview 1920x1080 | Raise for complex SPAs; lower to keep payloads lean and control inference cost. |
-| Database resilience | `BAS_DB_BACKEND`, `DATABASE_URL`, `BAS_DB_MAX_OPEN_CONNS`, `BAS_DB_MAX_IDLE_CONNS`, retry envs | Postgres; 25 open / 5 idle; retries 10 with 1s base and jitter 0.25 | Raise pool for high concurrency; trim for laptops. Increase retry delay/jitter for noisy networks. |
+| Database resilience | `BAS_SQLITE_PATH`, retry envs | SQLite single-connection (busy_timeout=10s, WAL); retries 10 with 1s base and jitter 0.25 | Override the file path for non-default deployments. Increase retry delay/jitter for noisy filesystems. |
 | Entitlement & gating | `BAS_ENTITLEMENT_*` | Disabled; cache 5m; offline grace 24h; default tier `free` | Enable in staged/prod to enforce tier limits and watermarks; align cache TTL with billing cadence. |
 | Observability & perf diagnostics | `LOG_LEVEL`, `LOG_FORMAT`, driver `METRICS_ENABLED`; API `BAS_PERF_*`; health timeouts `BAS_TIMEOUT_*` | `info` / `json`; perf disabled; metrics on | Bump to `debug` when diagnosing dragDrop/selector issues or stream stalls. Enable perf buffers temporarily when profiling frame streaming. |
 
 ## Profiles (swap quickly)
 
 - **Fast local iteration:** `BAS_TIMEOUT_DEFAULT_REQUEST_MS=2500`, `BAS_EXECUTION_PER_STEP_TIMEOUT_MS=6000`, `BAS_EXECUTION_HEARTBEAT_INTERVAL_MS=1000`, `SCREENSHOT_ENABLED=false`, `DOM_ENABLED=false`, `BAS_EVENTS_PER_EXECUTION_BUFFER=120`, `BAS_EVENTS_PER_ATTEMPT_BUFFER=30`.
-- **Flaky/slow CI:** `EXECUTION_NAVIGATION_TIMEOUT_MS=90000`, `EXECUTION_WAIT_TIMEOUT_MS=60000`, `BAS_EXECUTION_PER_STEP_SUBFLOW_TIMEOUT_MS=25000`, `BAS_DB_MAX_OPEN_CONNS=40`, `BAS_WS_CLIENT_BINARY_BUFFER_SIZE=256`, `BAS_EVENTS_PER_EXECUTION_BUFFER=400`; keep HAR/video off.
+- **Flaky/slow CI:** `EXECUTION_NAVIGATION_TIMEOUT_MS=90000`, `EXECUTION_WAIT_TIMEOUT_MS=60000`, `BAS_EXECUTION_PER_STEP_SUBFLOW_TIMEOUT_MS=25000`, `BAS_WS_CLIENT_BINARY_BUFFER_SIZE=256`, `BAS_EVENTS_PER_EXECUTION_BUFFER=400`; keep HAR/video off.
 - **High-fidelity demos/exports:** `BAS_RECORDING_DEFAULT_STREAM_QUALITY=75`, `BAS_RECORDING_DEFAULT_STREAM_FPS=12`, `SCREENSHOT_FULL_PAGE=true`, `BAS_AI_PREVIEW_WAIT_MS=1800`, `BAS_REPLAY_CAPTURE_INTERVAL_MS=25`, `BAS_REPLAY_PRESENTATION_WIDTH=1920`, `BAS_REPLAY_PRESENTATION_HEIGHT=1080`.
 
 ## Hierarchy & bounds to respect
@@ -30,13 +31,104 @@ Scenario-level control surface for browser-automation-studio across the Go API, 
 - Storage/telemetry caps: keep screenshot/DOM/network caps below driver `MAX_REQUEST_SIZE` and API `BAS_HTTP_MAX_BODY_BYTES` to avoid rejection.
 - Ensure archive caps and replay frame counts stay within storage quotas when running parallel executions.
 
+## Session-reuse contract
+
+`metadata.labels.session_reuse_mode` controls isolation between workflow **executions**, never between steps of one execution. `fresh` creates an isolated execution session and `clean` resets execution state; both preserve navigation, cookies, and page state required by later steps in that same workflow. A session that disappears during execution invalidates navigation state and the next navigation-dependent step must re-establish it.
+
+## Real-time audio capability
+
+The driver measures browser audio output once per process. It never selects an
+audio path from the operating system, sound server, or deployment tier.
+
+- `device_available` means a bare `AudioContext` advanced by at least 0.5
+  seconds during the 1200 ms probe. The session uses `host_device` unchanged.
+- `no_device` means that clock did not advance in the probe window. The session
+  uses `synthetic_sink`, which transparently passes `{ type: "none" }` as the
+  AudioContext sink.
+- `detection_failed` means the probe threw. The driver records the error and
+  also selects `synthetic_sink`, because a missing output is otherwise fatal.
+
+Audio-bearing diagnostics include `audio_strategy`, `host_audio_outcome`, and
+`host_audio_reason`. A `synthetic_sink` result proves deterministic browser
+rendering without a physical output device; it must not be described as a
+host-device result. If audio still fails with that strategy, the finding is
+`realtime_audio_driver_failure`; otherwise the finding names the host output
+state, strategy, measured clock delta, and window.
+
+For deterministic fake-microphone sessions, the anti-detection AnalyserNode
+noise patch is excluded. This avoids randomised level data contaminating audio
+measurements.
+
+### What the synthetic sink does and does not restore
+
+The synthetic sink removes the blocking output device. It does not supply a
+clock. Measured by interleaved A/B over three repetitions on a host with no
+available output profile:
+
+| Graph | Unpatched | With synthetic sink |
+| --- | --- | --- |
+| Capture-driven (`getUserMedia` from a fake-capture WAV) | 32.3 s, clock 0.062x | 2.3 s, clock 0.996x |
+| Output-only (oscillator, no capture stream) | ~30 s stall, then 0.25x | unchanged |
+
+Deterministic audio workflows are capture-driven, so they are fully restored. An
+output-only graph has no clock source other than the output device, so it is not
+restored and is not expected to be.
+
+`bas/flows/realtime-audio-capability-probe.json` is an **output-only** probe. On
+a host without an output device it reports `currentTimeDelta: 0` whether or not
+the synthetic sink is active. That zero is the expected `no_device` signal, not
+a driver failure and not evidence that the sink is inactive. To confirm the sink
+is applied, evaluate `window.AudioContext.name` and expect
+`SilentSinkAudioContext`. To measure the restored path, use a workflow that
+declares `settings.fake_media.microphone_wav`; the driver-level equivalent is
+`tests/integration/synthetic-audio-fidelity.test.ts`.
+
+### Verification status of each strategy
+
+`synthetic_sink` is verified live on a host with no available output profile:
+peak amplitude within 0.01 of the 0.4812 reference-WAV true peak, real-time
+paced, and an identical RMS series across three consecutive captures.
+
+`host_device` is covered by unit tests and by a simulated detection result only.
+It has **not** been exercised live, because the development host has no
+selectable output profile to exercise it with. Verifying it requires a host
+where at least one non-`off` PipeWire profile reports `available=yes` — in
+practice, an attached HDMI display carrying audio or an occupied analog jack —
+on which `detectHostAudioCapability` returns `device_available`. Until that runs,
+treat live `host_device` behaviour as unproven.
+
 ## Recently wired levers (now active)
 
 - Execution timeout envs honored via `config.Execution` (base/per-step/subflow/min/max) with safe defaults (`BAS_EXECUTION_*`).
-- Heartbeat cadence now comes from `BAS_EXECUTION_HEARTBEAT_INTERVAL_MS` (alias `BROWSERLESS_HEARTBEAT_INTERVAL`), defaulting to 2s with 0 to disable.
+- Heartbeat cadence now comes from `BAS_EXECUTION_HEARTBEAT_INTERVAL_MS`, defaulting to 2s with 0 to disable.
 - Event buffer limits now respect `BAS_EVENTS_PER_EXECUTION_BUFFER` / `BAS_EVENTS_PER_ATTEMPT_BUFFER` for WebSocket sinks and collectors.
 - Adhoc cleanup cadence/retention configurable via `BAS_EXECUTION_ADHOC_CLEANUP_INTERVAL_MS` / `BAS_EXECUTION_ADHOC_RETENTION_PERIOD_MS`.
 - Engine concurrency cap mirrors driver `MAX_SESSIONS` (default 10) for consistent pool limits.
+
+## Execution artifact retention
+
+Normal executions default to the `standard` artifact profile, but `recordings/<execution-id>/`
+directories still accumulate for every run. Retention is an explicit, operator-driven
+operation (no automatic background sweep): preview first, then apply with confirmation.
+
+Selection is restricted to terminal executions (`completed`, `failed`) — running/pending
+executions are never touched. `keep_latest` spares the N most-recent terminal executions
+per workflow; `max_age_days` filters by `completed_at` (falling back to `started_at`).
+Each removal deletes the DB index row and the matching artifact directory together; the
+directory must resolve under the configured recordings root or it is skipped as unsafe.
+
+```bash
+# Dry-run: report what would be removed and the reclaim estimate (no mutation).
+browser-automation-studio executions retention-preview --max-age-days 3 --keep-latest 50
+
+# Apply: delete matched rows + artifact directories. --confirm is mandatory.
+browser-automation-studio executions retention-run --max-age-days 3 --keep-latest 50 --confirm
+```
+
+Recommended local default for adhoc/test-heavy use: `--max-age-days 3 --keep-latest 50`.
+Both commands accept optional `--workflow-id` / `--project-id` filters and `--json` for the
+proto-shaped report. The same operation is exposed over Connect as
+`ExecutionsService.PreviewExecutionArtifactRetention` / `RunExecutionArtifactRetention`.
 
 ## Non-levers (keep internal)
 
@@ -51,3 +143,5 @@ Scenario-level control surface for browser-automation-studio across the Go API, 
 - `api/services/workflow/automation.go` – heartbeat wiring into executor requests.
 - `api/services/workflow/service.go` / `api/handlers/handler.go` – event buffer limits applied to WebSocket sinks.
 - `playwright-driver/src/config.ts` and `playwright-driver/CONTROL-SURFACE.md` – driver-side levers.
+- `api/config/artifact_profiles.go` – artifact profiles and default-profile resolution (`BAS_ARTIFACT_DEFAULT_PROFILE`).
+- `api/services/retention/` – execution artifact retention service (FileSystem seam, selection/safety rules).

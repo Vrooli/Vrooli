@@ -2,19 +2,17 @@ package engine
 
 import (
 	"context"
-	"os"
 	"testing"
 
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
+	"github.com/vrooli/browser-automation-studio/internal/testutil/integration"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 )
 
 // Requires a running Playwright driver (PLAYWRIGHT_DRIVER_URL). Skipped otherwise.
 func TestPlaywrightEngine_IntegrationSmoke(t *testing.T) {
-	if os.Getenv("PLAYWRIGHT_DRIVER_URL") == "" {
-		t.Skip("PLAYWRIGHT_DRIVER_URL not set; skipping integration smoke test")
-	}
+	integration.RequireEnv(t, "PLAYWRIGHT_DRIVER_URL", "Playwright engine smoke test")
 
 	eng, err := NewPlaywrightEngine(nil)
 	if err != nil {

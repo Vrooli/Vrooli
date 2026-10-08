@@ -1,0 +1,161 @@
+{
+  "run": {
+    "id": "58257550-4062-40d8-aa7d-ffa4f01d279f",
+    "task_id": "096c52a1-8735-4654-abd5-4c1c1e96de11",
+    "agent_profile_id": "01ed3efc-aff6-44c7-b77c-0c548d56d1c9",
+    "tag": "finite-leader-50c76510-7167-46ba-82d3-fc7002195d7b",
+    "run_mode": "RUN_MODE_IN_PLACE",
+    "status": "RUN_STATUS_RUNNING",
+    "started_at": "2026-10-03T02:50:49.550334120Z",
+    "phase": "RUN_PHASE_EXECUTING",
+    "last_heartbeat": "2026-10-03T02:50:49.555816107Z",
+    "progress_percent": 50,
+    "idempotency_key": "finite-leader-50c76510-7167-46ba-82d3-fc7002195d7b",
+    "approval_state": "APPROVAL_STATE_NONE",
+    "resolved_config": {
+      "runner_type": "RUNNER_TYPE_CODEX",
+      "model": "gpt-6-luna",
+      "role_ref": "code.economy.delivery",
+      "max_turns": 1000,
+      "timeout": "43200s",
+      "tool_restriction_policy": "enforced",
+      "effort": "high",
+      "network_access": "NETWORK_ACCESS_FULL",
+      "policy_snapshot": {
+        "catalog_digest": "sha256:a34cb8ef50dfb3a9540ed0c5997e3563e32dc216c8cda152a7cf8c30fb94f6cb",
+        "candidates": [
+          {
+            "runner_type": "RUNNER_TYPE_CODEX",
+            "selection_type": "MODEL_SELECTION_TYPE_MODEL",
+            "model": "gpt-6-luna",
+            "resource_role": "code.delivery",
+            "available": true,
+            "provenance": {
+              "source": "Owner-validated Codex 0.156.1 catalog at /usr/bin/codex exposes gpt-6-luna and gpt-6-sol. Use Luna medium for economical delivery and Sol medium for infrequent independent supervision; Agent Manager's managed codec bypasses the Vrooli attribution shim and selects the installed system runner; Astra remains excluded.",
+              "observed_at": "2026-09-28"
+            },
+            "enforcement": {
+              "permissions": "hook_unverified",
+              "caveats": [
+                "Codex's native permission settings remain intent-only; Vrooli projects a PreToolUse hook, but hook firing requires a live canary on the installed Codex version."
+              ]
+            },
+            "policy_path": "/home/matthalloran8/Vrooli/resources/codex/model-policy.json",
+            "policy_digest": "17c984eca6d24caf23fc1d15d8a428735aaaa9bac75d074ecd5ae78f85605181"
+          }
+        ],
+        "selected_candidate": {
+          "runner_type": "RUNNER_TYPE_CODEX",
+          "selection_type": "MODEL_SELECTION_TYPE_MODEL",
+          "model": "gpt-6-luna",
+          "resource_role": "code.delivery",
+          "available": true,
+          "provenance": {
+            "source": "Owner-validated Codex 0.156.1 catalog at /usr/bin/codex exposes gpt-6-luna and gpt-6-sol. Use Luna medium for economical delivery and Sol medium for infrequent independent supervision; Agent Manager's managed codec bypasses the Vrooli attribution shim and selects the installed system runner; Astra remains excluded.",
+            "observed_at": "2026-09-28"
+          },
+          "enforcement": {
+            "permissions": "hook_unverified",
+            "caveats": [
+              "Codex's native permission settings remain intent-only; Vrooli projects a PreToolUse hook, but hook firing requires a live canary on the installed Codex version."
+            ]
+          },
+          "policy_path": "/home/matthalloran8/Vrooli/resources/codex/model-policy.json",
+          "policy_digest": "17c984eca6d24caf23fc1d15d8a428735aaaa9bac75d074ecd5ae78f85605181"
+        },
+        "explanation": {
+          "source": "portable_role",
+          "summary": "portable role \"code.economy.delivery\" resolved through resource-owned policy catalogs; selected candidate 0 (codex/gpt-6-luna)",
+          "requested_role_ref": "code.economy.delivery",
+          "preflight": [
+            {
+              "candidate": {
+                "runner_type": "RUNNER_TYPE_CODEX",
+                "selection_type": "MODEL_SELECTION_TYPE_MODEL",
+                "model": "gpt-6-luna",
+                "resource_role": "code.delivery",
+                "available": true,
+                "provenance": {
+                  "source": "Owner-validated Codex 0.156.1 catalog at /usr/bin/codex exposes gpt-6-luna and gpt-6-sol. Use Luna medium for economical delivery and Sol medium for infrequent independent supervision; Agent Manager's managed codec bypasses the Vrooli attribution shim and selects the installed system runner; Astra remains excluded.",
+                  "observed_at": "2026-09-28"
+                },
+                "enforcement": {
+                  "permissions": "hook_unverified",
+                  "caveats": [
+                    "Codex's native permission settings remain intent-only; Vrooli projects a PreToolUse hook, but hook firing requires a live canary on the installed Codex version."
+                  ]
+                },
+                "policy_path": "/home/matthalloran8/Vrooli/resources/codex/model-policy.json",
+                "policy_digest": "17c984eca6d24caf23fc1d15d8a428735aaaa9bac75d074ecd5ae78f85605181"
+              },
+              "available": true
+            }
+          ]
+        },
+        "role_ref": "code.economy.delivery",
+        "selection_reason": "catalog_order"
+      },
+      "sandbox_config": {
+        "lifecycle": {
+          "delete_on": [
+            "SANDBOX_LIFECYCLE_EVENT_TERMINAL"
+          ],
+          "checkpoint_on": [
+            "SANDBOX_LIFECYCLE_EVENT_TURN_COMPLETED",
+            "SANDBOX_LIFECYCLE_EVENT_TURN_FAILED",
+            "SANDBOX_LIFECYCLE_EVENT_TURN_CANCELLED"
+          ]
+        },
+        "acceptance": {
+          "mode": "SANDBOX_ACCEPTANCE_MODE_ALLOWLIST"
+        },
+        "mode": "SANDBOX_MODE_OFF",
+        "network_mode": "NETWORK_ACCESS_FULL"
+      },
+      "admission": {
+        "effective_runner": "codex",
+        "effective_model": "gpt-6-luna",
+        "effective_effort": "high",
+        "effective_timeout": "43200s",
+        "effective_max_turns": 1000,
+        "catalog_digest": "sha256:a34cb8ef50dfb3a9540ed0c5997e3563e32dc216c8cda152a7cf8c30fb94f6cb",
+        "policy_digest": "17c984eca6d24caf23fc1d15d8a428735aaaa9bac75d074ecd5ae78f85605181",
+        "policy_path": "/home/matthalloran8/Vrooli/resources/codex/model-policy.json",
+        "selection_reason": "catalog_order",
+        "passed_control_args": [
+          "--dangerously-bypass-approvals-and-sandbox",
+          "-m",
+          "gpt-6-luna",
+          "-c",
+          "model_reasoning_effort=high"
+        ],
+        "runtime_version": "codex-cli 0.156.1"
+      }
+    },
+    "session_id": "01a0ffab-e481-7e02-82f3-83fb77b3b8c2",
+    "created_at": "2026-10-03T02:50:49.545294693Z",
+    "updated_at": "2026-10-03T02:51:36Z",
+    "actions": {
+      "can_investigate": true,
+      "can_stop": true,
+      "can_continue_reason": "cannot continue a run that is still in progress; only a running interactive session accepts text mid-turn",
+      "can_resume_from_failure_reason": "resume is only available for failed or cancelled runs"
+    },
+    "requested_model": "gpt-6-luna",
+    "finalization_status": "RUN_FINALIZATION_STATUS_NONE",
+    "execution_mode": "EXECUTION_MODE_CODEC_PIPE",
+    "label": "Finite effort leader: personal-planner-delivery/personal-planner-delivery-orchestrator",
+    "label_source": "derived",
+    "work_references": [
+      {
+        "kind": "effort",
+        "id": "effort:personal-planner-I18",
+        "revision": "sha256:8ea48135bcbfd758c0ca08f4235ece3b32b6869b307bd2fd7214a96a46627783",
+        "relationship": "orchestrator",
+        "verified": true,
+        "visibility": "WORK_REFERENCE_VISIBILITY_PUBLIC",
+        "state": "WORK_REFERENCE_STATE_ACTIVE"
+      }
+    ]
+  }
+}

@@ -2,8 +2,9 @@ package main
 
 import (
 	"io"
-	"os/exec"
 	"testing"
+
+	"web-console/internal/pty"
 )
 
 // --- tmuxPTY closed-state guard tests ---
@@ -11,11 +12,9 @@ import (
 // instead of panicking on a closed file descriptor.
 
 func TestTmuxPTY_ReadAfterClose(t *testing.T) {
-	if _, err := exec.LookPath("tmux"); err != nil {
-		t.Skip("tmux not installed")
-	}
+	requireTmux(t)
 
-	spec := SessionLaunchSpec{
+	spec := pty.LaunchSpec{
 		SessionID: "test-read-after-close",
 		Shell:     "/bin/sh",
 		Cols:      80,
@@ -43,11 +42,9 @@ func TestTmuxPTY_ReadAfterClose(t *testing.T) {
 }
 
 func TestTmuxPTY_WriteAfterClose(t *testing.T) {
-	if _, err := exec.LookPath("tmux"); err != nil {
-		t.Skip("tmux not installed")
-	}
+	requireTmux(t)
 
-	spec := SessionLaunchSpec{
+	spec := pty.LaunchSpec{
 		SessionID: "test-write-after-close",
 		Shell:     "/bin/sh",
 		Cols:      80,
@@ -65,19 +62,17 @@ func TestTmuxPTY_WriteAfterClose(t *testing.T) {
 		t.Fatalf("Close: %v", err)
 	}
 
-	// Write should return errPTYClosed, not panic
-	_, err = p.Write([]byte("hello"))
+	// WriteInput should return errPTYClosed, not panic
+	err = p.WriteInput([]byte("hello"), pty.KindKeystroke)
 	if err != errPTYClosed {
-		t.Errorf("Write after Close: got err=%v, want errPTYClosed", err)
+		t.Errorf("WriteInput after Close: got err=%v, want errPTYClosed", err)
 	}
 }
 
 func TestTmuxPTY_SetSizeAfterClose(t *testing.T) {
-	if _, err := exec.LookPath("tmux"); err != nil {
-		t.Skip("tmux not installed")
-	}
+	requireTmux(t)
 
-	spec := SessionLaunchSpec{
+	spec := pty.LaunchSpec{
 		SessionID: "test-setsize-after-close",
 		Shell:     "/bin/sh",
 		Cols:      80,
@@ -103,11 +98,9 @@ func TestTmuxPTY_SetSizeAfterClose(t *testing.T) {
 }
 
 func TestTmuxPTY_CloseIdempotent(t *testing.T) {
-	if _, err := exec.LookPath("tmux"); err != nil {
-		t.Skip("tmux not installed")
-	}
+	requireTmux(t)
 
-	spec := SessionLaunchSpec{
+	spec := pty.LaunchSpec{
 		SessionID: "test-close-idempotent",
 		Shell:     "/bin/sh",
 		Cols:      80,
@@ -131,9 +124,7 @@ func TestTmuxPTY_CloseIdempotent(t *testing.T) {
 }
 
 func TestTmuxAttach_FailsForNonexistentSession(t *testing.T) {
-	if _, err := exec.LookPath("tmux"); err != nil {
-		t.Skip("tmux not installed")
-	}
+	requireTmux(t)
 
 	_, err := tmuxAttach("wc-nonexistent-session-12345")
 	if err == nil {
@@ -142,10 +133,8 @@ func TestTmuxAttach_FailsForNonexistentSession(t *testing.T) {
 }
 
 func TestApplyTmuxOptions_NonexistentSession(t *testing.T) {
-	if _, err := exec.LookPath("tmux"); err != nil {
-		t.Skip("tmux not installed")
-	}
+	requireTmux(t)
 
 	// Should not panic, just log errors
-	applyTmuxOptions("wc-nonexistent-session-12345")
+	applyTmuxOptions("wc-nonexistent-session-12345", false)
 }

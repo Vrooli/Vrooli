@@ -1,0 +1,21 @@
+{
+  "required_read": [
+    {
+      "prefix": "run-lesson-report/YYYY-MM-DD"
+    },
+    {
+      "prefix": "friction-report/run-execution/<YYYY-MM-DD>/<slug>"
+    }
+  ],
+  "evidence_consumed": [],
+  "output": [
+    {
+      "prefix": "run-lesson-report/*",
+      "destination_kind": "knowledge"
+    }
+  ],
+  "raises_work_items": true,
+  "external_producers": [
+    "operator"
+  ]
+}

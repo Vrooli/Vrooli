@@ -11,10 +11,11 @@ import { Callout } from '../components/Callout';
 import { Button } from '../../../shared/ui/button';
 import { ImageUploader } from '../../../shared/ui/ImageUploader';
 import { SEOPreview } from '../../../shared/ui/SEOPreview';
-import { Textarea } from '../../../shared/ui/input';
+import { Textarea } from '../../../shared/ui/textarea';
 import { ToggleSwitch } from '../../../shared/ui/ToggleSwitch';
 import { InlineAlert } from '../../../shared/ui/InlineAlert';
-import { Palette, RefreshCw, Globe, Type, Search, X, ExternalLink, MessageCircle, Mail, Clock } from 'lucide-react';
+import { Palette, RefreshCw, Globe, Type, Search, X, ExternalLink, MessageCircle, Mail, Clock, Building2, Scale } from 'lucide-react';
+import { DEFAULT_PRIVACY_MARKDOWN, DEFAULT_TERMS_MARKDOWN } from '../../public-landing/site/legalTemplates';
 import { useBrandingForm } from '../hooks/useBrandingForm';
 import { LAYOUT } from '../config/layout.constants';
 
@@ -56,7 +57,6 @@ export function BrandingSettings() {
     <AdminLayout maxWidth="default">
       <div className={LAYOUT.pageSpacing}>
         <PageHeader
-          variant="icon-title"
           title="Configure how your landing page looks and ranks"
           description="Set your site identity, colors, and SEO defaults. These settings apply site-wide and can be overridden per-variant for specific sections."
           icon={Palette}
@@ -69,7 +69,7 @@ export function BrandingSettings() {
                 <ExternalLink className="h-4 w-4" />
                 Preview landing
               </Button>
-              <Button variant="ghost" size="sm" onClick={loadBrandingData} className="gap-2" data-testid="branding-refresh">
+              <Button variant="ghost" size="sm" onClick={() => { void loadBrandingData(); }} className="gap-2" data-testid="branding-refresh">
                 <RefreshCw className="h-4 w-4" />
                 Refresh
               </Button>
@@ -89,9 +89,9 @@ export function BrandingSettings() {
                 description: brandingHealth.checks.identity ? 'Name and logo set' : 'Add site name and logo',
               },
               {
-                label: 'Favicon',
-                status: brandingHealth.checks.favicon ? 'success' : 'warning',
-                description: brandingHealth.checks.favicon ? 'Browser icon set' : 'Upload a favicon',
+                label: 'Business contact',
+                status: brandingHealth.checks.business ? 'success' : 'warning',
+                description: brandingHealth.checks.business ? 'Name, email, and address set' : 'Add legal name, email, and address',
               },
               {
                 label: 'SEO defaults',
@@ -110,7 +110,7 @@ export function BrandingSettings() {
         {loading ? (
           <div className="text-slate-400">Loading branding settings...</div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-8">
+          <form onSubmit={(event) => { void handleSubmit(event); }} className="space-y-8">
             {/* Site Identity */}
             <FormSection
               title="Site Identity"
@@ -134,7 +134,7 @@ export function BrandingSettings() {
                     <ClearableInput
                       value={form.tagline}
                       onChange={handleInput('tagline')}
-                      onClear={() => handleClearField('tagline')}
+                      onClear={() => { void handleClearField('tagline'); }}
                       placeholder="Your catchy tagline"
                     />
                   </FormField>
@@ -268,19 +268,19 @@ export function BrandingSettings() {
                       type="text"
                       value={form.theme_primary_color}
                       onChange={handleInput('theme_primary_color')}
-                      placeholder="#3B82F6"
+                      placeholder="e.g. a six-digit hex color"
                       className={`flex-1 ${inputClassName}`}
                     />
                     <input
                       type="color"
                       value={form.theme_primary_color || '#3B82F6'}
-                      onChange={(e) => handleFieldChange('theme_primary_color', e.target.value)}
+                      onChange={(e) => { handleFieldChange('theme_primary_color', e.target.value); }}
                       className="mt-1 h-10 w-10 cursor-pointer rounded-lg border border-white/10 bg-slate-900/70"
                     />
                     {form.theme_primary_color && (
                       <button
                         type="button"
-                        onClick={() => handleClearField('theme_primary_color')}
+                        onClick={() => { void handleClearField('theme_primary_color'); }}
                         className="mt-1 p-2 text-slate-400 hover:text-rose-400"
                         title="Clear color"
                       >
@@ -296,19 +296,19 @@ export function BrandingSettings() {
                       type="text"
                       value={form.theme_background_color}
                       onChange={handleInput('theme_background_color')}
-                      placeholder="#07090F"
+                      placeholder="e.g. a six-digit hex color"
                       className={`flex-1 ${inputClassName}`}
                     />
                     <input
                       type="color"
                       value={form.theme_background_color || '#07090F'}
-                      onChange={(e) => handleFieldChange('theme_background_color', e.target.value)}
+                      onChange={(e) => { handleFieldChange('theme_background_color', e.target.value); }}
                       className="mt-1 h-10 w-10 cursor-pointer rounded-lg border border-white/10 bg-slate-900/70"
                     />
                     {form.theme_background_color && (
                       <button
                         type="button"
-                        onClick={() => handleClearField('theme_background_color')}
+                        onClick={() => { void handleClearField('theme_background_color'); }}
                         className="mt-1 p-2 text-slate-400 hover:text-rose-400"
                         title="Clear color"
                       >
@@ -431,6 +431,57 @@ export function BrandingSettings() {
               </div>
             </FormSection>
 
+            {/* Business & Contact */}
+            <FormSection
+              title="Business & Contact"
+              description="Who visitors are dealing with. Shown in the site footer, the contact page, and the privacy policy and terms."
+              icon={Building2}
+              iconColorClass="text-emerald-300"
+              testId="branding-business-section"
+            >
+              <div className="space-y-6">
+                <div className="grid gap-6 md:grid-cols-2">
+                  <FormField label="Legal business name" helpText="Your registered company or trading name, e.g. Example Studio LLC. Falls back to the site name.">
+                    <ClearableInput
+                      value={form.legal_name}
+                      onChange={handleInput('legal_name')}
+                      onClear={() => { void handleClearField('legal_name'); }}
+                      placeholder="Example Studio LLC"
+                      testId="branding-legal-name"
+                    />
+                  </FormField>
+                  <FormField label="Contact email" helpText="Shown publicly on the contact page, footer, and legal pages. Contact form messages are also sent here.">
+                    <ClearableInput
+                      type="email"
+                      value={form.support_email}
+                      onChange={handleInput('support_email')}
+                      onClear={() => { void handleClearField('support_email'); }}
+                      placeholder="hello@yourcompany.com"
+                      testId="branding-contact-email"
+                    />
+                  </FormField>
+                </div>
+                <FormField label="Mailing address" helpText="One line per address line. Privacy laws and email marketing rules expect a real postal address; a registered agent or PO box is fine.">
+                  <div className="space-y-2">
+                    <Textarea
+                      value={form.contact_address}
+                      onChange={handleInput('contact_address')}
+                      placeholder={'100 Main Street, Suite 4\nSpringfield, ST 00000\nUnited States'}
+                      rows={3}
+                      className={textareaClassName}
+                      data-testid="branding-contact-address"
+                    />
+                    {form.contact_address && (
+                      <Button type="button" variant="ghost" size="sm" className="gap-1 text-slate-400" onClick={() => { void handleClearField('contact_address'); }}>
+                        <X className="h-3.5 w-3.5" />
+                        Remove address
+                      </Button>
+                    )}
+                  </div>
+                </FormField>
+              </div>
+            </FormSection>
+
             {/* Support Settings */}
             <FormSection
               title="Support"
@@ -448,22 +499,13 @@ export function BrandingSettings() {
                     type="url"
                     value={form.support_chat_url}
                     onChange={handleInput('support_chat_url')}
-                    onClear={() => handleClearField('support_chat_url')}
+                    onClear={() => { void handleClearField('support_chat_url'); }}
                     placeholder="https://chat.openai.com/g/g-your-gpt-id"
                   />
                 </FormField>
 
-                <FormField label="Support Email" helpText="Feedback submissions from /feedback will be sent to this email address.">
-                  <ClearableInput
-                    type="email"
-                    value={form.support_email}
-                    onChange={handleInput('support_email')}
-                    onClear={() => handleClearField('support_email')}
-                    placeholder="support@yourcompany.com"
-                  />
-                </FormField>
 
-                {/* SMTP Configuration - only show when support email is set */}
+                {/* SMTP Configuration - only show when a contact email is set */}
                 {form.support_email && (
                   <div className="rounded-xl border border-white/10 bg-slate-800/50 p-4 space-y-4">
                     <div className="flex items-center gap-2">
@@ -533,7 +575,7 @@ export function BrandingSettings() {
                     <div>
                       <LabelWithHelp
                         label="From Address (optional)"
-                        help="The email address that appears in the 'From' field. If left empty, uses the SMTP username. Some providers require this to match a verified sender address."
+                        help="The email address that appears in the 'From' field. It must be an explicitly configured, provider-verified sender address; it never falls back to the SMTP username."
                       />
                       <input
                         type="email"
@@ -565,6 +607,76 @@ export function BrandingSettings() {
                     </details>
                   </div>
                 )}
+              </div>
+            </FormSection>
+
+            {/* Legal Pages */}
+            <FormSection
+              title="Legal Pages"
+              description="Your privacy policy and terms and conditions. Both start from a solid default that fills in your business details automatically — edit freely."
+              icon={Scale}
+              iconColorClass="text-violet-300"
+              testId="branding-legal-section"
+            >
+              <div className="space-y-8">
+                <Callout type="tip" title="Placeholders" message={
+                  <span>
+                    Use <code className="rounded bg-slate-800 px-1">{'{{business_name}}'}</code>, <code className="rounded bg-slate-800 px-1">{'{{contact_email}}'}</code>, <code className="rounded bg-slate-800 px-1">{'{{contact_address}}'}</code> and <code className="rounded bg-slate-800 px-1">{'{{website}}'}</code> to keep a document in step with the details above. The default text is a starting point, not legal advice.
+                  </span>
+                } />
+                {([
+                  { kind: 'privacy', label: 'Privacy policy', path: '/privacy', body: 'privacy_policy_markdown', date: 'privacy_effective_date', defaultText: DEFAULT_PRIVACY_MARKDOWN },
+                  { kind: 'terms', label: 'Terms and conditions', path: '/terms', body: 'terms_markdown', date: 'terms_effective_date', defaultText: DEFAULT_TERMS_MARKDOWN },
+                ] as const).map((doc) => {
+                  const usingDefault = !branding?.[doc.body];
+                  return (
+                    <div key={doc.kind} className="space-y-4 rounded-xl border border-white/10 bg-slate-900/40 p-4" data-testid={`branding-legal-${doc.kind}`}>
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-white">{doc.label}</span>
+                          <span className={`rounded-full px-2 py-0.5 text-xs ${usingDefault ? 'bg-slate-700 text-slate-300' : 'bg-violet-500/15 text-violet-200'}`}>
+                            {usingDefault ? 'Default template' : 'Customized'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button type="button" variant="ghost" size="sm" className="gap-1" onClick={() => { window.open(doc.path, '_blank', 'noopener,noreferrer'); }}>
+                            <ExternalLink className="h-3.5 w-3.5" />
+                            View page
+                          </Button>
+                          {!usingDefault && (
+                            <Button type="button" variant="ghost" size="sm" className="gap-1 text-slate-400" onClick={() => { void handleClearField(doc.body); }}>
+                              <RefreshCw className="h-3.5 w-3.5" />
+                              Reset to default
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="grid gap-4 md:grid-cols-[220px_1fr]">
+                        <FormField label="Effective date" helpText="Update this whenever you change the document.">
+                          <input
+                            type="date"
+                            value={form[doc.date]}
+                            onChange={handleInput(doc.date)}
+                            className={inputClassName}
+                            data-testid={`branding-${doc.kind}-date`}
+                          />
+                        </FormField>
+                        <FormField label="Document (Markdown)" helpText="## Heading, - list item, **bold**, [link](https://…). Line breaks inside a paragraph are kept.">
+                          <Textarea
+                            value={form[doc.body]}
+                            onChange={handleInput(doc.body)}
+                            rows={14}
+                            className={`${textareaClassName} font-mono text-xs leading-relaxed`}
+                            data-testid={`branding-${doc.kind}-markdown`}
+                          />
+                        </FormField>
+                      </div>
+                      {form[doc.body].trim() === doc.defaultText.trim() && !usingDefault && (
+                        <p className="text-xs text-slate-400">This matches the default template. Use “Reset to default” to keep receiving template improvements.</p>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </FormSection>
 

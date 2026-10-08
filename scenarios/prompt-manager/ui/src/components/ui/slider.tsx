@@ -14,7 +14,7 @@ export interface SliderProps
 }
 
 const Slider = React.forwardRef<
-  React.ElementRef<typeof SliderPrimitive.Root>,
+  React.ComponentRef<typeof SliderPrimitive.Root>,
   SliderProps
 >(({ className, ...props }, ref) => (
   <SliderPrimitive.Root

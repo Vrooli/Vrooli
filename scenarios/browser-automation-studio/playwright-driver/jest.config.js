@@ -1,9 +1,15 @@
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
+  maxWorkers: 1,
   roots: ['<rootDir>/tests'],
   testMatch: ['**/*.test.ts'],
+  // Journeys need a running shadow BAS; they run only through jest.journeys.config.js.
+  testPathIgnorePatterns: ['/node_modules/', '<rootDir>/tests/journeys/'],
+  setupFilesAfterEnv: ['<rootDir>/tests/setup/silent-logger.ts'],
   collectCoverage: true,
+  // Browser-bound evaluate callbacks must remain free of Node-only counters.
+  coverageProvider: 'v8',
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'json-summary', 'lcov'],
   collectCoverageFrom: [
@@ -26,15 +32,13 @@ module.exports = {
   // Transform ESM packages that Jest can't parse by default
   // @vrooli/proto-types and @bufbuild/protobuf use ESM syntax
   transformIgnorePatterns: [
-    'node_modules/(?!(@vrooli/proto-types|@bufbuild)/)',
+    'node_modules/(?!((?:\\.pnpm/@vrooli\\+proto-types@[^/]+/node_modules/)?@vrooli/proto-types|@bufbuild)/)',
   ],
   // Configure ts-jest to transform TypeScript files in node_modules
   transform: {
     '^.+\\.tsx?$': [
       'ts-jest',
       {
-        // Use isolatedModules for faster transforms
-        isolatedModules: true,
         // Allow ts-jest to process node_modules packages
         tsconfig: {
           allowJs: true,

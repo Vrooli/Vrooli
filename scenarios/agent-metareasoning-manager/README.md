@@ -82,14 +82,14 @@ flowchart TB
 
 ### **Prerequisites**
 ```bash
-# Ensure required Ollama models are available
+# Ensure required Ollama roles/models are available
 ollama pull llama3.2          # Primary reasoning model
 ollama pull mistral           # Alternative model for comparison
 ollama pull codellama         # Code-specific reasoning
-ollama pull nomic-embed-text  # Embedding model for semantic search
+resource-ollama ensure --role embedding.default  # Embedding role for semantic search
 
 # Verify models are downloaded
-ollama list | grep -E "llama3.2|mistral|codellama|nomic-embed-text"
+resource-ollama policy resolve --role embedding.default --json
 ```
 
 ### **Setup**
@@ -170,7 +170,7 @@ agent-metareasoning-manager/
 │   └── go.mod                     # Dependencies (uuid, mux, pq)
 ├── cli/                           # Command-line interface
 │   └── agent-metareasoning-manager         # Thin API wrapper (90 lines)
-├── initialization/
+├── api/internal/<domain>/
 │   ├── automation/n8n/            # 5 reasoning workflows
 │   ├── automation/windmill/       # UI dashboards and apps
 │   ├── configuration/             # Prompt libraries and templates
@@ -258,7 +258,7 @@ export PORT=$API_PORT                                          # Dynamic API por
 export N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]}       # n8n instance
 export WINDMILL_BASE_URL=http://localhost:${RESOURCE_PORTS[windmill]} # Windmill instance
 export WINDMILL_WORKSPACE=demo                                    # Windmill workspace
-export EMBEDDING_MODEL=nomic-embed-text                           # Ollama embedding model for semantic search
+export EMBEDDING_ROLE=embedding.default                           # Ollama embedding role for semantic search
 
 # To get actual runtime ports:
 source ../../resources/port_registry.sh

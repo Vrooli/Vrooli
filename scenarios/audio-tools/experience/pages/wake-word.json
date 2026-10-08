@@ -1,0 +1,12 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "wake-word",
+    "title": "Wake Word",
+    "routes": ["/admin/wake-word"],
+    "purpose": "Configure and test the wake-word template while showing microphone and provider readiness honestly.",
+    "prd_refs": ["OT-P0-001"]
+  }
+}

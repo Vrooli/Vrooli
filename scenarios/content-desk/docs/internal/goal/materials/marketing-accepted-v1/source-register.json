@@ -1,0 +1,165 @@
+{
+  "documents": [
+    {
+      "name": "article",
+      "document_id": "1y3wD0fEipdbS6InO5sQi4zbRrQEfDZ700dUR0GIXOuc",
+      "revision": "AHj4eMRhZd9AGggrk_bcS_Ho18OhZ7RHLkJjWa5TH7DXL5aT9915SvQjGhXhHPTYKHAZ6m11aFWyMfY029AZG6dp7c32JrxOAFwLsjluRw",
+      "title": "How I’m trying to get more useful work from my ChatGPT dot",
+      "canonical_url": "https://docs.google.com/document/d/1y3wD0fEipdbS6InO5sQi4zbRrQEfDZ700dUR0GIXOuc/edit",
+      "source_response_sha256": "193a315aa938d09ca95a8837acea183b28df9a92fdfe2d52e1a87aa9a514a135",
+      "source_text_sha256": "da82998b42b7d032bbacb01f255f92728f547ac052fcea4b8fea0938c9768c59",
+      "native_snapshot_note": "Complete native document structure with expiring embedded image content/source URIs omitted; actual required original visual bytes are supplied separately. No text, styles, native object IDs or canonical source links removed."
+    },
+    {
+      "name": "article-package",
+      "document_id": "1eawDS4HThrBkPHr0txqboR7Koi4LMOiSrFEuu8_AwK8",
+      "revision": "AHj4eMS5PuN9ZZqHdGAyuh7zqi2MeX0mlavmX1wiXQznMeDffHPe4Zd17KM8UVqnRC0r5nd4B55ddmkqkLXfl8wAmcdFJP5ujrOOyKpBVA",
+      "title": "ChatGPT dot article package",
+      "canonical_url": "https://docs.google.com/document/d/1eawDS4HThrBkPHr0txqboR7Koi4LMOiSrFEuu8_AwK8/edit",
+      "source_response_sha256": "ba6cffcf2627f76f2ef43751a4da1b614af30492f3322971de7781fae178273a",
+      "source_text_sha256": "f98b71be66407902d2f679bb22723a884d9210eb833fbc81d6be055296061c1b",
+      "native_snapshot_note": "Complete native document structure with expiring embedded image content/source URIs omitted; actual required original visual bytes are supplied separately. No text, styles, native object IDs or canonical source links removed."
+    },
+    {
+      "name": "commission-accepted-basis",
+      "document_id": "1TlNxI0rZMwozxXJNGhKBzkEvYr5lqAQKNe3NMB28cQ8",
+      "revision": "ANLCKQm2hQBEUy9uI31ABeljqciOf1AvU8uJOZ1_4Yv_cDjH8B9ter68rrDoEbBX8qG0RMXGR8nPBL-_iIwXZ8c12EiOU7zMc6FEdaX1Wg",
+      "title": "Marketing experience commissions",
+      "canonical_url": "https://docs.google.com/document/d/1TlNxI0rZMwozxXJNGhKBzkEvYr5lqAQKNe3NMB28cQ8/edit",
+      "source_response_sha256": "5cb2ae7cc1d625c29dd3d46a606888301d2d890ec258f49798a43cfb9128bbfa",
+      "source_text_sha256": "bf6a3e2d1581962dcc516ba2a7db452a7ac599f6ad5a704675d5f418c79acda0",
+      "native_snapshot_note": "Complete native document structure with expiring embedded image content/source URIs omitted; actual required original visual bytes are supplied separately. No text, styles, native object IDs or canonical source links removed."
+    },
+    {
+      "name": "commission-current",
+      "document_id": "1TlNxI0rZMwozxXJNGhKBzkEvYr5lqAQKNe3NMB28cQ8",
+      "revision": "AHj4eMTkt1vFDvkCH0b3uG1SdRdULSpHlWgeJJZvqKuH78tARSwlCSIM4o85CgzAD025iafZnMCQaIxVyEAVPCLB-FVwz0XrYCl78SeYHw",
+      "title": "Marketing experience commissions",
+      "canonical_url": "https://docs.google.com/document/d/1TlNxI0rZMwozxXJNGhKBzkEvYr5lqAQKNe3NMB28cQ8/edit",
+      "source_response_sha256": "6bc3f08f3ffe50d955743854673c6b9c971e3b1df923dab7e33084ba9371a84a",
+      "source_text_sha256": "295adc9f04a1fc057466eb684f4deefc2cf9b28626f468d061fcde2aa5bb11e5",
+      "native_snapshot_note": "Complete native document structure with expiring embedded image content/source URIs omitted; actual required original visual bytes are supplied separately. No text, styles, native object IDs or canonical source links removed."
+    },
+    {
+      "name": "dossier-accepted-basis",
+      "document_id": "1LlO2CTsIwHvSlPpjVmdLfjXc2EpulEldwhIS_RVuPko",
+      "revision": "ANLCKQnRXdhkDwqa2XNv1OV7iNjgAFT16l54t5w8w8CJiYCDXtI9lVKRZ4FQbun9P5N52uzcjrk-yLcZ5kYO5p6PLh9td3rWXCs5_JUA6A",
+      "title": "Marketing experience and delivery plan — review candidate 0.3",
+      "canonical_url": "https://docs.google.com/document/d/1LlO2CTsIwHvSlPpjVmdLfjXc2EpulEldwhIS_RVuPko/edit",
+      "source_response_sha256": "69efca595ce8d1315f206007583b74a1eded4fa25ec849569f5bfba2153c669f",
+      "source_text_sha256": "6480cb83f60d5a23aa4dd237ff984d66d47a8c5912457faff9e43ac6d5fca1e3",
+      "native_snapshot_note": "Complete native document structure with expiring embedded image content/source URIs omitted; actual required original visual bytes are supplied separately. No text, styles, native object IDs or canonical source links removed."
+    },
+    {
+      "name": "editorial-guide",
+      "document_id": "1kX7cCuzxqesPXxCWtxOppYV3WfFt1A55p-QFmsC86Bo",
+      "revision": "ANLCKQkKNVbkfaurBptu_KgPGeXsaTYO-x5n8ujU3yzz2Bmle_V6IYuD56mokyJCCgGCUvl-MLf-OKBnX2SqBfQAug7ppKnL3HA3tLDfpg",
+      "title": "Founder article editorial method",
+      "canonical_url": "https://docs.google.com/document/d/1kX7cCuzxqesPXxCWtxOppYV3WfFt1A55p-QFmsC86Bo/edit",
+      "source_response_sha256": "1e2f0844b854e0377ff71a08baf526ca1b9e32ef744a7e3bb59f552486fc99f3",
+      "source_text_sha256": "6558386d1a280b8057210293a563ce1964649196a917a79ee6d4512c13d18571",
+      "native_snapshot_note": "Complete native document structure with expiring embedded image content/source URIs omitted; actual required original visual bytes are supplied separately. No text, styles, native object IDs or canonical source links removed."
+    },
+    {
+      "name": "marketing-home",
+      "document_id": "1CRpwt73K1InlJd9nFMXuVn9cSEZXE-8oSDa03T64biY",
+      "revision": "ANLCKQlysHbg7NAeRx31kZbavZ0RH2TPDI7roo9czy9yG_NcZM-gyfgI1pBp0KJvq8OIPFsaHneYp1Y0-TL8DKvDZmh8K4OxfF5GOHXujw",
+      "title": "Marketing start here",
+      "canonical_url": "https://docs.google.com/document/d/1CRpwt73K1InlJd9nFMXuVn9cSEZXE-8oSDa03T64biY/edit",
+      "source_response_sha256": "db37a0e9ac3d27d1ed18ea63fbe1e93b704500aeb2bf8e294a98f7c2dee38f4c",
+      "source_text_sha256": "808d2a034c19040cf6ace9db635f5c40824624db7c31c867202fe59d6dcc64b8",
+      "native_snapshot_note": "Complete native document structure with expiring embedded image content/source URIs omitted; actual required original visual bytes are supplied separately. No text, styles, native object IDs or canonical source links removed."
+    },
+    {
+      "name": "native-source-evidence",
+      "document_id": "152DaKTk-lBAiy2GXHf-1Bpp3GalY0xXj8EolzhYECrc",
+      "revision": "AHj4eMS9M9P3cKKhMWkDDPNBEDctbFkckYQ7Oc7VGi_31vtfqhBDyHnD_sbKh6zoXzhMEcTYriTEplqz51ytk26vTKoGHL53mPkIkRYdZQ",
+      "title": "Vrooli read-only inspection evidence and source access",
+      "canonical_url": "https://docs.google.com/document/d/152DaKTk-lBAiy2GXHf-1Bpp3GalY0xXj8EolzhYECrc/edit",
+      "source_response_sha256": "48c7e75c89439527ced08d7b7727623e4ef3554a9c12274b5743f008957694d1",
+      "source_text_sha256": "61014c21562f2b42744080fbf0ba15eb0d4eacfe3952bd90542a305f03a65387",
+      "native_snapshot_note": "Complete native document structure with expiring embedded image content/source URIs omitted; actual required original visual bytes are supplied separately. No text, styles, native object IDs or canonical source links removed."
+    },
+    {
+      "name": "writing-reuse-specimen",
+      "document_id": "1EN3yoimBSjVmpI--nyFGIUvS2_h6Hvbo4swTndR42gg",
+      "revision": "AHj4eMT3S07GJ-dE1i3G2co9GHMXC9WMfqv2WJfYd9xEDWGasayd2kIYOHNi7dOR9VedrWUGZfhedX0hkkGDGC472Wi18zXk7jbyZnR2UQ",
+      "title": "When a save message refers to an older edit",
+      "canonical_url": "https://docs.google.com/document/d/1EN3yoimBSjVmpI--nyFGIUvS2_h6Hvbo4swTndR42gg/edit",
+      "source_response_sha256": "34d0bd232a6eeb23ad4090a7ef1803bda75d394e49e641b848ad8468f9dc6f46",
+      "source_text_sha256": "9947238d6fbd27b4a88456b418f713ab141412f9cd8a41d4803297431ee0dd1f",
+      "native_snapshot_note": "Complete native document structure with expiring embedded image content/source URIs omitted; actual required original visual bytes are supplied separately. No text, styles, native object IDs or canonical source links removed."
+    },
+    {
+      "name": "youtube-strategy",
+      "document_id": "1s62Ijto8bPC1TrDghA4g8R3R5ChI-yAA87kboLOnOBA",
+      "revision": "ANLCKQkwUbaJ39RspU1MUJo4gsbUnOSHUOZuhQ3npB21vnED1vPf1V4CTtPIfuKOlHU_WVdH4AmuWrVTOZT8enhB1mDTud-jFLeLpyvjEQ",
+      "title": "Sustainable YouTube strategy for Vrooli",
+      "canonical_url": "https://docs.google.com/document/d/1s62Ijto8bPC1TrDghA4g8R3R5ChI-yAA87kboLOnOBA/edit",
+      "source_response_sha256": "8babc2dc934c46c33d9116f6ae6c3169d78105961a31889554aabcf2e9c3d2c3",
+      "source_text_sha256": "cd4e18334d57515bd9c549ae3d5bbec3a6ceab5a66de8e321e9000f0e47af3ab",
+      "native_snapshot_note": "Complete native document structure with expiring embedded image content/source URIs omitted; actual required original visual bytes are supplied separately. No text, styles, native object IDs or canonical source links removed."
+    }
+  ],
+  "raw_deliverables": [
+    {
+      "drive_id": "1rsy4cSNIbh3H_wjJxWiGom057s49Y7io",
+      "source_name": "original-design-source.zip",
+      "bytes": 31273770,
+      "sha256": "107c6f44346017615b03c313f3e86a3682fa3399fc42e401f8abcb27c8201b09",
+      "included": false
+    },
+    {
+      "drive_id": "1Qb5AdNnwHzNoejA-NLGYOSRgIyiMOM-W",
+      "source_name": "dossier-exact-native.pdf",
+      "bytes": 10072373,
+      "sha256": "ca0f37949bb2b0a69611a3601aa209b7a2844934c5753c19d09401103133d405",
+      "included": true,
+      "path": "review/dossier-exact-native.pdf"
+    },
+    {
+      "drive_id": "15UXSK90NG3YHEqL5C-lya_RahD7kitPt",
+      "source_name": "visual-atlas.pdf",
+      "bytes": 2649361,
+      "sha256": "9d7a162565967fabf5ccb84e0d4220fe4d7283278a12dc6912b664a2306952b0",
+      "included": true,
+      "path": "review/visual-atlas.pdf"
+    },
+    {
+      "drive_id": "1e3Uf-neFK15Jkra2M-Ye_nlkYt3UtRty",
+      "source_name": "live-visual-catalogue-before-approval-overlay.json",
+      "bytes": 214534,
+      "sha256": "bb0f08bdd293ea799c5fbc96d0bbca7a64964928f550c1ef39fbc3449e28ef06",
+      "included": true,
+      "path": "review/live-visual-catalogue-before-approval-overlay.json"
+    },
+    {
+      "drive_id": "1y3wD0fEipdbS6InO5sQi4zbRrQEfDZ700dUR0GIXOuc",
+      "source_name": "article-native.pdf",
+      "bytes": 2135927,
+      "sha256": "384de04d35c6a82910408dd9057bac9575cb9c402c60e97ac68fb2e7587afdaa",
+      "included": true,
+      "path": "review/article-native.pdf"
+    },
+    {
+      "drive_id": "1TlNxI0rZMwozxXJNGhKBzkEvYr5lqAQKNe3NMB28cQ8",
+      "source_name": "commission-accepted-basis.pdf",
+      "bytes": 646496,
+      "sha256": "f00616b46fed81b4ec97e087f3fd99321d4bbe84420c140076c68ad99b6de808",
+      "included": true,
+      "path": "review/commission-accepted-basis.pdf"
+    },
+    {
+      "drive_id": "1TlNxI0rZMwozxXJNGhKBzkEvYr5lqAQKNe3NMB28cQ8",
+      "source_name": "commission-with-approval.pdf",
+      "bytes": 654739,
+      "sha256": "67ba5440888c0325081a6a512e0ca82958d3c1e2efb4c85eea052946200120cb",
+      "included": true,
+      "path": "review/commission-with-approval.pdf"
+    }
+  ],
+  "approval_message": "Sentinel_7062584135208191865fc82f43a4ded8",
+  "native_receiving_task": "01a0ff35-ecde-7294-80d7-32327a90f00c",
+  "current_native_audit_sha256": "2504fc1b6c5816b63171f7ba9c7c458c25e2593e084def1bac465bc33daed973",
+  "native_sources": "Owned by actual receiving checkout; generated PRD owner/regeneration route must be resolved, not hand-edited. No raw repository bundle included."
+}

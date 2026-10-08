@@ -1,0 +1,149 @@
+{
+  "_metadata": {
+    "description": "Testing seams and coverage targets per unit-testing-architecture-steer: SQLite-backed repos, mocked handlers, UI component tests, BAS flows.",
+    "last_validated_at": "2026-09-04T00:13:53-04:00",
+    "module": "testing-coverage",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "TC-001",
+      "title": "Per-domain SQLite-backed repository tests cover CRUD and error paths",
+      "status": "planned",
+      "prd_ref": "OT-P0-008",
+      "category": "testing",
+      "criticality": "P0",
+      "description": "Each `api/internal/\u003cdom\u003e/sqlite.go` has a sibling `sqlite_test.go` that exercises the repository against `:memory:` or `t.TempDir()` SQLite. No testcontainers. No Postgres.",
+      "tags": [
+        "testing",
+        "sqlite"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "`go test ./internal/... -run Sqlite` is green; coverage tooling reports per-domain coverage."
+        }
+      ]
+    },
+    {
+      "id": "TC-002",
+      "title": "Handlers are tested against repository fakes, not the live SQLite",
+      "status": "planned",
+      "prd_ref": "OT-P0-008",
+      "category": "testing",
+      "criticality": "P0",
+      "description": "Each `api/handlers/\u003cdom\u003e/handlers_test.go` uses the co-located `internal/\u003cdom\u003e/mocks/` fake. Handler tests assert request decoding, response shape, and error mapping — not SQL behavior.",
+      "tags": [
+        "testing",
+        "handlers"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "`go test ./handlers/... -run Handler` is green."
+        }
+      ]
+    },
+    {
+      "id": "TC-003",
+      "title": "UI has a component test per top-level page and an a11y test for each",
+      "status": "planned",
+      "prd_ref": "OT-P0-008",
+      "category": "testing",
+      "criticality": "P0",
+      "description": "Library, Editor, Adoptions, Diff, Theme-switcher pages each ship a `*.test.tsx` and an `*.a11y.test.tsx` using the template's stock testing setup.",
+      "tags": [
+        "testing",
+        "ui"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "`pnpm test -- --run` is green; axe-core a11y assertions pass."
+        }
+      ]
+    },
+    {
+      "id": "TC-004",
+      "title": "BAS flows cover the primary user journeys",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-008",
+      "category": "testing",
+      "criticality": "P0",
+      "description": "Browser coverage includes the live preview/catalog render path, version-pinned five-stage component evidence, story-sheet artifacts, and the adoption obligation surfaces. Additional end-to-end flows remain planned for index/list, edit-and-preview, select-element, adopt-and-detect-drift, dep-mismatch-blocks-adopt, and theme-switch-applies.",
+      "tags": [
+        "testing",
+        "bas"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers/catalog/module.go",
+          "phase": "workflow",
+          "status": "failing",
+          "notes": "The full-catalog preview sweep passed across all 11 components and example frames. Remaining broad product journeys are still tracked as planned coverage."
+        }
+      ]
+    },
+    {
+      "id": "TC-005",
+      "title": "PROGRESS.md status mirrors test gates honestly",
+      "status": "planned",
+      "prd_ref": "OT-P0-008",
+      "category": "testing",
+      "criticality": "P0",
+      "description": "Every requirement has a PROGRESS.md row with `planned | in progress: \u003ctest gate\u003e | complete: \u003ctest names\u003e`. A row never claims `complete` if the named tests are not green.",
+      "tags": [
+        "testing",
+        "discipline"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Auditor cross-checks PROGRESS.md complete-claims against the test report on each release."
+        }
+      ]
+    },
+    {
+      "id": "TC-006",
+      "title": "Catalog source gates cover type, lint, render, and component-experience claims",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-008",
+      "category": "testing",
+      "criticality": "P0",
+      "description": "Catalog source is tested independently from the host UI: authored TSX files pass catalog TypeScript and ESLint gates, story contracts lint without raw node-tag corruption, eligible versions render in Chromium, and evidence freshness is enforced against each story contract.",
+      "tags": [
+        "testing",
+        "catalog",
+        "experience"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/scripts/catalog-conformance.mjs",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "`pnpm run catalog:check` passed and a temporary TypeScript error failed as expected during Phase 3."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/componenttests/bas_executor.go",
+          "phase": "workflow",
+          "status": "failing",
+          "notes": "`pnpm run test:preview-evidence` delegates the catalog browser gate to BAS CaptureService and is kept out of the bounded unit coverage command."
+        },
+        {
+          "type": "manual",
+          "status": "not_implemented",
+          "notes": "Experience phase live BAS calibration: clean run 20260710-131340-38f3addd, ghost-claim advisory failure run 20260710-131446-30feba68, clean post-removal run 20260710-131538-31dc1994."
+        }
+      ]
+    }
+  ]
+}

@@ -5,60 +5,42 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
+	"os/exec"
 	"strings"
-	"time"
 )
 
+// Embedder produces text embeddings via the resource-ollama gateway CLI. All
+// daemon traffic is funnelled through that CLI so the host-wide semaphore can
+// bound fleet-wide parallelism — never call Ollama HTTP directly.
 type Embedder struct {
-	baseURL string
-	model   string
-	client  *http.Client
+	role string
+
+	// Runner is an optional seam for tests. Production callers leave it nil and
+	// the default exec-based runner is used.
+	Runner func(ctx context.Context, args []string, stdin string) ([]byte, error)
 }
 
-func NewEmbedder(baseURL, model string, client *http.Client) *Embedder {
-	baseURL = strings.TrimRight(strings.TrimSpace(baseURL), "/")
-	if baseURL == "" {
-		baseURL = "http://localhost:11434"
+// NewEmbedder constructs an Embedder with an explicit model role.
+func NewEmbedder(role string) *Embedder {
+	role = strings.TrimSpace(role)
+	if role == "" {
+		role = "embedding.default"
 	}
-	model = strings.TrimSpace(model)
-	if model == "" {
-		model = "nomic-embed-text"
-	}
-	if client == nil {
-		client = &http.Client{Timeout: 30 * time.Second}
-	}
-	return &Embedder{baseURL: baseURL, model: model, client: client}
+	return &Embedder{role: role}
 }
 
-func NewEmbedderFromEnv(client *http.Client) *Embedder {
-	baseURL := firstEnv(
-		"OLLAMA_URL",
-		"OLLAMA_BASE_URL",
+// NewEmbedderFromEnv constructs an Embedder picking the role from env vars.
+func NewEmbedderFromEnv() *Embedder {
+	role := firstEnv(
+		"OLLAMA_EMBEDDING_ROLE",
+		"QDRANT_EMBEDDING_ROLE",
 	)
-
-	model := firstEnv(
-		"OLLAMA_EMBEDDING_MODEL",
-		"QDRANT_EMBEDDING_MODEL_OVERRIDE",
-		"QDRANT_EMBEDDING_MODEL",
-	)
-
-	return NewEmbedder(baseURL, model, client)
-}
-
-type embeddingRequest struct {
-	Model  string `json:"model"`
-	Prompt string `json:"prompt"`
-}
-
-type embeddingResponse struct {
-	Embedding []float64 `json:"embedding"`
+	return NewEmbedder(role)
 }
 
 func (e *Embedder) Embed(ctx context.Context, text string) ([]float64, error) {
-	if e == nil || e.client == nil {
+	if e == nil {
 		return nil, fmt.Errorf("ollama embedder not initialized")
 	}
 	text = strings.TrimSpace(text)
@@ -66,39 +48,38 @@ func (e *Embedder) Embed(ctx context.Context, text string) ([]float64, error) {
 		return nil, fmt.Errorf("text required for embedding")
 	}
 
-	body, err := json.Marshal(embeddingRequest{
-		Model:  e.model,
-		Prompt: text,
-	})
+	args := []string{"gateway", "embed", "--role", e.role, "--json", "--input-stdin"}
+	out, err := e.run(ctx, args, text)
 	if err != nil {
-		return nil, fmt.Errorf("marshal embedding request: %w", err)
+		return nil, fmt.Errorf("resource-ollama gateway embed failed: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, e.baseURL+"/api/embeddings", bytes.NewReader(body))
-	if err != nil {
-		return nil, fmt.Errorf("create embedding request: %w", err)
+	var decoded struct {
+		Embedding []float64 `json:"embedding"`
 	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := e.client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("ollama embeddings request failed: %w", err)
+	if err := json.Unmarshal(bytes.TrimSpace(out), &decoded); err != nil {
+		return nil, fmt.Errorf("decode gateway embed response: %w", err)
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		raw, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("ollama embeddings status=%d body=%s", resp.StatusCode, strings.TrimSpace(string(raw)))
-	}
-
-	var out embeddingResponse
-	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-		return nil, fmt.Errorf("decode embedding response: %w", err)
-	}
-	if len(out.Embedding) == 0 {
+	if len(decoded.Embedding) == 0 {
 		return nil, fmt.Errorf("ollama returned empty embedding")
 	}
-	return out.Embedding, nil
+	return decoded.Embedding, nil
+}
+
+func (e *Embedder) run(ctx context.Context, args []string, stdin string) ([]byte, error) {
+	if e.Runner != nil {
+		return e.Runner(ctx, args, stdin)
+	}
+	cmd := exec.CommandContext(ctx, "resource-ollama", args...) // #nosec G204 -- executable is fixed and args are internal CLI flags.
+	cmd.Stdin = strings.NewReader(stdin)
+	out, err := cmd.Output()
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok && len(exitErr.Stderr) > 0 {
+			return nil, fmt.Errorf("%w: %s", err, strings.TrimSpace(string(exitErr.Stderr)))
+		}
+		return nil, err
+	}
+	return out, nil
 }
 
 func firstEnv(keys ...string) string {
@@ -109,4 +90,3 @@ func firstEnv(keys ...string) string {
 	}
 	return ""
 }
-

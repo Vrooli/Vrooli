@@ -1,0 +1,139 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "holders-admin",
+    "title": "Holders",
+    "routes": [
+      "/holders"
+    ],
+    "purpose": "Let the minter manage who participates in the economy and see each holder's position without ever weakening the boundary between them.",
+    "prd_refs": [
+      "OT-P0-006",
+      "OT-P0-012"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Each holder's spendable and reserved balance is visible at a glance."
+    },
+    {
+      "statement": "Adding a holder makes the link to their authenticated identity explicit.",
+      "notes": "A holder without a real identity is a role flag, and the isolation boundary would be cosmetic."
+    },
+    {
+      "statement": "Removing a holder is presented as a tombstone, because their events must remain readable."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "Holders listed with balances."
+    },
+    {
+      "id": "loading",
+      "description": "Holders are being fetched."
+    },
+    {
+      "id": "empty",
+      "description": "No holders yet; the page explains that an economy needs at least one."
+    },
+    {
+      "id": "saving",
+      "description": "A holder is being added or updated."
+    },
+    {
+      "id": "success",
+      "description": "Holder saved."
+    },
+    {
+      "id": "validation-error",
+      "description": "Identity binding rejected."
+    },
+    {
+      "id": "request-error",
+      "description": "Holder list or save failed."
+    },
+    {
+      "id": "partial",
+      "description": "Holders loaded but balances failed; each holder renders with balance marked unavailable rather than showing zero."
+    },
+    {
+      "id": "stale",
+      "description": "Showing cached holder balances after a failed refresh, labelled as such."
+    }
+  ],
+  "elements": [
+    {
+      "id": "holder-table",
+      "role": "table",
+      "name": "Holders",
+      "description": "Each holder with identity binding and balances."
+    },
+    {
+      "id": "add-holder",
+      "role": "button",
+      "name": "Add holder",
+      "description": "Opens holder creation."
+    },
+    {
+      "id": "identity-binding-field",
+      "role": "combobox",
+      "name": "Authenticated identity",
+      "description": "The scenario-authenticator subject this holder is."
+    },
+    {
+      "id": "remove-holder",
+      "role": "button",
+      "name": "Remove holder",
+      "description": "Tombstones the holder, preserving their events."
+    }
+  ],
+  "claims": [
+    {
+      "id": "balances-at-a-glance",
+      "type": "element-present",
+      "statement": "Spendable and reserved balances are both present per holder without opening a detail view.",
+      "tier": "aspirational",
+      "elements": [
+        "holder-table"
+      ]
+    },
+    {
+      "id": "identity-binding-required",
+      "type": "affordance-present",
+      "statement": "A holder cannot be created without binding to an authenticated identity.",
+      "tier": "aspirational",
+      "elements": [
+        "add-holder",
+        "identity-binding-field"
+      ]
+    },
+    {
+      "id": "removal-is-tombstone",
+      "type": "affordance-present",
+      "statement": "Removal copy states that history is preserved and the action is not described as deletion.",
+      "tier": "aspirational",
+      "elements": [
+        "remove-holder"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "holder-table": {
+        "testid": "holders-table"
+      },
+      "add-holder": {
+        "testid": "holders-add"
+      },
+      "identity-binding-field": {
+        "testid": "holders-identity-binding"
+      },
+      "remove-holder": {
+        "testid": "holders-remove"
+      }
+    }
+  }
+}

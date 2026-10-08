@@ -1,0 +1,145 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "findings",
+    "title": "Findings",
+    "routes": [
+      "/findings"
+    ],
+    "purpose": "Show what the reconciler found: instances at a provider that this scenario has no record of, records with no instance behind them, and figures that disagree.",
+    "prd_refs": [
+      "OT-P0-003",
+      "OT-P1-003"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "What diverged, in which direction, and when it was observed."
+    },
+    {
+      "statement": "That the reconciler reported this and did not act on it."
+    },
+    {
+      "statement": "How to quarantine something before deciding what it is."
+    },
+    {
+      "statement": "When the last sweep ran, so silence is distinguishable from cleanliness."
+    }
+  ],
+  "states": [
+    {
+      "id": "loading",
+      "description": "Findings are being fetched."
+    },
+    {
+      "id": "empty",
+      "description": "No open findings, with the last sweep time shown so an empty list is trustworthy."
+    },
+    {
+      "id": "default",
+      "description": "Open findings grouped by kind."
+    },
+    {
+      "id": "stale",
+      "description": "The last sweep is older than its interval, so an empty list cannot be trusted and says so."
+    },
+    {
+      "id": "request-error",
+      "description": "Findings could not be fetched."
+    },
+    {
+      "id": "partial",
+      "description": "Findings render but the provider side of one comparison could not be read, so the list is known to be incomplete and says so."
+    }
+  ],
+  "elements": [
+    {
+      "id": "findings-list",
+      "role": "list",
+      "name": "Open findings"
+    },
+    {
+      "id": "finding-item",
+      "role": "listitem",
+      "name": "Finding",
+      "description": "Kind, provider, identifiers on whichever side is known, and what differed."
+    },
+    {
+      "id": "last-sweep-status",
+      "role": "status",
+      "name": "Last sweep",
+      "description": "When the reconciler last completed, and its next scheduled run."
+    },
+    {
+      "id": "quarantine-action",
+      "role": "button",
+      "name": "Quarantine"
+    }
+  ],
+  "claims": [
+    {
+      "id": "findings-empty-is-trustworthy",
+      "type": "state-distinct",
+      "statement": "An empty list caused by a clean sweep is visually distinct from an empty list caused by a sweep that has not run recently.",
+      "tier": "aspirational",
+      "elements": [
+        "last-sweep-status",
+        "findings-list"
+      ],
+      "states": [
+        "empty",
+        "stale"
+      ],
+      "rationale": "The dangerous failure is silence read as safety. A reconciler that stopped running looks exactly like a fleet with nothing wrong."
+    },
+    {
+      "id": "findings-no-automatic-resolution",
+      "type": "element-absent",
+      "statement": "No destroy, terminate or resolve control exists anywhere on this page, in any state. Quarantine is the only action, and destruction happens deliberately from the instance page.",
+      "tier": "aspirational",
+      "rationale": "Marking precedes sweeping so a reconciler defect cannot destroy a running node, including a paying customer's. This claim names no element on purpose: an element-absent claim that lists an element asserts that element is missing, and quarantine-action must be present."
+    },
+    {
+      "id": "findings-direction-is-explicit",
+      "type": "x-direction-labelled",
+      "statement": "Each finding states which side is missing, rather than only that something differs.",
+      "tier": "aspirational",
+      "elements": [
+        "finding-item"
+      ],
+      "rationale": "Present at the provider and absent locally is money. Present locally and absent at the provider is a stuck meter. They need different responses."
+    },
+    {
+      "id": "findings-states-covered",
+      "type": "state-covered",
+      "statement": "Every declared state renders a distinct, readable surface.",
+      "tier": "aspirational",
+      "states": [
+        "loading",
+        "empty",
+        "default",
+        "stale",
+        "request-error",
+        "partial"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "findings-list": {
+        "testid": "findings-list"
+      },
+      "finding-item": {
+        "testid": "finding-item"
+      },
+      "last-sweep-status": {
+        "testid": "last-sweep-status"
+      },
+      "quarantine-action": {
+        "testid": "quarantine-action"
+      }
+    }
+  }
+}

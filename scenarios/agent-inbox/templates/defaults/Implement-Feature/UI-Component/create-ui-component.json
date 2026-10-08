@@ -41,6 +41,5 @@
       "placeholder": "What user interactions should it support?",
       "required": false
     }
-  ],
-  "suggestedToolIds": ["spawn_coding_agent"]
+  ]
 }

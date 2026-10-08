@@ -17,6 +17,7 @@ type (
 	WindowsSigningConfig         = types.WindowsSigningConfig
 	MacOSSigningConfig           = types.MacOSSigningConfig
 	LinuxSigningConfig           = types.LinuxSigningConfig
+	ManagedSigningKey            = types.ManagedSigningKey
 	ValidationResult             = types.ValidationResult
 	PlatformValidation           = types.PlatformValidation
 	CertificateInfo              = types.CertificateInfo

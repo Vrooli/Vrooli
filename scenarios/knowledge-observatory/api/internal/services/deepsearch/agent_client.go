@@ -7,7 +7,6 @@ import (
 
 // AgentClient defines the integration seam for agent-manager.
 type AgentClient interface {
-	EnsureProfile(ctx context.Context) error
 	CreateRun(ctx context.Context, req AgentRunRequest) (string, error)
 	GetRun(ctx context.Context, runID string) (*AgentRun, error)
 	GetRunEvents(ctx context.Context, runID string, afterSequence int64) ([]AgentRunEvent, error)

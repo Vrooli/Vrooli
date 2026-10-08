@@ -1,0 +1,13 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "browser-automation-studio-orchestrator",
+  "displayName": "Browser Automation Studio Orchestrator",
+  "description": "Long-lived orchestrator of the BAS rehabilitation goal: admits and accepts epochs, spawns and steers one Luna epoch worker per epoch, parks between check-ins, and owns the goal home.",
+  "status": "active",
+  "tags": ["delivery", "orchestration", "browser-automation-studio"],
+  "fileOrder": ["AGENT.md"],
+  "revision": 1,
+  "createdAt": "2026-09-29T00:00:00Z",
+  "updatedAt": "2026-09-29T00:00:00Z"
+}

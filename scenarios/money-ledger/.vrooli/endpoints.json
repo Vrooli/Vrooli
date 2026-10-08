@@ -1,0 +1,250 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
+      "category": "system",
+      "response": {
+        "type": "Response",
+        "properties": {
+          "dependencies": "object",
+          "readiness": "boolean",
+          "status": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "proto_full_name": "vrooli.money_ledger.v1.shared.Response",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.money_ledger.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    },
+    {
+      "id": "capabilities_describe",
+      "path": "/api/v1/capabilities/describe",
+      "method": "GET",
+      "summary": "Describe declared scenario dependencies and their current recovery actions.",
+      "description": "",
+      "category": "capabilities",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Machine-readable capability status endpoint.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "books_create",
+      "path": "/vrooli.money_ledger.v1.ledger.BooksService/CreateBook",
+      "method": "POST",
+      "summary": "Create an accounting book",
+      "description": "",
+      "category": "ledger"
+    },
+    {
+      "id": "books_list",
+      "path": "/vrooli.money_ledger.v1.ledger.BooksService/ListBooks",
+      "method": "POST",
+      "summary": "List accounting books",
+      "description": "",
+      "category": "ledger"
+    },
+    {
+      "id": "books_archive",
+      "path": "/vrooli.money_ledger.v1.ledger.BooksService/ArchiveBook",
+      "method": "POST",
+      "summary": "Archive a book without deleting its journal",
+      "description": "",
+      "category": "ledger"
+    },
+    {
+      "id": "accounts_create",
+      "path": "/vrooli.money_ledger.v1.ledger.BooksService/CreateAccount",
+      "method": "POST",
+      "summary": "Create an account in a book",
+      "description": "",
+      "category": "ledger"
+    },
+    {
+      "id": "accounts_list",
+      "path": "/vrooli.money_ledger.v1.ledger.BooksService/ListAccounts",
+      "method": "POST",
+      "summary": "List accounts",
+      "description": "",
+      "category": "ledger"
+    },
+    {
+      "id": "journal_get",
+      "path": "/vrooli.money_ledger.v1.ledger.JournalService/GetPosting",
+      "method": "POST",
+      "summary": "Read one immutable posting",
+      "description": "",
+      "category": "ledger"
+    },
+    {
+      "id": "journal_list",
+      "path": "/vrooli.money_ledger.v1.ledger.JournalService/ListPostings",
+      "method": "POST",
+      "summary": "List immutable postings",
+      "description": "",
+      "category": "ledger"
+    },
+    {
+      "id": "journal_reverse",
+      "path": "/vrooli.money_ledger.v1.ledger.JournalService/ReversePosting",
+      "method": "POST",
+      "summary": "Create a reversing entry",
+      "description": "",
+      "category": "ledger"
+    },
+    {
+      "id": "journal_transfer",
+      "path": "/vrooli.money_ledger.v1.ledger.JournalService/Transfer",
+      "method": "POST",
+      "summary": "Create paired inter-book postings",
+      "description": "",
+      "category": "ledger"
+    },
+    {
+      "id": "position_get",
+      "path": "/vrooli.money_ledger.v1.ledger.PositionService/GetPosition",
+      "method": "POST",
+      "summary": "Compute financial position at read time",
+      "description": "",
+      "category": "ledger"
+    },
+    {
+      "id": "statement_get",
+      "path": "/vrooli.money_ledger.v1.ledger.PositionService/GetStatement",
+      "method": "POST",
+      "summary": "Read a period statement",
+      "description": "",
+      "category": "ledger"
+    },
+    {
+      "id": "goals_declare",
+      "path": "/vrooli.money_ledger.v1.ledger.PositionService/DeclareGoal",
+      "method": "POST",
+      "summary": "Declare a sustained financial goal",
+      "description": "",
+      "category": "ledger"
+    },
+    {
+      "id": "goals_list",
+      "path": "/vrooli.money_ledger.v1.ledger.PositionService/ListGoals",
+      "method": "POST",
+      "summary": "List goal verdicts",
+      "description": "",
+      "category": "ledger"
+    },
+    {
+      "id": "goals_archive",
+      "path": "/vrooli.money_ledger.v1.ledger.PositionService/ArchiveGoal",
+      "method": "POST",
+      "summary": "Archive a goal without deleting its declaration",
+      "description": "",
+      "category": "ledger"
+    },
+    {
+      "id": "goals_reparent",
+      "path": "/vrooli.money_ledger.v1.ledger.PositionService/ReparentGoal",
+      "method": "POST",
+      "summary": "Move a goal while preserving its declaration",
+      "description": "",
+      "category": "ledger"
+    },
+    {
+      "id": "ingest_register",
+      "path": "/vrooli.money_ledger.v1.ingest.IngestService/RegisterAdapter",
+      "method": "POST",
+      "summary": "Register a money adapter",
+      "description": "",
+      "category": ""
+    },
+    {
+      "id": "ingest_list",
+      "path": "/vrooli.money_ledger.v1.ingest.IngestService/ListAdapters",
+      "method": "POST",
+      "summary": "List money adapters",
+      "description": "",
+      "category": ""
+    },
+    {
+      "id": "ingest_event",
+      "path": "/vrooli.money_ledger.v1.ingest.IngestService/IngestEvent",
+      "method": "POST",
+      "summary": "Admit one typed money event",
+      "description": "",
+      "category": ""
+    },
+    {
+      "id": "ingest_run",
+      "path": "/vrooli.money_ledger.v1.ingest.IngestService/RunAdapter",
+      "method": "POST",
+      "summary": "Run an adapter and report availability",
+      "description": "",
+      "category": ""
+    },
+    {
+      "id": "ingest_file",
+      "path": "/vrooli.money_ledger.v1.ingest.IngestService/ImportFile",
+      "method": "POST",
+      "summary": "Import a CSV through the adapter door",
+      "description": "",
+      "category": ""
+    },
+    {
+      "id": "ingest_operator_inputs",
+      "path": "/vrooli.money_ledger.v1.ingest.IngestService/ImportOperatorInputs",
+      "method": "POST",
+      "summary": "Rehearse or apply operator financial inputs",
+      "description": "",
+      "category": ""
+    },
+    {
+      "id": "ingest_operator_status",
+      "path": "/vrooli.money_ledger.v1.ingest.IngestService/OperatorInputStatus",
+      "method": "POST",
+      "summary": "Read operator input status and age",
+      "description": "",
+      "category": ""
+    }
+  ]
+}

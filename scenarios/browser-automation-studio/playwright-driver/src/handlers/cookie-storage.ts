@@ -1,4 +1,4 @@
-import { BaseHandler, type HandlerContext, type HandlerResult } from './base';
+import { BaseHandler, getDocument, type HandlerContext, type HandlerResult } from './base';
 import type { HandlerInstruction } from '../types';
 import { getCookieStorageParams } from '../types';
 import { normalizeError } from '../utils';
@@ -198,7 +198,8 @@ export class CookieStorageHandler extends BaseHandler {
     storageType: string,
     context: HandlerContext
   ): Promise<HandlerResult> {
-    const { page, logger } = context;
+    const { logger } = context;
+    const page = getDocument(context);
 
     switch (operation) {
       case 'set':

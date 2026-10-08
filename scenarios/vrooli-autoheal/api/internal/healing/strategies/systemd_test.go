@@ -3,9 +3,11 @@ package strategies
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
-	"vrooli-autoheal/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/elevation"
 )
 
 // mockExecutor implements checks.CommandExecutor for testing.
@@ -17,24 +19,35 @@ type mockExecutor struct {
 	runErr               error
 	lastCommand          string
 	lastArgs             []string
+	callLog              []string
 }
 
 func (m *mockExecutor) Output(ctx context.Context, name string, args ...string) ([]byte, error) {
 	m.lastCommand = name
 	m.lastArgs = args
+	m.callLog = append(m.callLog, name+" "+joinArgs(args))
 	return m.outputResult, m.outputErr
 }
 
 func (m *mockExecutor) CombinedOutput(ctx context.Context, name string, args ...string) ([]byte, error) {
 	m.lastCommand = name
 	m.lastArgs = args
+	m.callLog = append(m.callLog, name+" "+joinArgs(args))
 	return m.combinedOutputResult, m.combinedOutputErr
 }
 
 func (m *mockExecutor) Run(ctx context.Context, name string, args ...string) error {
 	m.lastCommand = name
 	m.lastArgs = args
+	m.callLog = append(m.callLog, name+" "+joinArgs(args))
 	return m.runErr
+}
+
+func joinArgs(args []string) string {
+	if len(args) == 0 {
+		return ""
+	}
+	return strings.Join(args, " ")
 }
 
 func TestNewSystemdStrategy(t *testing.T) {
@@ -58,6 +71,8 @@ func TestNewSystemdStrategy(t *testing.T) {
 }
 
 func TestSystemdStrategy_Restart(t *testing.T) {
+	restore := elevation.SetGrantPathForTest("test-vrooli-autoheal-grant", func() bool { return true })
+	t.Cleanup(restore)
 	t.Run("successful restart", func(t *testing.T) {
 		exec := &mockExecutor{
 			combinedOutputResult: []byte(""),
@@ -70,10 +85,10 @@ func TestSystemdStrategy_Restart(t *testing.T) {
 			t.Errorf("expected success, got error: %s", result.Error)
 		}
 		if exec.lastCommand != "sudo" {
-			t.Errorf("expected command 'sudo', got %s", exec.lastCommand)
+			t.Errorf("expected broker command 'sudo', got %s", exec.lastCommand)
 		}
-		if len(exec.lastArgs) < 3 || exec.lastArgs[0] != "systemctl" || exec.lastArgs[1] != "restart" {
-			t.Errorf("expected 'systemctl restart', got %v", exec.lastArgs)
+		if len(exec.lastArgs) < 4 || exec.lastArgs[0] != "-n" || exec.lastArgs[1] != "/usr/bin/systemctl" || exec.lastArgs[2] != "restart" {
+			t.Errorf("expected brokered 'systemctl restart', got %v", exec.lastArgs)
 		}
 		if result.ActionID != "restart" {
 			t.Errorf("expected action ID 'restart', got %s", result.ActionID)
@@ -101,6 +116,8 @@ func TestSystemdStrategy_Restart(t *testing.T) {
 }
 
 func TestSystemdStrategy_Start(t *testing.T) {
+	restore := elevation.SetGrantPathForTest("test-vrooli-autoheal-grant", func() bool { return true })
+	t.Cleanup(restore)
 	t.Run("successful start", func(t *testing.T) {
 		exec := &mockExecutor{
 			combinedOutputResult: []byte(""),
@@ -112,7 +129,7 @@ func TestSystemdStrategy_Start(t *testing.T) {
 		if !result.Success {
 			t.Errorf("expected success, got error: %s", result.Error)
 		}
-		if len(exec.lastArgs) < 3 || exec.lastArgs[1] != "start" {
+		if len(exec.lastArgs) < 4 || exec.lastArgs[0] != "-n" || exec.lastArgs[2] != "start" {
 			t.Errorf("expected 'systemctl start', got %v", exec.lastArgs)
 		}
 		if result.ActionID != "start" {
@@ -135,6 +152,8 @@ func TestSystemdStrategy_Start(t *testing.T) {
 }
 
 func TestSystemdStrategy_Stop(t *testing.T) {
+	restore := elevation.SetGrantPathForTest("test-vrooli-autoheal-grant", func() bool { return true })
+	t.Cleanup(restore)
 	t.Run("successful stop", func(t *testing.T) {
 		exec := &mockExecutor{
 			combinedOutputResult: []byte(""),
@@ -146,7 +165,7 @@ func TestSystemdStrategy_Stop(t *testing.T) {
 		if !result.Success {
 			t.Errorf("expected success, got error: %s", result.Error)
 		}
-		if len(exec.lastArgs) < 3 || exec.lastArgs[1] != "stop" {
+		if len(exec.lastArgs) < 4 || exec.lastArgs[0] != "-n" || exec.lastArgs[2] != "stop" {
 			t.Errorf("expected 'systemctl stop', got %v", exec.lastArgs)
 		}
 	})
@@ -278,6 +297,8 @@ func TestSystemdStrategy_ServiceName(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.serviceName, func(t *testing.T) {
+			restore := elevation.SetGrantPathForTest("test-vrooli-autoheal-grant", func() bool { return true })
+			t.Cleanup(restore)
 			exec := &mockExecutor{
 				combinedOutputResult: []byte(""),
 			}

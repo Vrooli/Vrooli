@@ -30,3 +30,16 @@ This scenario helps admins manage a SaaS landing page and its pricing/billing co
 
 ## Additional Opportunities (Not Implemented)
  - Provide inline preview of mapped local plan fields before overwriting.
+
+## Design-System Migration Brief (2026-07-28)
+
+- **Intent:** Make the application’s controls, fields, feedback states, and empty
+  states consistently keyboard-accessible and token-driven without changing
+  product workflows or the established visual identity.
+- **References and non-goals:** Reuse the scenario-owned shared UI primitives;
+  do not introduce a new visual language, product capability, or route layout.
+- **Constraints:** Preserve form semantics, validation, automation selectors,
+  modal behavior, and desktop/mobile layouts. Keep the existing admin,
+  subscription, credit, and customer-management flows intact.
+- **Scope:** Token and primitive normalization, first through shared UI
+  primitives/composites and then through high-traffic user-facing surfaces.

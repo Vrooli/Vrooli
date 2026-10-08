@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package vrooli.treasury.v1.budget;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/budget;budget_v1";
+
+message Budget {
+  string id = 1;
+  string book_id = 2;
+  int64 total_cap_minor = 3;
+  int64 periodic_cap_minor = 4;
+  int64 per_transaction_cap_minor = 5;
+  string currency = 6;
+  repeated string allowed_counterparties = 7;
+  repeated string denied_counterparties = 8;
+  bool requires_approval = 9;
+  bool frozen = 10;
+  int64 period_seconds = 11;
+}
+
+message Headroom {
+  string budget_id = 1;
+  string book_id = 2;
+  string currency = 3;
+  int64 total_cap_minor = 4;
+  int64 total_used_minor = 5;
+  int64 total_remaining_minor = 6;
+  int64 periodic_cap_minor = 7;
+  int64 period_used_minor = 8;
+  int64 period_remaining_minor = 9;
+  int64 per_transaction_cap_minor = 10;
+  int64 available_minor = 11;
+  google.protobuf.Timestamp period_started_at = 12;
+  google.protobuf.Timestamp computed_at = 13;
+}

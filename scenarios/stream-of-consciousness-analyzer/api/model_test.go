@@ -325,7 +325,7 @@ func TestExportDataGraphComponents(t *testing.T) {
 func TestLLMProviderJSON(t *testing.T) {
 	p := LLMProvider{
 		Name:     "ollama",
-		URL:      "http://localhost:11434",
+		URL:      OllamaProviderTransport,
 		Active:   true,
 		Fallback: false,
 	}
@@ -342,8 +342,8 @@ func TestLLMProviderJSON(t *testing.T) {
 	if !decoded.Active {
 		t.Error("expected active=true")
 	}
-	if decoded.URL != "http://localhost:11434" {
-		t.Errorf("expected ollama URL, got %s", decoded.URL)
+	if decoded.URL != OllamaProviderTransport {
+		t.Errorf("expected ollama transport, got %s", decoded.URL)
 	}
 }
 

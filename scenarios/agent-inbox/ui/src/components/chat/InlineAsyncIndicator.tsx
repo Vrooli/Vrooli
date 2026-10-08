@@ -95,7 +95,7 @@ function getResultSummary(result: unknown): string | null {
   }
 
   // If it has a message or summary field, use that
-  if (typeof result === "object" && result !== null) {
+  if (typeof result === "object") {
     const obj = result as Record<string, unknown>;
     if (typeof obj.message === "string") {
       return obj.message.length > 50 ? obj.message.slice(0, 47) + "..." : obj.message;

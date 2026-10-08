@@ -15,13 +15,10 @@ type FetchDocContentFn = typeof fetchDocContent;
 type FindFirstMarkdownFileFn = typeof findFirstMarkdownFile;
 type GetExpandedPathsForDocPathFn = typeof getExpandedPathsForDocPath;
 
-const fetchDocsTreeMock = vi.fn<Parameters<FetchDocsTreeFn>, ReturnType<FetchDocsTreeFn>>();
-const fetchDocContentMock = vi.fn<Parameters<FetchDocContentFn>, ReturnType<FetchDocContentFn>>();
-const findFirstMarkdownFileMock = vi.fn<Parameters<FindFirstMarkdownFileFn>, ReturnType<FindFirstMarkdownFileFn>>();
-const getExpandedPathsForDocPathMock = vi.fn<
-  Parameters<GetExpandedPathsForDocPathFn>,
-  ReturnType<GetExpandedPathsForDocPathFn>
->();
+const fetchDocsTreeMock = vi.fn<FetchDocsTreeFn>();
+const fetchDocContentMock = vi.fn<FetchDocContentFn>();
+const findFirstMarkdownFileMock = vi.fn<FindFirstMarkdownFileFn>();
+const getExpandedPathsForDocPathMock = vi.fn<GetExpandedPathsForDocPathFn>();
 
 vi.mock('../services/docs.service', () => ({
   fetchDocsTree: (...args: Parameters<FetchDocsTreeFn>) => fetchDocsTreeMock(...args),
@@ -59,6 +56,12 @@ describe('useDocsViewer', () => {
   });
 
   describe('initial state', () => {
+    beforeEach(() => {
+      // Keep the mount request pending so assertions exercise the synchronous
+      // initial state without an asynchronous state update escaping React act.
+      fetchDocsTreeMock.mockReturnValue(new Promise<DocEntry[]>(() => undefined));
+    });
+
     it('starts with loading true', () => {
       const { result } = renderHook(() => useDocsViewer());
 
@@ -199,7 +202,7 @@ describe('useDocsViewer', () => {
       expect(result.current.loadingDoc).toBe(true);
 
       // Resolve the document
-      await act(async () => {
+      act(() => {
         resolveDoc!(mockDoc);
       });
 

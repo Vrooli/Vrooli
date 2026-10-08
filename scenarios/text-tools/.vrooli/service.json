@@ -1,6 +1,10 @@
 {
   "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "storage": {
+    "entries": {},
+    "rationale": "No scenario-owned persistent directory was found in the canonical repository storage paths; the scenario uses external storage, generated test paths, or ephemeral runtime state."
+  },
   "service": {
     "name": "text-tools",
     "displayName": "Text Tools",
@@ -20,6 +24,9 @@
       "ollama-ai",
       "redis-cache",
       "qdrant-vectors"
+    ],
+    "capabilities": [
+      "search"
     ],
     "parent": "vrooli",
     "type": "scenario",
@@ -52,7 +59,7 @@
     "ui": {
       "env_var": "UI_PORT",
       "description": "Text Tools UI port",
-      "range": "35000-39999"
+      "range": "20000-24999"
     }
   },
   "lifecycle": {
@@ -87,134 +94,30 @@
     },
     "setup": {
       "description": "Initialize Text Tools platform",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/text-tools-api"
-            ]
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          },
-          {
-            "type": "cli",
-            "command": "text-tools",
-            "targets": [
-              "text-tools"
-            ]
-          },
-          {
-            "type": "resources",
-            "populated": true
-          }
-        ]
-      },
       "steps": [
         {
-          "name": "install-cli",
-          "run": "bash cli/install.sh",
-          "description": "Install CLI command globally",
-          "condition": {
-            "file_exists": "cli/install.sh"
-          }
-        },
-        {
-          "name": "build-api",
-          "run": "cd api && go mod tidy && go build -o text-tools-api .",
-          "description": "Build Go API binary",
-          "condition": {
-            "file_exists": "api/go.mod"
-          }
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "cd ui && npm install",
-          "description": "Install UI dependencies",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
-          "name": "build-ui",
-          "run": "cd ui && npm run build",
-          "description": "Build production UI bundle"
-        },
-        {
-          "name": "init-database",
-          "run": "../../scripts/resources/populate/populate.sh .",
-          "description": "Initialize database schema and seed data"
-        },
-        {
           "name": "create-minio-buckets",
-          "run": "resource-minio create-bucket text-tools-data || true",
+          "exec": [
+            "resource-minio",
+            "create-bucket",
+            "text-tools-data"
+          ],
+          "on_error": "continue",
           "description": "Create MinIO storage buckets"
         },
         {
           "name": "generate-embeddings",
-          "run": "vrooli resource qdrant embeddings refresh --collection text-tools || echo \"Embeddings generation skipped (optional)\"",
+          "exec": [
+            "vrooli",
+            "resource",
+            "qdrant",
+            "embeddings",
+            "refresh",
+            "--collection",
+            "text-tools"
+          ],
+          "on_error": "continue",
           "description": "Generate text embeddings for semantic search"
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Text Tools initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: text-tools --help\\n\\nCore endpoints:\\n  POST /api/v1/text/diff\\n  POST /api/v1/text/search\\n  POST /api/v1/text/transform\\n  POST /api/v1/text/extract\\n  POST /api/v1/text/analyze'",
-          "description": "Display service access URLs"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Start Text Tools services",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./text-tools-api",
-          "description": "Start Go API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/text-tools-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && NODE_ENV=production node server.js",
-          "description": "Serve production UI bundle",
-          "background": true,
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        },
-        {
-          "name": "show-urls",
-          "run": "echo '\ud83d\ude80 Text Tools running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: text-tools --help\\n\\nTry:\\n  text-tools diff file1.txt file2.txt\\n  text-tools search \"pattern\" *.txt\\n  text-tools extract document.pdf\\n  text-tools analyze --summary input.txt'",
-          "description": "Display running service URLs and examples"
-        }
-      ]
-    },
-    "test": {
-      "description": "Comprehensive phased testing for text-tools",
-      "steps": [
-        {
-          "name": "run-phased-tests",
-          "run": "test-genie execute text-tools --preset comprehensive",
-          "description": "Execute phased scenario test suite"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop Text Tools services",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f \"text-tools-api\" || true; sleep 1; pkill -9 -f \"text-tools-api\" 2>/dev/null || true",
-          "description": "Stop API process"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f \"npm run dev\" || true; pkill -f \"vite\" || true",
-          "description": "Stop UI process"
         }
       ]
     }
@@ -226,52 +129,127 @@
         "enabled": true,
         "required": true,
         "purpose": "Store text metadata, operations history, and templates",
-        "initialization": [
-          {
-            "file": "initialization/storage/postgres/schema.sql",
-            "type": "schema"
-          },
-          {
-            "file": "initialization/storage/postgres/seed.sql",
-            "type": "data"
-          }
-        ]
+        "startup_policy": "must_start"
       },
       "minio": {
         "type": "minio",
         "enabled": true,
         "required": true,
         "purpose": "Store large text files and processing results",
-        "initialization": [
-          {
-            "file": "initialization/storage/minio/buckets.json",
-            "type": "config"
-          }
-        ]
+        "startup_policy": "must_start"
       },
       "ollama": {
         "type": "ollama",
         "enabled": true,
         "required": false,
         "purpose": "Enable semantic search, summarization, and NLP features",
-        "models": [
-          "llama3.2",
-          "mistral",
-          "nomic-embed-text"
-        ]
+        "startup_policy": "try_start"
       },
       "redis": {
         "type": "redis",
         "enabled": true,
         "required": false,
-        "purpose": "Cache frequently accessed text and processing results"
+        "purpose": "Cache frequently accessed text and processing results",
+        "startup_policy": "try_start"
       },
       "qdrant": {
         "type": "qdrant",
         "enabled": true,
         "required": false,
-        "purpose": "Vector storage for semantic search and similarity matching"
+        "purpose": "Vector storage for semantic search and similarity matching",
+        "startup_policy": "try_start"
       }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "text-tools",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "text-tools"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui",
+        "env": {
+          "NODE_ENV": "production"
+        }
+      }
+    }
+  },
+  "tier_feasibility": {
+    "metadata_version": 1,
+    "dependencies": {
+      "resources": {
+        "redis": {
+          "resource_type": "hot-state-store",
+          "platform_support": {
+            "tier-1-local": {
+              "supported": true,
+              "notes": "Optional accelerator that no Go code in this scenario currently opens. The declaration records intended caching, not a runtime requirement."
+            },
+            "tier-2-desktop": {
+              "supported": false,
+              "reason": "No vendorable cross-platform RESP server exists",
+              "alternatives": [
+                "durable-local"
+              ],
+              "notes": "The scenario does not require Redis, so the desktop tier simply runs without it rather than shipping a server."
+            }
+          },
+          "swappable_with": [
+            {
+              "id": "durable-local",
+              "relationship": "single-node-equivalent",
+              "notes": "A durable local store behind the same Store seam preserves the durability property across restart, but not cross-replica sharing. A deployment running more than one replica still needs a real Redis."
+            }
+          ]
+        }
+      }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
     }
   }
 }

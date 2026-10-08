@@ -1,0 +1,869 @@
+{
+  "version": 5,
+  "note": "Tier-2 breadth. Nine surfaces covering the web-and-marketing, social-and-syndication and email slices; twenty-one styles taking the catalog from the Tier-1 floor to the Tier-2 showcase; one subject correction. Every treatment image-tools implements now appears in at least one style, every strategy has at least two, and every declared placement is claimed by at least one style.",
+  "retune_reasons": [
+    "swiss-contour moves from subject `geological` to `cartographic` and from the terrain generator to the new `contour` one. It was named for contour lines and drew a mountain under a line screen, which is a picture of terrain wearing stripes rather than a map. A generator that draws level sets of a height field now exists, and the style that carries the word in its name should be the one that uses it.",
+    "The `procedural` strategy gains its first styles. It had none, so the Tier-1 rule 'at least two styles per strategy' was unmet from the day the catalog was written. The five that fill it are the mesh gradients and the nebulae — art directions that are finished when the generator finishes, and that a screen would spoil rather than improve.",
+    "curve, defocus, motion_blur and pixel_sort had landed operations and no style. A treatment nobody can see in the catalog is invisible to every operator, which is the same defect as an axis value with nothing behind it. terrazzo-truchet, filament-plot, long-exposure-flow and molten-terrain exist to close that gap and were art-directed to suit the operation rather than to tick it.",
+    "Six placements — device_center, the three caption variants, feature_graphic and type_mask — were in the vocabulary and claimed by no style, so the store and syndication lanes were untested in practice. Five styles now claim them, each composed with a quiet centre or a quiet band where the chrome goes.",
+    "The model-backed slice is smaller than the Tier-2 shape table asks for (six styles against a suggested ten to twelve). That is deliberate: local generation runs out of device memory at hero aspect on the reference host, so every additional guided style is a row nobody can validate. The shortfall is recorded in docs/evidence/catalog/coverage.md rather than hidden by padding the count."
+  ],
+  "surfaces": [
+    {
+      "id": "web.section-band",
+      "name": "Interstitial section band",
+      "kind": "product",
+      "width": 1440,
+      "height": 420,
+      "placements": [
+        "full_bleed",
+        "corner_bleed"
+      ],
+      "authority": "Backdrop Studio product geometry",
+      "confirmed_on": "2026-08-12"
+    },
+    {
+      "id": "web.pricing-band",
+      "name": "Pricing table backdrop",
+      "kind": "product",
+      "width": 1440,
+      "height": 520,
+      "placements": [
+        "full_bleed",
+        "corner_bleed"
+      ],
+      "authority": "Backdrop Studio product geometry",
+      "confirmed_on": "2026-08-12"
+    },
+    {
+      "id": "web.footer-wash",
+      "name": "Closing footer wash",
+      "kind": "product",
+      "width": 1440,
+      "height": 360,
+      "placements": [
+        "corner_bleed",
+        "full_bleed"
+      ],
+      "authority": "Backdrop Studio product geometry",
+      "confirmed_on": "2026-08-12"
+    },
+    {
+      "id": "web.error-page",
+      "name": "Error page",
+      "kind": "product",
+      "width": 1440,
+      "height": 900,
+      "placements": [
+        "full_bleed",
+        "type_mask"
+      ],
+      "authority": "Backdrop Studio product geometry",
+      "confirmed_on": "2026-08-12"
+    },
+    {
+      "id": "social.og-card",
+      "name": "Open Graph link preview card",
+      "kind": "social",
+      "width": 1200,
+      "height": 630,
+      "placements": [
+        "full_bleed",
+        "type_mask"
+      ],
+      "authority": "Open Graph sharing convention (1.91:1). The og: protocol itself specifies no size; 1200x630 is the platform recommendation every major consumer follows.",
+      "confirmed_on": "2026-08-12"
+    },
+    {
+      "id": "social.repo-preview",
+      "name": "Repository social preview",
+      "kind": "social",
+      "width": 1280,
+      "height": 640,
+      "placements": [
+        "full_bleed",
+        "caption_only"
+      ],
+      "authority": "GitHub Docs - Customizing your repository's social media preview (1280x640 recommended, 640x320 minimum)",
+      "confirmed_on": "2026-08-12"
+    },
+    {
+      "id": "social.profile-banner",
+      "name": "Social profile header",
+      "kind": "social",
+      "width": 1500,
+      "height": 500,
+      "placements": [
+        "full_bleed",
+        "corner_bleed"
+      ],
+      "authority": "Profile header convention (3:1). A platform convention rather than a submission requirement; the centre is the only region guaranteed to survive every crop.",
+      "confirmed_on": "2026-08-12"
+    },
+    {
+      "id": "social.post-card",
+      "name": "Portrait feed post",
+      "kind": "social",
+      "width": 1080,
+      "height": 1350,
+      "placements": [
+        "full_bleed",
+        "caption_only"
+      ],
+      "authority": "Portrait feed post convention (4:5), the tallest crop the major feeds render without letterboxing.",
+      "confirmed_on": "2026-08-12"
+    },
+    {
+      "id": "email.header",
+      "name": "Email header band",
+      "kind": "email",
+      "width": 600,
+      "height": 240,
+      "placements": [
+        "full_bleed",
+        "caption_only"
+      ],
+      "authority": "600px email body width convention. Raster only: no CSS, no web fonts, no live export.",
+      "confirmed_on": "2026-08-12"
+    }
+  ],
+  "styles": [
+    {
+      "id": "swiss-contour",
+      "name": "Swiss Contour",
+      "version": 2,
+      "role": "ambient",
+      "subject": "cartographic",
+      "lineage": "swiss_international",
+      "strategy": "procedural-treated",
+      "treatments": [
+        "posterize",
+        "line_screen"
+      ],
+      "placements": [
+        "framed_inset",
+        "split_panel"
+      ],
+      "inks": {
+        "$brand.primary": "#1c1c1c",
+        "$brand.background": "#f4f2ec"
+      },
+      "treatment_params": {
+        "posterize": "{\"levels\": 6, \"normalize\": true}",
+        "line_screen": "{\"spacing_rel\": 0.012, \"angle\": 0, \"dark\": \"$brand.primary\", \"light\": \"$brand.background\", \"normalize\": true}"
+      },
+      "regions": [
+        {
+          "x": 0.06,
+          "y": 0.2,
+          "width": 0.42,
+          "height": 0.36,
+          "kind": "overlay",
+          "text_color": "#1c1c1c"
+        }
+      ],
+      "contrast_threshold": 4.5,
+      "scaffold": {
+        "preset": "contour",
+        "conditioner": "",
+        "params_json": "{\"palette\": 0, \"bands\": 12, \"relief\": 0.4}"
+      }
+    },
+    {
+      "id": "aurora-mesh",
+      "name": "Aurora Mesh",
+      "version": 1,
+      "role": "ambient",
+      "subject": "non_representational",
+      "lineage": "cyberpunk",
+      "strategy": "procedural",
+      "treatments": [],
+      "placements": [
+        "full_bleed",
+        "split_panel",
+        "corner_bleed"
+      ],
+      "treatment_params": {},
+      "regions": [
+        {
+          "x": 0.05,
+          "y": 0.24,
+          "width": 0.44,
+          "height": 0.44,
+          "kind": "overlay",
+          "text_color": "#ffffff"
+        }
+      ],
+      "contrast_threshold": 4.5,
+      "scaffold": {
+        "preset": "mesh",
+        "conditioner": "",
+        "params_json": "{\"palette\": 1, \"focal_x\": 0.74, \"focal_y\": 0.3, \"smear\": 0.48, \"angle\": 28, \"blades\": 0.6}"
+      }
+    },
+    {
+      "id": "ember-mesh",
+      "name": "Ember Mesh",
+      "version": 1,
+      "role": "ambient",
+      "subject": "non_representational",
+      "lineage": "mid_century_modern",
+      "strategy": "procedural",
+      "treatments": [],
+      "placements": [
+        "full_bleed",
+        "split_panel"
+      ],
+      "treatment_params": {},
+      "regions": [
+        {
+          "x": 0.05,
+          "y": 0.26,
+          "width": 0.42,
+          "height": 0.4,
+          "kind": "overlay",
+          "text_color": "#241008"
+        }
+      ],
+      "contrast_threshold": 4.5,
+      "scaffold": {
+        "preset": "mesh",
+        "conditioner": "",
+        "params_json": "{\"palette\": 0, \"focal_x\": 0.78, \"focal_y\": 0.22, \"smear\": 0.42, \"angle\": 34, \"blades\": 0.5, \"blade_scale\": 0.16}"
+      }
+    },
+    {
+      "id": "solar-mesh",
+      "name": "Solar Mesh",
+      "version": 1,
+      "role": "ambient",
+      "subject": "non_representational",
+      "lineage": "psychedelic",
+      "strategy": "procedural",
+      "treatments": [],
+      "placements": [
+        "full_bleed",
+        "corner_bleed"
+      ],
+      "treatment_params": {},
+      "regions": [],
+      "contrast_threshold": 4.5,
+      "scaffold": {
+        "preset": "mesh",
+        "conditioner": "",
+        "params_json": "{\"palette\": 2, \"smear\": 0.92, \"angle\": 118, \"spread\": 0.3, \"blades\": 0.72, \"blade_scale\": 0.09}"
+      }
+    },
+    {
+      "id": "deep-field",
+      "name": "Deep Field",
+      "version": 1,
+      "role": "ambient",
+      "subject": "atmospheric",
+      "lineage": "metaphysical",
+      "strategy": "procedural",
+      "treatments": [],
+      "placements": [
+        "full_bleed",
+        "framed_inset"
+      ],
+      "treatment_params": {},
+      "regions": [
+        {
+          "x": 0.06,
+          "y": 0.3,
+          "width": 0.4,
+          "height": 0.36,
+          "kind": "overlay",
+          "text_color": "#ffffff"
+        }
+      ],
+      "contrast_threshold": 4.5,
+      "scaffold": {
+        "preset": "nebula",
+        "conditioner": "",
+        "params_json": "{\"palette\": 0, \"focal_x\": 0.7, \"focal_y\": 0.4, \"turbulence\": 0.8}"
+      }
+    },
+    {
+      "id": "ember-cloud",
+      "name": "Ember Cloud",
+      "version": 1,
+      "role": "ambient",
+      "subject": "atmospheric",
+      "lineage": "wabi_sabi",
+      "strategy": "procedural",
+      "treatments": [],
+      "placements": [
+        "full_bleed",
+        "split_panel"
+      ],
+      "treatment_params": {},
+      "regions": [],
+      "contrast_threshold": 4.5,
+      "scaffold": {
+        "preset": "nebula",
+        "conditioner": "",
+        "params_json": "{\"palette\": 1, \"dust\": 0.85, \"turbulence\": 0.95, \"core_size\": 0.42}"
+      }
+    },
+    {
+      "id": "terrazzo-truchet",
+      "name": "Terrazzo Truchet",
+      "version": 1,
+      "role": "ambient",
+      "subject": "non_representational",
+      "lineage": "bauhaus",
+      "strategy": "procedural-treated",
+      "treatments": [
+        "curve"
+      ],
+      "placements": [
+        "full_bleed",
+        "framed_inset",
+        "corner_bleed"
+      ],
+      "treatment_params": {
+        "curve": "{\"exponent\": 0.78}"
+      },
+      "regions": [
+        {
+          "x": 0.06,
+          "y": 0.28,
+          "width": 0.4,
+          "height": 0.36,
+          "kind": "overlay",
+          "text_color": "#1c2028"
+        }
+      ],
+      "contrast_threshold": 4.5,
+      "scaffold": {
+        "preset": "truchet",
+        "conditioner": "",
+        "params_json": "{\"palette\": 0, \"cells\": 5, \"line_width\": 0.22, \"detail\": 0.4}"
+      }
+    },
+    {
+      "id": "blueprint-truchet",
+      "name": "Blueprint Truchet",
+      "version": 1,
+      "role": "ambient",
+      "subject": "non_representational",
+      "lineage": "neo_brutalist",
+      "strategy": "procedural-treated",
+      "treatments": [
+        "dither_ordered"
+      ],
+      "placements": [
+        "full_bleed",
+        "split_panel"
+      ],
+      "inks": {
+        "$brand.primary": "#0b1440",
+        "$brand.background": "#dfe8fb"
+      },
+      "treatment_params": {
+        "dither_ordered": "{\"dark\": \"$brand.primary\", \"light\": \"$brand.background\", \"normalize\": true}"
+      },
+      "regions": [],
+      "contrast_threshold": 4.5,
+      "scaffold": {
+        "preset": "truchet",
+        "conditioner": "",
+        "params_json": "{\"palette\": 1, \"cells\": 4, \"line_width\": 0.28, \"detail\": 0.3}"
+      }
+    },
+    {
+      "id": "night-contour",
+      "name": "Night Contour",
+      "version": 1,
+      "role": "ambient",
+      "subject": "cartographic",
+      "lineage": "technical_minimalism",
+      "strategy": "procedural-treated",
+      "treatments": [
+        "bloom"
+      ],
+      "placements": [
+        "full_bleed",
+        "corner_bleed"
+      ],
+      "treatment_params": {
+        "bloom": "{\"radius_rel\": 0.016, \"threshold\": 0.72}"
+      },
+      "regions": [
+        {
+          "x": 0.05,
+          "y": 0.26,
+          "width": 0.42,
+          "height": 0.4,
+          "kind": "overlay",
+          "text_color": "#e6f6f4"
+        }
+      ],
+      "contrast_threshold": 4.5,
+      "scaffold": {
+        "preset": "contour",
+        "conditioner": "",
+        "params_json": "{\"palette\": 1, \"bands\": 20, \"relief\": 0.8, \"ink_strength\": 0.45}"
+      }
+    },
+    {
+      "id": "relief-plate",
+      "name": "Relief Plate",
+      "version": 1,
+      "role": "ambient",
+      "subject": "cartographic",
+      "lineage": "scientific_plate",
+      "strategy": "procedural-treated",
+      "treatments": [
+        "engraving"
+      ],
+      "placements": [
+        "framed_inset",
+        "split_panel"
+      ],
+      "inks": {
+        "$brand.primary": "#22262e",
+        "$brand.background": "#f6f2e6"
+      },
+      "treatment_params": {
+        "engraving": "{\"spacing_rel\": 0.014, \"dark\": \"$brand.primary\", \"light\": \"$brand.background\", \"normalize\": true}"
+      },
+      "regions": [],
+      "contrast_threshold": 4.5,
+      "scaffold": {
+        "preset": "contour",
+        "conditioner": "",
+        "params_json": "{\"palette\": 0, \"bands\": 9, \"relief\": 0.3, \"line_weight\": 3.2}"
+      }
+    },
+    {
+      "id": "filament-plot",
+      "name": "Filament Plot",
+      "version": 1,
+      "role": "ambient",
+      "subject": "non_representational",
+      "lineage": "op_art",
+      "strategy": "procedural-treated",
+      "treatments": [
+        "defocus"
+      ],
+      "placements": [
+        "full_bleed",
+        "corner_bleed"
+      ],
+      "treatment_params": {
+        "defocus": "{\"radius_rel\": 0.015, \"blade_count\": 6}"
+      },
+      "regions": [
+        {
+          "x": 0.05,
+          "y": 0.3,
+          "width": 0.38,
+          "height": 0.36,
+          "kind": "overlay",
+          "text_color": "#eefaf8"
+        }
+      ],
+      "contrast_threshold": 4.5,
+      "scaffold": {
+        "preset": "attractor",
+        "conditioner": "",
+        "params_json": "{\"palette\": 0, \"zoom\": 1.7, \"focal_x\": 0.66, \"focal_y\": 0.46}"
+      }
+    },
+    {
+      "id": "iron-attractor",
+      "name": "Iron Attractor",
+      "version": 1,
+      "role": "ambient",
+      "subject": "non_representational",
+      "lineage": "scientific_plate",
+      "strategy": "procedural-treated",
+      "treatments": [
+        "stipple"
+      ],
+      "placements": [
+        "framed_inset",
+        "split_panel"
+      ],
+      "inks": {
+        "$brand.primary": "#14161c",
+        "$brand.background": "#f4f1e8"
+      },
+      "treatment_params": {
+        "stipple": "{\"spacing_rel\": 0.014, \"dark\": \"$brand.primary\", \"light\": \"$brand.background\", \"normalize\": true, \"seed\": 11}"
+      },
+      "regions": [],
+      "contrast_threshold": 4.5,
+      "scaffold": {
+        "preset": "attractor",
+        "conditioner": "",
+        "params_json": "{\"palette\": 1, \"zoom\": 1.35, \"variation\": 0.6}"
+      }
+    },
+    {
+      "id": "long-exposure-flow",
+      "name": "Long Exposure Flow",
+      "version": 1,
+      "role": "ambient",
+      "subject": "non_representational",
+      "lineage": "art_deco",
+      "strategy": "procedural-treated",
+      "treatments": [
+        "motion_blur",
+        "curve"
+      ],
+      "placements": [
+        "full_bleed",
+        "split_panel"
+      ],
+      "treatment_params": {
+        "motion_blur": "{\"distance_rel\": 0.035, \"angle\": 18}",
+        "curve": "{\"exponent\": 0.86}"
+      },
+      "regions": [
+        {
+          "x": 0.06,
+          "y": 0.28,
+          "width": 0.4,
+          "height": 0.38,
+          "kind": "overlay",
+          "text_color": "#ffffff"
+        }
+      ],
+      "contrast_threshold": 4.5,
+      "scaffold": {
+        "preset": "flow",
+        "conditioner": "",
+        "params_json": "{\"turbulence\": 0.72, \"focal_x\": 0.62, \"focal_y\": 0.42}"
+      }
+    },
+    {
+      "id": "molten-terrain",
+      "name": "Molten Terrain",
+      "version": 1,
+      "role": "ambient",
+      "subject": "geological",
+      "lineage": "psychedelic",
+      "strategy": "procedural-treated",
+      "treatments": [
+        "pixel_sort",
+        "grain"
+      ],
+      "placements": [
+        "full_bleed",
+        "corner_bleed"
+      ],
+      "treatment_params": {
+        "pixel_sort": "{\"threshold\": 0.58, \"axis\": \"vertical\"}",
+        "grain": "{\"seed\": 7, \"amount\": 0.05, \"contrast_multiplier\": 1.05}"
+      },
+      "regions": [],
+      "contrast_threshold": 4.5,
+      "scaffold": {
+        "preset": "terrain",
+        "conditioner": "",
+        "params_json": ""
+      }
+    },
+    {
+      "id": "feature-band-mesh",
+      "name": "Feature Band Mesh",
+      "version": 1,
+      "role": "ambient",
+      "subject": "non_representational",
+      "lineage": "bauhaus",
+      "strategy": "procedural-treated",
+      "treatments": [
+        "posterize"
+      ],
+      "placements": [
+        "feature_graphic",
+        "full_bleed"
+      ],
+      "inks": {
+        "$brand.primary": "#12224a",
+        "$brand.background": "#f6efe0"
+      },
+      "treatment_params": {
+        "posterize": "{\"levels\": 7, \"dark\": \"$brand.primary\", \"light\": \"$brand.background\", \"normalize\": true}"
+      },
+      "regions": [
+        {
+          "x": 0.24,
+          "y": 0.22,
+          "width": 0.52,
+          "height": 0.5,
+          "kind": "overlay",
+          "text_color": "#12224a"
+        }
+      ],
+      "contrast_threshold": 4.5,
+      "scaffold": {
+        "preset": "mesh",
+        "conditioner": "",
+        "params_json": "{\"palette\": 2, \"focal_x\": 0.12, \"focal_y\": 0.2, \"smear\": 0.6, \"angle\": 8, \"blades\": 0.45}"
+      }
+    },
+    {
+      "id": "device-stage-mesh",
+      "name": "Device Stage Mesh",
+      "version": 1,
+      "role": "ambient",
+      "subject": "non_representational",
+      "lineage": "mid_century_modern",
+      "strategy": "procedural",
+      "treatments": [],
+      "placements": [
+        "device_center",
+        "caption_above_device"
+      ],
+      "treatment_params": {},
+      "regions": [
+        {
+          "x": 0.2,
+          "y": 0.16,
+          "width": 0.6,
+          "height": 0.68,
+          "kind": "occlusion",
+          "text_color": "#ffffff"
+        }
+      ],
+      "contrast_threshold": 4.5,
+      "scaffold": {
+        "preset": "mesh",
+        "conditioner": "",
+        "params_json": "{\"palette\": 1, \"focal_x\": 0.5, \"focal_y\": 0.14, \"smear\": 0.3, \"angle\": 90, \"spread\": 0.05, \"blades\": 0.3}"
+      }
+    },
+    {
+      "id": "caption-wash-nebula",
+      "name": "Caption Wash Nebula",
+      "version": 1,
+      "role": "ambient",
+      "subject": "atmospheric",
+      "lineage": "metaphysical",
+      "strategy": "procedural-treated",
+      "treatments": [
+        "scrim"
+      ],
+      "placements": [
+        "caption_below_device",
+        "caption_only"
+      ],
+      "inks": {
+        "$brand.primary": "#080b16"
+      },
+      "treatment_params": {
+        "scrim": "{\"color\": \"$brand.primary\", \"opacity\": 0.32, \"direction\": \"bottom\"}"
+      },
+      "regions": [
+        {
+          "x": 0.08,
+          "y": 0.72,
+          "width": 0.84,
+          "height": 0.2,
+          "kind": "overlay",
+          "text_color": "#ffffff"
+        }
+      ],
+      "contrast_threshold": 4.5,
+      "scaffold": {
+        "preset": "nebula",
+        "conditioner": "",
+        "params_json": "{\"palette\": 0, \"focal_x\": 0.5, \"focal_y\": 0.3, \"core_size\": 0.3}"
+      }
+    },
+    {
+      "id": "store-tile-truchet",
+      "name": "Store Tile Truchet",
+      "version": 1,
+      "role": "ambient",
+      "subject": "non_representational",
+      "lineage": "memphis",
+      "strategy": "procedural-treated",
+      "treatments": [
+        "posterize",
+        "grain"
+      ],
+      "placements": [
+        "feature_graphic",
+        "caption_only"
+      ],
+      "inks": {
+        "$brand.primary": "#241f2e",
+        "$brand.background": "#ffeede"
+      },
+      "treatment_params": {
+        "posterize": "{\"levels\": 5, \"dark\": \"$brand.primary\", \"light\": \"$brand.background\", \"normalize\": true}",
+        "grain": "{\"seed\": 19, \"amount\": 0.04, \"contrast_multiplier\": 1.02}"
+      },
+      "regions": [
+        {
+          "x": 0.18,
+          "y": 0.3,
+          "width": 0.64,
+          "height": 0.4,
+          "kind": "overlay",
+          "text_color": "#241f2e"
+        }
+      ],
+      "contrast_threshold": 4.5,
+      "scaffold": {
+        "preset": "truchet",
+        "conditioner": "",
+        "params_json": "{\"palette\": 0, \"cells\": 4, \"focal_x\": 0.5, \"focal_y\": 0.5, \"detail\": 0.2}"
+      }
+    },
+    {
+      "id": "type-mask-caustic",
+      "name": "Type Mask Caustic",
+      "version": 1,
+      "role": "ambient",
+      "subject": "aquatic",
+      "lineage": "art_deco",
+      "strategy": "procedural-treated",
+      "treatments": [
+        "duotone"
+      ],
+      "placements": [
+        "type_mask",
+        "full_bleed"
+      ],
+      "inks": {
+        "$brand.primary": "#0a2a3c",
+        "$brand.accent": "#4ad0c0",
+        "$brand.background": "#f2fbfa"
+      },
+      "treatment_params": {
+        "duotone": "{\"dark\": \"$brand.primary\", \"mid\": \"$brand.accent\", \"light\": \"$brand.background\", \"mid_low\": 0.38, \"mid_high\": 0.66, \"normalize\": true}"
+      },
+      "regions": [],
+      "contrast_threshold": 4.5,
+      "scaffold": {
+        "preset": "caustics",
+        "conditioner": "",
+        "params_json": ""
+      }
+    },
+    {
+      "id": "guided-industrial",
+      "name": "Guided Industrial",
+      "version": 1,
+      "role": "ambient",
+      "subject": "industrial",
+      "lineage": "constructivist",
+      "strategy": "guided",
+      "treatments": [
+        "duotone",
+        "grain"
+      ],
+      "placements": [
+        "full_bleed",
+        "split_panel"
+      ],
+      "inks": {
+        "$brand.primary": "#8c1b12",
+        "$brand.background": "#efe7d8"
+      },
+      "treatment_params": {
+        "duotone": "{\"dark\": \"$brand.primary\", \"light\": \"$brand.background\", \"normalize\": true}",
+        "grain": "{\"seed\": 23, \"amount\": 0.06, \"contrast_multiplier\": 1.08}"
+      },
+      "regions": [
+        {
+          "x": 0.06,
+          "y": 0.24,
+          "width": 0.4,
+          "height": 0.42,
+          "kind": "overlay",
+          "text_color": "#efe7d8"
+        }
+      ],
+      "contrast_threshold": 4.5,
+      "scaffold": {
+        "preset": "terrain",
+        "conditioner": "edge",
+        "params_json": ""
+      },
+      "generation": {
+        "prompt_template": "wide industrial hall, exposed steel trusses and clerestory light, heavy machinery in silhouette, deep atmospheric haze, dramatic side lighting, no text, no people",
+        "negative": "text, watermark, logo, signature, people, faces, blurry, low contrast"
+      }
+    },
+    {
+      "id": "guided-interior-riso",
+      "name": "Guided Interior Riso",
+      "version": 1,
+      "role": "ambient",
+      "subject": "interior",
+      "lineage": "riso_zine",
+      "strategy": "guided",
+      "treatments": [
+        "dither_diffusion",
+        "grain"
+      ],
+      "placements": [
+        "full_bleed",
+        "framed_inset"
+      ],
+      "inks": {
+        "$brand.primary": "#2b3ea8",
+        "$brand.background": "#fbf3e2"
+      },
+      "treatment_params": {
+        "dither_diffusion": "{\"dark\": \"$brand.primary\", \"light\": \"$brand.background\", \"normalize\": true}",
+        "grain": "{\"seed\": 31, \"amount\": 0.05, \"contrast_multiplier\": 1.04}"
+      },
+      "regions": [],
+      "contrast_threshold": 4.5,
+      "scaffold": {
+        "preset": "arcade",
+        "conditioner": "edge",
+        "params_json": ""
+      },
+      "generation": {
+        "prompt_template": "sunlit modernist interior, tall windows, long shadows across a bare floor, a single chair, quiet and empty, no text, no people",
+        "negative": "text, watermark, logo, signature, people, faces, clutter"
+      }
+    },
+    {
+      "id": "synth-celestial",
+      "name": "Synthesized Celestial",
+      "version": 1,
+      "role": "ambient",
+      "subject": "celestial",
+      "lineage": "art_nouveau",
+      "strategy": "synthesized",
+      "treatments": [
+        "curve",
+        "grain"
+      ],
+      "placements": [
+        "full_bleed",
+        "corner_bleed"
+      ],
+      "treatment_params": {
+        "curve": "{\"exponent\": 0.92}",
+        "grain": "{\"seed\": 41, \"amount\": 0.04, \"contrast_multiplier\": 1.03}"
+      },
+      "regions": [
+        {
+          "x": 0.06,
+          "y": 0.3,
+          "width": 0.38,
+          "height": 0.36,
+          "kind": "overlay",
+          "text_color": "#ffffff"
+        }
+      ],
+      "contrast_threshold": 4.5,
+      "generation": {
+        "prompt_template": "art nouveau celestial chart, gilded constellations and a crescent moon over deep indigo, ornamental linework, engraved plate, no text, no people",
+        "negative": "text, watermark, logo, signature, people, faces, photorealistic"
+      }
+    }
+  ]
+}

@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/vrooli/packages/artifactpaths"
+
 	"test-genie/internal/requirements/types"
 )
 
@@ -59,7 +61,6 @@ func TestLoader_LoadAll_Empty(t *testing.T) {
 	loader := New(reader)
 
 	bundle, err := loader.LoadAll(context.Background(), "/test/scenario")
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -76,7 +77,6 @@ func TestLoader_LoadPhaseResults_NoDirectory(t *testing.T) {
 	loader := New(reader)
 
 	results, err := loader.LoadPhaseResults(context.Background(), "/test/scenario")
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -87,10 +87,14 @@ func TestLoader_LoadPhaseResults_NoDirectory(t *testing.T) {
 
 func TestLoader_LoadPhaseResults_WithFiles(t *testing.T) {
 	reader := newMemReader()
-	reader.dirs["/test/scenario/coverage/phase-results"] = []fs.DirEntry{
+	const runID = "20251208-151044-loadtest"
+	// The latest manifest points the loader at the most recent run.
+	reader.files["/test/scenario/coverage/latest/manifest.json"] = []byte(`{"run_id":"` + runID + `"}`)
+	runDir := "/test/scenario/coverage/runs/" + runID + "/phase-results"
+	reader.dirs[runDir] = []fs.DirEntry{
 		&memDirEntry{name: "unit.json", isDir: false},
 	}
-	reader.files["/test/scenario/coverage/phase-results/unit.json"] = []byte(`{
+	reader.files[runDir+"/unit.json"] = []byte(`{
 		"phase": "unit",
 		"status": "passed",
 		"duration_seconds": 5.5,
@@ -101,7 +105,6 @@ func TestLoader_LoadPhaseResults_WithFiles(t *testing.T) {
 
 	loader := New(reader)
 	results, err := loader.LoadPhaseResults(context.Background(), "/test/scenario")
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -115,7 +118,6 @@ func TestLoader_LoadVitestEvidence_NoFile(t *testing.T) {
 	loader := New(reader)
 
 	evidence, err := loader.LoadVitestEvidence(context.Background(), "/test/scenario")
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -149,7 +151,6 @@ func TestLoader_LoadVitestEvidence_WithFile(t *testing.T) {
 
 	loader := New(reader)
 	evidence, err := loader.LoadVitestEvidence(context.Background(), "/test/scenario")
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -168,7 +169,6 @@ func TestLoader_LoadManualValidations_NoFile(t *testing.T) {
 	loader := New(reader)
 
 	manifest, err := loader.LoadManualValidations(context.Background(), "/test/scenario")
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -184,7 +184,6 @@ func TestLoader_LoadManualValidations_WithFile(t *testing.T) {
 
 	loader := New(reader)
 	manifest, err := loader.LoadManualValidations(context.Background(), "/test/scenario")
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -198,6 +197,70 @@ func TestLoader_LoadManualValidations_WithFile(t *testing.T) {
 		t.Error("expected REQ-001 in manifest")
 	} else if v.Status != "passed" {
 		t.Errorf("unexpected status: %s", v.Status)
+	}
+}
+
+func TestLoader_LoadExternalAutomationEvidence_WithProviderReceipt(t *testing.T) {
+	reader := newMemReader()
+	dir := "/test/scenario/bas/evidence"
+	reader.dirs[dir] = []fs.DirEntry{
+		&memDirEntry{name: "journeys.json", isDir: false},
+	}
+	reader.files[dir+"/journeys.json"] = []byte(`{
+		"schema_version": 1,
+		"producer": "browser-automation-studio",
+		"scenario": "test-scenario",
+		"generated_at": "2026-08-12T22:00:00Z",
+		"records": [{
+			"requirement_id": "REQ-JOURNEY",
+			"validation_ref": "bas/cases/experience/first-run.json",
+			"status": "passed",
+			"phase": "integration",
+			"evidence": "BAS execution run-1 produced video.webm",
+			"source_path": "bas/cases/experience/first-run.json",
+			"run_id": "run-1",
+			"metadata": {"artifact_sha256": "abc"}
+		}]
+	}`)
+
+	loader := New(reader)
+	results, err := loader.LoadExternalAutomationEvidence(context.Background(), "/test/scenario")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	records := results.Get("REQ-JOURNEY")
+	if len(records) != 1 {
+		t.Fatalf("expected one journey record, got %d", len(records))
+	}
+	if records[0].Status != types.LivePassed {
+		t.Fatalf("expected passed status, got %q", records[0].Status)
+	}
+	if records[0].Metadata["run_id"] != "run-1" {
+		t.Fatalf("expected run provenance, got %#v", records[0].Metadata)
+	}
+}
+
+func TestLoader_LoadExternalAutomationEvidence_RejectsUnprovenRows(t *testing.T) {
+	reader := newMemReader()
+	dir := "/test/scenario/coverage/external-evidence"
+	reader.dirs[dir] = []fs.DirEntry{
+		&memDirEntry{name: "invalid.json", isDir: false},
+	}
+	reader.files[dir+"/invalid.json"] = []byte(`{
+		"schema_version": 1,
+		"producer": "browser-automation-studio",
+		"scenario": "test-scenario",
+		"generated_at": "2026-08-12T22:00:00Z",
+		"records": [{"requirement_id":"REQ-JOURNEY","status":"passed"}]
+	}`)
+
+	loader := New(reader)
+	results, err := loader.LoadExternalAutomationEvidence(context.Background(), "/test/scenario")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if results.Count() != 0 {
+		t.Fatalf("expected invalid row to be rejected, got %d records", results.Count())
 	}
 }
 
@@ -223,7 +286,6 @@ func TestLoader_LoadAll_WithAllSources(t *testing.T) {
 
 	loader := New(reader)
 	bundle, err := loader.LoadAll(context.Background(), "/test/scenario")
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -329,6 +391,15 @@ func TestEvidenceMap_Merge(t *testing.T) {
 	}
 }
 
+func TestGetPhaseStatus_UsesUntimestampedPhaseRecord(t *testing.T) {
+	evidence := types.EvidenceMap{
+		"__phase__unit": {{Phase: "unit", Status: types.LivePassed}},
+	}
+	if got := GetPhaseStatus(evidence, "unit"); got != types.LivePassed {
+		t.Fatalf("GetPhaseStatus() = %q, want %q", got, types.LivePassed)
+	}
+}
+
 // Integration test using real filesystem
 func TestLoader_Integration(t *testing.T) {
 	if testing.Short() {
@@ -336,39 +407,51 @@ func TestLoader_Integration(t *testing.T) {
 	}
 
 	tmpDir := t.TempDir()
+	t.Setenv("HOME", tmpDir)
 	scenarioDir := filepath.Join(tmpDir, "scenario")
-	phaseResultsDir := filepath.Join(scenarioDir, "coverage", "phase-results")
-	manualDir := filepath.Join(scenarioDir, "coverage", "manual-validations")
+	artifactRoot, err := artifactpaths.ScenarioRoot("scenario")
+	if err != nil {
+		t.Fatal(err)
+	}
+	runID := "20260827-051100-governed"
+	phaseResultsDir := artifactpaths.RunPhaseResultsDir(artifactRoot, runID)
+	manualDir := filepath.Dir(artifactpaths.ManualValidationsPath(artifactRoot))
 	vitestDir := filepath.Join(scenarioDir, "ui", "coverage")
 
 	// Create directories
 	for _, dir := range []string{phaseResultsDir, manualDir, vitestDir} {
-		if err := os.MkdirAll(dir, 0755); err != nil {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
 			t.Fatalf("create dir: %v", err)
 		}
+	}
+	latestDir := filepath.Dir(artifactpaths.LatestManifestPath(artifactRoot))
+	if err := os.MkdirAll(latestDir, 0o755); err != nil {
+		t.Fatalf("create latest dir: %v", err)
+	}
+	if err := os.WriteFile(artifactpaths.LatestManifestPath(artifactRoot), []byte(`{"run_id":"`+runID+`"}`), 0o644); err != nil {
+		t.Fatalf("write latest manifest: %v", err)
 	}
 
 	// Write phase result
 	phaseData := []byte(`{"phase": "unit", "status": "passed", "test_count": 5}`)
-	if err := os.WriteFile(filepath.Join(phaseResultsDir, "unit.json"), phaseData, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(phaseResultsDir, "unit.json"), phaseData, 0o644); err != nil {
 		t.Fatalf("write phase result: %v", err)
 	}
 
 	// Write vitest evidence
 	vitestData := []byte(`[{"requirement_id": "REQ-001", "status": "passed", "file_path": "test.ts"}]`)
-	if err := os.WriteFile(filepath.Join(vitestDir, "vitest-requirements.json"), vitestData, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(vitestDir, "vitest-requirements.json"), vitestData, 0o644); err != nil {
 		t.Fatalf("write vitest: %v", err)
 	}
 
 	// Write manual validations
 	manualData := []byte(`{"requirement_id": "REQ-002", "status": "passed", "validated_at": "2024-01-01T00:00:00Z"}`)
-	if err := os.WriteFile(filepath.Join(manualDir, "log.jsonl"), manualData, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(manualDir, "log.jsonl"), manualData, 0o644); err != nil {
 		t.Fatalf("write manual: %v", err)
 	}
 
 	loader := NewDefault()
 	bundle, err := loader.LoadAll(context.Background(), scenarioDir)
-
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}

@@ -16,7 +16,7 @@ import type {
   DiskPartitionInfo,
   DiskUsageEntry
 } from '../../../types';
-import { MetricDetailLayout, MetricLineChart } from './MetricDetailViews';
+import { DetailSection, MetricDetailLayout, MetricLineChart } from './MetricDetailViews';
 import { buildSingleSeriesData, combineDiskSeries } from '../../../shared/utils/chartData';
 import { buildDiskUsageCard } from './MetricRenderHelpers';
 
@@ -97,7 +97,7 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
   );
 
   useEffect(() => {
-    fetchDiskDetails('/', DEFAULT_DEPTH, false);
+    void fetchDiskDetails('/', DEFAULT_DEPTH, false);
     return () => {
       if (activeRequestRef.current) {
         activeRequestRef.current.abort();
@@ -145,22 +145,22 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
 
   const handleMountSelect = (mountPoint: string) => {
     setSelectedMount(mountPoint);
-    fetchDiskDetails(mountPoint, depth, includeFiles);
+    void fetchDiskDetails(mountPoint, depth, includeFiles);
   };
 
   const handleDepthChange = (event: ChangeEvent<HTMLSelectElement>) => {
     const nextDepth = Number(event.target.value);
     setDepth(nextDepth);
-    fetchDiskDetails(selectedMount, nextDepth, includeFiles);
+    void fetchDiskDetails(selectedMount, nextDepth, includeFiles);
   };
 
   const handleRefresh = () => {
-    fetchDiskDetails(selectedMount, depth, includeFiles);
+    void fetchDiskDetails(selectedMount, depth, includeFiles);
   };
 
   const handleScanLargestFiles = () => {
     setIncludeFiles(true);
-    fetchDiskDetails(selectedMount, depth, true);
+    void fetchDiskDetails(selectedMount, depth, true);
   };
 
   const handleStopScan = () => {
@@ -173,13 +173,16 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
 
   return (
     <MetricDetailLayout
+      layoutId="disk"
       title="DISK PERFORMANCE"
       icon={<HardDrive size={22} />}
       headline={summaryDiskInfo ? `${summaryDiskInfo.percent.toFixed(1)}% utilized on ${selectedMountLabel}` : 'Awaiting disk telemetry'}
       subhead={subheadParts.length > 0 ? subheadParts.join(' \u2022 ') : undefined}
       onBack={onBack}
     >
-      <MetricLineChart
+      <DetailSection id="disk-io-history" title="Disk I/O history"><MetricLineChart
+        status={metricHistory === null ? 'loading' : 'ready'}
+        seriesLabel="disk"
         className="card"
         data={diskIoHistory.map(point => ({ timestamp: point.timestamp, read: point.read, write: point.write }))}
         lines={[
@@ -189,9 +192,9 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
         unit=" MB/s"
         valueFormatter={formatMbPerSecond}
         yDomain={['auto', 'auto']}
-      />
+      /></DetailSection>
 
-      <div className="metric-grid-auto-lg">
+      <DetailSection id="storage-overview" title="Storage overview"><div className="metric-grid-auto-lg">
         {buildDiskUsageCard(summaryDiskInfo, {
           title: `Usage for ${selectedMountLabel}`,
           subtitle: deviceLabel ?? 'Current usage across monitored volumes'
@@ -262,7 +265,7 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
             {watchersSupported ? (
               <>
                 <div className="utilization-header">
-                  <div className="utilization-value-lg" style={{ fontSize: 'var(--text-lg)' }}>
+                  <div className="utilization-value-lg" data-sm-style="sm-style-374ebe9a52">
                     {inotifyWatchers.watchesUsed.toLocaleString()} / {inotifyWatchers.watchesMax.toLocaleString()} watches
                   </div>
                   <div className="utilization-percent" style={{
@@ -302,9 +305,9 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
             )}
           </div>
         )}
-      </div>
+      </div></DetailSection>
 
-      <div className="metric-grid-auto-lg">
+      <DetailSection id="volume-analysis" title="Volumes and analysis"><div className="metric-grid-auto-lg">
         <div className="card flex-col-gap-md">
           <div>
             <h3 className="section-heading">Mounted Volumes</h3>
@@ -322,7 +325,7 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
                     key={`${partition.device}-${partition.mountPoint}`}
                     type="button"
                     className={`partition-btn ${isActive ? 'active' : ''}`}
-                    onClick={() => handleMountSelect(partition.mountPoint)}
+                    onClick={() => { handleMountSelect(partition.mountPoint); }}
                     disabled={detailsLoading && isActive}
                   >
                     <div className="flex-row-baseline">
@@ -405,26 +408,26 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
             Deeper scans and file discovery may take longer on large volumes.
           </div>
         </div>
-      </div>
+      </div></DetailSection>
 
       {detailsError && (
-        <div className="card" style={{ color: 'var(--color-error)', letterSpacing: '0.08em' }}>
+        <DetailSection id="analysis-error" title="Analysis error"><div className="card" data-sm-style="sm-style-f4d03882e0">
           Failed to analyze disk usage: {detailsError}
-        </div>
+        </div></DetailSection>
       )}
 
       {diskDetails?.notes && diskDetails.notes.length > 0 && (
-        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xs)', color: 'var(--color-warning)' }}>
+        <DetailSection id="analysis-notes" title="Analysis notes"><div className="card" data-sm-style="sm-style-d370fc4399">
           {diskDetails.notes.map((note, index) => (
-            <div key={`${note}-${index}`} style={{ letterSpacing: '0.08em' }}>
+            <div key={`${note}-${index}`} data-sm-style="sm-style-84a0f8980c">
               {'\u2022'} {note}
             </div>
           ))}
-        </div>
+        </div></DetailSection>
       )}
 
-      <div className="card flex-col-gap-md">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 'var(--spacing-sm)' }}>
+      <DetailSection id="top-directories" title="Top directories"><div className="card flex-col-gap-md">
+        <div data-sm-style="sm-style-a2c4df2a66">
           <div>
             <h3 className="section-heading">Top Directories</h3>
             <div className="card-subtitle">
@@ -435,7 +438,7 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
         {detailsLoading && topDirectories.length === 0 ? (
           <div className="text-muted">Analyzing directory usage...</div>
         ) : topDirectories.length > 0 ? (
-          <div style={{ overflowX: 'auto' }}>
+          <div data-sm-style="sm-style-d383f0755e">
             <table className="data-table">
               <thead>
                 <tr>
@@ -447,7 +450,7 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
                 {topDirectories.map((entry: DiskUsageEntry) => (
                   <tr key={entry.path}>
                     <td className="text-bright">{entry.path}</td>
-                    <td className="text-accent" style={{ whiteSpace: 'nowrap' }}>{entry.sizeHuman}</td>
+                    <td className="text-accent" data-sm-style="sm-style-f8d335ec48">{entry.sizeHuman}</td>
                   </tr>
                 ))}
               </tbody>
@@ -458,9 +461,9 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
             No directories exceeded the scan threshold at this depth.
           </div>
         )}
-      </div>
+      </div></DetailSection>
 
-      <div className="card flex-col-gap-md">
+      <DetailSection id="largest-files" title="Largest files"><div className="card flex-col-gap-md">
         <div>
           <h3 className="section-heading">Largest Files</h3>
           <div className="card-subtitle">
@@ -469,7 +472,7 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
         </div>
         {includeFiles ? (
           largestFiles.length > 0 ? (
-            <div style={{ overflowX: 'auto' }}>
+            <div data-sm-style="sm-style-d383f0755e">
               <table className="data-table">
                 <thead>
                   <tr>
@@ -481,7 +484,7 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
                   {largestFiles.map(entry => (
                     <tr key={entry.path}>
                       <td className="text-bright">{entry.path}</td>
-                      <td className="text-accent" style={{ whiteSpace: 'nowrap' }}>{entry.sizeHuman}</td>
+                      <td className="text-accent" data-sm-style="sm-style-f8d335ec48">{entry.sizeHuman}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -499,9 +502,9 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
             Run the "Find Largest Files" scan to surface oversized artifacts.
           </div>
         )}
-      </div>
+      </div></DetailSection>
 
-      <div className="card flex-col-gap-md">
+      <DetailSection id="disk-usage-history" title="Disk usage history"><div className="card flex-col-gap-md">
         <div>
           <h3 className="section-heading">Disk Usage History</h3>
           <div className="card-subtitle">
@@ -509,6 +512,8 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
           </div>
         </div>
         <MetricLineChart
+        status={metricHistory === null ? 'loading' : 'ready'}
+        seriesLabel="disk"
           data={diskUsageHistory.map(point => ({ timestamp: point.timestamp, value: point.value }))}
           lines={[{ dataKey: 'value', name: 'Disk Usage', color: 'var(--color-info)' }]}
           unit="%"
@@ -516,7 +521,7 @@ export const DiskDetailView = ({ detailedMetrics, storageIO, metricHistory, disk
           yDomain={[0, 100]}
           height={260}
         />
-      </div>
+      </div></DetailSection>
     </MetricDetailLayout>
   );
 };

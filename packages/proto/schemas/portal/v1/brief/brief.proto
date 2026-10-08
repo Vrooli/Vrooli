@@ -1,0 +1,123 @@
+syntax = "proto3";
+
+package vrooli.portal.v1.brief;
+
+import "portal/v1/shared/common.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/portal/v1/brief;brief_v1";
+
+service BriefService {
+  rpc Build(BuildBriefRequest) returns (BuildBriefResponse);
+  rpc Get(GetBriefRequest) returns (GetBriefResponse);
+  rpc List(ListBriefsRequest) returns (ListBriefsResponse);
+  rpc RecordUse(RecordBriefUseRequest) returns (RecordBriefUseResponse);
+  rpc Stats(BriefStatsRequest) returns (BriefStatsResponse);
+}
+
+enum BriefConsumer {
+  BRIEF_CONSUMER_UNSPECIFIED = 0;
+  BRIEF_CONSUMER_PORTAL_LLM = 1;
+  BRIEF_CONSUMER_PORTAL_AGENT = 2;
+  BRIEF_CONSUMER_EXTERNAL_HARNESS = 3;
+}
+
+enum BriefVerdict {
+  BRIEF_VERDICT_UNSPECIFIED = 0;
+  BRIEF_VERDICT_DELIVER = 1;
+  BRIEF_VERDICT_WITHHELD_LOW_CONFIDENCE = 2;
+  BRIEF_VERDICT_WITHHELD_MODE_OFF = 3;
+  BRIEF_VERDICT_WITHHELD_BUDGET = 4;
+  BRIEF_VERDICT_WITHHELD_DEGRADED = 5;
+  BRIEF_VERDICT_WITHHELD_NOT_APPLICABLE = 6;
+}
+
+enum TrustClass {
+  TRUST_CLASS_UNSPECIFIED = 0;
+  TRUST_CLASS_FIRST_PARTY = 1;
+  TRUST_CLASS_QUOTED = 2;
+  TRUST_CLASS_EXTERNAL = 3;
+}
+
+message BuildBriefRequest {
+  string prompt = 1;
+  BriefConsumer consumer = 2;
+  string chat_id = 3;
+  string message_id = 4;
+  vrooli.portal.v1.shared.AgentHarness harness = 5;
+  string session_ref = 6;
+  int32 budget_ms = 7;
+}
+
+message BuildBriefResponse { Brief brief = 1; }
+
+message Brief {
+  string id = 1;
+  BriefConsumer consumer = 2;
+  BriefVerdict verdict = 3;
+  string reason = 4;
+  repeated BriefItem items = 5;
+  string rendered = 6;
+  int64 latency_ms = 7;
+  bool degraded = 8;
+  TrustClass max_trust_class = 9;
+  string created_at = 10;
+  string effective_query = 11;
+  repeated string queried_providers = 12;
+}
+
+message BriefItem {
+  string provider_id = 1;
+  string type = 2;
+  string title = 3;
+  string snippet = 4;
+  string path = 5;
+  double score = 6;
+  double rerank_score = 7;
+  TrustClass trust_class = 8;
+  string suggested_command = 9;
+}
+
+message GetBriefRequest { string id = 1; }
+message GetBriefResponse { Brief brief = 1; }
+
+message ListBriefsRequest {
+  BriefConsumer consumer = 1;
+  string chat_id = 2;
+  string session_ref = 3;
+  int32 limit = 4;
+}
+message ListBriefsResponse { repeated Brief briefs = 1; }
+
+message RecordBriefUseRequest {
+  string brief_id = 1;
+  int32 item_index = 2;
+  BriefUseKind kind = 3;
+}
+
+enum BriefUseKind {
+  BRIEF_USE_KIND_UNSPECIFIED = 0;
+  BRIEF_USE_KIND_OPENED = 1;
+  BRIEF_USE_KIND_COPIED = 2;
+  BRIEF_USE_KIND_REFERENCED = 3;
+  BRIEF_USE_KIND_REJECTED = 4;
+}
+
+message RecordBriefUseResponse { bool recorded = 1; }
+
+message BriefStatsRequest {
+  int32 window_days = 1;
+  BriefConsumer consumer = 2;
+}
+
+message BriefStatsRow {
+  BriefConsumer consumer = 1;
+  int64 briefs_built = 2;
+  int64 briefs_delivered = 3;
+  int64 items_delivered = 4;
+  int64 items_used = 5;
+  double usage_rate = 6;
+  double withheld_rate = 7;
+  map<string, int64> withheld_by_verdict = 8;
+}
+
+message BriefStatsResponse { repeated BriefStatsRow rows = 1; }

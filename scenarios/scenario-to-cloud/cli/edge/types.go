@@ -3,12 +3,12 @@ package edge
 
 // DNSCheckResponse is the response from DNS check.
 type DNSCheckResponse struct {
-	DeploymentID string          `json:"deployment_id"`
-	Domain       string          `json:"domain"`
-	Healthy      bool            `json:"healthy"`
-	Records      []DNSCheckItem  `json:"records"`
-	Issues       []string        `json:"issues,omitempty"`
-	Timestamp    string          `json:"timestamp"`
+	DeploymentID string         `json:"deployment_id"`
+	Domain       string         `json:"domain"`
+	Healthy      bool           `json:"healthy"`
+	Records      []DNSCheckItem `json:"records"`
+	Issues       []string       `json:"issues,omitempty"`
+	Timestamp    string         `json:"timestamp"`
 }
 
 // DNSCheckItem represents a single DNS record check result.

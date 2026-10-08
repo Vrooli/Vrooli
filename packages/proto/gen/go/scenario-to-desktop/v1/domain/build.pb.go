@@ -4,9 +4,11 @@
 // 	protoc        (unknown)
 // source: scenario-to-desktop/v1/domain/build.proto
 
-package scenario_to_desktop_v1
+package domain
 
 import (
+	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	shared "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/shared"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -22,417 +24,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// PlatformBuildStatus enumerates the status of a single platform build.
-//
-// @usage PlatformBuildResult.status
-type PlatformBuildStatus int32
-
-const (
-	// Default/unknown status. Should never appear in valid data.
-	PlatformBuildStatus_PLATFORM_BUILD_STATUS_UNSPECIFIED PlatformBuildStatus = 0
-	// Build is in progress for this platform.
-	PlatformBuildStatus_PLATFORM_BUILD_STATUS_BUILDING PlatformBuildStatus = 1
-	// Build completed successfully. Artifact is available.
-	PlatformBuildStatus_PLATFORM_BUILD_STATUS_READY PlatformBuildStatus = 2
-	// Build failed. Check error_log for details.
-	PlatformBuildStatus_PLATFORM_BUILD_STATUS_FAILED PlatformBuildStatus = 3
-	// Build was skipped (platform not requested or not available).
-	PlatformBuildStatus_PLATFORM_BUILD_STATUS_SKIPPED PlatformBuildStatus = 4
-)
-
-// Enum value maps for PlatformBuildStatus.
-var (
-	PlatformBuildStatus_name = map[int32]string{
-		0: "PLATFORM_BUILD_STATUS_UNSPECIFIED",
-		1: "PLATFORM_BUILD_STATUS_BUILDING",
-		2: "PLATFORM_BUILD_STATUS_READY",
-		3: "PLATFORM_BUILD_STATUS_FAILED",
-		4: "PLATFORM_BUILD_STATUS_SKIPPED",
-	}
-	PlatformBuildStatus_value = map[string]int32{
-		"PLATFORM_BUILD_STATUS_UNSPECIFIED": 0,
-		"PLATFORM_BUILD_STATUS_BUILDING":    1,
-		"PLATFORM_BUILD_STATUS_READY":       2,
-		"PLATFORM_BUILD_STATUS_FAILED":      3,
-		"PLATFORM_BUILD_STATUS_SKIPPED":     4,
-	}
-)
-
-func (x PlatformBuildStatus) Enum() *PlatformBuildStatus {
-	p := new(PlatformBuildStatus)
-	*p = x
-	return p
-}
-
-func (x PlatformBuildStatus) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (PlatformBuildStatus) Descriptor() protoreflect.EnumDescriptor {
-	return file_scenario_to_desktop_v1_domain_build_proto_enumTypes[0].Descriptor()
-}
-
-func (PlatformBuildStatus) Type() protoreflect.EnumType {
-	return &file_scenario_to_desktop_v1_domain_build_proto_enumTypes[0]
-}
-
-func (x PlatformBuildStatus) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use PlatformBuildStatus.Descriptor instead.
-func (PlatformBuildStatus) EnumDescriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_build_proto_rawDescGZIP(), []int{0}
-}
-
-// SmokeTestStatus enumerates smoke test lifecycle states.
-//
-// @usage SmokeTestStatusResponse.status
-type SmokeTestStatus int32
-
-const (
-	// Default/unknown status. Should never appear in valid data.
-	SmokeTestStatus_SMOKE_TEST_STATUS_UNSPECIFIED SmokeTestStatus = 0
-	// Smoke test is running.
-	SmokeTestStatus_SMOKE_TEST_STATUS_RUNNING SmokeTestStatus = 1
-	// Smoke test passed successfully.
-	SmokeTestStatus_SMOKE_TEST_STATUS_PASSED SmokeTestStatus = 2
-	// Smoke test failed. Check logs and error for details.
-	SmokeTestStatus_SMOKE_TEST_STATUS_FAILED SmokeTestStatus = 3
-)
-
-// Enum value maps for SmokeTestStatus.
-var (
-	SmokeTestStatus_name = map[int32]string{
-		0: "SMOKE_TEST_STATUS_UNSPECIFIED",
-		1: "SMOKE_TEST_STATUS_RUNNING",
-		2: "SMOKE_TEST_STATUS_PASSED",
-		3: "SMOKE_TEST_STATUS_FAILED",
-	}
-	SmokeTestStatus_value = map[string]int32{
-		"SMOKE_TEST_STATUS_UNSPECIFIED": 0,
-		"SMOKE_TEST_STATUS_RUNNING":     1,
-		"SMOKE_TEST_STATUS_PASSED":      2,
-		"SMOKE_TEST_STATUS_FAILED":      3,
-	}
-)
-
-func (x SmokeTestStatus) Enum() *SmokeTestStatus {
-	p := new(SmokeTestStatus)
-	*p = x
-	return p
-}
-
-func (x SmokeTestStatus) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (SmokeTestStatus) Descriptor() protoreflect.EnumDescriptor {
-	return file_scenario_to_desktop_v1_domain_build_proto_enumTypes[1].Descriptor()
-}
-
-func (SmokeTestStatus) Type() protoreflect.EnumType {
-	return &file_scenario_to_desktop_v1_domain_build_proto_enumTypes[1]
-}
-
-func (x SmokeTestStatus) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use SmokeTestStatus.Descriptor instead.
-func (SmokeTestStatus) EnumDescriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_build_proto_rawDescGZIP(), []int{1}
-}
-
-// PlatformBuildResult contains the build result for a single platform.
-//
-// Each platform builds independently and may have different status.
-//
-// @usage BuildStatusResponse.platform_results
-type PlatformBuildResult struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Target platform.
-	Platform Platform `protobuf:"varint,1,opt,name=platform,proto3,enum=scenario_to_desktop.v1.Platform" json:"platform,omitempty"`
-	// Build status for this platform.
-	Status PlatformBuildStatus `protobuf:"varint,2,opt,name=status,proto3,enum=scenario_to_desktop.v1.PlatformBuildStatus" json:"status,omitempty"`
-	// When the platform build started.
-	StartedAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
-	// When the platform build completed (success or failure).
-	CompletedAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=completed_at,json=completedAt,proto3,oneof" json:"completed_at,omitempty"`
-	// Error log if build failed.
-	ErrorLog []string `protobuf:"bytes,5,rep,name=error_log,json=errorLog,proto3" json:"error_log,omitempty"`
-	// Path to the built artifact.
-	// @format path
-	Artifact *string `protobuf:"bytes,6,opt,name=artifact,proto3,oneof" json:"artifact,omitempty"`
-	// Artifact file size in bytes.
-	FileSize *int64 `protobuf:"varint,7,opt,name=file_size,json=fileSize,proto3,oneof" json:"file_size,omitempty"`
-	// Reason for skipping (if status is SKIPPED).
-	SkipReason    *string `protobuf:"bytes,8,opt,name=skip_reason,json=skipReason,proto3,oneof" json:"skip_reason,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *PlatformBuildResult) Reset() {
-	*x = PlatformBuildResult{}
-	mi := &file_scenario_to_desktop_v1_domain_build_proto_msgTypes[0]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *PlatformBuildResult) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*PlatformBuildResult) ProtoMessage() {}
-
-func (x *PlatformBuildResult) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_build_proto_msgTypes[0]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use PlatformBuildResult.ProtoReflect.Descriptor instead.
-func (*PlatformBuildResult) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_build_proto_rawDescGZIP(), []int{0}
-}
-
-func (x *PlatformBuildResult) GetPlatform() Platform {
-	if x != nil {
-		return x.Platform
-	}
-	return Platform_PLATFORM_UNSPECIFIED
-}
-
-func (x *PlatformBuildResult) GetStatus() PlatformBuildStatus {
-	if x != nil {
-		return x.Status
-	}
-	return PlatformBuildStatus_PLATFORM_BUILD_STATUS_UNSPECIFIED
-}
-
-func (x *PlatformBuildResult) GetStartedAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.StartedAt
-	}
-	return nil
-}
-
-func (x *PlatformBuildResult) GetCompletedAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.CompletedAt
-	}
-	return nil
-}
-
-func (x *PlatformBuildResult) GetErrorLog() []string {
-	if x != nil {
-		return x.ErrorLog
-	}
-	return nil
-}
-
-func (x *PlatformBuildResult) GetArtifact() string {
-	if x != nil && x.Artifact != nil {
-		return *x.Artifact
-	}
-	return ""
-}
-
-func (x *PlatformBuildResult) GetFileSize() int64 {
-	if x != nil && x.FileSize != nil {
-		return *x.FileSize
-	}
-	return 0
-}
-
-func (x *PlatformBuildResult) GetSkipReason() string {
-	if x != nil && x.SkipReason != nil {
-		return *x.SkipReason
-	}
-	return ""
-}
-
-// BuildStatusResponse is the overall build operation status.
-//
-// Contains aggregate status plus per-platform details.
-//
-// @usage GET /api/build/{id}/status response
-type BuildStatusResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Unique build operation identifier.
-	// @format uuid
-	BuildId string `protobuf:"bytes,1,opt,name=build_id,json=buildId,proto3" json:"build_id,omitempty"`
-	// Scenario being built.
-	ScenarioName string `protobuf:"bytes,2,opt,name=scenario_name,json=scenarioName,proto3" json:"scenario_name,omitempty"`
-	// Overall build status.
-	Status BuildStatus `protobuf:"varint,3,opt,name=status,proto3,enum=scenario_to_desktop.v1.BuildStatus" json:"status,omitempty"`
-	// Target framework.
-	Framework Framework `protobuf:"varint,4,opt,name=framework,proto3,enum=scenario_to_desktop.v1.Framework" json:"framework,omitempty"`
-	// Application template type.
-	TemplateType TemplateType `protobuf:"varint,5,opt,name=template_type,json=templateType,proto3,enum=scenario_to_desktop.v1.TemplateType" json:"template_type,omitempty"`
-	// Platforms that were requested.
-	RequestedPlatforms []Platform `protobuf:"varint,6,rep,packed,name=requested_platforms,json=requestedPlatforms,proto3,enum=scenario_to_desktop.v1.Platform" json:"requested_platforms,omitempty"`
-	// Per-platform build results.
-	// Key: Platform name (win, mac, linux)
-	PlatformResults map[string]*PlatformBuildResult `protobuf:"bytes,7,rep,name=platform_results,json=platformResults,proto3" json:"platform_results,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// Output directory for build artifacts.
-	// @format path
-	OutputPath *string `protobuf:"bytes,8,opt,name=output_path,json=outputPath,proto3,oneof" json:"output_path,omitempty"`
-	// When the build operation started.
-	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	// When the build operation completed.
-	CompletedAt *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=completed_at,json=completedAt,proto3,oneof" json:"completed_at,omitempty"`
-	// Combined error log from all platforms.
-	ErrorLog []string `protobuf:"bytes,11,rep,name=error_log,json=errorLog,proto3" json:"error_log,omitempty"`
-	// Combined build log.
-	BuildLog []string `protobuf:"bytes,12,rep,name=build_log,json=buildLog,proto3" json:"build_log,omitempty"`
-	// Map of artifact names to paths.
-	// Key: Artifact identifier, Value: File path
-	Artifacts map[string]string `protobuf:"bytes,13,rep,name=artifacts,proto3" json:"artifacts,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// Additional build metadata.
-	// Key: Metadata key, Value: Metadata value
-	Metadata      map[string]string `protobuf:"bytes,14,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *BuildStatusResponse) Reset() {
-	*x = BuildStatusResponse{}
-	mi := &file_scenario_to_desktop_v1_domain_build_proto_msgTypes[1]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *BuildStatusResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*BuildStatusResponse) ProtoMessage() {}
-
-func (x *BuildStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_build_proto_msgTypes[1]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use BuildStatusResponse.ProtoReflect.Descriptor instead.
-func (*BuildStatusResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_build_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *BuildStatusResponse) GetBuildId() string {
-	if x != nil {
-		return x.BuildId
-	}
-	return ""
-}
-
-func (x *BuildStatusResponse) GetScenarioName() string {
-	if x != nil {
-		return x.ScenarioName
-	}
-	return ""
-}
-
-func (x *BuildStatusResponse) GetStatus() BuildStatus {
-	if x != nil {
-		return x.Status
-	}
-	return BuildStatus_BUILD_STATUS_UNSPECIFIED
-}
-
-func (x *BuildStatusResponse) GetFramework() Framework {
-	if x != nil {
-		return x.Framework
-	}
-	return Framework_FRAMEWORK_UNSPECIFIED
-}
-
-func (x *BuildStatusResponse) GetTemplateType() TemplateType {
-	if x != nil {
-		return x.TemplateType
-	}
-	return TemplateType_TEMPLATE_TYPE_UNSPECIFIED
-}
-
-func (x *BuildStatusResponse) GetRequestedPlatforms() []Platform {
-	if x != nil {
-		return x.RequestedPlatforms
-	}
-	return nil
-}
-
-func (x *BuildStatusResponse) GetPlatformResults() map[string]*PlatformBuildResult {
-	if x != nil {
-		return x.PlatformResults
-	}
-	return nil
-}
-
-func (x *BuildStatusResponse) GetOutputPath() string {
-	if x != nil && x.OutputPath != nil {
-		return *x.OutputPath
-	}
-	return ""
-}
-
-func (x *BuildStatusResponse) GetCreatedAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.CreatedAt
-	}
-	return nil
-}
-
-func (x *BuildStatusResponse) GetCompletedAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.CompletedAt
-	}
-	return nil
-}
-
-func (x *BuildStatusResponse) GetErrorLog() []string {
-	if x != nil {
-		return x.ErrorLog
-	}
-	return nil
-}
-
-func (x *BuildStatusResponse) GetBuildLog() []string {
-	if x != nil {
-		return x.BuildLog
-	}
-	return nil
-}
-
-func (x *BuildStatusResponse) GetArtifacts() map[string]string {
-	if x != nil {
-		return x.Artifacts
-	}
-	return nil
-}
-
-func (x *BuildStatusResponse) GetMetadata() map[string]string {
-	if x != nil {
-		return x.Metadata
-	}
-	return nil
-}
-
 // BuildRequest initiates a build operation.
-//
-// @usage POST /api/build request body
 type BuildRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Path to the generated desktop wrapper.
@@ -440,7 +32,7 @@ type BuildRequest struct {
 	DesktopPath string `protobuf:"bytes,1,opt,name=desktop_path,json=desktopPath,proto3" json:"desktop_path,omitempty"`
 	// Target platforms to build.
 	// Empty means current platform only.
-	Platforms []Platform `protobuf:"varint,2,rep,packed,name=platforms,proto3,enum=scenario_to_desktop.v1.Platform" json:"platforms,omitempty"`
+	Platforms []shared.Platform `protobuf:"varint,2,rep,packed,name=platforms,proto3,enum=vrooli.scenario_to_desktop.v1.shared.Platform" json:"platforms,omitempty"`
 	// Whether to sign the built artifacts.
 	Sign *bool `protobuf:"varint,3,opt,name=sign,proto3,oneof" json:"sign,omitempty"`
 	// Whether to publish after building.
@@ -451,7 +43,7 @@ type BuildRequest struct {
 
 func (x *BuildRequest) Reset() {
 	*x = BuildRequest{}
-	mi := &file_scenario_to_desktop_v1_domain_build_proto_msgTypes[2]
+	mi := &file_scenario_to_desktop_v1_domain_build_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -463,7 +55,7 @@ func (x *BuildRequest) String() string {
 func (*BuildRequest) ProtoMessage() {}
 
 func (x *BuildRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_build_proto_msgTypes[2]
+	mi := &file_scenario_to_desktop_v1_domain_build_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -476,7 +68,7 @@ func (x *BuildRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BuildRequest.ProtoReflect.Descriptor instead.
 func (*BuildRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_build_proto_rawDescGZIP(), []int{2}
+	return file_scenario_to_desktop_v1_domain_build_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *BuildRequest) GetDesktopPath() string {
@@ -486,7 +78,7 @@ func (x *BuildRequest) GetDesktopPath() string {
 	return ""
 }
 
-func (x *BuildRequest) GetPlatforms() []Platform {
+func (x *BuildRequest) GetPlatforms() []shared.Platform {
 	if x != nil {
 		return x.Platforms
 	}
@@ -508,8 +100,6 @@ func (x *BuildRequest) GetPublish() bool {
 }
 
 // ScenarioBuildRequest initiates a scenario-specific build.
-//
-// @usage POST /api/build/scenario request body
 type ScenarioBuildRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Scenario name to build.
@@ -518,7 +108,7 @@ type ScenarioBuildRequest struct {
 	// @format path
 	DesktopPath string `protobuf:"bytes,2,opt,name=desktop_path,json=desktopPath,proto3" json:"desktop_path,omitempty"`
 	// Target platforms to build.
-	Platforms []Platform `protobuf:"varint,3,rep,packed,name=platforms,proto3,enum=scenario_to_desktop.v1.Platform" json:"platforms,omitempty"`
+	Platforms []shared.Platform `protobuf:"varint,3,rep,packed,name=platforms,proto3,enum=vrooli.scenario_to_desktop.v1.shared.Platform" json:"platforms,omitempty"`
 	// Whether to clean existing build output first.
 	Clean         *bool `protobuf:"varint,4,opt,name=clean,proto3,oneof" json:"clean,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -527,7 +117,7 @@ type ScenarioBuildRequest struct {
 
 func (x *ScenarioBuildRequest) Reset() {
 	*x = ScenarioBuildRequest{}
-	mi := &file_scenario_to_desktop_v1_domain_build_proto_msgTypes[3]
+	mi := &file_scenario_to_desktop_v1_domain_build_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -539,7 +129,7 @@ func (x *ScenarioBuildRequest) String() string {
 func (*ScenarioBuildRequest) ProtoMessage() {}
 
 func (x *ScenarioBuildRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_build_proto_msgTypes[3]
+	mi := &file_scenario_to_desktop_v1_domain_build_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -552,7 +142,7 @@ func (x *ScenarioBuildRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScenarioBuildRequest.ProtoReflect.Descriptor instead.
 func (*ScenarioBuildRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_build_proto_rawDescGZIP(), []int{3}
+	return file_scenario_to_desktop_v1_domain_build_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *ScenarioBuildRequest) GetScenarioName() string {
@@ -569,7 +159,7 @@ func (x *ScenarioBuildRequest) GetDesktopPath() string {
 	return ""
 }
 
-func (x *ScenarioBuildRequest) GetPlatforms() []Platform {
+func (x *ScenarioBuildRequest) GetPlatforms() []shared.Platform {
 	if x != nil {
 		return x.Platforms
 	}
@@ -584,8 +174,6 @@ func (x *ScenarioBuildRequest) GetClean() bool {
 }
 
 // BuildResponse is returned when a build is started.
-//
-// @usage POST /api/build response
 type BuildResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Unique build operation identifier.
@@ -602,7 +190,7 @@ type BuildResponse struct {
 
 func (x *BuildResponse) Reset() {
 	*x = BuildResponse{}
-	mi := &file_scenario_to_desktop_v1_domain_build_proto_msgTypes[4]
+	mi := &file_scenario_to_desktop_v1_domain_build_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -614,7 +202,7 @@ func (x *BuildResponse) String() string {
 func (*BuildResponse) ProtoMessage() {}
 
 func (x *BuildResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_build_proto_msgTypes[4]
+	mi := &file_scenario_to_desktop_v1_domain_build_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -627,7 +215,7 @@ func (x *BuildResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BuildResponse.ProtoReflect.Descriptor instead.
 func (*BuildResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_build_proto_rawDescGZIP(), []int{4}
+	return file_scenario_to_desktop_v1_domain_build_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *BuildResponse) GetBuildId() string {
@@ -651,54 +239,28 @@ func (x *BuildResponse) GetStatusUrl() string {
 	return ""
 }
 
-// SmokeTestStatusResponse contains the smoke test operation status.
-//
-// @usage GET /api/smoketest/{id}/status response
-type SmokeTestStatusResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Unique smoke test identifier.
-	// @format uuid
-	SmokeTestId string `protobuf:"bytes,1,opt,name=smoke_test_id,json=smokeTestId,proto3" json:"smoke_test_id,omitempty"`
-	// Scenario being tested.
-	ScenarioName string `protobuf:"bytes,2,opt,name=scenario_name,json=scenarioName,proto3" json:"scenario_name,omitempty"`
-	// Platform being tested.
-	Platform Platform `protobuf:"varint,3,opt,name=platform,proto3,enum=scenario_to_desktop.v1.Platform" json:"platform,omitempty"`
-	// Smoke test status.
-	Status SmokeTestStatus `protobuf:"varint,4,opt,name=status,proto3,enum=scenario_to_desktop.v1.SmokeTestStatus" json:"status,omitempty"`
-	// Path to the artifact being tested.
-	// @format path
-	ArtifactPath *string `protobuf:"bytes,5,opt,name=artifact_path,json=artifactPath,proto3,oneof" json:"artifact_path,omitempty"`
-	// When the smoke test started.
-	StartedAt *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
-	// When the smoke test completed.
-	CompletedAt *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=completed_at,json=completedAt,proto3,oneof" json:"completed_at,omitempty"`
-	// Test execution logs.
-	Logs []string `protobuf:"bytes,8,rep,name=logs,proto3" json:"logs,omitempty"`
-	// Error message if test failed.
-	Error *string `protobuf:"bytes,9,opt,name=error,proto3,oneof" json:"error,omitempty"`
-	// Whether telemetry was uploaded.
-	TelemetryUploaded bool `protobuf:"varint,10,opt,name=telemetry_uploaded,json=telemetryUploaded,proto3" json:"telemetry_uploaded,omitempty"`
-	// Error from telemetry upload (if any).
-	TelemetryUploadError *string `protobuf:"bytes,11,opt,name=telemetry_upload_error,json=telemetryUploadError,proto3,oneof" json:"telemetry_upload_error,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+type BuildStatusRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	BuildId       string                 `protobuf:"bytes,1,opt,name=build_id,json=buildId,proto3" json:"build_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
-func (x *SmokeTestStatusResponse) Reset() {
-	*x = SmokeTestStatusResponse{}
-	mi := &file_scenario_to_desktop_v1_domain_build_proto_msgTypes[5]
+func (x *BuildStatusRequest) Reset() {
+	*x = BuildStatusRequest{}
+	mi := &file_scenario_to_desktop_v1_domain_build_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *SmokeTestStatusResponse) String() string {
+func (x *BuildStatusRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*SmokeTestStatusResponse) ProtoMessage() {}
+func (*BuildStatusRequest) ProtoMessage() {}
 
-func (x *SmokeTestStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_build_proto_msgTypes[5]
+func (x *BuildStatusRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_domain_build_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -709,105 +271,39 @@ func (x *SmokeTestStatusResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use SmokeTestStatusResponse.ProtoReflect.Descriptor instead.
-func (*SmokeTestStatusResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_build_proto_rawDescGZIP(), []int{5}
+// Deprecated: Use BuildStatusRequest.ProtoReflect.Descriptor instead.
+func (*BuildStatusRequest) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_domain_build_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *SmokeTestStatusResponse) GetSmokeTestId() string {
+func (x *BuildStatusRequest) GetBuildId() string {
 	if x != nil {
-		return x.SmokeTestId
-	}
-	return ""
-}
-
-func (x *SmokeTestStatusResponse) GetScenarioName() string {
-	if x != nil {
-		return x.ScenarioName
-	}
-	return ""
-}
-
-func (x *SmokeTestStatusResponse) GetPlatform() Platform {
-	if x != nil {
-		return x.Platform
-	}
-	return Platform_PLATFORM_UNSPECIFIED
-}
-
-func (x *SmokeTestStatusResponse) GetStatus() SmokeTestStatus {
-	if x != nil {
-		return x.Status
-	}
-	return SmokeTestStatus_SMOKE_TEST_STATUS_UNSPECIFIED
-}
-
-func (x *SmokeTestStatusResponse) GetArtifactPath() string {
-	if x != nil && x.ArtifactPath != nil {
-		return *x.ArtifactPath
-	}
-	return ""
-}
-
-func (x *SmokeTestStatusResponse) GetStartedAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.StartedAt
-	}
-	return nil
-}
-
-func (x *SmokeTestStatusResponse) GetCompletedAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.CompletedAt
-	}
-	return nil
-}
-
-func (x *SmokeTestStatusResponse) GetLogs() []string {
-	if x != nil {
-		return x.Logs
-	}
-	return nil
-}
-
-func (x *SmokeTestStatusResponse) GetError() string {
-	if x != nil && x.Error != nil {
-		return *x.Error
-	}
-	return ""
-}
-
-func (x *SmokeTestStatusResponse) GetTelemetryUploaded() bool {
-	if x != nil {
-		return x.TelemetryUploaded
-	}
-	return false
-}
-
-func (x *SmokeTestStatusResponse) GetTelemetryUploadError() string {
-	if x != nil && x.TelemetryUploadError != nil {
-		return *x.TelemetryUploadError
+		return x.BuildId
 	}
 	return ""
 }
 
 // SmokeTestStartRequest initiates a smoke test.
-//
-// @usage POST /api/smoketest request body
 type SmokeTestStartRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Scenario name to test.
 	ScenarioName string `protobuf:"bytes,1,opt,name=scenario_name,json=scenarioName,proto3" json:"scenario_name,omitempty"`
 	// Target platform to test.
 	// Optional - defaults to current platform.
-	Platform      *Platform `protobuf:"varint,2,opt,name=platform,proto3,enum=scenario_to_desktop.v1.Platform,oneof" json:"platform,omitempty"`
+	Platform *shared.Platform `protobuf:"varint,2,opt,name=platform,proto3,enum=vrooli.scenario_to_desktop.v1.shared.Platform,oneof" json:"platform,omitempty"`
+	// Built desktop artifact to execute. This is explicit so evidence always
+	// identifies the exact package that was tested.
+	ArtifactPath string `protobuf:"bytes,3,opt,name=artifact_path,json=artifactPath,proto3" json:"artifact_path,omitempty"`
+	// When enabled, the server owns an Xvfb demo recording and runs the
+	// user-visible journey after protocol validation.
+	RecordDesktop *bool `protobuf:"varint,4,opt,name=record_desktop,json=recordDesktop,proto3,oneof" json:"record_desktop,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SmokeTestStartRequest) Reset() {
 	*x = SmokeTestStartRequest{}
-	mi := &file_scenario_to_desktop_v1_domain_build_proto_msgTypes[6]
+	mi := &file_scenario_to_desktop_v1_domain_build_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -819,7 +315,7 @@ func (x *SmokeTestStartRequest) String() string {
 func (*SmokeTestStartRequest) ProtoMessage() {}
 
 func (x *SmokeTestStartRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_build_proto_msgTypes[6]
+	mi := &file_scenario_to_desktop_v1_domain_build_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -832,7 +328,7 @@ func (x *SmokeTestStartRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SmokeTestStartRequest.ProtoReflect.Descriptor instead.
 func (*SmokeTestStartRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_build_proto_rawDescGZIP(), []int{6}
+	return file_scenario_to_desktop_v1_domain_build_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *SmokeTestStartRequest) GetScenarioName() string {
@@ -842,16 +338,28 @@ func (x *SmokeTestStartRequest) GetScenarioName() string {
 	return ""
 }
 
-func (x *SmokeTestStartRequest) GetPlatform() Platform {
+func (x *SmokeTestStartRequest) GetPlatform() shared.Platform {
 	if x != nil && x.Platform != nil {
 		return *x.Platform
 	}
-	return Platform_PLATFORM_UNSPECIFIED
+	return shared.Platform(0)
+}
+
+func (x *SmokeTestStartRequest) GetArtifactPath() string {
+	if x != nil {
+		return x.ArtifactPath
+	}
+	return ""
+}
+
+func (x *SmokeTestStartRequest) GetRecordDesktop() bool {
+	if x != nil && x.RecordDesktop != nil {
+		return *x.RecordDesktop
+	}
+	return false
 }
 
 // SmokeTestStartResponse is returned when a smoke test is started.
-//
-// @usage POST /api/smoketest response
 type SmokeTestStartResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Unique smoke test identifier.
@@ -859,10 +367,10 @@ type SmokeTestStartResponse struct {
 	SmokeTestId string `protobuf:"bytes,1,opt,name=smoke_test_id,json=smokeTestId,proto3" json:"smoke_test_id,omitempty"`
 	// Scenario being tested.
 	ScenarioName string `protobuf:"bytes,2,opt,name=scenario_name,json=scenarioName,proto3" json:"scenario_name,omitempty"`
-	// Platform being tested.
-	Platform Platform `protobuf:"varint,3,opt,name=platform,proto3,enum=scenario_to_desktop.v1.Platform" json:"platform,omitempty"`
+	// vrooli.scenario_to_desktop.v1.shared.Platform being tested.
+	Platform shared.Platform `protobuf:"varint,3,opt,name=platform,proto3,enum=vrooli.scenario_to_desktop.v1.shared.Platform" json:"platform,omitempty"`
 	// Initial status.
-	Status SmokeTestStatus `protobuf:"varint,4,opt,name=status,proto3,enum=scenario_to_desktop.v1.SmokeTestStatus" json:"status,omitempty"`
+	Status shared.SmokeTestStatus `protobuf:"varint,4,opt,name=status,proto3,enum=vrooli.scenario_to_desktop.v1.shared.SmokeTestStatus" json:"status,omitempty"`
 	// Artifact being tested.
 	// @format path
 	ArtifactPath *string `protobuf:"bytes,5,opt,name=artifact_path,json=artifactPath,proto3,oneof" json:"artifact_path,omitempty"`
@@ -876,7 +384,7 @@ type SmokeTestStartResponse struct {
 
 func (x *SmokeTestStartResponse) Reset() {
 	*x = SmokeTestStartResponse{}
-	mi := &file_scenario_to_desktop_v1_domain_build_proto_msgTypes[7]
+	mi := &file_scenario_to_desktop_v1_domain_build_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -888,7 +396,7 @@ func (x *SmokeTestStartResponse) String() string {
 func (*SmokeTestStartResponse) ProtoMessage() {}
 
 func (x *SmokeTestStartResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_build_proto_msgTypes[7]
+	mi := &file_scenario_to_desktop_v1_domain_build_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -901,7 +409,7 @@ func (x *SmokeTestStartResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SmokeTestStartResponse.ProtoReflect.Descriptor instead.
 func (*SmokeTestStartResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_build_proto_rawDescGZIP(), []int{7}
+	return file_scenario_to_desktop_v1_domain_build_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *SmokeTestStartResponse) GetSmokeTestId() string {
@@ -918,18 +426,18 @@ func (x *SmokeTestStartResponse) GetScenarioName() string {
 	return ""
 }
 
-func (x *SmokeTestStartResponse) GetPlatform() Platform {
+func (x *SmokeTestStartResponse) GetPlatform() shared.Platform {
 	if x != nil {
 		return x.Platform
 	}
-	return Platform_PLATFORM_UNSPECIFIED
+	return shared.Platform(0)
 }
 
-func (x *SmokeTestStartResponse) GetStatus() SmokeTestStatus {
+func (x *SmokeTestStartResponse) GetStatus() shared.SmokeTestStatus {
 	if x != nil {
 		return x.Status
 	}
-	return SmokeTestStatus_SMOKE_TEST_STATUS_UNSPECIFIED
+	return shared.SmokeTestStatus(0)
 }
 
 func (x *SmokeTestStartResponse) GetArtifactPath() string {
@@ -954,8 +462,6 @@ func (x *SmokeTestStartResponse) GetLogs() []string {
 }
 
 // SmokeTestCancelResponse is returned when a smoke test is cancelled.
-//
-// @usage POST /api/smoketest/{id}/cancel response
 type SmokeTestCancelResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Resulting status after cancellation.
@@ -966,7 +472,7 @@ type SmokeTestCancelResponse struct {
 
 func (x *SmokeTestCancelResponse) Reset() {
 	*x = SmokeTestCancelResponse{}
-	mi := &file_scenario_to_desktop_v1_domain_build_proto_msgTypes[8]
+	mi := &file_scenario_to_desktop_v1_domain_build_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -978,7 +484,7 @@ func (x *SmokeTestCancelResponse) String() string {
 func (*SmokeTestCancelResponse) ProtoMessage() {}
 
 func (x *SmokeTestCancelResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_build_proto_msgTypes[8]
+	mi := &file_scenario_to_desktop_v1_domain_build_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -991,7 +497,7 @@ func (x *SmokeTestCancelResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SmokeTestCancelResponse.ProtoReflect.Descriptor instead.
 func (*SmokeTestCancelResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_build_proto_rawDescGZIP(), []int{8}
+	return file_scenario_to_desktop_v1_domain_build_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *SmokeTestCancelResponse) GetStatus() string {
@@ -1001,120 +507,152 @@ func (x *SmokeTestCancelResponse) GetStatus() string {
 	return ""
 }
 
+type SmokeTestStatusRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SmokeTestId   string                 `protobuf:"bytes,1,opt,name=smoke_test_id,json=smokeTestId,proto3" json:"smoke_test_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SmokeTestStatusRequest) Reset() {
+	*x = SmokeTestStatusRequest{}
+	mi := &file_scenario_to_desktop_v1_domain_build_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SmokeTestStatusRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SmokeTestStatusRequest) ProtoMessage() {}
+
+func (x *SmokeTestStatusRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_domain_build_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SmokeTestStatusRequest.ProtoReflect.Descriptor instead.
+func (*SmokeTestStatusRequest) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_domain_build_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *SmokeTestStatusRequest) GetSmokeTestId() string {
+	if x != nil {
+		return x.SmokeTestId
+	}
+	return ""
+}
+
+type SmokeTestCancelRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SmokeTestId   string                 `protobuf:"bytes,1,opt,name=smoke_test_id,json=smokeTestId,proto3" json:"smoke_test_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SmokeTestCancelRequest) Reset() {
+	*x = SmokeTestCancelRequest{}
+	mi := &file_scenario_to_desktop_v1_domain_build_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SmokeTestCancelRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SmokeTestCancelRequest) ProtoMessage() {}
+
+func (x *SmokeTestCancelRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_to_desktop_v1_domain_build_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SmokeTestCancelRequest.ProtoReflect.Descriptor instead.
+func (*SmokeTestCancelRequest) Descriptor() ([]byte, []int) {
+	return file_scenario_to_desktop_v1_domain_build_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *SmokeTestCancelRequest) GetSmokeTestId() string {
+	if x != nil {
+		return x.SmokeTestId
+	}
+	return ""
+}
+
 var File_scenario_to_desktop_v1_domain_build_proto protoreflect.FileDescriptor
 
 const file_scenario_to_desktop_v1_domain_build_proto_rawDesc = "" +
 	"\n" +
-	")scenario-to-desktop/v1/domain/build.proto\x12\x16scenario_to_desktop.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a(scenario-to-desktop/v1/base/shared.proto\"\xd9\x03\n" +
-	"\x13PlatformBuildResult\x12<\n" +
-	"\bplatform\x18\x01 \x01(\x0e2 .scenario_to_desktop.v1.PlatformR\bplatform\x12C\n" +
-	"\x06status\x18\x02 \x01(\x0e2+.scenario_to_desktop.v1.PlatformBuildStatusR\x06status\x129\n" +
-	"\n" +
-	"started_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\x12B\n" +
-	"\fcompleted_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampH\x00R\vcompletedAt\x88\x01\x01\x12\x1b\n" +
-	"\terror_log\x18\x05 \x03(\tR\berrorLog\x12\x1f\n" +
-	"\bartifact\x18\x06 \x01(\tH\x01R\bartifact\x88\x01\x01\x12 \n" +
-	"\tfile_size\x18\a \x01(\x03H\x02R\bfileSize\x88\x01\x01\x12$\n" +
-	"\vskip_reason\x18\b \x01(\tH\x03R\n" +
-	"skipReason\x88\x01\x01B\x0f\n" +
-	"\r_completed_atB\v\n" +
-	"\t_artifactB\f\n" +
-	"\n" +
-	"_file_sizeB\x0e\n" +
-	"\f_skip_reason\"\xfb\b\n" +
-	"\x13BuildStatusResponse\x12\x19\n" +
-	"\bbuild_id\x18\x01 \x01(\tR\abuildId\x12#\n" +
-	"\rscenario_name\x18\x02 \x01(\tR\fscenarioName\x12;\n" +
-	"\x06status\x18\x03 \x01(\x0e2#.scenario_to_desktop.v1.BuildStatusR\x06status\x12?\n" +
-	"\tframework\x18\x04 \x01(\x0e2!.scenario_to_desktop.v1.FrameworkR\tframework\x12I\n" +
-	"\rtemplate_type\x18\x05 \x01(\x0e2$.scenario_to_desktop.v1.TemplateTypeR\ftemplateType\x12Q\n" +
-	"\x13requested_platforms\x18\x06 \x03(\x0e2 .scenario_to_desktop.v1.PlatformR\x12requestedPlatforms\x12k\n" +
-	"\x10platform_results\x18\a \x03(\v2@.scenario_to_desktop.v1.BuildStatusResponse.PlatformResultsEntryR\x0fplatformResults\x12$\n" +
-	"\voutput_path\x18\b \x01(\tH\x00R\n" +
-	"outputPath\x88\x01\x01\x129\n" +
-	"\n" +
-	"created_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12B\n" +
-	"\fcompleted_at\x18\n" +
-	" \x01(\v2\x1a.google.protobuf.TimestampH\x01R\vcompletedAt\x88\x01\x01\x12\x1b\n" +
-	"\terror_log\x18\v \x03(\tR\berrorLog\x12\x1b\n" +
-	"\tbuild_log\x18\f \x03(\tR\bbuildLog\x12X\n" +
-	"\tartifacts\x18\r \x03(\v2:.scenario_to_desktop.v1.BuildStatusResponse.ArtifactsEntryR\tartifacts\x12U\n" +
-	"\bmetadata\x18\x0e \x03(\v29.scenario_to_desktop.v1.BuildStatusResponse.MetadataEntryR\bmetadata\x1ao\n" +
-	"\x14PlatformResultsEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12A\n" +
-	"\x05value\x18\x02 \x01(\v2+.scenario_to_desktop.v1.PlatformBuildResultR\x05value:\x028\x01\x1a<\n" +
-	"\x0eArtifactsEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a;\n" +
-	"\rMetadataEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\x0e\n" +
-	"\f_output_pathB\x0f\n" +
-	"\r_completed_at\"\xbe\x01\n" +
+	")scenario-to-desktop/v1/domain/build.proto\x12$vrooli.scenario_to_desktop.v1.domain\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a*scenario-to-desktop/v1/shared/common.proto\x1a5scenario-to-desktop/v1/shared/operation_results.proto\"\xcc\x01\n" +
 	"\fBuildRequest\x12!\n" +
-	"\fdesktop_path\x18\x01 \x01(\tR\vdesktopPath\x12>\n" +
-	"\tplatforms\x18\x02 \x03(\x0e2 .scenario_to_desktop.v1.PlatformR\tplatforms\x12\x17\n" +
+	"\fdesktop_path\x18\x01 \x01(\tR\vdesktopPath\x12L\n" +
+	"\tplatforms\x18\x02 \x03(\x0e2..vrooli.scenario_to_desktop.v1.shared.PlatformR\tplatforms\x12\x17\n" +
 	"\x04sign\x18\x03 \x01(\bH\x00R\x04sign\x88\x01\x01\x12\x1d\n" +
 	"\apublish\x18\x04 \x01(\bH\x01R\apublish\x88\x01\x01B\a\n" +
 	"\x05_signB\n" +
 	"\n" +
-	"\b_publish\"\xc3\x01\n" +
+	"\b_publish\"\xd1\x01\n" +
 	"\x14ScenarioBuildRequest\x12#\n" +
 	"\rscenario_name\x18\x01 \x01(\tR\fscenarioName\x12!\n" +
-	"\fdesktop_path\x18\x02 \x01(\tR\vdesktopPath\x12>\n" +
-	"\tplatforms\x18\x03 \x03(\x0e2 .scenario_to_desktop.v1.PlatformR\tplatforms\x12\x19\n" +
+	"\fdesktop_path\x18\x02 \x01(\tR\vdesktopPath\x12L\n" +
+	"\tplatforms\x18\x03 \x03(\x0e2..vrooli.scenario_to_desktop.v1.shared.PlatformR\tplatforms\x12\x19\n" +
 	"\x05clean\x18\x04 \x01(\bH\x00R\x05clean\x88\x01\x01B\b\n" +
 	"\x06_clean\"a\n" +
 	"\rBuildResponse\x12\x19\n" +
 	"\bbuild_id\x18\x01 \x01(\tR\abuildId\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12\x1d\n" +
 	"\n" +
-	"status_url\x18\x03 \x01(\tR\tstatusUrl\"\xeb\x04\n" +
-	"\x17SmokeTestStatusResponse\x12\"\n" +
-	"\rsmoke_test_id\x18\x01 \x01(\tR\vsmokeTestId\x12#\n" +
-	"\rscenario_name\x18\x02 \x01(\tR\fscenarioName\x12<\n" +
-	"\bplatform\x18\x03 \x01(\x0e2 .scenario_to_desktop.v1.PlatformR\bplatform\x12?\n" +
-	"\x06status\x18\x04 \x01(\x0e2'.scenario_to_desktop.v1.SmokeTestStatusR\x06status\x12(\n" +
-	"\rartifact_path\x18\x05 \x01(\tH\x00R\fartifactPath\x88\x01\x01\x129\n" +
-	"\n" +
-	"started_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\x12B\n" +
-	"\fcompleted_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampH\x01R\vcompletedAt\x88\x01\x01\x12\x12\n" +
-	"\x04logs\x18\b \x03(\tR\x04logs\x12\x19\n" +
-	"\x05error\x18\t \x01(\tH\x02R\x05error\x88\x01\x01\x12-\n" +
-	"\x12telemetry_uploaded\x18\n" +
-	" \x01(\bR\x11telemetryUploaded\x129\n" +
-	"\x16telemetry_upload_error\x18\v \x01(\tH\x03R\x14telemetryUploadError\x88\x01\x01B\x10\n" +
-	"\x0e_artifact_pathB\x0f\n" +
-	"\r_completed_atB\b\n" +
-	"\x06_errorB\x19\n" +
-	"\x17_telemetry_upload_error\"\x8c\x01\n" +
+	"status_url\x18\x03 \x01(\tR\tstatusUrl\"8\n" +
+	"\x12BuildStatusRequest\x12\"\n" +
+	"\bbuild_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\abuildId\"\x87\x02\n" +
 	"\x15SmokeTestStartRequest\x12#\n" +
-	"\rscenario_name\x18\x01 \x01(\tR\fscenarioName\x12A\n" +
-	"\bplatform\x18\x02 \x01(\x0e2 .scenario_to_desktop.v1.PlatformH\x00R\bplatform\x88\x01\x01B\v\n" +
-	"\t_platform\"\xeb\x02\n" +
+	"\rscenario_name\x18\x01 \x01(\tR\fscenarioName\x12O\n" +
+	"\bplatform\x18\x02 \x01(\x0e2..vrooli.scenario_to_desktop.v1.shared.PlatformH\x00R\bplatform\x88\x01\x01\x12,\n" +
+	"\rartifact_path\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fartifactPath\x12*\n" +
+	"\x0erecord_desktop\x18\x04 \x01(\bH\x01R\rrecordDesktop\x88\x01\x01B\v\n" +
+	"\t_platformB\x11\n" +
+	"\x0f_record_desktop\"\x87\x03\n" +
 	"\x16SmokeTestStartResponse\x12\"\n" +
 	"\rsmoke_test_id\x18\x01 \x01(\tR\vsmokeTestId\x12#\n" +
-	"\rscenario_name\x18\x02 \x01(\tR\fscenarioName\x12<\n" +
-	"\bplatform\x18\x03 \x01(\x0e2 .scenario_to_desktop.v1.PlatformR\bplatform\x12?\n" +
-	"\x06status\x18\x04 \x01(\x0e2'.scenario_to_desktop.v1.SmokeTestStatusR\x06status\x12(\n" +
+	"\rscenario_name\x18\x02 \x01(\tR\fscenarioName\x12J\n" +
+	"\bplatform\x18\x03 \x01(\x0e2..vrooli.scenario_to_desktop.v1.shared.PlatformR\bplatform\x12M\n" +
+	"\x06status\x18\x04 \x01(\x0e25.vrooli.scenario_to_desktop.v1.shared.SmokeTestStatusR\x06status\x12(\n" +
 	"\rartifact_path\x18\x05 \x01(\tH\x00R\fartifactPath\x88\x01\x01\x129\n" +
 	"\n" +
 	"started_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\x12\x12\n" +
 	"\x04logs\x18\a \x03(\tR\x04logsB\x10\n" +
 	"\x0e_artifact_path\"1\n" +
 	"\x17SmokeTestCancelResponse\x12\x16\n" +
-	"\x06status\x18\x01 \x01(\tR\x06status*\xc6\x01\n" +
-	"\x13PlatformBuildStatus\x12%\n" +
-	"!PLATFORM_BUILD_STATUS_UNSPECIFIED\x10\x00\x12\"\n" +
-	"\x1ePLATFORM_BUILD_STATUS_BUILDING\x10\x01\x12\x1f\n" +
-	"\x1bPLATFORM_BUILD_STATUS_READY\x10\x02\x12 \n" +
-	"\x1cPLATFORM_BUILD_STATUS_FAILED\x10\x03\x12!\n" +
-	"\x1dPLATFORM_BUILD_STATUS_SKIPPED\x10\x04*\x8f\x01\n" +
-	"\x0fSmokeTestStatus\x12!\n" +
-	"\x1dSMOKE_TEST_STATUS_UNSPECIFIED\x10\x00\x12\x1d\n" +
-	"\x19SMOKE_TEST_STATUS_RUNNING\x10\x01\x12\x1c\n" +
-	"\x18SMOKE_TEST_STATUS_PASSED\x10\x02\x12\x1c\n" +
-	"\x18SMOKE_TEST_STATUS_FAILED\x10\x03B^Z\\github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1;scenario_to_desktop_v1b\x06proto3"
+	"\x06status\x18\x01 \x01(\tR\x06status\"E\n" +
+	"\x16SmokeTestStatusRequest\x12+\n" +
+	"\rsmoke_test_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vsmokeTestId\"E\n" +
+	"\x16SmokeTestCancelRequest\x12+\n" +
+	"\rsmoke_test_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vsmokeTestId2\x8e\x03\n" +
+	"\fBuildService\x12u\n" +
+	"\n" +
+	"StartBuild\x122.vrooli.scenario_to_desktop.v1.domain.BuildRequest\x1a3.vrooli.scenario_to_desktop.v1.domain.BuildResponse\x12\x85\x01\n" +
+	"\x12StartScenarioBuild\x12:.vrooli.scenario_to_desktop.v1.domain.ScenarioBuildRequest\x1a3.vrooli.scenario_to_desktop.v1.domain.BuildResponse\x12\x7f\n" +
+	"\bGetBuild\x128.vrooli.scenario_to_desktop.v1.domain.BuildStatusRequest\x1a9.vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse2\xbf\x03\n" +
+	"\x10SmokeTestService\x12\x8b\x01\n" +
+	"\x0eStartSmokeTest\x12;.vrooli.scenario_to_desktop.v1.domain.SmokeTestStartRequest\x1a<.vrooli.scenario_to_desktop.v1.domain.SmokeTestStartResponse\x12\x8b\x01\n" +
+	"\fGetSmokeTest\x12<.vrooli.scenario_to_desktop.v1.domain.SmokeTestStatusRequest\x1a=.vrooli.scenario_to_desktop.v1.shared.SmokeTestStatusResponse\x12\x8e\x01\n" +
+	"\x0fCancelSmokeTest\x12<.vrooli.scenario_to_desktop.v1.domain.SmokeTestCancelRequest\x1a=.vrooli.scenario_to_desktop.v1.domain.SmokeTestCancelResponseBUZSgithub.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain;domainb\x06proto3"
 
 var (
 	file_scenario_to_desktop_v1_domain_build_proto_rawDescOnce sync.Once
@@ -1128,59 +666,47 @@ func file_scenario_to_desktop_v1_domain_build_proto_rawDescGZIP() []byte {
 	return file_scenario_to_desktop_v1_domain_build_proto_rawDescData
 }
 
-var file_scenario_to_desktop_v1_domain_build_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_scenario_to_desktop_v1_domain_build_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_scenario_to_desktop_v1_domain_build_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_scenario_to_desktop_v1_domain_build_proto_goTypes = []any{
-	(PlatformBuildStatus)(0),        // 0: scenario_to_desktop.v1.PlatformBuildStatus
-	(SmokeTestStatus)(0),            // 1: scenario_to_desktop.v1.SmokeTestStatus
-	(*PlatformBuildResult)(nil),     // 2: scenario_to_desktop.v1.PlatformBuildResult
-	(*BuildStatusResponse)(nil),     // 3: scenario_to_desktop.v1.BuildStatusResponse
-	(*BuildRequest)(nil),            // 4: scenario_to_desktop.v1.BuildRequest
-	(*ScenarioBuildRequest)(nil),    // 5: scenario_to_desktop.v1.ScenarioBuildRequest
-	(*BuildResponse)(nil),           // 6: scenario_to_desktop.v1.BuildResponse
-	(*SmokeTestStatusResponse)(nil), // 7: scenario_to_desktop.v1.SmokeTestStatusResponse
-	(*SmokeTestStartRequest)(nil),   // 8: scenario_to_desktop.v1.SmokeTestStartRequest
-	(*SmokeTestStartResponse)(nil),  // 9: scenario_to_desktop.v1.SmokeTestStartResponse
-	(*SmokeTestCancelResponse)(nil), // 10: scenario_to_desktop.v1.SmokeTestCancelResponse
-	nil,                             // 11: scenario_to_desktop.v1.BuildStatusResponse.PlatformResultsEntry
-	nil,                             // 12: scenario_to_desktop.v1.BuildStatusResponse.ArtifactsEntry
-	nil,                             // 13: scenario_to_desktop.v1.BuildStatusResponse.MetadataEntry
-	(Platform)(0),                   // 14: scenario_to_desktop.v1.Platform
-	(*timestamppb.Timestamp)(nil),   // 15: google.protobuf.Timestamp
-	(BuildStatus)(0),                // 16: scenario_to_desktop.v1.BuildStatus
-	(Framework)(0),                  // 17: scenario_to_desktop.v1.Framework
-	(TemplateType)(0),               // 18: scenario_to_desktop.v1.TemplateType
+	(*BuildRequest)(nil),                   // 0: vrooli.scenario_to_desktop.v1.domain.BuildRequest
+	(*ScenarioBuildRequest)(nil),           // 1: vrooli.scenario_to_desktop.v1.domain.ScenarioBuildRequest
+	(*BuildResponse)(nil),                  // 2: vrooli.scenario_to_desktop.v1.domain.BuildResponse
+	(*BuildStatusRequest)(nil),             // 3: vrooli.scenario_to_desktop.v1.domain.BuildStatusRequest
+	(*SmokeTestStartRequest)(nil),          // 4: vrooli.scenario_to_desktop.v1.domain.SmokeTestStartRequest
+	(*SmokeTestStartResponse)(nil),         // 5: vrooli.scenario_to_desktop.v1.domain.SmokeTestStartResponse
+	(*SmokeTestCancelResponse)(nil),        // 6: vrooli.scenario_to_desktop.v1.domain.SmokeTestCancelResponse
+	(*SmokeTestStatusRequest)(nil),         // 7: vrooli.scenario_to_desktop.v1.domain.SmokeTestStatusRequest
+	(*SmokeTestCancelRequest)(nil),         // 8: vrooli.scenario_to_desktop.v1.domain.SmokeTestCancelRequest
+	(shared.Platform)(0),                   // 9: vrooli.scenario_to_desktop.v1.shared.Platform
+	(shared.SmokeTestStatus)(0),            // 10: vrooli.scenario_to_desktop.v1.shared.SmokeTestStatus
+	(*timestamppb.Timestamp)(nil),          // 11: google.protobuf.Timestamp
+	(*shared.BuildStatusResponse)(nil),     // 12: vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse
+	(*shared.SmokeTestStatusResponse)(nil), // 13: vrooli.scenario_to_desktop.v1.shared.SmokeTestStatusResponse
 }
 var file_scenario_to_desktop_v1_domain_build_proto_depIdxs = []int32{
-	14, // 0: scenario_to_desktop.v1.PlatformBuildResult.platform:type_name -> scenario_to_desktop.v1.Platform
-	0,  // 1: scenario_to_desktop.v1.PlatformBuildResult.status:type_name -> scenario_to_desktop.v1.PlatformBuildStatus
-	15, // 2: scenario_to_desktop.v1.PlatformBuildResult.started_at:type_name -> google.protobuf.Timestamp
-	15, // 3: scenario_to_desktop.v1.PlatformBuildResult.completed_at:type_name -> google.protobuf.Timestamp
-	16, // 4: scenario_to_desktop.v1.BuildStatusResponse.status:type_name -> scenario_to_desktop.v1.BuildStatus
-	17, // 5: scenario_to_desktop.v1.BuildStatusResponse.framework:type_name -> scenario_to_desktop.v1.Framework
-	18, // 6: scenario_to_desktop.v1.BuildStatusResponse.template_type:type_name -> scenario_to_desktop.v1.TemplateType
-	14, // 7: scenario_to_desktop.v1.BuildStatusResponse.requested_platforms:type_name -> scenario_to_desktop.v1.Platform
-	11, // 8: scenario_to_desktop.v1.BuildStatusResponse.platform_results:type_name -> scenario_to_desktop.v1.BuildStatusResponse.PlatformResultsEntry
-	15, // 9: scenario_to_desktop.v1.BuildStatusResponse.created_at:type_name -> google.protobuf.Timestamp
-	15, // 10: scenario_to_desktop.v1.BuildStatusResponse.completed_at:type_name -> google.protobuf.Timestamp
-	12, // 11: scenario_to_desktop.v1.BuildStatusResponse.artifacts:type_name -> scenario_to_desktop.v1.BuildStatusResponse.ArtifactsEntry
-	13, // 12: scenario_to_desktop.v1.BuildStatusResponse.metadata:type_name -> scenario_to_desktop.v1.BuildStatusResponse.MetadataEntry
-	14, // 13: scenario_to_desktop.v1.BuildRequest.platforms:type_name -> scenario_to_desktop.v1.Platform
-	14, // 14: scenario_to_desktop.v1.ScenarioBuildRequest.platforms:type_name -> scenario_to_desktop.v1.Platform
-	14, // 15: scenario_to_desktop.v1.SmokeTestStatusResponse.platform:type_name -> scenario_to_desktop.v1.Platform
-	1,  // 16: scenario_to_desktop.v1.SmokeTestStatusResponse.status:type_name -> scenario_to_desktop.v1.SmokeTestStatus
-	15, // 17: scenario_to_desktop.v1.SmokeTestStatusResponse.started_at:type_name -> google.protobuf.Timestamp
-	15, // 18: scenario_to_desktop.v1.SmokeTestStatusResponse.completed_at:type_name -> google.protobuf.Timestamp
-	14, // 19: scenario_to_desktop.v1.SmokeTestStartRequest.platform:type_name -> scenario_to_desktop.v1.Platform
-	14, // 20: scenario_to_desktop.v1.SmokeTestStartResponse.platform:type_name -> scenario_to_desktop.v1.Platform
-	1,  // 21: scenario_to_desktop.v1.SmokeTestStartResponse.status:type_name -> scenario_to_desktop.v1.SmokeTestStatus
-	15, // 22: scenario_to_desktop.v1.SmokeTestStartResponse.started_at:type_name -> google.protobuf.Timestamp
-	2,  // 23: scenario_to_desktop.v1.BuildStatusResponse.PlatformResultsEntry.value:type_name -> scenario_to_desktop.v1.PlatformBuildResult
-	24, // [24:24] is the sub-list for method output_type
-	24, // [24:24] is the sub-list for method input_type
-	24, // [24:24] is the sub-list for extension type_name
-	24, // [24:24] is the sub-list for extension extendee
-	0,  // [0:24] is the sub-list for field type_name
+	9,  // 0: vrooli.scenario_to_desktop.v1.domain.BuildRequest.platforms:type_name -> vrooli.scenario_to_desktop.v1.shared.Platform
+	9,  // 1: vrooli.scenario_to_desktop.v1.domain.ScenarioBuildRequest.platforms:type_name -> vrooli.scenario_to_desktop.v1.shared.Platform
+	9,  // 2: vrooli.scenario_to_desktop.v1.domain.SmokeTestStartRequest.platform:type_name -> vrooli.scenario_to_desktop.v1.shared.Platform
+	9,  // 3: vrooli.scenario_to_desktop.v1.domain.SmokeTestStartResponse.platform:type_name -> vrooli.scenario_to_desktop.v1.shared.Platform
+	10, // 4: vrooli.scenario_to_desktop.v1.domain.SmokeTestStartResponse.status:type_name -> vrooli.scenario_to_desktop.v1.shared.SmokeTestStatus
+	11, // 5: vrooli.scenario_to_desktop.v1.domain.SmokeTestStartResponse.started_at:type_name -> google.protobuf.Timestamp
+	0,  // 6: vrooli.scenario_to_desktop.v1.domain.BuildService.StartBuild:input_type -> vrooli.scenario_to_desktop.v1.domain.BuildRequest
+	1,  // 7: vrooli.scenario_to_desktop.v1.domain.BuildService.StartScenarioBuild:input_type -> vrooli.scenario_to_desktop.v1.domain.ScenarioBuildRequest
+	3,  // 8: vrooli.scenario_to_desktop.v1.domain.BuildService.GetBuild:input_type -> vrooli.scenario_to_desktop.v1.domain.BuildStatusRequest
+	4,  // 9: vrooli.scenario_to_desktop.v1.domain.SmokeTestService.StartSmokeTest:input_type -> vrooli.scenario_to_desktop.v1.domain.SmokeTestStartRequest
+	7,  // 10: vrooli.scenario_to_desktop.v1.domain.SmokeTestService.GetSmokeTest:input_type -> vrooli.scenario_to_desktop.v1.domain.SmokeTestStatusRequest
+	8,  // 11: vrooli.scenario_to_desktop.v1.domain.SmokeTestService.CancelSmokeTest:input_type -> vrooli.scenario_to_desktop.v1.domain.SmokeTestCancelRequest
+	2,  // 12: vrooli.scenario_to_desktop.v1.domain.BuildService.StartBuild:output_type -> vrooli.scenario_to_desktop.v1.domain.BuildResponse
+	2,  // 13: vrooli.scenario_to_desktop.v1.domain.BuildService.StartScenarioBuild:output_type -> vrooli.scenario_to_desktop.v1.domain.BuildResponse
+	12, // 14: vrooli.scenario_to_desktop.v1.domain.BuildService.GetBuild:output_type -> vrooli.scenario_to_desktop.v1.shared.BuildStatusResponse
+	5,  // 15: vrooli.scenario_to_desktop.v1.domain.SmokeTestService.StartSmokeTest:output_type -> vrooli.scenario_to_desktop.v1.domain.SmokeTestStartResponse
+	13, // 16: vrooli.scenario_to_desktop.v1.domain.SmokeTestService.GetSmokeTest:output_type -> vrooli.scenario_to_desktop.v1.shared.SmokeTestStatusResponse
+	6,  // 17: vrooli.scenario_to_desktop.v1.domain.SmokeTestService.CancelSmokeTest:output_type -> vrooli.scenario_to_desktop.v1.domain.SmokeTestCancelResponse
+	12, // [12:18] is the sub-list for method output_type
+	6,  // [6:12] is the sub-list for method input_type
+	6,  // [6:6] is the sub-list for extension type_name
+	6,  // [6:6] is the sub-list for extension extendee
+	0,  // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_scenario_to_desktop_v1_domain_build_proto_init() }
@@ -1188,27 +714,22 @@ func file_scenario_to_desktop_v1_domain_build_proto_init() {
 	if File_scenario_to_desktop_v1_domain_build_proto != nil {
 		return
 	}
-	file_scenario_to_desktop_v1_base_shared_proto_init()
 	file_scenario_to_desktop_v1_domain_build_proto_msgTypes[0].OneofWrappers = []any{}
 	file_scenario_to_desktop_v1_domain_build_proto_msgTypes[1].OneofWrappers = []any{}
-	file_scenario_to_desktop_v1_domain_build_proto_msgTypes[2].OneofWrappers = []any{}
-	file_scenario_to_desktop_v1_domain_build_proto_msgTypes[3].OneofWrappers = []any{}
+	file_scenario_to_desktop_v1_domain_build_proto_msgTypes[4].OneofWrappers = []any{}
 	file_scenario_to_desktop_v1_domain_build_proto_msgTypes[5].OneofWrappers = []any{}
-	file_scenario_to_desktop_v1_domain_build_proto_msgTypes[6].OneofWrappers = []any{}
-	file_scenario_to_desktop_v1_domain_build_proto_msgTypes[7].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_scenario_to_desktop_v1_domain_build_proto_rawDesc), len(file_scenario_to_desktop_v1_domain_build_proto_rawDesc)),
-			NumEnums:      2,
-			NumMessages:   12,
+			NumEnums:      0,
+			NumMessages:   9,
 			NumExtensions: 0,
-			NumServices:   0,
+			NumServices:   2,
 		},
 		GoTypes:           file_scenario_to_desktop_v1_domain_build_proto_goTypes,
 		DependencyIndexes: file_scenario_to_desktop_v1_domain_build_proto_depIdxs,
-		EnumInfos:         file_scenario_to_desktop_v1_domain_build_proto_enumTypes,
 		MessageInfos:      file_scenario_to_desktop_v1_domain_build_proto_msgTypes,
 	}.Build()
 	File_scenario_to_desktop_v1_domain_build_proto = out.File

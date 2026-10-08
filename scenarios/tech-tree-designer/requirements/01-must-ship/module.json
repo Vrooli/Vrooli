@@ -1,0 +1,266 @@
+{
+  "_metadata": {
+    "description": "Expanded September 2026 target obligations; planned protocols are not execution evidence.",
+    "module": "01-must-ship",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "TTD-SOURCE-002",
+      "title": "Observed provenance and degraded sources",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "criticality": "P0",
+      "description": "When an observed query returns, TTD MUST identify its source revision or observation time, supported coverage, freshness and unavailable portions without reporting source failure as an empty healthy ecosystem.",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "ref": "docs/internal/TESTING.md",
+          "notes": "Planned SOURCE protocol; no execution evidence. Add tagged deterministic and real owner-path tests as implementation lands."
+        }
+      ]
+    },
+    {
+      "id": "TTD-VIEWS-001",
+      "title": "Separate truth layers",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "criticality": "P0",
+      "description": "When entities or relationships appear in multiple views, TTD MUST label observed, intended and proposal-local values independently and preserve their provenance.",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "ref": "docs/internal/TESTING.md",
+          "notes": "Planned VIEWS protocol; no execution evidence. Add tagged deterministic and real owner-path tests as implementation lands."
+        }
+      ]
+    },
+    {
+      "id": "TTD-VIEWS-002",
+      "title": "No false observed promotion",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "criticality": "P0",
+      "description": "When a draft or authored graph amendment is approved or applied, TTD MUST retain observed facts as source-derived values until their owning source reports a change.",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "ref": "docs/internal/TESTING.md",
+          "notes": "Planned VIEWS protocol; no execution evidence. Add tagged deterministic and real owner-path tests as implementation lands."
+        }
+      ]
+    },
+    {
+      "id": "TTD-SCOPE-001",
+      "title": "Cross-repository artifact scope",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "criticality": "P0",
+      "description": "When creating a proposal, TTD MUST support scoped existing and new scenarios, resources, shared packages and project artifacts, including documentation, requirements, experiences, proto schemas and draft skill/program definitions.",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "ref": "docs/internal/TESTING.md",
+          "notes": "Planned SCOPE protocol; no execution evidence. Add tagged deterministic and real owner-path tests as implementation lands."
+        }
+      ]
+    },
+    {
+      "id": "TTD-SCOPE-002",
+      "title": "Durable bounded proposal identity",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "criticality": "P0",
+      "description": "When retaining a proposal revision, TTD MUST record repository identity, selected scope, artifact owner/kind, safe path, operation, base/proposed identities and dependencies independently of temporary compute.",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "ref": "docs/internal/TESTING.md",
+          "notes": "Planned SCOPE protocol; no execution evidence. Add tagged deterministic and real owner-path tests as implementation lands."
+        }
+      ]
+    },
+    {
+      "id": "TTD-REVISION-001",
+      "title": "Immutable review content",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "criticality": "P0",
+      "description": "When a plan references a proposal revision, TTD MUST preserve the exact reviewed artifact bytes and authored graph delta despite later editing or deletion of draft compute.",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "ref": "docs/internal/TESTING.md",
+          "notes": "Planned REVISION protocol; no execution evidence. Add tagged deterministic and real owner-path tests as implementation lands."
+        }
+      ]
+    },
+    {
+      "id": "TTD-REVISION-002",
+      "title": "Material review and amendment",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "criticality": "P0",
+      "description": "When reviewing a selection, TTD MUST expose target, scope, permission, interface and deletion changes, validation gaps and plan references; changed content MUST create a distinct revision rather than inherit approval silently.",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "ref": "docs/internal/TESTING.md",
+          "notes": "Planned REVISION protocol; no execution evidence. Add tagged deterministic and real owner-path tests as implementation lands."
+        }
+      ]
+    },
+    {
+      "id": "TTD-APPLY-001",
+      "title": "Owner-directed conflict-safe apply",
+      "status": "planned",
+      "prd_ref": "OT-P0-006",
+      "criticality": "P0",
+      "description": "Before applying selected entries, TTD MUST recheck relevant base identities, authority and dependencies, route effects through qualified owners and preserve unrelated concurrent edits.",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "ref": "docs/internal/TESTING.md",
+          "notes": "Planned APPLY protocol; no execution evidence. Add tagged deterministic and real owner-path tests as implementation lands."
+        }
+      ]
+    },
+    {
+      "id": "TTD-APPLY-002",
+      "title": "Durable idempotent recovery",
+      "status": "planned",
+      "prd_ref": "OT-P0-006",
+      "criticality": "P0",
+      "description": "When an apply operation is interrupted or redelivered, TTD MUST reconcile durable per-entry owner receipts using the same operation identity before retrying effects.",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "ref": "docs/internal/TESTING.md",
+          "notes": "Planned RECOVERY protocol; no execution evidence. Add tagged deterministic and real owner-path tests as implementation lands."
+        }
+      ]
+    },
+    {
+      "id": "TTD-APPLY-003",
+      "title": "Honest partial outcomes",
+      "status": "planned",
+      "prd_ref": "OT-P0-006",
+      "criticality": "P0",
+      "description": "If any selected entry remains failed, conflicted or held, TTD MUST expose partial state and authorized recovery actions without claiming global atomicity or rolling back over newer unrelated edits.",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "ref": "docs/internal/TESTING.md",
+          "notes": "Planned RECOVERY protocol; no execution evidence. Add tagged deterministic and real owner-path tests as implementation lands."
+        }
+      ]
+    },
+    {
+      "id": "TTD-ISOLATION-001",
+      "title": "Safe selection and content",
+      "status": "planned",
+      "prd_ref": "OT-P0-007",
+      "criticality": "P0",
+      "description": "Before importing or applying entries, TTD MUST reject escaping or symlink-escaping paths, ambiguous owners, overlapping selections, prohibited runtime data and secrets.",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "ref": "docs/internal/TESTING.md",
+          "notes": "Planned ISOLATION protocol; no execution evidence. Add tagged deterministic and real owner-path tests as implementation lands."
+        }
+      ]
+    },
+    {
+      "id": "TTD-ISOLATION-002",
+      "title": "Drafts do not grant effects",
+      "status": "planned",
+      "prd_ref": "OT-P0-007",
+      "criticality": "P0",
+      "description": "When content is drafted or opened, TTD MUST keep proposed skills/programs outside live discovery and refuse execution, network, billing, publication, commit or deployment effects without applicable authority.",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "ref": "docs/internal/TESTING.md",
+          "notes": "Planned ISOLATION protocol; no execution evidence. Add tagged deterministic and real owner-path tests as implementation lands."
+        }
+      ]
+    },
+    {
+      "id": "TTD-SCALE-001",
+      "title": "Bound foreground and background work",
+      "status": "planned",
+      "prd_ref": "OT-P0-008",
+      "criticality": "P0",
+      "description": "When queries, layout, refresh, diffs or retention work execute, TTD MUST enforce qualified traversal, response, byte, queue and concurrency limits and expose truncation and cancellation outcomes.",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "ref": "docs/internal/TESTING.md",
+          "notes": "Planned SCALE protocol; no execution evidence. Add tagged deterministic and real owner-path tests as implementation lands."
+        }
+      ]
+    },
+    {
+      "id": "TTD-SCALE-002",
+      "title": "Qualify supported scale",
+      "status": "planned",
+      "prd_ref": "OT-P0-008",
+      "criticality": "P0",
+      "description": "Before claiming scale acceptance, TTD MUST provide reproducible approved cohorts and latency, CPU, memory, IO and storage measurements including constrained hosts, cold caches and concurrent workloads.",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "ref": "docs/internal/TESTING.md",
+          "notes": "Planned SCALE protocol; no execution evidence. Add tagged deterministic and real owner-path tests as implementation lands."
+        }
+      ]
+    },
+    {
+      "id": "TTD-EVIDENCE-001",
+      "title": "Discoverable development contract",
+      "status": "planned",
+      "prd_ref": "OT-P0-009",
+      "criticality": "P0",
+      "description": "When a fresh authorized development agent begins, TTD MUST expose operational targets, requirements, experiences, architecture, owner boundaries, setup gaps and discoverable sensor obligations.",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "ref": "docs/internal/TESTING.md",
+          "notes": "Planned EVIDENCE protocol; no execution evidence. Add tagged deterministic and real owner-path tests as implementation lands."
+        }
+      ]
+    },
+    {
+      "id": "TTD-EVIDENCE-002",
+      "title": "Applicable evidence without acceptance takeover",
+      "status": "planned",
+      "prd_ref": "OT-P0-009",
+      "criticality": "P0",
+      "description": "When reporting development outcomes, TTD MUST distinguish missing, stale, simulated and applicable evidence and retain Swarm's authority over mandate acceptance.",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "ref": "docs/internal/TESTING.md",
+          "notes": "Planned EVIDENCE protocol; no execution evidence. Add tagged deterministic and real owner-path tests as implementation lands."
+        }
+      ]
+    }
+  ]
+}

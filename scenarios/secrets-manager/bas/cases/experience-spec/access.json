@@ -1,0 +1,83 @@
+{
+  "metadata": {
+    "description": "Generated observer smoke for active experience page access.",
+    "execution_mode": "observer",
+    "labels": {
+      "reset": "none",
+      "spec_entry_id": "access",
+      "surface": "experience-access"
+    },
+    "name": "experience-access-spec-smoke",
+    "requirement": "OT-P1-001",
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": {
+          "label": "Open Access"
+        },
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "secrets-manager",
+          "scenario_path": "/access",
+          "timeout_ms": 30000,
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+        },
+        "type": "ACTION_TYPE_NAVIGATE"
+      },
+      "id": "navigate-access"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Primary binding visible"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/navigation.access",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      },
+      "id": "wait-access-primary-binding"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Access workspace exposes its authored lifecycle"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-experience-surface=\"access-workspace\"][data-experience-state=\"loading\"], [data-experience-surface=\"access-workspace\"][data-experience-state=\"ready\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      },
+      "id": "wait-access-lifecycle"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Access workspace reaches ready"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-experience-surface=\"access-workspace\"][data-experience-state=\"ready\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      },
+      "id": "wait-access-ready"
+    }
+  ],
+  "edges": [
+    {"id": "e1", "source": "navigate-access", "target": "wait-access-primary-binding"},
+    {"id": "e2", "source": "wait-access-primary-binding", "target": "wait-access-lifecycle"},
+    {"id": "e3", "source": "wait-access-lifecycle", "target": "wait-access-ready"}
+  ],
+  "settings": {
+    "viewport_height": 800,
+    "viewport_width": 1280
+  }
+}

@@ -138,12 +138,12 @@
 - **Status**: ✅ FIXED - All commands now documented in usage section
 - **Files**: Makefile:6-19 (added run, build, dev, fmt, lint, check commands)
 
-### 9. Lifecycle Test Contract Violation (Fixed 2025-10-28)
-- **Problem**: P0 HIGH - service.json lifecycle.test.steps didn't invoke test/run-tests.sh
-- **Impact**: Contract violation preventing proper lifecycle integration
-- **Fix**: Updated service.json to call unified test runner, enhanced test/run-tests.sh to match lifecycle steps
-- **Status**: ✅ FIXED - Now compliant with v2.0 lifecycle contract
-- **Files**: .vrooli/service.json:201-210, test/run-tests.sh
+### 9. Historical Test Entrypoint Violation (Superseded 2026-08-19)
+- **Problem**: P0 HIGH - the former manifest-owned test entrypoint bypassed `test/run-tests.sh`
+- **Impact**: Test orchestration was inconsistent
+- **Fix**: The immediate runner mismatch was fixed in 2025; the manifest test phase was later removed in favor of server-owned Test Genie runs
+- **Status**: ✅ SUPERSEDED - run `vrooli scenario test prompt-injection-arena`
+- **Files**: `.vrooli/testing.json`, `test/run-tests.sh`
 - **Evidence**: Reduced violations from 55 to 54
 
 ### 10. Environment Configuration Documentation (Fixed 2025-10-28)

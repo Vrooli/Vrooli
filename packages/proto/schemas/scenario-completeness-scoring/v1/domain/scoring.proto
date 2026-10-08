@@ -1,0 +1,34 @@
+syntax = "proto3";
+
+package vrooli.scenario_completeness_scoring.v1.domain;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-completeness-scoring/v1/domain;domain_v1";
+
+// =============================================================================
+// SCORING DOMAIN
+// =============================================================================
+//
+// @layer 1
+// @domain scoring
+// @stability beta
+//
+// Domain-level persisted score history owned by scenario-completeness-scoring.
+// The API surface in v1/scoring exposes operational score reads; this domain
+// file is the measures-health SSOT proving the scoring domain owns countable
+// historical state through the score_snapshots SQLite table.
+// =============================================================================
+
+message ScoreSnapshot {
+  string scenario = 1;
+  string category = 2;
+  string digest = 3;
+  int32 composite = 4;
+  string classification = 5;
+  string working_rung = 6;
+  string breakdown_json = 7;
+  optional double importance = 8;
+  string source = 9;
+  google.protobuf.Timestamp created_at = 10;
+}

@@ -1,0 +1,54 @@
+{
+  "metadata": {
+    "name": "hook-workspace",
+    "description": "Opens the catalog, selects Hooks, enters the first hook asset, and proves its shared fixture-preview workspace still exposes Files and Details alongside the story-driven preview.",
+    "requirement": "OT-P0-002",
+    "version": "1",
+    "labels": { "reset": "none", "surface": "hook-workspace", "routed_isolation": "true", "requires_confirmation": "true", "requirements_json": "[\"OT-P0-002\"]" },
+    "execution_mode": "mutating"
+  },
+  "settings": { "viewport_width": 1280, "viewport_height": 900 },
+  "nodes": [
+    {
+      "id": "open-catalog",
+      "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "react-component-library", "scenario_path": "/", "wait_until": "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED", "timeout_ms": 30000 }, "metadata": { "label": "Open catalog" } }
+    },
+    {
+      "id": "wait-catalog",
+      "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/catalog.browser", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000 }, "metadata": { "label": "Catalog workspace visible" } }
+    },
+    {
+      "id": "select-hooks",
+      "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "@selector/catalog.hooksTab" }, "metadata": { "label": "Select Hooks" } }
+    },
+    {
+      "id": "open-hook",
+      "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "@selector/catalog.asset" }, "metadata": { "label": "Open hook workspace" } }
+    },
+    {
+      "id": "open-files",
+      "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "@selector/assets.hookFilesTab" }, "metadata": { "label": "Open Hook Files" } }
+    },
+    {
+      "id": "assert-source",
+      "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/assets.hookSource", "mode": "ASSERTION_MODE_VISIBLE", "timeout_ms": 5000, "failure_message": "Hook Files source is unavailable." }, "metadata": { "label": "Hook Files visible" } }
+    },
+    {
+      "id": "open-overview",
+      "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "@selector/assets.hookOverviewTab" }, "metadata": { "label": "Open Hook Overview" } }
+    },
+    {
+      "id": "assert-details",
+      "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/assets.hookDetails", "mode": "ASSERTION_MODE_VISIBLE", "timeout_ms": 5000, "failure_message": "Hook Details pane is unavailable." }, "metadata": { "label": "Hook Details visible" } }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "open-catalog", "target": "wait-catalog", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e2", "source": "wait-catalog", "target": "select-hooks", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e3", "source": "select-hooks", "target": "open-hook", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e4", "source": "open-hook", "target": "open-files", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e6", "source": "open-files", "target": "assert-source", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e7", "source": "assert-source", "target": "open-overview", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e8", "source": "open-overview", "target": "assert-details", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+  ]
+}

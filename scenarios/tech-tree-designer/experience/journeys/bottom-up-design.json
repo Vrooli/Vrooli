@@ -1,0 +1,49 @@
+{
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "bottom-up-design",
+    "title": "Bottom-up documentation-first proposal",
+    "purpose": "Bottom-up documentation-first proposal with explicit authority, provenance and evidence boundaries.",
+    "prd_refs": [
+      "OT-P0-004",
+      "OT-P0-005"
+    ]
+  },
+  "steps": [
+    {
+      "page": "graph",
+      "state": "default",
+      "intent": "Select a bounded observed neighborhood and inspect source provenance."
+    },
+    {
+      "page": "ontology",
+      "state": "default",
+      "intent": "Optionally inspect intended capability context without requiring it for drafting."
+    },
+    {
+      "page": "planning",
+      "state": "default",
+      "intent": "Select repository targets and author actual proposed artifacts without canonical writes."
+    },
+    {
+      "page": "planning",
+      "state": "validation-error",
+      "intent": "Resolve findings or retain explicit validation gaps without losing content."
+    },
+    {
+      "page": "planning",
+      "state": "reviewing",
+      "intent": "Inspect the immutable proposal revision referenced by the concise plan."
+    }
+  ],
+  "claims": [
+    {
+      "id": "bottom-up-design-outcome",
+      "type": "custom",
+      "tier": "aspirational",
+      "statement": "Given a scoped multi-target design, when the author requests review, then the operator can inspect exact proposed artifacts and graph changes rather than reconstruct them from plan prose.",
+      "rationale": "Documentation-first target; runtime bindings and evidence remain to be implemented and qualified."
+    }
+  ]
+}

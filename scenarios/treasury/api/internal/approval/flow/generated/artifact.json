@@ -1,0 +1,445 @@
+{
+  "schemaVersion": 6,
+  "flowId": "approval.lifecycle",
+  "source": {
+    "contractPath": "api/internal/approval/flow/flow.json",
+    "contractSha256": "150976235c46a7ba2c896f00be4470761c31bf969f1d097e4c944e3dd6aa1eb3",
+    "generatorPath": "flow-verifier",
+    "generatorSha256": "2f4bdb4736a693e8d45276b8ad50a7f9078816d749b1d31b315d67302d62b864",
+    "generatorVersion": 7,
+    "modelPath": "api/internal/approval/flow/generated/model.qnt",
+    "modelSha256": "546898f6a81f1ddcb5ce9fa2455fc454844371b09d0d4e9f4a15c43e623a72da",
+    "quintVersion": "0.32.0",
+    "verificationBackend": "apalache"
+  },
+  "commands": {
+    "run": [
+      "quint",
+      "run",
+      "api/internal/approval/flow/generated/model.qnt",
+      "--mbt",
+      "--seed",
+      "2026081803",
+      "--max-samples",
+      "8",
+      "--n-traces",
+      "8",
+      "--max-steps",
+      "4",
+      "--out-itf",
+      "<temp-itf-pattern>"
+    ],
+    "test": [
+      "quint",
+      "test",
+      "api/internal/approval/flow/generated/model.qnt",
+      "--seed",
+      "2026081803"
+    ],
+    "typecheck": [
+      "quint",
+      "typecheck",
+      "api/internal/approval/flow/generated/model.qnt"
+    ],
+    "verify": [
+      "quint",
+      "verify",
+      "api/internal/approval/flow/generated/model.qnt",
+      "--invariants",
+      "TypeOK",
+      "TerminalClosure",
+      "IllegalTransitionsPreserveState",
+      "--max-steps",
+      "4"
+    ]
+  },
+  "states": [
+    "queued",
+    "approved",
+    "declined",
+    "expired"
+  ],
+  "events": [
+    "approve",
+    "decline",
+    "expire"
+  ],
+  "transitions": [
+    {
+      "from": "queued",
+      "event": "approve",
+      "to": "approved",
+      "wantError": false
+    },
+    {
+      "from": "queued",
+      "event": "decline",
+      "to": "declined",
+      "wantError": false
+    },
+    {
+      "from": "queued",
+      "event": "expire",
+      "to": "expired",
+      "wantError": false
+    },
+    {
+      "from": "approved",
+      "event": "approve",
+      "to": "approved",
+      "wantError": true
+    },
+    {
+      "from": "approved",
+      "event": "decline",
+      "to": "approved",
+      "wantError": true
+    },
+    {
+      "from": "approved",
+      "event": "expire",
+      "to": "approved",
+      "wantError": true
+    },
+    {
+      "from": "declined",
+      "event": "approve",
+      "to": "declined",
+      "wantError": true
+    },
+    {
+      "from": "declined",
+      "event": "decline",
+      "to": "declined",
+      "wantError": true
+    },
+    {
+      "from": "declined",
+      "event": "expire",
+      "to": "declined",
+      "wantError": true
+    },
+    {
+      "from": "expired",
+      "event": "approve",
+      "to": "expired",
+      "wantError": true
+    },
+    {
+      "from": "expired",
+      "event": "decline",
+      "to": "expired",
+      "wantError": true
+    },
+    {
+      "from": "expired",
+      "event": "expire",
+      "to": "expired",
+      "wantError": true
+    }
+  ],
+  "namedTraces": [
+    {
+      "name": "operator_approves",
+      "initial": "queued",
+      "steps": [
+        {
+          "event": "approve",
+          "want": "approved",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "operator_declines",
+      "initial": "queued",
+      "steps": [
+        {
+          "event": "decline",
+          "want": "declined",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "request_expires",
+      "initial": "queued",
+      "steps": [
+        {
+          "event": "expire",
+          "want": "expired",
+          "wantError": false
+        }
+      ]
+    }
+  ],
+  "generatedTraces": [
+    {
+      "name": "generated_model_001",
+      "initial": "queued",
+      "steps": [
+        {
+          "event": "expire",
+          "want": "expired",
+          "wantError": false
+        },
+        {
+          "event": "decline",
+          "want": "expired",
+          "wantError": true
+        },
+        {
+          "event": "expire",
+          "want": "expired",
+          "wantError": true
+        },
+        {
+          "event": "expire",
+          "want": "expired",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_002",
+      "initial": "queued",
+      "steps": [
+        {
+          "event": "expire",
+          "want": "expired",
+          "wantError": false
+        },
+        {
+          "event": "approve",
+          "want": "expired",
+          "wantError": true
+        },
+        {
+          "event": "expire",
+          "want": "expired",
+          "wantError": true
+        },
+        {
+          "event": "approve",
+          "want": "expired",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_003",
+      "initial": "queued",
+      "steps": [
+        {
+          "event": "expire",
+          "want": "expired",
+          "wantError": false
+        },
+        {
+          "event": "approve",
+          "want": "expired",
+          "wantError": true
+        },
+        {
+          "event": "approve",
+          "want": "expired",
+          "wantError": true
+        },
+        {
+          "event": "approve",
+          "want": "expired",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_004",
+      "initial": "queued",
+      "steps": [
+        {
+          "event": "expire",
+          "want": "expired",
+          "wantError": false
+        },
+        {
+          "event": "expire",
+          "want": "expired",
+          "wantError": true
+        },
+        {
+          "event": "expire",
+          "want": "expired",
+          "wantError": true
+        },
+        {
+          "event": "expire",
+          "want": "expired",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_005",
+      "initial": "queued",
+      "steps": [
+        {
+          "event": "expire",
+          "want": "expired",
+          "wantError": false
+        },
+        {
+          "event": "approve",
+          "want": "expired",
+          "wantError": true
+        },
+        {
+          "event": "expire",
+          "want": "expired",
+          "wantError": true
+        },
+        {
+          "event": "expire",
+          "want": "expired",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_006",
+      "initial": "queued",
+      "steps": [
+        {
+          "event": "approve",
+          "want": "approved",
+          "wantError": false
+        },
+        {
+          "event": "expire",
+          "want": "approved",
+          "wantError": true
+        },
+        {
+          "event": "approve",
+          "want": "approved",
+          "wantError": true
+        },
+        {
+          "event": "decline",
+          "want": "approved",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_007",
+      "initial": "queued",
+      "steps": [
+        {
+          "event": "expire",
+          "want": "expired",
+          "wantError": false
+        },
+        {
+          "event": "decline",
+          "want": "expired",
+          "wantError": true
+        },
+        {
+          "event": "expire",
+          "want": "expired",
+          "wantError": true
+        },
+        {
+          "event": "expire",
+          "want": "expired",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_008",
+      "initial": "queued",
+      "steps": [
+        {
+          "event": "expire",
+          "want": "expired",
+          "wantError": false
+        },
+        {
+          "event": "expire",
+          "want": "expired",
+          "wantError": true
+        },
+        {
+          "event": "decline",
+          "want": "expired",
+          "wantError": true
+        },
+        {
+          "event": "decline",
+          "want": "expired",
+          "wantError": true
+        }
+      ]
+    }
+  ],
+  "invariants": [
+    "TypeOK",
+    "TerminalClosure",
+    "IllegalTransitionsPreserveState"
+  ],
+  "generatedChecks": [
+    "transitionTable"
+  ],
+  "coverage": {
+    "transitionMatrixComplete": true,
+    "terminalTransitionsChecked": true,
+    "namedTraces": {
+      "allStatesCovered": true,
+      "allEventsCovered": true,
+      "coveredStates": [
+        "queued",
+        "approved",
+        "declined",
+        "expired"
+      ],
+      "coveredEvents": [
+        "approve",
+        "decline",
+        "expire"
+      ]
+    },
+    "generatedTraces": {
+      "allStatesCovered": false,
+      "allEventsCovered": true,
+      "coveredStates": [
+        "queued",
+        "approved",
+        "expired"
+      ],
+      "coveredEvents": [
+        "approve",
+        "decline",
+        "expire"
+      ],
+      "coveredPairs": [
+        "queued/approve",
+        "queued/expire",
+        "approved/approve",
+        "approved/decline",
+        "approved/expire",
+        "expired/approve",
+        "expired/decline",
+        "expired/expire"
+      ],
+      "allPairsCovered": false
+    }
+  },
+  "checks": {
+    "typechecked": true,
+    "tested": true,
+    "verified": true,
+    "generatedFromContract": true,
+    "generatedFromModel": true
+  }
+}

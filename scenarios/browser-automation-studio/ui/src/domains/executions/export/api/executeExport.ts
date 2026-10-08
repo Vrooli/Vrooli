@@ -8,13 +8,12 @@
  * (mp4/gif) use async rendering with WebSocket progress updates.
  */
 
-import type { ReplayMovieSpec } from "@/types/export";
+import type { ReplaySpec as ReplayMovieSpec } from "@vrooli/generated-proto/browser-automation-studio/v1/exports/exports_pb";
 import { getConfig } from "@/config";
 import { safeParse } from "@/shared/api/safeParse";
-import {
-  ServerExportResponseSchema,
-  ExportStatusResponseSchema,
-} from "@/shared/api/schemas";
+import { ServerExportResponseSchema } from "@/shared/api/schemas";
+import { exportsClient } from "@/api/exports";
+import { serializeExportPayload } from "./replaySpecJson";
 
 // =============================================================================
 // Types
@@ -185,7 +184,7 @@ export async function executeServerExport(options: {
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify(payload),
+    body: serializeExportPayload(payload),
   });
 
   if (!response.ok) {
@@ -213,25 +212,17 @@ export async function executeServerExport(options: {
  * Useful for reconnection scenarios when WebSocket connection was lost.
  */
 export async function getExportStatus(exportId: string): Promise<ExportStatusResponse> {
-  const { API_URL } = await getConfig();
+  const res = await exportsClient.getExportStatus({ id: exportId });
 
-  const response = await fetch(`${API_URL}/exports/${exportId}/status`, {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-    },
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(text || `Failed to get export status (${response.status})`);
-  }
-
-  const rawData: unknown = await response.json();
-  const result = safeParse(ExportStatusResponseSchema, rawData, "ExportStatus");
-  if (!result.success) {
-    throw new Error(result.error);
-  }
-
-  return result.data;
+  const status = res.status as ExportStatusResponse["status"];
+  return {
+    export_id: res.exportId,
+    execution_id: res.executionId,
+    status,
+    format: res.format,
+    name: res.name,
+    storage_url: res.storageUrl || undefined,
+    file_size_bytes: typeof res.fileSizeBytes === "bigint" ? Number(res.fileSizeBytes) : undefined,
+    error: res.error || undefined,
+  };
 }

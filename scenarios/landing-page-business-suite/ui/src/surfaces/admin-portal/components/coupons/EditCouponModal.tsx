@@ -27,7 +27,7 @@ interface EditCouponModalProps {
  */
 function formatDiscount(coupon: StripeCoupon): string {
   if (coupon.percent_off != null) {
-    return `${coupon.percent_off}% off`;
+    return `${String(coupon.percent_off)}% off`;
   }
   if (coupon.amount_off != null) {
     const currency = (coupon.currency || 'usd').toUpperCase();
@@ -77,7 +77,7 @@ export function EditCouponModal({
   if (!coupon) return null;
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) { handleClose(); } }}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -108,7 +108,7 @@ export function EditCouponModal({
             <p className="text-xs text-slate-500 mt-1">
               Duration: {coupon.duration}
               {coupon.duration === 'repeating' && coupon.duration_in_months
-                ? ` (${coupon.duration_in_months} months)`
+                ? ` (${String(coupon.duration_in_months)} months)`
                 : ''}
             </p>
           </div>
@@ -118,7 +118,7 @@ export function EditCouponModal({
             <input
               type="text"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => { setName(e.target.value); }}
               placeholder="Enter a display name (optional)"
               className={inputClassName}
               disabled={saving}
@@ -135,7 +135,7 @@ export function EditCouponModal({
           <Button variant="ghost" onClick={handleClose} disabled={saving}>
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={saving} className="gap-2">
+          <Button onClick={() => { void handleSave(); }} disabled={saving} className="gap-2">
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}
             {saving ? 'Saving...' : 'Save Changes'}
           </Button>

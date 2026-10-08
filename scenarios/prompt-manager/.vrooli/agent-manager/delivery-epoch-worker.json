@@ -1,0 +1,34 @@
+{
+  "schemaVersion": "agent-profile/v1",
+  "name": "prompt-manager-delivery-epoch-worker",
+  "profileKey": "prompt-manager/delivery-epoch-worker",
+  "description": "One goal run per epoch (large-effort-orchestration), created by the orchestrator with --until. Runs on the interactive substrate so the runner's native /goal loop keeps it working across turns until the epoch outcome is met (codec-pipe runs end after one turn), and so run continue --message can type into it. Its rules are the worker card large-effort-orchestration/references/worker.md, not the full skill. Works in the shared tree with network access so it can rebuild, run journeys and use Test Genie against its own changes (D5). No per-turn or per-tool caps; the epoch's step-back triggers and token budget bound it.",
+  "roleRef": "code.economy.delivery",
+  "effort": "medium",
+  "maxTurns": 0,
+  "timeout": "43200s",
+  "networkAccess": "NETWORK_ACCESS_FULL",
+  "sandboxConfig": {
+    "mode": "SANDBOX_MODE_OFF",
+    "networkMode": "NETWORK_ACCESS_FULL"
+  },
+  "createdBy": "prompt-manager",
+  "spawnPolicy": {
+    "axisOrder": [
+      "executionMode",
+      "sandboxMode"
+    ],
+    "executionMode": {
+      "prefer": [
+        "interactive",
+        "codec_pipe"
+      ]
+    },
+    "sandboxMode": {
+      "prefer": [
+        "off"
+      ]
+    },
+    "require": []
+  }
+}

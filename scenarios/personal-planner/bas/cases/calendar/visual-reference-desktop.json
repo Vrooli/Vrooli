@@ -1,0 +1,38 @@
+{
+  "metadata": {
+    "name": "visual-reference-desktop",
+    "description": "Given the routed Planner test store contains synthetic native event evidence, when Plan Month opens at desktop width in Day and Night, then each explicit appearance resolves and the complete calendar surface is captured.",
+    "requirement": "PLAN-P0-002",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "routed_isolation": "true",
+      "safety": "fixture-only",
+      "requires_confirmation": "true"
+    },
+    "execution_mode": "mutating"
+  },
+  "settings": {
+    "viewport_width": 1280,
+    "viewport_height": 800
+  },
+  "nodes": [
+    { "id": "navigate-day", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "personal-planner", "scenario_path": "/plan?appearance=day", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE", "timeout_ms": 30000 }, "metadata": { "label": "Open Plan in explicit Day appearance" } } },
+    { "id": "select-month-day", "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "@selector/calendarMonth.monthView" }, "metadata": { "label": "Open Month in Day appearance" } } },
+    { "id": "assert-grid-day", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/calendarMonth.grid", "mode": "ASSERTION_MODE_EXISTS", "timeout_ms": 15000, "failure_message": "Desktop Day Plan Month grid should render" }, "metadata": { "label": "Verify desktop Day calendar grid" } } },
+    { "id": "capture-day", "action": { "type": "ACTION_TYPE_SCREENSHOT", "screenshot": { "full_page": true }, "metadata": { "label": "Capture desktop Plan Month Day synthetic fixture" } } },
+    { "id": "navigate-night", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "personal-planner", "scenario_path": "/plan?appearance=night", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE", "timeout_ms": 30000 }, "metadata": { "label": "Open Plan in explicit Night appearance" } } },
+    { "id": "select-month-night", "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "@selector/calendarMonth.monthView" }, "metadata": { "label": "Open Month in Night appearance" } } },
+    { "id": "assert-grid-night", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/calendarMonth.grid", "mode": "ASSERTION_MODE_EXISTS", "timeout_ms": 15000, "failure_message": "Desktop Night Plan Month grid should render" }, "metadata": { "label": "Verify desktop Night calendar grid" } } },
+    { "id": "capture-night", "action": { "type": "ACTION_TYPE_SCREENSHOT", "screenshot": { "full_page": true }, "metadata": { "label": "Capture desktop Plan Month Night synthetic fixture" } } }
+  ],
+  "edges": [
+    { "id": "e1", "source": "navigate-day", "target": "select-month-day", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e2", "source": "select-month-day", "target": "assert-grid-day", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e3", "source": "assert-grid-day", "target": "capture-day", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e4", "source": "capture-day", "target": "navigate-night", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e5", "source": "navigate-night", "target": "select-month-night", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e6", "source": "select-month-night", "target": "assert-grid-night", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e7", "source": "assert-grid-night", "target": "capture-night", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+  ]
+}

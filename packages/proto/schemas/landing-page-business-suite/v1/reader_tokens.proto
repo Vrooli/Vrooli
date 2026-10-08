@@ -1,0 +1,12 @@
+syntax = "proto3";
+package landing_page_business_suite.v1;
+import "google/protobuf/timestamp.proto";
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1";
+service ReaderTokenService { rpc IssueReaderToken(IssueReaderTokenRequest) returns (IssuedReaderToken); rpc ListReaderTokens(ListReaderTokensRequest) returns (ListReaderTokensResponse); rpc RevokeReaderToken(RevokeReaderTokenRequest) returns (RevokeReaderTokenResponse); }
+message IssueReaderTokenRequest { string label = 1; string scope = 2; }
+message IssuedReaderToken { string id = 1; string token = 2; string prefix = 3; string scope = 4; google.protobuf.Timestamp created_at = 5; }
+message ListReaderTokensRequest {}
+message ReaderToken { string id = 1; string label = 2; string scope = 3; string prefix = 4; string source = 5; string created_by = 6; google.protobuf.Timestamp created_at = 7; google.protobuf.Timestamp last_used_at = 8; google.protobuf.Timestamp revoked_at = 9; }
+message ListReaderTokensResponse { repeated ReaderToken tokens = 1; }
+message RevokeReaderTokenRequest { string id = 1; }
+message RevokeReaderTokenResponse { bool revoked = 1; }

@@ -1,0 +1,22 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "runtime-service",
+  "catalogId": "services.layer-manager",
+  "deprecatedVersions": [
+    "1.0.0"
+  ],
+  "designStyles": [
+    {
+      "affinity": "native",
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.0.0",
+    "2.0.0"
+  ],
+  "latest": "2.0.1",
+  "libraryId": "react-component-library:LayerManager"
+}

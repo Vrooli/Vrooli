@@ -5,24 +5,22 @@ package render
 import (
 	"context"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/vrooli/browser-automation-studio/services/export"
+	"github.com/vrooli/browser-automation-studio/internal/testutil/integration"
+	exportsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/exports"
 )
 
 // Requires a running Playwright driver at PLAYWRIGHT_DRIVER_URL and no Browserless URL configured.
 func TestPlaywrightCaptureIntegration(t *testing.T) {
-	if os.Getenv("PLAYWRIGHT_DRIVER_URL") == "" {
-		t.Skip("PLAYWRIGHT_DRIVER_URL not set; skipping Playwright capture integration")
-	}
+	integration.RequireEnv(t, "PLAYWRIGHT_DRIVER_URL", "Playwright capture integration")
 	os.Unsetenv("BROWSERLESS_URL")
 
 	// Minimal export page that listens for bas:render and advances a timer.
-	exportPage := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	exportPage := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
 		w.Write([]byte(`
 <!doctype html>
@@ -52,25 +50,25 @@ window.addEventListener('bas:render', (ev) => {
 
 	spec := &export.ReplayMovieSpec{
 		Version: "test",
-		Execution: export.ExportExecutionMetadata{
+		Execution: &exportsv1.ReplayExecutionMetadata{
 			ExecutionID: uuid.New(),
 			WorkflowID:  uuid.New(),
 			Status:      "completed",
 			StartedAt:   time.Now(),
 		},
-		Playback: export.ExportPlayback{
+		Playback: &exportsv1.ReplayPlayback{
 			FrameIntervalMs: 100,
 		},
-		Frames: []export.ExportFrame{{DurationMs: 200}},
-		Summary: export.ExportSummary{
+		Frames: []*exportsv1.ReplayFrame{{DurationMs: 200}},
+		Summary: &exportsv1.ReplaySummary{
 			TotalDurationMs: 500,
 		},
-		Presentation: export.ExportPresentation{
-			Canvas: export.ExportDimensions{
+		Presentation: &exportsv1.ReplayPresentation{
+			Canvas: &exportsv1.ReplayDimensions{
 				Width:  1280,
 				Height: 720,
 			},
-			Viewport: export.ExportDimensions{
+			Viewport: &exportsv1.ReplayDimensions{
 				Width:  1280,
 				Height: 720,
 			},

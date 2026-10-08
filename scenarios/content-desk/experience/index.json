@@ -1,0 +1,129 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-index",
+  "contract": {
+    "kind": "scenario-experience",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "schemaVersion": "1.0.0",
+  "scenario": "content-desk",
+  "description": "Content Desk's experience contract for editing evidence-backed drafts and making operator-owned publication decisions.",
+  "pages": [
+    {
+      "id": "dashboard",
+      "path": "pages/dashboard.json",
+      "title": "Dashboard",
+      "status": "active"
+    },
+    {
+      "id": "settings",
+      "path": "pages/settings.json",
+      "title": "Settings",
+      "status": "active"
+    },
+    {
+      "id": "today",
+      "path": "pages/today.json",
+      "title": "Today",
+      "status": "draft"
+    },
+    {
+      "id": "plan",
+      "path": "pages/plan.json",
+      "title": "Plan",
+      "status": "draft"
+    },
+    {
+      "id": "create",
+      "path": "pages/create.json",
+      "title": "Create",
+      "status": "draft"
+    },
+    {
+      "id": "intake",
+      "path": "pages/intake.json",
+      "title": "Bring in existing work",
+      "status": "draft"
+    },
+    {
+      "id": "review",
+      "path": "pages/review.json",
+      "title": "Review",
+      "status": "draft"
+    },
+    {
+      "id": "learn",
+      "path": "pages/learn.json",
+      "title": "Learn",
+      "status": "draft"
+    },
+    {
+      "id": "content",
+      "path": "pages/content.json",
+      "title": "Content",
+      "status": "draft"
+    },
+    {
+      "id": "readiness",
+      "path": "pages/readiness.json",
+      "title": "Account readiness",
+      "status": "draft"
+    },
+    {
+      "id": "contributors",
+      "path": "pages/contributors.json",
+      "title": "Contributors",
+      "status": "draft"
+    },
+    {
+      "id": "recovery",
+      "path": "pages/recovery.json",
+      "title": "Recovery",
+      "status": "draft"
+    }
+  ],
+  "journeys": [
+    {
+      "id": "resolve-and-approve-draft",
+      "path": "journeys/resolve-and-approve-draft.json",
+      "title": "Resolve evidence and approve a draft",
+      "status": "active"
+    },
+    {
+      "id": "article-to-safe-outcome",
+      "path": "journeys/article-to-safe-outcome.json",
+      "title": "Existing article to safe outcome",
+      "status": "draft"
+    },
+    {
+      "id": "simple-private-post",
+      "path": "journeys/simple-private-post.json",
+      "title": "Simple private writing",
+      "status": "draft"
+    },
+    {
+      "id": "plan-with-partial-allocation",
+      "path": "journeys/plan-with-partial-allocation.json",
+      "title": "Plan with partial allocation",
+      "status": "draft"
+    },
+    {
+      "id": "contributor-consent-and-withdrawal",
+      "path": "journeys/contributor-consent-and-withdrawal.json",
+      "title": "Contributor consent and withdrawal",
+      "status": "draft"
+    },
+    {
+      "id": "conflicting-edit-recovery",
+      "path": "journeys/conflicting-edit-recovery.json",
+      "title": "Conflicting edit recovery",
+      "status": "draft"
+    },
+    {
+      "id": "portable-content-restore",
+      "path": "journeys/portable-content-restore.json",
+      "title": "Portable content restore",
+      "status": "draft"
+    }
+  ]
+}

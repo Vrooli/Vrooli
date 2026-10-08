@@ -1,0 +1,87 @@
+syntax = "proto3";
+
+package vrooli.program_runtime.v1.sessions;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/sessions;sessions_v1";
+
+message Session {
+  string id = 1;
+  string state = 2;
+  string created_at = 3;
+  string last_activity_at = 4;
+  repeated string grants = 5;
+  string sandbox_workspace = 6;
+  string reclaimed_reason = 7;
+  string name = 8;
+  int64 inference_cost_micros = 9;
+  int64 inference_tokens = 10;
+  int64 delegation_cost_micros = 11;
+  int64 inference_ceiling_micros = 12;
+  int64 delegation_ceiling_micros = 13;
+  bool delegation_spend_measured = 14;
+  string delegation_spend_note = 15;
+  int64 wall_budget_millis = 16;
+  int64 wall_consumed_millis = 17;
+  int64 cpu_budget_millis = 18;
+  int64 cpu_consumed_millis = 19;
+}
+
+message CreateSessionRequest {
+  repeated string grants = 1;
+  string sandbox_workspace = 2;
+  string name = 3;
+  int64 inference_ceiling_micros = 4;
+  int64 delegation_ceiling_micros = 5;
+  int64 wall_budget_millis = 6;
+  int64 cpu_budget_millis = 7;
+}
+message CreateSessionResponse {
+  Session session = 1;
+}
+message GetSessionRequest {
+  string id = 1;
+}
+message GetSessionResponse {
+  Session session = 1;
+}
+message ListSessionsRequest {}
+message ListSessionsResponse {
+  repeated Session sessions = 1;
+  int64 count = 2;
+}
+message Delegation {
+  string session_id = 1;
+  string execution_id = 2;
+  string owner = 3;
+  string workflow_key = 4;
+  string created_at = 5;
+  string last_status = 6;
+}
+message ListDelegationsRequest {}
+message ListDelegationsResponse {
+  repeated Delegation delegations = 1;
+  int64 count = 2;
+}
+message DeleteSessionRequest {
+  string id = 1;
+  string reason = 2;
+}
+message DeleteSessionResponse {
+  Session session = 1;
+}
+message GrantSessionRequest {
+  string id = 1;
+  repeated string grants = 2;
+}
+message GrantSessionResponse {
+  Session session = 1;
+}
+
+service SessionService {
+  rpc CreateSession(CreateSessionRequest) returns (CreateSessionResponse);
+  rpc GetSession(GetSessionRequest) returns (GetSessionResponse);
+  rpc ListSessions(ListSessionsRequest) returns (ListSessionsResponse);
+  rpc ListDelegations(ListDelegationsRequest) returns (ListDelegationsResponse);
+  rpc DeleteSession(DeleteSessionRequest) returns (DeleteSessionResponse);
+  rpc GrantSession(GrantSessionRequest) returns (GrantSessionResponse);
+}

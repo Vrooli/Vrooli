@@ -1,0 +1,79 @@
+syntax = "proto3";
+
+package vrooli.personal_planner.v1.goals;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/personal-planner/v1/goals;goals_v1";
+
+message Goal {
+  string id = 1;
+  string title = 2;
+  string purpose = 3;
+  string status = 4;
+  string progress_method = 5;
+  int64 progress_basis_points = 6;
+  int64 target_basis_points = 7;
+  int64 created_at_unix_seconds = 8;
+  int64 updated_at_unix_seconds = 9;
+  int64 revision = 10;
+}
+
+message Milestone {
+  string id = 1;
+  string goal_id = 2;
+  string title = 3;
+  string criteria = 4;
+  string due_date = 5;
+  string status = 6;
+  int64 created_at_unix_seconds = 7;
+  int64 updated_at_unix_seconds = 8;
+  int64 revision = 9;
+  string linked_work_item_id = 10;
+  repeated string prerequisite_milestone_ids = 11;
+}
+
+message ListGoalsRequest {}
+message ListGoalsResponse { repeated Goal goals = 1; }
+
+message CreateGoalRequest {
+  string title = 1;
+  string purpose = 2;
+  string progress_method = 3;
+  int64 target_basis_points = 4;
+}
+message CreateGoalResponse { Goal goal = 1; }
+
+message UpdateGoalProgressRequest {
+  string id = 1;
+  int64 progress_basis_points = 2;
+  int64 expected_revision = 3;
+}
+message UpdateGoalProgressResponse { Goal goal = 1; }
+
+message ListMilestonesRequest { string goal_id = 1; }
+message ListMilestonesResponse { repeated Milestone milestones = 1; }
+
+message CreateMilestoneRequest {
+  string goal_id = 1;
+  string title = 2;
+  string criteria = 3;
+  string due_date = 4;
+  string linked_work_item_id = 5;
+  repeated string prerequisite_milestone_ids = 6;
+}
+message CreateMilestoneResponse { Milestone milestone = 1; }
+
+message UpdateMilestoneStatusRequest {
+  string id = 1;
+  string status = 2;
+  int64 expected_revision = 3;
+}
+message UpdateMilestoneStatusResponse { Milestone milestone = 1; }
+
+service GoalsService {
+  rpc ListGoals(ListGoalsRequest) returns (ListGoalsResponse);
+  rpc CreateGoal(CreateGoalRequest) returns (CreateGoalResponse);
+  rpc UpdateGoalProgress(UpdateGoalProgressRequest) returns (UpdateGoalProgressResponse);
+  rpc ListMilestones(ListMilestonesRequest) returns (ListMilestonesResponse);
+  rpc CreateMilestone(CreateMilestoneRequest) returns (CreateMilestoneResponse);
+  rpc UpdateMilestoneStatus(UpdateMilestoneStatusRequest) returns (UpdateMilestoneStatusResponse);
+}

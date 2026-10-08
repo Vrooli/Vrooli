@@ -1,0 +1,345 @@
+syntax = "proto3";
+
+package vrooli.cli.v1;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1";
+
+// =============================================================================
+// VROOLI CLI — `package` governance output contracts
+// =============================================================================
+//
+// @stability experimental
+//
+// Canonical wire shapes for the `vrooli package ...` command family --json
+// output: `list`, `info`, `dependents`, `validate`, `run` (build/generate),
+// `refresh`, and `audit`. Marshaled with protojson (UseProtoNames=true,
+// EmitUnpopulated=true). Every call site wraps the payload in the standard CLI
+// success envelope (cliout.WriteSuccessJSON), so each top-level response carries
+// `bool success = 1;` plus the payload under its envelope key.
+// =============================================================================
+
+// PackageListResponse is `vrooli package list --json`
+// (envelope key: "packages").
+message PackageListResponse {
+  // True when discovery completed and the list was produced.
+  bool success = 1;
+
+  // All governed packages, ordered by discovery.
+  repeated PackageInfo packages = 2;
+}
+
+// PackageInfoResponse is `vrooli package info <name> --json`
+// (envelope key: "package"). The payload is a single governed package.
+message PackageInfoResponse {
+  // True when the package was found and loaded.
+  bool success = 1;
+
+  // The resolved governed package.
+  PackageInfo package = 2;
+}
+
+// PackageInfo describes one governed package on disk and its manifest. The
+// source Go struct (packagegov.Package) carries no JSON tags; protojson
+// normalizes the field names to snake_case here.
+message PackageInfo {
+  // Package slug (e.g. "proto", "cli-core").
+  string name = 1;
+
+  // Absolute path to the package root directory on disk.
+  string root_path = 2;
+
+  // Absolute path to the package's governance manifest file.
+  string manifest_path = 3;
+
+  // Parsed governance manifest; always present.
+  PackageManifest manifest = 4;
+}
+
+// PackageManifest mirrors packagegov.Manifest (the package.json governance doc).
+message PackageManifest {
+  // JSON $schema reference (e.g. "schemas/package.schema.json").
+  string schema = 1;
+
+  // Manifest semver version.
+  string version = 2;
+
+  // The package metadata entry.
+  PackageManifestEntry package = 3;
+}
+
+// PackageManifestEntry mirrors packagegov.ManifestEntry.
+message PackageManifestEntry {
+  // Package name.
+  string name = 1;
+
+  // Human-readable display name; empty if unset.
+  string display_name = 2;
+
+  // Description; empty if unset.
+  string description = 3;
+
+  // Package kind (e.g. "go_runtime", "go_cli", "schema_or_contract").
+  string kind = 4;
+
+  // Primary language (e.g. "go", "typescript"); empty if unset.
+  string language = 5;
+
+  // Module/import identifiers this package exports; empty if none.
+  repeated string module_identifiers = 6;
+
+  // Generated artifact descriptors; empty if the package generates nothing.
+  repeated PackageGeneratedOutput generated_outputs = 7;
+
+  // Adoption policy (who may consume this package and how).
+  PackageAdoptionPolicy adoption = 8;
+
+  // Lifecycle command policy (generate/build steps).
+  PackageLifecyclePolicy lifecycle = 9;
+
+  // Refresh policy applied when this package changes.
+  PackageRefreshPolicy refresh = 10;
+
+  // Documentation paths associated with the package; empty if none.
+  repeated string docs = 11;
+}
+
+// PackageGeneratedOutput mirrors packagegov.GeneratedOutput.
+message PackageGeneratedOutput {
+  // Output artifact name.
+  string name = 1;
+
+  // Identifiers exported by the generated output; empty if none.
+  repeated string identifiers = 2;
+
+  // Consumer classes the output targets (e.g. "scenario_ui"); empty if none.
+  repeated string consumers = 3;
+}
+
+// PackageAdoptionPolicy mirrors packagegov.AdoptionPolicy.
+message PackageAdoptionPolicy {
+  // True when scenarios may adopt this package.
+  bool scenario_adoptable = 1;
+
+  // Consumer classes allowed to adopt (e.g. "scenario_api"); empty if none.
+  repeated string allowed_consumers = 2;
+
+  // Permitted adoption modes (e.g. "go_module_replace"); empty if none.
+  repeated string adoption_modes = 3;
+}
+
+// PackageLifecyclePolicy mirrors packagegov.LifecyclePolicy.
+message PackageLifecyclePolicy {
+  // Generate-step commands; empty if none.
+  repeated PackageCommandSpec generate = 1;
+
+  // Build-step commands; empty if none.
+  repeated PackageCommandSpec build = 2;
+}
+
+// PackageCommandSpec mirrors packagegov.CommandSpec.
+message PackageCommandSpec {
+  // Step name.
+  string name = 1;
+
+  // Command argv to execute; empty if none.
+  repeated string run = 2;
+}
+
+// PackageRefreshPolicy mirrors packagegov.RefreshPolicy.
+message PackageRefreshPolicy {
+  // Refresh strategy (e.g. "scenario_setup", "restart_running_consumers").
+  string strategy = 1;
+
+  // True when running consumers should be restarted on refresh.
+  bool restart_running_consumers = 2;
+}
+
+// PackageDependentsResponse is `vrooli package dependents <name> --json`
+// (envelope key: "dependents"). The payload is the DependentsResponse struct
+// merged under the envelope key.
+message PackageDependentsResponse {
+  // True when dependents were discovered.
+  bool success = 1;
+
+  // The dependents payload.
+  PackageDependents dependents = 2;
+}
+
+// PackageDependents mirrors the producer's DependentsResponse struct.
+message PackageDependents {
+  // Package whose consumers were discovered.
+  string package_name = 1;
+
+  // Discovered consumers of the package.
+  repeated PackageDependent dependents = 2;
+
+  // Validation issues raised during discovery; empty when none (omitted in the
+  // legacy JSON when empty, always emitted here under EmitUnpopulated).
+  repeated PackageValidationIssue issues = 3;
+}
+
+// PackageDependent mirrors packagegov.Dependent.
+message PackageDependent {
+  // Name of the package being consumed.
+  string package_name = 1;
+
+  // Name of the consuming unit (scenario/template/resource).
+  string consumer_name = 2;
+
+  // Path to the consumer on disk.
+  string consumer_path = 3;
+
+  // Consumer class (e.g. "scenario_api", "template_cli").
+  string consumer_class = 4;
+
+  // Adoption mode used (e.g. "go_module_replace", "file_dependency").
+  string adoption_mode = 5;
+
+  // Dependency declaration file (e.g. go.mod, package.json).
+  string dependency_file = 6;
+
+  // Dependency target string within the file; empty if unset.
+  string dependency_target = 7;
+
+  // Pinned version, when applicable; empty if unset.
+  string version = 8;
+}
+
+// PackageValidateResponse is `vrooli package validate [<name>|--all] --json`
+// (envelope key: "report"). The payload is a validation report.
+message PackageValidateResponse {
+  // True when validation completed (issues may still be present).
+  bool success = 1;
+
+  // The validation report.
+  PackageValidationReport report = 2;
+}
+
+// PackageValidationReport mirrors packagegov.ValidationReport.
+message PackageValidationReport {
+  // Packages that were validated.
+  repeated PackageInfo packages = 1;
+
+  // Validation issues found; empty when validation passed.
+  repeated PackageValidationIssue issues = 2;
+}
+
+// PackageValidationIssue mirrors packagegov.ValidationIssue.
+message PackageValidationIssue {
+  // Severity label (e.g. "error", "warning").
+  string severity = 1;
+
+  // Machine-readable issue code.
+  string code = 2;
+
+  // Human-readable issue message.
+  string message = 3;
+
+  // Path the issue refers to; empty if not path-scoped.
+  string path = 4;
+
+  // Package the issue belongs to; empty if not package-scoped.
+  string package_name = 5;
+}
+
+// PackageRunResponse is `vrooli package build|generate <name> --json`
+// (envelope key: "result"). The payload is the RunResponse struct merged under
+// the envelope key.
+message PackageRunResponse {
+  // True when the action completed.
+  bool success = 1;
+
+  // The run result.
+  PackageRunResult result = 2;
+}
+
+// PackageRunResult mirrors the producer's RunResponse struct.
+message PackageRunResult {
+  // Package the action ran against.
+  string package_name = 1;
+
+  // Action performed (e.g. "build", "generate").
+  string action = 2;
+}
+
+// PackageRefreshResponse is `vrooli package refresh <name> --json`
+// (envelope key: "refresh"). The payload is the RefreshResponse struct merged
+// under the envelope key.
+message PackageRefreshResponse {
+  // True when the refresh plan executed.
+  bool success = 1;
+
+  // The refresh result.
+  PackageRefreshResult refresh = 2;
+}
+
+// PackageRefreshResult mirrors the producer's RefreshResponse struct.
+message PackageRefreshResult {
+  // Package that was refreshed.
+  string package_name = 1;
+
+  // Per-consumer refresh outcomes; empty when no governed consumers were
+  // affected.
+  repeated PackageRefreshItem items = 2;
+}
+
+// PackageRefreshItem mirrors the producer's RefreshItem struct.
+message PackageRefreshItem {
+  // Consumer name.
+  string consumer = 1;
+
+  // Primary consumer class (e.g. "scenario_api").
+  string consumer_class = 2;
+
+  // All consumer classes when the consumer matches multiple; empty if single.
+  repeated string consumer_classes = 3;
+
+  // Refresh action taken (e.g. "scenario_setup", "rebuild_go_consumer").
+  string action = 4;
+
+  // Outcome status string for the action.
+  string status = 5;
+}
+
+// PackageAuditResponse is `vrooli package audit [<name>|--all] --json`
+// (envelope key: "audit"). The payload is an audit report.
+message PackageAuditResponse {
+  // True when the audit completed (issues may still be present).
+  bool success = 1;
+
+  // The audit report.
+  PackageAuditReport audit = 2;
+}
+
+// PackageAuditReport mirrors packagegov.AuditReport.
+message PackageAuditReport {
+  // The underlying validation report.
+  PackageValidationReport validation = 1;
+
+  // Audit-level issues (validation issues plus docs-drift); empty when clean.
+  repeated PackageValidationIssue issues = 2;
+
+  // Bounded scanner accounting for docs-drift checks.
+  PackageAuditScanStats scan_stats = 3;
+}
+
+// PackageAuditScanStats mirrors packagegov.ScanStats.
+message PackageAuditScanStats {
+  // Eligible filesystem entries visited.
+  int64 files_visited = 1;
+
+  // Files opened and scanned as bounded text.
+  int64 files_scanned = 2;
+
+  // Files skipped by policy or budget.
+  int64 files_skipped = 3;
+
+  // Bytes read from scanned text files.
+  int64 bytes_scanned = 4;
+
+  // Skip counts keyed by machine-readable reason.
+  map<string, int64> skipped_by_reason = 5;
+
+  // True when a byte budget stopped scanning an otherwise eligible file.
+  bool budget_exceeded = 6;
+}

@@ -20,6 +20,8 @@ This guide covers how to deploy your landing page from development to production
 6. [Environment Configuration](#environment-configuration)
 7. [Health Checks & Monitoring](#health-checks--monitoring)
 8. [Rollback Procedures](#rollback-procedures)
+9. [Credential Authority and Recovery](#credential-authority-and-recovery)
+10. [Download Distribution Storage and Credentials](#download-distribution-storage-and-credentials)
 
 ---
 
@@ -34,7 +36,310 @@ Landing pages can be deployed through multiple methods:
 | **Traditional VPS** | Full control | Medium |
 | **PaaS (Railway, Render)** | Managed infrastructure | Low |
 
+## Identity and deployment modes
+
+LPBS's deployed website and a local Vrooli desktop bundle are separate trust
+planes. The website may use LPBS's current compatibility sign-in flow and
+owns business accounts, subscriptions, and entitlement leases. A bundled
+scenario defaults to a private local installation and must not require a
+website login for local use.
+
+If an operator enables local multi-user or remote access, the installation
+uses `scenario-authenticator` for person identity and local authorization. A
+user may explicitly link that identity to an LPBS business account when paid
+features require it. The link is a short-lived, scoped browser/device flow;
+the app must not copy LPBS browser tokens or infer ownership from matching
+email addresses.
+
+Read the project-level [Identity and Authentication contract](../../../../docs/concepts/IDENTITY-AND-AUTHENTICATION.md)
+and the [deployment Tier 2 contract](../../../deployment-manager/docs/tiers/tier-2-desktop.md)
+before documenting a new desktop or remote mode.
+
+## Credential Authority and Recovery
+
+LPBS resolves its generated identity, session, encryption, Stripe, and delivery
+credentials through the Vrooli credential authority. Do not put those values in
+`.env` files or database settings. The Stripe and S3 admin forms write through
+to the authority and fail closed when it is unavailable.
+
+Before production deployment, verify the inventory and recovery state:
+
+```bash
+vrooli credentials doctor --format json
+vrooli credentials recovery export --all
+```
+
+If an existing installation still has the retired cleartext payment or delivery
+columns, run the one-shot migration against a database copy before deploying
+the new schema:
+
+```bash
+go run ./cmd/migrate-legacy-credentials
+```
+
+The command writes only values missing from the authority and prints migrated
+counts. It refuses to run when the authority is unavailable. Keep the encrypted
+off-host copy receipt current; a missing receipt is a recovery blocker, not a
+reason to mint replacement generated keys.
+
 ---
+
+## Download Distribution Storage and Credentials
+
+Released desktop artifacts live in a **private** S3-compatible bucket owned by
+the deployment that serves downloads. A local LPBS instance publishes to a
+remote deployment through a stored remote profile; the local host never writes
+that bucket directly. Free and paid downloads both work through short-lived
+presigned URLs, so a free download never requires a public object or AWS
+credentials on the client.
+
+### Bucket configuration
+
+Use one bucket, for example `vrooli-bucket` in `us-east-1`, and keep it private:
+
+| Setting | Value |
+|---|---|
+| Block all public access | Enabled |
+| Object Ownership | Bucket owner enforced |
+| ACLs | Disabled |
+| Default encryption | SSE-S3 |
+| Versioning | Enabled (preferred) |
+| Static website hosting | Disabled |
+
+Bucket encryption, ownership, and region are also validated by the deployment
+storage test. A public bucket is never required for downloads; "free to
+download" does not mean "publicly readable from S3".
+
+### Credential fields
+
+The bucket client resolves three credentials from the authority:
+
+| Field | Required | Purpose |
+|---|---|---|
+| `delivery-s3-access-key-id` | Yes | IAM access key ID for the delivery bucket |
+| `delivery-s3-secret-access-key` | Yes | Secret access key paired with the ID |
+| `delivery-s3-session-token` | No | Temporary AWS STS session token only |
+
+The access key ID and secret access key are the two halves of **one** AWS IAM
+credential pair; they are not two independent S3 keys. The session token is
+part of temporary STS credentials only and must be left unset for ordinary
+long-lived IAM-user credentials.
+
+### IAM identities
+
+Use separate IAM users for local and production so credentials can be audited,
+revoked, and rotated independently:
+
+```text
+vrooli-lpbs-local
+vrooli-lpbs-prod
+```
+
+Do not attach `AdministratorAccess` or `AmazonS3FullAccess`. Attach only the
+narrow policy below. Never create or use an access key for the AWS root user.
+
+### Required IAM policy
+
+Policy name: `VrooliDeliveryBucketAccess`. Both ARNs must name the configured
+bucket (`vrooli-bucket` here). LPBS stores release objects beneath an internal
+`<default_prefix>/<bundle_key>/<app_key>/<platform>/<release_version>/` layout;
+do not narrow the object ARN to a prefix unless the application's object-key
+behavior has been verified for that deployment.
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "InspectVrooliDeliveryBucket",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetBucketLocation",
+        "s3:ListBucket",
+        "s3:ListBucketMultipartUploads"
+      ],
+      "Resource": "arn:aws:s3:::vrooli-bucket"
+    },
+    {
+      "Sid": "ManageVrooliDeliveryObjects",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:DeleteObject",
+        "s3:AbortMultipartUpload",
+        "s3:ListMultipartUploadParts"
+      ],
+      "Resource": "arn:aws:s3:::vrooli-bucket/*"
+    }
+  ]
+}
+```
+
+### Obtain the credentials in the AWS Console
+
+1. Sign in to AWS. Personal account owners generally select **Root user** and
+   enter the account email. An email address is not normally an AWS account ID
+   or IAM alias. Root access may administer IAM, but never create a root access
+   key.
+2. Open **IAM → Policies** and create `VrooliDeliveryBucketAccess` with the
+   policy document above.
+3. Open **IAM → Users → Create user**.
+4. Create `vrooli-lpbs-local` (or `vrooli-lpbs-prod` on production).
+5. Do not enable AWS Console access for these workload identities.
+6. Attach `VrooliDeliveryBucketAccess`.
+7. Open the user's **Security credentials** tab.
+8. Under **Access keys**, select **Create access key**.
+9. Select the workload/application-running-outside-AWS use case.
+10. Enter the matching description: `Vrooli LPBS local deployment credential`
+    or `Vrooli LPBS production deployment credential`.
+11. Create the key and save the access key ID and secret access key securely.
+
+The admin **Downloads → Hosting** wizard shows this same guidance, the
+configured bucket and region, live presence per field, and copyable provision
+commands. Its **Test storage access** action returns a structured diagnostic
+when the bucket, region, credentials, or IAM permissions are wrong.
+
+> The secret access key is displayed only once. Never paste either credential
+> into chat, logs, screenshots, or issue reports. Never commit credentials to
+> Git or place them in `service.json`, application configuration, source files,
+> or shell history. AWS allows at most two access keys per IAM user.
+
+### Provision in Vrooli
+
+On the local host, provision the `vrooli-lpbs-local` pair. Run the same commands
+on the production host with the `vrooli-lpbs-prod` pair:
+
+```bash
+vrooli credentials provision \
+  --identity vrooli/landing-page-business-suite \
+  --field delivery-s3-access-key-id
+
+vrooli credentials provision \
+  --identity vrooli/landing-page-business-suite \
+  --field delivery-s3-secret-access-key
+```
+
+Credential input uses a secure prompt or stdin. Never pass a value as an
+ordinary command-line argument: process listings and shell history can expose
+it. Do not configure `delivery-s3-session-token` unless temporary STS
+credentials are deliberately in use.
+
+After provisioning, confirm presence without printing values:
+
+```bash
+vrooli credentials doctor --format json
+```
+
+Both `delivery-s3-access-key-id` and `delivery-s3-secret-access-key` must report
+`configured`. The API and UI use the same canonical field vocabulary and never
+return a secret value.
+
+### How a release reaches the bucket
+
+1. `scenario-to-desktop` calls the local LPBS admin API, which forwards each
+   download request through the stored remote profile
+   (`POST /api/v1/admin/remote-profiles/{id}/proxy`).
+2. The remote LPBS signs an S3 upload URL; the packager uploads the bytes
+   directly to the bucket.
+3. The remote LPBS commits the artifact metadata, then the channel head is
+   promoted to the new immutable revision.
+
+The remote host is the authority for the bucket credentials; the local host
+only holds the encrypted remote session. Provision a **distinct** pair for each
+host. The local credentials satisfy the local storage/readiness gate; the
+production credentials generate the actual presigned upload URLs. A later
+hardening change could remove the local credential requirement if local LPBS
+never needs to sign objects.
+
+### Object layout
+
+Each artifact is stored under:
+
+```
+<default_prefix>/<bundle_key>/<app_key>/<platform>/<release_version>/<unix>-<nonce>-<filename>
+```
+
+The catalog records `platform`, `release_version`, `release_id`,
+`git_commit_hash`, and `sha512`; the channel head and immutable channel
+revisions record which artifact set is visible for each `variant_key`
+(`default`/stable, `beta`, and so on).
+
+### Permission validation
+
+Test storage access proves the bucket accepts object **list, write, read, and
+delete** with a uniquely named canary object under the internal
+`.vrooli/healthchecks/<uuid>` prefix that is always deleted. A bucket that is
+merely discoverable (`HeadBucket`) is not sufficient, because a role can
+discover a bucket while lacking object permissions. The test also verifies that
+the bucket's region agrees with the configured region. Run:
+
+```bash
+# Local bucket (structured result on failure)
+landing-page-business-suite admin-download-storage-test
+
+# Remote bucket through the stored profile
+landing-page-business-suite remote-profiles-proxy --profile-tag prod --method POST --path /admin/download-storage/test --json
+
+# Full remote-aware readiness: session, remote storage, remote app key, service auth
+landing-page-business-suite deploy-readiness --profile-tag prod --app-key web-console --domain <domain>
+```
+
+If cleanup fails after a successful write, the diagnostic reports
+`cleanup_failed` and retains the non-sensitive canary key so it can be removed
+later. The `/api/v1/deploy-readiness` endpoint that Deployment Manager calls
+runs the same remote checks, so a release cannot be approved for a target whose
+bucket, session, or app registration is not proven.
+
+### Diagnostic codes
+
+`Test storage access` returns a stable machine-readable `code` with an
+actionable summary, the failed operation, the configured bucket and region, a
+safe remediation, and whether retrying can help. Credentials, authorization
+headers, signatures, session tokens, and complete presigned URLs are never
+included. Common codes include `bucket_name_missing`, `bucket_not_found`,
+`bucket_wrong_region`, `authentication_rejected`, `access_key_inactive`,
+`session_token_invalid`, `list_bucket_denied`, `get_object_denied`,
+`put_object_denied`, `delete_object_denied`, `encryption_permission_denied`,
+`request_timeout`, `network_failure`, `authority_unavailable`,
+`write_succeeded_read_failed`, and `cleanup_failed`.
+
+### Key rotation
+
+Rotate local and production separately:
+
+1. Create a second access key for the IAM user.
+2. Provision the new pair into Vrooli (`vrooli credentials provision`).
+3. Restart or reload the affected service if necessary.
+4. Run presence and operational validation (`vrooli credentials doctor` and
+   Test storage access).
+5. Complete a real presign/upload/download check.
+6. Deactivate the old access key.
+7. Verify deployment still works.
+8. Delete the old key after a short observation period.
+
+Record which host and identity were rotated; never record credential values.
+Store only booleans for presence, the identity suffix if safely derived, the
+bucket, the region, the operation, the AWS request ID, the error category, and
+validation latency.
+
+### Download behavior
+
+1. A user requests a download from LPBS.
+2. LPBS applies application/channel/platform checks.
+3. For a free release, no payment entitlement is required.
+4. LPBS issues or redirects to a short-lived presigned S3 URL.
+5. S3 serves the private object.
+
+Paid downloads use the same flow but require an entitlement before the URL is
+issued. Treat presigned URLs as temporary bearer credentials: do not log them in
+full or expose them unnecessarily. Presigned URLs control access only; they do
+not prove an artifact is genuine. Production releases also require platform code
+signing, signed or authenticated update metadata, cryptographic hashes, and
+protection against downgrade and manifest substitution.
+
+---
+
 
 ## Local Development
 
@@ -48,7 +353,7 @@ cd scenarios/<your-slug>
 make start
 
 # Or using Vrooli CLI
-vrooli scenario start <your-slug>
+vrooli scenario start "<your-slug>"
 ```
 
 ### Accessing Local Services
@@ -63,8 +368,8 @@ Once started, your landing page is available at:
 
 Get the actual ports:
 ```bash
-vrooli scenario port <your-slug> UI_PORT
-vrooli scenario port <your-slug> API_PORT
+vrooli scenario port "<your-slug>" UI_PORT
+vrooli scenario port "<your-slug>" API_PORT
 ```
 
 ### Development Workflow
@@ -96,15 +401,9 @@ vrooli scenario port <your-slug> API_PORT
 
 ### Option 1: Vrooli Managed (Recommended)
 
-Vrooli can deploy your landing page via Cloudflare Tunnel:
-
-```bash
-# Enable cloud deployment
-vrooli deploy <slug> --tunnel
-
-# This creates a public URL like:
-# https://<slug>.vrooli.app
-```
+Vrooli's deployment surface is environment-specific. Start with `vrooli help`
+and follow the current deployment runbook for the target environment; do not
+copy an undocumented tunnel command from this guide.
 
 ### Option 2: Docker Deployment
 
@@ -119,9 +418,11 @@ docker build -t my-landing:latest .
 docker run -d \
   -p 3000:3000 \
   -e DATABASE_URL="postgres://..." \
-  -e STRIPE_SECRET_KEY="sk_live_..." \
   my-landing:latest
 ```
+
+Provision Stripe credentials through the credential authority before starting
+the container; do not inject them as process environment variables.
 
 ### Option 3: Traditional VPS
 
@@ -284,16 +585,20 @@ server {
 
 ### Production Environment Variables
 
-Create `initialization/configuration/<slug>.env` with production values:
+Create `api/internal/<domain>/configuration/<slug>.env` with production values:
 
 ```bash
 # Database
 DATABASE_URL=postgres://prod_user:secure_password@db.example.com:5432/landing_prod
 
-# Stripe (LIVE keys)
-STRIPE_PUBLISHABLE_KEY=pk_live_...
-STRIPE_SECRET_KEY=sk_live_...
-STRIPE_WEBHOOK_SECRET=whsec_...
+# Stripe credentials are provisioned through the credential authority. Select
+# one mode and provision only that mode's values:
+STRIPE_MODE=test # use live only after test acceptance and operator approval
+vrooli credentials provision --identity vrooli/landing-page-business-suite --field stripe-test-publishable-key
+vrooli credentials provision --identity vrooli/landing-page-business-suite --field stripe-test-secret-key
+vrooli credentials provision --identity vrooli/landing-page-business-suite --field stripe-test-webhook-secret
+
+# For the separate live configuration, use the corresponding stripe-live-* fields.
 
 # Application
 NODE_ENV=production
@@ -301,8 +606,7 @@ API_PORT=3000
 UI_PORT=3001
 
 # Security
-ADMIN_EMAIL=admin@yourdomain.com
-SESSION_SECRET=<random-64-char-string>
+# LPBS generated credentials are minted by the application and recorded in the authority.
 
 # Optional
 ANALYTICS_ENABLED=true
@@ -315,7 +619,7 @@ SENTRY_DSN=https://...@sentry.io/...
 
 Options:
 1. **Environment files**: Use `.env` files (gitignored)
-2. **Vrooli Secrets Manager**: `vrooli secret set <slug> STRIPE_SECRET_KEY`
+2. **Vrooli credential authority**: `vrooli credentials provision --identity vrooli/landing-page-business-suite --field stripe-secret-key`
 3. **Cloud provider**: Use Railway/Render/Fly secrets
 4. **Vault**: For enterprise deployments
 
@@ -391,13 +695,13 @@ If something goes wrong:
 
 ```bash
 # 1. Stop the broken deployment
-vrooli scenario stop <slug>
+vrooli scenario stop "<slug>"
 
 # 2. If you have a backup:
 cp -r backups/<slug>-<date> scenarios/<slug>
 
 # 3. Restart
-vrooli scenario start <slug>
+vrooli scenario start "<slug>"
 ```
 
 ### Database Rollback
@@ -448,7 +752,7 @@ Before going live:
 - [ ] OG images configured for social sharing
 - [ ] Footer links working
 - [ ] Privacy policy and terms linked
-- [ ] Variant snapshot files deployed (`.vrooli/variants/*.json`, `.vrooli/variant_space.json`, `.vrooli/fallback/fallback.json`)
+- [ ] Variant snapshot files deployed (`config/variants/*.json`, `config/variant_space.json`, `.vrooli/fallback/fallback.json`)
 - [ ] `VARIANT_SNAPSHOT_REQUIRED=true` set in production (fail fast if snapshots are missing)
 
 ### Technical
@@ -522,6 +826,14 @@ curl -X POST https://landing.yourdomain.com/api/v1/webhooks/stripe
 ```
 
 ---
+
+## Sign-in email deployment checklist
+
+- [ ] Configure `EMAIL_FROM_ADDRESS` on an authenticated sending subdomain and set `EMAIL_FROM_NAME`.
+- [ ] Publish SPF, SendGrid DKIM/return-path CNAMEs, and DMARC; begin DMARC at `p=none`.
+- [ ] Provision a Mail Send-only `sendgrid-api-key` and the Signed Event Webhook public key through the credential authority.
+- [ ] Enable SendGrid events `processed`, `delivered`, `deferred`, `bounce`, `dropped`, and `spamreport` for `/api/v1/webhooks/sendgrid`.
+- [ ] Run `admin-email-readiness` and resolve every fail before inviting customers. This command is read-only.
 
 ## See Also
 

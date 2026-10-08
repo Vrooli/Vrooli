@@ -1,0 +1,78 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "api": {
+    "variants": {},
+    "modes": [],
+    "parts": [
+      "heading",
+      "eyebrow",
+      "title",
+      "list",
+      "item"
+    ]
+  },
+  "asset": {
+    "id": "navigation.navigation-tree",
+    "name": "NavigationTree",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "navigation",
+    "description": "The hierarchical navigation collection with expansion, selection, keyboard traversal, lazily loaded children, filtering, virtualization, persisted open state, and accessible tree semantics.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "navigation.nav-link",
+        "reason": "Leaf items are shared navigation links."
+      },
+      {
+        "asset": "motion.collapsible-region",
+        "reason": "Branch expansion animates through the shared region."
+      },
+      {
+        "asset": "hooks.use-roving-focus",
+        "reason": "Composite surfaces expose one tab stop with arrow-key movement."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "virtualization-adapter",
+      "optional": true
+    },
+    {
+      "capability": "storage-adapter",
+      "optional": true
+    }
+  ],
+  "requiredCapabilities": [
+    "semantic-structure",
+    "keyboard-operable",
+    "focus-order",
+    "accessible-naming",
+    "status-announced",
+    "reading-order-honest"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "empty",
+    "partial",
+    "request-error"
+  ]
+}

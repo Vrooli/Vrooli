@@ -5,94 +5,72 @@ import (
 	"fmt"
 	"strings"
 
-	"scenario-to-cloud/internal/shellutil"
-	"scenario-to-cloud/ssh"
-	"scenario-to-cloud/vps/portparse"
+	"scenario-to-cloud/apierrors"
+	"scenario-to-cloud/execplan"
 )
 
-// StopScenarioResult represents the result of stopping a scenario
-type StopScenarioResult struct {
-	OK           bool   `json:"ok"`
-	ScenarioStop bool   `json:"scenario_stop"` // vrooli scenario stop succeeded
-	OrphanKills  int    `json:"orphan_kills"`  // number of orphaned processes killed
-	PortKills    int    `json:"port_kills"`    // number of processes killed on ports
-	Message      string `json:"message"`
-	Error        string `json:"error,omitempty"`
+// Workload stop and retirement. A stop is always the lifecycle owner's scoped
+// stop (privilegebroker process.stop.scoped through `vrooli cloud-target host
+// repair`): it releases only this deployment's demand on shared resources, so
+// a resource another deployment on the host still needs keeps running. There
+// is no process-name kill and no port kill; a stale process the lifecycle
+// owner does not know is a host-repair finding, not something the cloud
+// side hunts with pkill.
+
+func runEdgeRouteRetire(ctx context.Context, e *executor, action execplan.Action) (string, error) {
+	detail, err := e.runCommands(ctx, action)
+	if err != nil {
+		if apierrors.Is(err, "edge_rollback_not_eligible") {
+			return "no route snippet to remove (unchanged)", nil
+		}
+		return "", err
+	}
+	return detail, nil
 }
 
-// StopExistingScenario gracefully stops any running instance of the scenario.
-// This should be called before starting a new deployment to avoid port conflicts.
-//
-// Strategy:
-// 1. Try vrooli scenario stop <id> (graceful lifecycle-aware stop)
-// 2. Kill any orphaned processes matching the scenario ID
-// 3. Kill any processes on the target ports (UI, API)
-func StopExistingScenario(
-	ctx context.Context,
-	sshRunner ssh.Runner,
-	cfg ssh.Config,
-	workdir string,
-	scenarioID string,
-	targetPorts []int, // Ports to forcefully clear (e.g., [35000, 15000])
-) StopScenarioResult {
-	result := StopScenarioResult{OK: true}
-
-	// Step 1: Try vrooli scenario stop (if vrooli CLI exists)
-	checkCliResult, _ := sshRunner.Run(ctx, cfg, shellutil.VrooliCommand(workdir, "which vrooli || echo notfound"), ssh.DefaultRunOptions())
-	if !strings.Contains(checkCliResult.Stdout, "notfound") {
-		stopCmd := shellutil.VrooliCommand(workdir, "vrooli scenario stop "+shellutil.QuoteSingle(scenarioID))
-		stopResult, err := sshRunner.Run(ctx, cfg, stopCmd, ssh.DefaultRunOptions())
-		if err == nil && stopResult.ExitCode == 0 {
-			result.ScenarioStop = true
-		}
-		// Don't fail on error - continue with fallback cleanup
+func runGrantsRevoke(ctx context.Context, e *executor, action execplan.Action) (string, error) {
+	if e.manifest.Secrets == nil || len(e.manifest.Secrets.BundleSecrets) == 0 {
+		return "no credential grants declared (unchanged)", nil
 	}
-
-	// Step 2: Kill orphaned processes matching scenario ID
-	// This catches processes started outside the lifecycle (manual starts, debug sessions)
-	killOrphansCmd := fmt.Sprintf("pkill -f %s 2>/dev/null; true", shellutil.QuoteSingle(scenarioID))
-	orphanResult, _ := sshRunner.Run(ctx, cfg, killOrphansCmd, ssh.DefaultRunOptions())
-	if orphanResult.ExitCode == 0 {
-		result.OrphanKills++ // pkill returns 0 if it killed something
+	if e.rt.Credentials == nil {
+		return "", apierrors.New(apierrors.CodeUnsupportedCapability, "credential authority is not configured for this executor; grants.revoke cannot run").WithDetail("action", action.ID)
 	}
+	result, err := e.rt.Credentials.Revoke(ctx, CredentialProvisionRequest{DeploymentID: e.deploymentID, Target: e.rt.Target, Identity: e.rt.Identity, Manifest: e.manifest})
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%d grants revoked", len(result.Revoked)), nil
+}
 
-	// Step 3: Kill any remaining processes on target ports
-	// This is the nuclear option for port conflicts
-	for _, port := range targetPorts {
-		// Get PIDs on this port using ss
-		ssCmd := fmt.Sprintf("ss -tlnpH 'sport = :%d' 2>/dev/null || true", port)
-		ssResult, _ := sshRunner.Run(ctx, cfg, ssCmd, ssh.DefaultRunOptions())
-		pids := portparse.ExtractPIDsFromSS(ssResult.Stdout)
+// runDataRetire records the disposition. No target verb deletes persistent
+// data: an irreversible policy is refused with the owner that must exist
+// first, and the retained policy leaves every binding in place.
+func runDataRetire(_ context.Context, _ *executor, action execplan.Action) (string, error) {
+	switch action.Inputs["retention_policy"] {
+	case execplan.RetentionDelete:
+		return "", apierrors.New(apierrors.CodeUnsupportedCapability, "irreversible data retirement has no target owner verb yet; the data stays in place").
+			WithDetail("bindings", action.Inputs["bindings"]).WithDetail("required_owner", "cloud-target data retire")
+	default:
+		return "retained: " + action.Inputs["bindings"] + " (persistent-data root untouched)", nil
+	}
+}
 
-		for _, pid := range pids {
-			// Try graceful kill first, then SIGKILL as fallback
-			killCmd := fmt.Sprintf("kill %s 2>/dev/null && sleep 1 && ! kill -0 %s 2>/dev/null || kill -9 %s 2>/dev/null || true", pid, pid, pid)
-			if _, err := sshRunner.Run(ctx, cfg, killCmd, ssh.DefaultRunOptions()); err != nil {
-				result.OK = false
-				if result.Error == "" {
-					result.Error = err.Error()
-				}
-			}
-			result.PortKills++
+// runArtifactsRetire lists what the target holds and reports what cleanup
+// would remove; active, previous and backup-referenced artifacts are never
+// candidates. Deletion itself needs the target prune owner.
+func runArtifactsRetire(ctx context.Context, e *executor, action execplan.Action) (string, error) {
+	listing, err := e.listReleases(ctx, action.ID+".observe")
+	if err != nil {
+		return "", err
+	}
+	var retained, candidates []string
+	for _, rel := range listing.Releases {
+		switch rel.Role {
+		case "active", "previous":
+			retained = append(retained, rel.Digest)
+		default:
+			candidates = append(candidates, rel.Digest)
 		}
 	}
-
-	// Build message
-	var parts []string
-	if result.ScenarioStop {
-		parts = append(parts, "scenario stopped via vrooli")
-	}
-	if result.OrphanKills > 0 {
-		parts = append(parts, "killed orphaned processes")
-	}
-	if result.PortKills > 0 {
-		parts = append(parts, fmt.Sprintf("cleared %d port processes", result.PortKills))
-	}
-	if len(parts) == 0 {
-		result.Message = "no existing processes found"
-	} else {
-		result.Message = strings.Join(parts, ", ")
-	}
-
-	return result
+	return fmt.Sprintf("retained %d (%s); unreferenced %d (%s) await the target prune owner", len(retained), strings.Join(retained, ","), len(candidates), strings.Join(candidates, ",")), nil
 }

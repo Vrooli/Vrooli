@@ -1,0 +1,119 @@
+syntax = "proto3";
+
+package vrooli.audio_tools.v1.summarize;
+
+import "audio-tools/v1/common/common.proto";
+import "buf/validate/validate.proto";
+import "google/protobuf/field_mask.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/summarize;summarize_v1";
+
+// =============================================================================
+// SUMMARIZE DOMAIN — long-text summarization for the TTS pipeline and
+//                    general-purpose summarization consumers.
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain summarize
+// @stability stable
+//
+// Provider routing: BYOK -> Vrooli/LPBS -> Local. Local backed by Ollama;
+// BYOK starter adapter is openrouter; Vrooli routes through LPBS chat with
+// `Operation: audio.summarize` metadata.
+//
+// Per-request credentials travel in metadata headers — see
+// audio-tools/v1/auth/auth.proto for the typed Credentials envelope.
+//
+// SummarizeLevel is owned by this domain — both the TTS-summarize
+// pipeline and the general summarizer reference it from here.
+// =============================================================================
+
+// SummarizeLevel selects how aggressively the summarizer rewrites the
+// input. LIGHT preserves wording; MODERATE rewrites for flow; HEAVY
+// produces a short paraphrase.
+enum SummarizeLevel {
+  SUMMARIZE_LEVEL_UNSPECIFIED = 0;
+  SUMMARIZE_LEVEL_LIGHT = 1;
+  SUMMARIZE_LEVEL_MODERATE = 2;
+  SUMMARIZE_LEVEL_HEAVY = 3;
+}
+
+service SummarizeService {
+  rpc Summarize(SummarizeRequest) returns (SummarizeResponse);
+
+  // Persisted summarizer-config surface for consumer scenarios that want to
+  // surface "enable summarization for TTS, length threshold X chars, level Y"
+  // toggles in their settings UI. Persistence lives on the audio-tools side
+  // so multiple consumer scenarios share one canonical configuration.
+  rpc GetSummarizeConfig(GetSummarizeConfigRequest) returns (GetSummarizeConfigResponse);
+  rpc UpdateSummarizeConfig(UpdateSummarizeConfigRequest) returns (UpdateSummarizeConfigResponse);
+  rpc ListSummarizeModels(ListSummarizeModelsRequest) returns (ListSummarizeModelsResponse);
+}
+
+message SummarizeConfig {
+  bool enabled = 1;
+  int32 char_threshold = 2;
+  SummarizeLevel level = 3;
+  string model = 4;
+  int32 timeout_seconds = 5;
+}
+
+message GetSummarizeConfigRequest {}
+
+message GetSummarizeConfigResponse {
+  SummarizeConfig config = 1;
+}
+
+// UpdateSummarizeConfigRequest carries FieldMask + a full SummarizeConfig
+// payload. Server validates each path in `update_mask.paths`; unknown
+// paths return CodeInvalidArgument; an empty mask returns
+// CodeInvalidArgument ("no fields specified").
+message UpdateSummarizeConfigRequest {
+  google.protobuf.FieldMask update_mask = 1;
+  SummarizeConfig config = 2;
+}
+
+message UpdateSummarizeConfigResponse {
+  SummarizeConfig config = 1;
+}
+
+message ListSummarizeModelsRequest {}
+
+message SummarizeModel {
+  string id = 1;
+  string display_name = 2;
+  bool installed = 3;
+  bool recommended = 4;
+  bool default_eligible = 5;
+  bool reasoning = 6;
+  string status_label = 7;
+  string pull_command = 8;
+  int64 size_bytes = 9;
+  string parameter_size = 10;
+  string source_url = 11;
+  string notes = 12;
+}
+
+message ListSummarizeModelsResponse {
+  repeated SummarizeModel models = 1;
+}
+
+message SummarizeRequest {
+  string text = 1 [(buf.validate.field).string.min_len = 1];
+  SummarizeLevel level = 2;
+  string model = 3; // optional override
+  int32 timeout_seconds = 4 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 600
+  }];
+}
+
+message SummarizeResponse {
+  string text = 1;
+  int32 prompt_tokens = 2;
+  int32 output_tokens = 3;
+  vrooli.audio_tools.v1.common.ProviderTier provider_tier = 4;
+  string provider_id = 5;
+  string model_id = 6;
+  double latency_ms = 7;
+}

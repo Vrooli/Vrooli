@@ -1,0 +1,78 @@
+{
+  "_metadata": {
+    "description": "Manual-first nutrition and price provider interfaces with source identity, caching, error classification, and revision proposals.",
+    "module": "provider-adapters",
+    "prd_ref": "PRD.md",
+    "priority": "P1",
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": false
+  },
+  "requirements": [
+    {
+      "id": "PROV-001",
+      "title": "The nutrition adapter is replaceable and source-aware",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "adapter",
+      "criticality": "P1",
+      "description": "The scenario should define a nutrition provider interface with search, detail retrieval, source identity and version, nutrient mapping, caching, and error classification, with USDA FoodData Central as the first reference and manual entry plus a reproducible fixture as the baseline.",
+      "tags": [
+        "adapter",
+        "nutrition",
+        "provider"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: a search result exposes generic or branded identity, preparation state, serving basis, and source type, and a selected result creates a pinned local source revision (ACT-058)."
+        }
+      ]
+    },
+    {
+      "id": "PROV-002",
+      "title": "Price and receipt adapters preserve offer conditions",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "adapter",
+      "criticality": "P1",
+      "description": "The scenario should place price and receipt adapters behind interfaces that return structured observations preserving retailer, package, conditions, source, and observed date, stage receipt purchases for review, and deduplicate by source transaction identity plus normalized line content.",
+      "tags": [
+        "adapter",
+        "prices",
+        "receipts"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: a rotated or replayed provider error is classified and does not corrupt local data; duplicate receipt ingestion cannot duplicate purchases (ACT-059)."
+        }
+      ]
+    },
+    {
+      "id": "PROV-003",
+      "title": "Refreshes propose revisions and fall back to manual entry",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "policy",
+      "criticality": "P1",
+      "description": "The scenario should keep manual entry first-class, propose a new revision on a provider refresh rather than rewriting history, and present manual fallback prominently when a provider is unconfigured, unavailable, or uncached.",
+      "tags": [
+        "fallback",
+        "revisions",
+        "manual-first"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: a refresh creates a proposed revision that past intake does not follow, and disabling every provider leaves recipes and the planner operational (ACT-058)."
+        }
+      ]
+    }
+  ]
+}

@@ -10,11 +10,13 @@ import (
 	"context"
 	"database/sql"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/retry"
+	"github.com/vrooli/api-core/storage"
 
 	"lifestyle-dashboard/domain"
 )
@@ -41,15 +43,21 @@ func SetupTestDB(t *testing.T) (*sql.DB, func()) {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
 
-	dbPath := tmpDir + "/test.db"
+	dbPath := filepath.Join(tmpDir, "test.db")
 
-	// Set env var for api-core/database
-	os.Setenv("SQLITE_PATH", dbPath+"?_journal_mode=WAL&_busy_timeout=5000")
+	// The path is passed as an argument rather than exported into the process
+	// environment, so parallel tests cannot overwrite each other's database and
+	// no child process can inherit one.
+	dsn, err := storage.SQLiteDSNAt(dbPath, storage.SQLiteTuning{})
+	if err != nil {
+		os.RemoveAll(tmpDir)
+		t.Fatalf("Failed to build test database DSN: %v", err)
+	}
 
-	// Connect using api-core/database package (matching production pattern)
 	ctx := context.Background()
 	db, err := database.Connect(ctx, database.Config{
 		Driver:       database.DriverSQLite,
+		DSN:          dsn,
 		MaxOpenConns: 1,
 		MaxIdleConns: 1,
 		Retry: &retry.Config{
@@ -86,13 +94,10 @@ func SetupTestDB(t *testing.T) (*sql.DB, func()) {
 func SetupInMemoryDB(t *testing.T) *sql.DB {
 	t.Helper()
 
-	// Set env var for api-core/database to use in-memory
-	os.Setenv("SQLITE_PATH", ":memory:")
-
-	// Connect using api-core/database package (matching production pattern)
 	ctx := context.Background()
 	db, err := database.Connect(ctx, database.Config{
 		Driver:       database.DriverSQLite,
+		DSN:          "file::memory:?_pragma=foreign_keys(ON)&_pragma=busy_timeout(10000)",
 		MaxOpenConns: 1,
 		MaxIdleConns: 1,
 		Retry: &retry.Config{

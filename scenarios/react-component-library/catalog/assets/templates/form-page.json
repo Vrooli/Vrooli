@@ -1,0 +1,136 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "templates.form-page",
+    "name": "FormPage",
+    "kind": "page-template",
+    "domain": "templates",
+    "description": "The focused create-or-edit surface with initial loading, sectioned fields, sticky actions, validation, dirty-state protection, submission, success, and error recovery.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "page-template",
+    "delivery": "generated",
+    "target": {
+      "priority": "P0",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    },
+    "kits": [
+      "vrooli-default"
+    ]
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "navigation.page",
+        "reason": "Route boundary, metadata, scroll restoration, and focus placement are the shared page."
+      },
+      {
+        "asset": "navigation.page-header",
+        "reason": "Title, breadcrumbs, description, and actions are the shared header."
+      },
+      {
+        "asset": "patterns.async-form-flow",
+        "reason": "Load, validate, submit, and recover are the shared workflow."
+      },
+      {
+        "asset": "feedback.async-boundary",
+        "reason": "Every generic state is delegated to the shared boundary."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "router-adapter"
+    },
+    {
+      "capability": "ui-provider"
+    },
+    {
+      "capability": "design-tokens"
+    },
+    {
+      "capability": "validation-adapter",
+      "typeArguments": [
+        "TValues"
+      ]
+    },
+    {
+      "capability": "data-source",
+      "typeArguments": [
+        "TRecord"
+      ],
+      "optional": true
+    }
+  ],
+  "requiredCapabilities": [
+    "viewport-fill",
+    "no-horizontal-overflow",
+    "responsive-transformation",
+    "mobile-capability-parity",
+    "keyboard-operable",
+    "focus-order",
+    "heading-hierarchy",
+    "semantic-structure",
+    "entrance-restraint",
+    "content-reflow",
+    "recovery-path",
+    "error-honesty",
+    "partial-degradation",
+    "offline-behavior",
+    "freshness-disclosure",
+    "permission-explained",
+    "empty-state-craft",
+    "status-announced",
+    "dark-parity",
+    "text-scale-resilience",
+    "card-restraint",
+    "error-association",
+    "input-preservation"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "refreshing",
+    "empty",
+    "partial",
+    "stale",
+    "request-error",
+    "permission-denied",
+    "offline",
+    "retry",
+    "submitting",
+    "success",
+    "validation-error"
+  ],
+  "regions": [
+    {
+      "id": "header",
+      "purpose": "Title, context, and cancel affordance.",
+      "required": true,
+      "lifecycle": "static"
+    },
+    {
+      "id": "form",
+      "purpose": "The field sections themselves.",
+      "required": true,
+      "lifecycle": "async",
+      "accepts": "forms"
+    },
+    {
+      "id": "actions",
+      "purpose": "Submit, cancel, and destructive controls.",
+      "required": true,
+      "lifecycle": "static"
+    },
+    {
+      "id": "aside",
+      "purpose": "Guidance, preview, or related context beside the form.",
+      "required": false,
+      "lifecycle": "async"
+    }
+  ]
+}

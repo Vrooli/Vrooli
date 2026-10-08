@@ -1,0 +1,73 @@
+{
+  "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
+  "name": "workspace_sandbox_userns",
+  "storage": {
+    "entries": {
+      "apparmor_profile": {
+        "rung": "pinned",
+        "path": {
+          "linux": "/etc/apparmor.d/vrooli-workspace-sandbox",
+          "macos": null,
+          "windows": null
+        },
+        "kind": "file",
+        "regenerable": false,
+        "class": "config",
+        "sensitive": true,
+        "rationale": "The safeguard writes the Linux AppArmor profile."
+      }
+    },
+    "rationale": "Linux-only system configuration is verified by the safeguard file check."
+  },
+  "description": "Allow workspace-sandbox to enter the AppArmor profile needed for unprivileged user and mount namespace startup",
+  "platforms": ["linux"],
+  "handler": "workspace_sandbox_userns",
+  "risk": "medium",
+  "verificationCheck": {
+    "files": [
+      "/etc/apparmor.d/vrooli-workspace-sandbox"
+    ]
+  },
+  "privilege": "elevated",
+  "bundling": "prohibited",
+  "capability": "process-containment",
+  "capability_role": "control",
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "macos": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "windows": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        }
+      }
+    }
+  },
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "macos": {
+      "status": "not_applicable",
+      "evidence": "macOS does not expose the Linux user-namespace and AppArmor interfaces used by safeguard workspace_sandbox_userns; the platform has a distinct host security and lifecycle model.",
+      "review_by": "2027-08-26"
+    },
+    "windows": {
+      "status": "not_applicable",
+      "evidence": "Windows does not expose the Linux user-namespace and AppArmor interfaces used by safeguard workspace_sandbox_userns; the platform has a distinct host security and lifecycle model.",
+      "review_by": "2027-08-26"
+    }
+  },
+  "risk_class": "restore_absent"
+}

@@ -1,0 +1,88 @@
+syntax = "proto3";
+
+package vrooli.web_console.v1.handoffrules;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/handoffrules;handoffrules_v1";
+
+// =============================================================================
+// HANDOFF RULES DOMAIN — when to OFFER a handoff
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain handoffrules
+// @stability stable
+//
+// Wire contract for the HandoffRulesService Connect-RPC service. A rule is a
+// named pattern that decides when the console SUGGESTS a handoff.
+//
+// A rule never sends anything. A match produces a dismissible suggestion; the
+// operator still presses a button. That is the safety property that makes
+// operator-authored patterns shippable: a wrong rule costs a dismissed chip,
+// never a message delivered to an agent. The matcher and the send path share
+// no code.
+//
+// Consumed by:
+//   - API: handlers/handoffrules/connect_handler.go implements
+//          HandoffRulesServiceHandler.
+//   - UI:  ui/src/api/handoffrules.ts (Connect-Web client).
+//   - CLI: cli/domains/handoffrules/register.go (Connect-Go client).
+// =============================================================================
+
+service HandoffRulesService {
+  rpc ListRules(ListRulesRequest) returns (ListRulesResponse);
+  rpc UpsertRule(UpsertRuleRequest) returns (UpsertRuleResponse);
+  rpc DeleteRule(DeleteRuleRequest) returns (DeleteRuleResponse);
+}
+
+// Rule decides when a handoff suggestion appears.
+//
+// source is one of "file_path" or "message_text", validated server-side:
+//   file_path    — pattern is a glob matched against paths a session mentioned.
+//   message_text — pattern is a regular expression matched against message
+//                  text; the first capture group becomes the payload, or the
+//                  whole match when the pattern has no group.
+//
+// surfaces names where a match may render (for example "messages"). An empty
+// list means every surface that knows how to render a suggestion.
+message Rule {
+  string id = 1;
+  string name = 2;
+  bool enabled = 3;
+  string source = 4;
+  string pattern = 5;
+  repeated string surfaces = 6;
+  int32 sort_order = 7;
+  string created_at = 8;
+  string updated_at = 9;
+}
+
+message ListRulesRequest {}
+
+message ListRulesResponse {
+  repeated Rule rules = 1;
+}
+
+// UpsertRuleRequest creates or updates a rule by id. A blank id is assigned
+// server-side. The service rejects a blank name, a blank pattern, and an
+// unknown source with invalid_argument.
+message UpsertRuleRequest {
+  string id = 1;
+  string name = 2;
+  bool enabled = 3;
+  string source = 4;
+  string pattern = 5;
+  repeated string surfaces = 6;
+  int32 sort_order = 7;
+}
+
+message UpsertRuleResponse {
+  Rule rule = 1;
+}
+
+// DeleteRuleRequest is idempotent: deleting a missing id succeeds. Every rule
+// is deletable, including a seeded example.
+message DeleteRuleRequest {
+  string id = 1;
+}
+
+message DeleteRuleResponse {}

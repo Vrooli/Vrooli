@@ -1,0 +1,66 @@
+{
+  "schemaVersion": "1.0.0",
+  "purpose": "Frozen calibration corpus for deterministic visual-bar checks. These fixtures are excluded from catalog coverage and are never silently regenerated.",
+  "fixtures": [
+    {
+      "id": "bad.surface-empty",
+      "asset": "primitives.surface",
+      "version": "1.0.0",
+      "archetype": "primitive",
+      "status": "known-bad",
+      "defect": "The story supplies no children, so the surface has no visible content to judge.",
+      "mustFail": [],
+      "mustStaySilent": ["content-not-clipped"]
+    },
+    {
+      "id": "bad.dialog-clipped",
+      "asset": "overlays.dialog",
+      "version": "1.1.0",
+      "archetype": "overlay",
+      "status": "known-bad",
+      "defect": "The open dialog body exceeds its card boundary and is clipped without a reachable scroll affordance.",
+      "mustFail": ["content-not-clipped"],
+      "mustStaySilent": []
+    },
+    {
+      "id": "bad.dashboard-ultrawide",
+      "asset": "templates.dashboard-page",
+      "version": "1.0.0",
+      "archetype": "page",
+      "status": "known-bad",
+      "defect": "The ultrawide page specimen constrains detail cards until supporting content is clipped.",
+      "mustFail": ["content-not-clipped"],
+      "mustStaySilent": []
+    },
+    {
+      "id": "good.button-content",
+      "asset": "controls.button",
+      "version": "2.0.0",
+      "archetype": "primitive",
+      "status": "known-good",
+      "defect": "",
+      "mustFail": [],
+      "mustStaySilent": ["content-not-clipped"]
+    },
+    {
+      "id": "good.alert-dialog",
+      "asset": "overlays.alert-dialog",
+      "version": "1.0.0",
+      "archetype": "overlay",
+      "status": "known-good",
+      "defect": "",
+      "mustFail": [],
+      "mustStaySilent": ["content-not-clipped"]
+    },
+    {
+      "id": "good.dashboard-fluid",
+      "asset": "templates.dashboard-page",
+      "version": "1.0.0",
+      "archetype": "page",
+      "status": "known-good",
+      "defect": "",
+      "mustFail": [],
+      "mustStaySilent": ["content-not-clipped"]
+    }
+  ]
+}

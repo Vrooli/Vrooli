@@ -1,0 +1,293 @@
+syntax = "proto3";
+
+package vrooli.prose_studio.v1.prose;
+
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/prose-studio/v1/prose;prose_v1";
+
+message RegistryRequest {}
+message RegistryKind {
+  string kind = 1;
+  string description = 2;
+  google.protobuf.Struct parameter_schema = 3;
+}
+message RegistryResponse {
+  repeated RegistryKind samplers = 1;
+  repeated RegistryKind policies = 2;
+  repeated RegistryKind metrics = 3;
+  repeated RegistryKind transforms = 4;
+}
+
+message Style {
+  string key = 1;
+  int32 version = 2;
+  string parent = 3;
+  repeated string exemplars = 4;
+  repeated string directives = 5;
+  repeated string anti_patterns = 6;
+  repeated string lexicon = 7;
+  map<string, double> targets = 8;
+  map<string, string> axis_defaults = 9;
+}
+message CreateStyleRequest { Style style = 1; }
+message CreateStyleResponse { Style style = 1; }
+
+message Sampler {
+  string kind = 1;
+  int32 k = 2;
+  double tau = 3;
+  string temperature_stance = 4;
+  int32 max_output_tokens = 5;
+}
+message Constraints {
+  int32 min_words = 1;
+  int32 max_words = 2;
+  double min_grade = 3;
+  double max_grade = 4;
+  repeated string banned_lexicon = 5;
+  string required_format = 6;
+}
+message Budget {
+  int32 max_output_tokens = 1;
+  int64 max_session_cost_micros = 2;
+}
+message ContextPolicy {
+  int32 full_text_token_budget = 1;
+  int32 summarize_beyond = 2;
+  bool always_full_previous = 3;
+  int32 declared_context_ceiling = 4;
+}
+message Profile {
+  string key = 1;
+  int32 version = 2;
+  string parent = 3;
+  repeated string style_refs = 4;
+  Sampler sampler = 5;
+  Constraints constraints = 6;
+  string selection_policy = 7;
+  map<string, double> selection_params = 8;
+  repeated string measurement_tiers = 9;
+  Budget budget = 10;
+  ContextPolicy context_policy = 11;
+  string gateway_role = 12;
+  string locality = 13;
+}
+message ResolveProfileRequest { string key = 1; }
+message ResolveProfileResponse {
+  Profile profile = 1;
+  repeated Style styles = 2;
+  string instruction_text = 3;
+}
+
+message NegativeContext {
+  repeated string pinned = 1;
+  repeated string rejected = 2;
+}
+message GenerateRequest {
+  string profile_key = 1;
+  string query = 2;
+  bool include_candidates = 3;
+  string session_id = 4;
+  NegativeContext negative = 5;
+}
+message Eligibility { bool eligible = 1; string reason = 2; }
+message VerbalizedHint { int32 ordinal = 1; bool calibrated = 2; }
+message Provenance {
+  string profile_version = 1;
+  repeated string style_versions = 2;
+  string strategy = 3;
+  Sampler strategy_parameters = 4;
+  string provider = 5;
+  string resolved_model_ref = 6;
+  string gateway_role = 7;
+  double temperature_sent = 8;
+  string temperature_support = 9;
+  int32 max_output_tokens_effective = 10;
+  string max_output_tokens_source = 11;
+  int32 input_tokens = 12;
+  int32 output_tokens = 13;
+  int64 cost_micros = 14;
+  bool machine_generated = 15;
+  string disclosure = 16;
+  ContextSnapshot context_snapshot = 17;
+}
+message Candidate {
+  string id = 1;
+  string round_id = 2;
+  repeated string derived_from = 3;
+  string text = 4;
+  google.protobuf.Struct measurements = 5;
+  google.protobuf.Struct set_measurements = 6;
+  Provenance provenance = 7;
+  VerbalizedHint verbalized_hint = 8;
+  Eligibility eligibility = 9;
+  bool committed = 10;
+  int32 set_index = 11;
+}
+message Round {
+  string id = 1;
+  string session_id = 2;
+  Sampler strategy = 3;
+  repeated string candidate_ids = 4;
+  int32 candidate_count = 5;
+  google.protobuf.Struct sampling_key = 6;
+  int64 total_cost_micros = 7;
+  NegativeContext negative_context = 8;
+  int64 selection_seed = 9;
+}
+message Session {
+  string id = 1;
+  string profile_key = 2;
+  string query = 3;
+  string status = 4;
+  repeated string pinned = 5;
+  repeated string rejected = 6;
+  repeated string round_ids = 7;
+  int64 budget_used_micros = 8;
+}
+message DegradedOutcome {
+  string kind = 1;
+  string reason = 2;
+  int32 requested_candidates = 3;
+  int32 received_candidates = 4;
+  int32 max_output_tokens_effective = 5;
+  string max_output_tokens_source = 6;
+}
+message GenerateResponse {
+  Session session = 1;
+  Round round = 2;
+  Candidate selected = 3;
+  repeated Candidate candidates = 4;
+  repeated Candidate selected_candidates = 5;
+  DegradedOutcome degraded = 6;
+}
+
+message RerollRequest { string session_id = 1; bool include_candidates = 2; }
+message RerollResponse { GenerateResponse result = 1; }
+message SessionActionRequest { string action = 1; string session_id = 2; string candidate_id = 3; }
+message SessionActionResponse { Session session = 1; }
+
+message Declaration {
+  string path = 1;
+  string schema_version = 2;
+  string kind = 3;
+  string key = 4;
+  string created_by = 5;
+  string content_hash = 6;
+  string status = 7;
+  string error = 8;
+  google.protobuf.Struct record = 9;
+}
+message ReindexDeclarationsRequest { string root = 1; }
+message ReindexDeclarationsResponse { repeated Declaration declarations = 1; }
+message ValidateDeclarationsRequest { string root = 1; }
+message ValidateDeclarationsResponse { repeated Declaration declarations = 1; }
+
+message ContextSnapshot {
+  string outline_ref = 1;
+  repeated string prior_section_refs = 2;
+  repeated string following_intents = 3;
+  repeated string summarized_section_refs = 4;
+  int32 estimated_tokens = 5;
+}
+message Section {
+  string id = 1;
+  string document_id = 2;
+  int32 position = 3;
+  string intent = 4;
+  string profile_key = 5;
+  string session_id = 6;
+  string committed_candidate_id = 7;
+  ContextSnapshot context = 8;
+}
+// OutlineSection is one planned cell of a document: what the section is for,
+// what it should say, and how long it should be.
+message OutlineSection {
+  string intent = 1;
+  string summary = 2;
+  int32 target_words = 3;
+}
+
+// DocumentProvenance is what an assembled document actually consumed. A
+// long-form run costs one outline request plus one per section plus any repair,
+// and none of that is visible in a single round's accounting.
+message DocumentProvenance {
+  int32 section_count = 1;
+  int32 word_count = 2;
+  int64 total_cost_micros = 3;
+  int64 input_tokens = 4;
+  int64 output_tokens = 5;
+  repeated string providers = 6;
+  repeated string models = 7;
+}
+
+message Document {
+  string id = 1;
+  string title = 2;
+  string profile_key = 3;
+  string style_key = 4;
+  string outline_id = 5;
+  repeated string section_ids = 6;
+  string status = 7;
+  string assembled_text = 8;
+  google.protobuf.Struct coherence = 9;
+  repeated Section sections = 10;
+  string outline_text = 11;
+  repeated OutlineSection outline = 12;
+  DocumentProvenance document_provenance = 13;
+  // created_at is RFC3339. It exists so a reader can ask for the most recent
+  // documents without knowing an identifier they were never told.
+  string created_at = 14;
+}
+
+// DocumentSummary is the listing shape: enough to choose which document to
+// read, without carrying the prose of every document into the response.
+message DocumentSummary {
+  string id = 1;
+  string title = 2;
+  string profile_key = 3;
+  string status = 4;
+  int32 word_count = 5;
+  int32 section_count = 6;
+  int64 total_cost_micros = 7;
+  string created_at = 8;
+  bool coherent = 9;
+}
+
+message ListDocumentsRequest {
+  // limit bounds the newest-first page. Zero uses the server default.
+  int32 limit = 1;
+  // status filters by lifecycle state, e.g. assembled. Empty returns all.
+  string status = 2;
+}
+message ListDocumentsResponse { repeated DocumentSummary documents = 1; }
+
+message GetDocumentRequest { string id = 1; }
+message GetDocumentResponse { Document document = 1; }
+message CreateDocumentRequest { Document document = 1; repeated Section sections = 2; }
+message CreateDocumentResponse { Document document = 1; }
+message AssembleDocumentRequest { string id = 1; }
+message AssembleDocumentResponse { Document document = 1; }
+message ResumeDocumentRequest { string id = 1; }
+message ResumeDocumentResponse { Document document = 1; }
+
+message ConformanceRequest { string style_key = 1; string text = 2; }
+message ConformanceResponse { google.protobuf.Struct report = 1; }
+
+service ProseStudioService {
+  rpc Registry(RegistryRequest) returns (RegistryResponse);
+  rpc CreateStyle(CreateStyleRequest) returns (CreateStyleResponse);
+  rpc ResolveProfile(ResolveProfileRequest) returns (ResolveProfileResponse);
+  rpc Generate(GenerateRequest) returns (GenerateResponse);
+  rpc Reroll(RerollRequest) returns (RerollResponse);
+  rpc SessionAction(SessionActionRequest) returns (SessionActionResponse);
+  rpc ReindexDeclarations(ReindexDeclarationsRequest) returns (ReindexDeclarationsResponse);
+  rpc ValidateDeclarations(ValidateDeclarationsRequest) returns (ValidateDeclarationsResponse);
+  rpc ListDocuments(ListDocumentsRequest) returns (ListDocumentsResponse);
+  rpc GetDocument(GetDocumentRequest) returns (GetDocumentResponse);
+  rpc CreateDocument(CreateDocumentRequest) returns (CreateDocumentResponse);
+  rpc AssembleDocument(AssembleDocumentRequest) returns (AssembleDocumentResponse);
+  rpc ResumeDocument(ResumeDocumentRequest) returns (ResumeDocumentResponse);
+  rpc Conformance(ConformanceRequest) returns (ConformanceResponse);
+}

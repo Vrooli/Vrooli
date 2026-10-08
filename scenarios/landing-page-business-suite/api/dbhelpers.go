@@ -4,24 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
+	"strconv"
 	"time"
 )
-
-// logOnError logs an error if one occurred during a database operation.
-// This is used for non-critical operations where we want to log failures
-// but not fail the overall request (e.g., updating last_login, metrics).
-// The operation parameter describes what was being attempted.
-func logOnError(err error, operation string, context map[string]interface{}) {
-	if err == nil {
-		return
-	}
-	if context == nil {
-		context = make(map[string]interface{})
-	}
-	context["error"] = err.Error()
-	context["operation"] = operation
-	logStructuredError("silent_operation_failed", context)
-}
 
 // DialectHelper provides SQL dialect-specific expressions for databases
 // that need to support both PostgreSQL and SQLite.
@@ -55,7 +41,7 @@ func (d *DialectHelper) NowExpr() string {
 func (d *DialectHelper) Placeholder(index int) string {
 	// Currently both use PostgreSQL-style placeholders
 	// as the database/sql driver handles translation
-	return "$" + string(rune('0'+index))
+	return "$" + strconv.Itoa(index)
 }
 
 // IsSQLite returns true if the dialect is SQLite.
@@ -184,7 +170,11 @@ func (r *QueryRowResult) NotFound() bool {
 //	if result.NotFound() {
 //	    return nil, nil // No user found
 //	}
-func ScanSingleRow(ctx context.Context, db *sql.DB, query string, args []any, dest ...any) QueryRowResult {
+type QueryRowContextStore interface {
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}
+
+func ScanSingleRow(ctx context.Context, db QueryRowContextStore, query string, args []any, dest ...any) QueryRowResult {
 	err := db.QueryRowContext(ctx, query, args...).Scan(dest...)
 	if err == sql.ErrNoRows {
 		return QueryRowResult{err: nil, found: false}
@@ -229,7 +219,11 @@ type TransactionFunc func(tx *sql.Tx) error
 //	    }
 //	    return nil
 //	})
-func WithTransaction(ctx context.Context, db *sql.DB, opts *sql.TxOptions, fn TransactionFunc) error {
+type TransactionStarter interface {
+	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
+}
+
+func WithTransaction(ctx context.Context, db TransactionStarter, opts *sql.TxOptions, fn TransactionFunc) error {
 	tx, err := db.BeginTx(ctx, opts)
 	if err != nil {
 		return fmt.Errorf("begin transaction: %w", err)
@@ -238,15 +232,17 @@ func WithTransaction(ctx context.Context, db *sql.DB, opts *sql.TxOptions, fn Tr
 	// Ensure rollback is called if commit doesn't happen
 	defer func() {
 		if p := recover(); p != nil {
-			_ = tx.Rollback() // Ignore error on panic recovery path
-			panic(p)          // Re-throw panic after rollback
+			if err := tx.Rollback(); err != nil {
+				log.Printf("transaction rollback failed during panic recovery: %v", err)
+			}
+			panic(p) // Re-throw panic after rollback
 		}
 	}()
 
 	if err := fn(tx); err != nil {
 		rbErr := tx.Rollback()
 		if rbErr != nil {
-			return fmt.Errorf("rollback failed after error (%v): %w", err, rbErr)
+			return fmt.Errorf("rollback failed after error: %w (original: %w)", rbErr, err)
 		}
 		return err
 	}
@@ -276,7 +272,7 @@ func WithTransaction(ctx context.Context, db *sql.DB, opts *sql.TxOptions, fn Tr
 //	    }
 //	    return nil
 //	})
-func WithSerializableTransaction(ctx context.Context, db *sql.DB, fn TransactionFunc) error {
+func WithSerializableTransaction(ctx context.Context, db TransactionStarter, fn TransactionFunc) error {
 	return WithTransaction(ctx, db, &sql.TxOptions{
 		Isolation: sql.LevelSerializable,
 	}, fn)
@@ -284,7 +280,7 @@ func WithSerializableTransaction(ctx context.Context, db *sql.DB, fn Transaction
 
 // WithReadCommittedTransaction executes fn within a read committed transaction.
 // This is the default isolation level for PostgreSQL.
-func WithReadCommittedTransaction(ctx context.Context, db *sql.DB, fn TransactionFunc) error {
+func WithReadCommittedTransaction(ctx context.Context, db TransactionStarter, fn TransactionFunc) error {
 	return WithTransaction(ctx, db, &sql.TxOptions{
 		Isolation: sql.LevelReadCommitted,
 	}, fn)
@@ -298,7 +294,11 @@ func WithReadCommittedTransaction(ctx context.Context, db *sql.DB, fn Transactio
 //	if err := ExecWithAffectedRows(ctx, db, "DELETE FROM users WHERE id = $1", userID); err != nil {
 //	    return fmt.Errorf("user not found or already deleted")
 //	}
-func ExecWithAffectedRows(ctx context.Context, db *sql.DB, query string, args ...any) error {
+type ExecContextStore interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+}
+
+func ExecWithAffectedRows(ctx context.Context, db ExecContextStore, query string, args ...any) error {
 	result, err := db.ExecContext(ctx, query, args...)
 	if err != nil {
 		return err

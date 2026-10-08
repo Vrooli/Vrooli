@@ -1,0 +1,37 @@
+{
+  "createdAt": "2026-09-17T00:00:00Z",
+  "description": "Direct, capture, compose, critique, and deliver a source-grounded launch-video draft with inexpensive teaser and deliberate flagship profiles, using real product evidence and local HyperFrames rendering.",
+  "entry": "SKILL.md",
+  "icon": "video",
+  "id": "launch-video",
+  "kind": "skill",
+  "license": "CC-BY-4.0",
+  "modes": [
+    "tools"
+  ],
+  "name": "launch-video",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager skill read",
+      "brand-manager",
+      "vrooli scenario port"
+    ],
+    "scenarios": [
+      "prompt-manager",
+      "landing-page-business-suite",
+      "brand-manager"
+    ]
+  },
+  "revision": 15,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "marketing",
+    "video",
+    "launch"
+  ],
+  "updatedAt": "2026-09-22T00:00:00Z"
+}

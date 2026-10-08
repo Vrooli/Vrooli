@@ -1,0 +1,87 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Workspace settings",
+          "role": "form"
+        },
+        {
+          "kind": "role",
+          "role": "status"
+        }
+      ],
+      "id": "default",
+      "mode": "live",
+      "name": "Default form",
+      "role": "anatomy"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Error",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Workspace settings",
+          "role": "form"
+        },
+        {
+          "kind": "role",
+          "name": "Workspace name",
+          "role": "textbox"
+        }
+      ],
+      "id": "error",
+      "mode": "live",
+      "name": "Validation recovery",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Offline",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Offline workspace settings",
+          "role": "form"
+        },
+        {
+          "kind": "text",
+          "value": "Your work is safe"
+        }
+      ],
+      "id": "offline",
+      "mode": "live",
+      "name": "Offline status",
+      "role": "boundary"
+    }
+  ],
+  "title": "Form"
+}

@@ -124,7 +124,7 @@ describe('autoLayoutNodes', () => {
     });
 
     it('detects default diagonal layout and re-layouts', () => {
-        // Simulate normalizeNodes default output
+        // Simulate workflow codec default output
         const nodes = [
             createNode('A', 100, 100),
             createNode('B', 300, 220), // 100 + 1*200, 100 + 1*120

@@ -1,0 +1,79 @@
+{
+  "metadata": {
+    "description": "Generated observer smoke for active experience page sources.",
+    "execution_mode": "observer",
+    "labels": {
+      "reset": "none",
+      "spec_entry_id": "sources",
+      "surface": "experience-sources"
+    },
+    "name": "experience-sources-spec-smoke",
+    "requirement": "OT-P1-001",
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": {
+          "label": "Open Sources"
+        },
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "secrets-manager",
+          "scenario_path": "/sources",
+          "timeout_ms": 30000,
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+        },
+        "type": "ACTION_TYPE_NAVIGATE"
+      },
+      "id": "navigate-sources"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Primary binding visible"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/navigation.sources",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      },
+      "id": "wait-sources-primary-binding"
+    },
+    {
+      "action": {
+        "metadata": { "label": "Sources workspace exposes its authored lifecycle" },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-experience-surface=\"sources-workspace\"][data-experience-state=\"loading\"], [data-experience-surface=\"sources-workspace\"][data-experience-state=\"ready\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      },
+      "id": "wait-sources-lifecycle"
+    },
+    {
+      "action": {
+        "metadata": { "label": "Sources workspace reaches ready" },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-experience-surface=\"sources-workspace\"][data-experience-state=\"ready\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      },
+      "id": "wait-sources-ready"
+    }
+  ],
+  "edges": [
+    {"id": "e1", "source": "navigate-sources", "target": "wait-sources-primary-binding"},
+    {"id": "e2", "source": "wait-sources-primary-binding", "target": "wait-sources-lifecycle"},
+    {"id": "e3", "source": "wait-sources-lifecycle", "target": "wait-sources-ready"}
+  ],
+  "settings": {
+    "viewport_height": 800,
+    "viewport_width": 1280
+  }
+}

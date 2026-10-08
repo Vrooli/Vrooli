@@ -1,0 +1,737 @@
+{
+  "metadata": {
+    "name": "native-event-journey",
+    "description": "Create and edit a synthetic multiday civil-date event and a timed New York DST-fold event through the ordinary Planner month UI; navigate empty and populated months and reopen durable revisions under routed test storage.",
+    "requirement": "PLAN-P0-002",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "safety": "fixture-only",
+      "requires_confirmation": "true",
+      "routed_isolation": "true",
+      "seed": "bas/seeds/seed.go"
+    },
+    "execution_mode": "mutating"
+  },
+  "settings": {
+    "viewport_width": 1280,
+    "viewport_height": 800
+  },
+  "nodes": [
+    {
+      "id": "navigate-plan",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "personal-planner",
+          "scenario_path": "/plan",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open the ordinary Planner month UI"
+        }
+      }
+    },
+    {
+      "id": "select-native-month",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/calendarMonth.monthView"
+        },
+        "metadata": {
+          "label": "Open the native Month view"
+        }
+      }
+    },
+    {
+      "id": "navigate-to-empty-month",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/calendarMonth.nextMonth"
+        },
+        "metadata": {
+          "label": "Navigate to the next month, outside the preceding case's event month"
+        }
+      }
+    },
+    {
+      "id": "assert-empty-month",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/calendarMonth.emptyState",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "stringValue": "No events this month"
+          },
+          "timeout_ms": 15000,
+          "failure_message": "A new routed test store should show the honest empty month state"
+        },
+        "metadata": {
+          "label": "Verify the empty month remains usable"
+        }
+      }
+    },
+    {
+      "id": "return-from-empty-month",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/calendarMonth.previousMonth"
+        },
+        "metadata": {
+          "label": "Return to the current month before creating journey events"
+        }
+      }
+    },
+    {
+      "id": "navigate-previous-month",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/calendarMonth.previousMonth"
+        },
+        "metadata": {
+          "label": "Navigate to an empty previous month"
+        }
+      }
+    },
+    {
+      "id": "assert-previous-grid",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/calendarMonth.grid",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Keep the empty month grid visible"
+        }
+      }
+    },
+    {
+      "id": "return-current-month",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/calendarMonth.nextMonth"
+        },
+        "metadata": {
+          "label": "Return to the current month"
+        }
+      }
+    },
+    {
+      "id": "open-first-current-date",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/calendarMonth.addFirstInMonth"
+        },
+        "metadata": {
+          "label": "Open a new event from an in-month civil date"
+        }
+      }
+    },
+    {
+      "id": "wait-create-editor",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/calendarMonth.editor",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "New event editor appears"
+        }
+      }
+    },
+    {
+      "id": "fill-multiday-title",
+      "action": {
+        "type": "ACTION_TYPE_INPUT",
+        "input": {
+          "selector": "@selector/calendarMonth.eventTitle",
+          "value": "E1 multiday synthetic",
+          "clear_first": true
+        },
+        "metadata": {
+          "label": "Name a synthetic multiday event"
+        }
+      }
+    },
+    {
+      "id": "fill-multiday-subject",
+      "action": {
+        "type": "ACTION_TYPE_INPUT",
+        "input": {
+          "selector": "@selector/calendarMonth.eventSubject",
+          "value": "Q1 synthetic",
+          "clear_first": true
+        },
+        "metadata": {
+          "label": "Add synthetic event context"
+        }
+      }
+    },
+    {
+      "id": "set-exclusive-end",
+      "action": {
+        "type": "ACTION_TYPE_INPUT",
+        "input": {
+          "selector": "@selector/calendarMonth.exclusiveEndDate",
+          "value": "2026-11-03",
+          "clear_first": true
+        },
+        "metadata": {
+          "label": "Set a multiday exclusive civil-date end"
+        }
+      }
+    },
+    {
+      "id": "create-multiday",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/calendarMonth.createButton"
+        },
+        "metadata": {
+          "label": "Create the multiday synthetic event"
+        }
+      }
+    },
+    {
+      "id": "assert-multiday-saved",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/calendarMonth.message",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "stringValue": "Saved E1 multiday synthetic as event"
+          },
+          "timeout_ms": 15000,
+          "failure_message": "The UI should report its durable event identity after save"
+        },
+        "metadata": {
+          "label": "Record durable create feedback"
+        }
+      }
+    },
+    {
+      "id": "reopen-multiday",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/calendarMonth.event"
+        },
+        "metadata": {
+          "label": "Reopen the persisted multiday event"
+        }
+      }
+    },
+    {
+      "id": "edit-multiday-title",
+      "action": {
+        "type": "ACTION_TYPE_INPUT",
+        "input": {
+          "selector": "@selector/calendarMonth.eventTitle",
+          "value": "E1 multiday revised",
+          "clear_first": true
+        },
+        "metadata": {
+          "label": "Edit the persisted event"
+        }
+      }
+    },
+    {
+      "id": "save-multiday-edit",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/calendarMonth.saveButton"
+        },
+        "metadata": {
+          "label": "Save the revision guarded edit"
+        }
+      }
+    },
+    {
+      "id": "assert-multiday-revision",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/calendarMonth.message",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "stringValue": "Updated E1 multiday revised to revision 2"
+          },
+          "timeout_ms": 15000,
+          "failure_message": "A reopened edit should advance the durable event revision"
+        },
+        "metadata": {
+          "label": "Verify the multiday event revision"
+        }
+      }
+    },
+    {
+      "id": "navigate-empty-month-again",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/calendarMonth.previousMonth"
+        },
+        "metadata": {
+          "label": "Navigate away from the populated month"
+        }
+      }
+    },
+    {
+      "id": "assert-empty-previous-month-again",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/calendarMonth.emptyState",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "stringValue": "No events this month"
+          },
+          "timeout_ms": 10000
+        },
+        "metadata": {
+          "label": "Confirm the adjacent month is empty"
+        }
+      }
+    },
+    {
+      "id": "reopen-populated-month",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/calendarMonth.nextMonth"
+        },
+        "metadata": {
+          "label": "Return to the populated month"
+        }
+      }
+    },
+    {
+      "id": "open-revised-multiday",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/calendarMonth.event"
+        },
+        "metadata": {
+          "label": "Reopen the same event after month navigation"
+        }
+      }
+    },
+    {
+      "id": "assert-reopened-revision",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/calendarMonth.revisionHeading",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "stringValue": "EVENT REVISION 2"
+          },
+          "timeout_ms": 10000,
+          "failure_message": "Reopening after month navigation should preserve the edited event revision"
+        },
+        "metadata": {
+          "label": "Verify the durable revision after reopen"
+        }
+      }
+    },
+    {
+      "id": "close-reopened-event",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/calendarMonth.closeButton"
+        },
+        "metadata": {
+          "label": "Close the reopened editor"
+        }
+      }
+    },
+    {
+      "id": "navigate-to-november",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/calendarMonth.nextMonth"
+        },
+        "metadata": {
+          "label": "Open November to exercise the DST fold"
+        }
+      }
+    },
+    {
+      "id": "open-november-first-date",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/calendarMonth.addFirstInMonth"
+        },
+        "metadata": {
+          "label": "Create a timed event on November 1"
+        }
+      }
+    },
+    {
+      "id": "switch-to-timed-event",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/calendarMonth.allDayToggle"
+        },
+        "metadata": {
+          "label": "Switch from all-day civil dates to timed instants"
+        }
+      }
+    },
+    {
+      "id": "fill-timed-title",
+      "action": {
+        "type": "ACTION_TYPE_INPUT",
+        "input": {
+          "selector": "@selector/calendarMonth.eventTitle",
+          "value": "E1 DST fold synthetic",
+          "clear_first": true
+        },
+        "metadata": {
+          "label": "Name a synthetic timed event"
+        }
+      }
+    },
+    {
+      "id": "fill-dst-start",
+      "action": {
+        "type": "ACTION_TYPE_INPUT",
+        "input": {
+          "selector": "@selector/calendarMonth.eventStartInstant",
+          "value": "2026-11-01T01:30:00-04:00",
+          "clear_first": true
+        },
+        "metadata": {
+          "label": "Enter the first New York repeated-hour instant"
+        }
+      }
+    },
+    {
+      "id": "fill-dst-end",
+      "action": {
+        "type": "ACTION_TYPE_INPUT",
+        "input": {
+          "selector": "@selector/calendarMonth.eventEndInstant",
+          "value": "2026-11-01T01:30:00-05:00",
+          "clear_first": true
+        },
+        "metadata": {
+          "label": "Enter the second New York repeated-hour instant"
+        }
+      }
+    },
+    {
+      "id": "create-timed-event",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/calendarMonth.createButton"
+        },
+        "metadata": {
+          "label": "Create the timed DST-fold event"
+        }
+      }
+    },
+    {
+      "id": "assert-timed-saved",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/calendarMonth.message",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "stringValue": "Saved E1 DST fold synthetic as event"
+          },
+          "timeout_ms": 15000,
+          "failure_message": "The timed UI create should report the durable event identity"
+        },
+        "metadata": {
+          "label": "Record the timed event identity"
+        }
+      }
+    },
+    {
+      "id": "reopen-timed-event",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/calendarMonth.timedEvent"
+        },
+        "metadata": {
+          "label": "Reopen the timed event from the month grid"
+        }
+      }
+    },
+    {
+      "id": "assert-timed-fields-reopened",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/calendarMonth.eventStartInstant",
+          "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+          "attribute_name": "value",
+          "expected": {
+            "stringValue": "2026-11-01T01:30:00-04:00"
+          },
+          "timeout_ms": 10000,
+          "failure_message": "Reopening the event should preserve its exact RFC3339 offset"
+        },
+        "metadata": {
+          "label": "Verify the first repeated-hour instant after reopen"
+        }
+      }
+    },
+    {
+      "id": "edit-timed-title",
+      "action": {
+        "type": "ACTION_TYPE_INPUT",
+        "input": {
+          "selector": "@selector/calendarMonth.eventTitle",
+          "value": "E1 DST fold revised",
+          "clear_first": true
+        },
+        "metadata": {
+          "label": "Edit the timed event"
+        }
+      }
+    },
+    {
+      "id": "save-timed-edit",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/calendarMonth.saveButton"
+        },
+        "metadata": {
+          "label": "Save the timed event revision"
+        }
+      }
+    },
+    {
+      "id": "assert-timed-revision",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/calendarMonth.message",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "stringValue": "Updated E1 DST fold revised to revision 2"
+          },
+          "timeout_ms": 15000,
+          "failure_message": "Editing the timed event should advance its durable revision"
+        },
+        "metadata": {
+          "label": "Verify the timed event revision"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate-plan",
+      "target": "select-native-month"
+    },
+    {
+      "id": "e2",
+      "source": "select-native-month",
+      "target": "navigate-previous-month"
+    },
+    {
+      "id": "e3",
+      "source": "navigate-previous-month",
+      "target": "assert-previous-grid"
+    },
+    {
+      "id": "e4",
+      "source": "assert-previous-grid",
+      "target": "return-current-month"
+    },
+    {
+      "id": "e5",
+      "source": "return-current-month",
+      "target": "navigate-to-empty-month"
+    },
+    {
+      "id": "e6",
+      "source": "navigate-to-empty-month",
+      "target": "assert-empty-month"
+    },
+    {
+      "id": "e6b",
+      "source": "assert-empty-month",
+      "target": "return-from-empty-month"
+    },
+    {
+      "id": "e6c",
+      "source": "return-from-empty-month",
+      "target": "open-first-current-date"
+    },
+    {
+      "id": "e7",
+      "source": "open-first-current-date",
+      "target": "wait-create-editor"
+    },
+    {
+      "id": "e8",
+      "source": "wait-create-editor",
+      "target": "fill-multiday-title"
+    },
+    {
+      "id": "e9",
+      "source": "fill-multiday-title",
+      "target": "fill-multiday-subject"
+    },
+    {
+      "id": "e10",
+      "source": "fill-multiday-subject",
+      "target": "set-exclusive-end"
+    },
+    {
+      "id": "e11",
+      "source": "set-exclusive-end",
+      "target": "create-multiday"
+    },
+    {
+      "id": "e12",
+      "source": "create-multiday",
+      "target": "assert-multiday-saved"
+    },
+    {
+      "id": "e13",
+      "source": "assert-multiday-saved",
+      "target": "reopen-multiday"
+    },
+    {
+      "id": "e14",
+      "source": "reopen-multiday",
+      "target": "edit-multiday-title"
+    },
+    {
+      "id": "e15",
+      "source": "edit-multiday-title",
+      "target": "save-multiday-edit"
+    },
+    {
+      "id": "e16",
+      "source": "save-multiday-edit",
+      "target": "assert-multiday-revision"
+    },
+    {
+      "id": "e17",
+      "source": "assert-multiday-revision",
+      "target": "navigate-empty-month-again"
+    },
+    {
+      "id": "e18",
+      "source": "navigate-empty-month-again",
+      "target": "assert-empty-previous-month-again"
+    },
+    {
+      "id": "e19",
+      "source": "assert-empty-previous-month-again",
+      "target": "reopen-populated-month"
+    },
+    {
+      "id": "e20",
+      "source": "reopen-populated-month",
+      "target": "open-revised-multiday"
+    },
+    {
+      "id": "e21",
+      "source": "open-revised-multiday",
+      "target": "assert-reopened-revision"
+    },
+    {
+      "id": "e22",
+      "source": "assert-reopened-revision",
+      "target": "close-reopened-event"
+    },
+    {
+      "id": "e23",
+      "source": "close-reopened-event",
+      "target": "navigate-to-november"
+    },
+    {
+      "id": "e24",
+      "source": "navigate-to-november",
+      "target": "open-november-first-date"
+    },
+    {
+      "id": "e25",
+      "source": "open-november-first-date",
+      "target": "switch-to-timed-event"
+    },
+    {
+      "id": "e26",
+      "source": "switch-to-timed-event",
+      "target": "fill-timed-title"
+    },
+    {
+      "id": "e27",
+      "source": "fill-timed-title",
+      "target": "fill-dst-start"
+    },
+    {
+      "id": "e28",
+      "source": "fill-dst-start",
+      "target": "fill-dst-end"
+    },
+    {
+      "id": "e29",
+      "source": "fill-dst-end",
+      "target": "create-timed-event"
+    },
+    {
+      "id": "e30",
+      "source": "create-timed-event",
+      "target": "assert-timed-saved"
+    },
+    {
+      "id": "e31",
+      "source": "assert-timed-saved",
+      "target": "reopen-timed-event"
+    },
+    {
+      "id": "e32",
+      "source": "reopen-timed-event",
+      "target": "assert-timed-fields-reopened"
+    },
+    {
+      "id": "e33",
+      "source": "assert-timed-fields-reopened",
+      "target": "edit-timed-title"
+    },
+    {
+      "id": "e34",
+      "source": "edit-timed-title",
+      "target": "save-timed-edit"
+    },
+    {
+      "id": "e35",
+      "source": "save-timed-edit",
+      "target": "assert-timed-revision"
+    }
+  ]
+}

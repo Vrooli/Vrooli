@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"sync"
 	"time"
+
+	"landing-page-business-suite-api/internal/logx"
 )
 
 // timeProvider is a function that returns the current time.
@@ -168,7 +170,7 @@ func (rl *RateLimiter) Middleware(keyFunc RateLimitKeyFunc) func(http.HandlerFun
 
 			if !rl.Allow(key) {
 				remaining := rl.Remaining(key)
-				logStructured("rate_limit_exceeded", map[string]interface{}{
+				logx.Info("rate_limit_exceeded", map[string]interface{}{
 					"level":     "warn",
 					"key":       key,
 					"remaining": remaining,

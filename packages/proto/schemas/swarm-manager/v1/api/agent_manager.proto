@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package swarm_manager.v1;
+package vrooli.swarm_manager.v1.api;
 
 import "buf/validate/validate.proto";
 
@@ -10,9 +10,6 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manage
 // AGENT MANAGER API
 // =============================================================================
 //
-// @layer 5
-// @domain api
-// @imports none (external only: buf.validate)
 // @stability beta
 //
 // HTTP API contracts for agent-manager integration status.

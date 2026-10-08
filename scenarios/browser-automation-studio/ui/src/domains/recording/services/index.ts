@@ -14,23 +14,13 @@
  *
  * ## Services
  *
- * - ActionMergeService: Deduplicates and cleans up raw recorded actions
  * - RetryService: Exponential backoff logic for session creation
  *
  * ## Related Files
  *
- * - utils/mergeActions.ts: Re-exports from ActionMergeService for compatibility
  * - hooks/useRecordingSession.ts: Uses RetryService for session creation
  * - types/timeline-unified.ts: AI reconciliation service (future extraction)
  */
-
-// Action merge service for deduplicating recorded actions
-export {
-  mergeConsecutiveActions,
-  getMergeDescription,
-  type MergedAction,
-  type MergedActionMeta,
-} from './ActionMergeService';
 
 // Retry service for exponential backoff
 export {

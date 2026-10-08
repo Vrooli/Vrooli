@@ -3,8 +3,10 @@ package vps
 
 // SetupPlanResponse represents the response from VPS setup planning.
 type SetupPlanResponse struct {
-	Plan      SetupPlan `json:"plan"`
-	Timestamp string    `json:"timestamp"`
+	Plan SetupPlan `json:"plan"`
+	// PlanDigest identifies the compiled plan; apply must resubmit it.
+	PlanDigest string `json:"plan_digest"`
+	Timestamp  string `json:"timestamp"`
 }
 
 // SetupPlan contains the setup plan details.
@@ -21,8 +23,10 @@ type SetupApplyResponse struct {
 
 // DeployPlanResponse represents the response from VPS deploy planning.
 type DeployPlanResponse struct {
-	Plan      DeployPlan `json:"plan"`
-	Timestamp string     `json:"timestamp"`
+	Plan DeployPlan `json:"plan"`
+	// PlanDigest identifies the compiled plan; apply must resubmit it.
+	PlanDigest string `json:"plan_digest"`
+	Timestamp  string `json:"timestamp"`
 }
 
 // DeployPlan contains the deploy plan details.

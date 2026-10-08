@@ -1,0 +1,31 @@
+{
+  "id": "usage_operations_30d",
+  "label": "Metered operations · 30 days",
+  "description": "Finance-owned usage rollup.",
+  "unit": "count",
+  "format": "integer",
+  "kind": "scalar",
+  "shape": "series",
+  "source": {
+    "team": "monetization",
+    "binding": "scenario:landing-page-business-suite",
+    "read": "/api/v1/admin/dashboard/revenue",
+    "select": "usage_operations_30d",
+    "ttlSeconds": 300,
+    "integrationId": "landing-page-business-suite",
+    "origin": "production",
+    "featureId": "usage_operations_30d",
+    "contractVersion": "revenue-summary.v1",
+    "selector": "usage_operations_30d",
+    "expectedUnit": "count",
+    "sourceTimePolicy": "producer_required"
+  },
+  "coverage": "IN-REACH",
+  "sample": {
+    "value": 0,
+    "series": [
+      0
+    ],
+    "basis": "authored zero baseline; production validation pending"
+  }
+}

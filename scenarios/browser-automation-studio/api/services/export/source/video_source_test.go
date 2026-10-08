@@ -2,15 +2,48 @@ package source
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/base64"
 	"errors"
+	"fmt"
+	"mime"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/google/uuid"
 	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
 	"github.com/vrooli/browser-automation-studio/storage"
 )
+
+func TestVideoSourceCompletesMissingHashAndSizeReceipt(t *testing.T) {
+	content := []byte("neutral recorded video bytes")
+	path := filepath.Join(t.TempDir(), "recording.webm")
+	if err := os.WriteFile(path, content, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	resolved, err := videoFromArtifact(executionwriter.ArtifactData{
+		ArtifactID:   "video-1",
+		ArtifactType: "video",
+		Payload:      map[string]any{"path": path},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resolved == nil {
+		t.Fatal("expected a resolved video")
+	}
+	wantHash := sha256.Sum256(content)
+	if resolved.SHA256 != fmt.Sprintf("%x", wantHash) {
+		t.Fatalf("source hash = %q, want %x", resolved.SHA256, wantHash)
+	}
+	if resolved.SizeBytes == nil || *resolved.SizeBytes != int64(len(content)) {
+		t.Fatalf("source size = %v, want %d", resolved.SizeBytes, len(content))
+	}
+	if resolved.ArtifactID != "video-1" {
+		t.Fatalf("source artifact id = %q", resolved.ArtifactID)
+	}
+}
 
 func TestNormalizeRenderSource(t *testing.T) {
 	tests := []struct {
@@ -165,12 +198,20 @@ func TestResolveVideoSource_StorageURL(t *testing.T) {
 }
 
 func TestDetectVideoContentType(t *testing.T) {
+	// OS MIME databases can register WebM as audio. Known video outputs must
+	// retain their declared media kind regardless of the host's registration.
+	previous := mime.TypeByExtension(".webm")
+	t.Cleanup(func() { _ = mime.AddExtensionType(".webm", previous) })
+	if err := mime.AddExtensionType(".webm", "audio/webm"); err != nil {
+		t.Fatal(err)
+	}
 	tests := []struct {
 		path     string
 		expected string
 	}{
 		{"video.mp4", "video/mp4"},
 		{"video.webm", "video/webm"},
+		{"VIDEO.WEBM", "video/webm"},
 		{"video", "video/webm"},
 		{"", "video/webm"},
 	}

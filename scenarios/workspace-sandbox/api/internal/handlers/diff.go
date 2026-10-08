@@ -2,19 +2,25 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 
+	"workspace-sandbox/internal/blobstore"
 	"workspace-sandbox/internal/diff"
 	"workspace-sandbox/internal/types"
 )
 
-// GetDiff handles getting sandbox diff.
+// GetDiff renders the service-owned live or archived diff. Evidence selection
+// is shared with Connect; this handler only adds the requested live file view.
+//
 // Query parameters:
-//   - mode: View mode - "diff" (default), "full_diff", or "source"
+//   - mode: View mode — "diff" (default), "full_diff", or "source".
+//     full_diff and source require live overlay paths and are rejected
+//     with 400 for archived sandboxes (no merged dir to read from).
 func (h *Handlers) GetDiff(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.Parse(mux.Vars(r)["id"])
 	if err != nil {
@@ -22,66 +28,99 @@ func (h *Handlers) GetDiff(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Parse mode parameter (default to "diff")
 	mode := types.ViewMode(r.URL.Query().Get("mode"))
 	if mode == "" {
 		mode = types.ViewModeDiff
 	}
-
-	// Validate mode
 	switch mode {
 	case types.ViewModeDiff, types.ViewModeFullDiff, types.ViewModeSource:
-		// Valid modes
 	default:
 		h.JSONError(w, "invalid mode parameter: must be 'diff', 'full_diff', or 'source'", http.StatusBadRequest)
 		return
+	}
+
+	var sandbox *types.Sandbox
+	if mode != types.ViewModeDiff {
+		sandbox, err = h.Service.Get(r.Context(), id)
+		if h.HandleDomainError(w, err) {
+			return
+		}
+		switch sandbox.Status {
+		case types.StatusApproved, types.StatusRejected, types.StatusDeleted:
+			h.JSONError(w,
+				"view modes 'full_diff' and 'source' require a live overlay; this sandbox has been archived",
+				http.StatusBadRequest)
+			return
+		}
 	}
 
 	diffResult, err := h.Service.GetDiff(r.Context(), id)
 	if h.HandleDomainError(w, err) {
 		return
 	}
-
-	// Set the requested mode
 	diffResult.Mode = mode
 
-	// For full_diff or source modes, fetch file contents
 	if mode == types.ViewModeFullDiff || mode == types.ViewModeSource {
-		// Get the sandbox to access upper/lower directories
-		sandbox, err := h.Service.Get(r.Context(), id)
-		if err != nil {
-			h.HandleDomainError(w, err)
-			return
-		}
-
 		diffResult.FileContents = make(map[string]types.FileViewData)
-
 		for _, file := range diffResult.Files {
 			content, err := diff.GetFileContent(sandbox.UpperDir, sandbox.LowerDir, file.FilePath, file.ChangeType)
 			if err != nil {
-				// Log error but continue - partial content is better than failure
 				continue
 			}
-
 			if content == "" {
-				// Skip binary files or empty files
 				continue
 			}
-
-			fileData := types.FileViewData{
-				FullContent: content,
-			}
-
-			// For full_diff mode, also build annotated lines
+			fileData := types.FileViewData{FullContent: content}
 			if mode == types.ViewModeFullDiff {
 				fileData.AnnotatedLines = diff.BuildAnnotatedLines(content, diffResult.UnifiedDiff, file.FilePath)
 			}
-
 			diffResult.FileContents[file.FilePath] = fileData
 		}
 	}
 
 	h.JSONSuccess(w, diffResult)
+}
+
+// GetDiffFile serves the raw content of one file in an archive,
+// addressed by its path within the archive's index.
+//
+// Used by DiffViewer for on-demand per-file expansion: the list
+// response from GetDiff returns metadata only; this endpoint streams
+// the underlying blob bytes when the user expands a file. Live-overlay
+// diffs do not use this endpoint — full_diff/source mode embeds content
+// in the GetDiff response.
+//
+// Returns 404 when the sandbox has no archive, the path doesn't match
+// any archived entry, or the entry has no associated blob (e.g. a
+// directory entry, or a file whose content was not captured).
+func (h *Handlers) GetDiffFile(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(mux.Vars(r)["id"])
+	if err != nil {
+		h.JSONError(w, "invalid sandbox ID", http.StatusBadRequest)
+		return
+	}
+	path := r.URL.Query().Get("path")
+	if path == "" {
+		h.JSONError(w, "path query parameter is required", http.StatusBadRequest)
+		return
+	}
+
+	content, err := h.Service.FetchArchiveFile(r.Context(), id, path)
+	if errors.Is(err, blobstore.ErrNotFound) {
+		h.JSONError(w, "no archived blob for this path", http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		h.JSONError(w, "failed to fetch archive blob: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/octet-stream")
+	if _, err := w.Write(content); err != nil {
+		// Best-effort; the response is already started so JSONError
+		// would just produce malformed output.
+		return
+	}
 }
 
 // Approve handles approving sandbox changes.
@@ -92,14 +131,77 @@ func (h *Handlers) Approve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req types.ApprovalRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		// Allow empty body for default approval
-		req = types.ApprovalRequest{Mode: "all"}
+	req := &types.ApprovalRequest{Mode: "all"}
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&req); err != nil && err != io.EOF {
+		h.JSONError(w, "invalid approval request body", http.StatusBadRequest)
+		return
+	}
+	// Only an actually empty body may select defaults. Malformed, null or
+	// trailing JSON must never discard a caller's review precondition.
+	if req == nil {
+		h.JSONError(w, "approval request must be an object", http.StatusBadRequest)
+		return
+	}
+	if err := decoder.Decode(new(any)); err != io.EOF {
+		h.JSONError(w, "approval request must contain one JSON object", http.StatusBadRequest)
+		return
 	}
 	req.SandboxID = id
 
-	result, err := h.Service.Approve(r.Context(), &req)
+	result, err := h.Service.Approve(r.Context(), req)
+	if h.HandleDomainError(w, err) {
+		return
+	}
+
+	h.JSONSuccess(w, result)
+}
+
+// ApplyAtRunEnd handles the agent-manager run-end apply call. It carries
+// agent-manager run-context metadata (agent_manager_run_id, conversation_id,
+// cost, runOutcome, source) onto the apply path defined by the auditability
+// contract. See scenarios/workspace-sandbox/docs/AUDITABILITY_CONTRACT.md and
+// scenarios/swarm-manager/execute/agent-manager-sandbox-auto-apply-defaults/plan.md
+// (Decision D6) for the full contract.
+func (h *Handlers) ApplyAtRunEnd(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(mux.Vars(r)["id"])
+	if err != nil {
+		h.JSONError(w, "invalid sandbox ID", http.StatusBadRequest)
+		return
+	}
+
+	var req types.ApplyAtRunEndRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.JSONError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	req.SandboxID = id
+
+	result, err := h.Service.ApplyAtRunEnd(r.Context(), &req)
+	if h.HandleDomainError(w, err) {
+		return
+	}
+
+	h.JSONSuccess(w, result)
+}
+
+// TurnCheckpoint handles the agent-manager post-turn checkpoint call.
+func (h *Handlers) TurnCheckpoint(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(mux.Vars(r)["id"])
+	if err != nil {
+		h.JSONError(w, "invalid sandbox ID", http.StatusBadRequest)
+		return
+	}
+
+	var req types.TurnCheckpointRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.JSONError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	req.SandboxID = id
+
+	result, err := h.Service.TurnCheckpoint(r.Context(), &req)
 	if h.HandleDomainError(w, err) {
 		return
 	}

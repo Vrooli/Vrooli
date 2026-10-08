@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import type { ReactElement } from 'react';
-import { render, screen } from '@testing-library/react';
+import { renderWithProviders as render } from "@vrooli/api-base/testing";
+import type { ComponentProps, ReactElement } from 'react';
+import { screen } from "@testing-library/react";
 import { Users } from 'lucide-react';
 import { MemoryRouter } from 'react-router-dom';
 import { PageHeader } from './PageHeader';
@@ -76,9 +77,10 @@ describe('PageHeader', () => {
   });
 
   it('accepts deprecated variant prop for backwards compatibility', () => {
+    const legacyProps = { variant: 'icon-title' } as unknown as ComponentProps<typeof PageHeader>;
     renderWithRouter(
       <PageHeader
-        variant="icon-title"
+        {...legacyProps}
         title="User Accounts"
         icon={Users}
         iconBgClass="bg-emerald-500/10"

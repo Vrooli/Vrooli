@@ -7,38 +7,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	_ "modernc.org/sqlite"
-
 	"test-genie/internal/storage/sqlfiles"
 	"test-genie/internal/storage/sqlitedb"
+
+	_ "modernc.org/sqlite"
 )
-
-func TestResolveInitializationFileSuccess(t *testing.T) {
-	got, err := resolveInitializationFile("schema.sql")
-	if err != nil {
-		t.Fatalf("resolveInitializationFile returned error: %v", err)
-	}
-
-	if filepath.Base(got) != "schema.sql" {
-		t.Fatalf("expected schema.sql path, got %s", got)
-	}
-	if _, err := os.Stat(got); err != nil {
-		t.Fatalf("expected resolved schema path to exist: %v", err)
-	}
-	if filepath.Base(filepath.Dir(got)) != initializationDialectDir {
-		t.Fatalf("expected sqlite initialization directory, got %s", filepath.Dir(got))
-	}
-	if filepath.Base(filepath.Dir(filepath.Dir(got))) != "initialization" {
-		t.Fatalf("expected initialization root in resolved path, got %s", got)
-	}
-}
-
-func TestResolveInitializationFileErrorWhenMissing(t *testing.T) {
-	_, err := resolveInitializationFile("missing.sql")
-	if err == nil {
-		t.Fatal("expected error when initialization file is missing")
-	}
-}
 
 func TestExecSQLFileRunsStatements(t *testing.T) {
 	db := openSQLite(t)
@@ -85,57 +58,54 @@ func TestExecSQLFilePropagatesExecErrors(t *testing.T) {
 	}
 }
 
-func TestApplySchemaCreatesTablesAndOptionalSeed(t *testing.T) {
+func TestApplySchemaCreatesDomainTables(t *testing.T) {
 	db := openSQLite(t)
 
 	if err := ApplySchema(db, true); err != nil {
 		t.Fatalf("ApplySchema returned error: %v", err)
 	}
 
-	assertTableExists(t, db, "suite_requests")
 	assertTableExists(t, db, "suite_executions")
-
-	var count int
-	if err := db.QueryRow(`SELECT COUNT(*) FROM suite_requests WHERE id = ?`, "00000000-0000-0000-0000-000000000001").Scan(&count); err != nil {
-		t.Fatalf("count seeded suite request: %v", err)
-	}
-	if count != 1 {
-		t.Fatalf("expected seeded suite request to exist, got count=%d", count)
-	}
+	assertTableExists(t, db, "suite_execution_phases")
 }
 
-func TestApplySchemaWithoutSeedLeavesPreviewRowAbsent(t *testing.T) {
+func TestApplySchemaWithoutSeedStillCreatesDomainTables(t *testing.T) {
 	db := openSQLite(t)
 
 	if err := ApplySchema(db, false); err != nil {
 		t.Fatalf("ApplySchema returned error: %v", err)
 	}
 
-	assertTableExists(t, db, "suite_requests")
 	assertTableExists(t, db, "suite_executions")
-
-	var count int
-	if err := db.QueryRow(`SELECT COUNT(*) FROM suite_requests`).Scan(&count); err != nil {
-		t.Fatalf("count suite requests: %v", err)
-	}
-	if count != 0 {
-		t.Fatalf("expected schema-only initialization to skip seed data, got %d rows", count)
-	}
 }
 
-func TestEnsureDatabaseSchemaExecutesSchemaAndSeed(t *testing.T) {
+func TestEnsureDatabaseSchemaExecutesSchema(t *testing.T) {
 	db := openSQLite(t)
 
 	if err := ensureDatabaseSchema(db); err != nil {
 		t.Fatalf("ensureDatabaseSchema returned error: %v", err)
 	}
 
-	var count int
-	if err := db.QueryRow(`SELECT COUNT(*) FROM suite_requests`).Scan(&count); err != nil {
-		t.Fatalf("count suite requests: %v", err)
+	assertTableExists(t, db, "suite_executions")
+}
+
+func TestOpenHealthDatabaseUsesIndependentSQLiteHandle(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "health.db")
+	dsn, err := sqlitedb.BuildDSN(path)
+	if err != nil {
+		t.Fatalf("BuildDSN: %v", err)
 	}
-	if count != 1 {
-		t.Fatalf("expected schema initialization to load seed row, got %d", count)
+	db, err := openHealthDatabase(dsn)
+	if err != nil {
+		t.Fatalf("openHealthDatabase: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	if stats := db.Stats(); stats.MaxOpenConnections != 1 {
+		t.Fatalf("health pool max connections = %d, want 1", stats.MaxOpenConnections)
+	}
+	var version int
+	if err := db.QueryRow("PRAGMA schema_version").Scan(&version); err != nil {
+		t.Fatalf("query dedicated health handle: %v", err)
 	}
 }
 
@@ -143,7 +113,11 @@ func openSQLite(t *testing.T) *sql.DB {
 	t.Helper()
 
 	dbPath := filepath.Join(t.TempDir(), "runtime-test.db")
-	db, err := sql.Open("sqlite", sqlitedb.BuildDSN(dbPath))
+	dsn, err := sqlitedb.BuildDSN(dbPath)
+	if err != nil {
+		t.Fatalf("BuildDSN: %v", err)
+	}
+	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}

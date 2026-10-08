@@ -11,7 +11,7 @@ export * from './types';
 export { useUnifiedSidebar } from './useUnifiedSidebar';
 export type { UseUnifiedSidebarOptions, UseUnifiedSidebarReturn } from './useUnifiedSidebar';
 
-export { useAISettings, estimateNavigationCost, formatCost } from './useAISettings';
+export { useAISettings } from './useAISettings';
 export type { UseAISettingsOptions, UseAISettingsReturn } from './useAISettings';
 
 // Components

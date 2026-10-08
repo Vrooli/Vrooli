@@ -6,22 +6,36 @@ import (
 	"sort"
 	"strings"
 
-	"scenario-dependency-analyzer/internal/config"
-	types "scenario-dependency-analyzer/internal/types"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/config"
+
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
+
+// DependencyBuildOptions controls additive evidence included in the dependency DAG.
+type DependencyBuildOptions struct {
+	IncludeProgramBindings bool
+	ProgramBindings        ProgramBindingSource
+}
 
 // BuildDependencyNodeList recursively builds a list of dependency nodes (resources + scenarios)
 // from a scenario's service.json configuration. The visited map prevents infinite recursion
-// when circular dependencies exist.
-func BuildDependencyNodeList(scenariosDir, scenarioName string, cfg *types.ServiceConfig, visited map[string]struct{}) []types.DeploymentDependencyNode {
+// when circular dependencies exist. It preserves the historical manifest-only output.
+func BuildDependencyNodeList(scenariosDir, scenarioName string, cfg *types.Manifest, visited map[string]struct{}) []types.DeploymentDependencyNode {
+	return BuildDependencyNodeListWithOptions(scenariosDir, scenarioName, cfg, visited, DependencyBuildOptions{})
+}
+
+// BuildDependencyNodeListWithOptions adds program-binding evidence when
+// requested. Manifest nodes remain the lifecycle authority and retain source
+// "declared" even when a program independently attests the same edge.
+func BuildDependencyNodeListWithOptions(scenariosDir, scenarioName string, cfg *types.Manifest, visited map[string]struct{}, options DependencyBuildOptions) []types.DeploymentDependencyNode {
 	nodes := []types.DeploymentDependencyNode{}
 	if cfg == nil {
 		return nodes
 	}
 
 	var dependencyCatalog types.DeploymentDependencyCatalog
-	if cfg.Deployment != nil {
-		dependencyCatalog = cfg.Deployment.Dependencies
+	if cfg.TierFeasibility != nil {
+		dependencyCatalog = cfg.TierFeasibility.Dependencies
 	}
 
 	resources := config.ResolvedResourceMap(cfg)
@@ -39,7 +53,7 @@ func BuildDependencyNodeList(scenariosDir, scenarioName string, cfg *types.Servi
 				meta = &copyMeta
 			}
 		}
-		node := buildResourceDependencyNode(name, meta)
+		node := buildResourceDependencyNode(filepath.Dir(scenariosDir), name, meta, resource.Required)
 		required := resource.Required
 		enabled := resource.Enabled
 		node.Required = &required
@@ -63,13 +77,18 @@ func BuildDependencyNodeList(scenariosDir, scenarioName string, cfg *types.Servi
 					meta = &copyMeta
 				}
 			}
-			node := buildScenarioDependencyNode(scenariosDir, depName, meta, visited)
+			node := buildScenarioDependencyNode(scenariosDir, depName, meta, visited, options)
 			required := depSpec.Required
 			enabled := depSpec.Enabled
 			node.Required = &required
 			node.Enabled = &enabled
 			node.Source = "declared"
 			nodes = append(nodes, node)
+		}
+	}
+	if options.IncludeProgramBindings && options.ProgramBindings != nil {
+		if targets, _, err := options.ProgramBindings.ProgramBindingTargets(scenarioName); err == nil {
+			nodes = mergeProgramBindingNodes(scenariosDir, scenarioName, nodes, targets, visited, options)
 		}
 	}
 
@@ -83,36 +102,93 @@ func BuildDependencyNodeList(scenariosDir, scenarioName string, cfg *types.Servi
 	return nodes
 }
 
+func mergeProgramBindingNodes(scenariosDir, scenarioName string, nodes []types.DeploymentDependencyNode, targets []types.ProgramBindingTarget, visited map[string]struct{}, options DependencyBuildOptions) []types.DeploymentDependencyNode {
+	byScenario := map[string]int{}
+	for i := range nodes {
+		if nodes[i].Type == "scenario" {
+			byScenario[config.NormalizeName(nodes[i].Name)] = i
+		}
+	}
+	for _, target := range targets {
+		name := strings.TrimSpace(target.Scenario)
+		if name == "" || config.NormalizeName(name) == config.NormalizeName(scenarioName) || config.NormalizeName(name) == "program-runtime" {
+			continue
+		}
+		index, exists := byScenario[config.NormalizeName(name)]
+		if !exists {
+			node := buildScenarioDependencyNode(scenariosDir, name, nil, visited, options)
+			required := false
+			enabled := false
+			node.Required = &required
+			node.Enabled = &enabled
+			node.Source = "program-binding"
+			nodes = append(nodes, node)
+			index = len(nodes) - 1
+			byScenario[config.NormalizeName(name)] = index
+		}
+		if nodes[index].Metadata == nil {
+			nodes[index].Metadata = map[string]interface{}{}
+		}
+		appendMetadataString(nodes[index].Metadata, "program_bindings", target.BindingID)
+		appendMetadataString(nodes[index].Metadata, "programs", target.Program)
+	}
+	return nodes
+}
+
+func appendMetadataString(metadata map[string]interface{}, key, value string) {
+	if strings.TrimSpace(value) == "" {
+		return
+	}
+	values, _ := metadata[key].([]string)
+	for _, existing := range values {
+		if existing == value {
+			return
+		}
+	}
+	metadata[key] = append(values, value)
+}
+
 // buildResourceDependencyNode creates a deployment node for a single resource dependency
-func buildResourceDependencyNode(name string, meta *types.DeploymentDependency) types.DeploymentDependencyNode {
+func buildResourceDependencyNode(repoRoot, name string, meta *types.DeploymentDependency, required bool) types.DeploymentDependencyNode {
 	node := types.DeploymentDependencyNode{
 		Name: name,
 		Type: "resource",
-	}
-	if meta == nil {
-		// No metadata - infer default tier support based on resource type
-		node.TierSupport = InferResourceTierSupport(name, nil)
-		return node
-	}
-	node.ResourceType = meta.ResourceType
-	node.Requirements = meta.Footprint
-
-	// Convert explicit metadata to tier support
-	tierSupport := convertTierSupportMap(meta.PlatformSupport)
-
-	// If no tier support defined, infer from resource type
-	if len(tierSupport) == 0 {
-		tierSupport = InferResourceTierSupport(name, meta)
+		Path: filepath.Join(repoRoot, "resources", name, "resource.json"),
 	}
 
-	node.TierSupport = tierSupport
-	node.Alternatives = collectDependencyAlternatives(meta)
+	// Resource facts are owned by the resource manifest. The deployment catalog
+	// may still contribute authored swap hints, but it must never override the
+	// live resource's requirements, bundling, or platform declarations.
+	declaration, err := loadResourceDeclaration(repoRoot, name, required)
+	if err != nil {
+		node.TierSupport = unknownTierSupport(err.Error())
+	} else {
+		if declaration.Requirements != nil {
+			gpu := declaration.Requirements.GPURequirement != nil
+			node.ResourceType = declaration.Requirements.Class
+			node.Requirements = &types.DeploymentRequirements{
+				Class:      declaration.Requirements.Class,
+				Weight:     ptr(declaration.Requirements.Weight),
+				RAMMB:      ptr(declaration.Requirements.RAMMB),
+				DiskMB:     ptr(declaration.Requirements.DiskMB),
+				CPUCores:   ptr(declaration.Requirements.CPUCores),
+				GPU:        ptr(gpu),
+				Network:    declaration.Requirements.Network,
+				Source:     declaration.Requirements.Source,
+				Confidence: declaration.Requirements.Confidence,
+			}
+		}
+		node.TierSupport = resolveResourceTierSupportFromDeclaration(declaration)
+	}
+	if meta != nil {
+		node.Alternatives = collectDependencyAlternatives(meta)
+	}
 	return node
 }
 
 // buildScenarioDependencyNode creates a deployment node for a scenario dependency,
 // recursively loading the scenario's own dependencies to build a complete dependency tree.
-func buildScenarioDependencyNode(scenariosDir, scenarioName string, parentMeta *types.DeploymentDependency, visited map[string]struct{}) types.DeploymentDependencyNode {
+func buildScenarioDependencyNode(scenariosDir, scenarioName string, parentMeta *types.DeploymentDependency, visited map[string]struct{}, options DependencyBuildOptions) types.DeploymentDependencyNode {
 	node := types.DeploymentDependencyNode{
 		Name: scenarioName,
 		Type: "scenario",
@@ -149,10 +225,9 @@ func buildScenarioDependencyNode(scenariosDir, scenarioName string, parentMeta *
 	}
 
 	var scenarioTierSupport map[string]types.TierSupportSummary
-	if cfg.Deployment != nil {
-		node.Requirements = cfg.Deployment.AggregateRequirements
-		scenarioTierSupport = convertTierTierMap(cfg.Deployment.Tiers)
-		node.Alternatives = append(node.Alternatives, collectAdaptationAlternatives(cfg.Deployment.Tiers)...)
+	if cfg.TierFeasibility != nil {
+		scenarioTierSupport = convertTierTierMap(cfg.TierFeasibility.Tiers)
+		node.Alternatives = append(node.Alternatives, collectAdaptationAlternatives(cfg.TierFeasibility.Tiers)...)
 	}
 
 	if node.Requirements == nil && parentMeta != nil {
@@ -165,7 +240,7 @@ func buildScenarioDependencyNode(scenariosDir, scenarioName string, parentMeta *
 	}
 	node.TierSupport = mergeTierSupportMaps(scenarioTierSupport, fallbackSupport)
 	node.Alternatives = dedupeStrings(node.Alternatives)
-	node.Children = BuildDependencyNodeList(scenariosDir, scenarioName, cfg, visited)
+	node.Children = BuildDependencyNodeListWithOptions(scenariosDir, scenarioName, cfg, visited, options)
 	return node
 }
 
@@ -188,28 +263,16 @@ func convertTierSupportMap(support map[string]types.DependencyTierSupport) map[s
 	return result
 }
 
-// convertTierTierMap converts deployment tier definitions to tier support summary format.
-// Uses InterpretTierStatus to decide how status strings map to supported flags.
+// convertTierTierMap converts authored deployment tier inputs to tier support
+// summaries. Readiness is derived by the resolver and is intentionally absent
+// from service.json.
 func convertTierTierMap(tiers map[string]types.DeploymentTier) map[string]types.TierSupportSummary {
 	if len(tiers) == 0 {
 		return nil
 	}
 	result := make(map[string]types.TierSupportSummary, len(tiers))
 	for tier, value := range tiers {
-		var supported *bool
-		status := InterpretTierStatus(strings.ToLower(value.Status))
-		switch status {
-		case TierStatusReady:
-			flag := true
-			supported = &flag
-		case TierStatusLimited:
-			flag := false
-			supported = &flag
-			// TierStatusUnknown leaves supported as nil
-		}
 		result[tier] = types.TierSupportSummary{
-			Supported:    supported,
-			FitnessScore: value.FitnessScore,
 			Notes:        value.Notes,
 			Requirements: value.Requirements,
 		}
@@ -313,39 +376,4 @@ func dedupeStrings(values []string) []string {
 		set[value] = struct{}{}
 	}
 	return MapKeys(set)
-}
-
-// InferResourceTierSupport generates intelligent default tier support based on resource type.
-// This provides reasonable defaults when explicit metadata is missing.
-//
-// The function delegates to ClassifyResource and DecideTierFitness for all decision logic,
-// keeping the inference logic centralized in the decisions module.
-func InferResourceTierSupport(resourceName string, meta *types.DeploymentDependency) map[string]types.TierSupportSummary {
-	// Classify the resource to understand its operational characteristics
-	classification := ClassifyResource(resourceName)
-
-	// Define standard tiers
-	standardTiers := []string{"local", "desktop", "server", "mobile", "saas", "enterprise"}
-
-	// Build tier support map using decision helpers
-	support := make(map[string]types.TierSupportSummary, len(standardTiers))
-
-	for _, tier := range standardTiers {
-		// Delegate fitness decision to centralized decision logic
-		decision := DecideTierFitness(tier, classification)
-
-		summary := types.TierSupportSummary{
-			Reason:       decision.Reason,
-			Notes:        decision.Notes,
-			Alternatives: decision.Alternatives,
-		}
-		supported := decision.Supported
-		fitness := decision.FitnessScore
-
-		summary.Supported = &supported
-		summary.FitnessScore = &fitness
-		support[tier] = summary
-	}
-
-	return support
 }

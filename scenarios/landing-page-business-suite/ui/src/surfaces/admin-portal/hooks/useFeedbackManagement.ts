@@ -106,7 +106,7 @@ export function useFeedbackManagement(): UseFeedbackManagementReturn {
 
   // Initial load
   useEffect(() => {
-    loadFeedback();
+    void loadFeedback();
   }, [loadFeedback]);
 
   /**
@@ -187,8 +187,8 @@ export function useFeedbackManagement(): UseFeedbackManagementReturn {
    */
   const filteredFeedback = useMemo(
     () => filterByProperties(feedbackList, {
-      status: statusFilter as FeedbackRequest['status'] | 'all',
-      type: typeFilter as FeedbackRequest['type'] | 'all',
+      status: statusFilter,
+      type: typeFilter,
     }),
     [feedbackList, statusFilter, typeFilter]
   );

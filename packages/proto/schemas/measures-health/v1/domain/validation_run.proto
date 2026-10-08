@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+package vrooli.measures_health.v1.domain;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/measures-health/v1/domain;domain_v1";
+
+// =============================================================================
+// VALIDATION_RUN DOMAIN — the persisted measures-validation history
+// =============================================================================
+//
+// @layer 4  (domain entity)
+// @domain validation_run
+// @stability unstable
+//
+// measures-health's own persisted, countable entity: one row per measures-
+// coverage validation it performs (a `validate scenario <s>` invocation). This
+// is the substrate that lets measures-health dogfood the capability it enforces
+// — it derives EXPECTED stateful domains from this v1/domain/ folder (screaming
+// architecture), so the presence of this file flips measures-health to the
+// conformant expectation mode and obliges it to declare a measure over its own
+// validation_run history (see the `measures` domain + cli/manifest.json).
+//
+// Type-only: the persistence lives in api/internal/runhistory (a SQLite table,
+// migrate-not-recreate); the analytical surface lives in v1/measures. This proto
+// is the canonical shape of one historical run.
+// =============================================================================
+
+// ValidationRun is one recorded measures-coverage validation: the verdict and
+// finding tallies for a single scenario at a single point in time.
+message ValidationRun {
+  // Stable id for the run (the persistence assigns it).
+  string id = 1;
+
+  // The scenario that was validated.
+  string scenario = 2;
+
+  // Whether the validation passed (zero ERROR findings).
+  bool passed = 3;
+
+  // Number of ERROR-severity findings in the run.
+  int32 error_count = 4;
+
+  // Number of WARNING-severity findings in the run.
+  int32 warning_count = 5;
+
+  // When the run happened (RFC3339). The countable-over-a-time-window timestamp
+  // the `validation_run` measures aggregate on.
+  string ran_at = 6;
+}

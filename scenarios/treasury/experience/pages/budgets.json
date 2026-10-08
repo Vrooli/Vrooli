@@ -1,0 +1,107 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "budgets",
+    "title": "Budgets",
+    "routes": [
+      "/budgets"
+    ],
+    "purpose": "Let the operator see how much room remains under each budget and change what may be spent. Headroom is the number an operator comes here for, so it leads.",
+    "prd_refs": [
+      "OT-P0-003",
+      "OT-P1-006",
+      "OT-P1-007"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Remaining headroom per budget is the first thing read, with its cap for context"
+    },
+    {
+      "statement": "A frozen budget is unmistakable and its freeze is reversible from the same place"
+    },
+    {
+      "statement": "Pending authorizations are visibly reducing headroom, not hidden until they settle"
+    },
+    {
+      "statement": "Counterparty allow and deny lists are inspectable without leaving the budget"
+    },
+    {
+      "statement": "Which budgets require human approval is visible without opening each one"
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "Budgets exist and headroom is current."
+    },
+    {
+      "id": "loading",
+      "description": "Budgets are being fetched."
+    },
+    {
+      "id": "empty",
+      "description": "No budget is configured; the page states what a budget does and offers to create one."
+    },
+    {
+      "id": "partial",
+      "description": "Headroom is known for some budgets and unavailable for others; the page says which rather than showing a blank."
+    },
+    {
+      "id": "saving",
+      "description": "A cap or list edit is being persisted."
+    },
+    {
+      "id": "validation-error",
+      "description": "A proposed cap conflicts with an existing mandate; the page names the conflict and what would resolve it."
+    },
+    {
+      "id": "request-error",
+      "description": "Budgets could not be fetched."
+    },
+    {
+      "id": "stale",
+      "description": "Headroom figures are older than their refresh interval and say so."
+    }
+  ],
+  "claims": [
+    {
+      "id": "budgets-headroom-first",
+      "type": "reading-order",
+      "statement": "Remaining headroom precedes the cap and the period in each budget's reading order.",
+      "tier": "aspirational"
+    },
+    {
+      "id": "budgets-freeze-distinct",
+      "type": "state-distinct",
+      "statement": "A frozen budget is distinguishable from an exhausted one, which are different facts with different remedies.",
+      "tier": "aspirational"
+    },
+    {
+      "id": "budgets-freeze-separated",
+      "type": "spacing",
+      "statement": "The freeze control is separated from navigation and from non-destructive controls.",
+      "tier": "aspirational"
+    },
+    {
+      "id": "budgets-tabular-figures",
+      "type": "element-present",
+      "statement": "Amount columns use tabular figures so a magnitude error reads as a ragged edge.",
+      "tier": "aspirational"
+    },
+    {
+      "id": "budgets-pending-visible",
+      "type": "element-present",
+      "statement": "Headroom shows the portion held by pending authorizations rather than only the settled figure.",
+      "tier": "aspirational"
+    },
+    {
+      "id": "budgets-partial-named",
+      "type": "state-covered",
+      "statement": "The partial state names which budgets have unknown headroom.",
+      "tier": "aspirational"
+    }
+  ]
+}

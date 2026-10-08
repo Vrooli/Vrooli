@@ -1,0 +1,24 @@
+{
+  "seed": "command-center-milestone-1",
+  "timestampsMs": [
+    0,
+    250,
+    1000,
+    2500,
+    5000,
+    10000,
+    14000
+  ],
+  "rooms": [
+    "broadcast",
+    "forge",
+    "hive",
+    "ledger",
+    "mission-control",
+    "panorama"
+  ],
+  "viewport": {
+    "width": 1600,
+    "height": 900
+  }
+}

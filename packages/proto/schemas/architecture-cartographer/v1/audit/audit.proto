@@ -1,0 +1,264 @@
+syntax = "proto3";
+
+package vrooli.architecture_cartographer.v1.audit;
+
+import "architecture-cartographer/v1/shared/shared.proto";
+import "common/v1/maturity.proto";
+import "google/protobuf/duration.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/audit;audit_v1";
+
+// =============================================================================
+// AUDIT DOMAIN
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain audit
+// @stability beta
+//
+// The audit domain is the CI-shaped surface over the cartographer. One
+// RPC call orchestrates graph.Extract (if no snapshot), domains.Derive,
+// and conflicts.Detect for a scenario, applies severity / type filters,
+// and returns a deterministic summary plus the underlying finding set.
+//
+// The CLI consumer maps AuditOutcome to a process exit code:
+//   CLEAN       → 0
+//   FINDINGS    → 1 (only when ≥ fail_on threshold reached)
+//   TOOL_ERROR  → 2
+// (Usage error → 3 — local to the CLI, not surfaced over the wire.)
+// =============================================================================
+
+// AuditOutcome is the verdict shape returned to a CI caller.
+enum AuditOutcome {
+  AUDIT_OUTCOME_UNSPECIFIED = 0;
+  AUDIT_OUTCOME_CLEAN = 1;
+  AUDIT_OUTCOME_FINDINGS = 2;
+  AUDIT_OUTCOME_TOOL_ERROR = 3;
+  // PARTIAL: at least one analysis layer was skipped (today: TS via
+  // --skip-ts or a workspace_unsupported error from typescript-code-
+  // graph). Remaining layers ran cleanly. CLI exit 0 with a warning.
+  AUDIT_OUTCOME_PARTIAL = 4;
+}
+
+// AuthorityConfidence mirrors the domains-derivation authority confidence
+// signal as a first-class outcome axis. The audit consults this to decide
+// whether a "no curated DOMAINS.md" scenario should fail by default.
+enum AuthorityConfidence {
+  AUTHORITY_CONFIDENCE_UNSPECIFIED = 0;
+  AUTHORITY_CONFIDENCE_LOW = 1;
+  AUTHORITY_CONFIDENCE_MEDIUM = 2;
+  AUTHORITY_CONFIDENCE_HIGH = 3;
+  // MISSING signals that NO ladder rung declared any domain
+  // (ErrNoAuthority was raised). Distinct from LOW (where a derived
+  // rung supplied authority but no curated DOMAINS.md exists).
+  AUTHORITY_CONFIDENCE_MISSING = 4;
+}
+
+// SnapshotFreshness reports whether the audit reused a cached snapshot
+// or extracted a fresh one. Content-hash driven, not time-based.
+enum SnapshotFreshness {
+  SNAPSHOT_FRESHNESS_UNSPECIFIED = 0;
+  SNAPSHOT_FRESHNESS_CACHED = 1; // hash matched persisted snapshot
+  SNAPSHOT_FRESHNESS_RE_EXTRACTED = 2; // hash diverged or no snapshot
+  SNAPSHOT_FRESHNESS_FRESH = 3; // initial extraction (no prior)
+}
+
+// ConflictSummary is a compact, machine-friendly projection of a
+// detected conflict. Carries enough to render a CI annotation; the
+// full Conflict envelope can be re-fetched via ConflictsService.
+message ConflictSummary {
+  // id is the deterministic content-hash stable_id since v0.2 — equal
+  // to stable_id below, kept on the wire so older clients keep working.
+  string id = 1;
+  string detector = 2;
+  string type = 3;
+  string subtype = 4;
+  vrooli.architecture_cartographer.v1.shared.Severity severity = 5;
+  repeated string locations = 6;
+  repeated string domains = 7;
+  string headline = 8; // one-line summary suitable for a CI annotation
+  // stable_id is the deterministic content-hash key (same as id).
+  // Reported explicitly so CI tools can dedupe without relying on the
+  // alias contract.
+  string stable_id = 9;
+  // instance_id is the per-run UUID; useful for log correlation. Two
+  // identical drifts across runs share stable_id but differ in
+  // instance_id.
+  string instance_id = 10;
+  // finding_class separates deterministic gateable findings from
+  // advisory heuristics.
+  vrooli.architecture_cartographer.v1.shared.FindingClass finding_class = 11;
+}
+
+// DerivedDomainSummary is a compact projection of the derived domain
+// map used to compute the audit (authority + confidence + count).
+message DerivedDomainSummary {
+  string authority = 1;
+  string confidence = 2;
+  int32 domain_count = 3;
+}
+
+// GraphSummary is a compact projection of the graph snapshot used to
+// compute the audit (snapshot id + extraction wall-clock + counts).
+message GraphSummary {
+  string snapshot_id = 1;
+  int32 file_count = 2;
+  int32 package_count = 3;
+  int32 import_edge_count = 4;
+}
+
+// CoverageBucket reports one mutually-exclusive placement verdict bucket.
+message CoverageBucket {
+  int32 count = 1;
+  // Percent of audited files in this bucket, 0.0–100.0.
+  double percent = 2;
+}
+
+// CoverageSummary reports how completely placement signals classified
+// the audited files. Buckets are mutually exclusive; all_abstained
+// means every available signal declined to score that file, so the
+// audit lacks evidence rather than having a confident conflict.
+message CoverageSummary {
+  int32 total_files = 1;
+  CoverageBucket auto_place = 2;
+  CoverageBucket suggest = 3;
+  CoverageBucket conflict = 4;
+  CoverageBucket all_abstained = 5;
+  // Mirrors AuditRunResponse.authority_confidence as a string for
+  // script consumers that read only the coverage block.
+  string authority_confidence = 6;
+}
+
+// CategoryTopItem is the compact finding reference rendered under an
+// advisory score-matrix category.
+message CategoryTopItem {
+  string id = 1;
+  string stable_id = 2;
+  string type = 3;
+  string subtype = 4;
+  vrooli.architecture_cartographer.v1.shared.Severity severity = 5;
+  vrooli.architecture_cartographer.v1.shared.FindingClass finding_class = 6;
+  repeated string locations = 7;
+  string headline = 8;
+}
+
+// AuditCategory is one advisory score-matrix row. Score is normalized
+// 0.0–1.0 and is never itself a gate.
+message AuditCategory {
+  string key = 1;
+  string label = 2;
+  double score = 3;
+  repeated CategoryTopItem top_items = 4;
+}
+
+// AuditService runs an end-to-end drift audit against a scenario and
+// returns a deterministic, machine-readable summary.
+service AuditService {
+  rpc Run(AuditRunRequest) returns (AuditRunResponse);
+  // RunAll sweeps every scenario discoverable under scenarios/<name>/.vrooli/service.json
+  // and returns a per-scenario report plus a totals rollup. Honors
+  // include_scenarios / exclude_scenarios filters; bounded worker pool.
+  rpc RunAll(AuditRunAllRequest) returns (AuditRunAllResponse);
+}
+
+message AuditRunRequest {
+  // Target scenario (e.g., "swarm-manager"). Required.
+  string scenario = 1;
+  // Minimum severity that counts as "FINDINGS" (anything strictly less
+  // than this floor is reported but does not flip the outcome). Defaults
+  // to SEVERITY_WARN when SEVERITY_UNSPECIFIED.
+  vrooli.architecture_cartographer.v1.shared.Severity fail_on = 2;
+  // Optional whitelist of conflict types to include. Empty = all types.
+  repeated string include_types = 3;
+  // Optional blacklist of conflict types to exclude. Applied after
+  // include_types.
+  repeated string exclude_types = 4;
+  // When true, allow scenarios whose domain authority confidence is LOW
+  // to still produce an outcome=CLEAN result. Default false flips
+  // outcome to FINDINGS on low-authority scenarios.
+  bool allow_low_authority = 5;
+  // When true, skip the TypeScript analysis layer entirely. The audit
+  // returns AUDIT_OUTCOME_PARTIAL when the TS layer was the only thing
+  // skipped (Go-side findings still drive the outcome). Lets scenarios
+  // whose UI runs in an unsupported pnpm workspace still produce a
+  // useful Go-side report.
+  bool skip_ts = 6;
+}
+
+message AuditRunResponse {
+  string scenario = 1;
+  AuditOutcome outcome = 2;
+  // Free-form error message when outcome=TOOL_ERROR.
+  string error = 3;
+  // Counts AFTER filters are applied.
+  int32 total_findings = 4;
+  // Severity-name → count (e.g., "warn" → 7). Stable strings, lower-case.
+  map<string, int32> by_severity = 5;
+  // Conflict-type → count.
+  map<string, int32> by_type = 6;
+  repeated ConflictSummary findings = 7;
+  DerivedDomainSummary domains = 8;
+  GraphSummary graph = 9;
+  // Total wall-clock duration for the orchestrated run.
+  google.protobuf.Duration duration = 10;
+  // Count of conflicts marked suppressed by in-repo `// arch:allow`
+  // markers. Suppressed findings are reported (not dropped) and counted
+  // here so the operator always sees what is being excused.
+  int32 suppressed_findings = 11;
+  // Conflict-domain → count. Empty when no findings are domain-tagged.
+  map<string, int32> by_domain = 12;
+  // Whether the graph snapshot used was reused from cache or
+  // freshly extracted (content-hash driven).
+  SnapshotFreshness snapshot_freshness = 13;
+  // Enum mirror of DerivedDomainSummary.confidence for typed consumers.
+  AuthorityConfidence authority_confidence = 14;
+  // Reason the outcome was decided as it was; populated for
+  // FINDINGS to explain why (e.g., "low-authority", "severity>=warn").
+  string outcome_reason = 15;
+  // Provider-owned local maturity assessment for Test Genie architecture phase.
+  common.v1.MaturityAssessment assessment = 16;
+  // Coverage reports placement confidence across audited files.
+  CoverageSummary coverage = 17;
+  // Categories carries the advisory score matrix shown by audit CLI and
+  // Test Genie. It frames evidence; it does not change outcome semantics.
+  repeated AuditCategory categories = 18;
+}
+
+// =============================================================================
+// AUDIT-ALL (sweep)
+// =============================================================================
+
+message AuditRunAllRequest {
+  // Same severity threshold as Run; applied per-scenario.
+  vrooli.architecture_cartographer.v1.shared.Severity fail_on = 1;
+  repeated string include_types = 2;
+  repeated string exclude_types = 3;
+  // Optional whitelist of scenario names to include. Empty = all
+  // discoverable scenarios.
+  repeated string include_scenarios = 4;
+  // Optional blacklist of scenario names to exclude. Applied after
+  // include_scenarios.
+  repeated string exclude_scenarios = 5;
+  bool allow_low_authority = 6;
+  // Bounded worker concurrency. Zero defaults to 4.
+  int32 concurrency = 7;
+  // Per-scenario opt-out from the strict authority gate. Effective
+  // per-scenario AllowLowAuthority is the OR of `allow_low_authority`
+  // and `contains(allow_low_authority_scenarios, name)`. Lets a mixed
+  // portfolio strict-gate the curated half while silencing only the
+  // listed scenarios.
+  repeated string allow_low_authority_scenarios = 8;
+}
+
+message AuditRunAllResponse {
+  // Per-scenario reports, in deterministic scenario-name order.
+  repeated AuditRunResponse reports = 1;
+  // Aggregate counts across all reports.
+  int32 total_scenarios = 2;
+  int32 total_findings = 3;
+  int32 total_suppressed = 4;
+  map<string, int32> by_severity = 5;
+  map<string, int32> by_outcome = 6;
+  // Total wall-clock duration of the sweep.
+  google.protobuf.Duration duration = 7;
+}

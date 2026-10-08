@@ -1,0 +1,26 @@
+{
+  "longTasks": [
+    {
+      "startTime": 50000,
+      "duration": 30.0,
+      "name": "self"
+    }
+  ],
+  "paint": [
+    {
+      "name": "first-contentful-paint",
+      "startTime": 140
+    }
+  ],
+  "lcp": {
+    "value": 1100,
+    "size": 30000,
+    "renderTime": 1100,
+    "loadTime": 0
+  },
+  "cls": {
+    "value": 0.02,
+    "entries": 1
+  },
+  "fcp": 140
+}

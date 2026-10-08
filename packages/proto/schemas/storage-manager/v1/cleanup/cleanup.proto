@@ -1,0 +1,296 @@
+syntax = "proto3";
+
+package vrooli.cleanup_manager.v1.cleanup;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/storage-manager/v1/cleanup;cleanup_v1";
+
+// CleanupService exposes preview-first cleanup orchestration.
+service CleanupService {
+  rpc ListProviders(ListProvidersRequest) returns (ListProvidersResponse);
+  rpc GetPolicy(GetPolicyRequest) returns (GetPolicyResponse);
+  rpc SetPolicyProfile(SetPolicyProfileRequest) returns (SetPolicyProfileResponse);
+  rpc CreatePlan(CreatePlanRequest) returns (CreatePlanResponse);
+  rpc ApplyPlan(ApplyPlanRequest) returns (ApplyPlanResponse);
+  rpc ListAudit(ListAuditRequest) returns (ListAuditResponse);
+
+  // ReportPressure is the inbound disk-pressure signal.
+  //
+  // It is what turns storage-manager from purely request-driven into
+  // something a safeguard can reach. Two independent callers use it by
+  // design — system-monitor's threshold loop and vrooli-autoheal's
+  // system-disk check — so that no single mediator is a shared point of
+  // failure. Duplicate concurrent reports of the same event are expected and
+  // are collapsed into one execution.
+  rpc ReportPressure(ReportPressureRequest) returns (ReportPressureResponse);
+
+  // Recovery runs are server-owned: callers receive an id immediately and
+  // wait or inspect status through the typed ledger.
+  rpc StartRecovery(RecoveryRunRequest) returns (RecoveryRunResponse);
+  rpc WaitRecovery(RecoveryWaitRequest) returns (RecoveryRunResponse);
+  rpc ListRecovery(RecoveryHistoryRequest) returns (RecoveryHistoryResponse);
+}
+
+message ListProvidersRequest {}
+
+message ListProvidersResponse {
+  repeated Provider providers = 1;
+}
+
+// SafetyTier is the authority boundary used by autonomous recovery. A
+// regenerable provider must be derived, recreated by its tool, contained to
+// its exact root, and free of live leases. Provider.safety_tier remains a
+// string for wire compatibility with older clients; this enum is the
+// canonical vocabulary for new clients.
+enum SafetyTier {
+  SAFETY_TIER_UNSPECIFIED = 0;
+  SAFETY_TIER_SAFE = 1;
+  SAFETY_TIER_REGENERABLE = 5;
+  SAFETY_TIER_SAFE_WITH_OWNER = 2;
+  SAFETY_TIER_CONDITIONAL = 3;
+  SAFETY_TIER_FORBIDDEN = 4;
+}
+
+message Provider {
+  string id = 1;
+  string name = 2;
+  string version = 3;
+  string owner_scenario = 4;
+  string safety_tier = 5;
+  string default_mode = 6;
+  string default_approval = 7;
+  repeated string supported_platforms = 8;
+  repeated string required_privileges = 9;
+  repeated string irreversible_effects = 10;
+}
+
+message GetPolicyRequest {}
+
+message GetPolicyResponse {
+  Policy policy = 1;
+}
+
+message SetPolicyProfileRequest {
+  string profile = 1;
+}
+
+message SetPolicyProfileResponse {
+  Policy policy = 1;
+}
+
+message Policy {
+  string version = 1;
+  string profile = 2;
+  google.protobuf.Timestamp created_at = 3;
+  repeated ProviderPolicy providers = 4;
+}
+
+message ProviderPolicy {
+  string provider_id = 1;
+  bool enabled = 2;
+  int64 min_age_seconds = 3;
+  int64 max_bytes = 4;
+  string approval_mode = 5;
+}
+
+message CreatePlanRequest {}
+
+message CreatePlanResponse {
+  Plan plan = 1;
+}
+
+message Plan {
+  string id = 1;
+  string policy_version = 2;
+  google.protobuf.Timestamp created_at = 3;
+  int64 total_bytes = 4;
+  int32 total_items = 5;
+  repeated ProviderPlan providers = 6;
+  string census_id = 7;
+  string census_status = 8;
+  google.protobuf.Timestamp census_started_at = 9;
+  google.protobuf.Timestamp census_completed_at = 10;
+}
+
+message ProviderPlan {
+  string provider_id = 1;
+  string provider_version = 2;
+  int64 estimated_bytes = 3;
+  int32 item_count = 4;
+  string blocked_reason = 5;
+  repeated PreviewItem items = 6;
+  repeated string warnings = 7;
+  string approval_mode = 8;
+}
+
+message PreviewItem {
+  string id = 1;
+  string path = 2;
+  string description = 3;
+  int64 bytes = 4;
+  string action = 5;
+  string safety_tier = 6;
+}
+
+message ApplyPlanRequest {
+  string plan_id = 1;
+  string policy_version = 2;
+  string approval_mode = 3;
+  string approval_token = 4;
+  string idempotency_key = 5;
+}
+
+message ApplyPlanResponse {
+  string plan_id = 1;
+  string idempotency_key = 2;
+  bool already_applied = 3;
+  int64 reclaimed_bytes = 4;
+  repeated ApplyResult results = 5;
+}
+
+message ApplyResult {
+  string provider_id = 1;
+  bool applied = 2;
+  bool already_done = 3;
+  int64 reclaimed_bytes = 4;
+  repeated string skipped_items = 5;
+  repeated string warnings = 6;
+}
+
+message ListAuditRequest {}
+
+message ListAuditResponse {
+  repeated AuditEvent events = 1;
+}
+
+message AuditEvent {
+  string id = 1;
+  google.protobuf.Timestamp time = 2;
+  string type = 3;
+  string plan_id = 4;
+  string provider_id = 5;
+  string idempotency_key = 6;
+  string message = 7;
+  bool redacted = 8;
+}
+
+// PressureBand is how severe the reporting safeguard judged the pressure to be.
+//
+// It is an enum rather than a free string so an unrecognised value is a
+// decode-time failure. A typo must never be silently treated as critical,
+// because critical is the band that permits deletion with no operator present.
+enum PressureBand {
+  PRESSURE_BAND_UNSPECIFIED = 0;
+  // Record the observation and file a growth signal. No autonomous recovery.
+  PRESSURE_BAND_WARNING = 1;
+  // Start a recovery run through the autonomous ladder.
+  PRESSURE_BAND_HIGH = 2;
+  // Start a recovery run through the autonomous ladder at critical pressure.
+  PRESSURE_BAND_CRITICAL = 3;
+}
+
+message HotWriter {
+  string root = 1;
+  int64 bytes_per_hour = 2;
+  int64 window_seconds = 3;
+  int64 current_bytes = 4;
+}
+
+enum PressureTrigger {
+  PRESSURE_TRIGGER_UNSPECIFIED = 0;
+  PRESSURE_TRIGGER_BAND = 1;
+  PRESSURE_TRIGGER_FLOOR = 2;
+  PRESSURE_TRIGGER_RATE = 3;
+  PRESSURE_TRIGGER_MANUAL = 4;
+}
+
+message ReportPressureRequest {
+  // Which safeguard observed the pressure, for the audit trail.
+  string source_scenario = 1;
+  // The filesystem under pressure, as the reporter names it.
+  string partition = 2;
+  // Usage as `df` reports it: used over (used + available).
+  double used_percent = 3;
+  PressureBand band = 4;
+  // Bytes still available to an unprivileged writer, for the audit record.
+  int64 available_bytes = 5;
+  int64 fill_rate_bytes_per_hour = 6;
+  repeated HotWriter hot_writers = 7;
+  PressureTrigger trigger = 8;
+}
+
+// PressureAction is what storage-manager actually did about the report.
+enum PressureAction {
+  PRESSURE_ACTION_UNSPECIFIED = 0;
+  // Recorded only; the band did not call for remediation.
+  PRESSURE_ACTION_OBSERVED = 1;
+  // Estimate and preview ran; nothing was deleted.
+  PRESSURE_ACTION_PREVIEWED = 2;
+  // Safe-tier providers ran unattended.
+  PRESSURE_ACTION_APPLIED = 3;
+  // Collapsed into an in-flight or recent execution for the same event.
+  PRESSURE_ACTION_DEDUPLICATED = 4;
+  // The kill switch blocked apply; the report was still recorded.
+  PRESSURE_ACTION_SUPPRESSED = 5;
+}
+
+message ReportPressureResponse {
+  PressureBand band = 1;
+  PressureAction action = 2;
+  string plan_id = 3;
+  // What a preview estimated could be reclaimed.
+  int64 estimated_bytes = 4;
+  // What an apply actually reclaimed. Zero unless action is APPLIED.
+  int64 reclaimed_bytes = 5;
+  // Providers that executed, so an audit can name them without a second call.
+  repeated string providers_applied = 6;
+  // Providers withheld from the autonomous path because their safety tier is
+  // above safe, with the tier that blocked each one.
+  repeated string providers_withheld = 7;
+  // Why nothing ran, when action is DEDUPLICATED or SUPPRESSED.
+  string reason = 8;
+  // Whether autonomous apply is currently permitted at all.
+  bool autonomous_apply_enabled = 9;
+  // Scenario QA bug reference filed for a warning-band unbounded owner, when present.
+  string bug_reference = 10;
+  string run_id = 11;
+}
+
+message RecoveryRunRequest {
+  PressureTrigger trigger = 1;
+  string partition = 2;
+  double used_percent = 3;
+  int64 available_bytes = 4;
+  bool dry_run = 5;
+  // Requested free-space percentage. Zero keeps the server default.
+  double target_free_percent = 6;
+}
+
+message RecoveryWaitRequest {
+  string run_id = 1;
+}
+
+message RecoveryHistoryRequest {
+  int32 limit = 1;
+}
+
+message RecoveryRunResponse {
+  string run_id = 1;
+  string status = 2;
+  string trigger = 3;
+  string partition = 4;
+  string action = 5;
+  int64 estimated_bytes = 6;
+  int64 reclaimed_bytes = 7;
+  string plan_id = 8;
+  string reason = 9;
+	google.protobuf.Timestamp started_at = 10;
+	google.protobuf.Timestamp completed_at = 11;
+	int64 target_free_bytes = 12;
+	string stopped_because = 13;
+}
+
+message RecoveryHistoryResponse {
+  repeated RecoveryRunResponse runs = 1;
+}

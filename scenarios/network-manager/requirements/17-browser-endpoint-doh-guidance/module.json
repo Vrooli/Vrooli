@@ -1,0 +1,28 @@
+{
+  "_metadata": {
+    "module": "browser-endpoint-doh-guidance",
+    "description": "Endpoint/browser encrypted-DNS policy guidance.",
+    "prd_ref": "OT-P1-008",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "NM-P1-008",
+      "title": "Endpoint DoH guidance avoids invasive inspection",
+      "status": "planned",
+      "prd_ref": "OT-P1-008",
+      "category": "guidance",
+      "criticality": "P1",
+      "description": "The scenario shall generate browser and OS policy guidance for managed endpoints to control DoH behavior without requiring TLS interception or hidden traffic inspection.",
+      "tags": ["endpoint", "browser", "doh", "guidance"],
+      "validation": [
+        {
+          "type": "planned",
+          "status": "planned",
+          "notes": "Add guidance rendering tests tagged [REQ:NM-P1-008] once endpoint policy guidance is implemented."
+        }
+      ]
+    }
+  ]
+}

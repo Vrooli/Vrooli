@@ -124,7 +124,7 @@ export function CreateCouponModal({ isOpen, onClose, onCreate, creating, error }
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-4 space-y-4">
+        <form onSubmit={(event) => { void handleSubmit(event); }} className="p-4 space-y-4">
           {/* Error display */}
           {error && (
             <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-300">
@@ -140,7 +140,7 @@ export function CreateCouponModal({ isOpen, onClose, onCreate, creating, error }
             <input
               type="text"
               value={id}
-              onChange={(e) => setId(e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ''))}
+              onChange={(e) => { setId(e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, '')); }}
               placeholder="e.g., SUMMER_SALE_20"
               className={inputClassName}
             />
@@ -154,7 +154,7 @@ export function CreateCouponModal({ isOpen, onClose, onCreate, creating, error }
             <input
               type="text"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => { setName(e.target.value); }}
               placeholder="e.g., Summer Sale 20% Off"
               className={inputClassName}
             />
@@ -166,7 +166,7 @@ export function CreateCouponModal({ isOpen, onClose, onCreate, creating, error }
             <div className="flex gap-2">
               <button
                 type="button"
-                onClick={() => setDiscountType('percent')}
+                onClick={() => { setDiscountType('percent'); }}
                 className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg border transition-colors ${
                   discountType === 'percent'
                     ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300'
@@ -178,7 +178,7 @@ export function CreateCouponModal({ isOpen, onClose, onCreate, creating, error }
               </button>
               <button
                 type="button"
-                onClick={() => setDiscountType('amount')}
+                onClick={() => { setDiscountType('amount'); }}
                 className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg border transition-colors ${
                   discountType === 'amount'
                     ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300'
@@ -198,7 +198,7 @@ export function CreateCouponModal({ isOpen, onClose, onCreate, creating, error }
               <input
                 type="number"
                 value={percentOff}
-                onChange={(e) => setPercentOff(e.target.value)}
+                onChange={(e) => { setPercentOff(e.target.value); }}
                 placeholder="e.g., 20"
                 min="0.01"
                 max="100"
@@ -214,7 +214,7 @@ export function CreateCouponModal({ isOpen, onClose, onCreate, creating, error }
                 <input
                   type="number"
                   value={amountOff}
-                  onChange={(e) => setAmountOff(e.target.value)}
+                  onChange={(e) => { setAmountOff(e.target.value); }}
                   placeholder="e.g., 10.00"
                   min="0.01"
                   step="0.01"
@@ -243,7 +243,7 @@ export function CreateCouponModal({ isOpen, onClose, onCreate, creating, error }
           {/* Duration */}
           <div>
             <label className="block text-sm text-slate-400 mb-1">Duration</label>
-            <Select value={duration} onValueChange={(v) => setDuration(v as Duration)}>
+            <Select value={duration} onValueChange={(v) => { setDuration(v as Duration); }}>
               <SelectTrigger className="w-full bg-white/5 border-white/10">
                 <SelectValue />
               </SelectTrigger>
@@ -262,7 +262,7 @@ export function CreateCouponModal({ isOpen, onClose, onCreate, creating, error }
               <input
                 type="number"
                 value={durationInMonths}
-                onChange={(e) => setDurationInMonths(e.target.value)}
+                onChange={(e) => { setDurationInMonths(e.target.value); }}
                 placeholder="e.g., 3"
                 min="1"
                 required
@@ -279,7 +279,7 @@ export function CreateCouponModal({ isOpen, onClose, onCreate, creating, error }
             <input
               type="number"
               value={maxRedemptions}
-              onChange={(e) => setMaxRedemptions(e.target.value)}
+              onChange={(e) => { setMaxRedemptions(e.target.value); }}
               placeholder="Unlimited if blank"
               min="1"
               className={inputClassName}
@@ -294,7 +294,7 @@ export function CreateCouponModal({ isOpen, onClose, onCreate, creating, error }
             <input
               type="date"
               value={redeemByDate}
-              onChange={(e) => setRedeemByDate(e.target.value)}
+              onChange={(e) => { setRedeemByDate(e.target.value); }}
               min={new Date().toISOString().split('T')[0]}
               className={inputClassName}
             />

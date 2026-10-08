@@ -1,0 +1,153 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "setup-resources",
+    "title": "Resources",
+    "routes": [
+      "/setup/resources"
+    ],
+    "purpose": "Show which resources the scenario selection requires, and let the operator add the optional ones their manifests declare.",
+    "prd_refs": [
+      "OT-P0-001",
+      "OT-P0-004"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Required and optional resources are visibly different kinds of thing."
+    },
+    {
+      "statement": "A required resource explains which capability requires it."
+    },
+    {
+      "statement": "An optional resource is genuinely optional \u2014 toggling it commits a decision."
+    }
+  ],
+  "states": [
+    {
+      "id": "loading",
+      "description": "Resources are being derived from the closure.",
+      "setup": {
+        "route": "/setup/resources"
+      }
+    },
+    {
+      "id": "default",
+      "description": "Required, optional, and standalone groups rendered.",
+      "setup": {
+        "route": "/setup/resources"
+      }
+    },
+    {
+      "id": "no-resources",
+      "description": "The selection requires no local resources."
+    }
+  ],
+  "elements": [
+    {
+      "id": "required-group",
+      "role": "group",
+      "description": "Resources the selection requires; locked and checked."
+    },
+    {
+      "id": "optional-group",
+      "role": "group",
+      "description": "Resources declared through optional_dependencies; toggleable."
+    },
+    {
+      "id": "standalone-group",
+      "role": "group",
+      "description": "Resources no selected scenario requires."
+    },
+    {
+      "id": "resource-entry",
+      "role": "checkbox",
+      "description": "One resource choice."
+    },
+    {
+      "id": "required-reason",
+      "role": "note",
+      "description": "Names the scenario that requires this resource."
+    },
+    {
+      "id": "empty-note",
+      "role": "status",
+      "description": "Explains that the selection needs no local resources."
+    }
+  ],
+  "claims": [
+    {
+      "id": "required-and-optional-are-distinct",
+      "type": "element-present",
+      "statement": "Required and optional resources are distinguishable without reading the labels.",
+      "tier": "machine",
+      "elements": [
+        "required-group",
+        "optional-group"
+      ],
+      "states": [
+        "default"
+      ]
+    },
+    {
+      "id": "required-explains-itself",
+      "type": "element-present",
+      "statement": "Each required resource names the capability that requires it.",
+      "tier": "machine",
+      "elements": [
+        "required-reason"
+      ],
+      "states": [
+        "default"
+      ]
+    },
+    {
+      "id": "optional-is-operable",
+      "type": "keyboard-reachable",
+      "statement": "Optional resource toggles are operable by keyboard alone.",
+      "tier": "machine",
+      "elements": [
+        "resource-entry"
+      ],
+      "states": [
+        "default"
+      ]
+    },
+    {
+      "id": "empty-is-covered",
+      "type": "state-covered",
+      "statement": "A selection needing no local resources renders an explanation, not a blank panel.",
+      "tier": "aspirational",
+      "elements": [
+        "empty-note"
+      ],
+      "states": [
+        "no-resources"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "required-group": {
+        "testid": "resources-required"
+      },
+      "optional-group": {
+        "testid": "resources-optional"
+      },
+      "standalone-group": {
+        "testid": "resources-standalone"
+      },
+      "resource-entry": {
+        "testid": "resource-entry"
+      },
+      "required-reason": {
+        "testid": "required-reason"
+      },
+      "empty-note": {
+        "testid": "empty-note"
+      }
+    }
+  }
+}

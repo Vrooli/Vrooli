@@ -1,6 +1,12 @@
 package dns
 
-import "net"
+import (
+	"net"
+	"strings"
+
+	"scenario-to-cloud/domain"
+	"scenario-to-cloud/secrets"
+)
 
 var cloudflareCIDRs = []string{
 	"173.245.48.0/20",
@@ -67,4 +73,56 @@ func areCloudflareIPs(ips []string) bool {
 // AreCloudflareIPs reports whether all IPs belong to Cloudflare's proxy ranges.
 func AreCloudflareIPs(ips []string) bool {
 	return areCloudflareIPs(ips)
+}
+
+// ProviderName is the only DNS-01 provider the edge renders today.
+const ProviderName = "cloudflare"
+
+// ProviderBinding names the DNS-01 credential a manifest declares, by
+// credential descriptor only. The token value is never read here: the
+// credential authority delivers it to the target, where the proxy reads it
+// from the environment variable the binding names. A manifest that declares
+// no Cloudflare token secret has no provider binding.
+func ProviderBinding(manifest domain.CloudManifest) *domain.EdgeDNSProvider {
+	plan, ok := providerPlan(manifest)
+	if !ok {
+		return nil
+	}
+	descriptor := domain.CredentialDescriptor{}
+	if plan.Descriptor != nil {
+		descriptor = domain.CredentialDescriptor{LogicalID: strings.TrimSpace(plan.Descriptor.LogicalID), Field: strings.TrimSpace(plan.Descriptor.Field)}
+	}
+	if descriptor.IsZero() {
+		// Legacy manifest rows carry no descriptor; the provisioning seam
+		// writes the value under the deployment identity namespace and the
+		// normalised field, so that is the address it will be found at.
+		descriptor = domain.CredentialDescriptor{LogicalID: "vrooli/" + strings.TrimSpace(manifest.Scenario.ID), Field: secrets.CredentialField(domain.CloudflareAPITokenKey)}
+	}
+	return &domain.EdgeDNSProvider{Provider: ProviderName, Descriptor: descriptor, EnvVar: domain.CloudflareAPITokenKey}
+}
+
+// ProviderConfigured reports whether a value is bound for the provider
+// credential in the caller-resolved secret set (keyed by target name or by
+// descriptor address). It returns a fact, never the value.
+func ProviderConfigured(manifest domain.CloudManifest, resolved map[string]string) bool {
+	binding := ProviderBinding(manifest)
+	if binding == nil || resolved == nil {
+		return false
+	}
+	if strings.TrimSpace(resolved[binding.EnvVar]) != "" {
+		return true
+	}
+	return strings.TrimSpace(resolved[binding.Descriptor.Address()]) != ""
+}
+
+func providerPlan(manifest domain.CloudManifest) (domain.BundleSecretPlan, bool) {
+	if manifest.Secrets == nil {
+		return domain.BundleSecretPlan{}, false
+	}
+	for _, plan := range manifest.Secrets.BundleSecrets {
+		if strings.EqualFold(strings.TrimSpace(plan.Target.Name), domain.CloudflareAPITokenKey) || strings.EqualFold(strings.TrimSpace(plan.ID), domain.CloudflareAPITokenKey) {
+			return plan, true
+		}
+	}
+	return domain.BundleSecretPlan{}, false
 }

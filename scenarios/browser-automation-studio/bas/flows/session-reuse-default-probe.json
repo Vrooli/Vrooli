@@ -1,0 +1,39 @@
+{
+  "edges": [
+    {
+      "id": "navigate-to-evaluate",
+      "source": "navigate",
+      "target": "evaluate",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ],
+  "metadata": {
+    "description": "Workflow asset session-reuse-default-probe.",
+    "execution_mode": "mutating",
+    "labels": {
+      "requires_confirmation": "true",
+      "routed_isolation": "true"
+    },
+    "name": "session-reuse-default-probe"
+  },
+  "nodes": [
+    {
+      "action": {
+        "navigate": {
+          "url": "about:blank"
+        },
+        "type": "ACTION_TYPE_NAVIGATE"
+      },
+      "id": "navigate"
+    },
+    {
+      "action": {
+        "evaluate": {
+          "expression": "document.title = 'BAS_SESSION_REUSE_OK'; document.title"
+        },
+        "type": "ACTION_TYPE_EVALUATE"
+      },
+      "id": "evaluate"
+    }
+  ]
+}

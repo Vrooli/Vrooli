@@ -1,0 +1,186 @@
+{
+  "schema": "cli-primitive-evidence/v1",
+  "do_not_edit": "GENERATED FILE — do not edit by hand. Regenerate it from the scenario's CLI evidence test (UPDATE_CLI_EVIDENCE=1), which rebuilds this artifact from cli/manifest.json and the cli-core primitive handlers.",
+  "source_manifest": "cli/manifest.json",
+  "scenario": "money-ledger",
+  "generator": "v1.0.0",
+  "manifest_hash": "c9a0b143e5e7f71549b3852197ec1ebfccfa352da5ae633d918f87ba5410f77d",
+  "commands": [
+    {
+      "path": "ingest adapter-register",
+      "group": "ingest",
+      "command": "adapter-register",
+      "binding": "IngestService.RegisterAdapter",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "ingest adapter-run",
+      "group": "ingest",
+      "command": "adapter-run",
+      "binding": "IngestService.RunAdapter",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "ingest adapters-list",
+      "group": "ingest",
+      "command": "adapters-list",
+      "binding": "IngestService.ListAdapters",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "ingest event-ingest",
+      "group": "ingest",
+      "command": "event-ingest",
+      "binding": "IngestService.IngestEvent",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "ingest file-import",
+      "group": "ingest",
+      "command": "file-import",
+      "binding": "IngestService.ImportFile",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "ingest operator-import",
+      "group": "ingest",
+      "command": "operator-import",
+      "binding": "IngestService.ImportOperatorInputs",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "ledger accounts-create",
+      "group": "ledger",
+      "command": "accounts-create",
+      "binding": "BooksService.CreateAccount",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "ledger accounts-list",
+      "group": "ledger",
+      "command": "accounts-list",
+      "binding": "BooksService.ListAccounts",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "ledger books-archive",
+      "group": "ledger",
+      "command": "books-archive",
+      "binding": "BooksService.ArchiveBook",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "ledger books-create",
+      "group": "ledger",
+      "command": "books-create",
+      "binding": "BooksService.CreateBook",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "ledger books-list",
+      "group": "ledger",
+      "command": "books-list",
+      "binding": "BooksService.ListBooks",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "ledger goal-declare",
+      "group": "ledger",
+      "command": "goal-declare",
+      "binding": "PositionService.DeclareGoal",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "ledger goal-reparent",
+      "group": "ledger",
+      "command": "goal-reparent",
+      "binding": "PositionService.ReparentGoal",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "ledger goals-archive",
+      "group": "ledger",
+      "command": "goals-archive",
+      "binding": "PositionService.ArchiveGoal",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "ledger goals-list",
+      "group": "ledger",
+      "command": "goals-list",
+      "binding": "PositionService.ListGoals",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "ledger journal-get",
+      "group": "ledger",
+      "command": "journal-get",
+      "binding": "JournalService.GetPosting",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "ledger journal-list",
+      "group": "ledger",
+      "command": "journal-list",
+      "binding": "JournalService.ListPostings",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "ledger journal-reverse",
+      "group": "ledger",
+      "command": "journal-reverse",
+      "binding": "JournalService.ReversePosting",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "ledger journal-transfer",
+      "group": "ledger",
+      "command": "journal-transfer",
+      "binding": "JournalService.Transfer",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "ledger operator-input-status",
+      "group": "ledger",
+      "command": "operator-input-status",
+      "binding": "IngestService.OperatorInputStatus",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "ledger position-show",
+      "group": "ledger",
+      "command": "position-show",
+      "binding": "PositionService.GetPosition",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "ledger statement-show",
+      "group": "ledger",
+      "command": "statement-show",
+      "binding": "PositionService.GetStatement",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    }
+  ]
+}

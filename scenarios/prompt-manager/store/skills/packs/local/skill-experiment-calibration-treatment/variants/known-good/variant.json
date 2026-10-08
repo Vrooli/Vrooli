@@ -1,0 +1,12 @@
+{
+  "kind": "variant",
+  "schemaVersion": 1,
+  "id": "known-good",
+  "skillId": "skill-experiment-calibration-treatment",
+  "name": "Known good",
+  "description": "Calibration good arm",
+  "entry": "VARIANT.md",
+  "revision": 2,
+  "createdAt": "2026-07-21T21:23:58Z",
+  "updatedAt": "2026-07-21T21:40:43Z"
+}

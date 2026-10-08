@@ -1,17 +1,18 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import { MediaLightbox } from "./media-lightbox";
 
 describe("MediaLightbox", () => {
   it("renders nothing when isOpen is false", () => {
-    const { container } = render(
+    const { container } = renderWithCanonicalProviders(
       <MediaLightbox isOpen={false} onClose={vi.fn()} src="/video.webm" type="video" />,
     );
     expect(container.innerHTML).toBe("");
   });
 
   it("renders video element when type is video", () => {
-    render(
+    renderWithCanonicalProviders(
       <MediaLightbox isOpen onClose={vi.fn()} src="/video.webm" type="video" label="Test video" />,
     );
     const video = screen.getByTestId("media-lightbox").querySelector("video");
@@ -21,7 +22,7 @@ describe("MediaLightbox", () => {
   });
 
   it("renders img element when type is image", () => {
-    render(
+    renderWithCanonicalProviders(
       <MediaLightbox isOpen onClose={vi.fn()} src="/shot.png" type="image" label="Screenshot" />,
     );
     const img = screen.getByAltText("Screenshot");
@@ -30,7 +31,7 @@ describe("MediaLightbox", () => {
   });
 
   it("renders label in the top bar", () => {
-    render(
+    renderWithCanonicalProviders(
       <MediaLightbox isOpen onClose={vi.fn()} src="/shot.png" type="image" label="My label" />,
     );
     expect(screen.getByText("My label")).toBeTruthy();
@@ -38,7 +39,7 @@ describe("MediaLightbox", () => {
 
   it("calls onClose when Escape key is pressed", () => {
     const onClose = vi.fn();
-    render(
+    renderWithCanonicalProviders(
       <MediaLightbox isOpen onClose={onClose} src="/video.webm" type="video" />,
     );
     fireEvent.keyDown(document, { key: "Escape" });
@@ -47,7 +48,7 @@ describe("MediaLightbox", () => {
 
   it("calls onClose when backdrop is clicked", () => {
     const onClose = vi.fn();
-    render(
+    renderWithCanonicalProviders(
       <MediaLightbox isOpen onClose={onClose} src="/video.webm" type="video" />,
     );
     fireEvent.click(screen.getByTestId("media-lightbox"));
@@ -56,7 +57,7 @@ describe("MediaLightbox", () => {
 
   it("does not call onClose when media content is clicked", () => {
     const onClose = vi.fn();
-    render(
+    renderWithCanonicalProviders(
       <MediaLightbox isOpen onClose={onClose} src="/shot.png" type="image" label="Shot" />,
     );
     fireEvent.click(screen.getByAltText("Shot"));

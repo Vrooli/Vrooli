@@ -251,10 +251,14 @@ func (rr *RefactorRecommender) calculatePriority(rec RefactorRecommendation) flo
 		score += float64(complexity-10) * 2.0
 	}
 
-	// Duplication penalty (0-30 points) - over 5% duplication
+	// Duplication is persisted as a percentage (0-100), not a fraction. Clamp
+	// it so stale percentage data cannot flatten every recommendation.
 	duplication := getMetricFloat(rec.DuplicationPct)
-	if duplication > 0.05 {
-		score += (duplication - 0.05) * 300.0
+	if duplication > 5 {
+		if duplication > 100 {
+			duplication = 100
+		}
+		score += (duplication - 5) * 0.3
 	}
 
 	// Technical debt penalty (0-20 points)

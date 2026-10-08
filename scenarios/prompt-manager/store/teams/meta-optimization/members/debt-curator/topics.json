@@ -1,0 +1,42 @@
+{
+  "intake": [],
+  "required_read": [
+    {
+      "prefix": "debt-scan/YYYY-MM-DD"
+    },
+    {
+      "prefix": "toolchain-audit/YYYY-MM-DD"
+    },
+    {
+      "prefix": "run-lesson-report/YYYY-MM-DD"
+    },
+    {
+      "prefix": "skill-audit/YYYY-MM-DD"
+    },
+    {
+      "prefix": "action-audit/YYYY-MM-DD"
+    },
+    {
+      "prefix": "team-audit/YYYY-MM-DD"
+    },
+    {
+      "prefix": "agent-audit/YYYY-MM-DD"
+    },
+    {
+      "prefix": "friction-report/recurring-workaround/<YYYY-MM-DD>/<slug>"
+    },
+    {
+      "prefix": "friction-triage-record/<YYYY-MM-DD>"
+    }
+  ],
+  "evidence_consumed": [],
+  "output": [
+    {
+      "prefix": "debt-scan/*",
+      "destination_kind": "knowledge"
+    }
+  ],
+  "external_producers": [
+    "operator"
+  ]
+}

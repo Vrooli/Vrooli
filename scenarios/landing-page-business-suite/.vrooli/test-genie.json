@@ -1,0 +1,87 @@
+{
+  "$schema": "https://vrooli.dev/schemas/test-genie-phase-descriptor.schema.json",
+  "schemaVersion": "1.0.0",
+  "scenario": "landing-page-business-suite",
+  "phase": "monetization-conformance",
+  "displayName": "Monetization Conformance",
+  "description": "Validates monetization trust boundaries, declarations, and local metering posture.",
+  "source": "validation-provider",
+  "orderHint": 19,
+  "timeout": "90s",
+  "findingSource": null,
+  "validation": { "contract": "scenario-validation/v1" },
+  "comparison": { "mode": "additive" },
+  "targets": { "kinds": ["scenario"], "selection": "enumerate",
+    "notApplicableKinds": [
+      {
+        "kind": "control-plane",
+        "reason": "This provider requires scenario monetization declarations and local metering posture; the control plane has no product monetization contract."
+      }
+    ] },
+  "applicability": {
+    "default": "not_applicable",
+    "any": [
+      { "fileExists": ".vrooli/monetization.json" },
+      { "pathGlob": "api/middleware/entitlement.go" },
+      { "pathGlob": "api/services/entitlement/*.go" },
+      { "pathGlob": "api/handlers/entitlement/*.go" },
+      { "scenarioDependency": "landing-page-business-suite" }
+    ]
+  },
+  "policy": {
+    "selection": "default_when_applicable",
+    "providerReadiness": "required_when_applicable",
+    "providerLifecycle": "start_if_needed",
+    "freshness": "require_live_contract",
+    "resultGating": "gating",
+    "unavailable": "fail"
+  },
+  "runnability": { "needsAPI": true, "needsUI": false, "mutatesLifecycle": false, "dbIsolation": "none" },
+  "docs": { "path": "scenarios/test-genie/docs/phases/monetization-conformance/README.md" },
+  "concurrency": { "mode": "provider-serial" },
+  "determinism": { "default": "file-determined", "inputs": [".vrooli/monetization.json", "**/*.go"], "reason": "The provider scans scenario source and manifest state." },
+  "maturity": {
+    "version": "1.2.0",
+    "levels": [
+      { "id": "L0", "name": "Inventory unavailable", "description": "Monetization surfaces cannot be inspected.", "entry_criteria": ["The target is applicable."], "exit_criteria": ["Source and declaration surfaces are readable."] },
+      { "id": "L1", "name": "Trust boundary", "description": "The static trust-boundary checks run and findings are visible.", "entry_criteria": ["Source surfaces are readable."], "exit_criteria": ["No shared service secret or symmetric verifier is present."] },
+      { "id": "L2", "name": "Declared", "description": "The monetization surface is declared and enforcement paths are inspectable.", "entry_criteria": ["Trust-boundary checks are clean."], "exit_criteria": ["Manifest and enforcement paths are present."] },
+      { "id": "L3", "name": "Hardened", "description": "Class A and Class B meters have the required server or durable-local posture.", "entry_criteria": ["Declaration is valid."], "exit_criteria": ["Meter posture is clean."] },
+      { "id": "L4", "name": "Complete", "description": "The scenario is ready for monetization assurance.", "entry_criteria": ["All gating checks are clean."], "exit_criteria": ["All declared monetization checks pass."] }
+    ],
+    "capabilities": [
+      { "id": "monetization_boundary", "label": "Monetization Boundary", "levels": [
+        { "id": "L0", "name": "Unknown", "description": "Inventory unavailable.", "entry_criteria": ["Applicable target."], "exit_criteria": ["Readable source."], "status_label": "Unknown", "next_unlock": "Make source readable." },
+        { "id": "L1", "name": "Unsafe", "description": "Trust-boundary findings exist.", "entry_criteria": ["Readable source."], "exit_criteria": ["Clear service-token and symmetric-verifier findings."], "status_label": "Unsafe", "next_unlock": "Remove shared secrets and symmetric verification." },
+      { "id": "L2", "name": "Governed", "description": "Trust boundary is clean.", "entry_criteria": ["No gating boundary findings."], "exit_criteria": ["Declaration and meters are validated."], "status_label": "Governed", "capability_summary": "A scenario has a declared, server-authoritative monetization boundary with clean trust-boundary checks.", "next_unlock": "Complete the declared meter, offline, and live-catalog checks." },
+      { "id": "L3", "name": "Hardened", "description": "Meters and offline behavior have the required posture.", "entry_criteria": ["Declaration and enforcement paths are valid."], "exit_criteria": ["Class A and Class B meter checks pass."], "status_label": "Hardened", "next_unlock": "Complete meter and offline checks." },
+      { "id": "L4", "name": "Complete", "description": "The monetization surface is ready for assurance.", "entry_criteria": ["All static and live checks pass."], "exit_criteria": ["Live reconciliation and behavioral evidence are available."], "status_label": "Complete", "capability_summary": "The declared monetization boundary is live-reconciled and behaviorally evidenced across desktop and service surfaces.", "next_unlock": "Keep the declaration and implementation synchronized." }
+      ] }
+    ],
+    "findings": {
+      "money.undeclared_monetization": { "capability_id": "monetization_boundary", "local_level_impact": "L1", "global_impact": "foundation_blocker", "dimension": "operational-targets", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "fix_class": "manual", "reason": "Add or repair the governed monetization declaration." },
+      "money.service_token_in_client_bundle": { "capability_id": "monetization_boundary", "local_level_impact": "L1", "global_impact": "safety_blocker", "dimension": "operational-targets", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "fix_class": "manual", "reason": "Remove shared service credentials from desktop and client surfaces." },
+      "money.symmetric_token_verification": { "capability_id": "monetization_boundary", "local_level_impact": "L1", "global_impact": "safety_blocker", "dimension": "operational-targets", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "fix_class": "manual", "reason": "Use asymmetric consumer leases." },
+      "money.feature_not_enforced": { "capability_id": "monetization_boundary", "local_level_impact": "L2", "global_impact": "foundation_blocker", "dimension": "operational-targets", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "fix_class": "manual", "reason": "Declare and implement the authoritative feature enforcement path." },
+      "money.meter_missing_tier_limits": { "capability_id": "monetization_boundary", "local_level_impact": "L2", "global_impact": "foundation_blocker", "dimension": "operational-targets", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "fix_class": "manual", "reason": "Declare and implement the authoritative meter limits." },
+      "money.identity_from_request_body": { "capability_id": "monetization_boundary", "local_level_impact": "L1", "global_impact": "safety_blocker", "dimension": "operational-targets", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "fix_class": "manual", "reason": "Derive identity from the verified access-token claims." },
+      "money.cost_bearing_meter_client_executed": { "capability_id": "monetization_boundary", "local_level_impact": "L3", "global_impact": "safety_blocker", "dimension": "operational-targets", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "fix_class": "manual", "reason": "Move cost-bearing work behind the LPBS wallet boundary." },
+      "money.limits_from_local_config": { "capability_id": "monetization_boundary", "local_level_impact": "L3", "global_impact": "safety_blocker", "dimension": "operational-targets", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "fix_class": "manual", "reason": "Remove duplicated numeric limits from local configuration." },
+      "money.gate_blocks_offline": { "capability_id": "monetization_boundary", "local_level_impact": "L3", "global_impact": "safety_blocker", "dimension": "operational-targets", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "fix_class": "manual", "reason": "Use a still-valid cached lease during transient outages." },
+      "money.no_outbox_for_local_meter": { "capability_id": "monetization_boundary", "local_level_impact": "L3", "global_impact": "safety_blocker", "dimension": "operational-targets", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "fix_class": "manual", "reason": "Persist Class B usage in a durable outbox before delivery." }
+      ,"money.unknown_bundle_key": { "capability_id": "monetization_boundary", "local_level_impact": "L2", "global_impact": "foundation_blocker", "dimension": "operational-targets", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "fix_class": "manual", "reason": "Use the LPBS runtime bundle key." }
+      ,"money.unregistered_app_key": { "capability_id": "monetization_boundary", "local_level_impact": "L2", "global_impact": "foundation_blocker", "dimension": "operational-targets", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "fix_class": "manual", "reason": "Register the declared app through the delivery catalog." }
+      ,"money.live_catalog_unavailable": { "capability_id": "monetization_boundary", "local_level_impact": "L4", "global_impact": "foundation_blocker", "dimension": "operational-targets", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "fix_class": "manual", "reason": "Restore the LPBS database/catalog authority before declaring conformance." }
+      ,"money.no_account_surface": { "capability_id": "monetization_boundary", "local_level_impact": "L2", "global_impact": "capability_gap", "dimension": "operational-targets", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "fix_class": "manual", "reason": "Declare and expose the account surface for an entitled scenario." }
+      ,"money.no_journey_probe": { "capability_id": "monetization_boundary", "local_level_impact": "L2", "global_impact": "capability_gap", "dimension": "operational-targets", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "fix_class": "manual", "reason": "Declare and expose a provider-neutral monetization journey probe." }
+    },
+    "fallback": {
+      "capability_id": "monetization_boundary",
+      "local_level_impact": "L1",
+      "global_impact": "advisory",
+      "dimension": "operational-targets",
+      "severity_default": "SEVERITY_INFO",
+      "clean_requirement": "advisory"
+    }
+  }
+}

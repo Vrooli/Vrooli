@@ -1,0 +1,52 @@
+id: no-raw-toolchain-spawn
+language: Go
+severity: error
+message: >-
+  Spawn build toolchains (go, pnpm, npm, cargo, uv, vite, tsc) through the
+  toolchain floor: shell.Command in the control plane, or an environment
+  composed by envkit.Toolchain in shared packages and scenarios.
+files:
+  - "**/*.go"
+  - "!**/*_test.go"
+  - "!**/node_modules/**"
+  - "!**/vendor/**"
+  - "!**/testdata/**"
+  - "!internal/shell/command.go"
+  - "!packages/envkit-go/**"
+rule:
+  all:
+    - any:
+        - pattern: exec.Command("go", $$$)
+        - pattern: exec.CommandContext($CTX, "go", $$$)
+        - pattern: exec.Command("pnpm", $$$)
+        - pattern: exec.CommandContext($CTX, "pnpm", $$$)
+        - pattern: exec.Command("npm", $$$)
+        - pattern: exec.CommandContext($CTX, "npm", $$$)
+        - pattern: exec.Command("cargo", $$$)
+        - pattern: exec.CommandContext($CTX, "cargo", $$$)
+        - pattern: exec.Command("uv", $$$)
+        - pattern: exec.CommandContext($CTX, "uv", $$$)
+        - pattern: exec.Command("vite", $$$)
+        - pattern: exec.CommandContext($CTX, "vite", $$$)
+        - pattern: exec.Command("tsc", $$$)
+        - pattern: exec.CommandContext($CTX, "tsc", $$$)
+    - not:
+        any:
+          - inside:
+              kind: function_declaration
+              stopBy: end
+              has:
+                pattern: $ENV.Env = envkit.Toolchain($$$)
+                stopBy: end
+          - inside:
+              kind: method_declaration
+              stopBy: end
+              has:
+                pattern: $ENV.Env = envkit.Toolchain($$$)
+                stopBy: end
+          - inside:
+              kind: func_literal
+              stopBy: end
+              has:
+                pattern: $ENV.Env = envkit.Toolchain($$$)
+                stopBy: end

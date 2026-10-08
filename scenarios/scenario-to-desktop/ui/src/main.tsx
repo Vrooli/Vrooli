@@ -1,8 +1,14 @@
+import { SpatialNavProvider } from "@vrooli/iframe-bridge/react";
+import { LibraryStringsProvider } from "@vrooli/react-component-library/useLocale/1";
+import { BaseStyles } from "@vrooli/react-component-library/BaseStyles/1";
+import { i18n } from "./i18n";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { initIframeBridgeChild } from "@vrooli/iframe-bridge";
+import { initSpatialNav } from "@vrooli/iframe-bridge";
 import App from "./App";
+import { onProfilerRender } from "./lib/profiler";
 import "./styles.css";
 
 const queryClient = new QueryClient();
@@ -11,14 +17,34 @@ if (window.top !== window.self) {
   initIframeBridgeChild({ appId: "scenario-to-desktop" });
 }
 
+const spatialNav = initSpatialNav();
+if (import.meta.hot) import.meta.hot.dispose(() => spatialNav.dispose());
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    void navigator.serviceWorker.register("./sw.js", { scope: "./" });
+  });
+}
+
 const rootElement = document.getElementById("root");
 if (!rootElement) {
-  throw new Error("Root element not found. Check that index.html contains a <div id=\"root\"></div>.");
+  throw new Error(
+    'Root element not found. Check that index.html contains a <div id="root"></div>.',
+  );
 }
 ReactDOM.createRoot(rootElement).render(
-  <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <App />
-    </QueryClientProvider>
-  </React.StrictMode>
-);
+    // vrooli:library-strings-provider start
+    <LibraryStringsProvider translate={(key, fallback) => i18n.t(key, { defaultValue: fallback })}>
+      <BaseStyles />
+<React.StrictMode>
+  <SpatialNavProvider controller={spatialNav}>
+      <QueryClientProvider client={queryClient}>
+        <React.Profiler id="scenario-to-desktop" onRender={onProfilerRender}>
+          <App />
+        </React.Profiler>
+      </QueryClientProvider>
+  </SpatialNavProvider>
+</React.StrictMode>
+    </LibraryStringsProvider>,
+    // vrooli:library-strings-provider end
+  );

@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { Search } from "lucide-react";
 import { useWorkflowStore } from "@stores/workflowStore";
-import { useStartWorkflow } from "@/domains/executions";
+import { useStartWorkflow } from "@/domains/executions/hooks/useStartWorkflow";
 import { useConfirmDialog } from "@hooks/useConfirmDialog";
 import { selectors } from "@constants/selectors";
 import { ConfirmDialog, PromptDialog } from "@shared/ui";

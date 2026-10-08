@@ -1,0 +1,429 @@
+{
+  "schema_version": 1,
+  "verified_at": "2026-10-03T06:07:08.126945+00:00",
+  "verification": "Read complete original bytes and Pillow Image.load() for all 17 PNGs; no resize, re-encode or replacement. Git revision identifies repository source provenance, not exact owner approval timestamp.",
+  "approval_boundary": "Accepted D08 Observatory direction and original Today pair. Source-plate verdicts and historical HTML guide established surfaces; no assertion of new per-state human approval. Proposal D1\u2013D7 remain unreviewed.",
+  "asset_count": 17,
+  "total_image_bytes": 37875533,
+  "images": [
+    {
+      "path": "scenarios/personal-planner/docs/mockups/source-art/focus-scope-desktop.greenscreen.png",
+      "bytes": 1439100,
+      "sha256": "57d56af8211fc993dfa5a04cb8a0d1a43039bbf76a8491718f2cbc6e0ed606cb",
+      "width": 1672,
+      "height": 941,
+      "mode": "RGB",
+      "format": "PNG",
+      "decode": "passed",
+      "git_source_revision": "eaf5dd23b7a5cee48997a67b2415fb4ee9b32595",
+      "source_id": "repo:scenarios/personal-planner/docs/mockups/source-art/focus-scope-desktop.greenscreen.png",
+      "authority": "historical canonical source plate; README GOOD verdict; not a finished full-UI mockup",
+      "surface": "Focus",
+      "state": "raw chroma-key plate; live timer/control content required",
+      "theme": "dim interior; appearance through aperture",
+      "viewport": "desktop landscape",
+      "requirements": [
+        "scope aperture",
+        "procedural sky",
+        "accessible live timer/controls"
+      ]
+    },
+    {
+      "path": "scenarios/personal-planner/docs/mockups/source-art/focus-scope-mobile.greenscreen.png",
+      "bytes": 2293281,
+      "sha256": "b2d39b19de4ac39e08ad765deb5cf39051f6cff1d1df6cbcd39d130e2da3e4ed",
+      "width": 941,
+      "height": 1672,
+      "mode": "RGB",
+      "format": "PNG",
+      "decode": "passed",
+      "git_source_revision": "eaf5dd23b7a5cee48997a67b2415fb4ee9b32595",
+      "source_id": "repo:scenarios/personal-planner/docs/mockups/source-art/focus-scope-mobile.greenscreen.png",
+      "authority": "historical canonical source plate; README GOOD verdict; not a finished full-UI mockup",
+      "surface": "Focus",
+      "state": "raw chroma-key plate; live timer/control content required",
+      "theme": "dim interior; appearance through aperture",
+      "viewport": "mobile portrait",
+      "requirements": [
+        "scope aperture",
+        "procedural sky",
+        "accessible live timer/controls"
+      ]
+    },
+    {
+      "path": "scenarios/personal-planner/docs/mockups/source-art/landscape-lake-day.panorama.png",
+      "bytes": 3226532,
+      "sha256": "4bfe6e1b51330cdec71bf1b7b5142e9e16489d618fbab2c8bf11df93a72e19a8",
+      "width": 1672,
+      "height": 940,
+      "mode": "RGB",
+      "format": "PNG",
+      "decode": "passed",
+      "git_source_revision": "eaf5dd23b7a5cee48997a67b2415fb4ee9b32595",
+      "source_id": "repo:scenarios/personal-planner/docs/mockups/source-art/landscape-lake-day.panorama.png",
+      "authority": "historical Plan lake source plate",
+      "surface": "Plan window",
+      "state": "decorative only",
+      "theme": "Day",
+      "viewport": "landscape aperture source",
+      "requirements": [
+        "day opaque view"
+      ]
+    },
+    {
+      "path": "scenarios/personal-planner/docs/mockups/source-art/landscape-lake-night.greenscreen-sky.png",
+      "bytes": 2033711,
+      "sha256": "3c0738ed643181d8599cfc3359e6df853adde3f3533e9b466435d81ec99e3113",
+      "width": 1672,
+      "height": 941,
+      "mode": "RGB",
+      "format": "PNG",
+      "decode": "passed",
+      "git_source_revision": "eaf5dd23b7a5cee48997a67b2415fb4ee9b32595",
+      "source_id": "repo:scenarios/personal-planner/docs/mockups/source-art/landscape-lake-night.greenscreen-sky.png",
+      "authority": "historical Plan lake source plate",
+      "surface": "Plan window",
+      "state": "decorative only",
+      "theme": "Night",
+      "viewport": "landscape aperture source",
+      "requirements": [
+        "night sky-key aperture; baked version superseded"
+      ]
+    },
+    {
+      "path": "scenarios/personal-planner/docs/mockups/source-art/landscape-lake-night.panorama.png",
+      "bytes": 2936135,
+      "sha256": "2fbe20a4b47ff5f2426cf70957d9fe4c2be495d32cd2a381e4d993cfc28a5175",
+      "width": 1672,
+      "height": 940,
+      "mode": "RGB",
+      "format": "PNG",
+      "decode": "passed",
+      "git_source_revision": "eaf5dd23b7a5cee48997a67b2415fb4ee9b32595",
+      "source_id": "repo:scenarios/personal-planner/docs/mockups/source-art/landscape-lake-night.panorama.png",
+      "authority": "historical Plan lake source plate; superseded reference only",
+      "surface": "Plan window",
+      "state": "decorative only",
+      "theme": "Night",
+      "viewport": "landscape aperture source",
+      "requirements": [
+        "night sky-key aperture; baked version superseded"
+      ]
+    },
+    {
+      "path": "scenarios/personal-planner/docs/mockups/source-art/plan-starchart-desktop-day.greenscreen.png",
+      "bytes": 2386459,
+      "sha256": "b7bfff11a88591133c959e761e9d4a38706c75d6e7479135dc45e73b9cb64b15",
+      "width": 1672,
+      "height": 941,
+      "mode": "RGB",
+      "format": "PNG",
+      "decode": "passed",
+      "git_source_revision": "eaf5dd23b7a5cee48997a67b2415fb4ee9b32595",
+      "source_id": "repo:scenarios/personal-planner/docs/mockups/source-art/plan-starchart-desktop-day.greenscreen.png",
+      "authority": "historical canonical source plate; README GOOD verdict; not a finished full-UI mockup",
+      "surface": "Plan including Week",
+      "state": "raw chroma-key plate; live calendar content required",
+      "theme": "Day",
+      "viewport": "desktop landscape",
+      "requirements": [
+        "star-chart desk",
+        "layered lake aperture",
+        "truthful calendar geometry",
+        "civil-date semantics"
+      ]
+    },
+    {
+      "path": "scenarios/personal-planner/docs/mockups/source-art/plan-starchart-desktop-night.greenscreen.png",
+      "bytes": 1814937,
+      "sha256": "81eef44161cbe31eb586556931ee7ba4fee5afe86b15f7f5533ab72c12df994b",
+      "width": 1672,
+      "height": 941,
+      "mode": "RGB",
+      "format": "PNG",
+      "decode": "passed",
+      "git_source_revision": "eaf5dd23b7a5cee48997a67b2415fb4ee9b32595",
+      "source_id": "repo:scenarios/personal-planner/docs/mockups/source-art/plan-starchart-desktop-night.greenscreen.png",
+      "authority": "historical canonical source plate; README GOOD verdict; not a finished full-UI mockup",
+      "surface": "Plan including Week",
+      "state": "raw chroma-key plate; live calendar content required",
+      "theme": "Night",
+      "viewport": "desktop landscape",
+      "requirements": [
+        "star-chart desk",
+        "layered lake aperture",
+        "truthful calendar geometry",
+        "civil-date semantics"
+      ]
+    },
+    {
+      "path": "scenarios/personal-planner/docs/mockups/source-art/plan-starchart-mobile-day.greenscreen.png",
+      "bytes": 3673983,
+      "sha256": "3306dc0e4f7e41cf2ceb93eba5767d911542d044b3e3067b22d565972b610764",
+      "width": 941,
+      "height": 1672,
+      "mode": "RGB",
+      "format": "PNG",
+      "decode": "passed",
+      "git_source_revision": "eaf5dd23b7a5cee48997a67b2415fb4ee9b32595",
+      "source_id": "repo:scenarios/personal-planner/docs/mockups/source-art/plan-starchart-mobile-day.greenscreen.png",
+      "authority": "historical canonical source plate; README GOOD verdict; not a finished full-UI mockup",
+      "surface": "Plan including Week",
+      "state": "raw chroma-key plate; live calendar content required",
+      "theme": "Day",
+      "viewport": "mobile portrait",
+      "requirements": [
+        "star-chart desk",
+        "layered lake aperture",
+        "truthful calendar geometry",
+        "civil-date semantics"
+      ]
+    },
+    {
+      "path": "scenarios/personal-planner/docs/mockups/source-art/plan-starchart-mobile-night.greenscreen.png",
+      "bytes": 3120637,
+      "sha256": "61263a265fc4ccc1c69c5c7efbc4a60bbb94112e23d5e789487db8d4dd1168da",
+      "width": 941,
+      "height": 1672,
+      "mode": "RGB",
+      "format": "PNG",
+      "decode": "passed",
+      "git_source_revision": "eaf5dd23b7a5cee48997a67b2415fb4ee9b32595",
+      "source_id": "repo:scenarios/personal-planner/docs/mockups/source-art/plan-starchart-mobile-night.greenscreen.png",
+      "authority": "historical canonical source plate; README GOOD verdict; not a finished full-UI mockup",
+      "surface": "Plan including Week",
+      "state": "raw chroma-key plate; live calendar content required",
+      "theme": "Night",
+      "viewport": "mobile portrait",
+      "requirements": [
+        "star-chart desk",
+        "layered lake aperture",
+        "truthful calendar geometry",
+        "civil-date semantics"
+      ]
+    },
+    {
+      "path": "scenarios/personal-planner/docs/mockups/source-art/settings-instrument-desktop.greenscreen.png",
+      "bytes": 1703757,
+      "sha256": "338efcaeae617031ad7cc82cf1266fa04a45f8e7354df9085a32ee80ae39fa07",
+      "width": 1672,
+      "height": 941,
+      "mode": "RGB",
+      "format": "PNG",
+      "decode": "passed",
+      "git_source_revision": "eaf5dd23b7a5cee48997a67b2415fb4ee9b32595",
+      "source_id": "repo:scenarios/personal-planner/docs/mockups/source-art/settings-instrument-desktop.greenscreen.png",
+      "authority": "historical canonical source plate; README GOOD verdict; not a finished full-UI mockup",
+      "surface": "Settings",
+      "state": "raw chroma-key plate; live settings content required",
+      "theme": "dim interior; appearance through aperture",
+      "viewport": "desktop landscape",
+      "requirements": [
+        "instrument metaphor",
+        "dark negative space",
+        "live settings",
+        "readable accessible fields"
+      ]
+    },
+    {
+      "path": "scenarios/personal-planner/docs/mockups/source-art/settings-instrument-mobile.greenscreen.png",
+      "bytes": 1716622,
+      "sha256": "2cb7d470a02180553512ca552e9b9164deb7f798fd3a126a877a53bf467f627d",
+      "width": 941,
+      "height": 1672,
+      "mode": "RGB",
+      "format": "PNG",
+      "decode": "passed",
+      "git_source_revision": "eaf5dd23b7a5cee48997a67b2415fb4ee9b32595",
+      "source_id": "repo:scenarios/personal-planner/docs/mockups/source-art/settings-instrument-mobile.greenscreen.png",
+      "authority": "historical canonical source plate; README GOOD verdict; not a finished full-UI mockup",
+      "surface": "Settings",
+      "state": "raw chroma-key plate; live settings content required",
+      "theme": "dim interior; appearance through aperture",
+      "viewport": "mobile portrait",
+      "requirements": [
+        "instrument metaphor",
+        "dark negative space",
+        "live settings",
+        "readable accessible fields"
+      ]
+    },
+    {
+      "path": "scenarios/personal-planner/docs/reference/mockups/mockup-today-day.png",
+      "bytes": 1645551,
+      "sha256": "dcd6d9687b2bfb0fd84729de6933ef79a18fb9a6d72411d795463c72f3952063",
+      "width": 1585,
+      "height": 992,
+      "mode": "RGB",
+      "format": "PNG",
+      "decode": "passed",
+      "git_source_revision": "9e02876a08ab2bd43ea020ecea31ae9c08ce3e69",
+      "source_id": "repo:scenarios/personal-planner/docs/reference/mockups/mockup-today-day.png",
+      "authority": "accepted Today visual reference; D08 and scene-integration-contract",
+      "surface": "Today",
+      "state": "populated illustrative concept",
+      "theme": "Day",
+      "viewport": "desktop reference 1585x992",
+      "requirements": [
+        "Observatory composition",
+        "editorial hierarchy",
+        "coordinated scene",
+        "truthful-data deviations required"
+      ]
+    },
+    {
+      "path": "scenarios/personal-planner/docs/reference/mockups/mockup-today-night.png",
+      "bytes": 1531045,
+      "sha256": "882178d52e58735213db24afae5602880cf1dabd51bbfca6747db9c8e97ae206",
+      "width": 1585,
+      "height": 992,
+      "mode": "RGB",
+      "format": "PNG",
+      "decode": "passed",
+      "git_source_revision": "9e02876a08ab2bd43ea020ecea31ae9c08ce3e69",
+      "source_id": "repo:scenarios/personal-planner/docs/reference/mockups/mockup-today-night.png",
+      "authority": "accepted Today visual reference; D08 and scene-integration-contract",
+      "surface": "Today",
+      "state": "populated illustrative concept",
+      "theme": "Night",
+      "viewport": "desktop reference 1585x992",
+      "requirements": [
+        "Observatory composition",
+        "editorial hierarchy",
+        "coordinated scene",
+        "truthful-data deviations required"
+      ]
+    },
+    {
+      "path": "scenarios/personal-planner/docs/reference/scene-masters/scene-day-panorama-3x1.png",
+      "bytes": 2094104,
+      "sha256": "20d20f6cdae45fb2858c3a567a94b19a0eeb66b341a684dc6fb07edf2daad0c4",
+      "width": 2172,
+      "height": 724,
+      "mode": "RGB",
+      "format": "PNG",
+      "decode": "passed",
+      "git_source_revision": "9e02876a08ab2bd43ea020ecea31ae9c08ce3e69",
+      "source_id": "repo:scenarios/personal-planner/docs/reference/scene-masters/scene-day-panorama-3x1.png",
+      "authority": "canonical decorative scene master supporting accepted Today direction",
+      "surface": "Today scenery",
+      "state": "decorative only",
+      "theme": "Day",
+      "viewport": "landscape master; responsive composition required",
+      "requirements": [
+        "landmark visible",
+        "horizon preserved",
+        "aspect ratio preserved",
+        "bundled scenery"
+      ]
+    },
+    {
+      "path": "scenarios/personal-planner/docs/reference/scene-masters/scene-day-wide-2x1.png",
+      "bytes": 2413302,
+      "sha256": "88a9ca1869b517192975b50b707b10f3c2a79e3a314701cab14cc2848c4d479d",
+      "width": 1774,
+      "height": 887,
+      "mode": "RGB",
+      "format": "PNG",
+      "decode": "passed",
+      "git_source_revision": "9e02876a08ab2bd43ea020ecea31ae9c08ce3e69",
+      "source_id": "repo:scenarios/personal-planner/docs/reference/scene-masters/scene-day-wide-2x1.png",
+      "authority": "canonical decorative scene master supporting accepted Today direction",
+      "surface": "Today scenery",
+      "state": "decorative only",
+      "theme": "Day",
+      "viewport": "landscape master; responsive composition required",
+      "requirements": [
+        "landmark visible",
+        "horizon preserved",
+        "aspect ratio preserved",
+        "bundled scenery"
+      ]
+    },
+    {
+      "path": "scenarios/personal-planner/docs/reference/scene-masters/scene-night-panorama-3x1.png",
+      "bytes": 1796980,
+      "sha256": "db8fa7c8614d4ec323604aa552e82e8ec8ba0ed98b6a14f085775ea4d7eb3ea0",
+      "width": 2172,
+      "height": 724,
+      "mode": "RGB",
+      "format": "PNG",
+      "decode": "passed",
+      "git_source_revision": "9e02876a08ab2bd43ea020ecea31ae9c08ce3e69",
+      "source_id": "repo:scenarios/personal-planner/docs/reference/scene-masters/scene-night-panorama-3x1.png",
+      "authority": "canonical decorative scene master supporting accepted Today direction",
+      "surface": "Today scenery",
+      "state": "decorative only",
+      "theme": "Night",
+      "viewport": "landscape master; responsive composition required",
+      "requirements": [
+        "landmark visible",
+        "horizon preserved",
+        "aspect ratio preserved",
+        "bundled scenery"
+      ]
+    },
+    {
+      "path": "scenarios/personal-planner/docs/reference/scene-masters/scene-night-wide-2x1.png",
+      "bytes": 2049397,
+      "sha256": "124d121f4397b8e717ffb23df285975689cd09b442aa78ec23aa5e3decbfe078",
+      "width": 1774,
+      "height": 887,
+      "mode": "RGB",
+      "format": "PNG",
+      "decode": "passed",
+      "git_source_revision": "9e02876a08ab2bd43ea020ecea31ae9c08ce3e69",
+      "source_id": "repo:scenarios/personal-planner/docs/reference/scene-masters/scene-night-wide-2x1.png",
+      "authority": "canonical decorative scene master supporting accepted Today direction",
+      "surface": "Today scenery",
+      "state": "decorative only",
+      "theme": "Night",
+      "viewport": "landscape master; responsive composition required",
+      "requirements": [
+        "landmark visible",
+        "horizon preserved",
+        "aspect ratio preserved",
+        "bundled scenery"
+      ]
+    }
+  ],
+  "composition_sources": [
+    {
+      "path": "scenarios/personal-planner/docs/mockups/redesign-desktop-and-mobile.html",
+      "source_id": "repo:scenarios/personal-planner/docs/mockups/redesign-desktop-and-mobile.html",
+      "bytes": 72827,
+      "sha256": "9ca721e07f1ec787ae429a3c308ce2254a6485c67a29bc97fddaa618fa2465ac",
+      "git_source_revision": "eaf5dd23b7a5cee48997a67b2415fb4ee9b32595",
+      "authority": "historical scenario composition guidance; not newly ratified D1\u2013D7 alternatives",
+      "surfaces": [
+        "Today",
+        "Focus",
+        "Plan/Week",
+        "Goals",
+        "Review",
+        "Settings"
+      ],
+      "viewport": "760x520 desktop specimen and 320x660 outer phone frame (298x638 inner screen)",
+      "theme": "historical night-oriented composition; both runtime appearances still required"
+    },
+    {
+      "path": "scenarios/personal-planner/docs/mockups/today-mobile-nextstep.html",
+      "source_id": "repo:scenarios/personal-planner/docs/mockups/today-mobile-nextstep.html",
+      "bytes": 14555,
+      "sha256": "f4276287ff677626eeb5c06724ec49c745f6e48b0eb5bd26a838bf79167a204a",
+      "git_source_revision": "eaf5dd23b7a5cee48997a67b2415fb4ee9b32595",
+      "authority": "historical scenario composition guidance; not newly ratified D1\u2013D7 alternatives",
+      "surfaces": [
+        "Today mobile"
+      ],
+      "viewport": "mobile composition HTML; inspect document for frame",
+      "theme": "historical night-oriented composition; both runtime appearances still required"
+    }
+  ],
+  "missing_or_unproven": [
+    "No standalone full-UI Focus/Settings/Week raster is referenced by the inspected canonical sources; plates are not full-UI specimens.",
+    "No original Today portrait scene or approved mobile full-UI PNG is present; compose from established contract.",
+    "Exact historical remote file IDs/approval-version receipts for source plates are unavailable in the inspected canonical sources; do not invent them.",
+    "No current runtime visual parity was established by this reference audit."
+  ]
+}

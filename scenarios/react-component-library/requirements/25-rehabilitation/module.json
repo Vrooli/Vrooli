@@ -1,0 +1,251 @@
+{
+  "_metadata": {
+    "description": "Operator-approved selected-core RCL rehabilitation; no implementation or acceptance inferred from the historical UX campaign.",
+    "module": "rehabilitation",
+    "prd_ref": "OT-P0-010",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "RCL-REHAB-001",
+      "title": "Selected core contracts and dependency closure",
+      "status": "not_implemented",
+      "prd_ref": "OT-P0-010",
+      "category": "architecture",
+      "criticality": "P0",
+      "description": "When a core asset is certified, RCL shall identify its exact version and dependency closure and verify its public contract and meaningful states in a real built consumer.",
+      "tags": [
+        "rehabilitation",
+        "selected-core"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "not_implemented",
+          "notes": "Unverified acceptance obligation: docs/internal/goal/TARGETS.md \u2014 Selected core. Replace with current exact executable/human evidence at delivery admission; historical receipts do not satisfy this revision."
+        }
+      ]
+    },
+    {
+      "id": "RCL-REHAB-002",
+      "title": "Accessible responsive core across canonical templates",
+      "status": "not_implemented",
+      "prd_ref": "OT-P0-010",
+      "category": "architecture",
+      "criticality": "P0",
+      "description": "For each selected core asset, RCL shall verify applicable keyboard, focus, contrast, responsive and failure-state behavior across the supported canonical design templates.",
+      "tags": [
+        "rehabilitation",
+        "selected-core"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "not_implemented",
+          "notes": "Unverified acceptance obligation: docs/internal/goal/TARGETS.md \u2014 Product contract. Replace with current exact executable/human evidence at delivery admission; historical receipts do not satisfy this revision."
+        }
+      ]
+    },
+    {
+      "id": "RCL-REHAB-003",
+      "title": "Ordinary discovery and real shared consumption",
+      "status": "not_implemented",
+      "prd_ref": "OT-P0-011",
+      "category": "architecture",
+      "criticality": "P0",
+      "description": "When a human or agent starts from ordinary entrypoints, RCL shall support discovery, contract inspection and shared-package adoption into a built consumer without maintainer rescue.",
+      "tags": [
+        "rehabilitation",
+        "selected-core"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "not_implemented",
+          "notes": "Unverified acceptance obligation: docs/internal/goal/TARGETS.md \u2014 Five proving journeys. Replace with current exact executable/human evidence at delivery admission; historical receipts do not satisfy this revision."
+        }
+      ]
+    },
+    {
+      "id": "RCL-REHAB-004",
+      "title": "Bounded Prompt Manager proving workspace",
+      "status": "not_implemented",
+      "prd_ref": "OT-P0-010",
+      "category": "architecture",
+      "criticality": "P0",
+      "description": "When a user operates the Prompt Manager team collection/detail workspace, the shared core shall support filtering, selection, detail and dialog interactions with loading, empty, error, permission and mobile states.",
+      "tags": [
+        "rehabilitation",
+        "selected-core"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "not_implemented",
+          "notes": "Unverified acceptance obligation: docs/internal/goal/TARGETS.md \u2014 Five proving journeys. Replace with current exact executable/human evidence at delivery admission; historical receipts do not satisfy this revision."
+        }
+      ]
+    },
+    {
+      "id": "RCL-REHAB-005",
+      "title": "Second consumer proves a different design template",
+      "status": "not_implemented",
+      "prd_ref": "OT-P0-010",
+      "category": "architecture",
+      "criticality": "P0",
+      "description": "When a user operates the selected second consumer settings/form workflow, the shared core shall support validation, pending save, failure recovery and mobile use in a design template different from the Prompt Manager proof.",
+      "tags": [
+        "rehabilitation",
+        "selected-core"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "not_implemented",
+          "notes": "Unverified acceptance obligation: docs/internal/goal/TARGETS.md \u2014 Five proving journeys. Replace with current exact executable/human evidence at delivery admission; historical receipts do not satisfy this revision."
+        }
+      ]
+    },
+    {
+      "id": "RCL-REHAB-006",
+      "title": "Discoverable complete durable studio journey",
+      "status": "not_implemented",
+      "prd_ref": "OT-P0-009",
+      "category": "workflow",
+      "criticality": "P0",
+      "description": "When a user enters from normal navigation, RCL shall guide scenario/page selection, persisted brief and composition, viewport/style review, governed implementation and source verification, with recoverable failures and accessible controls.",
+      "tags": [
+        "rehabilitation",
+        "selected-core"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "not_implemented",
+          "notes": "Unverified acceptance obligation: docs/internal/goal/TARGETS.md \u2014 Five proving journeys. Replace with current exact executable/human evidence at delivery admission; historical receipts do not satisfy this revision."
+        }
+      ]
+    },
+    {
+      "id": "RCL-REHAB-007",
+      "title": "Canonical style identity and explicit compatibility",
+      "status": "not_implemented",
+      "prd_ref": "OT-P0-011",
+      "category": "architecture",
+      "criticality": "P0",
+      "description": "When a design style is selected, RCL shall reuse the scenario-generation template registry, persist its identity and distinguish advisory affinity from token or dependency incompatibility without silent fallback.",
+      "tags": [
+        "rehabilitation",
+        "selected-core"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "not_implemented",
+          "notes": "Unverified acceptance obligation: docs/internal/goal/TARGETS.md \u2014 Product contract. Replace with current exact executable/human evidence at delivery admission; historical receipts do not satisfy this revision."
+        }
+      ]
+    },
+    {
+      "id": "RCL-REHAB-008",
+      "title": "Evidence scope and unknown readiness remain honest",
+      "status": "not_implemented",
+      "prd_ref": "OT-P0-011",
+      "category": "architecture",
+      "criticality": "P0",
+      "description": "When readiness is reported, RCL shall distinguish verified behavior, failed behavior and missing or stale evidence for exact asset versions and selected scope without promoting historical campaign acceptance to current certification.",
+      "tags": [
+        "rehabilitation",
+        "selected-core"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "not_implemented",
+          "notes": "Unverified acceptance obligation: docs/internal/goal/TARGETS.md \u2014 Evidence and target tiers. Replace with current exact executable/human evidence at delivery admission; historical receipts do not satisfy this revision."
+        }
+      ]
+    },
+    {
+      "id": "RCL-REHAB-009",
+      "title": "Whole replacement and deletion of duplicate ownership",
+      "status": "not_implemented",
+      "prd_ref": "OT-P0-012",
+      "category": "architecture",
+      "criticality": "P0",
+      "description": "When a refactor epoch is accepted, its surviving owner shall serve all migrated callers and every admitted obsolete file, symbol or pattern shall meet its recorded deletion end state within a net-negative runtime budget.",
+      "tags": [
+        "rehabilitation",
+        "selected-core"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "not_implemented",
+          "notes": "Unverified acceptance obligation: docs/internal/goal/TARGETS.md \u2014 Cleanup and maintainability gates. Replace with current exact executable/human evidence at delivery admission; historical receipts do not satisfy this revision."
+        }
+      ]
+    },
+    {
+      "id": "RCL-REHAB-010",
+      "title": "Simple documented operations and bounded growth",
+      "status": "not_implemented",
+      "prd_ref": "OT-P0-012",
+      "category": "architecture",
+      "criticality": "P0",
+      "description": "When a rehabilitation epoch is accepted, its runtime and test growth shall be justified by new public behavior and its current operational guidance shall use one live goal ledger without duplicate process machinery.",
+      "tags": [
+        "rehabilitation",
+        "selected-core"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "not_implemented",
+          "notes": "Unverified acceptance obligation: docs/internal/goal/TARGETS.md \u2014 Cleanup and maintainability gates. Replace with current exact executable/human evidence at delivery admission; historical receipts do not satisfy this revision."
+        }
+      ]
+    },
+    {
+      "id": "RCL-REHAB-011",
+      "title": "Generic governed repair and two-consumer recovery",
+      "status": "not_implemented",
+      "prd_ref": "OT-P0-013",
+      "category": "architecture",
+      "criticality": "P0",
+      "description": "When a fresh agent repairs a reusable asset, RCL shall support governed draft and release, consumer impact review and safe upgrades in two consumers with local-change protection, explicit incompatibility and demonstrated recovery.",
+      "tags": [
+        "rehabilitation",
+        "selected-core"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "not_implemented",
+          "notes": "Unverified acceptance obligation: docs/internal/goal/TARGETS.md \u2014 Five proving journeys. Replace with current exact executable/human evidence at delivery admission; historical receipts do not satisfy this revision."
+        }
+      ]
+    },
+    {
+      "id": "RCL-REHAB-012",
+      "title": "Explicit local ownership preserves provenance",
+      "status": "not_implemented",
+      "prd_ref": "OT-P0-013",
+      "category": "architecture",
+      "criticality": "P0",
+      "description": "When a user chooses local composition or ejection, RCL shall retain source-version provenance and explain upgrade and recovery responsibility without treating the local asset as centrally managed.",
+      "tags": [
+        "rehabilitation",
+        "selected-core"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "not_implemented",
+          "notes": "Unverified acceptance obligation: docs/internal/goal/TARGETS.md \u2014 Product contract. Replace with current exact executable/human evidence at delivery admission; historical receipts do not satisfy this revision."
+        }
+      ]
+    }
+  ]
+}

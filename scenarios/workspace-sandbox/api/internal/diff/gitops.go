@@ -30,8 +30,11 @@ package diff
 
 import (
 	"context"
+	"fmt"
 	"strings"
+	"time"
 
+	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/types"
 )
 
@@ -63,6 +66,71 @@ type GitOperations interface {
 
 	// ReconcilePendingWithGit compares database pending files with actual git status.
 	ReconcilePendingWithGit(ctx context.Context, repoDir string, pendingPaths []string) (*ReconcileResult, error)
+
+	// ResolveCommitForPath returns the newest commit touching path at or after
+	// appliedAt. An empty hash means no eligible commit exists.
+	ResolveCommitForPath(ctx context.Context, repoDir, path string, appliedAt time.Time) (string, error)
+	// IsTracked reports whether a repository-relative path is tracked.
+	IsTracked(ctx context.Context, repoDir, path string) (bool, error)
+}
+
+// BatchGitOperations is an optional extension used by reconciliation passes
+// to answer many path-membership questions with one git process per project.
+// Keeping it optional preserves compatibility with narrow test doubles and
+// older integrations of GitOperations.
+type BatchGitOperations interface {
+	IsTrackedPaths(ctx context.Context, repoDir string, paths []string) (map[string]bool, error)
+}
+
+// ResolveCommitForPath resolves durable provenance without mutating git state.
+func (g *GitOps) ResolveCommitForPath(ctx context.Context, repoDir, path string, appliedAt time.Time) (string, error) {
+	result := g.runner.Run(ctx, "", "", "git", "-C", repoDir, "log", "-1", "--format=%H", "--since="+appliedAt.UTC().Format(time.RFC3339Nano), "--", path)
+	if result.Err != nil {
+		return "", result.Err
+	}
+	hash := strings.TrimSpace(result.Stdout)
+	if hash == "" {
+		return "", nil
+	}
+	if len(hash) != 40 {
+		return "", fmt.Errorf("git returned invalid commit hash %q", hash)
+	}
+	for _, r := range hash {
+		if !((r >= '0' && r <= '9') || (r >= 'a' && r <= 'f')) {
+			return "", fmt.Errorf("git returned invalid commit hash %q", hash)
+		}
+	}
+	return hash, nil
+}
+
+func (g *GitOps) IsTracked(ctx context.Context, repoDir, path string) (bool, error) {
+	result := g.runner.Run(ctx, "", "", "git", "-C", repoDir, "ls-files", "--error-unmatch", "--", path)
+	if result.Err != nil {
+		return false, nil
+	}
+	return true, nil
+}
+
+// IsTrackedPaths batches the tracked-file query for one repository. Git's
+// --stdin form avoids one process per pending row while retaining exact path
+// matching (including names beginning with a dash).
+func (g *GitOps) IsTrackedPaths(ctx context.Context, repoDir string, paths []string) (map[string]bool, error) {
+	tracked := make(map[string]bool, len(paths))
+	if len(paths) == 0 {
+		return tracked, nil
+	}
+	args := []string{"-C", repoDir, "ls-files", "--full-name", "--stdin"}
+	command := append([]string{"git"}, args...)
+	result := g.runner.Run(ctx, "", strings.Join(paths, "\x00"), command...)
+	if result.Err != nil {
+		return nil, result.Err
+	}
+	for _, path := range strings.Split(strings.TrimSpace(result.Stdout), "\n") {
+		if path != "" {
+			tracked[path] = true
+		}
+	}
+	return tracked, nil
 }
 
 // GitOps is the production implementation of GitOperations.
@@ -71,9 +139,10 @@ type GitOps struct {
 	runner CommandRunner
 }
 
-// NewGitOps creates a GitOps with the default command runner.
-func NewGitOps() *GitOps {
-	return &GitOps{runner: DefaultCommandRunner()}
+// NewGitOps creates a GitOps with a CommandRunner backed by the
+// supplied process.Starter (Round 4 Phase 7).
+func NewGitOps(starter process.Starter) *GitOps {
+	return &GitOps{runner: NewExecCommandRunner(starter)}
 }
 
 // NewGitOpsWithRunner creates a GitOps with a custom command runner.
@@ -312,8 +381,22 @@ type MockGitOps struct {
 	// ReconcileError is returned as error from ReconcilePendingWithGit
 	ReconcileError error
 
+	ResolvedCommitHash string
+	ResolveCommitError error
+	Tracked            bool
+
 	// Calls records all method calls for verification
 	Calls []string
+}
+
+func (m *MockGitOps) ResolveCommitForPath(ctx context.Context, repoDir, path string, appliedAt time.Time) (string, error) {
+	m.Calls = append(m.Calls, "ResolveCommitForPath:"+repoDir+":"+path)
+	return m.ResolvedCommitHash, m.ResolveCommitError
+}
+
+func (m *MockGitOps) IsTracked(ctx context.Context, repoDir, path string) (bool, error) {
+	m.Calls = append(m.Calls, "IsTracked:"+repoDir+":"+path)
+	return m.Tracked, nil
 }
 
 // NewMockGitOps creates a new mock for testing.

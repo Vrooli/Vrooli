@@ -1,0 +1,35 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "primitives.center",
+    "name": "Center",
+    "kind": "primitive",
+    "surface": "base",
+    "domain": "primitives",
+    "description": "The constrained centering primitive handling intrinsic content, minimum heights, and safe responsive padding for empty and focus states.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Every spacing, size, and radius value resolves to a declared ramp rather than a literal."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "ramp-conformance",
+    "content-reflow"
+  ]
+}

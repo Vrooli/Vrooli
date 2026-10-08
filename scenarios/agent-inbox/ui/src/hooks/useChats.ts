@@ -27,11 +27,10 @@ export type { ActiveToolCall, PendingApproval };
 export interface UseChatsOptions {
   initialChatId?: string;
   onChatChange?: (chatId: string | null) => void;
-  onTemplateDeactivated?: () => void;
 }
 
 export function useChats(options: UseChatsOptions = {}) {
-  const { initialChatId, onChatChange, onTemplateDeactivated } = options;
+  const { initialChatId, onChatChange } = options;
   const queryClient = useQueryClient();
   const [selectedChatId, setSelectedChatId] = useState<string | null>(initialChatId || null);
   const [currentView, setCurrentView] = useState<View>("inbox");
@@ -44,7 +43,7 @@ export function useChats(options: UseChatsOptions = {}) {
   const cacheManager = cacheManagerRef.current;
 
   // Delegate to focused hooks
-  const completion = useCompletion({ onTemplateDeactivated });
+  const completion = useCompletion();
   const labelOps = useLabels();
   const { chats, loadingChats, chatsError } = useChatListQuery(currentView, selectedChatId);
   const { chatData, loadingChat, chatError } = useSelectedChatQuery(selectedChatId);

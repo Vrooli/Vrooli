@@ -1,0 +1,130 @@
+{
+  "schema": "cli-primitive-evidence/v1",
+  "do_not_edit": "GENERATED FILE — do not edit by hand. Regenerate it from the scenario's CLI evidence test (UPDATE_CLI_EVIDENCE=1), which rebuilds this artifact from cli/manifest.json and the cli-core primitive handlers.",
+  "source_manifest": "cli/manifest.json",
+  "scenario": "code-facts",
+  "generator": "v1.0.0",
+  "manifest_hash": "91288ddc8c3ab06af08b37b270692f0d64f79bc5774624af13c7561d459ed799",
+  "commands": [
+    {
+      "path": "cache clear",
+      "group": "cache",
+      "command": "clear",
+      "binding": "CodeFactsService.ClearCache",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "cache inspect",
+      "group": "cache",
+      "command": "inspect",
+      "binding": "CodeFactsService.InspectCache",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "cache status",
+      "group": "cache",
+      "command": "status",
+      "binding": "CodeFactsService.GetCacheStatus",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "facts describe",
+      "group": "facts",
+      "command": "describe",
+      "binding": "CodeFactsService.DescribeCodeFacts",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "facts endpoint-proof",
+      "group": "facts",
+      "command": "endpoint-proof",
+      "binding": "CodeFactsService.CheckEndpointProof",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "facts proto-adoption",
+      "group": "facts",
+      "command": "proto-adoption",
+      "binding": "CodeFactsService.CheckProtoAdoption",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "facts search",
+      "group": "facts",
+      "command": "search",
+      "binding": "CodeFactsService.Search",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "facts surfaces",
+      "group": "facts",
+      "command": "surfaces",
+      "binding": "CodeFactsService.ListSurfaces",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "index cancel",
+      "group": "index",
+      "command": "cancel",
+      "binding": "CodeFactsService.CancelIndexJob",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "index cleanup",
+      "group": "index",
+      "command": "cleanup",
+      "binding": "CodeFactsService.CleanupIndex",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "index promote",
+      "group": "index",
+      "command": "promote",
+      "binding": "CodeFactsService.PromoteIndexGeneration",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "index reconcile",
+      "group": "index",
+      "command": "reconcile",
+      "binding": "CodeFactsService.ReconcileIndex",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "index reindex",
+      "group": "index",
+      "command": "reindex",
+      "binding": "CodeFactsService.Reindex",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "index rollback",
+      "group": "index",
+      "command": "rollback",
+      "binding": "CodeFactsService.RollbackIndexGeneration",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "index status",
+      "group": "index",
+      "command": "status",
+      "binding": "CodeFactsService.GetIndexStatus",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    }
+  ]
+}

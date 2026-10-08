@@ -1,5 +1,6 @@
 import {
   ClipboardCheck,
+  Share2,
   RefreshCw,
   Search,
   Settings
@@ -10,11 +11,12 @@ import type { ViewingFileBlame } from "./BlameModeHeader";
 import { BranchSelector, type BranchActions, type RepoActions } from "./BranchSelector";
 import { HealthIndicator } from "./HealthIndicator";
 import { FileStatsBadges } from "./FileStatsBadges";
-import { IconButton } from "./IconButton";
+import { IconButton } from "@vrooli/react-component-library/IconButton/3";
 import { HistoryModeHeader } from "./HistoryModeHeader";
 import { BlameModeHeader } from "./BlameModeHeader";
 import { SyncButton } from "./SyncButton";
 import { useHeaderState } from "../hooks/useHeaderState";
+import { useHealthIssueCount } from "../lib/hooks";
 
 interface StatusHeaderProps {
   status?: RepoStatus;
@@ -23,12 +25,16 @@ interface StatusHeaderProps {
   branchActions: BranchActions;
   repoActions?: RepoActions;
   onRepoChange?: (repoId: string | null) => void;
+  repoId?: string | null;
   isLoading: boolean;
   onRefresh: () => void;
   onOpenSettings: () => void;
+  /** Actionable repository-health findings; drives the settings badge. */
+  healthIssueCount?: number;
   onOpenUpstreamInfo?: () => void;
   onOpenFileSearch?: () => void;
   onOpenReview?: () => void;
+  onOpenSourceDistributions?: () => void;
   viewingCommit?: ViewingCommit | null;
   onExitHistoryMode?: () => void;
   viewingFileBlame?: ViewingFileBlame | null;
@@ -37,6 +43,8 @@ interface StatusHeaderProps {
   onPull?: () => void;
   isPushing?: boolean;
   isPulling?: boolean;
+  /** Phase and elapsed time while a remote operation is running. */
+  syncProgressLabel?: string;
 }
 
 export function StatusHeader({
@@ -46,12 +54,15 @@ export function StatusHeader({
   branchActions,
   repoActions,
   onRepoChange,
+  repoId,
   isLoading,
   onRefresh,
   onOpenSettings,
+  healthIssueCount,
   onOpenUpstreamInfo,
   onOpenFileSearch,
   onOpenReview,
+  onOpenSourceDistributions,
   viewingCommit,
   onExitHistoryMode,
   viewingFileBlame,
@@ -59,10 +70,13 @@ export function StatusHeader({
   onPush,
   onPull,
   isPushing,
-  isPulling
+  isPulling,
+  syncProgressLabel
 }: StatusHeaderProps) {
   const { isHealthy, cleanDetails } =
     useHeaderState(status, health, syncStatus);
+  const liveHealthIssueCount = useHealthIssueCount(repoId);
+  const displayedHealthIssueCount = healthIssueCount ?? liveHealthIssueCount;
 
   if (viewingFileBlame && onExitBlameMode) {
     return <BlameModeHeader file={viewingFileBlame} onExit={onExitBlameMode} />;
@@ -102,6 +116,7 @@ export function StatusHeader({
             onPull={onPull}
             isPushing={isPushing ?? false}
             isPulling={isPulling ?? false}
+            progressLabel={syncProgressLabel}
             warning={syncStatus?.safety_warnings?.join("; ")}
           />
         )}
@@ -121,16 +136,22 @@ export function StatusHeader({
 
         <IconButton
           onClick={onOpenReview}
-          label="Scenario review"
+          aria-label="Scenario review"
+          size="xs"
+          surface="ghost"
           title="Scenario review"
           data-testid="review-button"
         >
           <ClipboardCheck className="h-4 w-4 text-slate-400" />
         </IconButton>
 
+        {onOpenSourceDistributions && <IconButton onClick={onOpenSourceDistributions} aria-label="Source distributions" size="xs" surface="ghost" title="Source distributions" data-testid="source-distributions-button"><Share2 className="h-4 w-4 text-cyan-400" /></IconButton>}
+
         <IconButton
           onClick={onOpenFileSearch}
-          label="Search files (Ctrl+K)"
+          aria-label="Search files (Ctrl+K)"
+          size="xs"
+          surface="ghost"
           title="Search files (Ctrl+K)"
           data-testid="file-search-button"
         >
@@ -139,16 +160,31 @@ export function StatusHeader({
 
         <IconButton
           onClick={onOpenSettings}
-          label="Open settings"
+          aria-label={
+            displayedHealthIssueCount > 0
+              ? `Open settings (${displayedHealthIssueCount} health ${displayedHealthIssueCount === 1 ? "issue" : "issues"})`
+              : "Open settings"
+          }
           data-testid="settings-button"
         >
-          <Settings className="h-4 w-4 text-slate-400" />
+          <span className="relative inline-flex">
+            <Settings className="h-4 w-4 text-slate-400" />
+            {/* Actionable findings only, so a lit dot always means something to do. */}
+            {displayedHealthIssueCount > 0 && (
+              <span
+                className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-amber-400 ring-2 ring-slate-900"
+                data-testid="settings-health-badge"
+              />
+            )}
+          </span>
         </IconButton>
 
         <IconButton
           onClick={onRefresh}
           disabled={isLoading}
-          label="Refresh status"
+          aria-label="Refresh status"
+          size="xs"
+          surface="ghost"
           data-testid="refresh-button"
         >
           <RefreshCw className={`h-4 w-4 text-slate-400 ${isLoading ? "animate-spin" : ""}`} />

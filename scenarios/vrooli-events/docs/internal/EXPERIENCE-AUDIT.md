@@ -37,13 +37,13 @@ The following cross-page navigation links were added:
 
 Pages that accept query params:
 - `CorrelationTracePage`: `?cid=<correlationId>` — auto-fills and triggers search
-- `EventLogPage`: `?type=&source=&cid=&limit=` — all filters URL-persisted for deep-linking/shareability
+- `EventLogPage`: `?type=&source=&target=&cid=&limit=` — all filters URL-persisted for deep-linking/shareability
 - `StreamPage`: `?type=&source=` — filters URL-persisted
 
 ## Navigation Integrity
 - **Hash-based routing** via react-router-dom HashRouter: 15 routes (10 top-level + 2 parameterized + index + wildcard + layout).
 - **No back/forward issues**: Hash changes work with browser history. Cross-navigation links use `useNavigate()`.
-- **Query param deep-linking**: Full filter persistence for StreamPage (`?type=&source=`), EventLogPage (`?type=&source=&cid=&limit=`), and CorrelationTracePage (`?cid=`). All filters are shareable URLs.
+- **Query param deep-linking**: Full filter persistence for StreamPage (`?type=&source=`), EventLogPage (`?type=&source=&target=&cid=&limit=`), and CorrelationTracePage (`?cid=`). All filters are shareable URLs.
 - **Label→destination match**: All sidebar labels match their page content.
 - **Sub-page back buttons**: PolicyEditorPage and SubscriptionHealthPage have explicit "Back" buttons that return to their parent list pages.
 

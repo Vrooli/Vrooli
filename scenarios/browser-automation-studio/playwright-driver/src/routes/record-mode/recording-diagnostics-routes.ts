@@ -2,7 +2,6 @@
  * Recording Diagnostics Routes
  *
  * Endpoints for debugging and testing the recording pipeline:
- * - Stream settings management
  * - Live debug endpoint for querying recording state
  * - Pipeline self-test for end-to-end validation
  * - External URL injection test
@@ -13,12 +12,7 @@ import type { SessionManager } from '../../session';
 import type { Config } from '../../config';
 import { parseJsonBody, sendJson, sendError } from '../../middleware';
 import { logger, scopedLog, LogContext } from '../../utils';
-import {
-  updateFrameStreamSettings,
-  getFrameStreamSettings,
-} from '../../frame-streaming';
-import { runRecordingPipelineTest, runExternalUrlInjectionTest } from '../../recording';
-import type { StreamSettingsRequest, StreamSettingsResponse } from './types';
+import { runExternalUrlInjectionTest } from '../../recording/testing/external-url-injection-test';
 
 interface BrowserScriptState {
   loaded: boolean;
@@ -82,99 +76,6 @@ const parseBrowserScriptState = (value: unknown): BrowserScriptState | null => {
     serviceWorkerUrl: toStringOrNull(value.serviceWorkerUrl),
   };
 };
-
-// =============================================================================
-// Stream Settings Handler
-// =============================================================================
-
-/**
- * Update stream settings endpoint
- *
- * POST /session/:id/record/stream-settings
- *
- * Updates stream settings for an active session.
- * Quality and FPS can be updated immediately. Scale changes require session restart.
- */
-export async function handleStreamSettings(
-  req: IncomingMessage,
-  res: ServerResponse,
-  sessionId: string,
-  sessionManager: SessionManager,
-  config: Config
-): Promise<void> {
-  try {
-    // Verify session exists
-    sessionManager.getSession(sessionId);
-
-    const body = await parseJsonBody(req, config);
-    const request = body as unknown as StreamSettingsRequest;
-
-    // Get current settings (may be null if no stream active)
-    const currentSettings = getFrameStreamSettings(sessionId);
-
-    // Handle case where no stream is active
-    if (!currentSettings) {
-      logger.info(scopedLog(LogContext.RECORDING, 'stream settings update - no active stream'), {
-        sessionId,
-        requestedQuality: request.quality,
-        requestedFps: request.fps,
-      });
-
-      // Return a response indicating no active stream
-      // Note: Defaults should match API config (BAS_RECORDING_DEFAULT_STREAM_*)
-      const response: StreamSettingsResponse = {
-        session_id: sessionId,
-        quality: request.quality ?? 55,
-        fps: request.fps ?? 30, // Match API config default (BAS_RECORDING_DEFAULT_STREAM_FPS)
-        current_fps: 0,
-        scale: request.scale ?? 'css',
-        is_streaming: false,
-        updated: false,
-        perf_mode: request.perfMode ?? false,
-      };
-
-      sendJson(res, 200, response);
-      return;
-    }
-
-    // Check if scale change was requested (we can't change it mid-session)
-    let scaleWarning: string | undefined;
-    if (request.scale !== undefined && request.scale !== currentSettings.scale) {
-      scaleWarning = `Scale cannot be changed mid-session. Current: ${currentSettings.scale}, Requested: ${request.scale}. Restart session to change scale.`;
-      logger.info(scopedLog(LogContext.RECORDING, 'stream settings - scale change rejected'), {
-        sessionId,
-        currentScale: currentSettings.scale,
-        requestedScale: request.scale,
-      });
-    }
-
-    // Apply the settings update (quality, fps, and perfMode)
-    const updated = updateFrameStreamSettings(sessionId, {
-      quality: request.quality,
-      fps: request.fps,
-      perfMode: request.perfMode,
-    });
-
-    // Get the updated settings
-    const newSettings = getFrameStreamSettings(sessionId);
-
-    const response: StreamSettingsResponse = {
-      session_id: sessionId,
-      quality: newSettings?.quality ?? currentSettings.quality,
-      fps: newSettings?.fps ?? currentSettings.fps,
-      current_fps: newSettings?.currentFps ?? currentSettings.currentFps,
-      scale: newSettings?.scale ?? currentSettings.scale,
-      is_streaming: newSettings?.isStreaming ?? currentSettings.isStreaming,
-      updated,
-      scale_warning: scaleWarning,
-      perf_mode: newSettings?.perfMode ?? currentSettings.perfMode,
-    };
-
-    sendJson(res, 200, response);
-  } catch (error) {
-    sendError(res, error as Error, `/session/${sessionId}/record/stream-settings`);
-  }
-}
 
 // =============================================================================
 // Debug Endpoint
@@ -332,154 +233,6 @@ export async function handleRecordDebug(
     sendJson(res, 200, response);
   } catch (error) {
     sendError(res, error as Error, `/session/${sessionId}/record/debug`);
-  }
-}
-
-// =============================================================================
-// Pipeline Test Endpoints
-// =============================================================================
-
-/**
- * Recording pipeline self-test endpoint
- *
- * POST /session/:id/record/pipeline-test
- *
- * Runs an automated end-to-end test of the recording pipeline.
- * This test:
- * 1. Navigates to a special test page served by the driver
- * 2. Simulates real user interactions using CDP (not page.click)
- * 3. Verifies events flow through the entire pipeline
- * 4. Reports detailed diagnostics at each step
- *
- * This eliminates the need for human-in-the-loop debugging - the system
- * tests itself and reports exactly where events are getting lost.
- */
-export async function handleRecordPipelineTest(
-  req: IncomingMessage,
-  res: ServerResponse,
-  sessionId: string,
-  sessionManager: SessionManager,
-  config: Config
-): Promise<void> {
-  try {
-    const session = sessionManager.getSession(sessionId);
-    const body = await parseJsonBody(req, config).catch(() => ({}));
-    const request = body as { test_url?: string; timeout_ms?: number; return_to_original?: boolean };
-
-    const testUrl = request.test_url; // undefined = use default (example.com)
-    const timeoutMs = request.timeout_ms ?? 30000;
-    const returnToOriginal = request.return_to_original ?? true;
-
-    // Store original URL to navigate back after test
-    const originalUrl = session.page.url();
-
-    logger.info(scopedLog(LogContext.RECORDING, 'starting pipeline self-test'), {
-      sessionId,
-      originalUrl: originalUrl.slice(0, 80),
-      timeoutMs,
-      testUrl: testUrl || 'default (example.com)',
-    });
-
-    // Ensure we have a recording initializer and pipeline manager
-    if (!session.recordingInitializer) {
-      sendJson(res, 500, {
-        error: 'MISSING_INITIALIZER',
-        message: 'Recording initializer not set on session',
-        hint: 'The session may not have been properly initialized for recording',
-      });
-      return;
-    }
-
-    if (!session.pipelineManager) {
-      sendJson(res, 500, {
-        error: 'MISSING_PIPELINE_MANAGER',
-        message: 'Pipeline manager not set on session',
-        hint: 'The session may not have been properly initialized for recording',
-      });
-      return;
-    }
-
-    // Run the pipeline test using the REAL recording path
-    // This tests pipelineManager.startRecording() → onEntry callback flow
-    const result = await runRecordingPipelineTest(
-      session.page,
-      session.context,
-      session.pipelineManager,
-      session.recordingInitializer,
-      {
-        testUrl,
-        timeoutMs,
-        captureConsole: true,
-      }
-    );
-
-    // Navigate back to original URL if requested and we were on a real page
-    if (returnToOriginal && originalUrl && !originalUrl.startsWith('about:')) {
-      try {
-        await session.page.goto(originalUrl, { timeout: 10000, waitUntil: 'domcontentloaded' });
-        logger.debug(scopedLog(LogContext.RECORDING, 'returned to original URL after test'), {
-          sessionId,
-          originalUrl: originalUrl.slice(0, 80),
-        });
-      } catch (navError) {
-        logger.warn(scopedLog(LogContext.RECORDING, 'failed to return to original URL'), {
-          sessionId,
-          originalUrl: originalUrl.slice(0, 80),
-          error: navError instanceof Error ? navError.message : String(navError),
-        });
-      }
-    }
-
-    // Log result summary
-    if (result.success) {
-      logger.info(scopedLog(LogContext.RECORDING, 'pipeline self-test PASSED'), {
-        sessionId,
-        durationMs: result.durationMs,
-        stepsCompleted: result.steps.filter(s => s.passed).length,
-        totalSteps: result.steps.length,
-      });
-    } else {
-      logger.warn(scopedLog(LogContext.RECORDING, 'pipeline self-test FAILED'), {
-        sessionId,
-        durationMs: result.durationMs,
-        failurePoint: result.failurePoint,
-        failureMessage: result.failureMessage,
-        suggestions: result.suggestions,
-      });
-    }
-
-    // Build response
-    const response = {
-      success: result.success,
-      timestamp: result.timestamp,
-      duration_ms: result.durationMs,
-      failure_point: result.failurePoint,
-      failure_message: result.failureMessage,
-      suggestions: result.suggestions,
-      steps: result.steps.map(step => ({
-        name: step.name,
-        passed: step.passed,
-        duration_ms: step.durationMs,
-        error: step.error,
-        details: step.details,
-      })),
-      diagnostics: {
-        test_page_url: result.diagnostics.testPageUrl,
-        test_page_injected: result.diagnostics.testPageInjected,
-        script_status_before: result.diagnostics.scriptStatusBefore,
-        script_status_after: result.diagnostics.scriptStatusAfter,
-        telemetry_before: result.diagnostics.telemetryBefore,
-        telemetry_after: result.diagnostics.telemetryAfter,
-        route_stats_before: result.diagnostics.routeStatsBefore,
-        route_stats_after: result.diagnostics.routeStatsAfter,
-        events_captured: result.diagnostics.eventsCaptured,
-        console_messages: result.diagnostics.consoleMessages.slice(0, 50), // Limit console messages
-      },
-    };
-
-    sendJson(res, 200, response);
-  } catch (error) {
-    sendError(res, error as Error, `/session/${sessionId}/record/pipeline-test`);
   }
 }
 

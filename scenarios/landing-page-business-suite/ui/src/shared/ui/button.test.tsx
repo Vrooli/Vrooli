@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { renderWithProviders as render } from "@vrooli/api-base/testing";
+import { screen, fireEvent } from "@testing-library/react";
 import { Button } from './button';
 
 /**
@@ -41,7 +42,10 @@ describe('Button Component', () => {
     const handleClick = vi.fn();
     render(<Button disabled onClick={handleClick}>Disabled</Button>);
 
-    const button = screen.getByText('Disabled') as HTMLButtonElement;
+    const button = screen.getByText('Disabled');
+    if (!(button instanceof HTMLButtonElement)) {
+      throw new Error('expected the Button component to render a native button');
+    }
     expect(button.disabled).toBe(true);
 
     fireEvent.click(button);
@@ -73,7 +77,10 @@ describe('Button Component', () => {
 
   it('defaults native buttons to type="button"', () => {
     render(<Button>Native</Button>);
-    const button = screen.getByText('Native') as HTMLButtonElement;
+    const button = screen.getByText('Native');
+    if (!(button instanceof HTMLButtonElement)) {
+      throw new Error('expected the Button component to render a native button');
+    }
     expect(button.type).toBe('button');
   });
 

@@ -76,23 +76,13 @@ func (m *mockAsyncTracker) AddOperation(op *services.AsyncOperation) {
 	m.operations[op.ToolCallID] = op
 }
 
-// setupTestHandler creates a Handlers instance with the mock tracker.
-func setupTestHandler(tracker *mockAsyncTracker) *Handlers {
-	// Create a real AsyncTrackerService for the actual Handlers struct
-	realTracker := services.NewAsyncTrackerService(nil, nil, nil)
-	h := &Handlers{
-		AsyncTracker: realTracker,
-	}
-	return h
-}
-
 // setupTestHandlerWithMock creates a router and handler for testing.
 // Returns the router, handler, and mock tracker.
 func setupTestHandlerWithMock() (*mux.Router, *Handlers, *mockAsyncTracker) {
 	mock := newMockAsyncTracker()
 	// Use a real AsyncTrackerService but wrap it for tests
 	// For these tests we need to test against the real handler using the real service
-	realTracker := services.NewAsyncTrackerService(nil, nil, nil)
+	realTracker := services.NewAsyncTrackerService(nil, nil)
 	h := &Handlers{
 		AsyncTracker: realTracker,
 	}
@@ -138,7 +128,7 @@ func TestGetAsyncOperations_Success(t *testing.T) {
 // TestGetAsyncOperations_EmptyChatID verifies error for missing chat ID.
 func TestGetAsyncOperations_EmptyChatID(t *testing.T) {
 	h := &Handlers{
-		AsyncTracker: services.NewAsyncTrackerService(nil, nil, nil),
+		AsyncTracker: services.NewAsyncTrackerService(nil, nil),
 	}
 
 	// Create a router that doesn't set the id variable
@@ -181,7 +171,7 @@ func TestGetAsyncOperations_NoOperations(t *testing.T) {
 
 // TestCancelAsyncOperation_Success verifies successful cancellation.
 func TestCancelAsyncOperation_Success(t *testing.T) {
-	tracker := services.NewAsyncTrackerService(nil, nil, nil)
+	tracker := services.NewAsyncTrackerService(nil, nil)
 	h := &Handlers{
 		AsyncTracker: tracker,
 	}
@@ -222,7 +212,7 @@ func TestCancelAsyncOperation_Success(t *testing.T) {
 // TestCancelAsyncOperation_NotFound verifies 404 for unknown operation.
 func TestCancelAsyncOperation_NotFound(t *testing.T) {
 	h := &Handlers{
-		AsyncTracker: services.NewAsyncTrackerService(nil, nil, nil),
+		AsyncTracker: services.NewAsyncTrackerService(nil, nil),
 	}
 
 	r := mux.NewRouter()
@@ -240,7 +230,7 @@ func TestCancelAsyncOperation_NotFound(t *testing.T) {
 
 // TestCancelAsyncOperation_WrongChat verifies 403 when operation belongs to different chat.
 func TestCancelAsyncOperation_WrongChat(t *testing.T) {
-	tracker := services.NewAsyncTrackerService(nil, nil, nil)
+	tracker := services.NewAsyncTrackerService(nil, nil)
 	h := &Handlers{
 		AsyncTracker: tracker,
 	}

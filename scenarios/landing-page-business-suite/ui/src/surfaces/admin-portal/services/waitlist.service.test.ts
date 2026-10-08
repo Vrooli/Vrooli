@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { WaitlistEmail, SiteBranding } from '../../../shared/api';
 import {
   calculateStats,
@@ -6,17 +6,15 @@ import {
   deleteWaitlistEmail,
   fetchBranding,
   toggleComingSoonMode,
-  getExportUrl,
   exportToCsv,
 } from './waitlist.service';
 import * as waitlistApi from '../../../shared/api/waitlist';
 import * as brandingApi from '../../../shared/api/branding';
-import { createWindowOpenMock } from '../../../shared/test-utils/api-mocks';
 
 vi.mock('../../../shared/api/waitlist', () => ({
   getWaitlistEmails: vi.fn(),
   deleteWaitlistEmail: vi.fn(),
-  getWaitlistExportUrl: vi.fn(() => 'https://api.example.com/waitlist/export'),
+  exportWaitlistCsv: vi.fn(),
 }));
 
 vi.mock('../../../shared/api/branding', () => ({
@@ -37,7 +35,7 @@ const createMockBranding = (overrides: Partial<SiteBranding> = {}): SiteBranding
   site_name: 'Test Site',
   coming_soon_enabled: false,
   ...overrides,
-} as SiteBranding);
+});
 
 describe('waitlist.service', () => {
   describe('calculateStats', () => {
@@ -185,30 +183,20 @@ describe('waitlist.service', () => {
     });
   });
 
-  describe('getExportUrl', () => {
-    it('returns export URL from API', () => {
-      const result = getExportUrl();
-      expect(result).toBe('https://api.example.com/waitlist/export');
-    });
-  });
-
   describe('exportToCsv', () => {
-    let windowMock: ReturnType<typeof createWindowOpenMock>;
+    it('downloads generated CSV data without a legacy export URL', async () => {
+      const createObjectURL = vi.fn(() => 'blob:waitlist');
+      const revokeObjectURL = vi.fn();
+      vi.stubGlobal('URL', { createObjectURL, revokeObjectURL });
+      const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+      vi.mocked(waitlistApi.exportWaitlistCsv).mockResolvedValue({ csv: 'ID,Email\n1,test@example.com\n', filename: 'waitlist.csv' });
 
-    beforeEach(() => {
-      windowMock = createWindowOpenMock();
-    });
+      await exportToCsv();
 
-    afterEach(() => {
-      windowMock.restore();
-    });
-
-    it('opens export URL in new window', () => {
-      exportToCsv();
-      expect(windowMock.mock).toHaveBeenCalledWith(
-        'https://api.example.com/waitlist/export',
-        '_blank'
-      );
+      expect(click).toHaveBeenCalled();
+      expect(revokeObjectURL).toHaveBeenCalledWith('blob:waitlist');
+      click.mockRestore();
+      vi.unstubAllGlobals();
     });
   });
 });

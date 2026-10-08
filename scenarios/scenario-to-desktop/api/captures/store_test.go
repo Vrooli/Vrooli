@@ -94,6 +94,18 @@ func TestDelete_NotFound(t *testing.T) {
 	assert.Contains(t, err.Error(), "not found")
 }
 
+func TestVoid_PreservesCaptureAndPersistsReason(t *testing.T) {
+	store := newTestStore(t)
+	require.NoError(t, store.Add(testCapture("web-console", "journey-1")))
+	require.NoError(t, store.Void("web-console", "journey-1", "probe was canned", "journey-2"))
+	caps, err := store.List("web-console")
+	require.NoError(t, err)
+	require.Len(t, caps, 1)
+	assert.Equal(t, "probe was canned", caps[0].VoidReason)
+	assert.Equal(t, "journey-2", caps[0].SupersededBy)
+	assert.NotNil(t, caps[0].VoidedAt)
+}
+
 func TestDeleteAll_ClearsScenario(t *testing.T) {
 	store := newTestStore(t)
 	require.NoError(t, store.Add(testCapture("my-app", "cap-1")))

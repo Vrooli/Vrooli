@@ -25,7 +25,7 @@ _sym_db = _symbol_database.Default()
 from buf.validate import validate_pb2 as buf_dot_validate_dot_validate__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n&swarm-manager/v1/domain/settings.proto\x12\x10swarm_manager.v1\x1a\x1b\x62uf/validate/validate.proto\"\xe2\x01\n\x1a\x44\x65leteConfirmationSettings\x12>\n\x07\x62\x61\x63klog\x18\x01 \x01(\x0e\x32$.swarm_manager.v1.DeleteConfirmLevelR\x07\x62\x61\x63klog\x12\x44\n\ninitiative\x18\x02 \x01(\x0e\x32$.swarm_manager.v1.DeleteConfirmLevelR\ninitiative\x12>\n\x07\x63\x61pture\x18\x03 \x01(\x0e\x32$.swarm_manager.v1.DeleteConfirmLevelR\x07\x63\x61pture\"\xb3\x0e\n\x08Settings\x12\x30\n\x05theme\x18\x01 \x01(\tB\x1a\xbaH\x17r\x15R\x04\x64\x61rkR\x05lightR\x06systemR\x05theme\x12\x36\n\x0c\x64\x65\x66\x61ult_mode\x18\x05 \x01(\tB\x13\xbaH\x10r\x0eR\x06manualR\x04yoloR\x0b\x64\x65\x66\x61ultMode\x12\x1d\n\nauto_fixup\x18\x07 \x01(\x08R\tautoFixup\x12\x37\n\x12max_fixup_attempts\x18\x08 \x01(\x05\x42\t\xbaH\x06\x1a\x04\x18\x05(\x00R\x10maxFixupAttempts\x12\x30\n\x14review_agent_enabled\x18\x1f \x01(\x08R\x12reviewAgentEnabled\x12\x31\n\x0fmax_auto_rounds\x18\t \x01(\x05\x42\t\xbaH\x06\x1a\x04\x18\x32(\x00R\rmaxAutoRounds\x12\x38\n\x18\x61uto_initialize_workshop\x18\x10 \x01(\x08R\x16\x61utoInitializeWorkshop\x12\x32\n\x15\x61uto_advance_workshop\x18\x11 \x01(\x08R\x13\x61utoAdvanceWorkshop\x12\x32\n\x15\x61uto_cascade_workshop\x18\x12 \x01(\x08R\x13\x61utoCascadeWorkshop\x12\x46\n\x1a\x61uto_advance_delay_seconds\x18  \x01(\x05\x42\t\xbaH\x06\x1a\x04\x18x(\x00R\x17\x61utoAdvanceDelaySeconds\x12\x32\n\x0f\x61gent_max_turns\x18\n \x01(\x05\x42\n\xbaH\x07\x1a\x05\x18\xc8\x01(\x05R\ragentMaxTurns\x12>\n\x15\x61gent_timeout_seconds\x18\x0b \x01(\x05\x42\n\xbaH\x07\x1a\x05\x18\x90\x1c(<R\x13\x61gentTimeoutSeconds\x12\x36\n\x17\x61gent_requires_approval\x18\x0c \x01(\x08R\x15\x61gentRequiresApproval\x12\x38\n\x12search_debounce_ms\x18\r \x01(\x05\x42\n\xbaH\x07\x1a\x05\x18\xd0\x0f(dR\x10searchDebounceMs\x12\x38\n\x11toast_duration_ms\x18\x0e \x01(\x05\x42\x0c\xbaH\t\x1a\x07\x18\xb0\xea\x01(\xe8\x07R\x0ftoastDurationMs\x12]\n\x13\x64\x65lete_confirmation\x18! \x01(\x0b\x32,.swarm_manager.v1.DeleteConfirmationSettingsR\x12\x64\x65leteConfirmation\x12Y\n\x1dreview_code_quality_min_score\x18\x13 \x01(\x01\x42\x17\xbaH\x14\x12\x12\x19\x00\x00\x00\x00\x00\x00Y@)\x00\x00\x00\x00\x00\x00\x00\x00R\x19reviewCodeQualityMinScore\x12Q\n\x19review_test_min_pass_rate\x18\x14 \x01(\x01\x42\x17\xbaH\x14\x12\x12\x19\x00\x00\x00\x00\x00\x00\xf0?)\x00\x00\x00\x00\x00\x00\x00\x00R\x15reviewTestMinPassRate\x12L\n\x1ereview_max_blocking_violations\x18\x15 \x01(\x05\x42\x07\xbaH\x04\x1a\x02(\x00R\x1breviewMaxBlockingViolations\x12@\n\x13review_max_warnings\x18\x16 \x01(\x05\x42\x10\xbaH\r\x1a\x0b(\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01R\x11reviewMaxWarnings\x12<\n\x1areview_require_screenshots\x18\x17 \x01(\x08R\x18reviewRequireScreenshots\x12\x30\n\x14review_require_tests\x18\x18 \x01(\x08R\x12reviewRequireTests\x12\x45\n\x19max_concurrent_executions\x18\x19 \x01(\x05\x42\t\xbaH\x06\x1a\x04\x18\x14(\x01R\x17maxConcurrentExecutions\x12\x31\n\x0fmax_queue_depth\x18\x1a \x01(\x05\x42\t\xbaH\x06\x1a\x04\x18\x64(\x00R\rmaxQueueDepth\x12\x45\n\x19\x63ircuit_breaker_threshold\x18\x1b \x01(\x05\x42\t\xbaH\x06\x1a\x04\x18\n(\x01R\x17\x63ircuitBreakerThreshold\x12S\n circuit_breaker_cooldown_minutes\x18\x1c \x01(\x05\x42\n\xbaH\x07\x1a\x05\x18\xa0\x0b(\x05R\x1d\x63ircuitBreakerCooldownMinutes\x12J\n\x1a\x65xecution_cost_cap_per_run\x18\x1d \x01(\x01\x42\x0e\xbaH\x0b\x12\t)\x00\x00\x00\x00\x00\x00\x00\x00R\x16\x65xecutionCostCapPerRun\x12L\n\x16\x63ost_per_turn_estimate\x18\x1e \x01(\x01\x42\x17\xbaH\x14\x12\x12\x19\x00\x00\x00\x00\x00\x00\x14@)\x00\x00\x00\x00\x00\x00\x00\x00R\x13\x63ostPerTurnEstimateJ\x04\x08\x02\x10\x03J\x04\x08\x03\x10\x04J\x04\x08\x04\x10\x05J\x04\x08\x06\x10\x07J\x04\x08\x0f\x10\x10R\x1b\x63onfirm_destructive_actions*u\n\x12\x44\x65leteConfirmLevel\x12\x1f\n\x1b\x44\x45LETE_CONFIRM_LEVEL_SIMPLE\x10\x00\x12\x1d\n\x19\x44\x45LETE_CONFIRM_LEVEL_NONE\x10\x01\x12\x1f\n\x1b\x44\x45LETE_CONFIRM_LEVEL_STRONG\x10\x02\x42OZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n&swarm-manager/v1/domain/settings.proto\x12\x1evrooli.swarm_manager.v1.domain\x1a\x1b\x62uf/validate/validate.proto\"\x8c\x02\n\x1a\x44\x65leteConfirmationSettings\x12L\n\x07\x62\x61\x63klog\x18\x01 \x01(\x0e\x32\x32.vrooli.swarm_manager.v1.domain.DeleteConfirmLevelR\x07\x62\x61\x63klog\x12R\n\ninitiative\x18\x02 \x01(\x0e\x32\x32.vrooli.swarm_manager.v1.domain.DeleteConfirmLevelR\ninitiative\x12L\n\x07\x63\x61pture\x18\x03 \x01(\x0e\x32\x32.vrooli.swarm_manager.v1.domain.DeleteConfirmLevelR\x07\x63\x61pture\"\xb5\x03\n\x11\x41utoFilerSettings\x12\x18\n\x07\x65nabled\x18\x01 \x01(\x08R\x07\x65nabled\x12,\n\x04mode\x18\x02 \x01(\tB\x18\xbaH\x15r\x13R\x07suggestR\x08\x61uto_addR\x04mode\x12>\n\x08strategy\x18\x03 \x01(\tB\"\xbaH\x1fr\x1dR\x0f\x66\x65\x61ture_pendingR\nimportanceR\x08strategy\x12\x38\n\x13max_open_auto_filed\x18\x04 \x01(\x05\x42\t\xbaH\x06\x1a\x04\x18\x64(\x01R\x10maxOpenAutoFiled\x12;\n\x14velocity_window_days\x18\x05 \x01(\x05\x42\t\xbaH\x06\x1a\x04\x18Z(\x01R\x12velocityWindowDays\x12\x44\n\x18min_velocity_transitions\x18\x06 \x01(\x05\x42\n\xbaH\x07\x1a\x05\x18\xe8\x07(\x01R\x16minVelocityTransitions\x12\x35\n\x10interval_minutes\x18\x07 \x01(\x05\x42\n\xbaH\x07\x1a\x05\x18\xa0\x0b(\x01R\x0fintervalMinutes\x12$\n\tgoal_name\x18\x08 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x08goalName\"\xce\x12\n\x08Settings\x12\x30\n\x05theme\x18\x01 \x01(\tB\x1a\xbaH\x17r\x15R\x04\x64\x61rkR\x05lightR\x06systemR\x05theme\x12\x36\n\x0c\x64\x65\x66\x61ult_mode\x18\x05 \x01(\tB\x13\xbaH\x10r\x0eR\x06manualR\x04yoloR\x0b\x64\x65\x66\x61ultMode\x12\x1d\n\nauto_fixup\x18\x07 \x01(\x08R\tautoFixup\x12\x37\n\x12max_fixup_attempts\x18\x08 \x01(\x05\x42\t\xbaH\x06\x1a\x04\x18\x05(\x00R\x10maxFixupAttempts\x12\x30\n\x14review_agent_enabled\x18\x1f \x01(\x08R\x12reviewAgentEnabled\x12\x32\n\x0f\x61gent_max_turns\x18\n \x01(\x05\x42\n\xbaH\x07\x1a\x05\x18\xe8\x07(\x05R\ragentMaxTurns\x12>\n\x15\x61gent_timeout_seconds\x18\x0b \x01(\x05\x42\n\xbaH\x07\x1a\x05\x18\x90\x1c(<R\x13\x61gentTimeoutSeconds\x12\x38\n\x12search_debounce_ms\x18\r \x01(\x05\x42\n\xbaH\x07\x1a\x05\x18\xd0\x0f(dR\x10searchDebounceMs\x12\x38\n\x11toast_duration_ms\x18\x0e \x01(\x05\x42\x0c\xbaH\t\x1a\x07\x18\xb0\xea\x01(\xe8\x07R\x0ftoastDurationMs\x12\x84\x01\n\x1a\x64\x65lete_confirmation_levels\x18% \x03(\x0b\x32\x46.vrooli.swarm_manager.v1.domain.Settings.DeleteConfirmationLevelsEntryR\x18\x64\x65leteConfirmationLevels\x12Y\n\x1dreview_code_quality_min_score\x18\x13 \x01(\x01\x42\x17\xbaH\x14\x12\x12\x19\x00\x00\x00\x00\x00\x00Y@)\x00\x00\x00\x00\x00\x00\x00\x00R\x19reviewCodeQualityMinScore\x12Q\n\x19review_test_min_pass_rate\x18\x14 \x01(\x01\x42\x17\xbaH\x14\x12\x12\x19\x00\x00\x00\x00\x00\x00\xf0?)\x00\x00\x00\x00\x00\x00\x00\x00R\x15reviewTestMinPassRate\x12L\n\x1ereview_max_blocking_violations\x18\x15 \x01(\x05\x42\x07\xbaH\x04\x1a\x02(\x00R\x1breviewMaxBlockingViolations\x12@\n\x13review_max_warnings\x18\x16 \x01(\x05\x42\x10\xbaH\r\x1a\x0b(\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01R\x11reviewMaxWarnings\x12<\n\x1areview_require_screenshots\x18\x17 \x01(\x08R\x18reviewRequireScreenshots\x12\x30\n\x14review_require_tests\x18\x18 \x01(\x08R\x12reviewRequireTests\x12{\n\x17lane_concurrency_limits\x18\" \x03(\x0b\x32\x43.vrooli.swarm_manager.v1.domain.Settings.LaneConcurrencyLimitsEntryR\x15laneConcurrencyLimits\x12\x31\n\x0fmax_queue_depth\x18\x1a \x01(\x05\x42\t\xbaH\x06\x1a\x04\x18\x64(\x00R\rmaxQueueDepth\x12\x45\n\x19\x63ircuit_breaker_threshold\x18\x1b \x01(\x05\x42\t\xbaH\x06\x1a\x04\x18\n(\x01R\x17\x63ircuitBreakerThreshold\x12S\n circuit_breaker_cooldown_minutes\x18\x1c \x01(\x05\x42\n\xbaH\x07\x1a\x05\x18\xa0\x0b(\x05R\x1d\x63ircuitBreakerCooldownMinutes\x12J\n\x1a\x65xecution_cost_cap_per_run\x18\x1d \x01(\x01\x42\x0e\xbaH\x0b\x12\t)\x00\x00\x00\x00\x00\x00\x00\x00R\x16\x65xecutionCostCapPerRun\x12L\n\x16\x63ost_per_turn_estimate\x18\x1e \x01(\x01\x42\x17\xbaH\x14\x12\x12\x19\x00\x00\x00\x00\x00\x00\x14@)\x00\x00\x00\x00\x00\x00\x00\x00R\x13\x63ostPerTurnEstimate\x12H\n\x12\x66ix_before_feature\x18# \x01(\tB\x1a\xbaH\x17r\x15R\x03offR\x07suggestR\x05\x62lockR\x10\x66ixBeforeFeature\x12P\n\nauto_filer\x18& \x01(\x0b\x32\x31.vrooli.swarm_manager.v1.domain.AutoFilerSettingsR\tautoFiler\x12o\n\x13\x61utonomy_gate_modes\x18\' \x03(\x0b\x32?.vrooli.swarm_manager.v1.domain.Settings.AutonomyGateModesEntryR\x11\x61utonomyGateModes\x1a\x7f\n\x1d\x44\x65leteConfirmationLevelsEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12H\n\x05value\x18\x02 \x01(\x0e\x32\x32.vrooli.swarm_manager.v1.domain.DeleteConfirmLevelR\x05value:\x02\x38\x01\x1aH\n\x1aLaneConcurrencyLimitsEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05value\x18\x02 \x01(\x05R\x05value:\x02\x38\x01\x1a\x44\n\x16\x41utonomyGateModesEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05value\x18\x02 \x01(\tR\x05value:\x02\x38\x01J\x04\x08\x02\x10\x03J\x04\x08\x03\x10\x04J\x04\x08\x04\x10\x05J\x04\x08\x06\x10\x07J\x04\x08\t\x10\nJ\x04\x08\x10\x10\x11J\x04\x08\x11\x10\x12J\x04\x08\x12\x10\x13J\x04\x08 \x10!J\x04\x08\x0c\x10\rJ\x04\x08\x0f\x10\x10J\x04\x08!\x10\"J\x04\x08\x19\x10\x1aJ\x04\x08$\x10%R\x0fmax_auto_roundsR\x18\x61uto_initialize_workshopR\x15\x61uto_advance_workshopR\x15\x61uto_cascade_workshopR\x1a\x61uto_advance_delay_secondsR\x17\x61gent_requires_approvalR\x1b\x63onfirm_destructive_actionsR\x13\x64\x65lete_confirmationR\x19max_concurrent_executions*\x9b\x01\n\x12\x44\x65leteConfirmLevel\x12$\n DELETE_CONFIRM_LEVEL_UNSPECIFIED\x10\x00\x12\x1f\n\x1b\x44\x45LETE_CONFIRM_LEVEL_SIMPLE\x10\x01\x12\x1d\n\x19\x44\x45LETE_CONFIRM_LEVEL_NONE\x10\x02\x12\x1f\n\x1b\x44\x45LETE_CONFIRM_LEVEL_STRONG\x10\x03\x42OZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -33,18 +33,34 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'swarm_manager.v1.domain.set
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domain'
+  _globals['_AUTOFILERSETTINGS'].fields_by_name['mode']._loaded_options = None
+  _globals['_AUTOFILERSETTINGS'].fields_by_name['mode']._serialized_options = b'\272H\025r\023R\007suggestR\010auto_add'
+  _globals['_AUTOFILERSETTINGS'].fields_by_name['strategy']._loaded_options = None
+  _globals['_AUTOFILERSETTINGS'].fields_by_name['strategy']._serialized_options = b'\272H\037r\035R\017feature_pendingR\nimportance'
+  _globals['_AUTOFILERSETTINGS'].fields_by_name['max_open_auto_filed']._loaded_options = None
+  _globals['_AUTOFILERSETTINGS'].fields_by_name['max_open_auto_filed']._serialized_options = b'\272H\006\032\004\030d(\001'
+  _globals['_AUTOFILERSETTINGS'].fields_by_name['velocity_window_days']._loaded_options = None
+  _globals['_AUTOFILERSETTINGS'].fields_by_name['velocity_window_days']._serialized_options = b'\272H\006\032\004\030Z(\001'
+  _globals['_AUTOFILERSETTINGS'].fields_by_name['min_velocity_transitions']._loaded_options = None
+  _globals['_AUTOFILERSETTINGS'].fields_by_name['min_velocity_transitions']._serialized_options = b'\272H\007\032\005\030\350\007(\001'
+  _globals['_AUTOFILERSETTINGS'].fields_by_name['interval_minutes']._loaded_options = None
+  _globals['_AUTOFILERSETTINGS'].fields_by_name['interval_minutes']._serialized_options = b'\272H\007\032\005\030\240\013(\001'
+  _globals['_AUTOFILERSETTINGS'].fields_by_name['goal_name']._loaded_options = None
+  _globals['_AUTOFILERSETTINGS'].fields_by_name['goal_name']._serialized_options = b'\272H\004r\002\020\001'
+  _globals['_SETTINGS_DELETECONFIRMATIONLEVELSENTRY']._loaded_options = None
+  _globals['_SETTINGS_DELETECONFIRMATIONLEVELSENTRY']._serialized_options = b'8\001'
+  _globals['_SETTINGS_LANECONCURRENCYLIMITSENTRY']._loaded_options = None
+  _globals['_SETTINGS_LANECONCURRENCYLIMITSENTRY']._serialized_options = b'8\001'
+  _globals['_SETTINGS_AUTONOMYGATEMODESENTRY']._loaded_options = None
+  _globals['_SETTINGS_AUTONOMYGATEMODESENTRY']._serialized_options = b'8\001'
   _globals['_SETTINGS'].fields_by_name['theme']._loaded_options = None
   _globals['_SETTINGS'].fields_by_name['theme']._serialized_options = b'\272H\027r\025R\004darkR\005lightR\006system'
   _globals['_SETTINGS'].fields_by_name['default_mode']._loaded_options = None
   _globals['_SETTINGS'].fields_by_name['default_mode']._serialized_options = b'\272H\020r\016R\006manualR\004yolo'
   _globals['_SETTINGS'].fields_by_name['max_fixup_attempts']._loaded_options = None
   _globals['_SETTINGS'].fields_by_name['max_fixup_attempts']._serialized_options = b'\272H\006\032\004\030\005(\000'
-  _globals['_SETTINGS'].fields_by_name['max_auto_rounds']._loaded_options = None
-  _globals['_SETTINGS'].fields_by_name['max_auto_rounds']._serialized_options = b'\272H\006\032\004\0302(\000'
-  _globals['_SETTINGS'].fields_by_name['auto_advance_delay_seconds']._loaded_options = None
-  _globals['_SETTINGS'].fields_by_name['auto_advance_delay_seconds']._serialized_options = b'\272H\006\032\004\030x(\000'
   _globals['_SETTINGS'].fields_by_name['agent_max_turns']._loaded_options = None
-  _globals['_SETTINGS'].fields_by_name['agent_max_turns']._serialized_options = b'\272H\007\032\005\030\310\001(\005'
+  _globals['_SETTINGS'].fields_by_name['agent_max_turns']._serialized_options = b'\272H\007\032\005\030\350\007(\005'
   _globals['_SETTINGS'].fields_by_name['agent_timeout_seconds']._loaded_options = None
   _globals['_SETTINGS'].fields_by_name['agent_timeout_seconds']._serialized_options = b'\272H\007\032\005\030\220\034(<'
   _globals['_SETTINGS'].fields_by_name['search_debounce_ms']._loaded_options = None
@@ -59,8 +75,6 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_SETTINGS'].fields_by_name['review_max_blocking_violations']._serialized_options = b'\272H\004\032\002(\000'
   _globals['_SETTINGS'].fields_by_name['review_max_warnings']._loaded_options = None
   _globals['_SETTINGS'].fields_by_name['review_max_warnings']._serialized_options = b'\272H\r\032\013(\377\377\377\377\377\377\377\377\377\001'
-  _globals['_SETTINGS'].fields_by_name['max_concurrent_executions']._loaded_options = None
-  _globals['_SETTINGS'].fields_by_name['max_concurrent_executions']._serialized_options = b'\272H\006\032\004\030\024(\001'
   _globals['_SETTINGS'].fields_by_name['max_queue_depth']._loaded_options = None
   _globals['_SETTINGS'].fields_by_name['max_queue_depth']._serialized_options = b'\272H\006\032\004\030d(\000'
   _globals['_SETTINGS'].fields_by_name['circuit_breaker_threshold']._loaded_options = None
@@ -71,10 +85,20 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_SETTINGS'].fields_by_name['execution_cost_cap_per_run']._serialized_options = b'\272H\013\022\t)\000\000\000\000\000\000\000\000'
   _globals['_SETTINGS'].fields_by_name['cost_per_turn_estimate']._loaded_options = None
   _globals['_SETTINGS'].fields_by_name['cost_per_turn_estimate']._serialized_options = b'\272H\024\022\022\031\000\000\000\000\000\000\024@)\000\000\000\000\000\000\000\000'
-  _globals['_DELETECONFIRMLEVEL']._serialized_start=2164
-  _globals['_DELETECONFIRMLEVEL']._serialized_end=2281
-  _globals['_DELETECONFIRMATIONSETTINGS']._serialized_start=90
-  _globals['_DELETECONFIRMATIONSETTINGS']._serialized_end=316
-  _globals['_SETTINGS']._serialized_start=319
-  _globals['_SETTINGS']._serialized_end=2162
+  _globals['_SETTINGS'].fields_by_name['fix_before_feature']._loaded_options = None
+  _globals['_SETTINGS'].fields_by_name['fix_before_feature']._serialized_options = b'\272H\027r\025R\003offR\007suggestR\005block'
+  _globals['_DELETECONFIRMLEVEL']._serialized_start=3200
+  _globals['_DELETECONFIRMLEVEL']._serialized_end=3355
+  _globals['_DELETECONFIRMATIONSETTINGS']._serialized_start=104
+  _globals['_DELETECONFIRMATIONSETTINGS']._serialized_end=372
+  _globals['_AUTOFILERSETTINGS']._serialized_start=375
+  _globals['_AUTOFILERSETTINGS']._serialized_end=812
+  _globals['_SETTINGS']._serialized_start=815
+  _globals['_SETTINGS']._serialized_end=3197
+  _globals['_SETTINGS_DELETECONFIRMATIONLEVELSENTRY']._serialized_start=2623
+  _globals['_SETTINGS_DELETECONFIRMATIONLEVELSENTRY']._serialized_end=2750
+  _globals['_SETTINGS_LANECONCURRENCYLIMITSENTRY']._serialized_start=2752
+  _globals['_SETTINGS_LANECONCURRENCYLIMITSENTRY']._serialized_end=2824
+  _globals['_SETTINGS_AUTONOMYGATEMODESENTRY']._serialized_start=2826
+  _globals['_SETTINGS_AUTONOMYGATEMODESENTRY']._serialized_end=2894
 # @@protoc_insertion_point(module_scope)

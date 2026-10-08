@@ -181,7 +181,7 @@ This document tracks known issues, acceptable standards violations, and technica
 
 ### TODO Comments: ✅ DOCUMENTED
 All TODO comments in codebase are well-documented placeholders for planned P1/P2 features:
-- **api/main.go (5 TODOs)**: Browserless integration, template substitution, package.json generation, README generation, extension testing
+- **api/main.go (5 TODOs)**: browser-automation-studio integration, template substitution, package.json generation, README generation, extension testing
 - **ui/app.js (3 TODOs)**: Build download, build details modal, file browser
 - **Status**: Acceptable - all have appropriate fallback messages and are linked to PRD requirements
 
@@ -318,7 +318,7 @@ For **development tooling** scenarios (like scenario-to-extension):
 - **Technical debt**: Quarterly assessment
 
 ### Escalation Criteria
-Escalate to ecosystem-manager if:
+Escalate to swarm-manager if:
 - Security vulnerabilities appear
 - Standards violations grow >150
 - High-severity violations increase

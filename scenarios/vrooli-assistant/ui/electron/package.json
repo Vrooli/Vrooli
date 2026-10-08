@@ -4,8 +4,8 @@
   "description": "Real-time issue capture and agent spawning overlay for Vrooli",
   "main": "main.js",
   "scripts": {
-    "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh electron .'",
-    "start:daemon": "electron . --daemon",
+    "start": "vrooli lifecycle protect -- electron .",
+    "start:daemon": "vrooli lifecycle protect -- electron . --daemon",
     "build": "electron-builder",
     "test": "npm run test:unit && npm run test:integration",
     "test:unit": "jest",

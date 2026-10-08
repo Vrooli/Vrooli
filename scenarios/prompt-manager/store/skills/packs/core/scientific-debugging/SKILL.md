@@ -1,9 +1,30 @@
+---
+name: "scientific-debugging"
+description: "Hypothesis-driven debugging methodology: generate falsifiable hypotheses, design experiments to validate them, and systematically narrow to root cause. Produces regression tests and documented findings."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["practice"]
+  tags: ["practice","debugging","testing","methodology","investigation-technique"]
+  icon: "bug"
+  status: "active"
+  revision: 29
+  createdAt: "2026-02-03T02:40:00Z"
+  updatedAt: "2026-09-06T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager", "swarm-manager"]
+    commands: ["prompt-manager skill", "prompt-manager skill read", "swarm-manager ai-search", "swarm-manager backlog", "swarm-manager record", "swarm-manager records", "swarm-manager scenarios"]
+  origin:
+    kind: "authored"
+---
 ## Practice focus: Scientific Debugging
 
 Apply the **scientific method to debugging**: generate falsifiable hypotheses, design experiments (tests) to validate them, and systematically narrow down to the root cause. This methodology produces regression tests and documented findings that prevent recurrence.
 
 Required reading:
-- `prompt-manager skill read skill-principles`
+- `docs/scenario-qa/methods/investigation/scientific-debugging.md` — strategic-canon home: when this technique applies, when it backfires, what the qa-contrarian challenges.
+- `docs/agent-system/SKILL_AUTHORING.md`
 
 Optional reading:
 - `prompt-manager skill read skill-authoring-practice`
@@ -24,37 +45,37 @@ Use Scientific Debugging when:
 - Well-understood, documented error conditions
 - Issues where the fix is already known
 
+**Always start with Phase 0 (Prior-Art Check)** when the bug targets a
+scenario, even for bugs that look "new". Use a likely recurrence as a hypothesis to verify against current evidence.
+
 ---
 
 ### **2. The Process**
 
-```
-┌──────────────────────────────────────────────────────────────────────────────┐
-│                        SCIENTIFIC DEBUGGING PROCESS                          │
-├──────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│   ┌─────────┐     ┌─────────────┐     ┌─────────┐     ┌─────────────┐       │
-│   │ OBSERVE │ ──▶ │ HYPOTHESIZE │ ──▶ │  TEST   │ ──▶ │   ANALYZE   │       │
-│   └─────────┘     └─────────────┘     └────┬────┘     └──────┬──────┘       │
-│                                            │                  │              │
-│                         ┌──────────────────┴──────────────────┘              │
-│                         ▼                                                    │
-│                   Hypothesis                                                 │
-│                   Confirmed?                                                 │
-│                    │      │                                                  │
-│               YES  │      │  NO                                              │
-│                    ▼      ▼                                                  │
-│              ┌─────────┐  │                                                  │
-│              │   FIX   │  └──▶ Generate new hypothesis                       │
-│              └────┬────┘       (return to HYPOTHESIZE)                       │
-│                   │                                                          │
-│                   ▼                                                          │
-│              ┌─────────┐                                                     │
-│              │ VERIFY  │                                                     │
-│              └─────────┘                                                     │
-│                                                                              │
-└──────────────────────────────────────────────────────────────────────────────┘
-```
+Prior art → Observe → Hypothesize → Test → Analyze → Fix → Verify.
+Return to the hypothesis when an experiment contradicts it.
+
+### **Phase 0: Prior-Art Check**
+
+**Entry criteria:** A debugging task is about to begin.
+
+**Actions:**
+1. Reuse relevant recall already performed in this session. Otherwise run
+   `search-hub query "<one-sentence symptom>" --type record,doc`.
+2. Inspect a relevant match. If retrieval is unavailable or a specific lead
+   needs deeper history, use one scoped lookup:
+   `swarm-manager scenarios fixes --name "<scenario>" --all --search "<keywords>"`.
+   Record unavailable retrieval and continue diagnosis with that limitation.
+3. State whether the evidence shows no relevant match, related work, or a likely
+   recurrence. Link the prior evidence. For a recurrence, test whether the
+   previous cause and fix apply now; do not restart the old investigation or
+   stop solely because a similar report exists.
+4. Deepen retrieval only to answer a named unresolved question. Use source and
+   history inspection for diagnosis; missing search tooling does not require
+   building a new CLI before investigating the user's defect.
+
+**Exit criteria:** Record the lookup or reused evidence and its implication for
+the next experiment. A failed search is unknown prior art, not proof of absence.
 
 ---
 
@@ -186,18 +207,18 @@ Use Scientific Debugging when:
 1. **Write a failing test first** — Captures the bug as a regression test
 2. **Implement the fix** — Address the root cause, not symptoms
 3. **Run the failing test** — Confirm it now passes
-4. **Run full test suite** — Ensure no regressions
+4. **Validate affected behavior** — Follow `path:docs/TESTING.md` §"Ordinary iteration versus certification". Run focused regressions first, then relevant scenario phases. A full scenario suite is not a prerequisite for diagnosis or every fix.
 
 **Fix Checklist:**
 - [ ] Fix addresses the root cause, not just symptoms
 - [ ] Failing test written BEFORE the fix
 - [ ] Test passes AFTER the fix
-- [ ] Full test suite still passes
+- [ ] Declared validation scope passes; limitations are recorded
 - [ ] No new warnings or errors introduced
 
 **Exit criteria:**
 - [ ] Test that reproduces bug now passes
-- [ ] Full test suite passes
+- [ ] Declared validation scope passes; limitations are recorded
 - [ ] Fix is minimal and focused
 
 **Artifacts:**
@@ -316,8 +337,12 @@ You **should** also:
 - Update relevant documentation if the bug revealed a gap
 - Consider if the methodology itself could be improved
 
-**Quality bar:** Another engineer should be able to understand:
-- What the bug was
-- Why it happened
-- Why the fix is correct
-- How to avoid similar bugs
+---
+
+### **7. Write a record (recursive-learning loop)**
+
+For completed non-trivial work, follow AGENTS.md's work-record rule. Record the
+trigger, confirmed cause, rejected hypotheses, change, validation evidence, and
+remaining limitations through `vrooli-memory journal note --kind work-record`.
+If the active workflow already owns capture, update its evidence instead of
+creating a duplicate. Link prior fixes so the next investigation can reuse them.

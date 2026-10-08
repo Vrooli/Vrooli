@@ -1,0 +1,45 @@
+{
+  "_metadata": {
+    "module": "ai-powered-editing",
+    "description": "AI chat panel that proposes a refactor patch via resource-openrouter; user must explicitly accept.",
+    "prd_ref": "PRD.md",
+    "priority": "P2",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "AI-001",
+      "title": "Chat panel sends component source + inspector selection context to resource-openrouter",
+      "status": "planned",
+      "prd_ref": "OT-P2-001",
+      "category": "ai",
+      "criticality": "P2",
+      "description": "Chat panel composes a prompt from the current component's TSX, the active inspector selection (if any), and the user's instruction. The prompt is sent through `resource-openrouter`'s scenario CLI (or its Go client, but never raw HTTP) and returns a unified-diff patch suggestion.",
+      "tags": ["ai", "integration"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "planned",
+          "notes": "Service test injects a fake openrouter client; asserts the prompt assembly and parses a stubbed diff response."
+        }
+      ]
+    },
+    {
+      "id": "AI-002",
+      "title": "Patches are applied only on explicit user accept",
+      "status": "planned",
+      "prd_ref": "OT-P2-001",
+      "category": "ai",
+      "criticality": "P2",
+      "description": "The diff is rendered in a review panel. Accept writes the new content via the same PUT used by the editor (with version recording). Reject discards. No auto-apply path exists.",
+      "tags": ["ai", "review"],
+      "validation": [
+        {
+          "type": "automated",
+          "status": "planned",
+          "notes": "Component test asserts Accept triggers PUT and Reject does not; a code-review check confirms no auto-apply code path."
+        }
+      ]
+    }
+  ]
+}

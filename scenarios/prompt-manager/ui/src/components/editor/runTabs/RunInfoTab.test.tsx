@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@/test-utils/renderWithProviders'
 import { RunInfoTab } from './RunInfoTab'
 import { getRunDetails, retryRun } from '@/services/heartbeatService'
 

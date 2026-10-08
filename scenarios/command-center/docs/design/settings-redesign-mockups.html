@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Command Center · Settings redesign — option comparison</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
+<style>
+  /* ── Real Command Center tokens (from ui/src/design-tokens.css / cosmos board) ── */
+  :root {
+    --color-accent: #7ce8ff;
+    --color-bg: #05070e;
+    --color-bg-deep: #000000;
+    --color-fg: #e8ecf3;
+    --color-muted: #94a3b8;
+    --color-primary: #00d4ff;
+    --color-glow: rgba(0, 212, 255, 0.35);
+    --color-success: #4ade80;
+    --color-warning: #f5b544;
+    --color-danger: #ff8c9d;
+    --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, monospace;
+    --surface: rgba(255,255,255,0.04);
+    --surface-2: rgba(255,255,255,0.06);
+    --border: rgba(124,232,255,0.18);
+    --border-soft: rgba(255,255,255,0.09);
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    font-family: var(--font-sans);
+    color: var(--color-fg);
+    background:
+      radial-gradient(120% 90% at 50% -10%, rgba(0,212,255,0.10), transparent 55%),
+      radial-gradient(90% 70% at 90% 110%, rgba(124,232,255,0.06), transparent 60%),
+      var(--color-bg-deep);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── Page chrome (the comparison tool itself, not the mockups) ── */
+  .page { max-width: 1360px; margin: 0 auto; padding: 40px clamp(18px, 4vw, 56px) 96px; }
+  .page-eyebrow { font: 600 .72rem var(--font-mono); letter-spacing: .22em; text-transform: uppercase; color: var(--color-primary); margin: 0 0 8px; }
+  .page h1 { font-size: clamp(1.9rem, 3.6vw, 3rem); letter-spacing: -.035em; margin: 0 0 12px; }
+  .page-lede { color: var(--color-muted); max-width: 720px; line-height: 1.6; margin: 0 0 4px; font-size: 1.02rem; }
+  .page-lede strong { color: var(--color-fg); font-weight: 600; }
+
+  .controls { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; margin: 30px 0 10px; }
+  .tabbar { display: inline-flex; gap: 4px; padding: 4px; border: 1px solid var(--border-soft); border-radius: 12px; background: var(--surface); }
+  .tab { border: 0; background: transparent; color: var(--color-muted); font: 600 .9rem var(--font-sans); padding: 9px 16px; border-radius: 9px; cursor: pointer; display: flex; align-items: center; gap: 9px; transition: .18s; }
+  .tab:hover { color: var(--color-fg); }
+  .tab.active { background: linear-gradient(180deg, rgba(0,212,255,0.22), rgba(0,212,255,0.10)); color: #fff; box-shadow: inset 0 0 0 1px var(--border); }
+  .tab .pill { font: 600 .62rem var(--font-mono); padding: 2px 7px; border-radius: 999px; background: rgba(255,255,255,0.08); letter-spacing: .04em; }
+  .tab.rec .pill { background: rgba(74,222,128,0.16); color: var(--color-success); }
+
+  .spacer { flex: 1; }
+  .device-toggle { display: inline-flex; gap: 4px; padding: 4px; border: 1px solid var(--border-soft); border-radius: 12px; background: var(--surface); }
+  .device-toggle button { border: 0; background: transparent; color: var(--color-muted); font: 600 .82rem var(--font-sans); padding: 8px 14px; border-radius: 9px; cursor: pointer; }
+  .device-toggle button.active { background: var(--surface-2); color: var(--color-fg); box-shadow: inset 0 0 0 1px var(--border-soft); }
+
+  /* ── Option summary card ── */
+  .summary { display: grid; grid-template-columns: 1fr; gap: 8px; margin: 20px 0 18px; padding: 18px 20px; border: 1px solid var(--border-soft); border-left: 3px solid var(--color-primary); border-radius: 12px; background: var(--surface); }
+  .summary h2 { margin: 0; font-size: 1.15rem; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .summary .verdict { font: 600 .64rem var(--font-mono); text-transform: uppercase; letter-spacing: .1em; padding: 3px 9px; border-radius: 999px; }
+  .verdict.rec { background: rgba(74,222,128,0.14); color: var(--color-success); }
+  .verdict.mid { background: rgba(245,181,68,0.14); color: var(--color-warning); }
+  .verdict.min { background: rgba(148,163,184,0.16); color: var(--color-muted); }
+  .summary p { margin: 0; color: var(--color-muted); line-height: 1.55; font-size: .95rem; }
+  .summary .fixes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+  .chip { font: 600 .7rem var(--font-sans); padding: 4px 10px; border-radius: 999px; background: var(--surface-2); color: var(--color-fg); border: 1px solid var(--border-soft); }
+  .chip.no { opacity: .45; text-decoration: line-through; }
+
+  /* ── Mockup stage ── */
+  .stage-wrap { display: flex; justify-content: center; }
+  .stage {
+    width: 100%;
+    border: 1px solid var(--border-soft);
+    border-radius: 16px;
+    overflow: hidden;
+    background:
+      radial-gradient(120% 80% at 78% -10%, rgba(0,212,255,0.08), transparent 60%),
+      var(--color-bg);
+    box-shadow: 0 30px 80px -40px rgba(0,0,0,0.9), inset 0 0 0 1px rgba(255,255,255,0.02);
+    transition: width .35s cubic-bezier(.2,.7,.2,1);
+  }
+  .stage[data-device="mobile"] { width: 390px; }
+  .browser-bar { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--border-soft); background: rgba(0,0,0,0.35); }
+  .browser-bar i { width: 11px; height: 11px; border-radius: 999px; background: rgba(255,255,255,0.14); display: inline-block; }
+  .browser-bar .url { flex: 1; text-align: center; font: 500 .74rem var(--font-mono); color: var(--color-muted); }
+
+  .mock { display: none; }
+  .mock.active { display: block; }
+
+  /* generic mockup atoms */
+  .m-eyebrow { font: 600 .64rem var(--font-mono); letter-spacing: .18em; text-transform: uppercase; color: var(--color-primary); }
+  .m-h1 { font-size: 1.7rem; letter-spacing: -.03em; margin: 6px 0 6px; }
+  .m-lede { color: var(--color-muted); font-size: .9rem; line-height: 1.5; max-width: 560px; }
+  .m-body { padding: clamp(18px, 3vw, 34px); }
+  .btn-ghost { border: 1px solid var(--border); color: var(--color-primary); background: rgba(0,212,255,0.06); padding: 9px 15px; border-radius: 8px; font: 600 .82rem var(--font-sans); cursor: pointer; white-space: nowrap; }
+  .btn-primary { border: 0; background: linear-gradient(180deg, #29e0ff, #00b6dd); color: #002028; padding: 10px 18px; border-radius: 8px; font: 700 .85rem var(--font-sans); cursor: pointer; box-shadow: 0 8px 24px -10px var(--color-glow); }
+  .btn-quiet { border: 1px solid var(--border-soft); background: transparent; color: var(--color-fg); padding: 10px 14px; border-radius: 8px; font: 600 .82rem var(--font-sans); cursor: pointer; }
+
+  /* stage-preview (shared engine preview surrogate) */
+  .previewbox { position: relative; border-radius: 12px; overflow: hidden; border: 1px solid var(--border); aspect-ratio: 16/10; background:
+      radial-gradient(90% 80% at 30% 20%, rgba(0,212,255,0.22), transparent 55%),
+      radial-gradient(70% 60% at 80% 80%, rgba(124,232,255,0.14), transparent 60%),
+      #04060d; }
+  .previewbox .orbit { position: absolute; border-radius: 999px; border: 1px solid rgba(124,232,255,0.28); }
+  .previewbox .o1 { inset: 22% 30%; }
+  .previewbox .o2 { inset: 34% 40%; border-color: rgba(0,212,255,0.4); }
+  .previewbox .node { position: absolute; width: 9px; height: 9px; border-radius: 999px; background: var(--color-accent); box-shadow: 0 0 12px 3px var(--color-glow); }
+  .previewbox .hero { position: absolute; left: 18px; top: 16px; font: 700 2.4rem var(--font-sans); letter-spacing: -.03em; color: #fff; text-shadow: 0 0 24px var(--color-glow); }
+  .previewbox .herocap { position: absolute; left: 20px; top: 12px; font: 600 .58rem var(--font-mono); letter-spacing: .16em; color: var(--color-accent); }
+  .previewbox .livetag { position: absolute; right: 12px; top: 12px; font: 600 .58rem var(--font-mono); letter-spacing: .12em; color: var(--color-success); display: flex; align-items: center; gap: 6px; }
+  .previewbox .livetag::before { content:""; width:7px; height:7px; border-radius:999px; background: var(--color-success); box-shadow: 0 0 8px var(--color-success); }
+  .previewbox .cap { position: absolute; left: 14px; bottom: 10px; font: 600 .6rem var(--font-mono); letter-spacing: .14em; text-transform: uppercase; color: rgba(232,236,243,0.7); }
+
+  /* form atoms */
+  .field { display: grid; gap: 6px; margin-bottom: 13px; }
+  .field label { font: 600 .78rem var(--font-sans); color: var(--color-fg); display: flex; justify-content: space-between; gap: 10px; }
+  .field label em { font-style: normal; color: var(--color-muted); font-weight: 500; font-size: .72rem; }
+  .field input[type=text], .field select, .search input { width: 100%; background: rgba(0,0,0,0.35); border: 1px solid var(--border-soft); color: var(--color-fg); border-radius: 8px; padding: 10px 12px; font: 500 .86rem var(--font-sans); }
+  .field input:focus, .field select:focus, .search input:focus { outline: none; border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(0,212,255,0.12); }
+  .swatchrow { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap: 12px; }
+  .swatch { display: flex; align-items: center; gap: 10px; padding: 10px; border: 1px solid var(--border-soft); border-radius: 10px; background: var(--surface); }
+  .swatch .dot { width: 30px; height: 30px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.14); flex: none; }
+  .swatch .meta { display: grid; gap: 2px; min-width: 0; }
+  .swatch .meta b { font: 600 .78rem var(--font-sans); }
+  .swatch .meta code { font: 500 .7rem var(--font-mono); color: var(--color-muted); }
+
+  .search { position: relative; margin-bottom: 10px; }
+  .search input { padding-left: 34px; }
+  .search::before { content: "⌕"; position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--color-muted); font-size: 1rem; }
+
+  .cov { font: 600 .58rem var(--font-mono); padding: 2px 6px; border-radius: 5px; letter-spacing: .06em; }
+  .cov.now { background: rgba(74,222,128,0.16); color: var(--color-success); }
+  .cov.reach { background: rgba(245,181,68,0.16); color: var(--color-warning); }
+  .cov.missing { background: rgba(148,163,184,0.18); color: var(--color-muted); }
+
+  /* global save bar */
+  .savebar { position: sticky; bottom: 0; display: flex; align-items: center; gap: 14px; padding: 13px 18px; margin-top: 20px; border: 1px solid var(--border); border-radius: 12px; background: rgba(4,10,20,0.92); backdrop-filter: blur(8px); box-shadow: 0 -10px 40px -20px rgba(0,0,0,0.9); }
+  .savebar .count { font: 600 .82rem var(--font-sans); }
+  .savebar .count b { color: var(--color-primary); }
+
+  .annot { margin-top: 16px; display: grid; gap: 8px; }
+  .annot .a { display: flex; gap: 10px; align-items: flex-start; font-size: .9rem; color: var(--color-muted); line-height: 1.5; }
+  .annot .a b { color: var(--color-fg); font-weight: 600; }
+  .annot .a::before { content: "▸"; color: var(--color-primary); }
+
+  /* ════ OPTION A — task-first, progressive ════ */
+  .a-tasks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 22px 0; }
+  .stage[data-device="mobile"] .a-tasks { grid-template-columns: 1fr; }
+  .taskcard { text-align: left; border: 1px solid var(--border-soft); background: var(--surface); border-radius: 14px; padding: 18px; cursor: pointer; transition: .18s; color: inherit; display: grid; gap: 8px; }
+  .taskcard:hover { border-color: var(--border); background: var(--surface-2); transform: translateY(-2px); }
+  .taskcard .ic { width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; font-size: 1.2rem; background: rgba(0,212,255,0.12); border: 1px solid var(--border); }
+  .taskcard b { font-size: 1rem; }
+  .taskcard span { color: var(--color-muted); font-size: .84rem; line-height: 1.45; }
+  .a-adv { display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 1px dashed var(--border-soft); border-radius: 12px; padding: 14px 18px; }
+  .a-adv .t { color: var(--color-muted); font-size: .88rem; }
+  .a-adv .t b { color: var(--color-fg); }
+
+  .a-detail { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+  .stage[data-device="mobile"] .a-detail { grid-template-columns: 1fr; }
+  .a-breadcrumb { display: flex; align-items: center; gap: 8px; font: 600 .78rem var(--font-sans); color: var(--color-muted); margin-bottom: 14px; }
+  .a-breadcrumb a { color: var(--color-primary); text-decoration: none; }
+  .modelchain { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 12px 14px; border: 1px solid var(--border-soft); border-radius: 10px; background: var(--surface); margin-bottom: 16px; font-size: .8rem; }
+  .modelchain .n { padding: 4px 9px; border-radius: 7px; background: var(--surface-2); border: 1px solid var(--border-soft); font-weight: 600; }
+  .modelchain .n small { display: block; color: var(--color-muted); font-weight: 500; font-size: .66rem; }
+  .modelchain .arw { color: var(--color-muted); }
+  .stickyprev { position: sticky; top: 14px; }
+  .stage[data-device="mobile"] .a-detail .stickyprev { position: static; }
+  .mobprevbar { display: none; }
+  .stage[data-device="mobile"] .mobprevbar { display: flex; align-items: center; gap: 10px; position: sticky; top: 0; z-index: 3; margin: -18px -18px 14px; padding: 10px 16px; background: rgba(4,8,16,0.95); backdrop-filter: blur(6px); border-bottom: 1px solid var(--border-soft); }
+  .mobprevbar .mini { width: 54px; height: 34px; border-radius: 6px; flex: none; background:
+      radial-gradient(90% 80% at 30% 20%, rgba(0,212,255,0.4), transparent 55%), #04060d; border: 1px solid var(--border); }
+  .mobprevbar .t { font: 600 .78rem var(--font-sans); }
+  .mobprevbar .t span { display: block; color: var(--color-muted); font-weight: 500; font-size: .68rem; }
+  .mobprevbar button { margin-left: auto; }
+
+  /* ════ OPTION B — same structure, fixed ════ */
+  .b-grid { display: grid; grid-template-columns: 190px 1fr 300px; gap: 18px; align-items: start; }
+  .stage[data-device="mobile"] .b-grid { grid-template-columns: 1fr; }
+  .b-nav { display: grid; gap: 4px; padding: 10px; border: 1px solid var(--border-soft); border-radius: 12px; background: var(--surface); }
+  .stage[data-device="mobile"] .b-nav { grid-auto-flow: column; grid-auto-columns: max-content; overflow-x: auto; }
+  .b-nav button { display: flex; align-items: center; justify-content: space-between; gap: 8px; border: 0; background: transparent; color: var(--color-fg); text-align: left; padding: 10px 12px; border-radius: 8px; cursor: pointer; font: 600 .86rem var(--font-sans); white-space: nowrap; }
+  .b-nav button .c { font: 600 .66rem var(--font-mono); color: var(--color-muted); }
+  .b-nav button.active { background: linear-gradient(180deg, rgba(0,212,255,0.2), rgba(0,212,255,0.08)); color: #fff; box-shadow: inset 0 0 0 1px var(--border); }
+  .b-nav button .sub { display: block; font-weight: 500; font-size: .68rem; color: var(--color-muted); }
+  .b-editor { border: 1px solid var(--border-soft); border-radius: 12px; background: var(--surface); padding: 18px; }
+  .b-preview { position: sticky; top: 14px; border: 1px solid var(--border-soft); border-radius: 12px; background: var(--surface); padding: 14px; display: grid; gap: 10px; }
+  .stage[data-device="mobile"] .b-preview { position: static; }
+  .rowitem { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; padding: 9px 11px; border: 1px solid var(--border-soft); border-radius: 9px; margin-bottom: 6px; background: rgba(0,0,0,0.2); cursor: pointer; }
+  .rowitem:hover { border-color: var(--border); }
+  .rowitem.on { border-color: var(--border); background: rgba(0,212,255,0.06); }
+  .rowitem .nm { font: 600 .84rem var(--font-sans); }
+  .rowitem .nm span { display: block; color: var(--color-muted); font-weight: 500; font-size: .7rem; }
+  .rowitem .bound { font: 600 .6rem var(--font-mono); color: var(--color-accent); }
+  .sectlabel { font: 600 .66rem var(--font-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--color-muted); margin: 4px 0 10px; }
+
+  /* ════ OPTION C — styling/mobile only ════ */
+  .c-grid { display: grid; grid-template-columns: 160px 1fr 280px; gap: 16px; align-items: start; }
+  .stage[data-device="mobile"] .c-grid { grid-template-columns: 1fr; }
+  .c-nav { display: grid; gap: 3px; padding: 8px; border: 1px solid var(--border-soft); border-radius: 10px; background: var(--surface); }
+  .stage[data-device="mobile"] .c-nav { grid-auto-flow: column; grid-auto-columns: max-content; overflow-x: auto; }
+  .c-nav button { display: flex; justify-content: space-between; gap: 6px; border: 0; background: transparent; color: var(--color-fg); text-transform: capitalize; padding: 9px 10px; border-radius: 7px; cursor: pointer; font: 600 .84rem var(--font-sans); white-space: nowrap; }
+  .c-nav button.active { background: rgba(0,212,255,0.14); color: var(--color-primary); }
+  .c-editor { border: 1px solid var(--border-soft); border-radius: 10px; background: var(--surface); padding: 16px; }
+  .c-pills { display: flex; flex-wrap: wrap; gap: 6px; max-height: 96px; overflow: auto; padding-bottom: 10px; border-bottom: 1px solid var(--border-soft); margin-bottom: 14px; }
+  .c-pills button { border: 1px solid var(--border-soft); background: transparent; color: var(--color-fg); border-radius: 999px; padding: 5px 11px; font-size: .78rem; cursor: pointer; }
+  .c-pills button.on { background: var(--color-primary); color: #04121a; border-color: var(--color-primary); font-weight: 600; }
+  .c-preview { position: sticky; top: 14px; border: 1px solid var(--border-soft); border-radius: 10px; background: var(--surface); padding: 12px; display: grid; gap: 8px; }
+  .stage[data-device="mobile"] .c-preview { position: static; }
+
+  .foot { margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--border-soft); color: var(--color-muted); font-size: .84rem; line-height: 1.6; }
+  .foot b { color: var(--color-fg); }
+</style>
+</head>
+<body>
+<div class="page">
+  <p class="page-eyebrow">Command Center · Instance definition</p>
+  <h1>Settings redesign — three directions</h1>
+  <p class="page-lede">Same underlying engine and config catalogs. What differs is how much the surface hides the data model behind <strong>tasks</strong>, and how far the presentation is lifted to the board's design language. Audience assumed: <strong>both, progressive</strong> — guided for newcomers, full catalogs one click away for operators. Toggle desktop / mobile since mobile is a core complaint.</p>
+
+  <div class="controls">
+    <div class="tabbar" role="tablist">
+      <button class="tab rec active" data-opt="a" role="tab"><span>A · Task-first restructure</span><span class="pill">REC</span></button>
+      <button class="tab" data-opt="b" role="tab"><span>B · Same structure, fixed</span></button>
+      <button class="tab" data-opt="c" role="tab"><span>C · Styling + mobile only</span></button>
+    </div>
+    <span class="spacer"></span>
+    <div class="device-toggle">
+      <button class="active" data-device="desktop">🖥 Desktop</button>
+      <button data-device="mobile">📱 Mobile</button>
+    </div>
+  </div>
+
+  <!-- ══ Summaries ══ -->
+  <div class="summary" data-sum="a">
+    <h2>Option A — Task-first restructure <span class="verdict rec">Recommended</span></h2>
+    <p>Reorganize around jobs-to-be-done. A guided entry screen ("Recolor the board", "Add a data source"…) routes into focused editors that <b>show</b> the room → composition → slots → signals → theme chain instead of assuming it. Raw six-catalog list survives as "Advanced". Best serves the progressive audience and the monetization/skill ramp.</p>
+    <div class="fixes"><span class="chip">Task entry</span><span class="chip">Model made visible</span><span class="chip">Persistent labeled preview</span><span class="chip">Global save</span><span class="chip">Mobile: sticky mini-preview</span><span class="chip">Board-grade styling</span></div>
+  </div>
+  <div class="summary" data-sum="b" style="display:none">
+    <h2>Option B — Same structure, fix UX + styling <span class="verdict mid">Solid middle</span></h2>
+    <p>Keep the six-catalog master–detail, but make it work: searchable/grouped pickers with coverage + "bound where", a relationship strip on the room editor, one global unsaved-changes bar, a persistent labeled preview, and a full board-grade reskin. Faster and lower-risk than A; still leaves the vocabulary front-and-center.</p>
+    <div class="fixes"><span class="chip">Searchable pickers</span><span class="chip">Relationship strip</span><span class="chip">Global save</span><span class="chip">Persistent preview</span><span class="chip">Board-grade styling</span><span class="chip no">Task framing</span></div>
+  </div>
+  <div class="summary" data-sum="c" style="display:none">
+    <h2>Option C — Styling + mobile only <span class="verdict min">Cheapest</span></h2>
+    <p>Leave the information architecture exactly as-is. Fix the mobile collapse (preview stays reachable), add a search box above the pill cloud, and reskin to the board's tokens. Quickest path to "not embarrassing", but the core "it exposes the data model, not tasks" problem is untouched.</p>
+    <div class="fixes"><span class="chip">Mobile fix</span><span class="chip">Search box</span><span class="chip">Reskin</span><span class="chip no">Task framing</span><span class="chip no">Relationship context</span><span class="chip no">Global save</span></div>
+  </div>
+
+  <!-- ══ Stage ══ -->
+  <div class="stage-wrap">
+    <div class="stage" id="stage" data-device="desktop">
+      <div class="browser-bar"><i></i><i></i><i></i><span class="url" id="url">command-center.local / settings</span></div>
+
+      <!-- ───── OPTION A ───── -->
+      <div class="mock active" data-mock="a">
+        <div class="m-body">
+          <p class="m-eyebrow">Command Center / Customize</p>
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap">
+            <div>
+              <div class="m-h1">What do you want to change?</div>
+              <p class="m-lede">Pick a task. Each one shows you only the pieces it touches — and previews the result before you save.</p>
+            </div>
+            <button class="btn-ghost">Return to board</button>
+          </div>
+
+          <div class="a-tasks">
+            <button class="taskcard"><span class="ic">🎨</span><b>Recolor the board</b><span>Change the palette, glow, and corner style. Preview live on any room.</span></button>
+            <button class="taskcard"><span class="ic">🧩</span><b>Rearrange a board</b><span>Swap the background scene and re-order the beats a room cycles through.</span></button>
+            <button class="taskcard"><span class="ic">🔌</span><b>Add a data source</b><span>Connect an upstream service and pull new signals onto the board.</span></button>
+            <button class="taskcard"><span class="ic">📊</span><b>Wire up a panel</b><span>Bind a measurement into a slot so a scene actually draws it.</span></button>
+            <button class="taskcard"><span class="ic">🛰</span><b>Add a room</b><span>Create a new board view from a composition + theme + signals.</span></button>
+            <button class="taskcard"><span class="ic">🔭</span><b>Tune a signal</b><span>Edit a measurement's label, unit, coverage, and sample.</span></button>
+          </div>
+
+          <div class="a-adv">
+            <div class="t"><b>Operator mode ·</b> edit every catalog directly (rooms, themes, compositions, signals, connectors, readouts) with raw-JSON escape hatch.</div>
+            <button class="btn-quiet">Open all catalogs →</button>
+          </div>
+
+          <!-- detail example (recolor) -->
+          <div style="margin-top:30px;border-top:1px solid var(--border-soft);padding-top:24px">
+            <div class="a-breadcrumb"><a href="#">Customize</a> › <span style="color:var(--color-fg)">Recolor the board</span></div>
+            <div class="a-detail">
+              <div>
+                <div class="modelchain">
+                  <span class="n">Cosmos<small>theme</small></span><span class="arw">paints</span>
+                  <span class="n">Mission Control<small>room</small></span><span class="arw">+ 5 more</span>
+                </div>
+                <div class="swatchrow">
+                  <div class="swatch"><span class="dot" style="background:#00d4ff"></span><span class="meta"><b>Primary</b><code>#00d4ff</code></span></div>
+                  <div class="swatch"><span class="dot" style="background:#7ce8ff"></span><span class="meta"><b>Accent</b><code>#7ce8ff</code></span></div>
+                  <div class="swatch"><span class="dot" style="background:#05070e"></span><span class="meta"><b>Background</b><code>#05070e</code></span></div>
+                  <div class="swatch"><span class="dot" style="background:rgba(0,212,255,.35)"></span><span class="meta"><b>Glow</b><code>0,212,255,.35</code></span></div>
+                </div>
+                <div class="field" style="margin-top:14px"><label>Corner radius <em>board-wide</em></label><input type="text" value="2px" /></div>
+              </div>
+              <div class="stickyprev">
+                <div class="mobprevbar"><span class="mini"></span><span class="t">Live preview<span>Mission Control · cosmos</span></span><button class="btn-quiet">View</button></div>
+                <div class="previewbox">
+                  <span class="herocap">MISSION CONTROL</span><span class="livetag">LIVE</span>
+                  <div class="orbit o1"></div><div class="orbit o2"></div>
+                  <span class="node" style="left:52%;top:40%"></span><span class="node" style="left:66%;top:62%"></span>
+                  <span class="cap">orbital-field · cosmos</span>
+                </div>
+                <p style="color:var(--color-muted);font-size:.78rem;margin:10px 0 0;line-height:1.45">Runs the same scene engine as the board, driven by authored samples. This is exactly what saving will render.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="savebar"><span class="count"><b>2</b> unsaved changes · <span style="color:var(--color-muted)">theme “cosmos”</span></span><span class="spacer"></span><button class="btn-quiet">Discard</button><button class="btn-primary">Save all</button></div>
+
+          <div class="annot">
+            <div class="a"><b>Newcomer path:</b> lands on tasks, never sees the word "composition" until a task introduces it.</div>
+            <div class="a"><b>Operator path:</b> "Open all catalogs" is the current six-catalog surface, one click away.</div>
+            <div class="a"><b>Mobile:</b> task cards stack; the detail's preview becomes a sticky mini-bar with a "View" expander — you never edit blind.</div>
+            <div class="a"><b>Ramp fit:</b> the task list is exactly what the <code style="font-family:var(--font-mono);color:var(--color-accent)">command-center-customize</code> skill teaches an agent to drive.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ───── OPTION B ───── -->
+      <div class="mock" data-mock="b">
+        <div class="m-body">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:20px">
+            <div><p class="m-eyebrow">Command Center / Instance definition</p><div class="m-h1">Settings</div><p class="m-lede">Edit the catalogs that define this instrument. Every change is validated and previewed against the live engine.</p></div>
+            <button class="btn-ghost">Return to board</button>
+          </div>
+          <div class="b-grid">
+            <nav class="b-nav">
+              <button class="active">Rooms <span class="c">6</span></button>
+              <button>Themes <span class="c">6</span></button>
+              <button>Compositions <span class="c">9</span></button>
+              <button>Signals <span class="c">51</span></button>
+              <button>Connectors <span class="c">8</span></button>
+              <button>Readouts <span class="c">6</span></button>
+            </nav>
+            <div class="b-editor">
+              <div class="search"><input type="text" placeholder="Search rooms…" /></div>
+              <div class="rowitem on"><span class="cov now">NOW</span><span class="nm">Mission Control<span>orbital-field · cosmos</span></span><span class="bound">live</span></div>
+              <div class="rowitem"><span class="cov now">NOW</span><span class="nm">The Forge<span>flow-current · ember</span></span><span class="bound">2 slots</span></div>
+              <div class="rowitem"><span class="cov reach">REACH</span><span class="nm">The Ledger<span>ledger-stack · aurum</span></span><span class="bound">3 slots</span></div>
+
+              <div class="sectlabel" style="margin-top:16px">Editing · Mission Control</div>
+              <div class="field"><label>Title</label><input type="text" value="Mission Control" /></div>
+              <div class="field"><label>Theme</label><select><option>cosmos</option><option>ember</option></select></div>
+              <div class="field"><label>Composition</label><select><option>orbital-field</option></select></div>
+
+              <div class="sectlabel" style="margin-top:14px">Relationship</div>
+              <div class="modelchain">
+                <span class="n">orbital-field<small>composition</small></span><span class="arw">has slot</span>
+                <span class="n">focus<small>scalar</small></span><span class="arw">bound to</span>
+                <span class="n">objective_reach<small>signal · NOW</small></span>
+              </div>
+            </div>
+            <aside class="b-preview">
+              <p class="m-eyebrow">Live preview · Mission Control</p>
+              <div class="previewbox"><span class="livetag">LIVE</span><div class="orbit o1"></div><div class="orbit o2"></div><span class="node" style="left:52%;top:40%"></span><span class="cap">orbital-field · cosmos</span></div>
+            </aside>
+          </div>
+          <div class="savebar"><span class="count"><b>1</b> unsaved change · <span style="color:var(--color-muted)">room “Mission Control”</span></span><span class="spacer"></span><button class="btn-quiet">Discard</button><button class="btn-primary">Save all</button></div>
+          <div class="annot">
+            <div class="a"><b>Kept:</b> the six-catalog master–detail you already have.</div>
+            <div class="a"><b>Fixed:</b> pickers get search + coverage + "bound where"; a relationship strip shows the model; one global save bar.</div>
+            <div class="a"><b>Mobile:</b> nav becomes a scrollable chip row, preview stays reachable below the editor (not lost off-screen).</div>
+            <div class="a"><b>Still there:</b> you land on "Rooms" and must know what a room is — no task framing.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ───── OPTION C ───── -->
+      <div class="mock" data-mock="c">
+        <div class="m-body">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:18px">
+            <div><p class="m-eyebrow">Command Center / Instance definition</p><div class="m-h1">Settings</div><p class="m-lede">Shape this instrument by editing its catalogs.</p></div>
+            <button class="btn-ghost">Return to board</button>
+          </div>
+          <div class="c-grid">
+            <nav class="c-nav">
+              <button class="active">rooms <span class="c">6</span></button>
+              <button>themes <span class="c">6</span></button>
+              <button>compositions <span class="c">9</span></button>
+              <button>signals <span class="c">51</span></button>
+              <button>connectors <span class="c">8</span></button>
+              <button>readouts <span class="c">6</span></button>
+            </nav>
+            <div class="c-editor">
+              <p style="color:var(--color-muted);font-size:.86rem;margin:0 0 12px">A room binds a composition and theme, then wires each slot to a signal.</p>
+              <div class="search"><input type="text" placeholder="Filter…" /></div>
+              <div class="c-pills">
+                <button class="on">Mission Control</button><button>The Forge</button><button>The Ledger</button><button>Broadcast</button><button>Offer Desk</button><button>Morning Walk</button>
+              </div>
+              <div class="field"><label>Title</label><input type="text" value="Mission Control" /></div>
+              <div class="field"><label>Theme</label><select><option>cosmos</option></select></div>
+              <div class="field"><label>Composition</label><select><option>orbital-field</option></select></div>
+              <div style="border:1px dashed var(--border-soft);border-radius:8px;padding:10px 12px;margin-top:8px;color:var(--color-muted);font-size:.82rem">Slot bindings · focus → objective_reach</div>
+            </div>
+            <aside class="c-preview">
+              <p class="m-eyebrow">Live preview</p>
+              <div class="previewbox"><div class="orbit o1"></div><div class="orbit o2"></div><span class="node" style="left:52%;top:40%"></span><span class="cap">orbital-field · cosmos</span></div>
+            </aside>
+          </div>
+          <div class="annot">
+            <div class="a"><b>Kept:</b> the exact information architecture and per-entry save.</div>
+            <div class="a"><b>Fixed:</b> reskinned to board tokens, mobile no longer strands the preview, a filter box above the pill cloud.</div>
+            <div class="a"><b>Untouched:</b> still catalog-shaped and vocabulary-first; the "unintelligible" root cause largely remains.</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="foot">
+    <b>Safe to build any of these:</b> the zero-visual-diff invariant governs the canvas <b>board</b>, not this DOM settings page — so a redesign can't move instance zero. Real guardrails are the 85% UI coverage gate, <code style="font-family:var(--font-mono)">renderWithProviders</code>, and no <code style="font-family:var(--font-mono)">as</code>/<code style="font-family:var(--font-mono)">@ts-ignore</code>. · This is a static mockup for direction only — colors, fonts, and preview are the real board tokens; the data is illustrative.
+  </div>
+</div>
+
+<script>
+  const stage = document.getElementById('stage');
+  const url = document.getElementById('url');
+  const urls = { a: 'command-center.local / customize', b: 'command-center.local / settings', c: 'command-center.local / settings' };
+  document.querySelectorAll('.tab').forEach(tab => tab.addEventListener('click', () => {
+    const opt = tab.dataset.opt;
+    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t === tab));
+    document.querySelectorAll('.mock').forEach(m => m.classList.toggle('active', m.dataset.mock === opt));
+    document.querySelectorAll('[data-sum]').forEach(s => s.style.display = s.dataset.sum === opt ? '' : 'none');
+    url.textContent = urls[opt];
+  }));
+  document.querySelectorAll('.device-toggle button').forEach(btn => btn.addEventListener('click', () => {
+    document.querySelectorAll('.device-toggle button').forEach(b => b.classList.toggle('active', b === btn));
+    stage.dataset.device = btn.dataset.device;
+  }));
+</script>
+</body>
+</html>

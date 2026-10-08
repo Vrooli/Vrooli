@@ -1,0 +1,161 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.1.0",
+  "page": {
+    "id": "vault",
+    "title": "Vault",
+    "routes": [
+      "/",
+      "/vault"
+    ],
+    "purpose": "Find and manage encrypted credential metadata while keeping values behind explicit actions.",
+    "prd_refs": [
+      "OT-P1-001"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Credential metadata and safe actions remain understandable before any secret value is requested."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "The page is ready for its primary task."
+    },
+    {
+      "id": "loading",
+      "description": "The page is loading protected metadata."
+    },
+    {
+      "id": "empty",
+      "description": "The page is ready but has no records to show."
+    },
+    {
+      "id": "partial",
+      "description": "The primary task is usable while supporting evidence is unavailable."
+    },
+    {
+      "id": "request-error",
+      "description": "The page explains the failed request and offers a recovery path."
+    },
+    {
+      "id": "permission-denied",
+      "description": "The current principal cannot use this destination or action."
+    }
+  ],
+  "elements": [
+    {
+      "id": "collection",
+      "role": "region",
+      "name": "Encrypted inventory"
+    },
+    {
+      "id": "search",
+      "role": "searchbox",
+      "name": "Search vault"
+    },
+    {
+      "id": "new-item",
+      "role": "button",
+      "name": "New item"
+    },
+    {
+      "id": "inspector",
+      "role": "region",
+      "name": "Selected item"
+    }
+  ],
+  "claims": [
+    {
+      "id": "explicit-reveal",
+      "type": "affordance-present",
+      "statement": "The selected item exposes a named reveal action and keeps values absent from ordinary metadata views.",
+      "tier": "manual",
+      "elements": [
+        "collection",
+        "inspector"
+      ],
+      "states": [
+        "default",
+        "empty"
+      ]
+    },
+    {
+      "id": "keyboard-selection",
+      "type": "keyboard-reachable",
+      "statement": "Collection selection and inspector actions are reachable with keyboard input.",
+      "tier": "manual",
+      "elements": [
+        "collection",
+        "inspector"
+      ],
+      "states": [
+        "default"
+      ]
+    }
+  ],
+  "regions": [
+    {
+      "id": "vault-collection",
+      "purpose": "Browse, filter, and select credential metadata.",
+      "component": {
+        "library": {
+          "component": "collection-page",
+          "version": "1.7.1"
+        }
+      },
+      "lifecycle": {
+        "kind": "async",
+        "states": [
+          "loading",
+          "ready",
+          "empty",
+          "partial",
+          "error"
+        ]
+      }
+    },
+    {
+      "id": "vault-inspector",
+      "purpose": "Inspect the selected item and expose only explicit safe actions.",
+      "component": {
+        "library": {
+          "component": "inspector-layout",
+          "version": "1.1.5"
+        }
+      },
+      "lifecycle": {
+        "kind": "static",
+        "states": [
+          "static"
+        ]
+      }
+    }
+  ],
+  "bindings": {
+    "regions": {
+      "vault-collection": {
+        "selector": "[data-experience-surface=\"vault-collection\"]"
+      },
+      "vault-inspector": {
+        "selector": "[data-experience-surface=\"vault-inspector\"]"
+      }
+    },
+    "elements": {
+      "collection": {
+        "selector": "[data-experience-surface=\"vault-collection\"]"
+      },
+      "search": {
+        "selector": "[aria-label=\"Search vault\"]"
+      },
+      "new-item": {
+        "selector": "button.button-primary"
+      },
+      "inspector": {
+        "selector": "[data-experience-surface=\"vault-inspector\"]"
+      }
+    }
+  }
+}

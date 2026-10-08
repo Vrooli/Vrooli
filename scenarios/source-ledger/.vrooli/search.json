@@ -1,0 +1,120 @@
+{
+  "$schema": "../../../.vrooli/schemas/search.schema.json",
+  "version": "1.0.0",
+  "providers": [
+    {
+      "provider_id": "source-ledger.agent-memory",
+      "lifecycle": "production",
+      "provider_group": "source-ledger",
+      "bucket": "BUCKET_KNOW",
+      "type": "record",
+      "class": "local_live",
+      "index_timestamp_field": "metrics.last_indexed_at",
+      "scope": "SCOPE_PROJECT",
+      "description": "Durable shared coding-agent memory: prior implementation decisions, validated work outcomes, operational facts, and compacted context. Route history and prior-work questions here; this leaf is not source code or live external facts.",
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "source-ledger",
+          "path": "/vrooli.source_ledger.v1.recall.RecallService/Recall",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}},\"scope\":\"agent-memory\"}",
+          "headers": {"Content-Type": "application/json"}
+        }
+      },
+      "status_endpoint": {
+        "http_json": {
+          "scenario_id": "source-ledger",
+          "path": "/health",
+          "method": "HTTP_METHOD_GET",
+          "headers": {"Content-Type": "application/json"}
+        }
+      },
+      "result_mapping": {
+        "results_path": "hits",
+        "id_field": "entryId",
+        "score_field": "score",
+        "score_scale": "SCORE_SCALE_COSINE_0_1",
+        "snippet_field": "text",
+        "title_field": "facetId"
+      },
+      "tuning": {
+        "engine": "dense",
+        "embed_model": "nomic-embed-text",
+        "embed_task_prefix": true,
+        "rerank_enabled": false,
+        "rerank_blend": false,
+        "rerank_shortlist": 50,
+        "floor": {"hard_floor": 0, "max_gap": 0}
+      },
+      "performance": {"p95_ms": 1500, "degraded_rate_max": 0.1, "minimum_samples": 2, "telemetry_required": true},
+      "scoring": {"recall_at": 5, "recall_target": 0.8, "mrr_at": 3, "deep_k": 50},
+      "tests": {
+        "minimum": {"reviewed_positive": 1, "negative": 1},
+        "suite_id": "source-ledger.agent-memory.primary",
+        "name": "Source Ledger agent-memory reviewed recall corpus",
+        "description": "Reviewed cases for prior-work and memory retrieval.",
+        "cases": [
+          {"id": "memory-work-record", "query": "what did a previous coding agent validate or implement", "expect_ids": ["b64be0e6-c42e-47b8-92f4-89834d9dde94"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "work-record"]},
+          {"id": "memory-junk-negative", "query": "zxqv unrelated synthetic nonsense", "expect_no_strong_hit": true, "expect_max_score": 0.6, "status": "reviewed", "tags": ["reviewed", "negative"]}
+        ]
+      }
+    },
+    {
+      "provider_id": "source-ledger.scopes",
+      "lifecycle": "production",
+      "provider_group": "source-ledger",
+      "bucket": "BUCKET_KNOW",
+      "type": "record",
+      "class": "local_live",
+      "index_timestamp_field": "metrics.last_indexed_at",
+      "scope": "SCOPE_PROJECT",
+      "description": "Scope-faceted durable source ledger. Holds journal entries and derived memory for the requested scope; pass --scope scenario:<id> or another ledger facet to filter the shared corpus. Use for source history and prior work, not code definitions.",
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "source-ledger",
+          "path": "/vrooli.source_ledger.v1.recall.RecallService/Recall",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}},\"scope\":\"{{scope_value}}\"}",
+          "headers": {"Content-Type": "application/json"}
+        }
+      },
+      "status_endpoint": {
+        "http_json": {
+          "scenario_id": "source-ledger",
+          "path": "/health",
+          "method": "HTTP_METHOD_GET",
+          "headers": {"Content-Type": "application/json"}
+        }
+      },
+      "result_mapping": {
+        "results_path": "hits",
+        "id_field": "entryId",
+        "score_field": "score",
+        "score_scale": "SCORE_SCALE_COSINE_0_1",
+        "snippet_field": "text",
+        "title_field": "facetId"
+      },
+      "tuning": {
+        "engine": "dense",
+        "embed_model": "nomic-embed-text",
+        "embed_task_prefix": true,
+        "rerank_enabled": false,
+        "rerank_blend": false,
+        "rerank_shortlist": 50,
+        "floor": {"hard_floor": 0, "max_gap": 0}
+      },
+      "performance": {"p95_ms": 1500, "degraded_rate_max": 0.1, "minimum_samples": 2, "telemetry_required": true},
+      "scoring": {"recall_at": 5, "recall_target": 0.8, "mrr_at": 3, "deep_k": 50},
+      "tests": {
+        "minimum": {"reviewed_positive": 1, "negative": 1},
+        "suite_id": "source-ledger.scopes.primary",
+        "name": "Source Ledger scope-filtered recall corpus",
+        "description": "Reviewed cases for scope-filtered source history retrieval.",
+        "cases": [
+          {"id": "scope-work-record", "query": "what did a previous coding agent validate or implement", "expect_ids": ["b64be0e6-c42e-47b8-92f4-89834d9dde94"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "work-record"]},
+          {"id": "scope-junk-negative", "query": "zxqv unrelated synthetic nonsense", "expect_no_strong_hit": true, "expect_max_score": 0.6, "status": "reviewed", "tags": ["reviewed", "negative"]}
+        ]
+      }
+    }
+  ]
+}

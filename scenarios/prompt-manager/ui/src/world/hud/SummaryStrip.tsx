@@ -1,0 +1,70 @@
+import { selectors } from '@/constants/selectors'
+import type { SummaryView } from '../sim'
+import type { WeatherState } from '../sim'
+import { formatCountdown } from './format'
+
+export type SummaryFilter = 'running' | 'gathered' | 'idle' | 'failed'
+
+interface SummaryStripProps {
+  summary: SummaryView
+  now: number
+  activeFilter: SummaryFilter | null
+  onToggleFilter: (filter: SummaryFilter) => void
+  teamNames: Record<string, string>
+  weather?: Pick<WeatherState, 'state' | 'pressure'>
+}
+
+const COUNTS: Array<{ id: SummaryFilter; label: string; tone: string }> = [
+  { id: 'running', label: 'Running', tone: 'text-sky-600 dark:text-sky-400' },
+  { id: 'gathered', label: 'Gathering', tone: 'text-amber-600 dark:text-amber-400' },
+  { id: 'idle', label: 'Idle', tone: 'text-muted-foreground' },
+  { id: 'failed', label: 'Failed', tone: 'text-red-600 dark:text-red-400' },
+]
+
+/** "What is my swarm doing right now": four counts that double as filters, and the next heartbeat. */
+export function SummaryStrip({ summary, now, activeFilter, onToggleFilter, teamNames, weather }: SummaryStripProps) {
+  const next = summary.nextHeartbeat
+  return (
+    <div
+      className="pointer-events-auto flex max-w-[calc(100vw-1rem)] min-w-0 flex-wrap items-center justify-center gap-1 overflow-hidden rounded-lg border border-border bg-background/85 px-1 py-1 shadow-sm backdrop-blur sm:max-w-full sm:flex-nowrap sm:px-2"
+      data-testid={selectors.world.hud.summary}
+      role="group"
+      aria-label="Swarm summary"
+    >
+      {COUNTS.map((count) => {
+        const value = summary[count.id]
+        const active = activeFilter === count.id
+        return (
+          <button
+            key={count.id}
+            type="button"
+            aria-pressed={active}
+            data-testid={`${selectors.world.hud.summary}-${count.id}`}
+            onClick={() => onToggleFilter(count.id)}
+            className={`flex items-baseline gap-1 rounded-md px-1 py-1 text-xs transition-colors hover:bg-muted sm:px-2 ${active ? 'bg-muted ring-1 ring-primary/40' : ''}`}
+            title={`Show only ${count.label.toLowerCase()} agents`}
+          >
+            <span className={`text-base font-semibold tabular-nums ${count.tone}`}>{value}</span>
+            <span className="hidden text-muted-foreground sm:inline">{count.label}</span>
+          </button>
+        )
+      })}
+      <span className="mx-1 hidden h-5 w-px bg-border sm:block" aria-hidden="true" />
+      <span className="hidden px-2 text-xs text-muted-foreground sm:inline" data-testid={selectors.world.hud.nextHeartbeat}>
+        {next ? (
+          <>
+            Next heartbeat <span className="font-medium text-foreground">{teamNames[next.teamId] ?? next.teamId}</span>{' '}
+            <span className="tabular-nums">{formatCountdown(next.scheduledAt, now)}</span>
+          </>
+        ) : (
+          'No heartbeat scheduled'
+        )}
+      </span>
+      {weather && (
+        <span className="hidden border-l border-border px-2 text-xs text-muted-foreground sm:inline" data-testid={selectors.world.hud.weather} title="Weather reflects recent run failures and failed agents">
+          <span className="font-medium text-foreground">{weather.state.charAt(0).toUpperCase() + weather.state.slice(1)}</span> — health pressure {Math.round(weather.pressure * 100)}%
+        </span>
+      )}
+    </div>
+  )
+}

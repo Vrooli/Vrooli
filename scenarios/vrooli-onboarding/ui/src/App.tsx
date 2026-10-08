@@ -1,46 +1,119 @@
-import { useCallback, useRef, useState } from "react";
-import { Wand2, Activity, BookOpen } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Wand2, Activity, BookOpen, Search } from "lucide-react";
 import { WizardShell } from "./components/wizard/WizardShell";
-import { StepWelcome } from "./components/wizard/StepWelcome";
-import { StepSelectResources } from "./components/wizard/StepSelectResources";
-import { StepReview } from "./components/wizard/StepReview";
-import { StepComplete } from "./components/wizard/StepComplete";
 import { HealthDashboard } from "./components/dashboard/HealthDashboard";
 import { GlossaryPanel } from "./components/glossary/GlossaryPanel";
 import { useGlobalKeyboardShortcuts } from "./hooks/useGlobalKeyboardShortcuts";
 import { useWizardState } from "./hooks/useWizardState";
 import { cn } from "./lib/utils";
+import { Button } from "@vrooli/react-component-library/Button/2";
+import { TargetSwitcher, type TargetSwitcherOption } from "@vrooli/react-component-library/TargetSwitcher/0";
+import { AppShell } from "./components/layout/AppShell";
+import { stepRegistry } from "./components/wizard/stepRegistry";
+import { fetchTargets } from "./api/host";
+import type { OnboardingTarget } from "./api/host";
+import { i18n } from "./i18n";
+import { ConfigurationSearchPanel } from "./components/configuration/ConfigurationSearchPanel";
+import type { ConfigurationDescriptor } from "./api/configuration";
+import vrooliWordmark from "../../../../assets/readme-display.png";
 
-type AppView = "wizard" | "dashboard" | "glossary";
+type AppView = "wizard" | "dashboard" | "glossary" | "configuration";
 
-const NAV_ITEMS: { id: AppView; label: string; icon: React.ReactNode; testId: string }[] = [
-  { id: "wizard", label: "Setup Wizard", icon: <Wand2 className="h-4 w-4" aria-hidden="true" />, testId: "nav-wizard" },
-  { id: "dashboard", label: "Health Dashboard", icon: <Activity className="h-4 w-4" aria-hidden="true" />, testId: "nav-dashboard" },
-  { id: "glossary", label: "Glossary", icon: <BookOpen className="h-4 w-4" aria-hidden="true" />, testId: "nav-glossary" },
+function initialViewForPath(pathname: string): AppView {
+  if (pathname === "/health-dashboard") return "dashboard";
+  if (pathname === "/glossary") return "glossary";
+  if (pathname === "/configuration") return "configuration";
+  return "wizard";
+}
+
+const NAV_ITEMS: {
+  id: AppView;
+  label: string;
+  icon: React.ReactNode;
+  testId: string;
+}[] = [
+  {
+    id: "wizard",
+    label: i18n.t("onboarding.app.setupWizard"),
+    icon: <Wand2 className="h-4 w-4" aria-hidden="true" />,
+    testId: "nav-wizard",
+  },
+  {
+    id: "dashboard",
+    label: i18n.t("onboarding.app.healthDashboard"),
+    icon: <Activity className="h-4 w-4" aria-hidden="true" />,
+    testId: "nav-dashboard",
+  },
+  {
+    id: "glossary",
+    label: i18n.t("onboarding.app.glossary"),
+    icon: <BookOpen className="h-4 w-4" aria-hidden="true" />,
+    testId: "nav-glossary",
+  },
+  {
+    id: "configuration",
+    label: i18n.t("onboarding.app.configuration"),
+    icon: <Search className="h-4 w-4" aria-hidden="true" />,
+    testId: "nav-configuration",
+  },
 ];
 
 const VIEW_IDS = NAV_ITEMS.map((item) => item.id);
 
+function capitalizeLabel(value: string): string {
+  const trimmed = value.trim();
+  return trimmed ? `${trimmed.charAt(0).toUpperCase()}${trimmed.slice(1)}` : value;
+}
+
+function formatTargetEnumLabel(value: string): string {
+  const normalized = value.trim().replace(/^(node_status|node_kind)_/i, "").replace(/[_-]+/g, " ").toLowerCase();
+  return normalized ? normalized.split(/\s+/).map((word) => `${word.charAt(0).toUpperCase()}${word.slice(1)}`).join(" ") : value;
+}
+
 export default function App() {
-  const [view, setView] = useState<AppView>("wizard");
+  const [view, setView] = useState<AppView>(() =>
+    initialViewForPath(window.location.pathname),
+  );
+  const [target, setTarget] = useState(() => new URLSearchParams(window.location.search).get("target") || "local");
+  const [targetOptions, setTargetOptions] = useState<OnboardingTarget[]>([{ id: "local", name: "This machine", status: "local" }]);
+  useEffect(() => {
+    fetchTargets().then((result) => {
+      if (Array.isArray(result?.targets) && result.targets.length > 0) setTargetOptions(result.targets);
+    }).catch(() => undefined);
+  }, []);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const {
     currentStep,
-    selectedResources,
-    resumeAvailable,
-    resumeStep,
+    steps,
+    stepsLoading,
+    stepsError,
+    selectedScenarios,
+    operatorState,
     stepContentRef,
-    handleResume,
-    toggleResource,
+    toggleScenario,
+    setCoreSeed,
+    setScenarioAutoRestart,
+    setHostOptIn,
+    setHostConfig,
+    setResourceEnabled,
     goNext,
     goPrev,
     goToStep,
-    startOver,
     nextLabel,
     isLastStep,
     totalSteps,
-  } = useWizardState();
+    planAccepted,
+    operatorStateError,
+    operatorStateSaveState,
+    retryOperatorStateSave,
+    profileSession,
+    profileSessionError,
+    profileSessionSaveState,
+    persistProfileSession,
+    retryProfileSessionSave,
+    acceptRecommendation,
+  } = useWizardState(target);
 
   // WAI-ARIA tablist keyboard navigation: Left/Right arrows, Home/End
   const handleTabKeyDown = useCallback(
@@ -77,121 +150,289 @@ export default function App() {
     }
   });
 
+  // The shared FormWizard owns step navigation; each step still receives the
+  // same durable state and callbacks, so the question schema is rendered once
+  // by the registry rather than reimplemented in the shell.
+  const renderStep = (step: (typeof steps)[number]) => stepRegistry[step.id]?.({
+    step,
+    selectedScenarios,
+    operatorState,
+    toggleScenario,
+    setCoreSeed,
+    setScenarioAutoRestart,
+    setHostOptIn,
+    setHostConfig,
+    setResourceEnabled,
+    target,
+    acceptRecommendation,
+    onAdjustRecommendation: () => goToStep(1),
+    profileSession,
+    profileSessionBaseRevision: operatorState?.updatedAt ?? operatorState?.version ?? "",
+    onProfileSessionChange: persistProfileSession,
+    profileSessionError,
+    profileSessionSaveState,
+    onRetryProfileSessionSave: () => { void retryProfileSessionSave(); },
+  });
+
+  const openConfiguration = (descriptor: ConfigurationDescriptor) => {
+    const params = new URLSearchParams(window.location.search);
+    params.set("target", target || "local");
+    params.set("setting", descriptor.id);
+    params.set("draft", "current");
+    const query = params.toString();
+    window.history.pushState({}, "", `${descriptor.route}${query ? `?${query}` : ""}`);
+    setView("wizard");
+    tabRefs.current[0]?.focus();
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  };
+
+  const selectedTarget = targetOptions.find((option) => option.id === target);
+  const selectedTargetStatus = formatTargetEnumLabel(selectedTarget?.status ?? (target === "local" ? "local" : "ready"));
+  const selectedTargetUnavailable = selectedTarget?.available === false || selectedTarget?.online === false;
+  const targetTone = (option: OnboardingTarget): TargetSwitcherOption["statusTone"] => {
+    if (option.id === "local") return "local";
+    if (option.available === false || option.online === false) return "warning";
+    return "success";
+  };
+  const targetSwitcherOptions: TargetSwitcherOption[] = targetOptions.map((option) => ({
+    id: option.id,
+    label: option.id === "local" ? i18n.t("onboarding.app.local") : capitalizeLabel(option.name ?? option.id),
+    meta: [option.os, option.architecture, option.kind].filter(Boolean).map((value) => capitalizeLabel(value as string)).join(" · ") || undefined,
+    description: option.reason,
+    status: option.available === false || option.online === false ? i18n.t("onboarding.app.targetUnavailable") : formatTargetEnumLabel(option.status ?? (option.id === "local" ? "local" : "ready")),
+    statusTone: targetTone(option),
+    badge: option.kind ? formatTargetEnumLabel(option.kind) : undefined,
+    disabled: option.id !== "local" && (option.available === false || option.online === false),
+  }));
+  const selectTarget = (nextTarget: string) => {
+    setTarget(nextTarget);
+    const params = new URLSearchParams(window.location.search);
+    params.set("target", nextTarget);
+    window.history.replaceState({}, "", `${window.location.pathname}?${params.toString()}`);
+  };
+
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-50">
+    <AppShell>
+    <div className="min-h-full bg-surface text-foreground" data-plan-accepted={planAccepted ? "true" : "false"}>
       {/* Skip to content link for screen readers */}
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-lg focus:bg-emerald-500 focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-white focus:outline-none"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-lg focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-foreground focus:outline-none"
         data-testid="skip-to-content"
       >
-        Skip to main content
+        {i18n.t("onboarding.app.skip")}
       </a>
 
       {/* Navigation */}
-      <nav
+      <div
+        role="navigation"
         data-testid="app-nav"
-        aria-label="Main navigation"
-        className="sticky top-0 z-50 border-b border-white/10 bg-slate-950/95 backdrop-blur-sm"
+        aria-label={i18n.t("onboarding.app.mainNavigation")}
+        className="app-bar"
       >
-        <div className="mx-auto flex max-w-5xl items-center gap-0.5 px-2 py-1.5 sm:gap-1 sm:px-6 sm:py-3" role="tablist" aria-label="Application views">
+        <div className="app-bar__inner">
+          <div className="app-brand" aria-label={i18n.t("onboarding.app.brand")}>
+            <img
+              className="app-brand__wordmark"
+              src={vrooliWordmark}
+              alt={i18n.t("onboarding.app.brand")}
+            />
+          </div>
+          <div
+            className="app-tabs"
+            role="tablist"
+            aria-label={i18n.t("onboarding.app.applicationViews")}
+          >
           {NAV_ITEMS.map((item, idx) => (
-            <button
+            <Button
+              variant="ghost"
               key={item.id}
-              ref={(el) => { tabRefs.current[idx] = el; }}
+              ref={(el) => {
+                tabRefs.current[idx] = el;
+              }}
               role="tab"
               data-testid={item.testId}
               onClick={() => setView(item.id)}
               onKeyDown={handleTabKeyDown}
+              style={{ minBlockSize: "var(--tap-target-min)" }}
               aria-selected={view === item.id}
               aria-controls={`tabpanel-${item.id}`}
               id={`tab-${item.id}`}
+              aria-label={item.label}
+              title={item.label}
               tabIndex={view === item.id ? 0 : -1}
               className={cn(
-                "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors sm:gap-2 sm:px-3",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50",
+                "app-tab min-h-11 inline-flex items-center rounded-lg px-2.5 py-2 text-sm font-medium transition-colors sm:px-3",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus/50",
                 view === item.id
-                  ? "bg-white/10 text-white"
-                  : "text-slate-300 hover:bg-white/5 hover:text-slate-100"
+                  ? "bg-surface-subtle text-foreground"
+                  : "text-muted hover:bg-surface-muted hover:text-foreground",
               )}
             >
-              {item.icon}
-              <span className="hidden sm:inline">{item.label}</span>
-              <span className="text-xs sm:hidden">{item.label.split(" ")[0]}</span>
-              <kbd className="hidden lg:inline-flex ml-1 h-4 min-w-4 items-center justify-center rounded bg-white/5 px-1 text-[9px] font-mono text-slate-300/60" aria-hidden="true">
-                Alt+{idx + 1}
-              </kbd>
-              {item.id === "wizard" && selectedResources.size > 0 && (
-                <span
-                  className="ml-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-500/20 px-1 text-[10px] font-medium text-emerald-400"
-                  aria-label={`${selectedResources.size} resources selected`}
-                  data-testid="nav-wizard-badge"
+              <span className="app-tab__content">
+                <span data-control-slot="icon" className="app-tab__icon" aria-hidden="true">{item.icon}</span>
+                <span className="app-tab__label">{item.label}</span>
+                <kbd
+                  className="hidden lg:inline-flex h-4 min-w-4 items-center justify-center rounded bg-surface-muted px-1 text-[9px] font-mono text-muted/60"
+                  aria-hidden="true"
                 >
-                  {selectedResources.size}
-                </span>
-              )}
-            </button>
+                  Alt+{idx + 1}
+                </kbd>
+                {item.id === "wizard" && selectedScenarios.size > 0 && (
+                  <span
+                    className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-primary/20 px-1 text-[10px] font-medium text-primary"
+                    aria-label={i18n.t("onboarding.app.selected", { count: selectedScenarios.size })}
+                    data-testid="nav-wizard-badge"
+                  >
+                    {selectedScenarios.size}
+                  </span>
+                )}
+              </span>
+            </Button>
           ))}
+          </div>
+          <TargetSwitcher
+            className="target-switcher"
+            value={target}
+            options={targetSwitcherOptions}
+            onValueChange={selectTarget}
+            label={i18n.t("onboarding.app.setupTarget")}
+            eyebrow={i18n.t("onboarding.app.availableTargets")}
+            description={selectedTarget?.reason || i18n.t("onboarding.app.targetDetails")}
+            statusLabel={i18n.t("onboarding.app.targetStatus")}
+            statusValue={selectedTargetUnavailable ? i18n.t("onboarding.app.targetUnavailable") : selectedTargetStatus}
+            statusTone={targetTone(selectedTarget ?? { id: "local" })}
+            addTargetLabel={i18n.t("onboarding.app.addTarget")}
+            onAddTarget={() => window.open("/apps/vrooli-bridge/proxy/", "_blank", "noopener,noreferrer")}
+            testId="setup-target-trigger"
+          />
         </div>
-      </nav>
+      </div>
 
       {/* Screen reader step announcement */}
-      <div className="sr-only" aria-live="assertive" aria-atomic="true" data-testid="step-announcement">
-        {view === "wizard" && `Step ${currentStep + 1} of ${totalSteps}`}
+      <div
+        className="sr-only"
+        aria-live="assertive"
+        aria-atomic="true"
+        data-testid="step-announcement"
+      >
+        {view === "wizard" && i18n.t("onboarding.app.step", { current: currentStep + 1, total: totalSteps })}
       </div>
 
       {/* Content */}
-      <main id="main-content">
-        <div role="tabpanel" id="tabpanel-wizard" aria-labelledby="tab-wizard" hidden={view !== "wizard"} className={view === "wizard" ? "animate-panel-enter" : ""}>
-          {view === "wizard" && (
-            <WizardShell
-              currentStep={currentStep}
-              onNext={goNext}
-              onPrev={goPrev}
-              onGoToStep={goToStep}
-              nextDisabled={currentStep === 1 && selectedResources.size === 0}
-              nextLabel={nextLabel}
-              showPrev={currentStep > 0 && !isLastStep}
-              showNext={!isLastStep}
-            >
-              <div ref={stepContentRef} key={currentStep} className="animate-step-enter">
-              {currentStep === 0 && (
-                <>
-                  <StepWelcome />
-                  {resumeAvailable && (
-                    <div
-                      data-testid="resume-prompt"
-                      className="mt-6 rounded-xl border border-blue-500/30 bg-blue-500/10 p-4 text-center"
-                      role="alert"
-                    >
-                      <p className="text-sm text-slate-300">You have saved progress at step {resumeStep + 1}.</p>
-                      <button
-                        data-testid="resume-button"
-                        onClick={handleResume}
-                        className="mt-3 inline-flex items-center rounded-full bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50"
-                      >
-                        Resume
-                      </button>
-                    </div>
-                  )}
-                </>
-              )}
-              {currentStep === 1 && (
-                <StepSelectResources selected={selectedResources} onToggle={toggleResource} />
-              )}
-              {currentStep === 2 && <StepReview selected={selectedResources} onRemove={toggleResource} onGoBack={goPrev} />}
-              {currentStep === 3 && <StepComplete selected={selectedResources} onStartOver={startOver} />}
+      <div id="main-content">
+        <div
+          role="tabpanel"
+          id="tabpanel-wizard"
+          aria-labelledby="tab-wizard"
+          hidden={view !== "wizard"}
+          className={view === "wizard" ? "animate-panel-enter" : ""}
+        >
+          {view === "wizard" && stepsLoading && (
+            <div data-testid="wizard-shell" className="contents">
+              <div
+                className="mx-auto max-w-3xl px-3 py-8"
+                data-testid="wizard-loading"
+                role="status"
+              >
+                <h1 className="text-2xl font-semibold">{i18n.t("onboarding.app.welcome")}</h1>
+                {i18n.t("onboarding.app.loadingSteps")}
               </div>
-            </WizardShell>
+            </div>
+          )}
+          {view === "wizard" && stepsError && !stepsLoading && (
+            <div data-testid="wizard-shell" className="contents">
+              <div
+                className="mx-auto max-w-3xl px-3 py-8"
+                data-testid="wizard-error"
+                role="alert"
+              >
+                <h1 className="text-2xl font-semibold">{i18n.t("onboarding.app.welcome")}</h1>
+                {stepsError}
+              </div>
+            </div>
+          )}
+          {view === "wizard" &&
+            !stepsLoading &&
+            !stepsError &&
+            steps.length > 0 && (
+              <WizardShell
+                currentStep={currentStep}
+                steps={steps}
+                onNext={goNext}
+                onPrev={goPrev}
+                onGoToStep={goToStep}
+                nextDisabled={
+                  steps[currentStep]?.id === "scenarios" &&
+                  selectedScenarios.size === 0
+                }
+                nextLabel={nextLabel}
+                showPrev={currentStep > 0}
+                showNext={!isLastStep}
+                target={target}
+                operatorStateError={operatorStateError}
+                operatorStateSaveState={operatorStateSaveState}
+                onRetryOperatorStateSave={() => { void retryOperatorStateSave(); }}
+                onTargetChange={(nextTarget) => {
+                  const normalized = nextTarget.trim() || "local";
+                  setTarget(normalized);
+                  const params = new URLSearchParams(window.location.search);
+                  params.set("target", normalized);
+                  window.history.replaceState({}, "", `${window.location.pathname}?${params.toString()}`);
+                }}
+                targetOptions={targetOptions}
+              >
+                <div ref={stepContentRef} key={currentStep} className="animate-step-enter">
+                  {steps[currentStep] && renderStep(steps[currentStep])}
+                </div>
+              </WizardShell>
+            )}
+        </div>
+        <div
+          role="tabpanel"
+          id="tabpanel-dashboard"
+          aria-labelledby="tab-dashboard"
+          className={cn(
+            "mx-auto max-w-5xl px-3 py-4 sm:px-6 sm:py-8",
+            view === "dashboard" && "animate-panel-enter",
+          )}
+          hidden={view !== "dashboard"}
+        >
+          {view === "dashboard" && (
+            <HealthDashboard
+              onNavigateToWizard={() => {
+                setView("wizard");
+                tabRefs.current[0]?.focus();
+              }}
+            />
           )}
         </div>
-        <div role="tabpanel" id="tabpanel-dashboard" aria-labelledby="tab-dashboard" className={cn("mx-auto max-w-5xl px-3 py-4 sm:px-6 sm:py-8", view === "dashboard" && "animate-panel-enter")} hidden={view !== "dashboard"}>
-          {view === "dashboard" && <HealthDashboard onNavigateToWizard={() => { setView("wizard"); tabRefs.current[0]?.focus(); }} />}
-        </div>
-        <div role="tabpanel" id="tabpanel-glossary" aria-labelledby="tab-glossary" className={cn("mx-auto max-w-3xl px-3 py-4 sm:px-6 sm:py-8", view === "glossary" && "animate-panel-enter")} hidden={view !== "glossary"}>
+        <div
+          role="tabpanel"
+          id="tabpanel-glossary"
+          aria-labelledby="tab-glossary"
+          className={cn(
+            "mx-auto max-w-3xl px-3 py-4 sm:px-6 sm:py-8",
+            view === "glossary" && "animate-panel-enter",
+          )}
+          hidden={view !== "glossary"}
+        >
           {view === "glossary" && <GlossaryPanel />}
         </div>
-      </main>
+        <div
+          role="tabpanel"
+          id="tabpanel-configuration"
+          aria-labelledby="tab-configuration"
+          className={cn(
+            "mx-auto max-w-3xl px-3 py-4 sm:px-6 sm:py-8",
+            view === "configuration" && "animate-panel-enter",
+          )}
+          hidden={view !== "configuration"}
+        >
+          {view === "configuration" && <ConfigurationSearchPanel target={target} onNavigate={openConfiguration} />}
+        </div>
+      </div>
     </div>
+    </AppShell>
   );
 }

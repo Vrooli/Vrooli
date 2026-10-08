@@ -1,4 +1,4 @@
-import { createHighlighter, type Highlighter, type BundledLanguage } from "shiki";
+import type { Highlighter, BundledLanguage } from "shiki";
 
 // Map file extensions to language identifiers
 const extensionToLanguage: Record<string, BundledLanguage> = {
@@ -185,10 +185,10 @@ export async function getHighlighter(): Promise<Highlighter> {
     return highlighterPromise;
   }
 
-  highlighterPromise = createHighlighter({
+  highlighterPromise = import("shiki").then(({ createHighlighter }) => createHighlighter({
     themes: ["github-dark"],
     langs: bundledLanguages,
-  }).then((instance) => {
+  })).then((instance) => {
     highlighterInstance = instance;
     return instance;
   });

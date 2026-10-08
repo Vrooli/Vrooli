@@ -1,5 +1,6 @@
+import { renderWithProviders as render } from "../test-utils";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, act } from "@testing-library/react";
+import { screen, fireEvent, act } from "@testing-library/react";
 import TabBar from "../components/TabBar";
 import { useWorkspaceStore, type PaneMetadata, type TabGroupMeta } from "../stores/useWorkspaceStore";
 
@@ -13,7 +14,7 @@ Element.prototype.releasePointerCapture = vi.fn();
 // Mock the api module so saveWorkspaceLayout can be spied on
 const mockSaveWorkspaceLayout = vi.fn().mockResolvedValue(undefined);
 
-vi.mock("../lib/api", () => ({
+vi.mock("../api/workspace", () => ({
   saveWorkspaceLayout: (...args: unknown[]) => mockSaveWorkspaceLayout(...args) as unknown,
   updateWorkspacePane: vi.fn().mockResolvedValue(undefined),
   createTabGroup: vi.fn().mockResolvedValue({ id: "g1", name: "Group", color: "#3b82f6" }),
@@ -30,6 +31,7 @@ const makePanes = (...ids: string[]): PaneMetadata[] =>
     fontSize: 14,
     groupId: null,
     supportsMessagesView: false,
+  manuallyUnread: false,
   }));
 
 describe("TabBar reorder sync", () => {
@@ -59,6 +61,9 @@ describe("TabBar reorder sync", () => {
         onNewTerminal={vi.fn()}
         onOpenLauncher={vi.fn()}
         onClosePane={vi.fn()}
+        onDeletePanePermanently={vi.fn()}
+        onStartRole={vi.fn()}
+        onOpenRoleMenu={vi.fn()}
       />,
     );
 
@@ -108,6 +113,9 @@ describe("TabBar reorder sync", () => {
         onNewTerminal={vi.fn()}
         onOpenLauncher={vi.fn()}
         onClosePane={vi.fn()}
+        onDeletePanePermanently={vi.fn()}
+        onStartRole={vi.fn()}
+        onOpenRoleMenu={vi.fn()}
       />,
     );
 
@@ -145,6 +153,49 @@ describe("TabBar reorder sync", () => {
     expect(mockSaveWorkspaceLayout).not.toHaveBeenCalled();
   });
 
+  it("opens the tab context menu on touch long press without activating", () => {
+    useWorkspaceStore.setState({ activePane: "b" });
+
+    render(
+      <TabBar
+        panes={useWorkspaceStore.getState().panes}
+        activePane="b"
+        onNewTerminal={vi.fn()}
+        onOpenLauncher={vi.fn()}
+        onClosePane={vi.fn()}
+        onDeletePanePermanently={vi.fn()}
+        onStartRole={vi.fn()}
+        onOpenRoleMenu={vi.fn()}
+      />,
+    );
+
+    const tabA = screen.getByTestId("tab-a");
+    fireEvent.pointerDown(tabA, {
+      button: 0,
+      pointerType: "touch",
+      clientX: 50,
+      clientY: 10,
+      pointerId: 1,
+    });
+
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+
+    fireEvent.pointerUp(window, {
+      pointerType: "touch",
+      clientX: 50,
+      clientY: 10,
+      pointerId: 1,
+    });
+
+    expect(useWorkspaceStore.getState().activePane).toBe("b");
+    expect(useWorkspaceStore.getState().tabContextMenu).toEqual({
+      sessionId: "a",
+      position: { x: 50, y: 10 },
+    });
+  });
+
   it("persists active pane when the user switches tabs", () => {
     render(
       <TabBar
@@ -153,6 +204,9 @@ describe("TabBar reorder sync", () => {
         onNewTerminal={vi.fn()}
         onOpenLauncher={vi.fn()}
         onClosePane={vi.fn()}
+        onDeletePanePermanently={vi.fn()}
+        onStartRole={vi.fn()}
+        onOpenRoleMenu={vi.fn()}
       />,
     );
 
@@ -162,5 +216,34 @@ describe("TabBar reorder sync", () => {
       active_pane: "b",
       pane_order: ["a", "b", "c"],
     });
+  });
+
+  it("renders pane and group accents in the tab strip", () => {
+    const panes = makePanes("colored", "grouped");
+    panes[0]!.headerColor = "#ff7a7a";
+    panes[1]!.groupId = "g1";
+    useWorkspaceStore.setState({
+      panes,
+      activePane: "colored",
+      groups: [{ id: "g1", name: "Work", color: "#7aa0ff", isCollapsed: false }],
+    });
+
+    render(
+      <TabBar
+        panes={panes}
+        activePane="colored"
+        onNewTerminal={vi.fn()}
+        onOpenLauncher={vi.fn()}
+        onClosePane={vi.fn()}
+        onDeletePanePermanently={vi.fn()}
+        onStartRole={vi.fn()}
+        onOpenRoleMenu={vi.fn()}
+      />,
+    );
+
+    const colored = screen.getByTestId("tab-colored");
+    const grouped = screen.getByTestId("tab-grouped");
+    expect(colored.querySelector("span")?.getAttribute("style")).toContain("rgb(255, 122, 122)");
+    expect(grouped.querySelector("span")?.getAttribute("style")).toContain("rgb(122, 160, 255)");
   });
 });

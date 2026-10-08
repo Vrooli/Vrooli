@@ -1,77 +1,67 @@
 {
-  "description": "Full CRUD operations for team entities including roles, members, and org chart.",
-  "module_id": "MOD-P0-017",
-  "prd_ref": "prompt-manager-must-have-team-crud-with-roles-members-org-chart",
-  "priority": "P0",
+  "_metadata": {
+    "last_validated_at": "2026-08-24T00:52:01-04:00"
+  },
   "requirements": [
     {
-      "category": "api",
-      "dependencies": ["REQ-P0-006"],
-      "description": "Implement REST API endpoints for creating, reading, updating and deleting teams with JSON payload support",
       "id": "REQ-P0-018",
-      "prd_ref": "prompt-manager-must-have-team-crud-with-roles-members-org-chart",
-      "status": "complete",
       "title": "REST API for Team CRUD",
+      "status": "in_progress",
+      "prd_ref": "prompt-manager-must-have-team-crud-with-roles-members-org-chart",
+      "category": "api",
+      "description": "Implement REST API endpoints for creating, reading, updating and deleting teams with JSON payload support",
       "validation": [
         {
-          "notes": "All team CRUD endpoints return correct HTTP status codes",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "failing",
+          "notes": "All team CRUD endpoints return correct HTTP status codes"
         },
         {
-          "notes": "Team stored in file-based store (store/teams/)",
+          "type": "test",
           "phase": "integration",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "not_implemented",
+          "notes": "Team stored in file-based store (store/teams/)"
         }
       ]
     },
     {
-      "category": "api",
-      "dependencies": ["REQ-P0-018"],
-      "description": "Team roles management with role definitions",
       "id": "REQ-P0-019",
-      "prd_ref": "prompt-manager-must-have-team-crud-with-roles-members-org-chart",
-      "status": "complete",
       "title": "Team Roles Management",
+      "status": "in_progress",
+      "prd_ref": "prompt-manager-must-have-team-crud-with-roles-members-org-chart",
+      "category": "api",
+      "description": "Team roles management with role definitions",
       "validation": [
         {
-          "notes": "Roles can be defined and stored on the team",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "failing",
+          "notes": "Roles can be defined and stored on the team"
         },
         {
-          "notes": "Roles are persisted and returned with team data",
+          "type": "test",
           "phase": "integration",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "not_implemented",
+          "notes": "Roles are persisted and returned with team data"
         }
       ]
     },
     {
-      "category": "api",
-      "dependencies": ["REQ-P0-018"],
-      "description": "Organizational chart with manager-report relationships",
       "id": "REQ-P0-020",
-      "prd_ref": "prompt-manager-must-have-team-crud-with-roles-members-org-chart",
-      "status": "complete",
       "title": "Team Org Chart",
+      "status": "in_progress",
+      "prd_ref": "prompt-manager-must-have-team-crud-with-roles-members-org-chart",
+      "category": "api",
+      "description": "Organizational chart with manager-report relationships",
       "validation": [
         {
-          "notes": "Org chart edges stored and retrieved correctly",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "complete",
-          "type": "test"
+          "status": "failing",
+          "notes": "Org chart edges stored and retrieved correctly"
         }
       ]
     }
-  ],
-  "title": "Team CRUD with roles, members, org chart"
+  ]
 }

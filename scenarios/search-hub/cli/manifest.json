@@ -1,0 +1,1139 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "search-hub",
+  "description": "Search Hub CLI surface: provider registry, federated query, evaluation, maturity, measures, and the coverage-space denominator contract.",
+  "groups": [
+    {
+      "name": "query",
+      "description": "Federated search across registered providers (router domain)",
+      "commands": [
+        {
+          "name": "query",
+          "description": "Search registered providers and return results grouped by provider",
+          "positionals": [
+            {
+              "name": "text",
+              "required": true,
+              "description": "Natural-language query",
+              "bind": {
+                "field": "query"
+              }
+            }
+          ],
+          "flags": [
+            {
+              "name": "type",
+              "description": "Comma-separated leaf types to route to (e.g. command,doc,record)",
+              "bind": {
+                "field": "types"
+              }
+            },
+            {
+              "name": "all",
+              "bool": true,
+              "description": "Fan out to every active provider"
+            },
+            {
+              "name": "group",
+              "description": "Scope the fan-out to one scenario's leaves"
+            },
+            {
+              "name": "scope",
+              "description": "Optional corpus facet passed to scoped providers"
+            },
+            {
+              "name": "limit",
+              "default": "10",
+              "description": "Maximum results per provider"
+            },
+            {
+              "name": "explain",
+              "bool": true,
+              "description": "Include the routing rationale (which selector chose the providers)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RoutingService",
+            "method": "Query"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "semantics": {
+            "kind": "query",
+            "verdict": {
+              "path": "results",
+              "pass": "nonempty",
+              "fail": "empty"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "providers",
+      "description": "Register, list, and remove federated search providers (registry domain)",
+      "commands": [
+        {
+          "name": "register",
+          "description": "Register (upsert) a provider descriptor",
+          "flags": [
+            {
+              "name": "descriptor",
+              "required": true,
+              "description": "ProviderDescriptor as JSON, or @path to a JSON file",
+              "bind_waiver": "The provider handler intentionally accepts protojson inline or @path input and decodes ProviderDescriptor itself so file-backed descriptors remain supported."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RegistryService",
+            "method": "RegisterProvider"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "list",
+          "description": "List registered providers (optional filters)",
+          "flags": [
+            {
+              "name": "bucket",
+              "description": "Filter by routing bucket: DO|REUSE|KNOW|STATE"
+            },
+            {
+              "name": "type",
+              "description": "Filter by leaf type (command, doc, record, \u2026)"
+            },
+            {
+              "name": "state",
+              "description": "Filter by state: active|capability_gap"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RegistryService",
+            "method": "ListProviders"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "remove",
+          "description": "Deregister a provider by provider_id",
+          "positionals": [
+            {
+              "name": "provider_id",
+              "required": true,
+              "description": "Unique leaf id, e.g. cli-health.commands"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RegistryService",
+            "method": "DeregisterProvider"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ]
+    },
+    {
+      "name": "federation",
+      "description": "Federation status: per-provider reachability + classifier/reranker availability (routing domain)",
+      "commands": [
+        {
+          "name": "status",
+          "description": "Show each active provider's reachability and whether the classifier/reranker models are available",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RoutingService",
+            "method": "Status"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "repromote",
+          "description": "Clear one provider's graded-empty demotion evidence so automatic routing can probe it again",
+          "positionals": [
+            {
+              "name": "provider_id",
+              "description": "Registered provider leaf id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RoutingService",
+            "method": "Repromote"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ],
+            "requires_confirmation": true
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ]
+    },
+    {
+      "name": "insights",
+      "description": "Federation telemetry insights: utilization, zero-result rate, latency percentiles (metrics domain)",
+      "commands": [
+        {
+          "name": "insights",
+          "description": "Aggregate per-query telemetry into federation-health signals (under-utilized providers, zero-result rate, p50/p95 latency)",
+          "flags": [
+            {
+              "name": "window",
+              "description": "Restrict aggregates to a duration such as 15m or 2h; a bare integer remains days (0 or unset = all-time)",
+              "bind": {
+                "field": "window"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MetricsService",
+            "method": "Insights"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
+    },
+    {
+      "name": "metrics",
+      "description": "Declared analytical measures over search-hub query telemetry",
+      "commands": [
+        {
+          "name": "federated-latency",
+          "description": "P95 and p50 federated query latency in a time window.",
+          "flags": [
+            {
+              "name": "window",
+              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter).",
+              "bind_waiver": "The metrics handler converts the public time-window token into the shared structured TimeWindow RPC message."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "FederatedLatency"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "query_telemetry",
+            "intent": "Federated search latency percentiles for search-hub in a time window.",
+            "questions": [
+              "what is search hub federated query p95 latency this week",
+              "show federated search p50 and p95 latency in the last 30 days",
+              "how slow are search-hub federated queries this month"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "p95_ms",
+              "unit": "milliseconds",
+              "summary_template": "{p95_ms}ms p95 federated latency ({window})"
+            }
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "degraded-query-rate",
+          "description": "Fraction of federated queries that degraded in a time window.",
+          "flags": [
+            {
+              "name": "window",
+              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter).",
+              "bind_waiver": "The metrics handler converts the public time-window token into the shared structured TimeWindow RPC message."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "DegradedQueryRate"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "query_telemetry",
+            "intent": "Fraction of federated search queries that degraded in a time window.",
+            "questions": [
+              "what fraction of search hub queries degraded this week",
+              "degraded federated query rate last month",
+              "how often did search-hub federation degrade in the last 7 days"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "rate",
+              "unit": "ratio",
+              "summary_template": "{rate} degraded query rate ({window})"
+            }
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "provider-degradation-rate",
+          "description": "Provider-leg degradation rate in a time window, optionally scoped to one provider.",
+          "flags": [
+            {
+              "name": "window",
+              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter).",
+              "bind_waiver": "The metrics handler converts the public time-window token into the shared structured TimeWindow RPC message."
+            },
+            {
+              "name": "provider-id",
+              "description": "Optional provider_id to scope the rate, e.g. measures-health.measures."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "ProviderDegradationRate"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "query_telemetry",
+            "intent": "Provider-leg degradation rate, optionally scoped to one provider id.",
+            "questions": [
+              "how often does provider measures-health.measures degrade this week",
+              "provider degradation rate for swarm-manager.records in the last 30 days",
+              "which provider degradation rate is search hub seeing this month"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              },
+              "provider_id": {}
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "rate",
+              "unit": "ratio",
+              "summary_template": "{rate} provider degradation rate ({window})"
+            }
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
+    },
+    {
+      "name": "evals",
+      "description": "Register provider-owned golden suites and run them to baseline search quality over time (eval domain)",
+      "commands": [
+        {
+          "name": "register",
+          "description": "Register (upsert) an eval suite as JSON, or @path to a JSON file",
+          "flags": [
+            {
+              "name": "suite",
+              "required": true,
+              "description": "EvalSuite as JSON, or @path to a JSON file",
+              "bind_waiver": "The eval handler intentionally accepts protojson inline or @path input and decodes EvalSuite itself so file-backed provider corpora remain supported."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "EvalService",
+            "method": "RegisterSuite"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "list",
+          "description": "List registered eval suites (optional --provider filter)",
+          "flags": [
+            {
+              "name": "provider",
+              "description": "Filter by provider_id (e.g. cli-health.commands)",
+              "bind": {
+                "field": "provider_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "EvalService",
+            "method": "ListSuites"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "show",
+          "description": "Show one eval suite by suite_id",
+          "positionals": [
+            {
+              "name": "suite_id",
+              "required": true,
+              "description": "Suite id, e.g. cli-health.commands.primary"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "EvalService",
+            "method": "GetSuite"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "run",
+          "description": "Run an eval suite against its provider and store a tagged run",
+          "positionals": [
+            {
+              "name": "suite_id",
+              "required": true,
+              "description": "Suite id to run"
+            }
+          ],
+          "flags": [
+            {
+              "name": "tag",
+              "description": "Free-text experiment label stored with the run (e.g. rerank-off, cross-encoder)"
+            },
+            {
+              "name": "limit",
+              "description": "Per-case fetch depth (0 = a sensible default)"
+            },
+            {
+              "name": "tier",
+              "description": "Execution tier: provider_direct (default) or federated"
+            },
+            {
+              "name": "assert",
+              "bool": true,
+              "description": "Opt-in CI gate: exit non-zero if any case is below_expectation or unexpected_hit (the run is still stored)",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "EvalService",
+            "method": "RunSuite"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "validate",
+          "description": "Re-probe reviewed positive labels and classify expect_ids as live, hard, stale, or inconclusive",
+          "positionals": [
+            {
+              "name": "suite_id",
+              "required": true,
+              "description": "Suite id to validate"
+            }
+          ],
+          "flags": [
+            {
+              "name": "deep-k",
+              "description": "Probe depth (0 = shared default)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "EvalService",
+            "method": "ValidateCorpus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "compare-strategies",
+          "description": "Compare registered retrieval strategies against router.routing with guarded evidence",
+          "flags": [
+            {"name": "strategy_names", "description": "Comma-separated registered strategy names (defaults to all)"},
+            {"name": "apply", "bool": true, "description": "Request write-back eligibility; insignificant winners are refused"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "EvalService", "method": "CompareStrategies"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "proto_mutation"}
+        },
+        {
+          "name": "runs",
+          "description": "List a suite's run history (newest first; --tag/--limit filters)",
+          "positionals": [
+            {
+              "name": "suite_id",
+              "required": true,
+              "description": "Suite id whose runs to list"
+            }
+          ],
+          "flags": [
+            {
+              "name": "tag",
+              "description": "Filter to runs with this experiment tag"
+            },
+            {
+              "name": "limit",
+              "description": "Cap to the N most recent runs (0 = all)"
+            },
+            {
+              "name": "tier",
+              "description": "Filter by execution tier: provider_direct or federated"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "EvalService",
+            "method": "ListRuns"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "show-run",
+          "description": "Show one immutable eval run by run_id",
+          "positionals": [
+            {
+              "name": "run_id",
+              "required": true,
+              "description": "Run id, e.g. a UUID returned by `evals run`"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "EvalService",
+            "method": "GetRun"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "compare",
+          "description": "Compare two eval runs (per-case outcome + score delta) \u2014 the A/B surface",
+          "positionals": [
+            {
+              "name": "run_a",
+              "required": true,
+              "description": "First run id (baseline)"
+            },
+            {
+              "name": "run_b",
+              "required": true,
+              "description": "Second run id (experiment)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "EvalService",
+            "method": "CompareRuns"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "sweep",
+          "description": "Overfit-safe two-tier tuning sweep over a suite's provider; stores one tagged run per arm and (with --apply) writes back a statistically-significant, held-out-validated, constraint-satisfying winner",
+          "positionals": [
+            {
+              "name": "suite_id",
+              "required": true,
+              "description": "Suite id to optimize, e.g. cli-health.commands.primary"
+            }
+          ],
+          "flags": [
+            {
+              "name": "query-time-only",
+              "bool": true,
+              "description": "Skip the reindex-per-arm index-time tier (cheap, full-factorial query-time only)"
+            },
+            {
+              "name": "apply",
+              "bool": true,
+              "description": "Write the winning tuning back into the provider's search.json via config-write (default: preview only)"
+            },
+            {
+              "name": "limit",
+              "description": "Per-case fetch depth (0 = a sensible default)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "EvalService",
+            "method": "Sweep"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "generate",
+          "description": "Grow a suite's golden corpus by sampling + inverting the provider's index (query inversion + hard negatives), de-duped against the existing corpus; preview by default, --apply appends",
+          "positionals": [
+            {
+              "name": "suite_id",
+              "required": true,
+              "description": "Suite id to augment, e.g. cli-health.commands.primary"
+            }
+          ],
+          "flags": [
+            {
+              "name": "count",
+              "description": "Target number of positive cases to propose (0 = a sensible default)"
+            },
+            {
+              "name": "negatives",
+              "bool": true,
+              "description": "Also propose hard-negative (no-strong-hit) cases"
+            },
+            {
+              "name": "apply",
+              "bool": true,
+              "description": "Append the proposals to the suite (each marked generated); default: preview only"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "EvalService",
+            "method": "Generate"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "promote",
+          "description": "Promote reviewed candidate cases into the acceptance recall denominator",
+          "positionals": [
+            {
+              "name": "suite_id",
+              "required": true,
+              "description": "Suite id to update, e.g. cli-health.commands.primary"
+            }
+          ],
+          "flags": [
+            {
+              "name": "case",
+              "description": "Case id to promote; comma-separate multiple ids",
+              "bind": {
+                "field": "case_ids"
+              }
+            },
+            {
+              "name": "all",
+              "bool": true,
+              "description": "Promote every candidate case in the suite"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "EvalService",
+            "method": "PromoteCases"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "reap-orphans",
+          "description": "Audit orphan eval suites; remove them only with explicit --confirm",
+          "flags": [
+            {
+              "name": "confirm",
+              "bool": true,
+              "description": "Confirm deletion of the orphan set observed by this request"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "EvalService",
+            "method": "ReapOrphanSuites"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
+    },
+    {
+      "name": "maturity",
+      "description": "Scan target scenario search maturity using Search Hub validation",
+      "commands": [
+        {
+          "name": "scan",
+          "description": "Scan every scenario with .vrooli/search.json and report search maturity findings",
+          "flags": [
+            {
+              "name": "root",
+              "default": ".",
+              "description": "Repo root or descendant path; scanner walks up to find scenarios/",
+              "local_only": true
+            },
+            {
+              "name": "timeout",
+              "default": "30s",
+              "description": "Per-scenario validation RPC timeout, e.g. 10s or 1m",
+              "local_only": true
+            },
+            {
+              "name": "fleet-timeout",
+              "default": "2m",
+              "description": "Whole-scan deadline; completed target evidence is retained when it expires",
+              "local_only": true
+            },
+            {
+              "name": "concurrency",
+              "default": "6",
+              "description": "Maximum concurrent validation RPCs",
+              "local_only": true
+            },
+            {
+              "name": "retries",
+              "default": "1",
+              "description": "Additional attempts for an unavailable validation RPC within the fleet deadline",
+              "local_only": true
+            },
+            {
+              "name": "fast",
+              "bool": true,
+              "description": "Skip live eval evidence checks for a quick descriptor/state scan",
+              "bind": {
+                "field": "path"
+              }
+            },
+            {
+              "name": "include-evals",
+              "bool": true,
+              "description": "Force full eval evidence checks; this is the default unless --fast is set",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioValidationService",
+            "method": "ValidateScenario"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        },
+        {
+          "name": "fix",
+          "description": "Preview or apply safe mechanical .vrooli/search.json maturity fixes for one scenario",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug to inspect/fix"
+            }
+          ],
+          "flags": [
+            {
+              "name": "path",
+              "description": "Optional explicit scenario path; useful for disposable fixtures"
+            },
+            {
+              "name": "rule",
+              "description": "Comma-separated finding codes to fix; empty previews every safe mechanical fix",
+              "bind": {
+                "field": "rule_ids"
+              }
+            },
+            {
+              "name": "timeout",
+              "default": "30s",
+              "description": "Fix RPC timeout, e.g. 10s or 1m",
+              "local_only": true
+            },
+            {
+              "name": "apply",
+              "bool": true,
+              "description": "Write the previewed mechanical fixes; default is dry-run",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioValidationService",
+            "method": "PreviewFix"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:write",
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ]
+    }
+    ,
+    {
+      "name": "strategy",
+      "description": "Inspect and reproduce measured retrieval strategy benchmarks",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List the active retrieval strategy and all registered strategy rows",
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "proto_list"}
+        },
+        {
+          "name": "show",
+          "description": "Show one data-defined retrieval strategy ladder",
+          "positionals": [{"name": "strategy_name", "required": true, "description": "Registered strategy name"}],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "proto_list"}
+        },
+        {
+          "name": "compare",
+          "description": "Compare registered strategies with held-out and significance guards",
+          "flags": [
+            {"name": "strategies", "description": "Comma-separated strategy names; defaults to the full registered catalog"},
+            {"name": "apply", "bool": true, "description": "Request write-back eligibility; insignificant winners are refused"}
+          ],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "action"}
+        },
+        {
+          "name": "benchmark",
+          "description": "Benchmark the active strategy against the router.routing fixture",
+          "flags": [
+            {"name": "strategy", "description": "Active strategy name; use strategy compare for other registered arms", "default": "lexical-cross-encoder"}
+          ],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "action"}
+        }
+      ]
+    },
+    {
+      "name": "embedding",
+      "description": "Inventory and safely rehearse embedding retargets",
+      "commands": [
+        {
+          "name": "inventory",
+          "description": "Read every Qdrant collection's embedding sentinel and point count",
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "action"}
+        },
+        {
+          "name": "retarget-plan",
+          "description": "Classify a model or role change before any write",
+          "flags": [
+            {"name": "model", "description": "Target embedding model"},
+            {"name": "role", "description": "Target embedding policy role"},
+            {"name": "dimensions", "description": "Explicit target dimensions for controlled rehearsals"}
+          ],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "action"}
+        },
+        {
+          "name": "apply-shadow",
+          "description": "Ask the provider-owned reindex endpoint to build a suffixed shadow collection",
+          "flags": [
+            {"name": "shadow", "bool": true, "description": "Required safety assertion: never write the live collection"},
+            {"name": "provider-id", "required": true, "description": "Provider leaf that owns the reindex endpoint"},
+            {"name": "collection", "description": "Live collection; required when inventory has multiple collections"},
+            {"name": "model", "description": "Target embedding model"},
+            {"name": "role", "description": "Target embedding policy role"},
+            {"name": "dimensions", "description": "Explicit target dimensions"}
+          ],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "action"}
+        },
+        {
+          "name": "record-compare",
+          "description": "Record the external evals compare verdict for a migration",
+          "flags": [{"name": "verdict", "required": true, "description": "pass, fail, or withheld"}],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["filesystem:write"]},
+          "architecture": {"primitive": "action"}
+        },
+        {
+          "name": "abort",
+          "description": "Drop the shadow collection and retain the live pointer",
+          "binding": {"kind": "local"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "action"}
+        },
+        {
+          "name": "cutover",
+          "description": "Move the provider pointer only after a passing evals compare verdict",
+          "binding": {"kind": "local"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "action"}
+        },
+        {
+          "name": "rollback",
+          "description": "Restore the retained live collection by pointer change",
+          "binding": {"kind": "local"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "action"}
+        }
+      ]
+    }
+  ],
+  "measures": {
+    "domains": [
+      {
+        "domain": "query_telemetry",
+        "stateful": true,
+        "reason": "query_telemetry and query_telemetry_provider are persisted, countable telemetry substrates for federated search latency and degradation measures."
+      }
+    ]
+  },
+  "omitted": [
+    {
+      "service": "ScenarioValidationService",
+      "method": "ValidateTarget",
+      "reason": "Validation target probing is consumed by the maturity workflow; the operator uses `maturity scan` rather than a standalone validation-target verb."
+    },
+    {
+      "service": "ScenarioValidationService",
+      "method": "DescribeProvider",
+      "reason": "Validation provider self-description is an internal readiness contract; the operator uses `maturity scan` rather than a standalone provider-description verb."
+    },
+    {
+      "service": "ScenarioValidationService",
+      "method": "ApplyFix",
+      "reason": "Validation fixes are deliberately scoped to the maturity workflow and require its safety review; no standalone mutation verb is exposed."
+    },
+    {
+      "service": "RegistryService",
+      "method": "ExecuteEmbeddingMigration",
+      "reason": "Operator embedding commands invoke this authenticated proxy through the embedding command group rather than exposing a standalone registry command."
+    },
+    {
+      "service": "RegistryService",
+      "method": "ListMaturityTargets",
+      "reason": "Internal board-target discovery RPC consumed by meta-optimization-manager; the operator uses `maturity scan` rather than a standalone registry-target command."
+    },
+    {
+      "service": "SearchControlService",
+      "method": "Reindex",
+      "reason": "Search Hub reindex control is an internal/programmatic control-plane RPC; no standalone operator CLI verb is exposed in this migration."
+    },
+    {
+      "service": "SearchControlService",
+      "method": "ReindexStatus",
+      "reason": "Search Hub reindex status is paired with the internal/programmatic reindex control-plane RPC; no standalone operator CLI verb is exposed in this migration."
+    },
+    {
+      "service": "SearchControlService",
+      "method": "ReindexCancel",
+      "reason": "Search Hub reindex cancellation is paired with the internal/programmatic reindex control-plane RPC; no standalone operator CLI verb is exposed in this migration."
+    },
+    {
+      "service": "SearchControlService",
+      "method": "WriteConfig",
+      "reason": "Search tuning write-back is consumed programmatically by optimizer/eval flows; a standalone operator CLI verb would need a separate control-token UX."
+    },
+    {
+      "service": "SearchControlService",
+      "method": "WriteCorpus",
+      "reason": "Search corpus write-back is consumed programmatically by eval generation/promotion flows; a standalone operator CLI verb would need a separate control-token UX."
+    }
+  ],
+  "exceptions": [
+    {
+      "command": "space",
+      "class": "passthrough",
+      "reason": "The shared spacecli command reads and parses the owner-controlled Answer denominator document; it is not a proto-backed API operation."
+    }
+  ]
+}

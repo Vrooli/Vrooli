@@ -1,0 +1,122 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "web-search.record-attempt",
+  "version": "1",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Record an observed research attempt and explicitly verified finding contributions.",
+  "inputs": {
+    "attempt": {
+      "type": "object",
+      "required": true
+    },
+    "quality": {
+      "type": "object"
+    },
+    "used_finding_ids": {
+      "type": "array"
+    }
+  },
+  "assumptions": [
+    "Declared owner bindings are reachable. External answers require independent verification before claiming measured quality improvements."
+  ],
+  "invariants": [
+    "One bounded envelope on every path.",
+    "Unknown observations remain unknown.",
+    "No retry or polling loops.",
+    "Web Search validates research quality locally; lib.vrooli_memory.finish_attempt owns record and observation delivery.",
+    "The legacy outer receipt retains the attempt identity when observation delivery fails."
+  ],
+  "bindings": [
+    {
+      "id": "vrooli-memory/learning/record",
+      "effect": "write",
+      "via": "lib"
+    },
+    {
+      "id": "vrooli-memory/learning/observe",
+      "effect": "write",
+      "via": "lib"
+    }
+  ],
+  "verbs": [
+    "lib"
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "failed",
+        "unavailable",
+        "refused"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "act",
+        "report"
+      ]
+    },
+    "signals": {
+      "entry_id": "Durable memory identity",
+      "existing": "Idempotent prior record",
+      "contributing_finding_ids": "Contributions persisted with the outcome; legacy counters are unchanged",
+      "quality": "Observed assessment persisted as a typed linked observation",
+      "observation_id": "Linked feedback identity",
+      "observation_existing": "Idempotent prior observation",
+      "task_outcome": "Observed task outcome, independent of capture success",
+      "capture_status": "complete, capture_failed, or unknown from shared finish",
+      "retry_inputs": "Exact shared finish inputs; retry with lib.vrooli_memory.finish_attempt unchanged"
+    },
+    "errors": {
+      "classes": [
+        "invalid_input",
+        "capture_failed",
+        "remote_error",
+        "no_governed_binding"
+      ]
+    },
+    "evidence": "Durable references, never raw source bodies"
+  },
+  "budget": {
+    "wall_ms": 120000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 10,
+    "output_bytes": 65536
+  },
+  "fixtures": [
+    {
+      "id": "invalid-input",
+      "inputs": {
+        "attempt": {},
+        "used_finding_ids": [
+          "x"
+        ]
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      },
+      "requires": [
+        "web-search"
+      ]
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "web-search",
+  "memory": {
+    "scope": "web-search-usage",
+    "reads_in": "none",
+    "writes_in": "report",
+    "entry_kinds": [
+      "task-record",
+      "attempt-observation"
+    ]
+  }
+}

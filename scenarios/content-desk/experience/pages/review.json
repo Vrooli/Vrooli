@@ -1,0 +1,127 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "review",
+    "title": "Review",
+    "routes": [
+      "/review"
+    ],
+    "purpose": "Read the exact saved artifact and decide the scoped editorial, native approval or release question.",
+    "prd_refs": [
+      "OT-P0-022",
+      "OT-P0-023",
+      "OT-P0-028",
+      "OT-P0-029"
+    ]
+  },
+  "states": [
+    {
+      "id": "default",
+      "description": "The default state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "content-decisions",
+      "description": "The content decisions state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "read-final",
+      "description": "The read final state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "compare",
+      "description": "The compare state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "changes-requested",
+      "description": "The changes requested state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "restore-preview",
+      "description": "The restore preview state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "wording-accepted",
+      "description": "The wording accepted state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "native-approval-blocked",
+      "description": "The native approval blocked state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "release-preflight",
+      "description": "The release preflight state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "outcome-unknown",
+      "description": "The outcome unknown state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "partial-release",
+      "description": "The partial release state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "cancel-requested",
+      "description": "The cancel requested state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "loading",
+      "description": "The loading state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "empty",
+      "description": "The empty state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "partial",
+      "description": "The partial state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "stale",
+      "description": "The stale state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "request-error",
+      "description": "The request error state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "permission-denied",
+      "description": "The permission denied state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "offline",
+      "description": "The offline state is distinguishable with its truthful basis and a permitted next action."
+    }
+  ],
+  "claims": [
+    {
+      "id": "review-outcome-1",
+      "type": "custom",
+      "statement": "The exact package and decision scope are repeated beside the action, and wording acceptance cannot be mistaken for release permission.",
+      "tier": "aspirational",
+      "rationale": "Accepted target intent; no running selector or runtime attestation is asserted."
+    },
+    {
+      "id": "review-outcome-2",
+      "type": "custom",
+      "statement": "Final reading includes every consequential body item, image, caption, alt text and source needed for the decision on phone as well as desktop.",
+      "tier": "aspirational",
+      "rationale": "Accepted target intent; no running selector or runtime attestation is asserted."
+    }
+  ],
+  "x-i16-source": {
+    "dossier": "package/documents/dossier-accepted-basis/document-text.md",
+    "selected_visuals": [
+      "design-source/screens/M06-review-v04-desktop.png",
+      "design-source/screens/M06-review-v04-phone.png",
+      "design-source/screens/M06-review-v04-phone-changes.png",
+      "design-source/screens/M07-outcome-v04-desktop.png",
+      "design-source/screens/M07-outcome-v04-phone.png",
+      "design-source/screens/M19-request-changes-v01-phone.png",
+      "design-source/screens/M19-source-detail-v01-phone.png",
+      "design-source/screens/M24-release-v03-desktop.png",
+      "design-source/screens/M24-release-v03-phone.png"
+    ]
+  }
+}

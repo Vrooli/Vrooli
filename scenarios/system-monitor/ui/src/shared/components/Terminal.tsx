@@ -36,7 +36,7 @@ export const Terminal = ({ isVisible, onClose }: TerminalProps) => {
 
     const interval = setInterval(() => {
       const randomIndex = Math.floor(Math.random() * messages.length);
-      const randomMessage = messages[randomIndex] ?? messages[0] ?? '[INFO] System active';
+      const randomMessage = messages[randomIndex % messages.length] as string;
 
       const newLine: TerminalLine = {
         id: Date.now().toString(),
@@ -47,7 +47,7 @@ export const Terminal = ({ isVisible, onClose }: TerminalProps) => {
       setLines(prev => [...prev.slice(-49), newLine]);
     }, 10000);
 
-    return () => clearInterval(interval);
+    return () => { clearInterval(interval); };
   }, []);
 
   return (

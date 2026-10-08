@@ -1,0 +1,18 @@
+{
+  "version": "code-facts-retrieval-eval-v1",
+  "quality_gates": {"recall_at_5": 0.95, "mrr_at_3": 0.85},
+  "cases": [
+    {"id":"exact-new-service","category":"exact_identifier","query":"NewService","scope":"project:","expected":[{"path":"scenarios/code-facts/api/internal/facts/service.go","symbol":"NewService"}]},
+    {"id":"exact-search-method","category":"exact_identifier","query":"Service.Search","scope":"scenario:code-facts","expected":[{"path":"scenarios/code-facts/api/internal/facts/service.go","symbol":"Search"}]},
+    {"id":"path-search-lexical","category":"path","query":"api/internal/facts/search_lexical.go","scope":"scenario:code-facts","expected":[{"path":"scenarios/code-facts/api/internal/facts/search_lexical.go"}]},
+    {"id":"intent-provider-demotion","category":"natural_language","query":"where provider demotion state is persisted","scope":"project:","expected":[{"path":"scenarios/search-hub/api/internal/metrics/demotion.go"}]},
+    {"id":"intent-hybrid-reconcile","category":"natural_language","query":"incrementally reconcile vector search documents","scope":"project:","expected":[{"path":"packages/ai-go/search/reconciler.go","symbol":"Reconciler"}]},
+    {"id":"contract-search-rpc","category":"contract","query":"CodeFactsService Search RPC request response","scope":"scenario:code-facts","expected":[{"path":"packages/proto/schemas/code-facts/v1/facts/facts.proto","symbol":"Search"}]},
+    {"id":"contract-descriptor-source","category":"contract","query":"load the committed protobuf descriptor image snapshot","scope":"project:","expected":[{"path":"packages/proto/descriptorimage/source.go","symbol":"Source"}]},
+    {"id":"relationship-search-handler","category":"callers","query":"who calls the Code Facts Search service","scope":"scenario:code-facts","expected":[{"path":"scenarios/code-facts/api/handlers/facts/connect_handler.go","symbol":"Search"}]},
+    {"id":"role-generated-alias","category":"role_policy","query":"generated Code Facts SearchRequest client","scope":"project:","expected":[{"path":"packages/proto/schemas/code-facts/v1/facts/facts.proto","symbol":"SearchRequest"}]},
+    {"id":"scope-search-hub-index","category":"scope","query":"provider description embedding shortlist","scope":"scenario:search-hub","expected":[{"path":"scenarios/search-hub/api/internal/routing/provider_index.go","symbol":"Shortlist"}]},
+    {"id":"stale-deleted-fence","category":"freshness","query":"catalog candidate freshness fence","scope":"scenario:code-facts","expected":[{"path":"scenarios/code-facts/api/internal/facts/service.go"}]},
+    {"id":"negative-gibberish","category":"negative","query":"zxqv no-such-code-fact 94721","scope":"project:","expected":[]}
+  ]
+}

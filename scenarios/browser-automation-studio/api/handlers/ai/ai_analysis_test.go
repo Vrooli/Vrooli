@@ -1,12 +1,8 @@
 package ai
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -62,142 +58,86 @@ func TestNewAIAnalysisHandler(t *testing.T) {
 		defaultAnalyzer, ok := handler.analyzer.(*AIElementAnalyzer)
 		require.True(t, ok, "default analyzer should be AIElementAnalyzer")
 		assert.Equal(t, domHandler, defaultAnalyzer.domExtractor)
-		assert.NotNil(t, defaultAnalyzer.ollamaClient)
+		assert.NotNil(t, defaultAnalyzer.modelClient)
 	})
 }
 
-func TestAIAnalyzeElements_RequestValidation(t *testing.T) {
+func TestRunAIAnalyze_RequestValidation(t *testing.T) {
 	log := logrus.New()
-
 	makeHandler := func(analyzer ElementAnalyzer) *AIAnalysisHandler {
 		return NewAIAnalysisHandler(log, nil, WithElementAnalyzer(analyzer), WithAIAnalysisTimeout(time.Second))
 	}
 
-	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] rejects invalid JSON", func(t *testing.T) {
+	t.Run("rejects empty URL", func(t *testing.T) {
 		analyzer := &mockElementAnalyzer{}
 		handler := makeHandler(analyzer)
-
-		req := httptest.NewRequest(http.MethodPost, "/api/v1/ai-analyze-elements", bytes.NewBufferString("invalid json"))
-		w := httptest.NewRecorder()
-
-		handler.AIAnalyzeElements(w, req)
-
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-		assert.Empty(t, analyzer.calls)
-
-		var response APIError
-		require.NoError(t, json.NewDecoder(w.Body).Decode(&response))
-		assert.Equal(t, "INVALID_REQUEST", response.Code)
-	})
-
-	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] rejects missing URL", func(t *testing.T) {
-		analyzer := &mockElementAnalyzer{}
-		handler := makeHandler(analyzer)
-
-		body, _ := json.Marshal(AIAnalyzeRequest{Intent: "search"})
-		req := httptest.NewRequest(http.MethodPost, "/api/v1/ai-analyze-elements", bytes.NewBuffer(body))
-		w := httptest.NewRecorder()
-
-		handler.AIAnalyzeElements(w, req)
-
-		assert.Equal(t, http.StatusBadRequest, w.Code)
+		_, err := handler.RunAIAnalyze(context.Background(), "", "search", "", false)
+		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrMissingURL)
 		assert.Empty(t, analyzer.calls)
 	})
 
-	t.Run("[REQ:BAS-AI-GENERATION-VALIDATION] rejects missing intent", func(t *testing.T) {
+	t.Run("rejects empty intent", func(t *testing.T) {
 		analyzer := &mockElementAnalyzer{}
 		handler := makeHandler(analyzer)
-
-		body, _ := json.Marshal(AIAnalyzeRequest{URL: "https://example.com"})
-		req := httptest.NewRequest(http.MethodPost, "/api/v1/ai-analyze-elements", bytes.NewBuffer(body))
-		w := httptest.NewRecorder()
-
-		handler.AIAnalyzeElements(w, req)
-
-		assert.Equal(t, http.StatusBadRequest, w.Code)
+		_, err := handler.RunAIAnalyze(context.Background(), "https://example.com", "", "", false)
+		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrMissingIntent)
 		assert.Empty(t, analyzer.calls)
 	})
 }
 
-func TestAIAnalyzeElements_DelegatesToAnalyzer(t *testing.T) {
+func TestRunAIAnalyze_DelegatesToAnalyzer(t *testing.T) {
 	log := logrus.New()
-	suggestions := []ElementInfo{{
-		Text:       "Search",
-		TagName:    "BUTTON",
-		Confidence: 0.9,
-	}}
-
+	suggestions := []ElementInfo{{Text: "Search", TagName: "BUTTON", Confidence: 0.9}}
 	analyzer := &mockElementAnalyzer{suggestions: suggestions}
 	handler := NewAIAnalysisHandler(log, nil, WithElementAnalyzer(analyzer))
 
-	body, _ := json.Marshal(AIAnalyzeRequest{
-		URL:    "https://example.com",
-		Intent: "search products",
-	})
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/ai-analyze-elements", bytes.NewBuffer(body))
-	w := httptest.NewRecorder()
+	got, err := handler.RunAIAnalyze(context.Background(), "https://example.com", "search products", "", false)
 
-	handler.AIAnalyzeElements(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Len(t, analyzer.calls, 1)
+	require.NoError(t, err)
+	assert.Equal(t, suggestions, got)
+	require.Len(t, analyzer.calls, 1)
 	assert.Equal(t, "https://example.com", analyzer.calls[0].url)
 	assert.Equal(t, "search products", analyzer.calls[0].intent)
-
-	var response []ElementInfo
-	require.NoError(t, json.NewDecoder(w.Body).Decode(&response))
-	assert.Equal(t, suggestions, response)
 }
 
-func TestAIAnalyzeElements_AnalyzerError(t *testing.T) {
+func TestRunAIAnalyze_AnalyzerError(t *testing.T) {
 	log := logrus.New()
 	analyzer := &mockElementAnalyzer{err: errors.New("analysis failed")}
 	handler := NewAIAnalysisHandler(log, nil, WithElementAnalyzer(analyzer))
 
-	body, _ := json.Marshal(AIAnalyzeRequest{
-		URL:    "https://example.com",
-		Intent: "search",
-	})
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/ai-analyze-elements", bytes.NewBuffer(body))
-	w := httptest.NewRecorder()
-
-	handler.AIAnalyzeElements(w, req)
-
-	assert.Equal(t, http.StatusInternalServerError, w.Code)
-	assert.Len(t, analyzer.calls, 1)
-
-	var response APIError
-	require.NoError(t, json.NewDecoder(w.Body).Decode(&response))
-	assert.Equal(t, "INTERNAL_SERVER_ERROR", response.Code)
+	_, err := handler.RunAIAnalyze(context.Background(), "https://example.com", "search", "", false)
+	require.Error(t, err)
 }
 
 func TestAIElementAnalyzer_ExtractFailure(t *testing.T) {
 	log := logrus.New()
 	mockDOM := &recordingDOMExtractor{err: errors.New("failed to connect")}
-	mockOllama := NewMockOllamaClient(`[{"text": "Search"}]`)
+	mockModelClient := newMockRolePromptClient(`[{"text": "Search"}]`)
 
 	analyzer := &AIElementAnalyzer{
 		log:          log,
 		domExtractor: mockDOM,
-		ollamaClient: mockOllama,
-		model:        "test-model",
+		modelClient:  mockModelClient,
+		role:         "chat.small",
 	}
 
 	_, err := analyzer.Analyze(context.Background(), "https://example.com", "search")
 	require.Error(t, err)
-	assert.Empty(t, mockOllama.QueriesCalled, "should not call Ollama when DOM extraction fails")
+	assert.Empty(t, mockModelClient.Calls, "should not call AIModel when DOM extraction fails")
 }
 
 func TestAIElementAnalyzer_ParsesSuggestions(t *testing.T) {
 	log := logrus.New()
 	mockDOM := &recordingDOMExtractor{response: "<html><body><button>Search</button></body></html>"}
-	mockOllama := NewMockOllamaClient(`[{"text": "Search", "tagName": "BUTTON", "confidence": 0.95}]`)
+	mockModelClient := newMockRolePromptClient(`[{"text": "Search", "tagName": "BUTTON", "confidence": 0.95}]`)
 
 	analyzer := &AIElementAnalyzer{
 		log:          log,
 		domExtractor: mockDOM,
-		ollamaClient: mockOllama,
-		model:        "test-model",
+		modelClient:  mockModelClient,
+		role:         "chat.small",
 	}
 
 	results, err := analyzer.Analyze(context.Background(), "https://example.com", "search")
@@ -206,25 +146,92 @@ func TestAIElementAnalyzer_ParsesSuggestions(t *testing.T) {
 	assert.Len(t, results, 1)
 	assert.Equal(t, "Search", results[0].Text)
 	assert.Len(t, mockDOM.calls, 1)
-	assert.Len(t, mockOllama.QueriesCalled, 1)
-	assert.Equal(t, "test-model", mockOllama.QueriesCalled[0].Model)
+	assert.Len(t, mockModelClient.Calls, 1)
+	assert.Equal(t, "chat.small", mockModelClient.Calls[0].Role)
 }
 
 func TestAIElementAnalyzer_FallbackOnBadJSON(t *testing.T) {
 	log := logrus.New()
 	mockDOM := &recordingDOMExtractor{response: "<html></html>"}
-	mockOllama := NewMockOllamaClient("not-json")
+	mockModelClient := newMockRolePromptClient("not-json")
 
 	analyzer := &AIElementAnalyzer{
 		log:          log,
 		domExtractor: mockDOM,
-		ollamaClient: mockOllama,
-		model:        "test-model",
+		modelClient:  mockModelClient,
+		role:         "chat.small",
 	}
 
 	results, err := analyzer.Analyze(context.Background(), "https://example.com", "search")
 
 	require.NoError(t, err)
 	assert.NotEmpty(t, results, "fallback suggestion should be returned")
-	assert.Len(t, mockOllama.QueriesCalled, 1)
+	assert.Len(t, mockModelClient.Calls, 1)
+}
+
+func TestAIModelSuggestionGeneratorAcceptsArrayResponse(t *testing.T) {
+	log := logrus.New()
+	generator := newAISuggestionGenerator(log, WithAISuggestionModelClient(newMockRolePromptClient(`[{"action":"Search","confidence":0.95,"category":"actions"}]`)))
+
+	suggestions, err := generator.generateAISuggestions(context.Background(), []ElementInfo{{Text: "Search", TagName: "BUTTON"}}, PageContext{URL: "https://example.com"})
+	require.NoError(t, err)
+	require.Len(t, suggestions, 1)
+	assert.Equal(t, "Search", suggestions[0].Action)
+}
+
+// [REQ:BAS-AI-GENERATION-VALIDATION] Incomplete provider output must not become
+// successful suggestions or an indistinguishable empty result.
+func TestAIModelSuggestionResponseContract(t *testing.T) {
+	for _, tc := range []struct {
+		name, payload string
+		valid         bool
+		count         int
+	}{
+		{"object", `{"suggestions":[{"action":"Search","confidence":0.9,"category":"data-entry"}]}`, true, 1},
+		{"array", `[{"action":"Search","confidence":0,"category":"actions"}]`, true, 1},
+		{"absent optional text", `{"suggestions":[{"action":"Search","confidence":0.9,"category":"data-entry","description":null,"elementText":null,"selector":null,"reasoning":null}]}`, true, 1},
+		{"null required action", `[{"action":null,"confidence":0.9,"category":"actions"}]`, false, 0},
+		{"null required confidence", `[{"action":"Search","confidence":null,"category":"actions"}]`, false, 0},
+		{"null required category", `[{"action":"Search","confidence":0.9,"category":null}]`, false, 0},
+		{"numeric optional text", `[{"action":"Search","confidence":0.9,"category":"actions","elementText":42}]`, false, 0},
+		{"boolean optional text", `[{"action":"Search","confidence":0.9,"category":"actions","selector":false}]`, false, 0},
+		{"object optional text", `[{"action":"Search","confidence":0.9,"category":"actions","reasoning":{}}]`, false, 0},
+		{"empty", `{"suggestions":[]}`, true, 0},
+		{"malformed", `not JSON`, false, 0},
+		{"missing list", `{}`, false, 0},
+		{"null list", `{"suggestions":null}`, false, 0},
+		{"missing category", `[{"action":"Search","confidence":0.9}]`, false, 0},
+		{"unknown category", `[{"action":"Search","confidence":0.9,"category":"guess"}]`, false, 0},
+		{"missing action", `[{"confidence":0.9,"category":"actions"}]`, false, 0},
+		{"blank action", `[{"action":"  ","confidence":0.9,"category":"actions"}]`, false, 0},
+		{"missing confidence", `[{"action":"Search","category":"actions"}]`, false, 0},
+		{"negative confidence", `[{"action":"Search","confidence":-0.1,"category":"actions"}]`, false, 0},
+		{"excess confidence", `[{"action":"Search","confidence":1.1,"category":"actions"}]`, false, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			generator := newAISuggestionGenerator(logrus.New(), WithAISuggestionModelClient(newMockRolePromptClient(tc.payload)))
+			got, err := generator.generateAISuggestions(context.Background(), []ElementInfo{{Text: "Search", TagName: "BUTTON"}}, PageContext{URL: "https://example.test"})
+			if !tc.valid {
+				require.Error(t, err)
+				require.Nil(t, got)
+				return
+			}
+			require.NoError(t, err)
+			require.Len(t, got, tc.count)
+			if tc.name == "absent optional text" {
+				require.Equal(t, AISuggestion{Action: "Search", Confidence: 0.9, Category: "data-entry"}, got[0], "absent metadata must not manufacture text or change required fields")
+			}
+		})
+	}
+}
+
+func TestAIModelSuggestionsWithNoElementsDoNotCallProvider(t *testing.T) {
+	client := newMockRolePromptClient("")
+	client.Err = errors.New("provider must not be called without elements")
+	generator := newAISuggestionGenerator(logrus.New(), WithAISuggestionModelClient(client))
+	got, err := generator.generateAISuggestions(context.Background(), nil, PageContext{URL: "https://example.test"})
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	require.Empty(t, got)
+	require.Empty(t, client.Calls)
 }

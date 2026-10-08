@@ -1,0 +1,37 @@
+{
+  "recorded_at": "2026-10-03T06:11:38.806674+00:00",
+  "team": "personal-planner-delivery",
+  "orchestrator_run_id": "58257550-4062-40d8-aa7d-ffa4f01d279f",
+  "worker_run_id": "27b31190-2a5b-42f3-b45e-40b71296cb29",
+  "feedback_id": "F1",
+  "epoch_directive": "epochs/E1.md#f1--visual-reference-fidelity-owner-authorized-2026-10-03",
+  "manifest": "scenarios/personal-planner/docs/reference/mockups/visual-reference-manifest.json",
+  "manifest_sha256": "e7978155ffe7dee58c1d5650534e143cbf2e8fba1bb20eede16627fddb2ba06c",
+  "image_count": 17,
+  "image_bytes": 37875533,
+  "all_original_sha_size_full_decode_checks": "passed",
+  "native_team_byte_access": "verified independently by orchestrator event 354, 2026-10-03T06:08:46Z",
+  "native_acknowledgement_event_id": "b9e3eada-2e0a-4d4f-aac5-4fe3484944e7",
+  "native_acknowledgement_sequence": 348,
+  "native_acknowledgement_at": "2026-10-03T06:07:59.307646912Z",
+  "directive_write_sequences": [
+    355,
+    356
+  ],
+  "queue_write_sequences": [
+    357,
+    358
+  ],
+  "directive_and_queue_acknowledgement_sequence": 359,
+  "orchestrator_receipt": "E1 acknowledges six applicable Plan originals; byte/decode access is independently visible in event 354; model-level visual viewing is not independently demonstrated by the inspected events.",
+  "worker_open_receipt": "pending; required before visual checkpoint",
+  "runtime_visual_parity": "open/unverified",
+  "journal_id": "6aa91325-4c29-452f-9577-398e707664b5",
+  "scope": "reference and acceptance handoff only; no product implementation, user-data entry, permissions/budget changes or Nooch writes by this worker",
+  "limits": [
+    "No standalone full-UI Focus/Settings/Week raster is referenced by the inspected canonical sources; plates are not full-UI specimens.",
+    "No original Today portrait scene or approved mobile full-UI PNG is present; compose from established contract.",
+    "Exact historical remote file IDs/approval-version receipts for source plates are unavailable in the inspected canonical sources; do not invent them.",
+    "No current runtime visual parity was established by this reference audit."
+  ]
+}

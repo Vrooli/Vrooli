@@ -1,3 +1,4 @@
+import { generateActivationScript } from '../../src/recording/capture/init-script-generator';
 /**
  * Service Worker Interception Tests
  *
@@ -206,6 +207,7 @@ describe('Service Worker Interception Detection (Integration)', () => {
     it('should capture click events on page without service worker', async () => {
       await page.goto(server.getUrl('/page-without-sw'));
       await waitForScriptReady(page, 5000);
+      await page.evaluate(generateActivationScript('service-worker-fixture'));
 
       // Get telemetry before click
       const telemetryBefore = await page.evaluate(() => {
@@ -244,6 +246,7 @@ describe('Service Worker Interception Detection (Integration)', () => {
     it('should capture input events on page without service worker', async () => {
       await page.goto(server.getUrl('/page-without-sw'));
       await waitForScriptReady(page, 5000);
+      await page.evaluate(generateActivationScript('service-worker-fixture'));
 
       // Type in the input (page.fill may not trigger input events in rebrowser-playwright)
       await page.focus('#test-input');
@@ -303,6 +306,7 @@ describe('Service Worker Interception Detection (Integration)', () => {
       await page.waitForTimeout(1000);
 
       await waitForScriptReady(page, 5000);
+      await page.evaluate(generateActivationScript('service-worker-fixture'));
 
       // Get telemetry before click
       const telemetryBefore = await page.evaluate(() => {
@@ -380,6 +384,7 @@ describe('Service Worker Interception Detection (Integration)', () => {
 
       await page.waitForTimeout(1000);
       await waitForScriptReady(page, 5000);
+      await page.evaluate(generateActivationScript('service-worker-fixture'));
 
       // Perform multiple clicks
       await page.click('#test-btn');

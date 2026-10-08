@@ -1,0 +1,169 @@
+syntax = "proto3";
+
+package vrooli.prompt_manager.v1.experiments;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/experiments;experiments_v1";
+
+import "google/protobuf/struct.proto";
+
+// ExperimentsService owns controlled skill-experiment lifecycle and evidence.
+service ExperimentsService {
+  rpc ListExperiments(ListExperimentsRequest) returns (ListExperimentsResponse);
+  rpc GetExperiment(GetExperimentRequest) returns (Experiment);
+  rpc CreateExperiment(CreateExperimentRequest) returns (Experiment);
+  rpc UpdateExperiment(UpdateExperimentRequest) returns (Experiment);
+  rpc DeleteExperiment(DeleteExperimentRequest) returns (DeleteExperimentResponse);
+  rpc StartExperiment(StartExperimentRequest) returns (Experiment);
+  rpc ConcludeExperiment(ConcludeExperimentRequest) returns (Experiment);
+  rpc RecordOutcome(RecordOutcomeRequest) returns (ExperimentOutcome);
+  rpc ListOutcomes(ListOutcomesRequest) returns (ListOutcomesResponse);
+  rpc AssignExperiment(AssignExperimentRequest) returns (ExperimentAssignment);
+  rpc RecordAuditReceipt(RecordAuditReceiptRequest) returns (Experiment);
+  rpc RecordHoldoutReceipt(RecordHoldoutReceiptRequest) returns (Experiment);
+  rpc PromoteExperiment(PromoteExperimentRequest) returns (Experiment);
+  rpc GetExperimentReport(GetExperimentReportRequest) returns (ExperimentReport);
+}
+
+message ListExperimentsRequest { optional string skill_id = 1; }
+message ListExperimentsResponse { repeated Experiment experiments = 1; }
+message GetExperimentRequest { string experiment_id = 1; }
+message DeleteExperimentRequest { string experiment_id = 1; }
+message DeleteExperimentResponse {}
+message StartExperimentRequest { string experiment_id = 1; }
+message ListOutcomesRequest { string experiment_id = 1; }
+message ListOutcomesResponse { repeated ExperimentOutcome outcomes = 1; }
+message GetExperimentReportRequest { string experiment_id = 1; }
+
+message ExperimentArmInput {
+  string variant_id = 1;
+  double weight = 2;
+}
+
+message ExperimentArm {
+  string variant_id = 1;
+  string variant_name = 2;
+  double weight = 3;
+}
+
+message ExperimentProtocol {
+  google.protobuf.Struct value = 1;
+}
+
+message Experiment {
+  string id = 1;
+  string skill_id = 2;
+  string name = 3;
+  string hypothesis = 4;
+  google.protobuf.Struct protocol = 5;
+  string status = 6;
+  repeated ExperimentArm arms = 7;
+  map<string, int64> outcome_counts = 8;
+  optional string started_at = 9;
+  optional string concluded_at = 10;
+  optional string winner_variant_id = 11;
+  string promotion_work_item_ref = 12;
+  string holdout_findings_hash = 13;
+  string holdout_completed_at = 14;
+  string promoted_at = 15;
+  string notes = 16;
+  string created_at = 17;
+  string updated_at = 18;
+  int64 revision = 19;
+}
+
+message CreateExperimentRequest {
+  string id = 1;
+  string skill_id = 2;
+  string name = 3;
+  string hypothesis = 4;
+  google.protobuf.Struct protocol = 5;
+  repeated ExperimentArmInput arms = 6;
+}
+
+message UpdateExperimentRequest {
+  string experiment_id = 1;
+  optional string name = 2;
+  optional string hypothesis = 3;
+  google.protobuf.Struct protocol = 4;
+  repeated ExperimentArmInput arms = 5;
+}
+
+message ConcludeExperimentRequest {
+  string experiment_id = 1;
+  string winner_variant_id = 2;
+  string notes = 3;
+  bool override = 4;
+  string override_justification = 5;
+}
+
+message RecordOutcomeRequest {
+  string experiment_id = 1;
+  string idempotency_key = 2;
+  string variant_id = 3;
+  string source = 4;
+  int32 schema_version = 5;
+  google.protobuf.Value data = 6;
+  google.protobuf.Struct controlled = 7;
+}
+
+message ExperimentOutcome {
+  string idempotency_key = 1;
+  string variant_id = 2;
+  string source = 3;
+  int32 schema_version = 4;
+  string recorded_at = 5;
+  google.protobuf.Value data = 6;
+  google.protobuf.Struct controlled = 7;
+}
+
+message AssignExperimentRequest {
+  string experiment_id = 1;
+  string execution_id = 2;
+  string node_id = 3;
+  string attempt_key = 4;
+  string idempotency_key = 5;
+  map<string, string> variables = 6;
+  bool with_scope = 7;
+}
+
+message ExperimentAssignment {
+  string experiment_id = 1;
+  string skill_id = 2;
+  string variant_id = 3;
+  string content = 4;
+  string content_hash = 5;
+  string assigned_at = 6;
+}
+
+message RecordAuditReceiptRequest {
+  string experiment_id = 1;
+  repeated string sampled_assignment_ids = 2;
+  string findings_hash = 3;
+  string challenge_state = 4;
+  int32 anomaly_count = 5;
+  int32 gaming_count = 6;
+  string idempotency_key = 7;
+}
+
+message RecordHoldoutReceiptRequest {
+  string experiment_id = 1;
+  string findings_hash = 2;
+  string idempotency_key = 3;
+}
+
+message PromoteExperimentRequest {
+  string experiment_id = 1;
+  string work_item_ref = 2;
+}
+
+message ExperimentReport {
+  string experiment_id = 1;
+  string skill_id = 2;
+  string name = 3;
+  string status = 4;
+  int64 total_serves = 5;
+  int64 total_outcomes = 6;
+  repeated google.protobuf.Struct arms = 7;
+  repeated string zero_data_arms = 8;
+  google.protobuf.Struct controlled = 9;
+}

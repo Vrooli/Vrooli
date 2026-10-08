@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { resolveApiBase, buildApiUrl } from "@vrooli/api-base";
+import { buildApiUrl } from "@vrooli/api-base";
 import {
   type DeploymentProgress,
   type ProgressEvent,
@@ -7,13 +7,12 @@ import {
   getInitialSteps,
   updateStepStatus,
 } from "../types/progress";
-
-const API_BASE = resolveApiBase({ appendSuffix: true });
+import { API_BASE } from "../lib/api";
 
 export interface UseDeploymentProgressOptions {
   onComplete?: (success: boolean, error?: string) => void;
   onError?: (error: string) => void;
-  runId?: string | null;
+  operationId?: string | null;
 }
 
 export function useDeploymentProgress(
@@ -24,7 +23,7 @@ export function useDeploymentProgress(
   const [isConnected, setIsConnected] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
-  const { onComplete, onError, runId } = options;
+  const { onComplete, onError, operationId } = options;
 
   const disconnect = useCallback(() => {
     if (eventSourceRef.current) {
@@ -44,8 +43,8 @@ export function useDeploymentProgress(
     let url = buildApiUrl(`/deployments/${encodeURIComponent(deploymentId)}/progress`, {
       baseUrl: API_BASE,
     });
-    if (runId) {
-      url += `?run_id=${encodeURIComponent(runId)}`;
+    if (operationId) {
+      url += `?operation_id=${encodeURIComponent(operationId)}`;
     }
 
     // Initialize progress state
@@ -224,7 +223,7 @@ export function useDeploymentProgress(
       eventSource.close();
       eventSourceRef.current = null;
     };
-  }, [deploymentId, runId, disconnect, onComplete, onError]);
+  }, [deploymentId, operationId, disconnect, onComplete, onError]);
 
   const reset = useCallback(() => {
     disconnect();

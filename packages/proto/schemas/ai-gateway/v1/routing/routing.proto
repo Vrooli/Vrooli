@@ -1,0 +1,295 @@
+syntax = "proto3";
+
+package vrooli.ai_gateway.v1.routing;
+
+import "ai-gateway/v1/shared/gateway.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/routing;routing_v1";
+
+message RouteCandidate {
+  string provider = 1;
+  string role = 2;
+  string locality = 3;
+  bool selected = 4;
+  repeated string reasons = 5;
+  bool fallback_eligible = 6;
+  // breaker_state is the effective provider-health circuit-breaker state for
+  // this candidate at preview/execution time: "closed", "open", "half_open",
+  // or "" when provider health tracking is disabled.
+  string breaker_state = 7;
+  // half_open_probe is true when the candidate is only eligible as a bounded
+  // half-open recovery probe because its breaker cooldown has elapsed.
+  bool half_open_probe = 8;
+  // rejection_reason is a stable machine-readable code when this candidate was
+  // rejected (e.g. "role_not_exposed", "capability_mismatch",
+  // "locality_forbidden", "provider_breaker_open", "insufficient_capacity"),
+  // or "" when the candidate is eligible.
+  string rejection_reason = 9;
+  // capacity_verdict is the local capacity-broker verdict for a local candidate
+  // ("fit", "insufficient_capacity", "unknown_capacity", "reclaim_required",
+  // "advisory_reclaim_unavailable"), or "" when capacity was not evaluated.
+  string capacity_verdict = 10;
+}
+
+message PreviewRouteRequest {
+  vrooli.ai_gateway.v1.shared.GatewayRequest request = 1;
+}
+
+message PreviewRouteResponse {
+  bool valid = 1;
+  repeated vrooli.ai_gateway.v1.shared.ValidationIssue issues = 2;
+  repeated RouteCandidate candidates = 3;
+  string selected_provider = 4;
+  repeated string policy_reasons = 5;
+  bool fallback_allowed = 6;
+  string route_plan_id = 7;
+}
+
+message ExecuteRouteRequest {
+  vrooli.ai_gateway.v1.shared.GatewayRequest request = 1;
+  string input_text = 2;
+}
+
+message RouteEvidence {
+  string event_id = 1;
+  string request_id = 2;
+  string scenario = 3;
+  string operation = 4;
+  string role = 5;
+  vrooli.ai_gateway.v1.shared.Profile profile = 6;
+  vrooli.ai_gateway.v1.shared.PrivacyClass privacy_class = 7;
+  string selected_provider = 8;
+  string selected_locality = 9;
+  string status = 10;
+  repeated string policy_reasons = 11;
+  repeated string failure_reasons = 12;
+  bool fallback_used = 13;
+  bool prompt_redacted = 14;
+  bool response_redacted = 15;
+  int64 latency_ms = 16;
+  string created_at = 17;
+
+  // --- Structured outcome codes (analytics-ready, redaction-preserving) ---
+
+  // breaker_state is the effective provider circuit-breaker state of the
+  // selected/attempted provider at execution time: "closed", "half_open", or ""
+  // when health tracking is disabled.
+  string breaker_state = 18;
+  // failure_class is the stable class of the dominant provider failure when
+  // status is "failed" (see FLOWS breaker state model), or "" otherwise.
+  string failure_class = 19;
+  // rejection_reason is a stable code explaining a blocked route (e.g.
+  // "no_eligible_route", "provider_breaker_open", "insufficient_capacity"), or
+  // "" when a provider was selected.
+  string rejection_reason = 20;
+
+  // capacity_verdict is the local capacity-broker verdict for the selected
+  // local route (populated from the capacity-aware routing phase), or "".
+  string capacity_verdict = 21;
+  // capacity_claim_id identifies an acquired operation-scoped capacity claim so
+  // release/audit can be correlated; "" when no claim was acquired.
+  string capacity_claim_id = 22;
+  // capacity_required_bytes / capacity_granted_bytes record the footprint the
+  // route needed and what the broker granted; 0 when capacity was not consulted.
+  int64 capacity_required_bytes = 23;
+  int64 capacity_granted_bytes = 24;
+  // capacity_reclaim_required is true when admitting the route would have needed
+  // the broker to reclaim capacity from other holders.
+  bool capacity_reclaim_required = 25;
+
+  // input_tokens / output_tokens / cost_estimate carry provider-reported usage
+  // when the resource surfaces it; 0 when unavailable. cost_estimate is in the
+  // resource's reported currency units and stays 0 for local providers.
+  int64 input_tokens = 26;
+  int64 output_tokens = 27;
+  double cost_estimate = 28;
+  // selected_model is the concrete model the resource resolved for this route
+  // when it reports one; "" keeps AI Gateway from inventing provider truth.
+  string selected_model = 29;
+  int32 image_count = 30;
+  int64 attachment_bytes = 31;
+  string attachment_sha256 = 32;
+  bool attachments_redacted = 33;
+  repeated AttachmentDimension attachment_dimensions = 34;
+
+  // sampling_temperature is the temperature the gateway sent to the selected
+  // provider, absent when it sent none. sampling_temperature_support is the
+  // selected role's policy declaration. Both are recorded because neither is
+  // sufficient alone: a provider that accepts and silently ignores the control
+  // makes a sent value alone a misleading record of the route's conditions.
+  optional double sampling_temperature = 35;
+  vrooli.ai_gateway.v1.shared.SamplingSupport sampling_temperature_support = 36;
+}
+
+// AttachmentDimension is the metadata retained for evidence. It deliberately
+// has no payload field, so persisted route evidence cannot contain image bytes.
+message AttachmentDimension {
+  vrooli.ai_gateway.v1.shared.Modality modality = 1;
+  string media_type = 2;
+  uint32 width = 3;
+  uint32 height = 4;
+  uint64 bytes = 5;
+}
+
+message ExecuteRouteResponse {
+  bool valid = 1;
+  repeated vrooli.ai_gateway.v1.shared.ValidationIssue issues = 2;
+  RouteEvidence evidence = 3;
+  string output_text = 4;
+  repeated string policy_reasons = 5;
+  // applied reports what the gateway actually sent and what the selected role
+  // declares, so provenance records fact rather than the caller's own request.
+  // It is populated on every return path including failures.
+  vrooli.ai_gateway.v1.shared.AppliedSettings applied = 6;
+}
+
+// MediaExecutionStatus is the durable lifecycle of a provider-neutral media
+// submission. A receipt is terminal only in SUCCEEDED, FAILED, or CANCELLED.
+enum MediaExecutionStatus {
+  MEDIA_EXECUTION_STATUS_UNSPECIFIED = 0;
+  MEDIA_EXECUTION_STATUS_QUEUED = 1;
+  MEDIA_EXECUTION_STATUS_RUNNING = 2;
+  MEDIA_EXECUTION_STATUS_SUCCEEDED = 3;
+  MEDIA_EXECUTION_STATUS_FAILED = 4;
+  MEDIA_EXECUTION_STATUS_CANCELLED = 5;
+}
+
+// MediaInput is an opaque caller-controlled reference to an input artifact.
+// References are not provider URLs and never transfer bytes through Gateway.
+message MediaInput {
+  string reference = 1;
+  string media_type = 2;
+}
+
+// MediaOutput is a durable reference to one produced artifact. Its location is
+// owned by the media executor; callers must not infer provider details from it.
+message MediaOutput {
+  string reference = 1;
+  string media_type = 2;
+  int64 bytes = 3;
+  string checksum = 4;
+}
+
+// SubmitMediaRequest starts a provider-neutral asynchronous image or video
+// operation. request.kind must be IMAGE_GENERATION or VIDEO_GENERATION.
+message SubmitMediaRequest {
+  vrooli.ai_gateway.v1.shared.GatewayRequest request = 1;
+  string prompt = 2;
+  repeated MediaInput inputs = 3;
+  int32 output_count = 4;
+  string idempotency_key = 5;
+  // Caller-owned absolute output path. The media executor writes produced
+  // bytes there and returns the same opaque reference; Gateway never stores
+  // the bytes in its receipt database.
+  string output_reference = 6;
+}
+
+// MediaExecution is the durable receipt and terminal result. It records route
+// evidence, resolved model and cost only when the executor reports them.
+message MediaExecution {
+  string execution_id = 1;
+  string idempotency_key = 2;
+  MediaExecutionStatus status = 3;
+  string created_at = 4;
+  string started_at = 5;
+  string completed_at = 6;
+  RouteEvidence route_evidence = 7;
+  repeated MediaOutput outputs = 8;
+  double actual_cost_usd = 9;
+  string resolved_model = 10;
+  string seed = 11;
+  repeated string warnings = 12;
+  string error_code = 13;
+  string error_message = 14;
+}
+
+message SubmitMediaResponse {
+  MediaExecution execution = 1;
+}
+message GetMediaExecutionRequest {
+  string execution_id = 1;
+}
+message GetMediaExecutionResponse {
+  MediaExecution execution = 1;
+}
+
+// WaitMediaExecution blocks server-side until the receipt becomes terminal.
+// Callers must not implement client-side polling loops for media work.
+message WaitMediaExecutionRequest {
+  string execution_id = 1;
+}
+message WaitMediaExecutionResponse {
+  MediaExecution execution = 1;
+}
+message CancelMediaExecutionRequest {
+  string execution_id = 1;
+}
+message CancelMediaExecutionResponse {
+  MediaExecution execution = 1;
+}
+message RetryMediaExecutionRequest {
+  string execution_id = 1;
+  string idempotency_key = 2;
+}
+message RetryMediaExecutionResponse {
+  MediaExecution execution = 1;
+}
+
+message ListRouteEvidenceRequest {
+  int32 limit = 1;
+  string scenario = 2;
+}
+
+message ListRouteEvidenceResponse {
+  repeated RouteEvidence events = 1;
+}
+
+message GetRouteEvidenceRequest {
+  string event_id = 1;
+}
+
+message GetRouteEvidenceResponse {
+  RouteEvidence event = 1;
+}
+
+// ProviderHealth is the persisted circuit-breaker record for one
+// (provider, role, kind) route, plus the effective state at read time.
+message ProviderHealth {
+  string provider = 1;
+  string role = 2;
+  vrooli.ai_gateway.v1.shared.RequestKind kind = 3;
+  // state is the stored breaker state; effective_state is what routing acts on
+  // at read time (a stored "open" whose cooldown elapsed reads as "half_open").
+  string state = 4;
+  string effective_state = 5;
+  int64 consecutive_failures = 6;
+  string last_failure_class = 7;
+  string last_success_at = 8;
+  string last_failure_at = 9;
+  string cooldown_until = 10;
+  string opened_at = 11;
+  int64 generation = 12;
+  string updated_at = 13;
+}
+
+message ListProviderHealthRequest {}
+
+message ListProviderHealthResponse {
+  repeated ProviderHealth items = 1;
+}
+
+service RoutingService {
+  rpc PreviewRoute(PreviewRouteRequest) returns (PreviewRouteResponse);
+  rpc ExecuteRoute(ExecuteRouteRequest) returns (ExecuteRouteResponse);
+  rpc SubmitMedia(SubmitMediaRequest) returns (SubmitMediaResponse);
+  rpc GetMediaExecution(GetMediaExecutionRequest) returns (GetMediaExecutionResponse);
+  rpc WaitMediaExecution(WaitMediaExecutionRequest) returns (WaitMediaExecutionResponse);
+  rpc CancelMediaExecution(CancelMediaExecutionRequest) returns (CancelMediaExecutionResponse);
+  rpc RetryMediaExecution(RetryMediaExecutionRequest) returns (RetryMediaExecutionResponse);
+  rpc ListRouteEvidence(ListRouteEvidenceRequest) returns (ListRouteEvidenceResponse);
+  rpc GetRouteEvidence(GetRouteEvidenceRequest) returns (GetRouteEvidenceResponse);
+  // ListProviderHealth returns persisted provider circuit-breaker state so
+  // operators can see which providers are suppressed and why, without reading
+  // logs or database rows.
+  rpc ListProviderHealth(ListProviderHealthRequest) returns (ListProviderHealthResponse);
+}

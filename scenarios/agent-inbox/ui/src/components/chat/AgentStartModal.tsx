@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { X, Bot, AlertTriangle } from "lucide-react";
-import type { RunnerType } from "../../lib/api";
 import type { AgentModeSettings } from "../../hooks/useAgentSettings";
 import { AgentStartForm } from "./AgentStartForm";
 
@@ -14,10 +13,7 @@ interface AgentStartModalProps {
 }
 
 export interface AgentStartConfig {
-  runner_type: RunnerType;
   project_path: string;
-  model: string;
-  max_turns: number;
 }
 
 /**
@@ -32,30 +28,21 @@ export function AgentStartModal({
   isLoading = false,
   error = null
 }: AgentStartModalProps) {
-  const [runnerType, setRunnerType] = useState<RunnerType>(defaultSettings.defaultRunner);
   const [projectPath, setProjectPath] = useState(defaultSettings.defaultProjectPath);
-  const [model, setModel] = useState(defaultSettings.defaultModel);
-  const [maxTurns, setMaxTurns] = useState(defaultSettings.defaultMaxTurns);
 
   if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onStart({
-      runner_type: runnerType,
       project_path: projectPath,
-      model,
-      max_turns: maxTurns
     });
   };
 
   const handleUseDefaults = () => {
     if (!defaultSettings.defaultProjectPath) return;
     onStart({
-      runner_type: defaultSettings.defaultRunner,
       project_path: defaultSettings.defaultProjectPath,
-      model: defaultSettings.defaultModel,
-      max_turns: defaultSettings.defaultMaxTurns
     });
   };
 
@@ -77,7 +64,7 @@ export function AgentStartModal({
             </div>
             <div>
               <h2 className="text-lg font-semibold text-white">Start Agent Mode</h2>
-              <p className="text-sm text-zinc-400">Configure the coding agent</p>
+              <p className="text-sm text-zinc-400">Choose where the coding agent should work</p>
             </div>
           </div>
           <button
@@ -90,14 +77,8 @@ export function AgentStartModal({
 
         {/* Body - extracted form */}
         <AgentStartForm
-          runnerType={runnerType}
-          onRunnerTypeChange={setRunnerType}
           projectPath={projectPath}
           onProjectPathChange={setProjectPath}
-          model={model}
-          onModelChange={setModel}
-          maxTurns={maxTurns}
-          onMaxTurnsChange={setMaxTurns}
           onSubmit={handleSubmit}
         />
 

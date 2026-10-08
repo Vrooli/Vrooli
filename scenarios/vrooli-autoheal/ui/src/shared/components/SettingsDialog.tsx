@@ -20,6 +20,7 @@ import { TabTrigger } from "../ui/composites";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 import {
   fetchConfig,
+  fetchProtectedChecks,
   updateConfig,
   fetchDefaults,
   exportConfig,
@@ -91,6 +92,13 @@ export function SettingsDialog({
     queryFn: fetchChecks,
     enabled: isOpen,
     staleTime: 60000,
+  });
+
+  const { data: protectedChecks } = useQuery({
+    queryKey: ["protected-checks"],
+    queryFn: fetchProtectedChecks,
+    enabled: isOpen,
+    staleTime: 30000,
   });
 
   const { data: monitoring, isLoading: monitoringLoading } = useQuery({
@@ -270,17 +278,20 @@ export function SettingsDialog({
 
     const configChecks = config.checks || {};
     const defaultChecks = defaults?.checks || {};
+    const protectedCheckReasons = protectedChecks?.checks || {};
 
     for (const check of checksMetadata) {
       const category = check.category || "system";
       const checkConfig = configChecks[check.id] || {};
       const defaultConfig = defaultChecks[check.id];
+      const protectionReason = protectedCheckReasons[check.id];
 
       const enriched: CheckWithConfig = {
         ...check,
+        protectionReason,
         config: {
-          enabled: checkConfig.enabled ?? defaultConfig?.enabled ?? true,
-          autoHeal: checkConfig.autoHeal ?? defaultConfig?.autoHeal ?? false,
+          enabled: protectionReason ? true : checkConfig.enabled ?? defaultConfig?.enabled ?? true,
+          autoHeal: protectionReason ? true : checkConfig.autoHeal ?? defaultConfig?.autoHeal ?? false,
         },
       };
 
@@ -295,7 +306,7 @@ export function SettingsDialog({
     }
 
     return groups;
-  }, [checksMetadata, config, defaults]);
+  }, [checksMetadata, config, defaults, protectedChecks]);
 
   const toggleCategory = useCallback((category: string) => {
     setExpandedCategories((prev) => ({

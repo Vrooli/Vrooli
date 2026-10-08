@@ -1,0 +1,80 @@
+syntax = "proto3";
+
+package landing_page_business_suite.v1;
+
+import "landing-page-business-suite/v1/shared/commerce.proto";
+import "landing-page-business-suite/v1/shared/downloads.proto";
+import "landing-page-business-suite/v1/shared/product_presentation.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1";
+
+// =============================================================================
+// LANDING CONFIG DOMAIN
+// =============================================================================
+//
+// @stability beta
+//
+// The public landing config is the single typed aggregated payload the frontend
+// fetches to render a published presentation together with commerce-owned
+// pricing and downloads. Publication or resolution failure is fail-closed and
+// returns unavailable; it never substitutes a baked marketing document.
+// Locale fallback, when needed, stays within the same published document and
+// is reported by the presentation diagnostics and the top-level fallback flag.
+//
+// =============================================================================
+
+// GetLandingConfigRequest is read-only. With an empty variant_slug, a visitor
+// receives a deterministic weighted assignment; an empty visitor is anonymous.
+message GetLandingConfigRequest {
+  string variant_slug = 1;
+  string visitor_id = 2;
+  // Product scope is explicit; an empty route means the bundle root.
+  string route = 3;
+  string locale = 4;
+}
+
+enum PresentationAssignmentSource {
+  PRESENTATION_ASSIGNMENT_SOURCE_UNSPECIFIED = 0;
+  PRESENTATION_ASSIGNMENT_SOURCE_WEIGHTED_VISITOR = 1;
+  PRESENTATION_ASSIGNMENT_SOURCE_EXPLICIT_URL = 2;
+}
+
+// An exposure is recorded only after the browser has displayed this exact
+// public page. The owner rechecks assignment, publication, locale and digest;
+// these display-safe fields are not authorization tokens. Explicit URL review
+// and protected draft previews never count as weighted-assignment exposures.
+message RecordPresentationExposureRequest {
+  string visitor_id = 1;
+  string variant_slug = 2;
+  string revision = 3;
+  string route = 4;
+  string locale = 5;
+  string block_digest = 6;
+  string weight_fingerprint = 7;
+  PresentationAssignmentSource source = 8;
+}
+
+message RecordPresentationExposureResponse {
+  // False means an otherwise valid assignment was already recorded.
+  bool recorded = 1;
+}
+
+// LandingConfigResponse is the aggregated public landing payload.
+message LandingConfigResponse {
+  reserved 1, 2, 5, 6, 8, 9;
+  reserved "variant", "sections", "header", "branding", "coupon_mappings", "intro_offers";
+
+  vrooli.landing_page_business_suite.v1.shared.PricingOverview pricing = 3;
+  repeated vrooli.landing_page_business_suite.v1.shared.DownloadApp downloads = 4;
+  // True when the typed resolver used an explicit same-document fallback,
+  // such as a configured locale fallback. Missing publication is unavailable.
+  bool fallback = 7;
+  vrooli.landing_page_business_suite.v1.shared.ResolvedProductPresentation presentation = 10;
+}
+
+// LandingConfigService serves the aggregated public landing payload.
+service LandingConfigService {
+  // Returns the aggregated landing payload for a variant (or a selected one).
+  rpc GetLandingConfig(GetLandingConfigRequest) returns (LandingConfigResponse);
+  rpc RecordPresentationExposure(RecordPresentationExposureRequest) returns (RecordPresentationExposureResponse);
+}

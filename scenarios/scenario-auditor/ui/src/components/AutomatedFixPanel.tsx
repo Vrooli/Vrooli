@@ -265,6 +265,9 @@ export default function AutomatedFixPanel() {
       return job.message || 'No loops executed yet'
     }
     const latest = job.loops[job.loops.length - 1]
+    if (!latest) {
+      return job.message || 'No loops executed yet'
+    }
     const parts: string[] = []
     if (latest.message) {
       parts.push(latest.message)

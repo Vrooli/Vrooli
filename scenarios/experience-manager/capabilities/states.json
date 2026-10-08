@@ -1,0 +1,65 @@
+{
+  "$schema": "../../../.vrooli/schemas/experience-capability-registry.schema.json",
+  "kind": "state-vocabulary",
+  "schemaVersion": "1.0.0",
+  "canonical": [
+    { "id": "default", "group": "resting", "aliases": ["ready", "idle"], "description": "The surface is settled and usable with its primary content present." },
+    { "id": "loading", "group": "busy", "aliases": ["pending"], "description": "Content the surface needs has been requested and has not arrived yet." },
+    { "id": "submitting", "group": "busy", "description": "A user-initiated mutation is in flight and its outcome is not yet known." },
+    { "id": "saving", "group": "busy", "description": "A change is being persisted, typically without the user having pressed a submit control." },
+    { "id": "syncing", "group": "busy", "description": "Local and remote state are being reconciled in the background." },
+    { "id": "refreshing", "group": "busy", "description": "Usable content is already shown while newer content is being fetched." },
+    { "id": "empty", "group": "content", "description": "The request succeeded and there is legitimately nothing to show." },
+    { "id": "partial", "group": "content", "description": "The primary task is usable while some supporting content is unavailable." },
+    { "id": "stale", "group": "content", "description": "Content is shown but is known to be out of date and its freshness affects decisions." },
+    { "id": "success", "group": "terminal", "description": "An operation completed and the surface is acknowledging it before settling." },
+    { "id": "validation-error", "group": "fault", "description": "User-supplied input was rejected and the user can correct it in place." },
+    { "id": "request-error", "group": "fault", "aliases": ["error", "failure"], "description": "An operation failed for a reason outside the user's input and may be retryable." },
+    { "id": "permission-denied", "group": "fault", "description": "The operation is understood and refused because the actor is not authorized." },
+    { "id": "offline", "group": "fault", "description": "Connectivity is unavailable; some behavior is degraded or queued." },
+    { "id": "retry", "group": "recovery", "aliases": ["retrying"], "description": "A previously failed operation is being attempted again." }
+  ],
+  "groups": [
+    { "id": "resting", "description": "The settled state a surface returns to; the destination of every recovery path." },
+    { "id": "busy", "description": "Work is in flight. Distinguished by who started it and whether prior content remains visible." },
+    { "id": "content", "description": "The request resolved but the content itself is absent, incomplete, or aged." },
+    { "id": "terminal", "description": "A momentary acknowledgement that an operation finished, before settling back to resting." },
+    { "id": "fault", "description": "Something failed. Distinguished by whether the user can fix it in place." },
+    { "id": "recovery", "description": "An explicit second attempt following a fault." }
+  ],
+  "views": {
+    "region-lifecycle": {
+      "description": "The projection used by scenario-experience-spec RegionLifecycle.states, which governs whether a declared async region is settled.",
+      "states": ["loading", "default", "empty", "partial", "request-error"],
+      "labels": { "default": "ready", "request-error": "error" },
+      "excluded": [
+        {
+          "name": "static",
+          "reason": "Not a state. It describes whether the region resolves asynchronously at all, which RegionLifecycle already carries on its `kind` field — the enum listing it as a state is redundant and should be removed in the next spec minor."
+        }
+      ]
+    },
+    "request-lifecycle": {
+      "description": "The projection DESIGN.md describes in prose under Request Lifecycle, for the states of a single network call or long-running task.",
+      "states": ["default", "loading", "success", "request-error", "retry"],
+      "labels": { "default": "idle", "loading": "pending", "request-error": "failure", "retry": "retrying" },
+      "excluded": [
+        {
+          "name": "disabled",
+          "reason": "Not a state of the surface. It is a property of an individual control, expressible through the element's own accessible state rather than through the page or component state axis."
+        }
+      ]
+    },
+    "design-required": {
+      "description": "The floor a scenario's DESIGN.md is expected to require of every page. Replaces the hardcoded allowlist in checks/state_coverage.go, whose DESIGN.md section parser matched no file in the repo and therefore never produced a finding.",
+      "states": ["loading", "empty", "partial", "stale", "request-error", "retry"],
+      "labels": { "request-error": "error" },
+      "excluded": [
+        {
+          "name": "disabled",
+          "reason": "Same reason as request-lifecycle: a control property, not a surface state. Carrying it in a page-level required list made the list unsatisfiable in principle."
+        }
+      ]
+    }
+  }
+}

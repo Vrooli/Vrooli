@@ -1,0 +1,1 @@
+{"gate":"examples","assetId":"calibration-examples","kind":"component","runner":"static","requiredFailureCode":"catalog.examples_missing","catalogAsset":"asset.json","source":"broken.tsx","description":"Released implementation has no story specimen."}

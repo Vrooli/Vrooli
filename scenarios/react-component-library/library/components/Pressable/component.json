@@ -1,0 +1,24 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
+  "catalogId": "controls.pressable",
+  "deprecatedVersions": [
+    "1.0.0",
+    "1.0.2",
+    "1.0.1"
+  ],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "1.0.2",
+    "1.0.1"
+  ],
+  "latest": "1.0.4",
+  "libraryId": "react-component-library:Pressable"
+}

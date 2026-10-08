@@ -1,0 +1,61 @@
+{
+  "_metadata": {
+    "module": "trustworthy-bundled-runtime",
+    "description": "Requirements for private bundled runtime behavior and fail-closed desktop evidence.",
+    "source": "trustworthy-bundled-desktop-apps-private-runtime-isolation",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "STD-BUNDLED-ROUTING-CONTRACT",
+      "title": "Structural bundled API routing",
+      "status": "planned",
+      "criticality": "P0",
+      "description": "When a bundled UI service receives a request, it MUST serve bundle assets and the health path locally and route every other request to the bundled API without naming a scenario, protocol-specific path shape, or path-prefix allowlist.",
+      "validation": [{"type": "test", "status": "planned", "notes": "Planned routing table test and bundled web-console evidence."}]
+    },
+    {
+      "id": "STD-BUNDLED-ENVIRONMENT-ALLOWLIST",
+      "title": "Allowlisted bundled child environment",
+      "status": "planned",
+      "criticality": "P0",
+      "description": "When a bundled child starts, it MUST receive only the documented environment allowlist and bundle-manifest variables.",
+      "validation": [{"type": "test", "status": "planned", "notes": "Planned renderer and preflight environment tests."}]
+    },
+    {
+      "id": "STD-BUNDLED-ISOLATION-OBSERVATION",
+      "title": "Observed bundled isolation",
+      "status": "planned",
+      "criticality": "P0",
+      "description": "When a bundled child reaches readiness, the run MUST record its resolved state root, socket path, database path, and adopted host-session count and MUST refuse a live resolved path.",
+      "validation": [{"type": "test", "status": "planned", "notes": "Planned isolation derivation tests and bundled manifest evidence."}]
+    },
+    {
+      "id": "STD-JOURNEY-SURFACE-ASSERTIONS",
+      "title": "Fail-closed journey surface assertions",
+      "status": "planned",
+      "criticality": "P0",
+      "description": "When an input chapter has identical captures without a passed application assertion, or captured frames contain a surface error, the journey MUST fail with the corresponding observed reason and MUST NOT report pass.",
+      "validation": [{"type": "test", "status": "planned", "notes": "Planned chapter assertion tests, negative control, and fresh bundled evidence."}]
+    },
+    {
+      "id": "STD-BUNDLED-APP-TARGET-ISOLATION",
+      "title": "Bundled journeys target private runtime endpoints",
+      "status": "in_progress",
+      "criticality": "P0",
+      "description": "When a bundled validation journey starts, scenario-to-desktop MUST resolve and target only endpoints reported by the private runtime, and MUST preserve the bundled-private source in the target observation.",
+      "validation": [{"type": "test", "ref": "api/smoketest/smoke_target_test.go::TestResolveBundledTargetReadsPrivateRuntimeEndpoints", "phase": "unit", "status": "implemented"}]
+    },
+    {
+      "id": "STD-BUNDLED-ISOLATION-FAIL-CLOSED",
+      "title": "Bundled isolation refuses live paths",
+      "status": "in_progress",
+      "criticality": "P0",
+      "description": "If a bundled runtime resolves the operator home or a nested live session path, then scenario-to-desktop MUST fail with live_state_resolved and MUST retain the offending path in the diagnostic.",
+      "validation": [
+        {"type": "test", "ref": "api/smoketest/isolation_test.go::TestIsolationObservationRefusesOperatorHome", "phase": "unit", "status": "implemented"},
+        {"type": "test", "ref": "api/smoketest/isolation_test.go::TestIsolationObservationRefusesNestedResolvedLivePath", "phase": "unit", "status": "implemented"}
+      ]
+    }
+  ]
+}

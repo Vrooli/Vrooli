@@ -1,0 +1,98 @@
+{
+  "id": "9f3c1d2e-7a4b-4c8d-b1e6-5f20a9c47d31",
+  "project_id": "0c037e4d-dd01-4c3b-a23b-0e6a9e3ac9ff",
+  "name": "desktop-evidence-tour",
+  "folder_path": "/bas/cases/05-desktop",
+  "description": "Tour the packaged desktop application: prove an interactive shell, a second isolated session, and the account and machines surfaces",
+  "metadata": {
+    "name": "desktop-evidence-tour",
+    "description": "Tour the packaged desktop application: prove an interactive shell, a second isolated session, and the account and machines surfaces",
+    "execution_mode": "mutating",
+    "labels": {
+      "requires_confirmation": "true",
+      "routed_isolation": "true",
+      "seed": "seed",
+      "spec_entry_id": "workspace",
+      "requirements_json": "[\"REQ-P0-001b\", \"REQ-P0-002b\", \"REQ-P1-013c\", \"WEBCONSO-P0-009\", \"WEBCONSO-P0-010\"]"
+    }
+  },
+  "tags": [
+    "requirements_json:[\"REQ-P0-001b\", \"REQ-P0-002b\", \"REQ-P1-013c\", \"WEBCONSO-P0-009\", \"WEBCONSO-P0-010\"]"
+  ],
+  "version": 1,
+  "created_at": "2026-09-17T00:00:00Z",
+  "updated_at": "2026-09-17T00:00:00Z",
+  "flow_definition": {
+    "settings": {},
+    "nodes": [
+      {
+        "id": "prove-interactive-shell",
+        "action": {
+          "type": "ACTION_TYPE_SUBFLOW",
+          "subflow": {
+            "workflow_path": "cases/01-foundation/01-terminal/interactive-stdin-roundtrip.json"
+          },
+          "metadata": {
+            "label": "Type a command and prove stdin reaches a working shell"
+          }
+        }
+      },
+      {
+        "id": "prove-second-session",
+        "action": {
+          "type": "ACTION_TYPE_SUBFLOW",
+          "subflow": {
+            "workflow_path": "cases/01-foundation/01-terminal/multi-pane-independent-io.json"
+          },
+          "metadata": {
+            "label": "Start a second session and prove per-pane output isolation"
+          }
+        }
+      },
+      {
+        "id": "tour-account-settings",
+        "action": {
+          "type": "ACTION_TYPE_SUBFLOW",
+          "subflow": {
+            "workflow_path": "cases/04-commercial/account-and-byo-key-surface.json"
+          },
+          "metadata": {
+            "label": "Open settings and review the account and key controls"
+          }
+        }
+      },
+      {
+        "id": "tour-machines-overlay",
+        "action": {
+          "type": "ACTION_TYPE_SUBFLOW",
+          "subflow": {
+            "workflow_path": "cases/01-foundation/02-devices/devices-and-machines-overlay.json"
+          },
+          "metadata": {
+            "label": "Open the machines and screens overlay"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "source": "prove-interactive-shell",
+        "target": "prove-second-session",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e2",
+        "source": "prove-second-session",
+        "target": "tour-account-settings",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e3",
+        "source": "tour-account-settings",
+        "target": "tour-machines-overlay",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      }
+    ]
+  }
+}

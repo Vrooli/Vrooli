@@ -1,3 +1,4 @@
+import { ConditionOutcomeSchema, type ConditionOutcome } from '@vrooli/proto-types/browser-automation-studio/v1/base/shared_pb';
 /**
  * Outcome Builder
  *
@@ -83,6 +84,8 @@ export interface HandlerResult extends Omit<BaseExecutionResult, 'error'> {
   networkEvents?: NetworkEvent[];
   /** Assertion outcome for assert instructions */
   assertion?: HandlerAssertionOutcome;
+  /** Completed predicate; absent when evaluation itself failed. */
+  condition?: Omit<ConditionOutcome, '$typeName' | 'actual' | 'expected'> & { actual?: unknown; expected?: unknown };
 }
 
 // =============================================================================
@@ -125,6 +128,9 @@ export interface Screenshot {
   from_cache?: boolean;
   truncated?: boolean;
   source?: string;
+  requested_extent?: string;
+  actual_extent?: string;
+  degraded?: boolean;
 }
 
 /**
@@ -197,7 +203,7 @@ const PAYLOAD_VERSION = '1';
 // BUILD PARAMS TYPE
 // =============================================================================
 
-import type { HandlerInstruction } from '../proto';
+import { getActionType, type HandlerInstruction } from '../proto';
 
 /**
  * Parameters for building a step outcome
@@ -248,15 +254,22 @@ export function buildStepOutcome(params: BuildOutcomeParams): StepOutcome {
     schemaVersion: SCHEMA_VERSION,
     payloadVersion: PAYLOAD_VERSION,
     stepIndex: validatedIndex,
-    attempt: 1, // TODO: Track actual attempt number when retry logic is implemented
+    attempt: instruction.attempt ?? 1,
     nodeId: instruction.nodeId,
-    stepType: instruction.type,
+		stepType: getActionType(instruction),
     success: result.success,
     startedAt: timestampFromDate(startedAt),
     completedAt: timestampFromDate(completedAt),
     durationMs,
     finalUrl,
-    notes: {},
+    notes: {
+      ...(instruction.invocationId ? { invocation_id: instruction.invocationId } : {}),
+      ...(instruction.operationSequence ? { operation_sequence: String(instruction.operationSequence) } : {}),
+      ...(screenshot?.requested_extent ? { screenshot_requested_extent: screenshot.requested_extent } : {}),
+      ...(screenshot?.actual_extent ? { screenshot_actual_extent: screenshot.actual_extent } : {}),
+      ...(screenshot?.media_type ? { screenshot_media_type: screenshot.media_type } : {}),
+      ...(screenshot ? { screenshot_degraded: String(screenshot.degraded ?? false) } : {}),
+    },
   });
 
   // Add screenshot telemetry
@@ -320,6 +333,12 @@ export function buildStepOutcome(params: BuildOutcomeParams): StepOutcome {
   }
 
   // Add extracted data
+  if (result.condition) {
+    const { actual, expected, ...condition } = result.condition;
+    const values = objectToJsonValueMap(safeSerializable({ actual, expected }, 'condition'));
+    outcome.condition = create(ConditionOutcomeSchema, { ...condition, actual: values.actual, expected: values.expected });
+  }
+
   if (result.extracted_data) {
     const safeData = safeSerializable(result.extracted_data, 'extracted_data');
     outcome.extractedData = objectToJsonValueMap(safeData);

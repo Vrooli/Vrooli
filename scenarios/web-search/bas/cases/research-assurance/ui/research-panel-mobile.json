@@ -1,0 +1,56 @@
+{
+  "metadata": {
+    "name": "research-panel-mobile",
+    "description": "Verify the narrow viewport research panel keeps query and evidence controls available.",
+    "requirement": "REQ-P1-013",
+    "version": "1",
+    "labels": { "surface": "research", "viewport": "mobile" },
+    "execution_mode": "observer"
+  },
+  "settings": { "viewport_width": 390, "viewport_height": 844 },
+  "nodes": [
+    {
+      "id": "navigate-search",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "web-search",
+          "scenario_path": "/search",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Open the search and research surface" }
+      }
+    },
+    {
+      "id": "wait-panel",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": { "selector": "@selector/research.panel", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000 },
+        "metadata": { "label": "Wait for the research panel" }
+      }
+    },
+    {
+      "id": "assert-query",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": { "selector": "@selector/research.query", "mode": "ASSERTION_MODE_VISIBLE", "timeout_ms": 10000, "failure_message": "Research query control is not visible at the narrow viewport." },
+        "metadata": { "label": "Verify the query control" }
+      }
+    },
+    {
+      "id": "assert-passage-input",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": { "selector": "@selector/research.passageId", "mode": "ASSERTION_MODE_VISIBLE", "timeout_ms": 10000, "failure_message": "Evidence passage lookup control is not visible at the narrow viewport." },
+        "metadata": { "label": "Verify evidence passage lookup" }
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "navigate-search", "target": "wait-panel" },
+    { "id": "e2", "source": "wait-panel", "target": "assert-query" },
+    { "id": "e3", "source": "assert-query", "target": "assert-passage-input" }
+  ]
+}

@@ -3,7 +3,7 @@ package system
 import (
 	"context"
 
-	"vrooli-autoheal/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 )
 
 // mockFSReader implements checks.FileSystemReader for testing.

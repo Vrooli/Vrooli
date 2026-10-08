@@ -410,25 +410,6 @@ export interface StorageStateResponse {
 }
 
 /**
- * Response from start recording endpoint.
- */
-export interface StartRecordingResponse {
-  recording_id: string;
-  session_id: string;
-  started_at: string;
-}
-
-/**
- * Response from stop recording endpoint.
- */
-export interface StopRecordingResponse {
-  recording_id: string;
-  session_id: string;
-  action_count: number;
-  stopped_at: string;
-}
-
-/**
  * Response from get actions endpoint.
  */
 export interface GetActionsResponse {

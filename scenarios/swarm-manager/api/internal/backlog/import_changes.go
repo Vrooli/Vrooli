@@ -37,6 +37,7 @@ type updateItemData struct {
 	suggestAccepted  map[int]bool
 	suggestRejection map[int]string
 	notes            string
+	notesChanged     bool
 }
 
 // extractQuestionNumber extracts the 0-based question index from a heading like "#### Q1" or "#### Q2: ...".
@@ -181,73 +182,98 @@ func (h *Handler) buildUpdateChange(parsed parsedItemSection) (importChange, []s
 	}
 
 	// Check clarify changes.
-	if len(parsed.clarifyAnswers) > 0 || len(parsed.clarifyNotes) > 0 {
-		questionsPath := filepath.Join(h.store.ItemDir(kind, parsed.name), "clarify", "questions.json")
-		if _, err := os.Stat(questionsPath); err == nil {
-			questions, err := loadQuestions(questionsPath)
-			if err == nil {
-				for idx, answer := range parsed.clarifyAnswers {
-					if idx < len(questions) && answer != "" {
-						if questions[idx].Answer != answer {
-							details = append(details, fmt.Sprintf("clarify Q%d answer: %q", idx+1, answer))
-						}
-					}
-				}
-				for idx, notes := range parsed.clarifyNotes {
-					if idx < len(questions) && notes != "" {
-						if questions[idx].Notes != notes {
-							details = append(details, fmt.Sprintf("clarify Q%d notes updated", idx+1))
-						}
-					}
-				}
-			}
-		}
-	}
+	details = append(details, h.detectClarifyChangeDetails(kind, parsed)...)
 
 	// Check suggest changes.
-	if len(parsed.suggestAccepted) > 0 || len(parsed.suggestRejection) > 0 {
-		suggestionsPath := filepath.Join(h.store.ItemDir(kind, parsed.name), "suggest", "suggestions.json")
-		if _, err := os.Stat(suggestionsPath); err == nil {
-			suggestions, err := loadSuggestions(suggestionsPath)
-			if err == nil {
-				for idx, accepted := range parsed.suggestAccepted {
-					if idx < len(suggestions) {
-						if suggestions[idx].Accepted != accepted {
-							if accepted {
-								details = append(details, fmt.Sprintf("suggestion S%d accepted", idx+1))
-							} else {
-								details = append(details, fmt.Sprintf("suggestion S%d rejected", idx+1))
-							}
-						}
-					}
-				}
-				for idx, reason := range parsed.suggestRejection {
-					if idx < len(suggestions) && reason != "" {
-						if suggestions[idx].RejectionReason != reason {
-							details = append(details, fmt.Sprintf("suggestion S%d rejection reason updated", idx+1))
-						}
-					}
-				}
-			}
-		}
-	}
+	details = append(details, h.detectSuggestChangeDetails(kind, parsed)...)
 
-	// Check notes changes.
-	if parsed.notes != "" {
-		notesPath := filepath.Join(h.store.ItemDir(kind, parsed.name), "notes.md")
-		existingNotes := ""
-		if data, err := os.ReadFile(notesPath); err == nil {
-			existingNotes = strings.TrimSpace(string(data))
-		}
-		if parsed.notes != existingNotes {
-			details = append(details, "notes updated")
-		}
-	}
+	// Check notes changes. A refresh note is a freshness signal for the item,
+	// so applyUpdate must also advance the item's Updated timestamp.
+	noteDetails := h.detectNotesChangeDetails(kind, parsed)
+	ud.notesChanged = len(noteDetails) > 0
+	details = append(details, noteDetails...)
 
 	change.details = details
 	change.updateData = ud
 
 	return change, nil
+}
+
+// detectClarifyChangeDetails returns human-readable change descriptions for any
+// clarify answer/notes edits in the parsed section that differ from disk.
+func (h *Handler) detectClarifyChangeDetails(kind BacklogKind, parsed parsedItemSection) []string {
+	if len(parsed.clarifyAnswers) == 0 && len(parsed.clarifyNotes) == 0 {
+		return nil
+	}
+	questionsPath := filepath.Join(h.store.ItemDir(kind, parsed.name), "clarify", "questions.json")
+	if _, err := os.Stat(questionsPath); err != nil {
+		return nil
+	}
+	questions, err := loadQuestions(questionsPath)
+	if err != nil {
+		return nil
+	}
+	var details []string
+	for idx, answer := range parsed.clarifyAnswers {
+		if idx < len(questions) && answer != "" && questions[idx].Answer != answer {
+			details = append(details, fmt.Sprintf("clarify Q%d answer: %q", idx+1, answer))
+		}
+	}
+	for idx, notes := range parsed.clarifyNotes {
+		if idx < len(questions) && notes != "" && questions[idx].Notes != notes {
+			details = append(details, fmt.Sprintf("clarify Q%d notes updated", idx+1))
+		}
+	}
+	return details
+}
+
+// detectSuggestChangeDetails returns human-readable change descriptions for any
+// suggestion accept/reject/rejection-reason edits that differ from disk.
+func (h *Handler) detectSuggestChangeDetails(kind BacklogKind, parsed parsedItemSection) []string {
+	if len(parsed.suggestAccepted) == 0 && len(parsed.suggestRejection) == 0 {
+		return nil
+	}
+	suggestionsPath := filepath.Join(h.store.ItemDir(kind, parsed.name), "suggest", "suggestions.json")
+	if _, err := os.Stat(suggestionsPath); err != nil {
+		return nil
+	}
+	suggestions, err := loadSuggestions(suggestionsPath)
+	if err != nil {
+		return nil
+	}
+	var details []string
+	for idx, accepted := range parsed.suggestAccepted {
+		if idx < len(suggestions) && suggestions[idx].Accepted != accepted {
+			if accepted {
+				details = append(details, fmt.Sprintf("suggestion S%d accepted", idx+1))
+			} else {
+				details = append(details, fmt.Sprintf("suggestion S%d rejected", idx+1))
+			}
+		}
+	}
+	for idx, reason := range parsed.suggestRejection {
+		if idx < len(suggestions) && reason != "" && suggestions[idx].RejectionReason != reason {
+			details = append(details, fmt.Sprintf("suggestion S%d rejection reason updated", idx+1))
+		}
+	}
+	return details
+}
+
+// detectNotesChangeDetails returns a "notes updated" detail when the parsed
+// notes differ from the on-disk notes.md content.
+func (h *Handler) detectNotesChangeDetails(kind BacklogKind, parsed parsedItemSection) []string {
+	if parsed.notes == "" {
+		return nil
+	}
+	notesPath := filepath.Join(h.store.ItemDir(kind, parsed.name), "notes.md")
+	existingNotes := ""
+	if data, err := os.ReadFile(notesPath); err == nil {
+		existingNotes = strings.TrimSpace(string(data))
+	}
+	if parsed.notes != existingNotes {
+		return []string{"notes updated"}
+	}
+	return nil
 }
 
 // loadQuestions reads and parses a questions.json file.

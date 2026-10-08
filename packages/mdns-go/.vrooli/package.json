@@ -1,0 +1,20 @@
+{
+  "$schema": "schemas/package.schema.json",
+  "version": "1.0.0",
+  "package": {
+    "name": "mdns-go",
+    "display_name": "github.com/vrooli/mdns-go",
+    "description": "Read-only DNS-SD service discovery client.",
+    "kind": "go_runtime",
+    "language": "go",
+    "module_identifiers": ["github.com/vrooli/mdns-go"],
+    "adoption": {
+      "scenario_adoptable": true,
+      "allowed_consumers": ["scenario_api"],
+      "adoption_modes": ["go_module_replace"]
+    },
+    "lifecycle": {},
+    "refresh": {"strategy": "none", "restart_running_consumers": false},
+    "docs": ["packages/mdns-go/README.md"]
+  }
+}

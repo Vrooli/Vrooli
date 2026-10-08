@@ -1,0 +1,292 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "asset-studio",
+  "description": "Asset Studio command metadata. The identity ingress is built through cli-core primitives and generated StudioService Connect clients.",
+  "groups": [
+    {
+      "name": "identities",
+      "description": "Author and inspect reusable visual identities",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List identity versions",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "StudioService",
+            "method": "ListIdentities"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "create-product",
+          "description": "Create a product identity",
+          "flags": [
+            {
+              "name": "name",
+              "required": true,
+              "description": "Product identity name"
+            },
+            {
+              "name": "form",
+              "required": true,
+              "description": "Physical or UI form",
+              "bind": {
+                "field": "actor_id"
+              }
+            },
+            {
+              "name": "finish",
+              "required": true,
+              "description": "Material or visual finish",
+              "bind": {
+                "field": "identity"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "StudioService",
+            "method": "CreateIdentity"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "import",
+          "description": "Import authored rich-media canon",
+          "flags": [
+            {
+              "name": "root",
+              "required": true,
+              "description": "Path to rich-media catalogue root"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "StudioService",
+            "method": "ImportCanon"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ]
+    },
+    {
+      "name": "renders",
+      "description": "Inspect durable media-production receipts",
+      "commands": [
+        {
+          "name": "show",
+          "description": "Show a render status, producer receipt, and candidate metadata",
+          "positionals": [
+            {
+              "name": "render-id",
+              "required": true,
+              "description": "Render identifier"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "StudioService",
+            "method": "GetRender"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "set-campaign-budget",
+          "description": "Set a campaign media spend limit",
+          "flags": [
+            {
+              "name": "campaign-ref",
+              "required": true,
+              "description": "Campaign reference"
+            },
+            {
+              "name": "limit-usd",
+              "required": true,
+              "description": "Maximum media spend in USD"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "StudioService",
+            "method": "SetCampaignBudget"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ],
+            "requires_confirmation": true
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "regenerate",
+          "description": "Create a fresh render from a successful render's recorded intent",
+          "positionals": [
+            {
+              "name": "source-render-id",
+              "required": true,
+              "description": "Successful source render identifier"
+            }
+          ],
+          "flags": [
+            {
+              "name": "confirm-over-budget",
+              "bool": true,
+              "description": "Record confirmation if the projected campaign spend exceeds its limit"
+            },
+            {
+              "name": "confirmation-actor",
+              "description": "Operator recording an over-budget confirmation",
+              "bind": {
+                "field": "budget_confirmation_actor_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "StudioService",
+            "method": "RegenerateRender"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ],
+            "requires_confirmation": true
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "analyze-conformance",
+          "description": "Record an advisory Image Tools quality signal for an asset",
+          "positionals": [
+            {
+              "name": "asset-id",
+              "required": true,
+              "description": "Asset identifier"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "StudioService",
+            "method": "AnalyzeConformance"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ]
+    }
+  ],
+  "measures": {
+    "domains": []
+  },
+  "exceptions": [],
+  "omitted": [
+    {
+      "service": "StudioService",
+      "method": "ReviseIdentity",
+      "reason": "P0 Connect surface is live; the dedicated CLI renderer is introduced with the workbench integration."
+    },
+    {
+      "service": "StudioService",
+      "method": "ResolveSpec",
+      "reason": "P0 Connect surface is live; the dedicated CLI renderer is introduced with the workbench integration."
+    },
+    {
+      "service": "StudioService",
+      "method": "CreateRender",
+      "reason": "P0 Connect surface is live; the dedicated CLI renderer is introduced with the workbench integration."
+    },
+    {
+      "service": "StudioService",
+      "method": "SelectCandidate",
+      "reason": "P0 Connect surface is live; the dedicated CLI renderer is introduced with the workbench integration."
+    },
+    {
+      "service": "StudioService",
+      "method": "JudgeConformance",
+      "reason": "P0 Connect surface is live; the dedicated CLI renderer is introduced with the workbench integration."
+    },
+    {
+      "service": "StudioService",
+      "method": "ReleaseAsset",
+      "reason": "P0 Connect surface is live; the dedicated CLI renderer is introduced with the workbench integration."
+    },
+    {
+      "service": "StudioService",
+      "method": "GetReleasedAssetReference",
+      "reason": "P0 Connect surface is live; the dedicated CLI renderer is introduced with the workbench integration."
+    },
+    {
+      "service": "SearchService",
+      "method": "Search",
+      "reason": "Federated Search Hub leaf; Asset Studio CLI does not duplicate the router's query surface."
+    },
+    {
+      "service": "SearchService",
+      "method": "Status",
+      "reason": "Federated Search Hub health leaf; status is consumed by the router."
+    },
+    {
+      "service": "StudioService",
+      "method": "CommissionAgent",
+      "reason": "Agent commissioning is currently exposed through the workbench API while the dedicated operator CLI workflow is completed."
+    },
+    {
+      "service": "StudioService",
+      "method": "IngestExternalAsset",
+      "reason": "Machine-to-machine ingress: it carries raw image bytes with a producing scenario's provenance, so its caller is another scenario's release path rather than an operator at a terminal. A CLI wrapper would need a file argument and would invite hand-authored provenance, which is exactly the second authority on disclosure this RPC exists to avoid."
+    }
+  ]
+}

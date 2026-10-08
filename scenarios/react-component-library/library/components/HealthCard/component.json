@@ -1,0 +1,25 @@
+{
+  "catalogId": "data-display.health-card",
+  "deprecatedVersions": [
+    "0.1.4",
+    "0.1.5"
+  ],
+  "designStyles": [
+    {
+      "affinity": "native",
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "draft": "",
+  "evictedVersions": [
+    "0.1.5",
+    "0.1.4",
+    "0.1.3",
+    "0.1.2",
+    "0.1.1",
+    "0.1.0"
+  ],
+  "latest": "0.1.6",
+  "libraryId": "react-component-library:HealthCard"
+}

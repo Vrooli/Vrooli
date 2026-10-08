@@ -1,0 +1,258 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "storage": {"entries":{"data":{"rung":"owned","path":"data","kind":"dir","class":"data","regenerable":false,"rationale":"Scenario-owned durable data observed in the canonical data directory."},"api_data":{"rung":"owned","path":"api/data","kind":"dir","class":"data","regenerable":false,"rationale":"Scenario-owned API data observed in the canonical API data directory."}},"rationale":"Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."},
+  "service": {
+    "parent": "vrooli",
+    "name": "agent-manager",
+    "displayName": "Agent Manager",
+    "description": "Central orchestration and governance layer for running AI agents against the codebase in a controlled, reviewable, and extensible way",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
+    "tags": [
+      "react-ui",
+      "go-api",
+      "agent-orchestration",
+      "sandbox-first",
+      "policy-driven",
+      "event-native",
+      "task-management",
+      "approval-workflow"
+    ],
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/agent-manager"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
+  },
+  "runtime": {
+    "kind": "long_running",
+    "auto_restart_default": false
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "port": 18800,
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "port": 21238,
+      "range": "20000-24999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "startup_grace_period": 30000,
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "timeout": 10000,
+          "interval": 30000,
+          "critical": true
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000,
+          "critical": true
+        }
+      ]
+    },
+    "setup": {
+      "description": "Build API & UI, install CLI",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/agent-manager-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "agent-manager"
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          }
+        ]
+      },
+      "steps": [
+      {
+        "name": "build-api",
+        "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o agent-manager-api .",
+        "description": "Build Go API server"
+      },
+      {
+        "name": "install-cli",
+        "run": "bash cli/install.sh",
+        "description": "Install the fresh Agent Manager CLI artifact"
+      },
+      {
+          "name": "install-ui-deps",
+          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "if [ -f ui/package.json ]; then cd ui && pnpm run build; else echo 'ui/ not present yet'; fi",
+          "description": "Build production UI bundle"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Launch API and Vite dev server",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && PROJECT_ROOT=\"${PROJECT_ROOT:-${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}}\" ./agent-manager-api",
+          "background": true,
+          "description": "Start Go API server in background",
+          "condition": {
+            "file_exists": "api/agent-manager-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "background": true,
+          "description": "Serve production UI bundle",
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
+        }
+      ]
+    },
+    "test": {
+      "description": "Execute phased test suite via test-genie",
+      "steps": [
+        {
+          "name": "run-tests",
+          "run": "vrooli scenario start agent-manager && for url in \"http://localhost:${API_PORT}/health\" \"http://localhost:${UI_PORT}/health\"; do ok=0; for i in $(seq 1 45); do if curl -fsS \"$url\" >/dev/null; then ok=1; break; fi; sleep 1; done; if [ \"$ok\" -ne 1 ]; then echo \"Timed out waiting for $url\"; exit 1; fi; done; test-genie execute agent-manager --preset comprehensive",
+          "description": "Run all test phases via test-genie"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop background processes",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f 'agent-manager-api' || true",
+          "description": "Stop Go API"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f 'node server.js' || true",
+          "description": "Stop UI server"
+        }
+      ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "claude-code": {
+        "type": "claude-code",
+        "enabled": true,
+        "required": false,
+        "description": "Runner adapter for Claude Code agent execution"
+      },
+      "codex": {
+        "type": "codex",
+        "enabled": true,
+        "required": false,
+        "description": "Runner adapter for OpenAI Codex agent execution"
+      },
+      "opencode": {
+        "type": "opencode",
+        "enabled": true,
+        "required": false,
+        "description": "Runner adapter for open-source code model execution"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": false,
+        "description": "Local LLM for recommendation extraction from investigation outputs",
+        "model_roles": [
+          "code.local"
+        ]
+      }
+    },
+    "scenarios": {
+      "workspace-sandbox": {
+        "type": "scenario",
+        "enabled": true,
+        "required": true,
+        "description": "Provides sandbox creation, diff generation, and patch application for isolated agent execution"
+      },
+      "vrooli-events": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "description": "Publishes non-blocking observed receipts for declared Agent Manager operations",
+        "config": {
+          "declarations": [
+            ".vrooli/vrooli-events/receipt-capture.json"
+          ]
+        }
+      }
+    }
+  },
+  "environment": {
+    "AM_SQLITE_PATH": "/home/matthalloran8/.vrooli/data/vrooli/agent-manager/agent-manager.db"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "agent-manager",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "agent-manager"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  }
+}

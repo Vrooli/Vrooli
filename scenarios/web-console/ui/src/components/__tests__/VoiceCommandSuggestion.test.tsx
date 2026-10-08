@@ -1,7 +1,8 @@
+import { renderWithProviders as render } from "../../test-utils";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, act, fireEvent } from "@testing-library/react";
+import { screen, act, fireEvent } from "@testing-library/react";
 import VoiceCommandSuggestion from "../VoiceCommandSuggestion";
-import type { CommandSuggestion } from "../../hooks/voice/types";
+import type { CommandSuggestion } from "../../audio-integration";
 
 function makeSuggestion(overrides: Partial<CommandSuggestion> = {}): CommandSuggestion {
   return {

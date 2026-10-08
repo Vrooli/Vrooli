@@ -6,32 +6,32 @@ import (
 
 // Feature represents a product feature
 type Feature struct {
-	ID          string    `json:"id"`
-	Name        string    `json:"name"`
-	Description string    `json:"description"`
-	Reach       int       `json:"reach"`       // Number of users affected
-	Impact      int       `json:"impact"`      // Impact level (1-5)
-	Confidence  float64   `json:"confidence"`  // Confidence level (0-1)
-	Effort      int       `json:"effort"`      // Effort in story points
-	Priority    string    `json:"priority"`    // CRITICAL, HIGH, MEDIUM, LOW
-	Score       float64   `json:"score"`       // RICE score
-	Status      string    `json:"status"`      // proposed, approved, in_progress, completed
-	Dependencies []string `json:"dependencies"` // Feature IDs this depends on
-	ROI         float64   `json:"roi"`         // Estimated ROI
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID           string    `json:"id"`
+	Name         string    `json:"name"`
+	Description  string    `json:"description"`
+	Reach        int       `json:"reach"`        // Number of users affected
+	Impact       int       `json:"impact"`       // Impact level (1-5)
+	Confidence   float64   `json:"confidence"`   // Confidence level (0-1)
+	Effort       int       `json:"effort"`       // Effort in story points
+	Priority     string    `json:"priority"`     // CRITICAL, HIGH, MEDIUM, LOW
+	Score        float64   `json:"score"`        // RICE score
+	Status       string    `json:"status"`       // proposed, approved, in_progress, completed
+	Dependencies []string  `json:"dependencies"` // Feature IDs this depends on
+	ROI          float64   `json:"roi"`          // Estimated ROI
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
 }
 
 // Roadmap represents a product roadmap
 type Roadmap struct {
-	ID         string    `json:"id"`
-	Name       string    `json:"name"`
-	StartDate  time.Time `json:"start_date"`
-	EndDate    time.Time `json:"end_date"`
-	Features   []string  `json:"features"` // Feature IDs
+	ID         string      `json:"id"`
+	Name       string      `json:"name"`
+	StartDate  time.Time   `json:"start_date"`
+	EndDate    time.Time   `json:"end_date"`
+	Features   []string    `json:"features"` // Feature IDs
 	Milestones []Milestone `json:"milestones"`
-	Version    int       `json:"version"`
-	CreatedAt  time.Time `json:"created_at"`
+	Version    int         `json:"version"`
+	CreatedAt  time.Time   `json:"created_at"`
 }
 
 // Milestone represents a roadmap milestone
@@ -49,7 +49,7 @@ type SprintPlan struct {
 	SprintNumber   int       `json:"sprint_number"`
 	StartDate      time.Time `json:"start_date"`
 	EndDate        time.Time `json:"end_date"`
-	Capacity       int       `json:"capacity"`       // Total story points
+	Capacity       int       `json:"capacity"` // Total story points
 	Features       []Feature `json:"features"`
 	TotalEffort    int       `json:"total_effort"`
 	EstimatedValue float64   `json:"estimated_value"`
@@ -109,13 +109,13 @@ type FeedbackAnalysis struct {
 
 // Decision represents a product decision
 type Decision struct {
-	ID          string    `json:"id"`
-	Title       string    `json:"title"`
-	Description string    `json:"description"`
+	ID          string           `json:"id"`
+	Title       string           `json:"title"`
+	Description string           `json:"description"`
 	Options     []DecisionOption `json:"options"`
-	Status      string    `json:"status"` // pending, decided, implemented
-	DecidedAt   time.Time `json:"decided_at"`
-	CreatedAt   time.Time `json:"created_at"`
+	Status      string           `json:"status"` // pending, decided, implemented
+	DecidedAt   time.Time        `json:"decided_at"`
+	CreatedAt   time.Time        `json:"created_at"`
 }
 
 // DecisionOption represents an option in a decision
@@ -133,10 +133,10 @@ type DecisionOption struct {
 
 // DecisionAnalysis represents analyzed decision options
 type DecisionAnalysis struct {
-	DecisionID string           `json:"decision_id"`
-	Options    []DecisionOption `json:"options"`
-	Recommendation string       `json:"recommendation"`
-	AnalyzedAt time.Time        `json:"analyzed_at"`
+	DecisionID     string           `json:"decision_id"`
+	Options        []DecisionOption `json:"options"`
+	Recommendation string           `json:"recommendation"`
+	AnalyzedAt     time.Time        `json:"analyzed_at"`
 }
 
 // ROICalculation represents ROI analysis for a feature

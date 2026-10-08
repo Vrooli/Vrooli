@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "scenario": "channel-manager",
+  "input_digest": "sha256:8ba0171d7d07821235b253cd5e06249ccbf9bc633fb9eb56c2db570184091ead",
+  "input_files": [
+    "schemas/channel-manager/v1/channelmanager/channel_manager.proto",
+    "schemas/channel-manager/v1/shared/errors.proto",
+    "schemas/channel-manager/v1/shared/health.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/channel-manager/v1/channelmanager/channel_manager.pb.go": "sha256:ab39b8da08457d316f712a1060f3bc39c261f59783b604d704ffba3ccd788977",
+    "gen/go/channel-manager/v1/channelmanager/channelmanager_v1connect/channel_manager.connect.go": "sha256:ba1b410439fed42a25eec6f216cf6e77e194c6a1fcfe07499324366ab36d93ac",
+    "gen/go/channel-manager/v1/shared/errors.pb.go": "sha256:601dc9b429617eb52967004ab9ca799ee189a26e79a26eadab768115498570f5",
+    "gen/go/channel-manager/v1/shared/health.pb.go": "sha256:b42dd93d41d6d7576ce1b7ad33d0204773565cf45c76b1283984fcf1ed51ff98",
+    "gen/python/channel_manager/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/channel_manager/v1/channelmanager/channel_manager_pb2.py": "sha256:fe9c2b672cbc8e3d89d5d854dc5df3da8262a9b40bc6941e6b4ed7b00f248e1b",
+    "gen/python/channel_manager/v1/channelmanager/channel_manager_pb2.pyi": "sha256:d8453774f4f5d1861eb14b5aacb15c71992cb732e16b0d0ee84f218f7e4a0908",
+    "gen/python/channel_manager/v1/channelmanager/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/channel_manager/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/channel_manager/v1/shared/errors_pb2.py": "sha256:b78a442357e90fc8e44fb0dbcc8e3b458fbbf4b7e6f77887b42e32ad6493d03d",
+    "gen/python/channel_manager/v1/shared/errors_pb2.pyi": "sha256:4fab4b85533131b72b50e57a69d84a6878a0c10aa64e5b6791a598b7b9716dd1",
+    "gen/python/channel_manager/v1/shared/health_pb2.py": "sha256:4f78a49736ac46bb34683b5916c1b1649bac4a10e2bc11296ee4e8652ab188e7",
+    "gen/python/channel_manager/v1/shared/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
+    "gen/python/channel_manager/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/typescript/channel-manager/v1/channelmanager/channel_manager_pb.ts": "sha256:f5de342ae8e4781a8798cd650277afc8ce9ffe27400a8d12579f48f145e0a4d0",
+    "gen/typescript/channel-manager/v1/shared/errors_pb.ts": "sha256:7f5445aedad9f186cfd346639d89188914b0b61f6c3a9fb7f65b825398670b8a",
+    "gen/typescript/channel-manager/v1/shared/health_pb.ts": "sha256:a49017a2c01da2622d9906d5470e4398fb2bdabb04b34518fbf998a0ebd48519"
+  }
+}

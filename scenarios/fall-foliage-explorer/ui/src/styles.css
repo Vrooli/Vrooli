@@ -92,6 +92,18 @@ h1 {
     transform: translateY(-2px);
 }
 
+.nav-btn:focus-visible,
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[role="button"]:focus-visible {
+    outline: 3px solid var(--autumn-yellow);
+    outline-offset: 3px;
+    box-shadow: 0 0 0 3px rgba(74, 60, 42, 0.25);
+}
+
 .nav-btn.active {
     background: var(--cozy-cream);
     color: var(--autumn-brown);
@@ -258,6 +270,17 @@ h1 {
 
 .region-card:hover {
     transform: scale(1.05);
+}
+
+.photo-image-fallback {
+    align-items: center;
+    background: #ddd;
+    color: #767676;
+    display: flex;
+    font-size: 0.95rem;
+    height: 200px;
+    justify-content: center;
+    width: 100%;
 }
 
 .region-image {

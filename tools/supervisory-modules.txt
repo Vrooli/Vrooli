@@ -1,0 +1,18 @@
+# Go modules on the boot-recovery path. `make verify-supervisory` builds, vets,
+# tests and cross-compiles every one of them, and `make install` refuses to
+# install a control-plane CLI while any of them fails to build: the 2026-09-02
+# outage installed a CLI that its own supervisors could no longer call.
+# One repo-relative module directory per line. The root module is always
+# included through its supervisory packages (cmd/vrooli, cmd/vrooli-watchdog,
+# internal/runtimesupervisor, internal/safeguards, internal/cli/rootcli).
+# The invoker-registry test in internal/cli/rootcli/invokers fails when a
+# scenario module that spawns vrooli is missing from this list.
+packages/repo-contract-go
+packages/platform-go
+packages/vrooli-cli-go
+packages/cli-core
+scenarios/vrooli-autoheal/api
+scenarios/vrooli-autoheal/cli
+scenarios/vrooli-autoheal/cli/loop
+scenarios/vrooli-autoheal/langrecover
+scenarios/vrooli-bridge/agent

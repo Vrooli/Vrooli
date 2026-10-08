@@ -9,12 +9,12 @@ interface HeaderProps {
 
 export const Header = ({ isInitialLoading, isRefreshing, onRefresh }: HeaderProps) => (
   <header className="rounded-3xl border border-white/10 bg-black/30 p-6 shadow-2xl shadow-emerald-500/10">
-    <p className="text-xs uppercase tracking-[0.3em] text-emerald-300">Security Vault Access Terminal</p>
+    <p className="text-xs uppercase tracking-[0.3em] text-emerald-300">Credential Authority Access Terminal</p>
     <div className="mt-3 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
       <div>
         <h1 className="text-3xl font-semibold tracking-tight text-white">Secrets Manager</h1>
         <p className="mt-2 max-w-2xl text-sm text-white/70">
-          Discover, validate, and provision secrets across the Vrooli resource graph. Monitor vault readiness,
+          Discover, validate, and provision credentials across the Vrooli resource graph. Monitor authority readiness,
           identify critical vulnerabilities, and trigger remediation from one unified control room.
         </p>
       </div>

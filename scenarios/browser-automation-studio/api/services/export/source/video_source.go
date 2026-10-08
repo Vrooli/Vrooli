@@ -12,7 +12,9 @@ package source
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"io"
 	"mime"
@@ -30,6 +32,9 @@ import (
 type VideoSource struct {
 	Path        string
 	ContentType string
+	ArtifactID  string
+	SHA256      string
+	SizeBytes   *int64
 	Cleanup     func()
 }
 
@@ -103,10 +108,17 @@ func videoFromArtifact(artifact executionwriter.ArtifactData, store storage.Stor
 			if contentType == "" {
 				contentType = DetectVideoContentType(path)
 			}
-			return &VideoSource{
+			resolved := &VideoSource{
 				Path:        path,
 				ContentType: contentType,
-			}, nil
+				ArtifactID:  artifact.ArtifactID,
+				SHA256:      artifact.SHA256,
+				SizeBytes:   artifact.SizeBytes,
+			}
+			if err := completeSourceReceipt(resolved); err != nil {
+				return nil, err
+			}
+			return resolved, nil
 		}
 	}
 
@@ -117,6 +129,15 @@ func videoFromArtifact(artifact executionwriter.ArtifactData, store storage.Stor
 				return nil, err
 			}
 			if source != nil {
+				source.ArtifactID = artifact.ArtifactID
+				source.SHA256 = artifact.SHA256
+				source.SizeBytes = artifact.SizeBytes
+				if err := completeSourceReceipt(source); err != nil {
+					if source.Cleanup != nil {
+						source.Cleanup()
+					}
+					return nil, err
+				}
 				return source, nil
 			}
 		}
@@ -152,14 +173,51 @@ func videoFromArtifact(artifact executionwriter.ArtifactData, store storage.Stor
 			_ = os.Remove(file.Name())
 			return nil, err
 		}
-		return &VideoSource{
+		resolved := &VideoSource{
 			Path:        file.Name(),
 			ContentType: contentType,
+			ArtifactID:  artifact.ArtifactID,
+			SHA256:      artifact.SHA256,
+			SizeBytes:   artifact.SizeBytes,
 			Cleanup:     func() { _ = os.Remove(file.Name()) },
-		}, nil
+		}
+		if err := completeSourceReceipt(resolved); err != nil {
+			if resolved.Cleanup != nil {
+				resolved.Cleanup()
+			}
+			return nil, err
+		}
+		return resolved, nil
 	}
 
 	return nil, nil
+}
+
+func completeSourceReceipt(source *VideoSource) error {
+	if source == nil || strings.TrimSpace(source.Path) == "" {
+		return errors.New("video source path is required to complete its receipt")
+	}
+	info, err := os.Stat(source.Path)
+	if err != nil {
+		return err
+	}
+	if source.SizeBytes == nil {
+		size := info.Size()
+		source.SizeBytes = &size
+	}
+	if source.SHA256 == "" {
+		file, err := os.Open(source.Path)
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+		hash := sha256.New()
+		if _, err := io.Copy(hash, file); err != nil {
+			return err
+		}
+		source.SHA256 = hex.EncodeToString(hash.Sum(nil))
+	}
+	return nil
 }
 
 func payloadString(payload map[string]any, key string) string {
@@ -189,20 +247,16 @@ func payloadBool(payload map[string]any, key string) bool {
 // DetectVideoContentType returns the MIME type for a video file based on extension.
 func DetectVideoContentType(path string) string {
 	ext := strings.ToLower(filepath.Ext(path))
-	if ext == "" {
-		return "video/webm"
-	}
-	if contentType := mime.TypeByExtension(ext); contentType != "" {
-		return contentType
-	}
 	switch ext {
 	case ".mp4":
 		return "video/mp4"
 	case ".webm":
 		return "video/webm"
-	default:
-		return "video/webm"
 	}
+	if contentType := mime.TypeByExtension(ext); contentType != "" {
+		return contentType
+	}
+	return "video/webm"
 }
 
 // ExtensionForContentType returns a file extension for a given content type.

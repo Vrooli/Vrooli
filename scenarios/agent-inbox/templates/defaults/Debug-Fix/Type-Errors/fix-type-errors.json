@@ -27,6 +27,5 @@
       "placeholder": "Describe the functionality you're implementing",
       "required": false
     }
-  ],
-  "suggestedToolIds": ["spawn_coding_agent"]
+  ]
 }

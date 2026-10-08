@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "scenario-to-repository",
+  "description": "Source repository CLI: inspect closure, assemble and verify exact artifacts, and prepare a human publication handoff.",
+  "groups": [
+    {
+      "name": "source",
+      "description": "Prepare and inspect reproducible source distributions",
+      "commands": [
+        {"name":"analyze","description":"Analyze admitted source closure","positionals":[{"name":"scenario","required":true,"description":"Scenario name"}],"flags":[{"name":"source-root","required":true,"description":"Read-only source snapshot root"},{"name":"source-digest","description":"Immutable source digest"}],"binding":{"kind":"connect-rpc","service":"SourceRepositoryService","method":"AnalyzeClosure"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read","network:internal"]},"architecture":{"primitive":"proto_list"}},
+        {"name":"assemble","description":"Assemble a deterministic source archive","positionals":[{"name":"scenario","required":true,"description":"Scenario name"}],"flags":[{"name":"source-root","required":true,"description":"Read-only source snapshot root"},{"name":"source-digest","description":"Immutable source digest"},{"name":"recipe-yaml","description":"Optional ExportRecipe YAML"},{"name":"output-path","description":"Archive output path"}],"binding":{"kind":"connect-rpc","service":"SourceRepositoryService","method":"AssembleExport"},"governance":{"effect":"write","run_eligible":true,"permissions":["filesystem:read","filesystem:write","network:internal"]},"architecture":{"primitive":"proto_mutation"}},
+        {"name":"verify","description":"Verify the exact archive digest","positionals":[{"name":"artifact-id","required":true,"description":"Artifact identity"}],"flags":[{"name":"archive-path","description":"Optional archive path override"}],"binding":{"kind":"connect-rpc","service":"SourceRepositoryService","method":"VerifyExport"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read","network:internal"]},"architecture":{"primitive":"proto_list"}},
+        {"name":"prepare-publication","description":"Prepare a human-only publication handoff","positionals":[{"name":"distribution-id","required":true,"description":"Distribution identity"}],"flags":[{"name":"artifact-id","required":true,"description":"Exact artifact identity"},{"name":"destination-kind","required":true,"description":"Host-neutral destination kind"},{"name":"destination-reference","required":true,"description":"Operator-reviewed destination reference"}],"binding":{"kind":"connect-rpc","service":"SourceRepositoryService","method":"PreparePublication"},"governance":{"effect":"write","run_eligible":false,"requires_confirmation":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_mutation"}},
+        {"name":"get-distribution","description":"Read distribution lifecycle standing","positionals":[{"name":"distribution-id","required":true,"description":"Distribution identity"}],"binding":{"kind":"connect-rpc","service":"SourceRepositoryService","method":"GetDistribution"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_list"}}
+      ]
+    }
+  ],
+  "measures":{"domains":[]},
+  "exceptions":[],
+  "omitted":[]
+}

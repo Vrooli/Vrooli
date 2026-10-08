@@ -1,0 +1,4 @@
+Name
+NVIDIA GeForce RTX 3080
+Microsoft Basic Display Adapter
+

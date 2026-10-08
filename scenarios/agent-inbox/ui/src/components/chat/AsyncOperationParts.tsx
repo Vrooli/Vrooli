@@ -82,7 +82,7 @@ export function JsonDisplay({ data }: { data: unknown }) {
 
   return (
     <div className="relative">
-      <Button variant="ghost" size="sm" onClick={handleCopy} className="absolute top-2 right-2 h-7 w-7 p-0 text-slate-500 hover:text-slate-300">
+      <Button variant="ghost" size="sm" onClick={() => { void handleCopy(); }} className="absolute top-2 right-2 h-7 w-7 p-0 text-slate-500 hover:text-slate-300">
         {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
       </Button>
       <pre className="bg-slate-800/50 rounded-lg p-4 overflow-auto max-h-64 text-xs text-slate-300 font-mono">{jsonString}</pre>
@@ -157,10 +157,10 @@ export function OperationDetail({
       <div className="flex items-center gap-2 pt-4 border-t border-slate-700/50">
         {!operation.is_terminal && (
           <>
-            <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isRefreshing} className="text-slate-300">
+            <Button variant="outline" size="sm" onClick={() => { void handleRefresh(); }} disabled={isRefreshing} className="text-slate-300">
               {isRefreshing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}Refresh
             </Button>
-            <Button variant="outline" size="sm" onClick={handleCancel} disabled={isCancelling} className="text-red-400 hover:text-red-300">
+            <Button variant="outline" size="sm" onClick={() => { void handleCancel(); }} disabled={isCancelling} className="text-red-400 hover:text-red-300">
               {isCancelling ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <XCircle className="h-4 w-4 mr-2" />}Cancel
             </Button>
           </>
@@ -232,7 +232,7 @@ export function HistoryList({
       </div>
       {hasMore && (
         <div className="p-4 text-center">
-          <Button variant="outline" size="sm" onClick={handleLoadMore} disabled={isLoadingMore}>
+          <Button variant="outline" size="sm" onClick={() => { void handleLoadMore(); }} disabled={isLoadingMore}>
             {isLoadingMore ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <History className="h-4 w-4 mr-2" />}Load More
           </Button>
         </div>

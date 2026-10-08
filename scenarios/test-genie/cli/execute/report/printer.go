@@ -3,14 +3,18 @@ package report
 import (
 	"fmt"
 	"io"
-	"path/filepath"
 	"sort"
 	"strings"
 	"time"
 
-	execTypes "test-genie/cli/internal/execute"
+	"github.com/vrooli/vrooli/packages/artifactpaths"
+
 	"test-genie/cli/internal/phases"
 	"test-genie/cli/internal/repo"
+
+	execTypes "test-genie/cli/internal/execute"
+
+	catalogphases "test-genie/internal/orchestrator/phases"
 )
 
 // Separator line used for phase boundaries (matches legacy output).
@@ -32,6 +36,7 @@ type Printer struct {
 	planPhaseByKey       map[string]execTypes.PlanPhase
 	planWarnings         []string
 	streamedObservations bool // true if observations were already streamed via SSE (live output shown)
+	scoreRunner          ScoreRunner
 }
 
 // New builds a printer instance.
@@ -48,7 +53,7 @@ func New(
 	descMap, targets := phases.MakeDescriptorMaps(descriptors)
 	disabled := make(map[string]execTypes.PhaseToggle)
 	for name, toggle := range toggles {
-		key := phases.NormalizeAlias(phases.NormalizeName(name))
+		key := phases.NormalizeName(name)
 		if key == "" || !toggle.Disabled {
 			continue
 		}
@@ -69,6 +74,23 @@ func New(
 	}
 }
 
+// SetScoreRunner wires the completeness-supplement subprocess seam. The
+// supplement is OFF by default (nil runner) so unit tests stay hermetic;
+// the production command path opts in with RunScoreCLI and tests substitute
+// a fake.
+func (p *Printer) SetScoreRunner(runner ScoreRunner) {
+	p.scoreRunner = runner
+}
+
+// ScoreRunner returns the completeness loader seam currently configured on the
+// printer so callers can build the shared view before rendering it.
+func (p *Printer) ScoreRunner() ScoreRunner {
+	if p == nil {
+		return nil
+	}
+	return p.scoreRunner
+}
+
 // Print renders the full execution report.
 func (p *Printer) Print(resp execTypes.Response) {
 	p.printHeader(resp)
@@ -78,11 +100,12 @@ func (p *Printer) Print(resp execTypes.Response) {
 	}
 	p.printPhaseResults(resp.Phases)
 	p.printSummary(resp)
+	p.printRequirementsSummary(resp)
+	p.printCompletenessSummary()
+	p.printTopPriority(nil)
 	p.printFailureDigest(resp.Phases)
-	p.printQuickFixGuide(resp.Phases)
-	p.printDebugGuides(resp.Phases)
 	p.printArtifacts(resp)
-	p.printDocs(resp.Phases)
+	p.printCampaignNudge(resp)
 }
 
 // PrintPreExecution prints the header and test plan BEFORE the API call starts.
@@ -122,18 +145,79 @@ func (p *Printer) SetPlanPreview(preview execTypes.PlanPreview) {
 // PrintResults prints only the results portion (after API call completes).
 // Used in conjunction with PrintPreExecution for streaming-style output.
 func (p *Printer) PrintResults(resp execTypes.Response) {
+	p.PrintResultsView(execTypes.RunStandingView{
+		Success:      resp.Success,
+		Verdict:      resp.Verdict,
+		Status:       "",
+		ExecutionID:  resp.ExecutionID,
+		PhaseSummary: resp.PhaseSummary,
+		Phases:       resp.Phases,
+		Error:        resp.Error,
+	})
+}
+
+// PrintResultsView prints the terminal portion of a run from the same curated
+// payload serialized by --json.
+func (p *Printer) PrintResultsView(view execTypes.RunStandingView) {
+	resp := execTypes.Response{
+		Success:      view.Success,
+		Verdict:      view.Verdict,
+		ExecutionID:  view.ExecutionID,
+		PhaseSummary: view.PhaseSummary,
+		Phases:       view.Phases,
+		Error:        view.Error,
+		RunHandle:    view.RunHandle,
+	}
 	// If we already streamed observations via SSE, skip the detailed phase replay
 	// and go straight to the condensed results.
 	if !p.streamedObservations {
-		p.printPhaseProgress(resp.Phases)
+		p.printPhaseProgress(view.Phases)
 	}
-	p.printPhaseResults(resp.Phases)
+	p.printPhaseResults(view.Phases)
 	p.printSummary(resp)
-	p.printFailureDigest(resp.Phases)
-	p.printQuickFixGuide(resp.Phases)
-	p.printDebugGuides(resp.Phases)
+	p.printRequirementsSummary(resp)
+	p.PrintCompletenessSummary(view.Completeness)
+	p.printTopPriority(view.TopPriority)
+	p.printFailureDigest(view.Phases)
 	p.printArtifacts(resp)
-	p.printDocs(resp.Phases)
+	p.printCampaignNudge(resp)
+}
+
+// printCampaignNudge renders the improvement-campaign steer when the finding
+// load exceeded the single-pass threshold. No-op otherwise.
+func (p *Printer) printCampaignNudge(resp execTypes.Response) {
+	n := resp.CampaignNudge
+	if n == nil {
+		return
+	}
+	fmt.Fprintln(p.w)
+	fmt.Fprintln(p.w, p.color.Bold("⚠️  Improvement campaign recommended"))
+	fmt.Fprintf(p.w, "   %s\n", n.Reason)
+	if len(n.BySeverity) > 0 {
+		order := []string{"blocker", "error", "warn", "info", "unspecified"}
+		var parts []string
+		seen := map[string]struct{}{}
+		for _, name := range order {
+			if c, ok := n.BySeverity[name]; ok && c > 0 {
+				parts = append(parts, fmt.Sprintf("%s=%d", name, c))
+				seen[name] = struct{}{}
+			}
+		}
+		var extra []string
+		for name, c := range n.BySeverity {
+			if _, ok := seen[name]; ok || c <= 0 {
+				continue
+			}
+			extra = append(extra, fmt.Sprintf("%s=%d", name, c))
+		}
+		sort.Strings(extra)
+		parts = append(parts, extra...)
+		fmt.Fprintf(p.w, "   findings: %s\n", strings.Join(parts, " "))
+	}
+	if strings.TrimSpace(n.ArtifactPath) != "" {
+		fmt.Fprintf(p.w, "   findings artifact: %s\n", n.ArtifactPath)
+	}
+	fmt.Fprintf(p.w, "   %s\n", p.color.Cyan(n.Command))
 }
 
 func (p *Printer) printPreHeader(phaseNames []string) {
@@ -187,7 +271,7 @@ func (p *Printer) printPrePlan(phaseNames []string) {
 		timeout := p.timeoutDuration(name)
 		desc := p.lookupPhaseDescription(name)
 		doc := p.phaseDocHint(name)
-		disabled := p.disabled[phases.NormalizeAlias(phases.NormalizeName(name))]
+		disabled := p.disabled[phases.NormalizeName(name)]
 		targetText := ""
 		if target != "" {
 			targetText = fmt.Sprintf("(est ~%s", target)
@@ -466,16 +550,42 @@ func (p *Printer) printPhaseResults(phasesData []execTypes.Phase) {
 				fmt.Fprintf(p.w, "     docs: %s\n", doc)
 			}
 		}
+
+		// Uniform per-phase maturity scorecard (Phase Capability Contract): every
+		// phase with a standing shows more than a status row — its rung, the single
+		// next move, and a runnable doc-search topic.
+		p.PrintPhaseStanding(phase)
 	}
 	fmt.Fprintln(p.w)
 }
 
 func (p *Printer) printSummary(resp execTypes.Response) {
+	verdict := strings.ToUpper(strings.TrimSpace(resp.Verdict))
+	if verdict == "PARTIAL" {
+		p.printPartialSummary(resp)
+		return
+	}
 	if resp.Success {
 		// Success celebration message (matches legacy output)
-		fmt.Fprintln(p.w, p.color.BoldGreen("🎉 All tests passed successfully!"))
+		fmt.Fprintln(p.w, p.color.BoldGreen("🎉 All required tests passed!"))
 		fmt.Fprintf(p.w, "%s %s testing infrastructure is working correctly\n",
 			p.color.Green("✅"), p.scenario)
+		if resp.PhaseSummary.Skipped > 0 {
+			// Optional phases that the runnability gate could not run in this
+			// environment. They do not gate the PASS but are surfaced honestly.
+			fmt.Fprintf(p.w, "%s %d optional phase(s) skipped (not runnable here):\n",
+				p.color.Yellow("⏭️"), resp.PhaseSummary.Skipped)
+			for _, phase := range resp.Phases {
+				if !strings.EqualFold(phase.Status, "skipped") {
+					continue
+				}
+				reason := strings.TrimSpace(phase.RunnabilityReason)
+				if reason == "" {
+					reason = "not runnable in this environment"
+				}
+				fmt.Fprintf(p.w, "   %s — %s\n", strings.ToUpper(phase.Name), reason)
+			}
+		}
 		fmt.Fprintln(p.w)
 	} else {
 		// Failure summary
@@ -486,16 +596,206 @@ func (p *Printer) printSummary(resp execTypes.Response) {
 
 		fmt.Fprintln(p.w)
 		fmt.Fprintln(p.w, p.color.Bold("Summary:"))
-		fmt.Fprintf(p.w, "  • Results: %s • %s • %d total\n",
+		results := fmt.Sprintf("  • Results: %s • %s",
 			p.color.Green(fmt.Sprintf("%d passed", passed)),
-			p.color.Red(fmt.Sprintf("%d failed", failed)),
-			total)
+			p.color.Red(fmt.Sprintf("%d failed", failed)))
+		if resp.PhaseSummary.Skipped > 0 {
+			results += " • " + p.color.Yellow(fmt.Sprintf("%d skipped", resp.PhaseSummary.Skipped))
+		}
+		fmt.Fprintf(p.w, "%s • %d total\n", results, total)
 		fmt.Fprintf(p.w, "  • Duration: %s\n", duration)
 		if resp.PhaseSummary.ObservationCount > 0 {
 			fmt.Fprintf(p.w, "  • Observations recorded: %d\n", resp.PhaseSummary.ObservationCount)
 		}
 		fmt.Fprintf(p.w, "  • Status: %s failures detected (see analysis below)\n", p.color.Yellow("⚠"))
 	}
+}
+
+// printRequirementsSummary renders PRD operational-target and requirement
+// status on EVERY run, regardless of which phases were selected. This is the
+// surface that keeps the requirements system discoverable: a full suite shows
+// refreshed counts plus this run's promotions/regressions; a partial/targeted
+// run shows the last-synced counts flagged stale, with the refresh command.
+func (p *Printer) printRequirementsSummary(resp execTypes.Response) {
+	r := resp.Requirements
+	if r == nil {
+		// Scenario has no requirements/ tree — nothing to show.
+		return
+	}
+
+	fmt.Fprintln(p.w)
+	regressions := r.Regressions()
+	header := "REQUIREMENTS & OPERATIONAL TARGETS:"
+	if len(regressions) > 0 {
+		// Loud, non-zero regression signal in the section header itself.
+		fmt.Fprintln(p.w, p.color.BoldRed("⛔ "+header+fmt.Sprintf(" %d regressed this run", len(regressions))))
+	} else {
+		fmt.Fprintln(p.w, p.color.Bold(header))
+	}
+
+	// Operational targets line, with per-priority breakdown when available.
+	otLine := fmt.Sprintf("  • Operational targets: %s complete",
+		p.color.Bold(fmt.Sprintf("%d/%d", r.OTComplete, r.OTTotal)))
+	if band := formatOTByPriority(r.OTByPriority); band != "" {
+		otLine += "  (" + band + ")"
+	}
+	fmt.Fprintln(p.w, otLine)
+
+	// Requirements line, with non-complete status breakdown when available.
+	reqLine := fmt.Sprintf("  • Requirements: %s complete",
+		p.color.Bold(fmt.Sprintf("%d/%d", r.ReqComplete, r.ReqTotal)))
+	if breakdown := formatReqRemainder(r.ReqByStatus); breakdown != "" {
+		reqLine += "  (" + breakdown + ")"
+	}
+	fmt.Fprintln(p.w, reqLine)
+
+	if r.Synced {
+		p.printRequirementsChanges(r, regressions)
+	} else {
+		p.printRequirementsStale(r)
+	}
+
+	// Docs pointer — self-contained, lives in test-genie's own docs.
+	fmt.Fprintf(p.w, "  %s How it works: %s · raise coverage: %s\n",
+		p.color.Cyan("📚"),
+		"scenarios/test-genie/docs/requirements/STATUS_MODEL.md",
+		"scenarios/test-genie/docs/requirements/IMPROVING_COVERAGE.md")
+	fmt.Fprintln(p.w)
+}
+
+// printRequirementsChanges renders this run's status transitions (fresh sync).
+func (p *Printer) printRequirementsChanges(r *execTypes.RequirementsSummary, regressions []execTypes.RequirementChange) {
+	promotions := r.Promotions()
+	if len(promotions) == 0 && len(regressions) == 0 {
+		fmt.Fprintf(p.w, "  • %s\n", p.color.Green("No requirement status changes this run"))
+		return
+	}
+	// Regressions first, escalated — a shipped feature dropping out of complete
+	// is the most important thing an agent can learn from this report.
+	if len(regressions) > 0 {
+		fmt.Fprintf(p.w, "  %s %s\n", p.color.BoldRed("▼"),
+			p.color.BoldRed(fmt.Sprintf("%d requirement(s) regressed:", len(regressions))))
+		for _, c := range regressions {
+			fmt.Fprintf(p.w, "      %s %s%s → %s\n",
+				p.color.Red("▼"), c.ID, formatPRDRef(c.PRDRef),
+				p.color.Red(fmt.Sprintf("%s → %s", c.From, c.To)))
+		}
+	}
+	if len(promotions) > 0 {
+		fmt.Fprintf(p.w, "  %s %d requirement(s) now complete:\n",
+			p.color.Green("▲"), len(promotions))
+		for _, c := range promotions {
+			fmt.Fprintf(p.w, "      %s %s%s %s → %s\n",
+				p.color.Green("▲"), c.ID, formatPRDRef(c.PRDRef),
+				c.From, p.color.Green(c.To))
+		}
+	}
+}
+
+// printRequirementsStale renders the cached-counts notice for a partial/gated
+// run: the counts are real (last persisted), but were not refreshed this run.
+func (p *Printer) printRequirementsStale(r *execTypes.RequirementsSummary) {
+	reason := strings.TrimSpace(r.SkipReason)
+	if reason == "" {
+		reason = "this run did not run the full suite"
+	}
+	fmt.Fprintf(p.w, "  %s %s\n", p.color.Yellow("⚠"),
+		p.color.Yellow("Not updated this run — "+reason+"."))
+	asOf := formatSyncedDate(r.LastSyncedAt)
+	if asOf != "" {
+		fmt.Fprintf(p.w, "    Counts are from the last full sync (%s).\n", asOf)
+	} else {
+		fmt.Fprintln(p.w, "    Counts are from the last full sync.")
+	}
+	fmt.Fprintf(p.w, "    To refresh: %s\n",
+		p.color.Cyan(fmt.Sprintf("test-genie execute %s", p.scenario)))
+}
+
+// formatOTByPriority renders "P0 2/2 · P1 1/3 · P2 0/2" in fixed priority order.
+func formatOTByPriority(byPriority map[string]execTypes.OTCount) string {
+	if len(byPriority) == 0 {
+		return ""
+	}
+	var parts []string
+	for _, band := range []string{"P0", "P1", "P2"} {
+		if c, ok := byPriority[band]; ok && c.Total > 0 {
+			parts = append(parts, fmt.Sprintf("%s %d/%d", band, c.Complete, c.Total))
+		}
+	}
+	return strings.Join(parts, " · ")
+}
+
+// formatReqRemainder renders the non-complete requirement status counts, e.g.
+// "in_progress 4 · planned 2 · pending 1". Returns "" when all are complete.
+func formatReqRemainder(byStatus map[string]int) string {
+	if len(byStatus) == 0 {
+		return ""
+	}
+	var parts []string
+	for _, status := range []string{"in_progress", "planned", "pending", "not_implemented"} {
+		if n, ok := byStatus[status]; ok && n > 0 {
+			parts = append(parts, fmt.Sprintf("%s %d", status, n))
+		}
+	}
+	return strings.Join(parts, " · ")
+}
+
+// formatPRDRef wraps a non-empty PRD reference for inline display.
+func formatPRDRef(ref string) string {
+	ref = strings.TrimSpace(ref)
+	if ref == "" {
+		return ""
+	}
+	return " (" + ref + ")"
+}
+
+// formatSyncedDate parses an RFC3339 timestamp and returns the date portion.
+func formatSyncedDate(ts string) string {
+	ts = strings.TrimSpace(ts)
+	if ts == "" {
+		return ""
+	}
+	if t, err := time.Parse(time.RFC3339, ts); err == nil {
+		return t.Format("2006-01-02")
+	}
+	// Fall back to whatever prefix looks like a date.
+	if len(ts) >= 10 {
+		return ts[:10]
+	}
+	return ts
+}
+
+// printPartialSummary renders the PARTIAL verdict: nothing failed, but one or
+// more phases could not run in this environment and were skipped with a reason.
+// Exit code stays 0 (Success=true); the label is loud so a strict gate can
+// still choose to reject a partial run from the machine-readable verdict.
+func (p *Printer) printPartialSummary(resp execTypes.Response) {
+	total := resp.PhaseSummary.Total
+	passed := resp.PhaseSummary.Passed
+	skipped := resp.PhaseSummary.Skipped
+	duration := FormatRunDuration(resp.PhaseSummary.DurationSeconds, resp.StartedAt, resp.CompletedAt)
+
+	fmt.Fprintln(p.w)
+	fmt.Fprintln(p.w, p.color.Bold(p.color.Yellow("◐ PARTIAL — ran what this environment allows; some phases were skipped")))
+	fmt.Fprintf(p.w, "  • Results: %s • %s • %d total\n",
+		p.color.Green(fmt.Sprintf("%d passed", passed)),
+		p.color.Yellow(fmt.Sprintf("%d skipped", skipped)),
+		total)
+	fmt.Fprintf(p.w, "  • Duration: %s\n", duration)
+	for _, phase := range resp.Phases {
+		if !strings.EqualFold(phase.Status, "skipped") {
+			continue
+		}
+		reason := strings.TrimSpace(phase.RunnabilityReason)
+		if reason == "" {
+			reason = "not runnable in this environment"
+		}
+		fmt.Fprintf(p.w, "  %s %s — %s\n", p.color.Yellow("⏭️"), strings.ToUpper(phase.Name), reason)
+		if rem := strings.TrimSpace(phase.Remediation); rem != "" {
+			fmt.Fprintf(p.w, "       %s %s\n", p.color.Cyan("fix:"), rem)
+		}
+	}
+	fmt.Fprintln(p.w)
 }
 
 func (p *Printer) printFailureDigest(phasesData []execTypes.Phase) {
@@ -632,7 +932,7 @@ func (p *Printer) printArtifacts(resp execTypes.Response) {
 	fmt.Fprintln(p.w, "════════════════════════════════════════")
 
 	if paths := repo.DiscoverScenarioPaths(p.scenario); paths.ScenarioDir != "" {
-		logsDir := filepath.Join(paths.ScenarioDir, "coverage", "logs")
+		logsDir := artifactpaths.ScenarioPath(paths.ScenarioDir, artifactpaths.CoverageRoot, "logs")
 		if repo.Exists(logsDir) {
 			fmt.Fprintf(p.w, "Directory: %s\n", p.color.Cyan(logsDir))
 		}
@@ -699,26 +999,15 @@ func (p *Printer) printArtifacts(resp execTypes.Response) {
 	}
 }
 
-// phaseDocMapping maps phase names to relevant documentation files.
-var phaseDocMapping = map[string][]string{
-	"structure":    {"scenarios/test-genie/docs/phases/structure/README.md"},
-	"dependencies": {"scenarios/test-genie/docs/phases/dependencies/README.md"},
-	"lint":         {"scenarios/test-genie/docs/phases/lint/README.md"},
-	"docs":         {"scenarios/test-genie/docs/phases/docs/README.md"},
-	"smoke":        {"scenarios/test-genie/docs/phases/smoke/README.md"},
-	"unit":         {"scenarios/test-genie/docs/phases/unit/README.md"},
-	"integration":  {"scenarios/test-genie/docs/phases/integration/README.md"},
-	"playbooks":    {"scenarios/test-genie/docs/phases/playbooks/README.md"},
-	"business":     {"scenarios/test-genie/docs/phases/business/README.md"},
-	"performance":  {"scenarios/test-genie/docs/phases/performance/README.md"},
-}
-
+// phaseDocs resolves a phase's documentation paths from the canonical catalog
+// (repo-relative paths derived by convention), keeping the doc surface in
+// lockstep with the phase registry instead of a hand-maintained map.
 func phaseDocs(name string) []string {
-	rawDocs, ok := phaseDocMapping[NormalizeName(name)]
-	if !ok {
+	rawDocs := catalogphases.DocPaths(name)
+	if len(rawDocs) == 0 {
 		return nil
 	}
-	var resolved []string
+	resolved := make([]string, 0, len(rawDocs))
 	for _, doc := range rawDocs {
 		resolved = append(resolved, repo.AbsPath(doc))
 	}

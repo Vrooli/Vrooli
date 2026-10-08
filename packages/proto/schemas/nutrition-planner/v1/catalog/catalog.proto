@@ -1,0 +1,57 @@
+syntax = "proto3";
+package vrooli.nutrition_planner.v1.catalog;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/catalog;catalog_v1";
+
+service CatalogService {
+  rpc ListCatalog(ListCatalogRequest) returns (ListCatalogResponse);
+  rpc CreateRevision(CreateRevisionRequest) returns (CreateRevisionResponse);
+  rpc GetRevision(GetRevisionRequest) returns (GetRevisionResponse);
+}
+
+message NutrientValue {
+  string nutrient_id = 1;
+  string amount = 2;
+  string unit = 3;
+  string basis = 4;
+  string basis_unit = 5;
+  string evidence = 6;
+  string source_ref = 7;
+}
+
+message CatalogRevision {
+  string id = 1;
+  int64 revision = 2;
+  string concept_id = 3;
+  string name = 4;
+  string product_name = 5;
+  string preparation = 6;
+  string serving_quantity = 7;
+  string serving_unit = 8;
+  repeated NutrientValue nutrients = 9;
+  map<string, string> allergen_evidence = 10;
+  string source_type = 11;
+  string source_ref = 12;
+  string created_at = 13;
+}
+
+message ListCatalogRequest { string workspace_id = 1; }
+message ListCatalogResponse { repeated CatalogRevision revisions = 1; }
+
+message CreateRevisionRequest {
+  string workspace_id = 1;
+  string concept_id = 2;
+  string name = 3;
+  string product_name = 4;
+  string preparation = 5;
+  string serving_quantity = 6;
+  string serving_unit = 7;
+  repeated NutrientValue nutrients = 8;
+  map<string, string> allergen_evidence = 9;
+  string source_type = 10;
+  string source_ref = 11;
+}
+message CreateRevisionResponse { CatalogRevision revision = 1; }
+
+message GetRevisionRequest { string workspace_id = 1; string id = 2; int64 revision = 3; }
+message GetRevisionResponse { CatalogRevision revision = 1; }

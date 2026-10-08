@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
+	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 )
 
 var stepTypeCapabilityMatrix = map[string]contracts.CapabilityRequirement{
@@ -88,6 +89,14 @@ func mergeMetadataCapabilities(req contracts.CapabilityRequirement, metadata map
 		req.NeedsTracing = true
 		add("tracing", "metadata.requiresTracing")
 	}
+	if flag("requiresPerformanceTrace") {
+		req.NeedsPerfTrace = true
+		add("perf_trace", "metadata.requiresPerformanceTrace")
+	}
+	if flag("requiresAccessibility") {
+		req.NeedsAccessibility = true
+		add("accessibility", "metadata.requiresAccessibility")
+	}
 	if flag("requiresIframes") {
 		req.NeedsIframes = true
 		add("iframes", "metadata.requiresIframes")
@@ -99,87 +108,8 @@ func mergeMetadataCapabilities(req contracts.CapabilityRequirement, metadata map
 	return req
 }
 
-func requiresParallelTabs(params map[string]any) bool {
-	for _, key := range []string{
-		"tabSwitchBy", "tabIndex", "tabTitleMatch", "tabUrlMatch", "tabWaitForNew", "tabCloseOld",
-	} {
-		if _, ok := params[key]; ok {
-			return true
-		}
-	}
-	return false
-}
-
-func requiresIframes(params map[string]any) bool {
-	for _, key := range []string{
-		"frameSwitchBy", "frameIndex", "frameName", "frameSelector", "frameUrlMatch",
-	} {
-		if _, ok := params[key]; ok {
-			return true
-		}
-	}
-	return false
-}
-
-func requiresFileUploads(params map[string]any) bool {
-	if v, ok := params["filePath"]; ok && v != nil && fmt.Sprint(v) != "" {
-		return true
-	}
-	if v, ok := params["filePaths"]; ok {
-		if arr, ok := v.([]any); ok && len(arr) > 0 {
-			return true
-		}
-	}
-	return false
-}
-
-func requiresNetworkMock(params map[string]any) bool {
-	for _, key := range []string{
-		"networkMockType", "networkUrlPattern", "networkMethod", "networkStatusCode", "networkHeaders", "networkBody", "networkDelayMs", "networkAbortReason",
-	} {
-		if _, ok := params[key]; ok {
-			return true
-		}
-	}
-	return false
-}
-
-func numericParam(params map[string]any, key string) (int, bool) {
-	if raw, ok := params[key]; ok {
-		switch v := raw.(type) {
-		case float64:
-			return int(v), true
-		case int:
-			return v, true
-		}
-	}
-	return 0, false
-}
-
-func boolParamTrue(params map[string]any, keys ...string) bool {
-	for _, key := range keys {
-		raw, ok := params[key]
-		if !ok {
-			continue
-		}
-		switch v := raw.(type) {
-		case bool:
-			if v {
-				return true
-			}
-		case string:
-			val := strings.ToLower(strings.TrimSpace(v))
-			if val == "true" || val == "1" || val == "yes" || val == "on" {
-				return true
-			}
-		}
-	}
-	return false
-}
-
 func applyInstructionCapabilities(req contracts.CapabilityRequirement, reasons map[string][]string, instr contracts.CompiledInstruction, add func(string, string)) (contracts.CapabilityRequirement, map[string][]string) {
 	stepType := InstructionStepType(instr)
-	params := InstructionParams(instr)
 	normalizedType := normalizeType(stepType)
 	if addition, ok := stepTypeCapabilityMatrix[normalizedType]; ok {
 		req = mergeRequirements(req, addition)
@@ -206,27 +136,25 @@ func applyInstructionCapabilities(req contracts.CapabilityRequirement, reasons m
 		}
 	}
 
-	// Multi-tab support required when any tab switch directive is present.
-	if requiresParallelTabs(params) {
+	// These requirements are derived from typed action variants, not field-name
+	// heuristics over legacy params maps.
+	if IsActionType(instr, basactions.ActionType_ACTION_TYPE_TAB_SWITCH) {
 		req.NeedsParallelTabs = true
-		add("parallel_tabs", fmt.Sprintf("step %d (%s): tab switch params", instr.Index, instr.NodeID))
+		add("parallel_tabs", fmt.Sprintf("step %d (%s): tab switch action", instr.Index, instr.NodeID))
 	}
-	// Iframe support required when frame navigation occurs.
-	if requiresIframes(params) {
+	if IsActionType(instr, basactions.ActionType_ACTION_TYPE_FRAME_SWITCH) {
 		req.NeedsIframes = true
-		add("iframes", fmt.Sprintf("step %d (%s): frame switch params", instr.Index, instr.NodeID))
+		add("iframes", fmt.Sprintf("step %d (%s): frame switch action", instr.Index, instr.NodeID))
 	}
-	// Network interception/mocking implies HAR/tracing capability.
-	if requiresNetworkMock(params) {
+	if IsActionType(instr, basactions.ActionType_ACTION_TYPE_NETWORK_MOCK) {
 		req.NeedsHAR = true
 		req.NeedsTracing = true
 		add("har", fmt.Sprintf("step %d (%s): network mock", instr.Index, instr.NodeID))
 		add("tracing", fmt.Sprintf("step %d (%s): network mock", instr.Index, instr.NodeID))
 	}
-	// File upload support required when uploads are configured.
-	if requiresFileUploads(params) || strings.EqualFold(stepType, "upload") {
+	if IsActionType(instr, basactions.ActionType_ACTION_TYPE_UPLOAD_FILE) {
 		req.NeedsFileUploads = true
-		add("file_uploads", fmt.Sprintf("step %d (%s): upload params", instr.Index, instr.NodeID))
+		add("file_uploads", fmt.Sprintf("step %d (%s): upload action", instr.Index, instr.NodeID))
 	}
 
 	lowerType := strings.ToLower(stepType)
@@ -247,58 +175,6 @@ func applyInstructionCapabilities(req contracts.CapabilityRequirement, reasons m
 		add("tracing", fmt.Sprintf("step %d (%s): type %s", instr.Index, instr.NodeID, stepType))
 	}
 
-	// Param-derived signals for HAR/video/tracing/downloads.
-	if params != nil {
-		for key := range params {
-			lower := strings.ToLower(key)
-			switch {
-			case strings.Contains(lower, "download"):
-				req.NeedsDownloads = true
-				add("downloads", fmt.Sprintf("step %d (%s): param %s", instr.Index, instr.NodeID, key))
-			case strings.Contains(lower, "har"):
-				req.NeedsHAR = true
-				add("har", fmt.Sprintf("step %d (%s): param %s", instr.Index, instr.NodeID, key))
-			case strings.Contains(lower, "video"):
-				req.NeedsVideo = true
-				add("video", fmt.Sprintf("step %d (%s): param %s", instr.Index, instr.NodeID, key))
-			case strings.Contains(lower, "trace"):
-				req.NeedsTracing = true
-				add("tracing", fmt.Sprintf("step %d (%s): param %s", instr.Index, instr.NodeID, key))
-			case strings.Contains(lower, "recordnetwork"):
-				req.NeedsHAR = true
-				add("har", fmt.Sprintf("step %d (%s): param %s", instr.Index, instr.NodeID, key))
-			case strings.Contains(lower, "recordtrace"):
-				req.NeedsTracing = true
-				add("tracing", fmt.Sprintf("step %d (%s): param %s", instr.Index, instr.NodeID, key))
-			case strings.Contains(lower, "recordvideo"):
-				req.NeedsVideo = true
-				add("video", fmt.Sprintf("step %d (%s): param %s", instr.Index, instr.NodeID, key))
-			}
-		}
-		if boolParamTrue(params, "recordNetwork", "captureNetwork", "networkRecording") {
-			req.NeedsHAR = true
-			add("har", fmt.Sprintf("step %d (%s): recordNetwork", instr.Index, instr.NodeID))
-		}
-		if boolParamTrue(params, "recordHar", "captureHar") {
-			req.NeedsHAR = true
-			add("har", fmt.Sprintf("step %d (%s): recordHar", instr.Index, instr.NodeID))
-		}
-		if boolParamTrue(params, "recordTrace", "captureTrace", "traceEnabled") {
-			req.NeedsTracing = true
-			add("tracing", fmt.Sprintf("step %d (%s): recordTrace", instr.Index, instr.NodeID))
-		}
-		if boolParamTrue(params, "recordVideo", "captureVideo", "videoRecording") {
-			req.NeedsVideo = true
-			add("video", fmt.Sprintf("step %d (%s): recordVideo", instr.Index, instr.NodeID))
-		}
-		// Instruction-level viewport hints should not shrink global minima.
-		if w, ok := numericParam(params, "viewportWidth"); ok && w > req.MinViewportWidth {
-			req.MinViewportWidth = w
-		}
-		if h, ok := numericParam(params, "viewportHeight"); ok && h > req.MinViewportHeight {
-			req.MinViewportHeight = h
-		}
-	}
 	return req, reasons
 }
 
@@ -324,6 +200,8 @@ func mergeRequirements(req, addition contracts.CapabilityRequirement) contracts.
 	req.NeedsFileUploads = req.NeedsFileUploads || addition.NeedsFileUploads
 	req.NeedsDownloads = req.NeedsDownloads || addition.NeedsDownloads
 	req.NeedsTracing = req.NeedsTracing || addition.NeedsTracing
+	req.NeedsPerfTrace = req.NeedsPerfTrace || addition.NeedsPerfTrace
+	req.NeedsAccessibility = req.NeedsAccessibility || addition.NeedsAccessibility
 	if addition.MinViewportWidth > req.MinViewportWidth {
 		req.MinViewportWidth = addition.MinViewportWidth
 	}

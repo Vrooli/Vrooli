@@ -1,0 +1,74 @@
+{
+  "_metadata": {
+    "description": "Container styles and product lines: the deterministic frame a mark is composed into, shared across a product line.",
+    "module": "styles",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "STYLE-001",
+      "title": "Container style records",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-012",
+      "category": "styles",
+      "criticality": "P0",
+      "description": "A ContainerStyle holds shape, corner_ratio, background (kind and stops), mark_scale, maskable_scale, accent_glow (colour plus layers of width and opacity) and small_mark_threshold_px, with create/read/update/list.",
+      "tags": [
+        "styles",
+        "storage"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Domain implemented and live-verified (brand aquila explore/import/pick, styles seed); unit tests with a fake image-tools client are still to be written."
+        }
+      ]
+    },
+    {
+      "id": "STYLE-002",
+      "title": "constellation-midnight seeded from the approved Aquila tile",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-012",
+      "category": "styles",
+      "criticality": "P0",
+      "description": "The star line shares the container style constellation-midnight, seeded once with the measured mark_scale from the approved mark and the documented gradient, corner ratio and glow values.",
+      "tags": [
+        "styles",
+        "seed"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Domain implemented and live-verified (brand aquila explore/import/pick, styles seed); unit tests with a fake image-tools client are still to be written."
+        }
+      ]
+    },
+    {
+      "id": "STYLE-003",
+      "title": "Product lines",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-012",
+      "category": "styles",
+      "criticality": "P0",
+      "description": "A ProductLine holds id, name, container_style_id and ordered product names, seeded with the Star line (Aquila, Vega, Rigel, Mizar, Pan, Messier) linked to constellation-midnight.",
+      "tags": [
+        "styles",
+        "product-line"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "pending",
+          "notes": "Domain implemented and live-verified (brand aquila explore/import/pick, styles seed); unit tests with a fake image-tools client are still to be written."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,223 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "deployment-manager.readiness-review",
+  "version": "1",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Prepare or resume one immutable candidate review and return its bounded decision, unresolved finding count, goal reference, and next actions.",
+  "inputs": {
+    "scenario": {
+      "type": "string",
+      "required": true
+    },
+    "profile_id": {
+      "type": "string",
+      "required": true
+    },
+    "candidate_commit": {
+      "type": "string",
+      "required": true
+    },
+    "artifact_digest": {
+      "type": "string",
+      "required": true
+    },
+    "target": {
+      "type": "string",
+      "default": ""
+    },
+    "targets": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "channel": {
+      "type": "string",
+      "required": true
+    },
+    "deliverable": {
+      "type": "string",
+      "default": "release readiness"
+    },
+    "trigger": {
+      "type": "string",
+      "default": "operator requested readiness review"
+    },
+    "facts": {
+      "type": "object",
+      "default": {}
+    },
+    "candidate_id": {
+      "type": "string",
+      "default": ""
+    },
+    "destination_revision_id": {
+      "type": "string",
+      "default": ""
+    },
+    "authorization_epoch": {
+      "type": "integer",
+      "default": 0
+    }
+  },
+  "assumptions": [
+    "deployment-manager and swarm-manager are reachable",
+    "the caller has an explicit goal:write grant",
+    "candidate identity values came from authoritative build and profile records"
+  ],
+  "invariants": [
+    "one review identity is prepared",
+    "the program never releases or recovers",
+    "at most 20 findings are materialized",
+    "one bounded envelope is printed on every path"
+  ],
+  "bindings": [
+    {
+      "id": "deployment-manager/readiness-reviews/prepare",
+      "effect": "write"
+    }
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "refused",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "act",
+        "report"
+      ]
+    },
+    "signals": {
+      "review_key": "immutable review key",
+      "review_status": "durable lifecycle state",
+      "comparison_mode": "first_release, comparable, or comparison_unavailable",
+      "goal_ref": "canonical Swarm Manager goal",
+      "unresolved": "finding count",
+      "findings": "at most 20 unresolved finding rows",
+      "next_actions": "bounded criterion ids"
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime",
+        "remote_error",
+        "no_governed_binding"
+      ]
+    },
+    "evidence": "review key and goal reference"
+  },
+  "budget": {
+    "wall_ms": 60000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 20
+  },
+  "fixtures": [
+    {
+      "id": "missing-identity",
+      "inputs": {},
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      },
+      "requires": [
+        "deployment-manager"
+      ]
+    },
+    {
+      "id": "live",
+      "inputs": {
+        "scenario": "deployment-manager",
+        "profile_id": "fixture",
+        "candidate_commit": "fixture",
+        "artifact_digest": "sha256:fixture",
+        "target": "linux-x64",
+        "channel": "fixture"
+      },
+      "expect": {
+        "status": [
+          "ok",
+          "refused",
+          "unavailable"
+        ]
+      },
+      "requires": [
+        "deployment-manager",
+        "swarm-manager"
+      ]
+    },
+    {
+      "id": "live-multi-target",
+      "inputs": {
+        "scenario": "deployment-manager",
+        "profile_id": "fixture",
+        "candidate_commit": "fixture",
+        "artifact_digest": "sha256:fixture",
+        "targets": ["linux-x64", "windows-x64"],
+        "channel": "fixture"
+      },
+      "expect": {
+        "status": [
+          "ok",
+          "refused",
+          "unavailable"
+        ]
+      },
+      "requires": [
+        "deployment-manager",
+        "swarm-manager"
+      ]
+    },
+    {
+      "id": "live-release-bound",
+      "inputs": {
+        "scenario": "deployment-manager",
+        "profile_id": "fixture",
+        "candidate_commit": "fixture",
+        "artifact_digest": "sha256:fixture",
+        "targets": ["linux-x64"],
+        "channel": "fixture",
+        "candidate_id": "candidate-fixture",
+        "destination_revision_id": "destination-fixture",
+        "authorization_epoch": 7
+      },
+      "expect": {
+        "status": [
+          "ok",
+          "refused",
+          "unavailable"
+        ]
+      },
+      "requires": [
+        "deployment-manager",
+        "swarm-manager"
+      ]
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "deployment-manager",
+  "verbs": [
+    "tasks.get",
+    "tasks.prepare",
+    "validate"
+  ]
+}

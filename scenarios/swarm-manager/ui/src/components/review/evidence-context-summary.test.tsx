@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import { EvidenceContextSummary } from "./evidence-context-summary";
 import { selectors } from "../../consts/selectors";
 import type { ReviewRound, EvidenceItem } from "../../services/review-service";
@@ -31,19 +32,19 @@ function makeRound(overrides?: Partial<ReviewRound>): ReviewRound {
 
 describe("EvidenceContextSummary", () => {
   it("renders nothing when no rounds", () => {
-    const { container } = render(<EvidenceContextSummary rounds={[]} />);
+    const { container } = renderWithCanonicalProviders(<EvidenceContextSummary rounds={[]} />);
     expect(container.firstChild).toBeNull();
   });
 
   it("shows latest round classification and assessment", () => {
-    render(<EvidenceContextSummary rounds={[makeRound()]} />);
+    renderWithCanonicalProviders(<EvidenceContextSummary rounds={[makeRound()]} />);
     expect(screen.getByTestId(selectors.review.evidenceContextSummary)).toBeInTheDocument();
     expect(screen.getByText(/Round 1/)).toBeInTheDocument();
     expect(screen.getByText("Tests failed in deployment-manager")).toBeInTheDocument();
   });
 
   it("lists evidence items by title", () => {
-    render(<EvidenceContextSummary rounds={[makeRound()]} />);
+    renderWithCanonicalProviders(<EvidenceContextSummary rounds={[makeRound()]} />);
     expect(screen.getByText("Homepage screenshot")).toBeInTheDocument();
   });
 });

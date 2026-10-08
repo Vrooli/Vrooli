@@ -1,166 +1,153 @@
-// DOC: docs/concepts/ARCHITECTURE.md#system-overview
-// DOC: docs/internal/SEAMS.md#architecture-alignment-update
-// DOC: docs/reference/configuration.md
 package main
 
 import (
 	"context"
-	"database/sql"
 	"log"
 	"net/http"
 	"time"
 
-	"github.com/gorilla/handlers"
-	"github.com/gorilla/mux"
-	"github.com/vrooli/api-core/health"
-	"github.com/vrooli/api-core/preflight"
-	"github.com/vrooli/api-core/server"
+	"development-toolchain-validator/internal/modules"
+	"development-toolchain-validator/internal/server"
 
-	"development-toolchain-validator/domain/expectation"
-	"development-toolchain-validator/domain/reference"
-	"development-toolchain-validator/domain/report"
-	"development-toolchain-validator/domain/skill"
-	apihandlers "development-toolchain-validator/handlers"
-	"development-toolchain-validator/infrastructure/sqlite"
-	"development-toolchain-validator/internal/config"
+	"github.com/vrooli/api-core/schedule"
+
+	"github.com/vrooli/api-core/apihttp"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/devrouting"
+	"github.com/vrooli/api-core/preflight"
+	apiserver "github.com/vrooli/api-core/server"
+	_ "modernc.org/sqlite"
+
+	goldenH "development-toolchain-validator/handlers/golden"
+	healthH "development-toolchain-validator/handlers/health"
+	manifestH "development-toolchain-validator/handlers/manifest"
+	reportH "development-toolchain-validator/handlers/report"
+	skillCatalogH "development-toolchain-validator/handlers/skill_catalog"
+	stalenessH "development-toolchain-validator/handlers/staleness"
+	validationRecordH "development-toolchain-validator/handlers/validation_record"
+	validationRunH "development-toolchain-validator/handlers/validation_run"
+
+	agentmanager "development-toolchain-validator/integrations/agent_manager"
+	devtools "development-toolchain-validator/integrations/dev_tools"
+	promptmanager "development-toolchain-validator/integrations/prompt_manager"
+	workspacesandbox "development-toolchain-validator/integrations/workspace_sandbox"
+
+	golden "development-toolchain-validator/internal/golden"
+	manifest "development-toolchain-validator/internal/manifest"
+	vr "development-toolchain-validator/internal/validation_record"
+	vrun "development-toolchain-validator/internal/validation_run"
 )
 
-// Server wires the HTTP router, database, and domain services.
-type Server struct {
-	db     *sql.DB
-	router *mux.Router
-	config config.Config
-
-	// Domain services
-	referenceService   *reference.Service
-	skillService       *skill.Service
-	expectationService *expectation.Service
-	reportService      *report.Service
-}
-
-// NewServer initializes database connections, repositories, services, and routes.
-// Configuration is loaded from environment variables with sensible defaults.
-func NewServer(db *sql.DB) *Server {
-	// Load configuration from environment
-	cfg := config.LoadFromEnv()
-
-	// Initialize repositories (storage layer)
-	referenceRepo := sqlite.NewReferenceRepository(db)
-	skillRepo := sqlite.NewSkillRepository(db)
-	structuralRepo := sqlite.NewStructuralExpectationsRepository(db)
-	cliRepo := sqlite.NewCLIAssertionsRepository(db)
-
-	// Initialize services (business logic layer) with configuration
-	serviceConfig := reference.ServiceConfig{
-		Pagination: cfg.Pagination,
-		Validation: cfg.Validation,
-	}
-	referenceService := reference.NewService(referenceRepo, reference.WithConfig(serviceConfig))
-	skillService := skill.NewService(skillRepo)
-	expectationService := expectation.NewService(structuralRepo, cliRepo)
-
-	// Report service uses raw repositories to avoid pagination limits.
-	reportRepo := sqlite.NewReportRepository(db)
-	expectationAdapter := report.NewExpectationRepoAdapter(structuralRepo, cliRepo)
-	reportService := report.NewService(skillRepo, expectationAdapter, reportRepo)
-
-	srv := &Server{
-		db:                 db,
-		router:             mux.NewRouter(),
-		config:             cfg,
-		referenceService:   referenceService,
-		skillService:       skillService,
-		expectationService: expectationService,
-		reportService:      reportService,
-	}
-	srv.setupRoutes()
-	return srv
-}
-
-func (s *Server) setupRoutes() {
-	s.router.Use(loggingMiddleware)
-	s.router.Use(s.corsMiddleware)
-
-	// Health endpoints (infrastructure and client paths)
-	healthHandler := health.New().
-		Version("1.0.0").
-		Check(health.DB(s.db), health.Critical).
-		Handler()
-	s.router.HandleFunc("/health", healthHandler).Methods("GET")
-	s.router.HandleFunc("/api/v1/health", healthHandler).Methods("GET")
-
-	// Domain handlers
-	referenceHandler := apihandlers.NewReferenceHandler(s.referenceService)
-	referenceHandler.RegisterRoutes(s.router)
-
-	skillHandler := apihandlers.NewSkillHandler(s.skillService)
-	skillHandler.RegisterRoutes(s.router)
-
-	expectationHandler := apihandlers.NewExpectationHandler(s.expectationService)
-	expectationHandler.RegisterRoutes(s.router)
-
-	reportHandler := apihandlers.NewReportHandler(s.reportService)
-	reportHandler.RegisterRoutes(s.router)
-}
-
-// Handler returns the HTTP handler with recovery middleware.
-func (s *Server) Handler() http.Handler {
-	return handlers.RecoveryHandler()(s.router)
-}
-
-// loggingMiddleware prints simple request logs.
-func loggingMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
-		next.ServeHTTP(w, r)
-		log.Printf("[%s] %s %s", r.Method, r.RequestURI, time.Since(start))
-	})
-}
-
-// corsMiddleware adds CORS headers based on configuration.
-// In production, CORS_ALLOWED_ORIGINS should be set to specific origins.
-// See docs/reference/configuration.md for configuration details.
-func (s *Server) corsMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		origin := r.Header.Get("Origin")
-
-		// Check if the origin is allowed using centralized config
-		if origin != "" && s.config.CORS.IsOriginAllowed(origin) {
-			w.Header().Set("Access-Control-Allow-Origin", origin)
-			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-			w.Header().Set("Access-Control-Allow-Credentials", "true")
-		}
-
-		if r.Method == "OPTIONS" {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	})
-}
-
 func main() {
-	// Preflight checks - must be first, before any initialization
-	if preflight.Run(preflight.Config{
-		ScenarioName: "development-toolchain-validator",
-	}) {
-		return // Process was re-exec'd after rebuild
+	// Preflight checks must run first so the binary can re-exec itself
+	// after a stale-source rebuild before any listeners are opened.
+	if preflight.Run(preflight.Config{ScenarioName: "development-toolchain-validator"}) {
+		return
 	}
 
-	// Connect to SQLite database via storage resolver
-	db, err := sqlite.NewDB()
+	db, err := database.Open(context.Background(), database.Config{
+		Driver:       database.DriverSQLite,
+		Scenario:     "development-toolchain-validator",
+		MaxOpenConns: 1,
+		MaxIdleConns: 1,
+	})
 	if err != nil {
 		log.Fatalf("Database connection failed: %v", err)
 	}
 
-	srv := NewServer(db)
+	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
+		log.Fatalf("schema initialization failed: %v", err)
+	}
 
-	// Start server with graceful shutdown (port from API_PORT env var)
-	if err := server.Run(server.Config{
-		Handler: srv.Handler(),
-		Cleanup: func(ctx context.Context) error { return db.Close() },
+	// Additive column migrations for tables that gained columns after their
+	// initial schema shipped (sqlite has no ADD COLUMN IF NOT EXISTS, so
+	// these are introspection-guarded and idempotent).
+	if err := vr.EnsureColumns(context.Background(), db); err != nil {
+		log.Fatalf("validation_record migration failed: %v", err)
+	}
+	if err := golden.EnsureColumns(context.Background(), db); err != nil {
+		log.Fatalf("golden migration failed: %v", err)
+	}
+
+	skillCatalogSource := promptmanager.NewSkillCatalogRESTAdapter(promptmanager.Options{})
+
+	// agent-manager profile reconciliation. DTV declares its sandboxed
+	// runner profile in .vrooli/agent-profiles/default.json and lists
+	// the source in service.json; this call asks agent-manager to upsert
+	// the profile keyed on "development-toolchain-validator/default".
+	// Failure here is non-fatal because the validation_run worker fails
+	// individual skill runs visibly (verdict=run_failure) when the
+	// profile is missing — preferable to refusing to boot the whole
+	// API. A 10s ceiling keeps a misconfigured/slow agent-manager from
+	// stalling startup indefinitely.
+	agentClient := agentmanager.New(agentmanager.Options{})
+	initCtx, initCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	if resp, err := agentClient.Initialize(initCtx); err != nil {
+		log.Printf("agent-manager profile reconciliation failed (skill validation will fail until resolved): %v", err)
+	} else {
+		log.Printf("agent-manager profiles reconciled: scenario=%s created=%d updated=%d unchanged=%d failed=%d",
+			resp.Scenario, resp.Created, resp.Updated, resp.Unchanged, resp.Failed)
+	}
+	initCancel()
+
+	// validation_run worker. Constructed before the server module so the
+	// module's Service.Start can use the worker's Notify hook to wake
+	// the loop immediately on new queued runs.
+	vrunRepo := vrun.NewSQLiteRepository(db)
+	vrRepo := vr.NewSQLiteRepository(db)
+	vrService := vr.NewService(vrRepo, schedule.System())
+	worker := vrun.NewWorker(vrun.WorkerDeps{
+		Repo:     vrunRepo,
+		Records:  vrService,
+		AgentMgr: agentClient,
+		Tools:    devtools.New(devtools.Options{Clock: schedule.System()}),
+		Sandbox:  workspacesandbox.New(workspacesandbox.Options{}),
+		Goldens: vrun.GoldenMaterializerFromRepo{
+			Repo:   golden.NewSQLiteRepository(db, schedule.System()),
+			Runner: golden.NewSubprocessRunner("vrooli", ""),
+		},
+		Manifests: vrun.ManifestSourceFromRepo{Repo: manifest.NewSQLiteRepository(db, schedule.System())},
+		Skills:    promptmanager.NewSkillContentRESTAdapter(promptmanager.Options{}),
+		Clock:     schedule.System(),
+		Logger:    log.Default(),
+	}, vrun.WorkerConfig{})
+	workerCtx, workerCancel := context.WithCancel(context.Background())
+	go worker.Run(workerCtx)
+
+	srv := server.New(
+		server.Deps{Clock: schedule.System(), Logger: log.Default()},
+		healthH.Module(db, "development-toolchain-validator-api", "1.0.0"),
+		goldenH.Module(db, schedule.System(), log.Default()),
+		manifestH.Module(db, schedule.System(), log.Default()),
+		reportH.Module(db, schedule.System(), skillCatalogSource, log.Default()),
+		skillCatalogH.Module(db, schedule.System(), skillCatalogSource, log.Default()),
+		stalenessH.Module(db, schedule.System(), log.Default()),
+		validationRecordH.Module(db, schedule.System(), log.Default()),
+		validationRunH.Module(validationRunH.ModuleDeps{
+			DB: db, Clock: schedule.System(), Logger: log.Default(),
+			Notify: worker.Notify,
+		}),
+	)
+
+	// Top-level mux mounts the API plus, in development mode, the dev-only
+	// RoutingService used by test-genie to install a runtime test DB pool
+	// without restarting this scenario. devrouting.Register is a no-op in
+	// production mode.
+	rootMux := http.NewServeMux()
+	devrouting.Register(rootMux, db)
+	rootMux.Handle("/", srv.Handler())
+
+	// apihttp.TestModeMiddleware reads X-Vrooli-Test-Mode: 1 and marks the
+	// context so *database.RoutedDB routes the call to the installed test
+	// pool. Self-disables in production mode.
+	handler := apihttp.TestModeMiddleware(rootMux)
+
+	if err := apiserver.Run(apiserver.Config{
+		Handler: handler,
+		Cleanup: func(ctx context.Context) error {
+			workerCancel()
+			return db.Close()
+		},
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}

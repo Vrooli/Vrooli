@@ -24,11 +24,11 @@ import (
 	"strings"
 
 	"github.com/sirupsen/logrus"
-	"github.com/vrooli/browser-automation-studio/services/export"
+	exportsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/exports"
 )
 
-// Type alias for ReplayMovieSpec from export package
-type ReplayMovieSpec = export.ReplayMovieSpec
+// ReplayMovieSpec is the canonical generated replay contract.
+type ReplayMovieSpec = exportsv1.ReplaySpec
 
 // RenderedMedia represents a generated media artifact ready for download.
 type RenderedMedia struct {
@@ -85,7 +85,7 @@ func (r *ReplayRenderer) Render(ctx context.Context, spec *ReplayMovieSpec, form
 	if spec == nil {
 		return nil, errors.New("nil replay movie spec")
 	}
-	if len(spec.Frames) == 0 {
+	if len(spec.GetFrames()) == 0 {
 		return nil, errors.New("movie spec missing frames")
 	}
 	if format != RenderFormatMP4 && format != RenderFormatGIF {
@@ -104,11 +104,11 @@ func (r *ReplayRenderer) Render(ctx context.Context, spec *ReplayMovieSpec, form
 	}
 
 	captureInterval := r.captureIntervalMs
-	if spec.Playback.FrameIntervalMs > 0 {
-		captureInterval = spec.Playback.FrameIntervalMs
+	if spec.GetPlayback().GetFrameIntervalMs() > 0 {
+		captureInterval = int(spec.GetPlayback().GetFrameIntervalMs())
 	}
-	if spec.Summary.TotalDurationMs > 0 {
-		targetInterval := int(math.Ceil(float64(spec.Summary.TotalDurationMs) / float64(maxCaptureFrames)))
+	if spec.GetSummary().GetTotalDurationMs() > 0 {
+		targetInterval := int(math.Ceil(float64(spec.GetSummary().GetTotalDurationMs()) / float64(maxCaptureFrames)))
 		if targetInterval > captureInterval {
 			captureInterval = targetInterval
 		}

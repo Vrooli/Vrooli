@@ -3,26 +3,25 @@ package main
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"testing"
 	"time"
 )
 
 func TestNewWaitlistService(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	service := NewWaitlistService(db)
 	if service == nil {
 		t.Fatal("NewWaitlistService returned nil")
 	}
-	if service.db != db {
-		t.Error("Expected service to hold reference to provided db")
+	if _, err := service.Count(context.Background()); err != nil {
+		t.Fatalf("new service is not usable: %v", err)
 	}
 }
 
 func TestWaitlistService_Create_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupWaitlistTable(t, db)
 
 	service := NewWaitlistService(db)
@@ -51,7 +50,6 @@ func TestWaitlistService_Create_Success(t *testing.T) {
 
 func TestWaitlistService_Create_DefaultSource(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupWaitlistTable(t, db)
 
 	service := NewWaitlistService(db)
@@ -68,7 +66,6 @@ func TestWaitlistService_Create_DefaultSource(t *testing.T) {
 
 func TestWaitlistService_Create_UpsertOnDuplicate(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupWaitlistTable(t, db)
 
 	service := NewWaitlistService(db)
@@ -106,7 +103,6 @@ func TestWaitlistService_Create_UpsertOnDuplicate(t *testing.T) {
 
 func TestWaitlistService_List_Empty(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupWaitlistTable(t, db)
 
 	service := NewWaitlistService(db)
@@ -124,7 +120,6 @@ func TestWaitlistService_List_Empty(t *testing.T) {
 
 func TestWaitlistService_List_OrderByCreatedDesc(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupWaitlistTable(t, db)
 
 	service := NewWaitlistService(db)
@@ -168,7 +163,6 @@ func TestWaitlistService_List_OrderByCreatedDesc(t *testing.T) {
 
 func TestWaitlistService_Delete_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupWaitlistTable(t, db)
 
 	service := NewWaitlistService(db)
@@ -196,7 +190,6 @@ func TestWaitlistService_Delete_Success(t *testing.T) {
 
 func TestWaitlistService_Delete_NotFound(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupWaitlistTable(t, db)
 
 	service := NewWaitlistService(db)
@@ -206,14 +199,13 @@ func TestWaitlistService_Delete_NotFound(t *testing.T) {
 	if err == nil {
 		t.Fatal("Expected error for non-existent ID")
 	}
-	if err != sql.ErrNoRows {
+	if !errors.Is(err, sql.ErrNoRows) {
 		t.Errorf("Expected sql.ErrNoRows, got %v", err)
 	}
 }
 
 func TestWaitlistService_Count_Empty(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupWaitlistTable(t, db)
 
 	service := NewWaitlistService(db)
@@ -230,7 +222,6 @@ func TestWaitlistService_Count_Empty(t *testing.T) {
 
 func TestWaitlistService_Count_WithEntries(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupWaitlistTable(t, db)
 
 	service := NewWaitlistService(db)

@@ -1,0 +1,45 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-index",
+  "contract": {
+    "kind": "scenario-experience",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "schemaVersion": "1.0.0",
+  "scenario": "command-center",
+  "description": "Experience contract for Command Center, the Director Swarm instrument. The board is the team's runtime surface and runs unattended in a room, so these specs were authored ahead of implementation to fix the honesty obligations before pixels harden around them. Every surface inherits four rules: no figure appears without the qualifier that makes it honest, no unreadable source is ever allowed to look healthy, no surface offers a control the scenario has no right to perform, and a room never renders blank. Claims remain aspirational until their named machine check exists; the pixel-based BAS suite separately proves that room scenes are nonblank, while experience-manager does not yet promote the render-nonblank claim type.",
+  "pages": [
+    {
+      "id": "room",
+      "path": "pages/room.json",
+      "title": "Room",
+      "status": "draft"
+    },
+    {
+      "id": "focus",
+      "path": "pages/focus.json",
+      "title": "Focus",
+      "status": "draft"
+    },
+    {
+      "id": "open-loop",
+      "path": "pages/open-loop.json",
+      "title": "Open loop",
+      "status": "draft"
+    },
+    {
+      "id": "control-bar",
+      "path": "pages/control-bar.json",
+      "title": "Control bar",
+      "status": "draft"
+    }
+  ],
+  "journeys": [
+    {
+      "id": "find-next-sensor",
+      "path": "journeys/find-next-sensor.json",
+      "title": "Find the next sensor to build",
+      "status": "draft"
+    }
+  ]
+}

@@ -1,4 +1,5 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { screen, fireEvent, waitFor } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ErrorDiagnostics } from "./error-diagnostics";
 import { selectors } from "../../consts/selectors";
@@ -22,19 +23,19 @@ describe("ErrorDiagnostics", () => {
   });
 
   it("renders collapsed by default", () => {
-    render(<ErrorDiagnostics {...defaultProps} />);
+    renderWithCanonicalProviders(<ErrorDiagnostics {...defaultProps} />);
     expect(screen.getByTestId(selectors.errorBoundary.showDetailsButton)).toBeInTheDocument();
     expect(screen.queryByTestId(selectors.errorBoundary.diagnosticsPanel)).not.toBeInTheDocument();
   });
 
   it("expands when Show Details is clicked", () => {
-    render(<ErrorDiagnostics {...defaultProps} />);
+    renderWithCanonicalProviders(<ErrorDiagnostics {...defaultProps} />);
     fireEvent.click(screen.getByTestId(selectors.errorBoundary.showDetailsButton));
     expect(screen.getByTestId(selectors.errorBoundary.diagnosticsPanel)).toBeInTheDocument();
   });
 
   it("collapses when Hide Details is clicked", () => {
-    render(<ErrorDiagnostics {...defaultProps} />);
+    renderWithCanonicalProviders(<ErrorDiagnostics {...defaultProps} />);
     const toggle = screen.getByTestId(selectors.errorBoundary.showDetailsButton);
     fireEvent.click(toggle); // expand
     fireEvent.click(toggle); // collapse
@@ -42,7 +43,7 @@ describe("ErrorDiagnostics", () => {
   });
 
   it("displays error name and sanitized message", () => {
-    render(<ErrorDiagnostics {...defaultProps} />);
+    renderWithCanonicalProviders(<ErrorDiagnostics {...defaultProps} />);
     fireEvent.click(screen.getByTestId(selectors.errorBoundary.showDetailsButton));
     expect(screen.getByTestId(selectors.errorBoundary.errorName)).toHaveTextContent("TypeError");
     expect(screen.getByTestId(selectors.errorBoundary.errorMessage)).toHaveTextContent(
@@ -52,7 +53,7 @@ describe("ErrorDiagnostics", () => {
 
   it("sanitizes URLs in error messages", () => {
     const error = makeError("Error", "Failed to fetch https://api.example.com/secret-token");
-    render(<ErrorDiagnostics {...defaultProps} error={error} />);
+    renderWithCanonicalProviders(<ErrorDiagnostics {...defaultProps} error={error} />);
     fireEvent.click(screen.getByTestId(selectors.errorBoundary.showDetailsButton));
     expect(screen.getByTestId(selectors.errorBoundary.errorMessage)).toHaveTextContent(
       "Failed to fetch [URL]",
@@ -60,7 +61,7 @@ describe("ErrorDiagnostics", () => {
   });
 
   it("displays component stack in a pre block", () => {
-    render(<ErrorDiagnostics {...defaultProps} />);
+    renderWithCanonicalProviders(<ErrorDiagnostics {...defaultProps} />);
     fireEvent.click(screen.getByTestId(selectors.errorBoundary.showDetailsButton));
     const stack = screen.getByTestId(selectors.errorBoundary.componentStack);
     expect(stack.tagName).toBe("PRE");
@@ -68,7 +69,7 @@ describe("ErrorDiagnostics", () => {
   });
 
   it("handles null componentStack gracefully", () => {
-    render(<ErrorDiagnostics {...defaultProps} componentStack={null} />);
+    renderWithCanonicalProviders(<ErrorDiagnostics {...defaultProps} componentStack={null} />);
     fireEvent.click(screen.getByTestId(selectors.errorBoundary.showDetailsButton));
     expect(screen.getByTestId(selectors.errorBoundary.componentStack)).toHaveTextContent(
       "Component stack not available",
@@ -76,7 +77,7 @@ describe("ErrorDiagnostics", () => {
   });
 
   it("displays timestamp and user agent", () => {
-    render(<ErrorDiagnostics {...defaultProps} />);
+    renderWithCanonicalProviders(<ErrorDiagnostics {...defaultProps} />);
     fireEvent.click(screen.getByTestId(selectors.errorBoundary.showDetailsButton));
     expect(screen.getByTestId(selectors.errorBoundary.timestamp)).toHaveTextContent(
       "2026-04-01T12:00:00.000Z",
@@ -85,7 +86,7 @@ describe("ErrorDiagnostics", () => {
   });
 
   it("displays error category badge", () => {
-    render(<ErrorDiagnostics {...defaultProps} />);
+    renderWithCanonicalProviders(<ErrorDiagnostics {...defaultProps} />);
     fireEvent.click(screen.getByTestId(selectors.errorBoundary.showDetailsButton));
     expect(screen.getByTestId(selectors.errorBoundary.errorCategory)).toHaveTextContent("RUNTIME");
   });
@@ -94,7 +95,7 @@ describe("ErrorDiagnostics", () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.assign(navigator, { clipboard: { writeText } });
 
-    render(<ErrorDiagnostics {...defaultProps} />);
+    renderWithCanonicalProviders(<ErrorDiagnostics {...defaultProps} />);
     fireEvent.click(screen.getByTestId(selectors.errorBoundary.showDetailsButton));
     fireEvent.click(screen.getByTestId(selectors.errorBoundary.copyButton));
 
@@ -112,7 +113,7 @@ describe("ErrorDiagnostics", () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.assign(navigator, { clipboard: { writeText } });
 
-    render(<ErrorDiagnostics {...defaultProps} />);
+    renderWithCanonicalProviders(<ErrorDiagnostics {...defaultProps} />);
     fireEvent.click(screen.getByTestId(selectors.errorBoundary.showDetailsButton));
     fireEvent.click(screen.getByTestId(selectors.errorBoundary.copyButton));
 
@@ -122,7 +123,7 @@ describe("ErrorDiagnostics", () => {
   });
 
   it("renders in compact mode with smaller styles", () => {
-    render(<ErrorDiagnostics {...defaultProps} compact />);
+    renderWithCanonicalProviders(<ErrorDiagnostics {...defaultProps} compact />);
     fireEvent.click(screen.getByTestId(selectors.errorBoundary.showDetailsButton));
     const panel = screen.getByTestId(selectors.errorBoundary.diagnosticsPanel);
     expect(panel.className).toContain("p-3");

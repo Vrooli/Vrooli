@@ -7,16 +7,17 @@ interface StatusBadgeProps {
   status: HealthStatus;
 }
 
-const tones: Record<HealthStatus, "success" | "warning" | "danger"> = {
+const tones: Record<HealthStatus, "success" | "warning" | "danger" | "neutral"> = {
   ok: "success",
   warning: "warning",
   critical: "danger",
+  "not-applicable": "neutral",
 };
 
 export function StatusBadge({ status }: StatusBadgeProps) {
   return (
     <Badge tone={tones[status] ?? "neutral"} className="text-sm">
-      {status.toUpperCase()}
+      {status === "not-applicable" ? "N/A" : status.toUpperCase()}
     </Badge>
   );
 }

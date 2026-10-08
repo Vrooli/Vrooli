@@ -1,0 +1,71 @@
+{
+  "description": "The mapping from `service.json` template id → component-library scenario lives in ui-health's `service.json` (not hardcoded in code), so new frameworks plug in via configuration.",
+  "module_id": "MOD-P2-010",
+  "prd_ref": "OT-P2-001",
+  "priority": "P2",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-004"
+      ],
+      "description": "The mapping from a scenario's `service.json` template ID to its corresponding component-library scenario must be defined in ui-health's own `service.json` configuration, not hardcoded in application code. Adding support for a new framework must require only a configuration change, not a code change.",
+      "id": "REQ-P2-001",
+      "prd_ref": "OT-P2-001",
+      "status": "draft",
+      "title": "Data-Driven Framework Dispatch Resolver",
+      "validation": [
+        {
+          "notes": "Framework dispatcher reads the template-id-to-scenario mapping from ui-health service.json at startup",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Dispatcher returns the correct component-library scenario name for the `react-vite` template ID",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Dispatcher returns a structured error for an unrecognized template ID",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "No component-library scenario name is hardcoded as a string literal in dispatch logic",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Add a new framework mapping entry to service.json and confirm the dispatcher routes to the new scenario without code changes",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Remove an existing mapping entry and confirm the dispatcher returns an appropriate error for that template ID",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "The platform can adopt new UI frameworks (Vue, Svelte, etc.) without requiring a ui-health code release",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Framework dispatch resolver is data-driven"
+}

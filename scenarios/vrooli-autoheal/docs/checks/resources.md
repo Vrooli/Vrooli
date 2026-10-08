@@ -149,33 +149,3 @@ SearXNG provides:
 1. Check network connectivity (requires internet)
 2. Verify upstream search engines are accessible
 3. Check rate limiting issues
-
----
-
-## resource-browserless: Browserless Chrome
-
-**Interval:** 60 seconds
-**Platforms:** All
-
-Monitors the Browserless headless Chrome service.
-
-### Why It Matters
-Browserless provides:
-- Web scraping capabilities
-- Screenshot generation
-- PDF rendering
-- Browser automation
-
-### Status Meanings
-- **OK**: Browserless running and healthy
-- **Critical**: Browserless down
-
-### Recovery Actions
-- **Start/Stop/Restart**: Lifecycle management
-- **View Logs**: Recent container logs
-
-### Troubleshooting
-1. Check memory: Chrome is memory-intensive
-2. Verify port 3000 availability
-3. Check for zombie Chrome processes
-4. Review concurrent connection limits

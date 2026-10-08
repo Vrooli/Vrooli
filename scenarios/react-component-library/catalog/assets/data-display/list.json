@@ -1,0 +1,77 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "api": {
+    "variants": {},
+    "modes": [],
+    "parts": []
+  },
+  "asset": {
+    "id": "data-display.list",
+    "name": "List",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "data-display",
+    "description": "The semantic collection with sections, item actions, selection, keyboard navigation, loading placeholders, separators, and responsive density.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Spacing, radius, and semantic colour resolve to declared ramps."
+      },
+      {
+        "asset": "primitives.stack",
+        "reason": "Layout uses the shared spacing ramp."
+      },
+      {
+        "asset": "primitives.separator",
+        "reason": "Row boundaries are separators rather than nested containers."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
+      }
+    ],
+    "suggests": [
+      {
+        "asset": "services.selection-store",
+        "reason": "Only selectable collections need the shared selection model."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "semantic-structure",
+    "keyboard-operable",
+    "focus-order",
+    "accessible-naming",
+    "no-horizontal-overflow",
+    "content-reflow",
+    "responsive-transformation",
+    "reading-order-honest",
+    "empty-state-craft",
+    "tap-target-size"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "empty",
+    "partial",
+    "request-error"
+  ],
+  "beauty": {
+    "avoid": [
+      "uniform-card-grid"
+    ]
+  }
+}

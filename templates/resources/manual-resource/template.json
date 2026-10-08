@@ -1,0 +1,45 @@
+{
+  "name": "manual-resource",
+  "displayName": "Manual Resource",
+  "description": "Scaffold a resource that Vrooli can describe and partially validate without promising full automated lifecycle ownership.",
+  "driver": "manual",
+  "requiredVars": {
+    "RESOURCE_NAME": {
+      "flag": "name",
+      "description": "Lowercase kebab-case resource identifier."
+    }
+  },
+  "optionalVars": {
+    "RESOURCE_DISPLAY_NAME": {
+      "flag": "display-name",
+      "description": "Human-readable display name."
+    },
+    "RESOURCE_DESCRIPTION": {
+      "flag": "description",
+      "description": "Short operator-facing summary."
+    },
+    "RESOURCE_CATEGORY": {
+      "flag": "category",
+      "description": "Resource category label.",
+      "default": "manual"
+    },
+    "RESOURCE_PORTABILITY_TIER": {
+      "flag": "portability-tier",
+      "description": "Portability tier for the generated scaffold.",
+      "default": "platform-specific"
+    },
+    "RESOURCE_CLI_COMMAND": {
+      "flag": "cli-command",
+      "description": "Installed command name for the generated resource CLI.",
+      "default": "resource-{{RESOURCE_NAME}}"
+    }
+  },
+  "docs": {
+    "resource-templates": "docs/resources/resource-templates.md",
+    "resource-guide": "docs/resources/resource-templates.md"
+  },
+  "platformExpectations": [
+    "The generated scaffold should document prerequisites and validation probes instead of pretending full install automation exists.",
+    "Manual resources must state their limits explicitly."
+  ]
+}

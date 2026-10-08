@@ -1,9 +1,29 @@
+---
+name: "triage-methodology"
+description: "Severity assessment and prioritization methodology: gather symptoms, assess severity and blast radius, decide response urgency and approach. Produces a triage report that drives downstream investigation or resolution."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["practice"]
+  tags: ["practice","triage","severity","prioritization","methodology"]
+  icon: "alert-triangle"
+  status: "active"
+  revision: 1
+  createdAt: "2026-02-10T00:00:00Z"
+  updatedAt: "2026-02-10T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager", "swarm-manager"]
+    commands: ["prompt-manager skill", "prompt-manager skill read", "swarm-manager"]
+  origin:
+    kind: "authored"
+---
 ## Practice focus: Triage Methodology
 
 Apply a **structured severity assessment** to any incoming problem, finding, or escalation: gather evidence, assess severity and blast radius, then decide on response urgency and approach. This methodology produces triage reports that drive downstream investigation, resolution, or prioritization.
 
 Required reading:
-- `prompt-manager skill read skill-principles`
+- `docs/agent-system/SKILL_AUTHORING.md`
 
 Optional reading:
 - `prompt-manager skill read skill-authoring-practice`

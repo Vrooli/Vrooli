@@ -1,0 +1,148 @@
+{
+  "_comment": "このファイルには2種類の補間があります。(1) 生成時: Search Hub のような大文字スネークケースのプレースホルダーは、`vrooli scenario generate` がシナリオビルド前に置換します。実行時にはリテラル表示値として扱われます。(2) 実行時: {{count}} のようなトークンは i18next の補間で、`t(key, { count })` によりレンダー時に置換されます。アンダースコアで始まるキー（このキーのような）はセンチネルで、コード生成・パリティテスト・未使用キー監査からスキップされます。",
+  "app": {
+    "title": "Search Hub"
+  },
+  "layout": {
+    "sidebarLabel": "メインナビゲーション",
+    "bottomNavLabel": "メインナビゲーション（モバイル）",
+    "nav": {
+      "search": "検索",
+      "evals": "評価",
+      "dashboard": "ダッシュボード",
+      "settings": "設定"
+    },
+    "mainLabel": "メインコンテンツ"
+  },
+  "theme": {
+    "switcherLabel": "テーマ",
+    "choice": {
+      "light": "ライト",
+      "dark": "ダーク",
+      "system": "システム"
+    }
+  },
+  "pages": {
+    "dashboard": {
+      "title": "ダッシュボード",
+      "description": "シナリオのヘルスと主要指標の概要。製品の成長に合わせてこれらのカードを実際のサーフェスに置き換えてください。",
+      "statPlaceholderLabel": "指標"
+    },
+    "settings": {
+      "title": "設定",
+      "themeHeading": "外観",
+      "localeHeading": "言語"
+    },
+    "search": {
+      "title": "検索",
+      "description": "登録されたすべてのコーパスを横断する単一のクエリ。ルーターが分類し、ファンアウトし、単一のリストに再ランクします。"
+    },
+    "evals": {
+      "title": "評価",
+      "description": "プロバイダーごとの検索品質ベースライン：登録済みのゴールデンスイート、タグ付き実行履歴、実行の並列比較。合否ゲートではなくソフトラベルです。"
+    }
+  },
+  "health": {
+    "title": "API ステータス",
+    "loading": "API のステータスを確認中…",
+    "error": "API に接続できません。`vrooli scenario start` でシナリオが起動していることを確認してください。",
+    "refresh": "再読み込み",
+    "refreshCount": "{{count}} 回更新しました",
+    "statusLabel": "ステータス:",
+    "serviceLabel": "サービス:",
+    "timestampLabel": "タイムスタンプ:"
+  },
+  "notifications": {
+    "summary": "{{count}} 件の通知"
+  },
+  "errors": {
+    "canceled": "Operation canceled.",
+    "unknown": "An unknown error occurred.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "deadline_exceeded": "Operation timed out.",
+    "not_found": "Resource not found.",
+    "already_exists": "Already exists.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "aborted": "Operation aborted.",
+    "out_of_range": "Out of range.",
+    "unimplemented": "Not yet implemented.",
+    "internal": "Something went wrong. Please try again.",
+    "unavailable": "Service temporarily unavailable.",
+    "data_loss": "Data loss detected.",
+    "unauthenticated": "Please sign in to continue."
+  },
+  "locale": {
+    "switcherLabel": "言語"
+  },
+  "errorBoundary": {
+    "title": "問題が発生しました",
+    "message": "ページの表示中に予期しないエラーが発生しました。再試行するか、解決しない場合はページを再読み込みしてください。",
+    "retry": "再試行"
+  },
+  "search": {
+    "queryLabel": "検索クエリ",
+    "queryPlaceholder": "登録されたすべてのコーパスを検索…",
+    "submit": "検索",
+    "searching": "検索中…",
+    "expandLabel": "すべてのプロバイダーを検索",
+    "typesLabel": "タイプで絞り込み",
+    "emptyState": "クエリを入力して、登録されたすべてのコーパスを検索します。",
+    "noResults": "結果がありません。「すべてのプロバイダーを検索」で範囲を広げてください。",
+    "error": "検索に失敗しました。`vrooli scenario start` でシナリオが起動していることを確認してください。",
+    "summary": "{{corpora}} コーパス · {{hits}} 件 · {{latency}} ms",
+    "rankedHeading": "統合ランキング",
+    "groupedHeading": "プロバイダー別の結果",
+    "routingHeading": "ルーティング",
+    "reranked": "再ランク済み",
+    "grouped": "プロバイダー別",
+    "degraded": "劣化",
+    "groupEmpty": "一致なし",
+    "weak": "弱い",
+    "confidenceStrong": "強い{{regime}}",
+    "confidenceWeak": "弱い{{regime}}",
+    "confidenceUnknown": "信頼度不明",
+    "locations": "場所: {{value}}",
+    "noConfidentMatch": "信頼できる一致なし",
+    "provenance": "{{group}} · {{path}}",
+    "statusHeading": "フェデレーション",
+    "classifier": "分類器",
+    "reranker": "リランカー",
+    "available": "利用可能",
+    "unavailable": "利用不可",
+    "statusError": "ステータスを取得できません",
+    "providersReachable": "{{reachable}}/{{total}} プロバイダーに到達可能"
+  },
+  "evals": {
+    "suitesHeading": "スイート",
+    "loading": "読み込み中…",
+    "error": "評価を読み込めません。`vrooli scenario start` でシナリオが起動していることを確認してください。",
+    "noSuites": "登録された評価スイートがまだありません。",
+    "suiteMeta": "{{provider}} · {{cases}} 件のケース",
+    "selectSuite": "スイートを選択すると実行履歴が表示されます。",
+    "runsHeading": "実行履歴",
+    "noRuns": "実行がまだありません。CLI から実行してください: search-hub evals run <suite> --tag <tag>。",
+    "trendHeading": "トレンド（古い → 新しい）",
+    "trendStrong": "強クエリ top-1",
+    "trendGibberish": "無意味クエリ最大",
+    "runMet": "{{met}}/{{cases}} 達成",
+    "runConfig": "リランカー {{reranker}}",
+    "casesHeading": "ケース",
+    "colCase": "ケース",
+    "colOutcome": "結果",
+    "colTop": "トップスコア",
+    "colRank": "順位",
+    "compareHint": "2 件の実行にチェックを入れて比較します。",
+    "compareButton": "選択した実行を比較",
+    "compareHeading": "ケースごとの差分 (A → B)",
+    "compareLegend": "A = {{a}} → B = {{b}}",
+    "compareColA": "A",
+    "compareColB": "B",
+    "colDelta": "Δ トップ",
+    "viewRun": "ケースを表示",
+    "hideRun": "ケースを隠す",
+    "tagLabel": "タグ {{tag}}",
+    "untagged": "タグなし"
+  }
+}

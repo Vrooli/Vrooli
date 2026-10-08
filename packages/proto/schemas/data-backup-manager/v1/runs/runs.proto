@@ -1,0 +1,265 @@
+syntax = "proto3";
+
+package vrooli.data_backup_manager.v1.runs;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/runs;runs_v1";
+
+// =============================================================================
+// RUNS DOMAIN — plan executions, run history, last-success-per-target
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain runs
+// @stability stable
+//
+// Wire contract for RunsService. A run is one execution of a plan: for each
+// member target × destination it captures the source, checks the destination
+// cap, writes a kopia snapshot, applies retention, and records a per-target
+// outcome. A single target's failure does not abort the others — the run is
+// partial_failed. Runs surface last-success-per-target for the catalog and
+// health views (OT-P0-005/009/010).
+//
+// Run/target lifecycle states are modeled at Level 2 in
+// api/internal/runs/flow/ per docs/concepts/FLOWS.md.
+// =============================================================================
+
+service RunsService {
+  rpc TriggerRun(TriggerRunRequest) returns (TriggerRunResponse);
+  // PreflightRun performs the same read-only plan-wide checks used by a
+  // backup run, without creating a run or touching source/repository data.
+  rpc PreflightRun(PreflightRunRequest) returns (PreflightRunResponse);
+  rpc GetRun(GetRunRequest) returns (GetRunResponse);
+  rpc ListRuns(ListRunsRequest) returns (ListRunsResponse);
+  rpc ListTargetStatus(ListTargetStatusRequest) returns (ListTargetStatusResponse);
+  rpc BrowseSnapshot(BrowseSnapshotRequest) returns (BrowseSnapshotResponse);
+  // GetRunStats reports aggregate run performance over run history (optionally
+  // scoped to one plan): counts, success rate, p50/p95 duration, bytes/run, and
+  // logical throughput. Powers `runs stats` and the metrics surface.
+  rpc GetRunStats(GetRunStatsRequest) returns (GetRunStatsResponse);
+}
+
+// RunStatus is the lifecycle state of a run.
+enum RunStatus {
+  RUN_STATUS_UNSPECIFIED = 0;
+  RUN_STATUS_PENDING = 1;
+  RUN_STATUS_CAPTURING = 2;
+  RUN_STATUS_SNAPSHOTTING = 3;
+  RUN_STATUS_COMPLETED = 4;
+  RUN_STATUS_PARTIAL_FAILED = 5;
+  RUN_STATUS_FAILED = 6;
+}
+
+// TriggerSource records who started a run.
+enum TriggerSource {
+  TRIGGER_SOURCE_UNSPECIFIED = 0;
+  TRIGGER_SOURCE_SCHEDULER = 1;
+  TRIGGER_SOURCE_MANUAL = 2;
+}
+
+// TargetOutcome is the per (target × destination) result within a run.
+enum TargetOutcomeStatus {
+  TARGET_OUTCOME_STATUS_UNSPECIFIED = 0;
+  TARGET_OUTCOME_STATUS_SUCCEEDED = 1;
+  TARGET_OUTCOME_STATUS_FAILED = 2;
+  // Blocked by the destination storage cap (alert+block); no bytes written.
+  TARGET_OUTCOME_STATUS_BLOCKED = 3;
+}
+
+message TargetOutcome {
+  string target_id = 1;
+  string destination_id = 2;
+  TargetOutcomeStatus status = 3;
+  // kopia snapshot reference produced on success; empty otherwise.
+  string snapshot_id = 4;
+  int64 bytes = 5;
+  // Human-readable failure/block reason; empty on success.
+  string error = 6;
+  google.protobuf.Timestamp started_at = 7;
+  google.protobuf.Timestamp finished_at = 8;
+  // Stable machine-readable root cause; empty for a successful outcome.
+  string failure_code = 9;
+  string failure_category = 10;
+  // Non-fatal maintenance warning (for example retention or staging cleanup)
+  // that must remain visible even when the snapshot itself succeeded.
+  string warning = 11;
+}
+
+// FailureCause groups one shared dependency failure across all impacted work.
+// It is intentionally metadata-only: raw command output and secret values are
+// never persisted in this evidence model.
+message FailureCause {
+  string code = 1;
+  string category = 2;
+  string scope = 3;
+  string message = 4;
+  string next_action = 5;
+  string destination_id = 6;
+  repeated string target_ids = 7;
+  google.protobuf.Timestamp first_observed = 8;
+  google.protobuf.Timestamp last_observed = 9;
+  google.protobuf.Timestamp last_known_good = 10;
+  bool retryable = 11;
+  int64 retry_after_seconds = 12;
+}
+
+// Run is the canonical wire shape for one plan execution.
+message Run {
+  string id = 1;
+  string plan_id = 2;
+  TriggerSource trigger = 3;
+  RunStatus status = 4;
+  google.protobuf.Timestamp started_at = 5;
+  google.protobuf.Timestamp finished_at = 6;
+  repeated TargetOutcome outcomes = 7;
+  string error = 8;
+  string failure_code = 9;
+  string failure_category = 10;
+  string next_action = 11;
+  repeated FailureCause preflight_incidents = 12;
+  google.protobuf.Timestamp updated_at = 13;
+  int64 physical_bytes = 14;
+}
+
+// TargetStatus is the last-success / last-run rollup for one target, derived
+// from run history (powers the catalog and the health overdue check).
+//
+// "Backed up" (last_success_at) and "proven restorable" (last_verified_at) are
+// distinct: a target may have a recent successful backup yet never have been
+// verified. The UI treats verified-restore age as the primary posture signal
+// and flags backed-up-but-unverified targets distinctly, so this rollup carries
+// both in one owner-scoped call (no per-target restore-history fan-out).
+message TargetStatus {
+  string target_id = 1;
+  google.protobuf.Timestamp last_success_at = 2;
+  RunStatus last_run_status = 3;
+  google.protobuf.Timestamp last_run_at = 4;
+  // Latest successful VERIFY restore for this target (proven-restorable age).
+  // Unset means backed up but never verified — surfaced as an unverified chip.
+  google.protobuf.Timestamp last_verified_at = 5;
+  // Snapshot id of that latest successful verify; powers a "verify the same
+  // point again" shortcut. Empty when last_verified_at is unset.
+  string last_verified_snapshot_id = 6;
+  // Freshness (cadence) signals, computed server-side against DBM_OVERDUE_AFTER
+  // so every surface (CLI, /health, UI) reads one consistent overdue rule.
+  // overdue is true when the last run failed/partial-failed, or the target has
+  // never succeeded, or its last success is older than the overdue threshold.
+  bool overdue = 7;
+  // Seconds since the last successful backup; 0 when never backed up (pair with
+  // last_success_at being unset to distinguish "0s ago" from "never").
+  int64 last_success_age_seconds = 8;
+  // When this target's soonest scheduled backup next fires (earliest next-fire
+  // across the scheduled plans it belongs to). Unset/zero means not scheduled —
+  // manual-only, on a disabled plan, or its schedule has not fired since the API
+  // started (the scheduler's fire history is in-memory). Surfaces treat absent
+  // as "manual-only / not scheduled".
+  google.protobuf.Timestamp next_scheduled_at = 9;
+}
+
+message TriggerRunRequest {
+  string plan_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message TriggerRunResponse {
+  Run run = 1;
+}
+
+message PreflightRunRequest {
+  string plan_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message PreflightRunResponse {
+  bool ready = 1;
+  google.protobuf.Timestamp checked_at = 2;
+  repeated FailureCause incidents = 3;
+}
+
+message GetRunRequest {
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message GetRunResponse {
+  Run run = 1;
+}
+
+message ListRunsRequest {
+  // Optional plan filter.
+  string plan_id = 1;
+  int32 page_size = 2 [(buf.validate.field).int32.gte = 0];
+  string page_token = 3;
+}
+
+message ListRunsResponse {
+  repeated Run runs = 1;
+  string next_page_token = 2;
+}
+
+message ListTargetStatusRequest {
+  string owner = 1;
+}
+
+message ListTargetStatusResponse {
+  repeated TargetStatus statuses = 1;
+}
+
+// SnapshotEntry is one path within a snapshot's content listing.
+message SnapshotEntry {
+  string path = 1;
+  int64 size_bytes = 2;
+  bool is_dir = 3;
+}
+
+message BrowseSnapshotRequest {
+  string destination_id = 1 [(buf.validate.field).string.min_len = 1];
+  string snapshot_id = 2 [(buf.validate.field).string.min_len = 1];
+  // Optional path prefix within the snapshot.
+  string path = 3;
+}
+
+message BrowseSnapshotResponse {
+  repeated SnapshotEntry entries = 1;
+}
+
+message GetRunStatsRequest {
+  // Optional plan filter; empty aggregates across all plans.
+  string plan_id = 1;
+}
+
+// RunStats is aggregate run performance over the recent run history window.
+// Durations are wall-clock per run (finished_at − started_at over terminal
+// runs). total_bytes is the logical (pre-dedup) total of succeeded outcomes;
+// total_physical_bytes is the on-disk (deduped+compressed) repo growth those
+// runs caused — a per-run repo-size delta — and dedup_ratio is logical ÷
+// physical. Physical attribution is approximate (a repo-size delta around each
+// run; concurrent runs to the same repo can mis-attribute growth, and negative
+// deltas from maintenance are clamped to 0) — an observability signal, not an
+// exact accounting. Throughput is logical bytes ÷ wall-clock.
+message RunStats {
+  int64 total_runs = 1;
+  int64 completed = 2;
+  int64 partial_failed = 3;
+  int64 failed = 4;
+  // completed ÷ terminal runs, 0..1.
+  double success_rate = 5;
+  int64 p50_duration_ms = 6;
+  int64 p95_duration_ms = 7;
+  // Sum of logical bytes across succeeded outcomes in the window.
+  int64 total_bytes = 8;
+  int64 avg_bytes_per_run = 9;
+  // Logical bytes per wall-clock second, averaged over terminal runs.
+  double avg_throughput_bytes_per_sec = 10;
+  // Number of runs the stats were computed over (the window cap may truncate
+  // older history — surfaced so the figure is never silently partial).
+  int64 window = 11;
+  // On-disk (deduped+compressed) repo growth attributed to the window's runs.
+  // 0 when no run could measure it (e.g. repo stats unavailable).
+  int64 total_physical_bytes = 12;
+  // Logical ÷ physical. 0 when physical is unknown (never a divide-by-zero).
+  double dedup_ratio = 13;
+}
+
+message GetRunStatsResponse {
+  RunStats stats = 1;
+}

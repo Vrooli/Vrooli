@@ -1,0 +1,40 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "brief-to-adoption",
+    "title": "Move a page brief through design and adoption",
+    "purpose": "A designer selects a scenario and page, reviews the live composition and evidence, then reaches the adoption handoff without losing the page context or the current candidate.",
+    "prd_refs": ["OT-P0-009", "OT-P0-006"]
+  },
+  "steps": [
+    {
+      "page": "design",
+      "state": "default",
+      "intent": "Choose the scenario whose page is being redesigned.",
+      "via": "scenario selection"
+    },
+    {
+      "page": "design-scenario",
+      "state": "default",
+      "intent": "Choose a declared page and keep its design context visible.",
+      "via": "page selection"
+    },
+    {
+      "page": "design-workspace",
+      "state": "default",
+      "intent": "Review the brief, live composition, candidate evidence, and responsive preview before refining the page.",
+      "via": "open design workspace"
+    }
+  ],
+  "claims": [
+    {
+      "id": "journey-keeps-page-context",
+      "type": "custom",
+      "statement": "The design flow keeps the selected scenario and page context attached while the designer moves from brief to candidate review and adoption handoff.",
+      "tier": "aspirational",
+      "rationale": "The runtime journey executor is not yet a deterministic acceptance gate; this claim records the intended cross-page behavior without pretending it is proven."
+    }
+  ]
+}

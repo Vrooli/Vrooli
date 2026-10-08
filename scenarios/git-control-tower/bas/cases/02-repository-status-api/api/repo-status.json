@@ -1,7 +1,7 @@
 {
   "metadata": {
     "name": "Repository Status API",
-    "description": "Validates /api/v1/repo/status returns branch + file change summary",
+    "description": "Validates RepoService.GetRepoStatus returns branch + file change summary",
     "tags": [
       "e2e",
       "api",
@@ -21,12 +21,13 @@
       "id": "status",
       "type": "http_request",
       "data": {
-        "label": "GET /api/v1/repo/status",
-        "method": "GET",
-        "url": "{{API_URL}}/api/v1/repo/status",
+        "label": "POST RepoService.GetRepoStatus",
+        "method": "POST",
+        "url": "{{API_URL}}/vrooli.git_control_tower.v1.repo.RepoService/GetRepoStatus",
         "headers": {
           "Content-Type": "application/json"
         },
+        "body": {},
         "assertions": [
           {
             "type": "status_code",
@@ -38,7 +39,7 @@
           },
           {
             "type": "json_path_exists",
-            "path": "$.branch.head"
+            "path": "$.branchStatus.head"
           },
           {
             "type": "json_path_exists",

@@ -55,17 +55,14 @@ export function StageStatusBadge({
   size = "md",
   className,
 }: StageStatusBadgeProps) {
-  const config = statusConfig[status] || statusConfig.none;
+  const config = statusConfig[status];
   const { label, variant, Icon } = config;
 
   const iconSize = size === "sm" ? "h-3 w-3" : "h-3.5 w-3.5";
   const textSize = size === "sm" ? "text-[10px]" : "text-xs";
 
   return (
-    <Badge
-      variant={variant}
-      className={cn("gap-1.5", textSize, className)}
-    >
+    <Badge variant={variant} className={cn("gap-1.5", textSize, className)}>
       <Icon className={iconSize} />
       {showLabel && <span>{stageName ? `${stageName}: ${label}` : label}</span>}
     </Badge>
@@ -90,7 +87,10 @@ export function StageStatusBadgeFromApi({
   size = "md",
   className,
 }: StageStatusFromApiProps) {
-  const status: StageStatusType = (stageStatus?.status as StageStatusType) || "none";
+  const status: StageStatusType =
+    stageStatus === undefined
+      ? "none"
+      : (stageStatus.status as StageStatusType);
 
   return (
     <StageStatusBadge

@@ -10,13 +10,9 @@
 export { RecordModePage as RecordingSession } from './RecordingSession';
 
 // Timeline components
-export { ActionTimeline } from './timeline/ActionTimeline';
-export { SelectorEditor } from './timeline/SelectorEditor';
 export { TimelineEventCard, UnifiedTimeline } from './timeline/TimelineEventCard';
 export { RecordPreviewPanel } from './timeline/RecordPreviewPanel';
 export { ExecutionPreviewPanel } from './timeline/ExecutionPreviewPanel';
-export { TimelineFullView } from './timeline/TimelineFullView';
-export { TimelineSidebar } from './timeline/TimelineSidebar';
 export { WorkflowInfoCard, type ExecutionConfigSettings } from './timeline/WorkflowInfoCard';
 export { ExecutionConfigPanel } from './timeline/ExecutionConfigPanel';
 export { DEFAULT_EXECUTION_SETTINGS, NAVIGATION_WAIT_OPTIONS } from './timeline/executionConfigConstants';
@@ -28,7 +24,6 @@ export { BrowserUrlBar } from './capture/BrowserUrlBar';
 export { BrowserChrome, type ExecutionStatus } from './capture/BrowserChrome';
 export { RecordingHeader } from './capture/RecordingHeader';
 // RecordActionsPanel is deprecated - use sidebar/TimelineTab instead
-export { FloatingActionBar } from './capture/FloatingActionBar';
 export { FloatingMiniPreview } from './capture/FloatingMiniPreview';
 export { FrameStatsDisplay } from './capture/FrameStatsDisplay';
 export { StreamSettings } from './capture/StreamSettings';
@@ -44,18 +39,17 @@ export { ProjectSelector } from './conversion/ProjectSelector';
 
 // Hooks
 export { useRecordMode } from './hooks/useRecordMode';
-export { useUnifiedTimeline } from './hooks/useUnifiedTimeline';
+export { useWorkspaceTimeline } from './hooks/useWorkspaceTimeline';
 export { useRecordingSession } from './hooks/useRecordingSession';
 export { useSessionProfiles } from './hooks/useSessionProfiles';
 export { useActionSelection } from './hooks/useActionSelection';
 export { useTimelinePanel } from './hooks/useTimelinePanel';
 export { useFrameStats } from './hooks/useFrameStats';
 export { usePerfStats } from './hooks/usePerfStats';
-export { useRecordModeLayout } from './hooks/useRecordModeLayout';
 export { useStorageState } from './hooks/useStorageState';
 export { useServiceWorkers } from './hooks/useServiceWorkers';
 export { useHistory } from './hooks/useHistory';
-export type { UseUnifiedTimelineOptions, UseUnifiedTimelineReturn } from './hooks/useUnifiedTimeline';
+export type { UseWorkspaceTimelineOptions, UseWorkspaceTimelineReturn } from './hooks/useWorkspaceTimeline';
 export type { UseStorageStateResult } from './hooks/useStorageState';
 export type {
   UseServiceWorkersResult,
@@ -66,8 +60,6 @@ export type {
 export type { UseHistoryResult } from './hooks/useHistory';
 
 // Utilities
-export { mergeConsecutiveActions, getMergeDescription } from './utils/mergeActions';
-export type { MergedAction, MergedActionMeta } from './utils/mergeActions';
 export { mapClientToViewport } from './utils/coordinateMapping';
 export type { Rect as CoordinateRect, Point as CoordinatePoint } from './utils/coordinateMapping';
 
@@ -82,8 +74,6 @@ export type {
   ActionType,
   ActionPayload,
   RecordingState,
-  StartRecordingResponse,
-  StopRecordingResponse,
   GetActionsResponse,
   GenerateWorkflowResponse,
   SelectorValidation,
@@ -123,9 +113,8 @@ export type {
   ActionMetadata,
 } from './types/timeline-unified';
 export {
-  recordedActionToTimelineItem,
+  mergeTimelineItemsWithAISteps,
   timelineEntryToTimelineItem,
-  timelineEntryToRecordedAction,
 } from './types/timeline-unified';
 
 // Context providers
@@ -151,3 +140,5 @@ export {
   STREAM_PRESETS,
   DEFAULT_STREAM_PRESET,
 } from './constants';
+
+export type { StartRecordingResponse, StopRecordingResponse } from './api/schemas';

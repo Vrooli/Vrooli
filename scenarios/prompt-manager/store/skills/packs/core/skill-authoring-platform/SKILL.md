@@ -1,9 +1,30 @@
+---
+name: "skill-authoring-platform"
+description: "Authoring guide for Platform skills that govern shared packages and cross-scenario standards without breaking downstream consumers."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["meta","platform"]
+  tags: ["skill","packages","platform","authoring"]
+  icon: "package"
+  status: "active"
+  revision: 1
+  createdAt: "2026-02-10T00:00:00Z"
+  updatedAt: "2026-02-10T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager"]
+    commands: ["prompt-manager skill", "prompt-manager skill read"]
+  origin:
+    kind: "authored"
+---
 ## Meta focus: Platform Skill Authoring
 
-Guide for creating **Platform** skills (where `modes[0] = "platform"`). Platform skills steer safe evolution of shared code (for example `packages/*`, shared templates, shared contracts) that is consumed by many scenarios.
+Guide for creating **platform** skills (the authored skill declares `modes[0] = "platform"`). Platform skills steer safe evolution of shared code (for example `path:packages/*`, shared templates, shared contracts) that is consumed by many scenarios.
 
 Required reading:
-- `prompt-manager skill read skill-principles`
+- `docs/agent-system/SKILL_AUTHORING.md`
+- `docs/agent-system/PROMOTION_LADDER.md`
 
 Optional reading:
 - `prompt-manager skill read cli-steer`
@@ -14,7 +35,7 @@ Optional reading:
 ### 1. Category Scope
 
 **In scope:**
-- Shared package evolution (`packages/*`) and other shared platform code used by multiple scenarios
+- Shared package evolution (`path:packages/*`) and other shared platform code used by multiple scenarios
 - Cross-scenario standardization (CLI output contracts, config precedence, error taxonomy, codegen contracts)
 - Brownfield-safe improvement paths (additive changes, deprecation cycles, compatibility envelopes)
 - Verification discipline proportional to blast radius (tests + downstream smoke/compat checks)
@@ -41,16 +62,7 @@ Optional:
 
 ### 3. Recommended Structure (Keep It Small)
 
-Platform skills should be enforcement-heavy, not prose-heavy:
-1. **Intent statement** (1-2 sentences)
-2. **Scope boundaries** (explicit blast-radius constraints)
-3. **Compatibility envelope** (template; see below)
-4. **Decision tables** (change classification + layering)
-5. **Verification requirements** (tests + downstream “compat set”)
-6. **Output expectations** (what may/must/must not change)
-7. **Troubleshooting & Edge Cases** (only if operational complexity exists)
-
-Avoid turning platform skills into “everything about the package.” Prefer linking to package docs.
+Structure follows `docs/agent-system/SKILL_AUTHORING.md` §"Skill structure" — do not restate it. The platform-specific additions are a **compatibility envelope** (template in §7) and **work tables** for change classification and layering (§4). Platform skills are enforcement-heavy, not prose-heavy — avoid turning them into “everything about the package”; prefer linking to package docs.
 
 ---
 
@@ -93,11 +105,7 @@ Rule:
 
 ### 6. Output Contract Standards (Human-First)
 
-When Platform skills touch CLI behavior (directly or via shared libraries):
-- Default output must be human-first and action-guiding
-- Blocking (`--wait`) flows must be progress-observable and return reliable exit codes
-- Errors must contain next-step guidance (a command or a precise recovery hint)
-- Machine output (`--json`) may exist, but must not be required for basic operation
+When Platform skills touch CLI behavior (directly or via shared libraries), apply the human-first CLI bar in `docs/agent-system/SKILL_AUTHORING.md` §"Universal quality bars" and the output-contract standards in `cli-steer`; do not restate them. The platform-specific delta: blocking (`--wait`) flows must be progress-observable and return reliable exit codes, because shared libraries set the contract for every consumer CLI.
 
 ---
 
@@ -115,9 +123,16 @@ When Platform skills touch CLI behavior (directly or via shared libraries):
 
 ---
 
-### 8. Registration Notes
+### 8. Output Expectations
 
-Follow **Skill Principles** and ensure:
-- `modes[0]` is `platform`
-- The description names the shared package surface and the safety posture (compatibility-first, brownfield-safe)
+You may update:
+- Platform skills to improve clarity, compatibility guidance, or verification coverage
+- `skill.json` entries for Platform skills
+
+You must:
+- Use `{{PACKAGE}}`/`{{PACKAGE_PATH}}` (and optional `{{AREA}}`) — never `{{TARGET}}`, which is reserved for scenario-focused Steer skills
+- State the compatibility envelope (template in §7) and the compat-set verification commands that prove a change is safe for downstream consumers
+- Prefer human-first CLI output patterns and avoid parser-dependent workflows by default
+
+Registration follows `docs/agent-system/SKILL_AUTHORING.md` §"Registration and metadata"; the authored skill declares `modes[0] = "platform"` and a description that names the shared package surface and the safety posture (compatibility-first, brownfield-safe).
 

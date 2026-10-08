@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getLiveState,
+  getHealthObservation,
   getFiles,
   getFileContent,
   getDrift,
@@ -380,5 +381,23 @@ export function useTLSRenew(deploymentId: string) {
       queryClient.invalidateQueries({ queryKey: ["tlsInfo", deploymentId] });
       queryClient.invalidateQueries({ queryKey: ["liveState", deploymentId] });
     },
+  });
+}
+
+/**
+ * Hook to fetch the typed health observation (status, freshness,
+ * observed_at, release) for the deployment header badge.
+ */
+export function useHealthObservation(deploymentId: string | null) {
+  return useQuery({
+    queryKey: ["healthObservation", deploymentId],
+    queryFn: async () => {
+      if (!deploymentId) return null;
+      const res = await getHealthObservation(deploymentId);
+      return res.observation ?? null;
+    },
+    enabled: !!deploymentId,
+    refetchInterval: 60_000,
+    staleTime: 30_000,
   });
 }

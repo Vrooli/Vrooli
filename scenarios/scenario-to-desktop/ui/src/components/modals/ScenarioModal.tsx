@@ -24,7 +24,9 @@ function readRecents(): string[] {
     if (!raw) return [];
     const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return (parsed as unknown[]).filter((entry): entry is string => typeof entry === "string");
+    return (parsed as unknown[]).filter(
+      (entry): entry is string => typeof entry === "string",
+    );
   } catch {
     return [];
   }
@@ -32,13 +34,19 @@ function readRecents(): string[] {
 
 function writeRecents(recents: string[]) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(RECENTS_KEY, JSON.stringify(recents.slice(0, MAX_RECENTS)));
+  window.localStorage.setItem(
+    RECENTS_KEY,
+    JSON.stringify(recents.slice(0, MAX_RECENTS)),
+  );
 }
 
 function mergeRecents(recents: string[], name: string): string[] {
   const cleaned = name.trim();
   if (!cleaned) return recents;
-  return [cleaned, ...recents.filter((entry) => entry !== cleaned)].slice(0, MAX_RECENTS);
+  return [cleaned, ...recents.filter((entry) => entry !== cleaned)].slice(
+    0,
+    MAX_RECENTS,
+  );
 }
 
 interface ScenarioModalProps {
@@ -56,7 +64,7 @@ export function ScenarioModal({
   scenarios,
   selectedScenarioName,
   onSelect,
-  onClose
+  onClose,
 }: ScenarioModalProps) {
   const [search, setSearch] = useState("");
   const [recents, setRecents] = useState<string[]>([]);
@@ -77,7 +85,9 @@ export function ScenarioModal({
     if (!normalized) return scenarios;
     return scenarios.filter((scenario) => {
       const nameMatch = scenario.name.toLowerCase().includes(normalized);
-      const displayMatch = scenario.display_name?.toLowerCase().includes(normalized);
+      const displayMatch = scenario.display_name
+        ?.toLowerCase()
+        .includes(normalized);
       return nameMatch || displayMatch;
     });
   }, [normalized, scenarios]);
@@ -93,7 +103,7 @@ export function ScenarioModal({
         name: scenario.name,
         displayName: scenario.display_name,
         hasDesktop: scenario.has_desktop,
-        isKnown: true
+        isKnown: true,
       };
     });
   }, [recents, scenarios]);
@@ -123,12 +133,22 @@ export function ScenarioModal({
       <Card className="w-full max-w-5xl border-slate-800 bg-slate-950/90 shadow-xl max-h-[90vh] flex flex-col">
         <CardHeader className="flex flex-row items-start justify-between gap-4">
           <div className="space-y-1">
-            <CardTitle className="text-lg text-slate-100">Choose a scenario</CardTitle>
+            <CardTitle className="text-lg text-slate-100">
+              Choose a scenario
+            </CardTitle>
             <p className="text-sm text-slate-400">
-              Search by name or slug. Recent scenarios are highlighted for faster access.
+              Search by name or slug. Recent scenarios are highlighted for
+              faster access.
             </p>
           </div>
-          <Button type="button" variant="outline" size="sm" onClick={onClose} className="h-8 w-8 p-0">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={onClose}
+            className="h-8 w-8 p-0"
+            aria-label="Close scenario chooser"
+          >
             <X className="h-4 w-4" />
           </Button>
         </CardHeader>
@@ -138,13 +158,22 @@ export function ScenarioModal({
               <Search className="h-4 w-4" />
               <Input
                 value={search}
-                onChange={(event) => setSearch(event.target.value)}
+                onChange={(event) => {
+                  setSearch(event.target.value);
+                }}
                 placeholder="Search scenarios..."
+                aria-label="Search scenarios"
                 className="h-9 border-0 bg-transparent p-0 text-sm text-slate-100 focus-visible:ring-0"
               />
             </div>
             {normalized && !hasExactMatch && (
-              <Button type="button" size="sm" onClick={() => handleSelect(search.trim())}>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => {
+                  handleSelect(search.trim());
+                }}
+              >
                 Use "{search.trim()}" slug
               </Button>
             )}
@@ -162,7 +191,9 @@ export function ScenarioModal({
                     key={`recent-${scenario.name}`}
                     scenario={scenario}
                     selected={selectedScenarioName === scenario.name}
-                    onSelect={() => handleSelect(scenario.name)}
+                    onSelect={() => {
+                      handleSelect(scenario.name);
+                    }}
                   />
                 ))}
               </div>
@@ -172,9 +203,7 @@ export function ScenarioModal({
           <div className="space-y-3">
             <div className="flex items-center justify-between text-xs uppercase tracking-wide text-slate-400">
               <span>All scenarios</span>
-              {!loading && (
-                <span>{filteredScenarios.length} total</span>
-              )}
+              {!loading && <span>{filteredScenarios.length} total</span>}
             </div>
             {loading ? (
               <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-6 text-center text-sm text-slate-400">
@@ -193,10 +222,12 @@ export function ScenarioModal({
                       name: scenario.name,
                       displayName: scenario.display_name,
                       hasDesktop: scenario.has_desktop,
-                      isKnown: true
+                      isKnown: true,
                     }}
                     selected={selectedScenarioName === scenario.name}
-                    onSelect={() => handleSelect(scenario.name)}
+                    onSelect={() => {
+                      handleSelect(scenario.name);
+                    }}
                   />
                 ))}
               </div>
@@ -205,7 +236,7 @@ export function ScenarioModal({
         </CardContent>
       </Card>
     </div>,
-    document.body
+    document.body,
   );
 }
 
@@ -239,9 +270,7 @@ function ScenarioCard({ scenario, selected, onSelect }: ScenarioCardProps) {
           </Badge>
         )}
         {scenario.isKnown === false && (
-          <Badge className="text-[10px]">
-            Recent
-          </Badge>
+          <Badge className="text-[10px]">Recent</Badge>
         )}
       </div>
     </button>

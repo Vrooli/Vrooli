@@ -57,47 +57,6 @@ export interface TestExecutionListResponse {
   count: number;
 }
 
-// ── Test Execution API Functions ───────────────────────────────────────
-
-export async function triggerTestExecution(
-  request: TestExecutionRequest,
-  repoId?: string
-): Promise<TestExecutionResult> {
-  const url = buildApiUrl("/repo/test-execution", { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    method: "POST",
-    headers: buildRepoHeaders(repoId),
-    body: JSON.stringify(request),
-  });
-  return handleResponse<TestExecutionResult>(res);
-}
-
-export async function fetchTestExecutions(
-  scenarioName: string,
-  limit = 10,
-  repoId?: string
-): Promise<TestExecutionListResponse> {
-  const params = new URLSearchParams({ scenarioName, limit: String(limit) });
-  const url = buildApiUrl(`/repo/test-executions?${params.toString()}`, { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: buildRepoHeaders(repoId),
-    cache: "no-store",
-  });
-  return handleResponse<TestExecutionListResponse>(res);
-}
-
-export async function fetchTestExecution(
-  id: string,
-  repoId?: string
-): Promise<TestExecutionResult> {
-  const url = buildApiUrl(`/repo/test-executions/${encodeURIComponent(id)}`, { baseUrl: API_BASE });
-  const res = await fetch(url, {
-    headers: buildRepoHeaders(repoId),
-    cache: "no-store",
-  });
-  return handleResponse<TestExecutionResult>(res);
-}
-
 // ── Tidiness Manager Types ─────────────────────────────────────────────
 
 export interface TidinessBreakdown {

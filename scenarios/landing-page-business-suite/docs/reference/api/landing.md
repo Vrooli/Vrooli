@@ -8,64 +8,76 @@ audience: ["developers"]
 
 # Landing Endpoints
 
-Public endpoints for retrieving landing page configuration. No authentication required.
+Public APIs for retrieving landing page configuration. No authentication required.
 
-## GET /landing-config
+## LandingConfigService.GetLandingConfig
 
-Returns the complete landing page configuration including sections, pricing, and downloads.
+Returns one immutable, resolved product presentation with public commerce and
+delivery observations. This operation is read-only; fetching a page is not an
+analytics exposure.
 
 **Authentication:** None
 
-**Query Parameters:**
+**Transport:** Connect-RPC `POST /landing_page_business_suite.v1.LandingConfigService/GetLandingConfig`
+
+**Request fields:**
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `variant` | string | Optional variant slug to force a specific variant |
+| `variant_slug` | string | Optional variant slug to force a specific variant |
+| `visitor_id` | string | Anonymous correlation ID for deterministic weighted assignment when no variant is forced |
+| `route` | string | Bundle root `/` (also the empty default) or public `/apps/:slug` |
+| `locale` | string | Configured locale; empty selects the bundle default |
 
-**Response:**
+**Example request:**
+
 ```json
 {
-  "variant": {
-    "id": 1,
-    "slug": "control",
-    "name": "Control (Original)",
-    "status": "active"
-  },
-  "sections": [
-    {
-      "id": 1,
-      "section_type": "hero",
-      "content": {
-        "headline": "Build Landing Pages in Minutes",
-        "subheadline": "...",
-        "cta_text": "Get Started",
-        "cta_url": "/signup"
-      },
-      "order": 1,
-      "enabled": true
-    }
-  ],
-  "pricing": {
-    "bundle": { ... },
-    "monthly": [ ... ],
-    "yearly": [ ... ]
-  },
-  "downloads": [ ... ],
-  "branding": {
-    "site_name": "My Landing",
-    "logo_url": "/logo.png"
-  }
+  "route": "/apps/aquila",
+  "locale": "en",
+  "visitor_id": "visitor_example"
 }
 ```
 
-**Example:**
-```bash
-# Get default variant
-curl http://localhost:3000/api/v1/landing-config
+`presentation.page` contains typed blocks, all marketing/display copy, and their
+configured ordering. `presentation.mode` is `empty`, `single_app`, `bundle` or
+`app_detail`. `presentation.diagnostics` identifies the requested/resolved route,
+variant, revision, locale, content digest, commerce snapshot and asset references.
+Assignment source and weight fingerprint are present only when applicable.
+Pricing and downloads remain owner-supplied facts; they do not determine which
+apps belong to the bundle. Do not infer an app from the first download row.
 
-# Force specific variant
-curl http://localhost:3000/api/v1/landing-config?variant=holiday-special
+The typed path does not populate the old `sections`, `header`, `branding` or
+`variant` marketing fields. Consumers use `presentation` and its diagnostics.
+Unknown/private app routes return NotFound. Missing root publication returns
+Unavailable, with no mutable legacy narrative fallback. Responses are no-store.
+An owner outage can leave the page readable with explicitly unavailable actions.
+
+**Example:**
+
+```bash
+# Get a specific variant through the scenario CLI
+landing-page-business-suite landing-config --variant holiday-special --json
 ```
+
+## LandingConfigService.RecordPresentationExposure
+
+Connect-RPC `POST /landing_page_business_suite.v1.LandingConfigService/RecordPresentationExposure`
+records a displayed public weighted assignment. No authentication is required;
+the supplied identity is not an authentication or purchase credential.
+
+Send `visitor_id`, `variant_slug`, `revision`, `route`, `locale`, `block_digest`,
+`weight_fingerprint`, and `source` set to
+`PRESENTATION_ASSIGNMENT_SOURCE_WEIGHTED_VISITOR`. The service rechecks the exact
+public resolution and deterministic assignment before the existing metrics owner
+deduplicates it. `{ "recorded": false }` means the valid assignment was already
+recorded. An invalid/stale proof returns an error, not a successful exposure.
+
+Do not call this operation for an explicit variant URL, draft preview, admin
+screen, download chooser or a page that failed to become visible and ready.
+The browser shares its anonymous identity with the server-rendered bootstrap;
+it does not fetch another random variant during hydration. A metrics error does
+not invalidate an otherwise successful page load.
 
 ---
 
@@ -223,6 +235,6 @@ Returns robots.txt content.
 
 ## See Also
 
-- [API Overview](README.md)
+- [API Overview](OVERVIEW.md)
 - [Variants](variants.md) - A/B testing endpoints
 - [Payments](payments.md) - Stripe integration

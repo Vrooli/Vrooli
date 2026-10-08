@@ -5,8 +5,6 @@ import (
 	"testing"
 
 	"agent-inbox/domain"
-
-	toolspb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-inbox/v1/domain"
 )
 
 func TestRejectToolCall_DefaultReason(t *testing.T) {
@@ -30,70 +28,6 @@ func TestRejectToolCall_DefaultReason(t *testing.T) {
 	// Verify default error message
 	if repo.updateToolCallStatusCalls[0].ErrorMessage != "Rejected by user" {
 		t.Errorf("expected default rejection message, got %q", repo.updateToolCallStatusCalls[0].ErrorMessage)
-	}
-}
-
-// =============================================================================
-// Tests for Async Operations
-// =============================================================================
-
-func TestExecuteToolCalls_StartsAsyncTracking(t *testing.T) {
-	repo := newMockCompletionRepository()
-	executor := newMockToolExecutor()
-	registry := newMockToolRegistry()
-	asyncTracker := newMockAsyncTrackerForCompletion()
-
-	// Create an async tool
-	asyncTool := createToolWithMetadata("async_tool", "An async tool", &toolspb.ToolMetadata{
-		LongRunning: true,
-		AsyncBehavior: &toolspb.AsyncBehavior{
-			StatusPolling: &toolspb.StatusPolling{
-				StatusTool:          "check_status",
-				OperationIdField:    "run_id",
-				PollIntervalSeconds: 5,
-			},
-		},
-	})
-	registry.addTool("scenario", asyncTool)
-
-	// Make executor return a result with run_id
-	executor.SetExecuteFunc(func(ctx context.Context, chatID, toolCallID, toolName, args string) (*domain.ToolCallRecord, error) {
-		return &domain.ToolCallRecord{
-			ID:       toolCallID,
-			ChatID:   chatID,
-			ToolName: toolName,
-			Status:   domain.StatusCompleted,
-			Result:   `{"run_id": "run-123", "status": "started"}`,
-		}, nil
-	})
-
-	svc := NewCompletionServiceWithDeps(CompletionServiceDeps{
-		Repo:         repo,
-		Executor:     executor,
-		Registry:     registry,
-		AsyncTracker: asyncTracker,
-	})
-
-	toolCalls := []domain.ToolCall{
-		makeToolCall("tc-1", "async_tool", `{}`),
-	}
-
-	outcome, err := svc.ExecuteToolCalls(context.Background(), "chat-1", "msg-1", toolCalls, "parent-1")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	// Verify async tracking was started
-	if !outcome.HasAsyncOperations {
-		t.Error("expected HasAsyncOperations to be true")
-	}
-	if len(outcome.AsyncOperations) != 1 {
-		t.Fatalf("expected 1 async operation, got %d", len(outcome.AsyncOperations))
-	}
-
-	// Verify tracker was called
-	if len(asyncTracker.startTrackingCalls) != 1 {
-		t.Fatalf("expected 1 StartTracking call, got %d", len(asyncTracker.startTrackingCalls))
 	}
 }
 

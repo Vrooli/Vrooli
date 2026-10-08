@@ -1,5 +1,58 @@
 # Spec Sync Progress
 
+## 2026-08-21 — Observability contract hardening
+
+- Added explicit cycle identity, caller-owned observation time, and measured/
+  failed/unsupported/stale/not-yet-sampled state propagation across repositories,
+  protobuf projections, reports, and UI timelines.
+- SQLite is now the durable runtime default. Development memory mode requires
+  `SYSTEM_MONITOR_STORAGE_MODE=memory`; the greenfield SQLite schema is
+  declarative and idempotent, with no permanent migration runner.
+- The scheduler owns stateful CPU, network, and process sampling. On-demand
+  reads return the latest scheduler snapshot or an explicit not-yet-sampled
+  response. Self-metrics expose skipped, failed, stale, and persistence timing.
+- Focused repository, service, collector, and race tests pass. Full lifecycle
+  evidence remains pending because an unrelated shared proto generator input
+  (`template-validation-react-vite-deep`) is missing from the dirty worktree.
+
+## 2026-08-20 — Production-readiness evidence pass
+
+- Implemented honest five-state metric propagation (`measured`, `unsupported`,
+  `failed`, `stale`, `not_yet_sampled`) through the protobuf/API/UI path;
+  non-measured values are excluded from threshold evaluation and are not
+  rendered as numeric zeroes.
+- Added native CPU, memory, network, process, disk, and typed investigation
+  paths for the supported build targets. Shell investigations remain declared
+  escape hatches where they provide materially richer Linux-only evidence.
+- Added authoritative disk-pressure consumption to autoheal, low-power
+  collection profiles and headroom self-metrics, PID-scoped stop validation,
+  platform evidence metadata, and the responsive `vrooli-default` UI contract.
+- Live evidence: lifecycle-managed System Monitor is healthy; the latest direct
+  `/health` sample reports `last_cycle_duration_ms` of 456.376 with
+  `headroom_ok: true`, and `/api/v1/disk-pressure` reports the observed `/`
+  mount at 68.003%. Native CPU investigation execution completed.
+- BAS evidence is current at desktop, tablet, and mobile sizes. Settled metric
+  captures report `DISK: 68.0%`, four numeric meters, and a typed GPU status;
+  the 68-second hold reports the same disk value. At 390px the root remains
+  390px wide, header controls are within the viewport, detail buttons are
+  uniquely named, and the logs page text controls now measure 44px high.
+- Validation: four-target Go builds plus collectors/process-sampler contract
+  test compilation pass; host collector/procsampler/convert tests pass. UI
+  type-check, build, lint (0 errors / 616 warnings), unit-health (0 blocking),
+  experience validation, dependency governance, and all 216 UI tests pass.
+- Autoheal evidence: after a control-plane stop, two `vrooli-autoheal tick`
+  cycles produced a successful `scenario-system-monitor/start`; the scenario
+  returned healthy without a scenario-specific autoheal opt-in.
+- The latest terminal governed run `20260820-083236-aabbc0fe` passed all 22
+  phases in 373 seconds, including Agent Conformance at L4. The optional
+  integration remains declared with its profile source and typed degraded
+  behavior. Agent Manager's lifecycle manifest now gives its synchronous
+  recovery/bootstrap path a 90-second API readiness budget; its optional
+  credential gaps remain explicitly degraded.
+- Raspberry Pi 4 hardware remains unavailable. Linux arm64 therefore remains
+  build-verified rather than promoted to supported; no hardware claim is being
+  inferred from the cross-build.
+
 ## 2026-02-16 — Fourth Spec Sync Pass
 
 ### What Was Synced
@@ -20,7 +73,7 @@
 ### Corrected Status Summary (18 modules)
 
 - **10 implemented**: MOD-P0-001 (metrics), MOD-P0-002 (anomaly detection), MOD-P0-003 (investigations), MOD-P0-005 (thresholds), MOD-P0-006 (reports), MOD-P0-007 (dashboard), MOD-P0-010 (infrastructure), MOD-P1-012 (webhooks), MOD-P1-013 (cooldown), MOD-P1-014 (agent config)
-- **4 in-progress**: MOD-P0-004 (QuestDB — defaults to in-memory), MOD-P0-008 (scripts — API placeholders), MOD-P0-009 (process mgmt — kill endpoint missing), MOD-P1-016 (alert routing — email not implemented)
+- **4 in-progress**: MOD-P0-004 (persistent metrics storage — defaults to in-memory), MOD-P0-008 (scripts — API placeholders), MOD-P0-009 (process mgmt — kill endpoint missing), MOD-P1-016 (alert routing — email not implemented)
 - **4 pending**: MOD-P1-011 (trends), MOD-P1-015 (custom metrics), MOD-P1-017 (predictions), MOD-P1-018 (correlations)
 
 ---
@@ -57,17 +110,22 @@
 **Second Pass:**
 - PRD.md: Corrected polling intervals, added agent config fields, documented UI maintenance state behavior
 - README.md: Corrected polling descriptions, clarified CLI label
-- api/REFACTORING.md: Updated module structure diagram
 - docs/manifest.json: Created initial manifest
 
 **First Pass:**
 - PRD.md: Corrected script count (70+ → 30), removed non-existent timeline endpoint, added missing endpoints, documented CLI bugs, fixed design decisions
 - README.md: Matched corrections from PRD sync
 
+### 2026-07-08 Cleanup-Manager Integration Slice
+
+- Implemented the proto-owned `MetricsService.GetDiskDetail` handler and service path with read-only partition, largest-directory, and largest-file attribution.
+- Added storage-manager handoff notes to disk detail responses so system-monitor surfaces pressure while storage-manager owns preview/apply/audit.
+- Validation: `go test ./...` passed in `scenarios/system-monitor/api`.
+
 ### Unresolved Discrepancies
 
 1. **CLI report endpoint bug**: CLI calls `/api/reports/generate` (wrong path). Actual API route is `/api/v1/reports/generate`. Needs code fix.
-2. **UI references non-existent endpoints**: `/api/v1/metrics/timeline`, `/api/v1/metrics/disk/details`, and `POST /processes/{pid}/kill` are called by UI code but not registered in the API router. Needs API implementation or UI fallback handling.
+2. **UI references non-existent process endpoint**: `POST /processes/{pid}/kill` is called by UI code but not registered in the API router. Needs API implementation or UI fallback handling.
 3. **Script API not implemented**: API has placeholder handlers for script list/get/execute. 30 scripts exist on disk but aren't served via API.
 4. **Empty test/ directory**: Tests defined via test-genie but no test phases populated.
 5. **No validation references**: All requirement modules have empty `ref` fields for validation entries — no actual test files to reference.

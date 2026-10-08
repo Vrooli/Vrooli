@@ -1,0 +1,56 @@
+{
+  "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
+  "name": "tpm_credential_access",
+  "storage": {
+    "entries": {},
+    "rationale": "This safeguard does not persist a host file or directory; the explicit empty declaration records that its effect is runtime-only or externally owned."
+  },
+  "description": "Grant the operator account access to the TPM so the encrypted credential store opens unattended after a reboot",
+  "handler": "tpm_credential_access",
+  "platforms": [
+    "linux"
+  ],
+  "risk": "medium",
+  "privilege": "elevated",
+  "bundling": "prohibited",
+  "capability": "credential-storage",
+  "capability_role": "control",
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "macos": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "windows": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        }
+      }
+    }
+  },
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "macos": {
+      "status": "not_applicable",
+      "evidence": "macOS does not expose the Linux TPM device and tpm2-tools interface used by safeguard tpm_credential_access; the platform has a distinct host security and lifecycle model.",
+      "review_by": "2027-08-26"
+    },
+    "windows": {
+      "status": "not_applicable",
+      "evidence": "Windows does not expose the Linux TPM device and tpm2-tools interface used by safeguard tpm_credential_access; the platform has a distinct host security and lifecycle model.",
+      "review_by": "2027-08-26"
+    }
+  },
+  "risk_class": "reload_live"
+}

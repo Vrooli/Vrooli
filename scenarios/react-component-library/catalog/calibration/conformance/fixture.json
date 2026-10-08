@@ -1,0 +1,10 @@
+{
+  "gate": "conformance",
+  "assetId": "workbench.conformance",
+  "kind": "component",
+  "runner": "static",
+  "requiredFailureCode": "conformance.ramp-adherence",
+  "description": "A workbench source using a raw spacing utility must be reported by the conformance measures.",
+  "source": "broken.tsx",
+  "mutation": "conformance"
+}

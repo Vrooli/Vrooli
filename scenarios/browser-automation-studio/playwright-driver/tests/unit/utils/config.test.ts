@@ -1,4 +1,5 @@
-import { loadConfig } from '../../../src/config';
+import { getObservabilityConfigSummary, loadConfig } from '../../../src/config';
+import { ObservabilityCache } from '../../../src/observability/cache';
 
 describe('Config', () => {
   const originalEnv = process.env;
@@ -11,6 +12,51 @@ describe('Config', () => {
 
   afterAll(() => {
     process.env = originalEnv;
+  });
+
+  describe('observability summary', () => {
+    it('marks every process-start option as unavailable for runtime editing', () => {
+      const summary = getObservabilityConfigSummary();
+      const options = Object.values(summary.all_options ?? {}).flat();
+
+      expect(options).toHaveLength(68);
+      expect(options.every(option => option.editable === false)).toBe(true);
+    });
+
+    it.each([
+      ['unset', undefined, false],
+      ['set to default', '', false],
+      ['modified', 'synthetic-recovery-credential', true],
+    ])('redacts recovery credential in serialized %s summary while preserving metadata', (_state, value, modified) => {
+      if (value === undefined) delete process.env.PLAYWRIGHT_DRIVER_ADMIN_SECRET;
+      else process.env.PLAYWRIGHT_DRIVER_ADMIN_SECRET = value;
+
+      const summary = getObservabilityConfigSummary();
+      const internal = summary.all_options?.internal.find(option => option.env_var === 'PLAYWRIGHT_DRIVER_ADMIN_SECRET');
+      expect(internal).toMatchObject({
+        current_value: modified ? '[REDACTED]' : '',
+        default_value: '',
+        is_modified: modified,
+        description: expect.any(String),
+      });
+      const serialized = JSON.stringify(summary);
+      expect(serialized).not.toContain('synthetic-recovery-credential');
+      expect(loadConfig().server.adminSecret).toBe(value?.trim() ?? '');
+      if (modified) {
+        expect(summary.modified_options?.find(option => option.env_var === 'PLAYWRIGHT_DRIVER_ADMIN_SECRET'))
+          .toMatchObject({ current_value: '[REDACTED]', default_value: '' });
+      }
+
+      for (const depth of ['standard', 'deep']) {
+        const response = { depth, config: summary };
+        const cache = new ObservabilityCache(1000);
+        cache.set(depth, response as any);
+        const completeResponse = JSON.stringify(cache.get(depth));
+        expect(completeResponse).not.toContain('synthetic-recovery-credential');
+        expect(completeResponse).toContain('PLAYWRIGHT_DRIVER_ADMIN_SECRET');
+        expect(completeResponse).toContain('Shared secret required for loopback administrative session recovery');
+      }
+    });
   });
 
   describe('loadConfig', () => {
@@ -59,6 +105,13 @@ describe('Config', () => {
       const config = loadConfig();
 
       expect(config.browser.executablePath).toBe('/path/to/chrome');
+    });
+
+    it('loads an opt-in deterministic microphone fixture path', () => {
+      process.env.BAS_FAKE_MICROPHONE_FILE = ' /fixtures/reference.wav ';
+      const config = loadConfig();
+
+      expect(config.browser.fakeMicrophoneFile).toBe('/fixtures/reference.wav');
     });
 
     it('should set ignoreHTTPSErrors when enabled', () => {

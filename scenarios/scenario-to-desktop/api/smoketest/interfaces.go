@@ -7,7 +7,16 @@ import (
 	"context"
 	"os"
 	"time"
+
+	"scenario-to-desktop-api/validationdesktop"
 )
+
+// ProviderJourneyExecutor runs a provider-owned workflow against the packaged
+// desktop target. It is optional so legacy smoke callers retain the platform
+// journey only.
+type ProviderJourneyExecutor interface {
+	Execute(context.Context, validationdesktop.Request) validationdesktop.Result
+}
 
 // Service orchestrates smoke test operations.
 type Service interface {
@@ -16,6 +25,34 @@ type Service interface {
 
 	// CurrentPlatform returns the current platform identifier.
 	CurrentPlatform() string
+}
+
+// SmokeTestRequest carries pipeline identity and target-mode context into a
+// smoke run. The legacy Service method remains as a compatibility seam for
+// deterministic callers; production orchestration uses RunSmokeTestRequest.
+type SmokeTestRequest struct {
+	SmokeTestID    string
+	ScenarioName   string
+	ArtifactPath   string
+	Platform       string
+	DeploymentMode string
+	ProxyURL       string
+	PipelineID     string
+	JourneyID      string
+}
+
+type requestService interface {
+	PerformSmokeTestRequest(context.Context, SmokeTestRequest)
+}
+
+// RunSmokeTestRequest preserves compatibility with older service doubles while
+// ensuring the default implementation receives the complete request context.
+func RunSmokeTestRequest(ctx context.Context, service Service, request SmokeTestRequest) {
+	if runner, ok := service.(requestService); ok {
+		runner.PerformSmokeTestRequest(ctx, request)
+		return
+	}
+	service.PerformSmokeTest(ctx, request.SmokeTestID, request.ScenarioName, request.ArtifactPath, request.Platform)
 }
 
 // Store manages smoke test status tracking.
@@ -190,7 +227,9 @@ type PrerequisiteCheckerI interface {
 }
 
 // Clock abstracts time operations for testability.
-type Clock interface {
+type Clock = TimeSource
+
+type TimeSource interface {
 	// Now returns the current time.
 	Now() time.Time
 

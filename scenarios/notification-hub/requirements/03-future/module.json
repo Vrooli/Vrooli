@@ -1,0 +1,40 @@
+{
+  "_metadata": {
+    "description": "P2 operational targets for the owner notification spine. Amended 2026-08-17: acknowledgement and escalation were promoted to P1 as NOTIFICA-P1-009 and NOTIFICA-P1-011.",
+    "module": "P2-targets",
+    "priority": "P2",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P2",
+      "description": "The system may deliver notifications over SMS using credentials supplied by the twilio resource.",
+      "id": "NOTIFICA-P2-002",
+      "prd_ref": "OT-P2-002",
+      "status": "planned",
+      "title": "SMS channel",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:NOTIFICA-P2-002] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "When the install runs a shared or hosted trust posture, the system may route notifications per authenticated identity.",
+      "id": "NOTIFICA-P2-003",
+      "prd_ref": "OT-P2-003",
+      "status": "planned",
+      "title": "Multi-user routing",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:NOTIFICA-P2-003] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ]
+}

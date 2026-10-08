@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package vrooli.notification_hub.v1.shared;
+
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/shared;shared_v1";
+
+enum NotificationState {
+  NOTIFICATION_STATE_UNSPECIFIED = 0;
+  NOTIFICATION_STATE_PENDING = 1;
+  NOTIFICATION_STATE_HELD = 2;
+  NOTIFICATION_STATE_ROUTED = 3;
+  NOTIFICATION_STATE_DELIVERED = 4;
+  NOTIFICATION_STATE_FAILED = 5;
+  NOTIFICATION_STATE_UNROUTABLE = 6;
+  NOTIFICATION_STATE_SUPPRESSED = 7;
+}
+
+enum ChannelDisposition {
+  CHANNEL_DISPOSITION_UNSPECIFIED = 0;
+  CHANNEL_DISPOSITION_READY = 1;
+  CHANNEL_DISPOSITION_NOT_INSTALLED = 2;
+  CHANNEL_DISPOSITION_NOT_PERMITTED = 3;
+  CHANNEL_DISPOSITION_NOT_CONFIGURED = 4;
+  CHANNEL_DISPOSITION_DEGRADED = 5;
+  CHANNEL_DISPOSITION_UNKNOWN = 6;
+}
+
+message Notification {
+  string id = 1;
+  string requested_by = 2;
+  string body = 3;
+  string title = 4;
+  string urgency = 5;
+  string sensitivity_label = 6;
+  string idempotency_key = 7;
+  string dedupe_key = 8;
+  NotificationState state = 9;
+  string reason = 10;
+  string created_at = 11;
+  string updated_at = 12;
+}
+
+message ChannelStatus {
+  string channel = 1;
+  string machine_id = 2;
+  ChannelDisposition disposition = 3;
+  string reason = 4;
+  string observed_at = 5;
+}
+
+message DeliveryReceipt {
+  string id = 1;
+  string notification_id = 2;
+  string channel = 3;
+  string machine_id = 4;
+  string provider_id = 5;
+  string delivered_at = 6;
+}

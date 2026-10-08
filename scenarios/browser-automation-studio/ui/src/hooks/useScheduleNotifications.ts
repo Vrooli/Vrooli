@@ -5,7 +5,7 @@
  */
 
 import { useEffect, useCallback } from 'react';
-import { useWebSocket } from '@/contexts/WebSocketContext';
+import { useWebSocketMessage } from '@/contexts/WebSocketContext';
 import { useScheduleStore } from '@stores/scheduleStore';
 import { logger } from '@utils/logger';
 import {
@@ -32,7 +32,7 @@ function formatDuration(ms: number): string {
 }
 
 export function useScheduleNotifications() {
-  const { lastMessage } = useWebSocket();
+
   const { schedules, fetchSchedules } = useScheduleStore();
 
   // Update tray whenever schedules change
@@ -75,8 +75,7 @@ export function useScheduleNotifications() {
     }
   }, [fetchSchedules]);
 
-  useEffect(() => {
-    if (!lastMessage) return;
+  useWebSocketMessage((lastMessage) => {
 
     const { type, data } = lastMessage;
 
@@ -98,5 +97,5 @@ export function useScheduleNotifications() {
         handleScheduleEvent(envelope.payload);
       }
     }
-  }, [lastMessage, handleScheduleEvent]);
+  });
 }

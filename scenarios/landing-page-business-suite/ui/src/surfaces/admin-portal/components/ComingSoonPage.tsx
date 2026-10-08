@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { Wrench, Settings } from 'lucide-react';
 import { AdminLayout } from './AdminLayout';
@@ -23,7 +24,7 @@ export interface ComingSoonPageProps {
   /** List of features that will be available */
   features: string[];
   /** Alternative actions/pages to use in the meantime */
-  alternatives: string;
+  alternatives: ReactNode;
 }
 
 /**
@@ -46,7 +47,7 @@ export interface ComingSoonPageProps {
  *     'View user profile details and activity history',
  *     'Manage user roles and permissions',
  *   ]}
- *   alternatives="In the meantime, use <strong>Feedback</strong> to view user submissions..."
+ *   alternatives={<>In the meantime, use <strong>Feedback</strong> to view user submissions...</>}
  * />
  * ```
  */
@@ -65,7 +66,6 @@ export function ComingSoonPage({
     <AdminLayout maxWidth="narrow">
       <div className={LAYOUT.sectionSpacing}>
         <PageHeader
-          variant="icon-title"
           title={title}
           description={description}
           icon={icon}
@@ -95,7 +95,7 @@ export function ComingSoonPage({
             <div className="mt-6 p-4 bg-slate-900/50 rounded-lg border border-white/10">
               <div className="flex items-center gap-2 text-sm text-slate-400">
                 <Settings className="h-4 w-4" />
-                <span dangerouslySetInnerHTML={{ __html: alternatives }} />
+                <span>{alternatives}</span>
               </div>
             </div>
           </CardContent>

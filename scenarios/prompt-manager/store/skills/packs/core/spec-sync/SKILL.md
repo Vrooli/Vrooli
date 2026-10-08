@@ -1,3 +1,24 @@
+---
+name: "spec-sync"
+description: "Synchronize scenario specifications (PRD.md, requirements/, README.md, docs/) with actual implementation state. Ensures specs accurately reflect what the code does, enabling faithful scenario recreation after archiving."
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer","documentation","audits"]
+  tags: ["skill"]
+  icon: "refreshcw"
+  status: "active"
+  defaultScope: "audit-scope"
+  revision: 1
+  createdAt: "2026-02-16T00:00:00Z"
+  updatedAt: "2026-02-16T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager", "swarm-manager", "vrooli"]
+    commands: ["prompt-manager configuration", "prompt-manager skill", "prompt-manager skill read", "swarm-manager", "swarm-manager archive", "vrooli scenario"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: Spec Sync
 
 Synchronize **specification artifacts with actual implementation state** in `scenarios/{{TARGET}}/`, ensuring that PRD.md, requirements/, README.md, and docs/ accurately describe what the code does today.
@@ -5,8 +26,8 @@ Synchronize **specification artifacts with actual implementation state** in `sce
 Your goal is to produce specifications so faithful to the current implementation that a new agent could **recreate the scenario from specs alone** with full feature parity. This is the critical precondition before archiving a scenario via the swarm-manager.
 
 Required reading:
-- `prompt-manager skills read documentation-health`
-- `prompt-manager skills read visited-tracker-tools`
+- `prompt-manager skill read documentation-health`
+- `prompt-manager skill read visited-tracker-tools`
 
 ---
 
@@ -93,7 +114,7 @@ find scenarios/{{TARGET}} -name "*.go" -o -name "*.ts" -o -name "*.tsx" -o -name
 | Missing Artifact | Action | When |
 |-----------------|--------|------|
 | `PRD.md` | **STOP** — flag to user. PRD.md is a prerequisite input for this skill. | — |
-| `requirements/` | Bootstrap via `prd-control-tower requirements generate` | Phase 4 |
+| `requirements/` | Bootstrap via `vrooli scenario requirements init {{TARGET}}` (or the business-health wizard for a full contract) | Phase 4 |
 | `docs/internal/SEAMS.md` | Create via `knowledge-observatory docs template seams` | Phase 6 |
 | `docs/internal/PROBLEMS.md` | Create via `knowledge-observatory docs template problems` | Phase 6 |
 | `docs/internal/PROGRESS.md` | Create from template | Phase 6 |
@@ -159,20 +180,20 @@ Compare the capability map against PRD.md operational targets:
 
 If Phase 1 detected that `requirements/` is missing, bootstrap it before syncing:
 
-1. **Primary path** — generate from PRD operational targets:
+1. **Primary path** — scaffold the registry skeleton from PRD operational targets:
    ```bash
-   prd-control-tower requirements generate {{TARGET}} --context-file scenarios/{{TARGET}}/PRD.md --json
+   vrooli scenario requirements init {{TARGET}}
    ```
-   This creates `requirements/index.json`, `requirements/README.md`, and `requirements/01-*/module.json` files from PRD operational targets.
+   This routes to the `prd_missing_requirements` fixer, creating `requirements/index.json`, `requirements/README.md`, and `requirements/01-*/module.json` files from PRD operational targets. For a full guided contract (PRD + requirements together), drive the business-health wizard instead — see the scenario-generation skill.
 
-2. **Fallback** — if prd-control-tower is unavailable, scaffold a template structure:
+2. **Fallback** — if the routed `init` cannot resolve, apply the fixer directly:
    ```bash
-   test-genie requirements init --dir scenarios/{{TARGET}} --scenario {{TARGET}}
+   business-health fix apply {{TARGET}} --rules prd_missing_requirements
    ```
 
 3. **Validate** the generated structure:
    ```bash
-   prd-control-tower requirements validate {{TARGET}} --json
+   vrooli scenario requirements validate {{TARGET}} --json
    ```
 
 4. Proceed to the sync step below to verify generated statuses against actual code.
@@ -268,7 +289,7 @@ CRITICAL item fails
     └─ Infrastructure does not exist at all?
         │
         ├─ requirements/ or modules?
-        │   └─ Bootstrap via prd-control-tower requirements generate (Phase 4)
+        │   └─ Bootstrap via vrooli scenario requirements init (Phase 4)
         │
         ├─ Core internal doc (SEAMS, PROBLEMS, PROGRESS)?
         │   └─ Create via knowledge-observatory docs template (Phase 6)
@@ -344,4 +365,4 @@ You must **NOT**:
 - Trusting existing specs without verifying against code
 - Bulk status updates without individual verification
 - Over-documenting internal utilities — focus on user-facing capabilities
-- Creating granular requirements modules for trivial internal helpers (e.g., a separate module for a string-formatting utility). You **should** still bootstrap the `requirements/` structure via `prd-control-tower requirements generate` if it does not exist — see Phase 4.
+- Creating granular requirements modules for trivial internal helpers (e.g., a separate module for a string-formatting utility). You **should** still bootstrap the `requirements/` structure via `vrooli scenario requirements init` if it does not exist — see Phase 4.

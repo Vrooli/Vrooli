@@ -1,0 +1,27 @@
+{
+  "id": "switchboard-console",
+  "name": "Switchboard Conversation Console",
+  "privateTokens": [
+    "w-sidebar",
+    "sidebar",
+    "font-sans",
+    "sans"
+  ],
+  "version": "1.0.0",
+  "inherits": "_base",
+  "default": false,
+  "description": "Green-gray communication console with teal actions, amber attention, Archivo display type and IBM Plex text.",
+  "tags": [
+    "switchboard",
+    "communications",
+    "console"
+  ],
+  "adapters": {
+    "react-vite-tailwind": {
+      "path": "adapters/react-vite-tailwind",
+      "supports": [
+        "templates/scenarios/react-vite"
+      ]
+    }
+  }
+}

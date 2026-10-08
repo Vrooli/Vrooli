@@ -1,0 +1,401 @@
+package memberflow
+
+import (
+	"fmt"
+	"strings"
+)
+
+type graphTopicCatalogMissingRule struct{}
+
+func (r graphTopicCatalogMissingRule) ID() string { return "graph_topic_catalog_missing" }
+func (r graphTopicCatalogMissingRule) Group() RuleGroup {
+	return OperatingRuleGroupDocs
+}
+func (r graphTopicCatalogMissingRule) DefaultSeverity() Severity { return SeverityError }
+func (r graphTopicCatalogMissingRule) AppliesTo(ctx RuleContext) bool {
+	return string(ctx.Block.Metadata.Mode) == "contract"
+}
+
+func (r graphTopicCatalogMissingRule) Check(ctx RuleContext) []OperatingGraphFinding {
+	if ctx.Block.Docs.TopicCatalog.Present {
+		return nil
+	}
+	builder := NewOperatingFindingBuilder(ctx, r)
+	return []OperatingGraphFinding{builder.base(ctx.Block.Source.Path, ctx.Block.Source.FenceLine, "contract graph source is missing a ## Topic Catalog table")}
+}
+
+type graphTopicCatalogInvalidTopicRule struct{}
+
+func (r graphTopicCatalogInvalidTopicRule) ID() string { return "graph_topic_catalog_invalid_topic" }
+func (r graphTopicCatalogInvalidTopicRule) Group() RuleGroup {
+	return OperatingRuleGroupDocs
+}
+func (r graphTopicCatalogInvalidTopicRule) DefaultSeverity() Severity { return SeverityError }
+func (r graphTopicCatalogInvalidTopicRule) AppliesTo(ctx RuleContext) bool {
+	return string(ctx.Block.Metadata.Mode) == "contract"
+}
+
+func (r graphTopicCatalogInvalidTopicRule) Check(ctx RuleContext) []OperatingGraphFinding {
+	builder := NewOperatingFindingBuilder(ctx, r)
+	var findings []OperatingGraphFinding
+	for _, row := range ctx.Block.Docs.TopicCatalog.Rows {
+		if row.Topic != "" {
+			continue
+		}
+		f := builder.base(ctx.Block.Source.Path, row.SourceLine, fmt.Sprintf("topic catalog row uses invalid topic token %q", row.RawTopic))
+		findings = append(findings, f)
+	}
+	return findings
+}
+
+type graphTopicCatalogDriftRule struct{}
+
+func (r graphTopicCatalogDriftRule) ID() string                { return "graph_topic_catalog_drift" }
+func (r graphTopicCatalogDriftRule) Group() RuleGroup          { return OperatingRuleGroupDocs }
+func (r graphTopicCatalogDriftRule) DefaultSeverity() Severity { return SeverityError }
+func (r graphTopicCatalogDriftRule) AppliesTo(ctx RuleContext) bool {
+	return string(ctx.Block.Metadata.Mode) == "contract"
+}
+
+func (r graphTopicCatalogDriftRule) Check(ctx RuleContext) []OperatingGraphFinding {
+	if !ctx.Block.Docs.TopicCatalog.Present {
+		return nil
+	}
+	builder := NewOperatingFindingBuilder(ctx, r)
+	rows := map[string]OperatingTopicCatalogRow{}
+	for _, row := range ctx.Block.Docs.TopicCatalog.Rows {
+		if row.Topic != "" {
+			rows[qualifiedTopicKey(row.Qualifier, row.Topic)] = row
+		}
+	}
+	graphTopics := map[string]OperatingGraphNode{}
+	for _, node := range ctx.Block.Graph.Nodes {
+		if node.Kind != OperatingGraphNodeKindTopic || node.Qualifier == OperatingGraphQualifierOld || node.Qualifier == OperatingGraphQualifierExternal {
+			continue
+		}
+		graphTopics[qualifiedTopicKey(string(node.Qualifier), node.Value)] = node
+	}
+	var findings []OperatingGraphFinding
+	for key, node := range graphTopics {
+		if _, ok := rowForQualifiedTopic(rows, key); ok {
+			continue
+		}
+		f := builder.WithNode(ctx.Block.Source.Path, node, fmt.Sprintf("graph topic %q is missing from the Topic Catalog table", displayQualifiedTopic(string(node.Qualifier), node.Value)))
+		f.Topic = node.Value
+		findings = append(findings, f)
+	}
+	for key, row := range rows {
+		// Both directions use prefix overlap, not exact keys: a catalog row is
+		// backed when the graph draws a topic covering it, whichever spelling
+		// each side uses.
+		if _, ok := graphTopicForQualifiedTopic(graphTopics, key); ok {
+			continue
+		}
+		f := builder.base(ctx.Block.Source.Path, row.SourceLine, fmt.Sprintf("Topic Catalog row %q is missing from the contract graph", displayQualifiedTopic(row.Qualifier, row.Topic)))
+		f.Topic = row.Topic
+		findings = append(findings, f)
+	}
+	return findings
+}
+
+type graphTopicCatalogUnknownStatusRule struct{}
+
+func (r graphTopicCatalogUnknownStatusRule) ID() string { return "graph_topic_catalog_unknown_status" }
+func (r graphTopicCatalogUnknownStatusRule) Group() RuleGroup {
+	return OperatingRuleGroupDocs
+}
+func (r graphTopicCatalogUnknownStatusRule) DefaultSeverity() Severity { return SeverityError }
+func (r graphTopicCatalogUnknownStatusRule) AppliesTo(ctx RuleContext) bool {
+	return string(ctx.Block.Metadata.Mode) == "contract"
+}
+
+func (r graphTopicCatalogUnknownStatusRule) Check(ctx RuleContext) []OperatingGraphFinding {
+	builder := NewOperatingFindingBuilder(ctx, r)
+	var findings []OperatingGraphFinding
+	for _, row := range ctx.Block.Docs.TopicCatalog.Rows {
+		if row.StatusKind != OperatingTopicStatusUnknown {
+			continue
+		}
+		f := builder.base(ctx.Block.Source.Path, row.SourceLine, fmt.Sprintf("Topic Catalog row %q uses unknown status %q", displayQualifiedTopic(row.Qualifier, row.Topic), row.Status))
+		f.Topic = row.Topic
+		findings = append(findings, f)
+	}
+	return findings
+}
+
+type graphTopicCatalogStatusQualifierDriftRule struct{}
+
+func (r graphTopicCatalogStatusQualifierDriftRule) ID() string {
+	return "graph_topic_catalog_status_qualifier_drift"
+}
+
+func (r graphTopicCatalogStatusQualifierDriftRule) Group() RuleGroup {
+	return OperatingRuleGroupDocs
+}
+
+func (r graphTopicCatalogStatusQualifierDriftRule) DefaultSeverity() Severity {
+	return SeverityError
+}
+
+func (r graphTopicCatalogStatusQualifierDriftRule) AppliesTo(ctx RuleContext) bool {
+	return string(ctx.Block.Metadata.Mode) == "contract"
+}
+
+func (r graphTopicCatalogStatusQualifierDriftRule) Check(ctx RuleContext) []OperatingGraphFinding {
+	builder := NewOperatingFindingBuilder(ctx, r)
+	var findings []OperatingGraphFinding
+	for _, row := range ctx.Block.Docs.TopicCatalog.Rows {
+		wantQualifier, ok := expectedTopicCatalogQualifier(row.StatusKind)
+		if !ok || row.Topic == "" || row.Qualifier == wantQualifier {
+			continue
+		}
+		f := builder.base(ctx.Block.Source.Path, row.SourceLine, fmt.Sprintf("Topic Catalog status %q expects %s, got %s", row.Status, displayQualifiedTopic(wantQualifier, row.Topic), displayQualifiedTopic(row.Qualifier, row.Topic)))
+		f.Topic = row.Topic
+		findings = append(findings, f)
+	}
+	return findings
+}
+
+type graphTopicCatalogLiveStatusUnbackedRule struct{}
+
+func (r graphTopicCatalogLiveStatusUnbackedRule) ID() string {
+	return "graph_topic_catalog_live_status_unbacked"
+}
+
+func (r graphTopicCatalogLiveStatusUnbackedRule) Group() RuleGroup {
+	return OperatingRuleGroupDocs
+}
+func (r graphTopicCatalogLiveStatusUnbackedRule) DefaultSeverity() Severity { return SeverityError }
+func (r graphTopicCatalogLiveStatusUnbackedRule) AppliesTo(ctx RuleContext) bool {
+	return string(ctx.Block.Metadata.Mode) == "contract"
+}
+
+func (r graphTopicCatalogLiveStatusUnbackedRule) Check(ctx RuleContext) []OperatingGraphFinding {
+	builder := NewOperatingFindingBuilder(ctx, r)
+	var findings []OperatingGraphFinding
+	for _, row := range ctx.Block.Docs.TopicCatalog.Rows {
+		if row.Topic == "" || !operatingTopicCatalogStatusIsCurrent(row.StatusKind) || catalogGraphTopicExists(ctx.Block, row.Qualifier, row.Topic) {
+			continue
+		}
+		f := builder.base(ctx.Block.Source.Path, row.SourceLine, fmt.Sprintf("Topic Catalog row %q is marked %q but has no matching live graph topic node", displayQualifiedTopic(row.Qualifier, row.Topic), row.Status))
+		f.Topic = row.Topic
+		findings = append(findings, f)
+	}
+	return findings
+}
+
+type graphTopicCatalogTransitionalWithoutTargetRule struct{}
+
+func (r graphTopicCatalogTransitionalWithoutTargetRule) ID() string {
+	return "graph_topic_catalog_transitional_without_target"
+}
+
+func (r graphTopicCatalogTransitionalWithoutTargetRule) Group() RuleGroup {
+	return OperatingRuleGroupDocs
+}
+
+func (r graphTopicCatalogTransitionalWithoutTargetRule) DefaultSeverity() Severity {
+	return SeverityWarning
+}
+
+func (r graphTopicCatalogTransitionalWithoutTargetRule) AppliesTo(ctx RuleContext) bool {
+	return string(ctx.Block.Metadata.Mode) == "contract"
+}
+
+func (r graphTopicCatalogTransitionalWithoutTargetRule) Check(ctx RuleContext) []OperatingGraphFinding {
+	builder := NewOperatingFindingBuilder(ctx, r)
+	var findings []OperatingGraphFinding
+	for _, row := range ctx.Block.Docs.TopicCatalog.Rows {
+		if row.StatusKind != OperatingTopicStatusLiveTransitional || catalogRowReferencesFutureTopic(ctx.Block, row) {
+			continue
+		}
+		f := builder.base(ctx.Block.Source.Path, row.SourceLine, fmt.Sprintf("Topic Catalog row %q is live transitional but does not reference a future replacement topic", displayQualifiedTopic(row.Qualifier, row.Topic)))
+		f.Topic = row.Topic
+		findings = append(findings, f)
+	}
+	return findings
+}
+
+type graphTopicCatalogPurposeDriftRule struct{}
+
+func (r graphTopicCatalogPurposeDriftRule) ID() string {
+	return "graph_topic_catalog_purpose_drift"
+}
+
+func (r graphTopicCatalogPurposeDriftRule) Group() RuleGroup {
+	return OperatingRuleGroupDocs
+}
+
+func (r graphTopicCatalogPurposeDriftRule) DefaultSeverity() Severity {
+	return SeverityError
+}
+
+func (r graphTopicCatalogPurposeDriftRule) AppliesTo(ctx RuleContext) bool {
+	return string(ctx.Block.Metadata.Mode) == "contract"
+}
+
+func (r graphTopicCatalogPurposeDriftRule) Check(ctx RuleContext) []OperatingGraphFinding {
+	if !ctx.Block.Docs.TopicCatalog.Present {
+		return nil
+	}
+	builder := NewOperatingFindingBuilder(ctx, r)
+	catalog := topicCatalogByQualifiedTopic(ctx.Runtime.Contracts[ctx.Block.Metadata.Team])
+	var findings []OperatingGraphFinding
+	for _, row := range ctx.Block.Docs.TopicCatalog.Rows {
+		if row.Topic == "" {
+			continue
+		}
+		entry, ok := catalogEntryForTopic(catalog, row.Qualifier, row.Topic)
+		if !ok {
+			if operatingTopicCatalogStatusIsCurrent(row.StatusKind) {
+				f := builder.base(ctx.Block.Source.Path, row.SourceLine, fmt.Sprintf("Topic Catalog row %q has no matching team.json::topicCatalog entry", displayQualifiedTopic(row.Qualifier, row.Topic)))
+				f.Topic = row.Topic
+				findings = append(findings, f)
+			}
+			continue
+		}
+		if normalizeCatalogPurpose(row.Purpose) == normalizeCatalogPurpose(entry.Purpose) {
+			continue
+		}
+		f := builder.base(ctx.Block.Source.Path, row.SourceLine, fmt.Sprintf("Topic Catalog purpose for %q does not match team.json::topicCatalog", displayQualifiedTopic(row.Qualifier, row.Topic)))
+		f.Topic = row.Topic
+		findings = append(findings, f)
+	}
+	return findings
+}
+
+// catalogEntryForTopic finds a topic's authored catalog entry by FAMILY.
+//
+// 39 topic families across all six teams are declared under two spellings —
+// one member writes `friction-inbox/*`, another writes
+// `friction-inbox/<scope>/<slug>` — while team.json::topicCatalog authors one
+// entry per family. Matching on the exact string treats those as two different
+// topics, so one of them reports as having no catalog entry and no purpose when
+// both name the same thing. The trailing segment is an instance placeholder in
+// either spelling, not part of the family's name.
+func catalogEntryForTopic(catalog map[string]TopicCatalogEntry, qualifier, topic string) (TopicCatalogEntry, bool) {
+	if entry, ok := catalog[qualifiedTopicKey(qualifier, topic)]; ok {
+		return entry, true
+	}
+	for key, entry := range catalog {
+		keyQualifier, keyTopic, ok := splitQualifiedTopicKey(key)
+		if !ok || keyQualifier != qualifier {
+			continue
+		}
+		// Overlap is the codebase's own prefix semantics: `friction-inbox/*`
+		// covers `friction-inbox/<scope>/<slug>`. Guessing the family from the
+		// token's shape cannot distinguish a broad parent prefix from a sibling
+		// sub-family; prefix containment can.
+		if topicsOverlap(topic, keyTopic) {
+			return entry, true
+		}
+	}
+	return TopicCatalogEntry{}, false
+}
+
+// rowForQualifiedTopic finds a catalog row for a graph topic, by family when
+// the two spell the family differently.
+func rowForQualifiedTopic(rows map[string]OperatingTopicCatalogRow, key string) (OperatingTopicCatalogRow, bool) {
+	if row, ok := rows[key]; ok {
+		return row, true
+	}
+	qualifier, topic, ok := splitQualifiedTopicKey(key)
+	if !ok {
+		return OperatingTopicCatalogRow{}, false
+	}
+	for candidateKey, row := range rows {
+		candidateQualifier, candidateTopic, ok := splitQualifiedTopicKey(candidateKey)
+		if !ok || candidateQualifier != qualifier {
+			continue
+		}
+		if topicsOverlap(topic, candidateTopic) {
+			return row, true
+		}
+	}
+	return OperatingTopicCatalogRow{}, false
+}
+
+// graphTopicForQualifiedTopic finds the graph node covering a catalog row.
+func graphTopicForQualifiedTopic(graphTopics map[string]OperatingGraphNode, key string) (OperatingGraphNode, bool) {
+	if node, ok := graphTopics[key]; ok {
+		return node, true
+	}
+	qualifier, topic, ok := splitQualifiedTopicKey(key)
+	if !ok {
+		return OperatingGraphNode{}, false
+	}
+	for candidateKey, node := range graphTopics {
+		candidateQualifier, candidateTopic, ok := splitQualifiedTopicKey(candidateKey)
+		if !ok || candidateQualifier != qualifier {
+			continue
+		}
+		if topicsOverlap(candidateTopic, topic) {
+			return node, true
+		}
+	}
+	return OperatingGraphNode{}, false
+}
+
+func splitQualifiedTopicKey(key string) (string, string, bool) {
+	qualifier, topic, ok := strings.Cut(key, "\x00")
+	return qualifier, topic, ok
+}
+
+func qualifiedTopicKey(qualifier, topic string) string {
+	return qualifier + "\x00" + topic
+}
+
+func displayQualifiedTopic(qualifier, topic string) string {
+	if qualifier == "" {
+		return "topic:" + topic
+	}
+	return "topic[" + qualifier + "]:" + topic
+}
+
+func catalogGraphTopicExists(block OperatingGraphBlock, qualifier, topic string) bool {
+	for _, node := range block.Graph.Nodes {
+		if node.Kind != OperatingGraphNodeKindTopic || string(node.Qualifier) != qualifier {
+			continue
+		}
+		// Family comparison for the same reason catalogEntryForTopic uses it:
+		// one family may be spelled two ways across members, and a catalog row
+		// documents the family rather than one member's spelling of it.
+		if node.Value == topic || topicsOverlap(node.Value, topic) {
+			return true
+		}
+	}
+	return false
+}
+
+func catalogRowReferencesFutureTopic(block OperatingGraphBlock, row OperatingTopicCatalogRow) bool {
+	if strings.Contains(row.Purpose, "topic[future]:") {
+		return true
+	}
+	for _, node := range block.Graph.Nodes {
+		if node.Kind == OperatingGraphNodeKindTopic && node.Qualifier == OperatingGraphQualifierFuture && topicsOverlap(node.Value, row.Topic) {
+			return true
+		}
+	}
+	return false
+}
+
+func topicCatalogByQualifiedTopic(contract *LoadedTeamContract) map[string]TopicCatalogEntry {
+	out := map[string]TopicCatalogEntry{}
+	if contract == nil {
+		return out
+	}
+	for _, entry := range contract.TopicCatalog {
+		prefix := strings.TrimSpace(entry.Prefix)
+		status := ParseOperatingTopicCatalogStatus(entry.Status)
+		qualifier := strings.TrimSpace(entry.Qualifier)
+		if qualifier == "" {
+			qualifier, _ = expectedTopicCatalogQualifier(status)
+		}
+		out[qualifiedTopicKey(qualifier, prefix)] = entry
+	}
+	return out
+}
+
+func normalizeCatalogPurpose(raw string) string {
+	return strings.Join(strings.Fields(strings.TrimSpace(raw)), " ")
+}

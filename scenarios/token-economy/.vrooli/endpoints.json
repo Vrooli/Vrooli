@@ -1,0 +1,296 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
+      "category": "system",
+      "response": {
+        "type": "Response",
+        "properties": {
+          "dependencies": "object",
+          "readiness": "boolean",
+          "status": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "proto_full_name": "vrooli.token_economy.v1.shared.Response",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.token_economy.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    },
+    {
+      "id": "access_minter_create_token_type",
+      "path": "/vrooli.token_economy.v1.access.MinterService/CreateTokenType",
+      "method": "POST",
+      "summary": "Create token type",
+      "description": "Declares a token type, supply policy, and its sole named minter authority.",
+      "category": "minter"
+    },
+    {
+      "id": "access_minter_get_token_type",
+      "path": "/vrooli.token_economy.v1.access.MinterService/GetTokenType",
+      "method": "POST",
+      "summary": "Get token type",
+      "description": "Returns a declared token type, including retained retirement state.",
+      "category": "minter"
+    },
+    {
+      "id": "access_minter_list_token_types",
+      "path": "/vrooli.token_economy.v1.access.MinterService/ListTokenTypes",
+      "method": "POST",
+      "summary": "List token types",
+      "description": "Lists active token types, optionally including retired declarations.",
+      "category": "minter"
+    },
+    {
+      "id": "access_minter_retire_token_type",
+      "path": "/vrooli.token_economy.v1.access.MinterService/RetireTokenType",
+      "method": "POST",
+      "summary": "Retire token type",
+      "description": "Retires a token type without deleting its identity or history.",
+      "category": "minter"
+    },
+    {
+      "id": "access_minter_mint_supply",
+      "path": "/vrooli.token_economy.v1.access.MinterService/MintSupply",
+      "method": "POST",
+      "summary": "Mint token supply",
+      "description": "Increases lifetime issued supply while enforcing the declared cap; it does not alter a holder balance.",
+      "category": "minter"
+    },
+    {
+      "id": "access_minter_create_grant",
+      "path": "/vrooli.token_economy.v1.access.MinterService/CreateGrant",
+      "method": "POST",
+      "summary": "Create grant",
+      "description": "Admits tokens through a mandate-shaped grant and an atomic journal credit.",
+      "category": "minter"
+    },
+    {
+      "id": "access_minter_get_grant",
+      "path": "/vrooli.token_economy.v1.access.MinterService/GetGrant",
+      "method": "POST",
+      "summary": "Get grant",
+      "description": "Returns a retained grant and its server-evaluated rules.",
+      "category": "minter"
+    },
+    {
+      "id": "access_minter_list_grants",
+      "path": "/vrooli.token_economy.v1.access.MinterService/ListGrants",
+      "method": "POST",
+      "summary": "List grants",
+      "description": "Lists grants with optional holder and token-type filters.",
+      "category": "minter"
+    },
+    {
+      "id": "access_minter_revoke_grant",
+      "path": "/vrooli.token_economy.v1.access.MinterService/RevokeGrant",
+      "method": "POST",
+      "summary": "Revoke grant",
+      "description": "Revokes one grant idempotently while retaining its history.",
+      "category": "minter"
+    },
+    {
+      "id": "access_minter_update_grant_rule",
+      "path": "/vrooli.token_economy.v1.access.MinterService/UpdateGrantRule",
+      "method": "POST",
+      "summary": "Update grant rule",
+      "description": "Changes a server-evaluated grant rule.",
+      "category": "minter"
+    },
+    {
+      "id": "access_minter_create_holder",
+      "path": "/vrooli.token_economy.v1.access.MinterService/CreateHolder",
+      "method": "POST",
+      "summary": "Create holder",
+      "description": "Binds a household holder to one authenticator subject idempotently.",
+      "category": "minter"
+    },
+    {
+      "id": "access_minter_get_holder",
+      "path": "/vrooli.token_economy.v1.access.MinterService/GetHolder",
+      "method": "POST",
+      "summary": "Get holder",
+      "description": "Returns one holder to the minter audience.",
+      "category": "minter"
+    },
+    {
+      "id": "access_minter_list_holders",
+      "path": "/vrooli.token_economy.v1.access.MinterService/ListHolders",
+      "method": "POST",
+      "summary": "List holders",
+      "description": "Lists household holders for the minter audience.",
+      "category": "minter"
+    },
+    {
+      "id": "access_holder_view_economy",
+      "path": "/vrooli.token_economy.v1.access.HolderService/ViewEconomy",
+      "method": "POST",
+      "summary": "View economy",
+      "description": "Returns the authenticated holder's economy view.",
+      "category": "holder"
+    },
+    {
+      "id": "access_holder_submit_request",
+      "path": "/vrooli.token_economy.v1.access.HolderService/SubmitRequest",
+      "method": "POST",
+      "summary": "Submit request",
+      "description": "Submits a holder request without granting authority operations.",
+      "category": "holder"
+    },
+    {
+      "id": "catalog_create",
+      "path": "/vrooli.token_economy.v1.access.MinterService/CreateCatalogEntry",
+      "method": "POST",
+      "summary": "Create catalog entry",
+      "description": "Declares what a token type buys and its approval posture.",
+      "category": "catalog"
+    },
+    {
+      "id": "catalog_update",
+      "path": "/vrooli.token_economy.v1.access.MinterService/UpdateCatalogEntry",
+      "method": "POST",
+      "summary": "Update catalog entry",
+      "description": "Updates a retained minter-declared catalog entry.",
+      "category": "catalog"
+    },
+    {
+      "id": "catalog_get",
+      "path": "/vrooli.token_economy.v1.access.MinterService/GetCatalogEntry",
+      "method": "POST",
+      "summary": "Get catalog entry",
+      "description": "Returns one retained catalog declaration.",
+      "category": "catalog"
+    },
+    {
+      "id": "catalog_list",
+      "path": "/vrooli.token_economy.v1.access.MinterService/ListCatalogEntries",
+      "method": "POST",
+      "summary": "List catalog entries",
+      "description": "Lists catalog declarations, optionally including retired entries.",
+      "category": "catalog"
+    },
+    {
+      "id": "catalog_retire",
+      "path": "/vrooli.token_economy.v1.access.MinterService/RetireCatalogEntry",
+      "method": "POST",
+      "summary": "Retire catalog entry",
+      "description": "Retires an entry without deleting its identity.",
+      "category": "catalog"
+    },
+    {
+      "id": "catalog_browse",
+      "path": "/vrooli.token_economy.v1.access.HolderService/BrowseCatalog",
+      "method": "POST",
+      "summary": "Browse available catalog",
+      "description": "Returns only entries currently available under server-owned policy.",
+      "category": "catalog"
+    },
+    {
+      "id": "earning_submit",
+      "path": "/vrooli.token_economy.v1.earning.EarningService/SubmitEarning",
+      "method": "POST",
+      "summary": "Submit earned tokens",
+      "description": "Admits work through the shared adapter contract with adapter-scoped replay protection.",
+      "category": "earning"
+    },
+    {
+      "id": "earning_list",
+      "path": "/vrooli.token_economy.v1.earning.EarningService/ListEarnings",
+      "method": "POST",
+      "summary": "List earning submissions",
+      "description": "Lists durable dedup outcomes and privacy-minimized payload summaries.",
+      "category": "earning"
+    },
+    {
+      "id": "journal_events_list",
+      "path": "/vrooli.token_economy.v1.access.MinterService/ListJournalEvents",
+      "method": "POST",
+      "summary": "List journal events",
+      "description": "Lists append-only events for one holder and token type.",
+      "category": "journal"
+    },
+    {
+      "id": "journal_balance_show",
+      "path": "/vrooli.token_economy.v1.access.MinterService/ShowBalance",
+      "method": "POST",
+      "summary": "Show projected balance",
+      "description": "Projects the balance from journal events.",
+      "category": "journal"
+    },
+    {
+      "id": "journal_export",
+      "path": "/vrooli.token_economy.v1.access.MinterService/ExportJournal",
+      "method": "POST",
+      "summary": "Export journal",
+      "description": "Returns the stable generated journal response for export.",
+      "category": "journal"
+    },
+    {
+      "id": "journal_reverse",
+      "path": "/vrooli.token_economy.v1.access.MinterService/ReverseEvent",
+      "method": "POST",
+      "summary": "Reverse journal event",
+      "description": "Appends one idempotent compensating event while preserving the original.",
+      "category": "journal"
+    },
+    {
+      "id": "redemption_request",
+      "path": "/vrooli.token_economy.v1.access.HolderService/RequestRedemption",
+      "method": "POST",
+      "summary": "Request redemption",
+      "description": "Reserves or immediately spends the authenticated holder's balance.",
+      "category": "redemption"
+    },
+    {
+      "id": "redemption_pending_list",
+      "path": "/vrooli.token_economy.v1.access.MinterService/ListPendingRedemptions",
+      "method": "POST",
+      "summary": "List pending redemptions",
+      "description": "Returns the durable minter approval queue.",
+      "category": "redemption"
+    },
+    {
+      "id": "redemption_approve",
+      "path": "/vrooli.token_economy.v1.access.MinterService/ApproveRedemption",
+      "method": "POST",
+      "summary": "Approve redemption",
+      "description": "Settles one pending redemption exactly once.",
+      "category": "redemption"
+    },
+    {
+      "id": "redemption_deny",
+      "path": "/vrooli.token_economy.v1.access.MinterService/DenyRedemption",
+      "method": "POST",
+      "summary": "Deny redemption",
+      "description": "Denies one pending redemption and releases its reservations.",
+      "category": "redemption"
+    }
+  ]
+}

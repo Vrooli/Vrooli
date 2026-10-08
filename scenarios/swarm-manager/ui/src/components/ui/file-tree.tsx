@@ -52,7 +52,7 @@ export interface FileTreeItemProps {
   selectedPath?: string;
   selectionMode?: SelectionMode;
   selectedPaths?: Set<string>;
-  onCheckboxChange?: (path: string, checked: boolean) => void;
+  onCheckboxChange?: (path: string, checked: boolean, groupPaths?: string[]) => void;
   getChildPaths?: (file: TreeFile) => string[];
   onItemContextMenu?: (file: TreeFile, event: React.MouseEvent<HTMLButtonElement>) => void;
 }
@@ -132,7 +132,7 @@ function FileTreeItem({
       // Toggle all children
       const childPaths = getAllFilePaths(file);
       const shouldCheck = checkState !== "checked";
-      childPaths.forEach((path) => onCheckboxChange(path, shouldCheck));
+      if (childPaths.length > 0) onCheckboxChange(childPaths[0]!, shouldCheck, childPaths);
     } else {
       onCheckboxChange(file.path, !selectedPaths?.has(file.path));
     }
@@ -241,7 +241,7 @@ function FileTreeItem({
  * File tree component displaying a hierarchical list of files and directories
  */
 export function FileTree({
-  files = [],
+  files,
   onFileSelect,
   selectedPath,
   selectionMode = "single",
@@ -253,13 +253,15 @@ export function FileTree({
 }: FileTreeProps) {
   // Internal handler for checkbox changes
   const handleCheckboxChange = useCallback(
-    (path: string, checked: boolean) => {
+    (path: string, checked: boolean, groupPaths: string[] = [path]) => {
       if (!onSelectionChange) return;
       const newSelection = new Set(selectedPaths);
-      if (checked) {
-        newSelection.add(path);
-      } else {
-        newSelection.delete(path);
+      for (const selectedPath of groupPaths) {
+        if (checked) {
+          newSelection.add(selectedPath);
+        } else {
+          newSelection.delete(selectedPath);
+        }
       }
       onSelectionChange(newSelection);
     },

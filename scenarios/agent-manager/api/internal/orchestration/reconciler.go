@@ -18,24 +18,32 @@ package orchestration
 import (
 	"context"
 	"fmt"
-	"log"
-	"os"
-	"os/exec"
-	"strconv"
+	"log/slog"
 	"strings"
 	"sync"
 	"time"
 
+	"agent-manager/internal/adapters/artifact"
+	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/adapters/sandbox"
+	"agent-manager/internal/adapters/webconsole"
+	cfgpkg "agent-manager/internal/config"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/orchestration/obs"
+	"agent-manager/internal/orchestration/phases"
 	"agent-manager/internal/repository"
+	"agent-manager/internal/runstate"
 
 	"github.com/google/uuid"
 )
 
 // ReconcilerConfig holds configuration for the reconciliation service.
 type ReconcilerConfig struct {
+	// OwnerIdentity is the process identity used when claiming recovered runs.
+	// It must be unique per Agent Manager owner lifetime.
+	OwnerIdentity string
+
 	// Interval is how often to run reconciliation
 	Interval time.Duration
 
@@ -54,38 +62,101 @@ type ReconcilerConfig struct {
 	// MaxStaleRuns is the maximum number of stale runs to process per cycle
 	MaxStaleRuns int
 
+	// PendingThreshold is the maximum time a run may remain queued without a
+	// dispatcher entry before it is failed. A pending run has neither a process
+	// nor a heartbeat, so CreatedAt is its only durable liveness signal.
+	PendingThreshold time.Duration
+
 	// KillOrphans determines whether to automatically kill orphan processes
 	KillOrphans bool
 
 	// AutoRecover determines whether to automatically recover stale runs
 	AutoRecover bool
+
+	// InteractiveSessionRetention is how long an ended interactive run keeps its
+	// web-console session (and idle agent CLI) for `run continue` before the
+	// reconciler archives it. It also ages out agent-manager sessions no run
+	// references. Zero disables the release sweep.
+	InteractiveSessionRetention time.Duration
 }
+
+const (
+	// orphanSandboxOperationTimeout prevents one wedged provider request from
+	// stalling the process-wide reconciliation loop. A diff is only evidence
+	// for deletion when the provider answers before this deadline.
+	orphanSandboxOperationTimeout = 15 * time.Second
+	// orphanSandboxSweepLimit keeps reconciliation bounded even if a provider
+	// returns an unexpectedly large inventory.
+	orphanSandboxSweepLimit = 10
+	// interactiveSessionReleaseLimit bounds web-console archives per cycle so a
+	// large retained backlog drains over several cycles.
+	interactiveSessionReleaseLimit = 20
+)
 
 // DefaultReconcilerConfig returns sensible defaults.
 // StaleThreshold is 5 minutes to match executor config and allow for slow operations.
-// MaxRecoveryAge is 10 minutes — if the executor heartbeat has been absent that long
-// while the process is still alive, the executor is gone (e.g., agent-manager restarted)
-// and the process should be killed rather than perpetually recovered.
+// MaxRecoveryAge is 10 minutes — it is a diagnostic threshold for a live
+// executor whose owner has not reported. It never authorizes killing a healthy
+// detached process; explicit cancellation owns termination.
 // OrphanGracePeriod is 10 minutes to avoid killing newly started processes.
 func DefaultReconcilerConfig() ReconcilerConfig {
 	return ReconcilerConfig{
+		OwnerIdentity:     "agent-manager:" + uuid.NewString(),
 		Interval:          30 * time.Second,
 		StaleThreshold:    5 * time.Minute,  // More forgiving - allows for slow DB updates
-		MaxRecoveryAge:    10 * time.Minute, // Kill process if stale beyond this
+		MaxRecoveryAge:    10 * time.Minute, // Diagnostic threshold; never a kill authorization
 		OrphanGracePeriod: 10 * time.Minute, // Longer grace period for safety
 		MaxStaleRuns:      10,
+		PendingThreshold:  5 * time.Minute,
 		KillOrphans:       true, // Always kill orphan processes
 		AutoRecover:       true, // Auto-recover stale runs if process is alive
+		// Window for `run continue` into an ended interactive run's live session.
+		InteractiveSessionRetention: 2 * time.Hour,
 	}
 }
 
 // Reconciler manages orphan detection and stale run recovery.
 type Reconciler struct {
-	runs    repository.RunRepository
-	runners runner.Registry
-	sandbox sandbox.Provider
+	runs              repository.RunRepository
+	ownerIdentity     string
+	events            event.Store
+	runners           runner.Registry
+	sandbox           sandbox.Provider
+	structuredResults phases.StructuredResultResolver
+
+	// sessions is the web-console session controller used to verify interactive
+	// runs' liveness (GetSession) during recovery — interactive CLIs live in
+	// web-console tmux, not a local tagged child, so the pgid scan does not apply
+	// to them. Nil when interactive recovery is not wired (recovery then no-ops
+	// for interactive runs rather than falsely completing or failing them).
+	sessions webconsole.SessionController
+
+	// interactiveDebounce overrides the interactive coordinator's turn-boundary
+	// idle window during reattach (0 uses the coordinator default). Kept as a
+	// field so tests can shrink it without a live clock.
+	interactiveDebounce time.Duration
+
+	// interactiveSessionPoll overrides the reattached tailer's mid-tail
+	// session-liveness cadence (0 uses the coordinator default). Field so tests
+	// can detect a vanished session quickly.
+	interactiveSessionPoll time.Duration
+
+	// interactiveSessionReattachWindow overrides how long a reattached tailer
+	// tolerates a missing session before failing the run (0 uses the coordinator
+	// default 3 minutes). Field so tests can fail fast.
+	interactiveSessionReattachWindow time.Duration
 
 	config ReconcilerConfig
+	clock  func() time.Time
+
+	// levers exposes internal threshold knobs (e.g. recovery tail tick).
+	// Defaulted to config.DefaultLevers(); callers can override via
+	// WithReconcilerLevers when wiring the orchestrator.
+	levers            cfgpkg.Levers
+	runStateRoot      string
+	runStateResolver  runstate.RootResolver
+	eventRetention    event.RetentionStore
+	artifactRetention artifact.RetentionCollector
 
 	// State
 	mu           sync.Mutex
@@ -97,20 +168,84 @@ type Reconciler struct {
 
 	// Broadcaster for real-time updates
 	broadcaster EventBroadcaster
+
+	// Shares the continuation owner lock after SetReconciler. Recovery must not
+	// read a half-admitted interactive invocation.
+	interactiveRecoveryMu  *sync.Mutex
+	interactiveLiveDrivers *interactiveDriverRegistry
+	interactiveTailDone    map[uuid.UUID]chan struct{}
+	recoveryMu             sync.Mutex
+	tailers                map[uuid.UUID]context.CancelFunc
+	tailerOwners           map[uuid.UUID]context.Context
+	workflowRecovery       WorkflowExecutionRecoverer
+	workflowLiveness       WorkflowWaitingLivenessRecoverer
+	pendingRunRecovery     PendingRunRecoverer
+	terminalAccounting     TerminalAccountingRecoverer
+	finiteSerialRecovery   interface{ ReconcileFiniteSerialEpisodes(context.Context) error }
+	storageMaintainer      StorageMaintainer
+}
+
+// StorageMaintainer keeps the database file inside its declared budget. Each
+// call does bounded work, so it can run on every reconcile cycle.
+type StorageMaintainer interface {
+	Maintain(context.Context) error
+}
+
+// SetStorageMaintainer installs the storage owner after construction; the
+// maintainer depends on the maintenance fence, which is built after the
+// reconciler.
+func (r *Reconciler) SetStorageMaintainer(m StorageMaintainer) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.storageMaintainer = m
+}
+
+func (r *Reconciler) currentStorageMaintainer() StorageMaintainer {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.storageMaintainer
 }
 
 // ReconcileStats contains statistics from a reconciliation cycle.
 type ReconcileStats struct {
-	Timestamp     time.Time
-	Duration      time.Duration
-	RunsChecked   int
-	StaleRuns     int
-	OrphansFound  int
-	RunsRecovered int
-	OrphansKilled int
-	ReviewChecked int
-	ReviewSynced  int
-	Errors        []string
+	Timestamp               time.Time
+	Duration                time.Duration
+	RunsChecked             int
+	StaleRuns               int
+	OrphansFound            int
+	RunsRecovered           int
+	OrphansKilled           int
+	ReviewChecked           int
+	ReviewSynced            int
+	SandboxOrphansChecked   int
+	SandboxOrphansReclaimed int
+	SandboxOrphansPreserved int
+	// InteractiveSessionsReleased counts web-console sessions archived after
+	// their interactive run's retention window (or as unreferenced orphans).
+	InteractiveSessionsReleased int
+	WorkflowRecoveryRuns        int
+	EventsPruned                int
+	ArtifactsPruned             int
+	Errors                      []string
+}
+
+type WorkflowExecutionRecoverer interface{ RecoverWorkflowExecutions(context.Context) error }
+
+// TerminalAccountingRecoverer settles terminal usage for ended standalone runs
+// from the harness's retained transcript. The orchestrator owns it.
+type TerminalAccountingRecoverer interface {
+	RecoverStandaloneTerminalAccounting(context.Context) error
+}
+
+type WorkflowWaitingLivenessRecoverer interface {
+	ReconcileUnarmedWorkflowWaits(context.Context, time.Duration, time.Duration) error
+}
+
+// PendingRunRecoverer re-enqueues a persisted pending run after a process
+// restart. The orchestrator owns this operation because it alone has the task,
+// profile, checkpoint, and spawn-dispatcher dependencies needed to resume it.
+type PendingRunRecoverer interface {
+	ResumeRun(context.Context, uuid.UUID) (*domain.Run, error)
 }
 
 // NewReconciler creates a new reconciler with the given dependencies.
@@ -120,15 +255,26 @@ func NewReconciler(
 	opts ...ReconcilerOption,
 ) *Reconciler {
 	r := &Reconciler{
-		runs:    runs,
-		runners: runners,
-		config:  DefaultReconcilerConfig(),
-		stopCh:  make(chan struct{}),
-		doneCh:  make(chan struct{}),
+		runs:                  runs,
+		ownerIdentity:         "agent-manager:" + uuid.NewString(),
+		events:                nil,
+		runners:               runners,
+		config:                DefaultReconcilerConfig(),
+		clock:                 time.Now,
+		levers:                cfgpkg.DefaultLevers(),
+		stopCh:                make(chan struct{}),
+		doneCh:                make(chan struct{}),
+		tailers:               make(map[uuid.UUID]context.CancelFunc),
+		interactiveRecoveryMu: &sync.Mutex{},
+		interactiveTailDone:   make(map[uuid.UUID]chan struct{}),
+		tailerOwners:          make(map[uuid.UUID]context.Context),
 	}
 
 	for _, opt := range opts {
 		opt(r)
+	}
+	if strings.TrimSpace(r.ownerIdentity) == "" {
+		r.ownerIdentity = "agent-manager:" + uuid.NewString()
 	}
 
 	return r
@@ -141,7 +287,27 @@ type ReconcilerOption func(*Reconciler)
 func WithReconcilerConfig(cfg ReconcilerConfig) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.config = cfg
+		if strings.TrimSpace(cfg.OwnerIdentity) != "" {
+			r.ownerIdentity = strings.TrimSpace(cfg.OwnerIdentity)
+		}
 	}
+}
+
+// WithReconcilerClock injects the wall-clock used for reconciliation state
+// timestamps and process-age calculations. Nil retains the production clock.
+func WithReconcilerClock(clock func() time.Time) ReconcilerOption {
+	return func(r *Reconciler) {
+		if clock != nil {
+			r.clock = clock
+		}
+	}
+}
+
+func (r *Reconciler) now() time.Time {
+	if r != nil && r.clock != nil {
+		return r.clock()
+	}
+	return systemNow()
 }
 
 // WithReconcilerBroadcaster sets the event broadcaster.
@@ -151,11 +317,80 @@ func WithReconcilerBroadcaster(b EventBroadcaster) ReconcilerOption {
 	}
 }
 
+func WithReconcilerEvents(store event.Store) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.events = store
+	}
+}
+
 // WithReconcilerSandbox sets the sandbox provider for approval sync.
 func WithReconcilerSandbox(s sandbox.Provider) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.sandbox = s
 	}
+}
+
+// WithReconcilerLevers overrides the lever set used for internal cadence
+// (recovery tail tick, etc.). Defaults to cfgpkg.DefaultLevers().
+func WithReconcilerLevers(l cfgpkg.Levers) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.levers = l
+	}
+}
+
+func WithReconcilerRunStateRoot(root string) ReconcilerOption {
+	return func(r *Reconciler) { r.runStateRoot = root }
+}
+
+func WithReconcilerRunStateRootResolver(resolver runstate.RootResolver) ReconcilerOption {
+	return func(r *Reconciler) { r.runStateResolver = resolver }
+}
+
+// WithReconcilerEventRetention wires bounded event-history reclamation.
+func WithReconcilerEventRetention(store event.RetentionStore) ReconcilerOption {
+	return func(r *Reconciler) { r.eventRetention = store }
+}
+
+func WithReconcilerArtifactRetention(collector artifact.RetentionCollector) ReconcilerOption {
+	return func(r *Reconciler) { r.artifactRetention = collector }
+}
+
+func (r *Reconciler) resolveRunStateRoot(ctx context.Context) (string, error) {
+	if r.runStateResolver != nil {
+		return r.runStateResolver.Resolve(ctx)
+	}
+	if r.runStateRoot == "" {
+		return "", fmt.Errorf("run state root is required")
+	}
+	return r.runStateRoot, nil
+}
+
+// WithReconcilerInteractive wires the web-console session controller the
+// reconciler uses to recover interactive runs (ExecutionMode=interactive): it
+// verifies the session with GetSession and reattaches the transcript tailer.
+// Without it, interactive runs are left untouched by recovery.
+func WithReconcilerInteractive(sessions webconsole.SessionController) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.sessions = sessions
+	}
+}
+
+func WithReconcilerWorkflowRecovery(recoverer WorkflowExecutionRecoverer) ReconcilerOption {
+	return func(r *Reconciler) { r.workflowRecovery = recoverer }
+}
+
+func WithReconcilerTerminalAccounting(recoverer TerminalAccountingRecoverer) ReconcilerOption {
+	return func(r *Reconciler) { r.terminalAccounting = recoverer }
+}
+
+func WithReconcilerWorkflowWaitingLiveness(recoverer WorkflowWaitingLivenessRecoverer) ReconcilerOption {
+	return func(r *Reconciler) { r.workflowLiveness = recoverer }
+}
+
+// WithReconcilerPendingRunRecovery wires the orchestration-owned resumption
+// path used for pending rows discovered during startup recovery.
+func WithReconcilerPendingRunRecovery(recoverer PendingRunRecoverer) ReconcilerOption {
+	return func(r *Reconciler) { r.pendingRunRecovery = recoverer }
 }
 
 // Start begins the reconciliation loop.
@@ -171,9 +406,25 @@ func (r *Reconciler) Start(ctx context.Context) error {
 	r.mu.Unlock()
 
 	go r.loop(ctx)
-	log.Printf("[reconciler] Started with interval=%v, staleThreshold=%v",
-		r.config.Interval, r.config.StaleThreshold)
+	r.log().Info("reconciler started",
+		"interval", r.config.Interval.String(),
+		"staleThreshold", r.config.StaleThreshold.String(),
+	)
 	return nil
+}
+
+// log returns the reconciler's component-tagged structured logger.
+// Centralised so every call site uses the same component name.
+func (r *Reconciler) log() *slog.Logger { return obs.Component("reconciler") }
+
+// formatTimePtr renders an optional timestamp as RFC3339 or "<nil>" so
+// it serialises cleanly into structured log fields without printing the
+// type name.
+func formatTimePtr(t *time.Time) string {
+	if t == nil {
+		return "<nil>"
+	}
+	return t.Format(time.RFC3339)
 }
 
 // Stop gracefully stops the reconciliation loop.
@@ -192,7 +443,7 @@ func (r *Reconciler) Stop() error {
 	r.running = false
 	r.mu.Unlock()
 
-	log.Printf("[reconciler] Stopped")
+	r.log().Info("reconciler stopped")
 	return nil
 }
 
@@ -216,6 +467,27 @@ func (r *Reconciler) RunOnce(ctx context.Context) ReconcileStats {
 	return r.reconcile(ctx)
 }
 
+// Config returns the reconciler's current configuration.
+func (r *Reconciler) Config() ReconcilerConfig {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.config
+}
+
+// ReconcilerConfigWithSettings returns base with only the fields operator
+// orchestration settings own replaced. Every settings-driven rebuild goes
+// through here so fields settings do not own (PendingThreshold,
+// InteractiveSessionRetention, OwnerIdentity, ...) keep their base value
+// instead of silently dropping to zero.
+func ReconcilerConfigWithSettings(base ReconcilerConfig, s cfgpkg.OrchestrationSettings) ReconcilerConfig {
+	base.Interval = time.Duration(s.HealthDetection.ReconcilerIntervalSeconds) * time.Second
+	base.StaleThreshold = time.Duration(s.HealthDetection.StaleThresholdSeconds) * time.Second
+	base.MaxRecoveryAge = time.Duration(s.HealthDetection.MaxRecoveryAgeSeconds) * time.Second
+	base.OrphanGracePeriod = time.Duration(s.ProcessTermination.OrphanGracePeriodSeconds) * time.Second
+	base.KillOrphans = s.ProcessTermination.KillOrphans
+	return base
+}
+
 // UpdateConfig applies new configuration to the reconciler at runtime.
 // The new interval takes effect after the current cycle completes.
 func (r *Reconciler) UpdateConfig(cfg ReconcilerConfig) {
@@ -229,7 +501,7 @@ func (r *Reconciler) loop(ctx context.Context) {
 	defer close(r.doneCh)
 
 	// Run once immediately on startup.
-	stats := r.reconcile(ctx)
+	stats := r.reconcileGuarded(ctx)
 	r.updateStats(stats)
 
 	r.mu.Lock()
@@ -245,7 +517,7 @@ func (r *Reconciler) loop(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-timer.C:
-			stats := r.reconcile(ctx)
+			stats := r.reconcileGuarded(ctx)
 			r.updateStats(stats)
 			// Re-read interval (may have changed via UpdateConfig).
 			r.mu.Lock()
@@ -264,636 +536,181 @@ func (r *Reconciler) updateStats(stats ReconcileStats) {
 	r.mu.Unlock()
 
 	// Log summary
-	if stats.StaleRuns > 0 || stats.OrphansFound > 0 {
-		log.Printf("[reconciler] cycle: checked=%d stale=%d orphans=%d recovered=%d killed=%d errors=%d",
-			stats.RunsChecked, stats.StaleRuns, stats.OrphansFound,
-			stats.RunsRecovered, stats.OrphansKilled, len(stats.Errors))
+	if stats.StaleRuns > 0 || stats.OrphansFound > 0 || stats.SandboxOrphansChecked > 0 || stats.InteractiveSessionsReleased > 0 {
+		r.log().Info("cycle complete",
+			"checked", stats.RunsChecked,
+			"stale", stats.StaleRuns,
+			"orphans", stats.OrphansFound,
+			"recovered", stats.RunsRecovered,
+			"killed", stats.OrphansKilled,
+			"sandboxOrphansChecked", stats.SandboxOrphansChecked,
+			"sandboxOrphansReclaimed", stats.SandboxOrphansReclaimed,
+			"sandboxOrphansPreserved", stats.SandboxOrphansPreserved,
+			"interactiveSessionsReleased", stats.InteractiveSessionsReleased,
+			"errors", len(stats.Errors),
+		)
 	}
 }
 
 // reconcile performs the actual reconciliation work.
-func (r *Reconciler) reconcile(ctx context.Context) ReconcileStats {
-	start := time.Now()
-	stats := ReconcileStats{Timestamp: start}
+// reconcileGuarded contains a panic from any sweep inside one cycle so the
+// reconciliation loop — the process-wide recovery safety net — keeps ticking
+// on the next interval instead of taking down the API.
+func (r *Reconciler) reconcileGuarded(ctx context.Context) (stats ReconcileStats) {
+	defer obs.RecoverToFailure("reconciler cycle", nil)
+	return r.reconcile(ctx)
+}
 
-	// Step 1: Get all runs marked as "running" in the database
-	runningStatus := domain.RunStatusRunning
-	dbRuns, err := r.runs.List(ctx, repository.RunListFilter{
-		Status: &runningStatus,
-	})
-	if err != nil {
-		stats.Errors = append(stats.Errors, "failed to list runs: "+err.Error())
-		stats.Duration = time.Since(start)
-		return stats
+func (r *Reconciler) reconcile(ctx context.Context) ReconcileStats {
+	start := r.now()
+	stats := ReconcileStats{Timestamp: start}
+	if r.finiteSerialRecovery != nil {
+		if err := r.finiteSerialRecovery.ReconcileFiniteSerialEpisodes(ctx); err != nil {
+			stats.Errors = append(stats.Errors, "finite serial recovery: "+err.Error())
+		}
+	}
+	if r.workflowRecovery != nil {
+		if err := r.workflowRecovery.RecoverWorkflowExecutions(ctx); err != nil {
+			stats.Errors = append(stats.Errors, "workflow recovery: "+err.Error())
+		} else {
+			stats.WorkflowRecoveryRuns++
+		}
+	}
+	if r.terminalAccounting != nil {
+		if err := r.terminalAccounting.RecoverStandaloneTerminalAccounting(ctx); err != nil {
+			stats.Errors = append(stats.Errors, "terminal accounting recovery: "+err.Error())
+		}
+	}
+	if r.workflowLiveness != nil {
+		if err := r.workflowLiveness.ReconcileUnarmedWorkflowWaits(ctx, r.levers.Workflow.UnarmedWaitWarningThreshold, r.levers.Workflow.UnarmedWaitFailureThreshold); err != nil {
+			stats.Errors = append(stats.Errors, "workflow waiting liveness: "+err.Error())
+		}
+	}
+
+	// Step 1: List every run whose LivenessPolicy marks it for scanning. The
+	// per-status policy table (domain.LivenessPolicy) is the single source of
+	// truth for which statuses the reconciler inspects — replacing the old
+	// hard-coded running|starting list. New statuses (e.g. parked) opt in by
+	// declaring Scanned in the table rather than by ad-hoc exemption here.
+	var dbRuns []*domain.Run
+	for _, status := range domain.LivenessScannedStatuses() {
+		statusFilter := status
+		runs, err := r.runs.List(ctx, repository.RunListFilter{
+			Status: &statusFilter,
+		})
+		if err != nil {
+			// An infra error listing one status should not abort the whole
+			// cycle (orphan/review sweeps below are still useful); record it
+			// and continue.
+			stats.Errors = append(stats.Errors, "failed to list "+string(status)+" runs: "+err.Error())
+			continue
+		}
+		dbRuns = append(dbRuns, runs...)
 	}
 	stats.RunsChecked = len(dbRuns)
 
-	// Also check "starting" status runs
-	startingStatus := domain.RunStatusStarting
-	startingRuns, err := r.runs.List(ctx, repository.RunListFilter{
-		Status: &startingStatus,
-	})
-	if err == nil {
-		dbRuns = append(dbRuns, startingRuns...)
-		stats.RunsChecked = len(dbRuns)
-	}
-
-	// Build a map of known run tags for orphan detection
+	// Build a map of known run tags for orphan detection. Only statuses whose
+	// policy expects a live process protect a matching process from being
+	// reaped as an orphan.
 	knownTags := make(map[string]*domain.Run)
 	for _, run := range dbRuns {
-		knownTags[run.GetTag()] = run
+		if run.Status.LivenessPolicy().ExpectsProcess {
+			knownTags[run.GetTag()] = run
+		}
 	}
 
-	// Step 2: Check each run for staleness
+	// Step 2: Pending runs intentionally have no heartbeat or process. Reap a
+	// queue entry that has exceeded its bounded lifetime so a lost dispatcher
+	// handoff cannot leave durable state invisible forever.
 	for _, run := range dbRuns {
+		if run.Status != domain.RunStatusPending || r.config.PendingThreshold <= 0 || time.Since(run.CreatedAt) <= r.config.PendingThreshold {
+			continue
+		}
+		stats.StaleRuns++
+		r.reapPendingRun(ctx, run)
+	}
+
+	// Step 3: Check each active run for staleness, dispatching on its liveness policy.
+	// Only statuses that expect a heartbeat are stale-checked; only those with
+	// a non-none stale action get recover-or-kill handling.
+	for _, run := range dbRuns {
+		policy := run.Status.LivenessPolicy()
+		if run.ExecutionMode.Normalized() == domain.ExecutionModeAttached {
+			// The launcher attaches before exec'ing the harness. Give that
+			// handoff a bounded grace period, then require the token-bearing
+			// process (or an explicitly supplied PID) to still exist.
+			if r.now().Sub(run.CreatedAt) < attachedRunLivenessGracePeriod {
+				continue
+			}
+			full, err := r.runs.Get(ctx, run.ID)
+			if err != nil || full == nil {
+				if err != nil {
+					stats.Errors = append(stats.Errors, "failed to reload attached run "+run.ID.String()+": "+err.Error())
+				}
+				continue
+			}
+			if !r.attachedRunProcessAlive(full) {
+				stats.StaleRuns++
+				r.markRunFailed(ctx, full, "attached harness process is no longer present")
+				r.appendAttachedLifecycleEvent(ctx, full.ID, "liveness_failed", "process no longer present")
+			}
+			continue
+		}
+		if !policy.ExpectsHeartbeat || policy.StaleAction == domain.StaleRunActionNone {
+			continue
+		}
 		if run.IsStale(r.config.StaleThreshold) {
 			stats.StaleRuns++
 			r.handleStaleRun(ctx, run, &stats)
 		}
 	}
 
-	// Step 3: Scan for orphan processes
+	// Step 4: Scan for orphan processes
 	orphans := r.detectOrphanProcesses(ctx, knownTags)
 	stats.OrphansFound = len(orphans)
 
-	// Step 4: Handle orphans
+	// Step 5: Handle orphans
 	for _, orphan := range orphans {
 		r.handleOrphan(ctx, orphan, &stats)
 	}
 
-	// Step 5: Sync needs_review runs with sandbox status
+	// Step 6: Sync needs_review runs with sandbox status
 	r.syncReviewRuns(ctx, &stats)
+
+	// Step 6b: Reconcile run-owned sandboxes whose durable run owner has
+	// disappeared. This is intentionally owner-backed and conservative: only
+	// old active sandboxes with an explicit run metadata binding are examined,
+	// and deletion is allowed only after the provider proves an empty diff.
+	r.reconcileOrphanSandboxes(ctx, &stats)
+
+	// Step 6c: Release web-console sessions retained for continuation once
+	// their interactive run has been ended longer than the retention window.
+	r.releaseRetainedInteractiveSessions(ctx, &stats)
+
+	// Step 7: Garbage-collect old terminal run state directories.
+	r.cleanupRunStateDirs(ctx)
+
+	// Step 8: Bound event history without holding a long SQLite write lock.
+	if deleted, err := r.cleanupExpiredEvents(ctx); err != nil {
+		stats.Errors = append(stats.Errors, "event retention: "+err.Error())
+	} else {
+		stats.EventsPruned = deleted
+	}
+	if deleted, err := r.cleanupExpiredArtifacts(ctx); err != nil {
+		stats.Errors = append(stats.Errors, "artifact retention: "+err.Error())
+	} else {
+		stats.ArtifactsPruned = deleted
+	}
+	r.recordImportedEventCompaction(ctx, &stats)
+
+	// Step 9: Return pages freed by the retention steps above to the
+	// filesystem, within the declared storage budget.
+	if maintainer := r.currentStorageMaintainer(); maintainer != nil {
+		if err := maintainer.Maintain(ctx); err != nil {
+			stats.Errors = append(stats.Errors, "storage maintenance: "+err.Error())
+		}
+	}
 
 	stats.Duration = time.Since(start)
 	return stats
-}
-
-func (r *Reconciler) syncReviewRuns(ctx context.Context, stats *ReconcileStats) {
-	if r.sandbox == nil {
-		return
-	}
-
-	needsReview := domain.RunStatusNeedsReview
-	reviewRuns, err := r.runs.List(ctx, repository.RunListFilter{
-		Status: &needsReview,
-	})
-	if err != nil {
-		stats.Errors = append(stats.Errors, "failed to list needs_review runs: "+err.Error())
-		return
-	}
-	stats.ReviewChecked = len(reviewRuns)
-
-	for _, run := range reviewRuns {
-		if run.SandboxID == nil {
-			continue
-		}
-		sb, err := r.sandbox.Get(ctx, *run.SandboxID)
-		if err != nil {
-			continue
-		}
-
-		switch sb.Status {
-		case sandbox.SandboxStatusApproved:
-			if run.Status == domain.RunStatusComplete && run.ApprovalState == domain.ApprovalStateApproved {
-				continue
-			}
-			r.markRunApprovedFromSandbox(ctx, run, "workspace-sandbox-sync")
-			stats.ReviewSynced++
-		case sandbox.SandboxStatusRejected:
-			if run.Status == domain.RunStatusFailed && run.ApprovalState == domain.ApprovalStateRejected {
-				continue
-			}
-			r.markRunRejectedFromSandbox(ctx, run, "workspace-sandbox-sync")
-			stats.ReviewSynced++
-		}
-	}
-}
-
-func (r *Reconciler) markRunApprovedFromSandbox(ctx context.Context, run *domain.Run, actor string) {
-	now := time.Now()
-	run.ApprovalState = domain.ApprovalStateApproved
-	run.ApprovedBy = actor
-	run.ApprovedAt = &now
-	run.Status = domain.RunStatusComplete
-	run.Phase = domain.RunPhaseCompleted
-	run.EndedAt = &now
-	run.UpdatedAt = now
-
-	if err := r.runs.Update(ctx, run); err != nil {
-		log.Printf("[reconciler] Failed to sync approved run %s: %v", run.ID, err)
-		return
-	}
-	if r.broadcaster != nil {
-		r.broadcaster.BroadcastRunStatus(run)
-	}
-}
-
-func (r *Reconciler) markRunRejectedFromSandbox(ctx context.Context, run *domain.Run, actor string) {
-	now := time.Now()
-	run.ApprovalState = domain.ApprovalStateRejected
-	run.ApprovedBy = actor
-	run.ApprovedAt = &now
-	run.Status = domain.RunStatusFailed
-	run.Phase = domain.RunPhaseCompleted
-	run.EndedAt = &now
-	run.UpdatedAt = now
-
-	if err := r.runs.Update(ctx, run); err != nil {
-		log.Printf("[reconciler] Failed to sync rejected run %s: %v", run.ID, err)
-		return
-	}
-	if r.broadcaster != nil {
-		r.broadcaster.BroadcastRunStatus(run)
-	}
-}
-
-// handleStaleRun handles a run that appears to have stalled.
-func (r *Reconciler) handleStaleRun(ctx context.Context, run *domain.Run, stats *ReconcileStats) {
-	tag := run.GetTag()
-	var heartbeatAge time.Duration
-	if run.LastHeartbeat != nil {
-		heartbeatAge = time.Since(*run.LastHeartbeat)
-	} else {
-		heartbeatAge = time.Since(run.CreatedAt)
-	}
-
-	log.Printf("[reconciler] DEBUG: Checking stale run %s (tag=%s, status=%s, heartbeat_age=%v, stale_threshold=%v)",
-		run.ID, tag, run.Status, heartbeatAge.Round(time.Second), r.config.StaleThreshold)
-
-	// First, check if the process is actually still running
-	processAlive := r.isProcessAlive(ctx, run)
-
-	if !processAlive {
-		// Process died but DB wasn't updated - mark as failed
-		log.Printf("[reconciler] Run %s (tag=%s) process not found after %v without heartbeat, marking as failed",
-			run.ID, tag, heartbeatAge.Round(time.Second))
-		r.markRunFailed(ctx, run, fmt.Sprintf("process terminated unexpectedly (detected by reconciler after %v without heartbeat, tag=%s)",
-			heartbeatAge.Round(time.Second), tag))
-		return
-	}
-
-	// Process is alive but heartbeat is stale - could be legitimate slow work,
-	// or the executor is gone (e.g., agent-manager restarted) and nobody is
-	// managing this process anymore.
-	log.Printf("[reconciler] Run %s is stale (last heartbeat: %v) but process is alive",
-		run.ID, run.LastHeartbeat)
-
-	// If the heartbeat has been absent beyond MaxRecoveryAge, the executor
-	// is gone. Kill the process and mark the run as failed rather than
-	// perpetually recovering it.
-	if r.config.MaxRecoveryAge > 0 && heartbeatAge > r.config.MaxRecoveryAge {
-		log.Printf("[reconciler] Run %s (tag=%s) exceeded max recovery age (%v > %v), killing process and marking failed",
-			run.ID, tag, heartbeatAge.Round(time.Second), r.config.MaxRecoveryAge)
-		r.killRunProcesses(ctx, run)
-		r.markRunFailed(ctx, run, fmt.Sprintf(
-			"executor heartbeat absent for %v (max recovery age %v exceeded) — process killed by reconciler (tag=%s)",
-			heartbeatAge.Round(time.Second), r.config.MaxRecoveryAge, tag))
-		return
-	}
-
-	if r.config.AutoRecover {
-		// The process is alive but the executor heartbeat loop isn't updating.
-		// Don't reset LastHeartbeat here — we need heartbeat age to keep growing
-		// so MaxRecoveryAge can eventually trigger. Just count this as a recovery
-		// (i.e., "we chose not to kill it yet").
-		stats.RunsRecovered++
-	}
-}
-
-// markRunFailed marks a run as failed due to unexpected termination.
-func (r *Reconciler) markRunFailed(ctx context.Context, run *domain.Run, reason string) {
-	now := time.Now()
-	run.Status = domain.RunStatusFailed
-	run.ErrorMsg = reason
-	run.EndedAt = &now
-	run.UpdatedAt = now
-
-	if err := r.runs.Update(ctx, run); err != nil {
-		log.Printf("[reconciler] Failed to update run %s status: %v", run.ID, err)
-	}
-
-	// Broadcast status change
-	if r.broadcaster != nil {
-		r.broadcaster.BroadcastRunStatus(run)
-	}
-}
-
-// isProcessAlive checks if the process for a run is still running.
-func (r *Reconciler) isProcessAlive(ctx context.Context, run *domain.Run) bool {
-	tag := run.GetTag()
-	runnerType := "unknown"
-	if run.ResolvedConfig != nil {
-		runnerType = string(run.ResolvedConfig.RunnerType)
-	}
-
-	log.Printf("[reconciler] DEBUG: isProcessAlive check for run %s (tag=%s, runner=%s)",
-		run.ID, tag, runnerType)
-
-	// Method 1: Check via runner if available
-	if r.runners != nil && run.ResolvedConfig != nil {
-		if runner, err := r.runners.Get(run.ResolvedConfig.RunnerType); err == nil {
-			// Try to detect via runner's internal tracking
-			// This requires the runner to implement a status check method
-			// For now, fall through to process scanning
-			_ = runner
-		}
-	}
-
-	// Method 2: Scan /proc for the process
-	alive := r.scanForProcess(tag)
-	log.Printf("[reconciler] DEBUG: isProcessAlive result for run %s (tag=%s): %v", run.ID, tag, alive)
-	return alive
-}
-
-// scanForProcess checks if the runner process for a run is still alive.
-//
-// We intentionally avoid "pgrep -f <tag>" because it matches ANY process whose
-// command line contains the tag string — including child processes (shells, tee,
-// cleanup handlers) that inherited the tag via environment variables. These
-// lingering children cause false positives that prevent the reconciler from
-// detecting dead runs.
-//
-// Instead, we scan only for known runner executables (claude, codex, opencode)
-// and verify they carry the tag via either:
-//   - --tag <tag> in their command line arguments, OR
-//   - *_AGENT_TAG=<tag> in their /proc/<pid>/environ
-func (r *Reconciler) scanForProcess(tag string) bool {
-	found := r.scanRunnerProcessesByTag(tag)
-	if found {
-		log.Printf("[reconciler] DEBUG: Found runner process with tag '%s'", tag)
-	} else {
-		log.Printf("[reconciler] DEBUG: No runner process found with tag '%s'", tag)
-	}
-	return found
-}
-
-// scanRunnerProcessesByTag checks if any known runner process (claude, codex, opencode)
-// is alive with the given tag. It checks both command-line --tag arguments and
-// environment variables for precise matching.
-func (r *Reconciler) scanRunnerProcessesByTag(tag string) bool {
-	for _, runnerName := range []string{"claude", "codex", "opencode"} {
-		if r.scanRunnerProcessByTag(runnerName, tag) {
-			return true
-		}
-	}
-	return false
-}
-
-// scanRunnerProcessByTag checks if a specific runner type has a process with the given tag.
-func (r *Reconciler) scanRunnerProcessByTag(runnerName, tag string) bool {
-	cmd := exec.Command("pgrep", "-af", runnerName)
-	output, err := cmd.Output()
-	if err != nil {
-		return false
-	}
-
-	lines := strings.Split(string(output), "\n")
-	for _, line := range lines {
-		if line == "" {
-			continue
-		}
-
-		parts := strings.SplitN(line, " ", 2)
-		if len(parts) < 2 {
-			continue
-		}
-
-		pid, err := strconv.Atoi(parts[0])
-		if err != nil {
-			continue
-		}
-
-		command := parts[1]
-
-		// First check: does the command line have --tag with our specific tag?
-		if cmdTag := extractTagFromCommand(command); cmdTag == tag {
-			log.Printf("[reconciler] DEBUG: PID %d matched tag '%s' via command-line --tag", pid, tag)
-			return true
-		}
-
-		// Second check: does the process environment have the tag?
-		if extractTagFromEnv(pid) == tag {
-			log.Printf("[reconciler] DEBUG: PID %d matched tag '%s' via environment variable", pid, tag)
-			return true
-		}
-	}
-
-	return false
-}
-
-// OrphanProcess represents a process that's running but not tracked in the database.
-type OrphanProcess struct {
-	PID       int
-	Tag       string
-	Command   string
-	StartTime time.Time
-}
-
-// detectOrphanProcesses scans for agent processes not tracked in the database.
-func (r *Reconciler) detectOrphanProcesses(ctx context.Context, knownTags map[string]*domain.Run) []OrphanProcess {
-	var orphans []OrphanProcess
-
-	// Scan for claude-code processes
-	orphans = append(orphans, r.scanRunnerProcesses("claude", knownTags)...)
-
-	// Scan for codex processes
-	orphans = append(orphans, r.scanRunnerProcesses("codex", knownTags)...)
-
-	// Scan for opencode processes
-	orphans = append(orphans, r.scanRunnerProcesses("opencode", knownTags)...)
-
-	return orphans
-}
-
-// scanRunnerProcesses scans for processes of a specific runner type.
-func (r *Reconciler) scanRunnerProcesses(runnerName string, knownTags map[string]*domain.Run) []OrphanProcess {
-	var orphans []OrphanProcess
-
-	// Look for processes with agent-manager tags
-	// Tags are typically UUIDs or "scenario-taskid" format
-	cmd := exec.Command("pgrep", "-af", runnerName)
-	output, err := cmd.Output()
-	if err != nil {
-		return orphans
-	}
-
-	lines := strings.Split(string(output), "\n")
-	for _, line := range lines {
-		if line == "" {
-			continue
-		}
-
-		// Parse PID and command
-		parts := strings.SplitN(line, " ", 2)
-		if len(parts) < 2 {
-			continue
-		}
-
-		pid, err := strconv.Atoi(parts[0])
-		if err != nil {
-			continue
-		}
-
-		command := parts[1]
-
-		// Extract tag from command line (look for --tag argument)
-		tag := extractTagFromCommand(command)
-		if tag == "" {
-			continue
-		}
-
-		// Check if this tag is known
-		if _, known := knownTags[tag]; known {
-			continue // Not an orphan
-		}
-
-		// Check if it looks like an agent-manager managed process
-		// (UUIDs or known prefixes like "ecosystem-", "test-genie-")
-		if !looksLikeAgentManagerTag(tag) {
-			continue // Not our process
-		}
-
-		// Get process start time
-		startTime := getProcessStartTime(pid)
-
-		// Only consider it an orphan if it's been running longer than grace period
-		if time.Since(startTime) < r.config.OrphanGracePeriod {
-			continue // Too new, might be a race condition
-		}
-
-		orphans = append(orphans, OrphanProcess{
-			PID:       pid,
-			Tag:       tag,
-			Command:   command,
-			StartTime: startTime,
-		})
-	}
-
-	return orphans
-}
-
-// extractTagFromCommand extracts the --tag value from a command line.
-func extractTagFromCommand(command string) string {
-	parts := strings.Fields(command)
-	for i, part := range parts {
-		if strings.HasPrefix(part, "CLAUDE_CODE_AGENT_TAG=") {
-			return strings.TrimPrefix(part, "CLAUDE_CODE_AGENT_TAG=")
-		}
-		if strings.HasPrefix(part, "CODEX_AGENT_TAG=") {
-			return strings.TrimPrefix(part, "CODEX_AGENT_TAG=")
-		}
-		if strings.HasPrefix(part, "OPENCODE_AGENT_TAG=") {
-			return strings.TrimPrefix(part, "OPENCODE_AGENT_TAG=")
-		}
-		if strings.HasPrefix(part, "AGENT_TAG=") {
-			return strings.TrimPrefix(part, "AGENT_TAG=")
-		}
-		if part == "--tag" && i+1 < len(parts) {
-			return parts[i+1]
-		}
-		if strings.HasPrefix(part, "--tag=") {
-			return strings.TrimPrefix(part, "--tag=")
-		}
-	}
-	return ""
-}
-
-func extractTagFromEnv(pid int) string {
-	envPath := fmt.Sprintf("/proc/%d/environ", pid)
-	data, err := os.ReadFile(envPath)
-	if err != nil || len(data) == 0 {
-		return ""
-	}
-
-	for _, entry := range strings.Split(string(data), "\x00") {
-		if strings.HasPrefix(entry, "CLAUDE_CODE_AGENT_TAG=") {
-			return strings.TrimPrefix(entry, "CLAUDE_CODE_AGENT_TAG=")
-		}
-		if strings.HasPrefix(entry, "CODEX_AGENT_TAG=") {
-			return strings.TrimPrefix(entry, "CODEX_AGENT_TAG=")
-		}
-		if strings.HasPrefix(entry, "OPENCODE_AGENT_TAG=") {
-			return strings.TrimPrefix(entry, "OPENCODE_AGENT_TAG=")
-		}
-		if strings.HasPrefix(entry, "AGENT_TAG=") {
-			return strings.TrimPrefix(entry, "AGENT_TAG=")
-		}
-	}
-
-	return ""
-}
-
-// looksLikeAgentManagerTag checks if a tag looks like it was created by agent-manager.
-func looksLikeAgentManagerTag(tag string) bool {
-	// Check if it's a UUID
-	if _, err := uuid.Parse(tag); err == nil {
-		return true
-	}
-
-	// Check for known prefixes
-	knownPrefixes := []string{
-		"ecosystem-",
-		"heartbeat-",
-		"test-genie-",
-		"agent-manager-",
-		"run-",
-	}
-	for _, prefix := range knownPrefixes {
-		if strings.HasPrefix(tag, prefix) {
-			return true
-		}
-	}
-
-	return false
-}
-
-// getProcessStartTime gets the start time of a process.
-func getProcessStartTime(pid int) time.Time {
-	// Read process start time from /proc/[pid]/stat
-	statPath := fmt.Sprintf("/proc/%d/stat", pid)
-	data, err := os.ReadFile(statPath)
-	if err != nil {
-		return time.Time{}
-	}
-
-	// The start time is field 22 (0-indexed: 21)
-	// It's in clock ticks since boot
-	fields := strings.Fields(string(data))
-	if len(fields) < 22 {
-		return time.Time{}
-	}
-
-	startTicks, err := strconv.ParseInt(fields[21], 10, 64)
-	if err != nil {
-		return time.Time{}
-	}
-
-	// Get system boot time
-	uptimeData, err := os.ReadFile("/proc/uptime")
-	if err != nil {
-		return time.Time{}
-	}
-	uptimeStr := strings.Fields(string(uptimeData))[0]
-	uptime, err := strconv.ParseFloat(uptimeStr, 64)
-	if err != nil {
-		return time.Time{}
-	}
-
-	// Get clock ticks per second (usually 100)
-	clkTck := int64(100) // Default, could read from sysconf
-
-	// Calculate process start time
-	processUptimeSeconds := float64(startTicks) / float64(clkTck)
-	bootTime := time.Now().Add(-time.Duration(uptime * float64(time.Second)))
-	startTime := bootTime.Add(time.Duration(processUptimeSeconds * float64(time.Second)))
-
-	return startTime
-}
-
-// handleOrphan handles an orphan process.
-func (r *Reconciler) handleOrphan(ctx context.Context, orphan OrphanProcess, stats *ReconcileStats) {
-	log.Printf("[reconciler] Found orphan process: PID=%d tag=%s running since %v",
-		orphan.PID, orphan.Tag, orphan.StartTime)
-
-	if !r.config.KillOrphans {
-		// Just log it, don't kill
-		return
-	}
-
-	// Kill the orphan process
-	if err := r.killProcess(orphan.PID); err != nil {
-		stats.Errors = append(stats.Errors, fmt.Sprintf("failed to kill orphan %d: %v", orphan.PID, err))
-	} else {
-		stats.OrphansKilled++
-		log.Printf("[reconciler] Killed orphan process: PID=%d tag=%s", orphan.PID, orphan.Tag)
-
-		// Clean up resource registries to remove stale entries
-		r.cleanupResourceRegistries(ctx)
-	}
-}
-
-// cleanupResourceRegistries runs cleanup on all agent resource registries.
-// This removes stale entries from the file-based registries that track running agents.
-func (r *Reconciler) cleanupResourceRegistries(ctx context.Context) {
-	// List of resource CLI commands that maintain agent registries
-	resourceCommands := []string{
-		"resource-codex",
-		"resource-opencode",
-	}
-
-	for _, cmd := range resourceCommands {
-		// Run agents cleanup to remove stale entries
-		cleanupCmd := exec.CommandContext(ctx, cmd, "agents", "cleanup")
-		if err := cleanupCmd.Run(); err != nil {
-			// Log but don't fail - cleanup is best-effort
-			// The resource might not be installed or the command might not exist
-			if !strings.Contains(err.Error(), "executable file not found") {
-				log.Printf("[reconciler] Warning: %s agents cleanup failed: %v", cmd, err)
-			}
-		}
-	}
-}
-
-// killRunProcesses finds and kills all processes associated with a run's tag.
-func (r *Reconciler) killRunProcesses(ctx context.Context, run *domain.Run) {
-	tag := run.GetTag()
-
-	// Find PIDs matching the tag via runner process scan
-	for _, runnerName := range []string{"claude", "codex", "opencode"} {
-		cmd := exec.Command("pgrep", "-af", runnerName)
-		output, err := cmd.Output()
-		if err != nil {
-			continue
-		}
-
-		for _, line := range strings.Split(string(output), "\n") {
-			if line == "" {
-				continue
-			}
-			parts := strings.SplitN(line, " ", 2)
-			if len(parts) < 2 {
-				continue
-			}
-			pid, err := strconv.Atoi(parts[0])
-			if err != nil {
-				continue
-			}
-
-			command := parts[1]
-			if extractTagFromCommand(command) == tag || extractTagFromEnv(pid) == tag {
-				log.Printf("[reconciler] Killing run process: PID=%d tag=%s", pid, tag)
-				if err := r.killProcess(pid); err != nil {
-					log.Printf("[reconciler] Warning: failed to kill PID %d: %v", pid, err)
-				}
-			}
-		}
-	}
-
-	r.cleanupResourceRegistries(ctx)
-}
-
-// killProcess kills a process with retry and escalation.
-func (r *Reconciler) killProcess(pid int) error {
-	process, err := os.FindProcess(pid)
-	if err != nil {
-		return err
-	}
-
-	// Try SIGTERM first
-	if err := process.Signal(os.Interrupt); err != nil {
-		// Process might already be dead
-		return nil
-	}
-
-	// Wait a short time for graceful shutdown
-	time.Sleep(500 * time.Millisecond)
-
-	// Check if still running
-	if err := process.Signal(nil); err != nil {
-		// Process is dead
-		return nil
-	}
-
-	// Force kill with SIGKILL
-	return process.Kill()
 }

@@ -20,13 +20,17 @@ Components (UI) → Hooks (React State) → Controllers (Business Logic) → Ser
 ### Page Hooks (Main Orchestrators)
 
 #### `useGeneratorPage.ts`
+
 Main hook for the Generator page:
+
 - Composes form state, pipeline actions, server sync, and signing
 - Handles form submission via `prepareFormSubmission` controller
 - Manages scenario selection and defaults
 
 #### `usePreflightSection.ts`
+
 Hook for the Preflight section:
+
 - Composes preflight state from store
 - Uses `buildJobStepMap` and `resolveAllStepStatuses` from controller
 - Manages view mode and copy/download actions
@@ -34,17 +38,23 @@ Hook for the Preflight section:
 ### State Hooks
 
 #### `useFormState.ts`
+
 Form state composition:
+
 - Aggregates form store selectors
 - Provides form actions and validation
 
 #### `usePipelineActions.ts`
+
 Pipeline action wrapper:
+
 - Wraps store actions with additional logic
 - Manages generate and connection test mutations
 
 #### `useScenarioSync.ts`
+
 Server state synchronization:
+
 - Handles form state persistence to server
 - Manages preflight seed loading
 - Auto-saves form changes
@@ -52,12 +62,15 @@ Server state synchronization:
 ### Utility Hooks
 
 #### `useGeneratorModals.ts`
+
 Modal state management for Generator page
 
 #### `useSigningConfig.ts`
+
 Signing configuration state
 
 #### `usePipelineButton.ts`
+
 Shared logic for pipeline action buttons
 
 ## Usage Example

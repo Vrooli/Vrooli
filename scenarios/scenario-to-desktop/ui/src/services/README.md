@@ -18,20 +18,26 @@ Components (UI) → Hooks (React State) → Controllers (Business Logic) → Ser
 ## Files
 
 ### `pipeline.service.ts`
+
 Pipeline-related utilities:
+
 - `isTerminalState()` - Check if status is terminal (completed/failed/cancelled)
 - `getRecoverySuggestions()` - Get suggestions for error categories
 - `categorizeError()` - Categorize an error for recovery suggestions
 - `formatPipelineProgress()` - Format progress for display
 
 ### `generator.service.ts`
+
 Generator form utilities:
+
 - `buildPipelineConfigFromForm()` - Transform form state to pipeline config
 - `buildValidationParams()` - Build validation parameters from form state
 - `getSelectedPlatforms()` - Extract selected platforms list
 
 ### `preflight.service.ts`
+
 Preflight validation utilities:
+
 - `buildPreflightDisplayState()` - Build display state from result
 - `buildPreflightPayload()` - Build export payload
 - `getMissingSecrets()` - Filter required secrets without values
@@ -40,14 +46,19 @@ Preflight validation utilities:
 - `getValidationStatus()`, `getSecretsStatus()`, etc. - Step status helpers
 
 ### `signing.service.ts`
+
 Code signing utilities:
+
 - Signing configuration parsing and formatting
 
 ## Usage Example
 
 ```typescript
 // In a controller
-import { getRecoverySuggestions, categorizeError } from '../services/pipeline.service';
+import {
+  getRecoverySuggestions,
+  categorizeError,
+} from "../services/pipeline.service";
 
 const category = categorizeError(error);
 const suggestions = getRecoverySuggestions(category);
@@ -63,6 +74,7 @@ npm test -- --run src/services/
 ```
 
 All service functions should have corresponding tests that verify:
+
 - Normal operation with valid inputs
 - Edge cases (null, undefined, empty)
 - Error conditions

@@ -1,0 +1,545 @@
+[
+  {
+    "family": "M01",
+    "path": "/workspace/shared/i16-design-v03/document-images/M01-today-v05-desktop.png",
+    "width_pt": 504,
+    "height_pt": 315.0,
+    "kind": "desktop layout overview",
+    "source_names": [
+      "M01-today-v05-desktop"
+    ],
+    "slot": "IMG01",
+    "sha256": "9edd2a7587632864ee160e81057d001b1868bdf5604cfb58ad65102e6afca250"
+  },
+  {
+    "family": "M01",
+    "path": "/workspace/shared/i16-design-v03/document-images/M01-today-v05-phone.png",
+    "width_pt": 260,
+    "height_pt": 562.6666666666666,
+    "kind": "readable phone detail",
+    "source_names": [
+      "M01-today-v05-phone"
+    ],
+    "slot": "IMG02",
+    "sha256": "2ab54d0443c26ad67797dcd14636cd69dc2fb90402adfd19edd09eabf0db3c02"
+  },
+  {
+    "family": "M02",
+    "path": "/workspace/shared/i16-design-v03/document-images/M02-strategy-v03-desktop.png",
+    "width_pt": 504,
+    "height_pt": 315.0,
+    "kind": "desktop layout overview",
+    "source_names": [
+      "M02-strategy-v03-desktop"
+    ],
+    "slot": "IMG03",
+    "sha256": "91460173d9f55d0e21df3c1196cea6a32b27123e12699c9115480e0cb74819b6"
+  },
+  {
+    "family": "M02",
+    "path": "/workspace/shared/i16-design-v03/document-images/M02-strategy-v03-phone.png",
+    "width_pt": 260,
+    "height_pt": 562.6666666666666,
+    "kind": "readable phone detail",
+    "source_names": [
+      "M02-strategy-v03-phone"
+    ],
+    "slot": "IMG04",
+    "sha256": "21507e80db88fead9df4ddb061a6a7a7225db9de561b9885b66af7b80cdad674"
+  },
+  {
+    "family": "M03",
+    "path": "/workspace/shared/i16-design-v03/document-images/M03-evidence-v03-desktop.png",
+    "width_pt": 504,
+    "height_pt": 315.0,
+    "kind": "desktop layout overview",
+    "source_names": [
+      "M03-evidence-v03-desktop"
+    ],
+    "slot": "IMG05",
+    "sha256": "056698ce1fad7d28b6e6232b177b90c34c49ba11acf7655c4dd7ddd85455686b"
+  },
+  {
+    "family": "M03",
+    "path": "/workspace/shared/i16-design-v03/document-images/M03-evidence-v03-phone.png",
+    "width_pt": 260,
+    "height_pt": 562.6666666666666,
+    "kind": "readable phone detail",
+    "source_names": [
+      "M03-evidence-v03-phone"
+    ],
+    "slot": "IMG06",
+    "sha256": "185b8247502d24ce5663269d8cb96a3362b12e368da0b79d0ac37da3c7d4a37a"
+  },
+  {
+    "family": "M04",
+    "path": "/workspace/shared/i16-design-v03/document-images/M04-editor-v03-desktop.png",
+    "width_pt": 504,
+    "height_pt": 315.0,
+    "kind": "desktop layout overview",
+    "source_names": [
+      "M04-editor-v03-desktop"
+    ],
+    "slot": "IMG07",
+    "sha256": "b0e735dd2bd7bd4a7b9b025689df3e45308332179267442902c9a4a9ad4bafee"
+  },
+  {
+    "family": "M04",
+    "path": "/workspace/shared/i16-design-v03/document-images/M04-editor-v03-phone.png",
+    "width_pt": 260,
+    "height_pt": 562.6666666666666,
+    "kind": "readable phone detail",
+    "source_names": [
+      "M04-editor-v03-phone"
+    ],
+    "slot": "IMG08",
+    "sha256": "23debaf3c089decaa02c84c82f7d3489e39b07e61cee169be841b9e65a9b86f7"
+  },
+  {
+    "family": "M05",
+    "path": "/workspace/shared/i16-design-v03/document-images/M05-plan-v04-desktop.png",
+    "width_pt": 504,
+    "height_pt": 315.0,
+    "kind": "desktop layout overview",
+    "source_names": [
+      "M05-plan-v04-desktop"
+    ],
+    "slot": "IMG09",
+    "sha256": "b90c641b7587cc116e4245ea575067d31ef3b99681b82172b2460d3bd093eed2"
+  },
+  {
+    "family": "M05",
+    "path": "/workspace/shared/i16-design-v03/document-images/M05-plan-v04-phone.png",
+    "width_pt": 260,
+    "height_pt": 562.6666666666666,
+    "kind": "readable phone detail",
+    "source_names": [
+      "M05-plan-v04-phone"
+    ],
+    "slot": "IMG10",
+    "sha256": "92d0fc9d142a78359f3ce8e3a2cfbea8f0b1018fce3ed0bbe6ca2763e0ec1539"
+  },
+  {
+    "family": "M06",
+    "path": "/workspace/shared/i16-design-v03/document-images/M06-review-v04-desktop.png",
+    "width_pt": 504,
+    "height_pt": 315.0,
+    "kind": "desktop layout overview",
+    "source_names": [
+      "M06-review-v04-desktop"
+    ],
+    "slot": "IMG11",
+    "sha256": "6543eb146218d217fe3955e13ea4f9825f216ef83acd7e10248ff8e8c72e46f7"
+  },
+  {
+    "family": "M06",
+    "path": "/workspace/shared/i16-design-v03/document-images/M06-readable-phone-details.png",
+    "width_pt": 504,
+    "height_pt": 531.72,
+    "kind": "readable phone reading and change states",
+    "source_names": [
+      "M06-review-v04-phone",
+      "M06-review-v04-phone-changes"
+    ],
+    "slot": "IMG12",
+    "sha256": "1b2235a11899eb3828cc047a68cd71b66152eee9f6fc91c03e7bace0d23b0dd1"
+  },
+  {
+    "family": "M07",
+    "path": "/workspace/shared/i16-design-v03/document-images/M07-outcome-v04-desktop.png",
+    "width_pt": 504,
+    "height_pt": 315.0,
+    "kind": "desktop layout overview",
+    "source_names": [
+      "M07-outcome-v04-desktop"
+    ],
+    "slot": "IMG13",
+    "sha256": "71978ddfd4cabfcbc9989f3e1e0bbd1b0b7dc0d07b0276c9cc0720626050a76f"
+  },
+  {
+    "family": "M07",
+    "path": "/workspace/shared/i16-design-v03/document-images/M07-outcome-v04-phone.png",
+    "width_pt": 260,
+    "height_pt": 562.6666666666666,
+    "kind": "readable phone detail",
+    "source_names": [
+      "M07-outcome-v04-phone"
+    ],
+    "slot": "IMG14",
+    "sha256": "709cdf9bd2af491e2aecc0b40008c4c32427ad34813ea55895fa8af71f4af2f3"
+  },
+  {
+    "family": "M08",
+    "path": "/workspace/shared/i16-design-v03/document-images/M08-learning-v04-desktop.png",
+    "width_pt": 504,
+    "height_pt": 315.0,
+    "kind": "desktop layout overview",
+    "source_names": [
+      "M08-learning-v04-desktop"
+    ],
+    "slot": "IMG15",
+    "sha256": "d287089d3a3492e33356793c3021fbfad8c7c2648fdce6db8625ef4523ea52a7"
+  },
+  {
+    "family": "M08",
+    "path": "/workspace/shared/i16-design-v03/document-images/M08-learning-v04-phone.png",
+    "width_pt": 260,
+    "height_pt": 562.6666666666666,
+    "kind": "readable phone detail",
+    "source_names": [
+      "M08-learning-v04-phone"
+    ],
+    "slot": "IMG16",
+    "sha256": "a33d4834b9d55f5db9d2da8877a3eae460dd3f43c330d5de0a5995623763f722"
+  },
+  {
+    "family": "M09",
+    "path": "/workspace/shared/i16-design-v03/document-images/M09-recovery-v04-desktop.png",
+    "width_pt": 504,
+    "height_pt": 315.0,
+    "kind": "desktop layout overview",
+    "source_names": [
+      "M09-recovery-v04-desktop"
+    ],
+    "slot": "IMG17",
+    "sha256": "36d55723244c5ea0a1bcf27bb1cc90db9917df8c90e8136daf3ec9f2a5b1ed62"
+  },
+  {
+    "family": "M09",
+    "path": "/workspace/shared/i16-design-v03/document-images/M09-recovery-v04-phone.png",
+    "width_pt": 260,
+    "height_pt": 562.6666666666666,
+    "kind": "readable phone detail",
+    "source_names": [
+      "M09-recovery-v04-phone"
+    ],
+    "slot": "IMG18",
+    "sha256": "3272a6b4b498ded7985e715adce81934b7895d52144f5b5bcba3e47fad2c65e9"
+  },
+  {
+    "family": "M10",
+    "path": "/workspace/shared/i16-design-v03/document-images/M10-ownership-v05.png",
+    "width_pt": 430,
+    "height_pt": 561.3888888888889,
+    "kind": "diagram",
+    "source_names": [
+      "M10-ownership-v05"
+    ],
+    "slot": "IMG19",
+    "sha256": "aa6b193091d155df979252e233b9163a996b5eca7b67f181cad94d4fbb31c878"
+  },
+  {
+    "family": "M11",
+    "path": "/workspace/shared/i16-design-v03/document-images/M11-contributor-v03-desktop.png",
+    "width_pt": 504,
+    "height_pt": 315.0,
+    "kind": "desktop layout overview",
+    "source_names": [
+      "M11-contributor-v03-desktop"
+    ],
+    "slot": "IMG20",
+    "sha256": "6b3f6a8b659f7036ea2597065ad3fa74ee7c0d47eced390cf3aed4672f96b896"
+  },
+  {
+    "family": "M11",
+    "path": "/workspace/shared/i16-design-v03/document-images/M11-contributor-v03-phone.png",
+    "width_pt": 260,
+    "height_pt": 562.6666666666666,
+    "kind": "readable phone detail",
+    "source_names": [
+      "M11-contributor-v03-phone"
+    ],
+    "slot": "IMG21",
+    "sha256": "5c97852fe4d8b20a5336f796694e3e81de0450120037b94c8e7de420e18c1c60"
+  },
+  {
+    "family": "M12",
+    "path": "/workspace/shared/i16-design-v03/document-images/M12-simple-v05-desktop.png",
+    "width_pt": 504,
+    "height_pt": 315.0,
+    "kind": "desktop layout overview",
+    "source_names": [
+      "M12-simple-v05-desktop"
+    ],
+    "slot": "IMG22",
+    "sha256": "3b313efd58a0010bdadc70ab8fbf9c5b18392324984db735a5775b3f5f959c80"
+  },
+  {
+    "family": "M12",
+    "path": "/workspace/shared/i16-design-v03/document-images/M12-simple-v05-phone.png",
+    "width_pt": 260,
+    "height_pt": 562.6666666666666,
+    "kind": "readable phone detail",
+    "source_names": [
+      "M12-simple-v05-phone"
+    ],
+    "slot": "IMG23",
+    "sha256": "3d4d64bff4e59aa61423e50636b9b53e3c745b3f22744e3f3db19a651ba30684"
+  },
+  {
+    "family": "M13",
+    "path": "/workspace/shared/i16-design-v03/document-images/M13-intake-v06-desktop.png",
+    "width_pt": 504,
+    "height_pt": 315.0,
+    "kind": "desktop layout overview",
+    "source_names": [
+      "M13-intake-v06-desktop"
+    ],
+    "slot": "IMG24",
+    "sha256": "331d5ac8d8356502ee1cb54de4678265ac3b02a0828aaeac254e60d8b51d17f2"
+  },
+  {
+    "family": "M13",
+    "path": "/workspace/shared/i16-design-v03/document-images/M13-intake-v06-phone.png",
+    "width_pt": 260,
+    "height_pt": 562.6666666666666,
+    "kind": "readable phone detail",
+    "source_names": [
+      "M13-intake-v06-phone"
+    ],
+    "slot": "IMG25",
+    "sha256": "b216fa54e0f1ef354ce0c942cc79f0cebfa9f1fc347d7d9d1df32846a9e83c23"
+  },
+  {
+    "family": "M14",
+    "path": "/workspace/shared/i16-design-v03/document-images/M14-readiness-v04-desktop.png",
+    "width_pt": 504,
+    "height_pt": 315.0,
+    "kind": "desktop layout overview",
+    "source_names": [
+      "M14-readiness-v04-desktop"
+    ],
+    "slot": "IMG26",
+    "sha256": "eef645838545c7c2d01b04435f0d407ce0cc0f382c008d015ada641adde8337c"
+  },
+  {
+    "family": "M14",
+    "path": "/workspace/shared/i16-design-v03/document-images/M14-readiness-v04-phone.png",
+    "width_pt": 260,
+    "height_pt": 562.6666666666666,
+    "kind": "readable phone detail",
+    "source_names": [
+      "M14-readiness-v04-phone"
+    ],
+    "slot": "IMG27",
+    "sha256": "42f66fc114aefeb7f8fc23a790dcba850882aa3aa1386ddd3577a433409cec7c"
+  },
+  {
+    "family": "M15",
+    "path": "/workspace/shared/i16-design-v03/document-images/M15-content-v01-desktop.png",
+    "width_pt": 504,
+    "height_pt": 315.0,
+    "kind": "desktop layout overview",
+    "source_names": [
+      "M15-content-v01-desktop"
+    ],
+    "slot": "IMG28",
+    "sha256": "dfd43a552a83ee72c357f4b049046f5ca27778c6767ea94c5867e37445f0ab53"
+  },
+  {
+    "family": "M15",
+    "path": "/workspace/shared/i16-design-v03/document-images/M15-content-v01-phone.png",
+    "width_pt": 260,
+    "height_pt": 562.6666666666666,
+    "kind": "readable phone detail",
+    "source_names": [
+      "M15-content-v01-phone"
+    ],
+    "slot": "IMG29",
+    "sha256": "61f92b8aa0ee0ea302565a79117268bbbd957663f8db20e28854eb282ecaae23"
+  },
+  {
+    "family": "M16",
+    "path": "/workspace/shared/i16-design-v03/document-images/M16-article-v03-desktop.png",
+    "width_pt": 504,
+    "height_pt": 315.0,
+    "kind": "desktop layout overview",
+    "source_names": [
+      "M16-article-v03-desktop"
+    ],
+    "slot": "IMG30",
+    "sha256": "5cf79f89fb9e1d31cc26e046b12217cda0f78624506dda170a7590645edadbd5"
+  },
+  {
+    "family": "M16",
+    "path": "/workspace/shared/i16-design-v03/document-images/M16-storyboard-v01-desktop.png",
+    "width_pt": 504,
+    "height_pt": 315.0,
+    "kind": "desktop layout overview",
+    "source_names": [
+      "M16-storyboard-v01-desktop"
+    ],
+    "slot": "IMG31",
+    "sha256": "076014e4c4b3e044c129169cfb4bf48a33815e5fb27ef493b2666e3c769cf6cd"
+  },
+  {
+    "family": "M16",
+    "path": "/workspace/shared/i16-design-v03/document-images/M16-thread-v01-desktop.png",
+    "width_pt": 504,
+    "height_pt": 315.0,
+    "kind": "desktop layout overview",
+    "source_names": [
+      "M16-thread-v01-desktop"
+    ],
+    "slot": "IMG32",
+    "sha256": "8d87a137d30ff6f901549d16e151306a192ee1e13e87d9002524ebe56b68d4c9"
+  },
+  {
+    "family": "M17",
+    "path": "/workspace/shared/i16-design-v03/document-images/M17-work-v02-desktop.png",
+    "width_pt": 504,
+    "height_pt": 315.0,
+    "kind": "desktop layout overview",
+    "source_names": [
+      "M17-work-v02-desktop"
+    ],
+    "slot": "IMG33",
+    "sha256": "0bc8a8b972be605ad73fd352bdc93b60edfc1c38a8cdd9c7e6fd717e7c4bfebc"
+  },
+  {
+    "family": "M17",
+    "path": "/workspace/shared/i16-design-v03/document-images/M17-work-v02-phone.png",
+    "width_pt": 260,
+    "height_pt": 562.6666666666666,
+    "kind": "readable phone detail",
+    "source_names": [
+      "M17-work-v02-phone"
+    ],
+    "slot": "IMG34",
+    "sha256": "13272851ec3e57771d35887f9ab806b1410080d7a89ae8a4bcdf3d48c1f653f5"
+  },
+  {
+    "family": "M18",
+    "path": "/workspace/shared/i16-design-v03/document-images/M18-journey-v02.png",
+    "width_pt": 410,
+    "height_pt": 586.5277777777778,
+    "kind": "diagram",
+    "source_names": [
+      "M18-journey-v02"
+    ],
+    "slot": "IMG35",
+    "sha256": "ace12b8292bc5958efca6e73abb66888522fdcedd8b40ebba5e80fa7332f3432"
+  },
+  {
+    "family": "M19",
+    "path": "/workspace/shared/i16-design-v03/document-images/M19-readable-phone-details.png",
+    "width_pt": 504,
+    "height_pt": 531.72,
+    "kind": "readable related phone states",
+    "source_names": [
+      "M19-request-changes-v01-phone",
+      "M19-source-detail-v01-phone"
+    ],
+    "slot": "IMG36",
+    "sha256": "556f6d5ecd559be9a4fdb3decdd83bf8817f372ab82431c53e61994fb4ee2367"
+  },
+  {
+    "family": "M20",
+    "path": "/workspace/shared/i16-design-v03/document-images/M20-states-v01-desktop.png",
+    "width_pt": 504,
+    "height_pt": 315.0,
+    "kind": "desktop layout overview",
+    "source_names": [
+      "M20-states-v01-desktop"
+    ],
+    "slot": "IMG37",
+    "sha256": "6e476de49f83e581a9b5463a7b0fe1d91cce958fbb013b3154ca2f1325d4b7aa"
+  },
+  {
+    "family": "M21",
+    "path": "/workspace/shared/i16-design-v03/document-images/M21-adaptive-art-v02-desktop.png",
+    "width_pt": 504,
+    "height_pt": 315.0,
+    "kind": "desktop layout overview",
+    "source_names": [
+      "M21-adaptive-art-v02-desktop"
+    ],
+    "slot": "IMG38",
+    "sha256": "be9b223a0a5793d1a474a35d0514f6445b1d0a2f8313c6656b754062a8f71d3a"
+  },
+  {
+    "family": "M22",
+    "path": "/workspace/shared/i16-design-v03/document-images/M22-dark-editor-v02-desktop.png",
+    "width_pt": 504,
+    "height_pt": 315.0,
+    "kind": "desktop layout overview",
+    "source_names": [
+      "M22-dark-editor-v02-desktop"
+    ],
+    "slot": "IMG39",
+    "sha256": "fdb92c7ccbd735e7a824986106a9bd73875275954f4a8c96b10bca56db42bf99"
+  },
+  {
+    "family": "M23",
+    "path": "/workspace/shared/i16-design-v03/document-images/M23-assistance-v01-desktop.png",
+    "width_pt": 504,
+    "height_pt": 315.0,
+    "kind": "desktop layout overview",
+    "source_names": [
+      "M23-assistance-v01-desktop"
+    ],
+    "slot": "IMG40",
+    "sha256": "eb07129d7cd5ad4c266d49c8ad1e30686c14caac4f540d9c9e79d95a10925b99"
+  },
+  {
+    "family": "M23",
+    "path": "/workspace/shared/i16-design-v03/document-images/M23-assistance-v01-phone.png",
+    "width_pt": 260,
+    "height_pt": 562.6666666666666,
+    "kind": "readable phone detail",
+    "source_names": [
+      "M23-assistance-v01-phone"
+    ],
+    "slot": "IMG41",
+    "sha256": "9c5c85992eec27265eb0b82173d901af4f8f7cfb103e4685ea442e76c5e46f6d"
+  },
+  {
+    "family": "M24",
+    "path": "/workspace/shared/i16-design-v03/document-images/M24-release-v03-desktop.png",
+    "width_pt": 504,
+    "height_pt": 315.0,
+    "kind": "desktop layout overview",
+    "source_names": [
+      "M24-release-v03-desktop"
+    ],
+    "slot": "IMG42",
+    "sha256": "bbf915b66ece2f37eade727b76ae1480881865a11ed31d5478ae62eb1ad062e2"
+  },
+  {
+    "family": "M24",
+    "path": "/workspace/shared/i16-design-v03/document-images/M24-release-v03-phone.png",
+    "width_pt": 260,
+    "height_pt": 562.6666666666666,
+    "kind": "readable phone detail",
+    "source_names": [
+      "M24-release-v03-phone"
+    ],
+    "slot": "IMG43",
+    "sha256": "d4b89718d12e42d004adccb1f007f153d24a1a313f38e055628abbf13211c1df"
+  },
+  {
+    "family": "M25",
+    "path": "/workspace/shared/i16-design-v03/document-images/M25-readable-phone-details.png",
+    "width_pt": 504,
+    "height_pt": 531.72,
+    "kind": "readable related phone states",
+    "source_names": [
+      "M25-manual-outcome-v02-phone",
+      "M25-observation-v02-phone"
+    ],
+    "slot": "IMG44",
+    "sha256": "2047826fdb69cf636957525ffd982f6ba5520069a259b163f61a5b6d7baf3428"
+  },
+  {
+    "family": "M20",
+    "path": "/workspace/shared/i16-design-v03/document-images/M20-save-unknown-detail.png",
+    "width_pt": 504,
+    "height_pt": 225.01357466063348,
+    "kind": "readable failed-save control detail",
+    "source_names": [
+      "M20-states-v01-desktop"
+    ],
+    "slot": "IMG45",
+    "sha256": "2440fd92f8109d92fb900eb7b6841bd76f65911c9eb0bac2db1b5a3f8518d0b7"
+  }
+]

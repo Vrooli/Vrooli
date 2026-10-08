@@ -1,0 +1,14 @@
+{
+  "id": "landing-page-business-suite",
+  "name": "landing-page-business-suite",
+  "enabled": true,
+  "transport": "http-json",
+  "baseUrlEnv": "LANDING_PAGE_BUSINESS_SUITE_BASE_URL",
+  "auth": {
+    "logicalId": "vrooli/landing-page-business-suite",
+    "field": "service-secret"
+  },
+  "paths": [
+    "/api/v1/admin/dashboard/revenue"
+  ]
+}

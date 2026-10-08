@@ -1,78 +1,166 @@
-# OpenCode AI CLI Resource
+# OpenCode Resource
 
-This resource installs the official [OpenCode](https://opencode.ai) CLI so agents can drive the terminal-first coding workflow inside Vrooli. The binary is downloaded from the upstream GitHub releases and isolated under `data/opencode/` alongside configuration, cache, and auth state.
+OpenCode CLI resource for terminal-first coding workflows inside Vrooli.
 
-## Quick start
+## Intent
+
+- Resource ID: `opencode`
+- Category: `development`
+- Driver: `external-cli`
+- Portability tier: `partial`
+
+## Architecture
+
+This resource follows the `external-cli` template: the upstream `opencode`
+binary is installed on `PATH` and invoked **directly** (no wrapper shim).
+A thin Go CLI (`resource-opencode`) adds only the operator surface the raw
+binary lacks — governed permissions and an upstream update-check.
+
+- `resource.json` is the declarative authority for install, binary probing,
+  version checks, environment exports, freshness, and lifecycle metadata.
+- `cli/` is the single binary entrypoint (`resource-opencode`) and command
+  wiring surface. Its only specialised internal package is
+  `cli/internal/permissions` (+ `permissionscli`), which manages the
+  `permission.bash` map in `opencode.json`.
+- `resource-opencode install-direct` downloads the pinned upstream release and lands the real
+  `opencode` binary at `~/.local/bin/opencode`, then writes the default
+  config and syncs provider auth.
+
+### Who invokes what
+
+- **agent-manager** runs the raw binary: `opencode run <prompt> --format json
+  --print-logs [-m <model>] [--session <id>]`. The agent-manager codec
+  (`scenarios/agent-manager/api/internal/adapters/runner/codecs/opencode.go`)
+  owns the arg/stream contract.
+- **operators / governance** use `resource-opencode` for lifecycle,
+  `permissions`, and `upstream-check`.
+
+## Configuration (single source of truth)
+
+Raw `opencode` reads the default XDG locations, and every Vrooli surface
+writes there — there is exactly one config/auth location:
+
+- Config: `~/.config/opencode/opencode.json` (model + `permission.bash`)
+- Policy hook: `~/.config/opencode/plugins/vrooli-policy.js` (managed when deny
+  rules exist through OpenCode's `tool.execute.before` plugin seam)
+- Auth:   `~/.local/share/opencode/auth.json` (provider keys)
+
+`vrooli resource install opencode` writes a default model into
+`opencode.json` (preserving any `permission.bash` map already present) and
+syncs the OpenRouter key into `auth.json`.
+
+### Providers
+
+- **OpenRouter** is the wired cloud default
+  (`openrouter/x-ai/grok-code-fast-1`); the key is injected by the credential
+  authority and written to `auth.json`.
+- **Ollama** is auto-configured as a keyless local provider
+  (OpenAI-compatible, `http://localhost:11434/v1`) when a local daemon is
+  reachable and no OpenRouter key is present. Target a local model
+  explicitly with `-m ollama/<model>`.
+
+## Coding-role policy
+
+OpenCode owns its concrete coding-role inventory in `model-policy.json`. Use
+`resource-opencode policy validate`, `policy roles --json`, and `policy resolve
+--role code.default --json` to inspect it. The response records the concrete
+model, fallbacks, policy provenance, and native permission posture; Agent
+Manager consumes that response at run creation but does not duplicate the
+inventory or write OpenCode configuration.
+
+## Permissions
+
+Manage the bash patterns OpenCode is allowed (or denied) to run via the
+`permissions` subgroup. The adapter owns `permission.bash` entries in
+`~/.config/opencode/opencode.json`; hand-written entries and unrelated
+config keys (including `model`) round-trip untouched.
+
 ```bash
-# Download the latest OpenCode binary and scaffold a config
-resource-opencode manage install
+# Block git stash for OpenCode (motivating example)
+resource-opencode permissions deny 'git stash *'
 
-# After install, a shim is placed in ~/.local/bin so you can call the CLI directly
-# (make sure ~/.local/bin is on your PATH)
-opencode --version
+# View managed patterns
+resource-opencode permissions list
+resource-opencode permissions show --raw
 
-# Inspect installation details and config
+# Detect drift since the last Vrooli write
+resource-opencode permissions drift-check
+
+# Check installed OpenCode version against the pinned upstream
+resource-opencode permissions doctor
+```
+
+For declarative automation, use `permissions plan --document desired.json --json` and `permissions reconcile --document desired.json --json`. The strict v1 document contains `schema_version`, optional `scope: "user"`, and ID-addressed `allow`/`ask`/`deny` rules with `matcher: {"kind":"bash","pattern":"..."}`. Plan never writes; reconcile is authorization-gated, preserves unmanaged config, and reports desired/live fingerprints, native paths, changes, and `native` enforcement.
+
+Mutating verbs (`deny`, `allow`, `ask`, `remove`, `reset`) refuse agent
+callers (detected via `cliutil.DetectCallerKind` — `VROOLI_CALLER=agent`,
+`CLAUDECODE=1`, opencode PID-match, etc.) unless
+`--i-was-explicitly-authorized` is passed. Read verbs (`list`, `show`,
+`drift-check`, `doctor`) are always allowed.
+
+OpenCode evaluates `permission.bash` as last-match-wins. The adapter writes
+alphabetically-sorted keys, so `*` (a likely default wildcard) sorts before
+letters and specific patterns end up later in iteration order, winning the
+match. If you need different ordering, hand-edit and `drift-check` will
+surface it.
+
+The plugin sends normalized bash tool events to the local policy runner and
+refuses the call when the runner exits unsuccessfully. The CLI reports
+`hook_unverified` until an installed-version live canary proves that the
+plugin loads and the refusal path fires; a plugin file by itself is not
+evidence.
+
+Upstream docs: <https://opencode.ai/docs/permissions/>.
+
+## Update check
+
+```bash
+# Compare the installed opencode against the latest upstream release.
+resource-opencode upstream-check
+resource-opencode upstream-check --json
+```
+
+Read-only and agent-safe: it reports `up-to-date | behind | ahead | unknown`
+against the GitHub releases API and never hard-fails on a network error.
+The same verb exists on the `codex` and `claude-code` resources.
+
+## Usage
+
+```bash
+# Install the upstream binary + Go CLI through the shared control plane
+vrooli resource install opencode
+
+# Check binary availability and health
 resource-opencode status
-
-# Start the OpenCode HTTP server so agents can make edits
-resource-opencode manage start
-
-# Send a prompt through the agent-aware workflow (creates a server session automatically)
-resource-opencode agents run --prompt "Fix the failing test" --model openrouter/x-ai/grok-code-fast-1
-
-# Inspect active sessions or running agents
-resource-opencode agents session list
-resource-opencode agents list --json
-
-# Apply safety rails and execution limits (mirrors resource-claude-code/codex flags)
-resource-opencode agents run --prompt "Refactor the handler" --allowed-tools "edit,write" --max-turns 8
-resource-opencode agents run --prompt "Generate release notes" --skip-permissions --task-timeout 180
-
-# Run a one-off command (non-interactive)
-resource-opencode run run "Summarise the repo"
-
-# Explore the interactive TUI
-resource-opencode run
 ```
 
-## Configuration & Secrets
-- The active config lives at `data/opencode/config/opencode.json`. Alternate profiles are stored as `config-*.json` in the same directory and can be activated via `resource-opencode content execute <name>`.
-- Environment secrets such as `OPENROUTER_API_KEY` or `CLOUDFLARE_API_TOKEN` are loaded automatically from Vault / `~/.vrooli/secrets.json` and exposed to the CLI. They can also be written into the CLI's auth store with `resource-opencode run auth login`.
-- Secrets remain declared in `config/secrets.yaml`, allowing the Secrets Manager scenario to prompt for and provision credentials.
-- Default model selection now targets OpenRouter's `x-ai/grok-code-fast-1`; set `OPENROUTER_API_KEY` (or edit `opencode.json`) before running agents. Existing installations are auto-migrated the next time you invoke the resource.
-- For edit workflows, allow both read and edit permissions (for example `--allowed-tools "edit,read"`) so the agent can inspect files before writing changes.
-- Permission and safety overrides mirror other automation agents:
-  - `--allowed-tools` (or `OPENCODE_ALLOWED_TOOLS` / `ALLOWED_TOOLS`) to constrain tool usage.
-  - `--skip-permissions` (or `OPENCODE_SKIP_PERMISSIONS` / `SKIP_PERMISSIONS`) to auto-approve every request.
-  - `--max-turns` to abort after N completed tool calls (`OPENCODE_MAX_TURNS`).
-  - `--task-timeout` / `--timeout` to stop a run after N seconds (`OPENCODE_TASK_TIMEOUT`, falls back to `TIMEOUT`).
+## Notes
 
-## AGENTS.md & custom instructions
-- The official CLI recursively scans for `AGENTS.md` from the working directory upward (and respects any paths listed in `opencode.json`).
-- The resource's default config pins `OPENCODE_CONFIG` to `data/opencode/config/opencode.json` so you can manage instructions without touching global user state.
+- This resource wraps an external CLI. It should stay thin by default.
+- Do not grow `cli/main.go` into a second operator framework.
+- Do not reintroduce a `resource-opencode run` passthrough — the contract is
+  raw-binary invocation.
 
-## Models
-Use the resource-native command to enumerate available models (optionally as JSON) once you've configured credentials:
+### web-console conversation capture
 
-```bash
-resource-opencode models --json | jq '.models | length'
+When `opencode` runs inside a [web-console](../../scenarios/web-console) terminal
+pane, web-console captures its conversation into the semantic messages feed
+(search, TTS, replay). It does this over the HTTP API — web-console owns a
+single loopback-only `opencode serve` instance, subscribes to its `/event` SSE
+stream, and reconciles transcripts via `GET /session/{id}/message`. It does not
+parse the OpenCode SQLite store and reads no provider credentials. Because
+OpenCode shares one global storage dir across processes, a pane's session is
+attributed to it only when the match is unambiguous (directory + creation time +
+uniqueness); concurrent `opencode` panes in the same directory are skipped rather
+than misrouted. See `scenarios/web-console/docs/guides/CONVERSATION_TRACKING.md`.
 
-# Plain text listing
-resource-opencode models --limit 20
-```
+## Model catalog operations
 
-Model discovery pulls from local Ollama installs as well as any provider keys configured via `opencode auth login` or environment variables.
+`resource-opencode models list --json` reads the runner's current model listing without a completion call. `resource-opencode models resolve --model <id> --json` returns the resource-owned canonical pricing identity. Run `resource-opencode policy validate --against-live --json` after a retarget. Record the provider slug and observation date, keep fallbacks no more expensive than their primary where evidence permits, and review catalog changes explicitly within the 14-day staleness budget.
 
-## Programmatic usage
-`resource-opencode run …` is a thin wrapper around the official `opencode` binary. Pass arguments exactly as you would to the upstream CLI:
+## References
 
-```bash
-# Non-interactive run with explicit model override
-resource-opencode run run --model openrouter/gpt-4o-mini "Generate release notes for the last commit"
+- [OpenCode](https://opencode.ai)
+## Maturity
 
-# Manage credentials
-resource-opencode run auth login
-```
-
-## Logs
-Standard output is streamed directly to the caller. The resource also sets `OPENCODE_LOG_DIR` to `data/opencode/logs/` so you can enable structured logging via the CLI's `--print-logs` or config options if desired. When the HTTP server is running its detailed logs are stored at `data/opencode/logs/server.log` and can be inspected with `resource-opencode logs`.
+M4 (2026-08-05): lifecycle, health, platform gates, and Go CLI test evidence are covered by the fleet contract.

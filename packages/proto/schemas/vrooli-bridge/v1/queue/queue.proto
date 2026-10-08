@@ -1,0 +1,109 @@
+syntax = "proto3";
+
+package vrooli.vrooli_bridge.v1.queue;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/queue;queue_v1";
+
+// =============================================================================
+// QUEUE DOMAIN — per-node bounded concurrency + fair scheduling (OT-P1-004)
+// =============================================================================
+//
+// @stability beta
+//
+// Wire contract for the QueueService: the control-plane view over the per-node
+// job scheduler. Each node runs at most a small bounded number of jobs at once
+// (default 1, mirroring test-genie's one-run-per-scenario discipline so a gate
+// fan-out never thrashes a node); additional dispatched jobs QUEUE in fair FIFO
+// order and are pushed as running slots free.
+//
+// The scheduler sits transparently on the dispatch → channel push path: it
+// satisfies dispatch's existing job-push seam, so a dispatch whose target node
+// has a free slot is pushed immediately and one whose node is busy is held
+// queued (its durable run stays QUEUED until a slot frees). When a run reaches a
+// terminal status the freed slot pulls the next queued job. The durable source
+// of truth for a job is still its Run (runs domain); this service exposes ONLY
+// the live scheduler view — which jobs are queued vs running, per node, and
+// their order — so the operator (and the fleet UI) can see and reason about
+// contention without polling.
+//
+// This service is read-only and owner-gated. Mutating the queue happens through
+// dispatch (enqueue) and runs AbortRun (cancel a queued/running job); there is
+// no direct queue-mutation RPC.
+//
+// Consumed by:
+//   - API: handlers/queue/connect_handler.go implements the generated handler.
+//   - CLI: cli/domains/queue/handlers.go via the generated Connect-Go client.
+// =============================================================================
+
+// QueueState is a queued job's live scheduler state.
+enum QueueState {
+  QUEUE_STATE_UNSPECIFIED = 0;
+
+  // The job is waiting for a running slot on its node to free.
+  QUEUE_STATE_QUEUED = 1;
+
+  // The job occupies a running slot (pushed to the node; running until its run
+  // reaches a terminal status).
+  QUEUE_STATE_RUNNING = 2;
+}
+
+// QueueEntry is one job's line in a node's live queue view.
+message QueueEntry {
+  // The durable run id (runs domain) this scheduler entry tracks.
+  string run_id = 1;
+
+  // The node the job is scheduled on.
+  string node_id = 2;
+
+  // The typed job (echoed for display; the allowlist already validated it).
+  string scenario = 3;
+  string verb = 4;
+  repeated string args = 5;
+
+  QueueState state = 6;
+
+  // 0-based position among the node's QUEUED jobs (running jobs report -1).
+  int32 position = 7;
+
+  // When the job entered the scheduler.
+  google.protobuf.Timestamp enqueued_at = 8;
+
+  // When the job was pushed to the node (set once state == RUNNING).
+  google.protobuf.Timestamp started_at = 9;
+}
+
+// NodeQueue is one node's slice of the live queue: its running + queued jobs and
+// its concurrency bound.
+message NodeQueue {
+  string node_id = 1;
+
+  // The node's maximum concurrent running jobs (the bound).
+  int32 concurrency_limit = 2;
+
+  // Count of jobs currently in a running slot.
+  int32 running = 3;
+
+  // Count of jobs waiting for a slot.
+  int32 queued = 4;
+
+  // The entries (running first, then queued in FIFO order).
+  repeated QueueEntry entries = 5;
+}
+
+service QueueService {
+  // ListQueue returns the live scheduler view: one NodeQueue per node that has
+  // any running or queued job, optionally narrowed to a single node. Owner-
+  // gated, read-only.
+  rpc ListQueue(ListQueueRequest) returns (ListQueueResponse);
+}
+
+message ListQueueRequest {
+  // Optional node filter; empty returns every node with activity.
+  string node_id = 1;
+}
+
+message ListQueueResponse {
+  repeated NodeQueue nodes = 1;
+}

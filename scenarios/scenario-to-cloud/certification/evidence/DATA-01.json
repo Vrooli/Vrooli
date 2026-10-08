@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "case_id": "DATA-01",
+  "verdict": "passed",
+  "lane": "package",
+  "requirement_refs": [
+    "STC-P0-029",
+    "STC-P0-030",
+    "STC-P0-031"
+  ],
+  "candidate": {
+    "release_digest": "sha256:3258be397e6e23332741f9da2296a6eb0aec614d8d3702b739ccb7bddfb60e2d",
+    "configuration_digest": "fixture-configuration",
+    "closure_digest": "sha256:fixture-sql-uploads"
+  },
+  "target": {
+    "machine_id": "package-lane-temp-host",
+    "architecture": "amd64",
+    "os": "linux"
+  },
+  "operation_refs": [
+    "op-1"
+  ],
+  "validation_receipt_ref": "go test ./backup/ -run TestFreshHostRestoreDrill",
+  "artifact_refs": [],
+  "assertions": [
+    "capture under acknowledged writes: 1 rows acknowledged before the declared boundary quiesced the writer; every binding recorded write_quiescence=quiesced",
+    "restored acknowledged-write ledger equals the restored rows (acknowledged_write_ledger invariant passed)",
+    "recovery point age at restore start 31.898834ms (budget 300s)"
+  ],
+  "observed_at": "2026-09-09T12:39:20.878138149Z",
+  "limitations": [
+    "lane package: temp hosts on the test machine; the SQL binding is a SQLite stand-in for PostgreSQL (the postgres provider's argv is covered by TestPostgresHookMatchesResourceDeclaration)",
+    "QEMU and real-VPS lanes pending EXT-01/EXT-06"
+  ]
+}

@@ -1,0 +1,123 @@
+syntax = "proto3";
+
+package vrooli.search_hub.v1.metrics;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/metrics;metrics_v1";
+
+// =============================================================================
+// SEARCH-HUB METRICS DOMAIN — query telemetry insights
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain metrics
+// @stability beta
+//
+// Wire contract for MetricsService. The router records one telemetry row per
+// federated query (routed types, providers hit, per-provider hit counts,
+// latency, degraded/zero-result/reranked flags; query text is HASHED, never
+// stored raw). Insights aggregates that telemetry into the federation health
+// signals the plan's §6 #7 gate and PRD OT-P2 targets measure: zero-result
+// rate, p50/p95 latency, and per-provider utilization (including providers that
+// are registered-but-never-routed-to — the "bad description / bad routing"
+// smell).
+//
+// This is the only table the thin router owns beyond the registry. It holds NO
+// corpus content and NO vectors (the load-bearing thin-router invariant).
+//
+// See docs/plans/unified-search-hub-plan.md Appendix G.5 for the Phase-7
+// design.
+// =============================================================================
+
+service MetricsService {
+  rpc Insights(InsightsRequest) returns (InsightsResponse);
+}
+
+message InsightsRequest {
+  // Optional: restrict aggregates to telemetry recorded in the last N days.
+  // 0 (the default) means all-time.
+  int32 window_days = 1;
+  // Optional duration window such as 15m or 2h. A bare integer is interpreted
+  // as days by the server for compatibility with window_days.
+  string window = 2;
+}
+
+// Per-provider routing utilization over the window. `times_routed` counts the
+// queries that fanned out to this leaf; `total_hits` sums the results it
+// contributed. `under_utilized` flags an ACTIVE registry leaf that was never
+// routed-to in the window — a signal its description routes poorly (or it is
+// genuinely never needed).
+message ProviderUtilization {
+  string provider_id = 1;
+  string provider_group = 2;
+  string type = 3;
+  int64 times_routed = 4;
+  int64 total_hits = 5;
+  bool under_utilized = 6;
+  int64 latency_p50_ms = 7;
+  int64 latency_p95_ms = 8;
+  int64 degraded_count = 9;
+  double degradation_rate = 10;
+  repeated ProviderDegradationReason degradation_reasons = 11;
+  // The reranker leg most recently observed for this provider in the window.
+  string active_reranker_leg = 12;
+}
+
+message ProviderDegradationReason {
+  string reason = 1;
+  int64 count = 2;
+}
+
+message ProviderRetirementCandidate {
+  string provider_id = 1;
+  int64 times_routed = 2;
+  int64 total_hits = 3;
+  string reason = 4;
+}
+
+message ProviderGroupAdvisory {
+  string provider_group = 1;
+  int32 active_leaves = 2;
+  double share = 3;
+  string reason = 4;
+}
+
+message InsightsResponse {
+  // Total federated queries recorded in the window.
+  int64 total_queries = 1;
+  // Queries that returned zero results across all providers.
+  int64 zero_result_queries = 2;
+  // zero_result_queries / total_queries (0 when no queries).
+  double zero_result_rate = 3;
+  // Queries where at least one provider degraded.
+  int64 degraded_queries = 4;
+  // Queries that produced a unified reranked list.
+  int64 reranked_queries = 5;
+  // Latency percentiles over the window (milliseconds).
+  int64 latency_p50_ms = 6;
+  int64 latency_p95_ms = 7;
+  // Per-provider utilization, including ACTIVE leaves never routed-to
+  // (under_utilized=true, times_routed=0), ordered by provider_id.
+  repeated ProviderUtilization providers = 8;
+  // Report-only hygiene signals. Search Hub never deregisters from these.
+  repeated ProviderRetirementCandidate retirement_candidates = 9;
+  repeated ProviderGroupAdvisory group_advisories = 10;
+  int64 resolver_cache_hits = 11;
+  int64 resolver_cache_misses = 12;
+  double resolver_cache_hit_rate = 13;
+  // Auditable bounds and evidence quality for the aggregate.
+  string window_from = 14;
+  string window_to = 15;
+  int64 sample_count = 16;
+  int64 minimum_sample_count = 17;
+  bool sample_sufficient = 18;
+  // Rolling recent-N latency percentiles, labelled separately from the
+  // requested window so an operator can compare current behaviour with the
+  // full window without confusing the two populations.
+  int64 recent_sample_count = 19;
+  int64 recent_latency_p50_ms = 20;
+  int64 recent_latency_p95_ms = 21;
+  // Shared retrieval substrate degradation is reported separately from corpus
+  // provider degradation so a reranker outage is not charged to every leaf.
+  repeated ProviderDegradationReason substrate_degradation_reasons = 22;
+  int64 substrate_degraded_legs = 23;
+}

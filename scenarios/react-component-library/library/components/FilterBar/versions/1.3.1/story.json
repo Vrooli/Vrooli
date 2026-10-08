@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 5,
+  "kind": "component",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Default",
+      "args": {},
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-filter-bar]"
+        }
+      ],
+      "role": "anatomy"
+    },
+    {
+      "id": "compact",
+      "name": "Compact conversation search",
+      "mode": "live",
+      "role": "boundary",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Compact"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-density=\"compact\"]"
+        }
+      ]
+    },
+    {
+      "id": "inline-search",
+      "name": "Immediate collection search",
+      "args": {
+        "presentation": "inline",
+        "applyMode": "immediate",
+        "queryPlaceholder": "Search conversations"
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-filter-bar]"
+        }
+      ],
+      "role": "boundary"
+    },
+    {"id": "empty", "name": "Empty filters", "args": {}, "expect": [{"kind": "visible", "selector": "[data-rcl-filter-bar]"}], "role": "boundary", "mode": "pinned"},
+    {"id": "loading", "name": "Loading filters", "args": {}, "expect": [{"kind": "visible", "selector": "[data-rcl-filter-bar]"}], "role": "boundary", "mode": "pinned"},
+    {"id": "error", "name": "Error filters", "args": {}, "expect": [{"kind": "visible", "selector": "[data-rcl-filter-bar]"}], "role": "boundary", "mode": "pinned"},
+    {"id": "one", "name": "One filter", "args": {}, "expect": [{"kind": "visible", "selector": "[data-rcl-filter-bar]"}], "role": "boundary", "mode": "pinned"},
+    {"id": "many", "name": "Many filters", "args": {}, "expect": [{"kind": "visible", "selector": "[data-rcl-filter-bar]"}], "role": "boundary", "mode": "pinned"},
+    {"id": "overflow", "name": "Overflow filters", "args": {}, "expect": [{"kind": "visible", "selector": "[data-rcl-filter-bar]"}], "role": "boundary", "mode": "pinned"}
+  ]
+}

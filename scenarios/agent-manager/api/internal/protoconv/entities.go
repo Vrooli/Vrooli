@@ -1,17 +1,30 @@
 package protoconv
 
 import (
-	"strings"
-	"time"
-
-	"github.com/google/uuid"
-	"google.golang.org/protobuf/types/known/structpb"
-	"google.golang.org/protobuf/types/known/timestamppb"
-
 	"agent-manager/internal/domain"
-
+	"github.com/google/uuid"
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	"strings"
 )
+
+// validUTF8 protects the protobuf boundary from historical/imported data that
+// may contain arbitrary bytes. Protobuf string fields must contain UTF-8;
+// replacing malformed sequences keeps read surfaces available without
+// discarding otherwise valid content.
+func validUTF8(value string) string {
+	return strings.ToValidUTF8(value, "\uFFFD")
+}
+
+func validUTF8Slice(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+	result := make([]string, len(values))
+	for i, value := range values {
+		result[i] = validUTF8(value)
+	}
+	return result
+}
 
 // =============================================================================
 // AGENT PROFILE
@@ -22,35 +35,37 @@ func AgentProfileToProto(p *domain.AgentProfile) *pb.AgentProfile {
 	if p == nil {
 		return nil
 	}
-	fallback := make([]pb.RunnerType, 0, len(p.FallbackRunnerTypes))
-	for _, rt := range p.FallbackRunnerTypes {
-		fallback = append(fallback, RunnerTypeToProto(rt))
-	}
 	return &pb.AgentProfile{
-		Id:                   UUIDToString(p.ID),
-		Name:                 p.Name,
-		ProfileKey:           p.ProfileKey,
-		Description:          p.Description,
-		RunnerType:           RunnerTypeToProto(p.RunnerType),
-		Model:                p.Model,
-		ModelPreset:          ModelPresetToProto(p.ModelPreset),
-		MaxTurns:             int32(p.MaxTurns),
-		Timeout:              DurationToProto(p.Timeout),
-		FallbackRunnerTypes:  fallback,
-		AllowedTools:         p.AllowedTools,
-		DeniedTools:          p.DeniedTools,
-		SkipPermissionPrompt: p.SkipPermissionPrompt,
-		Features:             FeatureFlagsToProto(p.Features),
-		ExtraFlags:           RunnerExtraFlagsToProto(p.ExtraFlags),
-		NetworkAccess:        NetworkAccessToProto(p.NetworkAccess),
-		RequiresSandbox:      p.RequiresSandbox,
-		RequiresApproval:     p.RequiresApproval,
-		SandboxConfig:        SandboxConfigToProto(p.SandboxConfig),
-		AllowedPaths:         p.AllowedPaths,
-		DeniedPaths:          p.DeniedPaths,
-		CreatedBy:            p.CreatedBy,
-		CreatedAt:            TimestampToProto(p.CreatedAt),
-		UpdatedAt:            TimestampToProto(p.UpdatedAt),
+		Id:                    UUIDToString(p.ID),
+		Name:                  p.Name,
+		ProfileKey:            p.ProfileKey,
+		Description:           p.Description,
+		RoleRef:               p.RoleRef,
+		MaxTurns:              int32(p.MaxTurns),
+		Timeout:               DurationToProto(p.Timeout),
+		Effort:                string(p.Effort),
+		AllowedTools:          p.AllowedTools,
+		DeniedTools:           p.DeniedTools,
+		ToolRestrictionPolicy: string(p.ToolRestrictionPolicy.Effective()),
+		SkipPermissionPrompt:  p.SkipPermissionPrompt,
+		Features:              FeatureFlagsToProto(p.Features),
+		ExtraFlags:            RunnerExtraFlagsToProto(p.ExtraFlags),
+		NetworkAccess:         NetworkAccessToProto(p.NetworkAccess),
+		OwnerScenario:         p.OwnerScenario,
+		SourcePath:            p.SourcePath,
+		SourceHash:            p.SourceHash,
+		LastAppliedHash:       p.LastAppliedHash,
+		SourceUpdatedAt:       TimestampToProto(p.SourceUpdatedAt),
+		LocalOverride:         p.LocalOverride,
+		SandboxConfig:         SandboxConfigToProto(p.SandboxConfig),
+		AllowedPaths:          p.AllowedPaths,
+		DeniedPaths:           p.DeniedPaths,
+		DeclaredScopes:        p.DeclaredScopes,
+		CreatedBy:             p.CreatedBy,
+		CreatedAt:             TimestampToProto(p.CreatedAt),
+		UpdatedAt:             TimestampToProto(p.UpdatedAt),
+		SkillPack:             p.SkillPack,
+		SkillExperimentId:     p.SkillExperimentID,
 	}
 }
 
@@ -59,38 +74,37 @@ func AgentProfileFromProto(p *pb.AgentProfile) *domain.AgentProfile {
 	if p == nil {
 		return nil
 	}
-	fallback := make([]domain.RunnerType, 0, len(p.FallbackRunnerTypes))
-	for _, rt := range p.FallbackRunnerTypes {
-		if rt == pb.RunnerType_RUNNER_TYPE_UNSPECIFIED {
-			continue
-		}
-		fallback = append(fallback, RunnerTypeFromProto(rt))
-	}
 	return &domain.AgentProfile{
-		ID:                   UUIDFromString(p.Id),
-		Name:                 p.Name,
-		ProfileKey:           p.ProfileKey,
-		Description:          p.Description,
-		RunnerType:           RunnerTypeFromProto(p.RunnerType),
-		Model:                p.Model,
-		ModelPreset:          ModelPresetFromProto(p.ModelPreset),
-		MaxTurns:             int(p.MaxTurns),
-		Timeout:              DurationFromProto(p.Timeout),
-		FallbackRunnerTypes:  fallback,
-		AllowedTools:         p.AllowedTools,
-		DeniedTools:          p.DeniedTools,
-		SkipPermissionPrompt: p.SkipPermissionPrompt,
-		Features:             FeatureFlagsFromProto(p.Features),
-		ExtraFlags:           RunnerExtraFlagsFromProto(p.ExtraFlags),
-		NetworkAccess:        NetworkAccessFromProto(p.NetworkAccess),
-		RequiresSandbox:      p.RequiresSandbox,
-		RequiresApproval:     p.RequiresApproval,
-		SandboxConfig:        SandboxConfigFromProto(p.SandboxConfig),
-		AllowedPaths:         p.AllowedPaths,
-		DeniedPaths:          p.DeniedPaths,
-		CreatedBy:            p.CreatedBy,
-		CreatedAt:            TimestampFromProto(p.CreatedAt),
-		UpdatedAt:            TimestampFromProto(p.UpdatedAt),
+		ID:                    UUIDFromString(p.Id),
+		Name:                  p.Name,
+		ProfileKey:            p.ProfileKey,
+		Description:           p.Description,
+		RoleRef:               p.RoleRef,
+		MaxTurns:              int(p.MaxTurns),
+		Timeout:               DurationFromProto(p.Timeout),
+		Effort:                domain.Effort(p.Effort),
+		AllowedTools:          p.AllowedTools,
+		DeniedTools:           p.DeniedTools,
+		ToolRestrictionPolicy: domain.ToolRestrictionPolicy(p.ToolRestrictionPolicy),
+		SkipPermissionPrompt:  p.SkipPermissionPrompt,
+		Features:              FeatureFlagsFromProto(p.Features),
+		ExtraFlags:            RunnerExtraFlagsFromProto(p.ExtraFlags),
+		NetworkAccess:         NetworkAccessFromProto(p.NetworkAccess),
+		OwnerScenario:         p.OwnerScenario,
+		SourcePath:            p.SourcePath,
+		SourceHash:            p.SourceHash,
+		LastAppliedHash:       p.LastAppliedHash,
+		SourceUpdatedAt:       TimestampFromProto(p.SourceUpdatedAt),
+		LocalOverride:         p.LocalOverride,
+		SandboxConfig:         SandboxConfigFromProto(p.SandboxConfig),
+		AllowedPaths:          p.AllowedPaths,
+		DeniedPaths:           p.DeniedPaths,
+		DeclaredScopes:        p.DeclaredScopes,
+		CreatedBy:             p.CreatedBy,
+		CreatedAt:             TimestampFromProto(p.CreatedAt),
+		UpdatedAt:             TimestampFromProto(p.UpdatedAt),
+		SkillPack:             p.SkillPack,
+		SkillExperimentID:     p.SkillExperimentId,
 	}
 }
 
@@ -206,270 +220,6 @@ func TasksToProto(tasks []*domain.Task) []*pb.Task {
 // RUN
 // =============================================================================
 
-// RunToProto converts a domain Run to proto Run.
-func RunToProto(r *domain.Run) *pb.Run {
-	if r == nil {
-		return nil
-	}
-
-	run := &pb.Run{
-		Id:              UUIDToString(r.ID),
-		TaskId:          UUIDToString(r.TaskID),
-		Tag:             r.Tag,
-		SessionId:       r.SessionID,
-		RunMode:         RunModeToProto(r.RunMode),
-		Status:          RunStatusToProto(r.Status),
-		Phase:           RunPhaseToProto(r.Phase),
-		ProgressPercent: int32(r.ProgressPercent),
-		IdempotencyKey:  r.IdempotencyKey,
-		ErrorMsg:        r.ErrorMsg,
-		ApprovalState:   ApprovalStateToProto(r.ApprovalState),
-		ApprovedBy:      r.ApprovedBy,
-		DiffPath:        r.DiffPath,
-		LogPath:         r.LogPath,
-		ChangedFiles:    int32(r.ChangedFiles),
-		TotalSizeBytes:  r.TotalSizeBytes,
-		PromptPreview:   r.PromptPreview,
-		CreatedAt:       TimestampToProto(r.CreatedAt),
-		UpdatedAt:       TimestampToProto(r.UpdatedAt),
-	}
-
-	if r.AgentProfileID != nil {
-		s := r.AgentProfileID.String()
-		run.AgentProfileId = &s
-	}
-	if r.SandboxID != nil {
-		s := r.SandboxID.String()
-		run.SandboxId = &s
-	}
-	if r.LastCheckpointID != nil {
-		s := r.LastCheckpointID.String()
-		run.LastCheckpointId = &s
-	}
-	if r.ExitCode != nil {
-		i := int32(*r.ExitCode)
-		run.ExitCode = &i
-	}
-
-	if r.StartedAt != nil {
-		run.StartedAt = TimestampToProto(*r.StartedAt)
-	}
-	if r.EndedAt != nil {
-		run.EndedAt = TimestampToProto(*r.EndedAt)
-	}
-	if r.LastHeartbeat != nil {
-		run.LastHeartbeat = TimestampToProto(*r.LastHeartbeat)
-	}
-	if r.ApprovedAt != nil {
-		run.ApprovedAt = TimestampToProto(*r.ApprovedAt)
-	}
-
-	if r.Summary != nil {
-		run.Summary = &pb.RunSummary{
-			Description:   r.Summary.Description,
-			FilesModified: r.Summary.FilesModified,
-			FilesCreated:  r.Summary.FilesCreated,
-			FilesDeleted:  r.Summary.FilesDeleted,
-			TokensUsed:    int32(r.Summary.TokensUsed),
-			TurnsUsed:     int32(r.Summary.TurnsUsed),
-			CostEstimate:  r.Summary.CostEstimate,
-			ContextTokens: int32(r.Summary.ContextTokens),
-		}
-	}
-
-	if r.ResolvedConfig != nil {
-		run.ResolvedConfig = RunConfigToProto(r.ResolvedConfig)
-	}
-	if r.Actions != nil {
-		run.Actions = &pb.RunActions{
-			CanInvestigate:               r.Actions.CanInvestigate,
-			CanApplyInvestigation:        r.Actions.CanApplyInvestigation,
-			CanDelete:                    r.Actions.CanDelete,
-			CanStop:                      r.Actions.CanStop,
-			CanRetry:                     r.Actions.CanRetry,
-			CanContinue:                  r.Actions.CanContinue,
-			CanContinueReason:            r.Actions.CanContinueReason,
-			CanApprove:                   r.Actions.CanApprove,
-			CanReject:                    r.Actions.CanReject,
-			CanReview:                    r.Actions.CanReview,
-			CanExtractRecommendations:    r.Actions.CanExtractRecommendations,
-			CanRegenerateRecommendations: r.Actions.CanRegenerateRecommendations,
-		}
-	}
-
-	return run
-}
-
-// RunFromProto converts a proto Run to domain Run.
-func RunFromProto(r *pb.Run) *domain.Run {
-	if r == nil {
-		return nil
-	}
-
-	run := &domain.Run{
-		ID:              UUIDFromString(r.Id),
-		TaskID:          UUIDFromString(r.TaskId),
-		Tag:             r.Tag,
-		SessionID:       r.SessionId,
-		RunMode:         RunModeFromProto(r.RunMode),
-		Status:          RunStatusFromProto(r.Status),
-		Phase:           RunPhaseFromProto(r.Phase),
-		ProgressPercent: int(r.ProgressPercent),
-		IdempotencyKey:  r.IdempotencyKey,
-		ErrorMsg:        r.ErrorMsg,
-		ApprovalState:   ApprovalStateFromProto(r.ApprovalState),
-		ApprovedBy:      r.ApprovedBy,
-		DiffPath:        r.DiffPath,
-		LogPath:         r.LogPath,
-		ChangedFiles:    int(r.ChangedFiles),
-		TotalSizeBytes:  r.TotalSizeBytes,
-		CreatedAt:       TimestampFromProto(r.CreatedAt),
-		UpdatedAt:       TimestampFromProto(r.UpdatedAt),
-	}
-
-	// Handle optional timestamps (pointer fields)
-	if r.StartedAt != nil {
-		t := TimestampFromProto(r.StartedAt)
-		run.StartedAt = &t
-	}
-	if r.EndedAt != nil {
-		t := TimestampFromProto(r.EndedAt)
-		run.EndedAt = &t
-	}
-	if r.LastHeartbeat != nil {
-		t := TimestampFromProto(r.LastHeartbeat)
-		run.LastHeartbeat = &t
-	}
-	if r.ApprovedAt != nil {
-		t := TimestampFromProto(r.ApprovedAt)
-		run.ApprovedAt = &t
-	}
-
-	run.AgentProfileID = OptionalStringToUUID(r.AgentProfileId)
-	run.SandboxID = OptionalStringToUUID(r.SandboxId)
-	run.LastCheckpointID = OptionalStringToUUID(r.LastCheckpointId)
-
-	if r.ExitCode != nil {
-		i := int(*r.ExitCode)
-		run.ExitCode = &i
-	}
-
-	if r.Summary != nil {
-		run.Summary = &domain.RunSummary{
-			Description:   r.Summary.Description,
-			FilesModified: r.Summary.FilesModified,
-			FilesCreated:  r.Summary.FilesCreated,
-			FilesDeleted:  r.Summary.FilesDeleted,
-			TokensUsed:    int(r.Summary.TokensUsed),
-			TurnsUsed:     int(r.Summary.TurnsUsed),
-			CostEstimate:  r.Summary.CostEstimate,
-			ContextTokens: int(r.Summary.ContextTokens),
-		}
-	}
-
-	if r.ResolvedConfig != nil {
-		run.ResolvedConfig = RunConfigFromProto(r.ResolvedConfig)
-	}
-	if r.Actions != nil {
-		run.Actions = &domain.RunActions{
-			CanInvestigate:               r.Actions.CanInvestigate,
-			CanApplyInvestigation:        r.Actions.CanApplyInvestigation,
-			CanDelete:                    r.Actions.CanDelete,
-			CanStop:                      r.Actions.CanStop,
-			CanRetry:                     r.Actions.CanRetry,
-			CanContinue:                  r.Actions.CanContinue,
-			CanContinueReason:            r.Actions.CanContinueReason,
-			CanApprove:                   r.Actions.CanApprove,
-			CanReject:                    r.Actions.CanReject,
-			CanReview:                    r.Actions.CanReview,
-			CanExtractRecommendations:    r.Actions.CanExtractRecommendations,
-			CanRegenerateRecommendations: r.Actions.CanRegenerateRecommendations,
-		}
-	}
-
-	return run
-}
-
-// RunsToProto converts a slice of domain Run to proto.
-func RunsToProto(runs []*domain.Run) []*pb.Run {
-	result := make([]*pb.Run, len(runs))
-	for i, r := range runs {
-		result[i] = RunToProto(r)
-	}
-	return result
-}
-
-// =============================================================================
-// RUN CONFIG
-// =============================================================================
-
-// RunConfigToProto converts a domain RunConfig to proto RunConfig.
-func RunConfigToProto(c *domain.RunConfig) *pb.RunConfig {
-	if c == nil {
-		return nil
-	}
-	fallback := make([]pb.RunnerType, 0, len(c.FallbackRunnerTypes))
-	for _, rt := range c.FallbackRunnerTypes {
-		fallback = append(fallback, RunnerTypeToProto(rt))
-	}
-	return &pb.RunConfig{
-		RunnerType:           RunnerTypeToProto(c.RunnerType),
-		Model:                c.Model,
-		ModelPreset:          ModelPresetToProto(c.ModelPreset),
-		MaxTurns:             int32(c.MaxTurns),
-		Timeout:              DurationToProto(c.Timeout),
-		FallbackRunnerTypes:  fallback,
-		AllowedTools:         c.AllowedTools,
-		DeniedTools:          c.DeniedTools,
-		SkipPermissionPrompt: c.SkipPermissionPrompt,
-		Features:             FeatureFlagsToProto(c.Features),
-		ExtraFlags:           RunnerExtraFlagsToProto(c.ExtraFlags),
-		NetworkAccess:        NetworkAccessToProto(c.NetworkAccess),
-		RequiresSandbox:      c.RequiresSandbox,
-		RequiresApproval:     c.RequiresApproval,
-		SandboxConfig:        SandboxConfigToProto(c.SandboxConfig),
-		AllowedPaths:         c.AllowedPaths,
-		DeniedPaths:          c.DeniedPaths,
-	}
-}
-
-// RunConfigFromProto converts a proto RunConfig to domain RunConfig.
-func RunConfigFromProto(c *pb.RunConfig) *domain.RunConfig {
-	if c == nil {
-		return nil
-	}
-	fallback := make([]domain.RunnerType, 0, len(c.FallbackRunnerTypes))
-	for _, rt := range c.FallbackRunnerTypes {
-		if rt == pb.RunnerType_RUNNER_TYPE_UNSPECIFIED {
-			continue
-		}
-		fallback = append(fallback, RunnerTypeFromProto(rt))
-	}
-	return &domain.RunConfig{
-		RunnerType:           RunnerTypeFromProto(c.RunnerType),
-		Model:                c.Model,
-		ModelPreset:          ModelPresetFromProto(c.ModelPreset),
-		MaxTurns:             int(c.MaxTurns),
-		Timeout:              DurationFromProto(c.Timeout),
-		FallbackRunnerTypes:  fallback,
-		AllowedTools:         c.AllowedTools,
-		DeniedTools:          c.DeniedTools,
-		SkipPermissionPrompt: c.SkipPermissionPrompt,
-		Features:             FeatureFlagsFromProto(c.Features),
-		ExtraFlags:           RunnerExtraFlagsFromProto(c.ExtraFlags),
-		NetworkAccess:        NetworkAccessFromProto(c.NetworkAccess),
-		RequiresSandbox:      c.RequiresSandbox,
-		RequiresApproval:     c.RequiresApproval,
-		SandboxConfig:        SandboxConfigFromProto(c.SandboxConfig),
-		AllowedPaths:         c.AllowedPaths,
-		DeniedPaths:          c.DeniedPaths,
-	}
-}
-
-// =============================================================================
-// FEATURE FLAGS
-// =============================================================================
-
 // FeatureFlagsToProto converts domain FeatureFlags to proto FeatureFlags.
 func FeatureFlagsToProto(f domain.FeatureFlags) *pb.FeatureFlags {
 	if f.IsZero() {
@@ -515,454 +265,3 @@ func RunnerExtraFlagsFromProto(flags map[string]*pb.ExtraFlagList) domain.Runner
 // =============================================================================
 // RUN EVENT
 // =============================================================================
-
-// RunEventToProto converts a domain RunEvent to proto RunEvent.
-func RunEventToProto(e *domain.RunEvent) *pb.RunEvent {
-	if e == nil {
-		return nil
-	}
-
-	event := &pb.RunEvent{
-		Id:        UUIDToString(e.ID),
-		RunId:     UUIDToString(e.RunID),
-		EventType: RunEventTypeToProto(e.EventType),
-		Timestamp: TimestampToProto(e.Timestamp),
-		Sequence:  e.Sequence,
-	}
-
-	// Convert event data based on type
-	switch data := e.Data.(type) {
-	case *domain.LogEventData:
-		event.Data = &pb.RunEvent_Log{
-			Log: &pb.LogEventData{
-				Level:   data.Level,
-				Message: data.Message,
-			},
-		}
-	case *domain.MessageEventData:
-		var pbAttachments []*pb.MessageAttachmentInfo
-		for _, att := range data.Attachments {
-			pbAttachments = append(pbAttachments, &pb.MessageAttachmentInfo{
-				Id:          att.ID,
-				FileName:    att.FileName,
-				ContentType: att.ContentType,
-				Url:         att.URL,
-			})
-		}
-		event.Data = &pb.RunEvent_Message{
-			Message: &pb.MessageEventData{
-				Role:        data.Role,
-				Content:     data.Content,
-				Attachments: pbAttachments,
-			},
-		}
-	case *domain.MessageDeletedEventData:
-		event.Data = &pb.RunEvent_MessageDeleted{
-			MessageDeleted: &pb.MessageDeletedEventData{
-				TargetEventId: data.TargetEventID,
-			},
-		}
-	case *domain.ToolCallEventData:
-		var input *structpb.Struct
-		if len(data.Input) > 0 {
-			if parsed, err := structpb.NewStruct(data.Input); err == nil {
-				input = parsed
-			}
-		}
-		event.Data = &pb.RunEvent_ToolCall{
-			ToolCall: &pb.ToolCallEventData{
-				ToolName:   data.ToolName,
-				ToolCallId: data.ToolCallID,
-				Input:      input,
-			},
-		}
-	case *domain.ToolResultEventData:
-		event.Data = &pb.RunEvent_ToolResult{
-			ToolResult: &pb.ToolResultEventData{
-				ToolName:   data.ToolName,
-				ToolCallId: data.ToolCallID,
-				Output:     data.Output,
-				Error:      data.Error,
-				Success:    data.Success,
-			},
-		}
-	case *domain.StatusEventData:
-		event.Data = &pb.RunEvent_Status{
-			Status: &pb.StatusEventData{
-				OldStatus: data.OldStatus,
-				NewStatus: data.NewStatus,
-				Reason:    data.Reason,
-			},
-		}
-	case *domain.MetricEventData:
-		event.Data = &pb.RunEvent_Metric{
-			Metric: &pb.MetricEventData{
-				Name:  data.Name,
-				Value: data.Value,
-				Unit:  data.Unit,
-				Tags:  data.Tags,
-			},
-		}
-	case *domain.ArtifactEventData:
-		event.Data = &pb.RunEvent_Artifact{
-			Artifact: &pb.ArtifactEventData{
-				Type:     data.Type,
-				Path:     data.Path,
-				Size:     data.Size,
-				MimeType: data.MimeType,
-			},
-		}
-	case *domain.CostEventData:
-		event.Data = &pb.RunEvent_Cost{
-			Cost: &pb.CostEventData{
-				InputTokens:           int32(data.InputTokens),
-				OutputTokens:          int32(data.OutputTokens),
-				CacheCreationTokens:   int32(data.CacheCreationTokens),
-				CacheReadTokens:       int32(data.CacheReadTokens),
-				TotalCostUsd:          data.TotalCostUSD,
-				ServiceTier:           data.ServiceTier,
-				Model:                 data.Model,
-				WebSearchRequests:     int32(data.WebSearchRequests),
-				ServerToolUseRequests: int32(data.ServerToolUseRequests),
-			},
-		}
-	case *domain.ProgressEventData:
-		event.Data = &pb.RunEvent_Progress{
-			Progress: &pb.ProgressEventData{
-				Phase:              RunPhaseToProto(data.Phase),
-				PercentComplete:    int32(data.PercentComplete),
-				CurrentAction:      data.CurrentAction,
-				TurnsCompleted:     int32(data.TurnsCompleted),
-				TurnsTotal:         int32(data.TurnsTotal),
-				TokensUsed:         int32(data.TokensUsed),
-				ElapsedSeconds:     data.ElapsedSeconds,
-				EstimatedRemaining: data.EstimatedRemaining,
-			},
-		}
-	case *domain.RateLimitEventData:
-		var resetTime *timestamppb.Timestamp
-		if data.ResetTime != nil {
-			resetTime = TimestampToProto(*data.ResetTime)
-		}
-		event.Data = &pb.RunEvent_RateLimit{
-			RateLimit: &pb.RateLimitEventData{
-				LimitType:   data.LimitType,
-				ResetTime:   resetTime,
-				RetryAfter:  int32(data.RetryAfter),
-				CurrentUsed: int32(data.CurrentUsed),
-				Limit:       int32(data.Limit),
-				Message:     data.Message,
-			},
-		}
-	case *domain.ErrorEventData:
-		var details *structpb.Struct
-		if len(data.Details) > 0 {
-			if parsed, err := structpb.NewStruct(data.Details); err == nil {
-				details = parsed
-			}
-		}
-		event.Data = &pb.RunEvent_Error{
-			Error: &pb.ErrorEventData{
-				Code:       data.Code,
-				Message:    data.Message,
-				Retryable:  data.Retryable,
-				Recovery:   RecoveryActionToProto(data.Recovery),
-				StackTrace: data.StackTrace,
-				Details:    details,
-			},
-		}
-	}
-
-	return event
-}
-
-// RunEventsToProto converts a slice of domain RunEvent to proto.
-func RunEventsToProto(events []*domain.RunEvent) []*pb.RunEvent {
-	result := make([]*pb.RunEvent, len(events))
-	for i, e := range events {
-		result[i] = RunEventToProto(e)
-	}
-	return result
-}
-
-// =============================================================================
-// RUNNER STATUS
-// =============================================================================
-
-// RunnerStatusToProto converts runner information to proto RunnerStatus.
-func RunnerStatusToProto(runnerType domain.RunnerType, available bool, message, installHint string, models []string) *pb.RunnerStatus {
-	return &pb.RunnerStatus{
-		RunnerType:      RunnerTypeToProto(runnerType),
-		Available:       available,
-		Message:         message,
-		InstallHint:     installHint,
-		SupportedModels: models,
-	}
-}
-
-// =============================================================================
-// STOP ALL RESULT
-// =============================================================================
-
-// StopAllResultToProto converts an orchestration StopAllResult to proto StopAllResult.
-func StopAllResultToProto(r *StopAllResult) *pb.StopAllResult {
-	if r == nil {
-		return nil
-	}
-	failures := make([]*pb.StopFailure, len(r.FailedIDs))
-	for i, id := range r.FailedIDs {
-		failures[i] = &pb.StopFailure{
-			RunId: id,
-			Error: "stop failed",
-		}
-	}
-	return &pb.StopAllResult{
-		StoppedCount: int32(r.Stopped),
-		Failures:     failures,
-	}
-}
-
-// StopAllResult mirrors orchestration.StopAllResult for import avoidance.
-type StopAllResult struct {
-	Stopped   int
-	Failed    int
-	Skipped   int
-	FailedIDs []string
-}
-
-// =============================================================================
-// APPROVE RESULT
-// =============================================================================
-
-// ApproveResultToProto converts an orchestration ApproveResult to proto ApproveResult.
-func ApproveResultToProto(r *ApproveResult) *pb.ApproveResult {
-	if r == nil {
-		return nil
-	}
-	return &pb.ApproveResult{
-		Success:      r.Success,
-		FilesApplied: int32(r.Applied),
-		CommitHash:   r.CommitHash,
-		Message:      r.ErrorMsg,
-		Remaining:    int32(r.Remaining),
-		IsPartial:    r.IsPartial,
-	}
-}
-
-// ApproveResult mirrors orchestration.ApproveResult for import avoidance.
-type ApproveResult struct {
-	Success    bool
-	Applied    int
-	Remaining  int
-	IsPartial  bool
-	CommitHash string
-	ErrorMsg   string
-}
-
-// =============================================================================
-// PROBE RESULT
-// =============================================================================
-
-// ProbeResultToProto converts an orchestration ProbeResult to proto ProbeResult.
-func ProbeResultToProto(r *ProbeResult) *pb.ProbeResult {
-	if r == nil {
-		return nil
-	}
-	details := make(map[string]string)
-	if r.Response != "" {
-		details["response"] = r.Response
-	}
-	return &pb.ProbeResult{
-		Success:   r.Success,
-		LatencyMs: r.DurationMs,
-		Error:     r.Message,
-		Details:   details,
-	}
-}
-
-// ProbeResult mirrors orchestration.ProbeResult for import avoidance.
-type ProbeResult struct {
-	RunnerType domain.RunnerType
-	Success    bool
-	Message    string
-	Response   string
-	DurationMs int64
-}
-
-// =============================================================================
-// RUN DIFF
-// =============================================================================
-
-// DiffResultToProto converts a sandbox DiffResult to proto RunDiff.
-func DiffResultToProto(runID uuid.UUID, r *DiffResult) *pb.RunDiff {
-	if r == nil {
-		return nil
-	}
-
-	// Extract per-file patches from the unified diff.
-	patchByPath := splitUnifiedDiff(r.UnifiedDiff)
-
-	files := make([]*pb.FileDiff, len(r.Files))
-	for i, f := range r.Files {
-		patch := f.Patch
-		if patch == "" {
-			patch = lookupPatch(patchByPath, f.FilePath)
-		}
-		files[i] = &pb.FileDiff{
-			Id:         UUIDToString(f.ID),
-			Path:       f.FilePath,
-			ChangeType: string(f.ChangeType),
-			Additions:  int32(f.LinesAdded),
-			Deletions:  int32(f.LinesRemoved),
-			IsBinary:   false,
-			Patch:      patch,
-		}
-	}
-	return &pb.RunDiff{
-		RunId:       UUIDToString(runID),
-		Content:     r.UnifiedDiff,
-		Files:       files,
-		GeneratedAt: TimestampToProto(r.Generated),
-	}
-}
-
-// lookupPatch finds a patch for filePath in the map. It first tries an exact
-// match, then falls back to a suffix match. This handles the common case where
-// the unified diff uses project-root-relative paths (e.g.
-// "scenarios/foo/api/main.go") but file metadata uses sandbox-scope-relative
-// paths (e.g. "api/main.go").
-func lookupPatch(patchByPath map[string]string, filePath string) string {
-	if p, ok := patchByPath[filePath]; ok {
-		return p
-	}
-	suffix := "/" + filePath
-	for k, v := range patchByPath {
-		if strings.HasSuffix(k, suffix) {
-			return v
-		}
-	}
-	return ""
-}
-
-// splitUnifiedDiff splits a unified diff string into per-file patches.
-// It looks for "diff --git a/... b/..." markers and maps each section
-// to the file path (the "b/" side).
-func splitUnifiedDiff(unified string) map[string]string {
-	if unified == "" {
-		return nil
-	}
-
-	result := make(map[string]string)
-	lines := strings.Split(unified, "\n")
-
-	var currentPath string
-	var currentStart int
-	inSection := false
-
-	for i, line := range lines {
-		if strings.HasPrefix(line, "diff --git ") {
-			// Flush previous section.
-			if inSection && currentPath != "" {
-				result[currentPath] = strings.Join(lines[currentStart:i], "\n")
-			}
-			// Extract the "b/" path from "diff --git a/foo b/foo".
-			currentPath = extractDiffPath(line)
-			currentStart = i
-			inSection = true
-		}
-	}
-	// Flush last section.
-	if inSection && currentPath != "" {
-		result[currentPath] = strings.Join(lines[currentStart:], "\n")
-	}
-
-	return result
-}
-
-// extractDiffPath extracts the file path from a "diff --git a/X b/Y" line.
-// Returns Y without the "b/" prefix.
-func extractDiffPath(line string) string {
-	// Format: "diff --git a/path/to/file b/path/to/file"
-	idx := strings.LastIndex(line, " b/")
-	if idx < 0 {
-		return ""
-	}
-	return line[idx+3:]
-}
-
-// DiffResult mirrors sandbox.DiffResult for import avoidance.
-type DiffResult struct {
-	SandboxID   uuid.UUID
-	Files       []FileChange
-	UnifiedDiff string
-	Generated   time.Time
-}
-
-// FileChange mirrors sandbox.FileChange for import avoidance.
-type FileChange struct {
-	ID           uuid.UUID
-	FilePath     string
-	ChangeType   string
-	FileSize     int64
-	LinesAdded   int
-	LinesRemoved int
-	Patch        string
-}
-
-// =============================================================================
-// ORCHESTRATION RUNNER STATUS
-// =============================================================================
-
-// OrchestratorRunnerStatusToProto converts orchestration RunnerStatus to proto.
-func OrchestratorRunnerStatusToProto(r *OrchestratorRunnerStatus) *pb.RunnerStatus {
-	if r == nil {
-		return nil
-	}
-	return &pb.RunnerStatus{
-		RunnerType:  RunnerTypeToProto(r.Type),
-		Available:   r.Available,
-		Message:     r.Message,
-		InstallHint: "",
-		Capabilities: &pb.RunnerCapabilities{
-			SupportsStreaming:    r.Capabilities.SupportsStreaming,
-			SupportsMessages:     r.Capabilities.SupportsMessages,
-			SupportsToolEvents:   r.Capabilities.SupportsToolEvents,
-			SupportsCostTracking: r.Capabilities.SupportsCostTracking,
-			SupportsCancellation: r.Capabilities.SupportsCancellation,
-			MaxTurns:             int32(r.Capabilities.MaxTurns),
-			SupportedFeatures:    r.Capabilities.SupportedFeatures,
-			AllowedExtraFlags:    r.Capabilities.AllowedExtraFlags,
-		},
-		SupportedModels: r.Capabilities.SupportedModels,
-	}
-}
-
-// OrchestratorRunnerStatusesToProto converts a slice of runner statuses.
-func OrchestratorRunnerStatusesToProto(statuses []*OrchestratorRunnerStatus) []*pb.RunnerStatus {
-	result := make([]*pb.RunnerStatus, len(statuses))
-	for i, s := range statuses {
-		result[i] = OrchestratorRunnerStatusToProto(s)
-	}
-	return result
-}
-
-// OrchestratorRunnerStatus mirrors orchestration.RunnerStatus for import avoidance.
-type OrchestratorRunnerStatus struct {
-	Type         domain.RunnerType
-	Available    bool
-	Message      string
-	Capabilities RunnerCapabilities
-}
-
-// RunnerCapabilities mirrors runner.Capabilities for import avoidance.
-type RunnerCapabilities struct {
-	SupportsMessages     bool
-	SupportsToolEvents   bool
-	SupportsCostTracking bool
-	SupportsStreaming    bool
-	SupportsCancellation bool
-	MaxTurns             int
-	SupportedModels      []string
-	SupportedFeatures    []string
-	AllowedExtraFlags    []string
-}

@@ -1,0 +1,599 @@
+package proposals
+
+import (
+	"errors"
+	"strings"
+	"testing"
+)
+
+func baseState(t *testing.T) CurrentState {
+	t.Helper()
+	return CurrentState{
+		MilestoneName: "ui-rewrite",
+		Nodes: map[string]GraphNode{
+			"execute/foo": {ID: "execute/foo", Kind: "execute", Name: "foo", Title: "Foo", Priority: 5},
+			"execute/bar": {ID: "execute/bar", Kind: "execute", Name: "bar", Title: "Bar", Priority: 5},
+		},
+		Edges: []GraphEdge{
+			{From: "execute/foo", To: "execute/bar"},
+		},
+		KnownMilestones: map[string]struct{}{
+			"ui-rewrite":    {},
+			"other-project": {},
+		},
+		InProgressRefs: map[string]struct{}{},
+	}
+}
+
+func intPtr(i int) *int          { return &i }
+func stringPtr(s string) *string { return &s }
+
+func TestValidate_RequiresMutationListForm(t *testing.T) {
+	p := Proposal{Form: FormFullGraph}
+	err := Validate(p, baseState(t))
+	if err == nil || !strings.Contains(err.Error(), "Normalize") {
+		t.Fatalf("expected guidance to Normalize first, got %v", err)
+	}
+}
+
+func TestValidate_DetectsDuplicateIDs(t *testing.T) {
+	p := Proposal{
+		Form: FormMutationList,
+		Mutations: []Mutation{
+			{ID: "m1", Op: OpArchiveItem, Target: "execute/foo"},
+			{ID: "m1", Op: OpArchiveItem, Target: "execute/bar"},
+		},
+	}
+	err := Validate(p, baseState(t))
+	if err == nil || !strings.Contains(err.Error(), "duplicate id") {
+		t.Fatalf("expected duplicate id error, got %v", err)
+	}
+}
+
+func TestValidate_RejectsUnknownOp(t *testing.T) {
+	p := Proposal{
+		Form: FormMutationList,
+		Mutations: []Mutation{
+			{ID: "m1", Op: "rename_the_universe", Target: "execute/foo"},
+		},
+	}
+	err := Validate(p, baseState(t))
+	if err == nil || !errors.Is(err, ErrInvalidProposal) {
+		t.Fatalf("expected ErrInvalidProposal, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "unknown mutation op") {
+		t.Fatalf("expected unknown-op message, got %v", err)
+	}
+}
+
+func TestValidate_LifecycleOperations(t *testing.T) {
+	p := Proposal{Form: FormMutationList, Mutations: []Mutation{
+		{ID: "recreate", Op: OpRecreateItem, Target: "execute/foo"},
+		{ID: "reset", Op: OpResetArtifacts, Target: "execute/foo", ResetScope: []ResetArtifactScope{ResetScopeReview, ResetScopePlanUnbind}},
+		{ID: "recreate-milestone", Op: OpRecreateMilestone, Target: "ui-rewrite"},
+	}}
+	if err := Validate(p, baseState(t)); err != nil {
+		t.Fatalf("Validate lifecycle operations: %v", err)
+	}
+}
+
+func TestValidate_ResetArtifactsRejectsEmptyAndUnknownScope(t *testing.T) {
+	for _, scopes := range [][]ResetArtifactScope{nil, {"unknown"}} {
+		p := Proposal{Form: FormMutationList, Mutations: []Mutation{{ID: "reset", Op: OpResetArtifacts, Target: "execute/foo", ResetScope: scopes}}}
+		if err := Validate(p, baseState(t)); err == nil {
+			t.Fatalf("Validate(%v) succeeded, want reset scope error", scopes)
+		}
+	}
+}
+
+func TestValidate_StandaloneScopeRestrictsGraphOperations(t *testing.T) {
+	state := baseState(t)
+	state.Standalone = true
+	allowed := Proposal{Form: FormMutationList, Mutations: []Mutation{{ID: "update", Op: OpUpdateItem, Target: "execute/foo", Patch: &ItemPatch{Title: stringPtr("renewed")}}, {ID: "reset", Op: OpResetArtifacts, Target: "execute/foo", ResetScope: []ResetArtifactScope{ResetScopeReview}}}}
+	if err := Validate(allowed, state); err != nil {
+		t.Fatalf("Validate standalone allowed operations: %v", err)
+	}
+	rejected := Proposal{Form: FormMutationList, Mutations: []Mutation{{ID: "edge", Op: OpAddEdge, From: "execute/foo", To: "execute/bar"}}}
+	if err := Validate(rejected, state); err == nil || !errors.Is(err, ErrStandaloneOperation) {
+		t.Fatalf("Validate standalone graph operation = %v, want typed rejection", err)
+	}
+}
+
+func TestValidate_AddItem_RejectsDuplicate(t *testing.T) {
+	state := baseState(t)
+	p := Proposal{
+		Form: FormMutationList,
+		Mutations: []Mutation{
+			{ID: "m1", Op: OpAddItem, Item: &ItemSpec{Kind: "execute", Name: "foo", Title: "Clash"}},
+		},
+	}
+	err := Validate(p, state)
+	if err == nil || !strings.Contains(err.Error(), "already exists") {
+		t.Fatalf("expected duplicate error, got %v", err)
+	}
+}
+
+func TestValidate_AddItem_RejectsUnknownDependency(t *testing.T) {
+	state := baseState(t)
+	p := Proposal{
+		Form: FormMutationList,
+		Mutations: []Mutation{
+			{ID: "m1", Op: OpAddItem, Item: &ItemSpec{
+				Kind: "execute", Name: "baz", Title: "Baz",
+				DependsOn: []string{"execute/does-not-exist"},
+			}},
+		},
+	}
+	err := Validate(p, state)
+	if err == nil || !strings.Contains(err.Error(), "depends_on=execute/does-not-exist") {
+		t.Fatalf("expected unknown-dependency error, got %v", err)
+	}
+}
+
+func TestValidate_AddItem_AllowsStagedDependency(t *testing.T) {
+	state := baseState(t)
+	p := Proposal{
+		Form: FormMutationList,
+		Mutations: []Mutation{
+			{ID: "m1", Op: OpAddItem, Item: &ItemSpec{Kind: "execute", Name: "parent", Title: "Parent"}},
+			{ID: "m2", Op: OpAddItem, Item: &ItemSpec{
+				Kind: "execute", Name: "child", Title: "Child",
+				DependsOn: []string{"execute/parent"},
+			}},
+		},
+	}
+	if err := Validate(p, state); err != nil {
+		t.Fatalf("expected staged dependency to validate, got %v", err)
+	}
+}
+
+func TestValidate_AddItem_RejectsSelfDependency(t *testing.T) {
+	state := baseState(t)
+	p := Proposal{
+		Form: FormMutationList,
+		Mutations: []Mutation{
+			{ID: "m1", Op: OpAddItem, Item: &ItemSpec{
+				Kind: "execute", Name: "loopy", Title: "Loop",
+				DependsOn: []string{"execute/loopy"},
+			}},
+		},
+	}
+	err := Validate(p, state)
+	if err == nil || !strings.Contains(err.Error(), "must not reference self") {
+		t.Fatalf("expected self-dependency error, got %v", err)
+	}
+}
+
+func TestValidate_AddItem_AllowsStagedDependent(t *testing.T) {
+	state := baseState(t)
+	p := Proposal{
+		Form: FormMutationList,
+		Mutations: []Mutation{
+			{ID: "m1", Op: OpAddItem, Item: &ItemSpec{Kind: "execute", Name: "baz", Title: "Baz"}},
+			{ID: "m2", Op: OpUpdateItem, Target: "execute/baz", Patch: &ItemPatch{Priority: intPtr(3)}},
+		},
+	}
+	if err := Validate(p, state); err != nil {
+		t.Fatalf("expected staged-item update to validate, got %v", err)
+	}
+}
+
+func TestValidate_UpdateItem_RejectsEmptyPatch(t *testing.T) {
+	state := baseState(t)
+	p := Proposal{
+		Form: FormMutationList,
+		Mutations: []Mutation{
+			{ID: "m1", Op: OpUpdateItem, Target: "execute/foo", Patch: &ItemPatch{}},
+		},
+	}
+	err := Validate(p, state)
+	if err == nil || !strings.Contains(err.Error(), "at least one field") {
+		t.Fatalf("expected empty-patch error, got %v", err)
+	}
+}
+
+func TestValidate_UpdateItem_RejectsInvalidPriority(t *testing.T) {
+	state := baseState(t)
+	p := Proposal{
+		Form: FormMutationList,
+		Mutations: []Mutation{
+			{ID: "m1", Op: OpUpdateItem, Target: "execute/foo", Patch: &ItemPatch{Priority: intPtr(0)}},
+			{ID: "m2", Op: OpUpdateItem, Target: "execute/foo", Patch: &ItemPatch{Priority: intPtr(11)}},
+		},
+	}
+	err := Validate(p, state)
+	if err == nil {
+		t.Fatalf("expected invalid priority error")
+	}
+}
+
+func TestValidate_ChangeStatus_RejectsTerminal(t *testing.T) {
+	state := baseState(t)
+	for _, status := range []string{"completed", "failed", "needs_followup"} {
+		p := Proposal{
+			Form: FormMutationList,
+			Mutations: []Mutation{
+				{ID: "m1", Op: OpChangeStatus, Target: "execute/foo", Status: status},
+			},
+		}
+		err := Validate(p, state)
+		if err == nil || !errors.Is(err, ErrTerminalStatusWrite) {
+			t.Fatalf("status=%s: expected terminal-status error, got %v", status, err)
+		}
+	}
+}
+
+func TestValidate_ChangeStatus_RejectsLifecycleOwned(t *testing.T) {
+	state := baseState(t)
+	for _, status := range []string{"queued", "in_progress", "in_review", "review_pending"} {
+		p := Proposal{
+			Form: FormMutationList,
+			Mutations: []Mutation{
+				{ID: "m1", Op: OpChangeStatus, Target: "execute/foo", Status: status},
+			},
+		}
+		err := Validate(p, state)
+		if err == nil || !strings.Contains(err.Error(), "controlled by") {
+			t.Fatalf("status=%s: expected lifecycle-controlled error, got %v", status, err)
+		}
+	}
+}
+
+func TestValidate_ChangeStatus_AcceptsUserSettable(t *testing.T) {
+	state := baseState(t)
+	for _, status := range []string{"backlog", "researching", "ready"} {
+		p := Proposal{
+			Form: FormMutationList,
+			Mutations: []Mutation{
+				{ID: "m1", Op: OpChangeStatus, Target: "execute/foo", Status: status},
+			},
+		}
+		if err := Validate(p, state); err != nil {
+			t.Fatalf("status=%s: expected accepted, got %v", status, err)
+		}
+	}
+}
+
+func TestValidate_Edge_RejectsSelfLoop(t *testing.T) {
+	state := baseState(t)
+	p := Proposal{
+		Form: FormMutationList,
+		Mutations: []Mutation{
+			{ID: "m1", Op: OpAddEdge, From: "execute/foo", To: "execute/foo"},
+		},
+	}
+	err := Validate(p, state)
+	if err == nil || !strings.Contains(err.Error(), "distinct endpoints") {
+		t.Fatalf("expected self-loop error, got %v", err)
+	}
+}
+
+func TestValidate_Edge_RejectsMissingEndpoint(t *testing.T) {
+	state := baseState(t)
+	p := Proposal{
+		Form: FormMutationList,
+		Mutations: []Mutation{
+			{ID: "m1", Op: OpAddEdge, From: "execute/foo", To: "execute/missing"},
+		},
+	}
+	err := Validate(p, state)
+	if err == nil || !errors.Is(err, ErrTargetNotFound) {
+		t.Fatalf("expected target-not-found error, got %v", err)
+	}
+}
+
+func TestValidate_Edge_RejectsDuplicateAdd(t *testing.T) {
+	state := baseState(t)
+	p := Proposal{
+		Form: FormMutationList,
+		Mutations: []Mutation{
+			{ID: "m1", Op: OpAddEdge, From: "execute/foo", To: "execute/bar"},
+		},
+	}
+	err := Validate(p, state)
+	if err == nil || !strings.Contains(err.Error(), "edge already exists") {
+		t.Fatalf("expected already-exists error, got %v", err)
+	}
+}
+
+func TestValidate_Edge_RejectsRemovingMissingEdge(t *testing.T) {
+	state := baseState(t)
+	p := Proposal{
+		Form: FormMutationList,
+		Mutations: []Mutation{
+			{ID: "m1", Op: OpRemoveEdge, From: "execute/bar", To: "execute/foo"},
+		},
+	}
+	err := Validate(p, state)
+	if err == nil || !strings.Contains(err.Error(), "edge does not exist") {
+		t.Fatalf("expected does-not-exist error, got %v", err)
+	}
+}
+
+func TestValidate_MoveMilestone_RejectsUnknownDest(t *testing.T) {
+	state := baseState(t)
+	p := Proposal{
+		Form: FormMutationList,
+		Mutations: []Mutation{
+			{ID: "m1", Op: OpMoveMilestone, Target: "execute/foo", Milestone: "ghost-milestone"},
+		},
+	}
+	err := Validate(p, state)
+	if err == nil || !strings.Contains(err.Error(), "not a known milestone") {
+		t.Fatalf("expected unknown-dest error, got %v", err)
+	}
+}
+
+func TestValidate_MoveMilestone_RejectsSelfMove(t *testing.T) {
+	state := baseState(t)
+	p := Proposal{
+		Form: FormMutationList,
+		Mutations: []Mutation{
+			{ID: "m1", Op: OpMoveMilestone, Target: "execute/foo", Milestone: "ui-rewrite"},
+		},
+	}
+	err := Validate(p, state)
+	if err == nil || !strings.Contains(err.Error(), "is the current milestone") {
+		t.Fatalf("expected self-move error, got %v", err)
+	}
+}
+
+func TestValidate_MoveMilestone_AllowsDetach(t *testing.T) {
+	state := baseState(t)
+	p := Proposal{
+		Form: FormMutationList,
+		Mutations: []Mutation{
+			{ID: "m1", Op: OpMoveMilestone, Target: "execute/foo", Milestone: ""},
+		},
+	}
+	if err := Validate(p, state); err != nil {
+		t.Fatalf("expected detach to validate, got %v", err)
+	}
+}
+
+func TestValidate_Interrupt_RequiresInProgressState(t *testing.T) {
+	state := baseState(t)
+	p := Proposal{
+		Form: FormMutationList,
+		Mutations: []Mutation{
+			{ID: "m1", Op: OpInterruptInProgress, Target: "execute/foo"},
+		},
+	}
+	err := Validate(p, state)
+	if err == nil || !strings.Contains(err.Error(), "requires execute/foo to be in_progress") {
+		t.Fatalf("expected in_progress-required error, got %v", err)
+	}
+
+	state.InProgressRefs = map[string]struct{}{"execute/foo": {}}
+	if err := Validate(p, state); err != nil {
+		t.Fatalf("expected interrupt to validate when item is in_progress, got %v", err)
+	}
+}
+
+func TestValidate_Split_RequiresTwoChildren(t *testing.T) {
+	state := baseState(t)
+	p := Proposal{
+		Form: FormMutationList,
+		Mutations: []Mutation{
+			{ID: "m1", Op: OpSplitItem, Target: "execute/foo", Into: []ItemSpec{
+				{Kind: "execute", Name: "foo-a", Title: "A"},
+			}},
+		},
+	}
+	err := Validate(p, state)
+	if err == nil || !strings.Contains(err.Error(), "at least 2 new items") {
+		t.Fatalf("expected split-requires-2 error, got %v", err)
+	}
+}
+
+func TestValidate_Split_RejectsDuplicateChildWithExisting(t *testing.T) {
+	state := baseState(t)
+	p := Proposal{
+		Form: FormMutationList,
+		Mutations: []Mutation{
+			{ID: "m1", Op: OpSplitItem, Target: "execute/foo", Into: []ItemSpec{
+				{Kind: "execute", Name: "bar", Title: "Collides"},
+				{Kind: "execute", Name: "new", Title: "OK"},
+			}},
+		},
+	}
+	err := Validate(p, state)
+	if err == nil || !errors.Is(err, ErrDuplicateItem) {
+		t.Fatalf("expected duplicate error, got %v", err)
+	}
+}
+
+func TestValidate_ItemSpec_ValidatesEffort(t *testing.T) {
+	state := baseState(t)
+	p := Proposal{
+		Form: FormMutationList,
+		Mutations: []Mutation{
+			{ID: "m1", Op: OpAddItem, Item: &ItemSpec{Kind: "execute", Name: "baz", Title: "Baz", Effort: "HUGE"}},
+		},
+	}
+	err := Validate(p, state)
+	if err == nil || !strings.Contains(err.Error(), "effort must be") {
+		t.Fatalf("expected effort error, got %v", err)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// merge_items
+// ---------------------------------------------------------------------------
+
+func TestValidate_MergeItems_RejectsSingleSource(t *testing.T) {
+	state := baseState(t)
+	p := Proposal{
+		Form: FormMutationList,
+		Mutations: []Mutation{
+			{
+				ID: "m1", Op: OpMergeItems,
+				Sources: []string{"execute/foo"},
+				Item:    &ItemSpec{Kind: "execute", Name: "merged", Title: "Merged"},
+			},
+		},
+	}
+	err := Validate(p, state)
+	if err == nil || !strings.Contains(err.Error(), "at least 2 items") {
+		t.Fatalf("expected at-least-2 error, got %v", err)
+	}
+}
+
+func TestValidate_MergeItems_RejectsDuplicateSources(t *testing.T) {
+	state := baseState(t)
+	p := Proposal{
+		Form: FormMutationList,
+		Mutations: []Mutation{
+			{
+				ID: "m1", Op: OpMergeItems,
+				Sources: []string{"execute/foo", "execute/foo"},
+				Item:    &ItemSpec{Kind: "execute", Name: "merged", Title: "Merged"},
+			},
+		},
+	}
+	err := Validate(p, state)
+	if err == nil || !strings.Contains(err.Error(), "duplicate source") {
+		t.Fatalf("expected duplicate-source error, got %v", err)
+	}
+}
+
+func TestValidate_MergeItems_RejectsCollidingTarget(t *testing.T) {
+	state := baseState(t)
+	// Add a third existing item that collides with the merged ref but
+	// is NOT among the sources (sources are foo/bar; merged ref is "baz"
+	// which we'll add to state to force a collision).
+	state.Nodes["execute/baz"] = GraphNode{ID: "execute/baz", Kind: "execute", Name: "baz", Title: "Existing"}
+	p := Proposal{
+		Form: FormMutationList,
+		Mutations: []Mutation{
+			{
+				ID: "m1", Op: OpMergeItems,
+				Sources: []string{"execute/foo", "execute/bar"},
+				Item:    &ItemSpec{Kind: "execute", Name: "baz", Title: "Merged"},
+			},
+		},
+	}
+	err := Validate(p, state)
+	if err == nil || !errors.Is(err, ErrDuplicateItem) {
+		t.Fatalf("expected duplicate-item error for colliding merged ref, got %v", err)
+	}
+}
+
+func TestValidate_MergeItems_RejectsCollisionWithBatchStaged(t *testing.T) {
+	state := baseState(t)
+	p := Proposal{
+		Form: FormMutationList,
+		Mutations: []Mutation{
+			{ID: "m1", Op: OpAddItem, Item: &ItemSpec{Kind: "execute", Name: "merged", Title: "Staged"}},
+			{
+				ID: "m2", Op: OpMergeItems,
+				Sources: []string{"execute/foo", "execute/bar"},
+				Item:    &ItemSpec{Kind: "execute", Name: "merged", Title: "Merged"},
+			},
+		},
+	}
+	err := Validate(p, state)
+	if err == nil || !errors.Is(err, ErrDuplicateItem) {
+		t.Fatalf("expected staged-collision error, got %v", err)
+	}
+}
+
+func TestValidate_MergeItems_RejectsInProgressSource(t *testing.T) {
+	state := baseState(t)
+	state.InProgressRefs = map[string]struct{}{"execute/bar": {}}
+	p := Proposal{
+		Form: FormMutationList,
+		Mutations: []Mutation{
+			{
+				ID: "m1", Op: OpMergeItems,
+				Sources: []string{"execute/foo", "execute/bar"},
+				Item:    &ItemSpec{Kind: "execute", Name: "merged", Title: "Merged"},
+			},
+		},
+	}
+	err := Validate(p, state)
+	if err == nil || !strings.Contains(err.Error(), "interrupt_in_progress") {
+		t.Fatalf("expected in-progress rejection guiding to interrupt_in_progress, got %v", err)
+	}
+}
+
+func TestValidate_MergeItems_RejectsNonMemberSource(t *testing.T) {
+	state := baseState(t)
+	p := Proposal{
+		Form: FormMutationList,
+		Mutations: []Mutation{
+			{
+				ID: "m1", Op: OpMergeItems,
+				Sources: []string{"execute/foo", "execute/ghost"},
+				Item:    &ItemSpec{Kind: "execute", Name: "merged", Title: "Merged"},
+			},
+		},
+	}
+	err := Validate(p, state)
+	if err == nil || !errors.Is(err, ErrTargetNotFound) {
+		t.Fatalf("expected target-not-found for ghost source, got %v", err)
+	}
+}
+
+func TestValidate_MergeItems_RejectsMergedRefMatchingSource(t *testing.T) {
+	state := baseState(t)
+	p := Proposal{
+		Form: FormMutationList,
+		Mutations: []Mutation{
+			{
+				ID: "m1", Op: OpMergeItems,
+				Sources: []string{"execute/foo", "execute/bar"},
+				// Merged ref equals one of the sources — that's the
+				// "merge into existing" pattern the plan disallows.
+				Item: &ItemSpec{Kind: "execute", Name: "foo", Title: "Foo (renamed)"},
+			},
+		},
+	}
+	err := Validate(p, state)
+	if err == nil || !strings.Contains(err.Error(), "must differ from each source") {
+		t.Fatalf("expected merged-equals-source error, got %v", err)
+	}
+}
+
+func TestValidate_MergeItems_AcceptsHappyPath(t *testing.T) {
+	state := baseState(t)
+	p := Proposal{
+		Form: FormMutationList,
+		Mutations: []Mutation{
+			{
+				ID: "m1", Op: OpMergeItems,
+				Sources: []string{"execute/foo", "execute/bar"},
+				Item:    &ItemSpec{Kind: "execute", Name: "merged", Title: "Merged"},
+			},
+		},
+	}
+	if err := Validate(p, state); err != nil {
+		t.Fatalf("expected merge to validate, got %v", err)
+	}
+}
+
+func TestValidate_AccumulatesAllProblems(t *testing.T) {
+	state := baseState(t)
+	p := Proposal{
+		Form: FormMutationList,
+		Mutations: []Mutation{
+			{ID: "", Op: OpArchiveItem, Target: "execute/foo"},
+			{ID: "m1", Op: OpArchiveItem, Target: "execute/ghost"},
+			{ID: "m1", Op: OpArchiveItem, Target: "execute/foo"},
+		},
+	}
+	err := Validate(p, state)
+	if err == nil {
+		t.Fatalf("expected accumulated errors")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "id is required") {
+		t.Fatalf("missing id error: %v", err)
+	}
+	if !strings.Contains(msg, "target not found") {
+		t.Fatalf("missing target-not-found error: %v", err)
+	}
+	if !strings.Contains(msg, "duplicate id") {
+		t.Fatalf("missing duplicate-id error: %v", err)
+	}
+}

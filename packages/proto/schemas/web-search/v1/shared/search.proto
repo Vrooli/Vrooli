@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package vrooli.web_search.v1.shared;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/web-search/v1/shared;shared_v1";
+
+// SearchResult is one live web-search hit, normalized from the SearXNG result
+// shape. score is the RAW SearXNG relevance score (not re-normalized here).
+message SearchResult {
+  string url = 1;
+  string title = 2;
+  // snippet is the SearXNG result "content" field.
+  string snippet = 3;
+  // engine names the upstream engine SearXNG sourced the result from.
+  string engine = 4;
+  // score is the raw SearXNG relevance score.
+  double score = 5;
+  // category is the SearXNG result category (e.g. "general").
+  string category = 6;
+}
+
+// EngineIssue names one upstream metasearch engine that did not answer a
+// query, with the upstream-reported reason (suspended, CAPTCHA, parse
+// error, ...). Structured (not a display string) so UIs can badge it and
+// automation can count it.
+message EngineIssue {
+  string engine = 1;
+  string reason = 2;
+}

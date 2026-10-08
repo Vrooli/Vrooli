@@ -84,7 +84,6 @@ func TestHandleWebSocket_OriginRejected(t *testing.T) {
 	handler, _, _, _, _, _ := createTestHandler()
 
 	// Set up upgrader to reject all origins
-	handler.wsAllowAll = false
 	handler.wsAllowedOrigins = []string{"http://allowed.com"}
 	handler.upgrader = websocket.Upgrader{
 		CheckOrigin: handler.isOriginAllowed,

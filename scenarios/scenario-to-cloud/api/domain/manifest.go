@@ -1,6 +1,34 @@
 // Package domain defines the core domain types for the scenario-to-cloud scenario.
 package domain
 
+import (
+	"strings"
+
+	"scenario-to-cloud/identity"
+)
+
+// TargetRefFromManifest derives the target binding from a manifest's VPS
+// block. The manifest is the SSH transport configuration, so the derived
+// binding is always SSH with an empty machine identity; Bridge enrollment sets
+// MachineID/NodeID through UpdateTargetBinding. The SSH key is not part of
+// the manifest or the binding: the credential binding
+// vrooli/scenario-to-cloud:ssh-key names the operator-held key file.
+func TargetRefFromManifest(m CloudManifest) identity.TargetRef {
+	vps := m.Target.VPS
+	if vps == nil {
+		return identity.TargetRef{}
+	}
+	return identity.TargetRef{
+		Transport: identity.TransportSSH,
+		Locator: identity.TargetLocator{
+			Host:    vps.Host,
+			Port:    vps.Port,
+			User:    vps.User,
+			Workdir: vps.Workdir,
+		},
+	}
+}
+
 // DefaultVPSWorkdir is the default directory where Vrooli is installed on the VPS.
 // This is the single source of truth for this value - do not hardcode "/root/Vrooli" elsewhere.
 const DefaultVPSWorkdir = "/root/Vrooli"
@@ -17,10 +45,15 @@ type CloudManifest struct {
 	Ports        ManifestPorts        `json:"ports"`
 	Edge         ManifestEdge         `json:"edge"`
 	Secrets      *ManifestSecrets     `json:"secrets,omitempty"`
+	// LocalCredentialHandoffs describe local, same-host consumers that must
+	// receive a newly materialised deployment credential. Values are delivered
+	// only in memory over the local service boundary; they are never included
+	// in the manifest or a deployment receipt.
+	LocalCredentialHandoffs []LocalCredentialHandoff `json:"local_credential_handoffs,omitempty"`
 }
 
 // CloudflareAPITokenKey is the env var name used for DNS-01 issuance via Cloudflare.
-const CloudflareAPITokenKey = "CLOUDFLARE_API_TOKEN"
+const CloudflareAPITokenKey = "CLOUDFLARE_API_TOKEN" // #nosec G101 -- this is an environment-variable name, never a credential value.
 
 // ManifestTarget specifies where to deploy.
 type ManifestTarget struct {
@@ -33,7 +66,6 @@ type ManifestVPS struct {
 	Host          string   `json:"host"`
 	Port          int      `json:"port,omitempty"`
 	User          string   `json:"user,omitempty"`
-	KeyPath       string   `json:"key_path,omitempty"`
 	Workdir       string   `json:"workdir,omitempty"`
 	PreservePaths []string `json:"preserve_paths,omitempty"`
 }
@@ -46,9 +78,13 @@ type ManifestScenario struct {
 
 // ManifestDependencies captures the dependency snapshot from scenario-dependency-analyzer.
 type ManifestDependencies struct {
-	Scenarios []string `json:"scenarios,omitempty"`
-	Resources []string `json:"resources,omitempty"`
-	Analyzer  struct {
+	Scenarios           []string `json:"scenarios,omitempty"`
+	Resources           []string `json:"resources,omitempty"`
+	ProgramBindingPeers []string `json:"program_binding_peers,omitempty"`
+	// ClosureDigest binds the dependency snapshot to the closure it was
+	// derived from (closure.Digest); plans bind to it in turn.
+	ClosureDigest string `json:"closure_digest,omitempty"`
+	Analyzer      struct {
 		Tool        string `json:"tool,omitempty"`
 		Fingerprint string `json:"fingerprint,omitempty"`
 		GeneratedAt string `json:"generated_at,omitempty"`
@@ -61,18 +97,73 @@ type ManifestBundle struct {
 	IncludeAutoheal bool     `json:"include_autoheal"`
 	Scenarios       []string `json:"scenarios,omitempty"`
 	Resources       []string `json:"resources,omitempty"`
+	// UIScenarios identifies the primary scenario and dependencies whose UI is
+	// part of the deployment. Dependency UIs are omitted unless declared by
+	// include_ui on the consuming scenario's service.json edge.
+	UIScenarios []string `json:"ui_scenarios,omitempty"`
 }
 
-// ManifestPorts maps port names to port numbers.
-// Standard ports (ui, api, ws) are common, but scenarios can define additional ports
+// ManifestPorts maps scenario listener port names to fixed deployment ports.
+// API and UI are common, but scenarios can define additional listener ports
 // like playwright_driver, metrics, etc. in their service.json.
 type ManifestPorts map[string]int
 
 // ManifestEdge configures edge/TLS settings.
 type ManifestEdge struct {
-	Domain    string        `json:"domain"`
-	DNSPolicy DNSPolicy     `json:"dns_policy,omitempty"`
-	Caddy     ManifestCaddy `json:"caddy"`
+	Domain    string               `json:"domain"`
+	DNSPolicy DNSPolicy            `json:"dns_policy,omitempty"`
+	MailDNS   []MailDNSRequirement `json:"mail_dns,omitempty"`
+	// ManagedDNSProfile opts this deployment into the typed tunnel-manager DNS
+	// operation. Empty means DNS remains operator-managed.
+	ManagedDNSProfile string        `json:"managed_dns_profile,omitempty"`
+	Caddy             ManifestCaddy `json:"caddy"`
+	// ACMEEnvironment requests "staging" or "production" issuance. Empty
+	// derives it: production for the production environment, staging
+	// otherwise (production elsewhere needs the EXT-04 authority).
+	ACMEEnvironment string `json:"acme_environment,omitempty"`
+	// HealthPath is the public path serving the application's own health
+	// document, the one whose body names its dependencies. Empty means
+	// "/health".
+	//
+	// It is declared because the reachable path and the informative path are
+	// often different: a scenario's root /health may be answered by its UI
+	// server while the dependency report lives under its API prefix (for
+	// example "/api/v1/health"). Probing the wrong one reports "no
+	// dependencies declared", which is honest but useless.
+	HealthPath string `json:"health_path,omitempty"`
+}
+
+// MailDNSRequirement declares provider records that must authorize outbound
+// mail for this deployment. Verification is read-only and uses the reviewed
+// manifest; DNS-write credentials remain outside scenario-to-cloud.
+type MailDNSRequirement struct {
+	Name         string                `json:"name"`
+	SPFMechanism string                `json:"spf_mechanism,omitempty"`
+	SPFHost      string                `json:"spf_host,omitempty"`
+	DKIM         []MailDKIMRequirement `json:"dkim,omitempty"`
+}
+
+type MailDKIMRequirement struct {
+	Selector string `json:"selector"`
+	Type     string `json:"type"`
+	Expected string `json:"expected,omitempty"`
+}
+
+// DefaultHealthPath is the application health path used when the manifest
+// declares none.
+const DefaultHealthPath = "/health"
+
+// AppHealthPath is the declared application health path, normalised to a
+// rooted path.
+func (e ManifestEdge) AppHealthPath() string {
+	path := strings.TrimSpace(e.HealthPath)
+	if path == "" {
+		return DefaultHealthPath
+	}
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+	return path
 }
 
 // ManifestCaddy configures Caddy reverse proxy and TLS.
@@ -90,14 +181,33 @@ type ManifestSecrets struct {
 // BundleSecretPlan represents a secret from secrets-manager.
 // This is included in the manifest so the deploy target can generate/prompt for secrets.
 type BundleSecretPlan struct {
-	ID          string                 `json:"id"`
-	Class       string                 `json:"class"` // per_install_generated, user_prompt, remote_fetch, infrastructure
-	Required    bool                   `json:"required"`
-	Description string                 `json:"description,omitempty"`
-	Format      string                 `json:"format,omitempty"` // validation pattern
-	Target      BundleSecretTarget     `json:"target"`
-	Prompt      *SecretPromptMetadata  `json:"prompt,omitempty"`
-	Generator   map[string]interface{} `json:"generator,omitempty"`
+	ID               string                 `json:"id"`
+	Class            string                 `json:"class"` // per_install_generated, user_prompt, remote_fetch, infrastructure
+	Required         bool                   `json:"required"`
+	Description      string                 `json:"description,omitempty"`
+	Format           string                 `json:"format,omitempty"` // validation pattern
+	Target           BundleSecretTarget     `json:"target"`
+	Descriptor       *DescriptorAddress     `json:"descriptor,omitempty"`
+	DescriptorReason string                 `json:"descriptor_reason,omitempty"`
+	Prompt           *SecretPromptMetadata  `json:"prompt,omitempty"`
+	Generator        map[string]interface{} `json:"generator,omitempty"`
+
+	// Capability names the customer-facing capability this secret powers,
+	// in the operator's words ("customer sign-in email", "card payments").
+	//
+	// Required is binary and blocks: a required secret nothing satisfied
+	// stops the plan. Capability is the middle tier. A secret that is
+	// optional for the deployment but load-bearing for a capability declares
+	// it here, and a plan that cannot satisfy the secret warns by capability
+	// name instead of failing or, as before, saying nothing at all.
+	Capability string `json:"capability,omitempty"`
+}
+
+// DescriptorAddress is the canonical credential-authority address satisfied
+// by a deployment secret. It remains optional for legacy manifests.
+type DescriptorAddress struct {
+	LogicalID string `json:"logical_id"`
+	Field     string `json:"field"`
 }
 
 // BundleSecretTarget specifies where to inject the secret value.
@@ -110,6 +220,21 @@ type BundleSecretTarget struct {
 type SecretPromptMetadata struct {
 	Label       string `json:"label,omitempty"`
 	Description string `json:"description,omitempty"`
+}
+
+// LocalCredentialHandoff binds one deployment credential to a local consumer
+// such as a hosted scenario's remote-profile store. The consumer scenario is resolved via
+// service discovery; the path is a fixed local API path, not a remote host
+// address. AuthDescriptor names the local credential used to authorize the
+// handoff request.
+type LocalCredentialHandoff struct {
+	ConsumerScenario string            `json:"consumer_scenario"`
+	ConsumerPath     string            `json:"consumer_path"`
+	AuthDescriptor   DescriptorAddress `json:"auth_descriptor"`
+	ProfileTag       string            `json:"profile_tag"`
+	ProfileLabel     string            `json:"profile_label,omitempty"`
+	APIBase          string            `json:"api_base"`
+	SecretID         string            `json:"secret_id"`
 }
 
 // SecretsSummary provides a quick overview of secret requirements.

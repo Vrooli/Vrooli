@@ -1,0 +1,135 @@
+syntax = "proto3";
+
+package vrooli.data_backup_manager.v1.plans;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/plans;plans_v1";
+
+// =============================================================================
+// PLANS DOMAIN — target↔destination bindings with schedule + retention
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain plans
+// @stability stable
+//
+// Wire contract for PlansService. A plan binds one or more targets to one or
+// more destinations and carries a schedule and a retention policy. A target
+// may belong to multiple plans (daily-to-local, weekly-to-offsite). Plans do
+// not run themselves — the scheduler and RunsService.TriggerRun do that
+// (OT-P0-004).
+// =============================================================================
+
+service PlansService {
+  rpc CreatePlan(CreatePlanRequest) returns (CreatePlanResponse);
+  rpc GetPlan(GetPlanRequest) returns (GetPlanResponse);
+  rpc ListPlans(ListPlansRequest) returns (ListPlansResponse);
+  rpc UpdatePlan(UpdatePlanRequest) returns (UpdatePlanResponse);
+  rpc DeletePlan(DeletePlanRequest) returns (DeletePlanResponse);
+}
+
+enum ProtectionTier {
+  PROTECTION_TIER_UNSPECIFIED = 0;
+  PROTECTION_TIER_FULL_PRIMARY = 1;
+  PROTECTION_TIER_CRITICAL_PRIMARY = 2;
+  PROTECTION_TIER_CRITICAL_SECONDARY = 3;
+}
+
+// RetentionPolicy is the per-plan snapshot retention, applied by kopia policy.
+// v1 supports a simple keep-last count; GFS fields (OT-P1-002) extend this
+// additively later.
+message RetentionPolicy {
+  // Keep at most this many latest snapshots per target in the destination.
+  // Zero means "keep all" (no retention pruning by count).
+  int32 keep_latest = 1 [(buf.validate.field).int32.gte = 0];
+}
+
+// Plan is the canonical wire shape for a backup plan.
+message Plan {
+  string id = 1;
+  string name = 2;
+  // Target ids bound to this plan (many-to-many).
+  repeated string target_ids = 3;
+  // Destination ids bound to this plan (many-to-many).
+  repeated string destination_ids = 4;
+  // Cron-style schedule expression evaluated by the in-process scheduler.
+  // Empty means manual-trigger-only.
+  string schedule = 5;
+  RetentionPolicy retention = 6;
+  // When false, the scheduler skips this plan (manual trigger still works).
+  bool enabled = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
+  ProtectionTier protection_tier = 10;
+  string recovery_drill_schedule = 11;
+  // Derived read-only assessment of the selected destination topology.
+  bool destinations_physically_independent = 12;
+  repeated string shared_risk_warnings = 13;
+}
+
+message CreatePlanRequest {
+  string name = 1 [(buf.validate.field).string.min_len = 1];
+  repeated string target_ids = 2 [(buf.validate.field).repeated.min_items = 1];
+  repeated string destination_ids = 3 [(buf.validate.field).repeated.min_items = 1];
+  string schedule = 4;
+  RetentionPolicy retention = 5;
+  // Optional; defaults to true when unset on create.
+  bool enabled = 6;
+  // When false (default), the server rejects the plan with FAILED_PRECONDITION
+  // if any non-sensitive discovered durable target is still unregistered, so a
+  // plan cannot silently omit recommended default coverage. Set true to proceed
+  // with deliberately incomplete coverage. See CoverageService.
+  bool allow_incomplete_coverage = 7;
+  ProtectionTier protection_tier = 8;
+  string recovery_drill_schedule = 9;
+}
+
+message CreatePlanResponse {
+  Plan plan = 1;
+}
+
+message GetPlanRequest {
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message GetPlanResponse {
+  Plan plan = 1;
+}
+
+message ListPlansRequest {
+  int32 page_size = 1 [(buf.validate.field).int32.gte = 0];
+  string page_token = 2;
+}
+
+message ListPlansResponse {
+  repeated Plan plans = 1;
+  string next_page_token = 2;
+}
+
+message UpdatePlanRequest {
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+  string name = 2;
+  repeated string target_ids = 3;
+  repeated string destination_ids = 4;
+  string schedule = 5;
+  RetentionPolicy retention = 6;
+  bool enabled = 7;
+  // See CreatePlanRequest.allow_incomplete_coverage — same guard on update.
+  bool allow_incomplete_coverage = 8;
+  ProtectionTier protection_tier = 9;
+  string recovery_drill_schedule = 10;
+}
+
+message UpdatePlanResponse {
+  Plan plan = 1;
+}
+
+message DeletePlanRequest {
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message DeletePlanResponse {
+  bool removed = 1;
+}

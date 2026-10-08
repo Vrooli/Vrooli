@@ -1,0 +1,184 @@
+{
+  "basis": "Proposed Marketing 0.3, selected C direction. Synthetic Aster fixture except explicitly identified existing private article. Drawings are static design assets, not application implementation.",
+  "viewports": {
+    "desktop": [
+      1440,
+      900
+    ],
+    "phone": [
+      390,
+      844
+    ]
+  },
+  "states": [
+    {
+      "id": "M01",
+      "job": "Today: resume the exact draft and keep independent decisions distinct",
+      "basis": "D1/r1, source S1/r3; three proposed intentions, no confirmed schedules",
+      "action": "Open LinkedIn draft",
+      "phone": "Prioritize same draft/source/action; independent article review below",
+      "art": "Synthetic artifact preview of source story, not post media or proof of performance"
+    },
+    {
+      "id": "M02",
+      "job": "Compare useful content plans under shared effort",
+      "basis": "F2 180 min versus reduced 90 min; no accepted plan",
+      "action": "Review selected plan",
+      "phone": "Sequential alternatives; no implicit Planner reservation"
+    },
+    {
+      "id": "M03",
+      "job": "Inspect unsupported claim and propose exact repair",
+      "basis": "Unsaved40 percent claim on D1/r1; S1/r3 supports only structure",
+      "action": "Preview wording repair",
+      "phone": "Sentence, source excerpt and repair together"
+    },
+    {
+      "id": "M04",
+      "job": "Write source-backed text with a selected optional edit",
+      "basis": "D1/r1 existing; opening proposal not applied; account not selected",
+      "action": "Apply selected opening to draft",
+      "phone": "Named sources/help routes, retained typing position"
+    },
+    {
+      "id": "M05",
+      "job": "Place daypart publication intentions",
+      "basis": "F2 week Oct 12\u201318, America/New_York; D1 preview basis r1 changed to r2",
+      "action": "Update intention basis after comparison",
+      "phone": "Agenda and selected target editor"
+    },
+    {
+      "id": "M06",
+      "job": "Review saved r2 as an editorialdecision",
+      "basis": "D1/r2 current, r1 comparison; native scoped decision extension required",
+      "action": "Accept wording only",
+      "phone": "Final reading plus change/restore state"
+    },
+    {
+      "id": "M07",
+      "job": "Reconcile uncertain externalresult",
+      "basis": "Separate future connected fixture; attempt A7, release package RP2, response unknown",
+      "action": "Check supported status",
+      "phone": "Identity, attempt, safe verification and operator observation"
+    },
+    {
+      "id": "M08",
+      "job": "Inspect evidence and record an honest observation",
+      "basis": "No publication/audience outcomes in F2; sourcefacts only",
+      "action": "Save private observation/experiment idea",
+      "phone": "Evidence list and selectedquestion"
+    },
+    {
+      "id": "M09",
+      "job": "Resolve concurrent wording without losing eitherbranch",
+      "basis": "Savedbase r2, remote r3, local branch based on r2",
+      "action": "Preview composed newrevision",
+      "phone": "Sequentialcompare and safe defer"
+    },
+    {
+      "id": "M10",
+      "job": "Explain native owner/command relationships",
+      "basis": "Captured owners plus proposed seams",
+      "action": "Find owning source; no executable controls",
+      "kind": "conceptual ownership diagram"
+    },
+    {
+      "id": "M11",
+      "job": "Contributor reads and responds to a bounded packet",
+      "basis": "Fictional Alex, hypothetical authorized packet, no actual handoff",
+      "action": "Submit own wording and selected use permission",
+      "phone": "Samequote, destination and voluntarychoice"
+    },
+    {
+      "id": "M12",
+      "job": "Capture one thought without campaign setup",
+      "basis": "Unassigned proposed one-off route; prepared text not natively admitted",
+      "action": "Save private draft when admission qualified",
+      "phone": "Keyboard-open capture and explicit local/saved state"
+    },
+    {
+      "id": "M13",
+      "job": "Bring in existing article with partial media result",
+      "basis": "Real private article identity; synthetic missing image 2 branch",
+      "action": "Save allowed text then resolve media",
+      "phone": "Source, requested operation and unresolved items"
+    },
+    {
+      "id": "M14",
+      "job": "Select real destination and inspectaction readiness",
+      "basis": "Illustrative accounts; LinkedIn eligibility unverified, X link-only, subreddit not created",
+      "action": "Review selected identity requirements",
+      "phone": "One account detail without global green check"
+    },
+    {
+      "id": "M15",
+      "job": "Find content independent of lifecycle and inspect family",
+      "basis": "D1/r2, D2 personal X, existing article; same-title cross-project fixture",
+      "action": "Open exact native object",
+      "phone": "Search results with scope and state"
+    },
+    {
+      "id": "M16",
+      "job": "Edit true article, thread and silent demo formats",
+      "basis": "Synthetic format state specimens; qualification not established",
+      "action": "Preserve format structure and evidence",
+      "kind": "format canvas specimens"
+    },
+    {
+      "id": "M17",
+      "job": "Recover partial plan application",
+      "basis": "Plan accepted; source work persisted; Planner allocation failed; earlier intentions retained at risk",
+      "action": "Resume only unresolved allocation",
+      "phone": "Individual owner receipts with safe next action"
+    },
+    {
+      "id": "M18",
+      "job": "Trace creation\u2192review\u2192intention\u2192release\u2192learning",
+      "basis": "Synthetic design model, no executed commands",
+      "action": "Read transition meaning and failure branch",
+      "kind": "sequence/state diagram"
+    },
+    {
+      "id": "M19",
+      "job": "Inspect source and request anchored changes",
+      "basis": "Retrospectively mapped to exact authored source; see corresponding drawing function and immutable output.",
+      "retrospective_mapping": true
+    },
+    {
+      "id": "M20",
+      "job": "Distinguish empty, loading and unknown states",
+      "basis": "Retrospectively mapped to exact authored source; see corresponding drawing function and immutable output.",
+      "retrospective_mapping": true
+    },
+    {
+      "id": "M21",
+      "job": "Compare actual preview, contextual art and fallback",
+      "basis": "Retrospectively mapped to exact authored source; see corresponding drawing function and immutable output.",
+      "retrospective_mapping": true
+    },
+    {
+      "id": "M22",
+      "job": "Use the editor in dark appearance",
+      "basis": "Retrospectively mapped to exact authored source; see corresponding drawing function and immutable output.",
+      "retrospective_mapping": true
+    },
+    {
+      "id": "M23",
+      "job": "Inspect assistance context and cost limits",
+      "basis": "Retrospectively mapped to exact authored source; see corresponding drawing function and immutable output.",
+      "retrospective_mapping": true
+    },
+    {
+      "id": "M24",
+      "job": "Authorize one exact future qualified release",
+      "basis": "Retrospectively mapped to exact authored source; see corresponding drawing function and immutable output.",
+      "retrospective_mapping": true
+    },
+    {
+      "id": "M25",
+      "job": "Record manual outcome and incomplete private observation",
+      "basis": "Retrospectively mapped to exact authored source; see corresponding drawing function and immutable output.",
+      "retrospective_mapping": true
+    }
+  ]
+}

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"knowledge-observatory/internal/docschema"
+	"knowledge-observatory/internal/docvalidation"
 )
 
 // ScenarioSummary describes documentation status for a scenario.
@@ -47,7 +47,7 @@ func (s *Service) ListScenarios(ctx context.Context) ([]ScenarioSummary, error) 
 			continue
 		}
 		healthScore := 0.0
-		if validation, err := docschema.ValidateScenarioDocumentation(path); err == nil {
+		if validation, err := docvalidation.ValidateScenarioDocumentation(path); err == nil {
 			healthScore = validation.HealthScore
 		}
 		summaries = append(summaries, ScenarioSummary{
@@ -64,6 +64,11 @@ func (s *Service) ListScenarios(ctx context.Context) ([]ScenarioSummary, error) 
 		return summaries[i].Name < summaries[j].Name
 	})
 	return summaries, nil
+}
+
+func isDocFile(path string) bool {
+	ext := strings.ToLower(filepath.Ext(path))
+	return ext == ".md" || ext == ".json"
 }
 
 type docStats struct {

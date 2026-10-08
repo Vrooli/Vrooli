@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+control_plane=$(command -v vrooli || true)
+if [[ -z "$control_plane" ]]; then
+  user_home=$(getent passwd "$(id -u)" | cut -d: -f6)
+  control_plane="$user_home/.vrooli/bin/vrooli"
+fi
+
+exec "$control_plane" resource upstream-check --all --json

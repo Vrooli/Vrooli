@@ -1,0 +1,49 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "guided-backdrop-with-disclosure",
+    "title": "Produce a guided backdrop, and understand what it cost and what it discloses",
+    "purpose": "The model-backed loop: a composition scaffold steers generation so the layout is authored rather than sampled, the treatment pass binds the result to the brand palette, and the AI-generated flag is derived from the strategy rather than asserted by anyone.",
+    "prd_refs": ["OT-P0-008", "OT-P0-013", "OT-P0-014", "OT-P0-016", "OT-P0-017"]
+  },
+  "steps": [
+    {
+      "page": "catalog",
+      "state": "populated",
+      "intent": "Find a style whose subject is too intricate to draw procedurally, and see that it is marked as metered before opening it.",
+      "via": "subject and strategy facets"
+    },
+    {
+      "page": "style",
+      "state": "viewing",
+      "intent": "See the composition scaffold that will steer generation, including the reserved-region voids drawn into it as flat geometry.",
+      "via": "scaffold preview"
+    },
+    {
+      "page": "compose",
+      "state": "plan-resolved",
+      "intent": "Read the resolved plan — the ai-gateway role and profile rather than a model name, the conditioning image, the treatment chain that will run afterwards — and see the expected cost before authorising it.",
+      "via": "resolve"
+    },
+    {
+      "page": "candidates",
+      "state": "degraded-execution",
+      "intent": "Understand that this machine could not serve the request locally and it was routed onward, so a slower or lower-tier result is attributable rather than mysterious.",
+      "via": "render"
+    },
+    {
+      "page": "candidates",
+      "state": "all-passing",
+      "intent": "Confirm the treated output is palette-locked to the active brand and clears the legibility threshold, then select one candidate explicitly.",
+      "via": "select candidate"
+    },
+    {
+      "page": "backdrops",
+      "state": "ai-disclosed",
+      "intent": "See the AI-generated flag shown alongside the strategy it was derived from, with the asset-studio provenance reference recording spend and model.",
+      "via": "release"
+    }
+  ]
+}

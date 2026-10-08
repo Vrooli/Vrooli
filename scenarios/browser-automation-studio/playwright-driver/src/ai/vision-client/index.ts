@@ -7,57 +7,17 @@
 // Types
 export * from './types';
 
-// Model Registry
+// AI Gateway client
 export {
-  MODEL_REGISTRY,
-  getModelSpec,
-  getAllModels,
-  getRecommendedModels,
-  getModelsByTier,
-  getModelsByProvider,
-  calculateCost,
-  supportsComputerUse,
-  supportsElementLabels,
-  getDefaultModelId,
-} from './model-registry';
-
-// Mock Client
-export {
-  MockVisionClient,
-  createMockVisionClient,
-  createHappyPathMock,
-  createNeverCompleteMock,
-  type MockVisionClientConfig,
-  type QueuedResponse,
-} from './mock';
-
-// OpenRouter Client
-export {
-  OpenRouterVisionClient,
-  createOpenRouterClient,
-  type OpenRouterClientConfig,
-} from './openrouter';
-
-// Claude Computer Use Client
-export {
-  ClaudeComputerUseClient,
-  createClaudeComputerUseClient,
-  type ClaudeComputerUseClientConfig,
-} from './claude-computer-use';
-
-// Prompts
-export {
-  generateSystemPrompt,
-  generateUserPrompt,
-  formatElementLabelsCompact,
-  generateContinuationPrompt,
-  generateVerificationPrompt,
-} from './prompts';
+  AIGatewayVisionClient,
+  createAIGatewayVisionClient,
+  normalizeGatewayProfile,
+  type AIGatewayVisionClientConfig,
+} from './gateway';
 
 // Factory
 export {
   createVisionClient,
-  createMockClient,
   getModelInfo,
   isModelSupported,
   getSupportedModelIds,

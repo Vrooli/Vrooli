@@ -3,12 +3,15 @@ package pipeline
 import (
 	"context"
 	"fmt"
-	"os"
+	"net/url"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"scenario-to-desktop-api/generation"
 	"scenario-to-desktop-api/shared/errors"
+
+	sharedpath "scenario-to-desktop-api/shared/path"
 )
 
 // GenerateStage implements the desktop wrapper generation stage of the pipeline.
@@ -68,8 +71,10 @@ func NewGenerateStage(opts ...GenerateStageOption) *GenerateStage {
 	}
 	// Default scenario root
 	if s.scenarioRoot == "" {
-		home, _ := os.UserHomeDir()
-		s.scenarioRoot = filepath.Join(home, "Vrooli", "scenarios")
+		s.scenarioRoot = sharedpath.DetectScenariosRoot()
+		if s.scenarioRoot == "" {
+			s.scenarioRoot = filepath.Clean("scenarios")
+		}
 	}
 	return s
 }
@@ -201,11 +206,32 @@ func (s *GenerateStage) buildDesktopConfig(input *StageInput, metadata *generati
 	// Apply pipeline config overrides
 	desktopConfig.DeploymentMode = input.Config.GetDeploymentMode()
 	desktopConfig.Platforms = input.Config.Platforms
+	desktopConfig.NativeExtension = input.Config.NativeExtension
+	if err := desktopConfig.ValidateNativeExtension(); err != nil {
+		failStage(result, s.timeProvider, errors.ErrDesktopConfigFailed(err))
+		return nil, err
+	}
 	if input.Config.LocationMode != "" {
 		desktopConfig.LocationMode = input.Config.LocationMode
 	}
 	if input.Config.ProxyURL != "" {
-		desktopConfig.ProxyURL = input.Config.ProxyURL
+		endpoint, err := url.Parse(input.Config.ProxyURL)
+		if err != nil || endpoint.Host == "" || (endpoint.Scheme != "http" && endpoint.Scheme != "https") || endpoint.User != nil || strings.ContainsAny(input.Config.ProxyURL, "\"'\\\r\n") {
+			err := fmt.Errorf("proxy URL must be an HTTP(S) URL without credentials or literal quotes/backslashes")
+			failStage(result, s.timeProvider, errors.ErrDesktopConfigFailed(err))
+			return nil, err
+		}
+		desktopConfig.ProxyURL = endpoint.String()
+		if desktopConfig.DeploymentMode == DeploymentModeProxy {
+			desktopConfig.ServerType = "external"
+			desktopConfig.ServerPath = desktopConfig.ProxyURL
+		}
+	}
+	if input.Config.Version != "" {
+		desktopConfig.Version = input.Config.Version
+	}
+	if input.Config.UpdateConfig != nil {
+		desktopConfig.UpdateConfig = input.Config.UpdateConfig
 	}
 
 	s.applyBundleConfig(input, desktopConfig, result)

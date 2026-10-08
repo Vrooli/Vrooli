@@ -1,0 +1,213 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "holder-rewards",
+    "title": "What I Can Get",
+    "routes": [
+      "/me/rewards"
+    ],
+    "purpose": "Show a holder everything their tokens buy, make affordability obvious before they try, and let them redeem in one clear action.",
+    "prd_refs": [
+      "OT-P0-008",
+      "OT-P0-013",
+      "OT-P0-003"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Whether an item is affordable right now is understood before any interaction.",
+      "notes": "A child tapping a reward they cannot afford and being refused is a bad experience the layout should prevent."
+    },
+    {
+      "statement": "The cost of each reward is as prominent as its name."
+    },
+    {
+      "statement": "Whether a reward needs a grown-up's approval is stated before redeeming, not after.",
+      "notes": "Surprise is the failure mode here: a holder who expects something instantly and gets a pending state feels denied."
+    },
+    {
+      "statement": "Unavailable rewards are visible but clearly out of reach, rather than hidden.",
+      "notes": "Hiding them makes the catalog feel arbitrary; showing them with a reason makes the economy legible."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "Catalog entries listed with affordability and approval posture resolved."
+    },
+    {
+      "id": "loading",
+      "description": "Catalog is being fetched."
+    },
+    {
+      "id": "empty",
+      "description": "The minter has declared no rewards yet; the page explains that rather than showing a blank list."
+    },
+    {
+      "id": "partial",
+      "description": "Catalog loaded but the holder's balance failed; entries render with affordability unknown and say so."
+    },
+    {
+      "id": "submitting",
+      "description": "A redemption is in flight."
+    },
+    {
+      "id": "success",
+      "description": "Redemption settled immediately; the holder is told what they received."
+    },
+    {
+      "id": "pending",
+      "description": "Redemption is queued for minter approval; the holder is told plainly that it is waiting and why."
+    },
+    {
+      "id": "validation-error",
+      "description": "Redemption refused by a rule; the refusal names the rule in language the holder can act on."
+    },
+    {
+      "id": "request-error",
+      "description": "Catalog or redemption call failed."
+    },
+    {
+      "id": "offline",
+      "description": "No connection; the catalog is shown from cache and redeeming is disabled with a stated reason."
+    },
+    {
+      "id": "stale",
+      "description": "Showing a cached catalog after a failed refresh; affordability may be out of date and says so."
+    }
+  ],
+  "elements": [
+    {
+      "id": "reward-list",
+      "role": "list",
+      "name": "Rewards",
+      "description": "Every catalog entry available in this economy."
+    },
+    {
+      "id": "reward-item",
+      "role": "listitem",
+      "name": "Reward",
+      "description": "One redeemable entry with its name, cost, availability and approval posture."
+    },
+    {
+      "id": "reward-cost",
+      "role": "status",
+      "name": "Cost",
+      "description": "What this entry costs, in the economy's own token identity."
+    },
+    {
+      "id": "approval-note",
+      "role": "note",
+      "name": "Needs approval",
+      "description": "States before redeeming that this entry waits on a grown-up."
+    },
+    {
+      "id": "redeem-action",
+      "role": "button",
+      "name": "Get this",
+      "description": "Redeems the entry."
+    },
+    {
+      "id": "affordability-indicator",
+      "role": "meter",
+      "name": "Affordability",
+      "description": "How close the holder is to affording this entry."
+    }
+  ],
+  "claims": [
+    {
+      "id": "affordability-before-interaction",
+      "type": "affordance-present",
+      "statement": "Affordability is communicated on each entry before any interaction, by text and not by color alone.",
+      "tier": "aspirational",
+      "elements": [
+        "reward-item",
+        "affordability-indicator"
+      ]
+    },
+    {
+      "id": "approval-posture-stated-first",
+      "type": "element-present",
+      "statement": "An entry requiring approval says so before the redeem action is taken.",
+      "tier": "aspirational",
+      "elements": [
+        "approval-note",
+        "redeem-action"
+      ]
+    },
+    {
+      "id": "pending-distinct-from-success",
+      "type": "state-distinct",
+      "statement": "The pending state is clearly distinguishable from the success state; a queued redemption never reads as completed.",
+      "tier": "aspirational",
+      "states": [
+        "pending",
+        "success"
+      ]
+    },
+    {
+      "id": "refusal-names-the-rule",
+      "type": "state-covered",
+      "statement": "The validation-error state names the rule that refused and what would change it, never a generic failure.",
+      "tier": "aspirational",
+      "states": [
+        "validation-error"
+      ]
+    },
+    {
+      "id": "unavailable-shown-not-hidden",
+      "type": "element-present",
+      "statement": "Unavailable entries remain present in the list with a stated reason rather than being filtered out.",
+      "tier": "aspirational",
+      "elements": [
+        "reward-list"
+      ]
+    },
+    {
+      "id": "cost-as-prominent-as-name",
+      "type": "reading-order",
+      "statement": "Each entry reads name then cost, with cost given equal typographic weight.",
+      "tier": "aspirational",
+      "elements": [
+        "reward-item",
+        "reward-cost"
+      ],
+      "locales": [
+        "en"
+      ]
+    },
+    {
+      "id": "redeem-keyboard-reachable",
+      "type": "keyboard-reachable",
+      "statement": "Redeeming is fully operable by keyboard and announced to screen readers.",
+      "tier": "aspirational",
+      "elements": [
+        "redeem-action"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "reward-list": {
+        "testid": "holder-reward-list"
+      },
+      "reward-item": {
+        "testid": "holder-reward-item"
+      },
+      "reward-cost": {
+        "testid": "holder-reward-cost"
+      },
+      "approval-note": {
+        "testid": "holder-approval-note"
+      },
+      "redeem-action": {
+        "testid": "holder-redeem-action"
+      },
+      "affordability-indicator": {
+        "testid": "holder-affordability"
+      }
+    }
+  }
+}

@@ -33,11 +33,10 @@ type Repository interface {
 
 	// === Timeline persistence ===
 
-	// SaveTimelineEntry persists a single timeline entry (action or page event).
-	SaveTimelineEntry(ctx context.Context, entry *UnifiedTimelineEntry) error
-
-	// SaveTimelineEntries persists multiple entries in a batch.
-	SaveTimelineEntries(ctx context.Context, entries []*UnifiedTimelineEntry) error
+	// AppendTimelineEntry atomically assigns a durable sequence. Action entries
+	// require the canonical proto Entry; legacy Action values are read-only. An
+	// identical ID retry returns inserted=false; conflicting reuse fails.
+	AppendTimelineEntry(ctx context.Context, entry *UnifiedTimelineEntry) (inserted bool, err error)
 
 	// GetTimelineEntry retrieves a single entry by ID.
 	GetTimelineEntry(ctx context.Context, entryID uuid.UUID) (*UnifiedTimelineEntry, error)

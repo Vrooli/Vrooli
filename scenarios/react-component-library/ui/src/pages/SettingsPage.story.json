@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 5,
+  "kind": "page",
+  "title": "Preferences",
+  "route": "/settings",
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "preferences",
+      "name": "Theme and locale controls",
+      "role": "anatomy",
+      "apiState": [],
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-testid=\"settings-theme-light\"]"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-testid=\"settings-theme-dark\"]"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-testid=\"settings-locale\"]"
+        }
+      ]
+    }
+  ]
+}

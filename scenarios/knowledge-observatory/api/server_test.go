@@ -1,12 +1,15 @@
 package main
 
 import (
-	"database/sql"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
 
 	"github.com/gorilla/mux"
-	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/database"
+
+	"knowledge-observatory/internal/dbtest"
 )
 
 // TestNewServerValidation tests NewServer initialization [REQ:KO-API-001]
@@ -241,33 +244,39 @@ func TestHandleHealthWithDB(t *testing.T) {
 	}
 
 	tests := []struct {
-		name          string
-		setupDB       func() *sql.DB
-		wantStatusOK  bool
-		wantDBHealthy bool
+		name         string
+		setupDB      func(t *testing.T) *database.RoutedDB
+		wantResponse bool
 	}{
 		{
-			name: "reports unhealthy when db is nil",
-			setupDB: func() *sql.DB {
-				return nil
+			name:         "still answers when no database is configured",
+			setupDB:      func(*testing.T) *database.RoutedDB { return nil },
+			wantResponse: true,
+		},
+		{
+			name: "answers when a sqlite database is configured",
+			setupDB: func(t *testing.T) *database.RoutedDB {
+				return dbtest.New(t)
 			},
-			wantStatusOK:  true, // Endpoint should still respond
-			wantDBHealthy: false,
+			wantResponse: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			srv.db = tt.setupDB()
-			defer func() {
-				if srv.db != nil {
-					srv.db.Close()
-				}
-			}()
+			srv.db = tt.setupDB(t)
 
-			// The existing TestHandleHealth in main_test.go covers this
-			// This test validates behavior with different DB states
-			t.Logf("Health check with db=%v would report db_healthy=%v", srv.db != nil, tt.wantDBHealthy)
+			rec := httptest.NewRecorder()
+			srv.handleHealth(rec, httptest.NewRequest(http.MethodGet, "/health", nil))
+
+			// The endpoint must always answer: an unreachable database is a
+			// reported condition, not a dead endpoint.
+			if tt.wantResponse && rec.Code == 0 {
+				t.Fatal("health endpoint produced no response")
+			}
+			if body := rec.Body.String(); body == "" {
+				t.Error("health endpoint returned an empty body")
+			}
 		})
 	}
 }

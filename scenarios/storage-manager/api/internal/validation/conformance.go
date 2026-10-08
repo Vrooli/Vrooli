@@ -1,0 +1,343 @@
+package validation
+
+import (
+	"context"
+	"fmt"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
+
+	"github.com/vrooli/api-core/retention"
+	corestorage "github.com/vrooli/api-core/storage"
+)
+
+// storageEntryConformance proves the parts of storage.entries that Vrooli
+// owns. It never checks whether a path happens to exist: lazy writers and
+// freshly reclaimed caches are valid. It checks whether the source tree has a
+// reachable writer for owned entries and reports declaration contradictions.
+type storageEntryConformance struct{}
+
+func init() { register(&storageEntryConformance{}) }
+
+func (storageEntryConformance) Name() string { return "storage.entry-conformance" }
+
+func (storageEntryConformance) Applies(ac AnalyzerContext) bool {
+	return ac.Owner != nil && len(ac.Owner.StorageEntries) > 0
+}
+
+func (storageEntryConformance) Analyze(_ context.Context, ac AnalyzerContext) ([]Finding, error) {
+	owner := ac.Owner
+	data, err := os.ReadFile(owner.ManifestPath)
+	if err != nil {
+		return nil, fmt.Errorf("read owner manifest: %w", err)
+	}
+	findings := make([]Finding, 0)
+	entries := append([]corestorage.StorageEntry(nil), owner.StorageEntries...)
+	sort.Slice(entries, func(i, j int) bool { return entries[i].Name < entries[j].Name })
+	for _, entry := range entries {
+		sidecar := isSQLiteSidecar(entry, entries)
+		if entry.Regenerable && entry.Class == corestorage.ClassData && !sidecar {
+			findings = append(findings, storageFinding("STORAGE_ENTRY_CLASS_CONFLICT", SeverityWarning, ac, entry, "regenerable data is contradictory", "Use class cache/state, or mark the entry non-regenerable."))
+		}
+		if entry.Regenerable && !sidecar && entry.Budget == nil {
+			findings = append(findings, storageFinding("RETENTION_CEILING_UNBOUNDED", SeverityWarning, ac, entry, "regenerable storage has no retention ceiling", "Declare a workload-derived budget.max_age or budget.max_bytes before this entry grows without bound."))
+		}
+		if entry.Regenerable && !sidecar && entry.Reclaim == nil && entry.Budget == nil {
+			findings = append(findings, storageFinding("STORAGE_ENTRY_UNRECLAIMABLE", SeverityWarning, ac, entry, "regenerable storage has no reclaim command or builtin budget", "Declare reclaim.command, reclaim.pruner=builtin, or a framework-owned budget."))
+		}
+		if entry.Format == "sqlite" {
+			findings = append(findings, sqliteSidecarFindings(ac, entry, entries)...)
+		}
+		if sidecar {
+			continue
+		}
+		if entry.Rung != corestorage.RungOwned || entry.Path.ByOS != nil {
+			continue
+		}
+		if hasWriterSuppression(ac, entry.Name) {
+			continue
+		}
+		if !hasFrameworkWriter(entry) && !hasReachableWriter(ac, entry) {
+			findings = append(findings, storageFinding("STORAGE_ENTRY_NO_WRITER", SeverityWarning, ac, entry, "no Vrooli-owned code path can create or route this entry", "Add a writer, or add a suppression comment explaining a reflective, generated, or shell writer."))
+		}
+		if entry.Budget != nil && entry.Budget.MaxBytes != "" {
+			if budget, parseErr := retention.ParseBytes(entry.Budget.MaxBytes); parseErr == nil {
+				if observed := observedBytes(ac, entry, budget); observed > budget {
+					severity := SeverityError
+					if budget == 0 && strings.Contains(strings.ToLower(entry.Rationale), "superseded") {
+						// A zero-byte superseded-location declaration is an
+						// intentional reclaim signal. It remains visible and
+						// over-budget, but must not make every fleet validation run
+						// fail while the owner waits for its cleanup cycle.
+						severity = SeverityWarning
+					}
+					findings = append(findings, storageFinding("STORAGE_BUDGET_BELOW_OBSERVED", severity, ac, entry, fmt.Sprintf("observed size %d bytes exceeds max_bytes %s", observed, entry.Budget.MaxBytes), "Raise the ceiling or reclaim data before enforcement."))
+				} else if observed > 0 && float64(budget-observed)/float64(observed) <= 0.10 {
+					findings = append(findings, storageFinding("STORAGE_CEILING_NON_BINDING", SeverityError, ac, entry, fmt.Sprintf("max_bytes %s is only %.1f%% above the measured %d bytes and will not bind before the next measurement", entry.Budget.MaxBytes, 100*float64(budget-observed)/float64(observed), observed), "Set a workload-derived ceiling with headroom for normal operation, and record the workload basis in the rationale."))
+				}
+				if strings.Contains(strings.ToLower(entry.Budget.Rationale), "measured and governed on") {
+					findings = append(findings, storageFinding("STORAGE_CEILING_NON_BINDING", SeverityError, ac, entry, "the budget rationale copies a point-in-time measurement rather than a workload-derived ceiling", "Replace the measured-value rationale with a workload-derived ceiling."))
+				}
+			}
+		}
+	}
+	findings = append(findings, retentionConflicts(ac, data)...)
+	return findings, nil
+}
+
+// hasFrameworkWriter recognizes the canonical framework-owned seam. A
+// relative owned path is resolved beneath the owner's class root by
+// api-core/storage; the owner does not need to repeat that path literal or
+// mkdir call in application code. Absolute and tokenized paths remain on the
+// source-evidence path because they may be host-managed or externally owned.
+func hasFrameworkWriter(entry corestorage.StorageEntry) bool {
+	path := strings.TrimSpace(entry.Path.Value)
+	if entry.Rung == corestorage.RungOwned && entry.Class != "" && path == "" && entry.Path.ByOS == nil {
+		return true
+	}
+	return entry.Rung == corestorage.RungOwned && path != "" && !filepath.IsAbs(path) && !strings.ContainsAny(path, "$%")
+}
+
+func isSQLiteSidecar(entry corestorage.StorageEntry, entries []corestorage.StorageEntry) bool {
+	if entry.Class != "" && entry.Path.Value == "" && entry.Path.ByOS == nil {
+		for _, suffix := range []string{"_wal", "_shm"} {
+			if !strings.HasSuffix(entry.Name, suffix) {
+				continue
+			}
+			base := strings.TrimSuffix(entry.Name, suffix)
+			for _, parent := range entries {
+				if parent.Format == "sqlite" && parent.Class == entry.Class && parent.Name == base {
+					return true
+				}
+			}
+		}
+	}
+	if entry.Subpath != "" {
+		for _, suffix := range []string{"-wal", "-shm"} {
+			if !strings.HasSuffix(entry.Subpath, suffix) {
+				continue
+			}
+			base := strings.TrimSuffix(entry.Subpath, suffix)
+			for _, parent := range entries {
+				if parent.Format == "sqlite" && parent.Class == entry.Class && (parent.Subpath == base || base == "") {
+					return true
+				}
+			}
+		}
+	}
+	path := filepath.ToSlash(entry.Path.Value)
+	for _, suffix := range []string{"-wal", "-shm"} {
+		if !strings.HasSuffix(path, suffix) {
+			continue
+		}
+		base := strings.TrimSuffix(path, suffix)
+		for _, parent := range entries {
+			if parent.Format == "sqlite" && filepath.ToSlash(parent.Path.Value) == base {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func storageFinding(code string, severity Severity, ac AnalyzerContext, entry corestorage.StorageEntry, message, remediation string) Finding {
+	location := filepath.ToSlash(filepath.Join(".vrooli", "service.json"))
+	if ac.Owner != nil && ac.RepoRoot != "" {
+		if rel, err := filepath.Rel(ac.RepoRoot, ac.Owner.ManifestPath); err == nil {
+			location = filepath.ToSlash(rel)
+		}
+	}
+	locationValue := entry.Path.Value
+	if entry.Class != "" && locationValue == "" {
+		locationValue = string(entry.Class)
+		if entry.Subpath != "" {
+			locationValue += "/" + entry.Subpath
+		}
+	}
+	return Finding{Code: code, Severity: severity, Title: entry.Name + " storage declaration", Message: fmt.Sprintf("storage entry %q at %q: %s", entry.Name, locationValue, message), Location: location, Remediation: remediation, Analyzer: "storage.entry-conformance"}
+}
+
+func hasReachableWriter(ac AnalyzerContext, entry corestorage.StorageEntry) bool {
+	path := filepath.ToSlash(strings.TrimSpace(entry.Path.Value))
+	base := filepath.Base(path)
+	if base == "." || base == "/" || base == "" {
+		return false
+	}
+	for _, file := range CollectGoFiles(ac) {
+		source := ReadFile(file.AbsPath)
+		if source == "" {
+			continue
+		}
+		lines := strings.Split(source, "\n")
+		for lineIndex, line := range lines {
+			if !strings.Contains(line, base) {
+				continue
+			}
+			// A basename appearing as an identifier, import, comment, or
+			// framework vocabulary is not evidence that this entry is written.
+			// Require a literal path segment (or the exact declared path) before
+			// considering a nearby writer/resolver call.
+			if !containsPathLiteral(line, path, base) {
+				continue
+			}
+			// A literal path beside a writer call is direct proof. A resolver
+			// call may be a few lines away because options are assembled before
+			// the path literal; accept only explicit resolver calls, never a
+			// generic `.Path(` or an unrelated write anywhere in the window.
+			if containsWriterCall(line) {
+				return true
+			}
+			start, end := lineIndex-4, lineIndex+4
+			if start < 0 {
+				start = 0
+			}
+			if end >= len(lines) {
+				end = len(lines) - 1
+			}
+			for _, nearby := range lines[start : end+1] {
+				if strings.Contains(nearby, "resolver.Path(") || strings.Contains(nearby, "storage.Path(") || strings.Contains(nearby, ".Resolve(") {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+func containsWriterCall(line string) bool {
+	for _, token := range []string{"MkdirAll(", "OpenFile(", "os.Create(", "os.WriteFile(", "os.Rename(", "os.Truncate("} {
+		if strings.Contains(line, token) {
+			return true
+		}
+	}
+	return false
+}
+
+func containsPathLiteral(line, path, base string) bool {
+	for _, candidate := range []string{path, base} {
+		if candidate == "" {
+			continue
+		}
+		for _, quote := range []string{"\"", "`"} {
+			if strings.Contains(line, quote+candidate+quote) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func hasWriterSuppression(ac AnalyzerContext, entry string) bool {
+	sentinel := "storage-manager:allow-no-writer " + entry
+	for _, file := range CollectGoFiles(ac) {
+		if strings.Contains(ReadFile(file.AbsPath), sentinel) {
+			return true
+		}
+	}
+	return false
+}
+
+func sqliteSidecarFindings(ac AnalyzerContext, entry corestorage.StorageEntry, entries []corestorage.StorageEntry) []Finding {
+	if entry.Class != "" && entry.Path.Value == "" && entry.Path.ByOS == nil && entry.Subpath == "" {
+		seen := map[string]bool{}
+		for _, candidate := range entries {
+			seen[candidate.Name] = true
+		}
+		var findings []Finding
+		for _, suffix := range []string{"_wal", "_shm"} {
+			if !seen[entry.Name+suffix] {
+				findings = append(findings, storageFinding("STORAGE_SQLITE_SIDECAR_UNDECLARED", SeverityWarning, ac, entry, "SQLite sidecar "+entry.Name+suffix+" is not declared", "Add storage entries for both the -wal and -shm sidecars."))
+			}
+		}
+		return findings
+	}
+	if entry.Subpath != "" {
+		base := entry.Subpath
+		if strings.HasSuffix(base, "-wal") {
+			base = strings.TrimSuffix(base, "-wal")
+		} else if strings.HasSuffix(base, "-shm") {
+			base = strings.TrimSuffix(base, "-shm")
+		}
+		seen := map[string]bool{}
+		for _, candidate := range entries {
+			seen[candidate.Subpath] = true
+			seen[candidate.Name] = true
+		}
+		var findings []Finding
+		for _, suffix := range []string{"-wal", "-shm"} {
+			wanted := base + suffix
+			if !seen[wanted] && !seen[entry.Name+strings.ReplaceAll(suffix, "-", "_")] {
+				findings = append(findings, storageFinding("STORAGE_SQLITE_SIDECAR_UNDECLARED", SeverityWarning, ac, entry, "SQLite sidecar "+wanted+" is not declared", "Add storage entries for both the -wal and -shm sidecars."))
+			}
+		}
+		return findings
+	}
+	base := strings.TrimSuffix(filepath.ToSlash(entry.Path.Value), "-wal")
+	base = strings.TrimSuffix(base, "-shm")
+	seen := map[string]bool{}
+	for _, candidate := range entries {
+		seen[filepath.ToSlash(candidate.Path.Value)] = true
+	}
+	var findings []Finding
+	for _, suffix := range []string{"-wal", "-shm"} {
+		wanted := base + suffix
+		if !seen[wanted] {
+			findings = append(findings, storageFinding("STORAGE_SQLITE_SIDECAR_UNDECLARED", SeverityWarning, ac, entry, "SQLite sidecar "+wanted+" is not declared", "Add storage entries for both the -wal and -shm sidecars."))
+		}
+	}
+	return findings
+}
+
+func observedBytes(ac AnalyzerContext, entry corestorage.StorageEntry, budget int64) int64 {
+	if ac.Owner == nil || ac.RepoRoot == "" {
+		return 0
+	}
+	platform := ac.Platform
+	if platform == "" {
+		platform = corestorage.HostPlatform()
+	}
+	path, err := corestorage.ResolveOwnerStoragePath(ac.RepoRoot, *ac.Owner, entry, platform, corestorage.PlatformSeams{})
+	if err != nil {
+		return 0
+	}
+	var total int64
+	visited := 0
+	const maxVisited = 10000
+	_ = filepath.WalkDir(path, func(_ string, d fs.DirEntry, walkErr error) error {
+		if walkErr != nil || d.IsDir() {
+			return nil
+		}
+		visited++
+		info, statErr := d.Info()
+		if statErr == nil {
+			total += info.Size()
+		}
+		if total > budget || visited >= maxVisited {
+			return fs.SkipAll
+		}
+		return nil
+	})
+	return total
+}
+
+func retentionConflicts(ac AnalyzerContext, manifest []byte) []Finding {
+	// ParseManifest validates the retention/storage contract and catches
+	// duplicate target paths. The cross-block validator catches durable_data
+	// shape disagreements. Keep both mappings warning-level except for the
+	// explicit budget-below-observed finding, so adoption does not hard-fail.
+	var findings []Finding
+	if _, err := retention.ParseManifest(manifest); err != nil {
+		findings = append(findings, Finding{Code: "STORAGE_RETENTION_CONFLICT", Severity: SeverityWarning, Title: "Retention declarations conflict", Message: err.Error(), Location: ".vrooli/service.json", Remediation: "Make each retention target and storage declaration describe one physical surface.", Analyzer: "storage.entry-conformance"})
+	}
+	conflicts, err := retention.ValidateRetentionAgainstDurableData(manifest)
+	if err != nil {
+		findings = append(findings, Finding{Code: "STORAGE_RETENTION_CONFLICT", Severity: SeverityWarning, Title: "Retention declarations cannot be checked", Message: err.Error(), Location: ".vrooli/service.json", Remediation: "Make the manifest valid JSON before checking retention declarations.", Analyzer: "storage.entry-conformance"})
+		return findings
+	}
+	for _, conflict := range conflicts {
+		findings = append(findings, Finding{Code: "STORAGE_RETENTION_CONFLICT", Severity: SeverityWarning, Title: "Retention declarations conflict", Message: conflict.String(), Location: ".vrooli/service.json", Remediation: "Make the durable_data and retention declarations agree about kind and format.", Analyzer: "storage.entry-conformance"})
+	}
+	return findings
+}

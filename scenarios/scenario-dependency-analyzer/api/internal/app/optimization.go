@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	appoptimization "scenario-dependency-analyzer/internal/app/optimization"
-	types "scenario-dependency-analyzer/internal/types"
+	appoptimization "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/app/optimization"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 func (s *optimizationService) runScenarioOptimization(scenarioName string, req types.OptimizationRequest) (*types.OptimizationResult, error) {
@@ -18,12 +18,7 @@ func (s *optimizationService) runScenarioOptimization(scenarioName string, req t
 		return nil, err
 	}
 
-	var svcCfg *types.ServiceConfig
-	if cfg, loadErr := s.workspace.loadConfig(scenarioName); loadErr == nil {
-		svcCfg = cfg
-	}
-
-	recommendations := appoptimization.GenerateRecommendations(scenarioName, analysis, svcCfg)
+	recommendations := appoptimization.GenerateRecommendations(scenarioName, analysis)
 	if err := s.persistOptimizationResults(scenarioName, recommendations); err != nil {
 		return nil, err
 	}
@@ -46,7 +41,7 @@ func (s *optimizationService) runScenarioOptimization(scenarioName string, req t
 			if err != nil {
 				return nil, err
 			}
-			recommendations = appoptimization.GenerateRecommendations(scenarioName, analysis, svcCfg)
+			recommendations = appoptimization.GenerateRecommendations(scenarioName, analysis)
 			if err := s.persistOptimizationResults(scenarioName, recommendations); err != nil {
 				return nil, err
 			}

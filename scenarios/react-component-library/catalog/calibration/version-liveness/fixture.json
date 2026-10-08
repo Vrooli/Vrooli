@@ -1,0 +1,11 @@
+{
+  "gate": "version-liveness",
+  "assetId": "calibration.version-liveness",
+  "kind": "component",
+  "runner": "static",
+  "requiredFailureCode": "catalog.version_liveness",
+  "catalogAsset": "asset.json",
+  "source": "broken.tsx",
+  "mutation": "missing-package-version",
+  "description": "Imports a package version that is absent from the live library tree."
+}

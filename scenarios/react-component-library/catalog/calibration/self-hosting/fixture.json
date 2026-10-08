@@ -1,0 +1,11 @@
+{
+  "gate": "self-hosting",
+  "assetId": "__corpus__.self-hosting",
+  "kind": "corpus",
+  "runner": "external",
+  "requiredFailureCode": "catalog.self_hosting_uncovered",
+  "description": "The owning catalog application suite validates the consumer coverage floor.",
+  "source": "ui/src",
+  "mutation": "remove one public library import from the catalog application",
+  "test": "catalog application self-hosting suite"
+}

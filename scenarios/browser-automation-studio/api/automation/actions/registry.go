@@ -279,7 +279,7 @@ var Registry = map[ActionType]ActionMetadata{
 		NeedsSelectorWait:  false,
 		TriggersDOMChanges: false,
 		RequiresElement:    false,
-		CanFail:            false,
+		CanFail:            true,
 		ProducesData:       false,
 		IsControlFlow:      true,
 		Description:        "Conditional branch",

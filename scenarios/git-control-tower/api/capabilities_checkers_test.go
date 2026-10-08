@@ -4,19 +4,18 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/vrooli/api-core/discovery"
+	httpx "github.com/vrooli/api-core/servertest"
 )
 
 func TestScenarioChecker_Available(t *testing.T) {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusOK)
+	server := httpx.NewServer(t, map[string]http.HandlerFunc{
+		"/health": func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		},
 	})
-	server := httptest.NewServer(mux)
-	defer server.Close()
 
 	checker := &ScenarioChecker{
 		Slug:     "workspace-sandbox",
@@ -34,12 +33,11 @@ func TestScenarioChecker_Available(t *testing.T) {
 }
 
 func TestScenarioChecker_HealthFails(t *testing.T) {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusServiceUnavailable)
+	server := httpx.NewServer(t, map[string]http.HandlerFunc{
+		"/health": func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusServiceUnavailable)
+		},
 	})
-	server := httptest.NewServer(mux)
-	defer server.Close()
 
 	checker := &ScenarioChecker{
 		Slug:     "workspace-sandbox",

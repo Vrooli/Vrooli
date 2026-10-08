@@ -1,0 +1,58 @@
+{
+  "id": "deployment_readiness",
+  "label": "Deployment readiness",
+  "description": "Whether Deployment Manager has opened and anchored the readiness goal.",
+  "unit": "count",
+  "format": "integer",
+  "kind": "panel",
+  "shape": "rows",
+  "columns": {
+    "key": {
+      "type": "string"
+    },
+    "value": {
+      "type": "number"
+    },
+    "share": {
+      "type": "number"
+    },
+    "label": {
+      "type": "string",
+      "optional": true
+    },
+    "detail": {
+      "type": "string",
+      "optional": true
+    }
+  },
+  "source": {
+    "team": "director-swarm",
+    "binding": "scenario:deployment-manager",
+    "read": "/api/v1/readiness/state",
+    "select": "deployment_readiness",
+    "ttlSeconds": 300,
+    "integrationId": "deployment-manager",
+    "featureId": "deployment_readiness",
+    "contractVersion": "legacy.v1",
+    "selector": "deployment_readiness",
+    "expectedUnit": "count",
+    "sourceTimePolicy": "producer_required"
+  },
+  "coverage": "IN-REACH",
+  "sample": {
+    "value": 1,
+    "series": [
+      1
+    ],
+    "rows": [
+      {
+        "key": "readiness",
+        "label": "Readiness goal present",
+        "value": 1,
+        "share": 1,
+        "detail": "closed=false"
+      }
+    ],
+    "basis": "hand-authored structural sample, reviewed 2026-09-03"
+  }
+}

@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   Play,
   Square,
@@ -18,7 +18,12 @@ import {
 } from "lucide-react";
 import { Popover, PopoverTrigger, PopoverContent } from "../ui/popover";
 import { useLiveDesktopStore } from "../../store/liveDesktopStore";
-import { executeDesktopControl, type ControlResult } from "../../lib/api/livedesktop";
+import {
+  executeDesktopControl,
+  controlResultString,
+  type ControlResult,
+} from "../../lib/api/livedesktop";
+import { DesktopNetworkMode } from "@vrooli/proto-types/scenario-to-desktop/v1/domain/evidence_pb";
 
 interface MenuItemProps {
   icon: React.ReactNode;
@@ -31,7 +36,16 @@ interface MenuItemProps {
   loading?: boolean;
 }
 
-function MenuItem({ icon, label, onClick, disabled, dimmed, toggle, toggleActive, loading }: MenuItemProps) {
+function MenuItem({
+  icon,
+  label,
+  onClick,
+  disabled,
+  dimmed,
+  toggle,
+  toggleActive,
+  loading,
+}: MenuItemProps) {
   return (
     <button
       type="button"
@@ -68,8 +82,14 @@ function InlineForm({ children, onClose }: InlineFormProps) {
   return (
     <div className="px-3 py-2 border-t border-slate-800 bg-slate-950/50">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-[10px] text-slate-500 uppercase tracking-wider">Settings</span>
-        <button type="button" onClick={onClose} className="text-slate-500 hover:text-slate-300">
+        <span className="text-[10px] text-slate-500 uppercase tracking-wider">
+          Settings
+        </span>
+        <button
+          type="button"
+          onClick={onClose}
+          className="text-slate-500 hover:text-slate-300"
+        >
           <X className="h-3 w-3" />
         </button>
       </div>
@@ -94,7 +114,7 @@ export function DesktopControlsMenu() {
   const [bandwidthInput, setBandwidthInput] = useState(256);
 
   const connected = connectionStatus === "connected";
-  const sessionId = activeSession?.id;
+  const sessionId = activeSession?.sessionId;
 
   const execute = useCallback(
     async (action: string, params?: Record<string, unknown>) => {
@@ -102,12 +122,15 @@ export function DesktopControlsMenu() {
       setActiveAction(action);
       setError(null);
       try {
-        const result: ControlResult = await executeDesktopControl(sessionId, { action, params });
-        if (result.status === "error") {
-          setError(result.message || "Action failed");
+        const result: ControlResult = await executeDesktopControl(sessionId, {
+          action,
+          params,
+        });
+        if (controlResultString(result, "status") === "error") {
+          setError(controlResultString(result, "message") ?? "Action failed");
         }
         // Refresh session state
-        useLiveDesktopStore.getState().refreshSession?.();
+        await useLiveDesktopStore.getState().refreshSession();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Action failed");
       } finally {
@@ -117,15 +140,21 @@ export function DesktopControlsMenu() {
     [sessionId],
   );
 
-  // Auto-dismiss errors after 5s
-  if (error) {
-    setTimeout(() => setError(null), 5000);
-  }
+  // Auto-dismiss errors after 5s without scheduling work during render.
+  useEffect(() => {
+    if (!error) return;
+    const timeout = window.setTimeout(() => {
+      setError(null);
+    }, 5000);
+    return () => {
+      window.clearTimeout(timeout);
+    };
+  }, [error]);
 
-  const isRecording = activeSession?.is_recording ?? false;
-  const networkMode = activeSession?.network_mode ?? "normal";
-  const darkMode = activeSession?.dark_mode ?? false;
-  const appRunning = activeSession?.app_running ?? false;
+  const isRecording = activeSession?.recording ?? false;
+  const networkMode = activeSession?.networkMode ?? DesktopNetworkMode.NORMAL;
+  const darkMode = activeSession?.darkMode ?? false;
+  const appRunning = activeSession?.appRunning ?? false;
 
   return (
     <Popover>
@@ -138,13 +167,25 @@ export function DesktopControlsMenu() {
           Controls
         </button>
       </PopoverTrigger>
-      <PopoverContent align="end" side="bottom" className="max-h-[70vh] overflow-y-auto">
+      <PopoverContent
+        align="end"
+        side="bottom"
+        className="max-h-[70vh] overflow-y-auto"
+      >
         {/* Error banner */}
         {error && (
           <div className="flex items-center gap-2 px-3 py-1.5 bg-red-950/40 border-b border-red-800/40">
             <AlertCircle className="h-3 w-3 text-red-400 shrink-0" />
-            <span className="text-[11px] text-red-300 truncate flex-1">{error}</span>
-            <button type="button" onClick={() => setError(null)} className="text-red-400 hover:text-red-200 p-0.5">
+            <span className="text-[11px] text-red-300 truncate flex-1">
+              {error}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setError(null);
+              }}
+              className="text-red-400 hover:text-red-200 p-0.5"
+            >
               <X className="h-3 w-3" />
             </button>
           </div>
@@ -152,18 +193,20 @@ export function DesktopControlsMenu() {
 
         {/* App section */}
         <div className="py-1.5">
-          <div className="px-3 py-1 text-[10px] text-slate-500 uppercase tracking-wider font-medium">App</div>
+          <div className="px-3 py-1 text-[10px] text-slate-500 uppercase tracking-wider font-medium">
+            App
+          </div>
           <MenuItem
             icon={<Play className="h-3.5 w-3.5" />}
             label="Launch App"
-            onClick={() => execute("launch_app")}
+            onClick={() => void execute("launch_app")}
             disabled={!connected}
             loading={activeAction === "launch_app"}
           />
           <MenuItem
             icon={<Square className="h-3.5 w-3.5" />}
             label="Quit App"
-            onClick={() => execute("quit_app")}
+            onClick={() => void execute("quit_app")}
             disabled={!connected}
             dimmed={!appRunning}
             loading={activeAction === "quit_app"}
@@ -171,54 +214,76 @@ export function DesktopControlsMenu() {
           <MenuItem
             icon={<Camera className="h-3.5 w-3.5" />}
             label="Screenshot"
-            onClick={() => execute("screenshot")}
+            onClick={() => void execute("screenshot")}
             disabled={!connected}
             loading={activeAction === "screenshot"}
           />
           <MenuItem
-            icon={<Circle className={`h-3.5 w-3.5 ${isRecording ? "text-red-400 fill-red-400" : ""}`} />}
+            icon={
+              <Circle
+                className={`h-3.5 w-3.5 ${isRecording ? "text-red-400 fill-red-400" : ""}`}
+              />
+            }
             label={isRecording ? "Stop Recording" : "Record"}
-            onClick={() => execute(isRecording ? "stop_recording" : "start_recording")}
+            onClick={() =>
+              void execute(isRecording ? "stop_recording" : "start_recording")
+            }
             disabled={!connected}
-            loading={activeAction === "start_recording" || activeAction === "stop_recording"}
+            loading={
+              activeAction === "start_recording" ||
+              activeAction === "stop_recording"
+            }
           />
         </div>
 
         {/* Environment section */}
         <div className="border-t border-slate-800 py-1.5">
-          <div className="px-3 py-1 text-[10px] text-slate-500 uppercase tracking-wider font-medium">Environment</div>
+          <div className="px-3 py-1 text-[10px] text-slate-500 uppercase tracking-wider font-medium">
+            Environment
+          </div>
           <MenuItem
             icon={<WifiOff className="h-3.5 w-3.5" />}
             label="Offline Mode"
-            onClick={() => execute("offline_mode", { enabled: networkMode !== "offline" })}
+            onClick={() =>
+              void execute("offline_mode", {
+                enabled: networkMode !== DesktopNetworkMode.OFFLINE,
+              })
+            }
             disabled={!connected}
             toggle
-            toggleActive={networkMode === "offline"}
+            toggleActive={networkMode === DesktopNetworkMode.OFFLINE}
             loading={activeAction === "offline_mode"}
           />
           <MenuItem
             icon={<Snail className="h-3.5 w-3.5" />}
             label="Slow Connection"
             onClick={() => {
-              if (networkMode === "slow") {
-                execute("slow_connection", { enabled: false });
+              if (networkMode === DesktopNetworkMode.SLOW) {
+                void execute("slow_connection", { enabled: false });
               } else {
                 setSubForm("slow");
               }
             }}
             disabled={!connected}
             toggle
-            toggleActive={networkMode === "slow"}
+            toggleActive={networkMode === DesktopNetworkMode.SLOW}
             loading={activeAction === "slow_connection"}
           />
           {subForm === "slow" && (
-            <InlineForm onClose={() => setSubForm(null)}>
+            <InlineForm
+              onClose={() => {
+                setSubForm(null);
+              }}
+            >
               <div className="flex items-center gap-2">
                 <input
                   type="number"
+                  aria-label="Bandwidth limit"
                   min={1}
                   value={bandwidthInput}
-                  onChange={(e) => setBandwidthInput(Number(e.target.value))}
+                  onChange={(e) => {
+                    setBandwidthInput(Number(e.target.value));
+                  }}
                   className="w-20 rounded border border-white/20 bg-white/5 px-2 py-1 text-xs text-slate-200"
                   placeholder="kbps"
                 />
@@ -226,7 +291,10 @@ export function DesktopControlsMenu() {
                 <button
                   type="button"
                   onClick={() => {
-                    execute("slow_connection", { enabled: true, bandwidth_kbps: bandwidthInput });
+                    void execute("slow_connection", {
+                      enabled: true,
+                      bandwidth_kbps: bandwidthInput,
+                    });
                     setSubForm(null);
                   }}
                   className="rounded bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-500"
@@ -239,33 +307,48 @@ export function DesktopControlsMenu() {
           <MenuItem
             icon={<Move className="h-3.5 w-3.5" />}
             label="Resize Display..."
-            onClick={() => setSubForm(subForm === "resize" ? null : "resize")}
+            onClick={() => {
+              setSubForm(subForm === "resize" ? null : "resize");
+            }}
             disabled={!connected}
           />
           {subForm === "resize" && (
-            <InlineForm onClose={() => setSubForm(null)}>
+            <InlineForm
+              onClose={() => {
+                setSubForm(null);
+              }}
+            >
               <div className="flex items-center gap-2">
                 <input
                   type="number"
+                  aria-label="Desktop width"
                   min={640}
                   max={3840}
                   value={resizeWidth}
-                  onChange={(e) => setResizeWidth(Number(e.target.value))}
+                  onChange={(e) => {
+                    setResizeWidth(Number(e.target.value));
+                  }}
                   className="w-16 rounded border border-white/20 bg-white/5 px-2 py-1 text-xs text-slate-200"
                 />
                 <span className="text-slate-500">&times;</span>
                 <input
                   type="number"
+                  aria-label="Desktop height"
                   min={480}
                   max={2160}
                   value={resizeHeight}
-                  onChange={(e) => setResizeHeight(Number(e.target.value))}
+                  onChange={(e) => {
+                    setResizeHeight(Number(e.target.value));
+                  }}
                   className="w-16 rounded border border-white/20 bg-white/5 px-2 py-1 text-xs text-slate-200"
                 />
                 <button
                   type="button"
                   onClick={() => {
-                    execute("resize_display", { width: resizeWidth, height: resizeHeight });
+                    void execute("resize_display", {
+                      width: resizeWidth,
+                      height: resizeHeight,
+                    });
                     setSubForm(null);
                   }}
                   className="rounded bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-500"
@@ -278,14 +361,23 @@ export function DesktopControlsMenu() {
           <MenuItem
             icon={<Settings className="h-3.5 w-3.5" />}
             label="Env Variables..."
-            onClick={() => setSubForm(subForm === "env" ? null : "env")}
+            onClick={() => {
+              setSubForm(subForm === "env" ? null : "env");
+            }}
             disabled={!connected}
           />
           {subForm === "env" && (
-            <InlineForm onClose={() => setSubForm(null)}>
+            <InlineForm
+              onClose={() => {
+                setSubForm(null);
+              }}
+            >
               <textarea
+                aria-label="Environment variables"
                 value={envInput}
-                onChange={(e) => setEnvInput(e.target.value)}
+                onChange={(e) => {
+                  setEnvInput(e.target.value);
+                }}
                 placeholder={"KEY=VALUE\nANOTHER=VALUE"}
                 rows={3}
                 className="w-full rounded border border-white/20 bg-white/5 px-2 py-1 text-xs text-slate-200 mb-2 font-mono"
@@ -297,10 +389,12 @@ export function DesktopControlsMenu() {
                   for (const line of envInput.split("\n")) {
                     const idx = line.indexOf("=");
                     if (idx > 0) {
-                      vars[line.slice(0, idx).trim()] = line.slice(idx + 1).trim();
+                      vars[line.slice(0, idx).trim()] = line
+                        .slice(idx + 1)
+                        .trim();
                     }
                   }
-                  execute("inject_env", { vars });
+                  void execute("inject_env", { vars });
                   setSubForm(null);
                 }}
                 className="rounded bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-500"
@@ -313,25 +407,36 @@ export function DesktopControlsMenu() {
 
         {/* Advanced section */}
         <div className="border-t border-slate-800 py-1.5">
-          <div className="px-3 py-1 text-[10px] text-slate-500 uppercase tracking-wider font-medium">Advanced</div>
+          <div className="px-3 py-1 text-[10px] text-slate-500 uppercase tracking-wider font-medium">
+            Advanced
+          </div>
           <MenuItem
             icon={<ClipboardCopy className="h-3.5 w-3.5" />}
             label="Read Clipboard"
-            onClick={() => execute("clipboard_read")}
+            onClick={() => void execute("clipboard_read")}
             disabled={!connected}
             loading={activeAction === "clipboard_read"}
           />
           <MenuItem
             icon={<ClipboardPaste className="h-3.5 w-3.5" />}
             label="Write Clipboard..."
-            onClick={() => setSubForm(subForm === "clipboard" ? null : "clipboard")}
+            onClick={() => {
+              setSubForm(subForm === "clipboard" ? null : "clipboard");
+            }}
             disabled={!connected}
           />
           {subForm === "clipboard" && (
-            <InlineForm onClose={() => setSubForm(null)}>
+            <InlineForm
+              onClose={() => {
+                setSubForm(null);
+              }}
+            >
               <textarea
+                aria-label="Clipboard content"
                 value={clipboardContent}
-                onChange={(e) => setClipboardContent(e.target.value)}
+                onChange={(e) => {
+                  setClipboardContent(e.target.value);
+                }}
                 placeholder="Clipboard content..."
                 rows={2}
                 className="w-full rounded border border-white/20 bg-white/5 px-2 py-1 text-xs text-slate-200 mb-2"
@@ -339,7 +444,9 @@ export function DesktopControlsMenu() {
               <button
                 type="button"
                 onClick={() => {
-                  execute("clipboard_write", { content: clipboardContent });
+                  void execute("clipboard_write", {
+                    content: clipboardContent,
+                  });
                   setSubForm(null);
                 }}
                 className="rounded bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-500"
@@ -351,7 +458,7 @@ export function DesktopControlsMenu() {
           <MenuItem
             icon={<Moon className="h-3.5 w-3.5" />}
             label="Dark Mode"
-            onClick={() => execute("dark_mode", { enabled: !darkMode })}
+            onClick={() => void execute("dark_mode", { enabled: !darkMode })}
             disabled={!connected}
             toggle
             toggleActive={darkMode}
@@ -360,23 +467,32 @@ export function DesktopControlsMenu() {
           <MenuItem
             icon={<Globe className="h-3.5 w-3.5" />}
             label="Locale..."
-            onClick={() => setSubForm(subForm === "locale" ? null : "locale")}
+            onClick={() => {
+              setSubForm(subForm === "locale" ? null : "locale");
+            }}
             disabled={!connected}
           />
           {subForm === "locale" && (
-            <InlineForm onClose={() => setSubForm(null)}>
+            <InlineForm
+              onClose={() => {
+                setSubForm(null);
+              }}
+            >
               <div className="flex items-center gap-2">
                 <input
                   type="text"
+                  aria-label="Locale"
                   value={localeInput}
-                  onChange={(e) => setLocaleInput(e.target.value)}
+                  onChange={(e) => {
+                    setLocaleInput(e.target.value);
+                  }}
                   placeholder="e.g., fr_FR.UTF-8"
                   className="flex-1 rounded border border-white/20 bg-white/5 px-2 py-1 text-xs text-slate-200"
                 />
                 <button
                   type="button"
                   onClick={() => {
-                    execute("locale", { locale: localeInput });
+                    void execute("locale", { locale: localeInput });
                     setSubForm(null);
                   }}
                   className="rounded bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-500"

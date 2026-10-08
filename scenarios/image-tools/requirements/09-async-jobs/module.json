@@ -1,0 +1,38 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-07-28T23:34:11-04:00"
+  },
+  "requirements": [
+    {
+      "id": "IMG-P0-009",
+      "title": "Durable Async Job Queue",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-009",
+      "category": "core",
+      "description": "Server-owned jobs survive client disconnect; submit returns job-id + ETA; CLI block-once wait verb; UI SSE progress; GPU jobs serialized; cheap CPU ops concurrent; no client polling.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/jobs/manager_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Job state machine survives simulated client disconnect"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/jobs/manager_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "GPU jobs serialize while CPU ops run concurrently"
+        },
+        {
+          "type": "test",
+          "ref": "cli/domains/jobs/jobs_manifest_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "CLI submit-\u003ewait returns terminal verdict + exit code"
+        }
+      ]
+    }
+  ]
+}

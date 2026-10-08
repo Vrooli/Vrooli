@@ -1,0 +1,24 @@
+syntax = "proto3";
+package vrooli.switchboard.v1.channels;
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/switchboard/v1/channels;channels_v1";
+
+service ChannelService {
+  rpc ListChannels(ListChannelsRequest) returns (ListChannelsResponse);
+  rpc GetChannel(GetChannelRequest) returns (GetChannelResponse);
+  rpc ListBindings(ListBindingsRequest) returns (ListBindingsResponse);
+  rpc CreateBinding(CreateBindingRequest) returns (CreateBindingResponse);
+  rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);
+}
+message ListChannelsRequest {}
+message GetChannelRequest { string id = 1; }
+message ListBindingsRequest { string agent_id = 1; }
+message CreateBindingRequest { string agent_id = 1; string channel_id = 2; string address = 3; string thread_key = 4; }
+message Channel { string id = 1; string display_name = 2; string availability = 3; string reason = 4; int32 friction = 5; }
+message Binding { string id = 1; string agent_id = 2; string channel_id = 3; string address = 4; string thread_key = 5; }
+message ListChannelsResponse { repeated Channel channels = 1; }
+message GetChannelResponse { Channel channel = 1; }
+message ListBindingsResponse { repeated Binding bindings = 1; }
+message CreateBindingResponse { Binding binding = 1; }
+message SendMessageRequest { string channel_id = 1; string thread_key = 2; string text = 3; repeated Media media = 4; string reply_to_remote_id = 5; }
+message SendMessageResponse { bool accepted = 1; }
+message Media { string name = 1; string mime = 2; string url = 3; int64 size = 4; }

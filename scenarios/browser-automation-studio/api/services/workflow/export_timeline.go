@@ -7,7 +7,6 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/vrooli/browser-automation-studio/internal/typeconv"
 	"github.com/vrooli/browser-automation-studio/services/export"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 )
@@ -17,9 +16,9 @@ type (
 	ExecutionTimeline  = export.ExecutionTimeline
 	TimelineFrame      = export.TimelineFrame
 	TimelineLog        = export.TimelineLog
-	RetryHistoryEntry  = typeconv.RetryHistoryEntry
-	TimelineScreenshot = typeconv.TimelineScreenshot
-	TimelineArtifact   = typeconv.TimelineArtifact
+	RetryHistoryEntry  = export.RetryHistoryEntry
+	TimelineScreenshot = export.TimelineScreenshot
+	TimelineArtifact   = export.TimelineArtifact
 )
 
 // timelineLoader is lazily initialized to avoid circular dependencies.

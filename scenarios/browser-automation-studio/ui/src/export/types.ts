@@ -8,7 +8,7 @@
  * - Message communication with parent frames
  */
 
-import type { ReplayMovieSpec } from "@/types/export";
+import type { ReplaySpec as ReplayMovieSpec } from "@vrooli/generated-proto/browser-automation-studio/v1/exports/exports_pb";
 
 /**
  * Timeline entry for a single frame.

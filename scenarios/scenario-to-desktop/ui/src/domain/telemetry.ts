@@ -6,7 +6,11 @@
  * and event validation. No side effects - all testable in isolation.
  */
 
-import type { OperatingSystem, TelemetryEvent, TelemetryFilePath } from "./types";
+import type {
+  OperatingSystem,
+  TelemetryEvent,
+  TelemetryFilePath,
+} from "./types";
 
 // Re-export types for convenience
 export type { OperatingSystem, TelemetryEvent, TelemetryFilePath };
@@ -70,7 +74,7 @@ export const STANDARD_EVENTS = [
   "smoke_test_started",
   "smoke_test_passed",
   "smoke_test_failed",
-  "runtime_telemetry_uploaded"
+  "runtime_telemetry_uploaded",
 ] as const;
 
 export type StandardEventType = (typeof STANDARD_EVENTS)[number];
@@ -91,23 +95,26 @@ export function generateTelemetryPaths(appName: string): TelemetryFilePath[] {
   return [
     {
       os: "Windows",
-      path: `%APPDATA%/${appName}/${TELEMETRY_FILE_NAME}`
+      path: `%APPDATA%/${appName}/${TELEMETRY_FILE_NAME}`,
     },
     {
       os: "macOS",
-      path: `~/Library/Application Support/${appName}/${TELEMETRY_FILE_NAME}`
+      path: `~/Library/Application Support/${appName}/${TELEMETRY_FILE_NAME}`,
     },
     {
       os: "Linux",
-      path: `~/.config/${appName}/${TELEMETRY_FILE_NAME}`
-    }
+      path: `~/.config/${appName}/${TELEMETRY_FILE_NAME}`,
+    },
   ];
 }
 
 /**
  * Get telemetry path for a specific operating system.
  */
-export function getTelemetryPathForOS(appName: string, os: OperatingSystem): string {
+export function getTelemetryPathForOS(
+  appName: string,
+  os: OperatingSystem,
+): string {
   const paths = generateTelemetryPaths(appName);
   const match = paths.find((p) => p.os === os);
   return match?.path ?? "";
@@ -136,7 +143,7 @@ export function parseJsonlContent(content: string): TelemetryParseResult {
     return {
       success: false,
       events: [],
-      errors: [{ lineNumber: 0, line: "", error: "File is empty" }]
+      errors: [{ lineNumber: 0, line: "", error: "File is empty" }],
     };
   }
 
@@ -147,11 +154,15 @@ export function parseJsonlContent(content: string): TelemetryParseResult {
 
     try {
       const parsed: unknown = JSON.parse(line);
-      if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+      if (
+        typeof parsed !== "object" ||
+        parsed === null ||
+        Array.isArray(parsed)
+      ) {
         errors.push({
           lineNumber,
           line: truncateLine(line),
-          error: "Expected a JSON object"
+          error: "Expected a JSON object",
         });
         continue;
       }
@@ -160,7 +171,7 @@ export function parseJsonlContent(content: string): TelemetryParseResult {
       errors.push({
         lineNumber,
         line: truncateLine(line),
-        error: e instanceof Error ? e.message : "Invalid JSON"
+        error: e instanceof Error ? e.message : "Invalid JSON",
       });
     }
   }
@@ -168,7 +179,7 @@ export function parseJsonlContent(content: string): TelemetryParseResult {
   return {
     success: errors.length === 0,
     events,
-    errors
+    errors,
   };
 }
 
@@ -190,7 +201,9 @@ function truncateLine(line: string, maxLength = 50): string {
  * Validate parsed telemetry events.
  * Checks for structural correctness and provides warnings for non-standard events.
  */
-export function validateTelemetryEvents(events: TelemetryEvent[]): TelemetryValidationResult {
+export function validateTelemetryEvents(
+  events: TelemetryEvent[],
+): TelemetryValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
 
@@ -199,7 +212,7 @@ export function validateTelemetryEvents(events: TelemetryEvent[]): TelemetryVali
       valid: false,
       errors: ["No events to validate"],
       warnings: [],
-      eventCount: 0
+      eventCount: 0,
     };
   }
 
@@ -212,7 +225,7 @@ export function validateTelemetryEvents(events: TelemetryEvent[]): TelemetryVali
 
     // Check for event type
     if (!event.event) {
-      warnings.push(`Event ${eventNum}: Missing 'event' field`);
+      warnings.push(`Event ${String(eventNum)}: Missing 'event' field`);
     } else if (!isStandardEvent(event.event)) {
       unknownEventTypes.add(event.event);
     }
@@ -221,7 +234,10 @@ export function validateTelemetryEvents(events: TelemetryEvent[]): TelemetryVali
   // Aggregate warnings for unknown event types
   if (unknownEventTypes.size > 0) {
     const types = Array.from(unknownEventTypes).slice(0, 5).join(", ");
-    const suffix = unknownEventTypes.size > 5 ? ` and ${unknownEventTypes.size - 5} more` : "";
+    const suffix =
+      unknownEventTypes.size > 5
+        ? ` and ${String(unknownEventTypes.size - 5)} more`
+        : "";
     warnings.push(`Non-standard event types detected: ${types}${suffix}`);
   }
 
@@ -229,14 +245,16 @@ export function validateTelemetryEvents(events: TelemetryEvent[]): TelemetryVali
     valid: errors.length === 0,
     errors,
     warnings,
-    eventCount: events.length
+    eventCount: events.length,
   };
 }
 
 /**
  * Check if an event type is a standard runtime event.
  */
-export function isStandardEvent(eventType: string): eventType is StandardEventType {
+export function isStandardEvent(
+  eventType: string,
+): eventType is StandardEventType {
   return STANDARD_EVENTS.includes(eventType as StandardEventType);
 }
 
@@ -261,7 +279,9 @@ export function processTelemetryContent(content: string): {
     const firstError = parseResult.errors[0];
     return {
       success: false,
-      error: firstError ? `Line ${firstError.lineNumber}: ${firstError.error}` : "Failed to parse file"
+      error: firstError
+        ? `Line ${String(firstError.lineNumber)}: ${firstError.error}`
+        : "Failed to parse file",
     };
   }
 
@@ -271,14 +291,14 @@ export function processTelemetryContent(content: string): {
   if (!validation.valid) {
     return {
       success: false,
-      error: validation.errors.join("; ")
+      error: validation.errors.join("; "),
     };
   }
 
   return {
     success: true,
     events: parseResult.events,
-    warnings: validation.warnings.length > 0 ? validation.warnings : undefined
+    warnings: validation.warnings.length > 0 ? validation.warnings : undefined,
   };
 }
 
@@ -305,7 +325,7 @@ export function formatEventPreview(event: TelemetryEvent): string {
     parts.push(`session: "${event.session_id}"`);
   }
   if (event.detail) {
-    parts.push(`detail: "${truncateLine(String(event.detail), 30)}"`);
+    parts.push(`detail: "${truncateLine(event.detail, 30)}"`);
   }
 
   return `{ ${parts.join(", ")} }`;
@@ -318,6 +338,6 @@ export function generateExampleEvent(): string {
   return JSON.stringify({
     event: "api_unreachable",
     detail: "https://example.com",
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 }

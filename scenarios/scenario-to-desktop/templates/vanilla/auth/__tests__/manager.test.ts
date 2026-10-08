@@ -219,12 +219,13 @@ function createTestDependencies(overrides?: Partial<AuthManagerDependencies>): A
     const authChangeEvents: AuthChangeEvent[] = [];
     let windowFocusCalled = false;
     const protocolUrls: string[] = [];
+    const shell = createMockShell();
 
     const deps: AuthManagerDependencies = {
         storage: createMockStorage(),
         safeStorage: createMockSafeStorage(),
         http: createMockHttpClient(),
-        shell: createMockShell(),
+        shell,
         timer: createMockTimer(),
         uuid: createMockUuidGenerator(),
         pathUtils: createMockPathUtils(),
@@ -232,6 +233,11 @@ function createTestDependencies(overrides?: Partial<AuthManagerDependencies>): A
         onAuthChange: (event) => authChangeEvents.push(event),
         onWindowFocus: () => { windowFocusCalled = true; },
         onProtocolUrl: (url) => protocolUrls.push(url),
+        onLoopbackAuthorization: async (buildAuthorizationURL) => {
+            await shell.openExternal(buildAuthorizationURL("http://127.0.0.1:43123/callback"));
+            return await new Promise<never>(() => {});
+        },
+        createCodeChallenge: () => "test-challenge",
         ...overrides,
     };
 
@@ -259,7 +265,7 @@ describe("createAuthManager", () => {
     });
 
     describe("signIn", () => {
-        it("opens external URL with correct parameters", async () => {
+        it("opens a loopback PKCE URL with correct parameters", async () => {
             const manager = createAuthManager(deps);
 
             await manager.signIn();
@@ -268,7 +274,9 @@ describe("createAuthManager", () => {
             const url = new URL(deps.shell._openedUrls[0] ?? "");
             expect(url.origin).toBe("https://test.vrooli.com");
             expect(url.pathname).toBe("/auth/login");
-            expect(url.searchParams.get("redirect_uri")).toBe("testapp://auth/callback");
+            expect(url.searchParams.get("redirect_uri")).toBe("http://127.0.0.1:43123/callback");
+            expect(url.searchParams.get("code_challenge")).toBe("test-challenge");
+            expect(url.searchParams.get("code_challenge_method")).toBe("S256");
             expect(url.searchParams.get("app")).toBe("Test App");
             expect(url.searchParams.get("state")).toBe("test-uuid-12345");
         });
@@ -292,62 +300,82 @@ describe("createAuthManager", () => {
         });
     });
 
+    describe("connectDesktop", () => {
+        it("redeems a browser-issued scoped link with a verified local proof and persists only the lease", async () => {
+            let openedUrl = "";
+            const storeLease = vi.fn(async (_lease: string) => {});
+            deps = createTestDependencies({
+                onLoopbackAuthorization: async (buildAuthorizationURL) => {
+                    openedUrl = buildAuthorizationURL("http://127.0.0.1:43123/callback");
+                    return { code: "link-code", state: "link-state", redirectURI: "http://127.0.0.1:43123/callback" };
+                },
+                onResolveLocalIdentityProof: async () => "local-proof",
+                onStoreEntitlementLease: storeLease,
+            });
+            deps.http._responses.set("https://test.vrooli.com/api/v1/desktop/links/redeem", {
+                ok: true,
+                status: 200,
+                body: { entitlement_lease: { token: "signed-lease", expires_at: "2030-01-01T00:00:00Z" } },
+            });
+            const manager = createAuthManager(deps);
+
+            await manager.connectDesktop({
+                installationId: "install-1",
+                resource: "demo",
+                audience: "scenario:demo",
+                scopes: ["demo:read"],
+                state: "link-state",
+            });
+
+            const authUrl = new URL(openedUrl);
+            expect(authUrl.pathname).toBe("/auth/login");
+            expect(authUrl.searchParams.get("desktop_link")).toBe("true");
+            expect(authUrl.searchParams.get("installation_id")).toBe("install-1");
+            expect(authUrl.searchParams.get("audience")).toBe("scenario:demo");
+            expect(authUrl.searchParams.get("scopes")).toBe("demo:read");
+            const redemption = deps.http._requests.find((request) => request.url.endsWith("/desktop/links/redeem"));
+            expect(redemption?.options?.headers?.Authorization).toBe("Bearer local-proof");
+            expect(JSON.parse(String(redemption?.options?.body))).toMatchObject({
+                code: "link-code",
+                installation_id: "install-1",
+                resource: "demo",
+            });
+            expect(await manager.getEntitlementLease()).toBe("signed-lease");
+            expect(await manager.getAccessToken()).toBeNull();
+            expect(await manager.isAuthenticated()).toBe(false);
+            expect(storeLease).toHaveBeenCalledWith("signed-lease");
+            const persisted = deps.safeStorage.decryptString(deps.storage._files.get("auth/tokens.enc") as Buffer);
+            expect(JSON.parse(persisted)).toEqual({ entitlementLease: "signed-lease" });
+        });
+
+        it("rejects a cross-resource audience before opening the browser", async () => {
+            const manager = createAuthManager({
+                ...deps,
+                onResolveLocalIdentityProof: async () => "local-proof",
+            });
+
+            await expect(manager.connectDesktop({
+                installationId: "install-1",
+                resource: "demo",
+                audience: "scenario:other",
+                scopes: ["demo:read"],
+            })).rejects.toThrow("desktop link binding is invalid");
+            expect(deps.shell._openedUrls).toHaveLength(0);
+        });
+    });
+
     describe("handleCallback", () => {
-        // Use dynamic future date for valid callbacks
-        const futureExpiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour from now
-        const validCallbackUrl = `testapp://auth/callback#access_token=at123&refresh_token=rt456&expires_at=${encodeURIComponent(futureExpiresAt)}&state=test-uuid-12345`;
-
-        it("stores tokens from valid callback", async () => {
+        it("rejects callbacks that carry tokens", async () => {
             const manager = createAuthManager(deps);
-            await manager.signIn(); // Sets pending state
-
-            await manager.handleCallback(validCallbackUrl);
-
-            const stored = deps.storage._files.get("auth/tokens.enc");
-            expect(stored).toBeDefined();
-            const decrypted = deps.safeStorage.decryptString(stored as Buffer);
-            const tokens = JSON.parse(decrypted);
-            expect(tokens.accessToken).toBe("at123");
-            expect(tokens.refreshToken).toBe("rt456");
-        });
-
-        it("notifies tokens-received on success", async () => {
-            const manager = createAuthManager(deps);
-            await manager.signIn();
-
-            await manager.handleCallback(validCallbackUrl);
-
-            expect(deps.authChangeEvents).toContain("tokens-received");
-        });
-
-        it("calls window focus callback", async () => {
-            const manager = createAuthManager(deps);
-            await manager.signIn();
-
-            await manager.handleCallback(validCallbackUrl);
-
-            expect(deps.windowFocusCalled).toBe(true);
-        });
-
-        it("rejects callback with wrong state (CSRF protection)", async () => {
-            const manager = createAuthManager(deps);
-            await manager.signIn(); // Sets state to "test-uuid-12345"
-
-            const badStateUrl = "testapp://auth/callback#access_token=at123&refresh_token=rt456&expires_at=2024-12-31T23:59:59Z&state=wrong-state";
-            await manager.handleCallback(badStateUrl);
+            const callback = new URL("testapp://auth/callback");
+            callback.hash = new URLSearchParams({
+                access_token: "at123",
+                refresh_token: "rt456",
+            }).toString();
+            await manager.handleCallback(callback.toString());
 
             expect(deps.authChangeEvents).toContain("session-expired");
             expect(deps.storage._files.has("auth/tokens.enc")).toBe(false);
-        });
-
-        it("rejects callback with missing tokens", async () => {
-            const manager = createAuthManager(deps);
-            await manager.signIn();
-
-            const incompleteUrl = "testapp://auth/callback#access_token=at123&state=test-uuid-12345";
-            await manager.handleCallback(incompleteUrl);
-
-            expect(deps.authChangeEvents).toContain("session-expired");
         });
 
         it("forwards non-auth callbacks to protocol URL handler", async () => {
@@ -359,32 +387,11 @@ describe("createAuthManager", () => {
             expect(deps.authChangeEvents).toHaveLength(0);
         });
 
-        it("fetches and stores user info", async () => {
+        it("forwards code-only callbacks without treating them as credentials", async () => {
             const manager = createAuthManager(deps);
-            await manager.signIn();
-
-            deps.http._responses.set("https://test.vrooli.com/api/v1/auth/me", {
-                ok: true,
-                status: 200,
-                body: { user: { id: "user123", email: "test@example.com", emailVerified: true } },
-            });
-
-            await manager.handleCallback(validCallbackUrl);
-
-            const userContent = deps.storage._files.get("auth/user.json");
-            expect(userContent).toBeDefined();
-            const user = JSON.parse(userContent as string);
-            expect(user.id).toBe("user123");
-            expect(user.email).toBe("test@example.com");
-        });
-
-        it("schedules token refresh", async () => {
-            const manager = createAuthManager(deps);
-            await manager.signIn();
-
-            await manager.handleCallback(validCallbackUrl);
-
-            expect(deps.timer._scheduledCallbacks.length).toBe(1);
+            await manager.handleCallback("testapp://auth/callback?code=one-use-code&state=test-uuid-12345");
+            expect(deps.protocolUrls).toContain("testapp://auth/callback?code=one-use-code&state=test-uuid-12345");
+            expect(deps.authChangeEvents).toHaveLength(0);
         });
     });
 
@@ -392,11 +399,11 @@ describe("createAuthManager", () => {
         let authenticatedManager: ReturnType<typeof createAuthManager>;
 
         beforeEach(async () => {
-            // Set up authenticated state with future expiry
-            const futureExpiry = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+            // A restart restores only the signed entitlement lease. Website
+            // access and refresh tokens must not be durable.
+            deps.storage._files.set("auth/tokens.enc", deps.safeStorage.encryptString(JSON.stringify({ entitlementLease: "signed-lease" })));
             authenticatedManager = createAuthManager(deps);
-            await authenticatedManager.signIn();
-            await authenticatedManager.handleCallback(`testapp://auth/callback#access_token=at123&refresh_token=rt456&expires_at=${encodeURIComponent(futureExpiry)}&state=test-uuid-12345`);
+            await authenticatedManager.initialize();
             deps.authChangeEvents.length = 0; // Clear events
             deps.http._requests.length = 0; // Clear requests from setup
         });
@@ -415,13 +422,11 @@ describe("createAuthManager", () => {
             expect(deps.storage._files.has("auth/user.json")).toBe(false);
         });
 
-        it("calls logout API endpoint", async () => {
+        it("does not call a website logout endpoint after restart", async () => {
             await authenticatedManager.signOut();
 
             const logoutRequest = deps.http._requests.find(r => r.url.includes("/logout"));
-            expect(logoutRequest).toBeDefined();
-            expect(logoutRequest?.options?.method).toBe("POST");
-            expect(logoutRequest?.options?.headers?.Authorization).toBe("Bearer at123");
+            expect(logoutRequest).toBeUndefined();
         });
 
         it("notifies signed-out event", async () => {
@@ -431,8 +436,7 @@ describe("createAuthManager", () => {
         });
 
         it("clears refresh timer", async () => {
-            // Verify timer was scheduled during setup
-            expect(deps.timer._scheduledCallbacks.length).toBe(1);
+            expect(deps.timer._scheduledCallbacks.length).toBe(0);
 
             await authenticatedManager.signOut();
 
@@ -449,7 +453,7 @@ describe("createAuthManager", () => {
             expect(token).toBeNull();
         });
 
-        it("returns access token when valid", async () => {
+        it("does not restore an access token from durable storage", async () => {
             const futureDate = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour from now
             const tokens = { accessToken: "valid-token", refreshToken: "rt", expiresAt: futureDate };
             deps.storage._files.set("auth/tokens.enc", deps.safeStorage.encryptString(JSON.stringify(tokens)));
@@ -457,10 +461,10 @@ describe("createAuthManager", () => {
             const manager = createAuthManager(deps);
             const token = await manager.getAccessToken();
 
-            expect(token).toBe("valid-token");
+            expect(token).toBeNull();
         });
 
-        it("refreshes and returns new token when expired", async () => {
+        it("does not refresh a website session after restart", async () => {
             const pastDate = new Date(Date.now() - 1000).toISOString(); // Already expired
             const tokens = { accessToken: "old-token", refreshToken: "rt", expiresAt: pastDate };
             deps.storage._files.set("auth/tokens.enc", deps.safeStorage.encryptString(JSON.stringify(tokens)));
@@ -475,7 +479,8 @@ describe("createAuthManager", () => {
             const manager = createAuthManager(deps);
             const token = await manager.getAccessToken();
 
-            expect(token).toBe("new-token");
+            expect(token).toBeNull();
+            expect(deps.http._requests).toHaveLength(0);
         });
 
         it("returns null when refresh fails", async () => {
@@ -493,7 +498,7 @@ describe("createAuthManager", () => {
             const token = await manager.getAccessToken();
 
             expect(token).toBeNull();
-            expect(deps.authChangeEvents).toContain("session-expired");
+            expect(deps.authChangeEvents).not.toContain("session-expired");
         });
     });
 
@@ -526,7 +531,7 @@ describe("createAuthManager", () => {
             expect(authenticated).toBe(false);
         });
 
-        it("returns true when tokens are valid", async () => {
+        it("does not treat durable website credentials as authenticated", async () => {
             const futureDate = new Date(Date.now() + 60 * 60 * 1000).toISOString();
             const tokens = { accessToken: "at", refreshToken: "rt", expiresAt: futureDate };
             deps.storage._files.set("auth/tokens.enc", deps.safeStorage.encryptString(JSON.stringify(tokens)));
@@ -534,10 +539,10 @@ describe("createAuthManager", () => {
             const manager = createAuthManager(deps);
             const authenticated = await manager.isAuthenticated();
 
-            expect(authenticated).toBe(true);
+            expect(authenticated).toBe(false);
         });
 
-        it("returns true within refresh buffer window", async () => {
+        it("does not treat durable credentials within the refresh buffer as authenticated", async () => {
             // Token expires in 2 minutes, but buffer is 5 minutes
             const almostExpired = new Date(Date.now() + 2 * 60 * 1000).toISOString();
             const tokens = { accessToken: "at", refreshToken: "rt", expiresAt: almostExpired };
@@ -546,8 +551,7 @@ describe("createAuthManager", () => {
             const manager = createAuthManager(deps);
             const authenticated = await manager.isAuthenticated();
 
-            // Should still be considered authenticated (within buffer window)
-            expect(authenticated).toBe(true);
+            expect(authenticated).toBe(false);
         });
 
         it("returns false when expired beyond buffer", async () => {
@@ -564,7 +568,7 @@ describe("createAuthManager", () => {
     });
 
     describe("refresh", () => {
-        it("refreshes tokens successfully", async () => {
+        it("refuses to refresh a website session after restart", async () => {
             const futureDate = new Date(Date.now() + 60 * 60 * 1000).toISOString();
             const tokens = { accessToken: "old", refreshToken: "rt", expiresAt: futureDate };
             deps.storage._files.set("auth/tokens.enc", deps.safeStorage.encryptString(JSON.stringify(tokens)));
@@ -579,8 +583,8 @@ describe("createAuthManager", () => {
             const manager = createAuthManager(deps);
             const success = await manager.refresh();
 
-            expect(success).toBe(true);
-            expect(deps.authChangeEvents).toContain("tokens-refreshed");
+            expect(success).toBe(false);
+            expect(deps.authChangeEvents).toContain("session-expired");
         });
 
         it("returns false when no refresh token", async () => {
@@ -610,7 +614,7 @@ describe("createAuthManager", () => {
     });
 
     describe("initialize", () => {
-        it("schedules refresh for existing valid tokens", async () => {
+        it("does not schedule a website refresh from durable storage", async () => {
             const futureDate = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour
             const tokens = { accessToken: "at", refreshToken: "rt", expiresAt: futureDate };
             deps.storage._files.set("auth/tokens.enc", deps.safeStorage.encryptString(JSON.stringify(tokens)));
@@ -618,7 +622,7 @@ describe("createAuthManager", () => {
             const manager = createAuthManager(deps);
             await manager.initialize();
 
-            expect(deps.timer._scheduledCallbacks.length).toBe(1);
+            expect(deps.timer._scheduledCallbacks.length).toBe(0);
         });
 
         it("does nothing when no tokens exist", async () => {
@@ -649,7 +653,7 @@ describe("createAuthManager", () => {
 
             const manager = createAuthManager(deps);
             await manager.initialize();
-            expect(deps.timer._scheduledCallbacks.length).toBe(1);
+            expect(deps.timer._scheduledCallbacks.length).toBe(0);
 
             manager.dispose();
 
@@ -657,38 +661,40 @@ describe("createAuthManager", () => {
         });
     });
 
-    describe("encryption fallback", () => {
-        it("stores tokens unencrypted when encryption unavailable", async () => {
+    describe("credential recovery boundary", () => {
+        it("does not recover a website refresh token from the platform authority", async () => {
             deps = createTestDependencies({
-                safeStorage: createMockSafeStorage(false),
+                onGetEntitlementLease: async () => "signed-lease",
             });
-            const manager = createAuthManager(deps);
-            await manager.signIn();
-
-            const futureExpiry = new Date(Date.now() + 60 * 60 * 1000).toISOString();
-            const callbackUrl = `testapp://auth/callback#access_token=at123&refresh_token=rt456&expires_at=${encodeURIComponent(futureExpiry)}&state=test-uuid-12345`;
-            await manager.handleCallback(callbackUrl);
-
-            const stored = deps.storage._files.get("auth/tokens.enc");
-            expect(stored).toBeDefined();
-            // Should be plain JSON string, not encrypted Buffer
-            expect(typeof stored).toBe("string");
-            const parsed = JSON.parse(stored as string);
-            expect(parsed.accessToken).toBe("at123");
-        });
-
-        it("reads tokens as plain text when encryption unavailable", async () => {
-            deps = createTestDependencies({
-                safeStorage: createMockSafeStorage(false),
-            });
-
-            const tokens = { accessToken: "plain-token", refreshToken: "rt", expiresAt: new Date(Date.now() + 60000).toISOString() };
-            deps.storage._files.set("auth/tokens.enc", JSON.stringify(tokens));
 
             const manager = createAuthManager(deps);
             const token = await manager.getAccessToken();
 
-            expect(token).toBe("plain-token");
+            expect(token).toBeNull();
+            expect(await manager.getEntitlementLease()).toBe("signed-lease");
+            expect(deps.http._requests).toHaveLength(0);
+        });
+
+        it("does not parse an unreadable encrypted file as a website credential", async () => {
+            deps.storage._files.set("auth/tokens.enc", "not-an-encrypted-token-file");
+            const manager = createAuthManager(deps);
+
+            expect(await manager.getAccessToken()).toBeNull();
+            expect(deps.http._requests).toHaveLength(0);
+        });
+
+        it("deletes plaintext legacy credentials without recovering them", async () => {
+            deps = createTestDependencies({
+                safeStorage: createMockSafeStorage(false),
+                onGetEntitlementLease: async () => "signed-lease",
+            });
+            deps.storage._files.set("auth/tokens.enc", JSON.stringify({ accessToken: "plaintext-access", refreshToken: "rt" }));
+
+            const manager = createAuthManager(deps);
+
+            expect(await manager.getAccessToken()).toBeNull();
+            expect(await manager.getEntitlementLease()).toBe("signed-lease");
+            expect(deps.storage._files.has("auth/tokens.enc")).toBe(false);
         });
     });
 });

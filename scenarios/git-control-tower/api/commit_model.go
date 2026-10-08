@@ -5,6 +5,9 @@ import "time"
 // CommitRequest contains the parameters for creating a commit.
 // [REQ:GCT-OT-P0-005] Commit composition API
 type CommitRequest struct {
+	// IntentID is the server-issued, single-use approval for this exact staged
+	// subject. It is never accepted from a caller-supplied authorization header.
+	IntentID string `json:"intent_id,omitempty"`
 	// Message is the commit message (required unless Amend uses no-edit).
 	// Should follow conventional commit format if ValidateConventional is true.
 	Message string `json:"message"`
@@ -22,6 +25,9 @@ type CommitRequest struct {
 	// ValidateConventional enables conventional commit message validation.
 	// When true, the message must match the format: type(scope): description
 	ValidateConventional bool `json:"validate_conventional,omitempty"`
+
+	// SkipPrecommitOnce bypasses configured precommit checks for this commit.
+	SkipPrecommitOnce bool `json:"skip_precommit_once,omitempty"`
 }
 
 // CommitResponse contains the result of a commit operation.
@@ -43,6 +49,9 @@ type CommitResponse struct {
 
 	// Error contains the error message if Success is false.
 	Error string `json:"error,omitempty"`
+
+	// Precommit contains structured precommit failure details.
+	Precommit *PrecommitRunResult `json:"precommit,omitempty"`
 
 	// Timestamp is when the operation completed.
 	Timestamp time.Time `json:"timestamp"`

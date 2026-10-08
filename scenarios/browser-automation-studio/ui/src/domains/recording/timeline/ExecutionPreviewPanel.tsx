@@ -14,8 +14,9 @@
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Play, Loader2, CheckCircle, XCircle, AlertCircle, RefreshCw } from 'lucide-react';
-import { useExecutionStore, type Execution, useExecutionEvents } from '@/domains/executions';
-import { useExecutionFrameStream } from '@/domains/executions/hooks/useExecutionFrameStream';
+import { useExecutionStore, type Execution } from '@/domains/executions/store';
+import { useExecutionEvents } from '@/domains/executions/hooks/useExecutionEvents';
+import { useFrameStream } from '@/domains/recording/capture/useFrameStream';
 import { useWorkflowStore } from '@stores/workflowStore';
 import {
   PlaybackControls,
@@ -85,10 +86,9 @@ export function ExecutionPreviewPanel({
   const isExecutionActive = !currentExecution ||
     currentExecution.status === 'pending' ||
     currentExecution.status === 'running';
-  const { frameUrl, isStreaming, frameCount } = useExecutionFrameStream(
-    isExecutionActive ? executionId : null,
-    { enabled: isExecutionActive }
-  );
+  const frameStream = useFrameStream({sessionId:null,executionId:isExecutionActive ? executionId : null,enabled:isExecutionActive});
+  const {frameUrl,frameCount} = frameStream;
+  const isStreaming = frameStream.hasFrame && frameStream.isWsFrameActive;
 
   // Determine content type based on execution state and available data
   type ContentType = 'live-stream' | 'video' | 'slideshow' | 'status' | 'pending';

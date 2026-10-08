@@ -1,0 +1,591 @@
+syntax = "proto3";
+
+package vrooli.git_control_tower.v1.proposals;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/proposals;proposals_v1";
+
+// =============================================================================
+// PROPOSALS DOMAIN — commit proposals bound to exact repository content
+// =============================================================================
+//
+// @stability experimental
+//
+// A commit proposal is an editable draft: an exact file list with content
+// hashes and flags, plus a rendered message whose trailers carry work
+// references. Anchoring, creating, editing, refreshing and withdrawing write
+// only Git Control Tower's database, so agents may call them. Only a verified
+// human may apply a proposal, with a single-use intent prepared for operation
+// "repo.apply_proposal" and subject context "proposal:<id>@<revision>".
+//
+// USAGE CONTEXTS:
+//   - large-effort-orchestration: anchors a scope at epoch admission and
+//     creates a proposal at epoch acceptance.
+//   - git-control-tower UI and CLI: the operator reviews, edits, approves or
+//     withdraws proposals.
+//
+// =============================================================================
+
+service ProposalService {
+  // Records HEAD and the content hashes of files already dirty in a scope.
+  rpc AnchorScope(AnchorScopeRequest) returns (AnchorScopeResponse);
+  // Builds a proposal from listed paths. A validate-only request stores nothing.
+  rpc CreateProposal(CreateProposalRequest) returns (CreateProposalResponse);
+  // Lists proposals with live freshness for open proposals.
+  rpc ListProposals(ListProposalsRequest) returns (ListProposalsResponse);
+  // Reads one proposal with live freshness.
+  rpc GetProposal(GetProposalRequest) returns (GetProposalResponse);
+  // Changes the message or drops files, creating a new revision.
+  rpc EditProposal(EditProposalRequest) returns (EditProposalResponse);
+  // Withdraws an open proposal. History is kept.
+  rpc WithdrawProposal(WithdrawProposalRequest) returns (WithdrawProposalResponse);
+  // Re-hashes current content into a new revision and recomputes flags.
+  rpc RefreshProposal(RefreshProposalRequest) returns (RefreshProposalResponse);
+  // Human only. Stages exactly the proposal paths and commits the rendered
+  // message under a consumed single-use intent.
+  rpc ApplyProposal(ApplyProposalRequest) returns (ApplyProposalResponse);
+}
+
+// Lifecycle state of a proposal. Freshness is computed on read and is not a
+// stored state.
+enum ProposalState {
+  // Unset.
+  PROPOSAL_STATE_UNSPECIFIED = 0;
+  // Waiting for operator review.
+  PROPOSAL_STATE_OPEN = 1;
+  // Applied; commit_oid holds the commit.
+  PROPOSAL_STATE_COMMITTED = 2;
+  // Withdrawn by its creator or the operator.
+  PROPOSAL_STATE_WITHDRAWN = 3;
+  // Replaced by a newer proposal for the same effort and epoch, or every
+  // path became clean.
+  PROPOSAL_STATE_SUPERSEDED = 4;
+}
+
+// How a proposal file changes the repository.
+enum FileChangeKind {
+  // Unset.
+  FILE_CHANGE_KIND_UNSPECIFIED = 0;
+  // The path is not in HEAD.
+  FILE_CHANGE_KIND_ADDED = 1;
+  // The path is in HEAD and its content differs.
+  FILE_CHANGE_KIND_MODIFIED = 2;
+  // The path is in HEAD and absent from the working tree.
+  FILE_CHANGE_KIND_DELETED = 3;
+}
+
+// Live comparison of a proposal against the repository.
+enum FreshnessState {
+  // Unset.
+  FRESHNESS_STATE_UNSPECIFIED = 0;
+  // Content matches and HEAD did not change the proposal paths.
+  FRESHNESS_STATE_FRESH = 1;
+  // At least one path no longer has the proposal content.
+  FRESHNESS_STATE_DRIFTED = 2;
+  // HEAD moved and the new commits touch proposal paths.
+  FRESHNESS_STATE_BASE_MOVED = 3;
+  // The repository could not be read.
+  FRESHNESS_STATE_UNKNOWN = 4;
+  // The proposal is not open, so freshness does not apply.
+  FRESHNESS_STATE_NOT_APPLICABLE = 5;
+}
+
+// Owner resolution of one trailer. Resolution never blocks a proposal.
+enum TrailerResolution {
+  // Unset.
+  TRAILER_RESOLUTION_UNSPECIFIED = 0;
+  // The owner confirmed the exact reference.
+  TRAILER_RESOLUTION_RESOLVED = 1;
+  // No owner confirmed the reference, or no resolver exists for its kind.
+  TRAILER_RESOLUTION_UNRESOLVED = 2;
+  // The owner matched more than one item.
+  TRAILER_RESOLUTION_AMBIGUOUS = 3;
+  // The item exists but is private to this caller. No title is shown.
+  TRAILER_RESOLUTION_INACCESSIBLE = 4;
+  // The owner reports the item as deleted.
+  TRAILER_RESOLUTION_DELETED = 5;
+  // An unknown Vrooli key, kept as written and never mapped without owner
+  // evidence.
+  TRAILER_RESOLUTION_LEGACY = 6;
+  // A non-Vrooli trailer such as Signed-off-by. Kept as written.
+  TRAILER_RESOLUTION_NOT_APPLICABLE = 7;
+}
+
+// Severity of a message validation issue.
+enum IssueSeverity {
+  // Unset.
+  ISSUE_SEVERITY_UNSPECIFIED = 0;
+  // Blocks agent-created proposals and agent edits.
+  ISSUE_SEVERITY_ERROR = 1;
+  // Informative only.
+  ISSUE_SEVERITY_WARNING = 2;
+}
+
+// Who created or changed a record.
+message Actor {
+  // Verified principal subject, or the asserted caller when unverified.
+  string subject = 1;
+  // Caller kind: human, vrooli-agent, external-agent, override-agent or
+  // unknown.
+  string kind = 2;
+  // True when the authentication owner verified the subject.
+  bool verified = 3;
+  // Agent Manager run the caller asserted (VROOLI_RUN_ID). Attribution only.
+  // @format uuid
+  string run_id = 4;
+}
+
+// Work links carried by a proposal. Trailers are generated from these fields.
+message ProposalWork {
+  // Agent Manager effort reference.
+  // @example "effort:browser-automation-studio-rehabilitation"
+  string effort_ref = 1;
+  // Effort revision at proposal time. Optional.
+  // @example "9"
+  string effort_revision = 2;
+  // Epoch label within the effort.
+  // @example "E27"
+  string epoch = 3;
+  // Agent Manager run IDs for workers and the orchestrator, in caller order.
+  // At most 20.
+  repeated string run_ids = 4;
+  // Plan Manager plan IDs or slugs, optionally with "#phase-<n>".
+  repeated string plans = 5;
+}
+
+// One commit-message trailer.
+message ProposalTrailer {
+  // Trailer key. Known Vrooli keys use canonical case.
+  // @example "Vrooli-Epoch"
+  string key = 1;
+  // Unfolded single-line value.
+  string value = 2;
+  // Work-reference kind for Vrooli keys (effort, epoch, run, plan, backlog,
+  // commit, proposal, or the kind named by Vrooli-Work). Empty otherwise.
+  string kind = 3;
+  // Owner resolution. Computed on read.
+  TrailerResolution resolution = 4;
+  // Resolution detail. Never contains a private item's title.
+  string detail = 5;
+  // True when the key is in the supported Vrooli trailer registry.
+  bool known = 6;
+}
+
+// A message validation finding.
+message TrailerIssue {
+  // Index of the trailer in ProposalMessage.trailers, or -1 for the subject
+  // or body.
+  int32 index = 1;
+  // Trailer key, or "subject"/"body".
+  string key = 2;
+  // Stable code: syntax, value_grammar, multiplicity, length, forbidden_key,
+  // subject_required, subject_multiline.
+  string code = 3;
+  // Human-readable explanation.
+  string message = 4;
+  // Whether the issue blocks agent-created proposals.
+  IssueSeverity severity = 5;
+}
+
+// The commit message of a proposal.
+message ProposalMessage {
+  // First line of the commit message.
+  string subject = 1;
+  // Paragraphs between the subject and the trailer block.
+  string body = 2;
+  // Trailers in render order. Generated work trailers come first, in
+  // registry order; caller and operator trailers keep their order.
+  repeated ProposalTrailer trailers = 3;
+  // Exact commit message text that apply commits.
+  string rendered = 4;
+  // True after a human edit. Regeneration keeps human text.
+  bool operator_edited = 5;
+}
+
+// A flag on one proposal file.
+message ProposalFlag {
+  // Flag code: mixed_prior_uncommitted (dirty at the anchor and changed
+  // since), other_open_proposal, sandbox_pending, already_staged, no_anchor.
+  string code = 1;
+  // Detail such as the other proposal ID or the sandbox run ID.
+  string detail = 2;
+}
+
+// One file in a proposal.
+message ProposalFile {
+  // Repository-relative path with forward slashes.
+  string path = 1;
+  // Change against HEAD at proposal time.
+  FileChangeKind kind = 2;
+  // Hex SHA-256 of the working-tree content. Empty for deletions.
+  string sha256 = 3;
+  // Git blob object ID git would store for the content. Empty for deletions.
+  string blob_id = 4;
+  // True when the proposal deletes the path.
+  bool deleted = 5;
+  // How the path entered the proposal. S1 sets "listed".
+  string source = 6;
+  // Flags in a stable order.
+  repeated ProposalFlag flags = 7;
+  // Current blob ID at read time; "deleted" when the file is absent. Computed
+  // on read for open proposals.
+  string current_blob_id = 8;
+  // True when the current content differs from blob_id.
+  bool drifted = 9;
+}
+
+// A changed path in the anchor scope that the proposal does not include.
+message ProposalExclusion {
+  // Repository-relative path.
+  string path = 1;
+  // Reason code, for example "not_listed" or "now_clean".
+  string reason = 2;
+  // Optional detail.
+  string detail = 3;
+}
+
+// Evidence the creator attached. GCT stores it as supplied.
+message ProposalEvidence {
+  // Anchor the file list was checked against. Empty when no anchor existed.
+  string anchor_id = 1;
+  // Path of the epoch file that recorded acceptance.
+  string epoch_file = 2;
+  // Hex SHA-256 of the epoch file's ACCEPTED line.
+  string accepted_line_sha256 = 3;
+  // Gate receipt digests or IDs, in caller order.
+  repeated string gate_receipts = 4;
+  // Metric value before the epoch, as text.
+  string metric_before = 5;
+  // Metric value after the epoch, as text.
+  string metric_after = 6;
+}
+
+// Live freshness of an open proposal.
+message ProposalFreshness {
+  // Overall state.
+  FreshnessState state = 1;
+  // Paths whose current content differs from the proposal.
+  repeated string drifted_paths = 2;
+  // Proposal paths changed between base_head and the current HEAD.
+  repeated string base_changed_paths = 3;
+  // Staged paths outside the proposal. Apply refuses while any exist.
+  repeated string foreign_staged_paths = 4;
+  // HEAD at check time.
+  string current_head = 5;
+  // Explanation when the state is unknown.
+  string detail = 6;
+  // When the check ran.
+  google.protobuf.Timestamp checked_at = 7;
+}
+
+// One entry in a proposal's history.
+message ProposalEvent {
+  // created, edited, refreshed, withdrawn, superseded, committed or
+  // apply_refused.
+  string action = 1;
+  // Who acted.
+  Actor actor = 2;
+  // Proposal revision after the action.
+  int32 revision = 3;
+  // Short detail.
+  string detail = 4;
+  // When it happened.
+  google.protobuf.Timestamp timestamp = 5;
+}
+
+// A commit proposal.
+message Proposal {
+  // Proposal ID.
+  // @example "gctp-3f9a1c2b7d4e"
+  string id = 1;
+  // GCT repository ID.
+  string repository_id = 2;
+  // Lifecycle state.
+  ProposalState state = 3;
+  // Revision, starting at 1. Edits and refreshes increment it.
+  int32 revision = 4;
+  // Creator.
+  Actor created_by = 5;
+  // HEAD when the current revision was built. Empty for an unborn branch.
+  string base_head = 6;
+  // Branch when the current revision was built.
+  string branch = 7;
+  // Work links.
+  ProposalWork work = 8;
+  // Commit message.
+  ProposalMessage message = 9;
+  // Files in path order.
+  repeated ProposalFile files = 10;
+  // Changed paths the proposal leaves out, with reasons.
+  repeated ProposalExclusion excluded = 11;
+  // Creator evidence.
+  ProposalEvidence evidence = 12;
+  // Hex SHA-256 over base_head, files and the rendered message.
+  string proposal_digest = 13;
+  // Commit object ID once committed.
+  string commit_oid = 14;
+  // Newer proposal that replaced this one.
+  string superseded_by = 15;
+  // Live freshness. Not applicable unless open.
+  ProposalFreshness freshness = 16;
+  // History, oldest first.
+  repeated ProposalEvent events = 17;
+  // Current validation issues of the message.
+  repeated TrailerIssue issues = 18;
+  // Creation time.
+  google.protobuf.Timestamp created_at = 19;
+  // Last change time.
+  google.protobuf.Timestamp updated_at = 20;
+  // Commit time when committed.
+  google.protobuf.Timestamp committed_at = 21;
+}
+
+// A file recorded by an anchor.
+message AnchorFile {
+  // Repository-relative path.
+  string path = 1;
+  // Hex SHA-256 of the content. Empty when deleted.
+  string sha256 = 2;
+  // Git blob ID git would store. Empty when deleted.
+  string blob_id = 3;
+  // True when the path was deleted in the working tree.
+  bool deleted = 4;
+}
+
+// Dirty files in a scope at epoch admission.
+message Anchor {
+  // Anchor ID.
+  // @example "gcta-9c1d2e3f4a5b"
+  string id = 1;
+  // GCT repository ID.
+  string repository_id = 2;
+  // Effort reference the anchor belongs to.
+  string effort_ref = 3;
+  // Epoch label.
+  string epoch = 4;
+  // Git pathspec globs that bound the scope, in caller order.
+  repeated string scopes = 5;
+  // HEAD at anchor time.
+  string head = 6;
+  // Dirty files in scope, in path order.
+  repeated AnchorFile files = 7;
+  // Creator.
+  Actor created_by = 8;
+  // Creation time.
+  google.protobuf.Timestamp created_at = 9;
+}
+
+// Request to anchor a scope.
+message AnchorScopeRequest {
+  // GCT repository ID. Empty selects the active repository.
+  string repository_id = 1;
+  // Effort reference.
+  string effort_ref = 2;
+  // Epoch label, "E<n>".
+  string epoch = 3;
+  // Git pathspec globs. At least one; declared shared paths belong here too.
+  repeated string scopes = 4;
+  // Run the caller asserts it acts for. Attribution only.
+  // @format uuid
+  string creator_run_id = 5;
+}
+
+// Result of anchoring a scope.
+message AnchorScopeResponse {
+  // The stored anchor.
+  Anchor anchor = 1;
+}
+
+// Request to create a proposal.
+message CreateProposalRequest {
+  // GCT repository ID. Empty selects the active repository.
+  string repository_id = 1;
+  // Anchor to check the file list against. Empty selects the newest anchor
+  // for the effort and epoch, if any.
+  string anchor_id = 2;
+  // Work links. Trailers are generated from them.
+  ProposalWork work = 3;
+  // Commit subject.
+  string subject = 4;
+  // Commit body.
+  string body = 5;
+  // Extra trailers rendered after the generated ones, in order.
+  repeated ProposalTrailer trailers = 6;
+  // Paths to commit. Repository-relative; deletions included.
+  repeated string paths = 7;
+  // Evidence to store with the proposal.
+  ProposalEvidence evidence = 8;
+  // Run the caller asserts it acts for. Attribution only.
+  // @format uuid
+  string creator_run_id = 9;
+  // Validate and build the proposal without storing it.
+  bool validate_only = 10;
+}
+
+// Result of creating a proposal.
+message CreateProposalResponse {
+  // The built proposal. Stored unless validate_only was set.
+  Proposal proposal = 1;
+  // Validation issues of the message.
+  repeated TrailerIssue issues = 2;
+  // True when the proposal was stored.
+  bool stored = 3;
+  // Open proposal this one superseded, if any.
+  string superseded_id = 4;
+}
+
+// Request to list proposals.
+message ListProposalsRequest {
+  // GCT repository ID. Empty selects the active repository.
+  string repository_id = 1;
+  // States to include. Empty means open only.
+  repeated ProposalState states = 2;
+  // Restrict to one effort reference.
+  string effort_ref = 3;
+  // Maximum proposals returned. Zero means 50; capped at 200.
+  int32 limit = 4;
+}
+
+// Proposals in queue order: oldest open first.
+message ListProposalsResponse {
+  // Matching proposals.
+  repeated Proposal proposals = 1;
+  // Open proposals for the repository, regardless of filters.
+  int32 open_count = 2;
+}
+
+// Request to read one proposal.
+message GetProposalRequest {
+  // Proposal ID.
+  string id = 1;
+}
+
+// One proposal.
+message GetProposalResponse {
+  // The proposal with live freshness.
+  Proposal proposal = 1;
+}
+
+// Request to edit a proposal.
+message EditProposalRequest {
+  // Proposal ID.
+  string id = 1;
+  // Revision the editor reviewed. A mismatch is refused.
+  int32 expected_revision = 2;
+  // New subject. Unset keeps the current subject.
+  optional string subject = 3;
+  // New body. Unset keeps the current body.
+  optional string body = 4;
+  // Replacement trailer list, used only when replace_trailers is set.
+  repeated ProposalTrailer trailers = 5;
+  // Replace the trailer list with trailers.
+  bool replace_trailers = 6;
+  // Paths to drop from the proposal.
+  repeated string remove_paths = 7;
+}
+
+// Result of an edit.
+message EditProposalResponse {
+  // The new revision.
+  Proposal proposal = 1;
+  // Validation issues of the edited message.
+  repeated TrailerIssue issues = 2;
+}
+
+// Request to withdraw a proposal.
+message WithdrawProposalRequest {
+  // Proposal ID.
+  string id = 1;
+  // Reason recorded in history.
+  string reason = 2;
+}
+
+// Result of a withdrawal.
+message WithdrawProposalResponse {
+  // The withdrawn proposal.
+  Proposal proposal = 1;
+}
+
+// Request to refresh a proposal.
+message RefreshProposalRequest {
+  // Proposal ID.
+  string id = 1;
+  // Revision the caller reviewed. A mismatch is refused.
+  int32 expected_revision = 2;
+}
+
+// Result of a refresh.
+message RefreshProposalResponse {
+  // The new revision, or the superseded proposal when every path is clean.
+  Proposal proposal = 1;
+  // Paths dropped because they are clean now.
+  repeated string dropped_paths = 2;
+}
+
+// Request to apply a proposal.
+message ApplyProposalRequest {
+  // GCT repository ID the intent was issued for.
+  string repository_id = 1;
+  // Single-use intent from ConfirmMutation for operation
+  // "repo.apply_proposal" and subject context "proposal:<id>@<revision>".
+  string intent_id = 2;
+  // Proposal ID.
+  string id = 3;
+  // Revision the operator approved.
+  int32 revision = 4;
+  // Skip the configured pre-commit check for this commit only.
+  bool skip_precommit_once = 5;
+}
+
+// Why apply refused. Nothing was staged or committed.
+message ApplyRefusal {
+  // content_drift, base_moved, foreign_staged, state, revision,
+  // index_mismatch or precommit_failed.
+  string code = 1;
+  // Paths the refusal is about.
+  repeated string paths = 2;
+  // Explanation.
+  string detail = 3;
+}
+
+// Pre-commit result recorded during apply.
+message ApplyPrecommit {
+  // passed, failed or timeout.
+  string status = 1;
+  // Command that ran.
+  string command = 2;
+  // Exit code.
+  int32 exit_code = 3;
+  // Summary line.
+  string summary = 4;
+  // Captured standard output, capped.
+  string stdout = 5;
+  // Captured standard error, capped.
+  string stderr = 6;
+  // Duration.
+  // @unit milliseconds
+  int64 duration_ms = 7;
+}
+
+// Result of applying a proposal.
+message ApplyProposalResponse {
+  // True when the commit was created.
+  bool success = 1;
+  // Commit object ID.
+  string commit_oid = 2;
+  // The proposal after apply.
+  Proposal proposal = 3;
+  // Refusal when nothing was committed for a precondition reason.
+  ApplyRefusal refusal = 4;
+  // Error when staging or committing failed after the checks passed. The
+  // index was restored.
+  string error = 5;
+  // Pre-commit result when a check ran.
+  ApplyPrecommit precommit = 6;
+  // Post-commit check: false when the committed paths or blobs differ from
+  // the proposal, for example after a hook rewrote a file.
+  bool commit_verified = 7;
+  // Details of a post-commit mismatch.
+  repeated string verification_notes = 8;
+}

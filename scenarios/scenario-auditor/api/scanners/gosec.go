@@ -55,7 +55,7 @@ type GosecIssue struct {
 
 // GosecReport represents the JSON output from gosec
 type GosecReport struct {
-	Issues []GosecIssue           `json:"Issues"`
+	Issues []GosecIssue   `json:"Issues"`
 	Stats  map[string]any `json:"Stats"`
 }
 

@@ -1,0 +1,116 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "find-next-sensor",
+    "title": "Find the next sensor to build",
+    "purpose": "The primary loop. A member arrives at the vision walk with no prior context, sees the state of the outcomes, gets one ranked answer to 'which sensor is worth building next', and can audit that answer back to the room and the source that produced it — leaving with a named owner and no action taken inside this scenario.",
+    "prd_refs": [
+      "OT-P0-006",
+      "OT-P0-007"
+    ]
+  },
+  "steps": [
+    {
+      "page": "room",
+      "state": "ready",
+      "intent": "Arrive at the board and read the current state of one outcome category, seeing at a glance which of its readings are measured and which are illustrations.",
+      "via": "direct navigation to /"
+    },
+    {
+      "page": "room",
+      "state": "all-sample",
+      "intent": "Cycle to a room where nothing has been measured and recognise it as such without reading any prose — the composition is complete, the figures are hollow, and the room states that nothing on it is real.",
+      "via": "auto-cycle, or nextRoom from any input class"
+    },
+    {
+      "page": "focus",
+      "state": "ready",
+      "intent": "Read the single ranked list of what is worth building next, with each entry's owner, kind and age, and read the stated ranking rule beside it.",
+      "via": "control bar, keyboard, or the CLI verb `command-center focus --json`"
+    },
+    {
+      "page": "open-loop",
+      "state": "ready",
+      "intent": "Check what the board cannot see at all — the unregistered outcomes and this instrument's own blind spots — so the ranking above is understood as ranked-within-what-is-known rather than complete.",
+      "via": "control bar, or `command-center open-loop --json`"
+    },
+    {
+      "page": "focus",
+      "state": "ready",
+      "intent": "Leave with a named owner and a stated finding, to be proposed as outcome-gap work and approved at the vision walk. No action is taken inside this scenario.",
+      "via": "read only"
+    }
+  ],
+  "claims": [
+    {
+      "id": "one-address-start",
+      "type": "manual-review",
+      "tier": "aspirational",
+      "statement": "The journey begins at the board and never requires the member to know which underlying scenario holds an answer.",
+      "rationale": "Invariant 1: a member starts at the board, not at the tools. This journey is how the team's declared two-addresses deviation is observed to be closed.",
+      "states": [
+        "ready"
+      ],
+      "x-intended-tier": "manual"
+    },
+    {
+      "id": "illustration-recognised-without-prose",
+      "type": "manual-review",
+      "tier": "aspirational",
+      "statement": "At the all-sample step a first-time viewer identifies that nothing in the room is measured, without reading documentation and without consulting the legend.",
+      "rationale": "The board is seen by people who have never read this contract, sometimes from across a room, sometimes in a photograph. If recognising an illustration requires prior knowledge, the honesty system does not work where it matters.",
+      "states": [
+        "all-sample"
+      ],
+      "x-intended-tier": "manual"
+    },
+    {
+      "id": "ranking-is-auditable",
+      "type": "manual-review",
+      "tier": "aspirational",
+      "statement": "From any finding on the focus surface the member can reach the room it affects and the source that produced it.",
+      "rationale": "A ranking a member cannot audit is one they will either follow blindly or ignore entirely.",
+      "states": [
+        "ready"
+      ],
+      "x-intended-tier": "manual"
+    },
+    {
+      "id": "completeness-is-qualified-before-departure",
+      "type": "manual-review",
+      "tier": "aspirational",
+      "statement": "The journey surfaces the unregistered set and the instrument's own blind spots before the member leaves with a conclusion.",
+      "rationale": "The most expensive failure of this loop is confidently building the top-ranked sensor while a whole outcome nobody registered goes unmeasured.",
+      "states": [
+        "ready"
+      ],
+      "x-intended-tier": "manual"
+    },
+    {
+      "id": "journey-contains-no-write",
+      "type": "element-absence",
+      "tier": "aspirational",
+      "statement": "No step in this journey performs or offers a write action of any kind.",
+      "rationale": "The gap-closure loop assigns proposal to outcome-strategist and approval to the operator. This instrument surfaces and ranks; the journey ends at a conclusion, not at a commit.",
+      "states": [
+        "ready",
+        "all-sample"
+      ],
+      "x-intended-tier": "machine",
+      "x-check-plan": "No step exposes a control that writes, files or mutates, and no mutating request is issued during the journey."
+    },
+    {
+      "id": "journey-works-on-every-input-class",
+      "type": "manual-review",
+      "tier": "aspirational",
+      "statement": "The whole journey is completable with a gamepad alone, with a keyboard alone, and on a phone with touch alone.",
+      "rationale": "The board is read at a wall panel with a remote, at a desk, and from a phone. A journey that only works with a mouse is a journey that only works in one of the three rooms it lives in.",
+      "states": [
+        "ready"
+      ],
+      "x-intended-tier": "manual"
+    }
+  ]
+}

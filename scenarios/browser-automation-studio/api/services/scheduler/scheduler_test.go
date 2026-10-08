@@ -4,107 +4,32 @@ import (
 	"context"
 	"errors"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/database"
+	"github.com/vrooli/browser-automation-studio/internal/testutil/executormocks"
+	"github.com/vrooli/browser-automation-studio/internal/testutil/schedulemocks"
 )
 
-type mockScheduleRepo struct {
-	mu        sync.RWMutex
-	schedules map[uuid.UUID]*database.ScheduleIndex
-
-	nextRunCalls atomic.Int32
-	lastRunCalls atomic.Int32
+func newMockScheduleRepo(schedules ...*database.ScheduleIndex) *schedulemocks.Repository {
+	return schedulemocks.NewRepository(schedules...)
 }
 
-func newMockScheduleRepo(schedules ...*database.ScheduleIndex) *mockScheduleRepo {
-	repo := &mockScheduleRepo{
-		schedules: make(map[uuid.UUID]*database.ScheduleIndex),
-	}
-	for _, s := range schedules {
-		if s == nil {
-			continue
-		}
-		repo.schedules[s.ID] = s
-	}
-	return repo
+type cancellationAwareExecutor struct {
+	started   chan struct{}
+	canceled  chan struct{}
+	startOnce sync.Once
+	stopOnce  sync.Once
 }
 
-func (m *mockScheduleRepo) ListSchedules(ctx context.Context, workflowID *uuid.UUID, activeOnly bool, limit, offset int) ([]*database.ScheduleIndex, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	var result []*database.ScheduleIndex
-	for _, schedule := range m.schedules {
-		if schedule == nil {
-			continue
-		}
-		if workflowID != nil && schedule.WorkflowID != *workflowID {
-			continue
-		}
-		if activeOnly && !schedule.IsActive {
-			continue
-		}
-		result = append(result, schedule)
-	}
-	return result, nil
-}
-
-func (m *mockScheduleRepo) GetSchedule(ctx context.Context, id uuid.UUID) (*database.ScheduleIndex, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	if schedule, ok := m.schedules[id]; ok && schedule != nil {
-		return schedule, nil
-	}
-	return nil, database.ErrNotFound
-}
-
-func (m *mockScheduleRepo) UpdateScheduleNextRun(ctx context.Context, id uuid.UUID, nextRun time.Time) error {
-	m.nextRunCalls.Add(1)
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	schedule, ok := m.schedules[id]
-	if !ok || schedule == nil {
-		return database.ErrNotFound
-	}
-	schedule.NextRunAt = &nextRun
-	return nil
-}
-
-func (m *mockScheduleRepo) UpdateScheduleLastRun(ctx context.Context, id uuid.UUID, lastRun time.Time) error {
-	m.lastRunCalls.Add(1)
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	schedule, ok := m.schedules[id]
-	if !ok || schedule == nil {
-		return database.ErrNotFound
-	}
-	schedule.LastRunAt = &lastRun
-	return nil
-}
-
-type fakeExecutor struct {
-	calls  atomic.Int32
-	lastID atomic.Value
-
-	exec *database.ExecutionIndex
-	err  error
-}
-
-func (f *fakeExecutor) ExecuteWorkflow(ctx context.Context, workflowID uuid.UUID, parameters map[string]any) (*database.ExecutionIndex, error) {
-	f.calls.Add(1)
-	f.lastID.Store(workflowID)
-	if f.err != nil {
-		return nil, f.err
-	}
-	if f.exec != nil {
-		return f.exec, nil
-	}
-	return &database.ExecutionIndex{ID: uuid.New(), WorkflowID: workflowID, Status: database.ExecutionStatusCompleted, StartedAt: time.Now(), CreatedAt: time.Now(), UpdatedAt: time.Now()}, nil
+func (f *cancellationAwareExecutor) ExecuteWorkflow(ctx context.Context, _ uuid.UUID, _ map[string]any) (*database.ExecutionIndex, error) {
+	f.startOnce.Do(func() { close(f.started) })
+	<-ctx.Done()
+	f.stopOnce.Do(func() { close(f.canceled) })
+	return nil, ctx.Err()
 }
 
 type fakeNotifier struct {
@@ -165,21 +90,69 @@ func newSchedule(id, workflowID uuid.UUID, cronExpr string, active bool) *databa
 
 func TestSchedulerStartWithNoSchedules(t *testing.T) {
 	repo := newMockScheduleRepo()
-	executor := &fakeExecutor{}
+	executor := &executormocks.Executor{}
 	notifier := &fakeNotifier{}
 
 	s := newTestScheduler(repo, executor, notifier)
 	if err := s.Start(); err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
+	if !s.IsRunning() {
+		t.Fatal("scheduler should report running after Start")
+	}
 	t.Cleanup(func() {
 		if err := s.Stop(); err != nil {
 			t.Fatalf("failed to stop scheduler: %v", err)
+		}
+		if s.IsRunning() {
+			t.Error("scheduler should report stopped after Stop")
 		}
 	})
 
 	if got := s.RegisteredCount(); got != 0 {
 		t.Fatalf("expected 0 registered schedules, got %d", got)
+	}
+}
+
+func TestSchedulerStopContextCancelsScheduledWorkBeforeCronDrain(t *testing.T) {
+	executor := &cancellationAwareExecutor{started: make(chan struct{}), canceled: make(chan struct{})}
+	s := newTestScheduler(newMockScheduleRepo(), executor, nil)
+	if err := s.Start(); err != nil {
+		t.Fatal(err)
+	}
+
+	go s.createJob(newSchedule(uuid.New(), uuid.New(), "*/5 * * * * *", true))()
+	select {
+	case <-executor.started:
+	case <-time.After(time.Second):
+		t.Fatal("scheduled workflow did not start")
+	}
+
+	stopCtx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if err := s.StopContext(stopCtx); err != nil {
+		t.Fatalf("StopContext returned error: %v", err)
+	}
+	select {
+	case <-executor.canceled:
+	case <-time.After(time.Second):
+		t.Fatal("scheduler context did not cancel the running workflow")
+	}
+}
+
+func TestSchedulerCanRestartAfterContextBoundedStop(t *testing.T) {
+	s := newTestScheduler(newMockScheduleRepo(), &executormocks.Executor{}, nil)
+	if err := s.Start(); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.StopContext(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Start(); err != nil {
+		t.Fatalf("scheduler could not restart after stop: %v", err)
+	}
+	if err := s.Stop(); err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -190,7 +163,7 @@ func TestSchedulerStartWithActiveSchedules(t *testing.T) {
 	s3 := newSchedule(uuid.New(), workflowID, "*/10 * * * * *", false)
 
 	repo := newMockScheduleRepo(s1, s2, s3)
-	executor := &fakeExecutor{}
+	executor := &executormocks.Executor{}
 	notifier := &fakeNotifier{}
 
 	s := newTestScheduler(repo, executor, notifier)
@@ -206,14 +179,14 @@ func TestSchedulerStartWithActiveSchedules(t *testing.T) {
 	if got := s.RegisteredCount(); got != 2 {
 		t.Fatalf("expected 2 registered schedules, got %d", got)
 	}
-	if repo.nextRunCalls.Load() != 2 {
-		t.Fatalf("expected nextRunCalls=2, got %d", repo.nextRunCalls.Load())
+	if repo.NextRunCalls.Load() != 2 {
+		t.Fatalf("expected nextRunCalls=2, got %d", repo.NextRunCalls.Load())
 	}
 }
 
 func TestSchedulerCannotStartTwice(t *testing.T) {
 	repo := newMockScheduleRepo()
-	executor := &fakeExecutor{}
+	executor := &executormocks.Executor{}
 	s := newTestScheduler(repo, executor, nil)
 
 	if err := s.Start(); err != nil {
@@ -235,15 +208,18 @@ func TestSchedulerRegisterSchedule(t *testing.T) {
 	schedule := newSchedule(uuid.New(), workflowID, "*/10 * * * * *", true)
 
 	repo := newMockScheduleRepo()
-	repo.schedules[schedule.ID] = schedule
+	repo.Add(schedule)
 
-	s := newTestScheduler(repo, &fakeExecutor{}, nil)
+	s := newTestScheduler(repo, &executormocks.Executor{}, nil)
 	if err := s.RegisterSchedule(schedule); err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
 	if got := s.RegisteredCount(); got != 1 {
 		t.Fatalf("expected 1 registered schedule, got %d", got)
+	}
+	if _, registered := s.GetScheduleInfo(schedule.ID); !registered {
+		t.Fatal("registered schedule should have entry information")
 	}
 }
 
@@ -252,15 +228,18 @@ func TestSchedulerRegisterInactiveSchedule(t *testing.T) {
 	schedule := newSchedule(uuid.New(), workflowID, "*/10 * * * * *", false)
 
 	repo := newMockScheduleRepo()
-	repo.schedules[schedule.ID] = schedule
+	repo.Add(schedule)
 
-	s := newTestScheduler(repo, &fakeExecutor{}, nil)
+	s := newTestScheduler(repo, &executormocks.Executor{}, nil)
 	if err := s.RegisterSchedule(schedule); err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
 	if got := s.RegisteredCount(); got != 0 {
 		t.Fatalf("expected 0 registered schedules, got %d", got)
+	}
+	if _, registered := s.GetScheduleInfo(schedule.ID); registered {
+		t.Fatal("unregistered schedule should not have entry information")
 	}
 }
 
@@ -269,7 +248,7 @@ func TestSchedulerUnregisterSchedule(t *testing.T) {
 	schedule := newSchedule(uuid.New(), workflowID, "*/10 * * * * *", true)
 
 	repo := newMockScheduleRepo(schedule)
-	s := newTestScheduler(repo, &fakeExecutor{}, nil)
+	s := newTestScheduler(repo, &executormocks.Executor{}, nil)
 	if err := s.RegisterSchedule(schedule); err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -287,7 +266,7 @@ func TestSchedulerDeactivateSchedule(t *testing.T) {
 	schedule := newSchedule(uuid.New(), workflowID, "*/10 * * * * *", true)
 
 	repo := newMockScheduleRepo(schedule)
-	s := newTestScheduler(repo, &fakeExecutor{}, nil)
+	s := newTestScheduler(repo, &executormocks.Executor{}, nil)
 	if err := s.RegisterSchedule(schedule); err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -310,14 +289,20 @@ func TestSchedulerCronExecution(t *testing.T) {
 	schedule := newSchedule(uuid.New(), workflowID, "*/1 * * * * *", true)
 
 	repo := newMockScheduleRepo(schedule)
-	executor := &fakeExecutor{
-		exec: &database.ExecutionIndex{
-			ID:         executionID,
-			WorkflowID: workflowID,
-			Status:     database.ExecutionStatusCompleted,
-			StartedAt:  time.Now(),
-			CreatedAt:  time.Now(),
-			UpdatedAt:  time.Now(),
+	called := make(chan struct{})
+	var calledOnce sync.Once
+	execution := &database.ExecutionIndex{
+		ID:         executionID,
+		WorkflowID: workflowID,
+		Status:     database.ExecutionStatusCompleted,
+		StartedAt:  time.Now(),
+		CreatedAt:  time.Now(),
+		UpdatedAt:  time.Now(),
+	}
+	executor := &executormocks.Executor{
+		RunFunc: func(_ context.Context, _ uuid.UUID, _ map[string]any) (*database.ExecutionIndex, error) {
+			calledOnce.Do(func() { close(called) })
+			return execution, nil
 		},
 	}
 	notifier := &fakeNotifier{}
@@ -332,18 +317,16 @@ func TestSchedulerCronExecution(t *testing.T) {
 		}
 	})
 
-	deadline := time.Now().Add(3 * time.Second)
-	for time.Now().Before(deadline) {
-		if executor.calls.Load() > 0 {
-			break
-		}
-		time.Sleep(50 * time.Millisecond)
+	select {
+	case <-called:
+	case <-time.After(3 * time.Second):
+		t.Fatal("timed out waiting for scheduled execution")
 	}
 
-	if executor.calls.Load() == 0 {
+	if len(executor.Calls()) == 0 {
 		t.Fatalf("expected scheduled execution to run")
 	}
-	if repo.lastRunCalls.Load() == 0 {
+	if repo.LastRunCalls.Load() == 0 {
 		t.Fatalf("expected last_run_at to be updated")
 	}
 	if notifier.countByType(EventTypeScheduleStarted) == 0 {
@@ -359,7 +342,12 @@ func TestSchedulerCronExecutionFailureNotifies(t *testing.T) {
 	schedule := newSchedule(uuid.New(), workflowID, "*/1 * * * * *", true)
 
 	repo := newMockScheduleRepo(schedule)
-	executor := &fakeExecutor{err: errors.New("boom")}
+	called := make(chan struct{})
+	var calledOnce sync.Once
+	executor := &executormocks.Executor{RunFunc: func(context.Context, uuid.UUID, map[string]any) (*database.ExecutionIndex, error) {
+		calledOnce.Do(func() { close(called) })
+		return nil, errors.New("boom")
+	}}
 	notifier := &fakeNotifier{}
 
 	s := newTestScheduler(repo, executor, notifier)
@@ -372,15 +360,13 @@ func TestSchedulerCronExecutionFailureNotifies(t *testing.T) {
 		}
 	})
 
-	deadline := time.Now().Add(3 * time.Second)
-	for time.Now().Before(deadline) {
-		if executor.calls.Load() > 0 {
-			break
-		}
-		time.Sleep(50 * time.Millisecond)
+	select {
+	case <-called:
+	case <-time.After(3 * time.Second):
+		t.Fatal("timed out waiting for scheduled execution")
 	}
 
-	if executor.calls.Load() == 0 {
+	if len(executor.Calls()) == 0 {
 		t.Fatalf("expected scheduled execution to run")
 	}
 	if notifier.countByType(EventTypeScheduleFailed) == 0 {
@@ -393,7 +379,7 @@ func TestSchedulerGracefulShutdown(t *testing.T) {
 	schedule := newSchedule(uuid.New(), workflowID, "*/5 * * * * *", true)
 	repo := newMockScheduleRepo(schedule)
 
-	s := newTestScheduler(repo, &fakeExecutor{}, nil)
+	s := newTestScheduler(repo, &executormocks.Executor{}, nil)
 	if err := s.Start(); err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -404,7 +390,7 @@ func TestSchedulerGracefulShutdown(t *testing.T) {
 
 func TestSchedulerConcurrentRegistration(t *testing.T) {
 	repo := newMockScheduleRepo()
-	s := newTestScheduler(repo, &fakeExecutor{}, nil)
+	s := newTestScheduler(repo, &executormocks.Executor{}, nil)
 
 	const n = 25
 	var wg sync.WaitGroup
@@ -413,9 +399,7 @@ func TestSchedulerConcurrentRegistration(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			schedule := newSchedule(uuid.New(), uuid.New(), "*/10 * * * * *", true)
-			repo.mu.Lock()
-			repo.schedules[schedule.ID] = schedule
-			repo.mu.Unlock()
+			repo.Add(schedule)
 			_ = s.RegisterSchedule(schedule)
 		}()
 	}

@@ -3,15 +3,18 @@ package bundleruntime
 import (
 	"context"
 	"errors"
+	"net"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	"scenario-to-desktop-runtime/assets"
-	"scenario-to-desktop-runtime/gpu"
-	"scenario-to-desktop-runtime/manifest"
-	"scenario-to-desktop-runtime/testutil"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/assets"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/gpu"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/testutil"
 )
 
 // =============================================================================
@@ -158,6 +161,135 @@ func TestStartUIBundleService_ReadinessFailure(t *testing.T) {
 	}
 	if !strings.Contains(status.Message, "health check failed") {
 		t.Errorf("ui service message = %q, want readiness error", status.Message)
+	}
+}
+
+func TestBuildUIHandlerServesHealthAssetsAndNavigationRoot(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "index.html"), []byte("<main>desktop</main>"), 0o644); err != nil {
+		t.Fatalf("write index: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "asset.js"), []byte("console.log('desktop')"), 0o644); err != nil {
+		t.Fatalf("write asset: %v", err)
+	}
+	s := &Supervisor{portAllocator: testutil.NewMockPortAllocator()}
+	handler := s.buildUIHandler(manifest.Service{Health: manifest.HealthCheck{Path: "/ready"}}, root)
+
+	for _, test := range []struct {
+		path string
+		want int
+		body string
+	}{
+		{path: "/ready", want: http.StatusOK, body: `{"status":"healthy"}`},
+		{path: "/asset.js", want: http.StatusOK, body: "console.log('desktop')"},
+		{path: "/", want: http.StatusOK, body: "<main>desktop</main>"},
+		{path: "/nested/client-route", want: http.StatusBadGateway, body: "bundled API service is unavailable"},
+	} {
+		t.Run(test.path, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, test.path, nil))
+			if recorder.Code != test.want || !strings.Contains(recorder.Body.String(), test.body) {
+				t.Fatalf("response = (%d, %q), want (%d, containing %q)", recorder.Code, recorder.Body.String(), test.want, test.body)
+			}
+		})
+	}
+}
+
+func TestBuildUIHandlerRoutesNonAssetsToAPIAndHTMLNavigationToSPA(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "index.html"), []byte("<main>desktop</main>"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Upgrade") == "websocket" {
+			w.Header().Set("Upgrade", "websocket")
+		}
+		w.Header().Set("X-Routed", "api")
+		_, _ = w.Write([]byte(r.Method + " " + r.URL.Path))
+	}))
+	defer api.Close()
+	ports := testutil.NewMockPortAllocator()
+	ports.SetPort("api", "http", api.Listener.Addr().(*net.TCPAddr).Port)
+	s := &Supervisor{portAllocator: ports}
+	handler := s.buildUIHandler(manifest.Service{Health: manifest.HealthCheck{Path: "/ready"}}, root)
+
+	for _, tt := range []struct{ name, path, accept, upgrade, want string }{
+		{"connect", "/vrooli.web_console.v1.ai.AIService/Generate", "application/json", "", "GET /vrooli.web_console.v1.ai.AIService/Generate"},
+		{"rest", "/api/v1/items", "application/json", "", "GET /api/v1/items"},
+		{"websocket", "/socket", "", "websocket", "GET /socket"},
+		{"navigation", "/nested/client-route", "text/html", "", "<main>desktop</main>"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, tt.path, nil)
+			req.Header.Set("Accept", tt.accept)
+			if tt.upgrade != "" {
+				req.Header.Set("Connection", "Upgrade")
+				req.Header.Set("Upgrade", tt.upgrade)
+			}
+			recorder := httptest.NewRecorder()
+			handler.ServeHTTP(recorder, req)
+			if recorder.Code != http.StatusOK || !strings.Contains(recorder.Body.String(), tt.want) {
+				t.Fatalf("response=(%d,%q), want %q", recorder.Code, recorder.Body.String(), tt.want)
+			}
+			if tt.name == "navigation" && recorder.Header().Get("X-Routed") != "" {
+				t.Fatal("navigation reached API")
+			}
+		})
+	}
+}
+
+func TestResolveAPIPortAcceptsHTTPAPIAndHTTPS(t *testing.T) {
+	for _, name := range []string{"http", "api", "https"} {
+		t.Run(name, func(t *testing.T) {
+			ports := testutil.NewMockPortAllocator()
+			ports.SetPort("backend", name, 21010)
+			if got := (&Supervisor{portAllocator: ports}).resolveAPIPort(); got != 21010 {
+				t.Fatalf("resolveAPIPort() = %d, want 21010", got)
+			}
+		})
+	}
+}
+
+func TestResolveUIPortHonorsHealthReadinessAndRequestedPortPriority(t *testing.T) {
+	ports := testutil.NewMockPortAllocator()
+	ports.SetPort("health", "health", 21001)
+	ports.SetPort("readiness", "ready", 21002)
+	ports.SetPort("requested", "ui", 21003)
+	s := &Supervisor{portAllocator: ports}
+	for _, test := range []struct {
+		name string
+		svc  manifest.Service
+		want int
+	}{
+		{name: "health", svc: manifest.Service{ID: "health", Health: manifest.HealthCheck{PortName: "health"}}, want: 21001},
+		{name: "readiness", svc: manifest.Service{ID: "readiness", Readiness: manifest.ReadinessCheck{PortName: "ready"}}, want: 21002},
+		{name: "requested", svc: manifest.Service{ID: "requested", Ports: &manifest.ServicePorts{Requested: []manifest.PortRequest{{Name: "ui"}}}}, want: 21003},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			got, err := s.resolveUIPort(test.svc)
+			if err != nil || got != test.want {
+				t.Fatalf("resolveUIPort() = (%d, %v), want (%d, nil)", got, err, test.want)
+			}
+		})
+	}
+	if _, err := s.resolveUIPort(manifest.Service{ID: "missing"}); err == nil {
+		t.Fatal("missing default UI port unexpectedly resolved")
+	}
+}
+
+func TestResolveAPIPortPrefersAPINamedService(t *testing.T) {
+	ports := testutil.NewMockPortAllocator()
+	ports.SetPort("worker", "api", 21010)
+	ports.SetPort("desktop-api", "api", 21011)
+	s := &Supervisor{portAllocator: ports}
+	if got := s.resolveAPIPort(); got != 21011 {
+		t.Fatalf("resolveAPIPort() = %d, want API service port", got)
+	}
+	if proxy := s.buildAPIProxy(); proxy == nil {
+		t.Fatal("buildAPIProxy() returned nil with an API port")
+	}
+	if got := (&Supervisor{portAllocator: testutil.NewMockPortAllocator()}).resolveAPIPort(); got != 0 {
+		t.Fatalf("resolveAPIPort() without API = %d", got)
 	}
 }
 
@@ -414,4 +546,3 @@ func TestStartService_ProcessStartFails(t *testing.T) {
 		t.Fatal("startService() expected error when process start fails")
 	}
 }
-

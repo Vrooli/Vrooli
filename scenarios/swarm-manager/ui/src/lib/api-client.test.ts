@@ -163,6 +163,26 @@ describe("ApiClient", () => {
     });
   });
 
+  it("does not expose raw Cloudflare HTML error bodies", async () => {
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 502,
+      headers: new Headers({ "content-type": "text/html" }),
+      text: () =>
+        Promise.resolve(
+          `<!DOCTYPE html><html><head><title>itsagitime.com | 502: Bad gateway</title></head><body><div id="cf-wrapper">cloudflare</div></body></html>`,
+        ),
+    });
+
+    const client = new ApiClient("http://localhost:15000", 5000);
+
+    await expect(client.get("/test")).rejects.toMatchObject({
+      type: "http",
+      status: 502,
+      message: "The Vrooli tunnel returned 502. The upstream service may be unavailable or timed out.",
+    });
+  });
+
   it("throws ParseError on invalid JSON", async () => {
     fetchMock.mockResolvedValue({
       ok: true,

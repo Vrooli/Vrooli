@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "case_id": "RUN-09",
+  "verdict": "passed",
+  "lane": "package",
+  "requirement_refs": [
+    "STC-P0-018",
+    "STC-P0-019",
+    "STC-P0-020"
+  ],
+  "candidate": {
+    "release_digest": "sha256:package-lane-fixture-plan",
+    "configuration_digest": "",
+    "closure_digest": ""
+  },
+  "target": {
+    "machine_id": "fake-target",
+    "architecture": "amd64",
+    "os": "linux"
+  },
+  "operation_refs": [
+    "op-1"
+  ],
+  "validation_receipt_ref": "go test ./operations/ ./persistence/ (2026-09-09, PASS; persistence with -race)",
+  "artifact_refs": [
+    "api/operations/service_test.go#TestOwnerRestartAfterAdmissionAndDuringEachMutatingStep",
+    "api/vps/execute_test.go#TestActivationOrderingAndCrashRecovery",
+    "api/persistence/operations_test.go"
+  ],
+  "assertions": [
+    "crash during release.activate reconciled from the target receipt rather than replayed (operation owner)",
+    "crash before the verb, after the verb and inside the target between runtime switch and pointer commit: a successor attempt ends with the candidate active, the predecessor retained and exactly one pointer commit; the target's interrupted_activation intent is the reconciliation input (executor + fake target)",
+    "actual active release taken from the target owner's pointer; durable data untouched (no replay of completed effects)"
+  ],
+  "observed_at": "2026-09-09T18:30:00Z",
+  "limitations": [
+    "package lane only: QEMU and real-VPS restart subsets are pending EXT-06 (disposable target lane) and EXT-01 (real VPS)",
+    "target-side fence refusal and activation intent are proven natively in internal/cloudtarget tests; the executor exercises them through a stateful fake target that mirrors the owner's JSON contract",
+    "target reboot itself is not simulated in the package lane; the crash-at-activation cases stand in until EXT-06 provides a disposable target"
+  ]
+}

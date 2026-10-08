@@ -1,0 +1,400 @@
+syntax = "proto3";
+
+package vrooli.scenario_completeness_scoring.v1.scoring;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-completeness-scoring/v1/scoring;scoring_v1";
+
+// =============================================================================
+// SCORING DOMAIN
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain scoring
+// @stability stable
+//
+// Wire contract for the fast, cached scenario status layer. GetScore reads
+// only the target scenario's cached on-disk artifacts (requirements registry,
+// requirements-sync metadata, per-run phase results, runs.index.json, service
+// manifest, UI sources) and assembles: the maturity rung headline (shared
+// packages/maturity-go ladder predicates), a 0-100 composite with
+// classification, prioritized recommendations with point impact, an action
+// plan, and per-phase freshness verdicts (shared packages/freshness-go).
+//
+// Honesty contract: every number is labeled with the tree digest it was
+// computed against (`freshness.current_digest`), and the rung is "as of
+// digest td:..." — never swarm-manager's live state. Collector failures
+// degrade (see `degradations`); they never fail the RPC.
+//
+// Consumed by:
+//   - CLI: cli/domains/scores renders the human report over the generated
+//          Connect client (`score get <scenario> [--json]`).
+//   - UI:  ui/src/features/scoring renders the same payload as a dashboard.
+//   - test-genie: the execute report supplement shells the CLI with a 2s
+//          budget and silently skips on any error.
+// =============================================================================
+
+service ScoreService {
+  // GetScore computes the full status payload for one scenario from its
+  // cached artifacts. Zero network on the server's read path; warm latency
+  // budget is <1s. Unknown scenario -> NOT_FOUND.
+  rpc GetScore(GetScoreRequest) returns (GetScoreResponse);
+
+  // GetScoreTrend returns digest-deduplicated score snapshots for one
+  // scenario, newest first. Unknown scenario -> NOT_FOUND.
+  rpc GetScoreTrend(GetScoreTrendRequest) returns (GetScoreTrendResponse);
+
+  // ListScores returns fleet rows from persisted snapshots only. It is an
+  // O(query) read over score_snapshots, never an O(fleet) recompute.
+  rpc ListScores(ListScoresRequest) returns (ListScoresResponse);
+}
+
+enum ScoreSortBy {
+  SCORE_SORT_BY_UNSPECIFIED = 0;
+  SCORE_SORT_BY_COMPOSITE = 1;
+  SCORE_SORT_BY_RUNG = 2;
+  SCORE_SORT_BY_LAST_SCORED = 3;
+  SCORE_SORT_BY_SCENARIO = 4;
+  SCORE_SORT_BY_PRIORITY = 5;
+}
+
+enum SortOrder {
+  SORT_ORDER_UNSPECIFIED = 0;
+  SORT_ORDER_ASC = 1;
+  SORT_ORDER_DESC = 2;
+}
+
+// GetScoreRequest names the target scenario by its directory name under the
+// scenarios root (e.g. "cli-health").
+message GetScoreRequest {
+  string scenario = 1;
+}
+
+// GetScoreResponse is the assembled status payload.
+message GetScoreResponse {
+  // Target scenario directory name.
+  string scenario = 1;
+
+  // Scenario category from .vrooli/service.json (threshold selection);
+  // "utility" when undeclared.
+  string category = 2;
+
+  // Maturity rung headline computed via maturity-go ladder gates over the
+  // cached findings snapshot.
+  MaturityHeadline maturity = 3;
+
+  // 0-100 composite score with classification and per-group breakdown.
+  CompositeScore composite = 4;
+
+  // Tree-digest freshness verdicts for the artifacts the score was read
+  // from (freshness-go semantics, reused verbatim).
+  FreshnessBlock freshness = 5;
+
+  // Prioritized improvements, highest impact first.
+  repeated Recommendation recommendations = 6;
+
+  // Phased action plan derived from the recommendations.
+  repeated ActionPhase action_plan = 7;
+
+  // Collectors that failed or were disabled by their circuit breaker while
+  // assembling this payload. Empty when collection was complete.
+  repeated CollectorDegradation degradations = 8;
+
+  // Server time when the payload was computed.
+  google.protobuf.Timestamp calculated_at = 9;
+
+  // Optional best-effort importance enrichment. Present only when at least
+  // one optional network source responds inside the hard budget; omitted
+  // silently otherwise so the core cached score remains usable offline.
+  ImportanceSummary importance = 10;
+
+  // Optional score movement relative to the latest stored snapshot with a
+  // different digest. Omitted when no prior differing snapshot exists.
+  TrendSummary trend = 11;
+}
+
+message TrendSummary {
+  int32 previous_score = 1;
+  google.protobuf.Timestamp previous_calculated_at = 2;
+  int32 delta = 3;
+}
+
+message GetScoreTrendRequest {
+  string scenario = 1 [(buf.validate.field).string.min_len = 1];
+  int32 limit = 2 [(buf.validate.field).int32.gte = 0];
+  google.protobuf.Timestamp since = 3;
+}
+
+message GetScoreTrendResponse {
+  string scenario = 1;
+  repeated ScoreSnapshot snapshots = 2;
+}
+
+message ListScoresRequest {
+  ScoreSortBy sort_by = 1;
+  SortOrder order = 2;
+  int32 page_size = 3 [(buf.validate.field).int32.gte = 0];
+  string page_token = 4;
+  optional int32 min_score = 5;
+  optional int32 max_score = 6;
+  string rung = 7;
+  string category = 8;
+  bool recompute = 9;
+}
+
+message ListScoresResponse {
+  repeated ScoreRow scores = 1;
+  string next_page_token = 2;
+}
+
+message ScoreRow {
+  string scenario = 1;
+  string category = 2;
+  int32 score = 3;
+  string classification = 4;
+  string working_rung = 5;
+  double importance = 6;
+  double priority = 7;
+  google.protobuf.Timestamp calculated_at = 8;
+  string digest = 9;
+  // last_run_at / last_status are scenario-level test recency: the newest test
+  // run recorded in the scenario's run index (regardless of phase or digest),
+  // and that run's overall status. Empty/unset when no run is recorded or the
+  // persisted row predates recency capture (re-score or `--recompute` fills it).
+  // This is the keystone fleet signal: importance + staleness + last status in
+  // one query, enabling priority-weighted fleet scheduling without a fleet run.
+  google.protobuf.Timestamp last_run_at = 10;
+  string last_status = 11;
+}
+
+message ScoreSnapshot {
+  string scenario = 1;
+  string category = 2;
+  string digest = 3;
+  int32 score = 4;
+  string classification = 5;
+  string working_rung = 6;
+  string breakdown_json = 7;
+  double importance = 8;
+  bool importance_present = 9;
+  string source = 10;
+  google.protobuf.Timestamp calculated_at = 11;
+}
+
+// MaturityHeadline is the rung answer "as of digest". `working_rung` is the
+// lowest unsatisfied rung (the one to work next); when the whole ladder
+// holds, `ladder_clean` is true and `working_rung` is empty.
+message MaturityHeadline {
+  // Lowest unsatisfied rung label (e.g. "R1 Safe & standards-clean").
+  // Empty when ladder_clean.
+  string working_rung = 1;
+
+  // True when every rung R0-R4 is satisfied by the cached snapshot.
+  bool ladder_clean = 2;
+
+  // Highest contiguously satisfied rung label starting at R0 (e.g. "R0
+  // Runnable & green"). Empty when even R0 is unsatisfied.
+  string satisfied_through = 3;
+
+  // Per-dimension finding counts the gates were evaluated against.
+  repeated DimensionCount dimensions = 4;
+
+  // Whether the build-critical evidence says the scenario builds/tests
+  // green (approximated from cached phase statuses; see signals docs).
+  bool build_passing = 5;
+}
+
+// DimensionCount reports the cached finding counts for one maturity
+// dimension (vocabulary owned by packages/maturity-go/dimensions).
+message DimensionCount {
+  // Canonical dimension id (e.g. "standards", "tests", "security").
+  string dimension = 1;
+
+  // Findings at severity ERROR or above.
+  int32 error_plus = 2;
+
+  // Total open findings of any severity.
+  int32 total = 3;
+
+  // True when the counts were approximated from a phase pass/fail status
+  // because the underlying run predates per-finding persistence.
+  bool approximate = 4;
+}
+
+// CompositeScore is the ported 0-100 composite: four weighted signal groups
+// (quality 50, coverage 15, quantity 10, ui 25) summing to a base score.
+message CompositeScore {
+  // Final score 0-100.
+  int32 score = 1;
+
+  // Classification id (stable, machine-readable): one of
+  // "production_ready", "nearly_ready", "mostly_complete",
+  // "functional_incomplete", "foundation_laid", "early_stage".
+  string classification = 2;
+
+  // Human-readable classification description.
+  string classification_label = 3;
+
+  // Signal groups, each with its metric lines.
+  repeated ScoreGroup groups = 4;
+}
+
+// ScoreGroup is one weighted signal group of the composite.
+message ScoreGroup {
+  // Stable group id: "quality", "coverage", "quantity", "ui".
+  string id = 1;
+
+  // Display name.
+  string label = 2;
+
+  // Points awarded for this group.
+  double score = 3;
+
+  // Maximum points this group can contribute.
+  double max = 4;
+
+  // Individual metric lines within the group.
+  repeated MetricLine metrics = 5;
+}
+
+// MetricLine is one scored observation within a group.
+message MetricLine {
+  // Stable metric id (e.g. "requirement_pass_rate", "template_check").
+  string id = 1;
+
+  // Display name.
+  string label = 2;
+
+  // Preformatted observation (e.g. "34 total, 30 passing (88%)").
+  string observed = 3;
+
+  // Points awarded.
+  double points = 4;
+
+  // Maximum points for this metric.
+  double max_points = 5;
+
+  // Threshold band the observation landed in: "below", "ok", "good",
+  // "excellent", or empty when not threshold-based.
+  string threshold = 6;
+}
+
+// FreshnessBlock labels the score with the digest it was computed against
+// and per-phase verdicts from the recorded run history.
+message FreshnessBlock {
+  // Current tree digest of the target scenario ("td:..."), or empty when
+  // digest computation failed (then digest_error explains why and every
+  // verdict is "unknown").
+  string current_digest = 1;
+
+  // Human-readable reason the digest could not be computed; empty on
+  // success.
+  string digest_error = 2;
+
+  // Per-phase verdicts for the required phase set (freshness-go SSOT).
+  repeated PhaseFreshness phases = 3;
+
+  // Copy-pastable command that would refresh every stale/unknown phase;
+  // empty when everything is fresh.
+  string suggested_command = 4;
+}
+
+// PhaseFreshness is the verdict for one required phase.
+message PhaseFreshness {
+  // Phase name (e.g. "unit", "smoke").
+  string phase = 1;
+
+  // "fresh", "stale", or "unknown".
+  string verdict = 2;
+
+  // Most recent recorded run that included this phase; empty when none.
+  string last_run_id = 3;
+
+  // Completion time of that run.
+  google.protobuf.Timestamp last_run_at = 4;
+
+  // Digest stamped on that run ("td:..."); empty when the run predates
+  // digest stamping.
+  string last_digest = 5;
+
+  // Phase status recorded on that run ("passed", "failed", "skipped").
+  string last_status = 6;
+}
+
+// Recommendation is one prioritized improvement with its estimated point
+// impact on the composite.
+message Recommendation {
+  // "high", "medium", or "low".
+  string priority = 1;
+
+  // Concrete next action.
+  string description = 2;
+
+  // Estimated composite points gained.
+  double impact_points = 3;
+}
+
+// ActionPhase is one phase of the recommended action plan.
+message ActionPhase {
+  // Short imperative title.
+  string title = 1;
+
+  // Ordered concrete steps.
+  repeated string actions = 2;
+
+  // Estimated composite points gained by completing the phase.
+  double estimated_points = 3;
+}
+
+// CollectorDegradation reports a signal collector that could not
+// contribute to this payload.
+message CollectorDegradation {
+  // Collector id: "requirements", "phases", "service", "ui".
+  string collector = 1;
+
+  // Circuit state: "open" (disabled after repeated failures) or "failed"
+  // (this request only).
+  string state = 2;
+
+  // Human-readable cause.
+  string reason = 3;
+}
+
+// ImportanceSummary is a best-effort operator hint for prioritization. It is
+// derived, never declared in service manifests: graph centrality comes from
+// scenario-dependency-analyzer and recent activity comes from swarm-manager.
+message ImportanceSummary {
+  // Combined normalized score in [0,1].
+  double score = 1;
+
+  // True when the target scenario's service manifest marks it as system
+  // required; this applies the configured floor to score.
+  bool system_required = 2;
+
+  // Per-component normalized contributions in [0,1].
+  ImportanceComponents components = 3;
+
+  // Raw signal values used to build the score.
+  ImportanceSignals signals = 4;
+
+  // Optional missing-source notes for partial enrichments.
+  repeated string degraded = 5;
+}
+
+message ImportanceComponents {
+  double centrality = 1;
+  double core_proximity = 2;
+  double recency = 3;
+}
+
+message ImportanceSignals {
+  int32 direct_reverse_dependency_count = 1;
+  int32 transitive_reverse_dependency_count = 2;
+  int32 required_reverse_dependency_count = 3;
+  double required_edge_weighted_score = 4;
+  int32 distance_to_core_seed = 5;
+  string nearest_core_seed = 6;
+  int32 recent_activity_count = 7;
+}

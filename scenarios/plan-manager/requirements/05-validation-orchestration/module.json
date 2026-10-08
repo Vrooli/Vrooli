@@ -1,0 +1,199 @@
+{
+  "_metadata": {
+    "description": "OT-P0-005 — compile proportional validation intents, consume canonical receipts, and verify completion without owning producer lifecycles.",
+    "last_validated_at": "2026-09-06T08:58:30-04:00",
+    "module": "validation-orchestration",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "PM-VALID-001",
+      "title": "Compile one proportional validation intent from the accepted change boundary",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-005",
+      "category": "validation",
+      "description": "When a phase or final gate requires validation, Plan Manager shall compile the smallest honest target and evidence strength from the accepted change boundary. It shall submit one canonical Test Genie receipt intent and shall not synthesize producer command walls. Commit, branch, index, dirty-state, mtime, checkout location, and unrelated byte changes shall not change compatibility; relevant tracked, untracked, configuration, toolchain, or declared dependency bytes shall change it.",
+      "tags": [
+        "validation",
+        "baseline",
+        "orchestration"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/validation/validation_test.go::TestValidationTicketUsesCanonicalReceiptWithoutProducerCommandWall",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Proves compiled scope becomes one canonical receipt intent without caller-owned producer commands."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/validation/validation_test.go::TestDeriveBaselineScopeUsesExplicitNarrowPhaseScope",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Proves phase evidence stays proportional while final full-plan evidence remains explicit."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/validation/validation_test.go::TestAdvisoryPhaseValidationAllowsScenarioOutsideIncompleteBaseline",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Proves an ordinary focused phase may validate a newly affected scenario without an incomplete diagnostic inventory becoming a gate."
+        }
+      ]
+    },
+    {
+      "id": "PM-VALID-002",
+      "title": "Separate ordinary outcome acceptance from explicit certification",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-005",
+      "category": "validation",
+      "description": "When Plan Manager evaluates ordinary shared-worktree completion, it shall require supported outcome assessments and retain limitations without requiring a baseline, green broad suite, or proven attribution. Declared unmet outcomes shall prevent completion. Producer verdicts and exact-input reuse decisions shall remain unchanged. Explicit certification shall retain its required evidence and shall not be inferred from phase position. Guidance, transitions, and completion shall apply the same policy.",
+      "tags": [
+        "validation",
+        "definition-of-done"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/execution/acceptance_test.go::TestAdvisoryCompletionRetainsFailedEvidenceAndAssessment",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Supported ordinary acceptance retains failed observations, limitations, and assessments across durable completion replay."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/execution/acceptance_test.go::TestAdvisoryAcceptanceRequiresSupportedOutcome",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Missing support or declared unmet outcomes cannot be bypassed with a validation override."
+        }
+      ]
+    },
+    {
+      "id": "PM-VALID-003",
+      "title": "Validate relevant-context commands and references",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-005",
+      "category": "validation",
+      "description": "Validation checks structured relevant-context setup items so command/search instructions are current and doc/code/requirement reference targets do not silently point at missing context.",
+      "tags": [
+        "validation",
+        "relevant-context",
+        "references"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/validation/validation_test.go::TestRunValidationIncludesCommandReferenceFindings",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Command and search relevant-context items are validated through CLI Health."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/validation/validation_test.go::TestRunValidationChecksRelevantContextReferences",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Doc/code/requirement relevant-context targets resolve through the reference resolver and missing targets fail validation."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/validation/validation_test.go::TestRunValidationUnknownWhenRelevantContextReferenceResolverUnavailable",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Unavailable reference resolution reports UNKNOWN instead of fabricating a pass."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/readiness/readiness_test.go::TestEvaluateDeterministicModeReportsPlanQualityFailures",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "The shared readiness evaluator reports deterministic quality failures independently of caller."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/readiness/readiness_test.go::TestEvaluatePreflightModeRunsExternalChecks",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Readiness validates command setup and doc/code/requirement context targets through injected seams."
+        }
+      ]
+    },
+    {
+      "id": "PM-VALID-004",
+      "title": "Validation remains durable and reattachable without a Plan Manager producer lifecycle",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-005",
+      "category": "validation",
+      "description": "When Test Genie admits validation, Plan Manager shall persist the receipt reference and may inspect or resume the plan independently of the observer connection. It shall not own producer attachment, retry, wait budgets, cancellation, or terminalization. A transport timeout or unexpected EOF shall leave server-owned work reattachable and shall never become PASS.",
+      "tags": [
+        "validation",
+        "durability",
+        "idempotency",
+        "concurrency"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/validation/validation_test.go::TestValidationTicketRequiresCanonicalReceiptService",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Proves ticket creation fails closed when the canonical receipt service is unavailable."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/validation/validation_test.go::TestValidationTicketHasNoPlanManagerProducerBudgetOrCommands",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Proves the durable ticket has no Plan Manager producer budget or command lifecycle."
+        },
+        {
+          "type": "test",
+          "ref": "cli/domains/validation/validation_manifest_test.go::TestDisplacedValidationLifecycleCommandsCannotReturn",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Ratchets deleted run, wait, resume, and DoD producer commands out of the public CLI."
+        }
+      ]
+    },
+    {
+      "id": "PM-VALID-005",
+      "title": "Plan execution shall preserve GCT evidence authority through receipt children",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-005",
+      "category": "validation",
+      "description": "When behavioral-prior or current-comparison evidence is required, Plan Manager shall express that policy in the validation intent and consume the resulting typed receipt evidence. Git Control Tower shall remain the evidence authority, Test Genie shall own the child lifecycle, and Plan Manager shall not issue capture commands, retries, or waits. Partial, stale, or unavailable evidence shall retain its producer reason and shall not become PASS.",
+      "tags": [
+        "validation",
+        "baseline",
+        "source-evidence"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/validation/validation_test.go::TestValidationTicketUsesCanonicalReceiptWithoutProducerCommandWall",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Proves Plan Manager emits one receipt intent and no GCT or Test Genie producer command wall."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/validation/validation_test.go::TestExplicitCertificationRetainsRequiredEvidence",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Proves explicit certification retains behavioral-prior evidence requirements."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/validation/validation_test.go::TestPhaseReceiptUsesDeclaredChecksWithoutImplicitComprehensiveComparison",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Proves ordinary phase validation uses declared checks without implicitly widening to certification."
+        }
+      ]
+    }
+  ]
+}

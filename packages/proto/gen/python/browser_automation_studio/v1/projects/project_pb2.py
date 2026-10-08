@@ -22,10 +22,12 @@ _runtime_version.ValidateProtobufRuntimeVersion(
 _sym_db = _symbol_database.Default()
 
 
+from browser_automation_studio.v1.api import service_pb2 as browser__automation__studio_dot_v1_dot_api_dot_service__pb2
+from buf.validate import validate_pb2 as buf_dot_validate_dot_validate__pb2
 from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n3browser-automation-studio/v1/projects/project.proto\x12\x1c\x62rowser_automation_studio.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe6\x01\n\x07Project\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n\x04name\x18\x02 \x01(\tR\x04name\x12 \n\x0b\x64\x65scription\x18\x03 \x01(\tR\x0b\x64\x65scription\x12\x1f\n\x0b\x66older_path\x18\x04 \x01(\tR\nfolderPath\x12\x39\n\ncreated_at\x18\x05 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x39\n\nupdated_at\x18\x06 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tupdatedAt\"\xc0\x01\n\x0cProjectStats\x12\x1d\n\nproject_id\x18\x01 \x01(\tR\tprojectId\x12%\n\x0eworkflow_count\x18\x02 \x01(\x05R\rworkflowCount\x12\'\n\x0f\x65xecution_count\x18\x03 \x01(\x05R\x0e\x65xecutionCount\x12\x41\n\x0elast_execution\x18\x04 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\rlastExecution\"\x95\x01\n\x10ProjectWithStats\x12?\n\x07project\x18\x01 \x01(\x0b\x32%.browser_automation_studio.v1.ProjectR\x07project\x12@\n\x05stats\x18\x02 \x01(\x0b\x32*.browser_automation_studio.v1.ProjectStatsR\x05stats\"Y\n\x0bProjectList\x12J\n\x08projects\x18\x01 \x03(\x0b\x32..browser_automation_studio.v1.ProjectWithStatsR\x08projectsB_Z]github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/projects;projectsb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n3browser-automation-studio/v1/projects/project.proto\x12%browser_automation_studio.v1.projects\x1a.browser-automation-studio/v1/api/service.proto\x1a\x1b\x62uf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe6\x01\n\x07Project\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n\x04name\x18\x02 \x01(\tR\x04name\x12 \n\x0b\x64\x65scription\x18\x03 \x01(\tR\x0b\x64\x65scription\x12\x1f\n\x0b\x66older_path\x18\x04 \x01(\tR\nfolderPath\x12\x39\n\ncreated_at\x18\x05 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x39\n\nupdated_at\x18\x06 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tupdatedAt\"\xc0\x01\n\x0cProjectStats\x12\x1d\n\nproject_id\x18\x01 \x01(\tR\tprojectId\x12%\n\x0eworkflow_count\x18\x02 \x01(\x05R\rworkflowCount\x12\'\n\x0f\x65xecution_count\x18\x03 \x01(\x05R\x0e\x65xecutionCount\x12\x41\n\x0elast_execution\x18\x04 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\rlastExecution\"\xa7\x01\n\x10ProjectWithStats\x12H\n\x07project\x18\x01 \x01(\x0b\x32..browser_automation_studio.v1.projects.ProjectR\x07project\x12I\n\x05stats\x18\x02 \x01(\x0b\x32\x33.browser_automation_studio.v1.projects.ProjectStatsR\x05stats\"b\n\x0bProjectList\x12S\n\x08projects\x18\x01 \x03(\x0b\x32\x37.browser_automation_studio.v1.projects.ProjectWithStatsR\x08projects\"\xed\x01\n\x14\x43reateProjectRequest\x12\x1b\n\x04name\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x04name\x12 \n\x0b\x64\x65scription\x18\x02 \x01(\tR\x0b\x64\x65scription\x12(\n\x0b\x66older_path\x18\x03 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\nfolderPath\x12I\n\x06preset\x18\x04 \x01(\x0e\x32\x31.browser_automation_studio.v1.projects.PresetKindR\x06preset\x12!\n\x0cpreset_paths\x18\x05 \x03(\tR\x0bpresetPaths\"\xac\x01\n\x15\x43reateProjectResponse\x12H\n\x07project\x18\x01 \x01(\x0b\x32..browser_automation_studio.v1.projects.ProjectR\x07project\x12I\n\x05stats\x18\x02 \x01(\x0b\x32\x33.browser_automation_studio.v1.projects.ProjectStatsR\x05stats\"C\n\x13ListProjectsRequest\x12\x14\n\x05limit\x18\x01 \x01(\x05R\x05limit\x12\x16\n\x06offset\x18\x02 \x01(\x05R\x06offset\"k\n\x14ListProjectsResponse\x12S\n\x08projects\x18\x01 \x03(\x0b\x32\x37.browser_automation_studio.v1.projects.ProjectWithStatsR\x08projects\"-\n\x11GetProjectRequest\x12\x18\n\x02id\x18\x01 \x01(\tB\x08\xbaH\x05r\x03\xb0\x01\x01R\x02id\"\xa9\x01\n\x12GetProjectResponse\x12H\n\x07project\x18\x01 \x01(\x0b\x32..browser_automation_studio.v1.projects.ProjectR\x07project\x12I\n\x05stats\x18\x02 \x01(\x0b\x32\x33.browser_automation_studio.v1.projects.ProjectStatsR\x05stats\"\x87\x01\n\x14UpdateProjectRequest\x12\x18\n\x02id\x18\x01 \x01(\tB\x08\xbaH\x05r\x03\xb0\x01\x01R\x02id\x12\x12\n\x04name\x18\x02 \x01(\tR\x04name\x12 \n\x0b\x64\x65scription\x18\x03 \x01(\tR\x0b\x64\x65scription\x12\x1f\n\x0b\x66older_path\x18\x04 \x01(\tR\nfolderPath\"a\n\x15UpdateProjectResponse\x12H\n\x07project\x18\x01 \x01(\x0b\x32..browser_automation_studio.v1.projects.ProjectR\x07project\"S\n\x14\x44\x65leteProjectRequest\x12\x18\n\x02id\x18\x01 \x01(\tB\x08\xbaH\x05r\x03\xb0\x01\x01R\x02id\x12!\n\x0c\x64\x65lete_files\x18\x02 \x01(\x08R\x0b\x64\x65leteFiles\"<\n\x15\x44\x65leteProjectResponse\x12#\n\rfiles_deleted\x18\x01 \x01(\x08R\x0c\x66ilesDeleted\"t\n\x1bListProjectWorkflowsRequest\x12\'\n\nproject_id\x18\x01 \x01(\tB\x08\xbaH\x05r\x03\xb0\x01\x01R\tprojectId\x12\x14\n\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x16\n\x06offset\x18\x03 \x01(\x05R\x06offset\"y\n!BulkDeleteProjectWorkflowsRequest\x12\'\n\nproject_id\x18\x01 \x01(\tB\x08\xbaH\x05r\x03\xb0\x01\x01R\tprojectId\x12+\n\x0cworkflow_ids\x18\x02 \x03(\tB\x08\xbaH\x05\x92\x01\x02\x08\x01R\x0bworkflowIds\"j\n\"BulkDeleteProjectWorkflowsResponse\x12#\n\rdeleted_count\x18\x01 \x01(\x05R\x0c\x64\x65letedCount\x12\x1f\n\x0b\x64\x65leted_ids\x18\x02 \x03(\tR\ndeletedIds\"L\n!ExecuteAllProjectWorkflowsRequest\x12\'\n\nproject_id\x18\x01 \x01(\tB\x08\xbaH\x05r\x03\xb0\x01\x01R\tprojectId\"\xb7\x01\n\x1eProjectWorkflowExecutionResult\x12\x1f\n\x0bworkflow_id\x18\x01 \x01(\tR\nworkflowId\x12#\n\rworkflow_name\x18\x02 \x01(\tR\x0cworkflowName\x12!\n\x0c\x65xecution_id\x18\x03 \x01(\tR\x0b\x65xecutionId\x12\x16\n\x06status\x18\x04 \x01(\tR\x06status\x12\x14\n\x05\x65rror\x18\x05 \x01(\tR\x05\x65rror\"\xa5\x01\n\"ExecuteAllProjectWorkflowsResponse\x12\x18\n\x07message\x18\x01 \x01(\tR\x07message\x12\x65\n\nexecutions\x18\x02 \x03(\x0b\x32\x45.browser_automation_studio.v1.projects.ProjectWorkflowExecutionResultR\nexecutions*u\n\nPresetKind\x12\x1b\n\x17PRESET_KIND_UNSPECIFIED\x10\x00\x12\x15\n\x11PRESET_KIND_EMPTY\x10\x01\x12\x1b\n\x17PRESET_KIND_RECOMMENDED\x10\x02\x12\x16\n\x12PRESET_KIND_CUSTOM\x10\x03\x32\xc0\t\n\x0fProjectsService\x12\x8a\x01\n\rCreateProject\x12;.browser_automation_studio.v1.projects.CreateProjectRequest\x1a<.browser_automation_studio.v1.projects.CreateProjectResponse\x12\x87\x01\n\x0cListProjects\x12:.browser_automation_studio.v1.projects.ListProjectsRequest\x1a;.browser_automation_studio.v1.projects.ListProjectsResponse\x12\x81\x01\n\nGetProject\x12\x38.browser_automation_studio.v1.projects.GetProjectRequest\x1a\x39.browser_automation_studio.v1.projects.GetProjectResponse\x12\x8a\x01\n\rUpdateProject\x12;.browser_automation_studio.v1.projects.UpdateProjectRequest\x1a<.browser_automation_studio.v1.projects.UpdateProjectResponse\x12\x8a\x01\n\rDeleteProject\x12;.browser_automation_studio.v1.projects.DeleteProjectRequest\x1a<.browser_automation_studio.v1.projects.DeleteProjectResponse\x12\x8f\x01\n\x14ListProjectWorkflows\x12\x42.browser_automation_studio.v1.projects.ListProjectWorkflowsRequest\x1a\x33.browser_automation_studio.v1.ListWorkflowsResponse\x12\xb1\x01\n\x1a\x42ulkDeleteProjectWorkflows\x12H.browser_automation_studio.v1.projects.BulkDeleteProjectWorkflowsRequest\x1aI.browser_automation_studio.v1.projects.BulkDeleteProjectWorkflowsResponse\x12\xb1\x01\n\x1a\x45xecuteAllProjectWorkflows\x12H.browser_automation_studio.v1.projects.ExecuteAllProjectWorkflowsRequest\x1aI.browser_automation_studio.v1.projects.ExecuteAllProjectWorkflowsResponseB_Z]github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/projects;projectsb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -33,12 +35,66 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'browser_automation_studio.v
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'Z]github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/projects;projects'
-  _globals['_PROJECT']._serialized_start=119
-  _globals['_PROJECT']._serialized_end=349
-  _globals['_PROJECTSTATS']._serialized_start=352
-  _globals['_PROJECTSTATS']._serialized_end=544
-  _globals['_PROJECTWITHSTATS']._serialized_start=547
-  _globals['_PROJECTWITHSTATS']._serialized_end=696
-  _globals['_PROJECTLIST']._serialized_start=698
-  _globals['_PROJECTLIST']._serialized_end=787
+  _globals['_CREATEPROJECTREQUEST'].fields_by_name['name']._loaded_options = None
+  _globals['_CREATEPROJECTREQUEST'].fields_by_name['name']._serialized_options = b'\272H\004r\002\020\001'
+  _globals['_CREATEPROJECTREQUEST'].fields_by_name['folder_path']._loaded_options = None
+  _globals['_CREATEPROJECTREQUEST'].fields_by_name['folder_path']._serialized_options = b'\272H\004r\002\020\001'
+  _globals['_GETPROJECTREQUEST'].fields_by_name['id']._loaded_options = None
+  _globals['_GETPROJECTREQUEST'].fields_by_name['id']._serialized_options = b'\272H\005r\003\260\001\001'
+  _globals['_UPDATEPROJECTREQUEST'].fields_by_name['id']._loaded_options = None
+  _globals['_UPDATEPROJECTREQUEST'].fields_by_name['id']._serialized_options = b'\272H\005r\003\260\001\001'
+  _globals['_DELETEPROJECTREQUEST'].fields_by_name['id']._loaded_options = None
+  _globals['_DELETEPROJECTREQUEST'].fields_by_name['id']._serialized_options = b'\272H\005r\003\260\001\001'
+  _globals['_LISTPROJECTWORKFLOWSREQUEST'].fields_by_name['project_id']._loaded_options = None
+  _globals['_LISTPROJECTWORKFLOWSREQUEST'].fields_by_name['project_id']._serialized_options = b'\272H\005r\003\260\001\001'
+  _globals['_BULKDELETEPROJECTWORKFLOWSREQUEST'].fields_by_name['project_id']._loaded_options = None
+  _globals['_BULKDELETEPROJECTWORKFLOWSREQUEST'].fields_by_name['project_id']._serialized_options = b'\272H\005r\003\260\001\001'
+  _globals['_BULKDELETEPROJECTWORKFLOWSREQUEST'].fields_by_name['workflow_ids']._loaded_options = None
+  _globals['_BULKDELETEPROJECTWORKFLOWSREQUEST'].fields_by_name['workflow_ids']._serialized_options = b'\272H\005\222\001\002\010\001'
+  _globals['_EXECUTEALLPROJECTWORKFLOWSREQUEST'].fields_by_name['project_id']._loaded_options = None
+  _globals['_EXECUTEALLPROJECTWORKFLOWSREQUEST'].fields_by_name['project_id']._serialized_options = b'\272H\005r\003\260\001\001'
+  _globals['_PRESETKIND']._serialized_start=2879
+  _globals['_PRESETKIND']._serialized_end=2996
+  _globals['_PROJECT']._serialized_start=205
+  _globals['_PROJECT']._serialized_end=435
+  _globals['_PROJECTSTATS']._serialized_start=438
+  _globals['_PROJECTSTATS']._serialized_end=630
+  _globals['_PROJECTWITHSTATS']._serialized_start=633
+  _globals['_PROJECTWITHSTATS']._serialized_end=800
+  _globals['_PROJECTLIST']._serialized_start=802
+  _globals['_PROJECTLIST']._serialized_end=900
+  _globals['_CREATEPROJECTREQUEST']._serialized_start=903
+  _globals['_CREATEPROJECTREQUEST']._serialized_end=1140
+  _globals['_CREATEPROJECTRESPONSE']._serialized_start=1143
+  _globals['_CREATEPROJECTRESPONSE']._serialized_end=1315
+  _globals['_LISTPROJECTSREQUEST']._serialized_start=1317
+  _globals['_LISTPROJECTSREQUEST']._serialized_end=1384
+  _globals['_LISTPROJECTSRESPONSE']._serialized_start=1386
+  _globals['_LISTPROJECTSRESPONSE']._serialized_end=1493
+  _globals['_GETPROJECTREQUEST']._serialized_start=1495
+  _globals['_GETPROJECTREQUEST']._serialized_end=1540
+  _globals['_GETPROJECTRESPONSE']._serialized_start=1543
+  _globals['_GETPROJECTRESPONSE']._serialized_end=1712
+  _globals['_UPDATEPROJECTREQUEST']._serialized_start=1715
+  _globals['_UPDATEPROJECTREQUEST']._serialized_end=1850
+  _globals['_UPDATEPROJECTRESPONSE']._serialized_start=1852
+  _globals['_UPDATEPROJECTRESPONSE']._serialized_end=1949
+  _globals['_DELETEPROJECTREQUEST']._serialized_start=1951
+  _globals['_DELETEPROJECTREQUEST']._serialized_end=2034
+  _globals['_DELETEPROJECTRESPONSE']._serialized_start=2036
+  _globals['_DELETEPROJECTRESPONSE']._serialized_end=2096
+  _globals['_LISTPROJECTWORKFLOWSREQUEST']._serialized_start=2098
+  _globals['_LISTPROJECTWORKFLOWSREQUEST']._serialized_end=2214
+  _globals['_BULKDELETEPROJECTWORKFLOWSREQUEST']._serialized_start=2216
+  _globals['_BULKDELETEPROJECTWORKFLOWSREQUEST']._serialized_end=2337
+  _globals['_BULKDELETEPROJECTWORKFLOWSRESPONSE']._serialized_start=2339
+  _globals['_BULKDELETEPROJECTWORKFLOWSRESPONSE']._serialized_end=2445
+  _globals['_EXECUTEALLPROJECTWORKFLOWSREQUEST']._serialized_start=2447
+  _globals['_EXECUTEALLPROJECTWORKFLOWSREQUEST']._serialized_end=2523
+  _globals['_PROJECTWORKFLOWEXECUTIONRESULT']._serialized_start=2526
+  _globals['_PROJECTWORKFLOWEXECUTIONRESULT']._serialized_end=2709
+  _globals['_EXECUTEALLPROJECTWORKFLOWSRESPONSE']._serialized_start=2712
+  _globals['_EXECUTEALLPROJECTWORKFLOWSRESPONSE']._serialized_end=2877
+  _globals['_PROJECTSSERVICE']._serialized_start=2999
+  _globals['_PROJECTSSERVICE']._serialized_end=4215
 # @@protoc_insertion_point(module_scope)

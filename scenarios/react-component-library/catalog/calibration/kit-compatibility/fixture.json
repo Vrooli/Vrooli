@@ -1,0 +1,1 @@
+{"gate":"kit-compatibility","assetId":"calibration-kit-compatibility","kind":"component","runner":"static","requiredFailureCode":"catalog.kit_compatibility","catalogAsset":"asset.json","source":"broken.tsx","description":"Requires a property supplied by no registered kit."}

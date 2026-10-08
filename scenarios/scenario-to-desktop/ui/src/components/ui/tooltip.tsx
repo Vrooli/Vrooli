@@ -54,7 +54,7 @@ export function TooltipContent({
       className={cn(
         "pointer-events-none absolute z-50 hidden rounded-md border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs text-slate-100 shadow-lg peer-hover:block",
         positionClasses[side],
-        className
+        className,
       )}
     >
       {children}

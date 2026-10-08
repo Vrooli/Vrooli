@@ -1,0 +1,61 @@
+syntax = "proto3";
+
+package vrooli.vrooli_onboarding.v1.resources;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/resources;resourcesv1";
+
+service ResourcesService {
+  rpc ListResources(ListResourcesRequest) returns (ListResourcesResponse);
+  rpc GetResource(GetResourceRequest) returns (GetResourceResponse);
+  rpc GetResourceHealth(GetResourceHealthRequest) returns (GetResourceHealthResponse);
+  rpc ListDerivedResources(ListDerivedResourcesRequest) returns (ListDerivedResourcesResponse);
+}
+
+message ListResourcesRequest { string target = 1; }
+message GetResourceRequest {
+  string target = 1;
+  string name = 2;
+}
+message GetResourceHealthRequest { string target = 1; }
+message ListDerivedResourcesRequest { string target = 1; }
+
+message Resource {
+  string name = 1;
+  string status = 2;
+  string category = 3;
+  bool installed = 4;
+  string display_name = 5;
+  string description = 6;
+  bool enabled = 7;
+}
+
+message ListResourcesResponse {
+  repeated Resource resources = 1;
+  int32 count = 2;
+  string loaded_at = 3;
+}
+
+message GetResourceResponse { Resource resource = 1; }
+
+message ResourceHealth {
+  string name = 1;
+  string status = 2;
+  string category = 3;
+  bool available = 4;
+  string last_checked = 5;
+}
+
+message GetResourceHealthResponse {
+  repeated ResourceHealth resources = 1;
+  int32 total = 2;
+  int32 healthy_count = 3;
+  string checked_at = 4;
+}
+
+message ListDerivedResourcesResponse {
+  repeated Resource resources = 1;
+  repeated Resource required = 2;
+  repeated Resource optional = 3;
+  repeated Resource standalone = 4;
+  int32 count = 5;
+}

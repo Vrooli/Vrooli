@@ -1,0 +1,8 @@
+{
+  "stories": [
+    {
+      "id": "stale-contract",
+      "args": {"label": {"$text": "Ready"}}
+    }
+  ]
+}

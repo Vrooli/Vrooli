@@ -1,0 +1,97 @@
+syntax = "proto3";
+
+package vrooli.performance_health.v1.sweep;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/performance-health/v1/sweep;sweep_v1";
+
+// =============================================================================
+// PERFORMANCE CAPTURE-SWEEP SERVICE — continuous per-flow capture cadence
+// =============================================================================
+//
+// @layer 0
+// @domain performance-health
+// @stability beta
+//
+// SweepService runs the OUT-OF-BAND per-flow capture cadence: for each
+// interaction flow that has a per-flow budget declared (performance.budgets.
+// flows), it drives a targeted audit (audit run --workflow <slug>), analyzes
+// the trace, persists a FLOW-TAGGED trend sample, and checks the per-flow
+// budget. It is intentionally NOT wired into the synchronous test-genie
+// Performance phase (restarting the scenario-under-test mid-run collides with
+// the harness lifecycle); per-flow regressions gate via persisted samples in the
+// Test Genie performance phase. Declared workloads share this out-of-band owner.
+// =============================================================================
+
+service SweepService {
+  // RunSweep audits every budgeted flow for one scenario and persists a
+  // flow-tagged sample per captured flow. The response is a per-flow summary;
+  // gating happens later in the performance phase over persisted samples.
+  rpc RunSweep(RunSweepRequest) returns (RunSweepResponse);
+  // Invoke one repository-declared workload. Callers cannot supply commands,
+  // sample counts, budgets or uploaded receipts. Retains failed attempts too.
+  rpc RunWorkload(WorkloadRequest) returns (WorkloadReading);
+  // Read the latest attempt, checking current producer/config/contract and
+  // deployed build identity. Never falls back to an older successful attempt.
+  rpc GetWorkload(WorkloadRequest) returns (WorkloadReading);
+}
+
+message WorkloadRequest {
+  string scenario = 1;
+  string workload = 2;
+}
+
+enum WorkloadOutcome {
+  WORKLOAD_OUTCOME_UNSPECIFIED = 0;
+  WORKLOAD_OUTCOME_MEASURED = 1;
+  WORKLOAD_OUTCOME_UNAVAILABLE = 2;
+  WORKLOAD_OUTCOME_FAILED = 3;
+}
+
+// A bounded owner reading. MEASURED requires complete applicable observations;
+// within_budget and p95 values are meaningful only in that state. Raw responses,
+// every first attempt, and artifact hashes remain with the referenced receipt.
+message WorkloadReading {
+  string scenario = 1;
+  string workload = 2;
+  string operation_id = 3;
+  WorkloadOutcome outcome = 4;
+  string reason = 5;
+  bool within_budget = 6;
+  double p95_ms = 7;
+  double wall_p95_ms = 8;
+  double budget_ms = 9;
+  int32 sample_count = 10;
+  int32 attempt_count = 11;
+  int32 declared_warmups = 12;
+  string captured_at = 13;
+  string build_identity = 14;
+  string producer_digest = 15;
+  string contract_digest = 16;
+  string configuration_digest = 17;
+  string fixture_revision = 18;
+  string receipt_path = 19;
+  string receipt_sha256 = 20;
+}
+
+message RunSweepRequest {
+  string scenario = 1;
+}
+
+// FlowSweepResult is the outcome of sweeping one interaction flow.
+message FlowSweepResult {
+  string flow = 1;
+  // captured | skipped | unavailable | failed — mirrors AuditOutcome.
+  string outcome = 2;
+  // True when the persisted flow sample is within the per-flow budget (only
+  // meaningful when outcome=captured and a per-flow budget is declared).
+  bool within_budget = 3;
+  // Human-readable axis breaches (e.g. "lcp measured 3200ms exceeds 2000ms").
+  repeated string violations = 4;
+  // Free-form reason when not captured.
+  string reason = 5;
+}
+
+message RunSweepResponse {
+  string scenario = 1;
+  repeated FlowSweepResult results = 2;
+}

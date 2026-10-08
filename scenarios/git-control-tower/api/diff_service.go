@@ -212,7 +212,7 @@ func getCommitDiff(ctx context.Context, deps DiffDeps, req DiffRequest, repoDir 
 	parsed.Mode = mode
 	parsed.Timestamp = time.Now().UTC()
 
-	if mode == ViewModeFullDiff && req.Path != "" {
+	if mode.needsFullContent() && req.Path != "" {
 		content, err := deps.Git.ShowFileAtCommit(ctx, repoDir, req.Commit, cleanPath)
 		if err != nil {
 			return nil, err
@@ -329,7 +329,7 @@ func getTrackedDiff(ctx context.Context, deps DiffDeps, req DiffRequest, repoDir
 	parsed.Mode = mode
 	parsed.Timestamp = time.Now().UTC()
 
-	if mode == ViewModeFullDiff && req.Path != "" {
+	if mode.needsFullContent() && req.Path != "" {
 		absPath := filepath.Join(repoDir, pathForGit)
 		content, _, err := readFileForDisplay(absPath, pathForGit)
 		if err != nil {

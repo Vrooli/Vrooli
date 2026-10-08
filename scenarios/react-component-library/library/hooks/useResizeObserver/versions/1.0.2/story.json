@@ -1,0 +1,41 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "schemaVersion": 5,
+  "kind": "hook",
+  "title": "useResizeObserver",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Attached and observed",
+      "role": "anatomy",
+      "mode": "live",
+      "description": "Attaching the ref starts observation; detaching it disconnects the observer.",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Default"
+        }
+      },
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='hooks.use-resize-observer']",
+          "attribute": "data-attached",
+          "value": "true"
+        }
+      ]
+    }
+  ]
+}

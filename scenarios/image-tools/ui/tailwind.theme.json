@@ -1,0 +1,45 @@
+{
+  "colors": {
+    "app-background": "var(--color-background)",
+    "app-shell": "var(--color-shell)",
+    "app-surface": "var(--color-surface)",
+    "app-surface-muted": "var(--color-surface-muted)",
+    "app-surface-raised": "var(--color-surface-raised)",
+    "app-foreground": "var(--color-foreground)",
+    "app-muted-foreground": "var(--color-muted-foreground)",
+    "app-border": "var(--color-border)",
+    "app-primary": "var(--color-primary)",
+    "app-primary-foreground": "var(--color-primary-foreground)",
+    "app-accent": "var(--color-accent)",
+    "app-brand": "var(--color-brand)",
+    "app-brand-strong": "var(--color-brand-strong)",
+    "app-brand-foreground": "var(--color-brand-foreground)",
+    "app-success": "var(--color-success)",
+    "app-danger": "var(--color-danger)",
+    "app-warning": "var(--color-warning)",
+    "app-info": "var(--color-info)",
+    "app-focus": "var(--color-focus)",
+    "app-overlay": "var(--color-overlay)"
+  },
+  "borderRadius": {
+    "control": "var(--radius-control)",
+    "panel": "var(--radius-panel)",
+    "sheet": "var(--radius-sheet)",
+    "pill": "var(--radius-pill)"
+  },
+  "fontFamily": {
+    "sans": "var(--font-sans)",
+    "mono": "var(--font-mono)"
+  },
+  "spacing": {
+    "touch": "var(--touch-target)",
+    "sidebar": "var(--sidebar-width)"
+  },
+  "minWidth": {
+    "touch": "var(--touch-target)",
+    "sidebar": "var(--sidebar-min-width)"
+  },
+  "maxWidth": {
+    "sidebar": "var(--sidebar-max-width)"
+  }
+}

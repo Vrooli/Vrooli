@@ -31,9 +31,9 @@ flowchart LR
     end
 
     subgraph IO["IO & Infra"]
-        DB[(Postgres Repo)]
+        DB[(SQLite Repo)]
         MINIO["MinIO"]
-        BROW["Browserless or future engine"]
+        BROW["Playwright driver"]
         HUB["websocket Hub"]
     end
 

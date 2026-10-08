@@ -1,0 +1,73 @@
+{
+  "kind": "action",
+  "schemaVersion": 1,
+  "id": "perf.sweep",
+  "name": "Sweep all budgeted UI interaction flows (continuous perf cadence)",
+  "description": "Run the out-of-band per-flow capture cadence for a scenario: for each interaction flow with a per-flow budget declared, drive a targeted audit, analyze the trace, persist a flow-tagged trend sample, and report the per-flow budget verdict. Gating is continuous — a regression on a budgeted journey fails the next `git-control-tower baseline diff`, NOT this call and NOT the synchronous Performance phase.",
+  "status": "active",
+  "owner": {
+    "type": "scenario",
+    "id": "performance-health"
+  },
+  "command": {
+    "argv": [
+      "performance-health",
+      "sweep",
+      "run",
+      "{{scenario}}",
+      "--json"
+    ]
+  },
+  "inputs": {
+    "scenario": {
+      "type": "string",
+      "required": true,
+      "description": "Scenario slug whose budgeted flows to sweep."
+    }
+  },
+  "outputs": {
+    "results": {
+      "type": "string",
+      "description": "JSON of per-flow sweep results (outcome, within_budget, violations)."
+    }
+  },
+  "permissions": {
+    "filesystemRead": true,
+    "filesystemWrite": true,
+    "externalNetwork": true,
+    "processStart": true
+  },
+  "examples": [
+    {
+      "description": "Sweep every budgeted interaction flow for image-tools.",
+      "input": {
+        "scenario": "image-tools"
+      }
+    }
+  ],
+  "tags": [
+    "performance",
+    "sweep",
+    "continuous",
+    "ui",
+    "interaction",
+    "budget",
+    "regression",
+    "lcp",
+    "component",
+    "commit",
+    "cadence",
+    "baseline"
+  ],
+  "execution": {
+    "timeoutSeconds": 600,
+    "outputMode": "stdout",
+    "runEligible": false
+  },
+  "validation": {
+    "mode": "contract"
+  },
+  "revision": 1,
+  "createdAt": "2026-06-22T00:00:00Z",
+  "updatedAt": "2026-06-22T00:00:00Z"
+}

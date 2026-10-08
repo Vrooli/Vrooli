@@ -66,7 +66,7 @@ describe('useAgentForm', () => {
 
       // Trigger validation error by submitting empty form
       act(() => {
-        result.current.handleSubmit();
+        void result.current.handleSubmit();
       });
 
       expect(result.current.validationError).not.toBeNull();
@@ -229,11 +229,11 @@ describe('useAgentForm', () => {
       mockSubmitAgentCustomization.mockReturnValue(
         new Promise((resolve) => {
           resolvePromise = () =>
-            resolve({
+            { resolve({
               job_id: 'job_123',
               status: 'pending',
               agent_id: 'agent_abc',
-            });
+            }); };
         })
       );
 
@@ -311,7 +311,7 @@ describe('useAgentForm', () => {
 
       // Trigger validation error
       act(() => {
-        result.current.handleSubmit();
+        void result.current.handleSubmit();
       });
 
       expect(result.current.validationError).not.toBeNull();
@@ -406,7 +406,7 @@ describe('useAgentForm', () => {
 
       // Trigger validation error
       act(() => {
-        result.current.handleSubmit();
+        void result.current.handleSubmit();
       });
 
       expect(result.current.validationError).not.toBeNull();

@@ -7,22 +7,35 @@ package sidecar
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
+	"fmt"
 	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/automation/driver"
+	autosession "github.com/vrooli/browser-automation-studio/automation/session"
+	"github.com/vrooli/browser-automation-studio/internal/enums"
 	"github.com/vrooli/browser-automation-studio/sidecar/health"
 	"github.com/vrooli/browser-automation-studio/sidecar/recovery"
 	"github.com/vrooli/browser-automation-studio/sidecar/supervisor"
 	"github.com/vrooli/browser-automation-studio/websocket"
+	"github.com/vrooli/scenarioconfig-go"
+	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
+	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 )
 
 // Dependencies holds all sidecar-related dependencies.
 // These are nil when sidecar management is disabled (external driver configured).
 type Dependencies struct {
+	// AdminSecret is the in-memory loopback credential shared with the managed
+	// driver. It is intentionally not logged or persisted.
+	AdminSecret string
 	// Supervisor manages the playwright-driver process lifecycle.
 	// Nil when using an external driver (PLAYWRIGHT_DRIVER_URL set).
 	Supervisor supervisor.Supervisor
@@ -40,6 +53,39 @@ type Dependencies struct {
 	Store recovery.Store
 }
 
+func recoveryActionsFromTimelineEntries(entries []*bastimeline.TimelineEntry) ([]recovery.RecordedAction, string) {
+	actions := make([]recovery.RecordedAction, 0, len(entries))
+	var currentURL string
+	for _, entry := range entries {
+		if entry == nil {
+			continue
+		}
+		definition := entry.GetAction()
+		selector, value := "", ""
+		switch params := definition.GetParams().(type) {
+		case *basactions.ActionDefinition_Click:
+			selector = params.Click.GetSelector()
+		case *basactions.ActionDefinition_Input:
+			selector, value = params.Input.GetSelector(), params.Input.GetValue()
+		case *basactions.ActionDefinition_Navigate:
+			value = params.Navigate.GetUrl()
+		case *basactions.ActionDefinition_SelectOption:
+			selector = params.SelectOption.GetSelector()
+			value = params.SelectOption.GetValue()
+		}
+		timestamp := time.Now()
+		if entry.GetTimestamp() != nil {
+			timestamp = entry.GetTimestamp().AsTime()
+		}
+		url := entry.GetTelemetry().GetUrl()
+		actions = append(actions, recovery.RecordedAction{Type: enums.ActionTypeToString(definition.GetType()), Selector: selector, Value: value, URL: url, Timestamp: timestamp})
+		if url != "" {
+			currentURL = url
+		}
+	}
+	return actions, currentURL
+}
+
 // BuildDependencies wires up all sidecar-related dependencies.
 //
 // If PLAYWRIGHT_DRIVER_URL is set, sidecar management is disabled and all
@@ -54,13 +100,18 @@ type Dependencies struct {
 func BuildDependencies(
 	db *sqlx.DB,
 	driverClient *driver.Client,
+	sessions *autosession.Manager,
 	hub *websocket.Hub,
 	log *logrus.Logger,
+	gatewayURL string,
 ) (*Dependencies, error) {
-	// Load configurations - this handles the BAS_SIDECAR_ENABLED vs PLAYWRIGHT_DRIVER_URL logic
-	supervisorCfg := supervisor.LoadConfig()
-	healthCfg := health.LoadConfig()
-	recoveryCfg := recovery.LoadConfig()
+	settings, err := loadScenarioSettings()
+	if err != nil {
+		return nil, err
+	}
+	supervisorCfg := supervisor.LoadConfig(settings)
+	healthCfg := health.LoadConfig(settings)
+	recoveryCfg := recovery.LoadConfig(settings)
 
 	// Check if supervision is disabled (either explicitly or due to external driver)
 	if !supervisorCfg.Enabled {
@@ -71,6 +122,15 @@ func BuildDependencies(
 		}
 		return &Dependencies{}, nil
 	}
+
+	// Managed sidecars need an administrative recovery secret even when the
+	// operator did not configure one. Keep it in memory and pass it only to
+	// the child process; external drivers retain the explicit env-var contract.
+	adminSecret, err := recoveryAdminSecret()
+	if err != nil {
+		return nil, err
+	}
+	driverClient.SetAdministrativeSecret(adminSecret)
 
 	// 1. Build checkpoint store (SQLite)
 	checkpointStore := recovery.NewSQLiteStore(db, log)
@@ -93,6 +153,8 @@ func BuildDependencies(
 		supervisorCfg.DriverScript,
 		supervisorCfg.DriverPort,
 		log,
+		fmt.Sprintf("%s=%s", driver.PlaywrightDriverAdminSecretEnv, adminSecret),
+		gatewayEnvironment(gatewayURL),
 	)
 
 	// 4. Build supervisor
@@ -116,12 +178,24 @@ func BuildDependencies(
 
 	// 6. Build checkpoint manager
 	actionSource := func(ctx context.Context, sessionID string) ([]recovery.RecordedAction, string, error) {
-		resp, err := driverClient.GetRecordedActions(ctx, sessionID, false)
+		if sessions == nil {
+			return nil, "", fmt.Errorf("session broker unavailable")
+		}
+		owned, ok := sessions.Get(sessionID)
+		if !ok {
+			return nil, "", fmt.Errorf("recording session is not owned by this API")
+		}
+		resp, err := owned.GetRecordedActionsResponse(ctx)
 		if err != nil {
 			return nil, "", err
 		}
 
-		// Convert driver.RecordedAction to recovery.RecordedAction
+		if len(resp.TimelineEntries) > 0 {
+			actions, currentURL := recoveryActionsFromTimelineEntries(resp.TimelineEntries)
+			return actions, currentURL, nil
+		}
+
+		// Legacy driver responses may still contain recorded-action JSON.
 		actions := make([]recovery.RecordedAction, len(resp.Actions))
 		var currentURL string
 		for i, a := range resp.Actions {
@@ -184,11 +258,59 @@ func BuildDependencies(
 	}).Info("Sidecar dependencies initialized")
 
 	return &Dependencies{
+		AdminSecret:       adminSecret,
 		Supervisor:        sup,
 		HealthMonitor:     monitor,
 		CheckpointManager: checkpointMgr,
 		Store:             checkpointStore,
 	}, nil
+}
+
+func gatewayEnvironment(gatewayURL string) string {
+	if strings.TrimSpace(gatewayURL) == "" {
+		return ""
+	}
+	return "AI_GATEWAY_URL=" + strings.TrimRight(gatewayURL, "/")
+}
+
+func loadScenarioSettings() (map[string]any, error) {
+	scenarioRoot, err := scenarioRootDir()
+	if err != nil {
+		return nil, err
+	}
+	return scenarioconfig.Load(
+		filepath.Join(scenarioRoot, ".vrooli", "config.json"),
+		filepath.Join(scenarioRoot, ".vrooli", "config.schema.json"),
+	)
+}
+
+// scenarioRootDir resolves the scenario checkout directory. The lifecycle
+// exports VROOLI_SCENARIO_DIR (and VROOLI_ROOT) to the api process; the
+// runtime.Caller fallback only works for non-trimpath builds, because
+// -trimpath rewrites source paths to module paths.
+func scenarioRootDir() (string, error) {
+	if dir := strings.TrimSpace(os.Getenv("VROOLI_SCENARIO_DIR")); dir != "" {
+		return filepath.Clean(dir), nil
+	}
+	if root := strings.TrimSpace(os.Getenv("VROOLI_ROOT")); root != "" {
+		return filepath.Join(root, "scenarios", "browser-automation-studio"), nil
+	}
+	_, source, _, ok := runtime.Caller(0)
+	if !ok || !filepath.IsAbs(source) {
+		return "", fmt.Errorf("locate browser-automation-studio scenario root: set VROOLI_SCENARIO_DIR")
+	}
+	return filepath.Clean(filepath.Join(filepath.Dir(source), "../..")), nil
+}
+
+func recoveryAdminSecret() (string, error) {
+	if configured := strings.TrimSpace(os.Getenv(driver.PlaywrightDriverAdminSecretEnv)); configured != "" {
+		return configured, nil
+	}
+	bytes := make([]byte, 32)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", fmt.Errorf("generate playwright-driver administrative recovery secret: %w", err)
+	}
+	return base64.RawURLEncoding.EncodeToString(bytes), nil
 }
 
 // Start starts all sidecar services.

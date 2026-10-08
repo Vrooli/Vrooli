@@ -1,4 +1,5 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../../test-utils/renderWithProviders";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { GraphNavControls, PAN_AMOUNT } from "./GraphNavControls";
 import { useGraphUIStore } from "../stores/graph-ui-store";
@@ -25,7 +26,7 @@ describe("GraphNavControls", () => {
   });
 
   it("renders all 7 navigation buttons", () => {
-    render(<GraphNavControls />);
+    renderWithCanonicalProviders(<GraphNavControls />);
     expect(screen.getByTestId(sel.panUp)).toBeInTheDocument();
     expect(screen.getByTestId(sel.panDown)).toBeInTheDocument();
     expect(screen.getByTestId(sel.panLeft)).toBeInTheDocument();
@@ -36,7 +37,7 @@ describe("GraphNavControls", () => {
   });
 
   it("pan-left shifts viewport x positively", () => {
-    render(<GraphNavControls />);
+    renderWithCanonicalProviders(<GraphNavControls />);
     fireEvent.click(screen.getByTestId(sel.panLeft));
     expect(mockInstance.setViewport).toHaveBeenCalledWith(
       { x: PAN_AMOUNT, y: 0, zoom: 1 },
@@ -45,7 +46,7 @@ describe("GraphNavControls", () => {
   });
 
   it("pan-right shifts viewport x negatively", () => {
-    render(<GraphNavControls />);
+    renderWithCanonicalProviders(<GraphNavControls />);
     fireEvent.click(screen.getByTestId(sel.panRight));
     expect(mockInstance.setViewport).toHaveBeenCalledWith(
       { x: -PAN_AMOUNT, y: 0, zoom: 1 },
@@ -54,7 +55,7 @@ describe("GraphNavControls", () => {
   });
 
   it("pan-up shifts viewport y positively", () => {
-    render(<GraphNavControls />);
+    renderWithCanonicalProviders(<GraphNavControls />);
     fireEvent.click(screen.getByTestId(sel.panUp));
     expect(mockInstance.setViewport).toHaveBeenCalledWith(
       { x: 0, y: PAN_AMOUNT, zoom: 1 },
@@ -63,7 +64,7 @@ describe("GraphNavControls", () => {
   });
 
   it("pan-down shifts viewport y negatively", () => {
-    render(<GraphNavControls />);
+    renderWithCanonicalProviders(<GraphNavControls />);
     fireEvent.click(screen.getByTestId(sel.panDown));
     expect(mockInstance.setViewport).toHaveBeenCalledWith(
       { x: 0, y: -PAN_AMOUNT, zoom: 1 },
@@ -72,19 +73,19 @@ describe("GraphNavControls", () => {
   });
 
   it("zoom-in delegates to flowInstance.zoomIn", () => {
-    render(<GraphNavControls />);
+    renderWithCanonicalProviders(<GraphNavControls />);
     fireEvent.click(screen.getByTestId(sel.zoomIn));
     expect(mockInstance.zoomIn).toHaveBeenCalledWith({ duration: 200 });
   });
 
   it("zoom-out delegates to flowInstance.zoomOut", () => {
-    render(<GraphNavControls />);
+    renderWithCanonicalProviders(<GraphNavControls />);
     fireEvent.click(screen.getByTestId(sel.zoomOut));
     expect(mockInstance.zoomOut).toHaveBeenCalledWith({ duration: 200 });
   });
 
   it("fit-to-view delegates to flowInstance.fitView", () => {
-    render(<GraphNavControls />);
+    renderWithCanonicalProviders(<GraphNavControls />);
     fireEvent.click(screen.getByTestId(sel.fitView));
     expect(mockInstance.fitView).toHaveBeenCalledWith({
       padding: 0.2,
@@ -95,7 +96,7 @@ describe("GraphNavControls", () => {
 
   it("does not throw when flowInstance is null", () => {
     useGraphUIStore.setState({ flowInstance: null });
-    render(<GraphNavControls />);
+    renderWithCanonicalProviders(<GraphNavControls />);
 
     // Click every button — none should throw
     fireEvent.click(screen.getByTestId(sel.panLeft));
@@ -112,7 +113,7 @@ describe("GraphNavControls", () => {
 
   it("uses current viewport position for pan calculations", () => {
     mockInstance.getViewport.mockReturnValue({ x: 50, y: -30, zoom: 1.5 });
-    render(<GraphNavControls />);
+    renderWithCanonicalProviders(<GraphNavControls />);
     fireEvent.click(screen.getByTestId(sel.panLeft));
     expect(mockInstance.setViewport).toHaveBeenCalledWith(
       { x: 50 + PAN_AMOUNT, y: -30, zoom: 1.5 },

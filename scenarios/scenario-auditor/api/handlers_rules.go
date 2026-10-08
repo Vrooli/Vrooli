@@ -1,13 +1,10 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 	"os"
-	"path/filepath"
 	"runtime"
 	"sort"
 	"strings"
@@ -18,6 +15,7 @@ import (
 	rulespkg "scenario-auditor/rules"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/storage"
 )
 
 // Persistent store for rule enabled/disabled status
@@ -32,40 +30,25 @@ type ruleStateData struct {
 	LastUpdate time.Time       `json:"last_update"`
 }
 
-var ruleStateStore = initRuleStateStore()
+var ruleStateStore = newRuleStateStore()
 
-func initRuleStateStore() *RuleStateStore {
-	fmt.Fprintf(os.Stderr, "[INIT] Initializing rule state store...\n")
-	store := &RuleStateStore{
+func newRuleStateStore() *RuleStateStore {
+	return &RuleStateStore{
 		states: make(map[string]bool),
 	}
-	store.enablePersistence()
-	return store
 }
 
 func (rs *RuleStateStore) enablePersistence() {
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
-	if vrooliRoot == "" {
-		vrooliRoot = filepath.Join(os.Getenv("HOME"), "Vrooli")
+	if rs.filePath != "" {
+		return
 	}
-
-	parentDir := filepath.Join(vrooliRoot, ".vrooli", "data")
-	if _, err := os.Stat(parentDir); os.IsNotExist(err) {
-		if err := os.MkdirAll(parentDir, 0o755); err != nil {
-			logger.Error(fmt.Sprintf("Failed to create parent data directory %s", parentDir), err)
-			logger.Info("Rule state store will operate in memory-only mode (no persistence)")
-			return
-		}
-	}
-
-	dataDir := filepath.Join(parentDir, "scenario-auditor")
-	if err := os.MkdirAll(dataDir, 0o755); err != nil {
-		logger.Error(fmt.Sprintf("Failed to create scenario-auditor data directory %s", dataDir), err)
+	path, err := resolveScenarioAuditorStoragePath(storage.ClassConfig, "rule-preferences.json")
+	if err != nil {
+		logger.Error("Failed to resolve scenario-auditor rule preferences config path", err)
 		logger.Info("Rule state store will operate in memory-only mode (no persistence)")
 		return
 	}
-
-	rs.filePath = filepath.Join(dataDir, "rule-preferences.json")
+	rs.filePath = path
 
 	if err := rs.loadFromFile(); err != nil {
 		logger.Error(fmt.Sprintf("Failed to load existing rule states from %s", rs.filePath), err)
@@ -125,12 +108,7 @@ func (rs *RuleStateStore) saveToFileLocked() error {
 		return err
 	}
 
-	tmpPath := rs.filePath + ".tmp"
-	if err := os.WriteFile(tmpPath, bytes, 0o644); err != nil {
-		return err
-	}
-
-	return os.Rename(tmpPath, rs.filePath)
+	return storage.WriteFileAtomic(rs.filePath, bytes, storage.DefaultFilePerm)
 }
 
 func (rs *RuleStateStore) SetState(ruleID string, enabled bool) error {
@@ -337,82 +315,6 @@ func computeRuleTestStatuses(svc *re.Service, ruleInfos map[string]re.Info) map[
 	}
 
 	return statuses
-}
-
-// createRuleHandler creates an issue in app-issue-tracker for rule creation
-func createRuleHandler(w http.ResponseWriter, r *http.Request) {
-	var req createRuleRequest
-
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		HTTPError(w, "Invalid request body", http.StatusBadRequest, err)
-		return
-	}
-
-	// Validation
-	if req.Name == "" || req.Description == "" {
-		HTTPError(w, "name and description are required", http.StatusBadRequest, nil)
-		return
-	}
-
-	if req.Category == "" {
-		req.Category = "api"
-	}
-
-	if req.Severity == "" {
-		req.Severity = "medium"
-	}
-
-	// Resolve app-issue-tracker port
-	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
-	defer cancel()
-
-	trackerPort, err := resolveIssueTrackerPort(ctx)
-	if err != nil {
-		HTTPError(w, "Failed to locate app-issue-tracker", http.StatusServiceUnavailable, err)
-		return
-	}
-
-	// Build payload
-	payload, err := buildCreateRuleIssuePayload(req)
-	if err != nil {
-		HTTPError(w, "Failed to build issue payload", http.StatusInternalServerError, err)
-		return
-	}
-
-	// Submit to app-issue-tracker
-	result, err := submitIssueToTracker(ctx, trackerPort, payload)
-	if err != nil {
-		HTTPError(w, "Failed to create issue in tracker", http.StatusInternalServerError, err)
-		return
-	}
-
-	// Build issue URL
-	issueURL := ""
-	if result.IssueID != "" {
-		if uiPort, err := resolveIssueTrackerUIPort(ctx); err == nil {
-			u := url.URL{
-				Scheme: "http",
-				Host:   fmt.Sprintf("localhost:%d", uiPort),
-			}
-			query := u.Query()
-			query.Set("issue", result.IssueID)
-			u.RawQuery = query.Encode()
-			issueURL = u.String()
-		} else {
-			logger.Warn("Failed to resolve app-issue-tracker UI port", map[string]any{"error": err.Error()})
-		}
-	}
-
-	response := map[string]any{
-		"issueId":  result.IssueID,
-		"issueUrl": issueURL,
-		"message":  result.Message,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		logger.Error("Failed to encode create rule response", err)
-	}
 }
 
 // updateRuleHandler updates an existing rule (not yet implemented)
@@ -627,7 +529,7 @@ func createRuleWithAIHandler(w http.ResponseWriter, r *http.Request) {
 		Name:     name,
 		Action:   agentActionCreateRule,
 		Prompt:   prompt,
-		Model:    openRouterModel,
+		Model:    openRouterModel(),
 		Metadata: metadata,
 	})
 	if err != nil {
@@ -720,7 +622,7 @@ func editRuleWithAIHandler(w http.ResponseWriter, r *http.Request) {
 		Name:     name,
 		Action:   agentActionEditRule,
 		Prompt:   prompt,
-		Model:    openRouterModel,
+		Model:    openRouterModel(),
 		Metadata: metadata,
 	})
 	if err != nil {
@@ -893,13 +795,6 @@ func testRuleOnScenarioHandler(w http.ResponseWriter, r *http.Request) {
 
 	sortedTargets := append([]string(nil), normalizedTargets...)
 	sort.Strings(sortedTargets)
-	containsStructure := false
-	for _, target := range sortedTargets {
-		if target == targetStructure {
-			containsStructure = true
-			break
-		}
-	}
 
 	// Normalize and filter scenario list before evaluation
 	validScenarios := make([]string, 0, len(scenarios))
@@ -963,7 +858,7 @@ func testRuleOnScenarioHandler(w http.ResponseWriter, r *http.Request) {
 				}
 			} else {
 				warning := ""
-				if filesScanned == 0 && len(violations) == 0 && !containsStructure {
+				if filesScanned == 0 && len(violations) == 0 {
 					warning = fmt.Sprintf("No matching files were scanned for this rule in the selected scenario. Targets evaluated: %s.", strings.Join(sortedTargets, ", "))
 				}
 

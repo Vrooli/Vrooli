@@ -1,6 +1,7 @@
 package config
 
 import (
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -103,5 +104,16 @@ func TestLoad_InvalidEnvFallsBackToDefault(t *testing.T) {
 	}
 	if cfg.MaxSizeBytes != DefaultMaxSizeBytes {
 		t.Errorf("MaxSizeBytes = %d, want default %d for invalid env", cfg.MaxSizeBytes, DefaultMaxSizeBytes)
+	}
+}
+
+func TestDefaultDBPathUsesCanonicalStorage(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	got := defaultDBPath()
+	want := filepath.Join(home, ".vrooli", "data", "vrooli", "vrooli-events", "events.db")
+	if got != want {
+		t.Fatalf("defaultDBPath() = %q, want %q", got, want)
 	}
 }

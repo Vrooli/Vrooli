@@ -1,0 +1,3 @@
+# Marketing I16 coordinator handoff
+
+Use large-effort-orchestration revision 25 and its native worker card. Read canonical Content Desk goal/queue/targets, PRD/requirements/design/experience and exact pinned full sources and selected originals. Retain specialist boundaries and whole approved outcome. You orchestrate; workers implement outcome epochs. No run may start while the current AUTH/native commissioning prerequisite is held. Once qualified, measure the first brief, assign required source/shared contracts to their native owners, record exact parent/task/run/profile/model, park natively and accept via the mechanical gate. Reforecast until every mandatory functional/visual/operational target is met. A useful article increment does not close the effort.

@@ -68,7 +68,7 @@ fi
 
 **Validation (2025-10-05 15:28)**:
 ```bash
-# Test with polluted environment (API_PORT=17364 from ecosystem-manager)
+# Test with polluted environment (API_PORT=17364 from swarm-manager)
 bash -c 'export API_PORT=17364; scenario-auditor health'
 # Result: ✅ Correctly connects to 18507 via tier 2 auto-detection
 
@@ -79,7 +79,7 @@ vrooli scenario port scenario-auditor API_PORT
 # All CLI commands working correctly
 scenario-auditor health     # ✅ Detects port 18507
 scenario-auditor rules      # ✅ Lists 34 rules
-scenario-auditor audit scenario-auditor --timeout 120  # ✅ Completes successfully
+scenario-auditor standards scan scenario-auditor --wait --timeout 120s  # ✅ Completes successfully
 ```
 
 **Key Feature**: The `vrooli scenario port` command (tier 2) retrieves the actual port from the lifecycle-managed process, ensuring the CLI always connects to the correct instance even when other scenarios set generic environment variables.
@@ -434,7 +434,7 @@ scenario-auditor --help
 cd scenarios/scenario-auditor/cli && ./install.sh
 
 # Verify fix
-scenario-auditor audit scenario-auditor --timeout 240
+scenario-auditor standards scan scenario-auditor --wait --timeout 240s
 # Should complete without errors
 ```
 
@@ -507,7 +507,7 @@ Several doc test cases have expectation mismatches but don't affect production f
 - `make test` passes but service lifecycle broken
 
 ### Root Cause
-Cross-scenario environment variable pollution. When scenario-auditor is started from a shell where ecosystem-manager has set `API_PORT=17364`, the scenario-auditor API inherits this polluted environment and attempts to bind to the wrong port.
+Cross-scenario environment variable pollution. When scenario-auditor is started from a shell where swarm-manager has set `API_PORT=17364`, the scenario-auditor API inherits this polluted environment and attempts to bind to the wrong port.
 
 **Evidence**:
 ```bash
@@ -517,14 +517,14 @@ $ vrooli scenario port scenario-auditor API_PORT
 
 # But environment is polluted from another scenario
 $ env | grep API_PORT
-API_PORT=17364  # ← From ecosystem-manager, not scenario-auditor!
+API_PORT=17364  # ← From swarm-manager, not scenario-auditor!
 
 # API startup log shows it reads the wrong port
 [STARTUP] API_PORT=17364
 [STARTUP] Starting HTTP server on port 17364...
 [STARTUP] HTTP server FAILED to start: listen tcp :17364: bind: address already in use
 
-# Port 17364 belongs to ecosystem-manager
+# Port 17364 belongs to swarm-manager
 $ lsof -i :17364
 ecosystem 100401 matthalloran8    7u  IPv6 298417      0t0  TCP *:17364 (LISTEN)
 ```
@@ -578,9 +578,9 @@ exec env -i "${env_array[@]}" setsid bash -c "$cmd"
 Confirmed the fix works correctly:
 
 ```bash
-# Test with polluted environment (from ecosystem-manager)
+# Test with polluted environment (from swarm-manager)
 $ env | grep API_PORT
-API_PORT=17364  # ← Parent shell has wrong port from ecosystem-manager
+API_PORT=17364  # ← Parent shell has wrong port from swarm-manager
 
 # Start scenario-auditor
 $ vrooli scenario start scenario-auditor
@@ -604,6 +604,8 @@ $ make test
 ---
 
 ## Current Status Summary (Updated 2025-10-11)
+
+> **Note**: The `structure`, `config`, and `ui` rule packs (including `env_validation`, `service_ports`, `required_layout`, etc.) referenced in older entries below have since been **migrated to the `structure-health` scenario**, which now backs test-genie's Structure phase. Scenario Auditor now retains only the api, cli, test, and makefile rule packs. Historical entries below are kept as-is for the record.
 
 ### ✅ FULLY OPERATIONAL - Environment Isolation Fixed
 The scenario-auditor **now works correctly in all environments** after fixing environment variable pollution in the lifecycle system. See "Critical Issue: Environment Variable Pollution (RESOLVED)" section above.

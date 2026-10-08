@@ -190,3 +190,28 @@ func TestResolveStaleMetricIssues_IgnoresNonMetricCategories(t *testing.T) {
 		t.Errorf("expected 1 open lint issue, got %d", got)
 	}
 }
+
+func TestResolveLegacyPercentageDuplicationIssues_OnlyResolvesRetiredRecords(t *testing.T) {
+	srv := setupTestServerOrSkip(t)
+	scenario := "test-resolve-legacy-duplication"
+	defer cleanupTestIssues(t, srv.store.db, scenario)
+
+	insertTestIssue(t, srv.store.db, scenario, "api/legacy.go", "duplication", "high",
+		"Duplicated code", "File has 63.9% duplicated code, exceeds threshold of 10.0%")
+	insertTestIssue(t, srv.store.db, scenario, "api/current.go", "duplication", "low",
+		"Duplicated block spans 8 lines", "A normalized duplicate block needs review.")
+
+	resolved, err := srv.store.ResolveLegacyPercentageDuplicationIssues(context.Background(), scenario)
+	if err != nil {
+		t.Fatalf("ResolveLegacyPercentageDuplicationIssues: %v", err)
+	}
+	if resolved != 1 {
+		t.Fatalf("resolved = %d, want 1", resolved)
+	}
+	if got := countResolvedIssues(t, srv.store.db, scenario, "duplication"); got != 1 {
+		t.Fatalf("resolved duplication issues = %d, want 1", got)
+	}
+	if got := countOpenIssues(t, srv.store.db, scenario, "duplication"); got != 1 {
+		t.Fatalf("open normalized duplication issues = %d, want 1", got)
+	}
+}

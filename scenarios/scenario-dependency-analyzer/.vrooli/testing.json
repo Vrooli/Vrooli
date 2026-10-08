@@ -1,21 +1,220 @@
 {
-  "$schema": "../../../../scripts/scenarios/testing/schemas/testing.schema.json",
+  "$schema": "../../test-genie/schemas/testing.schema.json",
   "_metadata": {
     "description": "Testing configuration for scenario-dependency-analyzer",
-    "generated_from": "test/phases/test-unit.sh",
     "last_updated": "2025-11-06T23:58:52-05:00"
   },
   "version": "1.0.0",
   "unit": {
-    "languages": {
-      "go": {
-        "coverage": {
-          "error_threshold": 50
-        }
-      }
-    },
     "options": {
       "verbose": false
+    },
+    "policy_profile": {
+      "version": "2.0.0",
+      "template": {
+        "id": "react-vite",
+        "scenario_class": "react-vite"
+      },
+      "required_roles": [
+        {
+          "role": "api",
+          "policy_class": "go_service",
+          "match": {
+            "surface_id": "api",
+            "kind": "api",
+            "path": "api",
+            "language": "go"
+          }
+        },
+        {
+          "role": "cli",
+          "policy_class": "go_cli",
+          "match": {
+            "surface_id": "cli",
+            "kind": "cli",
+            "path": "cli",
+            "language": "go"
+          }
+        },
+        {
+          "role": "ui",
+          "policy_class": "react_vite_ui",
+          "match": {
+            "surface_id": "ui",
+            "path": "ui"
+          }
+        }
+      ],
+      "policy_classes": {
+        "go_service": {
+          "language": "go",
+          "framework": "go test",
+          "package_manager": "go",
+          "coverage": {
+            "minimum_percent": 75,
+            "mode": "total"
+          },
+          "test_utils": {
+            "required_roots": [
+              "api/internal/testutil"
+            ],
+            "production_import_ban": true
+          },
+          "projection": {
+            "required_files": [
+              "api/internal/testutil/no_prod_import_test.go"
+            ]
+          },
+          "runner_profile": "default",
+          "test_kind": "unit",
+          "adapter": {
+            "id": "go",
+            "version": "1.0.0"
+          },
+          "hermetic": {
+            "network": "allow",
+            "filesystem": "workspace",
+            "restore_environment": true
+          }
+        },
+        "go_cli": {
+          "language": "go",
+          "framework": "go test",
+          "package_manager": "go",
+          "coverage": {
+            "minimum_percent": 75,
+            "mode": "total"
+          },
+          "test_utils": {
+            "required_roots": [
+              "cli/internal/testutil"
+            ],
+            "production_import_ban": true
+          },
+          "projection": {
+            "required_files": [
+              "cli/app_test.go",
+              "cli/internal/testutil/no_prod_import_test.go"
+            ]
+          },
+          "runner_profile": "default",
+          "test_kind": "unit",
+          "adapter": {
+            "id": "go",
+            "version": "1.0.0"
+          },
+          "hermetic": {
+            "network": "allow",
+            "filesystem": "workspace",
+            "restore_environment": true
+          }
+        },
+        "react_vite_ui": {
+          "language": "typescript",
+          "framework": "vitest",
+          "package_manager": "pnpm",
+          "coverage": {
+            "minimum_percent": 85,
+            "mode": "both",
+            "provider": "v8",
+            "reporters": [
+              "text",
+              "json-summary",
+              "json"
+            ]
+          },
+          "test_utils": {
+            "required_roots": [
+              "ui/src/test-utils"
+            ],
+            "production_import_ban": true,
+            "canonical_render_helper": "ui/src/test-utils/renderWithProviders.tsx"
+          },
+          "projection": {
+            "required_files": [
+              "ui/vite.config.ts",
+              "ui/src/test-setup.ts",
+              "ui/src/test-utils/renderWithProviders.tsx"
+            ],
+            "required_scripts": [
+              "test",
+              "test:coverage"
+            ],
+            "settings": {
+              "environment": "jsdom",
+              "setup_files": [
+                "./src/test-setup.ts"
+              ],
+              "coverage_provider": "v8"
+            }
+          },
+          "runner_profile": "default",
+          "test_kind": "unit",
+          "adapter": {
+            "id": "react-vitest",
+            "version": "1.0.0"
+          },
+          "hermetic": {
+            "network": "allow",
+            "filesystem": "workspace",
+            "restore_environment": true
+          }
+        }
+      },
+      "customization": {
+        "mode": "monotonic",
+        "waivers": [
+          {
+            "finding": "UNIT_POLICY_PROJECTION_DRIFT",
+            "reason": "The inherited 85 percent UI coverage floor is not yet projected into the scenario Vite config; retain the measured coverage report while the broader UI test debt is closed.",
+            "owner": "scenario-dependency-analyzer maintainers",
+            "expires_at": "2026-09-30",
+            "evidence": "ui coverage run 2026-08-23: lines 69.63%, functions 61.80%, branches 53.03%, statements 68.68%",
+            "revisit": "Raise the measured UI coverage to the inherited 85 percent floor and restore native thresholds."
+          }
+        ]
+      },
+      "runner_profiles": {
+        "default": {
+          "cpu_weight": 1,
+          "memory_bytes": 536870912,
+          "max_workers": 1,
+          "timeout_seconds": 600,
+          "no_output_timeout_seconds": 60,
+          "sharding": "none",
+          "network": "allow",
+          "filesystem": "workspace"
+        }
+      }
+    }
+  },
+  "lint": {
+    "handlers": {
+      "go_module": {
+        "enabled": true,
+        "strict": true
+      },
+      "node_package": {
+        "enabled": true,
+        "strict": true
+      }
+    }
+  },
+  "phases": {
+    "tidiness": {
+      "budgets": {
+        "ratchet": true,
+        "duplication_line_debt": 4581,
+        "baseline_duplication_line_debt": 4582,
+        "long_files": 6,
+        "baseline_long_files": 7,
+        "complexity_over_threshold": 122,
+        "baseline_complexity_over_threshold": 123,
+        "coupling_over_threshold": 1,
+        "baseline_coupling_over_threshold": 2,
+        "reserve": 1,
+        "reserve_reason": "Measured fleet seed reserves one observed unit while successor cleanup earns each stricter budget."
+      }
     }
   }
 }

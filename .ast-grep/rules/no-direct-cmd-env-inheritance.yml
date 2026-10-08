@@ -1,0 +1,17 @@
+id: no-direct-cmd-env-inheritance
+language: Go
+severity: warning
+message: >-
+  Derive child process environments through envkit.WithOverlay or an explicit
+  boundary helper; do not assign os.Environ directly at an exec boundary.
+note: >-
+  The environment boundary owns platform case-folding, relative identity
+  filtering, delegated credentials, and the Windows floor set. Intentional
+  host-tool environments must still make their relationship explicit.
+files:
+  - "**/*.go"
+  - "!**/*_test.go"
+rule:
+  any:
+    - pattern: $CMD.Env = os.Environ()
+    - pattern: $CMD.Env = append(os.Environ(), $$$OVERLAY)

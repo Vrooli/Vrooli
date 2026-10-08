@@ -1,0 +1,44 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "overlays.context-menu",
+    "name": "ContextMenu",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "overlays",
+    "description": "The pointer- or keyboard-invoked menu positioned around an interaction point, with viewport collision handling, nested actions, and awareness of the current selection.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "react-component-library:Portal",
+        "reason": "The menu is rendered in the shared overlay portal."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "layered-dismissal",
+    "contrast-floor",
+    "dark-parity",
+    "reduced-motion",
+    "transition-class-conformance",
+    "no-layout-animation",
+    "responsive-transformation",
+    "pointer-independence"
+  ],
+  "rationale": "The keyboard path is the part usually missed: a context menu reachable only by right-click is inaccessible, so the context-menu key and a documented shortcut are part of the contract."
+}

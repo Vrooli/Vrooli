@@ -1,13 +1,20 @@
 package main
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/smtp"
 	"strings"
 	"testing"
+	"time"
+
+	"landing-page-business-suite-api/internal/experimentation"
+	domainmetrics "landing-page-business-suite-api/internal/metrics"
 )
 
 // ============================================================================
@@ -54,6 +61,7 @@ func TestSMTPConfig_IsConfigured_AllSet(t *testing.T) {
 		Host:     "smtp.example.com",
 		Username: "user",
 		Password: "pass",
+		From:     "noreply@example.com",
 	}
 	if !config.IsConfigured() {
 		t.Error("expected IsConfigured to return true when all fields set")
@@ -123,12 +131,18 @@ func TestSendGridConfig_IsConfigured_MissingFromEmail(t *testing.T) {
 // ============================================================================
 
 func TestSendViaSendGrid_Success(t *testing.T) {
+	var receivedBody []byte
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Errorf("expected POST, got %s", r.Method)
 		}
-		if !strings.Contains(r.Header.Get("Authorization"), "Bearer") {
+		if r.Header.Get("Authorization") != "Bearer SG.test" {
 			t.Error("expected Authorization header")
+		}
+		var err error
+		receivedBody, err = io.ReadAll(r.Body)
+		if err != nil {
+			t.Errorf("read request body: %v", err)
 		}
 		w.WriteHeader(http.StatusAccepted)
 	}))
@@ -140,14 +154,101 @@ func TestSendViaSendGrid_Success(t *testing.T) {
 			FromEmail: "from@example.com",
 			FromName:  "Test",
 		},
-		HTTPClient: server.Client(),
+		SendGridEndpoint: server.URL,
+		HTTPClient:       server.Client(),
 	})
 
-	// Override the URL by creating a custom handler
-	// Note: In production, sendgrid URL is hardcoded, so we test via the full method
-	// For testing, we can verify the service was configured
-	if !svc.IsSendGridConfigured() {
-		t.Error("expected SendGrid to be configured")
+	if err := svc.sendViaSendGrid("to@example.com", "subject", "text", "html"); err != nil {
+		t.Fatalf("sendViaSendGrid failed: %v", err)
+	}
+	if !strings.Contains(string(receivedBody), `"email":"to@example.com"`) {
+		t.Errorf("request body did not contain recipient: %s", receivedBody)
+	}
+	if !strings.Contains(string(receivedBody), `"subject":"subject"`) {
+		t.Errorf("request body did not contain subject: %s", receivedBody)
+	}
+}
+
+func TestSendViaSendGrid_SignInDisablesTrackingAndReturnsMessageID(t *testing.T) {
+	var payload map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode payload: %v", err)
+		}
+		w.Header().Set("X-Message-Id", "sg-message-123")
+		w.WriteHeader(http.StatusAccepted)
+	}))
+	defer server.Close()
+	svc := NewEmailServiceWithOptions(EmailServiceOptions{
+		SendGridConfig:   &SendGridConfig{APIKey: "SG.test", FromEmail: "from@example.com", FromName: "Test"},
+		SendGridEndpoint: server.URL,
+		HTTPClient:       server.Client(),
+	})
+	delivery, err := svc.sendViaSendGridWithMetadata(context.Background(), "to@example.com", "subject", "text", "html", "request-123")
+	if err != nil {
+		t.Fatalf("sendViaSendGridWithMetadata failed: %v", err)
+	}
+	if delivery.Provider != "sendgrid" || delivery.ProviderMessageID != "sg-message-123" {
+		t.Fatalf("delivery = %+v", delivery)
+	}
+	if got := payload["categories"].([]any); len(got) != 1 || got[0] != "lpbs-auth" {
+		t.Fatalf("categories = %#v", payload["categories"])
+	}
+	tracking := payload["tracking_settings"].(map[string]any)
+	for _, name := range []string{"click_tracking", "open_tracking", "subscription_tracking", "ganalytics"} {
+		settings := tracking[name].(map[string]any)
+		if enabled, ok := settings["enable"]; ok && enabled != false {
+			t.Errorf("%s.enable = %#v", name, enabled)
+		}
+	}
+	if tracking["click_tracking"].(map[string]any)["enable_text"] != false {
+		t.Errorf("click tracking text was not disabled")
+	}
+	args := payload["custom_args"].(map[string]any)
+	if args["lpbs_sign_in_request_id"] != "request-123" {
+		t.Errorf("custom args = %#v", args)
+	}
+}
+
+func TestSendViaSendGrid_UsesContextTimeout(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-time.After(200 * time.Millisecond):
+			w.WriteHeader(http.StatusAccepted)
+		case <-r.Context().Done():
+		}
+	}))
+	defer server.Close()
+	svc := NewEmailServiceWithOptions(EmailServiceOptions{
+		SendGridConfig:   &SendGridConfig{APIKey: "SG.test", FromEmail: "from@example.com"},
+		SendGridEndpoint: server.URL,
+		HTTPClient:       &http.Client{Timeout: 20 * time.Millisecond},
+	})
+	started := time.Now()
+	if err := svc.sendViaSendGrid("to@example.com", "subject", "text", "html"); err == nil {
+		t.Fatal("expected timeout")
+	} else if time.Since(started) > 150*time.Millisecond {
+		t.Fatalf("timeout was not bounded: %v", time.Since(started))
+	}
+}
+
+func TestSendSMTPMultipartAddsDateMessageIDAndBothParts(t *testing.T) {
+	var message []byte
+	svc := NewEmailServiceWithOptions(EmailServiceOptions{
+		SMTPSender: func(_ string, _ smtp.Auth, _ string, _ []string, msg []byte) error {
+			message = append([]byte(nil), msg...)
+			return nil
+		},
+	})
+	config := &SMTPConfig{Host: "smtp.example.com", Port: 587, Username: "user@example.com", Password: "secret", From: "noreply@example.com"}
+	if err := svc.sendSMTPMultipart(config, "to@example.com", "Sign in", "plain body", "<p>html body</p>"); err != nil {
+		t.Fatalf("sendSMTPMultipart failed: %v", err)
+	}
+	text := string(message)
+	for _, header := range []string{"Date: ", "Message-ID: <", "Content-Type: multipart/alternative", "plain body", "html body"} {
+		if !strings.Contains(text, header) {
+			t.Errorf("message missing %q: %s", header, text)
+		}
 	}
 }
 
@@ -177,12 +278,12 @@ func TestSendMagicLink_SendGridConfigured(t *testing.T) {
 			FromEmail: "from@example.com",
 			FromName:  "Test App",
 		},
-		HTTPClient: server.Client(),
+		SendGridEndpoint: server.URL,
+		HTTPClient:       server.Client(),
 	})
 
-	// Verify it's configured correctly
-	if !svc.IsSendGridConfigured() {
-		t.Error("expected SendGrid to be configured")
+	if err := svc.SendMagicLink("to@example.com", "https://example.com/magic?token=synthetic", "Test App"); err != nil {
+		t.Fatalf("SendMagicLink failed: %v", err)
 	}
 }
 
@@ -191,10 +292,12 @@ func TestSendMagicLink_DevModeFallback(t *testing.T) {
 		SendGridConfig: nil, // Not configured
 	})
 
-	// Should succeed in dev mode (logs the link)
+	// An unconfigured provider is an explicit delivery failure. Development
+	// composition uses NewEmailService, which supplies a non-delivery seam for
+	// local tests without logging the bearer URL.
 	err := svc.SendMagicLink("to@example.com", "http://example.com/magic", "TestApp")
-	if err != nil {
-		t.Errorf("expected no error in dev mode, got: %v", err)
+	if err == nil || !strings.Contains(err.Error(), "not configured") {
+		t.Errorf("expected an explicit missing-provider error, got: %v", err)
 	}
 }
 
@@ -205,8 +308,8 @@ func TestSendMagicLink_DefaultAppName(t *testing.T) {
 
 	// Empty app name should default to "App"
 	err := svc.SendMagicLink("to@example.com", "http://example.com/magic", "")
-	if err != nil {
-		t.Errorf("expected no error, got: %v", err)
+	if err == nil || !strings.Contains(err.Error(), "not configured") {
+		t.Errorf("expected an explicit missing-provider error, got: %v", err)
 	}
 }
 
@@ -365,18 +468,20 @@ func TestExtractSMTPConfig_AllFields(t *testing.T) {
 	host := "smtp.test.com"
 	port := 465
 	username := "testuser"
-	password := "testpass"
+	smtpPassphrase := "testpass"
 	from := "custom@example.com"
 
-	branding := &SiteBranding{
+	branding := &experimentation.SiteBranding{
 		SMTPHost:     &host,
 		SMTPPort:     &port,
 		SMTPUsername: &username,
-		SMTPPassword: &password,
+		SMTPPassword: &smtpPassphrase,
 		SMTPFrom:     &from,
 	}
 
-	svc := NewEmailServiceWithOptions(EmailServiceOptions{})
+	svc := NewEmailServiceWithOptions(EmailServiceOptions{
+		SMTPPasswordResolver: func() (string, error) { return smtpPassphrase, nil },
+	})
 	config := svc.extractSMTPConfig(branding)
 
 	if config.Host != host {
@@ -388,16 +493,33 @@ func TestExtractSMTPConfig_AllFields(t *testing.T) {
 	if config.Username != username {
 		t.Errorf("expected username '%s', got '%s'", username, config.Username)
 	}
-	if config.Password != password {
-		t.Errorf("expected password '%s', got '%s'", password, config.Password)
+	if config.Password != smtpPassphrase {
+		t.Errorf("expected password '%s', got '%s'", smtpPassphrase, config.Password)
 	}
 	if config.From != from {
 		t.Errorf("expected from '%s', got '%s'", from, config.From)
 	}
 }
 
+func TestExtractSMTPConfigDoesNotReadBrandingPassword(t *testing.T) {
+	host, username, legacyPassword := "smtp.test.com", "testuser", "legacy-file-password"
+	branding := &experimentation.SiteBranding{
+		SMTPHost:     &host,
+		SMTPUsername: &username,
+		SMTPPassword: &legacyPassword,
+	}
+	svc := NewEmailServiceWithOptions(EmailServiceOptions{
+		SMTPPasswordResolver: func() (string, error) { return "", errors.New("authority unavailable") },
+	})
+
+	config := svc.extractSMTPConfig(branding)
+	if config.Password != "" {
+		t.Fatalf("password = %q, want empty when authority cannot resolve it", config.Password)
+	}
+}
+
 func TestExtractSMTPConfig_DefaultPort(t *testing.T) {
-	branding := &SiteBranding{}
+	branding := &experimentation.SiteBranding{}
 
 	svc := NewEmailServiceWithOptions(EmailServiceOptions{})
 	config := svc.extractSMTPConfig(branding)
@@ -407,17 +529,17 @@ func TestExtractSMTPConfig_DefaultPort(t *testing.T) {
 	}
 }
 
-func TestExtractSMTPConfig_FromDefaultsToUsername(t *testing.T) {
+func TestExtractSMTPConfig_FromRequiresExplicitIdentity(t *testing.T) {
 	username := "testuser@example.com"
-	branding := &SiteBranding{
+	branding := &experimentation.SiteBranding{
 		SMTPUsername: &username,
 	}
 
 	svc := NewEmailServiceWithOptions(EmailServiceOptions{})
 	config := svc.extractSMTPConfig(branding)
 
-	if config.From != username {
-		t.Errorf("expected from to default to username '%s', got '%s'", username, config.From)
+	if config.From != "" {
+		t.Errorf("expected from to remain empty without explicit sender identity, got '%s'", config.From)
 	}
 }
 
@@ -463,17 +585,16 @@ func TestBuildMagicLinkText_ContainsLink(t *testing.T) {
 func TestSendFeedbackNotification_NotConfigured(t *testing.T) {
 	svc := NewEmailServiceWithOptions(EmailServiceOptions{})
 
-	branding := &SiteBranding{} // SMTP not configured
-	feedback := &FeedbackRequest{
+	branding := &experimentation.SiteBranding{} // SMTP not configured
+	feedback := &domainmetrics.FeedbackRequest{
 		Type:    "bug",
 		Subject: "Test",
 		Message: "Test message",
 	}
 
-	// Should not return error when SMTP not configured (just skips)
 	err := svc.SendFeedbackNotification(branding, feedback)
-	if err != nil {
-		t.Errorf("expected no error when SMTP not configured, got: %v", err)
+	if err == nil || !strings.Contains(err.Error(), "not configured") {
+		t.Errorf("expected explicit SMTP configuration error, got: %v", err)
 	}
 }
 
@@ -481,29 +602,31 @@ func TestSendFeedbackNotification_NoSupportEmail(t *testing.T) {
 	host := "smtp.test.com"
 	username := "user"
 	password := "pass"
+	from := "noreply@example.com"
 
 	svc := NewEmailServiceWithOptions(EmailServiceOptions{
 		SMTPSender: func(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
 			return nil
 		},
+		SMTPPasswordResolver: func() (string, error) { return password, nil },
 	})
 
-	branding := &SiteBranding{
+	branding := &experimentation.SiteBranding{
 		SMTPHost:     &host,
 		SMTPUsername: &username,
 		SMTPPassword: &password,
+		SMTPFrom:     &from,
 		SupportEmail: nil, // No support email
 	}
 
-	feedback := &FeedbackRequest{
+	feedback := &domainmetrics.FeedbackRequest{
 		Type:    "bug",
 		Subject: "Test",
 	}
 
-	// Should return nil when no support email
 	err := svc.SendFeedbackNotification(branding, feedback)
-	if err != nil {
-		t.Errorf("expected no error when support email not set, got: %v", err)
+	if err == nil || !strings.Contains(err.Error(), "support email") {
+		t.Errorf("expected explicit support-email error, got: %v", err)
 	}
 }
 
@@ -513,6 +636,7 @@ func TestSendFeedbackNotification_Success(t *testing.T) {
 	host := "smtp.test.com"
 	username := "user"
 	password := "pass"
+	from := "noreply@example.com"
 	supportEmail := "support@example.com"
 
 	svc := NewEmailServiceWithOptions(EmailServiceOptions{
@@ -520,16 +644,18 @@ func TestSendFeedbackNotification_Success(t *testing.T) {
 			capturedTo = to
 			return nil
 		},
+		SMTPPasswordResolver: func() (string, error) { return password, nil },
 	})
 
-	branding := &SiteBranding{
+	branding := &experimentation.SiteBranding{
 		SMTPHost:     &host,
 		SMTPUsername: &username,
 		SMTPPassword: &password,
+		SMTPFrom:     &from,
 		SupportEmail: &supportEmail,
 	}
 
-	feedback := &FeedbackRequest{
+	feedback := &domainmetrics.FeedbackRequest{
 		Type:    "bug",
 		Subject: "Bug found",
 		Message: "Something is broken",
@@ -552,6 +678,7 @@ func TestSendFeedbackNotification_WithOrderID(t *testing.T) {
 	host := "smtp.test.com"
 	username := "user"
 	password := "pass"
+	from := "noreply@example.com"
 	supportEmail := "support@example.com"
 	orderID := "order_12345"
 
@@ -560,16 +687,18 @@ func TestSendFeedbackNotification_WithOrderID(t *testing.T) {
 			capturedMsg = msg
 			return nil
 		},
+		SMTPPasswordResolver: func() (string, error) { return password, nil },
 	})
 
-	branding := &SiteBranding{
+	branding := &experimentation.SiteBranding{
 		SMTPHost:     &host,
 		SMTPUsername: &username,
 		SMTPPassword: &password,
+		SMTPFrom:     &from,
 		SupportEmail: &supportEmail,
 	}
 
-	feedback := &FeedbackRequest{
+	feedback := &domainmetrics.FeedbackRequest{
 		Type:    "refund",
 		Subject: "Refund request",
 		Message: "I want a refund",
@@ -611,8 +740,8 @@ type testBrandingHelper struct {
 	support  string
 }
 
-func (h *testBrandingHelper) toBranding() *SiteBranding {
-	b := &SiteBranding{}
+func (h *testBrandingHelper) toBranding() *experimentation.SiteBranding {
+	b := &experimentation.SiteBranding{}
 	if h.host != "" {
 		b.SMTPHost = &h.host
 	}
@@ -674,12 +803,14 @@ func TestExtractSMTPConfig_PartialConfiguration(t *testing.T) {
 				Port:     587,
 				Username: "user@example.com",
 				Password: "secret",
-				From:     "user@example.com", // Defaults to username
+				From:     "",
 			},
 		},
 	}
 
-	svc := NewEmailServiceWithOptions(EmailServiceOptions{})
+	svc := NewEmailServiceWithOptions(EmailServiceOptions{
+		SMTPPasswordResolver: func() (string, error) { return "secret", nil },
+	})
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -713,12 +844,66 @@ func TestSendViaSendGrid_APIError(t *testing.T) {
 			FromEmail: "from@example.com",
 			FromName:  "Test",
 		},
-		HTTPClient: server.Client(),
+		SendGridEndpoint: server.URL,
+		HTTPClient:       server.Client(),
 	})
 
-	// We can't easily test the actual sendViaSendGrid with a custom URL
-	// because the URL is hardcoded. But we can verify the service is configured.
-	if !svc.IsSendGridConfigured() {
-		t.Error("expected SendGrid to be configured")
+	if err := svc.sendViaSendGrid("to@example.com", "subject", "text", "html"); err == nil {
+		t.Fatal("expected SendGrid API error")
+	} else if !strings.Contains(err.Error(), "Invalid email") {
+		t.Fatalf("expected provider error detail, got: %v", err)
+	}
+}
+
+func TestMailgunAPI_VerifiesAndSendsWithAPIKey(t *testing.T) {
+	t.Setenv("EMAIL_FROM_ADDRESS", "noreply@vrooli.com")
+	var receivedForm map[string][]string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if username, password, ok := r.BasicAuth(); !ok || username != "api" || password != "key-test" {
+			t.Fatalf("unexpected Mailgun credentials: username=%q ok=%v", username, ok)
+		}
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/v3/vrooli.com":
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"name":"vrooli.com"}`))
+		case r.Method == http.MethodPost && r.URL.Path == "/v3/vrooli.com/messages":
+			if err := r.ParseForm(); err != nil {
+				t.Fatalf("parse Mailgun form: %v", err)
+			}
+			receivedForm = r.PostForm
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"id":"<mailgun-message-123>"}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	svc := NewEmailServiceWithOptions(EmailServiceOptions{
+		MailgunEndpoint: server.URL,
+		HTTPClient:      server.Client(),
+		MailgunKeyResolver: func() string {
+			return "key-test"
+		},
+	})
+	status, detail := svc.verifyMailgunAPI(context.Background())
+	if status != http.StatusOK || !strings.Contains(detail, "authenticates") {
+		t.Fatalf("verifyMailgunAPI = (%d, %q)", status, detail)
+	}
+	delivery, err := svc.sendViaMailgun(context.Background(), "user@example.com", "noreply@vrooli.com", "Sign in", "plain body", "<p>html body</p>")
+	if err != nil {
+		t.Fatalf("sendViaMailgun failed: %v", err)
+	}
+	if delivery.Provider != "mailgun" || delivery.ProviderMessageID != "<mailgun-message-123>" {
+		t.Fatalf("delivery = %+v", delivery)
+	}
+	for field, want := range map[string]string{"from": "noreply@vrooli.com", "to": "user@example.com", "subject": "Sign in", "text": "plain body", "html": "<p>html body</p>"} {
+		got := ""
+		if values := receivedForm[field]; len(values) > 0 {
+			got = values[0]
+		}
+		if got != want {
+			t.Errorf("Mailgun form %s = %q, want %q", field, got, want)
+		}
 	}
 }

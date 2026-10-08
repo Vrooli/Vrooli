@@ -1,13 +1,15 @@
 import { describe, it, expect } from 'vitest';
+import { fromJson } from '@bufbuild/protobuf';
+import { TimelineEntrySchema } from '@vrooli/proto-types/browser-automation-studio/v1/timeline/entry_pb';
+import type { TimelineEntry as RecordingTimelineEntry } from '../api/schemas';
 import {
-  mergeActionsWithAISteps,
-  recordedActionToTimelineItem,
-  useTimelineEntryToTimelineItem,
+  recordingEntryToRecordedAction,
+  mergeTimelineItemsWithAISteps,
+  timelineEntryToTimelineItem,
+  recordingEntryToTimelineItem,
   workflowNodesToTimelineItems,
   updateTimelineItemStatus,
-  type UseTimelineEntry,
 } from './timeline-unified';
-import type { RecordedAction } from './types';
 
 /**
  * Test suite for timeline unification and AI reconciliation utilities.
@@ -17,19 +19,67 @@ import type { RecordedAction } from './types';
  * both what happened AND why the AI did it.
  */
 
-// Helper to create test recorded actions
-function createRecordedAction(
-  overrides: Partial<RecordedAction> & { id: string; actionType: RecordedAction['actionType'] }
-): RecordedAction {
-  return {
-    sessionId: 'test-session',
-    sequenceNum: 1,
-    timestamp: new Date().toISOString(),
-    confidence: 1.0,
-    url: 'https://example.com',
-    ...overrides,
-  };
-}
+describe('recordingEntryToRecordedAction', () => {
+  it('projects the journal entry and its logical page identity at the legacy API boundary', () => {
+    const entry: RecordingTimelineEntry = {
+      type: 'action', pageId: 'logical-popup',
+      entry: fromJson(TimelineEntrySchema, {
+        id: 'popup-1', sequence_num: 2, timestamp: '2026-09-24T00:00:01Z',
+        action: { type: 'ACTION_TYPE_CLICK', click: { selector: 'button' } },
+        telemetry: { url: 'https://example.test' },
+        context: { sessionId: 'session' },
+      }, { jsonOptions: { useProtoNames: true } }),
+    };
+
+    expect(recordingEntryToRecordedAction(entry)).toMatchObject({
+      id: 'popup-1', sequenceNum: 2, pageId: 'logical-popup',
+      actionType: 'click', selector: { primary: 'button' }, url: 'https://example.test',
+    });
+  });
+
+  it('does not turn page lifecycle entries into workflow actions', () => {
+    const entry: RecordingTimelineEntry = {
+      type: 'page_event', pageId: 'page',
+      pageEvent: { id: 'event-1', type: 'page_created', pageId: 'page', timestamp: '2026-09-24T00:00:01Z' },
+    };
+    expect(recordingEntryToRecordedAction(entry)).toBeUndefined();
+  });
+});
+
+describe('timelineEntryToTimelineItem', () => {
+  it('projects the generated proto entry into the recording view with timing and failure details', () => {
+    const entry = fromJson(
+      TimelineEntrySchema,
+      {
+        id: 'entry-9',
+        sequence_num: 9,
+        step_index: 4,
+        timestamp: '2026-10-01T04:00:00Z',
+        action: {
+          type: 'ACTION_TYPE_INPUT',
+          input: { selector: '#email', value: 'person@example.test' },
+        },
+        telemetry: { url: 'https://example.test/form' },
+        context: { success: false, error: 'input timed out' },
+      },
+      { jsonOptions: { useProtoNames: true, ignoreUnknownFields: false } },
+    );
+
+    const item = timelineEntryToTimelineItem(entry);
+
+    expect(item).toMatchObject({
+      id: 'entry-9',
+      sequenceNum: 9,
+      actionType: 'input',
+      selector: '#email',
+      url: 'https://example.test/form',
+      success: false,
+      error: 'input timed out',
+      payload: { text: 'person@example.test' },
+    });
+    expect(item.timestamp.toISOString()).toBe('2026-10-01T04:00:00.000Z');
+  });
+});
 
 // Helper to create test AI steps
 interface AIStepForTest {
@@ -77,414 +127,51 @@ function createAIStep(overrides: Partial<AIStepForTest> & { id: string; type: st
   };
 }
 
-describe('mergeActionsWithAISteps', () => {
-  describe('basic functionality', () => {
-    it('returns timeline items without AI metadata when no AI steps provided', () => {
-      const actions: RecordedAction[] = [
-        createRecordedAction({ id: '1', actionType: 'click' }),
-        createRecordedAction({ id: '2', actionType: 'input' }),
-      ];
+describe('mergeTimelineItemsWithAISteps', () => {
+  const makeItem = (id: string, actionType: string, timestamp: Date, entryType: 'action' | 'page_event' = 'action'): TimelineItem => ({
+    id, sequenceNum: 1, actionType, timestamp, mode: 'recording', entryType,
+  });
 
-      const result = mergeActionsWithAISteps(actions, []);
-
-      expect(result).toHaveLength(2);
-      expect(result[0].isAI).toBeFalsy();
-      expect(result[0].aiMetadata).toBeUndefined();
-      expect(result[1].isAI).toBeFalsy();
-      expect(result[1].aiMetadata).toBeUndefined();
+  it('attaches matching AI metadata without changing the journal projection', () => {
+    const item = makeItem('entry-1', 'input', new Date('2024-01-01T12:00:00Z'));
+    const aiStep = createAIStep({
+      id: 'ai-1', type: 'type', reasoning: 'Enter the requested value', goalAchieved: true,
+      timestamp: new Date('2024-01-01T12:00:00.500Z'),
     });
 
-    it('handles empty actions array', () => {
-      const result = mergeActionsWithAISteps([], []);
-      expect(result).toEqual([]);
+    const result = mergeTimelineItemsWithAISteps([item], [aiStep]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ id: 'entry-1', actionType: 'input', isAI: true });
+    expect(result[0]?.aiMetadata).toEqual({
+      reasoning: 'Enter the requested value', tokensUsed: aiStep.tokensUsed, goalAchieved: true,
     });
   });
 
-  describe('timestamp-based matching', () => {
-    it('matches AI steps to actions by timestamp proximity within 5s window', () => {
-      const baseTime = new Date('2024-01-01T12:00:00Z');
-      const actions: RecordedAction[] = [
-        createRecordedAction({
-          id: '1',
-          actionType: 'click',
-          timestamp: baseTime.toISOString(),
-        }),
-      ];
-      const aiSteps: AIStepForTest[] = [
-        createAIStep({
-          id: 'ai-1',
-          type: 'click',
-          reasoning: 'Clicking the submit button',
-          timestamp: new Date(baseTime.getTime() + 1000), // 1 second later
-        }),
-      ];
+  it('preserves unmatched actions and page events in their original order', () => {
+    const action = makeItem('entry-1', 'click', new Date('2024-01-01T12:00:00Z'));
+    const pageEvent = makeItem('event-1', 'page_created', new Date('2024-01-01T12:00:01Z'), 'page_event');
+    const aiStep = createAIStep({ id: 'ai-1', type: 'navigate', timestamp: new Date('2024-01-01T12:00:01Z') });
 
-      const result = mergeActionsWithAISteps(actions, aiSteps);
+    const result = mergeTimelineItemsWithAISteps([action, pageEvent], [aiStep]);
 
-      expect(result).toHaveLength(1);
-      expect(result[0].isAI).toBe(true);
-      expect(result[0].aiMetadata?.reasoning).toBe('Clicking the submit button');
-    });
-
-    it('does not match when outside 5-second window', () => {
-      const baseTime = new Date('2024-01-01T12:00:00Z');
-      const actions: RecordedAction[] = [
-        createRecordedAction({
-          id: '1',
-          actionType: 'click',
-          timestamp: baseTime.toISOString(),
-        }),
-      ];
-      const aiSteps: AIStepForTest[] = [
-        createAIStep({
-          id: 'ai-1',
-          type: 'click',
-          reasoning: 'Too far away',
-          timestamp: new Date(baseTime.getTime() + 6000), // 6 seconds later (outside window)
-        }),
-      ];
-
-      const result = mergeActionsWithAISteps(actions, aiSteps);
-
-      expect(result).toHaveLength(1);
-      expect(result[0].isAI).toBeFalsy();
-      expect(result[0].aiMetadata).toBeUndefined();
-    });
-
-    it('selects closest match when multiple candidates exist', () => {
-      const baseTime = new Date('2024-01-01T12:00:00Z');
-      const actions: RecordedAction[] = [
-        createRecordedAction({
-          id: '1',
-          actionType: 'click',
-          timestamp: baseTime.toISOString(),
-        }),
-      ];
-      const aiSteps: AIStepForTest[] = [
-        createAIStep({
-          id: 'ai-1',
-          type: 'click',
-          reasoning: 'Farther match',
-          timestamp: new Date(baseTime.getTime() + 3000), // 3 seconds
-        }),
-        createAIStep({
-          id: 'ai-2',
-          type: 'click',
-          reasoning: 'Closest match',
-          timestamp: new Date(baseTime.getTime() + 500), // 0.5 seconds
-        }),
-      ];
-
-      const result = mergeActionsWithAISteps(actions, aiSteps);
-
-      expect(result).toHaveLength(1);
-      expect(result[0].aiMetadata?.reasoning).toBe('Closest match');
-    });
-  });
-
-  describe('action type matching', () => {
-    it('only matches when action types match', () => {
-      const baseTime = new Date('2024-01-01T12:00:00Z');
-      const actions: RecordedAction[] = [
-        createRecordedAction({
-          id: '1',
-          actionType: 'click',
-          timestamp: baseTime.toISOString(),
-        }),
-      ];
-      const aiSteps: AIStepForTest[] = [
-        createAIStep({
-          id: 'ai-1',
-          type: 'input', // Different type
-          reasoning: 'Wrong type',
-          timestamp: new Date(baseTime.getTime() + 500),
-        }),
-      ];
-
-      const result = mergeActionsWithAISteps(actions, aiSteps);
-
-      expect(result).toHaveLength(1);
-      expect(result[0].isAI).toBeFalsy();
-    });
-
-    it('normalizes "type" AI action to "input" for matching', () => {
-      const baseTime = new Date('2024-01-01T12:00:00Z');
-      const actions: RecordedAction[] = [
-        createRecordedAction({
-          id: '1',
-          actionType: 'input',
-          timestamp: baseTime.toISOString(),
-        }),
-      ];
-      const aiSteps: AIStepForTest[] = [
-        createAIStep({
-          id: 'ai-1',
-          type: 'type', // AI uses "type" but recorder uses "input"
-          reasoning: 'Typing text',
-          timestamp: new Date(baseTime.getTime() + 500),
-        }),
-      ];
-
-      const result = mergeActionsWithAISteps(actions, aiSteps);
-
-      expect(result).toHaveLength(1);
-      expect(result[0].isAI).toBe(true);
-      expect(result[0].aiMetadata?.reasoning).toBe('Typing text');
-    });
-
-    it('normalizes "keypress" AI action to "keyboard" for matching', () => {
-      const baseTime = new Date('2024-01-01T12:00:00Z');
-      const actions: RecordedAction[] = [
-        createRecordedAction({
-          id: '1',
-          actionType: 'keyboard',
-          timestamp: baseTime.toISOString(),
-        }),
-      ];
-      const aiSteps: AIStepForTest[] = [
-        createAIStep({
-          id: 'ai-1',
-          type: 'keypress', // AI uses "keypress" but recorder uses "keyboard"
-          reasoning: 'Pressing Enter',
-          timestamp: new Date(baseTime.getTime() + 500),
-        }),
-      ];
-
-      const result = mergeActionsWithAISteps(actions, aiSteps);
-
-      expect(result).toHaveLength(1);
-      expect(result[0].isAI).toBe(true);
-    });
-  });
-
-  describe('consumption behavior (preventing duplicates)', () => {
-    it('consumes matched AI steps to prevent duplicate attribution', () => {
-      const baseTime = new Date('2024-01-01T12:00:00Z');
-      const actions: RecordedAction[] = [
-        createRecordedAction({
-          id: '1',
-          actionType: 'click',
-          timestamp: baseTime.toISOString(),
-        }),
-        createRecordedAction({
-          id: '2',
-          actionType: 'click',
-          timestamp: new Date(baseTime.getTime() + 1000).toISOString(),
-        }),
-      ];
-      // Single AI step should only match one action
-      const aiSteps: AIStepForTest[] = [
-        createAIStep({
-          id: 'ai-1',
-          type: 'click',
-          reasoning: 'Single AI reasoning',
-          timestamp: new Date(baseTime.getTime() + 500),
-        }),
-      ];
-
-      const result = mergeActionsWithAISteps(actions, aiSteps);
-
-      expect(result).toHaveLength(2);
-      // First action gets the AI match (closest)
-      expect(result[0].isAI).toBe(true);
-      expect(result[0].aiMetadata?.reasoning).toBe('Single AI reasoning');
-      // Second action should NOT get the same AI step
-      expect(result[1].isAI).toBeFalsy();
-    });
-
-    it('leaves unmatched actions without AI metadata', () => {
-      const baseTime = new Date('2024-01-01T12:00:00Z');
-      const actions: RecordedAction[] = [
-        createRecordedAction({
-          id: '1',
-          actionType: 'click',
-          timestamp: baseTime.toISOString(),
-        }),
-        createRecordedAction({
-          id: '2',
-          actionType: 'scroll', // No matching AI step for scroll
-          timestamp: new Date(baseTime.getTime() + 2000).toISOString(),
-        }),
-      ];
-      const aiSteps: AIStepForTest[] = [
-        createAIStep({
-          id: 'ai-1',
-          type: 'click',
-          reasoning: 'Click reasoning',
-          timestamp: new Date(baseTime.getTime() + 500),
-        }),
-      ];
-
-      const result = mergeActionsWithAISteps(actions, aiSteps);
-
-      expect(result).toHaveLength(2);
-      expect(result[0].isAI).toBe(true);
-      expect(result[1].isAI).toBeFalsy();
-    });
-  });
-
-  describe('AI metadata attachment', () => {
-    it('attaches AI reasoning to matching actions', () => {
-      const baseTime = new Date('2024-01-01T12:00:00Z');
-      const actions: RecordedAction[] = [
-        createRecordedAction({
-          id: '1',
-          actionType: 'click',
-          timestamp: baseTime.toISOString(),
-        }),
-      ];
-      const aiSteps: AIStepForTest[] = [
-        createAIStep({
-          id: 'ai-1',
-          type: 'click',
-          reasoning: 'Detailed reasoning about why this click was performed',
-          timestamp: new Date(baseTime.getTime() + 500),
-        }),
-      ];
-
-      const result = mergeActionsWithAISteps(actions, aiSteps);
-
-      expect(result[0].aiMetadata?.reasoning).toBe('Detailed reasoning about why this click was performed');
-    });
-
-    it('attaches token usage to matching actions', () => {
-      const baseTime = new Date('2024-01-01T12:00:00Z');
-      const actions: RecordedAction[] = [
-        createRecordedAction({
-          id: '1',
-          actionType: 'click',
-          timestamp: baseTime.toISOString(),
-        }),
-      ];
-      const aiSteps: AIStepForTest[] = [
-        createAIStep({
-          id: 'ai-1',
-          type: 'click',
-          reasoning: 'Test',
-          tokensUsed: {
-            promptTokens: 200,
-            completionTokens: 100,
-            totalTokens: 300,
-          },
-          timestamp: new Date(baseTime.getTime() + 500),
-        }),
-      ];
-
-      const result = mergeActionsWithAISteps(actions, aiSteps);
-
-      expect(result[0].aiMetadata?.tokensUsed).toEqual({
-        promptTokens: 200,
-        completionTokens: 100,
-        totalTokens: 300,
-      });
-    });
-
-    it('attaches goalAchieved status to matching actions', () => {
-      const baseTime = new Date('2024-01-01T12:00:00Z');
-      const actions: RecordedAction[] = [
-        createRecordedAction({
-          id: '1',
-          actionType: 'click',
-          timestamp: baseTime.toISOString(),
-        }),
-      ];
-      const aiSteps: AIStepForTest[] = [
-        createAIStep({
-          id: 'ai-1',
-          type: 'click',
-          reasoning: 'Final action',
-          goalAchieved: true,
-          timestamp: new Date(baseTime.getTime() + 500),
-        }),
-      ];
-
-      const result = mergeActionsWithAISteps(actions, aiSteps);
-
-      expect(result[0].aiMetadata?.goalAchieved).toBe(true);
-    });
+    expect(result).toEqual([action, pageEvent]);
   });
 });
 
-describe('recordedActionToTimelineItem', () => {
-  it('converts basic recorded action to timeline item', () => {
-    const action = createRecordedAction({
-      id: 'action-1',
-      actionType: 'click',
-      sequenceNum: 5,
-      timestamp: '2024-01-01T12:00:00Z',
-      durationMs: 150,
-      selector: { primary: 'button#submit', candidates: [] },
-      url: 'https://example.com/page',
-      pageId: 'page-1',
-      pageTitle: 'Example Page',
-    });
-
-    const result = recordedActionToTimelineItem(action);
-
-    expect(result.id).toBe('action-1');
-    expect(result.sequenceNum).toBe(5);
-    expect(result.timestamp).toEqual(new Date('2024-01-01T12:00:00Z'));
-    expect(result.durationMs).toBe(150);
-    expect(result.actionType).toBe('click');
-    expect(result.selector).toBe('button#submit');
-    expect(result.url).toBe('https://example.com/page');
-    expect(result.success).toBe(true);
-    expect(result.mode).toBe('recording');
-    expect(result.pageId).toBe('page-1');
-    expect(result.entryType).toBe('action');
-    expect(result.pageTitle).toBe('Example Page');
-  });
-
-  it('converts action without AI metadata', () => {
-    const action = createRecordedAction({ id: '1', actionType: 'click' });
-    const result = recordedActionToTimelineItem(action);
-
-    expect(result.isAI).toBeFalsy();
-    expect(result.aiMetadata).toBeUndefined();
-  });
-
-  it('converts action with AI metadata', () => {
-    const action = createRecordedAction({ id: '1', actionType: 'click' });
-    const aiMetadata = {
-      reasoning: 'AI reasoning',
-      tokensUsed: { promptTokens: 100, completionTokens: 50, totalTokens: 150 },
-      goalAchieved: false,
-    };
-
-    const result = recordedActionToTimelineItem(action, aiMetadata);
-
-    expect(result.isAI).toBe(true);
-    expect(result.aiMetadata).toEqual(aiMetadata);
-  });
-
-  it('handles action without selector', () => {
-    const action = createRecordedAction({ id: '1', actionType: 'navigate' });
-    const result = recordedActionToTimelineItem(action);
-
-    expect(result.selector).toBeUndefined();
-  });
-});
-
-describe('useTimelineEntryToTimelineItem', () => {
+describe('recordingEntryToTimelineItem', () => {
   it('converts action entry correctly', () => {
-    const entry: UseTimelineEntry = {
-      id: 'entry-1',
+    const entry: RecordingTimelineEntry = {
       type: 'action',
-      timestamp: '2024-01-01T12:00:00Z',
       pageId: 'page-1',
-      action: {
-        id: 'action-1',
-        actionType: 'click',
-        url: 'https://example.com',
-        sequenceNum: 1,
-        timestamp: '2024-01-01T12:00:00Z',
-        selector: { primary: 'button' },
-        confidence: 0.95,
-        pageTitle: 'Test Page',
-      },
+      entry: fromJson(TimelineEntrySchema, {
+        id: 'action-1', sequence_num: 1, timestamp: '2024-01-01T12:00:00Z',
+        action: { type: 'ACTION_TYPE_CLICK', click: { selector: 'button' }, metadata: { label: 'Test Page' } },
+        telemetry: { url: 'https://example.com' }, context: { session_id: 'session' },
+      }, { jsonOptions: { useProtoNames: true } }),
     };
 
-    const result = useTimelineEntryToTimelineItem(entry);
+    const result = recordingEntryToTimelineItem(entry);
 
     expect(result.id).toBe('action-1');
     expect(result.sequenceNum).toBe(1);
@@ -492,14 +179,12 @@ describe('useTimelineEntryToTimelineItem', () => {
     expect(result.selector).toBe('button');
     expect(result.mode).toBe('recording');
     expect(result.entryType).toBe('action');
-    expect(result.pageTitle).toBe('Test Page');
+    expect(result.url).toBe('https://example.com');
   });
 
   it('converts page_created event correctly', () => {
-    const entry: UseTimelineEntry = {
-      id: 'entry-1',
+    const entry: RecordingTimelineEntry = {
       type: 'page_event',
-      timestamp: '2024-01-01T12:00:00Z',
       pageId: 'page-2',
       pageEvent: {
         id: 'event-1',
@@ -511,9 +196,9 @@ describe('useTimelineEntryToTimelineItem', () => {
       },
     };
 
-    const result = useTimelineEntryToTimelineItem(entry);
+    const result = recordingEntryToTimelineItem(entry);
 
-    expect(result.id).toBe('entry-1');
+    expect(result.id).toBe('event-1');
     expect(result.actionType).toBe('page_created');
     expect(result.mode).toBe('recording');
     expect(result.entryType).toBe('page_event');
@@ -523,10 +208,8 @@ describe('useTimelineEntryToTimelineItem', () => {
   });
 
   it('converts page_navigated event correctly', () => {
-    const entry: UseTimelineEntry = {
-      id: 'entry-1',
+    const entry: RecordingTimelineEntry = {
       type: 'page_event',
-      timestamp: '2024-01-01T12:00:00Z',
       pageId: 'page-1',
       pageEvent: {
         id: 'event-1',
@@ -538,17 +221,15 @@ describe('useTimelineEntryToTimelineItem', () => {
       },
     };
 
-    const result = useTimelineEntryToTimelineItem(entry);
+    const result = recordingEntryToTimelineItem(entry);
 
     expect(result.actionType).toBe('page_navigated');
     expect(result.pageEventType).toBe('page_navigated');
   });
 
   it('converts page_closed event correctly', () => {
-    const entry: UseTimelineEntry = {
-      id: 'entry-1',
+    const entry: RecordingTimelineEntry = {
       type: 'page_event',
-      timestamp: '2024-01-01T12:00:00Z',
       pageId: 'page-1',
       pageEvent: {
         id: 'event-1',
@@ -558,22 +239,20 @@ describe('useTimelineEntryToTimelineItem', () => {
       },
     };
 
-    const result = useTimelineEntryToTimelineItem(entry);
+    const result = recordingEntryToTimelineItem(entry);
 
     expect(result.actionType).toBe('page_closed');
     expect(result.pageEventType).toBe('page_closed');
   });
 
-  it('handles malformed entry gracefully', () => {
-    const entry: UseTimelineEntry = {
-      id: 'entry-1',
+  it('handles a proto entry without an action', () => {
+    const entry: RecordingTimelineEntry = {
       type: 'action',
-      timestamp: '2024-01-01T12:00:00Z',
       pageId: 'page-1',
-      // Missing action property
+      entry: fromJson(TimelineEntrySchema, { id: 'entry-1', sequence_num: 1 }),
     };
 
-    const result = useTimelineEntryToTimelineItem(entry);
+    const result = recordingEntryToTimelineItem(entry);
 
     expect(result.id).toBe('entry-1');
     expect(result.actionType).toBe('unknown');
@@ -586,13 +265,11 @@ describe('workflowNodesToTimelineItems', () => {
     const nodes = [
       {
         id: 'node-1',
-        type: 'navigate',
-        data: { label: 'Go to homepage', url: 'https://example.com' },
+        action: { type: 'ACTION_TYPE_NAVIGATE', metadata: { label: 'Go to homepage' }, navigate: { url: 'https://example.com' } },
       },
       {
         id: 'node-2',
-        type: 'click',
-        data: { label: 'Click login', selector: 'button#login' },
+        action: { type: 'ACTION_TYPE_CLICK', metadata: { label: 'Click login' }, click: { selector: 'button#login' } },
       },
     ];
 
@@ -612,9 +289,9 @@ describe('workflowNodesToTimelineItems', () => {
 
   it('filters out non-action nodes (start, end, etc.)', () => {
     const nodes = [
-      { id: 'start-1', type: 'start', data: {} },
-      { id: 'node-1', type: 'click', data: { selector: 'button' } },
-      { id: 'end-1', type: 'end', data: {} },
+      { id: 'start-1' },
+      { id: 'node-1', action: { type: 'ACTION_TYPE_CLICK', click: { selector: 'button' } } },
+      { id: 'end-1' },
     ];
 
     const result = workflowNodesToTimelineItems(nodes, []);
@@ -650,9 +327,9 @@ describe('workflowNodesToTimelineItems', () => {
 
   it('assigns sequential sequence numbers', () => {
     const nodes = [
-      { id: 'node-1', type: 'click', data: {} },
-      { id: 'node-2', type: 'input', data: {} },
-      { id: 'node-3', type: 'click', data: {} },
+      { id: 'node-1', action: { type: 'ACTION_TYPE_CLICK', click: { selector: '.one' } } },
+      { id: 'node-2', action: { type: 'ACTION_TYPE_INPUT', input: { selector: '.two', value: 'text' } } },
+      { id: 'node-3', action: { type: 'ACTION_TYPE_CLICK', click: { selector: '.three' } } },
     ];
 
     const result = workflowNodesToTimelineItems(nodes, []);

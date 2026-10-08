@@ -1,0 +1,20 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "settings",
+    "title": "Settings",
+    "routes": ["/settings"],
+    "purpose": "Expose the minimum configuration surface needed to understand and operate Source repository safely.",
+    "prd_refs": ["OT-P1-001"]
+  },
+  "states": [
+    {"id": "default", "description": "Safe local configuration and publication boundaries are visible."},
+    {"id": "empty", "description": "No optional configuration is present."},
+    {"id": "partial", "description": "Some configuration values are available."},
+    {"id": "loading", "description": "Configuration is loading."},
+    {"id": "request-error", "description": "Configuration could not be loaded."},
+    {"id": "stale", "description": "Displayed configuration is older than its refresh interval."}
+  ]
+}

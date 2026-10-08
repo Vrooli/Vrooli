@@ -1,119 +1,114 @@
 {
-  "module": "chat-persistence",
-  "description": "SQLite storage for chats and messages",
+  "_metadata": {
+    "last_validated_at": "2026-07-10T10:30:23-04:00"
+  },
   "requirements": [
     {
       "id": "PERSIST-001",
       "title": "Store chat metadata",
-      "description": "Save chat ID, name, model, view mode, labels, timestamps to SQLite",
+      "status": "in_progress",
       "prd_ref": "OT-P0-009",
       "criticality": "P0",
-      "status": "complete",
+      "description": "Save chat ID, name, model, view mode, labels, timestamps to SQLite",
       "validation": [
         {
           "type": "test",
+          "ref": "api/persistence_test.go",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "api/persistence_test.go"
+          "status": "failing"
         },
         {
           "type": "test",
+          "ref": "bas/flows/basic-chat-flow.json",
           "phase": "integration",
-          "status": "implemented",
-          "ref": "bas/flows/basic-chat-flow.json"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "PERSIST-002",
       "title": "Store messages",
-      "description": "Save all messages with role, content, timestamp, token count to SQLite",
+      "status": "in_progress",
       "prd_ref": "OT-P0-009",
       "criticality": "P0",
-      "status": "complete",
+      "description": "Save all messages with role, content, timestamp, token count to SQLite",
       "validation": [
         {
           "type": "test",
+          "ref": "api/persistence_test.go",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "api/persistence_test.go"
+          "status": "failing"
         },
         {
           "type": "test",
+          "ref": "bas/flows/basic-chat-flow.json",
           "phase": "integration",
-          "status": "implemented",
-          "ref": "bas/flows/basic-chat-flow.json"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "PERSIST-003",
       "title": "Load chat history",
-      "description": "Retrieve full conversation history when opening a chat",
+      "status": "in_progress",
       "prd_ref": "OT-P0-009",
       "criticality": "P0",
-      "status": "complete",
+      "description": "Retrieve full conversation history when opening a chat",
       "validation": [
         {
           "type": "test",
+          "ref": "api/persistence_test.go",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "api/persistence_test.go"
+          "status": "failing"
         },
         {
           "type": "test",
+          "ref": "ui/src/App.tsx",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "ui/src/App.tsx"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "PERSIST-004",
       "title": "Delete chat",
-      "description": "Permanently delete chat and all associated messages",
+      "status": "in_progress",
       "prd_ref": "OT-P0-009",
       "criticality": "P0",
-      "status": "complete",
+      "description": "Permanently delete chat and all associated messages",
       "validation": [
         {
           "type": "test",
+          "ref": "api/persistence_test.go",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "api/persistence_test.go"
+          "status": "failing"
         },
         {
           "type": "test",
+          "ref": "ui/src/App.tsx",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "ui/src/App.tsx"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "PERSIST-005",
       "title": "Export chat",
-      "description": "Export chat history to markdown, JSON, or plain text",
+      "status": "complete",
       "prd_ref": "OT-P1-005",
       "criticality": "P1",
-      "status": "complete",
+      "description": "Export chat history to markdown, JSON, or plain text",
       "validation": [
         {
-          "type": "unit_test",
-          "file": "api/chat_test.go",
-          "description": "Tests export endpoint for markdown, JSON, txt formats and validation",
+          "type": "test",
           "status": "implemented"
         },
         {
-          "type": "code_review",
-          "file": "api/handlers/chat.go",
-          "description": "ExportChat handler with format support and file download",
+          "type": "test",
           "status": "implemented"
         },
         {
-          "type": "code_review",
-          "file": "ui/src/components/chat/ChatHeader.tsx",
-          "description": "Export dialog UI with format selection",
+          "type": "test",
           "status": "implemented"
         }
       ]

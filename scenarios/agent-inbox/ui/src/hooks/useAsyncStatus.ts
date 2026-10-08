@@ -104,7 +104,7 @@ export function useAsyncStatus(
             const data = raw;
             setOperations((prev) => {
               const next = new Map(prev);
-              for (const op of data.operations || []) {
+              for (const op of data.operations) {
                 if (!next.has(op.tool_call_id)) {
                   next.set(op.tool_call_id, op);
                 }
@@ -113,7 +113,7 @@ export function useAsyncStatus(
             });
             setHistoryLoaded(true);
           })
-          .catch((err) => {
+          .catch((err: unknown) => {
             console.warn("[useAsyncStatus] Failed to fetch initial history:", err);
             setHistoryLoaded(true);
           });
@@ -226,7 +226,7 @@ export function useAsyncStatus(
           throw new Error("Unexpected response shape from history");
         }
         return {
-          operations: raw.operations || [],
+          operations: raw.operations,
           total: raw.total,
           hasMore: raw.has_more,
         };

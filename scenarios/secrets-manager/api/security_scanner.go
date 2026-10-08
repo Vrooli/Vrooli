@@ -39,7 +39,7 @@ var vulnerabilityPatterns = []VulnerabilityPattern{
 		Pattern:        `(password|secret|key|token|api_key)\s*[:=]\s*["'](?!.*env|.*getenv)[^"']{8,}["']`,
 		Description:    "Hardcoded secret or credential found",
 		Title:          "Hardcoded Secret",
-		Recommendation: "Move secrets to vault or environment variables",
+		Recommendation: "Move secrets to the credential authority with process-scoped injection",
 		CanAutoFix:     false,
 	},
 	{
@@ -167,6 +167,83 @@ func determineRemediationPriority(severity string) string {
 		return "high"
 	}
 	return "medium"
+}
+
+// codeSnippetContextLines is the number of lines of context included on each
+// side of a matching line when extractCodeSnippet builds a finding's Code
+// field. Kept as a shared constant so callers (e.g. snippetFromCode in
+// scan_files.go) can re-derive the index of the matching line within a
+// returned multi-line snippet.
+const codeSnippetContextLines = 2
+
+// scanFileOptions gates which pattern families contribute findings when
+// scanFileForVulnerabilitiesOpts runs. The scan-files HTTP surface uses
+// these to expose per-request toggles without duplicating the scanner
+// implementation.
+type scanFileOptions struct {
+	includeSecrets bool
+	includePII     bool
+	runAST         bool
+}
+
+// scanFileForVulnerabilitiesOpts scans a single file with the requested
+// pattern families. When both includeSecrets and includePII are false, the
+// scanner still returns the AST-based findings if runAST is true; this
+// preserves the invariant that a caller with "nothing enabled" gets an
+// empty result rather than an error.
+func scanFileForVulnerabilitiesOpts(filePath, componentType, componentName string, opts scanFileOptions) ([]SecurityVulnerability, error) {
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file: %w", err)
+	}
+	contentStr := string(content)
+	lines := strings.Split(contentStr, "\n")
+	fileCtx := newFileScanContext(filePath, lines)
+
+	var vulnerabilities []SecurityVulnerability
+	applyPatterns := func(patterns []VulnerabilityPattern) {
+		for _, pattern := range patterns {
+			regex, err := regexp.Compile(pattern.Pattern)
+			if err != nil {
+				continue
+			}
+			for _, match := range regex.FindAllStringIndex(contentStr, -1) {
+				lineNum := findLineNumber(contentStr, match[0])
+				if contextAwareFilter(fileCtx, lineNum, pattern.Type) {
+					continue
+				}
+				snippet := extractCodeSnippet(lines, lineNum-1, codeSnippetContextLines)
+				vulnerabilities = append(vulnerabilities, SecurityVulnerability{
+					ID:             uuid.New().String(),
+					ComponentType:  componentType,
+					ComponentName:  componentName,
+					FilePath:       filePath,
+					LineNumber:     lineNum,
+					Severity:       pattern.Severity,
+					Type:           pattern.Type,
+					Title:          pattern.Title,
+					Description:    pattern.Description,
+					Code:           snippet,
+					Recommendation: pattern.Recommendation,
+					CanAutoFix:     pattern.CanAutoFix,
+					DiscoveredAt:   time.Now(),
+				})
+			}
+		}
+	}
+
+	if opts.includeSecrets {
+		applyPatterns(vulnerabilityPatterns)
+	}
+	if opts.includePII {
+		applyPatterns(piiVulnerabilityPatterns)
+	}
+	if opts.runAST {
+		if astVulns, err := scanFileWithAST(filePath, componentType, componentName, contentStr); err == nil {
+			vulnerabilities = append(vulnerabilities, astVulns...)
+		}
+	}
+	return vulnerabilities, nil
 }
 
 // Scan a single Go file for security vulnerabilities
@@ -308,7 +385,7 @@ func checkHardcodedSecrets(assign *ast.AssignStmt, fset *token.FileSet, componen
 							Title:          "Hardcoded Secret Detected",
 							Description:    fmt.Sprintf("Variable '%s' appears to contain a hardcoded secret", ident.Name),
 							Code:           extractLineFromFile(filePath, pos.Line),
-							Recommendation: "Move secret to vault or environment variable",
+							Recommendation: "Move the secret to the credential authority with process-scoped injection",
 							CanAutoFix:     false,
 							DiscoveredAt:   time.Now(),
 						}
@@ -439,7 +516,7 @@ func generateRemediationSuggestions(vulnerabilities []SecurityVulnerability) []R
 			case "http_body_leak":
 				suggestion.FixCommand = "Add 'defer resp.Body.Close()' after HTTP requests"
 			case "hardcoded_secret":
-				suggestion.FixCommand = "Move to vault: resource-vault secrets init <resource>"
+				suggestion.FixCommand = "Provision with: vrooli credentials provision --identity <logical-id> --field <field>"
 			case "debug_code":
 				suggestion.FixCommand = "Remove TODO/FIXME comments and debug prints"
 			}

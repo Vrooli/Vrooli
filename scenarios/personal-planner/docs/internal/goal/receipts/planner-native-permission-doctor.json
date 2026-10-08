@@ -1,0 +1,57 @@
+{
+  "status": {
+    "path": "/home/matthalloran8/Vrooli/scenarios/agent-manager/config/permission-policy-catalog.json",
+    "requirement": {
+      "required": true,
+      "reason": "global coding-agent permission intent must be validated before reconciliation"
+    },
+    "ready": true,
+    "active_digest": "sha256:cdd2299d7a3d690fbf0e6a83a3a11b19f0fda07fe8c4145ae7fa2b68ae9c78f9",
+    "activated_at": "2026-10-01T16:21:06.784446603Z",
+    "last_reload_attempt": {
+      "attempted_at": "2026-10-01T16:21:06.784446603Z",
+      "succeeded": true,
+      "digest": "sha256:cdd2299d7a3d690fbf0e6a83a3a11b19f0fda07fe8c4145ae7fa2b68ae9c78f9"
+    }
+  },
+  "plan": {
+    "catalog_digest": "sha256:cdd2299d7a3d690fbf0e6a83a3a11b19f0fda07fe8c4145ae7fa2b68ae9c78f9",
+    "resources": [
+      {
+        "runner_type": "RUNNER_TYPE_CLAUDE_CODE",
+        "scope": "user",
+        "installed": true,
+        "status": "failed",
+        "error": "invalid resource permission response: claude-code plan: enforcement.permissions \"hook_verified\" is unsupported",
+        "enforcement": {}
+      },
+      {
+        "runner_type": "RUNNER_TYPE_CODEX",
+        "scope": "user",
+        "installed": true,
+        "status": "failed",
+        "error": "invalid resource permission response: codex plan: enforcement.permissions \"hook_unverified\" is unsupported",
+        "enforcement": {}
+      },
+      {
+        "runner_type": "RUNNER_TYPE_GROK",
+        "scope": "user",
+        "installed": true,
+        "status": "failed",
+        "error": "invalid resource permission response: grok plan: enforcement.permissions \"hook_unverified\" is unsupported",
+        "enforcement": {}
+      },
+      {
+        "runner_type": "RUNNER_TYPE_OPENCODE",
+        "scope": "user",
+        "installed": true,
+        "status": "failed",
+        "error": "invalid resource permission response: opencode plan: enforcement.permissions \"hook_unverified\" is unsupported",
+        "enforcement": {}
+      }
+    ],
+    "hard_enforcement_satisfied": true
+  },
+  "healthy": true,
+  "summary": "permission policy is ready; no required hard-enforcement gap was detected"
+}

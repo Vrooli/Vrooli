@@ -1,0 +1,67 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-08-28T08:23:12-04:00"
+  },
+  "requirements": [
+    {
+      "id": "REQ-P0-004",
+      "title": "Bounded concurrent fan-out with provenance",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-002",
+      "category": "core",
+      "description": "Query fans out to every registered provider whose type matches the requested --type tokens (or all active providers under --all), bounded by a concurrency cap and a per-provider timeout. Each returned hit carries provider_id, provider_group, type, and a path/id locator.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Query --type a,b only calls providers of types a and b."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "A provider exceeding the per-provider timeout is dropped; the query still returns the rest."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-005",
+      "title": "Declarative result-mapping (no per-provider code)",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-002",
+      "category": "core",
+      "description": "The fan-out applies each provider's declarative ResultMapping (JSON-path field selectors + score scale + optional filter_field/filter_value for multi-leaf-on-one-endpoint) to map heterogeneous responses onto unified SearchHits. Scores normalize to a common [0,1] band before any ranking.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "A REST and a Connect-via-JSON provider both map onto identical SearchHit shape via their mappings alone."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "A filter_field/filter_value mapping selects only matching leaf rows from a shared endpoint (e.g. ui-health kind=surface)."
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-006",
+      "title": "Multi-provider fan-out proven",
+      "status": "complete",
+      "prd_ref": "OT-P0-002",
+      "category": "core",
+      "description": "At least three providers (cli-health.commands, ui-health.surfaces, swarm-manager.records) are registered and federated end-to-end so a single query reaches multiple corpora and returns grouped results.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "query \"restart a scenario\" --type command,doc returns grouped hits from the matching providers."
+        }
+      ]
+    }
+  ]
+}

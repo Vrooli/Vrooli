@@ -1,0 +1,47 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-08-14T00:00:00-04:00"
+  },
+  "requirements": [
+    {
+      "id": "STC-P2-001",
+      "title": "Rollback a prior release",
+      "status": "planned",
+      "prd_ref": "OT-P2-001",
+      "category": "release-management",
+      "description": "Keep the previous release and provide a one-command rollback path.",
+      "tags": ["rollback", "releases"],
+      "validation": [{ "type": "manual", "phase": "future", "status": "planned", "notes": "Revisit when release rollback is brought into scope." }]
+    },
+    {
+      "id": "STC-P2-002",
+      "title": "Delta updates",
+      "status": "planned",
+      "prd_ref": "OT-P2-002",
+      "category": "release-management",
+      "description": "Support delta updates instead of requiring a full bundle upload.",
+      "tags": ["updates", "delta"],
+      "validation": [{ "type": "manual", "phase": "future", "status": "planned", "notes": "Revisit when delta packaging is brought into scope." }]
+    },
+    {
+      "id": "STC-P2-003",
+      "title": "Managed service swaps",
+      "status": "planned",
+      "prd_ref": "OT-P2-003",
+      "category": "infrastructure",
+      "description": "Allow optional swaps from bundled services to managed Postgres, Redis, and similar services.",
+      "tags": ["managed-services", "postgres", "redis"],
+      "validation": [{ "type": "manual", "phase": "future", "status": "planned", "notes": "Revisit when managed-service swaps are brought into scope." }]
+    },
+    {
+      "id": "STC-P2-004",
+      "title": "Bastion and zero-trust access",
+      "status": "planned",
+      "prd_ref": "OT-P2-004",
+      "category": "security",
+      "description": "Support jump hosts and stricter SSH access models for cloud deployments.",
+      "tags": ["bastion", "zero-trust", "ssh"],
+      "validation": [{ "type": "manual", "phase": "future", "status": "planned", "notes": "Revisit when bastion and zero-trust access are brought into scope." }]
+    }
+  ]
+}

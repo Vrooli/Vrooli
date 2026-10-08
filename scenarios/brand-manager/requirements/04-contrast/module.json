@@ -1,0 +1,55 @@
+{
+  "_metadata": {
+    "description": "WCAG AA contrast checking for brand color pairings, dog-fooded by the scenario that validates contrast for others.",
+    "last_validated_at": "2026-07-11T19:56:40-04:00",
+    "module": "contrast",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "CONTRAST-001",
+      "title": "Compute WCAG contrast ratio for a color pairing",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-010",
+      "category": "contrast",
+      "criticality": "P0",
+      "description": "Given two colors the engine computes the WCAG relative-luminance contrast ratio and reports whether it meets the AA threshold (4.5:1 for normal text, 3:1 for large text).",
+      "tags": [
+        "wcag",
+        "contrast",
+        "accessibility"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Planned unit coverage at api/internal/contrast/ratio_test.go once the contrast engine is ported."
+        }
+      ]
+    },
+    {
+      "id": "CONTRAST-002",
+      "title": "Flag non-compliant brand color pairings",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-010",
+      "category": "contrast",
+      "criticality": "P0",
+      "description": "The defined brand pairings (primary-on-background, text-on-surface) are checked during generation and validation, and a pairing below AA is flagged/rejected with the failing pair and measured ratio.",
+      "tags": [
+        "wcag",
+        "validation"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Planned unit coverage at api/internal/contrast/pairings_test.go once pairing checks are ported."
+        }
+      ]
+    }
+  ]
+}

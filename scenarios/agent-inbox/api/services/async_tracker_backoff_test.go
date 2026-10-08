@@ -3,22 +3,20 @@ package services
 import (
 	"testing"
 	"time"
-
-	toolspb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-inbox/v1/domain"
 )
 
 // TestSnapshotOperation_BackoffFromProto verifies backoff config extraction.
 func TestSnapshotOperation_BackoffFromProto(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil, nil)
+	svc := NewAsyncTrackerService(nil, nil)
 
 	// Operation with full backoff config
 	svc.mu.Lock()
 	svc.operations["tc-1"] = &AsyncOperation{
 		ToolCallID: "tc-1",
-		AsyncBehavior: &toolspb.AsyncBehavior{
-			StatusPolling: &toolspb.StatusPolling{
+		AsyncBehavior: &AsyncBehavior{
+			StatusPolling: &StatusPolling{
 				PollIntervalSeconds: 5,
-				Backoff: &toolspb.PollingBackoff{
+				Backoff: &PollingBackoff{
 					InitialIntervalSeconds: 2,
 					MaxIntervalSeconds:     30,
 					Multiplier:             1.5,
@@ -46,16 +44,16 @@ func TestSnapshotOperation_BackoffFromProto(t *testing.T) {
 
 // TestSnapshotOperation_BackoffMinInterval verifies minimum interval enforcement.
 func TestSnapshotOperation_BackoffMinInterval(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil, nil)
+	svc := NewAsyncTrackerService(nil, nil)
 
 	// Operation with too-low interval (below MinPollInterval)
 	svc.mu.Lock()
 	svc.operations["tc-1"] = &AsyncOperation{
 		ToolCallID: "tc-1",
-		AsyncBehavior: &toolspb.AsyncBehavior{
-			StatusPolling: &toolspb.StatusPolling{
+		AsyncBehavior: &AsyncBehavior{
+			StatusPolling: &StatusPolling{
 				PollIntervalSeconds: 0, // Below minimum
-				Backoff: &toolspb.PollingBackoff{
+				Backoff: &PollingBackoff{
 					InitialIntervalSeconds: 0, // Also below minimum
 					MaxIntervalSeconds:     60,
 					Multiplier:             2.0,
@@ -78,16 +76,16 @@ func TestSnapshotOperation_BackoffMinInterval(t *testing.T) {
 
 // TestSnapshotOperation_BackoffInvalidMultiplier verifies multiplier validation.
 func TestSnapshotOperation_BackoffInvalidMultiplier(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil, nil)
+	svc := NewAsyncTrackerService(nil, nil)
 
 	// Operation with invalid multiplier (< 1.0)
 	svc.mu.Lock()
 	svc.operations["tc-1"] = &AsyncOperation{
 		ToolCallID: "tc-1",
-		AsyncBehavior: &toolspb.AsyncBehavior{
-			StatusPolling: &toolspb.StatusPolling{
+		AsyncBehavior: &AsyncBehavior{
+			StatusPolling: &StatusPolling{
 				PollIntervalSeconds: 5,
-				Backoff: &toolspb.PollingBackoff{
+				Backoff: &PollingBackoff{
 					InitialIntervalSeconds: 5,
 					MaxIntervalSeconds:     30,
 					Multiplier:             0.5, // Invalid - less than 1.0
@@ -197,7 +195,7 @@ func TestBackoffCalculation(t *testing.T) {
 
 // TestExtractOperationID verifies operation ID extraction.
 func TestExtractOperationID(t *testing.T) {
-	svc := NewAsyncTrackerService(nil, nil, nil)
+	svc := NewAsyncTrackerService(nil, nil)
 
 	tests := []struct {
 		name      string

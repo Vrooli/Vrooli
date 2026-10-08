@@ -1,0 +1,261 @@
+{
+  "version": 3,
+  "note": "Turns on tonal normalisation for every screening treatment, and rides an image-tools fix that stops engraving drawing sub-pixel lines. A screen carries tone through mark density, so it can only express the tonal range it is given; the procedural scenes deliver a compressed range (the arcade's wall sits at L* 0.85 and its sea at 0.45), which mapped to a narrow band of mark widths and read as flat texture rather than as a picture. With normalisation, engraved-colonnade renders a legible colonnade \u2014 arches, columns, statue and canopy all read \u2014 where before it rendered diagonal moire. Evidence: docs/evidence/perceptual/engraving-repair/.",
+  "retune_reasons": [
+    "cyanotype-arcade.halftone: normalize the source's p1-p99 tonal span onto the full ink ramp before screening.",
+    "engraved-colonnade.engraving: normalize the source's p1-p99 tonal span onto the full ink ramp before screening.",
+    "op-art-interior.line_screen: normalize the source's p1-p99 tonal span onto the full ink ramp before screening.",
+    "ukiyo-tide.halftone: normalize the source's p1-p99 tonal span onto the full ink ramp before screening.",
+    "stipple-massif.stipple: normalize the source's p1-p99 tonal span onto the full ink ramp before screening.",
+    "swiss-contour.line_screen: normalize the source's p1-p99 tonal span onto the full ink ramp before screening.",
+    "ascii-field.ascii_mosaic: normalize the source's p1-p99 tonal span onto the full ink ramp before screening."
+  ],
+  "surfaces": [],
+  "styles": [
+    {
+      "id": "cyanotype-arcade",
+      "name": "Cyanotype Arcade",
+      "version": 2,
+      "role": "ambient",
+      "subject": "statuary_architecture",
+      "lineage": "cyanotype",
+      "strategy": "procedural-treated",
+      "treatments": [
+        "duotone",
+        "halftone"
+      ],
+      "placements": [
+        "full_bleed",
+        "split_panel",
+        "framed_inset"
+      ],
+      "inks": {
+        "$brand.primary": "#1b3fbf",
+        "$brand.background": "#f5efdc"
+      },
+      "treatment_params": {
+        "duotone": "{\"dark\":\"$brand.primary\",\"light\":\"$brand.background\",\"normalize\":true}",
+        "halftone": "{\"lpi\": 72, \"angle\": 15, \"dot\": \"circle\", \"normalize\": true}"
+      },
+      "regions": [
+        {
+          "x": 0.06,
+          "y": 0.18,
+          "width": 0.48,
+          "height": 0.4,
+          "kind": "overlay",
+          "text_color": "#ffffff"
+        }
+      ],
+      "contrast_threshold": 4.5
+    },
+    {
+      "id": "engraved-colonnade",
+      "name": "Engraved Colonnade",
+      "version": 3,
+      "role": "ambient",
+      "subject": "statuary_architecture",
+      "lineage": "scientific_plate",
+      "strategy": "procedural-treated",
+      "treatments": [
+        "engraving"
+      ],
+      "placements": [
+        "framed_inset",
+        "split_panel"
+      ],
+      "inks": {
+        "$brand.primary": "#2b2b28",
+        "$brand.background": "#efe9dc"
+      },
+      "treatment_params": {
+        "engraving": "{\"spacing_rel\": 0.0153, \"dark\": \"$brand.primary\", \"light\": \"$brand.background\", \"normalize\": true}"
+      },
+      "regions": [
+        {
+          "x": 0.06,
+          "y": 0.18,
+          "width": 0.48,
+          "height": 0.4,
+          "kind": "overlay",
+          "text_color": "#111827"
+        }
+      ],
+      "contrast_threshold": 4.5
+    },
+    {
+      "id": "op-art-interior",
+      "name": "Op Art Interior",
+      "version": 3,
+      "role": "ambient",
+      "subject": "interior",
+      "lineage": "op_art",
+      "strategy": "procedural-treated",
+      "treatments": [
+        "line_screen"
+      ],
+      "placements": [
+        "full_bleed",
+        "corner_bleed"
+      ],
+      "inks": {
+        "$brand.primary": "#141414",
+        "$brand.background": "#f2f2f2"
+      },
+      "treatment_params": {
+        "line_screen": "{\"spacing_rel\": 0.0181, \"angle\": 45, \"dark\": \"$brand.primary\", \"light\": \"$brand.background\", \"normalize\": true}"
+      },
+      "regions": [
+        {
+          "x": 0.06,
+          "y": 0.18,
+          "width": 0.48,
+          "height": 0.4,
+          "kind": "overlay",
+          "text_color": "#ffffff"
+        }
+      ],
+      "contrast_threshold": 4.5
+    },
+    {
+      "id": "ukiyo-tide",
+      "name": "Ukiyo Tide",
+      "version": 2,
+      "role": "ambient",
+      "subject": "aquatic",
+      "lineage": "ukiyo_e",
+      "strategy": "procedural-treated",
+      "treatments": [
+        "posterize",
+        "halftone"
+      ],
+      "placements": [
+        "full_bleed",
+        "framed_inset"
+      ],
+      "inks": {
+        "$brand.primary": "#123a6b",
+        "$brand.background": "#f0e3c8"
+      },
+      "treatment_params": {
+        "posterize": "{\"levels\":4,\"dark\":\"$brand.primary\",\"light\":\"$brand.background\",\"normalize\":true}",
+        "halftone": "{\"lpi\": 110, \"angle\": 30, \"dot\": \"circle\", \"normalize\": true}"
+      },
+      "regions": [
+        {
+          "x": 0.06,
+          "y": 0.18,
+          "width": 0.48,
+          "height": 0.4,
+          "kind": "overlay",
+          "text_color": "#111827"
+        }
+      ],
+      "contrast_threshold": 4.5
+    },
+    {
+      "id": "stipple-massif",
+      "name": "Stipple Massif",
+      "version": 3,
+      "role": "ambient",
+      "subject": "geological",
+      "lineage": "wpa_poster",
+      "strategy": "procedural-treated",
+      "treatments": [
+        "stipple"
+      ],
+      "placements": [
+        "framed_inset",
+        "corner_bleed"
+      ],
+      "inks": {
+        "$brand.primary": "#23262f",
+        "$brand.background": "#f4f0e6"
+      },
+      "treatment_params": {
+        "stipple": "{\"spacing_rel\": 0.0097, \"seed\": 19, \"dark\": \"$brand.primary\", \"light\": \"$brand.background\", \"normalize\": true}"
+      },
+      "regions": [
+        {
+          "x": 0.06,
+          "y": 0.18,
+          "width": 0.48,
+          "height": 0.4,
+          "kind": "overlay",
+          "text_color": "#111827"
+        }
+      ],
+      "contrast_threshold": 4.5
+    },
+    {
+      "id": "swiss-contour",
+      "name": "Swiss Contour",
+      "version": 3,
+      "role": "ambient",
+      "subject": "cartographic",
+      "lineage": "swiss_international",
+      "strategy": "procedural-treated",
+      "treatments": [
+        "posterize",
+        "line_screen"
+      ],
+      "placements": [
+        "framed_inset",
+        "split_panel"
+      ],
+      "inks": {
+        "$brand.primary": "#b02a1f",
+        "$brand.background": "#f3f1ec"
+      },
+      "treatment_params": {
+        "posterize": "{\"levels\":5,\"dark\":\"$brand.primary\",\"light\":\"$brand.background\",\"normalize\":true}",
+        "line_screen": "{\"spacing_rel\": 0.0153, \"angle\": 0, \"dark\": \"$brand.primary\", \"light\": \"$brand.background\", \"normalize\": true}"
+      },
+      "regions": [
+        {
+          "x": 0.06,
+          "y": 0.18,
+          "width": 0.48,
+          "height": 0.4,
+          "kind": "overlay",
+          "text_color": "#111827"
+        }
+      ],
+      "contrast_threshold": 4.5
+    },
+    {
+      "id": "ascii-field",
+      "name": "ASCII Field",
+      "version": 3,
+      "role": "ambient",
+      "subject": "non_representational",
+      "lineage": "demoscene",
+      "strategy": "procedural-treated",
+      "treatments": [
+        "ascii_mosaic"
+      ],
+      "placements": [
+        "full_bleed",
+        "split_panel"
+      ],
+      "inks": {
+        "$brand.primary": "#0d1b2a",
+        "$brand.background": "#cfe8ff"
+      },
+      "treatment_params": {
+        "ascii_mosaic": "{\"block_size_rel\": 0.02, \"dark\": \"$brand.primary\", \"light\": \"$brand.background\", \"normalize\": true}"
+      },
+      "regions": [
+        {
+          "x": 0.06,
+          "y": 0.18,
+          "width": 0.48,
+          "height": 0.4,
+          "kind": "overlay",
+          "text_color": "#111827"
+        }
+      ],
+      "contrast_threshold": 4.5
+    }
+  ]
+}

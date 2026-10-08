@@ -1,0 +1,19 @@
+{
+  "kind": "topic",
+  "schemaVersion": 1,
+  "id": "architecture",
+  "name": "Architecture \u0026 code structure",
+  "description": "Architecture and code structure: where responsibilities live, the seams between components, the invariants the code relies on, and the vocabulary that names them.",
+  "parentTopicId": "development",
+  "skills": [
+    "seam-discovery-and-enforcement",
+    "boundary-of-responsibility-enforcement",
+    "invariant-discovery-and-enforcement",
+    "screaming-architecture-audit",
+    "domain-clarity"
+  ],
+  "status": "active",
+  "revision": 1,
+  "createdAt": "2026-06-04T17:35:14Z",
+  "updatedAt": "2026-06-04T17:35:14Z"
+}

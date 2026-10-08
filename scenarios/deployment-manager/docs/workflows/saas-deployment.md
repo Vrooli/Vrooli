@@ -300,7 +300,7 @@ ssh server "docker pull registry.example.com/<scenario>:latest && docker-compose
 
 ### Kubernetes Deployment
 
-See [Kubernetes Legacy Guide](../history/k8s-legacy.md) for historical K8s deployment patterns.
+Historical Kubernetes deployment patterns are no longer maintained in this scenario; use the current provider guides under `docs/providers/`.
 
 ---
 
@@ -310,7 +310,7 @@ See [Kubernetes Legacy Guide](../history/k8s-legacy.md) for historical K8s deplo
 - [DigitalOcean Provider Guide](../providers/digitalocean.md)
 - [Desktop Deployment Workflow](desktop-deployment.md) - Similar workflow structure
 - [Secrets Management Guide](../guides/secrets-management.md) - Vault integration
-- [Kubernetes Legacy Guide](../history/k8s-legacy.md) - Historical patterns
+- [Provider guides](../providers/digitalocean.md) - Current infrastructure pattern
 
 ---
 

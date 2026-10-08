@@ -1,0 +1,8 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {"id": "data-display.card-shell", "name": "CardShell", "kind": "component", "domain": "data-display", "description": "Row chrome for scenario-owned cards with selection, disabled, cursor, focus, and press states.", "targets": ["react-vite"], "slot": "ui-primitive", "delivery": "adopted", "target": {"priority": "P0", "maturity": "production-ready"}},
+  "dependencies": {"requires": [{"asset": "react-component-library:SelectionControl", "reason": "Accessible selection rail."}]},
+  "requiredCapabilities": ["focus-visible-indicator", "accessible-naming", "keyboard-operable", "content-reflow", "no-horizontal-overflow"]
+}

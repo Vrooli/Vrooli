@@ -1,5 +1,5 @@
 // [REQ:REQ-P2-004] Contextual Help UI
-import { screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent } from "../../test-utils";
 import { renderWithQueryClient } from "../../test-utils";
 import App from "../../App";
 

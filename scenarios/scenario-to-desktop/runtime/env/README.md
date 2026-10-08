@@ -46,6 +46,11 @@ The rendered environment also includes standard runtime hints such as:
 - `VROOLI_STORAGE_ROOT` (set to `<app-data>/storage` for `api-core/storage`)
 - `VROOLI_API_SKIP_STALE_CHECK`
 
+The supervisor additionally sets `VROOLI_AUTH_LOCAL_TOKEN_FILE` to the exact
+manifest-declared runtime token path for every bundled process. A consumer that
+opts into personal-local authentication must read that path; it must not infer
+human identity from loopback or the service process's OS user.
+
 ## Environment Precedence
 
 When building the environment for a service:

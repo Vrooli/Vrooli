@@ -1,0 +1,35 @@
+{
+  "id": "subscriber_counts",
+  "label": "Active subscribers",
+  "description": "Active subscriptions across free, solo, pro, studio and business tiers.",
+  "unit": "count",
+  "format": "integer",
+  "shape": "series",
+  "source": {
+    "team": "monetization",
+    "binding": "scenario:landing-page-business-suite",
+    "read": "/api/v1/admin/dashboard/revenue",
+    "select": "subscriber_counts",
+    "ttlSeconds": 300,
+    "integrationId": "landing-page-business-suite",
+    "origin": "production",
+    "featureId": "subscriber_counts",
+    "contractVersion": "revenue-summary.v1",
+    "selector": "subscriber_counts",
+    "expectedUnit": "count",
+    "sourceTimePolicy": "producer_required"
+  },
+  "coverage": "IN-REACH",
+  "sample": {
+    "value": 412,
+    "series": [
+      300,
+      330,
+      352,
+      371,
+      390,
+      412
+    ],
+    "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
+  }
+}

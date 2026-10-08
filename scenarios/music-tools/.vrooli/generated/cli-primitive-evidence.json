@@ -1,0 +1,142 @@
+{
+  "schema": "cli-primitive-evidence/v1",
+  "do_not_edit": "GENERATED FILE — do not edit by hand. Regenerate it from the scenario's CLI evidence test (UPDATE_CLI_EVIDENCE=1), which rebuilds this artifact from cli/manifest.json and the cli-core primitive handlers.",
+  "source_manifest": "cli/manifest.json",
+  "scenario": "music-tools",
+  "generator": "v1.0.0",
+  "manifest_hash": "a4c13d5fa319edaaa2577d341be3d123f6eb6523eb90d9b9dde39322536eb7ae",
+  "commands": [
+    {
+      "path": "compose run",
+      "group": "compose",
+      "command": "run",
+      "binding": "."
+    },
+    {
+      "path": "jobs cancel",
+      "group": "jobs",
+      "command": "cancel",
+      "binding": "."
+    },
+    {
+      "path": "jobs get",
+      "group": "jobs",
+      "command": "get",
+      "binding": "."
+    },
+    {
+      "path": "jobs list",
+      "group": "jobs",
+      "command": "list",
+      "binding": "."
+    },
+    {
+      "path": "jobs wait",
+      "group": "jobs",
+      "command": "wait",
+      "binding": "."
+    },
+    {
+      "path": "models get",
+      "group": "models",
+      "command": "get",
+      "binding": "."
+    },
+    {
+      "path": "models list",
+      "group": "models",
+      "command": "list",
+      "binding": "."
+    },
+    {
+      "path": "pool configure",
+      "group": "pool",
+      "command": "configure",
+      "binding": "."
+    },
+    {
+      "path": "pool draw",
+      "group": "pool",
+      "command": "draw",
+      "binding": "."
+    },
+    {
+      "path": "pool status",
+      "group": "pool",
+      "command": "status",
+      "binding": "."
+    },
+    {
+      "path": "styles compile",
+      "group": "styles",
+      "command": "compile",
+      "binding": "."
+    },
+    {
+      "path": "styles create",
+      "group": "styles",
+      "command": "create",
+      "binding": "."
+    },
+    {
+      "path": "styles delete",
+      "group": "styles",
+      "command": "delete",
+      "binding": "."
+    },
+    {
+      "path": "styles export",
+      "group": "styles",
+      "command": "export",
+      "binding": "."
+    },
+    {
+      "path": "styles import",
+      "group": "styles",
+      "command": "import",
+      "binding": "."
+    },
+    {
+      "path": "styles list",
+      "group": "styles",
+      "command": "list",
+      "binding": "."
+    },
+    {
+      "path": "takes consume",
+      "group": "takes",
+      "command": "consume",
+      "binding": "."
+    },
+    {
+      "path": "takes discard",
+      "group": "takes",
+      "command": "discard",
+      "binding": "."
+    },
+    {
+      "path": "takes get",
+      "group": "takes",
+      "command": "get",
+      "binding": "."
+    },
+    {
+      "path": "takes list",
+      "group": "takes",
+      "command": "list",
+      "binding": "."
+    },
+    {
+      "path": "takes release",
+      "group": "takes",
+      "command": "release",
+      "binding": "."
+    },
+    {
+      "path": "takes reserve",
+      "group": "takes",
+      "command": "reserve",
+      "binding": "."
+    }
+  ]
+}

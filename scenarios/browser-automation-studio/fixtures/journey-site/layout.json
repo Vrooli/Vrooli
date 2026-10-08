@@ -1,0 +1,6 @@
+{
+  "counter": { "left": 20, "top": 20, "width": 160, "height": 60 },
+  "input": { "left": 20, "top": 100, "width": 220, "height": 30 },
+  "paste": { "left": 260, "top": 100, "width": 150, "height": 32 },
+  "compose": { "left": 20, "top": 150, "width": 150, "height": 32 }
+}

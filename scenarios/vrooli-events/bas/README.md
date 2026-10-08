@@ -19,10 +19,7 @@ Each workflow JSON must include:
 }
 ```
 
-Reference selectors via `@selector/<key>` from `ui/src/consts/selectors.ts`. After adding or moving a workflow, run from the scenario directory:
-
-```bash
-test-genie registry build
-```
-
-This regenerates `bas/registry.json`, which is tracked so other agents can see which files exist, which requirements they validate, and what fixtures they depend on.
+Reference selectors via `@selector/<key>` from `ui/src/consts/selectors.ts`. The
+test suite discovers workflows from this directory when it runs. Keep
+`metadata.requirement` and selector references valid so the generated test
+inventory can show which requirements and fixtures each workflow covers.

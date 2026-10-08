@@ -1,0 +1,67 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "api": {
+    "variants": {},
+    "modes": [],
+    "parts": []
+  },
+  "asset": {
+    "id": "forms.search-input",
+    "name": "SearchInput",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "forms",
+    "description": "The search field with debouncing, in-flight cancellation, recent queries, clear action, keyboard shortcut binding, loading feedback, and optional suggestions.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "forms.input",
+        "reason": "Presentation and validation treatment are shared."
+      },
+      {
+        "asset": "hooks.use-abortable-task",
+        "reason": "Superseded queries are cancelled rather than raced."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
+      }
+    ],
+    "suggests": [
+      {
+        "asset": "services.shortcut-registry",
+        "reason": "A global search shortcut needs registry-level collision handling; an inline filter does not."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "error-association",
+    "tap-target-size",
+    "contrast-floor",
+    "ramp-conformance",
+    "text-scale-resilience",
+    "input-preservation",
+    "status-announced"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "empty",
+    "request-error"
+  ]
+}

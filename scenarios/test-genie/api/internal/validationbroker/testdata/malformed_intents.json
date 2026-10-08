@@ -1,0 +1,7 @@
+{
+  "intents": [
+    {"schemaVersion":1},
+    {"schemaVersion":1,"callerScenario":"plan-manager","idempotencyKey":"missing-target"},
+    {"schemaVersion":1,"callerScenario":"plan-manager","idempotencyKey":"missing-policy","targets":[{"kind":"VALIDATION_TARGET_KIND_SCENARIO","id":"demo"}],"purpose":"VALIDATION_PURPOSE_PHASE","requiredStrength":"VALIDATION_STRENGTH_TARGETED"}
+  ]
+}

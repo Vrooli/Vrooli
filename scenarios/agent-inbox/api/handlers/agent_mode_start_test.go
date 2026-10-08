@@ -135,7 +135,7 @@ func TestStartAgentMode_AutoNamesDefaultChat(t *testing.T) {
 	}
 }
 
-func TestStartAgentMode_DefaultRunnerType(t *testing.T) {
+func TestStartAgentMode_UsesPortableDefaultProfile(t *testing.T) {
 	env := setupAgentModeTest(t)
 	chatID := env.createChat(t)
 
@@ -153,12 +153,32 @@ func TestStartAgentMode_DefaultRunnerType(t *testing.T) {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
 	}
 
-	// Verify default runner type was applied
+	// The handler does not select a runner; Agent Manager resolves the
+	// scenario-owned portable profile referenced by the integration.
 	if len(env.mockAgent.StartCalls) != 1 {
 		t.Fatal("expected 1 call")
 	}
-	if env.mockAgent.StartCalls[0].Config.RunnerType != integrations.RunnerTypeClaudeCode {
-		t.Errorf("expected default runner type claude-code, got %s", env.mockAgent.StartCalls[0].Config.RunnerType)
+	if got := env.mockAgent.StartCalls[0].Config.ProjectPath; got != "/tmp" {
+		t.Errorf("project path = %q, want /tmp", got)
+	}
+}
+
+func TestStartAgentMode_IgnoresLegacyRunnerInput(t *testing.T) {
+	env := setupAgentModeTest(t)
+	chatID := env.createChat(t)
+	env.mockAgent.StartResult = &integrations.AgentChatSession{TaskID: "task-legacy", RunID: "run-legacy"}
+
+	w := env.doRequest("POST", "/api/v1/chats/"+chatID+"/agent-mode/start", map[string]interface{}{
+		"message":      "hello",
+		"project_path": "/tmp",
+		"runner_type":  "grok",
+	})
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	if len(env.mockAgent.StartCalls) != 1 {
+		t.Fatalf("legacy runner input must not prevent portable profile dispatch")
 	}
 }
 

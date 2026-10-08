@@ -1,0 +1,188 @@
+syntax = "proto3";
+
+package vrooli.plan_manager.v1.investigation;
+
+import "buf/validate/validate.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/investigation;investigation";
+
+service InvestigationPolicyService {
+  rpc GetPolicy(GetPolicyRequest) returns (PolicyRecord);
+  rpc PutPolicy(PutPolicyRequest) returns (PolicyRecord);
+  rpc PreviewTrigger(PreviewTriggerRequest) returns (TriggerDecision);
+  rpc RecordTrigger(RecordTriggerRequest) returns (TriggerRecord);
+  rpc LinkTrigger(LinkTriggerRequest) returns (TriggerRecord);
+  rpc ListIncidents(ListIncidentsRequest) returns (ListIncidentsResponse);
+  rpc GetIncident(GetIncidentRequest) returns (IncidentRecord);
+  rpc ListOccurrences(ListOccurrencesRequest) returns (ListOccurrencesResponse);
+  rpc GetBrief(GetBriefRequest) returns (PlanInvestigationBrief);
+}
+
+message GetPolicyRequest {
+  string family_id = 1 [(buf.validate.field).string.max_len = 128];
+  string execution_id = 2 [(buf.validate.field).string.max_len = 128];
+  string phase_id = 3 [(buf.validate.field).string.max_len = 128];
+}
+
+message PutPolicyRequest {
+  string policy_json = 1 [(buf.validate.field).string.min_len = 1, (buf.validate.field).string.max_len = 262144];
+  bool active = 2;
+  string expected_version = 3 [(buf.validate.field).string.max_len = 128];
+}
+
+message PolicyRecord {
+  string schema_version = 1;
+  string version = 2;
+  string mode = 3;
+  string policy_json = 4;
+  bool active = 5;
+  string digest = 6;
+  string scope_json = 7;
+  string source_scope = 8;
+}
+
+message PreviewTriggerRequest {
+  string observation_json = 1 [(buf.validate.field).string.min_len = 1, (buf.validate.field).string.max_len = 262144];
+}
+
+message TriggerMatch {
+  string kind = 1;
+  string detail = 2;
+}
+
+message TriggerDecision {
+  bool eligible = 1;
+  string mode = 2;
+  repeated TriggerMatch matches = 3;
+  repeated string reasons = 4;
+  string incident_fingerprint = 5;
+  bool queued = 6;
+}
+
+message RecordTriggerRequest {
+  string observation_json = 1 [(buf.validate.field).string.min_len = 1, (buf.validate.field).string.max_len = 262144];
+}
+
+message TriggerRecord {
+  TriggerDecision decision = 1;
+  string incident_json = 2;
+  bool reused = 3;
+  string occurrence_id = 4;
+}
+
+message LinkTriggerRequest {
+  string incident_fingerprint = 1 [(buf.validate.field).string.min_len = 1, (buf.validate.field).string.max_len = 128];
+  string investigation_id = 2 [(buf.validate.field).string.min_len = 1, (buf.validate.field).string.max_len = 128];
+}
+
+message ListIncidentsRequest {
+  string execution_id = 1 [(buf.validate.field).string.max_len = 128];
+  string state = 2 [(buf.validate.field).string.max_len = 64];
+  int32 limit = 3 [(buf.validate.field).int32.lte = 100];
+  string family_id = 4 [(buf.validate.field).string.max_len = 128];
+}
+
+message GetIncidentRequest {
+  string incident_fingerprint = 1 [(buf.validate.field).string.min_len = 1, (buf.validate.field).string.max_len = 128];
+}
+
+message ListOccurrencesRequest {
+  string execution_id = 1 [(buf.validate.field).string.max_len = 128];
+  bool eligible_only = 2;
+  int32 limit = 3 [(buf.validate.field).int32.lte = 100];
+}
+
+message GetBriefRequest {
+  string execution_id = 1 [(buf.validate.field).string.min_len = 1, (buf.validate.field).string.max_len = 128];
+  string phase_id = 2 [(buf.validate.field).string.min_len = 1, (buf.validate.field).string.max_len = 128];
+  repeated string run_ids = 3 [(buf.validate.field).repeated = {max_items: 8, items: {string: {max_len: 128}}}];
+  string validation_operation_id = 4 [(buf.validate.field).string.max_len = 128];
+}
+
+message BriefProgressMarker {
+  string kind = 1;
+  string evidence_ref = 2;
+  string detail = 3;
+  string observed_at = 4;
+}
+
+message BriefProducerWait {
+  string operation_id = 1;
+  string status = 2;
+  string queue_reason = 3;
+  repeated string wait_argv = 4;
+  repeated string sync_argv = 5;
+  bool explicit = 6;
+}
+
+message BriefBudget {
+  bool known = 1;
+  string basis = 2;
+  int32 queue_seconds = 3;
+  int32 execution_seconds = 4;
+  int32 transport_wait_seconds = 5;
+}
+
+message PlanInvestigationBrief {
+  string schema_version = 1;
+  string status = 2;
+  string execution_id = 3;
+  string plan_id = 4;
+  string plan_revision = 5;
+  string phase_id = 6;
+  int32 phase_generation = 7;
+  repeated string run_ids = 8;
+  string expected_outcome = 9;
+  string acceptance_criteria = 10;
+  repeated BriefProgressMarker material_progress = 11;
+  BriefProducerWait producer_wait = 12;
+  int64 wall_time_seconds = 13;
+  int64 active_work_seconds = 14;
+  int64 known_wait_seconds = 15;
+  BriefBudget budget = 16;
+  repeated string omitted_reasons = 17;
+}
+
+message IncidentRecord {
+  string incident_id = 1;
+  string execution_id = 2;
+  string phase_id = 3;
+  string phase_generation = 4;
+  string policy_version = 5;
+  string incident_fingerprint = 6;
+  string mode = 7;
+  string state = 8;
+  TriggerDecision decision = 9;
+  string investigation_id = 10;
+  string program_id = 11;
+  string program_status = 12;
+  string dispatch_error = 13;
+  string created_at = 14;
+  string updated_at = 15;
+  int32 occurrence_count = 16;
+  repeated IncidentOccurrence occurrences = 17;
+  string family_id = 18;
+  repeated string subject_execution_ids = 19;
+}
+
+message IncidentOccurrence {
+  string occurrence_id = 1;
+  string incident_fingerprint = 2;
+  TriggerDecision decision = 3;
+  string observed_at = 4;
+  string created_at = 5;
+  string execution_id = 6;
+  string phase_id = 7;
+  string phase_generation = 8;
+  string policy_version = 9;
+  string family_id = 10;
+  string shared_failure_ref = 11;
+}
+
+message ListIncidentsResponse {
+  repeated IncidentRecord incidents = 1;
+}
+
+message ListOccurrencesResponse {
+  repeated IncidentOccurrence occurrences = 1;
+}

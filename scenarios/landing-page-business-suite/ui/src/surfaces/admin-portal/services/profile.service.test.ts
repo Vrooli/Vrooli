@@ -202,7 +202,7 @@ describe('profile.service', () => {
   describe('getPasswordStrengthFeedback', () => {
     it('returns length error for short password', () => {
       const result = getPasswordStrengthFeedback('short1');
-      expect(result).toBe(`Password must be at least ${MIN_PASSWORD_LENGTH} characters`);
+      expect(result).toBe(`Password must be at least ${String(MIN_PASSWORD_LENGTH)} characters`);
     });
 
     it('returns letter error for password without letter', () => {

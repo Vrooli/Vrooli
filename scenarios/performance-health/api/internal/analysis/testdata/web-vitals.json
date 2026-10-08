@@ -1,0 +1,38 @@
+{
+  "startedAt": 1787322710487,
+  "paint": [
+    {
+      "name": "first-paint",
+      "startTime": 120
+    },
+    {
+      "name": "first-contentful-paint",
+      "startTime": 248
+    }
+  ],
+  "lcp": {
+    "value": 248,
+    "size": 38922,
+    "renderTime": 248,
+    "loadTime": 0
+  },
+  "cls": {
+    "value": 0.02939214801135392,
+    "entries": 1
+  },
+  "longTasks": [
+    {
+      "startTime": 407.90000000596046,
+      "duration": 209,
+      "name": "self"
+    }
+  ],
+  "fcp": 248,
+  "navigation": {
+    "domContentLoaded": 101.30000001192093,
+    "loadEventEnd": 201.90000000596046,
+    "responseEnd": 3.9000000059604645,
+    "domInteractive": 13.700000017881393,
+    "type": "navigate"
+  }
+}

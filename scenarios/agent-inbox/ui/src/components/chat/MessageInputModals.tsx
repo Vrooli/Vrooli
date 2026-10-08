@@ -1,9 +1,6 @@
 import { TemplateSelector } from "./TemplateSelector";
 import { SkillSelector } from "./SkillSelector";
-import { ToolSelector } from "./ToolSelector";
 import { TemplateEditorModal } from "./TemplateEditorModal";
-import type { ForcedTool } from "./AttachmentButton";
-import type { EffectiveTool } from "@/lib/api";
 import type { Skill, Template } from "@/lib/types/templates";
 
 interface MessageInputModalsProps {
@@ -22,14 +19,6 @@ interface MessageInputModalsProps {
   onToggleSkill: (id: string) => void;
   onSyncSkills: () => Promise<unknown>;
   isSyncing: boolean;
-
-  // Tool selector
-  showToolSelector: boolean;
-  onCloseToolSelector: () => void;
-  toolsByScenario: Map<string, EffectiveTool[]>;
-  forcedTool: ForcedTool | null;
-  onSelectTool: (scenario: string, toolName: string) => void;
-  onClearTool: () => void;
 
   // Template editor
   showTemplateEditor: boolean;
@@ -54,12 +43,6 @@ export function MessageInputModals({
   onToggleSkill,
   onSyncSkills,
   isSyncing,
-  showToolSelector,
-  onCloseToolSelector,
-  toolsByScenario,
-  forcedTool,
-  onSelectTool,
-  onClearTool,
   showTemplateEditor,
   onCloseTemplateEditor,
   editingTemplate,
@@ -84,15 +67,6 @@ export function MessageInputModals({
         onToggle={onToggleSkill}
         onSyncSkills={onSyncSkills}
         isSyncing={isSyncing}
-      />
-
-      <ToolSelector
-        open={showToolSelector}
-        onClose={onCloseToolSelector}
-        toolsByScenario={toolsByScenario}
-        forcedTool={forcedTool}
-        onSelect={onSelectTool}
-        onClear={onClearTool}
       />
 
       {showTemplateEditor && (

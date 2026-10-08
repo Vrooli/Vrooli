@@ -1,14 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Terminal } from "@xterm/xterm";
+
+const INTERACTIVE_TOUCH_TARGET = "button, a[href], input, textarea, select, [role='button'], [role='menuitem'], [contenteditable='true']";
 import {
   TOUCH_MOVE_THRESHOLD_PX,
   TOUCH_LONG_PRESS_MS,
   TOUCH_TAP_MAX_MS,
   TOUCH_DOUBLE_TAP_MS,
   TOUCH_SCROLL_CANCEL_PX,
-  TOUCH_SCROLL_DECEL,
   TOUCH_SCROLL_MIN_VELOCITY,
 } from "../consts/config";
+import { createLineAccumulator, createScrollController, decayTouchScrollVelocity, terminalCellHeight, touchScrollVelocity } from "../lib/terminalScroll";
+import { writeText } from "../lib/clipboard";
+import { clampFontSize } from "../lib/fontSizeUtils";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -20,8 +24,30 @@ export interface UseTerminalTouchOptions {
   enabled?: boolean;
   /** Fired on right-click (desktop) or long-press-release without drag (mobile). */
   onContextMenu?: (x: number, y: number) => void;
-  /** Send raw input to the terminal backend (used for mouse wheel in app mouse mode). */
-  sendInput?: (data: string) => void;
+  /**
+   * Send synthetic terminal control bytes. Controls are best-effort and
+   * deliberately bypass the reliable stdin gate.
+   */
+  sendControl?: (data: string) => boolean;
+  /**
+   * The production scroll seam, supplied by `useTerminalSession`. Prefer it:
+   * it is the only path wired to every scroll transport.
+   */
+  scrollBy?: (lines: number, source: "touch") => void;
+  /**
+   * Server-side scrolling for standalone use without `scrollBy`. Without it a
+   * pane that has no client scrollback and no mouse tracking — which is every
+   * tmux-backed pane running a program that does not request the mouse — has
+   * nothing that can scroll it, and touch drags do nothing at all.
+   */
+  sendScroll?: (lines: number) => boolean;
+  fontSize?: number;
+  isFollower?: boolean;
+  onFontSizeCommit?: (size: number) => void;
+  /** Injectable monotonic clock for deterministic momentum decay tests. */
+  now?: () => number;
+  /** Shows the live pinch preview while the gesture is active. */
+  onFontSizePreview?: (size: number | null) => void;
 }
 
 export interface UseTerminalTouchReturn {
@@ -56,6 +82,11 @@ type GestureState =
        *  TOUCH_SCROLL_CANCEL_PX the long-press timer is cancelled — the
        *  gesture is clearly an intentional scroll, not tremor. */
       cumulativeDist: number;
+      /** Sub-row travel not yet converted into a scroll, in rows. Without it
+       *  a slow drag scrolls nothing at all: `lastY` advances to the finger on
+       *  every move, so any sample that rounds to zero rows is discarded, and
+       *  a 3px-per-event drag discards all of its travel forever. */
+      scrollResidual: number;
       /** The long-press timer is kept alive for small movements (hand tremor)
        *  but cancelled once cumulativeDist proves real scroll intent. */
       longPressTimer: ReturnType<typeof setTimeout> | null;
@@ -66,6 +97,14 @@ type GestureState =
       anchorCol: number;
       anchorRow: number;
       hasDragged: boolean;
+    }
+  | {
+      type: "pinching";
+      firstId: number;
+      secondId: number;
+      initialDistance: number;
+      initialFontSize: number;
+      pendingFontSize: number;
     };
 
 /** Pending double-tap detection tracked separately. */
@@ -126,22 +165,12 @@ export function findWordBoundaries(
   return [start, end + 1];
 }
 
-/**
- * Derive cell height from the .xterm-screen element and terminal rows.
- * Returns 0 if the element is missing.
- */
-function getCellHeight(terminal: Terminal, container: HTMLElement): number {
-  const screenEl = container.querySelector<HTMLElement>(".xterm-screen");
-  if (!screenEl) return 0;
-  return screenEl.getBoundingClientRect().height / terminal.rows;
-}
-
 /** Get the tracked touch from changedTouches matching the current gesture. */
 function findGestureTouch(
   e: TouchEvent,
   g: GestureState,
 ): Touch | undefined {
-  if (g.type === "idle") return undefined;
+  if (g.type === "idle" || g.type === "pinching") return undefined;
   const id = g.touchId;
   for (let i = 0; i < e.changedTouches.length; i++) {
     const t = e.changedTouches[i] as Touch | undefined;
@@ -150,22 +179,16 @@ function findGestureTouch(
   return undefined;
 }
 
-/**
- * Check if the terminal application has enabled mouse tracking (e.g. tmux
- * with `mouse on`). When active, scroll gestures should send mouse wheel
- * escape sequences to the application instead of scrolling xterm.js's buffer.
- */
-function isAppMouseMode(terminal: Terminal): boolean {
-  return !!terminal.modes && terminal.modes.mouseTrackingMode !== "none";
+function touchById(touches: TouchList | Touch[], id: number): Touch | undefined {
+  for (let i = 0; i < touches.length; i += 1) {
+    const touch = touches[i];
+    if (touch && touch.identifier === id) return touch;
+  }
+  return undefined;
 }
 
-/**
- * Encode a mouse wheel event as an SGR mouse escape sequence.
- * Button 64 = scroll up, 65 = scroll down (1-based coordinates).
- */
-function sgrWheelSequence(up: boolean, col: number, row: number): string {
-  const button = up ? 64 : 65;
-  return `\x1b[<${button};${col + 1};${row + 1}M`;
+function touchDistance(first: Touch, second: Touch): number {
+  return Math.hypot(first.clientX - second.clientX, first.clientY - second.clientY);
 }
 
 // ---------------------------------------------------------------------------
@@ -177,7 +200,14 @@ export function useTerminalTouch({
   containerRef,
   enabled = true,
   onContextMenu,
-  sendInput,
+  sendControl,
+  scrollBy,
+  sendScroll,
+  fontSize = 14,
+  isFollower = false,
+  onFontSizeCommit,
+  onFontSizePreview,
+  now = () => performance.now(),
 }: UseTerminalTouchOptions): UseTerminalTouchReturn {
   const [hasSelection, setHasSelection] = useState(false);
   const gestureRef = useRef<GestureState>({ type: "idle" });
@@ -185,8 +215,15 @@ export function useTerminalTouch({
   const momentumRafRef = useRef<number | null>(null);
   const onContextMenuRef = useRef(onContextMenu);
   onContextMenuRef.current = onContextMenu;
-  const sendInputRef = useRef(sendInput);
-  sendInputRef.current = sendInput;
+  const sendControlRef = useRef(sendControl);
+  sendControlRef.current = sendControl;
+  const scrollByRef = useRef(scrollBy);
+  scrollByRef.current = scrollBy;
+  const sendScrollRef = useRef(sendScroll);
+  sendScrollRef.current = sendScroll;
+  const terminalRef = useRef<Terminal | null>(terminal);
+  terminalRef.current = terminal;
+  const fallbackScrollControllerRef = useRef<ReturnType<typeof createScrollController> | null>(null);
 
   // ---- Clipboard helpers ----
 
@@ -194,12 +231,8 @@ export function useTerminalTouch({
     if (!terminal) return false;
     const text = terminal.getSelection();
     if (!text) return false;
-    try {
-      await navigator.clipboard.writeText(text);
-      return true;
-    } catch {
-      return false;
-    }
+    const result = await writeText(text);
+    return result.ok;
   }, [terminal]);
 
   const clearSelection = useCallback(() => {
@@ -220,8 +253,9 @@ export function useTerminalTouch({
     const g = gestureRef.current;
     if (g.type === "pending") clearTimeout(g.longPressTimer);
     if (g.type === "scrolling" && g.longPressTimer !== null) clearTimeout(g.longPressTimer);
+    if (g.type === "pinching") onFontSizePreview?.(null);
     gestureRef.current = { type: "idle" };
-  }, []);
+  }, [onFontSizePreview]);
 
   // ---- Main effect: attach touch listeners ----
 
@@ -238,44 +272,42 @@ export function useTerminalTouch({
       screenEl.style.touchAction = "none";
     }
 
-    const cellH = (): number => getCellHeight(term, container);
+    const cellH = (): number => terminalCellHeight(term, container);
 
-    // ---- Scroll dispatch (xterm buffer vs application mouse mode) ----
-    // When the terminal application has enabled mouse tracking (e.g. tmux
-    // with `mouse on`), scroll gestures must be sent as mouse wheel escape
-    // sequences so the application can handle them. Otherwise, scroll
-    // xterm.js's own buffer as before.
     function scrollTerminal(lines: number) {
-      if (lines === 0) return;
-      if (isAppMouseMode(term) && sendInputRef.current) {
-        // Send one wheel event per line, at screen center. tmux treats
-        // each event as a single scroll-line regardless of position.
-        const col = Math.floor(term.cols / 2);
-        const row = Math.floor(term.rows / 2);
-        const up = lines < 0;
-        const count = Math.abs(lines);
-        const seq = sgrWheelSequence(up, col, row);
-        for (let i = 0; i < count; i++) {
-          sendInputRef.current(seq);
-        }
-      } else {
-        term.scrollLines(lines);
+      const providedScrollBy = scrollByRef.current;
+      if (providedScrollBy) {
+        providedScrollBy(lines, "touch");
+        return;
       }
+      if (fallbackScrollControllerRef.current === null) {
+        fallbackScrollControllerRef.current = createScrollController(
+          () => terminalRef.current,
+          (data) => sendControlRef.current?.(data) ?? false,
+          { sendScroll: (lines) => sendScrollRef.current?.(lines) ?? false },
+        );
+      }
+      fallbackScrollControllerRef.current.scrollBy(lines, "touch");
     }
 
     // ---- Momentum scroll ----
     function startMomentum(velocity: number) {
       cancelMomentum();
       let v = velocity;
+      let lastFrameAt = now();
+      const momentumLines = createLineAccumulator();
       const tick = () => {
-        v *= TOUCH_SCROLL_DECEL;
+        const timestamp = now();
+        const elapsed = Math.max(1, timestamp - lastFrameAt);
+        lastFrameAt = timestamp;
+        v = decayTouchScrollVelocity(v, elapsed);
         if (Math.abs(v) < TOUCH_SCROLL_MIN_VELOCITY) {
           momentumRafRef.current = null;
           return;
         }
         const ch = cellH();
         if (ch > 0) {
-          const lines = Math.round(v / ch);
+          const lines = momentumLines.consume(v / ch);
           if (lines !== 0) scrollTerminal(lines);
         }
         momentumRafRef.current = requestAnimationFrame(tick);
@@ -299,18 +331,34 @@ export function useTerminalTouch({
     // ---- Touch handlers ----
 
     function onTouchStart(e: TouchEvent) {
-      // Only track single-finger gestures
+      if (e.touches.length === 2 && !isFollower && onFontSizeCommit) {
+        const first = e.touches[0];
+        const second = e.touches[1];
+        if (first && second) {
+          cancelMomentum();
+          resetGesture();
+          const initialDistance = touchDistance(first, second);
+          gestureRef.current = {
+            type: "pinching",
+            firstId: first.identifier,
+            secondId: second.identifier,
+            initialDistance,
+            initialFontSize: fontSize,
+            pendingFontSize: fontSize,
+          };
+          e.preventDefault();
+        }
+        return;
+      }
+      // Only track single-finger gestures after pinch detection.
       if (e.touches.length !== 1) return;
       const touch = e.touches[0] as Touch | undefined;
       if (!touch) return;
 
-      // Don't intercept touches on the context menu or its backdrop — let
-      // their native click handlers fire so buttons work and the backdrop
-      // dismisses the menu.
+      // The gesture layer owns touches on the terminal surface. Controls
+      // drawn over it own their touches so the browser can dispatch click.
       const target = e.target as HTMLElement | null;
-      if (target?.closest("[data-testid='terminal-context-menu'], [data-testid='ctx-backdrop']")) {
-        return;
-      }
+      if (target?.closest(INTERACTIVE_TOUCH_TARGET)) return;
 
       // Cancel any running momentum
       cancelMomentum();
@@ -388,6 +436,21 @@ export function useTerminalTouch({
 
     function onTouchMove(e: TouchEvent) {
       const g = gestureRef.current;
+      if (g.type === "pinching") {
+        const first = touchById(e.touches, g.firstId);
+        const second = touchById(e.touches, g.secondId);
+        if (!first || !second || g.initialDistance <= 0) return;
+        const scale = touchDistance(first, second) / g.initialDistance;
+        if (Math.abs(scale - 1) >= 0.03) {
+          const preview = clampFontSize(g.initialFontSize + (scale - 1) * 12);
+          g.pendingFontSize = preview;
+          // Preview only. The font authority commits once on touch end.
+          term.options.fontSize = preview;
+          onFontSizePreview?.(preview);
+        }
+        e.preventDefault();
+        return;
+      }
       const touch = findGestureTouch(e, g);
       if (!touch) return;
 
@@ -409,6 +472,7 @@ export function useTerminalTouch({
             lastTime: performance.now(),
             velocity: 0,
             cumulativeDist: dist,
+            scrollResidual: 0,
             longPressTimer: g.longPressTimer,
           };
           e.preventDefault();
@@ -428,15 +492,20 @@ export function useTerminalTouch({
 
         const ch = cellH();
         if (ch > 0) {
-          const lines = Math.round(deltaY / ch);
+          // Work in rows, not pixels, so the carried remainder survives a
+          // font-size change mid-gesture.
+          const total = g.scrollResidual + deltaY / ch;
+          const lines = Math.round(total);
+          g.scrollResidual = total - lines;
           if (lines !== 0) {
             scrollTerminal(lines);
-            // Track velocity for momentum (px/ms → scale to px/frame at ~16ms)
-            g.velocity = dt > 0 ? (deltaY / dt) * 16 : 0;
-            g.lastY = touch.clientY;
-            g.lastTime = now;
           }
         }
+        // Track samples on every move. Momentum normalizes decay by elapsed
+        // time, so display refresh rate no longer changes fling distance.
+        g.velocity = touchScrollVelocity(deltaY, dt);
+        g.lastY = touch.clientY;
+        g.lastTime = now;
         e.preventDefault();
       } else if (g.type === "selecting") {
         g.hasDragged = true;
@@ -465,6 +534,15 @@ export function useTerminalTouch({
 
     function onTouchEnd(e: TouchEvent) {
       const g = gestureRef.current;
+      if (g.type === "pinching") {
+        if (g.pendingFontSize !== g.initialFontSize) {
+          onFontSizeCommit?.(g.pendingFontSize);
+        }
+        onFontSizePreview?.(null);
+        gestureRef.current = { type: "idle" };
+        e.preventDefault();
+        return;
+      }
       const touch = findGestureTouch(e, g);
       if (!touch) return;
 

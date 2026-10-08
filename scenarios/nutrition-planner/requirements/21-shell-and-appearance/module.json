@@ -1,0 +1,185 @@
+{
+  "_metadata": {
+    "description": "The five-destination shell, routes and context, the focused cooking shell, and Light, Evening, and Follow device appearances from one token system.",
+    "module": "shell-and-appearance",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": false
+  },
+  "requirements": [
+    {
+      "id": "SHELL-001",
+      "title": "Five destinations in the same order everywhere",
+      "status": "planned",
+      "prd_ref": "OT-P0-016",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "The scenario shall present exactly five primary destinations, Today, Week, Meals, Groceries, and Kitchen, in that order as header links on desktop and five labeled bottom tabs on phones, keep Settings reachable from every normal page, and use one icon per destination from one icon family everywhere.",
+      "tags": [
+        "shell",
+        "navigation",
+        "icons"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: the navigation model has exactly five destinations in order on every width, and each tab has a visible label and accessible name (R01.2, R29.3)."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: a fresh user can open each destination by direct link with real empty states and consistent routes (AT-001)."
+        }
+      ]
+    },
+    {
+      "id": "SHELL-002",
+      "title": "Routes carry context and restore state",
+      "status": "planned",
+      "prd_ref": "OT-P0-016",
+      "category": "contract",
+      "criticality": "P0",
+      "description": "The scenario shall serve the R03.1 routes with harmless UI context such as week and tab in the URL, validate every id server-side, recover from invalid context without redirecting to another user's record, keep allergy lists, credentials, signed media URLs, and recipe payloads out of URLs, support browser Back through details, editors, and overlays, and restore filters, scroll, date, and slot after saving or returning from cooking.",
+      "tags": [
+        "routes",
+        "context",
+        "back",
+        "privacy"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: returning from a recipe or cooking session restores the originating filters and selected slot, and a direct link works without prior history (R03.1)."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: a route with another workspace's id is refused without revealing that record (R03.1, AT-044)."
+        }
+      ]
+    },
+    {
+      "id": "SHELL-003",
+      "title": "Focused cooking hides ordinary navigation",
+      "status": "planned",
+      "prd_ref": "OT-P0-016",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "While a cooking session is open, the scenario shall hide ordinary destination navigation, keep Exit cooking and View full recipe obvious, provide a minimal session menu, and preserve the session state on exit.",
+      "tags": [
+        "shell",
+        "cooking",
+        "focus-mode"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: the cooking route renders no primary navigation and Exit cooking returns to the originating route with the session still resumable (R03.3, R13.1)."
+        }
+      ]
+    },
+    {
+      "id": "SHELL-004",
+      "title": "Appearance persists without a flash",
+      "status": "planned",
+      "prd_ref": "OT-P0-016",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "The scenario shall offer Light, Evening, and Follow device appearances, default to Follow device unless a preference exists, persist an explicit choice locally for first paint and in the account for later sessions, match the native control color scheme, and avoid a bright flash when reloading in Evening.",
+      "tags": [
+        "appearance",
+        "theme",
+        "persistence"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: an appearance saved in one session is applied on a second session before first paint (AT-002)."
+        }
+      ]
+    },
+    {
+      "id": "SHELL-005",
+      "title": "Appearance never changes food data or spends",
+      "status": "planned",
+      "prd_ref": "OT-P0-016",
+      "category": "policy",
+      "criticality": "P0",
+      "description": "Changing appearance shall change only presentation, never recipe, servings, date, meal selection, history, or planning settings, never infer meal type from the theme, and never create an image generation job or charge.",
+      "tags": [
+        "appearance",
+        "side-effects",
+        "generation"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Planned: switching Light to Evening with generation disabled renders the existing asset or fallback and creates zero generation jobs (AT-003)."
+        }
+      ]
+    },
+    {
+      "id": "SHELL-006",
+      "title": "One semantic token system drives both appearances",
+      "status": "planned",
+      "prd_ref": "OT-P0-016",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "The scenario shall style every surface from one semantic token set with Light and Evening values defined in DESIGN.md, measure control and text contrast in both appearances, pair meaningful states with text, icon, or shape, and contain no per-screen hard-coded colors or raw palette utility classes in feature code.",
+      "tags": [
+        "tokens",
+        "theme",
+        "contrast"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: a source check finds no raw palette utility classes in ui/src feature code, and token pairs used for text and controls meet the WCAG 2.2 AA contrast target in both appearances (R05.1)."
+        },
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "notes": "Planned: captures of each surface in Light and Evening show the same structure with only presentation changed (R29.3)."
+        }
+      ]
+    },
+    {
+      "id": "SHELL-007",
+      "title": "Primary actions are labeled and feedback is durable",
+      "status": "planned",
+      "prd_ref": "OT-P0-016",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "Each page shall place its labeled primary action where R03.3 names it, avoid an unlabeled global plus with changing meanings, and show success feedback only after the relevant durable operation succeeds.",
+      "tags": [
+        "actions",
+        "feedback",
+        "honesty"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned: a save toast appears only after the API acknowledges the mutation, and a failed save keeps the draft with Retry (R03.3, SYS-01)."
+        }
+      ]
+    }
+  ]
+}

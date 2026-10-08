@@ -25,26 +25,26 @@
 
 ### 🔴 P0 – Must ship for viability
 
-- [x] OT-P0-001 | Health Check Endpoint | API responds to /health with status 200
-- [x] OT-P0-002 | Database Connection | API connects to PostgreSQL and performs CRUD operations
-- [x] OT-P0-003 | Foliage Data API | Retrieve current foliage status for regions via REST endpoints
-- [x] OT-P0-004 | Weather Integration | Fetch and store weather data for predictions via direct API/CLI flows (n8n workflows removed)
-- [x] OT-P0-005 | Basic Prediction Engine | Generate foliage peak predictions using Ollama AI with fallback logic
-- [x] OT-P0-006 | Interactive Map UI | Display regions with foliage status overlays using Leaflet.js
-- [x] OT-P0-007 | Lifecycle Management | setup/develop/test/stop commands work properly
+- [ ] OT-P0-001 | Health Check Endpoint | API responds to /health with status 200
+- [ ] OT-P0-002 | Database Connection | API connects to PostgreSQL and performs CRUD operations
+- [ ] OT-P0-003 | Foliage Data API | Retrieve current foliage status for regions via REST endpoints
+- [ ] OT-P0-004 | Weather Integration | Fetch and store weather data for predictions via direct API/CLI flows (n8n workflows removed)
+- [ ] OT-P0-005 | Basic Prediction Engine | Generate foliage peak predictions using Ollama AI with fallback logic
+- [ ] OT-P0-006 | Interactive Map UI | Display regions with foliage status overlays using Leaflet.js
+- [ ] OT-P0-007 | Lifecycle Management | setup/develop/test/stop commands work properly
 
 ### 🟠 P1 – Should have post-launch
 
-- [x] OT-P1-001 | User Reports | Accept and display crowd-sourced foliage reports via GET/POST endpoints
-- [x] OT-P1-002 | Time Slider | Navigate through past/present/future foliage states in UI
-- [x] OT-P1-003 | Trip Planning | Save and manage multi-region trip plans with backend storage
-- [x] OT-P1-004 | Photo Gallery | Display user-submitted photos by region and date with filtering
+- [ ] OT-P1-001 | User Reports | Accept and display crowd-sourced foliage reports via GET/POST endpoints
+- [ ] OT-P1-002 | Time Slider | Navigate through past/present/future foliage states in UI
+- [ ] OT-P1-003 | Trip Planning | Save and manage multi-region trip plans with backend storage
+- [ ] OT-P1-004 | Photo Gallery | Display user-submitted photos by region and date with filtering
 
 ### 🟢 P2 – Future / expansion
 
-- [x] OT-P2-001 | AI Predictions | Use Ollama llama3.2:latest for advanced pattern analysis
-- [x] OT-P2-002 | Mobile Responsive | Optimize UI for mobile devices with responsive CSS
-- [x] OT-P2-003 | Export Features | Download predictions and trip plans in CSV and JSON formats
+- [ ] OT-P2-001 | AI Predictions | Use a local Ollama generation model (the `chat.default` role) for advanced pattern analysis
+- [ ] OT-P2-002 | Mobile Responsive | Optimize UI for mobile devices with responsive CSS
+- [ ] OT-P2-003 | Export Features | Download predictions and trip plans in CSV and JSON formats
 
 ## 🧱 Tech Direction Snapshot
 
@@ -56,7 +56,7 @@
 - PostgreSQL for historical foliage data, weather records, user reports, and trip plans
 - Redis for real-time data caching and performance optimization
 
-**AI Integration**: Direct Ollama API calls for foliage peak predictions (llama3.2:latest model) with fallback to latitude-based typical peak weeks
+**AI Integration**: Direct Ollama API calls for foliage peak predictions (a local generation model resolved from the ollama `chat.default` role) with fallback to latitude-based typical peak weeks
 
 **Integration Strategy**: Direct API/CLI flows for weather data collection; Ollama API calls per shared-workflows protocol
 
@@ -74,7 +74,7 @@
 - Automation handled via direct API calls and scheduled jobs (n8n workflows removed)
 
 **Optional Resources**:
-- Browserless – weather data scraping fallback
+- browser-automation-studio – weather data scraping fallback
 
 **Scenario Dependencies**: None (standalone scenario)
 

@@ -12,5 +12,14 @@ type AIClient interface {
 	Model() string
 }
 
+// RolePromptClient executes text prompts through the shared OpenRouter service
+// using a resource-owned model role.
+type RolePromptClient interface {
+	ExecutePromptWithRole(ctx context.Context, role, prompt string) (string, error)
+}
+
 // Compile-time interface enforcement
-var _ AIClient = (*OpenRouterClient)(nil)
+var (
+	_ AIClient         = (*OpenRouterClient)(nil)
+	_ RolePromptClient = (*OpenRouterClient)(nil)
+)

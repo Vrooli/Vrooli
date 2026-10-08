@@ -12,10 +12,10 @@ import (
 	"strings"
 	"time"
 
+	"prompt-manager/cli/internal/appctx"
+
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
-
-	"prompt-manager/cli/internal/appctx"
 )
 
 // SearchResult represents a search result item (text search)
@@ -105,28 +105,6 @@ type AvailabilityStatus struct {
 	Message      string `json:"message,omitempty"`
 }
 
-// ReindexResponse represents the response from a reindex operation.
-type ReindexResponse struct {
-	Indexed int    `json:"indexed"`
-	Skipped int    `json:"skipped"`
-	Errors  int    `json:"errors"`
-	Message string `json:"message"`
-}
-
-// ReindexStatus represents the status of a reindex job.
-type ReindexStatus struct {
-	Running    bool   `json:"running"`
-	StartedAt  string `json:"startedAt,omitempty"`
-	FinishedAt string `json:"finishedAt,omitempty"`
-	Indexed    int    `json:"indexed"`
-	Skipped    int    `json:"skipped"`
-	Errors     int    `json:"errors"`
-	Total      int    `json:"total"`
-	Message    string `json:"message,omitempty"`
-	Canceled   bool   `json:"canceled,omitempty"`
-	Error      string `json:"error,omitempty"`
-}
-
 // Commands returns the search command group.
 func Commands(ctx appctx.Context) cliapp.CommandGroup {
 	return cliapp.CommandGroup{
@@ -151,30 +129,30 @@ func Commands(ctx appctx.Context) cliapp.CommandGroup {
 				},
 			},
 			{
-				Name:        "search-reindex",
-				Aliases:     []string{"search reindex"},
+				Name:        "search-reconcile",
+				Aliases:     []string{"search reconcile"},
 				NeedsAPI:    true,
-				Description: "Start full reindex of skills into vector database",
+				Description: "Reconcile vector index with on-disk content (--dry-run for plan only)",
 				Run: func(args []string) error {
-					return cmdReindex(ctx, args)
+					return cmdReconcile(ctx, args)
 				},
 			},
 			{
-				Name:        "search-reindex-status",
-				Aliases:     []string{"search reindex status", "search reindex-status"},
+				Name:        "search-reconcile-status",
+				Aliases:     []string{"search reconcile status", "search reconcile-status"},
 				NeedsAPI:    true,
-				Description: "Check progress of ongoing reindex operation",
+				Description: "Check progress of ongoing reconcile operation",
 				Run: func(args []string) error {
-					return cmdReindexStatus(ctx, args)
+					return cmdReconcileStatus(ctx, args)
 				},
 			},
 			{
-				Name:        "search-reindex-cancel",
-				Aliases:     []string{"search reindex cancel", "search reindex-cancel"},
+				Name:        "search-reconcile-cancel",
+				Aliases:     []string{"search reconcile cancel", "search reconcile-cancel"},
 				NeedsAPI:    true,
-				Description: "Cancel an active reindex operation",
+				Description: "Cancel an active reconcile operation",
 				Run: func(args []string) error {
-					return cmdReindexCancel(ctx, args)
+					return cmdReconcileCancel(ctx, args)
 				},
 			},
 		},
@@ -660,197 +638,275 @@ func cmdStatus(ctx appctx.Context, args []string) error {
 	return nil
 }
 
-// cmdReindex starts a full reindex of skills into the vector database.
-func cmdReindex(ctx appctx.Context, args []string) error {
-	fs := flag.NewFlagSet("search-reindex", flag.ContinueOnError)
-	wait := fs.Bool("wait", false, "Wait for reindex to complete")
+// ReconcileItemRef mirrors the API's ItemRef shape for CLI display.
+type ReconcileItemRef struct {
+	Kind        string `json:"kind"`
+	PointID     string `json:"pointId"`
+	Name        string `json:"name"`
+	PayloadHash string `json:"payloadHash"`
+}
+
+// CollectionDriftReport mirrors the API's per-collection plan slice.
+type CollectionDriftReport struct {
+	Kind           string             `json:"kind"`
+	ToUpsert       []ReconcileItemRef `json:"toUpsert,omitempty"`
+	ToDelete       []string           `json:"toDelete,omitempty"`
+	UnchangedCount int                `json:"unchangedCount"`
+	LegacyCount    int                `json:"legacyCount"`
+}
+
+// DriftReport mirrors the API's full plan output.
+type DriftReport struct {
+	PlannedAt   string                  `json:"plannedAt"`
+	Collections []CollectionDriftReport `json:"collections"`
+}
+
+// CollectionApplyResult mirrors the API's per-collection apply slice.
+type CollectionApplyResult struct {
+	Kind     string `json:"kind"`
+	Upserted int    `json:"upserted"`
+	Deleted  int    `json:"deleted"`
+}
+
+// ReconcileError mirrors the API's per-item error.
+type ReconcileError struct {
+	Kind    string `json:"kind"`
+	PointID string `json:"pointId,omitempty"`
+	Name    string `json:"name,omitempty"`
+	Op      string `json:"op"`
+	Err     string `json:"err"`
+}
+
+// ApplyResult mirrors the API's full apply output.
+type ApplyResult struct {
+	StartedAt   string                  `json:"startedAt"`
+	FinishedAt  string                  `json:"finishedAt"`
+	Collections []CollectionApplyResult `json:"collections"`
+	Errors      []ReconcileError        `json:"errors,omitempty"`
+}
+
+// ReconcileStatus mirrors the API's status response.
+type ReconcileStatus struct {
+	Running    bool         `json:"running"`
+	StartedAt  string       `json:"startedAt,omitempty"`
+	FinishedAt string       `json:"finishedAt,omitempty"`
+	LastPlan   *DriftReport `json:"lastPlan,omitempty"`
+	LastResult *ApplyResult `json:"lastResult,omitempty"`
+	LastError  string       `json:"lastError,omitempty"`
+	Canceled   bool         `json:"canceled,omitempty"`
+}
+
+// dryRunResponse wraps the dry-run plan returned by the API.
+type dryRunResponse struct {
+	DryRun bool         `json:"dry_run"`
+	Plan   *DriftReport `json:"plan"`
+}
+
+// cmdReconcile triggers a reconcile run, optionally dry-run, optionally
+// scoped to a single collection, optionally waiting for completion.
+func cmdReconcile(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("search-reconcile", flag.ContinueOnError)
+	dryRun := fs.Bool("dry-run", false, "Print the planned upserts/deletes without applying")
+	wait := fs.Bool("wait", false, "Wait for reconcile to complete")
+	collection := fs.String("collection", "all", "Restrict to one collection: skills|agents|teams|topics|actions|all")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
 	fs.Bool("j", false, "Output as JSON (shorthand)")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-
-	// Check if -j was used
 	fs.Visit(func(f *flag.Flag) {
 		if f.Name == "j" {
 			*jsonOut = true
 		}
 	})
 
-	var resp ReindexStatus
-	if err := ctx.Post("/search/ai/reindex", nil, &resp); err != nil {
-		return fmt.Errorf("failed to start reindex: %w", err)
+	path := "/search/ai/reconcile"
+	if *collection != "" && *collection != "all" {
+		path += "?collection=" + url.QueryEscape(*collection)
 	}
 
-	// If not running after our request, it means it was already running
-	if !resp.Running && resp.Message == "" {
-		resp.Message = "Reindex already in progress"
+	if *dryRun {
+		// Express dry-run via query so we don't need a custom header path.
+		sep := "?"
+		if strings.Contains(path, "?") {
+			sep = "&"
+		}
+		path += sep + "dry_run=1"
+
+		var resp dryRunResponse
+		if err := ctx.Post(path, nil, &resp); err != nil {
+			return fmt.Errorf("dry-run failed: %w", err)
+		}
+		if *jsonOut {
+			enc := json.NewEncoder(os.Stdout)
+			enc.SetIndent("", "  ")
+			return enc.Encode(resp)
+		}
+		printDriftReport(resp.Plan)
+		return nil
+	}
+
+	var status ReconcileStatus
+	if err := ctx.Post(path, nil, &status); err != nil {
+		return fmt.Errorf("failed to start reconcile: %w", err)
 	}
 
 	if *jsonOut && !*wait {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
-		return enc.Encode(resp)
+		return enc.Encode(status)
 	}
 
 	if !*wait {
-		if resp.Message != "" {
-			fmt.Println(resp.Message)
-		} else {
-			fmt.Println("Reindex started")
-		}
-		fmt.Println("Use 'search reindex-status' to monitor progress")
+		fmt.Println("Reconcile accepted")
+		fmt.Println("Use 'search reconcile-status' to monitor progress")
 		return nil
 	}
 
-	// Wait mode: poll until completion
-	fmt.Println("Reindexing skills...")
+	fmt.Println("Reconciling vector index...")
 	startTime := time.Now()
-
+	deadline := startTime.Add(10 * time.Minute)
 	for {
-		var status ReindexStatus
-		if err := ctx.Get("/search/ai/reindex/status", &status); err != nil {
-			return fmt.Errorf("failed to get reindex status: %w", err)
+		if time.Now().After(deadline) {
+			return fmt.Errorf("timed out after 10m waiting for reconcile to finish")
 		}
-
-		if !status.Running {
-			// Reindex complete
+		var st ReconcileStatus
+		if err := ctx.Get("/search/ai/reconcile/status", &st); err != nil {
+			return fmt.Errorf("failed to get reconcile status: %w", err)
+		}
+		if !st.Running {
 			if *jsonOut {
 				enc := json.NewEncoder(os.Stdout)
 				enc.SetIndent("", "  ")
-				return enc.Encode(status)
+				return enc.Encode(st)
 			}
-
 			duration := time.Since(startTime)
 			fmt.Println()
-			if status.Canceled {
-				fmt.Println("Reindex canceled")
-			} else if status.Error != "" {
-				fmt.Printf("Reindex failed: %s\n", status.Error)
+			if st.Canceled {
+				fmt.Println("Reconcile canceled")
+			} else if st.LastError != "" {
+				fmt.Printf("Reconcile failed: %s\n", st.LastError)
 			} else {
-				fmt.Println("Reindex complete")
+				fmt.Println("Reconcile complete")
 			}
-			fmt.Printf("  Indexed:  %d\n", status.Indexed)
-			fmt.Printf("  Skipped:  %d\n", status.Skipped)
-			fmt.Printf("  Errors:   %d\n", status.Errors)
+			printApplyResult(st.LastResult)
 			fmt.Printf("  Duration: %.1fs\n", duration.Seconds())
 			return nil
 		}
-
-		// Print progress
-		progress := status.Indexed + status.Skipped + status.Errors
-		fmt.Printf("Progress: %d/%d indexed, %d skipped, %d errors\n",
-			status.Indexed, status.Total, status.Skipped, status.Errors)
-
-		// Don't print progress again if we're almost done
-		if progress >= status.Total {
-			time.Sleep(500 * time.Millisecond)
-		} else {
-			time.Sleep(2 * time.Second)
-		}
+		time.Sleep(2 * time.Second)
 	}
 }
 
-// cmdReindexStatus checks the progress of an ongoing reindex operation.
-func cmdReindexStatus(ctx appctx.Context, args []string) error {
-	fs := flag.NewFlagSet("search-reindex-status", flag.ContinueOnError)
+// cmdReconcileStatus prints the reconciler's last-known status.
+func cmdReconcileStatus(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("search-reconcile-status", flag.ContinueOnError)
 	jsonOut := fs.Bool("json", false, "Output as JSON")
 	fs.Bool("j", false, "Output as JSON (shorthand)")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-
-	// Check if -j was used
 	fs.Visit(func(f *flag.Flag) {
 		if f.Name == "j" {
 			*jsonOut = true
 		}
 	})
 
-	var status ReindexStatus
-	if err := ctx.Get("/search/ai/reindex/status", &status); err != nil {
-		return fmt.Errorf("failed to get reindex status: %w", err)
+	var st ReconcileStatus
+	if err := ctx.Get("/search/ai/reconcile/status", &st); err != nil {
+		return fmt.Errorf("failed to get reconcile status: %w", err)
 	}
-
 	if *jsonOut {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
-		return enc.Encode(status)
+		return enc.Encode(st)
 	}
 
-	fmt.Println("Reindex Status")
-	fmt.Println("--------------")
-	fmt.Printf("Running:    %s\n", boolToYesNo(status.Running))
-
-	if status.StartedAt != "" {
-		fmt.Printf("Started:    %s\n", status.StartedAt)
+	fmt.Println("Reconcile Status")
+	fmt.Println("----------------")
+	fmt.Printf("Running:    %s\n", boolToYesNo(st.Running))
+	if st.StartedAt != "" {
+		fmt.Printf("Started:    %s\n", st.StartedAt)
 	}
-	if status.FinishedAt != "" {
-		fmt.Printf("Finished:   %s\n", status.FinishedAt)
+	if st.FinishedAt != "" {
+		fmt.Printf("Finished:   %s\n", st.FinishedAt)
 	}
-
-	if status.Total > 0 {
-		progress := status.Indexed + status.Skipped + status.Errors
-		percent := 0
-		if status.Total > 0 {
-			percent = (progress * 100) / status.Total
-		}
-		fmt.Printf("Progress:   %d/%d (%d%%)\n", progress, status.Total, percent)
+	if st.Canceled {
+		fmt.Println("(canceled)")
 	}
-
-	fmt.Printf("  Indexed:  %d\n", status.Indexed)
-	fmt.Printf("  Skipped:  %d\n", status.Skipped)
-	fmt.Printf("  Errors:   %d\n", status.Errors)
-
-	if status.Canceled {
-		fmt.Println("  (canceled)")
+	if st.LastError != "" {
+		fmt.Printf("Error:      %s\n", st.LastError)
 	}
-	if status.Error != "" {
-		fmt.Printf("Error:      %s\n", status.Error)
-	}
-	if status.Message != "" {
-		fmt.Printf("Message:    %s\n", status.Message)
-	}
-
+	printApplyResult(st.LastResult)
 	return nil
 }
 
-// cmdReindexCancel cancels an active reindex operation.
-func cmdReindexCancel(ctx appctx.Context, args []string) error {
-	fs := flag.NewFlagSet("search-reindex-cancel", flag.ContinueOnError)
+// cmdReconcileCancel asks the API to abort an in-flight reconcile.
+func cmdReconcileCancel(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("search-reconcile-cancel", flag.ContinueOnError)
 	jsonOut := fs.Bool("json", false, "Output as JSON")
 	fs.Bool("j", false, "Output as JSON (shorthand)")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-
-	// Check if -j was used
 	fs.Visit(func(f *flag.Flag) {
 		if f.Name == "j" {
 			*jsonOut = true
 		}
 	})
 
-	var status ReindexStatus
-	if err := ctx.Post("/search/ai/reindex/cancel", nil, &status); err != nil {
-		return fmt.Errorf("failed to cancel reindex: %w", err)
+	var st ReconcileStatus
+	if err := ctx.Post("/search/ai/reconcile/cancel", nil, &st); err != nil {
+		return fmt.Errorf("failed to cancel reconcile: %w", err)
 	}
-
 	if *jsonOut {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
-		return enc.Encode(status)
+		return enc.Encode(st)
 	}
 
-	if status.Canceled {
-		fmt.Println("Reindex canceled")
-	} else if !status.Running {
-		fmt.Println("No reindex operation running")
+	if st.Canceled {
+		fmt.Println("Reconcile canceled")
+	} else if !st.Running {
+		fmt.Println("No reconcile in progress")
 	} else {
 		fmt.Println("Cancel request sent")
 	}
-
 	return nil
+}
+
+func printDriftReport(plan *DriftReport) {
+	if plan == nil {
+		fmt.Println("No plan returned")
+		return
+	}
+	fmt.Println("Reconcile Plan")
+	fmt.Println("--------------")
+	if len(plan.Collections) == 0 {
+		fmt.Println("(no collections configured)")
+		return
+	}
+	for _, c := range plan.Collections {
+		fmt.Printf("%s: upsert=%d delete=%d unchanged=%d legacy=%d\n",
+			c.Kind, len(c.ToUpsert), len(c.ToDelete), c.UnchangedCount, c.LegacyCount)
+	}
+}
+
+func printApplyResult(ar *ApplyResult) {
+	if ar == nil {
+		return
+	}
+	for _, c := range ar.Collections {
+		if c.Upserted == 0 && c.Deleted == 0 {
+			continue
+		}
+		fmt.Printf("  %s: upserted=%d deleted=%d\n", c.Kind, c.Upserted, c.Deleted)
+	}
+	if len(ar.Errors) > 0 {
+		fmt.Printf("  errors=%d\n", len(ar.Errors))
+		for _, e := range ar.Errors {
+			fmt.Printf("    [%s/%s] %s: %s\n", e.Kind, e.Op, e.Name, e.Err)
+		}
+	}
 }
 
 // boolToYesNo converts a boolean to "yes" or "no".

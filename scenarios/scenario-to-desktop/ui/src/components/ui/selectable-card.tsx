@@ -39,7 +39,7 @@ export function SelectableCard({
           ? "border-blue-500 bg-blue-500/10"
           : "border-slate-700 bg-slate-800/50 hover:border-slate-600 hover:bg-slate-800",
         disabled && "opacity-50 cursor-not-allowed",
-        className
+        className,
       )}
     >
       {/* Selection indicator */}
@@ -49,7 +49,7 @@ export function SelectableCard({
           selectionMode === "radio" ? "rounded-full" : "rounded",
           selected
             ? "border-blue-500 bg-blue-500"
-            : "border-slate-600 bg-transparent"
+            : "border-slate-600 bg-transparent",
         )}
       >
         {selected && <Check className="h-3 w-3 text-white" />}
@@ -61,7 +61,7 @@ export function SelectableCard({
           "w-10 h-10 rounded-lg flex items-center justify-center transition-colors",
           selected
             ? "bg-blue-500/20 text-blue-400"
-            : "bg-slate-700/50 text-slate-400"
+            : "bg-slate-700/50 text-slate-400",
         )}
       >
         <Icon className="h-5 w-5" />
@@ -71,7 +71,7 @@ export function SelectableCard({
       <span
         className={cn(
           "text-sm font-medium transition-colors",
-          selected ? "text-blue-400" : "text-slate-200"
+          selected ? "text-blue-400" : "text-slate-200",
         )}
       >
         {config.name}
@@ -86,7 +86,10 @@ export function SelectableCard({
 }
 
 // Compact variant for permission/effort cards
-interface CompactSelectableCardProps extends Omit<SelectableCardProps, "className"> {
+interface CompactSelectableCardProps extends Omit<
+  SelectableCardProps,
+  "className"
+> {
   compact?: boolean;
 }
 
@@ -110,7 +113,7 @@ export function CompactSelectableCard({
         selected
           ? "border-blue-500 bg-blue-500/10"
           : "border-slate-700 bg-slate-800/50 hover:border-slate-600 hover:bg-slate-800",
-        disabled && "opacity-50 cursor-not-allowed"
+        disabled && "opacity-50 cursor-not-allowed",
       )}
     >
       {/* Icon */}
@@ -119,7 +122,7 @@ export function CompactSelectableCard({
           "w-8 h-8 rounded-md flex items-center justify-center shrink-0 transition-colors",
           selected
             ? "bg-blue-500/20 text-blue-400"
-            : "bg-slate-700/50 text-slate-400"
+            : "bg-slate-700/50 text-slate-400",
         )}
       >
         <Icon className="h-4 w-4" />
@@ -130,7 +133,7 @@ export function CompactSelectableCard({
         <span
           className={cn(
             "text-sm font-medium block transition-colors",
-            selected ? "text-blue-400" : "text-slate-200"
+            selected ? "text-blue-400" : "text-slate-200",
           )}
         >
           {config.name}
@@ -147,7 +150,7 @@ export function CompactSelectableCard({
           selectionMode === "radio" ? "rounded-full" : "rounded",
           selected
             ? "border-blue-500 bg-blue-500"
-            : "border-slate-600 bg-transparent"
+            : "border-slate-600 bg-transparent",
         )}
       >
         {selected && <Check className="h-3 w-3 text-white" />}

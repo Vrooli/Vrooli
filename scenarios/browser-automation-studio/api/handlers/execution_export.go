@@ -2,10 +2,11 @@ package handlers
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
-	"mime"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -24,6 +25,8 @@ import (
 	"github.com/vrooli/browser-automation-studio/services/export/render"
 	"github.com/vrooli/browser-automation-studio/services/export/source"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
+	exportsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/exports"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // PostExecutionExport handles POST /api/v1/executions/{id}/export
@@ -177,24 +180,28 @@ func (h *Handler) PostExecutionExport(w http.ResponseWriter, r *http.Request) {
 		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "describe_export"}))
 		return
 	}
+	if preview == nil {
+		h.log.WithField("execution_id", executionID).Error("Execution export service returned an empty preview")
+		h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "describe_export", "error": "empty export preview"}))
+		return
+	}
 
 	replayConfig, configErr := h.loadReplayConfig(previewCtx)
 	if configErr != nil && h.log != nil {
 		h.log.WithError(configErr).Warn("Failed to load replay config for export")
 	}
 	replayOverrides := replayConfigToOverrides(replayConfig)
-	spec, specErr := export.BuildSpec(preview.Package, body.MovieSpec, executionID)
+	generatedSpec, specErr := exportservices.BuildReplaySpec(preview.Package, body.MovieSpec, executionID)
 	if specErr != nil {
-		if errors.Is(specErr, export.ErrMovieSpecUnavailable) {
+		if errors.Is(specErr, exportservices.ErrMovieSpecUnavailable) {
 			if format == "json" {
-				applyReplayConfigToSpec(preview.Package, replayConfig)
-				export.Apply(preview.Package, replayOverrides)
-				export.Apply(preview.Package, body.Overrides)
-				if pbPreview, err := protoconv.ExecutionExportPreviewToProto(preview); err == nil {
-					h.respondProto(w, http.StatusOK, pbPreview)
-				} else {
-					h.respondSuccess(w, http.StatusOK, preview)
+				pbPreview, conversionErr := protoconv.ExecutionExportPreviewToProto(preview)
+				if conversionErr != nil {
+					h.log.WithError(conversionErr).WithField("execution_id", executionID).Error("Failed to encode execution export preview")
+					h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"operation": "encode_export_preview"}))
+					return
 				}
+				h.respondProto(w, http.StatusOK, pbPreview)
 			} else {
 				h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"error": "export package unavailable"}))
 			}
@@ -203,22 +210,23 @@ func (h *Handler) PostExecutionExport(w http.ResponseWriter, r *http.Request) {
 		h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": specErr.Error()}))
 		return
 	}
+	applyReplayConfigToSpec(generatedSpec, replayConfig)
+	exportservices.Apply(generatedSpec, replayOverrides)
+	exportservices.Apply(generatedSpec, body.Overrides)
 
-	preview.Package = spec
-
-	// Enforce watermark requirements based on user's subscription tier.
-	// This ensures free/solo tier users always have the Vrooli watermark enabled.
+	// Enforce watermark requirements from the signed lease feature set. The
+	// local tier name is display data and is not an authorization ladder.
 	if h.entitlementService != nil {
 		ent := entitlement.FromContext(r.Context())
 		requiresWatermark := false
 		if ent != nil {
-			requiresWatermark = h.entitlementService.TierRequiresWatermark(ent.Tier)
+			requiresWatermark = !ent.HasFeature(entitlement.FeatureWatermarkFree)
 		} else {
 			// No entitlement in context - check via service (uses default tier)
 			userIdentity := entitlement.UserIdentityFromContext(r.Context())
 			requiresWatermark = h.entitlementService.RequiresWatermark(previewCtx, userIdentity)
 		}
-		if result := exportservices.EnforceWatermarkRequirements(spec, requiresWatermark); result.WasEnforced {
+		if result := exportservices.EnforceWatermarkRequirements(generatedSpec, requiresWatermark); result.WasEnforced {
 			h.log.WithFields(logrus.Fields{
 				"execution_id":     executionID,
 				"original_enabled": result.OriginalEnabled,
@@ -226,11 +234,9 @@ func (h *Handler) PostExecutionExport(w http.ResponseWriter, r *http.Request) {
 			}).Debug("Watermark requirements enforced for export")
 		}
 	}
-
 	if format == "json" {
-		applyReplayConfigToSpec(spec, replayConfig)
-		export.Apply(spec, replayOverrides)
-		export.Apply(spec, body.Overrides)
+		setExportReceiptHeaders(w, generatedSpec, source.RenderSourceReplayFrames)
+		preview.Package = generatedSpec
 		if pbPreview, err := protoconv.ExecutionExportPreviewToProto(preview); err == nil {
 			h.respondProto(w, http.StatusOK, pbPreview)
 		} else {
@@ -240,10 +246,7 @@ func (h *Handler) PostExecutionExport(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if format == "html" {
-		applyReplayConfigToSpec(spec, replayConfig)
-		export.Apply(spec, replayOverrides)
-		export.Apply(spec, body.Overrides)
-
+		setExportReceiptHeaders(w, generatedSpec, source.RenderSourceReplayFrames)
 		filename := normalizeExportFilename(body.FileName, "replay-export", ".zip")
 		w.Header().Set("Content-Type", "application/zip")
 		if strings.TrimSpace(filename) != "" {
@@ -251,22 +254,19 @@ func (h *Handler) PostExecutionExport(w http.ResponseWriter, r *http.Request) {
 		}
 
 		baseURL := requestBaseURL(r)
-		if err := exportservices.WriteHTMLBundle(previewCtx, w, spec, h.storage, h.log, baseURL); err != nil {
+		if err := exportservices.WriteHTMLBundle(previewCtx, w, generatedSpec, h.storage, h.log, baseURL); err != nil {
 			h.log.WithError(err).WithField("execution_id", executionID).Error("Failed to build HTML replay export")
 		}
 		return
 	}
 
 	// Legacy fallback: sync render and stream to response
-	applyReplayConfigToSpec(spec, replayConfig)
-	export.Apply(spec, replayOverrides)
-	export.Apply(spec, body.Overrides)
-
-	renderTimeout := render.EstimateReplayRenderTimeout(spec)
+	setExportReceiptHeaders(w, generatedSpec, source.RenderSourceReplayFrames)
+	renderTimeout := render.EstimateReplayRenderTimeout(generatedSpec)
 	renderCtx, cancelRender := context.WithTimeout(r.Context(), renderTimeout)
 	defer cancelRender()
 
-	media, renderErr := h.replayRenderer.Render(renderCtx, spec, render.RenderFormat(format), body.FileName)
+	media, renderErr := h.replayRenderer.Render(renderCtx, generatedSpec, render.RenderFormat(format), body.FileName)
 	if renderErr != nil {
 		errMsg := strings.TrimSpace(renderErr.Error())
 		if len(errMsg) > 0 && len(errMsg) > 512 {
@@ -310,6 +310,14 @@ func (h *Handler) PostExecutionExport(w http.ResponseWriter, r *http.Request) {
 	http.ServeContent(w, r, media.Filename, info.ModTime(), file)
 }
 
+func setExportReceiptHeaders(w http.ResponseWriter, spec *exportsv1.ReplaySpec, selectedSource string) {
+	w.Header().Set("X-BAS-Export-Selected-Source", selectedSource)
+	w.Header().Set("X-BAS-Export-Edit-Map-Status", "not_represented_by_export_contract")
+	if spec != nil && spec.GetCursor() != nil && spec.GetCursor().GetStyle() != "" {
+		w.Header().Set("X-BAS-Export-Cursor-Style", spec.GetCursor().GetStyle())
+	}
+}
+
 // handleAsyncBinaryExport creates an export record and renders in background with WebSocket progress.
 func (h *Handler) handleAsyncBinaryExport(w http.ResponseWriter, r *http.Request, executionID uuid.UUID, format string, body export.Request, outputDir string, renderSource string) {
 	ctx := r.Context()
@@ -341,6 +349,7 @@ func (h *Handler) handleAsyncBinaryExport(w http.ResponseWriter, r *http.Request
 		Name:        exportName,
 		Format:      format,
 		Status:      "processing",
+		Settings:    buildExportReceiptSettings(body, renderSource),
 	}
 
 	if err := h.repo.CreateExport(ctx, exportRecord); err != nil {
@@ -370,12 +379,11 @@ func (h *Handler) handleAsyncBinaryExport(w http.ResponseWriter, r *http.Request
 	})
 
 	// Start background rendering
-	go h.renderExportInBackground(exportRecord, executionID, format, body, outputDir, renderSource)
+	go h.renderExportInBackground(context.WithoutCancel(r.Context()), exportRecord, executionID, format, body, outputDir, renderSource)
 }
 
 // renderExportInBackground performs the actual export rendering and broadcasts progress via WebSocket.
-func (h *Handler) renderExportInBackground(exportRecord *database.ExportIndex, executionID uuid.UUID, format string, body export.Request, outputDir string, renderSource string) {
-	ctx := context.Background()
+func (h *Handler) renderExportInBackground(ctx context.Context, exportRecord *database.ExportIndex, executionID uuid.UUID, format string, body export.Request, outputDir string, renderSource string) {
 	exportID := exportRecord.ID.String()
 	execIDStr := executionID.String()
 
@@ -405,9 +413,15 @@ func (h *Handler) renderExportInBackground(exportRecord *database.ExportIndex, e
 	if renderSource != source.RenderSourceReplayFrames {
 		recordedVideo, videoErr := h.loadRecordedVideo(ctx, executionID)
 		if videoErr == nil && recordedVideo != nil {
+			if err := setExportSelectedSource(ctx, h.repo, exportRecord, source.RenderSourceRecordedVideo, recordedVideo); err != nil {
+				h.log.WithError(err).WithField("export_id", exportID).Warn("Failed to persist export source receipt")
+			}
 			h.renderRecordedVideoToFile(ctx, exportRecord, recordedVideo, format, outputDir, broadcastProgress, broadcastError)
 			return
 		}
+	}
+	if err := setExportSelectedSource(ctx, h.repo, exportRecord, source.RenderSourceReplayFrames, nil); err != nil {
+		h.log.WithError(err).WithField("export_id", exportID).Warn("Failed to persist export source receipt")
 	}
 
 	// Fall back to replay rendering
@@ -421,24 +435,31 @@ func (h *Handler) renderExportInBackground(exportRecord *database.ExportIndex, e
 
 	replayConfig, _ := h.loadReplayConfig(ctx)
 	replayOverrides := replayConfigToOverrides(replayConfig)
-	spec, specErr := export.BuildSpec(preview.Package, body.MovieSpec, executionID)
+	generatedSpec, specErr := exportservices.BuildReplaySpec(preview.Package, body.MovieSpec, executionID)
 	if specErr != nil {
 		broadcastError(fmt.Sprintf("Failed to build export spec: %v", specErr))
 		return
 	}
-
-	applyReplayConfigToSpec(spec, replayConfig)
-	export.Apply(spec, replayOverrides)
-	export.Apply(spec, body.Overrides)
-
+	applyReplayConfigToSpec(generatedSpec, replayConfig)
+	exportservices.Apply(generatedSpec, replayOverrides)
+	exportservices.Apply(generatedSpec, body.Overrides)
+	if generatedSpec.GetCursor() != nil {
+		exportRecord.Settings["cursor_style"] = generatedSpec.GetCursor().GetStyle()
+	}
+	for key, value := range buildRenderedSpecReceipt(generatedSpec) {
+		exportRecord.Settings[key] = value
+	}
+	if err := h.repo.UpdateExport(ctx, exportRecord); err != nil {
+		h.log.WithError(err).WithField("export_id", exportID).Warn("Failed to persist final export spec receipt")
+	}
 	broadcastProgress("capturing", 30, "processing")
 
 	// Render to temp file
-	renderTimeout := render.EstimateReplayRenderTimeout(spec)
+	renderTimeout := render.EstimateReplayRenderTimeout(generatedSpec)
 	renderCtx, cancelRender := context.WithTimeout(ctx, renderTimeout)
 	defer cancelRender()
 
-	media, renderErr := h.replayRenderer.Render(renderCtx, spec, render.RenderFormat(format), body.FileName)
+	media, renderErr := h.replayRenderer.Render(renderCtx, generatedSpec, render.RenderFormat(format), body.FileName)
 	if renderErr != nil {
 		broadcastError(fmt.Sprintf("Render failed: %v", renderErr))
 		return
@@ -491,6 +512,84 @@ func (h *Handler) renderExportInBackground(exportRecord *database.ExportIndex, e
 		"output_path":  finalPath,
 		"file_size":    info.Size(),
 	}).Info("Export completed successfully")
+}
+
+func buildExportReceiptSettings(body export.Request, requestedSource string) database.JSONMap {
+	receipt := database.JSONMap{
+		"requested_source": requestedSource,
+		"selected_source":  "pending",
+		"edit_map_status":  "not_represented_by_export_contract",
+	}
+	if body.MovieSpec != nil {
+		receipt["frame_count"] = len(body.MovieSpec.GetFrames())
+		receipt["cursor_style"] = body.MovieSpec.GetCursor().GetStyle()
+		if specJSON, err := protojson.Marshal(body.MovieSpec); err == nil {
+			hash := sha256.Sum256(specJSON)
+			receipt["movie_spec_sha256"] = hex.EncodeToString(hash[:])
+		}
+		receipt["edit_map_status"] = "not_represented_by_export_contract"
+	}
+	if body.Overrides != nil {
+		if body.Overrides.Cursor != nil {
+			receipt["cursor_style"] = body.Overrides.Cursor.GetStyle()
+			receipt["cursor_initial_position"] = body.Overrides.Cursor.GetInitialPosition()
+			receipt["cursor_scale"] = body.Overrides.Cursor.GetScale()
+			receipt["click_animation"] = body.Overrides.Cursor.GetClickAnimation()
+		}
+		if body.Overrides.CursorPreset != nil {
+			preset := body.Overrides.CursorPreset
+			receipt["cursor_style"] = preset.Theme
+			receipt["cursor_initial_position"] = preset.InitialPosition
+			receipt["cursor_scale"] = preset.Scale
+			receipt["click_animation"] = preset.ClickAnimation
+		}
+		if body.Overrides.ThemePreset != nil {
+			receipt["chrome_theme"] = body.Overrides.ThemePreset.ChromeTheme
+			receipt["background_theme"] = body.Overrides.ThemePreset.BackgroundTheme
+		}
+		if body.Overrides.Theme != nil {
+			receipt["chrome_theme"] = body.Overrides.Theme.GetBrowserChrome().GetVariant()
+			receipt["background_theme"] = body.Overrides.Theme.GetBackgroundPattern()
+		}
+	}
+	return receipt
+}
+
+func buildRenderedSpecReceipt(spec *exportsv1.ReplaySpec) database.JSONMap {
+	if spec == nil {
+		return nil
+	}
+	receipt := database.JSONMap{"rendered_frame_count": len(spec.GetFrames())}
+	if specJSON, err := protojson.Marshal(spec); err == nil {
+		hash := sha256.Sum256(specJSON)
+		receipt["rendered_spec_sha256"] = hex.EncodeToString(hash[:])
+	}
+	return receipt
+}
+
+func setExportSelectedSource(ctx context.Context, repo database.Repository, record *database.ExportIndex, selected string, video *source.VideoSource) error {
+	if record == nil || repo == nil {
+		return fmt.Errorf("export repository and record are required")
+	}
+	if record.Settings == nil {
+		record.Settings = database.JSONMap{}
+	}
+	record.Settings["selected_source"] = selected
+	if video != nil {
+		if video.ArtifactID != "" {
+			record.Settings["source_artifact_id"] = video.ArtifactID
+		}
+		if video.SHA256 != "" {
+			record.Settings["source_sha256"] = video.SHA256
+		}
+		if video.ContentType != "" {
+			record.Settings["source_content_type"] = video.ContentType
+		}
+		if video.SizeBytes != nil {
+			record.Settings["source_size_bytes"] = *video.SizeBytes
+		}
+	}
+	return repo.UpdateExport(ctx, record)
 }
 
 // renderRecordedVideoToFile converts and saves a recorded video to the output directory.
@@ -611,6 +710,20 @@ func (h *Handler) handleAsyncRecordedVideoExport(w http.ResponseWriter, executio
 		Name:        exportName,
 		Format:      format,
 		Status:      "processing",
+		Settings:    buildExportReceiptSettings(export.Request{}, source.RenderSourceRecordedVideo),
+	}
+	exportRecord.Settings["selected_source"] = source.RenderSourceRecordedVideo
+	if videoSource.ArtifactID != "" {
+		exportRecord.Settings["source_artifact_id"] = videoSource.ArtifactID
+	}
+	if videoSource.SHA256 != "" {
+		exportRecord.Settings["source_sha256"] = videoSource.SHA256
+	}
+	if videoSource.ContentType != "" {
+		exportRecord.Settings["source_content_type"] = videoSource.ContentType
+	}
+	if videoSource.SizeBytes != nil {
+		exportRecord.Settings["source_size_bytes"] = *videoSource.SizeBytes
 	}
 
 	if err := h.repo.CreateExport(ctx, exportRecord); err != nil {
@@ -715,18 +828,9 @@ func (h *Handler) loadRecordedVideo(ctx context.Context, executionID uuid.UUID) 
 	}
 	sort.Strings(files)
 	path := filepath.Join(videoDir, files[0])
-	contentType := mime.TypeByExtension(filepath.Ext(path))
-	if contentType == "" {
-		if data, readErr := os.ReadFile(path); readErr == nil {
-			contentType = http.DetectContentType(data)
-		}
-	}
-	if contentType == "" {
-		contentType = "video/webm"
-	}
 	return &source.VideoSource{
 		Path:        path,
-		ContentType: contentType,
+		ContentType: source.DetectVideoContentType(path),
 	}, nil
 }
 

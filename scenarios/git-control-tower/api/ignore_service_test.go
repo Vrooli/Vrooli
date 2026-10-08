@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"strings"
 	"testing"
 )
@@ -14,7 +13,7 @@ func TestIgnorePath_ProjectLevel(t *testing.T) {
 	deps := IgnoreDeps{Git: git, FS: fs, RepoDir: repoDir}
 	req := IgnoreRequest{Path: "build/output.log"}
 
-	result, err := IgnorePath(context.Background(), deps, req)
+	result, err := IgnorePath(authorizedHumanContext(), deps, req)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -47,7 +46,7 @@ func TestIgnorePath_GroupLevel(t *testing.T) {
 		GroupDir: "scenarios/foo/",
 	}
 
-	result, err := IgnorePath(context.Background(), deps, req)
+	result, err := IgnorePath(authorizedHumanContext(), deps, req)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -79,7 +78,7 @@ func TestIgnorePath_GroupLevel_CreatesGitignore(t *testing.T) {
 		GroupDir: "resources/postgres",
 	}
 
-	result, err := IgnorePath(context.Background(), deps, req)
+	result, err := IgnorePath(authorizedHumanContext(), deps, req)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -109,7 +108,7 @@ func TestIgnorePath_GroupLevel_NoGroupDir(t *testing.T) {
 		// GroupDir intentionally omitted.
 	}
 
-	result, err := IgnorePath(context.Background(), deps, req)
+	result, err := IgnorePath(authorizedHumanContext(), deps, req)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -129,7 +128,7 @@ func TestIgnorePath_InvalidPath(t *testing.T) {
 	deps := IgnoreDeps{Git: git, FS: fs, RepoDir: repoDir}
 	req := IgnoreRequest{Path: "../../../etc/passwd"}
 
-	result, err := IgnorePath(context.Background(), deps, req)
+	result, err := IgnorePath(authorizedHumanContext(), deps, req)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -146,7 +145,7 @@ func TestIgnorePath_Deduplication(t *testing.T) {
 	deps := IgnoreDeps{Git: git, FS: fs, RepoDir: repoDir}
 	req := IgnoreRequest{Path: "build/output.log"}
 
-	result, err := IgnorePath(context.Background(), deps, req)
+	result, err := IgnorePath(authorizedHumanContext(), deps, req)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

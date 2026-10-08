@@ -1,0 +1,29 @@
+{
+  "run_id": "ddba1fb1-8a7a-48d5-a900-c22b10011b8a",
+  "status": "complete",
+  "summary": "PostgreSQL’s default TCP port is 5432, verified in the official PostgreSQL documentation.",
+  "started_at": "2026-09-05T05:46:45Z",
+  "finished_at": "2026-09-05T05:47:32Z",
+  "error_msg": "completed",
+  "result": {
+    "claims": [
+      {
+        "citations": [
+          {
+            "retrieved_at": "2026-09-05T05:47:27.492031155Z",
+            "title": "PostgreSQL Documentation: 19.3. Connections and Authentication",
+            "url": "https://www.postgresql.org/docs/current/runtime-config-connection.html"
+          }
+        ],
+        "text": "PostgreSQL uses TCP port 5432 by default for server connections."
+      }
+    ],
+    "contradictions": [],
+    "finding_ids": [
+      "7a229205-c2a7-4475-b3b3-3f90508b8004"
+    ],
+    "gaps": [],
+    "status": "answered",
+    "summary": "PostgreSQL’s default TCP port is 5432, verified in the official PostgreSQL documentation."
+  }
+}

@@ -1,0 +1,166 @@
+{
+  "$schema": "https://vrooli.dev/schemas/program-contract.schema.json",
+  "name": "program-runtime.portfolio-audit",
+  "version": "1",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Score declared programs against deterministic contract, evidence, usage, budget, learning, and output dimensions.",
+  "owner_skill": "program-runtime-improve",
+  "rung": "S3",
+  "output_schema": "portfolio-audit.output.schema.json",
+  "inputs": {
+    "min_rung": {
+      "type": "string",
+      "enum": [
+        "S3",
+        "S4"
+      ],
+      "default": "S3"
+    },
+    "scenario": {
+      "type": "string",
+      "default": ""
+    },
+    "window_days": {
+      "type": "integer",
+      "default": 30
+    }
+  },
+  "budget": {
+    "wall_ms": 60000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 200
+  },
+  "verbs": [
+    "gather"
+  ],
+  "bindings": [
+    {
+      "id": "program-runtime/library/list",
+      "effect": "read"
+    },
+    {
+      "id": "program-runtime/programs/portfolio",
+      "effect": "read",
+      "optional": true
+    }
+  ],
+  "fixtures": [
+    {
+      "id": "live-portfolio",
+      "inputs": {
+        "min_rung": "S3",
+        "window_days": 30
+      },
+      "expect": {
+        "status": [
+          "ok",
+          "partial"
+        ]
+      },
+      "requires": [
+        "program-runtime"
+      ]
+    },
+    {
+      "id": "invalid-rung",
+      "inputs": {
+        "min_rung": "BOGUS"
+      },
+      "expect": {
+        "admission_error": "invalid_argument"
+      },
+      "requires": [
+        "program-runtime"
+      ]
+    },
+    {
+      "id": "scenario-filter",
+      "inputs": {
+        "scenario": "program-runtime",
+        "window_days": 30
+      },
+      "expect": {
+        "status": [
+          "ok",
+          "partial"
+        ]
+      },
+      "requires": [
+        "program-runtime"
+      ]
+    },
+    {
+      "id": "portfolio-unavailable",
+      "inputs": {
+        "min_rung": "S4",
+        "window_days": 1
+      },
+      "expect": {
+        "status": [
+          "partial",
+          "unavailable"
+        ]
+      },
+      "note": "The optional portfolio read must never turn unavailable measurement into a zero score.",
+      "requires": [
+        "program-runtime"
+      ]
+    }
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "report"
+      ]
+    },
+    "signals": {
+      "score": "mean ratio across the eight deterministic dimensions",
+      "scored": "number of contracts included after min_rung and scenario filters",
+      "below_band": "contracts with a score below 0.75",
+      "worst": "at most ten contracts with name, score, and gap labels",
+      "source_present": "count, total, and ratio",
+      "binding_resilience": "count, total, and ratio",
+      "live_evidence": "count, total, and ratio",
+      "capability_tag": "count, total, and ratio",
+      "budget_realism": "count, total, and ratio when portfolio measurement is available",
+      "exercised": "count, total, and ratio when portfolio measurement is available",
+      "learning": "count, total, and ratio",
+      "typed_output": "count, total, and ratio"
+    },
+    "errors": {
+      "classes": [
+        "invalid_input",
+        "scenario_unreachable",
+        "binding_error",
+        "kernel_runtime",
+        "remote_error",
+        "no_governed_binding"
+      ]
+    },
+    "evidence": "bounded typed library and portfolio reads"
+  },
+  "assumptions": [
+    "The library response is the authoritative parsed contract index for this audit.",
+    "Portfolio rows measure the requested window and may be unavailable during a dependency outage.",
+    "A missing measurement is unknown and never a fabricated zero."
+  ],
+  "invariants": [
+    "The envelope is printed exactly once, on every path.",
+    "No inference or delegated run is called.",
+    "Every score is derived from typed contract metadata or measured portfolio rows.",
+    "An unavailable portfolio read produces partial status and does not lower a dimension to zero."
+  ]
+}

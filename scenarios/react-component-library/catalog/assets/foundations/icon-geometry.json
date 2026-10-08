@@ -1,0 +1,6 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": { "id": "foundations.icon-geometry", "name": "Icon Geometry", "kind": "foundation", "domain": "foundations", "description": "Provides the shared geometry contract for consistent icon sizing and alignment.", "targets": ["react-vite"], "slot": "theme-token", "delivery": "adopted", "target": { "priority": "P1", "maturity": "verified" } }
+}

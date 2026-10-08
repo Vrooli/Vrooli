@@ -1,0 +1,11 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-ui-manifest.schema.json",
+  "title": "Scenario Dependency Analyzer UI manifest",
+  "description": "Declares the library-owned navigated-console shell for the Scenario Dependency Analyzer UI.",
+  "shell": {
+    "archetype": "navigated-console",
+    "asset": "AppShell",
+    "entry": "ui/src/layout/AppShell.tsx",
+    "export": "AppShell"
+  }
+}
