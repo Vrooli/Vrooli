@@ -30,13 +30,9 @@ import (
 // session back to agent-manager.
 const OwnerAgentManager = "agent-manager"
 
-// pasteSubmitDelay is the pause between pasting a prompt and pressing Enter to
-// submit it. The paste (bracketed-paste) and the Enter are separate SendInput
-// calls; if the Enter races ahead before the TUI has finished ingesting the
-// paste, it does not submit and the pasted text just accumulates unsent
-// (observed with codex under load). A short settle delay makes the submit
-// reliable across claude/codex/grok.
-const pasteSubmitDelay = 400 * time.Millisecond
+// OriginProgrammatic is [SessionInfo.Origin] for a session created through the
+// API (as every agent-manager session is), as opposed to an operator-opened one.
+const OriginProgrammatic = "SESSION_ORIGIN_PROGRAMMATIC"
 
 // CreateSessionParams describes a programmatic session agent-manager wants
 // web-console to open. LaunchCommand is pasted+executed by the server when
@@ -66,6 +62,8 @@ type SessionInfo struct {
 	Backend      string
 	Origin       string
 	DisplayLabel string
+	// CreatedAt is zero when web-console reports no parseable creation time.
+	CreatedAt time.Time
 }
 
 // SessionController is the proto-free web-console seam the interactive
@@ -78,17 +76,26 @@ type SessionController interface {
 	// GetSession fetches current session metadata; returns ErrSessionNotFound
 	// when the session no longer exists.
 	GetSession(ctx context.Context, sessionID string) (SessionInfo, error)
-	// DeleteSession tears the session down. It is idempotent: deleting an
-	// already-gone session returns nil.
-	DeleteSession(ctx context.Context, sessionID string) error
+	// ListSessions returns every session web-console currently holds, from any
+	// owner; callers filter by Owner/Origin before acting on one.
+	ListSessions(ctx context.Context) ([]SessionInfo, error)
+	// ArchiveSession ends the session's process while web-console keeps its
+	// metadata and transcript; web-console's archive retention owns any later
+	// disposal. agent-manager never permanently deletes a session, so
+	// conversation evidence survives. It is idempotent: archiving a session that
+	// is already gone or archived returns nil.
+	ArchiveSession(ctx context.Context, sessionID string) error
 	// SendText types literal text into the session's stdin.
 	SendText(ctx context.Context, sessionID, text, source string) error
-	// SendPrompt delivers a follow-up prompt to an interactive agent TUI and
-	// submits it: the prompt is pasted (bracketed-paste, so embedded newlines in
-	// a multi-line prompt land as content, not submits), then a single Enter
-	// keypress (carriage return) submits it — the reliable cross-TUI submit path
-	// (claude/codex/grok). Used by the interactive Continue flow.
-	SendPrompt(ctx context.Context, sessionID, prompt, source string) error
+	// SendPrompt delivers a prompt to an interactive agent TUI and submits it:
+	// the prompt is pasted (bracketed-paste, so embedded newlines in a
+	// multi-line prompt land as content, not submits), then Enter (carriage
+	// return) submits it. Submission is confirmed from the screen, not assumed
+	// after a fixed delay; see [Client.SendPrompt]. It returns
+	// ErrPromptNotSubmitted when the composer is still seen holding the prompt
+	// after bounded Enter retries, and a zero-Verified PromptSubmission when the
+	// TUI's composer cannot be observed.
+	SendPrompt(ctx context.Context, sessionID, prompt, source string) (PromptSubmission, error)
 	// Interrupt sends the graceful interrupt key sequence (Escape then
 	// Ctrl+C) used to stop an in-flight agent turn.
 	Interrupt(ctx context.Context, sessionID, source string) error
@@ -104,6 +111,10 @@ var ErrSessionNotFound = errors.New("web-console session not found")
 type Client struct {
 	sessions sessionsv1connect.SessionsServiceClient
 	terminal terminalv1connect.TerminalServiceClient
+
+	// wait paces SendPrompt's screen polls; nil uses a real timer. Tests inject
+	// an immediate wait so scripted screens advance per poll, not per clock.
+	wait func(ctx context.Context, d time.Duration) error
 }
 
 var _ SessionController = (*Client)(nil)
@@ -164,25 +175,50 @@ func (c *Client) GetSession(ctx context.Context, sessionID string) (SessionInfo,
 		}
 		return SessionInfo{}, fmt.Errorf("web-console get session: %w", err)
 	}
-	s := resp.Msg.GetSession()
-	return SessionInfo{
+	return sessionInfoFromProto(resp.Msg.GetSession()), nil
+}
+
+// ListSessions implements SessionController.
+func (c *Client) ListSessions(ctx context.Context) ([]SessionInfo, error) {
+	resp, err := c.sessions.List(ctx, connect.NewRequest(&sessionsv1.ListRequest{}))
+	if err != nil {
+		return nil, fmt.Errorf("web-console list sessions: %w", err)
+	}
+	out := make([]SessionInfo, 0, len(resp.Msg.GetSessions()))
+	for _, s := range resp.Msg.GetSessions() {
+		if s == nil || s.GetId() == "" {
+			continue
+		}
+		out = append(out, sessionInfoFromProto(s))
+	}
+	return out, nil
+}
+
+func sessionInfoFromProto(s *sessionsv1.Session) SessionInfo {
+	info := SessionInfo{
 		ID:           s.GetId(),
 		Owner:        s.GetOwner(),
 		Backend:      s.GetBackend(),
 		Origin:       s.GetOrigin().String(),
 		DisplayLabel: s.GetDisplayLabel(),
-	}, nil
+	}
+	// web-console stamps created_at as RFC3339 UTC; RFC3339Nano parses both.
+	if created, err := time.Parse(time.RFC3339Nano, s.GetCreatedAt()); err == nil {
+		info.CreatedAt = created
+	}
+	return info
 }
 
-// DeleteSession implements SessionController. Deleting a missing session is a
-// success so Stop escalation and cleanup stay idempotent.
-func (c *Client) DeleteSession(ctx context.Context, sessionID string) error {
-	_, err := c.sessions.Delete(ctx, connect.NewRequest(&sessionsv1.DeleteRequest{Id: sessionID}))
+// ArchiveSession implements SessionController. Archiving a missing session is
+// a success so Stop escalation and the retention sweep stay idempotent; an
+// already-archived session is not listed live and re-archives as a no-op.
+func (c *Client) ArchiveSession(ctx context.Context, sessionID string) error {
+	_, err := c.sessions.Archive(ctx, connect.NewRequest(&sessionsv1.ArchiveRequest{Id: sessionID}))
 	if err != nil {
 		if connect.CodeOf(err) == connect.CodeNotFound {
 			return nil
 		}
-		return fmt.Errorf("web-console delete session: %w", err)
+		return fmt.Errorf("web-console archive session: %w", err)
 	}
 	return nil
 }
@@ -196,42 +232,6 @@ func (c *Client) SendText(ctx context.Context, sessionID, text, source string) e
 	}))
 	if err != nil {
 		return fmt.Errorf("web-console send text: %w", err)
-	}
-	return nil
-}
-
-// SendPrompt implements SessionController. It pastes the prompt via the PTY
-// bracketed-paste path (is_paste=true, so a multi-line prompt is delivered as
-// one block rather than submitting line-by-line) and then sends a single Enter
-// key. Enter resolves to a carriage return (0x0d) via web-console's DefaultKeyMap
-// — the submit key claude/codex/grok TUIs expect (the proto notes plain-text
-// newlines are forwarded as LF and callers wanting a carriage-return submit
-// should use a named Enter key). This mirrors web-console's own launch-command
-// paste seam (paste-then-submit) for a reliable follow-up turn.
-func (c *Client) SendPrompt(ctx context.Context, sessionID, prompt, source string) error {
-	if _, err := c.terminal.SendInput(ctx, connect.NewRequest(&terminalv1.SendInputRequest{
-		SessionId: sessionID,
-		Body:      &terminalv1.SendInputRequest_Text{Text: prompt},
-		Source:    source,
-		IsPaste:   true,
-	})); err != nil {
-		return fmt.Errorf("web-console paste prompt: %w", err)
-	}
-	// Let the TUI finish ingesting the paste before the Enter, or the submit races
-	// ahead and the pasted text is left unsent (see pasteSubmitDelay).
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-time.After(pasteSubmitDelay):
-	}
-	if _, err := c.terminal.SendInput(ctx, connect.NewRequest(&terminalv1.SendInputRequest{
-		SessionId: sessionID,
-		Body: &terminalv1.SendInputRequest_Keys{Keys: &terminalv1.KeySequence{
-			Keys: []*terminalv1.Key{{Name: "enter"}},
-		}},
-		Source: source,
-	})); err != nil {
-		return fmt.Errorf("web-console submit prompt: %w", err)
 	}
 	return nil
 }

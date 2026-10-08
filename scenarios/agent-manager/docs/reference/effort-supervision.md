@@ -119,7 +119,10 @@ epoch worker at a time.
 | `run park <id> --producer children --key <orchestrator-run-id> --timeout 1h` | Parks the calling run until a direct child exits, the timeout elapses, or a wake names the key. The wake message names only the children that ended since the last wake and the ones still active (`[wake: timer] …` or `[wake] …`). |
 | `run wake --key <key> [--producer children] [--result <text>]` | `POST /api/v1/runs/wake-by-key`: the server matches every parked run whose await handle has exactly this producer and key and wakes it. A run identity may wake only runs its lineage permits (its parent, or its own children under the orchestrate scope). `run wake <id>` wakes one run. |
 | `run tokens <id> [--children] [--weights sol=10,luna=1]` | Non-cache tokens weighted by model tier (default Sol 10, Luna 1; an unknown model weighs 1). Usage that is not final is listed, never counted as zero. |
-| `effort epoch-check <epoch-file> [--runs ids] [--spend-threshold n] [--wake-key key]` | Parses an epoch file and prints the step-back triggers. It exits 3 when a step-back fires; `--wake-key` wakes the orchestrator parked on that key (producer `children`). Spend uses the same weighting as `run tokens`. Slice-log lines need `<time> \| <what changed> \| exit metric=<v>`; line counts default to zero, unknown `key=value` fields are ignored, and `ack=` takes free text whose `D<n>` IDs count as acknowledged. |
+| `effort epoch-check <epoch-file> [--acceptance] [--runs ids] [--spend-threshold n] [--wake-key key]` | Parses an epoch file and prints the step-back triggers, typed exit gates and measured yield. It exits 3 when a step-back fires; `--wake-key` wakes the orchestrator parked on that key (producer `children`). An accepted epoch never exits 3 or wakes. `--acceptance` is the orchestrator's check (exit 4). Spend uses the same weighting as `run tokens`. Slice-log lines need `<time> \| <what changed> \| exit metric=<v>`; line counts default to zero, unknown `key=value` fields are ignored, and `ack=` takes free text whose `D<n>` IDs count as acknowledged. See [Goal-home commands](#goal-home-commands). |
+| `effort lint <goal home>` | Checks the goal-home rules the orchestrator owns; exit 4 on a failing rule. |
+| `effort handoff set <goal home> (--file F \| --stdin)` | Replaces the single `## Handoff` of `QUEUE.md`; exit 4 when refused. |
+| `effort park <goal home> --run <id> [--timeout D]` | Parks the orchestrator for as long as goal state allows; exit 4 when refused. |
 
 **Parked-session compaction.** A wake re-sends the parked conversation, and the
 model's prompt cache lasts about 30 minutes, so a late wake pays for the whole
@@ -140,6 +143,112 @@ reaches beyond the caller's lineage. A child run may use the parent's model at
 an equal or narrower effort, or a strictly cheaper known model tier (a Sol
 supervisor may start a Luna repair run) at any effort; it must retain or narrow
 the parent's execution restrictions.
+
+## Goal-home commands
+
+`epoch-check`, `lint`, `handoff set` and `park` read a delivery goal home
+(`large-effort-orchestration` §3) through one shared parser,
+`api/internal/goalhome`. `lint` and `handoff set` read and write files only and
+run without the API. Exit codes: 3 is a worker step-back; 4 is an orchestrator
+refusal (unmet acceptance, failing lint, refused handoff, refused park).
+
+**Acceptance.** An epoch is accepted when its slice log has an `ACCEPTED` line
+and no directive is dated after that line. Its fired triggers are listed as
+"reported only"; it never exits 3 and never wakes. An open acknowledgement or a
+malformed log line never reopens it. The orchestrator writes:
+
+```
+ACCEPTED <ISO time> | yield=<±n> <unit> | gates=G1,G3 | <summary>
+```
+
+`yield=` is the measured result; `gates=` names gates the orchestrator re-ran
+itself. A legacy `ACCEPTED <time> — <summary>` line is still accepted; its
+yield is unknown.
+
+**Typed exit gates.** Items under `## Exit gate`:
+
+```
+- G1 test: cd ui && pnpm type-check
+- G2 journey: J01,J02,J03 @ bas-goal
+- G3 inventory: runtime_lines <= 253452 from 254178 (python3 docs/internal/refactor_inventory.py --no-git)
+- G4 review: deletion-list
+- G5 custom: offline archive playback — reason: no automated offline check
+```
+
+Amendments go under `## Gate amendments`, each dated and reasoned; an
+amendment without an ISO date or a reason is reported and not applied:
+
+```
+- A1 2026-10-07T12:00:00Z G5 drop — reason: unverifiable; tool logged in WORKAROUNDS.md
+- A2 2026-10-07T12:00:00Z G2 unverified — reason: shadow down after one authorized attempt
+- A3 2026-10-07T12:00:00Z G6 add journey: J05 @ bas-goal — reason: …
+- A4 2026-10-07T12:00:00Z G1 change test: cd ui && pnpm test — reason: …
+```
+
+Results are slice-log cells `gate G<n>=pass|fail|unverified [value]` (also
+accepted as `G<n>=…`, and on the `ACCEPTED` line); the latest cell wins. Each
+gate is reported met or unmet:
+- `test`, `review`, `custom`: met on `pass`.
+- `journey`: the value must cover every listed ID, as `12/12` or the IDs.
+- `inventory`: the value must hold the measured number, compared with the
+  bound; `pass` alone is not trusted. With `from <baseline>`, the measured
+  minus the baseline is the epoch's yield.
+- `unverified` is met only after an `unverified` amendment.
+
+Evidence outside the admitted items is never read. An exit gate without typed
+items reports `gate_status: legacy` with one warning and never fails.
+`--acceptance` exits 4 on any unmet gate.
+
+**Yield.** The actual yield comes from `ACCEPTED yield=` or a measured
+inventory gate, never from summed slice-log deltas (workers sometimes log
+running totals; BAS E23 summed −656 for a measured −328). `net_runtime_lines`
+remains that sum, for the growth trigger. The estimate is the brief header
+`- Yield estimate: <±n> <unit>` (U+2212 is a minus sign).
+
+**Lint.** `effort lint <goal home>` fails, naming each rule, when:
+
+| Code | Rule |
+| --- | --- |
+| `resume-budget` | GOAL.md + QUEUE.md + open FEEDBACK (before `## Resolved`) + open WORKAROUNDS exceed 30,000 bytes. A WORKAROUNDS entry is open when its last ` · ` field starts with `open`, or everything before a `## Resolved` heading. |
+| `handoff-count` | QUEUE.md does not have exactly one handoff (any `##`/`###` heading naming a handoff); each one is named with its line. |
+| `handoff-size` | The handoff exceeds 4 KB. |
+| `idle-queue` | No `## Next` item has `[ready]` on its first line and `## Needs operator` has no list item or subheading (prose such as "(none; …)" is empty). |
+| `feedback-unacknowledged` | A FEEDBACK `### <ID> — … (<date>, <source>)` entry with `Status: open` from the operator or the supervisor (including supervisor audits), or with no source, is not named in the handoff (in full or without the goal prefix, such as `FB-063`). Entries from other sources are not checked. |
+| `diminishing-returns` | See below; blocking until `## Needs operator` holds an item tagged `[re-aim]`. |
+
+It does not run inside `epoch-check`, so goal-home state never fails a worker.
+
+**Diminishing returns.** Over the epochs accepted since GOAL.md's
+`- Destination set: <ISO time>` (all, when absent), the finding fires when:
+- the last 3 accepted epochs each delivered under 25% of their yield estimate;
+- the last 2 entries under `## Censuses`
+  (`- <ISO time> | <scope> | admissible=<slice>|none`) found nothing admissible;
+- the gap from `- Current: <n> @ <date>` to `- Destination: <metric> <op> <n>`
+  needs more than 30 epochs at the mean yield of the last 3 accepted epochs
+  (yields in the destination metric only).
+
+Missing inputs leave a rule "not evaluated", never fired. `epoch-check` prints
+the finding for epochs under `<home>/epochs/`; only `--acceptance` and `lint`
+fail on it.
+
+**Handoff.** `effort handoff set` atomically replaces the one `## Handoff`
+section (temporary file and rename, keeping the mode) and creates it after
+`## Needs operator` when missing. Unchanged text writes nothing. It refuses
+text over 4 KB, text with its own `#`/`##` or handoff heading, a queue with
+more than one handoff (move old ones to `archive/` first; it never deletes
+them), and a QUEUE.md that changed between read and write.
+
+**Park.** `effort park` lists the run's direct children and reads
+`## Needs operator`:
+- a live (non-terminal) child allows up to 1h, a backstop for a hung worker;
+- otherwise an item under `## Needs operator` allows up to 72h;
+- otherwise it refuses with the admissible-slice rule: admit the next
+  `[ready]` slice (or plan one), or record a decision under `## Needs operator`.
+
+`--timeout` may only shorten the maximum; a longer request is refused. The park
+itself is the `run park` call (producer `children`, key = the run). Until the
+server applies the same policy (`goalhome.DecidePark` in
+`orchestration.ParkRunFromAgent`), a raw `run park` can still bypass it.
 
 ## Observation and trigger semantics
 

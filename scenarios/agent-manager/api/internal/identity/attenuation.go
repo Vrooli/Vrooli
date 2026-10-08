@@ -25,6 +25,9 @@ func Attenuate(parent *Claims, childRunID, childTaskID uuid.UUID, requested []st
 	if parent == nil {
 		return nil, ErrMissingParent
 	}
+	if parent.Meta["authorization_id"] != "" {
+		return nil, errors.New("interactive operation grants cannot be inherited by child runs")
+	}
 	if expiresAt.IsZero() {
 		expiresAt = time.Unix(parent.ExpiresAt, 0)
 	}

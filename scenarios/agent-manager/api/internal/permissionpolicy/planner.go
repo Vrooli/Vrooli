@@ -116,3 +116,18 @@ func (p *AggregatePlanner) Plan(ctx context.Context, revision *Revision) (Aggreg
 	sort.Strings(result.MissingHardEnforcementRuleIDs)
 	return result, nil
 }
+
+// AssessmentComplete distinguishes successful observation from the vacuous
+// absence of hard-enforcement requirements. A failed probe proves neither
+// healthy policy projection nor lack of drift.
+func (p AggregatePlan) AssessmentComplete() bool {
+	if len(p.Resources) == 0 {
+		return false
+	}
+	for _, resource := range p.Resources {
+		if resource.Status != "planned" || resource.Error != "" {
+			return false
+		}
+	}
+	return true
+}

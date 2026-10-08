@@ -29,12 +29,14 @@ func (s *Server) createCommitConnect(ctx context.Context, req *repov1.CreateComm
 		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("review the exact staged change and confirm it before committing"))
 	}
 
-	writeCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-	repo, err := s.mutationRepo(writeCtx, req.GetRepositoryId())
+	repo, err := s.mutationRepo(ctx, req.GetRepositoryId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 	}
+	// The write budget covers the configured pre-commit check; a fixed 30
+	// seconds cut off any slower check.
+	writeCtx, cancel := context.WithTimeout(ctx, s.commitWriteTimeout(ctx, repo.Path, req.GetSkipPrecommitOnce()))
+	defer cancel()
 	cleanStaleLock(repo.Path)
 	unlock, err := s.repoLock.Acquire(writeCtx, repo.Path)
 	if err != nil {

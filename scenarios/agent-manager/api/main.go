@@ -589,6 +589,11 @@ func runMainWithFiniteOwner(owner *orchestration.FiniteOwnerStartup) {
 	if owner == nil {
 		srv.startSearchRegistration(context.Background())
 	}
+	stopAuthorizationBroker, err := srv.orchestrator.StartAuthorizationBroker()
+	if err != nil {
+		log.Fatalf("authorization broker startup failed: %v", err)
+	}
+	defer stopAuthorizationBroker()
 	runPublic := server.Run
 	if srv.privatePublication != nil {
 		runPublic = srv.privatePublication.RunPublic

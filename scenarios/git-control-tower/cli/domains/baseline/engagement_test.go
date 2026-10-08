@@ -1,6 +1,7 @@
 package baseline
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 
 	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
+	safetyv1 "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/safety"
 )
 
 // recordedCall captures one shell-out so tests can assert the argv the
@@ -27,10 +29,20 @@ type fakeRunner struct {
 	calls  []recordedCall
 	stdout map[string][]byte // keyed by a substring of "name args..."; first match wins
 	failOn map[string]error  // keyed the same way
+	// dynamic answers are keyed the same way and computed from the calls so far
+	// (e.g. the floor's engagement list after a promote cleaned it); checked
+	// before stdout.
+	dynamic map[string]func() []byte
 }
 
+// newFakeRunner starts from a floor with no open engagements (an empty
+// `recovery list`), the state `baseline start` checks before capturing.
 func newFakeRunner(_ *testing.T) *fakeRunner {
-	return &fakeRunner{stdout: map[string][]byte{}, failOn: map[string]error{}}
+	return &fakeRunner{
+		stdout:  map[string][]byte{"recovery list": listJSON()},
+		failOn:  map[string]error{},
+		dynamic: map[string]func() []byte{},
+	}
 }
 
 func (f *fakeRunner) run(_ context.Context, name string, args ...string) ([]byte, error) {
@@ -39,6 +51,11 @@ func (f *fakeRunner) run(_ context.Context, name string, args ...string) ([]byte
 	for k, err := range f.failOn {
 		if strings.Contains(joined, k) {
 			return nil, err
+		}
+	}
+	for k, answer := range f.dynamic {
+		if strings.Contains(joined, k) {
+			return answer(), nil
 		}
 	}
 	for k, out := range f.stdout {
@@ -268,6 +285,25 @@ func TestStartShadowHappyPath(t *testing.T) {
 	if !f.sawCommand("scenario start demo-scenario --instance shadow") {
 		t.Errorf("missing shadow stand-up; calls=%v", f.calls)
 	}
+	// A shadow capture freezes the shared packages live builds from and fails
+	// closed; only an explicit --allow-unfrozen relaxes it.
+	if f.sawCommand("--allow-unfrozen") {
+		t.Errorf("a shadow start must not relax the shared-package freeze by default; calls=%v", f.calls)
+	}
+}
+
+func TestStartShadowAllowUnfrozenPassesTheOverride(t *testing.T) {
+	f := newFakeRunner(t)
+	f.failOn["scenario-dependency-analyzer"] = fmt.Errorf("down")
+	defer f.install()()
+	defer withFakeAnchors(t, "", "clean")()
+
+	if _, err := startEngagement(nil, startParams{scenario: "demo-scenario", mode: modeShadow, slug: "wip", noAnchor: true, allowUnfrozen: true}); err != nil {
+		t.Fatalf("startEngagement: %v", err)
+	}
+	if !f.sawCommand("recovery capture --scenario demo-scenario --slug wip --allow-unfrozen") {
+		t.Errorf("--allow-unfrozen must reach the capture; calls=%v", f.calls)
+	}
 }
 
 func TestStartLiveDoesNotStandUpShadow(t *testing.T) {
@@ -288,6 +324,11 @@ func TestStartLiveDoesNotStandUpShadow(t *testing.T) {
 	}
 	if f.sawCommand("--ambient-var") {
 		t.Errorf("live mode must not set an ambient var; calls=%v", f.calls)
+	}
+	// Live runs the working tree in place and never builds from a freeze, so a
+	// failed freeze must not block a live engagement.
+	if !f.sawCommand("recovery capture --scenario demo-scenario --slug wip --allow-unfrozen") {
+		t.Errorf("a live capture must not fail closed on the shared-package freeze; calls=%v", f.calls)
 	}
 }
 
@@ -371,6 +412,204 @@ func TestStartTTLThreadedToWrite(t *testing.T) {
 	}
 }
 
+// ---- open-engagement guard (O15) -----------------------------------------
+
+// openGoalEngagement is the 2026-10-07 incident's floor state: a goal's shadow
+// engagement, open (TTL-less) since the goal started.
+func openGoalEngagement(expired bool) engagementView {
+	opened := time.Date(2026, 9, 29, 12, 0, 0, 0, time.UTC)
+	return engagementView{
+		Scenario: "demo-scenario", Slug: "bas-goal", Mode: "shadow", Variant: "shadow",
+		AnchorBaselineName: "engagement-bas-goal", AmbientVar: "demo-scenario", TTL: "0s",
+		CreatedAt: &opened, LastTouchedAt: &opened, Expired: expired,
+	}
+}
+
+// assertNothingCaptured fails when start touched the restore point, the anchor
+// record, the manifest or the shadow instance.
+func assertNothingCaptured(t *testing.T, f *fakeRunner, snapCalled bool) {
+	t.Helper()
+	for _, step := range []string{"recovery capture", "recovery write", "scenario start", "safety backup-now"} {
+		if f.sawCommand(step) {
+			t.Errorf("a refused start must not run %q; calls=%v", step, f.calls)
+		}
+	}
+	if snapCalled {
+		t.Errorf("a refused start must not capture an anchor snapshot")
+	}
+}
+
+func withSnapshotSpy(t *testing.T) *bool {
+	t.Helper()
+	called := false
+	prev := snapshotAnchor
+	snapshotAnchor = func(_ *cliapp.ScenarioApp, _ context.Context, _, _ string) error { called = true; return nil }
+	t.Cleanup(func() { snapshotAnchor = prev })
+	return &called
+}
+
+func TestStartRefusesOpenEngagementBeforeCapture(t *testing.T) {
+	for _, expired := range []bool{false, true} {
+		t.Run(fmt.Sprintf("expired=%v", expired), func(t *testing.T) {
+			f := newFakeRunner(t)
+			f.failOn["scenario-dependency-analyzer"] = fmt.Errorf("down")
+			f.stdout["recovery list"] = listJSON(openGoalEngagement(expired))
+			defer f.install()()
+			snapCalled := withSnapshotSpy(t)
+
+			_, err := startEngagement(nil, startParams{scenario: "demo-scenario", mode: modeShadow, slug: "bas-goal"})
+			if err == nil {
+				t.Fatal("start over an open engagement must be refused")
+			}
+			assertNothingCaptured(t, f, *snapCalled)
+			for _, want := range []string{
+				"did not capture or copy anything",
+				"baseline check --scenario demo-scenario --name bas-goal",
+				"baseline promote --scenario demo-scenario --name bas-goal",
+				"baseline cycle --scenario demo-scenario --name bas-goal",
+				"baseline abandon --scenario demo-scenario --name bas-goal",
+				"--replace (keeps its restore point)",
+				"opened 2026-09-29T12:00:00Z",
+			} {
+				if !strings.Contains(err.Error(), want) {
+					t.Errorf("refusal should contain %q:\n%v", want, err)
+				}
+			}
+			if strings.Contains(err.Error(), "baseline gc") != expired {
+				t.Errorf("the gc hint belongs only to an expired engagement (expired=%v):\n%v", expired, err)
+			}
+		})
+	}
+}
+
+func TestStartRefusesSecondEngagementUnderAnotherName(t *testing.T) {
+	f := newFakeRunner(t)
+	f.failOn["scenario-dependency-analyzer"] = fmt.Errorf("down")
+	f.stdout["recovery list"] = listJSON(
+		engagementView{Scenario: "other-scenario", Slug: "wip", Mode: "shadow", Variant: "shadow"},
+		openGoalEngagement(false),
+	)
+	defer f.install()()
+	snapCalled := withSnapshotSpy(t)
+
+	// The bare command TARGETS.md drifted to: no --name, so slug wip.
+	_, err := startEngagement(nil, startParams{scenario: "demo-scenario", mode: modeShadow, slug: "wip", replace: true})
+	if err == nil {
+		t.Fatal("a second engagement for the scenario must be refused, even with --replace")
+	}
+	assertNothingCaptured(t, f, *snapCalled)
+	if !strings.Contains(err.Error(), "did you mean --name bas-goal?") {
+		t.Errorf("refusal should name the open engagement's slug:\n%v", err)
+	}
+}
+
+func TestStartReplaceTakesOverWithoutRecapturing(t *testing.T) {
+	f := newFakeRunner(t)
+	f.failOn["scenario-dependency-analyzer"] = fmt.Errorf("down")
+	f.stdout["recovery list"] = listJSON(openGoalEngagement(false))
+	defer f.install()()
+	snapCalled := withSnapshotSpy(t)
+
+	res, err := startEngagement(nil, startParams{scenario: "demo-scenario", mode: modeShadow, slug: "bas-goal", replace: true})
+	if err != nil {
+		t.Fatalf("--replace takeover: %v", err)
+	}
+	if f.sawCommand("recovery capture") {
+		t.Errorf("a takeover must keep the open engagement's restore point; calls=%v", f.calls)
+	}
+	if *snapCalled {
+		t.Errorf("a takeover must keep the open engagement's anchor, not snapshot the candidate")
+	}
+	if !f.sawCommand("recovery write --scenario demo-scenario --slug bas-goal --mode shadow") ||
+		!f.sawCommand("--anchor engagement-bas-goal") || !f.sawCommand("--replace") {
+		t.Errorf("the takeover must re-write the manifest with --replace and the kept anchor; calls=%v", f.calls)
+	}
+	if res.RestorePoint != "preserved" || res.Anchor != "engagement-bas-goal" {
+		t.Errorf("result should report the preserved restore point and kept anchor, got %+v", res)
+	}
+	if f.sawCommand("safety backup-now") || f.sawCommand("safety populate-shadow") {
+		t.Errorf("a takeover must keep the shadow's data, not re-seed it from live; calls=%v", f.calls)
+	}
+}
+
+func TestStartReplaceRefusesModeChange(t *testing.T) {
+	f := newFakeRunner(t)
+	f.failOn["scenario-dependency-analyzer"] = fmt.Errorf("down")
+	f.stdout["recovery list"] = listJSON(openGoalEngagement(false))
+	defer f.install()()
+
+	_, err := startEngagement(nil, startParams{scenario: "demo-scenario", mode: modeLive, slug: "bas-goal", replace: true})
+	if err == nil || !strings.Contains(err.Error(), "a takeover keeps the mode") {
+		t.Fatalf("a takeover that flips shadow to live must be refused, got %v", err)
+	}
+	if f.sawCommand("recovery write") || f.sawCommand("recovery capture") {
+		t.Errorf("a refused takeover must not touch the floor; calls=%v", f.calls)
+	}
+}
+
+func TestStartRefusesWhenOpenEngagementsUnreadable(t *testing.T) {
+	f := newFakeRunner(t)
+	f.failOn["recovery list"] = fmt.Errorf("floor unavailable")
+	defer f.install()()
+	snapCalled := withSnapshotSpy(t)
+
+	_, err := startEngagement(nil, startParams{scenario: "demo-scenario", mode: modeShadow, slug: "wip"})
+	if err == nil || !strings.Contains(err.Error(), "could not check for an open engagement") {
+		t.Fatalf("start must fail closed when it cannot read the floor, got %v", err)
+	}
+	assertNothingCaptured(t, f, *snapCalled)
+}
+
+// ---- safety backup (O17) -------------------------------------------------
+
+func TestSafetyBackupNowReadsTheCLIRunID(t *testing.T) {
+	cases := map[string][]byte{
+		"cli output (run_id)": backupNowJSON("run-7"),
+		"lowerCamel (runId)":  []byte(`{"runId":"run-7"}`),
+	}
+	for name, out := range cases {
+		t.Run(name, func(t *testing.T) {
+			f := newFakeRunner(t)
+			f.stdout["safety backup-now"] = out
+			defer f.install()()
+
+			runID, note := safetyBackupNow(context.Background(), "demo-scenario")
+			if runID != "run-7" || note != "" {
+				t.Fatalf("safetyBackupNow = (%q, %q), want (run-7, \"\")", runID, note)
+			}
+		})
+	}
+}
+
+func TestSafetyBackupNowSaysWhyNoRunStarted(t *testing.T) {
+	cases := []struct {
+		name string
+		out  []byte
+		err  error
+		want string
+	}{
+		{"code-only", nil, fmt.Errorf("exit status 1: scenario has no registered targets: demo-scenario"), "code-only"},
+		{"substrate down", nil, fmt.Errorf("connection refused"), "safety backup unavailable: "},
+		{"no run id", []byte(`{"status":"RUN_STATUS_PENDING"}`), nil, "no run id"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFakeRunner(t)
+			if tc.err != nil {
+				f.failOn["safety backup-now"] = tc.err
+			} else {
+				f.stdout["safety backup-now"] = tc.out
+			}
+			defer f.install()()
+
+			runID, note := safetyBackupNow(context.Background(), "demo-scenario")
+			if runID != "" || !strings.Contains(note, tc.want) {
+				t.Fatalf("safetyBackupNow = (%q, %q), want no run and a note containing %q", runID, note, tc.want)
+			}
+		})
+	}
+}
+
 // ---- shadow data population ----------------------------------------------
 
 // withNoSleep stubs the poll-delay seam so the wait loop runs without real time.
@@ -382,13 +621,27 @@ func withNoSleep(t *testing.T) func() {
 }
 
 // seedPopulationStdout primes the fakeRunner with the canned data-substrate +
-// floor responses a successful shadow data population reads.
+// floor responses a successful shadow data population reads, in the shapes the
+// producers print (generated messages with proto field names).
 func seedPopulationStdout(f *fakeRunner, registered, runStatus, postgresDB, dataDir string) {
 	f.stdout["safety register-targets"] = []byte(`{"registered":[` + registered + `]}`)
-	f.stdout["safety backup-now"] = []byte(`{"runId":"run-123","status":"RUN_STATUS_PENDING"}`)
+	f.stdout["safety backup-now"] = backupNowJSON("run-123")
 	f.stdout["runs get"] = []byte(`{"run":{"status":"` + runStatus + `"}}`)
-	f.stdout["recovery namespace"] = []byte(`{"postgresDb":"` + postgresDB + `","dataDir":"` + dataDir + `"}`)
+	f.stdout["recovery namespace"], _ = protojson.MarshalOptions{UseProtoNames: true}.Marshal(&cliv1.RecoveryNamespaceOutput{
+		PostgresDb: postgresDB, DataDir: dataDir,
+	})
 	f.stdout["safety populate-shadow"] = []byte(`{}`)
+}
+
+// backupNowJSON renders `data-backup-manager safety backup-now --json` exactly
+// as the CLI prints it: cli-core's PrintProtoJSON of the generated response
+// ({"run_id": …}).
+func backupNowJSON(runID string) []byte {
+	var buf bytes.Buffer
+	_ = cliapp.PrintProtoJSON(&buf, &safetyv1.BackupScenarioNowResponse{
+		RunId: runID, PlanId: "plan-1", DestinationId: "dest-1", TargetCount: 1, Status: "RUN_STATUS_PENDING",
+	})
+	return buf.Bytes()
 }
 
 func TestStartShadowPopulatesData(t *testing.T) {
@@ -573,7 +826,7 @@ func TestCheckNoAnchorIsError(t *testing.T) {
 
 // ---- abandon -------------------------------------------------------------
 
-func TestAbandonShadowDiscardsCandidateLeavesLiveUntouched(t *testing.T) {
+func TestAbandonShadowDiscardsCandidateAndRestartsLiveBeforeClean(t *testing.T) {
 	f := newFakeRunner(t)
 	f.stdout["recovery show"] = engagementJSON("shadow", "shadow", "engagement-wip")
 	defer f.install()()
@@ -594,15 +847,24 @@ func TestAbandonShadowDiscardsCandidateLeavesLiveUntouched(t *testing.T) {
 	if !f.sawInOrder("scenario stop demo-scenario --instance shadow", "recovery restore --scenario demo-scenario --slug wip") {
 		t.Errorf("shadow must be stopped before the working tree is overwritten; calls=%v", f.calls)
 	}
-	// Live served the baseline from the copy throughout — it is never restarted.
-	if f.sawCommand("scenario restart") {
-		t.Errorf("shadow abandon must NOT restart live; calls=%v", f.calls)
+	// Live served the baseline from the engagement's serving tree; the clean
+	// restarts it from the restored working tree before deleting that tree.
+	if !f.sawInOrder("recovery restore --scenario demo-scenario --slug wip", "recovery clean --scenario demo-scenario --slug wip --restart-live") {
+		t.Errorf("shadow abandon must restart live from the restored working tree while cleaning; calls=%v", f.calls)
 	}
-	if !f.sawCommand("recovery clean --scenario demo-scenario --slug wip") {
-		t.Errorf("abandon must clean the engagement; calls=%v", f.calls)
-	}
-	if !strings.Contains(res.Action, "live untouched") {
+	if !strings.Contains(res.Action, "live restarted") {
 		t.Errorf("action = %q", res.Action)
+	}
+}
+
+func TestAbandonShadowKeepsEngagementWhenLiveRestartFails(t *testing.T) {
+	f := newFakeRunner(t)
+	f.stdout["recovery show"] = engagementJSON("shadow", "shadow", "engagement-wip")
+	f.failOn["recovery clean"] = fmt.Errorf("recovery: restart browser-automation-studio from the working tree: build failed; the engagement is kept")
+	defer f.install()()
+
+	if _, err := abandonEngagement(nil, "demo-scenario", "wip"); err == nil || !strings.Contains(err.Error(), "engagement is kept") {
+		t.Fatalf("a failed live restart must fail abandon and keep the engagement, got %v", err)
 	}
 }
 
@@ -636,24 +898,40 @@ func TestAbandonLiveRestoresAndRestarts(t *testing.T) {
 func listJSON(views ...engagementView) []byte {
 	out := &cliv1.RecoveryListOutput{}
 	for _, v := range views {
-		eng := &cliv1.RecoveryEngagementView{
-			Scenario:           v.Scenario,
-			Slug:               v.Slug,
-			Mode:               v.Mode,
-			Variant:            v.Variant,
-			ShadowInstanceKey:  v.ShadowInstanceKey,
-			AnchorBaselineName: v.AnchorBaselineName,
-			AmbientVar:         v.AmbientVar,
-			Ttl:                v.TTL,
-			Expired:            v.Expired,
-		}
-		if v.ExpiresAt != nil {
-			eng.ExpiresAt = v.ExpiresAt.Format(time.RFC3339Nano)
-		}
-		out.Engagements = append(out.Engagements, eng)
+		out.Engagements = append(out.Engagements, viewProto(v))
 	}
 	b, _ := protojson.MarshalOptions{UseProtoNames: true}.Marshal(out)
 	return b
+}
+
+// showJSON renders a `recovery show` fixture for one engagement view.
+func showJSON(v engagementView) []byte {
+	b, _ := protojson.MarshalOptions{UseProtoNames: true}.Marshal(viewProto(v))
+	return b
+}
+
+func viewProto(v engagementView) *cliv1.RecoveryEngagementView {
+	eng := &cliv1.RecoveryEngagementView{
+		Scenario:           v.Scenario,
+		Slug:               v.Slug,
+		Mode:               v.Mode,
+		Variant:            v.Variant,
+		ShadowInstanceKey:  v.ShadowInstanceKey,
+		AnchorBaselineName: v.AnchorBaselineName,
+		AmbientVar:         v.AmbientVar,
+		Ttl:                v.TTL,
+		Expired:            v.Expired,
+	}
+	if v.ExpiresAt != nil {
+		eng.ExpiresAt = v.ExpiresAt.Format(time.RFC3339Nano)
+	}
+	if v.CreatedAt != nil {
+		eng.CreatedAt = v.CreatedAt.Format(time.RFC3339Nano)
+	}
+	if v.LastTouchedAt != nil {
+		eng.LastTouchedAt = v.LastTouchedAt.Format(time.RFC3339Nano)
+	}
+	return eng
 }
 
 func TestGCReapsOnlyExpiredByDefault(t *testing.T) {
@@ -682,6 +960,30 @@ func TestGCReapsOnlyExpiredByDefault(t *testing.T) {
 	}
 }
 
+func TestGCRefusesALiveServingSplitWithoutForce(t *testing.T) {
+	f := newFakeRunner(t)
+	f.stdout["recovery list"] = listJSON(
+		engagementView{Scenario: "a", Slug: "wip", Mode: "shadow", Variant: "shadow", Expired: true},
+		engagementView{Scenario: "b", Slug: "wip", Mode: "shadow", Variant: "shadow", Expired: true},
+	)
+	f.failOn["recovery clean --scenario a --slug wip"] = fmt.Errorf("vrooli recovery clean: exit status 1: recovery: an instance runs from the engagement: a runs from /cache/a/baseline-wip/serving")
+	defer f.install()()
+
+	res, err := gcEngagements(context.Background(), false)
+	if err != nil {
+		t.Fatalf("gcEngagements: %v", err)
+	}
+	if len(res.Refused) != 1 || res.Refused[0] != "a/wip" {
+		t.Fatalf("refused = %v, want [a/wip]", res.Refused)
+	}
+	if len(res.Reaped) != 1 || res.Reaped[0] != "b/wip" {
+		t.Fatalf("reaped = %v, want [b/wip]", res.Reaped)
+	}
+	if f.sawCommand("--force") {
+		t.Errorf("gc without --force must not pass the override; calls=%v", f.calls)
+	}
+}
+
 func TestGCForceReapsAll(t *testing.T) {
 	f := newFakeRunner(t)
 	f.stdout["recovery list"] = listJSON(
@@ -703,5 +1005,8 @@ func TestGCForceReapsAll(t *testing.T) {
 	}
 	if !f.sawCommand("scenario stop b --instance shadow") {
 		t.Errorf("shadow engagement should be stopped; calls=%v", f.calls)
+	}
+	if !f.sawCommand("recovery clean --scenario b --slug wip --force") {
+		t.Errorf("gc --force must pass the override that moves live off a serving split; calls=%v", f.calls)
 	}
 }

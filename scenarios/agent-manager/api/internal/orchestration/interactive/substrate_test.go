@@ -24,7 +24,7 @@ type fakeSessions struct {
 	createID     string
 	createErr    error
 	interruptErr error
-	deleteErr    error
+	archiveErr   error
 	deleted      map[string]bool
 
 	// sendPromptErr fails every SendPrompt call. onSendPrompt (if set) fires with
@@ -63,12 +63,16 @@ func (f *fakeSessions) GetSession(_ context.Context, id string) (webconsole.Sess
 	return webconsole.SessionInfo{ID: id, Owner: webconsole.OwnerAgentManager}, nil
 }
 
-func (f *fakeSessions) DeleteSession(_ context.Context, id string) error {
+func (f *fakeSessions) ListSessions(context.Context) ([]webconsole.SessionInfo, error) {
+	return nil, nil
+}
+
+func (f *fakeSessions) ArchiveSession(_ context.Context, id string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.calls = append(f.calls, "delete")
-	if f.deleteErr != nil {
-		return f.deleteErr
+	f.calls = append(f.calls, "archive")
+	if f.archiveErr != nil {
+		return f.archiveErr
 	}
 	f.deleted[id] = true
 	return nil
@@ -82,13 +86,13 @@ func (f *fakeSessions) SendText(_ context.Context, _, text, _ string) error {
 	return nil
 }
 
-func (f *fakeSessions) SendPrompt(_ context.Context, _, _, _ string) error {
+func (f *fakeSessions) SendPrompt(_ context.Context, _, _, _ string) (webconsole.PromptSubmission, error) {
 	f.calls = append(f.calls, "sendprompt")
 	f.sendPrompts++
 	if f.onSendPrompt != nil {
 		f.onSendPrompt(f.sendPrompts)
 	}
-	return f.sendPromptErr
+	return webconsole.PromptSubmission{Verified: true, EnterPresses: 1}, f.sendPromptErr
 }
 
 func (f *fakeSessions) Interrupt(_ context.Context, _, _ string) error {
@@ -453,39 +457,39 @@ func TestSubstrateLaunch_OpenCodeDescoped(t *testing.T) {
 	}
 }
 
-func TestSubstrateStop_InterruptThenDelete(t *testing.T) {
+func TestSubstrateStop_InterruptThenArchive(t *testing.T) {
 	fs := newFakeSessions("s")
 	sub := NewSubstrate(fs, fakeResolver(fakeLaunchInfo{rt: domain.RunnerTypeCodex}), WithStopGrace(0))
 	if err := sub.Stop(context.Background(), "s", "agent-manager:run-1"); err != nil {
 		t.Fatalf("Stop: %v", err)
 	}
-	if len(fs.calls) != 2 || fs.calls[0] != "interrupt" || fs.calls[1] != "delete" {
-		t.Fatalf("expected interrupt then delete, got %v", fs.calls)
+	if len(fs.calls) != 2 || fs.calls[0] != "interrupt" || fs.calls[1] != "archive" {
+		t.Fatalf("expected interrupt then archive, got %v", fs.calls)
 	}
 }
 
-func TestSubstrateStop_InterruptFailsButDeleteSucceeds(t *testing.T) {
+func TestSubstrateStop_InterruptFailsButArchiveSucceeds(t *testing.T) {
 	fs := newFakeSessions("s")
 	fs.interruptErr = errors.New("pane busy")
 	sub := NewSubstrate(fs, fakeResolver(fakeLaunchInfo{rt: domain.RunnerTypeCodex}), WithStopGrace(0))
 	if err := sub.Stop(context.Background(), "s", "src"); err != nil {
-		t.Fatalf("Stop should succeed when delete succeeds even if interrupt failed: %v", err)
+		t.Fatalf("Stop should succeed when archive succeeds even if interrupt failed: %v", err)
 	}
 	if !fs.deleted["s"] {
-		t.Error("session should be deleted as hard-kill fallback")
+		t.Error("session should be archived as hard-kill fallback")
 	}
 }
 
 func TestSubstrateStop_BothFailReturnsJoinedError(t *testing.T) {
 	fs := newFakeSessions("s")
 	fs.interruptErr = errors.New("interrupt boom")
-	fs.deleteErr = errors.New("delete boom")
+	fs.archiveErr = errors.New("archive boom")
 	sub := NewSubstrate(fs, fakeResolver(fakeLaunchInfo{rt: domain.RunnerTypeCodex}), WithStopGrace(0))
 	err := sub.Stop(context.Background(), "s", "src")
 	if err == nil {
-		t.Fatal("expected error when both interrupt and delete fail")
+		t.Fatal("expected error when both interrupt and archive fail")
 	}
-	if !strings.Contains(err.Error(), "interrupt boom") || !strings.Contains(err.Error(), "delete boom") {
+	if !strings.Contains(err.Error(), "interrupt boom") || !strings.Contains(err.Error(), "archive boom") {
 		t.Errorf("expected joined error carrying both causes, got: %v", err)
 	}
 }

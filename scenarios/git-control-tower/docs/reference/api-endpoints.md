@@ -95,6 +95,22 @@ Repository registry reads and mutations use `RepoService`:
 | POST | `/vrooli.git_control_tower.v1.repo.RepoService/IgnorePath` | Typed .gitignore update with exact single-use intent. |
 | POST | `/vrooli.git_control_tower.v1.repo.RepoService/GetRepoGroups` | Typed changed-file groups ordered as manual rules, contract targets by fixed kind, then `Other`. |
 
+## Commit proposals (Connect-RPC)
+
+`vrooli.git_control_tower.v1.proposals.ProposalService`
+([CODE: api/proposal_connect.go], domain in [CODE: api/internal/proposals]).
+Draft methods write only GCT's database and are agent-callable; the caller
+principal and asserted run are recorded on every revision.
+
+| Method | Notes |
+| --- | --- |
+| `AnchorScope` | Records HEAD plus sha256 and git blob ID of each dirty file in the scope globs. |
+| `CreateProposal` | Hashes listed paths against the anchor, records flags and exclusions, renders the trailer-linked message; `validate_only` stores nothing. Supersedes the open proposal for the same effort and epoch. |
+| `ListProposals` / `GetProposal` | Proposals with read-time flags and freshness (`fresh`, `drifted`, `base_moved`). |
+| `EditProposal` | New revision against `expected_revision`; unknown trailers and operator order are kept. |
+| `WithdrawProposal` / `RefreshProposal` | Withdraw keeps history; refresh re-hashes into a new revision and drops paths that are now clean. |
+| `ApplyProposal` | Human only. Consumes a single-use `repo.apply_proposal` intent prepared with subject context `proposal:<id>@<revision>`; the digest binds HEAD, the proposal digest, current blob IDs of its paths and the current index. Refuses drift, a base move touching its paths, or foreign staged paths; stages exactly its paths, verifies staged blobs, commits the rendered message as the operator and restores the index on failure. |
+
 ### Repo history includes
 
 `RepoService/GetRepoHistory` accepts:

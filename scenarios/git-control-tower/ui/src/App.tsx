@@ -44,6 +44,7 @@ import { GCT_CHROME_COLOR } from "./lib/chrome";
 import { buildRunIndex } from "./lib/runAttribution";
 import type { ViewingCommit } from "./components/HistoryModeHeader";
 import { computeNextSelection, layoutOrder, type SelectionEntry } from "./AppSelection";
+import { ProposalsSection } from "./features/proposals/ProposalsSection";
 import type { SyncActivity } from "./App.types";
 import {
   useMutationErrorToasts,
@@ -1697,6 +1698,23 @@ export default function App() {
     return { prefix: historyGrepPrefix, count };
   }, [historyGrepPrefix, historyQuery.data]);
 
+  // Opens a proposal file's diff. Proposed content is the working tree, so
+  // the unstaged diff is shown unless the file only differs in the index.
+  const handleOpenProposalDiff = useCallback(
+    (path: string) => {
+      const files = statusQuery.data?.files;
+      const untracked = untrackedSet.has(path);
+      const staged = !untracked && Boolean(files?.staged.includes(path)) && !files?.unstaged.includes(path);
+      setSelectedFiles([{ path, staged }]);
+      setSelectedFile(path);
+      setSelectedIsStaged(staged);
+      setSelectedIsUntracked(untracked);
+      if (isMobile) setMobileActivePanel("diff");
+      else if (primaryPanel === "review") setPrimaryPanel("diff");
+    },
+    [isMobile, primaryPanel, statusQuery.data?.files, untrackedSet],
+  );
+
   // Handle selecting a file when in history mode
   const handleSelectHistoryFile = useCallback(
     (path: string) => {
@@ -2463,40 +2481,49 @@ export default function App() {
         );
       case "commit":
         return (
-          <CommitPanel
-            stagedCount={statusQuery.data?.summary.staged ?? 0}
-            commitMessage={commitMessage}
-            onCommitMessageChange={setCommitMessage}
-            canUseApprovedMessage={canUseApprovedMessage}
-            onUseApprovedMessage={handleUseApprovedMessage}
-            isUsingApprovedMessage={approvedPreviewMutation.isPending}
-            onCommit={handleCommit}
-            isCommitting={isAuthorizingCommit || commitMutation.isPending || precommitStream.state.running}
-            isUpdatingIndex={isStaging}
-            commitProgressLabel={precommitStream.state.running ? "Running checks…" : isAuthorizingCommit ? "Preparing commit…" : undefined}
-            precommitProgress={precommitProgressProps}
-            commitError={commitError}
-            onRetryWithoutPrecommit={handleCommitSkipPrecommit}
-            canRetryWithoutPrecommit={Boolean(commitError && pendingPrecommitCommit)}
-            defaultAuthorName={statusQuery.data?.author?.name}
-            defaultAuthorEmail={statusQuery.data?.author?.email}
-            canAmend={canAmend}
-            amendDisabledReason={amendDisabledReason}
-            collapsed={commitCollapsed}
-            onToggleCollapse={() => setCommitCollapsed((prev) => !prev)}
-            fillHeight={isMain || !commitCollapsed}
-            onPush={handlePush}
-            isPushing={isPushing}
-            pushProgressLabel={syncProgressLabel}
-            canPush={syncStatusQuery.data?.can_push ?? false}
-            aheadCount={syncStatusQuery.data?.ahead ?? 0}
-            pushTarget={pushTargetRef}
-            sourceBranch={pushSourceBranch}
-            isHistoryMode={isHistoryMode}
-            historyCommit={viewingCommit}
-            authorityStatus={authorityStatus}
-            onAuthoritySignedIn={() => void authorityQuery.refetch()}
-          />
+          <ProposalsSection
+            repoId={repoId}
+            canApprove={authorityStatus?.canMutate ?? false}
+            approveDisabledReason={authorityStatus?.reason}
+            skipConfirmation={skipCommitConfirmation}
+            hidden={isHistoryMode}
+            onOpenDiff={handleOpenProposalDiff}
+          >
+            <CommitPanel
+              stagedCount={statusQuery.data?.summary.staged ?? 0}
+              commitMessage={commitMessage}
+              onCommitMessageChange={setCommitMessage}
+              canUseApprovedMessage={canUseApprovedMessage}
+              onUseApprovedMessage={handleUseApprovedMessage}
+              isUsingApprovedMessage={approvedPreviewMutation.isPending}
+              onCommit={handleCommit}
+              isCommitting={isAuthorizingCommit || commitMutation.isPending || precommitStream.state.running}
+              isUpdatingIndex={isStaging}
+              commitProgressLabel={precommitStream.state.running ? "Running checks…" : isAuthorizingCommit ? "Preparing commit…" : undefined}
+              precommitProgress={precommitProgressProps}
+              commitError={commitError}
+              onRetryWithoutPrecommit={handleCommitSkipPrecommit}
+              canRetryWithoutPrecommit={Boolean(commitError && pendingPrecommitCommit)}
+              defaultAuthorName={statusQuery.data?.author?.name}
+              defaultAuthorEmail={statusQuery.data?.author?.email}
+              canAmend={canAmend}
+              amendDisabledReason={amendDisabledReason}
+              collapsed={commitCollapsed}
+              onToggleCollapse={() => setCommitCollapsed((prev) => !prev)}
+              fillHeight={isMain || !commitCollapsed}
+              onPush={handlePush}
+              isPushing={isPushing}
+              pushProgressLabel={syncProgressLabel}
+              canPush={syncStatusQuery.data?.can_push ?? false}
+              aheadCount={syncStatusQuery.data?.ahead ?? 0}
+              pushTarget={pushTargetRef}
+              sourceBranch={pushSourceBranch}
+              isHistoryMode={isHistoryMode}
+              historyCommit={viewingCommit}
+              authorityStatus={authorityStatus}
+              onAuthoritySignedIn={() => void authorityQuery.refetch()}
+            />
+          </ProposalsSection>
         );
       case "review":
         return (
@@ -2730,39 +2757,48 @@ export default function App() {
         );
       case "commit":
         return (
-          <CommitPanel
-            stagedCount={statusQuery.data?.summary.staged ?? 0}
-            commitMessage={commitMessage}
-            onCommitMessageChange={setCommitMessage}
-            canUseApprovedMessage={canUseApprovedMessage}
-            onUseApprovedMessage={handleUseApprovedMessage}
-            isUsingApprovedMessage={approvedPreviewMutation.isPending}
-            onCommit={handleCommit}
-            isCommitting={isAuthorizingCommit || commitMutation.isPending || precommitStream.state.running}
-            isUpdatingIndex={isStaging}
-            commitProgressLabel={precommitStream.state.running ? "Running checks…" : isAuthorizingCommit ? "Preparing commit…" : undefined}
-            precommitProgress={precommitProgressProps}
-            commitError={commitError}
-            onRetryWithoutPrecommit={handleCommitSkipPrecommit}
-            canRetryWithoutPrecommit={Boolean(commitError && pendingPrecommitCommit)}
-            defaultAuthorName={statusQuery.data?.author?.name}
-            defaultAuthorEmail={statusQuery.data?.author?.email}
-            canAmend={canAmend}
-            amendDisabledReason={amendDisabledReason}
-            collapsed={false}
-            fillHeight={true}
-            onPush={handlePush}
-            isPushing={isPushing}
-            pushProgressLabel={syncProgressLabel}
-            canPush={syncStatusQuery.data?.can_push ?? false}
-            aheadCount={syncStatusQuery.data?.ahead ?? 0}
-            pushTarget={pushTargetRef}
-            sourceBranch={pushSourceBranch}
-            isHistoryMode={isHistoryMode}
-            historyCommit={viewingCommit}
-            authorityStatus={authorityStatus}
-            onAuthoritySignedIn={() => void authorityQuery.refetch()}
-          />
+          <ProposalsSection
+            repoId={repoId}
+            canApprove={authorityStatus?.canMutate ?? false}
+            approveDisabledReason={authorityStatus?.reason}
+            skipConfirmation={skipCommitConfirmation}
+            hidden={isHistoryMode}
+            onOpenDiff={handleOpenProposalDiff}
+          >
+            <CommitPanel
+              stagedCount={statusQuery.data?.summary.staged ?? 0}
+              commitMessage={commitMessage}
+              onCommitMessageChange={setCommitMessage}
+              canUseApprovedMessage={canUseApprovedMessage}
+              onUseApprovedMessage={handleUseApprovedMessage}
+              isUsingApprovedMessage={approvedPreviewMutation.isPending}
+              onCommit={handleCommit}
+              isCommitting={isAuthorizingCommit || commitMutation.isPending || precommitStream.state.running}
+              isUpdatingIndex={isStaging}
+              commitProgressLabel={precommitStream.state.running ? "Running checks…" : isAuthorizingCommit ? "Preparing commit…" : undefined}
+              precommitProgress={precommitProgressProps}
+              commitError={commitError}
+              onRetryWithoutPrecommit={handleCommitSkipPrecommit}
+              canRetryWithoutPrecommit={Boolean(commitError && pendingPrecommitCommit)}
+              defaultAuthorName={statusQuery.data?.author?.name}
+              defaultAuthorEmail={statusQuery.data?.author?.email}
+              canAmend={canAmend}
+              amendDisabledReason={amendDisabledReason}
+              collapsed={false}
+              fillHeight={true}
+              onPush={handlePush}
+              isPushing={isPushing}
+              pushProgressLabel={syncProgressLabel}
+              canPush={syncStatusQuery.data?.can_push ?? false}
+              aheadCount={syncStatusQuery.data?.ahead ?? 0}
+              pushTarget={pushTargetRef}
+              sourceBranch={pushSourceBranch}
+              isHistoryMode={isHistoryMode}
+              historyCommit={viewingCommit}
+              authorityStatus={authorityStatus}
+              onAuthoritySignedIn={() => void authorityQuery.refetch()}
+            />
+          </ProposalsSection>
         );
       case "history":
         return (

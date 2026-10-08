@@ -13,17 +13,20 @@ import (
 	"agent-manager/internal/repository"
 	"github.com/google/uuid"
 	coreidentity "github.com/vrooli/api-core/identity"
+	"github.com/vrooli/api-core/owneridentity"
 )
 
 // These spies count effects explicitly. Unimplemented embedded dependencies
 // panic if refusal accidentally reaches another service or dispatch path.
-type auth01Effects struct{ taskWrites, runWrites, reservations, cacheWrites, cacheReads int }
-type auth01Runs struct {
-	repository.RunRepository
-	effects          *auth01Effects
-	parent, accepted *domain.Run
-	tokenHash        string
-}
+type (
+	auth01Effects struct{ taskWrites, runWrites, reservations, cacheWrites, cacheReads int }
+	auth01Runs    struct {
+		repository.RunRepository
+		effects          *auth01Effects
+		parent, accepted *domain.Run
+		tokenHash        string
+	}
+)
 
 func (r *auth01Runs) GetByTokenHash(_ context.Context, hash string) (*domain.Run, error) {
 	if hash != r.tokenHash {
@@ -31,6 +34,7 @@ func (r *auth01Runs) GetByTokenHash(_ context.Context, hash string) (*domain.Run
 	}
 	return r.parent, nil
 }
+
 func (r *auth01Runs) Get(_ context.Context, id uuid.UUID) (*domain.Run, error) {
 	if r.parent != nil && r.parent.ID == id {
 		return r.parent, nil
@@ -40,14 +44,17 @@ func (r *auth01Runs) Get(_ context.Context, id uuid.UUID) (*domain.Run, error) {
 	}
 	return nil, nil
 }
+
 func (r *auth01Runs) GetByIdempotencyKey(context.Context, string) (*domain.Run, error) {
 	r.effects.cacheReads++
 	return r.accepted, nil
 }
+
 func (r *auth01Runs) Create(context.Context, *domain.Run) error {
 	r.effects.runWrites++
 	return errors.New("unexpected run write")
 }
+
 func (r *auth01Runs) Update(context.Context, *domain.Run) error {
 	r.effects.runWrites++
 	return errors.New("unexpected run write")
@@ -62,6 +69,7 @@ func (r *auth01Tasks) Create(context.Context, *domain.Task) error {
 	r.effects.taskWrites++
 	return errors.New("unexpected task write")
 }
+
 func (r *auth01Tasks) Update(context.Context, *domain.Task) error {
 	r.effects.taskWrites++
 	return errors.New("unexpected task write")
@@ -75,6 +83,7 @@ type auth01Idempotency struct {
 func (r *auth01Idempotency) Check(context.Context, string) (*domain.IdempotencyRecord, error) {
 	return nil, nil
 }
+
 func (r *auth01Idempotency) Reserve(context.Context, string, time.Duration) (*domain.IdempotencyRecord, error) {
 	r.effects.reservations++
 	return nil, errors.New("unexpected reservation")
@@ -106,6 +115,7 @@ func auth01CallerFixture(t *testing.T) (*Orchestrator, *auth01Runs, *auth01Effec
 	req := CreateRunRequest{TaskID: uuid.New(), OwnerToken: "fixture-owner", IdempotencyKey: "fixture-admission"}
 	return o, runs, effects, req, token, owner
 }
+
 func assertAuth01NoEffects(t *testing.T, e *auth01Effects) {
 	t.Helper()
 	if e.taskWrites != 0 || e.runWrites != 0 || e.reservations != 0 || e.cacheWrites != 0 {
@@ -114,6 +124,7 @@ func assertAuth01NoEffects(t *testing.T, e *auth01Effects) {
 }
 
 func TestAuth01PublicCreateRunRejectsCallerBeforeEffects(t *testing.T) {
+	t.Setenv(owneridentity.CreateRunCallerEnforceEnv, "true")
 	for _, name := range []string{"absent", "body-parent-only", "forged-projection", "blank-run", "wrong-channel", "invalid-run", "expired-run", "revoked-run", "run-verifier-unavailable", "wrong-parent", "retained-task-mismatch", "retained-subject-mismatch", "wrong-purpose", "run-without-parent", "owner-unverified", "owner-service", "owner-expired", "owner-unavailable", "owner-empty-grant", "owner-read-only", "foreign-owner", "scope-widening", "invalid-second-run", "invalid-second-owner"} {
 		t.Run(name, func(t *testing.T) {
 			o, runs, effects, req, token, owner := auth01CallerFixture(t)
@@ -350,6 +361,7 @@ type auth01ProfileReads struct {
 func (r *auth01ProfileReads) GetByKey(context.Context, string) (*domain.AgentProfile, error) {
 	return r.existing, nil
 }
+
 func TestAuth01ProfileReconciliationIsReadOnlyBeforeAdmission(t *testing.T) {
 	for _, variant := range []string{"existing", "identical-noop", "new", "changed"} {
 		t.Run(variant, func(t *testing.T) {
@@ -389,4 +401,37 @@ func TestAuth01ProfileReconciliationIsReadOnlyBeforeAdmission(t *testing.T) {
 			}
 		})
 	}
+}
+
+// P-18: with the AUTH-01 switch off an unattended caller (scheduled heartbeat,
+// keep-alive relaunch) takes the anonymous path, while offered proof is still
+// verified and attributed and invalid offered proof is still refused.
+func TestAuth01SwitchOffAdmitsUnattendedAndKeepsOfferedProofChecks(t *testing.T) {
+	t.Setenv(owneridentity.CreateRunCallerEnforceEnv, "")
+	o, runs, effects, req, token, _ := auth01CallerFixture(t)
+	req.OwnerToken = ""
+	if err := o.authenticateCreateRunCaller(context.Background(), &req); err != nil {
+		t.Fatalf("unattended caller refused while off: %v", err)
+	}
+	if req.caller != nil || req.OwnerSubject != "" {
+		t.Fatal("unattended caller gained attribution")
+	}
+	human := CreateRunRequest{TaskID: uuid.New(), OwnerToken: "fixture-owner"}
+	if err := o.authenticateCreateRunCaller(context.Background(), &human); err != nil || human.caller == nil || human.caller.Kind != "human" || human.OwnerSubject != "owner-a" {
+		t.Fatalf("verified human attribution lost while off: %v", err)
+	}
+	child := CreateRunRequest{TaskID: uuid.New(), RunIdentityToken: token, ParentRunID: &runs.parent.ID}
+	if err := o.authenticateCreateRunCaller(context.Background(), &child); err != nil || child.caller == nil || child.caller.Kind != "run" {
+		t.Fatalf("exact-parent attribution lost while off: %v", err)
+	}
+	other := uuid.New()
+	wrong := CreateRunRequest{TaskID: uuid.New(), RunIdentityToken: token, ParentRunID: &other}
+	if err := o.authenticateCreateRunCaller(context.Background(), &wrong); err == nil {
+		t.Fatal("wrong-parent run identity admitted while off")
+	}
+	invalid := CreateRunRequest{TaskID: uuid.New(), OwnerToken: "invalid-fixture-owner"}
+	if err := o.authenticateCreateRunCaller(context.Background(), &invalid); err == nil {
+		t.Fatal("invalid offered owner proof admitted while off")
+	}
+	assertAuth01NoEffects(t, effects)
 }

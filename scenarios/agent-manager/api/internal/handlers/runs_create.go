@@ -19,6 +19,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/effortauthority"
+	"github.com/vrooli/api-core/owneridentity"
 	"github.com/vrooli/cli-core/cliutil"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
@@ -49,7 +50,8 @@ func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
 	// Credential absence is not operator authority. Reject before body parsing
 	// or calling orchestration; localhost, parentRunId and profile labels are
 	// not caller proof. Offered credentials still pass the existing verifiers.
-	if strings.TrimSpace(r.Header.Get("Authorization")) == "" && strings.TrimSpace(r.Header.Get(cliutil.HeaderAgentIdentityToken)) == "" && len(r.Header.Values(effortauthority.Header)) == 0 {
+	// AUTH-01 holds absence only while VROOLI_AUTH01_ENFORCE is on (P-18).
+	if owneridentity.CreateRunCallerEnforced() && strings.TrimSpace(r.Header.Get("Authorization")) == "" && strings.TrimSpace(r.Header.Get(cliutil.HeaderAgentIdentityToken)) == "" && len(r.Header.Values(effortauthority.Header)) == 0 {
 		writeJSON(w, http.StatusUnauthorized, map[string]string{
 			"error": "create-run requires verified caller identity: human Authorization or exact-parent X-Agent-Identity-Token",
 		})

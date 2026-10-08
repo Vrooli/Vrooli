@@ -404,6 +404,10 @@ func (r *Runner) Execute(ctx context.Context, req runner.ExecuteRequest) (*runne
 		waitErr = scanErr
 	}
 	stderr := errorOutput.String()
+	r.recoverInterruptedUsage(interruptedUsageInputs{
+		runID: req.RunID, sessionID: state.SessionID(), env: launchReq.Env,
+		config: req.GetConfig(), startedAt: startTime, sink: req.EventSink,
+	}, &observedEvents, &metrics, &lastAssistantMessage)
 
 	duration := time.Since(startTime)
 	result := r.classifyResult(ctx, waitErr, stderr, state, &metrics, observedEvents, duration, false)
@@ -588,6 +592,14 @@ func (r *Runner) Continue(ctx context.Context, req runner.ContinueRequest) (*run
 		waitErr = scanErr
 	}
 	stderr := errorOutput.String()
+	sessionID := state.SessionID()
+	if sessionID == "" {
+		sessionID = req.SessionID
+	}
+	r.recoverInterruptedUsage(interruptedUsageInputs{
+		runID: req.RunID, sessionID: sessionID, env: launchReq.Env,
+		config: req.GetConfig(), startedAt: startTime, sink: req.EventSink,
+	}, &observedEvents, &metrics, &lastAssistantMessage)
 
 	duration := time.Since(startTime)
 	result := r.classifyResult(ctx, waitErr, stderr, state, &metrics, observedEvents, duration, true)
@@ -1006,6 +1018,7 @@ func (r *Runner) continueWithDurableTranscript(
 		startMessage: r.codec.Labels().ContinueStartMessage,
 		endMessage:   r.codec.Labels().ContinueEndMessage,
 		isContinue:   true,
+		sessionID:    req.SessionID,
 	})
 	if result != nil && result.SessionID == "" {
 		result.SessionID = req.SessionID
@@ -1026,6 +1039,9 @@ type durableInputs struct {
 	startMessage string
 	endMessage   string
 	isContinue   bool
+	// sessionID is the continued session, used when the stream does not
+	// restate it.
+	sessionID string
 }
 
 // reportTranscriptError keeps transcript durability failures visible both in
@@ -1296,6 +1312,19 @@ func (r *Runner) runDurable(ctx context.Context, in durableInputs) (*runner.Exec
 		waitErr = toolCallLimitError(r.codec.Type(), in.config.MaxToolCalls)
 	default:
 	}
+	sessionMu.Lock()
+	recoverySessionID := transcriptSessionID
+	sessionMu.Unlock()
+	if sid := in.state.SessionID(); sid != "" {
+		recoverySessionID = sid
+	}
+	if recoverySessionID == "" {
+		recoverySessionID = in.sessionID
+	}
+	r.recoverInterruptedUsage(interruptedUsageInputs{
+		runID: in.runID, sessionID: recoverySessionID, env: in.request.Env,
+		config: in.config, startedAt: in.startTime, sink: in.sink,
+	}, &observedEvents, &metrics, &lastAssistantMessage)
 
 	result := &runner.ExecuteResult{
 		Duration: time.Since(in.startTime),

@@ -14,6 +14,7 @@ request header is never evidence of identity or human intent.
 | Connect worktree mutation | create/remove/lock/unlock/move/prune | repository mutation | policy interceptor denies absent verified principal; caller headers ignored |
 | Test-isolation routing | leased database and file-root selection | test-only persistence/file writes | `database.RoutedDB`, `filerouting.RoutedRoots`, and `apihttp.TestModeMiddleware` select the lease; production requests remain on primary roots |
 | SSH/configuration services | typed key generation/deletion and precommit settings | host/filesystem mutation | RepoService writers require a verified human principal and exact operation intent; remaining configuration writers are inventoried separately |
+| Proposal Connect | `ProposalService` anchor, create, list, get, edit, withdraw, refresh / `ApplyProposal` | GCT database draft write / repository mutation | drafts are agent-callable and record the caller principal and asserted run; apply requires a verified human, no agent caller header, and an exact single-use `repo.apply_proposal` intent |
 | CLI | local adapters and Connect bindings | depends on command | commit obtains authority status, exact preview, and a single-use intent; client headers are attribution only |
 
 ## Principal contract
@@ -53,6 +54,7 @@ unavailable.
 | Repository file writers | `RepoService.DeletePath` / `SaveFileContent` Connect-RPC; filesystem mutation | verified human at interceptor and service seam | exact single-use intent bound to repository revision and subject digest | file service tests plus Connect handler/policy tests |
 | Repository settings/remediation writers | `RepoService.SaveGroupingRules`, `MoveGitignoreEntry`, `UntrackBinary` Connect-RPC; config/index/filesystem mutation | verified human at interceptor and service seam | exact single-use intent bound to repository revision and subject digest | grouping, gitignore, tracked-binary service tests plus Connect policy tests |
 | Config/credential/SSH writers | GCT RepoService typed domain adapters; filesystem/host mutation | verified human at Connect interceptor and domain service seam | exact single-use intent for credential, remote URL, and SSH key writers; no agent path | direct `requireHumanMutation` tests and typed refusal/live probes |
+| Proposal apply | `ProposalService.ApplyProposal`; index and Git history mutation | verified human at handler and domain seam; agent caller header refused | exact single-use `repo.apply_proposal` intent bound to the proposal revision, its blobs and the index | `internal/proposals/apply_test.go`, `proposal_connect_test.go`, CLI `proposal` tests |
 | Worktree Connect mutations | GCT WorktreeService; repository mutation | verified principal in Connect context | `DecideAuthenticated` requires exact intent; absent/mismatched intent denies | policygate interceptor tests |
 | HumanControl Connect/REST | GCT human-control adapter; authorization preparation | verified human for confirmation | issues durable intent only; it never writes Git | human-control handler tests |
 

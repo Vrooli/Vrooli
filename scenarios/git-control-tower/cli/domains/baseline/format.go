@@ -390,6 +390,9 @@ func printStart(res startResult) {
 	if res.AmbientVar != "" {
 		fmt.Printf("  ambient routing: VROOLI_SHADOW_SCENARIOS=%s (nested CLI calls auto-target the shadow)\n", res.AmbientVar)
 	}
+	if res.RestorePoint == "preserved" {
+		fmt.Println("  restore point: preserved (took over the open engagement; its frozen baseline was not re-captured)")
+	}
 	if res.Anchor != "" {
 		fmt.Printf("  diff anchor: %s\n", res.Anchor)
 	}
@@ -426,6 +429,10 @@ func printPromote(res promoteResult) {
 	}
 	if res.RolledBack && res.DataSnapshot != "" {
 		fmt.Printf("  data snapshot for manual restore: %s\n", res.DataSnapshot)
+	}
+	if res.Next != "" {
+		fmt.Printf("  next: the engagement is closed; to keep a shadow, re-create it under the same name:\n    %s\n", res.Next)
+		fmt.Println("    (`git-control-tower baseline cycle` promotes and re-creates in one step)")
 	}
 }
 

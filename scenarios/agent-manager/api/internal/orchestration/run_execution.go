@@ -58,7 +58,7 @@ func (o *Orchestrator) executeRun(ctx context.Context, run *domain.Run, task *do
 	)
 	executor.WithClock(o.now)
 	executor.WithIdentitySecret(o.identitySecret)
-	executor.WithTerminalObserver(o.projectTerminalInvocationReadModel)
+	executor.WithTerminalObserver(o.observeFiniteSerialTerminal)
 	executor.WithRunStateRoot(runStateRoot)
 	if source, ok := o.promptClient.(promptmanager.SourceClient); ok {
 		executor.WithSkillSource(source)
@@ -531,7 +531,7 @@ func (o *Orchestrator) resumeRun(ctx context.Context, run *domain.Run, task *dom
 	)
 	executor.WithClock(o.now)
 	executor.WithIdentitySecret(o.identitySecret)
-	executor.WithTerminalObserver(o.projectTerminalInvocationReadModel)
+	executor.WithTerminalObserver(o.observeFiniteSerialTerminal)
 	executor.WithRunStateRoot(runStateRoot)
 	executor.WithRunStateWriteObserver(func() { o.recordRunStateWrite(ctx) })
 	executor.WithStructuredResultResolver(o.structuredResults)

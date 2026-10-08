@@ -63,7 +63,7 @@ func (o *Orchestrator) createRun(ctx context.Context, req CreateRunRequest, reco
 	if req.effort != nil && (o.finiteNativeFactory == nil || o.finiteNativeFactory.CheckBinding(req.effort.binding.PolicyID, isolation.Binding{PolicyDigest: req.effort.binding.PolicyDigest, ProfileDigest: req.effort.intent.ProfileDigest, Repository: req.effort.intent.Repository, Deadline: req.effort.binding.Deadline}) != nil) {
 		return nil, effortauthority.ErrRefused
 	}
-	if o.finiteNativeEnabled() && (req.effort == nil || recovery != nil || req.effort.intent.Effect != "run.create") {
+	if o.finiteNativeEnabled() && (req.effort == nil || recovery != nil || (req.effort.intent.Effect != "run.create" && !(req.effort.serial && req.effort.intent.Effect == "run.child"))) {
 		return nil, effortauthority.ErrRefused
 	}
 	reserved := false
@@ -170,6 +170,12 @@ func (o *Orchestrator) createRun(ctx context.Context, req CreateRunRequest, reco
 		return nil, err
 	}
 
+	if req.effort != nil && req.effort.serial {
+		if req.effort.serialTask == nil || validateSerialTaskProjection(task, req.effort.serialPayload) != nil {
+			return nil, effortauthority.ErrRefused
+		}
+		task = req.effort.serialTask
+	}
 	// Normalize a copy; rejected admission must not update task storage.
 	taskCopy := *task
 	task = &taskCopy
@@ -515,6 +521,11 @@ func (o *Orchestrator) createRun(ctx context.Context, req CreateRunRequest, reco
 		i := req.effort.intent
 		resolvedConfig.Admission.Effort = &b
 		resolvedConfig.Admission.EffortIntent = &i
+		if req.effort.serial {
+			resolvedConfig.Admission.EffortTaskProjection = append([]byte(nil), req.effort.serialPayload...)
+		} else {
+			resolvedConfig.Admission.EffortTaskProjection, _ = json.Marshal(serialTaskRoot{TaskID: task.ID.String(), RootTaskDigest: effortTaskDigest(task), RootTag: req.Tag})
+		}
 	}
 	if err := o.preflightScopePath(task, runMode, req.ExistingSandboxID); err != nil {
 		failCreation()

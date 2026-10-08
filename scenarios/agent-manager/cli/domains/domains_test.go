@@ -26,15 +26,19 @@ func TestCommandGroupsRegistersEveryTopLevelCommand(t *testing.T) {
 }
 
 func TestEffortDispatcherCommandsReachTheirRegisteredHandler(t *testing.T) {
-	for _, operation := range []string{"compact", "enroll", "withdraw"} {
-		t.Run(operation, func(t *testing.T) {
+	for _, args := range [][]string{
+		{"compact", "--json"},
+		{"enroll", "--json", "--request-file", "request.json", "--local-owner"},
+		{"withdraw", "--json", "--request-file", "request.json", "--local-owner"},
+		{"epoch-check", "goal/epochs/E27.md", "--acceptance", "--json"},
+		{"lint", "goal", "--json"},
+		{"handoff", "set", "goal", "--stdin"},
+		{"park", "goal", "--run", "run-1", "--timeout", "1h"},
+	} {
+		t.Run(args[0], func(t *testing.T) {
 			var received []string
 			group := effortGroup(support.Dependencies{Effort: func(args []string) error { received = args; return nil }})
 			app := cliapp.NewApp(cliapp.AppOptions{Name: "agent-manager", SubcommandGroups: []cliapp.SubcommandGroup{group}})
-			args := []string{operation, "--json"}
-			if operation != "compact" {
-				args = append(args, "--request-file", "request.json", "--local-owner")
-			}
 			if err := app.RunWithWriters(append([]string{"effort"}, args...), io.Discard, io.Discard); err != nil {
 				t.Fatal(err)
 			}
@@ -42,5 +46,15 @@ func TestEffortDispatcherCommandsReachTheirRegisteredHandler(t *testing.T) {
 				t.Fatalf("registered route lost dispatcher operation: %v", received)
 			}
 		})
+	}
+}
+
+func TestEffortGoalHomeFileCommandsRunWithoutTheAPI(t *testing.T) {
+	group := effortGroup(support.Dependencies{Effort: func([]string) error { return nil }})
+	for _, command := range group.Subcommands {
+		offline := command.NeedsAPIOverride != nil && !*command.NeedsAPIOverride
+		if want := command.Name == "lint" || command.Name == "handoff"; offline != want {
+			t.Fatalf("%s: runs without the API = %t, want %t", command.Name, offline, want)
+		}
 	}
 }

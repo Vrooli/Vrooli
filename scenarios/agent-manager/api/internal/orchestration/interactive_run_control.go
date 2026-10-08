@@ -100,7 +100,7 @@ func (r *interactiveDriverRegistry) cancelAndWait(runID uuid.UUID) bool {
 // stopInteractiveRun stops an ExecutionMode=interactive run. The CLI lives in a
 // web-console tmux session, so there is no local process to signal: Stop cancels
 // the live coordinator (and waits for it to exit), tears the session down via the
-// interrupt-then-delete escalation ladder, then finalizes the run Cancelled —
+// interrupt-then-archive escalation ladder, then finalizes the run Cancelled —
 // mirroring pipe-mode StopRun's terminal status. Finalization happens exactly
 // once: the coordinator has been drained before the transition, and a natural
 // completion that won the race leaves the run already terminal (Stop is then a
@@ -114,7 +114,7 @@ func (o *Orchestrator) stopInteractiveRun(ctx context.Context, run *domain.Run) 
 		o.reconciler.CancelInteractiveTail(run.ID)
 	}
 
-	// 2. Hard-stop the web-console session: interrupt (soft) then delete (hard),
+	// 2. Hard-stop the web-console session: interrupt (soft) then archive (hard),
 	//    idempotent. A teardown error is non-fatal — the session may already be
 	//    gone — so we still finalize the run.
 	if run.WebConsoleSessionID != "" && o.interactiveSessions != nil {
@@ -220,7 +220,7 @@ func (o *Orchestrator) continueInteractiveRun(ctx context.Context, run *domain.R
 	if _, err := o.interactiveSessions.GetSession(ctx, run.WebConsoleSessionID); err != nil {
 		if errors.Is(err, webconsole.ErrSessionNotFound) {
 			return nil, domain.NewStateError("Run", string(run.Status), "continue",
-				fmt.Sprintf("the live web-console session %s for this run no longer exists; start a new interactive run to continue",
+				fmt.Sprintf("the live web-console session %s for this run no longer exists (ended runs keep their session only for the interactive session retention window); start a new interactive run to continue",
 					run.WebConsoleSessionID))
 		}
 		return nil, err
@@ -268,7 +268,8 @@ func (o *Orchestrator) continueInteractiveRun(ctx context.Context, run *domain.R
 
 	// Type the follow-up into the live session (paste + Enter submit). On failure
 	// finalize the run Failed rather than leaving it stuck Running.
-	if err := o.interactiveSessions.SendPrompt(ctx, run.WebConsoleSessionID, message, interactiveRunSource(run.ID)); err != nil {
+	submission, err := o.interactiveSessions.SendPrompt(ctx, run.WebConsoleSessionID, message, interactiveRunSource(run.ID))
+	if err != nil {
 		endedAt := o.now()
 		if _, terr := o.applyRunStatusTransition(ctx, RunStatusTransitionInput{
 			Run:       run,
@@ -282,6 +283,9 @@ func (o *Orchestrator) continueInteractiveRun(ctx context.Context, run *domain.R
 				obs.KeyRunID, run.ID.String(), obs.KeyError, terr.Error())
 		}
 		return nil, domain.NewInternalError("failed to deliver interactive continuation prompt", err)
+	}
+	if !submission.Verified {
+		o.appendRunLogEvent(ctx, run.ID, "warn", fmt.Sprintf("continuation typed into web-console session %s; submission unverified (the composer could not be observed)", run.WebConsoleSessionID))
 	}
 
 	// Reattach a live coordinator to drive the new turn to completion. Its

@@ -46,7 +46,7 @@ func TestRecoverInteractiveConsumedGoalReconcilesDespiteAttachedTailer(t *testin
 	run.ResolvedConfig.Until = "finish assignment"
 	stamp := run.StartedAt.Add(time.Second).Format(time.RFC3339Nano)
 	body := fmt.Sprintf("{\"timestamp\":%q,\"type\":\"session_meta\",\"payload\":{\"id\":%q}}\n{\"timestamp\":%q,\"type\":\"event_msg\",\"payload\":{\"type\":\"thread_goal_updated\",\"goal\":{\"objective\":\"finish assignment\",\"status\":\"complete\"}}}\n", stamp, run.SessionID, stamp)
-	if err := os.WriteFile(path, []byte(body), 0600); err != nil {
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	run.TranscriptCursor = int64(len(body))
@@ -98,7 +98,11 @@ func (f *fakeInteractiveSessions) GetSession(_ context.Context, id string) (webc
 	return webconsole.SessionInfo{}, webconsole.ErrSessionNotFound
 }
 
-func (f *fakeInteractiveSessions) DeleteSession(_ context.Context, id string) error {
+func (f *fakeInteractiveSessions) ListSessions(context.Context) ([]webconsole.SessionInfo, error) {
+	return nil, nil
+}
+
+func (f *fakeInteractiveSessions) ArchiveSession(_ context.Context, id string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.alive[id] = false
@@ -106,8 +110,8 @@ func (f *fakeInteractiveSessions) DeleteSession(_ context.Context, id string) er
 }
 
 func (f *fakeInteractiveSessions) SendText(context.Context, string, string, string) error { return nil }
-func (f *fakeInteractiveSessions) SendPrompt(context.Context, string, string, string) error {
-	return nil
+func (f *fakeInteractiveSessions) SendPrompt(context.Context, string, string, string) (webconsole.PromptSubmission, error) {
+	return webconsole.PromptSubmission{Verified: true, EnterPresses: 1}, nil
 }
 func (f *fakeInteractiveSessions) Interrupt(context.Context, string, string) error { return nil }
 func (f *fakeInteractiveSessions) Screen(context.Context, string, bool) (string, error) {
@@ -335,7 +339,7 @@ func TestRecoverInteractiveJoinsTailerBeforeInspectingFreshTranscript(t *testing
 	run.ResolvedConfig.RunnerType, run.ResolvedConfig.Until = domain.RunnerTypeCodex, "finish assignment"
 	stamp := run.StartedAt.Add(time.Second).Format(time.RFC3339Nano)
 	body := fmt.Sprintf("{\"timestamp\":%q,\"type\":\"session_meta\",\"payload\":{\"id\":%q}}\n{\"timestamp\":%q,\"type\":\"event_msg\",\"payload\":{\"type\":\"thread_goal_updated\",\"goal\":{\"objective\":\"finish assignment\",\"status\":\"complete\"}}}\n", stamp, run.SessionID, stamp)
-	if err := os.WriteFile(path, []byte(body), 0600); err != nil {
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	run.TranscriptCursor = int64(len(body))
@@ -351,7 +355,7 @@ func TestRecoverInteractiveJoinsTailerBeforeInspectingFreshTranscript(t *testing
 		<-cancelled
 		<-release
 		later := body + fmt.Sprintf("{\"timestamp\":%q,\"type\":\"event_msg\",\"payload\":{\"type\":\"user_message\",\"message\":\"new private work\"}}\n", run.StartedAt.Add(2*time.Second).Format(time.RFC3339Nano))
-		lateWrite <- os.WriteFile(path, []byte(later), 0600)
+		lateWrite <- os.WriteFile(path, []byte(later), 0o600)
 		close(done)
 	}()
 	returned := make(chan error, 1)

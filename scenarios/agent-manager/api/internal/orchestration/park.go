@@ -131,11 +131,19 @@ func (o *Orchestrator) ParkRun(ctx context.Context, in ParkRunInput) (*domain.Ru
 		return nil, domain.NewStateError("Run", string(run.Status), "park", reason)
 	}
 
+	// Validate finite authority before await/history/status/registry effects.
+	if err := o.checkEffortParking(ctx, run, in.Deadline); err != nil {
+		return nil, domain.RefuseBeforeEffects(err)
+	}
 	now := o.now()
 	deadline := in.Deadline
 	if deadline == nil {
 		d := now.Add(o.parkTTL())
 		deadline = &d
+		if run.ResolvedConfig != nil && run.ResolvedConfig.Admission != nil && run.ResolvedConfig.Admission.Effort != nil && d.After(run.ResolvedConfig.Admission.Effort.Deadline) {
+			bound := run.ResolvedConfig.Admission.Effort.Deadline
+			deadline = &bound
+		}
 	}
 
 	// Record the handle on the run BEFORE the transition so applyRunStatusTransition

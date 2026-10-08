@@ -1035,6 +1035,80 @@ func TestDurableCodexPreservesBillingAndTerminalUsage(t *testing.T) {
 	}
 }
 
+// recoveringCodexCodec exposes the concrete Codex codec, including its
+// optional interrupted-usage recovery, with availability forced for tests.
+type recoveringCodexCodec struct{ *codecs.Codex }
+
+func (recoveringCodexCodec) Available(context.Context) (bool, string) { return true, "fixture" }
+
+// TestDurableCodexRecoversUsageOfAStoppedTurn covers a park: the process ends
+// mid-turn, so the stream never prints turn.completed and the turn's usage is
+// read back from the run-scoped rollout. A completed turn keeps only its
+// streamed receipt.
+func TestDurableCodexRecoversUsageOfAStoppedTurn(t *testing.T) {
+	const session = "01a116b2-513b-7492-bb3f-bcbb2f784da8"
+	for _, completed := range []bool{false, true} {
+		t.Run(fmt.Sprintf("completed=%v", completed), func(t *testing.T) {
+			home := t.TempDir()
+			dir := filepath.Join(home, "sessions", "2026", "10", "07")
+			if err := os.MkdirAll(dir, 0o700); err != nil {
+				t.Fatal(err)
+			}
+			now := time.Now().UTC()
+			rollout := strings.Join([]string{
+				`{"timestamp":"` + now.Add(time.Second).Format(time.RFC3339Nano) + `","type":"event_msg","payload":{"type":"task_started","turn_id":"t"}}`,
+				`{"timestamp":"` + now.Add(2*time.Second).Format(time.RFC3339Nano) + `","type":"token_usage_record","payload":{"turn_id":"t","turn_token_usage":{"input_tokens":50,"cached_input_tokens":20,"output_tokens":5}}}`,
+				`{"timestamp":"` + now.Add(3*time.Second).Format(time.RFC3339Nano) + `","type":"response_item","payload":{"type":"custom_tool_call_output","call_id":"c","output":"PARKED"}}`,
+			}, "\n") + "\n"
+			if err := os.WriteFile(filepath.Join(dir, "rollout-x-"+session+".jsonl"), []byte(rollout), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			stdout := `{"type":"thread.started","thread_id":"` + session + `"}` + "\n" + `{"type":"turn.started"}` + "\n"
+			if completed {
+				stdout += `{"type":"turn.completed","usage":{"input_tokens":11,"output_tokens":3,"cached_input_tokens":2}}` + "\n"
+			}
+			r := newRunnerForTest(t, recoveringCodexCodec{codecs.NewCodexForTest()}, &fakeLauncher{stdout: stdout})
+			sink := &recordingSink{}
+			transcript, err := os.CreateTemp(t.TempDir(), "transcript-*.ndjson")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer transcript.Close()
+			cfg := domain.DefaultRunConfig()
+			cfg.Model = "gpt-6-luna"
+			result, err := r.Execute(t.Context(), runner.ExecuteRequest{
+				RunID: uuid.New(), Prompt: "fixture", EventSink: sink, ResolvedConfig: cfg,
+				Environment: map[string]string{"CODEX_HOME": home},
+				Transcript:  &runner.TranscriptConfig{TranscriptPath: transcript.Name(), StdoutFile: transcript},
+			})
+			if err != nil || result == nil {
+				t.Fatalf("result=%+v err=%v", result, err)
+			}
+			var usage []*domain.UsageEventData
+			for _, event := range sink.snapshot() {
+				if data, ok := event.Data.(*domain.UsageEventData); ok {
+					usage = append(usage, data)
+				}
+			}
+			if len(usage) != 1 {
+				t.Fatalf("usage events = %d, want exactly one: %+v", len(usage), usage)
+			}
+			if completed {
+				if usage[0].InputTokens != 9 || !usage[0].ReconciliationAuthority || usage[0].ReconciliationSource != "" {
+					t.Fatalf("a completed turn must keep only its streamed receipt: %+v", usage[0])
+				}
+				return
+			}
+			if usage[0].InputTokens != 30 || usage[0].CacheReadTokens != 20 || usage[0].OutputTokens != 5 || usage[0].ReconciliationAuthority {
+				t.Fatalf("stopped turn usage = %+v, want the rollout's completed calls as a lower bound", usage[0])
+			}
+			if result.Metrics.TokensInput != 30 || result.Metrics.TokensOutput != 5 {
+				t.Fatalf("recovered usage missing from invocation metrics: %+v", result.Metrics)
+			}
+		})
+	}
+}
+
 // TestDurableCodexCodecPipeNativeQuotaFrame exercises the managed codec-pipe
 // path: launcher stdout is written to the durable transcript, tailed by the
 // runner, and parsed by Codex's stateful native rollout adapter. It does not

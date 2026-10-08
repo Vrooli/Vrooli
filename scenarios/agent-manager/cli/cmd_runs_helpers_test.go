@@ -262,7 +262,7 @@ func TestRejectRunIdentityLifecycleCommand(t *testing.T) {
 
 	for _, subcommand := range []string{
 		"apply-investigation", "approve", "delete",
-		"investigate", "quiesce", "recover", "reject", "sandbox-sync",
+		"investigate", "recover", "reject", "sandbox-sync",
 		"stop-all", "stop-by-tag",
 	} {
 		if err := rejectRunIdentityLifecycleCommand(subcommand); err == nil {
@@ -270,8 +270,9 @@ func TestRejectRunIdentityLifecycleCommand(t *testing.T) {
 		}
 	}
 
-	// Lineage operations reach the API, which admits only the caller's own lineage.
-	for _, subcommand := range []string{"get", "report", "stats", "events", "diff", "park", "create", "identity", "stop", "continue", "wake"} {
+	// Lineage operations reach the API, which admits only the caller's own
+	// lineage; quiesce reaches it to admit an effort orchestrator's own scenario.
+	for _, subcommand := range []string{"get", "report", "stats", "events", "diff", "park", "create", "identity", "stop", "continue", "wake", "quiesce"} {
 		if err := rejectRunIdentityLifecycleCommand(subcommand); err != nil {
 			t.Errorf("%s was unexpectedly rejected: %v", subcommand, err)
 		}

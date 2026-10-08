@@ -42,6 +42,8 @@ func writerIntentOperation(operation string) string {
 		return "repo.recovery.prepare"
 	case "create commit":
 		return mutationOperationCommit
+	case "apply proposal":
+		return mutationOperationApplyProposal
 	case "stage files":
 		return "repo.stage"
 	case "unstage files":

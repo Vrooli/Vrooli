@@ -510,6 +510,7 @@ func (o *Orchestrator) runEventSink(runID uuid.UUID) runner.EventSink {
 	afterPersist := func(evt *domain.RunEvent) {
 		o.nudgeWorkflowUsage(runID, evt)
 		o.observeQuotaEvent(evt)
+		o.observeTokenCapUsage(runID, evt)
 	}
 	switch {
 	case o.events != nil && o.broadcaster != nil:
@@ -721,15 +722,8 @@ func (o *Orchestrator) propagateOrchestrationSettings(s *agentconfig.Orchestrati
 
 	// Propagate to reconciler.
 	if o.reconciler != nil {
-		o.reconciler.UpdateConfig(ReconcilerConfig{
-			Interval:          time.Duration(s.HealthDetection.ReconcilerIntervalSeconds) * time.Second,
-			StaleThreshold:    time.Duration(s.HealthDetection.StaleThresholdSeconds) * time.Second,
-			MaxRecoveryAge:    time.Duration(s.HealthDetection.MaxRecoveryAgeSeconds) * time.Second,
-			OrphanGracePeriod: time.Duration(s.ProcessTermination.OrphanGracePeriodSeconds) * time.Second,
-			MaxStaleRuns:      10,
-			KillOrphans:       s.ProcessTermination.KillOrphans,
-			AutoRecover:       true,
-		})
+		// Start from the live config so fields settings do not own survive.
+		o.reconciler.UpdateConfig(ReconcilerConfigWithSettings(o.reconciler.Config(), *s))
 	}
 
 	// Propagate to terminator.

@@ -56,9 +56,9 @@ code:
    finalizes recovered runs from `TranscriptTerminal` without any `Wait()`.
 
 3. **`Stop` is SIGTERM-to-pgid; here it is an interrupt key sequence + session
-   delete.** `core.Runner.Stop` calls `proc.Signal(grace)` / `proc.Kill()` on a
+   archive.** `core.Runner.Stop` calls `proc.Signal(grace)` / `proc.Kill()` on a
    process group. Interactive Stop (locked decision 6) is a web-console
-   `TerminalService.SendInput` interrupt sequence, with session `Delete` as the
+   `TerminalService.SendInput` interrupt sequence, with session `Archive` as the
    hard-kill fallback — not a signal to a local pgid.
 
 Forcing interactive mode through `Launcher` would require a fake
@@ -119,7 +119,11 @@ foundation plan (shipped 07-13) provides everything needed:
   `Origin` = `SESSION_ORIGIN_PROGRAMMATIC`, `LaunchCommand`, and
   `ExecuteLaunchCommand=true` (server pastes+runs the launch command via the
   recovery paste seam, no readiness gate).
-- `SessionsService.Get` / `Delete` — poll/inspect and hard-kill.
+- `SessionsService.Get` / `Archive` — poll/inspect and hard-kill. Archive ends
+  the process but keeps metadata and transcript; agent-manager never calls the
+  permanent `Delete` (which web-console guards with a `DELETE:<id>`
+  confirmation), so conversation evidence survives and web-console's archive
+  retention owns disposal.
 - `TerminalService.SendInput` — free-for-all stdin: agent-manager types the
   prompt, Continue follow-ups, and the Stop interrupt sequence. Source
   attribution (`"agent-manager:run-<id>"`) is diagnostic only (locked
@@ -246,7 +250,7 @@ types, and where they live:
 | Concern | Domain field (`internal/domain/types.go` `Run`) | DB column | Proto (`v1/domain/run.proto`) | Notes |
 |---------|--------------------------------------------------|-----------|-------------------------------|-------|
 | Execution mode | `ExecutionMode ExecutionMode` (new string enum: `codec_pipe` \| `interactive`; default `codec_pipe`) | `execution_mode` (text, default `'codec_pipe'`) | new field `execution_mode` (next free tag `= 37`), backed by a proto enum `ExecutionMode` in `run.proto`/`types.proto` | orthogonal to `RunMode` (sandboxed/in_place). UI shows it; drives the execution-path branch in run_executor. |
-| web-console session id | `WebConsoleSessionID string` | `web_console_session_id` (text) | new field `web_console_session_id` (`= 38`) | used to build the run-detail deep link and to route Continue/Stop `SendInput` + `Delete`. |
+| web-console session id | `WebConsoleSessionID string` | `web_console_session_id` (text) | new field `web_console_session_id` (`= 38`) | used to build the run-detail deep link and to route Continue/Stop `SendInput` + `Archive`. |
 | Resolved transcript path | **reuse** existing `TranscriptPath string` (`transcript_path`) | existing | existing (db-only recovery metadata; not proto-exposed) | for interactive runs this holds the **discovered agent-owned** path; for codec-pipe it holds the agent-manager-written stdout file. Same field, provenance differs. `TranscriptCursor`/`TranscriptLastSeq` reused as-is for tail resume. |
 
 No new session-id field: the existing `Run.SessionID` (claude session / codex
@@ -372,7 +376,7 @@ stdout `result`/`turn.completed`/`end` events.
   naive glob. Mitigation: the run-scoped `CODEX_HOME` isolates to one run, so
   glob `**/rollout-*.jsonl` newest under that home.
 - **R5 (Phase 5):** Stop via interrupt sequence is best-effort; the session
-  `Delete` fallback must be idempotent and must finalize the run even if the
+  `Archive` fallback must be idempotent and must finalize the run even if the
   interrupt left the CLI mid-turn.
 - **R6 (later):** opencode interactive requires a wholly different adapter
   (SQLite change-feed or opencode-server SSE); descoped (§6).
@@ -440,8 +444,8 @@ reusable seams:
   debounce + mid-tail session watch. **Phase 5 Continue** types into the session
   (via `Substrate`/`SessionController.SendText`) between turns; the debounce
   already treats the resulting growth as a new turn, so Continue needs no change
-  here. **Phase 5 Stop** calls `Substrate.Stop` (interrupt + delete); Finalize's
-  session-gone branch already fails the run cleanly if Stop deletes the session.
+  here. **Phase 5 Stop** calls `Substrate.Stop` (interrupt + archive); Finalize's
+  session-gone branch already fails the run cleanly if Stop archives the session.
 - `Coordinator.Finalize(ctx, run, terminal, tailErr)` — the single completion
   seam (Complete / Failed / leave-Running-on-graceful-shutdown).
 
@@ -466,6 +470,18 @@ client wired, interactive recovery is a logged idempotent no-op (never falsely
 completes/fails). Known limitation: codex rollout **rotation** is not followed
 across a restart (the run dir is not persisted, per §5); the pinned rollout path
 still tails correctly within a session.
+
+### 9.4 Session retention after the run ends
+
+`Finalize` never ends the web-console session, so `run continue` can type a
+follow-up into the still-live CLI. That retention is bounded: the reconciler
+lists web-console sessions owned by agent-manager (programmatic origin) and
+archives one (process ended; metadata and transcript kept for web-console's
+archive retention) once every run referencing it has been terminal for
+`ReconcilerConfig.InteractiveSessionRetention` (default 2h; 0 disables), or once
+an unreferenced session is that old. Pending, running, parked, and needs_review
+runs, and runs with a live continuation driver, keep their session. Continuing a
+run after its session was archived fails with a state error; start a new run.
 
 ---
 
@@ -541,12 +557,22 @@ then an Enter keypress. Firing them back-to-back is unreliable: under load the
 Enter races ahead before the TUI has finished ingesting the paste, so it does
 **not** submit, and the pasted text accumulates on screen unsent (reproduced with
 codex: five deliveries left five unsubmitted "Reply with exactly: pong" lines and
-no turn). A short `pasteSubmitDelay` (400 ms, in `webconsole.Client.SendPrompt`)
-between the paste and the Enter makes the submit reliable across claude/codex/grok.
-This is why manual replays that shelled out per keystroke (natural inter-process
-gaps) always submitted while the back-to-back client path intermittently did not.
-The fix applies to both the initial-turn delivery and Continue, which share
-`SendPrompt`.
+no turn). A fixed 400 ms delay between paste and Enter proved insufficient on a
+loaded host (directives sat composed-but-unsent for hours), so submission is now
+**verified from the screen**. `webconsole.Client.SendPrompt` treats the rows
+ending at the terminal cursor as the composer and normalizes away whitespace and
+box-drawing glyphs (TUIs wrap and frame input). It waits up to 5 s for the
+composer to end with the prompt's last 32 characters (or a `[Pasted …]`
+large-paste placeholder), presses Enter, and confirms the composer no longer ends
+with it. A submitted or queued message no longer sits at the cursor. A swallowed
+Enter is retried up to 3 times; if the composer still holds the prompt,
+`ErrPromptNotSubmitted` is returned. The only TUI assumption is that the cursor
+sits in the composer. When the composer cannot be observed (no cursor, unreadable
+screen, prompt never shown), one Enter is sent and the result is reported
+`Verified=false`, never as confirmed. A not-submitted continuation into a running
+session is an API error that keeps its idempotency reservation; a delivered one is
+recorded as a user message event. Initial delivery, Continue, and mid-turn
+continuation share `SendPrompt`.
 ---
 
 ## 11. Target contract — native goal delivery and run termination

@@ -2,8 +2,11 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -14,6 +17,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/vrooli/cli-core/cliutil"
+	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	eventpb "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 )
 
 type guardIdentityService struct {
@@ -194,5 +199,138 @@ func TestLifecycleRefusalHealthReportsBurstsAndRecovers(t *testing.T) {
 				t.Fatalf("healthy=%t (%s), want %t", healthy, reason, tt.healthy)
 			}
 		})
+	}
+}
+
+// quiesceRuns adds a recording, optionally slow QuiesceScenario to the lineage
+// run fake.
+type quiesceRuns struct {
+	lineageRuns
+	delay time.Duration
+	calls *int
+}
+
+func (f quiesceRuns) QuiesceScenario(ctx context.Context, opts orchestration.QuiesceOptions) (*orchestration.QuiesceResult, error) {
+	if f.calls != nil {
+		*f.calls++
+	}
+	select {
+	case <-time.After(f.delay):
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+	return &orchestration.QuiesceResult{Scenario: opts.Scenario, Drained: true, Reason: "drained"}, nil
+}
+
+type fakeEffortEnrollments map[string]*pb.EffortEnrollment
+
+func (f fakeEffortEnrollments) EffortEnrollment(_ context.Context, ref string) (*pb.EffortEnrollment, error) {
+	if enrollment, ok := f[ref]; ok {
+		return enrollment, nil
+	}
+	return nil, errors.New("not found")
+}
+
+func TestQuiesceAdmitsOnlyTheTargetEffortsRunningOrchestrator(t *testing.T) {
+	orchestratorProfile, workerProfile := uuid.New(), uuid.New()
+	effortRef := func(id string) []*eventpb.WorkReference {
+		return []*eventpb.WorkReference{{
+			Kind: "effort", Id: id, Relationship: "orchestrator", Verified: true,
+			State: eventpb.WorkReferenceState_WORK_REFERENCE_STATE_ACTIVE,
+		}}
+	}
+	orchestrator, child, plainWorker, noEffort, parked, withdrawn := uuid.New(), uuid.New(), uuid.New(), uuid.New(), uuid.New(), uuid.New()
+	runs := map[uuid.UUID]*domain.Run{
+		orchestrator: {ID: orchestrator, Status: domain.RunStatusRunning, AgentProfileID: &orchestratorProfile, WorkReferences: effortRef("effort:bas")},
+		child:        {ID: child, Status: domain.RunStatusRunning, AgentProfileID: &orchestratorProfile, ParentRunID: &orchestrator, WorkReferences: effortRef("effort:bas")},
+		plainWorker:  {ID: plainWorker, Status: domain.RunStatusRunning, AgentProfileID: &workerProfile, WorkReferences: effortRef("effort:bas")},
+		noEffort:     {ID: noEffort, Status: domain.RunStatusRunning, AgentProfileID: &orchestratorProfile},
+		parked:       {ID: parked, Status: domain.RunStatusParked, AgentProfileID: &orchestratorProfile, WorkReferences: effortRef("effort:bas")},
+		withdrawn:    {ID: withdrawn, Status: domain.RunStatusRunning, AgentProfileID: &orchestratorProfile, WorkReferences: effortRef("effort:old")},
+	}
+	profiles := map[uuid.UUID]*domain.AgentProfile{
+		orchestratorProfile: {ID: orchestratorProfile, DeclaredScopes: []string{OrchestrateScope}},
+		workerProfile:       {ID: workerProfile},
+	}
+	enrollments := fakeEffortEnrollments{
+		"effort:bas": {EffortRef: "effort:bas", DestinationRef: "path:scenarios/browser-automation-studio/docs/internal/goal/GOAL.md"},
+		"effort:old": {EffortRef: "effort:old", DestinationRef: "scenarios/browser-automation-studio/docs/GOAL.md", Withdrawn: true},
+	}
+	quiesce := func(result *orchestration.IdentityVerifyResult, scenario string) (*httptest.ResponseRecorder, int) {
+		calls := 0
+		h := New(orchestration.HandlerServices{
+			IdentityService: guardIdentityService{result: result},
+			RunService:      quiesceRuns{lineageRuns: lineageRuns{runs: runs}, calls: &calls},
+			ProfileService:  lineageProfiles{profiles: profiles},
+		}, WithEffortEnrollments(enrollments))
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/runs/quiesce", strings.NewReader(`{"scenario":"`+scenario+`"}`))
+		if result != nil {
+			req.Header.Set(cliutil.HeaderAgentIdentityToken, "run-token")
+		}
+		rr := httptest.NewRecorder()
+		h.QuiesceScenario(rr, req)
+		return rr, calls
+	}
+	caller := func(id uuid.UUID) *orchestration.IdentityVerifyResult {
+		return &orchestration.IdentityVerifyResult{Valid: true, Claims: &identity.Claims{RunID: id}}
+	}
+
+	if rr, calls := quiesce(caller(orchestrator), "browser-automation-studio"); rr.Code != http.StatusOK || calls != 1 {
+		t.Fatalf("effort orchestrator quiescing its target: status=%d calls=%d body=%s", rr.Code, calls, rr.Body.String())
+	}
+	if rr, calls := quiesce(nil, "browser-automation-studio"); rr.Code != http.StatusOK || calls != 1 {
+		t.Fatalf("operator quiesce: status=%d calls=%d body=%s", rr.Code, calls, rr.Body.String())
+	}
+	if rr, calls := quiesce(&orchestration.IdentityVerifyResult{Valid: false}, "browser-automation-studio"); rr.Code != http.StatusUnauthorized || calls != 0 {
+		t.Fatalf("unverified credential: status=%d calls=%d", rr.Code, calls)
+	}
+
+	for _, tc := range []struct {
+		name     string
+		caller   uuid.UUID
+		scenario string
+		cause    string
+	}{
+		{"another scenario", orchestrator, "agent-manager", "effort:bas targets browser-automation-studio"},
+		{"child run", child, "browser-automation-studio", "child run"},
+		{"no orchestrate scope", plainWorker, "browser-automation-studio", "does not declare " + OrchestrateScope},
+		{"no effort reference", noEffort, "browser-automation-studio", "no active orchestrator effort reference"},
+		{"not running", parked, "browser-automation-studio", "parked, not running"},
+		{"withdrawn effort", withdrawn, "browser-automation-studio", "effort:old is withdrawn"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			rr, calls := quiesce(caller(tc.caller), tc.scenario)
+			if rr.Code != http.StatusForbidden || calls != 0 {
+				t.Fatalf("status=%d calls=%d, want 403 without draining; body=%s", rr.Code, calls, rr.Body.String())
+			}
+			var body struct {
+				Error string `json:"error"`
+				Hint  string `json:"recovery_hint"`
+			}
+			if err := json.Unmarshal(rr.Body.Bytes(), &body); err != nil {
+				t.Fatalf("decode refusal: %v", err)
+			}
+			if !strings.Contains(body.Error, tc.cause) || body.Hint == "" {
+				t.Fatalf("refusal must name the cause %q and give a hint, got %+v", tc.cause, body)
+			}
+		})
+	}
+}
+
+func TestEffortDestinationScenario(t *testing.T) {
+	for destination, want := range map[string]string{
+		"path:scenarios/browser-automation-studio/docs/internal/goal/GOAL.md":                    "browser-automation-studio",
+		"scenarios/browser-automation-studio/docs/internal/REFRACTOR_CONTRACT.json#bas-rehab-v1": "browser-automation-studio",
+		"repo:scenarios/personal-planner/docs/internal/goal/GOAL.md":                             "personal-planner",
+		"scenario:landing-page-business-suite":                                                   "landing-page-business-suite",
+		"scenarios/x/../../scenarios-evil/y":                                                     "",
+		"workspace:rcl-campaign/README.md#outcome":                                               "",
+		"/home/operator/Vrooli/scenarios/x/GOAL.md":                                              "",
+		"docs/agent-system/EFFORT_SUPERVISION.md":                                                "",
+		"": "",
+	} {
+		if got := effortDestinationScenario(destination); got != want {
+			t.Errorf("effortDestinationScenario(%q) = %q, want %q", destination, got, want)
+		}
 	}
 }

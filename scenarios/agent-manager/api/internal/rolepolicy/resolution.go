@@ -13,6 +13,7 @@ import (
 // ResolvedCandidate is immutable resource-owned evidence captured for one
 // portable catalog candidate. Model and fallbacks are output evidence only.
 type ResolvedCandidate struct {
+	Effort         domain.Effort            `json:"effort,omitempty"`
 	Runner         domain.RunnerType        `json:"runner"`
 	ResourceRole   string                   `json:"resourceRole"`
 	Model          string                   `json:"model,omitempty"`
@@ -54,7 +55,7 @@ func (r *Resolution) Snapshot() *domain.ExecutionPolicySnapshot {
 			selection = ""
 		}
 		candidates = append(candidates, domain.ExecutionCandidate{
-			RunnerType: candidate.Runner, SelectionType: selection, Model: candidate.Model,
+			RunnerType: candidate.Runner, SelectionType: selection, Model: candidate.Model, DeclaredEffort: candidate.Effort,
 			CanonicalModel: candidate.CanonicalModel,
 			ResourceRole:   candidate.ResourceRole, Fallbacks: append([]string(nil), candidate.Fallbacks...), ExcludedModels: append([]string(nil), candidate.ExcludedModels...),
 			Available: candidate.Available, FailureCode: candidate.FailureCode, Failure: candidate.Failure,
@@ -146,6 +147,7 @@ func (s *State) ResolvePreferred(ctx context.Context, resolver Resolver, roleRef
 			result.Candidates = append(result.Candidates, resolved)
 			continue
 		}
+		resolved.Effort = evidence.Effort
 		resolved.Model = evidence.Model
 		resolved.CanonicalModel = evidence.CanonicalModel
 		resolved.Fallbacks = append([]string(nil), evidence.Fallbacks...)

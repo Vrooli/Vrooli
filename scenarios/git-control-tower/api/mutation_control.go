@@ -18,6 +18,10 @@ import (
 
 const mutationOperationCommit = "repo.commit"
 
+// mutationOperationApplyProposal authorizes one commit proposal revision. Its
+// subject context is "proposal:<id>@<revision>"; see proposalSubjectEvidence.
+const mutationOperationApplyProposal = "repo.apply_proposal"
+
 type AuthorityStatusResponse struct {
 	Authenticated bool     `json:"authenticated"`
 	PrincipalID   string   `json:"principal_id,omitempty"`
@@ -208,6 +212,13 @@ func (s *Server) prepareMutationWithContext(ctx context.Context, repositoryID, o
 		return MutationPreviewResponse{}, err
 	}
 	digestInput := append([]byte(revision+"\x00"+subjectContext+"\x00"), diff...)
+	if operation == mutationOperationApplyProposal {
+		evidence, err := s.proposalSubjectEvidence(ctx, repo, subjectContext)
+		if err != nil {
+			return MutationPreviewResponse{}, err
+		}
+		digestInput = append(append(digestInput, 0), evidence...)
+	}
 	hash := sha256.Sum256(digestInput)
 	return MutationPreviewResponse{RepositoryID: repositoryIDFor(repo), RepositoryPath: repo.Path, Operation: operation, Branch: status.Branch.Head, ExpectedRevision: revision, SubjectDigest: hex.EncodeToString(hash[:]), StagedFiles: append([]string(nil), status.Files.Staged...), FileCount: len(status.Files.Staged), GeneratedAt: time.Now().UTC(), SubjectContext: subjectContext}, nil
 }

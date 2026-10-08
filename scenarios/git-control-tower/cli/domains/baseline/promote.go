@@ -22,12 +22,17 @@
 //	      the OLD code; flipping to live mode makes the resolver stop redirecting so
 //	      live resolves to the working tree. The restore-point copy is preserved as
 //	      the rollback source (dropped only after the probe passes).
-//	  →  restart live  →  health+smoke probe
+//	  →  restart live  →  health+smoke probe  →  caller's --probe-cmd (optional)
 //	  →  (probe fails ⇒ re-open the split [`set-mode --mode shadow`] + restart =
 //	      auto-rollback: live resolves back to the baseline copy, the working tree
 //	      keeps the candidate, the shadow is left standing, the engagement stays
 //	      open for retry — no working-tree restore needed)
 //	  →  tear down the shadow  →  clean the engagement (drop the restore point)
+//
+// The clean closes the engagement; `baseline cycle` (cycle.go) follows it with a
+// fresh shadow under the same name. A promote interrupted between the re-point
+// and the clean (mode live, variant shadow) is resumed by a retry, not accepted
+// in place.
 //
 // Live-mode promote is "accept": the working tree was edited+validated in place,
 // so promote just drops the restore point + manifest (the safety net is no
@@ -38,6 +43,7 @@ package baseline
 import (
 	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"strings"
 	"time"
@@ -61,8 +67,10 @@ type promoteParams struct {
 	tagPrefix    string // also drain whole-repo runs by this tag (EM tags its runs; task ScopePath = vrooliRoot, not scenarios/<X>)
 	scopePrefix  string // override the working-tree scope used to enumerate runs
 	drainTimeout time.Duration
-	force        bool // on drain timeout, cancel survivors instead of aborting
-	noDrain      bool // skip the drain entirely (e.g. no agent-manager reachable / no in-flight runs expected)
+	force        bool          // on drain timeout, cancel survivors instead of aborting
+	noDrain      bool          // skip the drain entirely (e.g. no agent-manager reachable / no in-flight runs expected)
+	probeCmd     string        // optional live probe (`sh -c`) run after the restart and before the shadow teardown; failure rolls back
+	probeTimeout time.Duration // bound on probeCmd (default defaultProbeTimeout)
 }
 
 // promoteResult is the structured outcome of a promote (also the --json shape).
@@ -76,42 +84,73 @@ type promoteResult struct {
 	DataSnapshot string   `json:"dataSnapshot,omitempty"` // pre-promote backup run ID, if one was taken
 	Steps        []string `json:"steps"`
 	Message      string   `json:"message"`
+	// Next names the command that re-creates the shadow after a shadow promote
+	// closed the engagement (same --name, so the goal keeps one engagement).
+	Next string `json:"next,omitempty"`
+}
+
+// promoteFlags are the inputs `baseline promote` and `baseline cycle` share, so
+// both gate, drain and probe live the same way.
+type promoteFlags struct {
+	scenario, slug                       string
+	excludeRun, tagPrefix, scopePrefix   string
+	drainTimeout, probeCmd, probeTimeout string
+	force, noDrain, jsonOut              bool
+}
+
+func (f *promoteFlags) bind(fs *flag.FlagSet, defaultSlug, nameUsage string) {
+	fs.StringVar(&f.scenario, "scenario", "", "Scenario slug (required)")
+	fs.StringVar(&f.slug, "name", defaultSlug, nameUsage)
+	fs.StringVar(&f.excludeRun, "exclude-run", "", "The promoting orchestrator run's own ID, excluded from the drain set (self-deadlock guard)")
+	fs.StringVar(&f.tagPrefix, "tag-prefix", "", "Also drain in-flight runs by this tag prefix (whole-repo orchestrator runs)")
+	fs.StringVar(&f.scopePrefix, "scope-prefix", "", "Override the working-tree scope used to enumerate runs (default scenarios/<scenario>)")
+	fs.StringVar(&f.drainTimeout, "drain-timeout", "", "Max wait for in-flight runs to terminate before abort/--force (e.g. 5m; default 5m)")
+	fs.StringVar(&f.probeCmd, "probe-cmd", "", "Live probe, run with `sh -c` against live after the restart and before the shadow teardown (e.g. one journey); a non-zero exit rolls back")
+	fs.StringVar(&f.probeTimeout, "probe-timeout", "", "Max run time for --probe-cmd (default 15m); a timeout rolls back")
+	fs.BoolVar(&f.force, "force", false, "Bypass the proto impact gate, and on drain timeout cancel survivors instead of aborting the promote")
+	fs.BoolVar(&f.noDrain, "no-drain", false, "Skip the in-flight-run drain (no agent-manager / no concurrent runs expected)")
+	fs.BoolVar(&f.jsonOut, "json", false, "Emit JSON")
+}
+
+func (f promoteFlags) params() (promoteParams, error) {
+	p := promoteParams{
+		scenario: f.scenario, slug: f.slug, excludeRun: f.excludeRun, tagPrefix: f.tagPrefix,
+		scopePrefix: f.scopePrefix, force: f.force, noDrain: f.noDrain, probeCmd: strings.TrimSpace(f.probeCmd),
+	}
+	if s := strings.TrimSpace(f.drainTimeout); s != "" {
+		d, err := time.ParseDuration(s)
+		if err != nil {
+			return promoteParams{}, fmt.Errorf("invalid --drain-timeout %q: %w", f.drainTimeout, err)
+		}
+		p.drainTimeout = d
+	}
+	if s := strings.TrimSpace(f.probeTimeout); s != "" {
+		d, err := time.ParseDuration(s)
+		if err != nil {
+			return promoteParams{}, fmt.Errorf("invalid --probe-timeout %q: %w", f.probeTimeout, err)
+		}
+		p.probeTimeout = d
+	}
+	return p, nil
 }
 
 func runPromoteCmd(core *cliapp.ScenarioApp, args []string) error {
-	var scenario, slug, excludeRun, tagPrefix, scopePrefix, timeoutStr string
-	var force, noDrain, jsonOut bool
+	var f promoteFlags
 	fs := newFlagSet("baseline promote")
-	fs.StringVar(&scenario, "scenario", "", "Scenario slug (required)")
-	fs.StringVar(&slug, "name", defaultEngagementSlug, "Engagement slug")
-	fs.StringVar(&excludeRun, "exclude-run", "", "The promoting orchestrator run's own ID, excluded from the drain set (self-deadlock guard)")
-	fs.StringVar(&tagPrefix, "tag-prefix", "", "Also drain in-flight runs by this tag prefix (whole-repo orchestrator runs)")
-	fs.StringVar(&scopePrefix, "scope-prefix", "", "Override the working-tree scope used to enumerate runs (default scenarios/<scenario>)")
-	fs.StringVar(&timeoutStr, "drain-timeout", "", "Max wait for in-flight runs to terminate before abort/--force (e.g. 5m; default 5m)")
-	fs.BoolVar(&force, "force", false, "On drain timeout, cancel survivors instead of aborting the promote")
-	fs.BoolVar(&noDrain, "no-drain", false, "Skip the in-flight-run drain (no agent-manager / no concurrent runs expected)")
-	fs.BoolVar(&jsonOut, "json", false, "Emit JSON")
+	f.bind(fs, defaultEngagementSlug, "Engagement slug (pass the engagement's --name; default wip)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-
-	var drainTimeout time.Duration
-	if s := strings.TrimSpace(timeoutStr); s != "" {
-		d, err := time.ParseDuration(s)
-		if err != nil {
-			return fmt.Errorf("invalid --drain-timeout %q: %w", timeoutStr, err)
-		}
-		drainTimeout = d
-	}
-
-	res, err := promoteEngagement(core, promoteParams{
-		scenario: scenario, slug: slug, excludeRun: excludeRun, tagPrefix: tagPrefix,
-		scopePrefix: scopePrefix, drainTimeout: drainTimeout, force: force, noDrain: noDrain,
-	})
+	p, err := f.params()
 	if err != nil {
 		return err
 	}
-	if jsonOut {
+
+	res, err := promoteEngagement(core, p)
+	if err != nil {
+		return err
+	}
+	if f.jsonOut {
 		return printJSON(res)
 	}
 	printPromote(res)
@@ -145,9 +184,25 @@ func promoteEngagement(core *cliapp.ScenarioApp, p promoteParams) (promoteResult
 		res.Steps = append(res.Steps, "proto impact gate passed")
 	}
 
+	// A retry of a promote interrupted after its re-point must finish it —
+	// restart, probe, tear down, clean — never "accept in place", which would
+	// drop the restore point while live may still run unprobed code. Every step
+	// below is safe to repeat.
+	resumed := interruptedPromote(eng)
+
 	// Live-mode promote = accept in place: the working tree was edited+validated
-	// live, so there is nothing to swap — just drop the safety net.
-	if eng.Mode != modeShadow {
+	// live, so there is nothing to swap — just drop the safety net (after the
+	// optional live probe, whose failure keeps the restore point for abandon).
+	if eng.Mode != modeShadow && !resumed {
+		if p.probeCmd != "" {
+			detail, ok := runLiveProbe(ctx, scenario, p.probeCmd, p.probeTimeout)
+			if !ok {
+				res.Steps = append(res.Steps, "✗ "+detail+" — engagement kept open; `baseline abandon` restores the restore point")
+				res.Message = "promote aborted: " + detail
+				return res, fmt.Errorf("promote aborted: %s", detail)
+			}
+			res.Steps = append(res.Steps, "live probe passed: "+p.probeCmd)
+		}
 		if _, err := runCommand(ctx, "vrooli", "recovery", "clean", "--scenario", scenario, "--slug", slug); err != nil {
 			return promoteResult{}, fmt.Errorf("clean engagement: %w", err)
 		}
@@ -158,6 +213,11 @@ func promoteEngagement(core *cliapp.ScenarioApp, p promoteParams) (promoteResult
 	}
 
 	// ---- shadow → live promote -------------------------------------------
+
+	if resumed {
+		res.Mode = modeShadow
+		res.Steps = append(res.Steps, "resuming a promote interrupted after its re-point (engagement mode live, variant "+eng.Variant+")")
+	}
 
 	// 1. Drain in-flight agent runs targeting live so the restart can't kill
 	//    work mid-flight. Default policy is abort-on-timeout (never destroy
@@ -183,13 +243,22 @@ func promoteEngagement(core *cliapp.ScenarioApp, p promoteParams) (promoteResult
 	// 2. Pre-promote data snapshot to the secondary safety location. Best-effort:
 	//    a code-only scenario has no registered stateful targets, and the
 	//    DB-shape-unchanged fast path never mutates live data — so a missing
-	//    snapshot must not block promote, but its absence is surfaced (it is the
-	//    data-rollback net if a future migration ever does mutate live).
-	if snapID, ok := prePromoteSnapshot(ctx, scenario); ok {
-		res.DataSnapshot = snapID
-		res.Steps = append(res.Steps, "pre-promote data snapshot taken: "+snapID)
+	//    snapshot must not block promote, but its absence and its cause are
+	//    surfaced (it is the data-rollback net if a migration ever does mutate
+	//    live). The run is awaited (bounded) so the migrations below never race
+	//    the capture.
+	if snapID, note := safetyBackupNow(ctx, scenario); snapID == "" {
+		res.Steps = append(res.Steps, "pre-promote data snapshot skipped — "+note)
 	} else {
-		res.Steps = append(res.Steps, "pre-promote data snapshot skipped (no registered stateful targets — code-only/fast path)")
+		res.DataSnapshot = snapID
+		switch status := awaitSafetyRun(ctx, snapID); status {
+		case "RUN_STATUS_COMPLETED":
+			res.Steps = append(res.Steps, "pre-promote data snapshot completed: "+snapID)
+		case "":
+			res.Steps = append(res.Steps, fmt.Sprintf("⚠ pre-promote data snapshot %s still running after the poll budget — promote continues; it may not be a complete rollback point", snapID))
+		default:
+			res.Steps = append(res.Steps, fmt.Sprintf("⚠ pre-promote data snapshot %s ended %s — promote continues; inspect `data-backup-manager runs get %s`", snapID, status, snapID))
+		}
 	}
 
 	// 3. Apply any managed schema migrations to live BEFORE the restart picks up
@@ -239,6 +308,16 @@ func promoteEngagement(core *cliapp.ScenarioApp, p promoteParams) (promoteResult
 	}
 	res.Steps = append(res.Steps, "live health+smoke probe passed")
 
+	// 5b. Caller's live probe (--probe-cmd, e.g. one journey). It runs while the
+	//     restore point and the shadow still exist, so a failure takes the same
+	//     auto-rollback as a failed restart.
+	if p.probeCmd != "" {
+		if detail, ok := runLiveProbe(ctx, scenario, p.probeCmd, p.probeTimeout); !ok {
+			return rollback(ctx, res, scenario, slug, detail)
+		}
+		res.Steps = append(res.Steps, "live probe passed: "+p.probeCmd)
+	}
+
 	// 6. Tear down the shadow (validation-only; never promoted) — best-effort.
 	variant := eng.Variant
 	if variant == "" {
@@ -260,7 +339,30 @@ func promoteEngagement(core *cliapp.ScenarioApp, p promoteParams) (promoteResult
 
 	res.Promoted = true
 	res.Message = "promoted (shadow → live)"
+	res.Next = recreateShadowCommand(scenario, slug, eng)
 	return res, nil
+}
+
+// interruptedPromote reports a shadow engagement whose promote stopped between
+// the re-point (step 4) and the clean (step 7): set-mode recorded mode live, but
+// the variant is still the shadow's. A real live engagement has variant live.
+func interruptedPromote(eng engagementView) bool {
+	return eng.Mode == modeLive && eng.Variant != "" && eng.Variant != modeLive
+}
+
+// recreateShadowCommand is the `baseline start` that opens a fresh shadow like
+// the engagement a promote just closed: the same --name (a bare start would
+// open "wip", a second engagement), the same idle TTL, and an anchor only when
+// the closed engagement had one.
+func recreateShadowCommand(scenario, slug string, eng engagementView) string {
+	cmd := fmt.Sprintf("git-control-tower baseline start --scenario %s --name %s --mode shadow", scenario, slug)
+	if d, err := time.ParseDuration(strings.TrimSpace(eng.TTL)); err == nil && d > 0 {
+		cmd += " --ttl " + d.String()
+	}
+	if strings.TrimSpace(eng.AnchorBaselineName) == "" {
+		cmd += " --no-anchor"
+	}
+	return cmd
 }
 
 func checkProtoImpactGate(ctx context.Context, scenario string) error {
@@ -361,48 +463,30 @@ type quiesceResult struct {
 	inFlight []string
 }
 
-// parseQuiesce decodes the protojson QuiesceScenarioResponse. protojson nests the
-// result under "result" and camelCases field names (in_flight → inFlight).
+// parseQuiesce decodes the QuiesceScenarioResponse the CLI prints. The result
+// nests under "result"; agent-manager writes proto field names (in_flight), and
+// the lowerCamel spelling (inFlight) is accepted too.
 func parseQuiesce(out []byte) quiesceResult {
+	type runRef struct {
+		ID string `json:"id"`
+	}
 	var resp struct {
 		Result struct {
-			Drained  bool   `json:"drained"`
-			Aborted  bool   `json:"aborted"`
-			Reason   string `json:"reason"`
-			InFlight []struct {
-				ID string `json:"id"`
-			} `json:"inFlight"`
+			Drained       bool     `json:"drained"`
+			Aborted       bool     `json:"aborted"`
+			Reason        string   `json:"reason"`
+			InFlight      []runRef `json:"in_flight"`
+			InFlightCamel []runRef `json:"inFlight"`
 		} `json:"result"`
 	}
 	if err := json.Unmarshal(out, &resp); err != nil {
 		return quiesceResult{}
 	}
 	q := quiesceResult{drained: resp.Result.Drained, aborted: resp.Result.Aborted, reason: resp.Result.Reason}
-	for _, r := range resp.Result.InFlight {
+	for _, r := range append(resp.Result.InFlight, resp.Result.InFlightCamel...) {
 		q.inFlight = append(q.inFlight, r.ID)
 	}
 	return q
-}
-
-// prePromoteSnapshot triggers a data-backup-manager safety backup of the
-// scenario's registered targets to the secondary safety location. Returns the
-// run ID and true on success; ("", false) when the scenario has no registered
-// targets (code-only) or the substrate is unreachable — both non-fatal for the
-// DB-shape-unchanged fast path.
-func prePromoteSnapshot(ctx context.Context, scenario string) (string, bool) {
-	out, err := runCommand(ctx, "data-backup-manager", "safety", "backup-now", "--scenario", scenario, "--json")
-	if err != nil {
-		return "", false
-	}
-	// protojson BackupScenarioNowResponse → {runId, planId, destinationId, ...}.
-	var resp struct {
-		RunID  string `json:"runId"`
-		Status string `json:"status"`
-	}
-	if json.Unmarshal(out, &resp) != nil || strings.TrimSpace(resp.RunID) == "" {
-		return "", false
-	}
-	return resp.RunID, true
 }
 
 // probeLiveHealth asks the lifecycle whether live is running after the restart.

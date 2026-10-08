@@ -61,6 +61,23 @@ func TestApplyModelExclusionsRehomesPrimaryToAllowedFallback(t *testing.T) {
 	}
 }
 
+func TestApplyModelExclusionsKeepsResourceResolutionFailure(t *testing.T) {
+	failure := "invalid resource role response: runner \"codex\" role \"code.delivery\": delivery effort evidence is missing or invalid"
+	snapshot := &domain.ExecutionPolicySnapshot{Candidates: []domain.ExecutionCandidate{{
+		RunnerType: domain.RunnerTypeCodex, ResourceRole: "code.delivery",
+		FailureCode: "resource_response_invalid", Failure: failure,
+	}}}
+	applyModelExclusions(snapshot)
+	candidate := snapshot.Candidates[0]
+	if candidate.FailureCode != "resource_response_invalid" || candidate.Failure != failure || candidate.Available {
+		t.Fatalf("resource failure was rewritten: %+v", candidate)
+	}
+	_, _, err := (&Orchestrator{runners: runner.NewRegistry()}).selectInitialCandidate(context.Background(), snapshot.Candidates)
+	if err == nil || !strings.Contains(err.Error(), "delivery effort evidence") || strings.Contains(err.Error(), "excluded by resource policy") {
+		t.Fatalf("preflight error must carry the resource diagnosis, got %v", err)
+	}
+}
+
 func TestValidateExecutionModelRejectsRetainedExcludedModel(t *testing.T) {
 	cfg := &domain.RunConfig{RunnerType: domain.RunnerTypeCodex, Model: "blocked", PolicySnapshot: &domain.ExecutionPolicySnapshot{
 		SelectedIndex:     0,

@@ -115,9 +115,13 @@ func effortGroup(deps support.Dependencies) cliapp.SubcommandGroup {
 		[2]string{"board", "Read the shared effort board"}, [2]string{"compact", "Read a compact joined owner observation"}, [2]string{"list", "List durable effort enrollments"},
 		[2]string{"discover", "Reconcile bounded discovery (operator authentication)"},
 		[2]string{"enroll", "Enroll or amend with operator authority"}, [2]string{"reconcile-metadata", "Reconcile owner-facing metadata with scoped authority"}, [2]string{"withdraw", "Withdraw with revision fencing"},
-		[2]string{"epoch-check", "Report an epoch file's step-back triggers (exit 3 on STEP_BACK)"})
+		[2]string{"epoch-check", "Report an epoch file's step-back triggers and gates (exit 3 on STEP_BACK, 4 when --acceptance is refused)"},
+		[2]string{"lint", "Check a goal home's orchestrator rules (exit 4 on a failing rule)"},
+		[2]string{"handoff", "Replace the single ## Handoff of a goal home's QUEUE.md"},
+		[2]string{"park", "Park the orchestrator for as long as goal state allows (exit 4 when refused)"})
 	group.DefaultSubcommand = "board"
 	types := map[string]string{"enroll": "EnrollEffortRequest", "reconcile-metadata": "ReconcileEffortMetadataRequest", "withdraw": "WithdrawEffortRequest"}
+	offline := false
 	for i := range group.Subcommands {
 		command := &group.Subcommands[i]
 		command.Args.Flags = []cliapp.Flag{{Name: "json", Bool: true, LocalOnly: true, Description: "Print the typed RPC response as JSON"}}
@@ -125,8 +129,10 @@ func effortGroup(deps support.Dependencies) cliapp.SubcommandGroup {
 		if command.Name == "compact" {
 			command.HelpText = "Text output renders the compact joined owner observation; --json returns the full typed EffortBoard response for machine consumers."
 		}
-		if command.Name == "epoch-check" {
-			command.Usage = "agent-manager effort epoch-check <epoch-file> [--wake-key <run-id>] [--runs ids] [--spend-threshold n] [--json]"
+		if goalHomeCommand(command) {
+			if command.Name == "lint" || command.Name == "handoff" {
+				command.NeedsAPIOverride = &offline
+			}
 			continue
 		}
 		if types[command.Name] != "" || command.Name == "discover" {
@@ -145,6 +151,35 @@ func effortGroup(deps support.Dependencies) cliapp.SubcommandGroup {
 		}
 	}
 	return group
+}
+
+// goalHomeCommand documents the effort commands that read or write a goal home
+// (large-effort-orchestration §3) and reports whether command is one. Their
+// flags are parsed by the local handler; these declarations drive help.
+func goalHomeCommand(command *cliapp.Command) bool {
+	const reference = " Grammar and examples: scenarios/agent-manager/docs/reference/effort-supervision.md#goal-home-commands."
+	jsonFlag := cliapp.Flag{Name: "json", Bool: true, LocalOnly: true, Description: "Print the report as JSON"}
+	switch command.Name {
+	case "epoch-check":
+		command.Usage = "agent-manager effort epoch-check <epoch-file> [--acceptance] [--wake-key <run-id>] [--runs ids] [--spend-threshold n] [--json]"
+		command.HelpText = "Prints step-back triggers, typed exit gates (G<n> test|journey|inventory|review|custom) as met or unmet, the measured yield and goal-level findings. Exits 3 on STEP_BACK and wakes --wake-key. An epoch with an ACCEPTED line never exits 3 or wakes. --acceptance is the orchestrator's check: exit 4 on an unmet gate or an unanswered diminishing-returns finding; it never exits 3 or wakes." + reference
+		command.Args.Flags = []cliapp.Flag{jsonFlag, {Name: "acceptance", Bool: true, LocalOnly: true, Description: "Orchestrator acceptance check (exit 4 when refused)"}, {Name: "wake-key", LocalOnly: true, Description: "Orchestrator run ID to wake on STEP_BACK"}, {Name: "runs", LocalOnly: true, Description: "Worker run IDs for the spend trigger"}, {Name: "spend-threshold", LocalOnly: true, Description: "Weighted non-cache tokens above which spend fires"}}
+	case "lint":
+		command.Usage = "agent-manager effort lint <goal home> [--json]"
+		command.HelpText = "Fails (exit 4), naming each rule, when the resume set (GOAL.md, QUEUE.md, open FEEDBACK, open WORKAROUNDS) exceeds 30,000 bytes, QUEUE.md does not have exactly one handoff or it exceeds 4 KB, no ## Next item is marked [ready] and ## Needs operator is empty, open operator or supervisor feedback is not named in the handoff, or diminishing returns has no [re-aim] item under ## Needs operator. Reads files only." + reference
+		command.Args.Flags = []cliapp.Flag{jsonFlag}
+	case "handoff":
+		command.Usage = "agent-manager effort handoff set <goal home> (--file <markdown> | --stdin) [--json]"
+		command.HelpText = "Atomically replaces the single ## Handoff section of QUEUE.md (creating it after ## Needs operator when missing). Writes nothing when the text is unchanged. Refuses (exit 4) text over 4 KB, a queue with more than one handoff, and a QUEUE.md that changed during the write. Reads and writes files only." + reference
+		command.Args.Flags = []cliapp.Flag{jsonFlag, {Name: "file", LocalOnly: true, Description: "Markdown file holding the handoff text"}, {Name: "stdin", Bool: true, LocalOnly: true, Description: "Read the handoff text from standard input"}}
+	case "park":
+		command.Usage = "agent-manager effort park <goal home> --run <run-id> [--timeout D] [--json]"
+		command.HelpText = "Parks the orchestrator (producer children, keyed by its run) for up to 1h while a direct child run is live, or up to 72h while ## Needs operator holds an item; otherwise refuses (exit 4) with the admissible-slice rule. --timeout may only shorten the maximum." + reference
+		command.Args.Flags = []cliapp.Flag{jsonFlag, {Name: "run", LocalOnly: true, Description: "The calling orchestrator's run ID"}, {Name: "timeout", LocalOnly: true, Description: "Park length, at most the rule's maximum"}, {Name: "identity-token", LocalOnly: true, Description: "Owning run's identity token (defaults to the run environment)"}}
+	default:
+		return false
+	}
+	return true
 }
 
 func conversationGroup(deps support.Dependencies) cliapp.SubcommandGroup {

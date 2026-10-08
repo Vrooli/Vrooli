@@ -15,12 +15,15 @@ import (
 )
 
 type effortAdmission struct {
-	binding  effortauthority.Binding
-	policy   effortauthority.Policy
-	intent   effortauthority.Intent
-	proof    *effortauthority.Proof
-	recovery bool
-	reserved bool
+	binding       effortauthority.Binding
+	policy        effortauthority.Policy
+	intent        effortauthority.Intent
+	proof         *effortauthority.Proof
+	serial        bool
+	serialTask    *domain.Task
+	serialPayload []byte
+	recovery      bool
+	reserved      bool
 }
 
 func bindEffortCaller(req *CreateRunRequest) {
@@ -110,7 +113,12 @@ func effortNativeInput(req CreateRunRequest, t *domain.Task, profile string) eff
 	if req.ParentRunID != nil {
 		parent = req.ParentRunID.String()
 	}
-	return effortauthority.RunInput{TaskID: req.TaskID.String(), TaskDigest: effortTaskDigest(t), Profile: profile, ParentRunID: parent, IdempotencyKey: req.IdempotencyKey, Tag: req.Tag, Environment: req.Environment}
+	return effortauthority.RunInput{TaskID: req.TaskID.String(), TaskDigest: effortTaskDigest(t), Profile: profile, ParentRunID: parent, IdempotencyKey: req.IdempotencyKey, Tag: req.Tag, Environment: req.Environment, SerialPayloadDigest: func() string {
+		if req.effort != nil {
+			return req.effort.intent.SerialPayloadDigest
+		}
+		return ""
+	}()}
 }
 func (o *Orchestrator) reserveEffortAdmission(ctx context.Context, req *CreateRunRequest, t *domain.Task, cfg *domain.RunConfig) error {
 	if req.effort == nil {
@@ -175,7 +183,20 @@ func (o *Orchestrator) reserveEffortAdmission(ctx context.Context, req *CreateRu
 		}
 		return nil
 	}
-	reservation, replay, e := o.effortAuthority.Reserve(ctx, a.binding, i, a.proof)
+	var reservation effortauthority.Reservation
+	var replay bool
+	if a.serial {
+		if effortauthority.Digest(i) != effortauthority.Digest(a.intent) {
+			return effortauthority.ErrRefused
+		}
+		engine, ok := o.effortAuthority.(effortauthority.SerialPayloadEngine)
+		if !ok {
+			return effortauthority.ErrRefused
+		}
+		reservation, replay, e = engine.ReserveSerialEpisode(ctx, a.binding, i.IdempotencyKey)
+	} else {
+		reservation, replay, e = o.effortAuthority.Reserve(ctx, a.binding, i, a.proof)
+	}
 	if e != nil {
 		return e
 	}
@@ -277,11 +298,11 @@ func effortHasOverrides(req *CreateRunRequest) bool {
 // cannot use an expired/revoked grant to reach wake/resume bookkeeping/dispatch.
 // Ordinary AUTH-01 runs retain their owning lifecycle contract.
 func (o *Orchestrator) checkEffortContinuation(ctx context.Context, r *domain.Run) error {
-	if o.finiteNativeEnabled() {
-		return effortauthority.ErrRefused
-	}
 	if r == nil || r.ResolvedConfig == nil || r.ResolvedConfig.Admission == nil || r.ResolvedConfig.Admission.Effort == nil {
 		return nil
+	}
+	if o.finiteNativeEnabled() {
+		return effortauthority.ErrRefused
 	}
 	b := *r.ResolvedConfig.Admission.Effort
 	p, e := o.effortAuthority.CheckBinding(ctx, b)
@@ -305,6 +326,32 @@ func (o *Orchestrator) checkEffortContinuation(ctx context.Context, r *domain.Ru
 	}
 	if r.ResolvedConfig.Timeout <= 0 || r.ResolvedConfig.Timeout > remaining {
 		r.ResolvedConfig.Timeout = remaining
+	}
+	return nil
+}
+
+// Parking retains the active reservation; it never releases capacity or permits
+// a child start. A finite serial handoff requires separately qualified owned
+// terminal settlement and a fresh episode. Ordinary runs keep their lifecycle.
+func (o *Orchestrator) checkEffortParking(ctx context.Context, r *domain.Run, deadline *time.Time) error {
+	if r == nil || r.ResolvedConfig == nil || r.ResolvedConfig.Admission == nil || r.ResolvedConfig.Admission.Effort == nil {
+		return nil
+	}
+	if o.effortAuthority == nil || o.profiles == nil || r.AgentProfileID == nil {
+		return effortauthority.ErrRefused
+	}
+	b := *r.ResolvedConfig.Admission.Effort
+	p, err := o.effortAuthority.CheckBinding(ctx, b)
+	if err != nil || r.OwnerSubject != b.Owner || r.OwnerExpiresAt == nil || r.OwnerExpiresAt.After(b.Deadline) || !r.OwnerExpiresAt.After(o.now()) || (deadline != nil && (!deadline.After(o.now()) || deadline.After(b.Deadline))) {
+		return effortauthority.ErrRefused
+	}
+	profile, err := o.profiles.Get(ctx, *r.AgentProfileID)
+	if err != nil || profile == nil || p.Profiles[profile.ProfileKey] != EffortProfileDigest(profile) {
+		return effortauthority.ErrRefused
+	}
+	slot, err := o.effortAuthority.ReadReservation(ctx, b, r.IdempotencyKey)
+	if err != nil || !slot.NativeBound || slot.Terminal || slot.RunID != r.ID.String() || slot.IntentDigest != effortauthority.Digest(r.ResolvedConfig.Admission.EffortIntent) {
+		return effortauthority.ErrRefused
 	}
 	return nil
 }

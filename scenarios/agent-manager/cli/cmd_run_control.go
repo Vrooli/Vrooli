@@ -5,13 +5,14 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"os"
+	"strings"
+	"time"
+
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
-	"os"
-	"strings"
-	"time"
 )
 
 func (a *App) runStop(args []string) error {
@@ -168,8 +169,8 @@ func (a *App) runQuiesce(args []string) error {
 	scenario := fs.String("scenario", "", "Target scenario slug to quiesce (required)")
 	scopePrefix := fs.String("scope-prefix", "", "Override the working-tree scope (default scenarios/<scenario>)")
 	tagPrefix := fs.String("tag-prefix", "", "Also enumerate in-flight runs by this tag prefix (whole-repo runs)")
-	excludeRun := fs.String("exclude-run", "", "The promoting run's own ID, excluded from the drain set")
-	timeout := fs.String("timeout", "", "Max wait for in-flight runs to terminate (e.g. 5m)")
+	excludeRun := fs.String("exclude-run", "", "A run to leave out of the drain set (for example the promoting run); it is reported as excluded")
+	timeout := fs.String("timeout", "", "Max wait for in-flight runs to terminate (e.g. 5m; at most 30m)")
 	force := fs.Bool("force", false, "On timeout, cancel survivors instead of aborting")
 
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {

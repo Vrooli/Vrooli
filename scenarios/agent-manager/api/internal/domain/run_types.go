@@ -2,13 +2,15 @@
 package domain
 
 import (
-	"agent-manager/internal/tokenaccounting"
 	"encoding/json"
+	"strings"
+	"time"
+
+	"agent-manager/internal/tokenaccounting"
+
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/effortauthority"
 	eventdomain "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
-	"strings"
-	"time"
 )
 
 // RunLabelSource records how the human-readable run label was obtained.
@@ -425,7 +427,7 @@ const (
 
 // RunStopReason is the typed reason a run reached terminal. Verdict reasons are
 // complete, blocked and abstained; interruption reasons are usage_window,
-// timeout, crash and session_lost.
+// timeout, crash, session_lost and token_cap.
 type RunStopReason string
 
 const (
@@ -436,6 +438,9 @@ const (
 	RunStopReasonTimeout     RunStopReason = "timeout"
 	RunStopReasonCrash       RunStopReason = "crash"
 	RunStopReasonSessionLost RunStopReason = "session_lost"
+	// RunStopReasonTokenCap: Agent Manager stopped the run at its weighted-token
+	// cap (DL-8). The orchestrator treats it as a step-back.
+	RunStopReasonTokenCap RunStopReason = "token_cap"
 )
 
 // TerminalClassForStopReason returns the class a stop reason belongs to. It is
@@ -445,7 +450,7 @@ func TerminalClassForStopReason(reason RunStopReason) RunTerminalClass {
 	switch reason {
 	case RunStopReasonComplete, RunStopReasonBlocked, RunStopReasonAbstained:
 		return RunTerminalClassVerdict
-	case RunStopReasonUsageWindow, RunStopReasonTimeout, RunStopReasonCrash, RunStopReasonSessionLost:
+	case RunStopReasonUsageWindow, RunStopReasonTimeout, RunStopReasonCrash, RunStopReasonSessionLost, RunStopReasonTokenCap:
 		return RunTerminalClassInterruption
 	default:
 		return ""
@@ -665,6 +670,9 @@ type CreateRunCaller struct {
 }
 
 type RunAdmission struct {
+	// Native-owned finite task projection, bound by EffortIntent.InputDigest.
+	// Stored privately with RunConfig; never a caller identity projection.
+	EffortTaskProjection []byte `json:"effortTaskProjection,omitempty"`
 	// CreateCaller is internal admission evidence. Proto projection does not
 	// carry it; authentication/replay must read the full authoritative row.
 	Effort            *effortauthority.Binding `json:"effort,omitempty"`

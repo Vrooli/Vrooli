@@ -2,12 +2,19 @@
 package orchestration
 
 import (
+	"context"
+	"fmt"
+	"strings"
+	"sync"
+	"time"
+
 	"agent-manager/internal/adapters/artifact"
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/adapters/sandbox"
 	"agent-manager/internal/adapters/webconsole"
 	agentconfig "agent-manager/internal/config"
+	"agent-manager/internal/domain"
 	"agent-manager/internal/durability"
 	"agent-manager/internal/findings"
 	"agent-manager/internal/health"
@@ -28,19 +35,16 @@ import (
 	"agent-manager/internal/structuredresult"
 	"agent-manager/internal/supervision"
 	"agent-manager/internal/workflowruntime"
-	"context"
-	"fmt"
+
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/effortauthority"
 	isolation "github.com/vrooli/vrooli/packages/nativeisolation"
-	"strings"
-	"sync"
-	"time"
 )
 
 // Orchestrator coordinates agent execution using injected dependencies.
 type Orchestrator struct {
+	authorizations  domain.AuthorizationRepository
 	maintenanceGate interface {
 		Admit(context.Context) (func(), error)
 	}
@@ -49,7 +53,10 @@ type Orchestrator struct {
 	// wakeMu serializes the parked→running claim. The durable run repository is
 	// intentionally a simple whole-row update, so two waiter notifications that
 	// arrive concurrently must not both observe parked and start continuations.
-	wakeMu sync.Mutex
+	wakeMu                            sync.Mutex
+	serialScanMu                      sync.Mutex
+	serialScanFrom, serialScanThrough time.Time
+	serialScanOffset                  int
 	// parkTurnEnds holds, per recently parked run, a channel closed once the
 	// parked turn's agent process has been stopped. WakeRun waits on it so a
 	// continuation never starts beside the still-running parked turn.
@@ -58,6 +65,8 @@ type Orchestrator struct {
 	// a channel closed when the compaction ends. WakeRun waits on it.
 	parkCompactions sync.Map // uuid.UUID -> chan struct{}
 	parkCompaction  *parkCompactionSettings
+	// tokenCaps enforces weighted-token caps from persisted usage; nil is off.
+	tokenCaps *tokenCapEnforcer
 
 	// terminalAccounting remembers which ended standalone runs have settled
 	// terminal usage, so the reconcile sweep revisits only runs that still owe it.
@@ -671,6 +680,7 @@ func WithWebConsoleUIBase(base string) Option {
 func (o *Orchestrator) SetReconciler(r *Reconciler) {
 	o.reconciler = r
 	if r != nil {
+		r.finiteSerialRecovery = o
 		r.structuredResults = o.structuredResults
 		r.interactiveRecoveryMu = &o.wakeMu
 		r.interactiveLiveDrivers = o.interactiveDrivers

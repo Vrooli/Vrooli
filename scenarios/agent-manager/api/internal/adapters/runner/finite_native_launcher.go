@@ -6,6 +6,7 @@ import (
 
 	"agent-manager/internal/domain"
 	"github.com/google/uuid"
+	"github.com/vrooli/api-core/effortauthority"
 	isolation "github.com/vrooli/vrooli/packages/nativeisolation"
 )
 
@@ -70,17 +71,29 @@ func (f *FiniteNativeFactory) pick(id uuid.UUID, cfg *domain.RunConfig) Launcher
 	}
 	i := cfg.Admission.EffortIntent
 	b := cfg.Admission.Effort
-	// Interactive, child and source recovery need separately qualified migration.
-	// This contract supports the real codec pipe initial/durable native route.
-	if i.Effect != "run.create" || i.ParentRunID != "" || i.SourceRunID != "" {
-		return newDeniedLauncher("finite native child/recovery route is unqualified")
+	// Recovery remains unqualified. A serial child must already have its exact
+	// accepted reservation and retained terminal source under the owner engine.
+	var serial *effortauthority.Intent
+	if i.Effect == "run.child" {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		err := f.runtime.CheckSerialEpisode(ctx, *b, *i, id.String())
+		cancel()
+		if err != nil {
+			return newDeniedLauncher("finite native serial handoff is not accepted")
+		}
+		copy := *i
+		serial = &copy
+	} else if i.Effect != "run.create" || i.ParentRunID != "" || i.SourceRunID != "" {
+		return newDeniedLauncher("finite native recovery route is unqualified")
 	}
-	return &finiteNativeLauncher{f.runtime, isolation.Request{RunID: id.String(), ReservationKey: i.IdempotencyKey, PolicyID: b.PolicyID, PolicyDigest: b.PolicyDigest, ProfileDigest: i.ProfileDigest, Repository: i.Repository, Deadline: b.Deadline, Timeout: cfg.Timeout}}
+	return &finiteNativeLauncher{runtime: f.runtime, request: isolation.Request{RunID: id.String(), ReservationKey: i.IdempotencyKey, PolicyID: b.PolicyID, PolicyDigest: b.PolicyDigest, ProfileDigest: i.ProfileDigest, Repository: i.Repository, Deadline: b.Deadline, Timeout: cfg.Timeout}, serialIntent: serial, serialBinding: *b}
 }
 
 type finiteNativeLauncher struct {
-	runtime *isolation.Runtime
-	request isolation.Request
+	runtime       *isolation.Runtime
+	request       isolation.Request
+	serialIntent  *effortauthority.Intent
+	serialBinding effortauthority.Binding
 }
 
 func (l *finiteNativeLauncher) Launch(ctx context.Context, req LaunchRequest) (LaunchedProcess, error) {
@@ -90,6 +103,9 @@ func (l *finiteNativeLauncher) Launch(ctx context.Context, req LaunchRequest) (L
 	// Existing protected workspace/policy files are a different contract; never
 	// silently bypass them. This first finite route narrows off-mode host runs.
 	if req.NetworkMode != "" && req.NetworkMode != string(domain.NetworkAccessFull) {
+		return nil, isolation.ErrRefused
+	}
+	if l.serialIntent != nil && l.runtime.CheckSerialEpisode(ctx, l.serialBinding, *l.serialIntent, l.request.RunID) != nil {
 		return nil, isolation.ErrRefused
 	}
 	r := l.request

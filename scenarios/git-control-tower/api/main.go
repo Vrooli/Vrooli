@@ -14,6 +14,7 @@ import (
 	"git-control-tower/internal/baseline"
 	"git-control-tower/internal/config"
 	"git-control-tower/internal/policygate"
+	"git-control-tower/internal/proposals"
 	"git-control-tower/ssh"
 
 	gorillahandlers "github.com/gorilla/handlers"
@@ -73,6 +74,7 @@ type Server struct {
 	authVerifier         policygate.PrincipalVerifier
 	authConfig           authn.Config
 	intentService        *policygate.IntentService
+	proposalService      *proposals.Service
 }
 
 // NewServer initializes configuration, database, and routes
@@ -270,6 +272,7 @@ func (s *Server) initServices() {
 	} else {
 		s.reviewJobStore = durableReviewStore
 	}
+	s.initProposalService()
 	s.startBaselineCollectionReconciler()
 	s.reviewJobStore.StartCleanup(10 * time.Minute)
 	s.scenarioLocator = NewScenarioLocator(30 * time.Second)

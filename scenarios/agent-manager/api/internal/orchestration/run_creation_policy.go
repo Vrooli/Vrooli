@@ -2,10 +2,11 @@
 package orchestration
 
 import (
-	"agent-manager/internal/domain"
-	"agent-manager/internal/rolepolicy"
 	"context"
 	"strings"
+
+	"agent-manager/internal/domain"
+	"agent-manager/internal/rolepolicy"
 )
 
 // validateExecutionModel is the retained-run admission fence. It evaluates
@@ -14,6 +15,9 @@ import (
 // recovery, and replacement admission can touch a session, sandbox, or
 // executor.
 func validateExecutionModel(cfg *domain.RunConfig) error {
+	if err := domain.ValidateResourceEffort(cfg); err != nil {
+		return err
+	}
 	if cfg == nil || cfg.PolicySnapshot == nil || strings.TrimSpace(cfg.Model) == "" {
 		return nil
 	}
@@ -142,6 +146,14 @@ func currentModelExclusions(ctx context.Context, cfg *domain.RunConfig, state *r
 }
 
 func (o *Orchestrator) validateCurrentExecutionModel(ctx context.Context, cfg *domain.RunConfig) error {
+	if err := domain.ValidateResourceEffort(cfg); err != nil {
+		return err
+	}
+	if cfg != nil && cfg.PolicySnapshot != nil {
+		if err := o.validateCurrentDeliveryEffort(ctx, cfg, cfg.PolicySnapshot.SelectedCandidate); err != nil {
+			return err
+		}
+	}
 	exclusions, err := currentModelExclusions(ctx, cfg, o.rolePolicy, o.roleResolver)
 	if err != nil {
 		return err
@@ -174,6 +186,12 @@ func (o *Orchestrator) validateCurrentExecutionModel(ctx context.Context, cfg *d
 // currentCandidateAllowed refreshes the resource-owned deny overlay at the
 // final fallback launch boundary. It does not mutate the retained snapshot.
 func (o *Orchestrator) currentCandidateAllowed(ctx context.Context, cfg *domain.RunConfig, candidate domain.ExecutionCandidate, model string) (bool, error) {
+	if domain.DeliveryEffortEnforced() && candidate.ResourceRole == "code.delivery" && model != candidate.Model {
+		return false, domain.NewValidationError("effort", "delivery fallback lacks exact model effort evidence")
+	}
+	if err := o.validateCurrentDeliveryEffort(ctx, cfg, candidate); err != nil {
+		return false, err
+	}
 	exclusions, err := currentModelExclusions(ctx, cfg, o.rolePolicy, o.roleResolver)
 	if err != nil {
 		return false, err

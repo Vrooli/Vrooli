@@ -212,6 +212,11 @@ type RunRepository interface {
 	// session, or nil when that session has not been imported.
 	GetByImportProvenance(ctx context.Context, sourceHarness, sourceSessionID string) (*domain.Run, error)
 
+	// ListByWebConsoleSessionIDs returns every run whose web_console_session_id
+	// is one of sessionIDs (several runs may share one session). Unknown and
+	// empty ids contribute nothing; an empty input returns no runs.
+	ListByWebConsoleSessionIDs(ctx context.Context, sessionIDs []string) ([]*domain.Run, error)
+
 	// GetByIdempotencyKey resolves the run durably created under a creation
 	// idempotency key, or nil when no creation was accepted. A retained receipt
 	// with a missing run returns an error, never permission to create again.

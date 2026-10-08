@@ -323,3 +323,12 @@ CREATE TRIGGER IF NOT EXISTS update_agent_profiles_updated_at
 BEGIN
     UPDATE agent_profiles SET updated_at = datetime('now') WHERE id = NEW.id;
 END;
+-- Interactive consent is independent of historical run admission and budgets.
+CREATE TABLE IF NOT EXISTS authorization_grants (
+    id TEXT PRIMARY KEY,
+    root_pid INTEGER NOT NULL,
+    state TEXT NOT NULL,
+    body TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS authorization_grants_root ON authorization_grants(root_pid, created_at DESC);

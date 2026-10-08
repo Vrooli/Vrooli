@@ -78,7 +78,7 @@ done
 		RunDir:     runDir,
 	})
 	if res.SessionID != "" {
-		t.Cleanup(func() { _ = client.DeleteSession(context.Background(), res.SessionID) })
+		t.Cleanup(func() { _ = client.ArchiveSession(context.Background(), res.SessionID) })
 	}
 	if err != nil {
 		t.Fatalf("Launch: %v", err)
@@ -123,7 +123,7 @@ done
 
 	// Continue: type a follow-up via the real SendPrompt (paste + Enter). The
 	// fake agent appends turn 2.
-	if err := client.SendPrompt(ctx, res.SessionID, "please do the second turn", "agent-manager:run-continue"); err != nil {
+	if _, err := client.SendPrompt(ctx, res.SessionID, "please do the second turn", "agent-manager:run-continue"); err != nil {
 		t.Fatalf("SendPrompt (Continue): %v", err)
 	}
 	time.Sleep(1 * time.Second)

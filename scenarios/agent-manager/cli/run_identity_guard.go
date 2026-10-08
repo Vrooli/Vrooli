@@ -12,6 +12,9 @@ import (
 // workflow wastes a turn on a request that will be denied. stop, continue and
 // wake are not listed: the API admits them for a run's own lineage (an
 // orchestrator's direct children, a worker's parked parent) and denies the rest.
+// quiesce is not listed either: the API admits an effort's running orchestrator
+// for the scenario its effort targets (a baseline promote) and refuses other
+// runs with the reason.
 func rejectRunIdentityLifecycleCommand(subcommand string) error {
 	token, _ := os.LookupEnv("VROOLI_AGENT_IDENTITY_TOKEN")
 	if strings.TrimSpace(token) == "" {
@@ -22,9 +25,6 @@ func rejectRunIdentityLifecycleCommand(subcommand string) error {
 		"apply-investigation": {},
 		"approve":             {},
 		"delete":              {},
-		"investigate":         {},
-		"quiesce":             {},
-		"recover":             {},
 		"reject":              {},
 		"sandbox-sync":        {},
 		"stop-all":            {},

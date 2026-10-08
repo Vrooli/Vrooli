@@ -10,7 +10,9 @@
 // Verbs implemented here: start / check / status / abandon / gc. `promote`
 // (shadow→live, terminal "keep") lives in promote.go — it shells the P6
 // promote-quiesce drain (`agent-manager run quiesce`) plus the floor + data
-// substrate.
+// substrate. `cycle` (promote, then a fresh shadow under the same name) lives in
+// cycle.go; the open-engagement guard `start` runs first lives in
+// engagement_guard.go.
 package baseline
 
 import (
@@ -116,12 +118,13 @@ var diffAnchor = func(core *cliapp.ScenarioApp, ctx context.Context, scenario, n
 // baseline group by Register.
 func registerEngagementVerbs(core *cliapp.ScenarioApp) []cliapp.Command {
 	return []cliapp.Command{
-		{Name: "start", NeedsAPI: true, Description: "Begin a shadow/live engagement: decide mode, take a restore point, capture an anchor, stand up the shadow (--scenario [--mode auto|shadow|live] [--ttl] [--name] [--operator-confirm])", Run: func(a []string) error { return runStartCmd(core, a) }},
+		{Name: "start", NeedsAPI: true, Description: "Begin a shadow/live engagement: decide mode, take a restore point (a shadow also freezes the shared packages live builds from; --allow-unfrozen overrides a failed freeze), capture an anchor, stand up the shadow (--scenario [--mode auto|shadow|live] [--ttl] [--name, default wip] [--no-anchor] [--operator-confirm] [--allow-unfrozen]); refuses, before capturing anything, while the scenario has an open engagement — --replace takes over the same --name and keeps its restore point", Run: func(a []string) error { return runStartCmd(core, a) }},
 		{Name: "check", NeedsAPI: true, Description: "Validate the engagement target and emit mode-aware guidance; renews the lease (--scenario [--name])", Run: func(a []string) error { return runCheckCmd(core, a) }},
-		{Name: "promote", NeedsAPI: false, Description: "Keep the work (terminal): shadow → drain live, snapshot, re-point+restart, probe, auto-rollback on failure, tear down the shadow; live → accept in place (--scenario [--name] [--exclude-run] [--tag-prefix] [--drain-timeout] [--force] [--no-drain])", Run: func(a []string) error { return runPromoteCmd(core, a) }},
+		{Name: "promote", NeedsAPI: false, Description: "Keep the work (terminal): shadow → drain live, snapshot, re-point+restart, probe (+ --probe-cmd), auto-rollback on failure, tear down the shadow; live → accept in place (--scenario [--name] [--probe-cmd] [--probe-timeout] [--exclude-run] [--tag-prefix] [--drain-timeout] [--force] [--no-drain]). It closes the engagement: re-create the shadow with the same --name (`baseline start --name <same> --mode shadow`), or use `baseline cycle`", Run: func(a []string) error { return runPromoteCmd(core, a) }},
+		{Name: "cycle", NeedsAPI: false, Description: "Promote a shadow engagement (same gate, drain, probe and auto-rollback as promote), then open a fresh shadow engagement with the same name and no anchor run; safe to re-run (--scenario --name [--probe-cmd] [--probe-timeout] [--exclude-run] [--tag-prefix] [--drain-timeout] [--force] [--no-drain] [--json])", Run: func(a []string) error { return runCycleCmd(core, a) }},
 		{Name: "status", NeedsAPI: false, Description: "List active engagements (globs the floor-owned manifests) (--json)", Run: func(a []string) error { return runStatusCmd(core, a) }},
-		{Name: "abandon", NeedsAPI: false, Description: "Throw the engagement away: shadow → tear down (live untouched); live → restore the working tree from the restore point (--scenario [--name])", Run: func(a []string) error { return runAbandonCmd(core, a) }},
-		{Name: "gc", NeedsAPI: false, Description: "Reap expired/orphaned shadows + clean their restore points/manifests (--force) (--json)", Run: func(a []string) error { return runGCCmd(core, a) }},
+		{Name: "abandon", NeedsAPI: false, Description: "Throw the engagement away: restore the working tree from the restore point; shadow → tear down the shadow, then restart live from the restored working tree before its serving tree is deleted; live → restart live (--scenario [--name])", Run: func(a []string) error { return runAbandonCmd(core, a) }},
+		{Name: "gc", NeedsAPI: false, Description: "Reap expired/orphaned shadows + clean their restore points/manifests; an engagement live still runs from is refused unless --force (--force) (--json)", Run: func(a []string) error { return runGCCmd(core, a) }},
 	}
 }
 
@@ -273,13 +276,17 @@ type engagementView struct {
 	TTL                string
 	ExpiresAt          *time.Time
 	Expired            bool
+	// CreatedAt is when the engagement was opened — for a cycled engagement, the
+	// last promotion. LastTouchedAt is the lease renewal the TTL counts from.
+	CreatedAt     *time.Time
+	LastTouchedAt *time.Time
 }
 
 // engagementFromProto maps the typed recovery-floor engagement contract onto the
-// local view-model. expires_at arrives as an RFC3339Nano string ("" when none);
-// an unparseable value degrades to nil rather than failing the read.
+// local view-model. Timestamps arrive as RFC3339Nano strings ("" when none); an
+// unparseable value degrades to nil rather than failing the read.
 func engagementFromProto(v *cliv1.RecoveryEngagementView) engagementView {
-	ev := engagementView{
+	return engagementView{
 		Scenario:           v.GetScenario(),
 		Slug:               v.GetSlug(),
 		Mode:               v.GetMode(),
@@ -289,13 +296,22 @@ func engagementFromProto(v *cliv1.RecoveryEngagementView) engagementView {
 		AmbientVar:         v.GetAmbientVar(),
 		TTL:                v.GetTtl(),
 		Expired:            v.GetExpired(),
+		ExpiresAt:          parseFloorTime(v.GetExpiresAt()),
+		CreatedAt:          parseFloorTime(v.GetCreatedAt()),
+		LastTouchedAt:      parseFloorTime(v.GetLastTouchedAt()),
 	}
-	if s := strings.TrimSpace(v.GetExpiresAt()); s != "" {
-		if t, err := time.Parse(time.RFC3339Nano, s); err == nil {
-			ev.ExpiresAt = &t
-		}
+}
+
+func parseFloorTime(s string) *time.Time {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return nil
 	}
-	return ev
+	t, err := time.Parse(time.RFC3339Nano, s)
+	if err != nil {
+		return nil
+	}
+	return &t
 }
 
 func readEngagement(ctx context.Context, scenario, slug string) (engagementView, error) {
@@ -320,16 +336,19 @@ type startResult struct {
 	// live data (shadow mode only). Empty in live mode or when the scenario has no
 	// stateful targets to copy.
 	DataPopulation []string `json:"dataPopulation,omitempty"`
-	Available      []string `json:"available"`
+	// RestorePoint is "captured" for a new engagement, or "preserved" when
+	// --replace took over an open one (its frozen baseline is never re-captured).
+	RestorePoint string   `json:"restorePoint,omitempty"`
+	Available    []string `json:"available"`
 }
 
 func runStartCmd(core *cliapp.ScenarioApp, args []string) error {
 	var scenario, modeFlag, slug, ttlStr, anchor string
-	var operatorConfirm, writesShared, modifiesLifecycle, singleton, noAnchor, replace, jsonOut bool
+	var operatorConfirm, writesShared, modifiesLifecycle, singleton, noAnchor, replace, allowUnfrozen, jsonOut bool
 	fs := newFlagSet("baseline start")
 	fs.StringVar(&scenario, "scenario", "", "Scenario slug (required)")
 	fs.StringVar(&modeFlag, "mode", modeAuto, "Execution mode: auto|shadow|live")
-	fs.StringVar(&slug, "name", defaultEngagementSlug, "Engagement slug (the baseline-<slug> directory)")
+	fs.StringVar(&slug, "name", defaultEngagementSlug, "Engagement slug (the baseline-<slug> directory); to re-create a shadow after promote, pass the promoted engagement's name")
 	fs.StringVar(&ttlStr, "ttl", "", "Idle TTL for a human-owned engagement (e.g. 3h); omit for orchestrator-heartbeat mode")
 	fs.StringVar(&anchor, "anchor", "", "Reuse an existing baseline record as the diff anchor (default: capture engagement-<slug>)")
 	fs.BoolVar(&operatorConfirm, "operator-confirm", false, "Operator nod authorizing live mode on a reflexive scenario")
@@ -337,7 +356,8 @@ func runStartCmd(core *cliapp.ScenarioApp, args []string) error {
 	fs.BoolVar(&modifiesLifecycle, "modifies-lifecycle", false, "Declare the change modifies lifecycle/registry/promote machinery (→ live)")
 	fs.BoolVar(&singleton, "singleton-resource", false, "Declare the change needs a non-duplicable singleton resource (→ live)")
 	fs.BoolVar(&noAnchor, "no-anchor", false, "Skip capturing a diff anchor (restore-point safety net only)")
-	fs.BoolVar(&replace, "replace", false, "Take over a live engagement for this scenario and slug (refused without it)")
+	fs.BoolVar(&replace, "replace", false, "Take over the open engagement with this scenario and slug, keeping its restore point and anchor (refused without it)")
+	fs.BoolVar(&allowUnfrozen, "allow-unfrozen", false, "Open a shadow engagement even when the shared packages the live build needs cannot be frozen (live then builds against the repository's current shared packages)")
 	fs.BoolVar(&jsonOut, "json", false, "Emit JSON")
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -345,9 +365,10 @@ func runStartCmd(core *cliapp.ScenarioApp, args []string) error {
 
 	res, err := startEngagement(core, startParams{
 		scenario: scenario, mode: modeFlag, slug: slug, ttl: ttlStr, anchor: anchor,
-		signals:  modeSignals{writesSharedStore: writesShared, modifiesLifecycle: modifiesLifecycle, singletonResource: singleton, operatorConfirm: operatorConfirm},
-		noAnchor: noAnchor,
-		replace:  replace,
+		signals:       modeSignals{writesSharedStore: writesShared, modifiesLifecycle: modifiesLifecycle, singletonResource: singleton, operatorConfirm: operatorConfirm},
+		noAnchor:      noAnchor,
+		replace:       replace,
+		allowUnfrozen: allowUnfrozen,
 	})
 	if err != nil {
 		return err
@@ -368,6 +389,13 @@ type startParams struct {
 	signals  modeSignals
 	noAnchor bool
 	replace  bool
+	// allowUnfrozen lets a shadow capture proceed when the shared sources the
+	// live build reaches cannot be frozen. A live-mode capture always allows
+	// it: live runs the working tree in place and never builds from the freeze.
+	allowUnfrozen bool
+	// requireMode refuses the start (before any capture) when the decision tree
+	// routes to another mode — `baseline cycle` re-creates shadows only.
+	requireMode string
 }
 
 // startEngagement runs the full start sequence, returning the structured result.
@@ -400,6 +428,17 @@ func startEngagement(core *cliapp.ScenarioApp, p startParams) (startResult, erro
 	}
 
 	ctx := context.Background()
+
+	// 0. Open-engagement guard (O15), before anything is captured or copied: an
+	//    open engagement's restore point is the frozen baseline live serves from,
+	//    so start refuses (or, with --replace, takes the engagement over and keeps
+	//    that restore point). A re-capture would silently put unaccepted
+	//    working-tree code under live.
+	takeover, err := guardOpenEngagement(ctx, scenario, slug, p.replace)
+	if err != nil {
+		return startResult{}, err
+	}
+
 	cs := loadCoreSet(ctx)
 
 	// Namespaceability gate: auto-derive whether the scenario writes an un-adopted
@@ -424,6 +463,16 @@ func startEngagement(core *cliapp.ScenarioApp, p startParams) (startResult, erro
 		return startResult{}, fmt.Errorf("live mode on reflexive scenario %q requires an operator nod — re-run with --operator-confirm (reasons: %s)",
 			scenario, strings.Join(decision.Reasons, "; "))
 	}
+	if p.requireMode != "" && decision.Mode != p.requireMode {
+		return startResult{}, fmt.Errorf("start refused: the mode decision routed %s to %s, not %s (reasons: %s)",
+			scenario, decision.Mode, p.requireMode, strings.Join(decision.Reasons, "; "))
+	}
+	// A takeover changes who holds the engagement, never its mode: flipping a
+	// shadow split to live (or back) is promote's re-point, not a start.
+	if takeover != nil && takeover.Mode != decision.Mode {
+		return startResult{}, fmt.Errorf("start --replace refused: %s/%s is a %s engagement and this start decided %s; a takeover keeps the mode — finish it with `baseline promote` or `baseline abandon` first",
+			scenario, slug, takeover.Mode, decision.Mode)
+	}
 
 	variant := modeLive
 	ambient := ""
@@ -432,14 +481,32 @@ func startEngagement(core *cliapp.ScenarioApp, p startParams) (startResult, erro
 		ambient = scenario
 	}
 
-	// 1. Restore point (the git-free undo) — always, in either mode.
-	if _, err := runCommand(ctx, "vrooli", "recovery", "capture", "--scenario", scenario, "--slug", slug); err != nil {
-		return startResult{}, fmt.Errorf("capture restore point: %w", err)
+	// 1. Restore point (the git-free undo), in either mode — except on a
+	//    --replace takeover, which keeps the open engagement's restore point.
+	//    A shadow capture also freezes the shared packages the engaged live
+	//    build reaches, and fails closed when it cannot (--allow-unfrozen).
+	restorePoint := "captured"
+	if takeover != nil {
+		restorePoint = "preserved"
+	} else {
+		captureArgs := []string{"recovery", "capture", "--scenario", scenario, "--slug", slug}
+		if decision.Mode == modeLive || p.allowUnfrozen {
+			captureArgs = append(captureArgs, "--allow-unfrozen")
+		}
+		if _, err := runCommand(ctx, "vrooli", captureArgs...); err != nil {
+			return startResult{}, fmt.Errorf("capture restore point: %w", err)
+		}
 	}
 
-	// 2. Anchor snapshot (subsumes `snapshot`) unless reused/skipped.
+	// 2. Anchor snapshot (subsumes `snapshot`) unless reused/skipped. A takeover
+	//    keeps the open engagement's anchor: a fresh snapshot now would record the
+	//    candidate, and `check` would then diff the candidate against itself.
 	anchorName := strings.TrimSpace(p.anchor)
-	if anchorName == "" && !p.noAnchor {
+	switch {
+	case anchorName != "" || p.noAnchor:
+	case takeover != nil:
+		anchorName = strings.TrimSpace(takeover.AnchorBaselineName)
+	default:
 		anchorName = "engagement-" + slug
 		if err := snapshotAnchor(core, ctx, scenario, anchorName); err != nil {
 			return startResult{}, fmt.Errorf("capture anchor baseline %q: %w", anchorName, err)
@@ -471,20 +538,29 @@ func startEngagement(core *cliapp.ScenarioApp, p startParams) (startResult, erro
 	var dataNotes []string
 	if decision.Mode == modeShadow {
 		if _, err := runCommand(ctx, "vrooli", "scenario", "start", scenario, "--instance", variant); err != nil {
-			return startResult{}, fmt.Errorf("stand up shadow instance %s@%s: %w", scenario, variant, err)
+			return startResult{}, shadowStandUpError{fmt.Errorf("stand up shadow instance %s@%s: %w", scenario, variant, err)}
 		}
 
 		// 5. Shadow data population (the data half): seed the fresh shadow with a
 		//    copy of live's stateful data so `check` validates against realistic
 		//    state. Best-effort + NON-FATAL — a code-only scenario or an
-		//    unreachable substrate leaves the shadow running with empty data.
-		dataNotes = populateShadowData(ctx, scenario, variant)
+		//    unreachable substrate leaves the shadow running with empty data. A
+		//    takeover keeps the shadow's existing data.
+		if takeover != nil {
+			dataNotes = []string{"shadow data kept (took over the open engagement)"}
+		} else {
+			dataNotes = populateShadowData(ctx, scenario, variant)
+		}
 	}
 
 	res := startResult{
 		Scenario: scenario, Slug: slug, Decision: decision, Variant: variant,
 		Anchor: anchorName, AmbientVar: ambient, DataPopulation: dataNotes,
-		Available: []string{"check", "promote", "abandon", "status"},
+		RestorePoint: restorePoint,
+		Available:    []string{"check", "promote", "abandon", "status"},
+	}
+	if decision.Mode == modeShadow {
+		res.Available = []string{"check", "promote", "cycle", "abandon", "status"}
 	}
 	if ttl > 0 {
 		res.TTL = ttl.String()
@@ -527,11 +603,11 @@ func populateShadowData(ctx context.Context, scenario, variant string) []string 
 	}
 
 	// Reuse the same backup-now primitive promote uses for its pre-promote snapshot.
-	runID, ok := prePromoteSnapshot(ctx, scenario)
-	if !ok {
-		return []string{"shadow data population skipped — safety backup unavailable (substrate unreachable?)"}
+	runID, note := safetyBackupNow(ctx, scenario)
+	if runID == "" {
+		return []string{"shadow data population skipped — " + note}
 	}
-	if !waitForSafetyRun(ctx, runID) {
+	if awaitSafetyRun(ctx, runID) == "" {
 		return []string{fmt.Sprintf("shadow data population skipped — safety run %s did not finish within the poll budget", runID)}
 	}
 
@@ -565,27 +641,6 @@ func registeredSafetyTargets(ctx context.Context, scenario string) ([]string, st
 		}
 	}
 	return names, ""
-}
-
-// waitForSafetyRun polls `runs get` until the backup run reaches a terminal state
-// (its snapshots are only safe to restore from once it has finished). Returns
-// true on terminal, false when the attempt budget is exhausted.
-func waitForSafetyRun(ctx context.Context, runID string) bool {
-	for attempt := 0; attempt < populateMaxAttempts; attempt++ {
-		out, err := runCommand(ctx, "data-backup-manager", "runs", "get", runID, "--json")
-		if err == nil {
-			var resp struct {
-				Run struct {
-					Status string `json:"status"`
-				} `json:"run"`
-			}
-			if json.Unmarshal(out, &resp) == nil && safetyRunTerminal(resp.Run.Status) {
-				return true
-			}
-		}
-		sleepFn(populatePollInterval)
-	}
-	return false
 }
 
 // safetyRunTerminal reports whether a data-backup-manager run status (the
@@ -696,7 +751,7 @@ func checkEngagement(core *cliapp.ScenarioApp, scenario, slug string) (checkResu
 		return checkResult{}, err
 	}
 	if strings.TrimSpace(eng.AnchorBaselineName) == "" {
-		return checkResult{}, fmt.Errorf("engagement %s/%s has no anchor baseline — `baseline check` needs one (start without --no-anchor)", scenario, slug)
+		return checkResult{}, fmt.Errorf("engagement %s/%s has no anchor baseline (it was opened with --no-anchor, as `baseline cycle` does) — `baseline check` needs one; validate the shadow with journeys instead", scenario, slug)
 	}
 	verdict, err := diffAnchor(core, ctx, scenario, eng.AnchorBaselineName)
 	if err != nil {
@@ -793,10 +848,12 @@ func runAbandonCmd(core *cliapp.ScenarioApp, args []string) error {
 // — the edited location — so the in-progress candidate is thrown away (git-free
 // undo; post-capture untracked files are left = dirty work parked). They differ
 // only in how the serving instance is handled:
-//   - shadow: live has been serving the Baseline from the restore-point copy the
-//     whole time and never ran the candidate, so it is left untouched (no
-//     restart); its next restart resolves to the now-restored working tree. The
-//     shadow instance that WAS running the candidate is torn down.
+//   - shadow: live has been serving the Baseline from the engagement's serving
+//     tree the whole time and never ran the candidate. The shadow instance that
+//     WAS running the candidate is torn down; after the restore, the clean
+//     restarts live from the restored working tree (build before stop) before
+//     the serving tree is deleted, so live never runs from a deleted tree. If
+//     that restart fails, the engagement is kept and live keeps serving.
 //   - live: live ran the edited working tree in place, so after the restore it is
 //     restarted to pick the Baseline back up.
 func abandonEngagement(core *cliapp.ScenarioApp, scenario, slug string) (abandonResult, error) {
@@ -826,17 +883,20 @@ func abandonEngagement(core *cliapp.ScenarioApp, scenario, slug string) (abandon
 		if _, err := runCommand(ctx, "vrooli", "recovery", "restore", "--scenario", scenario, "--slug", slug); err != nil {
 			return abandonResult{}, fmt.Errorf("restore baseline over working tree: %w", err)
 		}
-		res.Action = "candidate discarded (working tree restored from baseline); shadow torn down; live untouched"
-	} else {
-		if _, err := runCommand(ctx, "vrooli", "recovery", "restore", "--scenario", scenario, "--slug", slug); err != nil {
-			return abandonResult{}, fmt.Errorf("restore baseline over working tree: %w", err)
+		if _, err := runCommand(ctx, "vrooli", "recovery", "clean", "--scenario", scenario, "--slug", slug, "--restart-live"); err != nil {
+			return abandonResult{}, fmt.Errorf("restart live from the restored working tree and clean the engagement (the engagement is kept and live still serves it): %w", err)
 		}
-		// Rebuild from the restored tree so the running live process picks it up.
-		if _, err := runCommand(ctx, "vrooli", "scenario", "restart", scenario); err != nil {
-			return abandonResult{}, fmt.Errorf("restart live after restore: %w", err)
-		}
-		res.Action = "live edits discarded (working tree restored from baseline); live restarted"
+		res.Action = "candidate discarded (working tree restored from baseline); shadow torn down; live restarted from the restored working tree"
+		return res, nil
 	}
+	if _, err := runCommand(ctx, "vrooli", "recovery", "restore", "--scenario", scenario, "--slug", slug); err != nil {
+		return abandonResult{}, fmt.Errorf("restore baseline over working tree: %w", err)
+	}
+	// Rebuild from the restored tree so the running live process picks it up.
+	if _, err := runCommand(ctx, "vrooli", "scenario", "restart", scenario); err != nil {
+		return abandonResult{}, fmt.Errorf("restart live after restore: %w", err)
+	}
+	res.Action = "live edits discarded (working tree restored from baseline); live restarted"
 	// Drop the engagement (restore point + manifest) — idempotent.
 	if _, err := runCommand(ctx, "vrooli", "recovery", "clean", "--scenario", scenario, "--slug", slug); err != nil {
 		return abandonResult{}, fmt.Errorf("clean engagement: %w", err)
@@ -846,15 +906,23 @@ func abandonEngagement(core *cliapp.ScenarioApp, scenario, slug string) (abandon
 
 // ---- gc ------------------------------------------------------------------
 
+// servingFromEngagementMarker is the text of the control plane's refusal to
+// clean an engagement a registered instance still runs from
+// (recovery.ErrServingFromEngagement).
+const servingFromEngagementMarker = "an instance runs from the engagement"
+
 type gcResult struct {
 	Reaped  []string `json:"reaped"`
 	Skipped []string `json:"skipped"`
+	// Refused lists expired engagements kept because a live instance still
+	// runs from their serving tree; gc --force moves it to the working tree.
+	Refused []string `json:"refused,omitempty"`
 }
 
 func runGCCmd(core *cliapp.ScenarioApp, args []string) error {
 	var force, jsonOut bool
 	fs := newFlagSet("baseline gc")
-	fs.BoolVar(&force, "force", false, "Reap every active engagement, not only expired/orphaned ones")
+	fs.BoolVar(&force, "force", false, "Reap every active engagement, not only expired/orphaned ones, even when live runs from its serving tree (live restarts from the working tree, and is stopped if that restart fails)")
 	fs.BoolVar(&jsonOut, "json", false, "Emit JSON")
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -866,9 +934,12 @@ func runGCCmd(core *cliapp.ScenarioApp, args []string) error {
 	if jsonOut {
 		return printJSON(res)
 	}
-	fmt.Printf("reaped %d, skipped %d\n", len(res.Reaped), len(res.Skipped))
+	fmt.Printf("reaped %d, skipped %d, refused %d\n", len(res.Reaped), len(res.Skipped), len(res.Refused))
 	for _, r := range res.Reaped {
 		fmt.Printf("  ✓ %s\n", r)
+	}
+	for _, r := range res.Refused {
+		fmt.Printf("  ✗ %s: live still runs from its serving tree (promote, abandon, or gc --force)\n", r)
 	}
 	return nil
 }
@@ -876,6 +947,13 @@ func runGCCmd(core *cliapp.ScenarioApp, args []string) error {
 // gcEngagements force-reaps stale/orphaned shadows: for each expired (or every,
 // with --force) engagement, tear down any shadow instance and drop its restore
 // point + manifest. The manual escape hatch over the reaper sweep.
+//
+// An expired shadow engagement can still be a live serving split: live runs
+// from the engagement's serving tree. Without --force the control plane
+// refuses to delete that tree; gc records the engagement as refused and moves
+// on, because moving live to the working tree would serve unaccepted
+// candidate code. --force passes the override: live restarts from the
+// working tree (and is stopped if that fails).
 func gcEngagements(ctx context.Context, force bool) (gcResult, error) {
 	engagements, err := listEngagements(ctx)
 	if err != nil {
@@ -896,7 +974,15 @@ func gcEngagements(ctx context.Context, force bool) (gcResult, error) {
 			// Best-effort: a shadow that is already gone is fine.
 			_, _ = runCommand(ctx, "vrooli", "scenario", "stop", e.Scenario, "--instance", variant)
 		}
-		if _, err := runCommand(ctx, "vrooli", "recovery", "clean", "--scenario", e.Scenario, "--slug", e.Slug); err != nil {
+		cleanArgs := []string{"recovery", "clean", "--scenario", e.Scenario, "--slug", e.Slug}
+		if force {
+			cleanArgs = append(cleanArgs, "--force")
+		}
+		if _, err := runCommand(ctx, "vrooli", cleanArgs...); err != nil {
+			if !force && strings.Contains(err.Error(), servingFromEngagementMarker) {
+				res.Refused = append(res.Refused, ref)
+				continue
+			}
 			return res, fmt.Errorf("clean %s: %w", ref, err)
 		}
 		res.Reaped = append(res.Reaped, ref)

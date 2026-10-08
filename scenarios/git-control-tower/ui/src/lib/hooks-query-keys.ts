@@ -83,6 +83,8 @@ export const queryKeys = {
     ["review", "summary", repoId ?? "default", scenarioName] as const,
   reviewJob: (jobId: string, repoId?: string | null) =>
     ["review", "job", repoId ?? "default", jobId] as const,
+  proposals: (repoId?: string | null) => ["proposals", repoId ?? "default"] as const,
+  proposal: (id: string) => ["proposals", "detail", id] as const,
   baselines: (scenario: string, scope: string, repoId?: string | null) =>
     ["baselines", repoId ?? "default", scenario, scope] as const,
   sourceDistributions: (repoId?: string | null, scenario?: string) =>

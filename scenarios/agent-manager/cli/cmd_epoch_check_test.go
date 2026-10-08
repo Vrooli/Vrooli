@@ -6,102 +6,52 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 )
 
-var defaultEpochLimits = epochThresholds{FlatlineK: 10, OverrunFactor: 2, RefactorGrowth: 300, FeatureFactor: 1.5, WallClock: 24 * time.Hour}
+// goalhomeTestdata holds the shared goal-home fixtures; parser and rule tests
+// live with the goalhome package.
+const goalhomeTestdata = "../api/internal/goalhome/testdata"
 
-// fixtureNow is two hours after the fixtures' Started time.
-var fixtureNow = time.Date(2026, 9, 29, 10, 0, 0, 0, time.UTC)
-
-func checkFixture(t *testing.T, name string, limits epochThresholds, now time.Time, weighted *float64) *epochReport {
+func readGoalhomeFixture(t *testing.T, parts ...string) string {
 	t.Helper()
-	path := filepath.Join("testdata", "epochs", name)
-	handle, err := os.Open(path)
+	data, err := os.ReadFile(filepath.Join(append([]string{goalhomeTestdata}, parts...)...))
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer handle.Close()
-	file, err := parseEpochFile(handle)
-	if err != nil {
+	return string(data)
+}
+
+func writeFile(t *testing.T, path, text string) string {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	return evaluateEpoch(path, file, limits, now, weighted)
+	if err := os.WriteFile(path, []byte(text), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return path
 }
 
-func firedNames(report *epochReport) []string {
-	names := []string{}
-	for _, trigger := range report.Triggers {
-		if trigger.Fired {
-			names = append(names, trigger.Name)
-		}
+func exitCode(err error) int {
+	var exit exitCodeError
+	if errors.As(err, &exit) {
+		return exit.code
 	}
-	return names
+	if err != nil {
+		return 1
+	}
+	return 0
 }
 
-func TestEpochCheckFiresEachStepBackTriggerOnItsFixture(t *testing.T) {
-	spent := 5_000_000.0
-	for _, tc := range []struct {
-		fixture  string
-		limits   epochThresholds
-		weighted *float64
-		want     string
-	}{
-		{"flatline.md", defaultEpochLimits, nil, "flatline"},
-		{"overrun.md", defaultEpochLimits, nil, "overrun"},
-		{"growth-refactor.md", defaultEpochLimits, nil, "growth"},
-		{"growth-feature.md", defaultEpochLimits, nil, "growth"},
-		{"healthy.md", epochThresholds{FlatlineK: 10, OverrunFactor: 2, RefactorGrowth: 300, FeatureFactor: 1.5, WallClock: 24 * time.Hour, SpendThreshold: 1_000_000}, &spent, "spend"},
-	} {
-		t.Run(tc.fixture+"/"+tc.want, func(t *testing.T) {
-			report := checkFixture(t, tc.fixture, tc.limits, fixtureNow, tc.weighted)
-			fired := firedNames(report)
-			if len(fired) != 1 || fired[0] != tc.want {
-				t.Fatalf("fired %v, want only %s: %+v", fired, tc.want, report.Triggers)
-			}
-			if len(report.StepBack) != 1 || !strings.HasPrefix(report.StepBack[0], tc.want+":") {
-				t.Fatalf("STEP_BACK reasons = %v", report.StepBack)
-			}
-		})
-	}
-}
-
-func TestEpochCheckReportsAHealthyEpochWithoutTriggers(t *testing.T) {
-	report := checkFixture(t, "healthy.md", defaultEpochLimits, fixtureNow, nil)
-	if fired := firedNames(report); len(fired) != 0 || len(report.StepBack) != 0 {
-		t.Fatalf("healthy epoch fired %v", fired)
-	}
-	if report.WorkUnits != 5 || report.NetRuntimeLines != -200 || report.NetTestLines != 50 || strings.Join(report.MetricHistory, ",") != "1,2,2,3,4" {
-		t.Fatalf("unexpected totals: %+v", report)
-	}
-	if len(report.OpenDirectives) != 0 {
-		t.Fatalf("acknowledged directive reported open: %v", report.OpenDirectives)
-	}
-	for _, trigger := range report.Triggers {
-		if trigger.Name == "spend" && !strings.HasPrefix(trigger.Detail, "not evaluated") {
-			t.Fatalf("spend without a threshold must say it was not evaluated: %s", trigger.Detail)
-		}
-	}
-}
-
-func TestEpochCheckWallClockPromptsReviewButNeverStepsBack(t *testing.T) {
-	report := checkFixture(t, "healthy.md", defaultEpochLimits, fixtureNow.Add(30*time.Hour), nil)
-	if len(report.StepBack) != 0 || len(report.Review) != 1 || !strings.HasPrefix(report.Review[0], "wall-clock:") {
-		t.Fatalf("wall clock must prompt a review only: stepBack=%v review=%v", report.StepBack, report.Review)
-	}
-}
-
-func TestEpochCheckTracksOpenDirectivesMalformedLinesAndAcceptance(t *testing.T) {
-	report := checkFixture(t, "open-directive.md", defaultEpochLimits, fixtureNow, nil)
-	if strings.Join(report.OpenDirectives, ",") != "D2" {
-		t.Fatalf("open directives = %v, want D2", report.OpenDirectives)
-	}
-	if report.WorkUnits != 2 || len(report.MalformedLogLines) != 1 {
-		t.Fatalf("malformed line must be reported and not counted: units=%d malformed=%v", report.WorkUnits, report.MalformedLogLines)
-	}
-	if !strings.HasPrefix(report.Accepted, "ACCEPTED 2026-09-29T10:00:00Z") {
-		t.Fatalf("acceptance line lost: %q", report.Accepted)
-	}
+// runEpochCheck runs the command and returns its stdout and exit status.
+func runEpochCheck(t *testing.T, app *App, args ...string) (string, int) {
+	t.Helper()
+	code := 0
+	output := captureStdout(t, func() error {
+		code = exitCode(app.effortEpochCheck(args))
+		return nil
+	})
+	return output, code
 }
 
 func TestParseTierWeightsWeighsSolAboveLuna(t *testing.T) {
@@ -117,47 +67,74 @@ func TestParseTierWeightsWeighsSolAboveLuna(t *testing.T) {
 	}
 }
 
-func TestParseSliceLineAcceptsUnknownFieldsAndFreeFormAcks(t *testing.T) {
-	for _, tc := range []struct {
-		name, line, what, metric string
-		runtime, test            int
-		acks                     []string
-		malformed                bool
-	}{
-		{name: "canonical", line: "2026-09-29T08:00:00Z | unit | exit metric=3 | net runtime lines=+50 | net test lines=-5 | ack=D1", what: "unit", metric: "3", runtime: 50, test: -5, acks: []string{"D1"}},
-		{name: "unknown fields ignored", line: "2026-09-29T08:00:00Z | unit | exit metric=3 | tokens=12000 | phase=J02 | ack=-", what: "unit", metric: "3"},
-		{name: "free-form ack", line: "2026-09-29T08:00:00Z | unit | exit metric=3 | ack=D2 done; D3 deferred until J02 passes", what: "unit", metric: "3", acks: []string{"D2", "D3"}},
-		{name: "extra free text joins the change", line: "2026-09-29T08:00:00Z | unit | shadow restarted | exit metric=3", what: "unit | shadow restarted", metric: "3"},
-		{name: "missing metric", line: "2026-09-29T08:00:00Z | unit | ack=D1", malformed: true},
-		{name: "bad time", line: "yesterday | unit | exit metric=3", malformed: true},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			got, err := parseSliceLine(tc.line)
-			if tc.malformed {
-				if err == nil {
-					t.Fatalf("accepted %q", tc.line)
-				}
-				return
-			}
-			if err != nil || got.What != tc.what || got.Metric != tc.metric || got.RuntimeLines != tc.runtime || got.TestLines != tc.test || strings.Join(got.Acks, ",") != strings.Join(tc.acks, ",") {
-				t.Fatalf("parsed %+v, %v", got, err)
-			}
-		})
+func TestEpochCheckReturnsStepBackExitCodeWithoutExiting(t *testing.T) {
+	output, code := runEpochCheck(t, &App{}, filepath.Join(goalhomeTestdata, "epochs", "flatline.md"))
+	if code != exitStepBack {
+		t.Fatalf("want exit code %d, got %d", exitStepBack, code)
+	}
+	if !strings.Contains(output, "STEP_BACK flatline") {
+		t.Fatalf("report not printed before the exit status: %s", output)
 	}
 }
 
-func TestEpochCheckReturnsStepBackExitCodeWithoutExiting(t *testing.T) {
-	app := &App{}
-	output := captureStdout(t, func() error {
-		err := app.effortEpochCheck([]string{filepath.Join("testdata", "epochs", "flatline.md")})
-		var exit exitCodeError
-		if !errors.As(err, &exit) || exit.code != exitStepBack {
-			t.Fatalf("want exit code %d, got %v", exitStepBack, err)
-		}
-		return nil
-	})
-	if !strings.Contains(output, "STEP_BACK flatline") {
-		t.Fatalf("report not printed before the exit status: %s", output)
+func TestEpochCheckAcceptedEpochNeverStepsBackOrWakes(t *testing.T) {
+	services, recorder := newContractServices(t)
+	app := &App{services: services}
+	path := writeFile(t, filepath.Join(t.TempDir(), "E7.md"), readGoalhomeFixture(t, "epochs", "flatline.md")+"ACCEPTED 2026-09-29T09:40:00Z J02 passes\n")
+	output, code := runEpochCheck(t, app, path, "--wake-key", "orchestrator-run")
+	if code != 0 || strings.Contains(output, "STEP_BACK") || !strings.Contains(output, "Accepted epoch, reported only: flatline:") {
+		t.Fatalf("an accepted epoch must report its triggers without a step-back (exit %d):\n%s", code, output)
+	}
+	if requests := recorder.Requests(); len(requests) != 0 {
+		t.Fatalf("an accepted epoch must not wake the orchestrator: %+v", requests)
+	}
+}
+
+func TestEpochCheckAcceptanceExitsFourOnUnmetGate(t *testing.T) {
+	services, recorder := newContractServices(t)
+	app := &App{services: services}
+	typed := readGoalhomeFixture(t, "epochs", "typed-gates.md")
+	met := writeFile(t, filepath.Join(t.TempDir(), "E26.md"), typed)
+	output, code := runEpochCheck(t, app, met, "--acceptance", "--wake-key", "orchestrator-run")
+	if code != 0 || !strings.Contains(output, "ACCEPTANCE ok") || !strings.Contains(output, "Yield: -801 runtime_lines (inventory gate G4)") {
+		t.Fatalf("met gates must pass acceptance (exit %d):\n%s", code, output)
+	}
+	unmet := writeFile(t, filepath.Join(t.TempDir(), "E26.md"), strings.Replace(typed, "gate G4=pass 252651", "gate G4=pass 253900", 1))
+	output, code = runEpochCheck(t, app, unmet, "--acceptance")
+	if code != exitRefused || !strings.Contains(output, "ACCEPTANCE_BLOCKED G4 inventory: runtime_lines 253900 is not <= 253452") {
+		t.Fatalf("an unmet gate must exit %d and name the gate (exit %d):\n%s", exitRefused, code, output)
+	}
+	legacy := filepath.Join(goalhomeTestdata, "bas", "epochs", "E26.md")
+	output, code = runEpochCheck(t, app, legacy, "--acceptance")
+	if code != 0 || !strings.Contains(output, "WARNING legacy-gates") || !strings.Contains(output, "ACCEPTANCE not checked: legacy exit gate") {
+		t.Fatalf("a legacy exit gate warns and never fails (exit %d):\n%s", code, output)
+	}
+	if requests := recorder.Requests(); len(requests) != 0 {
+		t.Fatalf("acceptance mode never wakes: %+v", requests)
+	}
+}
+
+func TestEpochCheckDiminishingReturnsFailsOnlyTheOrchestrator(t *testing.T) {
+	home := t.TempDir()
+	writeFile(t, filepath.Join(home, "GOAL.md"), "# Goal\n\n- Destination: runtime lines <= 205000\n- Current: 253452 @ 2026-10-07\n")
+	writeFile(t, filepath.Join(home, "QUEUE.md"), "# Queue\n\n## Needs operator\n\n## Handoff\n\nE24 admitted.\n")
+	writeFile(t, filepath.Join(home, "epochs", "E23.md"), readGoalhomeFixture(t, "bas", "epochs", "E23.md"))
+	writeFile(t, filepath.Join(home, "epochs", "E24.md"), strings.Replace(readGoalhomeFixture(t, "bas", "epochs", "E24.md"), "ACCEPTED 2026-10-07T00:42:30Z —", "ACCEPTED 2026-10-07T00:42:30Z | yield=-66 runtime lines |", 1))
+	worker := writeFile(t, filepath.Join(home, "epochs", "E25.md"), strings.Replace(readGoalhomeFixture(t, "bas", "epochs", "E25.md"), "ACCEPTED 2026-10-07T01:28:54Z —", "", 1))
+	output, code := runEpochCheck(t, &App{}, worker)
+	if code != 0 || !strings.Contains(output, "FINDING diminishing-returns: gap-horizon:") {
+		t.Fatalf("a worker sees the finding without failing (exit %d):\n%s", code, output)
+	}
+	output, code = runEpochCheck(t, &App{}, worker, "--acceptance")
+	if code != exitRefused || !strings.Contains(output, "ACCEPTANCE_BLOCKED diminishing-returns") {
+		t.Fatalf("the orchestrator's acceptance check must fail on it (exit %d):\n%s", code, output)
+	}
+}
+
+func TestWorkerRunIDsSkipsParenthesizedNotes(t *testing.T) {
+	raw := "c33912b5 (task 42f4; prompt-manager/delivery-epoch-worker, gpt-6-luna medium; canceled after handoff), 6980e693 (handoff follow-through only), a7240424"
+	if got := strings.Join(workerRunIDs(raw), ","); got != "c33912b5,6980e693,a7240424" {
+		t.Fatalf("worker IDs = %s", got)
 	}
 }
 

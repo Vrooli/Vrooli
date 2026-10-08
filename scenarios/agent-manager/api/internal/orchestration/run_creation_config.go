@@ -2,12 +2,13 @@
 package orchestration
 
 import (
-	"agent-manager/internal/domain"
-	"agent-manager/internal/structuredresult"
 	"context"
 	"fmt"
 	"strings"
 	"time"
+
+	"agent-manager/internal/domain"
+	"agent-manager/internal/structuredresult"
 )
 
 // resolveRunConfig resolves the run configuration from profile and/or inline config.
@@ -352,7 +353,7 @@ func (o *Orchestrator) resolveExecutionPolicy(ctx context.Context, cfg *domain.R
 		cfg.PolicySnapshot = snapshot
 		cfg.RunnerType = snapshot.SelectedCandidate.RunnerType
 		cfg.Model = snapshot.SelectedCandidate.Model
-		return nil
+		return domain.ValidateResourceEffort(cfg)
 	}
 	return domain.NewValidationError("roleRef", "field is required")
 }
@@ -363,6 +364,7 @@ func (o *Orchestrator) resolveExecutionPolicy(ctx context.Context, cfg *domain.R
 // admission-safe snapshot. A candidate whose primary is denied may use its
 // first permitted same-runner fallback. Candidates with no permitted model
 // remain recorded as unavailable for an auditable fail-closed decision.
+// Candidates whose resource resolution already failed keep that failure.
 func applyModelExclusions(snapshot *domain.ExecutionPolicySnapshot) {
 	if snapshot == nil {
 		return
@@ -370,6 +372,13 @@ func applyModelExclusions(snapshot *domain.ExecutionPolicySnapshot) {
 	for index := range snapshot.Candidates {
 		candidate := &snapshot.Candidates[index]
 		if candidate.SelectionType == domain.ModelSelectionTypeRunnerDefault {
+			continue
+		}
+		if candidate.FailureCode != "" {
+			// Resolution already failed (resource unavailable, unknown role or
+			// invalid response) and produced no model evidence. Keep the
+			// resource's diagnosis; relabelling it as a model exclusion hides
+			// the real cause from preflight and operators.
 			continue
 		}
 		models := make([]string, 0, 1+len(candidate.Fallbacks))

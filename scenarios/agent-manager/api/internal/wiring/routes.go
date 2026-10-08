@@ -37,6 +37,7 @@ import (
 	"agent-manager/internal/supervision"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/connectx"
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/eventbus"
@@ -94,6 +95,17 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 	router.Use(httpmw.Logging)
 	router.Use(httpmw.SecurityHeaders)
 	router.Use(httpmw.CORS)
+	authConfig, err := authn.FromEnvironment(os.Getenv)
+	if err != nil {
+		panic(fmt.Errorf("authentication configuration: %w", err))
+	}
+	if !authConfig.Enabled() {
+		authConfig.Providers = []authn.Provider{authn.NewScenarioAuthenticatorProvider(authn.JWTConfig{Audience: "scenario-authenticator:agent-manager"})}
+	}
+	router.Use(authn.Middleware(authConfig))
+	if deps.Orchestrator != nil {
+		handlers.RegisterAuthorizations(router, deps.Orchestrator)
+	}
 	if deps.LifecycleService != nil {
 		path, handler := commonconnect.NewLifecycleMaintenanceServiceHandler(deps.LifecycleService)
 		connectx.RegisterServices(router, connectx.ServiceMount{Path: path, Handler: lifecycle.LoopbackOnly(handler)})
@@ -146,6 +158,7 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 		handlers.WithReceiptAvailabilityReader(receiptAvailability),
 		handlers.WithTranscriptImporter(deps.TranscriptImporter),
 		handlers.WithInvestigationLifecycle(investigationRepository(deps.DB)),
+		handlers.WithEffortEnrollments(deps.SupervisionService),
 	)
 	handler.SetWebSocketHub(deps.WebSocketHub)
 	connectHandler := handlers.NewAgentManagerConnectHandler(handler, deps.SupervisionService)

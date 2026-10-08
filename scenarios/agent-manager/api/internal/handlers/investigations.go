@@ -17,6 +17,9 @@ import (
 	"agent-manager/internal/runreport"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/provenance"
+	"github.com/vrooli/api-core/scopecatalog"
+	"github.com/vrooli/cli-core/cliutil"
 )
 
 const maxInvestigationRequestBytes = 1 << 20
@@ -35,6 +38,24 @@ func (h *Handler) StartInvestigation(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeInvestigationError(w, r, err)
 		return
+	}
+	if token := strings.TrimSpace(r.Header.Get(cliutil.HeaderAgentIdentityToken)); token != "" {
+		verified, err := h.svc.VerifyIdentityToken(r.Context(), token)
+		if err != nil || verified == nil || !verified.Valid || verified.Claims == nil {
+			writeJSONError(w, http.StatusUnauthorized, "verified investigation caller required")
+			return
+		}
+		grant := provenance.OperationGrantFromMeta(verified.Claims.Meta)
+		if len(request.Subject.RunIDs) == 0 || !scopecatalog.Resolve(verified.Claims.Scopes, "agent-manager:write") {
+			writeJSONError(w, http.StatusForbidden, "bounded run investigation grant required")
+			return
+		}
+		for _, id := range request.Subject.RunIDs {
+			if !grant.Allows("agent.investigate", "agent-manager:run/"+id, time.Now()) {
+				writeJSONError(w, http.StatusForbidden, "investigation target is outside the approved grant")
+				return
+			}
+		}
 	}
 	item, reused, err := h.admitInvestigation(r.Context(), request)
 	if err != nil {

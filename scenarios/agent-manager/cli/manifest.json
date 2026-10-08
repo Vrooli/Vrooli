@@ -4245,6 +4245,171 @@
       ]
     },
     {
+      "name": "effort",
+      "description": "Goal-home commands for orchestrated delivery efforts (epoch checks, lint, handoff, park)",
+      "commands": [
+        {
+          "name": "epoch-check",
+          "description": "Report an epoch file's step-back triggers, typed exit gates and measured yield; exit 3 on STEP_BACK, 4 when --acceptance is refused",
+          "positionals": [
+            {
+              "name": "epoch-file",
+              "required": true,
+              "description": "<goal home>/epochs/E<n>.md"
+            }
+          ],
+          "flags": [
+            {
+              "name": "acceptance",
+              "bool": true,
+              "description": "Orchestrator acceptance check: exit 4 on an unmet typed gate or an unanswered diminishing-returns finding; never wakes"
+            },
+            {
+              "name": "wake-key",
+              "description": "Orchestrator run ID to wake on STEP_BACK"
+            },
+            {
+              "name": "runs",
+              "description": "Worker run IDs for the spend trigger"
+            },
+            {
+              "name": "spend-threshold",
+              "description": "Weighted non-cache tokens above which spend fires"
+            },
+            {
+              "name": "json",
+              "bool": true,
+              "description": "Print the report as JSON"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "lint",
+          "description": "Check a goal home's orchestrator rules (resume set, one handoff, admissible queue, acknowledged feedback, diminishing returns); exit 4 on a failing rule",
+          "positionals": [
+            {
+              "name": "goal-home",
+              "required": true,
+              "description": "Goal-home directory"
+            }
+          ],
+          "flags": [
+            {
+              "name": "json",
+              "bool": true,
+              "description": "Print the report as JSON"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "handoff",
+          "description": "Replace the single ## Handoff section of QUEUE.md atomically (set); exit 4 when refused",
+          "positionals": [
+            {
+              "name": "action",
+              "required": true,
+              "description": "set"
+            },
+            {
+              "name": "goal-home",
+              "required": true,
+              "description": "Goal-home directory"
+            }
+          ],
+          "flags": [
+            {
+              "name": "file",
+              "description": "Markdown file holding the handoff text"
+            },
+            {
+              "name": "stdin",
+              "bool": true,
+              "description": "Read the handoff text from standard input"
+            },
+            {
+              "name": "json",
+              "bool": true,
+              "description": "Print the result as JSON"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "park",
+          "description": "Park the orchestrator for as long as goal state allows (1h with a live child, 72h with a Needs operator item); exit 4 when refused",
+          "positionals": [
+            {
+              "name": "goal-home",
+              "required": true,
+              "description": "Goal-home directory"
+            }
+          ],
+          "flags": [
+            {
+              "name": "run",
+              "required": true,
+              "description": "The calling orchestrator's run ID"
+            },
+            {
+              "name": "timeout",
+              "description": "Park length, at most the rule's maximum"
+            },
+            {
+              "name": "identity-token",
+              "description": "Owning run's identity token (defaults to the run environment)"
+            },
+            {
+              "name": "json",
+              "bool": true,
+              "description": "Print the decision and park response as JSON"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "measures",
       "description": "Typed durable friction measures over Agent Manager invocation history",
       "commands": [

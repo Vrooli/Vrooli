@@ -14,6 +14,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 
+	"agent-manager/internal/orchestration"
+
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
@@ -633,6 +635,51 @@ func TestQuiesceScenario_InvalidTimeout(t *testing.T) {
 
 	if rr.Code == http.StatusOK {
 		t.Fatalf("expected a 4xx for an invalid timeout, got 200: %s", rr.Body.String())
+	}
+}
+
+// TestQuiesceScenario_TimeoutAboveMaximum verifies the server refuses a wait
+// longer than orchestration.MaxQuiesceTimeout.
+func TestQuiesceScenario_TimeoutAboveMaximum(t *testing.T) {
+	_, router := setupTestHandler(t)
+
+	tooLong := "31m"
+	body := encodeProtoJSON(t, &apipb.QuiesceScenarioRequest{Scenario: "x", Timeout: &tooLong})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/runs/quiesce", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusBadRequest || !strings.Contains(rr.Body.String(), "maximum") {
+		t.Fatalf("expected 400 naming the maximum, got %d: %s", rr.Code, rr.Body.String())
+	}
+}
+
+// TestQuiesceResponseOutlivesServerWriteTimeout verifies a drain that outlasts
+// the server write deadline still returns its result instead of an EOF.
+func TestQuiesceResponseOutlivesServerWriteTimeout(t *testing.T) {
+	h := New(orchestration.HandlerServices{RunService: quiesceRuns{delay: 150 * time.Millisecond}})
+	router := mux.NewRouter()
+	h.RegisterRoutes(router)
+	server := httptest.NewUnstartedServer(router)
+	server.Config.WriteTimeout = 25 * time.Millisecond
+	server.Start()
+	defer server.Close()
+	client := server.Client()
+	client.Timeout = 2 * time.Second
+
+	response, err := client.Post(server.URL+"/api/v1/runs/quiesce", "application/json", strings.NewReader(`{"scenario":"slow-drain","timeout":"1s"}`))
+	if err != nil {
+		t.Fatalf("quiesce response lost to the server write deadline: %v", err)
+	}
+	defer response.Body.Close()
+	var decoded struct {
+		Result struct {
+			Drained bool `json:"drained"`
+		} `json:"result"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&decoded); err != nil || response.StatusCode != http.StatusOK || !decoded.Result.Drained {
+		t.Fatalf("status=%d err=%v drained=%v", response.StatusCode, err, decoded.Result.Drained)
 	}
 }
 

@@ -6,14 +6,16 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"google.golang.org/protobuf/encoding/protojson"
 
 	impactv1 "github.com/vrooli/vrooli/packages/proto/gen/go/proto-health/v1/impact"
 )
 
-// quiesceJSON builds a protojson-shaped QuiesceScenarioResponse for the fake
-// runner to return from `agent-manager run quiesce`.
+// quiesceJSON builds the QuiesceScenarioResponse `agent-manager run quiesce
+// --json` prints (the API body, proto field names: in_flight) for the fake
+// runner.
 func quiesceJSON(drained, aborted bool, reason string, inFlight ...string) []byte {
 	type ref struct {
 		ID string `json:"id"`
@@ -24,7 +26,7 @@ func quiesceJSON(drained, aborted bool, reason string, inFlight ...string) []byt
 		for _, id := range inFlight {
 			refs = append(refs, ref{ID: id})
 		}
-		result["inFlight"] = refs
+		result["in_flight"] = refs
 	}
 	b, _ := json.Marshal(map[string]any{"result": result})
 	return b
@@ -326,6 +328,10 @@ func TestParseQuiesce(t *testing.T) {
 	if parseQuiesce([]byte("not json")).drained {
 		t.Errorf("garbage must not parse as drained")
 	}
+	camel := parseQuiesce([]byte(`{"result":{"aborted":true,"inFlight":[{"id":"c"}]}}`))
+	if len(camel.inFlight) != 1 || camel.inFlight[0] != "c" {
+		t.Errorf("lowerCamel in-flight list mis-parsed: %+v", camel)
+	}
 }
 
 func TestExtractStatus(t *testing.T) {
@@ -340,5 +346,156 @@ func TestExtractStatus(t *testing.T) {
 		if got := extractStatus([]byte(in)); got != want {
 			t.Errorf("extractStatus(%s) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+func TestPromoteAwaitsTheSafetySnapshotBeforeMigrating(t *testing.T) {
+	f, restore := installShadowEngagement(t)
+	defer restore()
+	defer withNoSleep(t)()
+	f.stdout["safety backup-now"] = backupNowJSON("run-9")
+	f.stdout["runs get"] = []byte(`{"run":{"status":"RUN_STATUS_COMPLETED"}}`)
+
+	res, err := promoteEngagement(nil, promoteParams{scenario: "demo-scenario", slug: "wip", force: true})
+	if err != nil {
+		t.Fatalf("promoteEngagement: %v", err)
+	}
+	if res.DataSnapshot != "run-9" {
+		t.Errorf("promote must record the rollback snapshot's run id, got %+v", res)
+	}
+	if !f.sawInOrder("runs get run-9", "recovery migrate") {
+		t.Errorf("the snapshot must be terminal before migrations run; calls=%v", f.calls)
+	}
+	if !strings.Contains(strings.Join(res.Steps, "\n"), "pre-promote data snapshot completed: run-9") {
+		t.Errorf("steps should report the completed snapshot: %v", res.Steps)
+	}
+}
+
+func TestPromoteNamesWhyNoSnapshotWasTaken(t *testing.T) {
+	f, restore := installShadowEngagement(t)
+	defer restore()
+	f.failOn["safety backup-now"] = errors.New("dial tcp: connection refused")
+
+	res, err := promoteEngagement(nil, promoteParams{scenario: "demo-scenario", slug: "wip", force: true})
+	if err != nil {
+		t.Fatalf("a missing snapshot must not block promote: %v", err)
+	}
+	steps := strings.Join(res.Steps, "\n")
+	if !strings.Contains(steps, "safety backup unavailable") || strings.Contains(steps, "code-only") {
+		t.Errorf("an unreachable substrate must not read as a code-only scenario: %v", res.Steps)
+	}
+}
+
+const probeCmd = "test-genie journeys run --scenario demo-scenario --only J1"
+
+func TestPromoteProbeCmdRunsAgainstLiveBeforeTeardown(t *testing.T) {
+	t.Setenv("VROOLI_SHADOW_SCENARIOS", "other-scenario,demo-scenario@shadow")
+	f, restore := installShadowEngagement(t)
+	defer restore()
+
+	res, err := promoteEngagement(nil, promoteParams{scenario: "demo-scenario", slug: "wip", force: true, probeCmd: probeCmd})
+	if err != nil {
+		t.Fatalf("promoteEngagement: %v", err)
+	}
+	if !res.Promoted {
+		t.Fatalf("expected a promote, got %+v", res)
+	}
+	// The probe reaches live, not the shadow the caller's ambient routing names.
+	if !f.sawCommand("env VROOLI_SHADOW_SCENARIOS=other-scenario sh -c " + probeCmd) {
+		t.Errorf("probe must run via sh -c with the scenario dropped from ambient shadow routing; calls=%v", f.calls)
+	}
+	if !f.sawInOrder("scenario status demo-scenario", "sh -c "+probeCmd) ||
+		!f.sawInOrder("sh -c "+probeCmd, "scenario stop demo-scenario --instance shadow") {
+		t.Errorf("probe must run after the status probe and before the shadow teardown; calls=%v", f.calls)
+	}
+	if res.Next != "git-control-tower baseline start --scenario demo-scenario --name wip --mode shadow" {
+		t.Errorf("a shadow promote must name the same-name re-create command, got %q", res.Next)
+	}
+}
+
+func TestPromoteProbeCmdFailureRollsBack(t *testing.T) {
+	f, restore := installShadowEngagement(t)
+	defer restore()
+	f.failOn["sh -c"] = errors.New("exit status 1: J1 failed: element #run-button not found")
+
+	res, err := promoteEngagement(nil, promoteParams{scenario: "demo-scenario", slug: "wip", force: true, probeCmd: probeCmd})
+	if err == nil || !res.RolledBack || res.Promoted {
+		t.Fatalf("a failed live probe must roll back, got res=%+v err=%v", res, err)
+	}
+	if !strings.Contains(err.Error(), "J1 failed") {
+		t.Errorf("the rollback cause should carry the probe output: %v", err)
+	}
+	if !f.sawInOrder("sh -c "+probeCmd, "recovery set-mode --scenario demo-scenario --slug wip --mode shadow") {
+		t.Errorf("rollback must re-open the split after the probe failed; calls=%v", f.calls)
+	}
+	if f.sawCommand("scenario stop demo-scenario --instance shadow") || f.sawCommand("recovery clean") {
+		t.Errorf("a rolled-back promote keeps the shadow and the engagement; calls=%v", f.calls)
+	}
+	if res.Next != "" {
+		t.Errorf("a rolled-back promote leaves the engagement open, so there is nothing to re-create: %q", res.Next)
+	}
+}
+
+func TestPromoteLiveProbeFailureKeepsTheRestorePoint(t *testing.T) {
+	f := newFakeRunner(t)
+	f.stdout["recovery show"] = engagementJSON("live", "live", "engagement-wip")
+	f.failOn["sh -c"] = errors.New("exit status 2")
+	defer f.install()()
+
+	res, err := promoteEngagement(nil, promoteParams{scenario: "demo-scenario", slug: "wip", force: true, probeCmd: probeCmd})
+	if err == nil || res.Promoted {
+		t.Fatalf("a failed probe must stop a live accept, got res=%+v err=%v", res, err)
+	}
+	if f.sawCommand("recovery clean") {
+		t.Errorf("a failed probe must keep the live engagement's restore point; calls=%v", f.calls)
+	}
+}
+
+func TestPromoteResumesAPromoteInterruptedAfterRepoint(t *testing.T) {
+	f, restore := installShadowEngagement(t)
+	defer restore()
+	// set-mode live ran, then the promote died: mode live, variant still shadow.
+	f.stdout["recovery show"] = engagementJSON("live", "shadow", "engagement-wip")
+
+	res, err := promoteEngagement(nil, promoteParams{scenario: "demo-scenario", slug: "wip", force: true})
+	if err != nil {
+		t.Fatalf("promoteEngagement: %v", err)
+	}
+	// Not an accept-in-place: live is restarted and probed before the clean.
+	for _, step := range []string{"scenario restart demo-scenario", "scenario status demo-scenario", "scenario stop demo-scenario --instance shadow"} {
+		if !f.sawInOrder(step, "recovery clean --scenario demo-scenario --slug wip") {
+			t.Errorf("a resumed promote must run %q before the clean; calls=%v", step, f.calls)
+		}
+	}
+	if res.Mode != modeShadow || !res.Promoted {
+		t.Errorf("a resumed promote is a shadow promote, got %+v", res)
+	}
+}
+
+func TestPromoteFlagsParseProbeAndDrainBounds(t *testing.T) {
+	var f promoteFlags
+	fs := newFlagSet("baseline promote")
+	f.bind(fs, defaultEngagementSlug, "slug")
+	if err := fs.Parse([]string{"--scenario", "demo-scenario", "--probe-cmd", " " + probeCmd + " ", "--probe-timeout", "90s", "--drain-timeout", "2m"}); err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	p, err := f.params()
+	if err != nil {
+		t.Fatalf("params: %v", err)
+	}
+	if p.slug != "wip" || p.probeCmd != probeCmd || p.probeTimeout != 90*time.Second || p.drainTimeout != 2*time.Minute {
+		t.Errorf("flags mis-parsed: %+v", p)
+	}
+	f.probeTimeout = "soon"
+	if _, err := f.params(); err == nil || !strings.Contains(err.Error(), "--probe-timeout") {
+		t.Errorf("an invalid --probe-timeout must be rejected, got %v", err)
+	}
+}
+
+func TestRecreateShadowCommandMirrorsTheClosedEngagement(t *testing.T) {
+	eng := engagementView{Scenario: "demo-scenario", Slug: "bas-goal", TTL: "3h0m0s"}
+	want := "git-control-tower baseline start --scenario demo-scenario --name bas-goal --mode shadow --ttl 3h0m0s --no-anchor"
+	if got := recreateShadowCommand("demo-scenario", "bas-goal", eng); got != want {
+		t.Errorf("recreateShadowCommand = %q, want %q", got, want)
 	}
 }

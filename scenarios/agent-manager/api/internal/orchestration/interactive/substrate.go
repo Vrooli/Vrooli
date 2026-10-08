@@ -130,7 +130,7 @@ func WithPollInterval(d time.Duration) Option {
 	}
 }
 
-// WithStopGrace sets the delay between the interrupt sequence and the delete
+// WithStopGrace sets the delay between the interrupt sequence and the archive
 // fallback in Stop.
 func WithStopGrace(d time.Duration) Option {
 	return func(s *Substrate) {
@@ -378,7 +378,10 @@ func (s *Substrate) Launch(ctx context.Context, p LaunchParams) (LaunchResult, e
 		var deliver func() error
 		if p.Prompt != "" {
 			deliver = func() error {
-				return s.sessions.SendPrompt(ctx, sessionID, p.Prompt, interactivePromptSource(p.RunID))
+				// An unverified submit is left to transcript discovery to confirm;
+				// ErrPromptNotSubmitted (the task is visibly stuck) fails the launch.
+				_, err := s.sessions.SendPrompt(ctx, sessionID, p.Prompt, interactivePromptSource(p.RunID))
+				return err
 			}
 			if err := deliver(); err != nil {
 				return result, fmt.Errorf("deliver initial prompt to %s: %w", p.RunnerType, err)
@@ -558,10 +561,11 @@ func transcriptDiscoveryLocation(p DiscoverParams) string {
 
 // Stop ends an interactive run's session. It sends the graceful interrupt
 // sequence (Escape then Ctrl+C), waits a short grace so the CLI can react, then
-// deletes the session as the hard-kill fallback (design decision 6, risk R5).
-// Delete is idempotent, so Stop always finalizes the session even if the
+// archives the session as the hard-kill fallback (design decision 6, risk R5):
+// the process ends while web-console keeps the transcript. Archive is
+// idempotent, so Stop always finalizes the session even if the
 // interrupt left the CLI mid-turn. An interrupt failure is non-fatal as long as
-// the delete succeeds.
+// the archive succeeds.
 func (s *Substrate) Stop(ctx context.Context, sessionID, source string) error {
 	if sessionID == "" {
 		return fmt.Errorf("interactive stop: empty session id")
@@ -571,14 +575,14 @@ func (s *Substrate) Stop(ctx context.Context, sessionID, source string) error {
 	if s.stopGrace > 0 {
 		select {
 		case <-ctx.Done():
-			// fall through to the delete fallback even on cancellation so the
+			// fall through to the archive fallback even on cancellation so the
 			// session is not leaked.
 		case <-time.After(s.stopGrace):
 		}
 	}
 
-	if delErr := s.sessions.DeleteSession(ctx, sessionID); delErr != nil {
-		return errors.Join(interruptErr, delErr)
+	if archiveErr := s.sessions.ArchiveSession(ctx, sessionID); archiveErr != nil {
+		return errors.Join(interruptErr, archiveErr)
 	}
 	return nil
 }

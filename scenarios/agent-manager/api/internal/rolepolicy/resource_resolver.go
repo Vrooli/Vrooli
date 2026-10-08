@@ -83,6 +83,7 @@ func NewResourceRoleResolver(executor CommandExecutor) *ResourceRoleResolver {
 // ResolvedRole is the validated resource response. It intentionally carries
 // concrete models only as resolved evidence, never as Agent Manager input.
 type ResolvedRole struct {
+	Effort         domain.Effort
 	Runner         domain.RunnerType
 	Role           string
 	Model          string
@@ -109,15 +110,16 @@ type EnforcementPosture struct {
 }
 
 type resourceRoleResponse struct {
-	SchemaVersion  string   `json:"schema_version"`
-	Runner         string   `json:"runner"`
-	Role           string   `json:"role"`
-	Model          string   `json:"model"`
-	CanonicalModel string   `json:"canonical_model,omitempty"`
-	Fallbacks      []string `json:"fallbacks"`
-	ExcludedModels []string `json:"excluded_models,omitempty"`
-	Description    string   `json:"description"`
-	Capabilities   []string `json:"capabilities"`
+	Effort         domain.Effort `json:"effort,omitempty"`
+	SchemaVersion  string        `json:"schema_version"`
+	Runner         string        `json:"runner"`
+	Role           string        `json:"role"`
+	Model          string        `json:"model"`
+	CanonicalModel string        `json:"canonical_model,omitempty"`
+	Fallbacks      []string      `json:"fallbacks"`
+	ExcludedModels []string      `json:"excluded_models,omitempty"`
+	Description    string        `json:"description"`
+	Capabilities   []string      `json:"capabilities"`
 	Provenance     struct {
 		Source     string `json:"source"`
 		ObservedAt string `json:"observed_at"`
@@ -184,6 +186,9 @@ func resourceCommand(runner domain.RunnerType) string {
 }
 
 func parseResourceRoleResponse(data []byte) (resourceRoleResponse, error) {
+	if err := validateCanonicalEffortField(data); err != nil {
+		return resourceRoleResponse{}, err
+	}
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.DisallowUnknownFields()
 	var response resourceRoleResponse
@@ -205,6 +210,9 @@ func parseResourceRoleResponse(data []byte) (resourceRoleResponse, error) {
 }
 
 func (r resourceRoleResponse) validate() error {
+	if (r.Effort != "" && !r.Effort.IsValid()) || (r.Role == "code.delivery" && r.Effort == "") {
+		return errors.New("delivery effort evidence is missing or invalid")
+	}
 	if r.SchemaVersion != resourcePolicySchemaVersion {
 		return fmt.Errorf("schema_version must be %q", resourcePolicySchemaVersion)
 	}
@@ -258,6 +266,7 @@ func (r resourceRoleResponse) validate() error {
 
 func (r resourceRoleResponse) toResolvedRole() ResolvedRole {
 	return ResolvedRole{
+		Effort:         r.Effort,
 		Runner:         domain.RunnerType(r.Runner),
 		Role:           r.Role,
 		Model:          r.Model,
@@ -272,4 +281,37 @@ func (r resourceRoleResponse) toResolvedRole() ResolvedRole {
 		Billing:        r.Billing,
 		Challenger:     r.Challenger,
 	}
+}
+
+// Only the new enforcement field has an exact spelling/multiplicity guard.
+// Existing ordinary resource fields retain their established parser contract.
+func validateCanonicalEffortField(data []byte) error {
+	d := json.NewDecoder(bytes.NewReader(data))
+	token, err := d.Token()
+	if err != nil || token != json.Delim('{') {
+		return errors.New("resource response must be an object")
+	}
+	seen := false
+	for d.More() {
+		token, err = d.Token()
+		if err != nil {
+			return err
+		}
+		key, ok := token.(string)
+		if !ok {
+			return errors.New("invalid resource field")
+		}
+		if strings.EqualFold(key, "effort") {
+			if key != "effort" || seen {
+				return errors.New("effort must use one canonical field")
+			}
+			seen = true
+		}
+		var value json.RawMessage
+		if err = d.Decode(&value); err != nil {
+			return err
+		}
+	}
+	_, err = d.Token()
+	return err
 }

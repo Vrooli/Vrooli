@@ -7,7 +7,7 @@ metadata:
   modes: ["tools"]
   tags: ["git-control-tower", "advisory", "commit-draft"]
   status: "active"
-  revision: 1
+  revision: 2
   requires:
     scenarios: ["git-control-tower"]
     commands: []
@@ -19,6 +19,12 @@ metadata:
 Use only the exact subject and its evidence bundle. Return an editable subject
 and body, supported trailer suggestions, omitted-file disclosure, and
 uncertainty notes. Preserve operator text and trailer order on regeneration.
+
+For delivery work, record the draft as a commit proposal instead of prose:
+`git-control-tower proposal create` binds exact file content and a
+trailer-linked message (`Vrooli-Effort`, `Vrooli-Epoch`, `Vrooli-Run`,
+`Vrooli-Proposal`) that the operator reviews, edits and approves. Never add an
+agent `Co-Authored-By`; the operator is the author.
 
 This workflow never stages files, runs precommit, creates a commit, rewrites
 history, or treats a trailer as authorship proof. A human must review and

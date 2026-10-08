@@ -2,23 +2,26 @@
 package orchestration
 
 import (
-	"agent-manager/internal/adapters/event"
-	"agent-manager/internal/adapters/runner"
-	"agent-manager/internal/adapters/sandbox"
-	"agent-manager/internal/domain"
-	"agent-manager/internal/orchestration/obs"
-	"agent-manager/internal/orchestration/phases"
-	"agent-manager/internal/promptmanager"
-	"agent-manager/internal/runstate"
 	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/google/uuid"
 	"strings"
 	"sync"
 	"time"
+
+	"agent-manager/internal/adapters/event"
+	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/adapters/sandbox"
+	"agent-manager/internal/adapters/webconsole"
+	"agent-manager/internal/domain"
+	"agent-manager/internal/orchestration/obs"
+	"agent-manager/internal/orchestration/phases"
+	"agent-manager/internal/promptmanager"
+	"agent-manager/internal/runstate"
+
+	"github.com/google/uuid"
 )
 
 func continuationRequestHash(req ContinueRunRequest) []byte {
@@ -77,11 +80,15 @@ func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) 
 		}
 	}
 	typed, err := o.typeIntoRunningSession(ctx, run, req)
+	if typed {
+		// Input reached (or may have reached) the session, even when the
+		// submit was not confirmed: never report this as a pre-effect refusal.
+		effectsPossible = true
+	}
 	if err != nil {
 		return nil, err
 	}
 	if typed {
-		effectsPossible = true
 		return o.attachRunActions(ctx, run), nil
 	}
 
@@ -184,7 +191,10 @@ func observedGoalMatchesRun(run *domain.Run, objective string) bool {
 
 // typeIntoRunningSession delivers a continuation to a running interactive
 // session as its next user message; the harness queues it behind the current
-// turn. It reports false for every other run, which continues between turns.
+// turn. It reports false for every other run, which continues between turns,
+// and true whenever input was sent to the session, including when the submit
+// failed or could not be confirmed. A delivered directive is recorded as a
+// user message event so mid-turn continuations stay auditable.
 func (o *Orchestrator) typeIntoRunningSession(ctx context.Context, run *domain.Run, req ContinueRunRequest) (bool, error) {
 	if run.Status != domain.RunStatusRunning || run.ExecutionMode.Normalized() != domain.ExecutionModeInteractive || run.WebConsoleSessionID == "" || o.interactiveSessions == nil {
 		return false, nil
@@ -201,12 +211,37 @@ func (o *Orchestrator) typeIntoRunningSession(ctx context.Context, run *domain.R
 	// Web Console's SendText forwards LF literally to the PTY. Codex's TUI
 	// requires a named Enter key after a paste; otherwise the directive remains
 	// composed but unsubmitted. SendPrompt owns that paste+Enter contract.
-	if err := o.interactiveSessions.SendPrompt(ctx, run.WebConsoleSessionID, text, interactiveRunSource(run.ID)); err != nil {
+	submission, err := o.interactiveSessions.SendPrompt(ctx, run.WebConsoleSessionID, text, interactiveRunSource(run.ID))
+	if errors.Is(err, webconsole.ErrPromptNotSubmitted) {
+		// The directive is visibly composed but unsent. Keep the pending
+		// idempotency reservation: a same-key retry would paste a second copy.
+		o.appendRunLogEvent(ctx, run.ID, "warn", fmt.Sprintf("continuation typed into web-console session %s was not submitted after %d Enter presses; it remains in the composer", run.WebConsoleSessionID, submission.EnterPresses))
+		return true, domain.NewStateError("Run", string(run.Status), "continue", fmt.Sprintf(
+			"the directive was typed into web-console session %s but not submitted after %d Enter presses and still sits in the agent's composer; submit or clear it there before retrying",
+			run.WebConsoleSessionID, submission.EnterPresses))
+	}
+	if err != nil {
 		// A failed response can occur after paste or Enter. Keep the pending
 		// idempotency reservation: retrying could submit the same directive twice.
-		return false, fmt.Errorf("interactive input transport outcome unknown; reconcile the session before retrying the same key: %w", err)
+		return true, fmt.Errorf("interactive input transport outcome unknown; reconcile the session before retrying the same key: %w", err)
+	}
+	if aerr := o.appendAndBroadcastEvents(ctx, run.ID, domain.NewMessageEvent(run.ID, "user", req.Message)); aerr != nil {
+		obs.Component("interactive").Warn("continuation message event append failed", obs.KeyRunID, run.ID.String(), obs.KeyError, aerr.Error())
+	}
+	if !submission.Verified {
+		o.appendRunLogEvent(ctx, run.ID, "warn", fmt.Sprintf("continuation typed into web-console session %s; submission unverified (the composer could not be observed)", run.WebConsoleSessionID))
 	}
 	return true, o.completeContinuationReceipt(ctx, req)
+}
+
+// appendRunLogEvent records a best-effort log event on the run.
+func (o *Orchestrator) appendRunLogEvent(ctx context.Context, runID uuid.UUID, level, message string) {
+	if o.events == nil {
+		return
+	}
+	if err := o.appendAndBroadcastEvents(ctx, runID, domain.NewLogEvent(runID, level, message)); err != nil {
+		obs.Component("interactive").Warn("run log event append failed", obs.KeyRunID, runID.String(), obs.KeyError, err.Error())
+	}
 }
 
 func (o *Orchestrator) completeContinuationReceipt(ctx context.Context, req ContinueRunRequest) error {

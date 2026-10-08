@@ -644,7 +644,7 @@ func (c *Coordinator) scheduleInterruptionRecovery(run *domain.Run, interruption
 			if err := c.deps.Sessions.SendText(ctx, run.WebConsoleSessionID, "/goal resume\n", interactiveSource(run)); err != nil {
 				return
 			}
-		} else if err := c.deps.Sessions.SendPrompt(ctx, run.WebConsoleSessionID, "continue", interactiveSource(run)); err != nil {
+		} else if _, err := c.deps.Sessions.SendPrompt(ctx, run.WebConsoleSessionID, "continue", interactiveSource(run)); err != nil {
 			return
 		}
 		c.recoverySucceeded.Store(true)
@@ -678,6 +678,12 @@ func (c *Coordinator) VerifySession(ctx context.Context, run *domain.Run) (bool,
 //   - A failure terminal fails the run with its reason.
 //   - A vanished session with no success terminal fails the run with an explicit
 //     reason so it is never left orphaned.
+//
+// Finalize never deletes the web-console session: it stays live so `run
+// continue` can type a follow-up into it. The Reconciler bounds that retention
+// (releaseRetainedInteractiveSessions) and archives the session once the run has
+// been ended for ReconcilerConfig.InteractiveSessionRetention; continuing after
+// that requires a new run.
 func (c *Coordinator) Finalize(ctx context.Context, run *domain.Run, terminal *runner.TranscriptTerminal, tailErr error) error {
 	if errors.Is(tailErr, ErrResumableInterruption) {
 		return nil

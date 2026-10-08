@@ -63,7 +63,7 @@ func pollScreen(t *testing.T, client *webconsole.Client, sessionID, want string,
 // TestLive_Client_EnvInjectionAndStop drives the real Connect client: it opens
 // a programmatic session whose launch command sets an env var via the inline
 // prefix, verifies the var is visible in the pane (proving env injection +
-// free-for-all stdin), then exercises interrupt + delete teardown.
+// free-for-all stdin), then exercises interrupt + archive teardown.
 func TestLive_Client_EnvInjectionAndStop(t *testing.T) {
 	client := liveClient(t)
 	ctx := context.Background()
@@ -77,7 +77,7 @@ func TestLive_Client_EnvInjectionAndStop(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateSession: %v", err)
 	}
-	t.Cleanup(func() { _ = client.DeleteSession(context.Background(), sessionID) })
+	t.Cleanup(func() { _ = client.ArchiveSession(context.Background(), sessionID) })
 
 	// Wait for the inner shell to be ready, then read the injected env back.
 	pollScreen(t, client, sessionID, "$", 10*time.Second)
@@ -94,16 +94,22 @@ func TestLive_Client_EnvInjectionAndStop(t *testing.T) {
 		t.Fatalf("Interrupt: %v", err)
 	}
 
-	// Delete is the hard-kill fallback; after it the session is gone.
-	if err := client.DeleteSession(ctx, sessionID); err != nil {
-		t.Fatalf("DeleteSession: %v", err)
+	// Archive is the hard-kill fallback; after it the session is no longer live.
+	if err := client.ArchiveSession(ctx, sessionID); err != nil {
+		t.Fatalf("ArchiveSession: %v", err)
 	}
-	if _, err := client.GetSession(ctx, sessionID); !errors.Is(err, webconsole.ErrSessionNotFound) {
-		t.Fatalf("expected ErrSessionNotFound after delete, got %v", err)
+	live, err := client.ListSessions(ctx)
+	if err != nil {
+		t.Fatalf("ListSessions: %v", err)
 	}
-	// Delete is idempotent.
-	if err := client.DeleteSession(ctx, sessionID); err != nil {
-		t.Fatalf("second DeleteSession should be a no-op, got %v", err)
+	for _, info := range live {
+		if info.ID == sessionID {
+			t.Fatalf("session %s still live after archive", sessionID)
+		}
+	}
+	// Archive is idempotent.
+	if err := client.ArchiveSession(ctx, sessionID); err != nil {
+		t.Fatalf("second ArchiveSession should be a no-op, got %v", err)
 	}
 }
 
@@ -147,7 +153,7 @@ func TestLive_Substrate_LaunchDiscoversTranscript(t *testing.T) {
 		RunDir:     runDir,
 	})
 	if res.SessionID != "" {
-		t.Cleanup(func() { _ = client.DeleteSession(context.Background(), res.SessionID) })
+		t.Cleanup(func() { _ = client.ArchiveSession(context.Background(), res.SessionID) })
 	}
 	if err != nil {
 		t.Fatalf("Launch: %v", err)
@@ -173,7 +179,7 @@ func TestLive_Substrate_LaunchDiscoversTranscript(t *testing.T) {
 		t.Fatalf("ApplyToRun mismatch: %+v", run)
 	}
 
-	// Stop tears the session down (interrupt + delete).
+	// Stop tears the session down (interrupt + archive).
 	if err := sub.Stop(ctx, res.SessionID, "agent-manager:run-test"); err != nil {
 		t.Fatalf("Stop: %v", err)
 	}

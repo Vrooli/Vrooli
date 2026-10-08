@@ -186,6 +186,10 @@ func (o *Orchestrator) VerifyIdentityToken(ctx context.Context, token string) (*
 		return &IdentityVerifyResult{Valid: false, Error: "credential is not an active run identity"}, nil
 	}
 
+	if claims.Meta["authorization_id"] != "" {
+		return o.verifyAuthorization(ctx, token, claims)
+	}
+
 	// A valid signature alone is insufficient. The token must still be the
 	// active token recorded for the same run and must not have been revoked at
 	// run completion. This turns a signed, time-limited bearer token into a

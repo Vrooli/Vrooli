@@ -40,20 +40,11 @@ func PrepareFiniteInstallationWithUnitOwner(ctx context.Context, cfg effortautho
 	if e != nil {
 		return nil, e
 	}
-	if len(manifest.Bindings) != 1 || len(frozen.Policy.Profiles) != 1 {
+	if manifest.CheckPolicy(frozen.Policy) != nil {
 		return nil, effortauthority.ErrRefused
-	}
-	b := manifest.Bindings[frozen.Policy.ID]
-	for _, digest := range frozen.Policy.Profiles {
-		if digest != b.ProfileDigest {
-			return nil, effortauthority.ErrRefused
-		}
 	}
 	current, e := authority.CheckBinding(ctx, effortauthority.Binding{PolicyID: frozen.Policy.ID, PolicyDigest: effortauthority.Digest(frozen.Policy), Epoch: frozen.Policy.Epoch, Owner: frozen.Policy.Owner, Client: frozen.Policy.Client, Deadline: frozen.Policy.Deadline})
 	if e != nil || effortauthority.Digest(current) != effortauthority.Digest(frozen.Policy) {
-		return nil, effortauthority.ErrRefused
-	}
-	if b.PolicyDigest != effortauthority.Digest(frozen.Policy) || b.Repository != frozen.Policy.Repository || !b.Deadline.Equal(frozen.Policy.Deadline) {
 		return nil, effortauthority.ErrRefused
 	}
 	return &PreparedFiniteInstallation{config: frozen, authority: authority, factory: factory, profiles: profilePlan}, nil

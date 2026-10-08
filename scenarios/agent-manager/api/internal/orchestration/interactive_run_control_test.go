@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/runner/codecs"
 	"agent-manager/internal/adapters/runner/core"
 	"agent-manager/internal/adapters/sandbox"
@@ -38,7 +39,9 @@ type recordingSessions struct {
 	onCreate    func()
 	onPrompt    func()
 	promptErr   error
-	shellScreen string
+	// promptResult overrides the default verified single-Enter submission.
+	promptResult *webconsole.PromptSubmission
+	shellScreen  string
 }
 
 func newRecordingSessions() *recordingSessions {
@@ -77,8 +80,12 @@ func (r *recordingSessions) GetSession(_ context.Context, id string) (webconsole
 	return webconsole.SessionInfo{ID: id, Owner: webconsole.OwnerAgentManager}, nil
 }
 
-func (r *recordingSessions) DeleteSession(_ context.Context, id string) error {
-	r.record("delete")
+func (r *recordingSessions) ListSessions(context.Context) ([]webconsole.SessionInfo, error) {
+	return nil, nil
+}
+
+func (r *recordingSessions) ArchiveSession(_ context.Context, id string) error {
+	r.record("archive")
 	r.mu.Lock()
 	r.gone[id] = true
 	r.mu.Unlock()
@@ -90,7 +97,7 @@ func (r *recordingSessions) SendText(context.Context, string, string, string) er
 	return nil
 }
 
-func (r *recordingSessions) SendPrompt(_ context.Context, _, prompt, source string) error {
+func (r *recordingSessions) SendPrompt(_ context.Context, _, prompt, source string) (webconsole.PromptSubmission, error) {
 	if r.onPrompt != nil {
 		r.onPrompt()
 	}
@@ -98,8 +105,12 @@ func (r *recordingSessions) SendPrompt(_ context.Context, _, prompt, source stri
 	r.mu.Lock()
 	r.promptSrc = append(r.promptSrc, source)
 	r.promptText = append(r.promptText, prompt)
+	result := r.promptResult
 	r.mu.Unlock()
-	return r.promptErr
+	if result == nil {
+		return webconsole.PromptSubmission{Verified: true, EnterPresses: 1}, r.promptErr
+	}
+	return *result, r.promptErr
 }
 
 func (r *recordingSessions) Interrupt(context.Context, string, string) error {
@@ -402,7 +413,7 @@ func TestStopInteractiveRun_EscalationLadderAndSingleFinalize(t *testing.T) {
 	}
 	// Soft-then-hard escalation: interrupt precedes delete.
 	calls := sessions.callLog()
-	if len(calls) != 2 || calls[0] != "interrupt" || calls[1] != "delete" {
+	if len(calls) != 2 || calls[0] != "interrupt" || calls[1] != "archive" {
 		t.Fatalf("expected [interrupt delete], got %v", calls)
 	}
 	if svc.interactiveDrivers.has(run.ID) {
@@ -504,7 +515,7 @@ func TestStopInteractiveRun_NoLiveDriver(t *testing.T) {
 		t.Fatalf("status = %s, want cancelled", got.Status)
 	}
 	calls := sessions.callLog()
-	if len(calls) != 2 || calls[0] != "interrupt" || calls[1] != "delete" {
+	if len(calls) != 2 || calls[0] != "interrupt" || calls[1] != "archive" {
 		t.Fatalf("expected [interrupt delete], got %v", calls)
 	}
 }
@@ -696,14 +707,87 @@ func TestInteractivePromptTransportUnknownRetainsIdempotencyReservation(t *testi
 	task := interactiveTestTask(t, svc)
 	run := persistInteractiveRun(t, repos.Runs, task.ID, domain.RunStatusRunning, "provider-session", "wc-1")
 	req := ContinueRunRequest{RunID: run.ID, Message: "D5", IdempotencyKey: "same-handoff"}
-	if _, err := svc.ContinueRun(ctx, req); err == nil || !strings.Contains(err.Error(), "outcome unknown") {
-		t.Fatalf("partial transport did not surface unknown: %v", err)
+	if _, err := svc.ContinueRun(ctx, req); err == nil || !strings.Contains(err.Error(), "outcome unknown") || domain.IsPreEffectRefusal(err) {
+		t.Fatalf("partial transport did not surface unknown (or claimed no effects): %v", err)
 	}
 	if _, err := svc.ContinueRun(ctx, req); err == nil {
 		t.Fatal("duplicate handoff was resent while outcome unknown")
 	}
 	if calls := sessions.callLog(); len(calls) != 1 || calls[0] != "sendprompt" {
 		t.Fatalf("duplicate handoff effects: %v", calls)
+	}
+}
+
+func TestRunningSessionContinuationRecordsDirectiveAsUserMessage(t *testing.T) {
+	ctx := context.Background()
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	sessions := newRecordingSessions()
+	svc := New(repos.Profiles, repos.Tasks, repos.Runs, WithInteractiveSessions(sessions), WithEvents(eventStore), WithIdempotency(repos.Idempotency))
+	task := interactiveTestTask(t, svc)
+	run := persistInteractiveRun(t, repos.Runs, task.ID, domain.RunStatusRunning, "provider-session", "wc-1")
+
+	req := ContinueRunRequest{RunID: run.ID, Message: "D2: run J02 only", IdempotencyKey: "handoff-d2"}
+	if _, err := svc.ContinueRun(ctx, req); err != nil {
+		t.Fatal(err)
+	}
+
+	events, err := eventStore.Get(ctx, run.ID, event.GetOptions{AfterSequence: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var recorded bool
+	for _, ev := range events {
+		if msg, ok := ev.Data.(*domain.MessageEventData); ok && msg.Role == "user" && msg.Content == "D2: run J02 only" {
+			recorded = true
+		}
+	}
+	if !recorded {
+		t.Fatalf("directive not recorded as a user message: %+v", events)
+	}
+	receipt, err := repos.Idempotency.Check(ctx, "handoff-d2")
+	if err != nil || receipt == nil || receipt.Status != domain.IdempotencyStatusComplete {
+		t.Fatalf("receipt = %+v err=%v, want a completed continuation receipt", receipt, err)
+	}
+}
+
+func TestRunningSessionContinuationNotSubmittedIsAnErrorWithoutReceipt(t *testing.T) {
+	ctx := context.Background()
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	sessions := newRecordingSessions()
+	sessions.promptResult = &webconsole.PromptSubmission{EnterPresses: 3}
+	sessions.promptErr = webconsole.ErrPromptNotSubmitted
+	svc := New(repos.Profiles, repos.Tasks, repos.Runs, WithInteractiveSessions(sessions), WithEvents(eventStore), WithIdempotency(repos.Idempotency))
+	task := interactiveTestTask(t, svc)
+	run := persistInteractiveRun(t, repos.Runs, task.ID, domain.RunStatusRunning, "provider-session", "wc-stuck")
+	req := ContinueRunRequest{RunID: run.ID, Message: "D1 is recorded in E17.md", IdempotencyKey: "handoff-d1"}
+
+	_, err := svc.ContinueRun(ctx, req)
+	if err == nil || !strings.Contains(err.Error(), "not submitted") || !strings.Contains(err.Error(), "wc-stuck") {
+		t.Fatalf("err = %v, want a not-submitted error naming the session", err)
+	}
+	if domain.IsPreEffectRefusal(err) {
+		t.Fatal("a pasted-but-unsent directive was reported as refused before effects")
+	}
+	receipt, err := repos.Idempotency.Check(ctx, "handoff-d1")
+	if err != nil || receipt == nil || receipt.Status == domain.IdempotencyStatusComplete {
+		t.Fatalf("receipt = %+v err=%v, want the reservation held, not completed", receipt, err)
+	}
+	if _, err := svc.ContinueRun(ctx, req); err == nil {
+		t.Fatal("same-key retry was accepted while the directive sits in the composer")
+	}
+	if calls := sessions.callLog(); len(calls) != 1 {
+		t.Fatalf("retry pasted again: %v", calls)
+	}
+	events, err := eventStore.Get(ctx, run.ID, event.GetOptions{AfterSequence: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, ev := range events {
+		if msg, ok := ev.Data.(*domain.MessageEventData); ok && msg.Role == "user" {
+			t.Fatalf("unsent directive recorded as a delivered user message: %+v", msg)
+		}
 	}
 }
 

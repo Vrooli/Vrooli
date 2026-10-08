@@ -11,6 +11,7 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/websocket v1.5.3
 	github.com/jmoiron/sqlx v1.4.0
+	github.com/pelletier/go-toml/v2 v2.0.8
 	github.com/prometheus/client_golang v1.19.0
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1
 	github.com/sirupsen/logrus v1.9.3
@@ -30,7 +31,6 @@ require (
 
 require (
 	github.com/go-chi/chi/v5 v5.0.11 // indirect
-	github.com/pelletier/go-toml/v2 v2.0.8 // indirect
 	github.com/vrooli/binaryfetch v0.0.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 )

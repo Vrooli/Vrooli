@@ -1302,7 +1302,11 @@ func (db *DB) migrateRunColumns(ctx context.Context) error {
 	if err := db.migrateColumns(ctx, "runs", runColumnMigrations); err != nil {
 		return err
 	}
-	_, err := db.ExecContext(ctx, `CREATE UNIQUE INDEX IF NOT EXISTS idx_runs_import_provenance ON runs(import_source_harness, import_source_session_id) WHERE import_source_harness <> '' AND import_source_session_id <> ''`)
+	if _, err := db.ExecContext(ctx, `CREATE UNIQUE INDEX IF NOT EXISTS idx_runs_import_provenance ON runs(import_source_harness, import_source_session_id) WHERE import_source_harness <> '' AND import_source_session_id <> ''`); err != nil {
+		return err
+	}
+	// The reconciler resolves web-console sessions back to their runs.
+	_, err := db.ExecContext(ctx, `CREATE INDEX IF NOT EXISTS idx_runs_web_console_session ON runs(web_console_session_id) WHERE web_console_session_id <> ''`)
 	return err
 }
 

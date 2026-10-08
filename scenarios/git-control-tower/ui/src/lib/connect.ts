@@ -20,6 +20,7 @@ import { BranchService } from "@vrooli/proto-types/git-control-tower/v1/branch/b
 import { AuditorService } from "@vrooli/proto-types/git-control-tower/v1/auditor/auditor_pb";
 import { EvidenceService } from "@vrooli/proto-types/git-control-tower/v1/evidence/evidence_pb";
 import { HumanControlService } from "@vrooli/proto-types/git-control-tower/v1/human_control/human_control_pb";
+import { ProposalService } from "@vrooli/proto-types/git-control-tower/v1/proposals/proposals_pb";
 import { RepoService } from "@vrooli/proto-types/git-control-tower/v1/repo/repo_pb";
 import { ReviewService } from "@vrooli/proto-types/git-control-tower/v1/review/review_pb";
 
@@ -57,6 +58,9 @@ export const humanControlClient: Client<typeof HumanControlService> = createClie
   HumanControlService,
   transport,
 );
+
+/** Typed commit-proposal client: drafts, freshness, and human-only apply. */
+export const proposalClient: Client<typeof ProposalService> = createClient(ProposalService, transport);
 
 /** Typed repository command client. */
 export const repoClient: Client<typeof RepoService> = createClient(RepoService, transport);

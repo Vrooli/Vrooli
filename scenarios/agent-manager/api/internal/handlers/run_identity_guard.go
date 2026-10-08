@@ -10,6 +10,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/provenance"
+	"github.com/vrooli/api-core/scopecatalog"
 	"github.com/vrooli/cli-core/cliutil"
 )
 
@@ -85,6 +88,11 @@ func (h *Handler) denyRunInitiatedLifecycleOperation(w http.ResponseWriter, r *h
 		return true
 	}
 
+	grant := provenance.OperationGrantFromMeta(verified.Claims.Meta)
+	target := mux.Vars(r)["id"]
+	if target != "" && (operation == "stop-run" || operation == "continue-run" || operation == "wake-run" || operation == "recover-run") && scopecatalog.Resolve(verified.Claims.Scopes, "agent-manager:write") && grant.Allows("agent.manage", "agent-manager:run/"+target, time.Now()) {
+		return false
+	}
 	recordLifecycleRefusal(operation)
 	claims := verified.Claims
 	mintTime := ""

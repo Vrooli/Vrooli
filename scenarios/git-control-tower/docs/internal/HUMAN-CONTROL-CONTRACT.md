@@ -11,6 +11,19 @@ or checkout. Undo preparation requires a per-file current digest, exact
 preimage digest, and `verified` attribution. Mixed, missing, or path-only
 provenance is unsafe and is refused.
 
+Commit proposals split drafting from actuation. Agents may anchor, create,
+edit, refresh and withdraw proposals; those writes reach GCT's database only.
+`ProposalService.ApplyProposal` is the human writer. Its intent operation is
+`repo.apply_proposal` with subject context `proposal:<id>@<revision>`, and its
+digest binds HEAD, the proposal digest (base, per-file blob IDs, rendered
+message), the current blob IDs of the proposal paths and the current index. A
+caller header that claims an agent removes authority even in a session that
+personal-local authentication maps to the operator. Under the repository lock,
+apply consumes the intent, refuses content drift, a base move that touches a
+proposal path, or staged paths outside the proposal, then stages exactly the
+proposal paths, verifies the staged blob IDs, runs pre-commit and commits the
+rendered message with the operator as author. Any failure restores the index.
+
 Recording fakes are the acceptance mechanism. A fake must observe that no
 writer call occurs before verification and that replayed, expired, consumed,
 or stale intents are rejected. Human completion is recorded separately from

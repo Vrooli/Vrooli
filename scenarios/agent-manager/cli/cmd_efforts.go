@@ -22,8 +22,16 @@ func (a *App) cmdEffort(args []string) error {
 		args = []string{"board"}
 	}
 	command := args[0]
-	if command == "epoch-check" {
+	// Goal-home commands run locally over the goal-home files.
+	switch command {
+	case "epoch-check":
 		return a.effortEpochCheck(args[1:])
+	case "lint":
+		return a.effortLint(args[1:])
+	case "handoff":
+		return a.effortHandoff(args[1:])
+	case "park":
+		return a.effortPark(args[1:])
 	}
 	fs := flag.NewFlagSet("effort "+command, flag.ContinueOnError)
 	file := fs.String("request-file", "", "Typed RPC request JSON for mutation")

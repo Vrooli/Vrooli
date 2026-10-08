@@ -227,6 +227,7 @@ type ChallengerConfig struct {
 
 // ExecutionCandidate is one immutable runner/model attempt in resolved order.
 type ExecutionCandidate struct {
+	DeclaredEffort       Effort                `json:"declaredEffort,omitempty"`
 	RunnerType           RunnerType            `json:"runnerType"`
 	SelectionType        ModelSelectionType    `json:"selectionType"`
 	Model                string                `json:"model,omitempty"`

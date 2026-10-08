@@ -4,6 +4,7 @@ package orchestration
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -29,8 +30,20 @@ const (
 	// DefaultQuiesceTimeout bounds how long the drain waits for in-flight runs to
 	// finish on their own before it aborts (or, with Force, cancels them).
 	DefaultQuiesceTimeout = 5 * time.Minute
+	// MaxQuiesceTimeout is the longest drain the server accepts (decision P-09).
+	// A longer wait holds a promote, and its HTTP response, open for too long.
+	MaxQuiesceTimeout = 30 * time.Minute
 	// DefaultQuiescePoll is the cadence for re-checking in-flight runs.
 	DefaultQuiescePoll = 2 * time.Second
+
+	// QuiesceInstanceLive is the instance a promote restarts. A run that does not
+	// declare its target instance counts as live (decision P-09).
+	QuiesceInstanceLive = "live"
+	// quiesceTargetReferenceKind and quiesceTargetRelationship identify the work
+	// reference a run uses to declare the scenario instance it changes:
+	// {kind: scenario-instance, id: <scenario>@<instance>, relationship: targets}.
+	quiesceTargetReferenceKind = "scenario-instance"
+	quiesceTargetRelationship  = "targets"
 )
 
 // QuiesceOptions parameterizes a promote-quiesce drain: "make scenario <X> quiet
@@ -52,10 +65,18 @@ type QuiesceOptions struct {
 	// task scope is the repo root rather than scenarios/<X>.
 	TagPrefix string
 
-	// ExcludeRunID is the promoting run's own ID, removed from the drain set so a
-	// promote never trivially waits on itself. If that run is itself active
-	// against the target scenario, the self-guard rejects the promote.
+	// ExcludeRunID removes one run from the drain set: typically the promoting
+	// run, or a run the caller knows does not use the instance being restarted.
+	// An excluded active run is reported in QuiesceResult.Excluded. Only a
+	// promote of agent-manager itself rejects it, because that restart ends the
+	// excluded run's owner.
 	ExcludeRunID *uuid.UUID
+
+	// Instance is the scenario instance being restarted. Empty means live. Runs
+	// that declare a different instance of the scenario are reported in
+	// QuiesceResult.NotDrained instead of being drained; undeclared runs count
+	// as live. The request field that sets it arrives with the wave-2 proto.
+	Instance string
 
 	// Timeout bounds the wait for in-flight runs to terminate. 0 ⇒ DefaultQuiesceTimeout.
 	Timeout time.Duration
@@ -76,6 +97,9 @@ type QuiesceRunRef struct {
 	Tag       string `json:"tag,omitempty"`
 	Status    string `json:"status"`
 	ScopePath string `json:"scopePath,omitempty"`
+	// Instances are the instances of the scenario the run declares it targets;
+	// empty means undeclared (counted as live).
+	Instances []string `json:"instances,omitempty"`
 }
 
 // QuiesceResult reports the outcome of a promote-quiesce drain.
@@ -86,8 +110,14 @@ type QuiesceResult struct {
 	Initial   int             `json:"initial"`             // in-flight count when the drain started (after exclusion)
 	InFlight  []QuiesceRunRef `json:"inFlight,omitempty"`  // runs still active at the end (abort case)
 	Cancelled []QuiesceRunRef `json:"cancelled,omitempty"` // runs force-cancelled
-	WaitedMs  int64           `json:"waitedMs"`
-	Reason    string          `json:"reason"` // human guidance / next action
+	// Excluded lists the active run removed by ExcludeRunID. It was not waited
+	// on and keeps running through the restart.
+	Excluded []QuiesceRunRef `json:"excluded,omitempty"`
+	// NotDrained lists active runs that declare another instance of the
+	// scenario (for example a shadow), so the restart does not affect them.
+	NotDrained []QuiesceRunRef `json:"notDrained,omitempty"`
+	WaitedMs   int64           `json:"waitedMs"`
+	Reason     string          `json:"reason"` // human guidance / next action
 }
 
 // quiesceActiveStatuses are the run states that hold a live OS process executing
@@ -110,22 +140,39 @@ var quiesceActiveStatuses = []domain.RunStatus{
 // immediately.
 //
 // Policy:
-//   - Default (Force=false): wait up to Timeout; on timeout, ABORT and report
-//     the in-flight runs without touching them (promote is re-runnable).
+//   - Default (Force=false): wait up to Timeout (at most MaxQuiesceTimeout); on
+//     timeout, ABORT and report the in-flight runs without touching them
+//     (promote is re-runnable).
 //   - Force=true: on timeout, cancel survivors via the graceful-first StopRun.
-//   - Self-guard: if ExcludeRunID (the promoting run) is itself active against
-//     the target scenario, draining can never complete (it would wait on the run
-//     requesting the promote) — reject and point to the external one-shot path.
+//   - Exclusion: ExcludeRunID is removed from the drain set and reported in
+//     Excluded. Only agent-manager's own promote rejects an active excluded run,
+//     because restarting agent-manager ends that run's owner.
+//   - Instances: runs declaring another instance of the scenario are reported in
+//     NotDrained; undeclared runs count as live.
 func (o *Orchestrator) QuiesceScenario(ctx context.Context, opts QuiesceOptions) (*QuiesceResult, error) {
 	scenario := strings.TrimSpace(opts.Scenario)
 	if scenario == "" {
 		return nil, domain.NewValidationError("scenario", "scenario is required")
+	}
+	if opts.Timeout < 0 {
+		return nil, domain.NewValidationError("timeout", "timeout must be a positive duration")
+	}
+	if opts.Timeout > MaxQuiesceTimeout {
+		return nil, domain.NewValidationErrorWithHint(
+			"timeout",
+			fmt.Sprintf("timeout %s exceeds the %s maximum", opts.Timeout, MaxQuiesceTimeout),
+			"retry with a shorter --timeout; a promote that cannot drain in 30 minutes should abort and retry later",
+		)
 	}
 	scopePrefix := strings.TrimRight(strings.TrimSpace(opts.ScopePrefix), "/")
 	if scopePrefix == "" {
 		scopePrefix = "scenarios/" + scenario
 	}
 	tagPrefix := strings.TrimSpace(opts.TagPrefix)
+	instance := strings.TrimSpace(opts.Instance)
+	if instance == "" {
+		instance = QuiesceInstanceLive
+	}
 	timeout := opts.Timeout
 	if timeout <= 0 {
 		timeout = DefaultQuiesceTimeout
@@ -136,52 +183,58 @@ func (o *Orchestrator) QuiesceScenario(ctx context.Context, opts QuiesceOptions)
 	}
 
 	result := &QuiesceResult{Scenario: scenario}
+	drainSet := func() ([]QuiesceRunRef, error) {
+		refs, err := o.activeRunsForScenario(ctx, scenario, scopePrefix, tagPrefix)
+		if err != nil {
+			return nil, err
+		}
+		drain, _ := splitQuiesceInstance(excludeRun(refs, opts.ExcludeRunID), instance)
+		return drain, nil
+	}
 
-	// Snapshot the active set once to run the self-deadlock guard.
 	initial, err := o.activeRunsForScenario(ctx, scenario, scopePrefix, tagPrefix)
 	if err != nil {
 		return nil, err
 	}
 	if opts.ExcludeRunID != nil {
-		if _, isMember := findRunRef(initial, *opts.ExcludeRunID); isMember {
-			who := "the promoting run " + opts.ExcludeRunID.String()
+		if ref, isMember := findRunRef(initial, *opts.ExcludeRunID); isMember {
 			if selfidentity.Is(scenario) {
-				who = "agent-manager run " + opts.ExcludeRunID.String() + " (this orchestrator's own scenario)"
+				return nil, domain.NewValidationErrorWithHint(
+					"exclude_run_id",
+					fmt.Sprintf("cannot promote %q while run %s is active against it: restarting agent-manager ends the owner of every run it manages, including that one", scenario, ref.ID),
+					"run the agent-manager promote from an operator session",
+				)
 			}
-			return nil, domain.NewValidationError(
-				"scenario",
-				fmt.Sprintf("cannot quiesce %q: %s is itself executing against it — draining would deadlock on the run requesting the promote. Run the promote from an external one-shot.", scenario, who),
-			)
+			result.Excluded = []QuiesceRunRef{ref}
 		}
 	}
-
-	drainSet := excludeRun(initial, opts.ExcludeRunID)
-	result.Initial = len(drainSet)
-	if len(drainSet) == 0 {
+	initialDrain, notDrained := splitQuiesceInstance(excludeRun(initial, opts.ExcludeRunID), instance)
+	result.NotDrained = notDrained
+	result.Initial = len(initialDrain)
+	if len(initialDrain) == 0 {
 		result.Drained = true
-		result.Reason = fmt.Sprintf("no in-flight runs target %q — safe to promote", scenario)
+		result.Reason = fmt.Sprintf("no in-flight runs target %q — safe to promote", scenario) + quiesceSetAsideNote(result, instance)
 		return result, nil
 	}
 
 	start := o.now()
 	deadline := start.Add(timeout)
 	for {
-		remaining, err := o.activeRunsForScenario(ctx, scenario, scopePrefix, tagPrefix)
+		remaining, err := drainSet()
 		if err != nil {
 			return nil, err
 		}
-		remaining = excludeRun(remaining, opts.ExcludeRunID)
 		if len(remaining) == 0 {
 			result.Drained = true
 			result.WaitedMs = time.Since(start).Milliseconds()
-			result.Reason = fmt.Sprintf("%q drained — safe to promote", scenario)
+			result.Reason = fmt.Sprintf("%q drained — safe to promote", scenario) + quiesceSetAsideNote(result, instance)
 			return result, nil
 		}
 
 		if !o.now().Before(deadline) {
 			result.WaitedMs = o.now().Sub(start).Milliseconds()
 			if opts.Force {
-				return o.forceCancel(ctx, result, remaining, scenario, scopePrefix, tagPrefix, opts.ExcludeRunID), nil
+				return o.forceCancel(ctx, result, remaining, scenario, instance, drainSet), nil
 			}
 			// Default: abort, never destroy others' in-flight work.
 			result.Aborted = true
@@ -189,7 +242,7 @@ func (o *Orchestrator) QuiesceScenario(ctx context.Context, opts QuiesceOptions)
 			result.Reason = fmt.Sprintf(
 				"%d run(s) still in-flight against %q after %s; retry once they finish, or pass --force to cancel them",
 				len(remaining), scenario, timeout,
-			)
+			) + quiesceSetAsideNote(result, instance)
 			return result, nil
 		}
 
@@ -207,8 +260,8 @@ func (o *Orchestrator) forceCancel(
 	ctx context.Context,
 	result *QuiesceResult,
 	remaining []QuiesceRunRef,
-	scenario, scopePrefix, tagPrefix string,
-	excludeRunID *uuid.UUID,
+	scenario, instance string,
+	drainSet func() ([]QuiesceRunRef, error),
 ) *QuiesceResult {
 	for _, ref := range remaining {
 		id, perr := uuid.Parse(ref.ID)
@@ -224,9 +277,8 @@ func (o *Orchestrator) forceCancel(
 		result.Cancelled = append(result.Cancelled, ref)
 	}
 
-	after, err := o.activeRunsForScenario(ctx, scenario, scopePrefix, tagPrefix)
-	if err == nil {
-		result.InFlight = append(result.InFlight, excludeRun(after, excludeRunID)...)
+	if after, err := drainSet(); err == nil {
+		result.InFlight = append(result.InFlight, after...)
 	}
 	result.Drained = len(result.InFlight) == 0
 	if result.Drained {
@@ -237,7 +289,63 @@ func (o *Orchestrator) forceCancel(
 			len(result.Cancelled), len(result.InFlight), scenario,
 		)
 	}
+	result.Reason += quiesceSetAsideNote(result, instance)
 	return result
+}
+
+// quiesceSetAsideNote names the active runs the drain deliberately did not wait
+// on, so a caller never mistakes an excluded or other-instance run for a gap.
+func quiesceSetAsideNote(result *QuiesceResult, instance string) string {
+	var note strings.Builder
+	for _, ref := range result.Excluded {
+		fmt.Fprintf(&note, "; excluded run %s [%s] was not waited on and keeps running", ref.ID, ref.Status)
+	}
+	for _, ref := range result.NotDrained {
+		fmt.Fprintf(&note, "; run %s [%s] declares instance %s, not %s, and was not drained", ref.ID, ref.Status, strings.Join(ref.Instances, ","), instance)
+	}
+	return note.String()
+}
+
+// splitQuiesceInstance separates runs that use the instance being restarted
+// (declared, or undeclared and the instance is live) from runs that declare
+// only other instances of the scenario.
+func splitQuiesceInstance(refs []QuiesceRunRef, instance string) (drain, other []QuiesceRunRef) {
+	for _, ref := range refs {
+		if len(ref.Instances) == 0 {
+			if instance == QuiesceInstanceLive {
+				drain = append(drain, ref)
+			} else {
+				other = append(other, ref)
+			}
+			continue
+		}
+		if slices.Contains(ref.Instances, instance) {
+			drain = append(drain, ref)
+		} else {
+			other = append(other, ref)
+		}
+	}
+	return drain, other
+}
+
+// declaredQuiesceInstances returns the instances of scenario that a run declares
+// it targets through {kind: scenario-instance, id: <scenario>@<instance>,
+// relationship: targets} work references.
+func declaredQuiesceInstances(run *domain.Run, scenario string) []string {
+	var instances []string
+	for _, ref := range run.WorkReferences {
+		if ref.GetKind() != quiesceTargetReferenceKind || ref.GetRelationship() != quiesceTargetRelationship {
+			continue
+		}
+		name, instance, ok := strings.Cut(ref.GetId(), "@")
+		if !ok || strings.TrimSpace(name) != scenario || strings.TrimSpace(instance) == "" {
+			continue
+		}
+		if instance = strings.TrimSpace(instance); !slices.Contains(instances, instance) {
+			instances = append(instances, instance)
+		}
+	}
+	return instances
 }
 
 // activeRunsForScenario enumerates the runs holding a live process against the
@@ -272,7 +380,7 @@ func (o *Orchestrator) activeRunsForScenario(ctx context.Context, scenario, scop
 				}
 			}
 			seen[run.ID] = struct{}{}
-			refs = append(refs, QuiesceRunRef{ID: run.ID.String(), Tag: run.Tag, Status: string(run.Status), ScopePath: scope})
+			refs = append(refs, QuiesceRunRef{ID: run.ID.String(), Tag: run.Tag, Status: string(run.Status), ScopePath: scope, Instances: declaredQuiesceInstances(run, scenario)})
 		}
 
 		if tagPrefix == "" {
@@ -287,7 +395,7 @@ func (o *Orchestrator) activeRunsForScenario(ctx context.Context, scenario, scop
 				continue
 			}
 			seen[run.ID] = struct{}{}
-			refs = append(refs, QuiesceRunRef{ID: run.ID.String(), Tag: run.Tag, Status: string(run.Status)})
+			refs = append(refs, QuiesceRunRef{ID: run.ID.String(), Tag: run.Tag, Status: string(run.Status), Instances: declaredQuiesceInstances(run, scenario)})
 		}
 	}
 

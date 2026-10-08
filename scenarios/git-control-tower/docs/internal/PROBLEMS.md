@@ -81,6 +81,18 @@ times); `baseline start --replace` and `vrooli recovery write --replace` are
 the explicit override. Guard: `TestEngagementStartRefusesLiveEngagement`
 (`internal/app/recovery`).
 
+2026-10-07 (O15): that guard ran at the manifest write, after `start` had
+already re-captured the restore point. A worker's `baseline start --name
+bas-goal` put the working tree under live and then failed with "engagement is
+live". `baseline start` now reads the floor before it captures anything. It
+refuses an open engagement of the same name (expired ones too) and any second
+engagement for the scenario. `--replace` takes over the same name and keeps the
+restore point and anchor. Guards: `TestStartRefusesOpenEngagementBeforeCapture`,
+`TestStartRefusesSecondEngagementUnderAnotherName` and
+`TestStartReplaceTakesOverWithoutRecapturing`. A small window remains between
+the check and the capture; `vrooli recovery capture` itself does not refuse an
+open engagement.
+
 ## Worktree Domain Follow-ups (2026-05-16)
 
 The worktree domain shipped Tiers 1 + 2 against the WorktreeService /

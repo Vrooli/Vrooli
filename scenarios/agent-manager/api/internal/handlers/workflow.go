@@ -202,7 +202,9 @@ func (h *Handler) AdvanceWorkflowExecution(w http.ResponseWriter, r *http.Reques
 // WorkflowWaitResponse lets the wait operation's timeout and request context
 // govern its lifetime. The ordinary server write deadline would otherwise expire
 // while the handler awaits an execution, losing the eventual terminal response.
-// Register this wrapper only on the REST and Connect workflow wait routes.
+// Register this wrapper only on routes whose handler bounds its own wait: the
+// REST and Connect workflow wait routes, and run quiesce (at most
+// MaxQuiesceTimeout).
 func WorkflowWaitResponse(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		err := http.NewResponseController(w).SetWriteDeadline(time.Time{})

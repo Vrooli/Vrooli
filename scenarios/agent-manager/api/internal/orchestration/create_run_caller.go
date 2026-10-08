@@ -10,6 +10,7 @@ import (
 	"agent-manager/internal/domain"
 	"agent-manager/internal/identity"
 	"github.com/google/uuid"
+	"github.com/vrooli/api-core/owneridentity"
 	"github.com/vrooli/api-core/scopecatalog"
 )
 
@@ -25,6 +26,11 @@ func (o *Orchestrator) authenticateCreateRunCaller(ctx context.Context, req *Cre
 	ownerOffered := req.OwnerToken != ""
 	runOffered := req.RunIdentityToken != ""
 	if !ownerOffered && !runOffered {
+		// With AUTH-01 off (P-18) an unattended caller keeps the pre-AUTH-01
+		// anonymous path; createRun resolves it without a caller record.
+		if !owneridentity.CreateRunCallerEnforced() {
+			return nil
+		}
 		return refuse("create-run requires verified caller identity")
 	}
 	if (ownerOffered && strings.TrimSpace(req.OwnerToken) == "") || (runOffered && strings.TrimSpace(req.RunIdentityToken) == "") {
@@ -100,6 +106,9 @@ func (o *Orchestrator) revalidateCreateRunCaller(ctx context.Context, req Create
 	if req.effort != nil {
 		if _, err := o.effortAuthority.CheckBinding(ctx, req.effort.binding); err != nil {
 			return err
+		}
+		if req.effort.serial {
+			return o.revalidateSerialCaller(ctx, req)
 		}
 		if req.effort.recovery {
 			return nil

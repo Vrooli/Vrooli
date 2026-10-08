@@ -16,6 +16,13 @@
 package orchestration
 
 import (
+	"context"
+	"fmt"
+	"log/slog"
+	"strings"
+	"sync"
+	"time"
+
 	"agent-manager/internal/adapters/artifact"
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/runner"
@@ -27,13 +34,8 @@ import (
 	"agent-manager/internal/orchestration/phases"
 	"agent-manager/internal/repository"
 	"agent-manager/internal/runstate"
-	"context"
-	"fmt"
+
 	"github.com/google/uuid"
-	"log/slog"
-	"strings"
-	"sync"
-	"time"
 )
 
 // ReconcilerConfig holds configuration for the reconciliation service.
@@ -70,6 +72,12 @@ type ReconcilerConfig struct {
 
 	// AutoRecover determines whether to automatically recover stale runs
 	AutoRecover bool
+
+	// InteractiveSessionRetention is how long an ended interactive run keeps its
+	// web-console session (and idle agent CLI) for `run continue` before the
+	// reconciler archives it. It also ages out agent-manager sessions no run
+	// references. Zero disables the release sweep.
+	InteractiveSessionRetention time.Duration
 }
 
 const (
@@ -80,6 +88,9 @@ const (
 	// orphanSandboxSweepLimit keeps reconciliation bounded even if a provider
 	// returns an unexpectedly large inventory.
 	orphanSandboxSweepLimit = 10
+	// interactiveSessionReleaseLimit bounds web-console archives per cycle so a
+	// large retained backlog drains over several cycles.
+	interactiveSessionReleaseLimit = 20
 )
 
 // DefaultReconcilerConfig returns sensible defaults.
@@ -99,6 +110,8 @@ func DefaultReconcilerConfig() ReconcilerConfig {
 		PendingThreshold:  5 * time.Minute,
 		KillOrphans:       true, // Always kill orphan processes
 		AutoRecover:       true, // Auto-recover stale runs if process is alive
+		// Window for `run continue` into an ended interactive run's live session.
+		InteractiveSessionRetention: 2 * time.Hour,
 	}
 }
 
@@ -168,6 +181,7 @@ type Reconciler struct {
 	workflowLiveness       WorkflowWaitingLivenessRecoverer
 	pendingRunRecovery     PendingRunRecoverer
 	terminalAccounting     TerminalAccountingRecoverer
+	finiteSerialRecovery   interface{ ReconcileFiniteSerialEpisodes(context.Context) error }
 	storageMaintainer      StorageMaintainer
 }
 
@@ -206,10 +220,13 @@ type ReconcileStats struct {
 	SandboxOrphansChecked   int
 	SandboxOrphansReclaimed int
 	SandboxOrphansPreserved int
-	WorkflowRecoveryRuns    int
-	EventsPruned            int
-	ArtifactsPruned         int
-	Errors                  []string
+	// InteractiveSessionsReleased counts web-console sessions archived after
+	// their interactive run's retention window (or as unreferenced orphans).
+	InteractiveSessionsReleased int
+	WorkflowRecoveryRuns        int
+	EventsPruned                int
+	ArtifactsPruned             int
+	Errors                      []string
 }
 
 type WorkflowExecutionRecoverer interface{ RecoverWorkflowExecutions(context.Context) error }
@@ -450,6 +467,27 @@ func (r *Reconciler) RunOnce(ctx context.Context) ReconcileStats {
 	return r.reconcile(ctx)
 }
 
+// Config returns the reconciler's current configuration.
+func (r *Reconciler) Config() ReconcilerConfig {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.config
+}
+
+// ReconcilerConfigWithSettings returns base with only the fields operator
+// orchestration settings own replaced. Every settings-driven rebuild goes
+// through here so fields settings do not own (PendingThreshold,
+// InteractiveSessionRetention, OwnerIdentity, ...) keep their base value
+// instead of silently dropping to zero.
+func ReconcilerConfigWithSettings(base ReconcilerConfig, s cfgpkg.OrchestrationSettings) ReconcilerConfig {
+	base.Interval = time.Duration(s.HealthDetection.ReconcilerIntervalSeconds) * time.Second
+	base.StaleThreshold = time.Duration(s.HealthDetection.StaleThresholdSeconds) * time.Second
+	base.MaxRecoveryAge = time.Duration(s.HealthDetection.MaxRecoveryAgeSeconds) * time.Second
+	base.OrphanGracePeriod = time.Duration(s.ProcessTermination.OrphanGracePeriodSeconds) * time.Second
+	base.KillOrphans = s.ProcessTermination.KillOrphans
+	return base
+}
+
 // UpdateConfig applies new configuration to the reconciler at runtime.
 // The new interval takes effect after the current cycle completes.
 func (r *Reconciler) UpdateConfig(cfg ReconcilerConfig) {
@@ -498,7 +536,7 @@ func (r *Reconciler) updateStats(stats ReconcileStats) {
 	r.mu.Unlock()
 
 	// Log summary
-	if stats.StaleRuns > 0 || stats.OrphansFound > 0 || stats.SandboxOrphansChecked > 0 {
+	if stats.StaleRuns > 0 || stats.OrphansFound > 0 || stats.SandboxOrphansChecked > 0 || stats.InteractiveSessionsReleased > 0 {
 		r.log().Info("cycle complete",
 			"checked", stats.RunsChecked,
 			"stale", stats.StaleRuns,
@@ -508,6 +546,7 @@ func (r *Reconciler) updateStats(stats ReconcileStats) {
 			"sandboxOrphansChecked", stats.SandboxOrphansChecked,
 			"sandboxOrphansReclaimed", stats.SandboxOrphansReclaimed,
 			"sandboxOrphansPreserved", stats.SandboxOrphansPreserved,
+			"interactiveSessionsReleased", stats.InteractiveSessionsReleased,
 			"errors", len(stats.Errors),
 		)
 	}
@@ -525,6 +564,11 @@ func (r *Reconciler) reconcileGuarded(ctx context.Context) (stats ReconcileStats
 func (r *Reconciler) reconcile(ctx context.Context) ReconcileStats {
 	start := r.now()
 	stats := ReconcileStats{Timestamp: start}
+	if r.finiteSerialRecovery != nil {
+		if err := r.finiteSerialRecovery.ReconcileFiniteSerialEpisodes(ctx); err != nil {
+			stats.Errors = append(stats.Errors, "finite serial recovery: "+err.Error())
+		}
+	}
 	if r.workflowRecovery != nil {
 		if err := r.workflowRecovery.RecoverWorkflowExecutions(ctx); err != nil {
 			stats.Errors = append(stats.Errors, "workflow recovery: "+err.Error())
@@ -638,6 +682,10 @@ func (r *Reconciler) reconcile(ctx context.Context) ReconcileStats {
 	// old active sandboxes with an explicit run metadata binding are examined,
 	// and deletion is allowed only after the provider proves an empty diff.
 	r.reconcileOrphanSandboxes(ctx, &stats)
+
+	// Step 6c: Release web-console sessions retained for continuation once
+	// their interactive run has been ended longer than the retention window.
+	r.releaseRetainedInteractiveSessions(ctx, &stats)
 
 	// Step 7: Garbage-collect old terminal run state directories.
 	r.cleanupRunStateDirs(ctx)

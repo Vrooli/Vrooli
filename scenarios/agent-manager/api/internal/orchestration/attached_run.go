@@ -12,6 +12,7 @@ import (
 	"agent-manager/internal/identity"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/api-core/authn"
 )
 
 const attachedRunLivenessGracePeriod = time.Minute
@@ -86,9 +87,19 @@ func (o *Orchestrator) AttachRun(ctx context.Context, req AttachRunRequest) (*At
 		RunnerPID:          req.ProcessID,
 	}
 
+	if owner, err := authn.RequireHuman(ctx); err == nil {
+		run.OwnerSubject = owner.Subject
+		run.OwnerScopes = append([]string(nil), owner.Scopes...)
+		if !owner.ExpiresAt.IsZero() {
+			expiry := owner.ExpiresAt
+			run.OwnerExpiresAt = &expiry
+		}
+	}
+
 	expiresAt := now.Add(identity.DefaultTTL)
 	token, err := identity.GenerateToken(&identity.Claims{
 		RunID:      run.ID,
+		Subject:    run.OwnerSubject,
 		TaskID:     run.TaskID,
 		ProfileKey: kind,
 		IssuedAt:   now.Unix(),

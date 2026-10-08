@@ -11,7 +11,8 @@ authentication to Integration Hub.
 | Advisory jobs | Durable lifecycle, idempotency, exact check execution IDs, result identity | `ReviewJobStore` and owner receipts | Job state only; no repository writes |
 | Baselines | Test Genie run pins, collection closure, comparison evidence | Baseline domain interfaces | Collection state through its owner contract |
 | Provenance | Pending/applied/reviewed/committed/unknown standing and per-file evidence | Workspace Sandbox owner client and GCT presentation | No inferred attribution; producer owners write receipts |
-| Trailers | Lossless parsing, supported-key resolution, uncertainty states | Owner-backed resolver interface | Draft suggestions only |
+| Trailers | Lossless git-rule parsing, v1 key registry and grammar, rendering, supported-key resolution, uncertainty states | Owner-backed resolver interface | Draft suggestions only |
+| Proposals | Commit proposals: scope anchors, exact per-file content IDs, flags, exclusions, trailer-linked messages, revisions and history | `ProposalService` reads with read-time freshness | Draft writes to GCT's database by agents or humans; `ApplyProposal` stages and commits only under verified human intent |
 | Human controls | Verified principal, resource-bound intent, exact preconditions | Policy-gate decisions | Repository writers and external publication |
 | Collaboration | Host-neutral subject and publication handoff contracts | Explicit host capability seams | Provider adapters remain outside GCT |
 

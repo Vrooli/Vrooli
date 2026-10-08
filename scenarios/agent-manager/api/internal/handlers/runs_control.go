@@ -118,10 +118,10 @@ func (h *Handler) StopAllRuns(w http.ResponseWriter, r *http.Request) {
 // QuiesceScenario drains in-flight runs targeting a scenario so a Baseline Modes
 // promote can re-point and restart its live instance without killing in-flight
 // agent work (Baseline Modes P6).
+//
+// The route clears the server write deadline (WorkflowWaitResponse); the drain
+// itself is bounded by orchestration.MaxQuiesceTimeout.
 func (h *Handler) QuiesceScenario(w http.ResponseWriter, r *http.Request) {
-	if h.denyRunInitiatedLifecycleOperation(w, r, "quiesce") {
-		return
-	}
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		writeSimpleError(w, r, "body", "failed to read request body")
@@ -136,6 +136,9 @@ func (h *Handler) QuiesceScenario(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if !h.validateProto(w, r, &req) {
+		return
+	}
+	if h.denyRunInitiatedQuiesce(w, r, strings.TrimSpace(req.GetScenario())) {
 		return
 	}
 
@@ -883,13 +886,16 @@ func (h *Handler) DoctorPermissionPolicy(w http.ResponseWriter, r *http.Request)
 	}
 	logPermissionPolicyPlan("permission_policy_doctor_planned", plan)
 	status := h.permissionPolicyState.Status()
-	healthy := status.Ready && plan.HardEnforcementSatisfied
+	healthy := status.Ready && plan.HardEnforcementSatisfied && plan.AssessmentComplete()
 	summary := "permission policy is ready; no required hard-enforcement gap was detected"
 	if !status.Ready {
 		summary = "permission policy catalog is not ready"
 	} else if !plan.HardEnforcementSatisfied {
 		summary = "one or more required permission rules lack native or hook-backed enforcement"
+	} else if !plan.AssessmentComplete() {
+		summary = "permission policy assessment is incomplete; inspect failed or unavailable resource probes"
 	}
+
 	writeProtoJSON(w, http.StatusOK, &apipb.DoctorPermissionPolicyResponse{
 		Status:  protoconv.PermissionPolicyStatusToProto(status),
 		Plan:    protoconv.PermissionPolicyPlanToProto(plan),

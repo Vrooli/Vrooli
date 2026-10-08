@@ -1,6 +1,6 @@
 # CLI Reference: git-control-tower
 
-Four command groups. Source of truth: [CODE: cli/domains/domains.go].
+Command groups. Source of truth: [CODE: cli/domains/domains.go].
 Each subcommand is a thin wrapper over the API; business logic lives in
 the API.
 
@@ -33,6 +33,73 @@ grouping rules.
 | `create`   | Create branch `NAME [--from=BASE] [--no-checkout] [--allow-dirty]` |
 | `switch`   | Switch branch `NAME [--allow-dirty] [--track-remote]` |
 | `publish`  | Publish current branch (`[--remote=NAME] [--branch=NAME] [--fetch]`) |
+
+## `proposal` — Commit proposals bound to exact content
+
+A proposal is an editable commit draft: exact files (sha256 and git blob ID per
+path), per-file flags, excluded paths with reasons, and a message whose trailers
+link the effort, epoch and runs. Every subcommand except `approve` writes only
+Git Control Tower's database, so orchestrators may call them. `approve` is
+human-only.
+
+| Subcommand | Description |
+| --- | --- |
+| `anchor`   | Fingerprint files already dirty in scope at epoch admission (`--effort REF --epoch E<n> --scope GLOB...`) |
+| `create`   | Create a proposal from listed paths (`--request-file F` or `--effort --epoch --subject [--body-file] --path P... [--run ID...] [--plan REF...] [--trailer K=V...] [--gate D...]`; `--validate-only` stores nothing) |
+| `list`     | List proposals with live freshness (`[--state open\|committed\|withdrawn\|superseded\|all] [--effort REF]`) |
+| `show`     | Show files, flags, exclusions, message, trailers and history (`ID [--message]`) |
+| `edit`     | New revision with a changed subject, body or trailers, or dropped files (`ID --revision N [--subject] [--body-file] [--replace-trailers --trailer K=V...] [--remove-path P...]`) |
+| `approve`  | Human only: print files, flags and message, ask for `confirm`, then prepare, confirm and apply one `repo.apply_proposal` intent (`ID [--yes] [--skip-precommit]`) |
+| `withdraw` | Withdraw an open proposal; history is kept (`ID [--reason R]`) |
+| `refresh`  | Re-hash current content into a new revision and recompute flags (`ID [--revision N]`) |
+
+Delivery orchestrators run `anchor` when they admit an epoch and `create` when
+they accept it:
+
+```bash
+git-control-tower proposal anchor --effort effort:<slug> --epoch E<n> \
+  --scope 'scenarios/<scenario>/**' --scope 'packages/proto/**' --json
+git-control-tower proposal create --effort effort:<slug> --epoch E<n> \
+  --subject '<scenario>: <outcome> (E<n>)' --body-file <body.txt> \
+  --path <file> [--path <file>...] --run <worker-run-id> --run <orchestrator-run-id> --json
+```
+
+`create` takes the newest anchor for the effort and epoch. A listed path that
+did not change since the anchor, or that is unsafe or ignored, is refused;
+changed paths in the anchor scope that are not listed are recorded in
+`excluded`. A file dirty at the anchor and changed since is flagged
+`mixed_prior_uncommitted`. Shared paths (`other_open_proposal`), Workspace
+Sandbox pending paths (`sandbox_pending`) and `already_staged` are computed when
+read. A new proposal for the same effort and epoch supersedes the open one and
+keeps operator message edits. Agent-created messages must pass trailer grammar;
+an agent `Co-Authored-By` is refused because the operator is always the author.
+
+`approve` refuses, naming each path, when content drifted from the reviewed
+blobs, when HEAD moved and the move touched a proposal path (`base_moved`), or
+when a path outside the proposal is staged. It stages exactly the proposal paths
+(deletions included), verifies the staged blob IDs, runs the configured
+pre-commit check and commits the rendered message. On failure it restores the
+index to its prior state.
+
+### Trailer vocabulary v1
+
+Trailers follow `git interpret-trailers`: only the final paragraph is the
+trailer block, continuation lines unfold, every key (including
+`Co-Authored-By` and `Signed-off-by`) keeps its order, and keys match
+case-insensitively. Unknown `Vrooli-*` keys (such as `Vrooli-Initiative`) are
+kept as `legacy` and never mapped. A trailer is a work-reference assertion, not
+authorship proof. Source: [CODE: api/internal/trailers/registry.go].
+
+| Key | Value | Max |
+| --- | --- | --- |
+| `Vrooli-Effort`    | `effort:<slug>[@<revision>]` | n |
+| `Vrooli-Epoch`     | `effort:<slug>#E<n>` | n |
+| `Vrooli-Run`       | Agent Manager run UUID | 20 |
+| `Vrooli-Plan`      | plan ID or slug, optional `#phase-<n>` | n |
+| `Vrooli-Backlog`   | `<kind>/<name>` | n |
+| `Vrooli-Continues` | 7–40 hex commit ID | 1 |
+| `Vrooli-Proposal`  | `gctp-<hex>` | 1 |
+| `Vrooli-Work`      | `<kind> <id>[@<revision>]` for any other kind | n |
 
 ## `review` — Run and inspect scenario readiness reviews
 
@@ -85,6 +152,36 @@ Test Genie run. Empty, partial, obsolete local-snapshot, corrupt, or mixed-run
 manifests remain diagnostic and require recapture; the CLI never chooses one
 pointer heuristically. Migration and pin reconciliation are idempotent, and a
 failed unpin leaves the manifest intact so deletion can be retried safely.
+
+### Engagements (shadow/live Baseline Modes)
+
+An engagement pairs a restore point (the frozen Baseline) with a candidate in
+the working tree. While a shadow engagement is open, live serves the restore
+point and `<scenario>@shadow` runs the working tree. The floor owns the state
+(`vrooli recovery …`); GCT only sequences it. A scenario has one engagement at
+a time, named by `--name` (default `wip`).
+
+| Subcommand | Description |
+| --- | --- |
+| `start`   | Open an engagement: mode decision, restore point, anchor, shadow (`--scenario [--mode] [--name] [--ttl] [--no-anchor]`). Refuses, before it captures anything, while the scenario has an open engagement; `--replace` takes over the same `--name` and keeps its restore point and anchor |
+| `check`   | Diff the candidate against the engagement's anchor and renew the lease (`--scenario [--name]`) |
+| `promote` | Keep the work and close the engagement: drain, data snapshot, migrate, re-point and restart live, status probe, optional `--probe-cmd`, auto-rollback on failure, shadow teardown (`--scenario [--name] [--probe-cmd] [--probe-timeout] [--exclude-run] [--drain-timeout] [--no-drain] [--force]`) |
+| `cycle`   | `promote`, then a fresh shadow engagement under the same name with no anchor run (`--scenario --name`, plus the promote flags); safe to re-run after any failure |
+| `status`  | List open engagements (`--json` includes `CreatedAt`, the last promotion for a cycled engagement) |
+| `abandon` | Discard the candidate: restore the Baseline over the working tree and tear down the shadow (`--scenario [--name]`) |
+| `gc`      | Reap expired engagements (`--force`: all) |
+
+**Re-creating the shadow after promote.** `promote` closes the engagement.
+To keep working in a shadow, open the next one under the **same name**:
+`git-control-tower baseline start --scenario <s> --name <name> --mode shadow`
+(add `--no-anchor` to skip the comprehensive anchor run). A bare `start` opens
+`wip`, and `start` refuses it while another engagement is open. `promote`
+prints this command; `baseline cycle --scenario <s> --name <name>` does the
+promote and the re-create in one step.
+
+`--probe-cmd` runs through `sh -c` with the scenario removed from
+`VROOLI_SHADOW_SCENARIOS`, so it reaches live. A non-zero exit or a timeout
+(`--probe-timeout`, default 15m) rolls back like a failed restart.
 
 ## CLI–API parity gaps
 

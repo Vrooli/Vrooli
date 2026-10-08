@@ -1222,6 +1222,43 @@ func (r *runRepository) GetByImportProvenance(ctx context.Context, sourceHarness
 	return nil, nil
 }
 
+// webConsoleSessionLookupChunk keeps each IN list well under SQLite's bound
+// on host parameters.
+const webConsoleSessionLookupChunk = 500
+
+func (r *runRepository) ListByWebConsoleSessionIDs(ctx context.Context, sessionIDs []string) ([]*domain.Run, error) {
+	ids := make([]string, 0, len(sessionIDs))
+	seen := make(map[string]struct{}, len(sessionIDs))
+	for _, id := range sessionIDs {
+		id = strings.TrimSpace(id)
+		if _, dup := seen[id]; id == "" || dup {
+			continue
+		}
+		seen[id] = struct{}{}
+		ids = append(ids, id)
+	}
+	var runs []*domain.Run
+	for start := 0; start < len(ids); start += webConsoleSessionLookupChunk {
+		chunk := ids[start:min(start+webConsoleSessionLookupChunk, len(ids))]
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(chunk)), ",")
+		args := make([]any, len(chunk))
+		for i, id := range chunk {
+			args[i] = id
+		}
+		query := fmt.Sprintf("SELECT %s FROM runs WHERE web_console_session_id IN (%s) ORDER BY created_at ASC, id ASC", runColumns, placeholders)
+		var rows []runRow
+		if err := r.db.SelectContext(ctx, &rows, query, args...); err != nil {
+			return nil, wrapDBError("list_by_web_console_session", "Run", strings.Join(chunk, ","), err)
+		}
+		for index := range rows {
+			if run := rows[index].toDomain(); run != nil {
+				runs = append(runs, run)
+			}
+		}
+	}
+	return runs, nil
+}
+
 func (r *runRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	query := `DELETE FROM runs WHERE id = ?`
 	_, err := r.db.ExecContext(ctx, query, id)

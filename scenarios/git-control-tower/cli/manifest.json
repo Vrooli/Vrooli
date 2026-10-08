@@ -395,9 +395,144 @@
         {"name":"start","description":"Start a shadow or live engagement","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal","filesystem:write"]}},
         {"name":"check","description":"Validate and renew an engagement","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal","filesystem:read"]}},
         {"name":"promote","description":"Promote and terminalize an engagement","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal","filesystem:write"]}},
+        {"name":"cycle","description":"Promote a shadow engagement and re-create it under the same name","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal","filesystem:write"]}},
         {"name":"status","description":"List active engagements","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read"]}},
         {"name":"abandon","description":"Abandon an engagement and restore owned state","binding":{"kind":"local"},"governance":{"effect":"destructive","run_eligible":false,"requires_confirmation":true,"permissions":["filesystem:write"]}},
         {"name":"gc","description":"Reap expired or orphaned engagements","binding":{"kind":"local"},"governance":{"effect":"destructive","run_eligible":false,"requires_confirmation":true,"permissions":["filesystem:write"]}}
+      ]
+    },
+    {
+      "name": "proposal",
+      "description": "Commit proposals bound to exact repository content; agents draft, the operator approves",
+      "commands": [
+        {
+          "name": "anchor",
+          "description": "Fingerprint the files already dirty in a scope at epoch admission; writes Git Control Tower's database only",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProposalService",
+            "method": "AnchorScope"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "create",
+          "description": "Create a commit proposal from listed paths with hashes, flags and a trailer-linked message; writes Git Control Tower's database only, never the repository",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProposalService",
+            "method": "CreateProposal"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "list",
+          "description": "List commit proposals with live freshness",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProposalService",
+            "method": "ListProposals"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "show",
+          "description": "Show one commit proposal: files, flags, exclusions, message, trailers and history",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProposalService",
+            "method": "GetProposal"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "edit",
+          "description": "Edit a proposal's subject, body or trailers, or drop files, creating a new revision",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProposalService",
+            "method": "EditProposal"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "approve",
+          "description": "Human only: review the exact proposal and commit exactly its paths with its message under a single-use intent",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProposalService",
+            "method": "ApplyProposal"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "requires_confirmation": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write",
+              "process:spawn"
+            ]
+          }
+        },
+        {
+          "name": "withdraw",
+          "description": "Withdraw an open proposal; history is kept",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProposalService",
+            "method": "WithdrawProposal"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true
+          }
+        },
+        {
+          "name": "refresh",
+          "description": "Re-hash a proposal's current content into a new revision and recompute flags",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProposalService",
+            "method": "RefreshProposal"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        }
       ]
     }
   ],

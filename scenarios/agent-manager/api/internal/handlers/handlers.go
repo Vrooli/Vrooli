@@ -66,6 +66,7 @@ type Handler struct {
 	receiptAvailability   ReceiptAvailabilityReader
 	transcriptImporter    TranscriptImportRunner
 	investigations        investigation.Repository
+	effortEnrollments     EffortEnrollmentReader
 }
 
 // TranscriptImportRunner is the operator-triggerable half of the scheduled
@@ -231,9 +232,9 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/runs/investigation-apply", h.CreateInvestigationApplyRun).Methods("POST")
 	r.HandleFunc("/api/v1/runs/resume-from-failed", h.ResumeFromFailedRun).Methods("POST")
 	r.HandleFunc("/api/v1/runs", h.ListRuns).Methods("GET")
-	r.HandleFunc("/api/v1/runs/stop-all", h.StopAllRuns).Methods("POST")    // Must be before /{id}
+	r.HandleFunc("/api/v1/runs/stop-all", h.StopAllRuns).Methods("POST") // Must be before /{id}
 	r.HandleFunc("/api/v1/runs/wake-by-key", h.WakeParkedRuns).Methods("POST")
-	r.HandleFunc("/api/v1/runs/quiesce", h.QuiesceScenario).Methods("POST") // Must be before /{id}
+	r.Handle("/api/v1/runs/quiesce", WorkflowWaitResponse(http.HandlerFunc(h.QuiesceScenario))).Methods("POST") // Must be before /{id}
 	r.HandleFunc("/api/v1/runs/tag/{tag}", h.GetRunByTag).Methods("GET")
 	r.HandleFunc("/api/v1/runs/tag/{tag}/stop", h.StopRunByTag).Methods("POST")
 	r.HandleFunc("/api/v1/runs/cohort-report", h.GetCohortReport).Methods("GET") // Must be before /{id}

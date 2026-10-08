@@ -13,6 +13,7 @@ import (
 	"github.com/vrooli/cli-core/cliutil"
 	auditorconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/auditor/auditor_v1connect"
 	branchconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/branch/branch_v1connect"
+	proposalsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/proposals/proposals_v1connect"
 	repoconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/repo/repo_v1connect"
 	worktreeconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/worktree/worktree_v1connect"
 )
@@ -73,6 +74,9 @@ var HandlerManagedIntentProcedures = map[string]string{
 	branchconnect.BranchServiceCreateBranchProcedure:    "write",
 	branchconnect.BranchServiceSwitchBranchProcedure:    "write",
 	branchconnect.BranchServicePublishBranchProcedure:   "destructive",
+	// Proposal drafts (anchor, create, edit, refresh, withdraw) write only
+	// GCT's database and stay agent-callable; applying one commits.
+	proposalsconnect.ProposalServiceApplyProposalProcedure: "write",
 }
 
 // AuditLogger is the minimal log seam the interceptor uses to record

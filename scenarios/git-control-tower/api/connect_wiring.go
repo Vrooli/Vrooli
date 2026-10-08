@@ -20,6 +20,7 @@ import (
 	auditorconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/auditor/auditor_v1connect"
 	authconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/auth/auth_v1connect"
 	humancontrolconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/human_control/human_control_v1connect"
+	proposalsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/proposals/proposals_v1connect"
 	reviewconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/review/review_v1connect"
 )
 
@@ -146,6 +147,9 @@ func (s *Server) mountConnectHandlers() {
 	auditorPath, auditorHandler := auditorconnect.NewAuditorServiceHandler(auditorConnectServer{server: s}, policyOpt)
 	reviewPath, reviewHandler := reviewconnect.NewReviewServiceHandler(reviewConnectServer{server: s}, policyOpt)
 	authPath, authHandler := authconnect.NewAuthServiceHandler(authConnectServer{}, policyOpt)
+	// Proposals: draft writes go to GCT's database only; ApplyProposal is
+	// handler-managed human intent (see policygate.HandlerManagedIntentProcedures).
+	proposalsPath, proposalsHandler := proposalsconnect.NewProposalServiceHandler(proposalConnectServer{server: s}, policyOpt)
 
 	connectx.RegisterServices(s.router,
 		connectx.ServiceMount{Path: wtPath, Handler: wtHandler},
@@ -158,5 +162,6 @@ func (s *Server) mountConnectHandlers() {
 		connectx.ServiceMount{Path: authPath, Handler: authHandler},
 		connectx.ServiceMount{Path: auditorPath, Handler: auditorHandler},
 		connectx.ServiceMount{Path: reviewPath, Handler: reviewHandler},
+		connectx.ServiceMount{Path: proposalsPath, Handler: proposalsHandler},
 	)
 }

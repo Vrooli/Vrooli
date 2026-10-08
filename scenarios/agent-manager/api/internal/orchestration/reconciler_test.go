@@ -103,6 +103,9 @@ func TestDefaultReconcilerConfig(t *testing.T) {
 	if cfg.PendingThreshold != 5*time.Minute {
 		t.Errorf("PendingThreshold = %v, want 5m", cfg.PendingThreshold)
 	}
+	if cfg.InteractiveSessionRetention != 2*time.Hour {
+		t.Errorf("InteractiveSessionRetention = %v, want 2h", cfg.InteractiveSessionRetention)
+	}
 
 	// Production defaults - always kill orphans and auto-recover
 	if !cfg.KillOrphans {
@@ -649,5 +652,41 @@ func TestReconciler_Stop_NotRunning(t *testing.T) {
 	err := rec.Stop()
 	if err != nil {
 		t.Errorf("Stop() returned error for non-running reconciler: %v", err)
+	}
+}
+
+func TestSettingsSaveKeepsReconcilerFieldsSettingsDoNotOwn(t *testing.T) {
+	store, err := config.NewOrchestrationSettingsStore(t.TempDir() + "/orchestration.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := DefaultReconcilerConfig()
+	base.OwnerIdentity = "agent-manager:owner-under-test"
+	base.PendingThreshold = 7 * time.Minute
+	base.InteractiveSessionRetention = 3 * time.Hour
+	o := &Orchestrator{orchestrationSettings: store}
+	o.SetReconciler(NewReconciler(nil, nil, WithReconcilerConfig(base)))
+	settings := config.DefaultOrchestrationSettings()
+	settings.HealthDetection.ReconcilerIntervalSeconds = 45
+	settings.ProcessTermination.OrphanGracePeriodSeconds = 900
+	settings.ProcessTermination.KillOrphans = false
+
+	if err := o.UpdateOrchestrationSettings(context.Background(), &settings); err != nil {
+		t.Fatal(err)
+	}
+
+	got := o.reconciler.Config()
+	if got.Interval != 45*time.Second || got.OrphanGracePeriod != 900*time.Second || got.KillOrphans {
+		t.Fatalf("settings-owned fields not applied: %+v", got)
+	}
+	if got.PendingThreshold != 7*time.Minute || got.InteractiveSessionRetention != 3*time.Hour || got.OwnerIdentity != base.OwnerIdentity || got.MaxStaleRuns != base.MaxStaleRuns || !got.AutoRecover {
+		t.Fatalf("settings save dropped reconciler fields it does not own: %+v", got)
+	}
+
+	if err := o.ResetOrchestrationSettings(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if got := o.reconciler.Config(); got.PendingThreshold != 7*time.Minute || got.InteractiveSessionRetention != 3*time.Hour {
+		t.Fatalf("settings reset dropped reconciler fields it does not own: %+v", got)
 	}
 }
