@@ -97,6 +97,14 @@ func TestGetPlanReadsPersistedDateRangeForWorkspaceOwnerOnly(t *testing.T) {
 	if _, err := handler.GetPlan(other, request); connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("cross-actor read error=%v", err)
 	}
+	delegated := identity.Principal{Kind: identity.ActorAgent, Subject: "run", Owner: "owner", Verified: true, Scopes: []string{"nutrition-planner:read"}}
+	if _, err := handler.GetPlan(identity.WithPrincipal(context.Background(), delegated), request); err != nil {
+		t.Fatalf("authorized owner agent cannot read its plan: %v", err)
+	}
+	delegated.Owner = "other"
+	if _, err := handler.GetPlan(identity.WithPrincipal(context.Background(), delegated), request); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatal("agent crossed account ownership boundary")
+	}
 }
 
 func TestPreviewSwapChangesOnlyRequestedPersistedSlotAndRejectsStaleRevision(t *testing.T) {

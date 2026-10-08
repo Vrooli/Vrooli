@@ -36,7 +36,7 @@ func (h *connectHandler) scope(ctx context.Context, id string) error {
 	if id == "" {
 		return connect.NewError(connect.CodeInvalidArgument, errors.New("workspace_id is required"))
 	}
-	if _, err := h.ws.Get(ctx, id, p.Subject); err != nil {
+	if _, err := h.ws.Get(ctx, id, p.OwnerSubject()); err != nil {
 		var nf workspace.ErrNotFound
 		if errors.As(err, &nf) {
 			return connect.NewError(connect.CodeNotFound, err)

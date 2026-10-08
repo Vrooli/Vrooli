@@ -10,6 +10,7 @@ type (
 	MethodStep struct {
 		ID, Instruction            string
 		DependsOn, Inputs, Outputs []string
+		Equipment, Settings        []string
 		AllocationCount            int
 	}
 )

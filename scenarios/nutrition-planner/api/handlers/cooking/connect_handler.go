@@ -42,7 +42,7 @@ func (h *connectHandler) scope(ctx context.Context, w string) error {
 	if w == "" {
 		return connect.NewError(connect.CodeInvalidArgument, errors.New("workspace_id is required"))
 	}
-	if _, err := h.workspaces.Get(ctx, w, p.Subject); err != nil {
+	if _, err := h.workspaces.Get(ctx, w, p.OwnerSubject()); err != nil {
 		var nf workspace.ErrNotFound
 		var forbidden workspace.ErrForbidden
 		if errors.As(err, &nf) {

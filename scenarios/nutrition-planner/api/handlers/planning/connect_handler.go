@@ -56,7 +56,7 @@ func (h *connectHandler) GeneratePlan(ctx context.Context, req *connect.Request[
 	if req.Msg.WorkspaceId == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("workspace_id is required"))
 	}
-	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, p.Subject); err != nil {
+	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, p.OwnerSubject()); err != nil {
 		var nf workspace.ErrNotFound
 		if errors.As(err, &nf) {
 			return nil, connect.NewError(connect.CodeNotFound, err)
@@ -156,7 +156,7 @@ func (h *connectHandler) ExploreRecipes(ctx context.Context, req *connect.Reques
 	if req.Msg.WorkspaceId == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("workspace_id is required"))
 	}
-	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, p.Subject); err != nil {
+	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, p.OwnerSubject()); err != nil {
 		return nil, planningWorkspaceError(err)
 	}
 	items, err := h.recipes.List(ctx, req.Msg.WorkspaceId)
@@ -253,7 +253,7 @@ func (h *connectHandler) GetPlan(ctx context.Context, req *connect.Request[v1.Ge
 	if fromErr != nil || toErr != nil || to.Before(from) {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("from_date and to_date must be valid ordered YYYY-MM-DD dates"))
 	}
-	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, p.Subject); err != nil {
+	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, p.OwnerSubject()); err != nil {
 		return nil, planningWorkspaceError(err)
 	}
 	revision, raw, err := h.plans.Get(ctx, req.Msg.WorkspaceId)
@@ -329,7 +329,7 @@ func (h *connectHandler) ApplyPlan(ctx context.Context, req *connect.Request[v1.
 	if req.Msg.WorkspaceId == "" || req.Msg.DraftJson == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("workspace_id and draft_json are required"))
 	}
-	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, p.Subject); err != nil {
+	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, p.OwnerSubject()); err != nil {
 		var nf workspace.ErrNotFound
 		if errors.As(err, &nf) {
 			return nil, connect.NewError(connect.CodeNotFound, err)
@@ -388,7 +388,7 @@ func (h *connectHandler) PreviewSwap(ctx context.Context, req *connect.Request[v
 	if req.Msg.WorkspaceId == "" || req.Msg.Date == "" || req.Msg.SlotName == "" || req.Msg.ReplacementRecipeId == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("workspace_id, date, slot_name, and replacement_recipe_id are required"))
 	}
-	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, p.Subject); err != nil {
+	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, p.OwnerSubject()); err != nil {
 		return nil, planningWorkspaceError(err)
 	}
 	current, raw, err := h.plans.Get(ctx, req.Msg.WorkspaceId)
@@ -633,7 +633,7 @@ func (h *connectHandler) GetShoppingPreview(ctx context.Context, req *connect.Re
 	if req.Msg.WorkspaceId == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("workspace_id is required"))
 	}
-	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, p.Subject); err != nil {
+	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, p.OwnerSubject()); err != nil {
 		return nil, planningWorkspaceError(err)
 	}
 	revision, raw, err := h.plans.Get(ctx, req.Msg.WorkspaceId)
@@ -701,7 +701,7 @@ func (h *connectHandler) SetShoppingHaveThis(ctx context.Context, req *connect.R
 	if req.Msg.WorkspaceId == "" || req.Msg.LineKey == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("workspace_id and line_key are required"))
 	}
-	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, p.Subject); err != nil {
+	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, p.OwnerSubject()); err != nil {
 		return nil, planningWorkspaceError(err)
 	}
 	if h.shopping == nil {
@@ -721,7 +721,7 @@ func (h *connectHandler) ConfirmShoppingPurchases(ctx context.Context, req *conn
 	if req.Msg.WorkspaceId == "" || req.Msg.ReviewId == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("workspace_id and review_id are required"))
 	}
-	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, p.Subject); err != nil {
+	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, p.OwnerSubject()); err != nil {
 		return nil, planningWorkspaceError(err)
 	}
 	if h.shopping == nil {
@@ -756,7 +756,7 @@ func (h *connectHandler) SetShoppingChecked(ctx context.Context, req *connect.Re
 	if req.Msg.WorkspaceId == "" || req.Msg.LineKey == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("workspace_id and line_key are required"))
 	}
-	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, p.Subject); err != nil {
+	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, p.OwnerSubject()); err != nil {
 		return nil, planningWorkspaceError(err)
 	}
 	if h.shopping == nil {
@@ -776,7 +776,7 @@ func (h *connectHandler) RecordFeedback(ctx context.Context, req *connect.Reques
 	if req.Msg.WorkspaceId == "" || req.Msg.Date == "" || req.Msg.RecipeId == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("workspace_id, date, and recipe_id are required"))
 	}
-	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, p.Subject); err != nil {
+	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, p.OwnerSubject()); err != nil {
 		return nil, planningWorkspaceError(err)
 	}
 	revision, raw, err := h.plans.Get(ctx, req.Msg.WorkspaceId)
@@ -818,7 +818,7 @@ func (h *connectHandler) UndoFeedback(ctx context.Context, req *connect.Request[
 	if req.Msg.WorkspaceId == "" || req.Msg.Date == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("workspace_id and date are required"))
 	}
-	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, p.Subject); err != nil {
+	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, p.OwnerSubject()); err != nil {
 		return nil, planningWorkspaceError(err)
 	}
 	if h.feedback == nil {

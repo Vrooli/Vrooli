@@ -132,10 +132,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("authentication configuration failed: %v", err)
 	}
-	var sharedAuth *authn.Config
-	if authConfig.Enabled() {
-		sharedAuth = &authConfig
-	}
+	sharedAuth := &authConfig
 
 	// apihttp.TestModeMiddleware reads X-Vrooli-Test-Mode: 1 and marks the
 	// request context so *database.RoutedDB routes the call to the

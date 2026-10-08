@@ -30,7 +30,7 @@ func owner(ctx context.Context) (string, error) {
 	if !ok {
 		return "", connect.NewError(connect.CodeUnauthenticated, errors.New("verified actor required"))
 	}
-	return p.Subject, nil
+	return p.OwnerSubject(), nil
 }
 
 func (h *connectHandler) ListWorkspaces(ctx context.Context, _ *connect.Request[v1.ListWorkspacesRequest]) (*connect.Response[v1.ListWorkspacesResponse], error) {

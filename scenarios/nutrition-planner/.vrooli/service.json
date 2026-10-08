@@ -13,9 +13,9 @@
     "offline": false,
     "protected_routes": ["/api"],
     "capabilities": [
-      {"id": "nutrition-planner:read", "effect": "read", "agent_eligible": false},
-      {"id": "nutrition-planner:write", "effect": "write", "agent_eligible": false},
-      {"id": "nutrition-planner:destructive", "effect": "destructive", "agent_eligible": false}
+      {"id": "nutrition-planner:read", "effect": "read", "agent_eligible": true},
+      {"id": "nutrition-planner:write", "effect": "write", "agent_eligible": true},
+      {"id": "nutrition-planner:destructive", "effect": "destructive", "agent_eligible": true}
     ],
     "requires_authenticator": true
   },

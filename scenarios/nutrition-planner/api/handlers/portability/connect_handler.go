@@ -69,7 +69,7 @@ func (h *connectHandler) ExportGroceriesCSV(ctx context.Context, req *connect.Re
 	if req.Msg.WorkspaceId == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("workspace_id is required"))
 	}
-	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, principal.Subject); err != nil {
+	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, principal.OwnerSubject()); err != nil {
 		var nf internalWorkspace.ErrNotFound
 		if errors.As(err, &nf) {
 			return nil, connect.NewError(connect.CodeNotFound, err)
@@ -119,7 +119,7 @@ func (h *connectHandler) ExportRecipes(ctx context.Context, req *connect.Request
 	if req.Msg.WorkspaceId == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("workspace_id is required"))
 	}
-	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, principal.Subject); err != nil {
+	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, principal.OwnerSubject()); err != nil {
 		var nf internalWorkspace.ErrNotFound
 		if errors.As(err, &nf) {
 			return nil, connect.NewError(connect.CodeNotFound, err)
@@ -154,7 +154,7 @@ func (h *connectHandler) ExportWorkspace(ctx context.Context, req *connect.Reque
 	if req.Msg.WorkspaceId == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("workspace_id is required"))
 	}
-	owned, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, principal.Subject)
+	owned, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, principal.OwnerSubject())
 	if err != nil {
 		return nil, workspaceError(err)
 	}
@@ -242,7 +242,7 @@ func (h *connectHandler) PreviewWorkspaceImport(ctx context.Context, req *connec
 	if req.Msg.WorkspaceId == "" || req.Msg.ContentJson == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("workspace_id and content_json are required"))
 	}
-	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, principal.Subject); err != nil {
+	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, principal.OwnerSubject()); err != nil {
 		return nil, workspaceError(err)
 	}
 	envelope, err := internalPortability.ImportWorkspace([]byte(req.Msg.ContentJson))
@@ -272,7 +272,7 @@ func (h *connectHandler) ApplyWorkspaceImport(ctx context.Context, req *connect.
 	if h.restorer == nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("workspace restore is not configured"))
 	}
-	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, principal.Subject); err != nil {
+	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, principal.OwnerSubject()); err != nil {
 		return nil, workspaceError(err)
 	}
 	envelope, err := internalPortability.ImportWorkspace([]byte(req.Msg.ContentJson))
@@ -301,7 +301,7 @@ func (h *connectHandler) GetRestoreCheckpoint(ctx context.Context, req *connect.
 	if h.restorer == nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("workspace recovery is not configured"))
 	}
-	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, principal.Subject); err != nil {
+	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, principal.OwnerSubject()); err != nil {
 		return nil, workspaceError(err)
 	}
 	checkpoint, err := h.restorer.GetRestoreCheckpoint(ctx, req.Msg.WorkspaceId, req.Msg.CheckpointId)
@@ -326,7 +326,7 @@ func (h *connectHandler) RecoverRestoreCheckpoint(ctx context.Context, req *conn
 	if h.restorer == nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("workspace recovery is not configured"))
 	}
-	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, principal.Subject); err != nil {
+	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, principal.OwnerSubject()); err != nil {
 		return nil, workspaceError(err)
 	}
 	result, err := h.restorer.RecoverRestoreCheckpoint(ctx, req.Msg.WorkspaceId, req.Msg.CheckpointId, req.Msg.ExpectedWorkspaceRevision, req.Msg.IdempotencyKey)
@@ -358,7 +358,7 @@ func (h *connectHandler) PreviewRecipesImport(ctx context.Context, req *connect.
 	if h.restorer == nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("recipe import is not configured"))
 	}
-	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, principal.Subject); err != nil {
+	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, principal.OwnerSubject()); err != nil {
 		return nil, workspaceError(err)
 	}
 	envelope, err := internalPortability.ImportRecipes([]byte(req.Msg.ContentJson))
@@ -383,7 +383,7 @@ func (h *connectHandler) ApplyRecipesImport(ctx context.Context, req *connect.Re
 	if h.restorer == nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("recipe import is not configured"))
 	}
-	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, principal.Subject); err != nil {
+	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, principal.OwnerSubject()); err != nil {
 		return nil, workspaceError(err)
 	}
 	envelope, err := internalPortability.ImportRecipes([]byte(req.Msg.ContentJson))
@@ -409,7 +409,7 @@ func (h *connectHandler) ExportRecipePDF(ctx context.Context, req *connect.Reque
 	if req.Msg.WorkspaceId == "" || req.Msg.RecipeId == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("workspace_id and recipe_id are required"))
 	}
-	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, principal.Subject); err != nil {
+	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, principal.OwnerSubject()); err != nil {
 		return nil, workspaceError(err)
 	}
 	item, err := h.recipes.Get(ctx, req.Msg.WorkspaceId, req.Msg.RecipeId)
@@ -431,7 +431,7 @@ func (h *connectHandler) ExportWeeklyPDF(ctx context.Context, req *connect.Reque
 	if req.Msg.WorkspaceId == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("workspace_id is required"))
 	}
-	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, principal.Subject); err != nil {
+	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, principal.OwnerSubject()); err != nil {
 		return nil, workspaceError(err)
 	}
 	revision, raw, err := h.plans.Get(ctx, req.Msg.WorkspaceId)

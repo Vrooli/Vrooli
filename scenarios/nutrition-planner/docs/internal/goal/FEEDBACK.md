@@ -2,6 +2,16 @@
 
 ## Open
 
+### E25-path-boundary — operator decision (2026-10-08T21:04:07Z, operator — answered via phone)
+
+Question: E25’s admitted paths cannot carry step equipment/settings through recipe revisions because MethodStep exists only in excluded graph.go. How should this unaccepted slice proceed?
+
+> reopen — Supersede_the_no_widen_direction_and_amend_E25_to_admit_graph.go
+
+Offered: hold (recommended, default) | reopen. Ask 5f4dcf59-636b-422a-b5f5-18e5ea39ec71. Recorded by `agent-manager effort decision sync`.
+
+Status: acknowledged; E25 is reopened within the operator-authorized `graph.go` path amendment. No other scope or gate changes are authorized.
+
 ### AF-002 — connected authentication qualification belongs to the existing commission — 2026-10-03
 
 > Pass this qualification to the existing Nooch owner through its supported short feedback/queue/wake path if not already delivered, without interrupting E3. This is accepted Nooch connected-journey/auth integration work: reconcile security guidance with current manifest and qualify the actual same-origin sign-in or isolated connected fixture before treating a human login as the blocker. Use the legitimate Authenticator harness as evidence, not as claimed Nooch coverage. No credential retrieval, new persistent access, auth bypass or grant creation; if a specific such action becomes necessary, return the exact supported handoff for user approval. Ask the native owner to plan/admit the qualification within the existing commission rather than indefinitely park E1/E2 on an unverified user-only dependency. Verify acknowledgment and ownership; do not directly implement or dispatch its worker.

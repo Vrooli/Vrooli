@@ -33,7 +33,7 @@ func actor(ctx context.Context) (string, error) {
 	if !ok {
 		return "", connect.NewError(connect.CodeUnauthenticated, errors.New("verified actor required"))
 	}
-	return p.Subject, nil
+	return p.OwnerSubject(), nil
 }
 
 func (h *connectHandler) scope(ctx context.Context, workspaceID string) (string, error) {
@@ -177,7 +177,7 @@ func fromProtoMethods(methods []*v1.RecipeMethod) []internal.Method {
 		m := internal.Method{ID: method.Id, Name: method.Name, Steps: make([]internal.MethodStep, 0, len(method.Steps))}
 		for _, step := range method.Steps {
 			if step != nil {
-				m.Steps = append(m.Steps, internal.MethodStep{ID: step.Id, Instruction: step.Instruction, DependsOn: step.DependsOn, Inputs: step.Inputs, Outputs: step.Outputs})
+				m.Steps = append(m.Steps, internal.MethodStep{ID: step.Id, Instruction: step.Instruction, DependsOn: step.DependsOn, Inputs: step.Inputs, Outputs: step.Outputs, Equipment: step.Equipment, Settings: step.Settings})
 			}
 		}
 		out = append(out, m)
@@ -190,7 +190,7 @@ func toProtoMethods(methods []internal.Method) []*v1.RecipeMethod {
 	for _, method := range methods {
 		m := &v1.RecipeMethod{Id: method.ID, Name: method.Name, Steps: make([]*v1.RecipeStep, 0, len(method.Steps))}
 		for _, step := range method.Steps {
-			m.Steps = append(m.Steps, &v1.RecipeStep{Id: step.ID, Instruction: step.Instruction, DependsOn: step.DependsOn, Inputs: step.Inputs, Outputs: step.Outputs})
+			m.Steps = append(m.Steps, &v1.RecipeStep{Id: step.ID, Instruction: step.Instruction, DependsOn: step.DependsOn, Inputs: step.Inputs, Outputs: step.Outputs, Equipment: step.Equipment, Settings: step.Settings})
 		}
 		out = append(out, m)
 	}

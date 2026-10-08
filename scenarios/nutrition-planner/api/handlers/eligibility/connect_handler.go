@@ -34,7 +34,7 @@ func (h *connectHandler) Evaluate(ctx context.Context, req *connect.Request[v1.E
 	if req.Msg.WorkspaceId == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("workspace_id is required"))
 	}
-	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, principal.Subject); err != nil {
+	if _, err := h.workspaces.Get(ctx, req.Msg.WorkspaceId, principal.OwnerSubject()); err != nil {
 		var nf workspace.ErrNotFound
 		if errors.As(err, &nf) {
 			return nil, connect.NewError(connect.CodeNotFound, err)

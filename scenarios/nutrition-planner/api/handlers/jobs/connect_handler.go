@@ -115,7 +115,7 @@ func (h *connectHandler) authorize(ctx context.Context, workspaceID string) (str
 	if workspaceID == "" {
 		return "", connect.NewError(connect.CodeInvalidArgument, errors.New("workspace_id is required"))
 	}
-	if _, err := h.workspaces.Get(ctx, workspaceID, principal.Subject); err != nil {
+	if _, err := h.workspaces.Get(ctx, workspaceID, principal.OwnerSubject()); err != nil {
 		var nf internalWorkspace.ErrNotFound
 		if errors.As(err, &nf) {
 			return "", connect.NewError(connect.CodeNotFound, err)
@@ -126,7 +126,7 @@ func (h *connectHandler) authorize(ctx context.Context, workspaceID string) (str
 		}
 		return "", connect.NewError(connect.CodeInternal, err)
 	}
-	return principal.Subject, nil
+	return principal.OwnerSubject(), nil
 }
 
 func toProto(item internalJobs.Job) *v1.Job {

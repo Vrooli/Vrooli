@@ -61,6 +61,7 @@ func New(d Deps, modules ...module.Module) *Server {
 	}
 	s := &Server{deps: d, router: mux.NewRouter()}
 	s.router.Use(middleware.NewSecurityHeadersMiddleware())
+	s.router.Use(middleware.AgentCapability)
 	s.router.Use(middleware.NewLoggingMiddleware(d.Clock, d.Logger))
 	for _, m := range modules {
 		m.Mount(s.router)
