@@ -45,6 +45,7 @@ import { buildRunIndex } from "./lib/runAttribution";
 import type { ViewingCommit } from "./components/HistoryModeHeader";
 import { computeNextSelection, layoutOrder, type SelectionEntry } from "./AppSelection";
 import { ProposalsSection } from "./features/proposals/ProposalsSection";
+import { ProposalWorkspace } from "./features/proposals/ProposalWorkspace";
 import type { SyncActivity } from "./App.types";
 import {
   useMutationErrorToasts,
@@ -317,6 +318,12 @@ export default function App() {
   );
   // History mode: when viewing a previous commit
   const [viewingCommit, setViewingCommit] = useState<ViewingCommit | null>(null);
+  const [proposalView, setProposalView] = useState<string | null>(() => parseUrlState(window.location.search).proposal ?? null);
+  const [proposalFile, setProposalFile] = useState<string | undefined>(() => parseUrlState(window.location.search).proposalFile);
+  const [proposalRevision, setProposalRevision] = useState<number | undefined>(() => parseUrlState(window.location.search).proposalRevision);
+  const handleOpenProposal = useCallback((id: string, revision?: number) => {
+    setProposalView(id); setProposalFile(undefined); setProposalRevision(revision);
+  }, []);
   // View mode for diff viewer
   const [viewMode, setViewMode] = useState<ViewMode>("diff");
 
@@ -327,6 +334,9 @@ export default function App() {
 
   // URL state management - handle browser back/forward and initial state
   const handleUrlStateChange = useCallback((state: UrlState) => {
+    setProposalView(state.proposal ?? null);
+    setProposalFile(state.proposalFile);
+    setProposalRevision(state.proposalRevision);
     setIsSourceDistributionOpen(Boolean(state.sourceDistributionId));
     setSourceDistributionId(state.sourceDistributionId ?? null);
     if (state.file) {
@@ -391,7 +401,7 @@ export default function App() {
         agentRunId: initialState.agentRunId ?? null,
       };
     }
-    if (initialState.file || initialState.commit || initialState.primary || initialState.reviewScenario || initialState.agentRunId || initialState.sourceDistributionId) {
+    if (initialState.proposal || initialState.file || initialState.commit || initialState.primary || initialState.reviewScenario || initialState.agentRunId || initialState.sourceDistributionId) {
       handleUrlStateChange(initialState);
     }
     // Mark as initialized so URL update effect can run
@@ -408,6 +418,7 @@ export default function App() {
     if (!initializedFromUrlRef.current) return;
 
     const urlState: UrlState = {};
+    if (proposalView) { urlState.proposal = proposalView; urlState.proposalFile = proposalFile; urlState.proposalRevision = proposalRevision; }
 
     if (selectedFile) {
       urlState.file = selectedFile;
@@ -445,7 +456,7 @@ export default function App() {
     }
 
     updateUrlState(urlState);
-  }, [selectedFile, selectedIsStaged, viewMode, showRelatedFiles, viewingCommit?.hash, primaryPanel, reviewScenarioSlug, scenarioReview.state.activeTab, isViewingAnyFile, scenarioReview.state.agentRunId, isSourceDistributionOpen, sourceDistributionId, updateUrlState]);
+  }, [selectedFile, selectedIsStaged, viewMode, showRelatedFiles, viewingCommit?.hash, primaryPanel, reviewScenarioSlug, scenarioReview.state.activeTab, isViewingAnyFile, scenarioReview.state.agentRunId, isSourceDistributionOpen, sourceDistributionId, proposalView, proposalFile, proposalRevision, updateUrlState]);
 
   const stackPosition: "left" | "right" | "bottom" =
     layoutPreset === "bottom" ? "bottom" : layoutPreset === "split" ? "right" : "left";
@@ -719,6 +730,9 @@ export default function App() {
 
   const handleRepoChange = useCallback(
     (nextRepoId: string | null) => {
+      setProposalView(null);
+      setProposalFile(undefined);
+      setProposalRevision(undefined);
       setRepoId(nextRepoId);
     },
     [setRepoId]
@@ -1698,23 +1712,6 @@ export default function App() {
     return { prefix: historyGrepPrefix, count };
   }, [historyGrepPrefix, historyQuery.data]);
 
-  // Opens a proposal file's diff. Proposed content is the working tree, so
-  // the unstaged diff is shown unless the file only differs in the index.
-  const handleOpenProposalDiff = useCallback(
-    (path: string) => {
-      const files = statusQuery.data?.files;
-      const untracked = untrackedSet.has(path);
-      const staged = !untracked && Boolean(files?.staged.includes(path)) && !files?.unstaged.includes(path);
-      setSelectedFiles([{ path, staged }]);
-      setSelectedFile(path);
-      setSelectedIsStaged(staged);
-      setSelectedIsUntracked(untracked);
-      if (isMobile) setMobileActivePanel("diff");
-      else if (primaryPanel === "review") setPrimaryPanel("diff");
-    },
-    [isMobile, primaryPanel, statusQuery.data?.files, untrackedSet],
-  );
-
   // Handle selecting a file when in history mode
   const handleSelectHistoryFile = useCallback(
     (path: string) => {
@@ -2474,6 +2471,7 @@ export default function App() {
             blameFileName={viewingFileBlame?.filename}
             onExitBlameMode={handleExitBlameMode}
             onContinueCommit={handleContinueCommit}
+            onOpenProposal={handleOpenProposal}
             activeGroupFilter={activeGroupFilter}
             onFilterGroup={setHistoryGrepPrefix}
             onClearGroupFilter={() => setHistoryGrepPrefix(null)}
@@ -2483,11 +2481,8 @@ export default function App() {
         return (
           <ProposalsSection
             repoId={repoId}
-            canApprove={authorityStatus?.canMutate ?? false}
-            approveDisabledReason={authorityStatus?.reason}
-            skipConfirmation={skipCommitConfirmation}
             hidden={isHistoryMode}
-            onOpenDiff={handleOpenProposalDiff}
+            onOpen={handleOpenProposal}
           >
             <CommitPanel
               stagedCount={statusQuery.data?.summary.staged ?? 0}
@@ -2759,11 +2754,8 @@ export default function App() {
         return (
           <ProposalsSection
             repoId={repoId}
-            canApprove={authorityStatus?.canMutate ?? false}
-            approveDisabledReason={authorityStatus?.reason}
-            skipConfirmation={skipCommitConfirmation}
             hidden={isHistoryMode}
-            onOpenDiff={handleOpenProposalDiff}
+            onOpen={handleOpenProposal}
           >
             <CommitPanel
               stagedCount={statusQuery.data?.summary.staged ?? 0}
@@ -2840,6 +2832,7 @@ export default function App() {
             blameFileName={viewingFileBlame?.filename}
             onExitBlameMode={handleExitBlameMode}
             onContinueCommit={handleContinueCommit}
+            onOpenProposal={handleOpenProposal}
             activeGroupFilter={activeGroupFilter}
             onFilterGroup={setHistoryGrepPrefix}
             onClearGroupFilter={() => setHistoryGrepPrefix(null)}
@@ -2863,6 +2856,15 @@ export default function App() {
         );
     }
   };
+
+  if (proposalView) {
+    return <div className="h-full" data-testid="git-control-tower" role="application">
+      <ProposalWorkspace repoId={repoId} proposalId={proposalView} selectedPath={proposalFile} revision={proposalRevision}
+        canApprove={authorityStatus?.canMutate ?? false} approveDisabledReason={authorityStatus?.reason}
+        skipConfirmation={skipCommitConfirmation} operator={authorityStatus?.principalId}
+        onOpen={handleOpenProposal} onSelectPath={setProposalFile} onExit={() => { setProposalView(null); setProposalFile(undefined); setProposalRevision(undefined); }} />
+    </div>;
+  }
 
   // Mobile Layout
   if (isMobile) {

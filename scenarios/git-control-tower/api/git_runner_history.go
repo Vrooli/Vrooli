@@ -45,7 +45,8 @@ func (r *ExecGitRunner) LogDetails(ctx context.Context, repoDir string, limit in
 	args := readArgs(repoDir,
 		"log",
 		"--name-only",
-		"--pretty=format:%H%x00%an%x00%ad%x00%s",
+		"-z",
+		"--pretty=format:%x1e%H%x00%an%x00%ad%x00%B%x00",
 		"--date=iso",
 		"-n", fmt.Sprintf("%d", limit),
 	)

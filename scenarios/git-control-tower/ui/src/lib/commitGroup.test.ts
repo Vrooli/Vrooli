@@ -74,3 +74,7 @@ describe("buildContinueMessage", () => {
     expect(buildContinueMessage("")).toBeNull();
   });
 });
+
+it("recognizes the operator's uppercase continuation convention", () => {
+  expect(parseCommitGroup("Review work P2")).toEqual({ prefix: "Review work", part: 2 });
+});

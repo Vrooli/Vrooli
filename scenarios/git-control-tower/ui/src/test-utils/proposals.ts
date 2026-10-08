@@ -16,6 +16,7 @@ export function proposalFixture(overrides: ProposalInit = {}): Proposal {
     repositoryId: "1",
     state: ProposalState.OPEN,
     revision: 2,
+    captured: true,
     branch: "agi",
     baseHead: "0e1f1210438aaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     createdBy: { subject: "orchestrator", kind: "vrooli-agent", verified: true },

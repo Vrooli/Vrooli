@@ -12,17 +12,24 @@ preimage digest, and `verified` attribution. Mixed, missing, or path-only
 provenance is unsafe and is refused.
 
 Commit proposals split drafting from actuation. Agents may anchor, create,
-edit, refresh and withdraw proposals; those writes reach GCT's database only.
+edit, combine, refresh and withdraw proposals; those writes reach GCT's database only.
 `ProposalService.ApplyProposal` is the human writer. Its intent operation is
-`repo.apply_proposal` with subject context `proposal:<id>@<revision>`, and its
-digest binds HEAD, the proposal digest (base, per-file blob IDs, rendered
-message), the current blob IDs of the proposal paths and the current index. A
-caller header that claims an agent removes authority even in a session that
-personal-local authentication maps to the operator. Under the repository lock,
-apply consumes the intent, refuses content drift, a base move that touches a
-proposal path, or staged paths outside the proposal, then stages exactly the
-proposal paths, verifies the staged blob IDs, runs pre-commit and commits the
-rendered message with the operator as author. Any failure restores the index.
+`repo.apply_proposal` with subject context `proposal:<id>@<revision>`, plus
+`;prior-work=acknowledged` when uncertain prior work is explicitly accepted.
+The digest binds destination HEAD/branch, proposal base, exact blobs/modes,
+rendered message and index. Strict mode also binds live contents. Opt-in
+`keep_later_changes` binds `;working-files=preserved` after any acknowledgment
+suffix; it commits saved bytes/modes and leaves newer working edits untouched.
+The UI uses this saved-version mode. Caller agent headers remove authority
+even when local authentication maps to the operator. Under the repository lock,
+apply consumes the intent and refuses strict-mode working drift, changed branch, affected base moves,
+foreign staged files, unavailable captures or missing acknowledgment. Saved-version
+mode also refuses different staged proposal versions before changing the index. It stages
+only reviewed paths, checks and commits a private candidate, verifies exact tree
+and message before publication, then revalidates source/revision under Git and
+proposal-store leases. Pre-publication failure restores the index. A published
+commit is never concealed by a later recording error or reset of the index.
+Closing/excluding/grouping drafts never removes operator code or changes index.
 
 Recording fakes are the acceptance mechanism. A fake must observe that no
 writer call occurs before verification and that replayed, expired, consumed,

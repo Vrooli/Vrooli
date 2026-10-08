@@ -237,3 +237,10 @@ describe("round-trip: parseUrlState → buildUrlSearch", () => {
     expect(parseUrlState(rebuilt)).toEqual(state);
   });
 });
+
+describe("proposal URL state", () => {
+ it("preserves proposal, literal path and retained revision across reload", () => {
+  const state = { proposal: "gctp-123456789abc", proposalFile: "a path+name.ts", proposalRevision: 3 };
+  expect(parseUrlState(buildUrlSearch(state))).toEqual(state);
+ });
+});

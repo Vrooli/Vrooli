@@ -62,6 +62,9 @@ const shellCommandWaitDelay = 2 * time.Second
 func newShellCommand(ctx context.Context, req CommandRunRequest) *exec.Cmd {
 	cmd := exec.CommandContext(ctx, "bash", "-lc", req.Command)
 	cmd.Dir = req.WorkingDirectory
+	if environment, ok := ctx.Value(proposalEnvironmentKey{}).([]string); ok {
+		cmd.Env = environment
+	}
 	applyProcessGroupContainment(cmd)
 	cmd.WaitDelay = shellCommandWaitDelay
 	return cmd
@@ -307,7 +310,9 @@ func (s *PrecommitService) runConfig(ctx context.Context, repoDir string, cfg Pr
 			result.ExitCode = 124
 		}
 	}
-	_ = s.saveLastResult(context.Background(), repoDir, result)
+	recordCtx, cancelRecord := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	_ = s.saveLastResult(recordCtx, repoDir, result)
+	cancelRecord()
 	return result, nil
 }
 

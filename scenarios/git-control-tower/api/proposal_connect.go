@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -54,7 +55,7 @@ func (s *Server) initProposalService() {
 		log.Printf("proposal store unavailable: %v", err)
 		return
 	}
-	s.proposalService = proposals.NewService(store)
+	s.proposalService = proposals.NewService(store).WithResolver(newTrailerOwners())
 }
 
 // proposalConnectServer is the ProposalService transport adapter. Domain
@@ -70,7 +71,7 @@ func (s *Server) proposalRepo(ctx context.Context, repositoryID string) (*RepoRe
 	if err != nil {
 		return nil, proposals.Repo{}, connect.NewError(connect.CodeFailedPrecondition, err)
 	}
-	return record, proposals.Repo{ID: repositoryIDFor(record), Git: proposalGitFor(s.git, record.Path), Sandbox: s.sandboxPendingFor(record.Path)}, nil
+	return record, proposals.Repo{ID: repositoryIDFor(record), DisplayName: record.Name, Directory: record.Path, Git: proposalGitFor(s.git, record.Path), Sandbox: s.sandboxPendingFor(record.Path)}, nil
 }
 
 // proposalRepoByID resolves the repository a stored proposal belongs to.
@@ -118,7 +119,7 @@ func (s *Server) proposalSubjectEvidence(ctx context.Context, record *RepoRecord
 	if s.proposalService == nil {
 		return nil, errors.New("proposal store is unavailable")
 	}
-	return s.proposalService.SubjectEvidence(ctx, proposals.Repo{ID: repositoryIDFor(record), Git: proposalGitFor(s.git, record.Path)}, subjectContext)
+	return s.proposalService.SubjectEvidence(ctx, proposals.Repo{ID: repositoryIDFor(record), DisplayName: record.Name, Directory: record.Path, Git: proposalGitFor(s.git, record.Path)}, subjectContext)
 }
 
 // proposalActor records who wrote a draft. A caller header that declares an
@@ -193,7 +194,7 @@ func (h proposalConnectServer) CreateProposal(ctx context.Context, req *connect.
 	}
 	return connect.NewResponse(&proposalsv1.CreateProposalResponse{
 		Proposal: h.server.proposalProto(ctx, repo, result.View), Issues: issuesProto(result.Issues),
-		Stored: result.Stored, SupersededId: result.SupersededID,
+		Stored: result.Stored,
 	}), nil
 }
 
@@ -212,9 +213,11 @@ func (h proposalConnectServer) ListProposals(ctx context.Context, req *connect.R
 	if err != nil {
 		return nil, proposalError(err)
 	}
+	metadataCtx, cancelMetadata := context.WithTimeout(ctx, 800*time.Millisecond)
+	defer cancelMetadata()
 	response := &proposalsv1.ListProposalsResponse{OpenCount: int32(open)}
 	for _, view := range views {
-		response.Proposals = append(response.Proposals, h.server.proposalProto(ctx, repo, view))
+		response.Proposals = append(response.Proposals, h.server.proposalProto(metadataCtx, repo, view))
 	}
 	return connect.NewResponse(response), nil
 }
@@ -224,7 +227,7 @@ func (h proposalConnectServer) GetProposal(ctx context.Context, req *connect.Req
 	if err != nil {
 		return nil, err
 	}
-	view, err := h.server.proposalService.Get(ctx, repo, req.Msg.GetId())
+	view, err := h.server.proposalService.Revision(ctx, repo, req.Msg.GetId(), int(req.Msg.GetRevision()))
 	if err != nil {
 		return nil, proposalError(err)
 	}
@@ -259,7 +262,7 @@ func (h proposalConnectServer) WithdrawProposal(ctx context.Context, req *connec
 	if err != nil {
 		return nil, err
 	}
-	view, err := h.server.proposalService.Withdraw(ctx, repo, req.Msg.GetId(), req.Msg.GetReason(), proposalActor(ctx, req.Header(), ""))
+	view, err := h.server.proposalService.Close(ctx, repo, req.Msg.GetId(), int(req.Msg.GetExpectedRevision()), req.Msg.GetReason(), req.Msg.GetReplacementId(), proposalActor(ctx, req.Header(), ""))
 	if err != nil {
 		return nil, proposalError(err)
 	}
@@ -316,7 +319,7 @@ func (h proposalConnectServer) ApplyProposal(ctx context.Context, req *connect.R
 		s.repos.InvalidateStatus(record.Path)
 	}()
 
-	subjectContext := proposals.SubjectContext(msg.GetId(), int(msg.GetRevision()))
+	subjectContext := proposals.ApprovalContext(msg.GetId(), int(msg.GetRevision()), msg.GetAcknowledgePriorWork(), msg.GetKeepLaterChanges())
 	preview, err := s.prepareMutationWithContext(writeCtx, repositoryIDFor(record), mutationOperationApplyProposal, subjectContext)
 	if err != nil {
 		return nil, proposalError(err)
@@ -331,25 +334,24 @@ func (h proposalConnectServer) ApplyProposal(ctx context.Context, req *connect.R
 		if err := requireHumanMutation(commitCtx, "apply proposal"); err != nil {
 			return proposals.CommitOutcome{}, err
 		}
-		result, err := createAuthorizedCommit(commitCtx, CommitDeps{Git: s.git, RepoDir: record.Path, Precommit: s.precommit, Checks: s.commitChecks}, CommitRequest{
-			IntentID: msg.GetIntentId(), Message: message, SkipPrecommitOnce: msg.GetSkipPrecommitOnce(),
-		})
-		if err != nil {
-			return proposals.CommitOutcome{}, err
-		}
-		outcome := proposals.CommitOutcome{OID: result.Hash, Precommit: precommitOutcome(result.Precommit)}
-		if !result.Success {
-			outcome.Failure = commitAuditError(result)
-		}
-		return outcome, nil
+		return s.proposalService.PrepareCommit(commitCtx, repo, msg.GetId(), int(msg.GetRevision()), s.proposalCandidateCheck(record.Path, msg.GetSkipPrecommitOnce()), msg.GetSkipPrecommitOnce())
 	}
 	actor := proposals.Actor{Subject: principal.Subject, Kind: principal.Kind.String(), Verified: principal.Verified}
-	result, err := s.proposalService.Apply(writeCtx, repo, proposals.ApplyRequest{ID: msg.GetId(), Revision: int(msg.GetRevision()), Actor: actor}, commit)
+	result, err := s.proposalService.Apply(writeCtx, repo, proposals.ApplyRequest{ID: msg.GetId(), Revision: int(msg.GetRevision()), Actor: actor, AcknowledgePriorWork: msg.GetAcknowledgePriorWork(), KeepLaterChanges: msg.GetKeepLaterChanges()}, commit)
 	s.logProposalAudit(record.Path, msg, consumed.ID, result, err)
 	if err != nil {
 		return nil, proposalError(err)
 	}
 	if result.Success {
+		if s.commitChecks != nil && result.Precommit != nil && result.Precommit.Status == "passed" {
+			p := result.Precommit
+			recordCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+			err := s.commitChecks.Save(recordCtx, record.Path, result.CommitOID, commitCheckFromPrecommit(PrecommitRunResult{Status: p.Status, Command: p.Command, ExitCode: p.ExitCode, Summary: p.Summary, Stdout: p.Stdout, Stderr: p.Stderr, DurationMs: p.DurationMs, Timestamp: p.Timestamp}))
+			cancel()
+			if err != nil {
+				result.Notes = append(result.Notes, "Commit created; precommit receipt linkage could not be recorded.")
+			}
+		}
 		s.notifyCommitToSandbox(record.Path, result.View.Paths(), &CommitResponse{Success: true, Hash: result.CommitOID, Message: result.View.Message.Rendered})
 	}
 	response := &proposalsv1.ApplyProposalResponse{
@@ -383,7 +385,7 @@ func precommitOutcome(result *PrecommitRunResult) *proposals.PrecommitOutcome {
 	if result == nil {
 		return nil
 	}
-	return &proposals.PrecommitOutcome{Status: result.Status, Command: result.Command, ExitCode: result.ExitCode, Summary: result.Summary, Stdout: result.Stdout, Stderr: result.Stderr, DurationMs: result.DurationMs}
+	return &proposals.PrecommitOutcome{Status: result.Status, Command: result.Command, ExitCode: result.ExitCode, Summary: result.Summary, Stdout: result.Stdout, Stderr: result.Stderr, DurationMs: result.DurationMs, Timestamp: result.Timestamp}
 }
 
 func (s *Server) logProposalAudit(repoPath string, req *proposalsv1.ApplyProposalRequest, intentID string, result proposals.ApplyResult, err error) {
@@ -420,25 +422,12 @@ func (s *Server) proposalProto(ctx context.Context, repo proposals.Repo, view pr
 	if view.ID == "" {
 		return nil
 	}
-	refs := trailers.ResolveEntries(ctx, view.Message.Trailers, s.proposalService.Resolver(repo))
-	message := &proposalsv1.ProposalMessage{Subject: view.Message.Subject, Body: view.Message.Body, Rendered: view.Message.Rendered, OperatorEdited: view.Message.OperatorEdited}
-	refIndex := 0
-	for _, entry := range view.Message.Trailers {
-		if entry.Key == "" {
-			continue
-		}
-		trailer := &proposalsv1.ProposalTrailer{Key: entry.Key, Value: entry.Value, Kind: trailers.KindOf(entry.Key, entry.Value), Known: entry.Supported}
-		if refIndex < len(refs) {
-			trailer.Resolution, trailer.Detail = resolutionProto(refs[refIndex].Status), refs[refIndex].Detail
-			refIndex++
-		}
-		message.Trailers = append(message.Trailers, trailer)
-	}
+	message := &proposalsv1.ProposalMessage{Subject: view.Message.Subject, Body: view.Message.Body, Rendered: view.Message.Rendered, OperatorEdited: view.Message.OperatorEdited, Trailers: s.trailerProto(ctx, repo, view.Message.Trailers)}
 	proposal := &proposalsv1.Proposal{
-		Id: view.ID, RepositoryId: view.RepositoryID, State: stateProto(view.State), Revision: int32(view.Revision),
+		Id: view.ID, RepositoryId: view.RepositoryID, RepositoryName: repo.DisplayName, RepositoryPath: repo.Directory, State: stateProto(view.State), Revision: int32(view.Revision),
 		CreatedBy: actorProto(view.CreatedBy), BaseHead: view.BaseHead, Branch: view.Branch,
 		Work:    &proposalsv1.ProposalWork{EffortRef: view.Work.EffortRef, EffortRevision: view.Work.EffortRevision, Epoch: view.Work.Epoch, RunIds: view.Work.RunIDs, Plans: view.Work.Plans},
-		Message: message, ProposalDigest: view.Digest, CommitOid: view.CommitOID, SupersededBy: view.SupersededBy,
+		Message: message, ProposalDigest: view.Digest, CommitOid: view.CommitOID, SupersededBy: view.SupersededBy, Captured: proposals.Captured(view.Proposal),
 		Evidence: &proposalsv1.ProposalEvidence{AnchorId: view.Evidence.AnchorID, EpochFile: view.Evidence.EpochFile, AcceptedLineSha256: view.Evidence.AcceptedLineSHA256, GateReceipts: view.Evidence.GateReceipts, MetricBefore: view.Evidence.MetricBefore, MetricAfter: view.Evidence.MetricAfter},
 		Issues:   issuesProto(view.Issues), CreatedAt: timestamppb.New(view.CreatedAt), UpdatedAt: timestamppb.New(view.UpdatedAt),
 		Freshness: &proposalsv1.ProposalFreshness{
@@ -447,16 +436,21 @@ func (s *Server) proposalProto(ctx context.Context, repo proposals.Repo, view pr
 			CheckedAt: timestamppb.New(view.Freshness.CheckedAt),
 		},
 	}
+	if values, err := s.proposalService.AvailableRevisions(ctx, repo, view.ID); err == nil {
+		for _, value := range values {
+			proposal.RetainedRevisions = append(proposal.RetainedRevisions, int32(value))
+		}
+	}
 	if view.CommittedAt != nil {
 		proposal.CommittedAt = timestamppb.New(*view.CommittedAt)
 	}
 	for _, file := range view.Files {
-		converted := &proposalsv1.ProposalFile{Path: file.Path, Kind: kindProto(file.Kind), Sha256: file.SHA256, BlobId: file.BlobID, Deleted: file.Deleted, Source: file.Source}
+		converted := &proposalsv1.ProposalFile{Path: file.Path, Kind: kindProto(file.Kind), Sha256: file.SHA256, BlobId: file.BlobID, Deleted: file.Deleted, Source: file.Source, Mode: file.Mode, BaseMode: file.BaseMode, BaseBlobId: file.BaseBlobID}
 		for _, flag := range file.Flags {
 			converted.Flags = append(converted.Flags, &proposalsv1.ProposalFlag{Code: flag.Code, Detail: flag.Detail})
 		}
 		if current, ok := view.Freshness.CurrentBlobs[file.Path]; ok {
-			converted.CurrentBlobId, converted.Drifted = current, current != file.ContentID()
+			converted.CurrentBlobId, converted.Drifted = current, current != file.ContentID() || slices.Contains(view.Freshness.Drifted, file.Path)
 		}
 		proposal.Files = append(proposal.Files, converted)
 	}
@@ -466,13 +460,16 @@ func (s *Server) proposalProto(ctx context.Context, repo proposals.Repo, view pr
 	for _, event := range view.Events {
 		proposal.Events = append(proposal.Events, &proposalsv1.ProposalEvent{Action: event.Action, Actor: actorProto(event.Actor), Revision: int32(event.Revision), Detail: event.Detail, Timestamp: timestamppb.New(event.Timestamp)})
 	}
+	for _, fold := range view.Folds {
+		proposal.Folds = append(proposal.Folds, &proposalsv1.ProposalFold{Id: fold.ID, Revision: int32(fold.Revision), EffortRef: fold.EffortRef, Epoch: fold.Epoch, Subject: fold.Subject, Reason: fold.Reason, Paths: fold.Paths, Evidence: &proposalsv1.ProposalEvidence{AnchorId: fold.Evidence.AnchorID, EpochFile: fold.Evidence.EpochFile, GateReceipts: fold.Evidence.GateReceipts, MetricBefore: fold.Evidence.MetricBefore, MetricAfter: fold.Evidence.MetricAfter, AcceptedLineSha256: fold.Evidence.AcceptedLineSHA256}})
+	}
 	return proposal
 }
 
 func anchorProto(anchor proposals.Anchor) *proposalsv1.Anchor {
 	converted := &proposalsv1.Anchor{Id: anchor.ID, RepositoryId: anchor.RepositoryID, EffortRef: anchor.EffortRef, Epoch: anchor.Epoch, Scopes: anchor.Scopes, Head: anchor.Head, CreatedBy: actorProto(anchor.CreatedBy), CreatedAt: timestamppb.New(anchor.CreatedAt)}
 	for _, file := range anchor.Files {
-		converted.Files = append(converted.Files, &proposalsv1.AnchorFile{Path: file.Path, Sha256: file.SHA256, BlobId: file.BlobID, Deleted: file.Deleted})
+		converted.Files = append(converted.Files, &proposalsv1.AnchorFile{Path: file.Path, Sha256: file.SHA256, BlobId: file.BlobID, Deleted: file.Deleted, Mode: file.Mode})
 	}
 	return converted
 }
@@ -592,4 +589,27 @@ func resolutionProto(status trailers.ResolutionStatus) proposalsv1.TrailerResolu
 	default:
 		return proposalsv1.TrailerResolution_TRAILER_RESOLUTION_UNRESOLVED
 	}
+}
+
+// trailerProto is shared by proposal and historical commit review.
+func (s *Server) trailerProto(ctx context.Context, repo proposals.Repo, entries []trailers.Entry) []*proposalsv1.ProposalTrailer {
+	var resolver trailers.Resolver
+	if s.proposalService != nil {
+		resolver = s.proposalService.Resolver(repo)
+	}
+	refs := boundedTrailerReferences(ctx, entries, resolver)
+	result := make([]*proposalsv1.ProposalTrailer, 0, len(refs))
+	index := 0
+	for _, entry := range entries {
+		if entry.Key == "" {
+			continue
+		}
+		value := &proposalsv1.ProposalTrailer{Key: entry.Key, Value: entry.Value, Kind: trailers.KindOf(entry.Key, entry.Value), Known: entry.Supported}
+		if index < len(refs) {
+			value.Resolution, value.Detail = resolutionProto(refs[index].Status), refs[index].Detail
+			index++
+		}
+		result = append(result, value)
+	}
+	return result
 }

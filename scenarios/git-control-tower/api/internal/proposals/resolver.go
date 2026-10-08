@@ -9,8 +9,8 @@ import (
 
 // Resolver resolves the trailer kinds GCT owns: proposals in its store and
 // continued commits in the repository. Effort, epoch, run, plan and backlog
-// references stay unresolved until their owners' resolvers are wired (DL-10
-// S2); resolution never blocks a proposal.
+// references delegate to the configured owner resolver; unavailable evidence
+// remains unresolved and never blocks a proposal.
 func (s *Service) Resolver(repo Repo) trailers.Resolver {
 	return localResolver{service: s, repo: repo}
 }
@@ -45,6 +45,9 @@ func (r localResolver) Resolve(ctx context.Context, key, value string) (string, 
 		}
 		return value, trailers.Resolved, "commit exists in this repository", nil
 	default:
-		return "", trailers.Unresolved, "owner resolver for " + trailers.KindOf(key, value) + " references is not wired yet", nil
+		if r.service.ownerResolver != nil {
+			return r.service.ownerResolver.Resolve(ctx, key, value)
+		}
+		return "", trailers.Unresolved, "owner evidence unavailable for " + trailers.KindOf(key, value), nil
 	}
 }

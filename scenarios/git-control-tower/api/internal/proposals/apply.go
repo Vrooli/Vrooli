@@ -2,10 +2,10 @@ package proposals
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"git-control-tower/internal/policygate"
 
@@ -13,9 +13,11 @@ import (
 )
 
 type ApplyRequest struct {
-	ID       string
-	Revision int
-	Actor    Actor
+	ID                   string
+	Revision             int
+	Actor                Actor
+	AcknowledgePriorWork bool
+	KeepLaterChanges     bool
 }
 
 // PrecommitOutcome is the configured pre-commit result recorded during apply.
@@ -27,6 +29,7 @@ type PrecommitOutcome struct {
 	Stdout     string
 	Stderr     string
 	DurationMs int64
+	Timestamp  time.Time
 }
 
 // CommitOutcome is what the commit step reports. A non-empty Failure means
@@ -35,11 +38,14 @@ type CommitOutcome struct {
 	OID       string
 	Failure   string
 	Precommit *PrecommitOutcome
+	// Candidate facts are inspected before Publish can advance the real ref.
+	Facts   *CommitFacts
+	Publish func(context.Context) (string, error)
+	Cleanup func()
 }
 
-// CommitFunc commits the current index with an exact message. Production runs
-// the configured pre-commit check and git commit as the repository's own
-// identity; the operator is the author.
+// CommitFunc prepares a checked private candidate. Apply verifies its facts
+// before its Publish closure may advance the operator’s repository.
 type CommitFunc func(ctx context.Context, message string) (CommitOutcome, error)
 
 // Refusal explains why apply did nothing.
@@ -62,8 +68,9 @@ type ApplyResult struct {
 
 // Apply stages exactly the proposal paths and commits the rendered message.
 // The caller holds the repository lock and has consumed a single-use intent
-// for OperationApply. Apply refuses on content drift, on commits since the
-// base that touch the paths, and on staged paths outside the proposal. On any
+// for OperationApply. Strict mode refuses working-content drift. Preserved-files
+// mode stages retained contents and refuses different staged versions. Both
+// refuse commits since the base touching paths and foreign staging. On any
 // failure after staging, it restores the index entries of the proposal paths.
 func (s *Service) Apply(ctx context.Context, repo Repo, req ApplyRequest, commit CommitFunc) (ApplyResult, error) {
 	if err := requireApplyAuthority(ctx); err != nil {
@@ -85,21 +92,40 @@ func (s *Service) Apply(ctx context.Context, repo Repo, req ApplyRequest, commit
 	if proposal.Revision != req.Revision {
 		return s.refuse(ctx, repo, proposal, req.Actor, Refusal{Code: RefuseRevision, Detail: fmt.Sprintf("approved revision %d, current revision %d; review it again", req.Revision, proposal.Revision)}, true)
 	}
-	paths := proposal.Paths()
-
-	contents, err := repo.Git.Hash(ctx, paths)
+	if !Captured(proposal) {
+		return s.refuse(ctx, repo, proposal, req.Actor, Refusal{Code: "capture_unavailable", Detail: "This legacy proposal has no retained content. Explicitly adopt and review current contents first."}, true)
+	}
+	if paths := UncertainPaths(proposal); len(paths) > 0 && !req.AcknowledgePriorWork {
+		return s.refuse(ctx, repo, proposal, req.Actor, Refusal{Code: "prior_work_acknowledgment", Paths: paths, Detail: "Explicitly acknowledge that these whole files may include prior or unattributed work."}, true)
+	}
+	branch, err := repo.Git.Branch(ctx)
 	if err != nil {
 		return ApplyResult{}, err
 	}
-	var drifted []string
-	for _, file := range proposal.Files {
-		if contents[file.Path].ContentID() != file.ContentID() {
-			drifted = append(drifted, file.Path)
+	if proposal.Branch == "" {
+		return s.refuse(ctx, repo, proposal, req.Actor, Refusal{Code: "destination_branch_required", Detail: "Check out a named destination branch and adopt a new revision before approval."}, true)
+	}
+	if branch != proposal.Branch {
+		return s.refuse(ctx, repo, proposal, req.Actor, Refusal{Code: "branch_changed", Detail: "The destination branch changed; review a new revision."}, true)
+	}
+	paths := proposal.Paths()
+
+	if !req.KeepLaterChanges {
+		contents, err := repo.Git.Hash(ctx, paths)
+		if err != nil {
+			return ApplyResult{}, err
+		}
+		var drifted []string
+		for _, file := range proposal.Files {
+			if contents[file.Path].ContentID() != file.ContentID() || contents[file.Path].SHA256 != file.SHA256 || (!file.Deleted && contents[file.Path].Mode != file.Mode) {
+				drifted = append(drifted, file.Path)
+			}
+		}
+		if len(drifted) > 0 {
+			return s.refuse(ctx, repo, proposal, req.Actor, Refusal{Code: RefuseContentDrift, Paths: drifted, Detail: "content changed since the proposal; refresh it or remove the files"}, true)
 		}
 	}
-	if len(drifted) > 0 {
-		return s.refuse(ctx, repo, proposal, req.Actor, Refusal{Code: RefuseContentDrift, Paths: drifted, Detail: "content changed since the proposal; refresh it or remove the files"}, true)
-	}
+
 	head, err := repo.Git.Head(ctx)
 	if err != nil {
 		return ApplyResult{}, err
@@ -126,12 +152,39 @@ func (s *Service) Apply(ctx context.Context, repo Repo, req ApplyRequest, commit
 		return ApplyResult{}, err
 	}
 	restore := func(cause string) []string {
-		if restoreErr := repo.Git.RestoreIndex(context.WithoutCancel(ctx), paths, prior); restoreErr != nil {
+		restoreCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
+		defer cancel()
+		if restoreErr := repo.Git.RestoreIndex(restoreCtx, paths, prior); restoreErr != nil {
 			return []string{cause, "index restore failed: " + restoreErr.Error()}
 		}
-		return []string{cause}
+		return []string{cause, "index was restored"}
 	}
-	if err := repo.Git.Stage(ctx, paths); err != nil {
+	if req.KeepLaterChanges {
+		stagedSet := map[string]bool{}
+		for _, path := range staged {
+			stagedSet[path] = true
+		}
+		var different []string
+		for _, file := range proposal.Files {
+			if !stagedSet[file.Path] {
+				continue
+			}
+			entry, exists := prior[file.Path]
+			if (file.Deleted && exists) || (!file.Deleted && (!exists || entry.BlobID != file.BlobID || entry.Mode != file.Mode)) {
+				different = append(different, file.Path)
+			}
+		}
+		if len(different) > 0 {
+			return s.refuse(ctx, repo, proposal, req.Actor, Refusal{Code: "staged_version_differs", Paths: different, Detail: "Different versions of these files are staged. Review or unstage them first; their staged contents were left unchanged."}, true)
+		}
+	}
+	stage := func() error {
+		if req.KeepLaterChanges {
+			return repo.Git.StageCaptured(ctx, proposal.Files, s.store.Blob)
+		}
+		return repo.Git.Stage(ctx, paths)
+	}
+	if err := stage(); err != nil {
 		notes := restore("stage failed: " + err.Error())
 		return ApplyResult{View: s.viewOrBare(ctx, repo, proposal), Error: strings.Join(notes, "; ")}, nil
 	}
@@ -140,34 +193,80 @@ func (s *Service) Apply(ctx context.Context, repo Repo, req ApplyRequest, commit
 		if err != nil {
 			detail = "staged index could not be verified: " + err.Error()
 		}
-		restore(detail)
-		return s.refuse(ctx, repo, proposal, req.Actor, Refusal{Code: RefuseIndexMismatch, Paths: mismatch, Detail: detail + "; the index was restored"}, true)
+		notes := restore(detail)
+		return s.refuse(ctx, repo, proposal, req.Actor, Refusal{Code: RefuseIndexMismatch, Paths: mismatch, Detail: strings.Join(notes, "; ")}, true)
 	}
 
 	outcome, err := commit(ctx, proposal.Message.Rendered)
+	if outcome.Cleanup != nil {
+		defer outcome.Cleanup()
+	}
 	if err != nil || outcome.Failure != "" {
 		cause := outcome.Failure
 		if err != nil {
 			cause = err.Error()
 		}
 		notes := restore(cause)
-		result := ApplyResult{View: s.viewOrBare(ctx, repo, proposal), Precommit: outcome.Precommit, Error: strings.Join(notes, "; ") + "; the index was restored"}
+		result := ApplyResult{View: s.viewOrBare(ctx, repo, proposal), Precommit: outcome.Precommit, Error: strings.Join(notes, "; ")}
 		if outcome.Precommit != nil && outcome.Precommit.Status != "passed" {
 			result.Refusal = &Refusal{Code: RefusePrecommit, Detail: outcome.Precommit.Summary}
 		}
 		return result, nil
 	}
+	if outcome.Facts == nil || outcome.Publish == nil {
+		notes := restore("candidate publisher did not provide verifiable immutable facts")
+		return ApplyResult{View: s.viewOrBare(ctx, repo, proposal), Error: strings.Join(notes, "; ")}, nil
+	}
+	if verified, notes := verifyFacts(proposal, *outcome.Facts); !verified {
+		notes = append(notes, restore("candidate changed during checks; no repository ref was published")...)
+		return ApplyResult{View: s.viewOrBare(ctx, repo, proposal), Precommit: outcome.Precommit, Refusal: &Refusal{Code: RefuseIndexMismatch, Detail: strings.Join(notes, "; ")}}, nil
+	}
+	// Checks can take minutes. Recheck the shared inputs immediately before
+	// publication; the isolated candidate cannot carry foreign index entries.
+	currentHead, headErr := repo.Git.Head(ctx)
+	currentBranch, branchErr := repo.Git.Branch(ctx)
+	if headErr != nil || branchErr != nil || currentHead != head || currentBranch != proposal.Branch {
+		notes := restore("repository destination changed during checks; review again")
+		return ApplyResult{View: s.viewOrBare(ctx, repo, proposal), Refusal: &Refusal{Code: "destination_changed", Detail: strings.Join(notes, "; ")}}, nil
+	}
+	if !req.KeepLaterChanges {
+		current, hashErr := repo.Git.Hash(ctx, paths)
+		if hashErr != nil {
+			return ApplyResult{View: s.viewOrBare(ctx, repo, proposal), Error: strings.Join(restore(hashErr.Error()), "; ")}, nil
+		}
+		for _, file := range proposal.Files {
+			if current[file.Path].ContentID() != file.ContentID() || current[file.Path].SHA256 != file.SHA256 || (!file.Deleted && current[file.Path].Mode != file.Mode) {
+				notes := restore("working content changed during checks; no commit was published")
+				return ApplyResult{View: s.viewOrBare(ctx, repo, proposal), Refusal: &Refusal{Code: RefuseContentDrift, Paths: []string{file.Path}, Detail: strings.Join(notes, "; ")}}, nil
+			}
+		}
+	}
+
+	if mismatch, err := verifyIndex(ctx, repo.Git, proposal); err != nil || len(mismatch) > 0 {
+		notes := restore("index changed during checks; no commit was published")
+		return ApplyResult{View: s.viewOrBare(ctx, repo, proposal), Refusal: &Refusal{Code: RefuseIndexMismatch, Paths: mismatch, Detail: strings.Join(notes, "; ")}}, nil
+	}
+	oid, committed, err := s.store.Publish(ctx, proposal, req.Actor, outcome.Publish, s.now())
+	if err != nil {
+		if oid != "" {
+			return ApplyResult{CommitOID: oid, View: s.viewOrBare(ctx, repo, committed), Error: "Commit outcome needs recovery review: " + err.Error()}, nil
+		}
+		return ApplyResult{View: s.viewOrBare(ctx, repo, proposal), Error: strings.Join(restore("publish refused: "+err.Error()), "; ")}, nil
+	}
+	outcome.OID = oid
 
 	// The commit exists from here on; the index is never restored over it.
 	if strings.TrimSpace(outcome.OID) == "" {
 		outcome.OID = "unresolved"
 	}
 	verified, notes := verifyCommit(ctx, repo.Git, proposal, outcome.OID)
-	committed, err := s.markCommitted(ctx, proposal.ID, outcome.OID, req.Actor, verified, notes)
-	if err != nil {
-		notes = append(notes, "commit created but the proposal record was not updated: "+err.Error())
-	}
 	view := s.viewOrBare(ctx, repo, committed)
+	if !verified {
+		return ApplyResult{CommitOID: outcome.OID, View: view, Precommit: outcome.Precommit, Error: "A commit was created but did not match the approved proposal; inspect it before continuing.", Notes: notes}, nil
+	}
+	if req.KeepLaterChanges {
+		notes = append(notes, "Committed the proposal version. Working files were left unchanged; later edits remain uncommitted.")
+	}
 	return ApplyResult{Success: true, CommitOID: outcome.OID, View: view, Precommit: outcome.Precommit, Verified: verified, Notes: notes}, nil
 }
 
@@ -213,7 +312,7 @@ func verifyIndex(ctx context.Context, git Git, proposal Proposal) ([]string, err
 			mismatch = append(mismatch, file.Path)
 		case file.Deleted && inIndex:
 			mismatch = append(mismatch, file.Path)
-		case !file.Deleted && (!inIndex || entry.BlobID != file.BlobID):
+		case !file.Deleted && (!inIndex || entry.BlobID != file.BlobID || entry.Mode != file.Mode):
 			mismatch = append(mismatch, file.Path)
 		}
 	}
@@ -228,6 +327,10 @@ func verifyCommit(ctx context.Context, git Git, proposal Proposal, oid string) (
 	if err != nil {
 		return false, []string{"post-commit verification unavailable: " + err.Error()}
 	}
+	return verifyFacts(proposal, facts)
+}
+
+func verifyFacts(proposal Proposal, facts CommitFacts) (bool, []string) {
 	var notes []string
 	expected := map[string]string{}
 	for _, file := range proposal.Files {
@@ -245,6 +348,8 @@ func verifyCommit(ctx context.Context, git Git, proposal Proposal, oid string) (
 			notes = append(notes, "commit contains a path outside the proposal: "+path)
 		case want != facts.Blobs[path]:
 			notes = append(notes, "committed content differs from the proposal: "+path)
+		case facts.Modes[path] != fileMode(proposal, path):
+			notes = append(notes, "committed mode differs from the proposal: "+path)
 		}
 	}
 	for _, path := range proposal.Paths() {
@@ -252,38 +357,19 @@ func verifyCommit(ctx context.Context, git Git, proposal Proposal, oid string) (
 			notes = append(notes, "proposal path missing from the commit: "+path)
 		}
 	}
-	if strings.TrimSpace(facts.Message) != strings.TrimSpace(proposal.Message.Rendered) {
+	if facts.Message != proposal.Message.Rendered {
 		notes = append(notes, "committed message differs from the rendered message")
 	}
 	return len(notes) == 0, notes
 }
 
-func (s *Service) markCommitted(ctx context.Context, id, oid string, actor Actor, verified bool, notes []string) (Proposal, error) {
-	var lastErr error
-	for attempt := 0; attempt < 3; attempt++ {
-		current, err := s.store.Get(context.WithoutCancel(ctx), id)
-		if err != nil {
-			return Proposal{}, err
-		}
-		if current.State != StateOpen {
-			return current, fmt.Errorf("proposal became %s during apply", current.State)
-		}
-		now := s.now()
-		committedAt := now
-		current.State, current.CommitOID, current.CommittedAt, current.UpdatedAt = StateCommitted, oid, &committedAt, now
-		detail := "commit " + oid
-		if !verified {
-			detail += "; verification: " + strings.Join(notes, "; ")
-		}
-		current.Events = append(current.Events, Event{Action: "committed", Actor: actor, Revision: current.Revision, Detail: detail, Timestamp: now})
-		if lastErr = s.store.Update(context.WithoutCancel(ctx), current, current.Revision, StateOpen); lastErr == nil {
-			return current, nil
-		}
-		if !errors.Is(lastErr, ErrConflict) {
-			break
+func fileMode(p Proposal, path string) string {
+	for _, f := range p.Files {
+		if f.Path == path {
+			return f.Mode
 		}
 	}
-	return Proposal{}, lastErr
+	return ""
 }
 
 // refuse records the refusal in the proposal history (open proposals only)

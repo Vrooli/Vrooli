@@ -1,57 +1,52 @@
 import type { ReactNode } from "react";
-import { useProposal, useProposals } from "../../lib/hooks-proposals";
-import { ProposalDetail } from "./ProposalDetail";
-import { ProposalQueue } from "./ProposalQueue";
-import { useSessionState } from "./sessionState";
+import { ArrowUpRight } from "lucide-react";
+import { useProposals } from "../../lib/hooks-proposals";
+import { hasPriorWork } from "./model";
 
 interface ProposalsSectionProps {
   repoId: string | null;
-  canApprove: boolean;
-  approveDisabledReason?: string;
-  skipConfirmation?: boolean;
-  /** Hidden while browsing history; the composer slot shows commit checks. */
   hidden?: boolean;
-  onOpenDiff: (path: string) => void;
-  /** The commit composer, rendered below the queue. */
+  onOpen: (id: string) => void;
   children: ReactNode;
 }
 
-/** Places the proposal queue above the commit composer. Opening a proposal
- *  replaces both with its detail view, which is a full-width subview on
- *  mobile because the commit panel already fills the screen there. */
-export function ProposalsSection({ repoId, canApprove, approveDisabledReason, skipConfirmation, hidden = false, onOpenDiff, children }: ProposalsSectionProps) {
-  const [openId, setOpenId] = useSessionState<string | null>(`gct.proposals.open.${repoId ?? "active"}`, null);
+/** A compact entry into the feature-owned review workspace; no nested detail. */
+export function ProposalsSection({
+  repoId,
+  hidden = false,
+  onOpen,
+  children,
+}: ProposalsSectionProps) {
   const list = useProposals(repoId, { enabled: !hidden });
-  const detail = useProposal(hidden ? null : openId);
-  const listed = list.data?.proposals.find((proposal) => proposal.id === openId);
-  const openProposal = detail.data ?? listed;
-
+  const first = list.data?.proposals[0];
   if (hidden) return <>{children}</>;
-  if (openId && openProposal) {
-    return (
-      <div className="h-full min-h-0 rounded-lg border border-slate-800 bg-slate-950/40">
-        <ProposalDetail
-          key={openProposal.id}
-          proposal={openProposal}
-          repoId={repoId}
-          canApprove={canApprove}
-          approveDisabledReason={approveDisabledReason}
-          skipConfirmation={skipConfirmation}
-          onBack={() => setOpenId(null)}
-          onOpenDiff={onOpenDiff}
-        />
-      </div>
-    );
-  }
   return (
     <div className="flex h-full min-h-0 flex-col gap-2">
-      <ProposalQueue
-        proposals={list.data?.proposals ?? []}
-        openCount={list.data?.openCount ?? 0}
-        isLoading={list.isLoading}
-        error={list.error}
-        onOpen={setOpenId}
-      />
+      <button
+        className="flex min-h-10 shrink-0 items-center justify-between rounded-lg border border-slate-800 px-3 text-xs text-cyan-300 hover:bg-slate-900"
+        onClick={() => onOpen("inbox")}
+        data-testid="proposal-inbox-open"
+      >
+        Proposal inbox · {list.data?.openCount ?? 0} open{" "}
+        <ArrowUpRight className="h-3.5 w-3.5" />
+      </button>
+      {list.error && (
+        <p role="alert" className="px-1 text-xs text-amber-300">
+          Proposal inbox is unavailable. Your working changes are still
+          accessible.
+        </p>
+      )}
+      {first && (
+        <button
+          className="shrink-0 truncate px-2 py-1 text-left text-xs text-slate-400 hover:text-slate-100"
+          onClick={() => onOpen(first.id)}
+          data-testid="proposal-card"
+          title={first.message?.subject}
+        >
+          {first.message?.subject} · {first.files.length} files
+          {first.files.some(hasPriorWork) ? " · includes earlier work" : ""}
+        </button>
+      )}
       <div className="min-h-0 flex-1">{children}</div>
     </div>
   );

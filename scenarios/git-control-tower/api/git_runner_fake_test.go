@@ -635,14 +635,14 @@ func (f *FakeGitRunner) LogDetails(ctx context.Context, repoDir string, limit in
 	}
 
 	var out strings.Builder
-	for index, entry := range entries {
-		if index > 0 {
-			out.WriteString("\n\n")
+	for _, entry := range entries {
+		message := entry.FullMessage
+		if message == "" {
+			message = entry.Subject
 		}
-		out.WriteString(fmt.Sprintf("%s\x00%s\x00%s\x00%s", entry.Hash, entry.Author, entry.Date, entry.Subject))
+		out.WriteString(fmt.Sprintf("\x1e%s\x00%s\x00%s\x00%s\x00\n", entry.Hash, entry.Author, entry.Date, message))
 		for _, file := range entry.Files {
-			out.WriteString("\n")
-			out.WriteString(file)
+			out.WriteString(file + "\x00")
 		}
 	}
 

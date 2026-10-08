@@ -12,6 +12,7 @@ import (
 )
 
 const (
+	MaxCaptureBytes  = 64 << 20
 	maxAnchorFiles   = 50000
 	maxProposalPaths = 2000
 )
@@ -19,9 +20,10 @@ const (
 // Service owns proposal lifecycle rules. It never stages or commits outside
 // Apply.
 type Service struct {
-	store *Store
-	now   func() time.Time
-	newID func(prefix string) string
+	store         *Store
+	now           func() time.Time
+	newID         func(prefix string) string
+	ownerResolver trailers.Resolver
 }
 
 func NewService(store *Store) *Service {
@@ -96,7 +98,7 @@ func (s *Service) Anchor(ctx context.Context, repo Repo, req AnchorRequest) (Anc
 	}
 	for _, path := range dirty {
 		content := contents[path]
-		anchor.Files = append(anchor.Files, AnchorFile{Path: path, SHA256: content.SHA256, BlobID: content.BlobID, Deleted: content.Deleted})
+		anchor.Files = append(anchor.Files, AnchorFile{Path: path, Mode: content.Mode, SHA256: content.SHA256, BlobID: content.BlobID, Deleted: content.Deleted})
 	}
 	return anchor, s.store.SaveAnchor(ctx, anchor)
 }
@@ -117,12 +119,6 @@ type CreateResult struct {
 	View   View
 	Issues []trailers.Issue
 	Stored bool
-	// SupersededID is the first proposal this one replaced or folded;
-	// SupersededIDs lists all of them in the order they were marked.
-	SupersededID  string
-	SupersededIDs []string
-	// NotSuperseded lists folded proposals a concurrent writer kept open.
-	NotSuperseded []string
 }
 
 // Create builds a proposal from listed paths, checks them against the anchor
@@ -157,76 +153,45 @@ func (s *Service) Create(ctx context.Context, repo Repo, req CreateRequest) (Cre
 		return CreateResult{}, err
 	}
 
-	// A new proposal for the same effort and epoch supersedes the open one,
-	// and it folds earlier open proposals of the effort that share a path
-	// with it or have drifted. No count of open proposals ever refuses it.
-	plan, err := s.planFold(ctx, repo, work, paths)
+	// Submission never alters another review package. Relationships and
+	// combining are explicit revision-bound operations.
+	files, blobs, err := repo.Git.Capture(ctx, snapshot.head, files)
 	if err != nil {
 		return CreateResult{}, err
 	}
-	carried, carriedExcluded, err := carriedFiles(ctx, repo, snapshot, plan.carried)
-	if err != nil {
-		return CreateResult{}, err
+
+	files, excluded = excludeUnchangedCapture(files, excluded)
+	if len(files) == 0 {
+		return CreateResult{}, fmt.Errorf("%w: listed contents already match the commit base; staged changes remain untouched", ErrInvalid)
 	}
-	files = append(files, carried...)
-	sort.Slice(files, func(i, j int) bool { return files[i].Path < files[j].Path })
-	excluded = withoutPaths(append(excluded, carriedExcluded...), files)
-	work, omittedRuns := foldWork(work, plan)
-	replaced := plan.replaced
 
 	now := s.now()
 	proposal := Proposal{
 		ID: s.newID("gctp-"), RepositoryID: repo.ID, State: StateOpen, Revision: 1, CreatedBy: req.Actor,
 		BaseHead: snapshot.head, Branch: snapshot.branch, Work: work, Files: files, Excluded: excluded,
-		Evidence: req.Evidence, Folds: plan.folds, CreatedAt: now, UpdatedAt: now,
+		Evidence: req.Evidence, CreatedAt: now, UpdatedAt: now,
 	}
 	if hasAnchor {
 		proposal.Evidence.AnchorID = anchor.ID
 	}
-	subject, body, operatorEdited, carriedFrom := req.Subject, req.Body, req.Actor.IsHuman(), ""
-	for _, old := range replaced {
-		if old.Message.OperatorEdited && !req.Actor.IsHuman() {
-			subject, body, operatorEdited, carriedFrom = old.Message.Subject, old.Message.Body, true, old.ID
-		}
-	}
-	if summary := foldSummary(plan, omittedRuns); summary != "" && !operatorEdited {
-		body = strings.TrimSpace(strings.TrimSpace(body) + "\n\n" + summary)
-	}
-	proposal.Message = buildMessage(proposal.ID, work, subject, body, append(append([]trailers.Entry(nil), req.Trailers...), foldedTrailers(plan)...), operatorEdited)
+	proposal.Message = buildMessage(proposal.ID, work, req.Subject, req.Body, req.Trailers, req.Actor.IsHuman())
 	issues := trailers.Validate(proposal.Message.Subject, proposal.Message.Body, proposal.Message.Trailers, trailers.ValidateOptions{AgentAuthored: !req.Actor.IsHuman()})
 	if !req.Actor.IsHuman() && trailers.HasErrors(issues) {
 		return CreateResult{Issues: issues}, &ValidationError{Issues: issues}
 	}
 	proposal.Digest = Digest(proposal.BaseHead, proposal.Files, proposal.Message.Rendered)
 	detail := fmt.Sprintf("%d files", len(files))
-	if carriedFrom != "" {
-		detail += "; operator message carried from " + carriedFrom
-	}
-	if folded := foldDetail(plan); folded != "" {
-		detail += "; " + folded
-	}
 	proposal.Events = []Event{{Action: "created", Actor: req.Actor, Revision: 1, Detail: detail, Timestamp: now}}
 
 	result := CreateResult{Issues: issues}
 	if !req.ValidateOnly {
+		if err := s.store.SaveBlobs(ctx, blobs); err != nil {
+			return CreateResult{}, err
+		}
 		if err := s.store.Insert(ctx, proposal); err != nil {
 			return CreateResult{}, err
 		}
 		result.Stored = true
-		for _, old := range append(append([]Proposal(nil), replaced...), plan.folded...) {
-			old.State, old.SupersededBy, old.UpdatedAt = StateSuperseded, proposal.ID, now
-			old.Events = append(old.Events, Event{Action: "superseded", Actor: req.Actor, Revision: old.Revision, Detail: supersedeDetail(old, plan, proposal.ID, work.Epoch), Timestamp: now})
-			if err := s.store.Update(ctx, old, old.Revision, StateOpen); err != nil {
-				// A concurrent edit or apply won; the old proposal stays
-				// open and its shared paths show as other_open_proposal.
-				result.NotSuperseded = append(result.NotSuperseded, old.ID)
-				continue
-			}
-			if result.SupersededID == "" {
-				result.SupersededID = old.ID
-			}
-			result.SupersededIDs = append(result.SupersededIDs, old.ID)
-		}
 	}
 	views, err := s.views(ctx, repo, []Proposal{proposal})
 	if err != nil {
@@ -369,7 +334,7 @@ func buildFiles(ctx context.Context, repo Repo, snap snapshot, paths []string, a
 	}
 	changedSinceAnchor := func(path string) bool {
 		prior, wasDirty := anchored[path]
-		return !wasDirty || prior.ContentID() != contents[path].ContentID()
+		return !wasDirty || prior.ContentID() != contents[path].ContentID() || (prior.Mode != "" && prior.Mode != contents[path].Mode)
 	}
 	var unchanged, directories []string
 	files := make([]File, 0, len(dirtyListed))
@@ -379,7 +344,7 @@ func buildFiles(ctx context.Context, repo Repo, snap snapshot, paths []string, a
 			directories = append(directories, path)
 			continue
 		}
-		file := File{Path: path, Kind: changeKind(snap.xy[path], content), SHA256: content.SHA256, BlobID: content.BlobID, Deleted: content.Deleted, Source: "listed"}
+		file := File{Path: path, Kind: changeKind(snap.xy[path], content), SHA256: content.SHA256, BlobID: content.BlobID, Mode: content.Mode, Deleted: content.Deleted, Source: "listed"}
 		switch {
 		case anchor == nil:
 			file.Flags = append(file.Flags, Flag{Code: FlagNoAnchor})
@@ -518,16 +483,22 @@ func (s *Service) views(ctx context.Context, repo Repo, proposals []Proposal) ([
 type readContext struct {
 	head      string
 	headErr   error
+	branch    string
+	branchErr error
 	staged    map[string]struct{}
 	stagedErr error
+	index     map[string]IndexEntry
 	openPaths map[string][]string
 }
 
 func (s *Service) loadReadContext(ctx context.Context, repo Repo) (readContext, error) {
 	var rc readContext
 	rc.head, rc.headErr = repo.Git.Head(ctx)
+	rc.branch, rc.branchErr = repo.Git.Branch(ctx)
 	staged, err := repo.Git.StagedPaths(ctx)
 	rc.stagedErr = err
+	rc.index, err = repo.Git.IndexEntries(ctx, staged)
+	rc.stagedErr = errors.Join(rc.stagedErr, err)
 	rc.staged = map[string]struct{}{}
 	for _, path := range staged {
 		rc.staged[path] = struct{}{}
@@ -547,8 +518,12 @@ func (s *Service) loadReadContext(ctx context.Context, repo Repo) (readContext, 
 
 func (s *Service) freshness(ctx context.Context, repo Repo, proposal Proposal, rc readContext) Freshness {
 	fresh := Freshness{State: FreshnessFresh, CurrentHead: rc.head, CheckedAt: s.now()}
-	if rc.headErr != nil || rc.stagedErr != nil {
-		fresh.State, fresh.Detail = FreshnessUnknown, "repository read failed: "+errors.Join(rc.headErr, rc.stagedErr).Error()
+	if rc.headErr != nil || rc.stagedErr != nil || rc.branchErr != nil {
+		fresh.State, fresh.Detail = FreshnessUnknown, "repository read failed: "+errors.Join(rc.headErr, rc.stagedErr, rc.branchErr).Error()
+		return fresh
+	}
+	if proposal.Branch == "" || rc.branch != proposal.Branch {
+		fresh.State, fresh.Detail = FreshnessUnknown, "Destination branch changed or is detached. Check out the intended named branch and adopt a new revision."
 		return fresh
 	}
 	paths := proposal.Paths()
@@ -561,7 +536,7 @@ func (s *Service) freshness(ctx context.Context, repo Repo, proposal Proposal, r
 	for _, file := range proposal.Files {
 		current := contents[file.Path].ContentID()
 		fresh.CurrentBlobs[file.Path] = current
-		if current != file.ContentID() {
+		if current != file.ContentID() || contents[file.Path].SHA256 != file.SHA256 || (file.Captured && !file.Deleted && contents[file.Path].Mode != file.Mode) {
 			fresh.Drifted = append(fresh.Drifted, file.Path)
 		}
 	}
@@ -600,7 +575,7 @@ func withDynamicFlags(proposal Proposal, rc readContext) []File {
 		copyFile := file
 		copyFile.Flags = nil
 		for _, flag := range file.Flags {
-			if flag.Code != FlagOtherOpenProposal && flag.Code != FlagAlreadyStaged {
+			if flag.Code != FlagOtherOpenProposal && flag.Code != FlagAlreadyStaged && flag.Code != FlagStagedVersionDiffers {
 				copyFile.Flags = append(copyFile.Flags, flag)
 			}
 		}
@@ -611,6 +586,10 @@ func withDynamicFlags(proposal Proposal, rc readContext) []File {
 		}
 		if _, staged := rc.staged[file.Path]; staged {
 			copyFile.Flags = append(copyFile.Flags, Flag{Code: FlagAlreadyStaged})
+			entry, exists := rc.index[file.Path]
+			if file.Captured && ((file.Deleted && exists) || (!file.Deleted && (!exists || entry.BlobID != file.BlobID || entry.Mode != file.Mode))) {
+				copyFile.Flags = append(copyFile.Flags, Flag{Code: FlagStagedVersionDiffers, Detail: "A different version is staged. Review or unstage it before committing the proposal version."})
+			}
 		}
 		files = append(files, copyFile)
 	}
@@ -697,7 +676,11 @@ func (s *Service) Edit(ctx context.Context, repo Repo, req EditRequest) (View, [
 
 // Withdraw ends an open proposal. History is kept.
 func (s *Service) Withdraw(ctx context.Context, repo Repo, id, reason string, actor Actor) (View, error) {
-	proposal, err := s.store.Get(ctx, id)
+	return s.Close(ctx, repo, id, 0, reason, "", actor)
+}
+
+func (s *Service) Close(ctx context.Context, repo Repo, id string, expectedRevision int, reason, replacementID string, actor Actor) (View, error) {
+	proposal, err := s.openRevision(ctx, repo, id, expectedRevision)
 	if err != nil {
 		return View{}, err
 	}
@@ -709,7 +692,34 @@ func (s *Service) Withdraw(ctx context.Context, repo Repo, id, reason string, ac
 	}
 	now := s.now()
 	proposal.State, proposal.UpdatedAt = StateWithdrawn, now
-	proposal.Events = append(proposal.Events, Event{Action: "withdrawn", Actor: actor, Revision: proposal.Revision, Detail: strings.TrimSpace(reason), Timestamp: now})
+	detail := strings.TrimSpace(reason)
+	if replacementID != "" {
+		if expectedRevision <= 0 || replacementID == id {
+			return View{}, fmt.Errorf("%w: replacement requires a reviewed revision and a different proposal", ErrInvalid)
+		}
+		replacement, err := s.store.Get(ctx, replacementID)
+		if err != nil {
+			return View{}, err
+		}
+		if replacement.RepositoryID != repo.ID {
+			return View{}, ErrNotFound
+		}
+		if replacement.State != StateOpen && replacement.State != StateCommitted {
+			return View{}, fmt.Errorf("%w: replacement must be open or committed", ErrInvalid)
+		}
+		proposal.State, proposal.SupersededBy = StateSuperseded, replacement.ID
+		detail += fmt.Sprintf("; replaced explicitly by %s r%d", replacement.ID, replacement.Revision)
+		var omitted []string
+		for _, f := range proposal.Files {
+			if !contains(replacement.Paths(), f.Path) {
+				omitted = append(omitted, f.Path)
+			}
+		}
+		if len(omitted) > 0 {
+			detail += "; replacement does not include: " + strings.Join(omitted, ", ")
+		}
+	}
+	proposal.Events = append(proposal.Events, Event{Action: "withdrawn", Actor: actor, Revision: proposal.Revision, Detail: detail + "; working tree and index untouched", Timestamp: now})
 	if err := s.store.Update(ctx, proposal, proposal.Revision, StateOpen); err != nil {
 		return View{}, err
 	}
@@ -741,9 +751,20 @@ func (s *Service) Refresh(ctx context.Context, repo Repo, id string, expectedRev
 	if err != nil {
 		return View{}, nil, err
 	}
+	if len(files) > 0 {
+		var blobs map[string][]byte
+		files, blobs, err = repo.Git.Capture(ctx, snap.head, files)
+		if err != nil {
+			return View{}, nil, err
+		}
+		files, excluded = excludeUnchangedCapture(files, excluded)
+		if err := s.store.SaveBlobs(ctx, blobs); err != nil {
+			return View{}, nil, err
+		}
+	}
 	var dropped []string
 	for _, exclusion := range excluded {
-		if exclusion.Reason == "now_clean" || exclusion.Reason == "unchanged_since_anchor" {
+		if exclusion.Reason == "now_clean" || exclusion.Reason == "unchanged_since_anchor" || exclusion.Reason == "matches_commit_base" {
 			dropped = append(dropped, exclusion.Path)
 		}
 	}
@@ -793,8 +814,9 @@ func (s *Service) openRevision(ctx context.Context, repo Repo, id string, expect
 }
 
 // SubjectEvidence is the proposal part of an apply intent digest: the
-// proposal digest and the current content of every proposal path. A change
-// to either invalidates an issued intent.
+// retained proposal digest and destination branch. Strict mode also binds
+// current working contents; preserved-files mode deliberately excludes later
+// working edits. Human control separately binds HEAD, mode and staged contents.
 func (s *Service) SubjectEvidence(ctx context.Context, repo Repo, subjectContext string) ([]byte, error) {
 	id, revision, ok := ParseSubjectContext(subjectContext)
 	if !ok {
@@ -804,14 +826,24 @@ func (s *Service) SubjectEvidence(ctx context.Context, repo Repo, subjectContext
 	if err != nil {
 		return nil, err
 	}
-	contents, err := repo.Git.Hash(ctx, proposal.Paths())
-	if err != nil {
-		return nil, err
+	contents := map[string]Content{}
+	if !KeepsLaterChanges(subjectContext) {
+		contents, err = repo.Git.Hash(ctx, proposal.Paths())
+		if err != nil {
+			return nil, err
+		}
 	}
 	var builder strings.Builder
 	builder.WriteString(proposal.Digest)
-	for _, path := range proposal.Paths() {
-		builder.WriteString("\x00" + path + "=" + contents[path].ContentID())
+	branch, err := repo.Git.Branch(ctx)
+	if err != nil {
+		return nil, err
+	}
+	builder.WriteString("\x00branch=" + branch)
+	if !KeepsLaterChanges(subjectContext) {
+		for _, path := range proposal.Paths() {
+			builder.WriteString("\x00" + path + "=" + contents[path].ContentID())
+		}
 	}
 	return []byte(builder.String()), nil
 }
@@ -847,4 +879,24 @@ func contains(values []string, target string) bool {
 		}
 	}
 	return false
+}
+
+// WithResolver supplies owning scenario reads without coupling the domain to transport.
+func (s *Service) WithResolver(resolver trailers.Resolver) *Service {
+	s.ownerResolver = resolver
+	return s
+}
+
+// An index-only difference may be dirty while the final reviewed tree equals
+// HEAD. It contributes no commit path, so retain it as an explicit exclusion.
+func excludeUnchangedCapture(files []File, excluded []Exclusion) ([]File, []Exclusion) {
+	kept := make([]File, 0, len(files))
+	for _, file := range files {
+		if (file.BlobID == file.BaseBlobID && file.Mode == file.BaseMode) || (file.Deleted && file.BaseBlobID == "") {
+			excluded = append(excluded, Exclusion{Path: file.Path, Reason: "matches_commit_base", Detail: "final contents and mode already match the base; staged changes stay untouched"})
+		} else {
+			kept = append(kept, file)
+		}
+	}
+	return kept, excluded
 }

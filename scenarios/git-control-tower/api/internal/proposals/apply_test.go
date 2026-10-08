@@ -27,7 +27,7 @@ func TestApplyStagesExactPathsIncludingDeletionsAndCommitsRenderedMessage(t *tes
 	view := createProposal(t, svc, repo, "a.go", "new.go", "gone.go")
 	base := git.head
 
-	result, err := svc.Apply(humanApplyContext(OperationApply), repo, ApplyRequest{ID: view.ID, Revision: 1, Actor: humanActor}, git.CommitIndex)
+	result, err := svc.Apply(humanApplyContext(OperationApply), repo, ApplyRequest{ID: view.ID, Revision: 1, Actor: humanActor, AcknowledgePriorWork: true}, git.CommitIndex)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -65,7 +65,7 @@ func TestApplyRefusesContentDriftNamingEachFile(t *testing.T) {
 	git.Delete("c.go")
 	head, index := git.head, indexSnapshot(git)
 
-	result, err := svc.Apply(humanApplyContext(OperationApply), repo, ApplyRequest{ID: view.ID, Revision: 1, Actor: humanActor}, git.CommitIndex)
+	result, err := svc.Apply(humanApplyContext(OperationApply), repo, ApplyRequest{ID: view.ID, Revision: 1, Actor: humanActor, AcknowledgePriorWork: true}, git.CommitIndex)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,7 +89,7 @@ func TestApplyRefusesBaseMoveThatTouchesProposalPaths(t *testing.T) {
 	view := createProposal(t, svc, repo, "a.go")
 
 	git.CommitOutside(map[string]string{"elsewhere.go": "e2"})
-	moved, err := svc.Apply(humanApplyContext(OperationApply), repo, ApplyRequest{ID: view.ID, Revision: 1, Actor: humanActor}, git.CommitIndex)
+	moved, err := svc.Apply(humanApplyContext(OperationApply), repo, ApplyRequest{ID: view.ID, Revision: 1, Actor: humanActor, AcknowledgePriorWork: true}, git.CommitIndex)
 	if err != nil || !moved.Success {
 		t.Fatalf("an unrelated base move must not block: %#v err=%v", moved, err)
 	}
@@ -98,7 +98,7 @@ func TestApplyRefusesBaseMoveThatTouchesProposalPaths(t *testing.T) {
 	git.CommitOutside(map[string]string{"b.go": "b-other"})
 	git.Write("b.go", "b2")
 	head := git.head
-	result, err := svc.Apply(humanApplyContext(OperationApply), repo, ApplyRequest{ID: second.ID, Revision: 1, Actor: humanActor}, git.CommitIndex)
+	result, err := svc.Apply(humanApplyContext(OperationApply), repo, ApplyRequest{ID: second.ID, Revision: 1, Actor: humanActor, AcknowledgePriorWork: true}, git.CommitIndex)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -128,7 +128,7 @@ func TestApplyRefusesForeignStagedPaths(t *testing.T) {
 	git.StageDirect("mine.go")
 	index := indexSnapshot(git)
 
-	result, err := svc.Apply(humanApplyContext(OperationApply), repo, ApplyRequest{ID: view.ID, Revision: 1, Actor: humanActor}, git.CommitIndex)
+	result, err := svc.Apply(humanApplyContext(OperationApply), repo, ApplyRequest{ID: view.ID, Revision: 1, Actor: humanActor, AcknowledgePriorWork: true}, git.CommitIndex)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -149,11 +149,11 @@ func TestApplyReplayIsRefused(t *testing.T) {
 	git.Write("a.go", "a2")
 	view := createProposal(t, svc, repo, "a.go")
 	ctx := humanApplyContext(OperationApply)
-	if first, err := svc.Apply(ctx, repo, ApplyRequest{ID: view.ID, Revision: 1, Actor: humanActor}, git.CommitIndex); err != nil || !first.Success {
+	if first, err := svc.Apply(ctx, repo, ApplyRequest{ID: view.ID, Revision: 1, Actor: humanActor, AcknowledgePriorWork: true}, git.CommitIndex); err != nil || !first.Success {
 		t.Fatalf("first = %#v err=%v", first, err)
 	}
 	head, commits := git.head, len(git.commits)
-	replay, err := svc.Apply(ctx, repo, ApplyRequest{ID: view.ID, Revision: 1, Actor: humanActor}, git.CommitIndex)
+	replay, err := svc.Apply(ctx, repo, ApplyRequest{ID: view.ID, Revision: 1, Actor: humanActor, AcknowledgePriorWork: true}, git.CommitIndex)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -172,7 +172,7 @@ func TestApplyRefusesAStaleRevision(t *testing.T) {
 	if _, _, err := svc.Edit(context.Background(), repo, EditRequest{ID: view.ID, ExpectedRevision: 1, Subject: &subject, Actor: humanActor}); err != nil {
 		t.Fatal(err)
 	}
-	result, err := svc.Apply(humanApplyContext(OperationApply), repo, ApplyRequest{ID: view.ID, Revision: 1, Actor: humanActor}, git.CommitIndex)
+	result, err := svc.Apply(humanApplyContext(OperationApply), repo, ApplyRequest{ID: view.ID, Revision: 1, Actor: humanActor, AcknowledgePriorWork: true}, git.CommitIndex)
 	if err != nil || result.Refusal == nil || result.Refusal.Code != RefuseRevision || len(git.stageCalls) != 0 {
 		t.Fatalf("result = %#v err=%v", result, err)
 	}
@@ -192,7 +192,7 @@ func TestApplyRestoresIndexWhenCommitFails(t *testing.T) {
 	failing := func(context.Context, string) (CommitOutcome, error) {
 		return CommitOutcome{Failure: "precommit failed", Precommit: &PrecommitOutcome{Status: "failed", Summary: "Precommit checks failed", ExitCode: 2}}, nil
 	}
-	result, err := svc.Apply(humanApplyContext(OperationApply), repo, ApplyRequest{ID: view.ID, Revision: 1, Actor: humanActor}, failing)
+	result, err := svc.Apply(humanApplyContext(OperationApply), repo, ApplyRequest{ID: view.ID, Revision: 1, Actor: humanActor, AcknowledgePriorWork: true}, failing)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -208,42 +208,46 @@ func TestApplyRestoresIndexWhenCommitFails(t *testing.T) {
 }
 
 func TestApplyRefusesWhenAWriterRacesTheStagedIndex(t *testing.T) {
-	svc := testService(t)
-	git := NewMemoryGit(map[string]string{"a.go": "a1", "b.go": "b1"})
-	repo := repoFor(git)
-	git.Write("a.go", "a2")
-	git.Write("b.go", "b2")
-	view := createProposal(t, svc, repo, "a.go")
-	index := indexSnapshot(git)
-	git.afterStage = func() {
-		git.StageDirect("b.go") // an external writer stages between our stage and commit
-		git.index["a.go"] = memoryBlobID("rewritten by a hook")
-	}
-	result, err := svc.Apply(humanApplyContext(OperationApply), repo, ApplyRequest{ID: view.ID, Revision: 1, Actor: humanActor}, git.CommitIndex)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if result.Refusal == nil || result.Refusal.Code != RefuseIndexMismatch || !reflect.DeepEqual(result.Refusal.Paths, []string{"a.go", "b.go"}) {
-		t.Fatalf("result = %#v", result)
-	}
-	if git.index["a.go"] != index["a.go"] {
-		t.Fatal("proposal path index entry was not restored")
+	for _, keep := range []bool{false, true} {
+		t.Run(map[bool]string{false: "strict", true: "saved"}[keep], func(t *testing.T) {
+			svc := testService(t)
+			git := NewMemoryGit(map[string]string{"a.go": "a1", "b.go": "b1"})
+			repo := repoFor(git)
+			git.Write("a.go", "a2")
+			git.Write("b.go", "b2")
+			view := createProposal(t, svc, repo, "a.go")
+			index := indexSnapshot(git)
+			git.afterStage = func() {
+				git.StageDirect("b.go") // an external writer stages between our stage and commit
+				git.index["a.go"] = memoryBlobID("rewritten by a hook")
+			}
+			result, err := svc.Apply(humanApplyContext(OperationApply), repo, ApplyRequest{ID: view.ID, Revision: 1, Actor: humanActor, AcknowledgePriorWork: true, KeepLaterChanges: keep}, git.CommitIndex)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if result.Refusal == nil || result.Refusal.Code != RefuseIndexMismatch || !reflect.DeepEqual(result.Refusal.Paths, []string{"a.go", "b.go"}) {
+				t.Fatalf("result = %#v", result)
+			}
+			if git.index["a.go"] != index["a.go"] {
+				t.Fatal("proposal path index entry was not restored")
+			}
+		})
 	}
 }
-
-func TestApplyReportsACommitThatDiffersFromTheProposal(t *testing.T) {
+func TestApplyRefusesHookRewriteBeforePublication(t *testing.T) {
 	svc := testService(t)
 	git := NewMemoryGit(map[string]string{"a.go": "a1"})
 	repo := repoFor(git)
 	git.Write("a.go", "a2")
 	view := createProposal(t, svc, repo, "a.go")
+	head, index := git.head, indexSnapshot(git)
 	reformatting := func(ctx context.Context, message string) (CommitOutcome, error) {
 		git.Write("a.go", "a2 reformatted by hook")
 		git.StageDirect("a.go")
 		return git.CommitIndex(ctx, message+"\n\nSigned-off-by: hook")
 	}
-	result, err := svc.Apply(humanApplyContext(OperationApply), repo, ApplyRequest{ID: view.ID, Revision: 1, Actor: humanActor}, reformatting)
-	if err != nil || !result.Success || result.Verified || len(result.Notes) != 2 || result.View.State != StateCommitted {
+	result, err := svc.Apply(humanApplyContext(OperationApply), repo, ApplyRequest{ID: view.ID, Revision: 1, Actor: humanActor, AcknowledgePriorWork: true}, reformatting)
+	if err != nil || result.Success || result.Refusal == nil || result.Refusal.Code != RefuseIndexMismatch || result.View.State != StateOpen || git.head != head || !reflect.DeepEqual(index, indexSnapshot(git)) {
 		t.Fatalf("result = %#v err=%v", result, err)
 	}
 }
@@ -261,7 +265,7 @@ func TestApplyRequiresHumanWithConsumedApplyIntent(t *testing.T) {
 		"commit intent":     humanApplyContext("repo.commit"),
 		"agent with intent": agentContextWithIntent(),
 	} {
-		_, err := svc.Apply(ctx, repo, ApplyRequest{ID: view.ID, Revision: 1, Actor: humanActor}, git.CommitIndex)
+		_, err := svc.Apply(ctx, repo, ApplyRequest{ID: view.ID, Revision: 1, Actor: humanActor, AcknowledgePriorWork: true}, git.CommitIndex)
 		if !errors.Is(err, ErrForbidden) {
 			t.Errorf("%s: err = %v", name, err)
 		}

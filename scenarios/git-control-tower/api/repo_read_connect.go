@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
+	"git-control-tower/internal/proposals"
+	"git-control-tower/internal/trailers"
 	"strings"
 	"time"
 
@@ -81,6 +83,8 @@ func (s *Server) getRepoHistoryConnect(ctx context.Context, req *repov1.GetRepoH
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
+	metadataCtx, cancelMetadata := context.WithTimeout(ctx, 800*time.Millisecond)
+	defer cancelMetadata()
 	entries := make([]*repov1.RepoHistoryEntry, 0, len(history.Entries))
 	for _, entry := range history.Entries {
 		checks := make([]*repov1.CommitCheckRun, 0, len(entry.Checks))
@@ -94,7 +98,9 @@ func (s *Server) getRepoHistoryConnect(ctx context.Context, req *repov1.GetRepoH
 		}
 		entries = append(entries, &repov1.RepoHistoryEntry{
 			Hash: entry.Hash, Author: entry.Author, Date: entry.Date, Subject: entry.Subject,
-			Files: entry.Files, Checks: checks,
+			Files: entry.Files, Checks: checks, FullMessage: entry.FullMessage, Body: entry.Body,
+			Trailers:            s.trailerProto(metadataCtx, proposals.Repo{ID: req.GetRepositoryId(), Git: &proposalGit{gitPath: "git", repoDir: resolved.Path}}, entry.Trailers),
+			ContinuationMessage: trailers.Continue(entry.FullMessage, entry.Hash),
 		})
 	}
 	return &repov1.GetRepoHistoryResponse{

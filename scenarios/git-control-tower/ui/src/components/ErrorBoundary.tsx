@@ -2,20 +2,47 @@ import React from "react";
 
 interface ErrorBoundaryState {
   error: Error | null;
+  staleChunk: boolean;
 }
 
 export class ErrorBoundary extends React.Component<
-  { children: React.ReactNode },
+  { children: React.ReactNode; onReload?: () => void },
   ErrorBoundaryState
 > {
-  state: ErrorBoundaryState = { error: null };
+  state: ErrorBoundaryState = { error: null, staleChunk: false };
 
   static getDerivedStateFromError(error: Error): ErrorBoundaryState {
-    return { error };
+    return {
+      error,
+      staleChunk:
+        /ChunkLoadError|Loading chunk|Failed to fetch dynamically imported module|Importing a module script failed/i.test(
+          error.message,
+        ),
+    };
   }
 
+  componentDidMount() {
+    window.addEventListener("vite:preloadError", this.handlePreloadError);
+  }
+
+  componentWillUnmount() {
+    window.removeEventListener("vite:preloadError", this.handlePreloadError);
+  }
+
+  handlePreloadError = (event: Event) => {
+    event.preventDefault();
+    this.setState({
+      error: new Error("A UI module changed after this tab was opened."),
+      staleChunk: true,
+    });
+  };
+
   componentDidCatch(error: Error, info: React.ErrorInfo) {
-    console.error("[ErrorBoundary] Uncaught render error:", error, info.componentStack);
+    console.error(
+      "[ErrorBoundary] Uncaught render error:",
+      error,
+      info.componentStack,
+    );
   }
 
   handleClearAndReload = () => {
@@ -24,24 +51,23 @@ export class ErrorBoundary extends React.Component<
       const keys: string[] = [];
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
-        if (key?.startsWith("gct.") || key?.startsWith("gct-")) {
+        if (
+          key !== "gct.commitMessage" &&
+          (key?.startsWith("gct.") || key?.startsWith("gct-"))
+        ) {
           keys.push(key);
         }
       }
       keys.forEach((k) => localStorage.removeItem(k));
     } catch {
-      // localStorage itself may be broken — try clearing everything
-      try {
-        localStorage.clear();
-      } catch {
-        // Nothing more we can do
-      }
+      // A storage error never authorizes clearing unrelated browser data.
     }
     window.location.replace(window.location.pathname);
   };
 
   handleReload = () => {
-    window.location.reload();
+    if (this.props.onReload) this.props.onReload();
+    else window.location.reload();
   };
 
   render() {
@@ -49,7 +75,7 @@ export class ErrorBoundary extends React.Component<
       return this.props.children;
     }
 
-    const { error } = this.state;
+    const { error, staleChunk } = this.state;
 
     return (
       <div
@@ -72,7 +98,7 @@ export class ErrorBoundary extends React.Component<
               marginBottom: "0.75rem",
             }}
           >
-            Something went wrong
+            {staleChunk ? "An updated UI is available" : "Something went wrong"}
           </h1>
           <p
             style={{
@@ -81,8 +107,9 @@ export class ErrorBoundary extends React.Component<
               marginBottom: "1.5rem",
             }}
           >
-            The app crashed during rendering. This is often caused by stale
-            browser data. Try reloading, or clear saved data and reload.
+            {staleChunk
+              ? "Reload to load the updated interface. Saved proposal drafts and commit messages are kept."
+              : "The interface could not finish rendering. Reload first. Reset UI preferences only if the problem continues; saved messages are kept."}
           </p>
 
           <div
@@ -106,23 +133,25 @@ export class ErrorBoundary extends React.Component<
                 cursor: "pointer",
               }}
             >
-              Reload
+              {staleChunk ? "Reload updated UI" : "Reload"}
             </button>
-            <button
-              type="button"
-              onClick={this.handleClearAndReload}
-              style={{
-                padding: "0.5rem 1rem",
-                borderRadius: "0.375rem",
-                border: "none",
-                backgroundColor: "#2563eb",
-                color: "#ffffff",
-                fontSize: "0.875rem",
-                cursor: "pointer",
-              }}
-            >
-              Clear data &amp; reload
-            </button>
+            {!staleChunk && (
+              <button
+                type="button"
+                onClick={this.handleClearAndReload}
+                style={{
+                  padding: "0.5rem 1rem",
+                  borderRadius: "0.375rem",
+                  border: "none",
+                  backgroundColor: "#2563eb",
+                  color: "#ffffff",
+                  fontSize: "0.875rem",
+                  cursor: "pointer",
+                }}
+              >
+                Reset UI preferences &amp; reload
+              </button>
+            )}
           </div>
 
           <details

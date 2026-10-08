@@ -3,9 +3,20 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { RepoFilesStatus } from "../lib/api";
 import type { RunAttribution } from "../lib/runAttribution";
-import { renderWithQueryClient } from "../test-utils";
+import { renderWithProviders } from "../test-utils/renderWithProviders";
 import { FileList } from "./FileList";
 import type { FileListProps } from "./FileListTypes";
+
+// These interaction tests exercise actions, not virtual viewport measurement.
+// JSDOM has no layout; declare a visible viewport using the same adapter seam
+// as history and proposal interaction tests, retaining all behavior assertions.
+vi.mock("@tanstack/react-virtual", () => ({
+  useVirtualizer: ({ count }: { count: number }) => ({
+    getTotalSize: () => count * 64,
+    getVirtualItems: () => Array.from({ length: count }, (_, index) => ({ index, start: index * 64, size: 64, key: index })),
+    measureElement: vi.fn(), scrollToIndex: vi.fn(),
+  }),
+}));
 
 const mobile = vi.hoisted(() => ({ enabled: false }));
 
@@ -53,7 +64,7 @@ function renderFileList(overrides: Partial<FileListProps> = {}) {
   return {
     props,
     user: userEvent.setup(),
-    ...renderWithQueryClient(<FileList {...props} />),
+    ...renderWithProviders(<FileList {...props} />),
   };
 }
 

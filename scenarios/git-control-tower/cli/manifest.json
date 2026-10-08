@@ -91,7 +91,9 @@
             },
             {
               "name": "existing_branch",
-              "aliases": ["branch"],
+              "aliases": [
+                "branch"
+              ],
               "description": "Existing branch to check out (mutually exclusive with --new-branch / --commit)"
             },
             {
@@ -101,7 +103,9 @@
             },
             {
               "name": "start-point",
-              "aliases": ["start"],
+              "aliases": [
+                "start"
+              ],
               "description": "Start point for --new-branch"
             },
             {
@@ -334,7 +338,22 @@
       "name": "repo",
       "description": "Inspect and change repository state through typed repository operations",
       "commands": [
-        {"name":"status","description":"Show repository status","binding":{"kind":"connect-rpc","service":"RepoService","method":"GetRepoStatus"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read"]}},
+        {
+          "name": "status",
+          "description": "Show repository status",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RepoService",
+            "method": "GetRepoStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
         {
           "name": "groups",
           "description": "Resolve changed files into manual, contract-derived, and builtin groups",
@@ -351,54 +370,527 @@
             ]
           }
         },
-        {"name":"diff","description":"Show a working-tree or staged file diff","binding":{"kind":"connect-rpc","service":"RepoService","method":"GetRepoDiff"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read"]}},
-        {"name":"blame","description":"Show bounded native Git line attribution with optional provenance enrichment","binding":{"kind":"connect-rpc","service":"RepoService","method":"GetBlame"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read","network:internal"]}},
-        {"name":"stage","description":"Review an exact file selection and stage it","binding":{"kind":"connect-rpc","service":"RepoService","method":"StageFiles"},"governance":{"effect":"write","run_eligible":false,"requires_confirmation":true,"permissions":["filesystem:write"]}},
-        {"name":"unstage","description":"Review an exact file selection and unstage it","binding":{"kind":"connect-rpc","service":"RepoService","method":"UnstageFiles"},"governance":{"effect":"write","run_eligible":false,"requires_confirmation":true,"permissions":["filesystem:write"]}},
-        {"name":"commit","description":"Review an exact server preview and create a single-use-authorized validated commit (--yes skips the prompt)","binding":{"kind":"connect-rpc","service":"RepoService","method":"CreateCommit"},"governance":{"effect":"write","run_eligible":false,"requires_confirmation":true,"permissions":["filesystem:write"]}},
-        {"name":"prepare-push-recovery","description":"Review and prepare isolated history artifacts; never applies or pushes","binding":{"kind":"connect-rpc","service":"RepoService","method":"PreparePushRecovery"},"governance":{"effect":"write","run_eligible":false,"requires_confirmation":true,"permissions":["filesystem:read","filesystem:write","network:external"]}},
-        {"name":"push-safety","description":"Inspect the live push destination and outgoing historical file sizes","binding":{"kind":"connect-rpc","service":"RepoService","method":"InspectPushSafety"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read","network:external"]}},
-        {"name":"push-recovery-status","description":"Read retained isolated recovery preparation evidence","binding":{"kind":"connect-rpc","service":"RepoService","method":"GetPushRecovery"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read"]}},
-        {"name":"sync-status","description":"Check push and pull status","binding":{"kind":"connect-rpc","service":"RepoService","method":"GetSyncStatus"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read","network:external"]}}
+        {
+          "name": "diff",
+          "description": "Show a working-tree or staged file diff",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RepoService",
+            "method": "GetRepoDiff"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "blame",
+          "description": "Show bounded native Git line attribution with optional provenance enrichment",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RepoService",
+            "method": "GetBlame"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "stage",
+          "description": "Review an exact file selection and stage it",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RepoService",
+            "method": "StageFiles"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "requires_confirmation": true,
+            "permissions": [
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "unstage",
+          "description": "Review an exact file selection and unstage it",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RepoService",
+            "method": "UnstageFiles"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "requires_confirmation": true,
+            "permissions": [
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "commit",
+          "description": "Review an exact server preview and create a single-use-authorized validated commit (--yes skips the prompt)",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RepoService",
+            "method": "CreateCommit"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "requires_confirmation": true,
+            "permissions": [
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "prepare-push-recovery",
+          "description": "Review and prepare isolated history artifacts; never applies or pushes",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RepoService",
+            "method": "PreparePushRecovery"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "requires_confirmation": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write",
+              "network:external"
+            ]
+          }
+        },
+        {
+          "name": "push-safety",
+          "description": "Inspect the live push destination and outgoing historical file sizes",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RepoService",
+            "method": "InspectPushSafety"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "network:external"
+            ]
+          }
+        },
+        {
+          "name": "push-recovery-status",
+          "description": "Read retained isolated recovery preparation evidence",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RepoService",
+            "method": "GetPushRecovery"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "sync-status",
+          "description": "Check push and pull status",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RepoService",
+            "method": "GetSyncStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "network:external"
+            ]
+          }
+        }
       ]
     },
     {
-      "name":"branch","description":"Manage repository branches through the BranchService Connect-RPC surface","commands":[
-        {"name":"list","description":"List branches","binding":{"kind":"connect-rpc","service":"BranchService","method":"ListBranches"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read"]}},
-        {"name":"create","description":"Create a branch","binding":{"kind":"connect-rpc","service":"BranchService","method":"CreateBranch"},"governance":{"effect":"write","run_eligible":false,"permissions":["filesystem:write"]}},
-        {"name":"switch","description":"Switch the working branch","binding":{"kind":"connect-rpc","service":"BranchService","method":"SwitchBranch"},"governance":{"effect":"write","run_eligible":false,"permissions":["filesystem:write"]}},
-        {"name":"publish","description":"Publish the current branch","binding":{"kind":"connect-rpc","service":"BranchService","method":"PublishBranch"},"governance":{"effect":"destructive","run_eligible":false,"requires_confirmation":true,"permissions":["filesystem:read","network:external"]}}
+      "name": "branch",
+      "description": "Manage repository branches through the BranchService Connect-RPC surface",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List branches",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "BranchService",
+            "method": "ListBranches"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "create",
+          "description": "Create a branch",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "BranchService",
+            "method": "CreateBranch"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "switch",
+          "description": "Switch the working branch",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "BranchService",
+            "method": "SwitchBranch"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "publish",
+          "description": "Publish the current branch",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "BranchService",
+            "method": "PublishBranch"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "requires_confirmation": true,
+            "permissions": [
+              "filesystem:read",
+              "network:external"
+            ]
+          }
+        }
       ]
     },
     {
-      "name":"review","description":"Run and inspect scenario readiness reviews","commands":[
-        {"name":"summary","description":"Show scenario readiness","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
-        {"name":"run","description":"Start readiness checks","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal"]}},
-        {"name":"status","description":"Inspect a review run","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}}
+      "name": "review",
+      "description": "Run and inspect scenario readiness reviews",
+      "commands": [
+        {
+          "name": "summary",
+          "description": "Show scenario readiness",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "run",
+          "description": "Start readiness checks",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "status",
+          "description": "Inspect a review run",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
       ]
     },
     {
-      "name":"audit","description":"Query the Git Control Tower audit log","commands":[
-        {"name":"list","description":"List bounded audit records","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}}
+      "name": "audit",
+      "description": "Query the Git Control Tower audit log",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List bounded audit records",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
       ]
     },
     {
-      "name":"baseline","description":"Capture, compare, and govern durable behavioral and source evidence","commands":[
-        {"name":"snapshot","description":"Start or inspect a durable single-scenario baseline snapshot","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal","filesystem:read"]}},
-        {"name":"diff","description":"Start or inspect a durable baseline comparison","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal","filesystem:read"]}},
-        {"name":"list","description":"List baselines","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
-        {"name":"show","description":"Show one baseline","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
-        {"name":"delete","description":"Delete a baseline and release its pin","binding":{"kind":"local"},"governance":{"effect":"destructive","run_eligible":false,"requires_confirmation":true,"permissions":["network:internal"]}},
-        {"name":"repair","description":"Preview or apply deterministic baseline lifecycle repair","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal","filesystem:write"]}},
-        {"name":"collection","description":"Operate durable multi-scenario validation evidence collections","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal","filesystem:read"]}},
-        {"name":"path","description":"Capture and compare bounded informational source evidence","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal","filesystem:read"]}},
-        {"name":"start","description":"Start a shadow or live engagement","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal","filesystem:write"]}},
-        {"name":"check","description":"Validate and renew an engagement","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal","filesystem:read"]}},
-        {"name":"promote","description":"Promote and terminalize an engagement","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal","filesystem:write"]}},
-        {"name":"cycle","description":"Promote a shadow engagement and re-create it under the same name","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal","filesystem:write"]}},
-        {"name":"status","description":"List active engagements","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["filesystem:read"]}},
-        {"name":"abandon","description":"Abandon an engagement and restore owned state","binding":{"kind":"local"},"governance":{"effect":"destructive","run_eligible":false,"requires_confirmation":true,"permissions":["filesystem:write"]}},
-        {"name":"gc","description":"Reap expired or orphaned engagements","binding":{"kind":"local"},"governance":{"effect":"destructive","run_eligible":false,"requires_confirmation":true,"permissions":["filesystem:write"]}}
+      "name": "baseline",
+      "description": "Capture, compare, and govern durable behavioral and source evidence",
+      "commands": [
+        {
+          "name": "snapshot",
+          "description": "Start or inspect a durable single-scenario baseline snapshot",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "diff",
+          "description": "Start or inspect a durable baseline comparison",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "list",
+          "description": "List baselines",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "show",
+          "description": "Show one baseline",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Delete a baseline and release its pin",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "requires_confirmation": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "repair",
+          "description": "Preview or apply deterministic baseline lifecycle repair",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "collection",
+          "description": "Operate durable multi-scenario validation evidence collections",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "path",
+          "description": "Capture and compare bounded informational source evidence",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "start",
+          "description": "Start a shadow or live engagement",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "check",
+          "description": "Validate and renew an engagement",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "promote",
+          "description": "Promote and terminalize an engagement",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "cycle",
+          "description": "Promote a shadow engagement and re-create it under the same name",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "status",
+          "description": "List active engagements",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "abandon",
+          "description": "Abandon an engagement and restore owned state",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "requires_confirmation": true,
+            "permissions": [
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "gc",
+          "description": "Reap expired or orphaned engagements",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "requires_confirmation": true,
+            "permissions": [
+              "filesystem:write"
+            ]
+          }
+        }
       ]
     },
     {
@@ -423,7 +915,7 @@
         },
         {
           "name": "create",
-          "description": "Create a commit proposal from listed paths with hashes, flags and a trailer-linked message; writes Git Control Tower's database only, never the repository",
+          "description": "Capture a proposal without changing older proposals",
           "binding": {
             "kind": "connect-rpc",
             "service": "ProposalService",
@@ -487,7 +979,7 @@
         },
         {
           "name": "approve",
-          "description": "Human only: review the exact proposal and commit exactly its paths with its message under a single-use intent",
+          "description": "Human only: review and commit exact proposal contents under a single-use intent; --keep-later-changes preserves newer working edits",
           "binding": {
             "kind": "connect-rpc",
             "service": "ProposalService",
@@ -506,7 +998,7 @@
         },
         {
           "name": "withdraw",
-          "description": "Withdraw an open proposal; history is kept",
+          "description": "Close a proposal and preserve all code and staged changes",
           "binding": {
             "kind": "connect-rpc",
             "service": "ProposalService",
@@ -527,6 +1019,38 @@
           },
           "governance": {
             "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "combine",
+          "description": "Combine exact captured source revisions; preserves working code",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProposalService",
+            "method": "CombineProposals"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "diff",
+          "description": "Review exact retained revision bytes, or explicitly compare with current workspace contents",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RepoService",
+            "method": "GetRepoDiff"
+          },
+          "governance": {
+            "effect": "read",
             "run_eligible": true,
             "permissions": [
               "filesystem:read"

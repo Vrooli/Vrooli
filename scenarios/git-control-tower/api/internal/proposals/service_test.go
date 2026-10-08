@@ -167,7 +167,7 @@ func TestSharedPathsAndStagedPathsAreReadTimeFlags(t *testing.T) {
 }
 
 // GCT-039: a regenerated proposal keeps the operator's edited message.
-func TestSameEpochSupersedesAndCarriesOperatorEdits(t *testing.T) {
+func TestSameEpochSubmissionPreservesExistingOperatorReview(t *testing.T) {
 	svc := testService(t)
 	git := NewMemoryGit(map[string]string{"a.go": "a1", "b.go": "b1"})
 	repo := repoFor(git)
@@ -182,11 +182,11 @@ func TestSameEpochSupersedesAndCarriesOperatorEdits(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.SupersededID != first.ID || result.View.Message.Subject != subject || !result.View.Message.OperatorEdited {
+	if result.View.Message.Subject != "agent regenerated" {
 		t.Fatalf("result = %#v", result)
 	}
 	old, err := svc.Get(context.Background(), repo, first.ID)
-	if err != nil || old.State != StateSuperseded || old.SupersededBy != result.View.ID {
+	if err != nil || old.State != StateOpen || old.Message.Subject != subject || !old.Message.OperatorEdited {
 		t.Fatalf("old = %#v err=%v", old.Proposal, err)
 	}
 }
@@ -327,5 +327,32 @@ func TestScopeMatcher(t *testing.T) {
 	}
 	if _, err := newScopeMatcher([]string{"../outside"}); !errors.Is(err, ErrInvalid) {
 		t.Fatalf("unsafe scope err = %v", err)
+	}
+}
+
+func TestSavedVersionEvidenceKeepsLaterEditsOutsideApproval(t *testing.T) {
+	svc := testService(t)
+	git := NewMemoryGit(map[string]string{"a.go": "base"})
+	repo := repoFor(git)
+	git.Write("a.go", "saved proposal")
+	view := createProposal(t, svc, repo, "a.go")
+	contextString := ApprovalContext(view.ID, view.Revision, true, true)
+	id, revision, ok := ParseSubjectContext(contextString)
+	if !ok || id != view.ID || revision != view.Revision || !KeepsLaterChanges(contextString) {
+		t.Fatal("saved version context not recognized")
+	}
+	before, err := svc.SubjectEvidence(context.Background(), repo, contextString)
+	if err != nil {
+		t.Fatal(err)
+	}
+	git.Write("a.go", "newer working edits")
+	after, err := svc.SubjectEvidence(context.Background(), repo, contextString)
+	if err != nil || string(before) != string(after) {
+		t.Fatalf("later edits invalidated saved contents intent: %q -> %q err=%v", before, after, err)
+	}
+	for _, bad := range []string{contextString + ";unknown=true", SubjectContext(view.ID, view.Revision) + ";working-files=preserved;prior-work=acknowledged"} {
+		if _, _, ok := ParseSubjectContext(bad); ok {
+			t.Fatalf("malformed approval mode accepted: %s", bad)
+		}
 	}
 }

@@ -101,6 +101,54 @@
       "testId": "diff-minimap-texture-line",
       "selector": "[data-testid=\"diff-minimap-texture-line\"]"
     },
+    "proposals.workspace": {
+      "testId": "proposal-workspace",
+      "selector": "[data-testid=\"proposal-workspace\"]"
+    },
+    "proposals.inbox": {
+      "testId": "proposal-inbox",
+      "selector": "[data-testid=\"proposal-inbox\"]"
+    },
+    "proposals.inboxOpen": {
+      "testId": "proposal-inbox-open",
+      "selector": "[data-testid=\"proposal-inbox-open\"]"
+    },
+    "proposals.back": {
+      "testId": "proposal-workspace-back",
+      "selector": "[data-testid=\"proposal-workspace-back\"]"
+    },
+    "proposals.detail": {
+      "testId": "proposal-detail",
+      "selector": "[data-testid=\"proposal-detail\"]"
+    },
+    "proposals.card": {
+      "testId": "proposal-card",
+      "selector": "[data-testid=\"proposal-card\"]"
+    },
+    "proposals.captureUnavailable": {
+      "testId": "proposal-capture-unavailable",
+      "selector": "[data-testid=\"proposal-capture-unavailable\"]"
+    },
+    "proposals.close": {
+      "testId": "proposal-withdraw",
+      "selector": "[data-testid=\"proposal-withdraw\"]"
+    },
+    "proposals.approve": {
+      "testId": "proposal-approve",
+      "selector": "[data-testid=\"proposal-approve\"]"
+    },
+    "proposals.approveExplanation": {
+      "testId": "proposal-approve-explain",
+      "selector": "[data-testid=\"proposal-approve-explain\"]"
+    },
+    "proposals.guidance": {
+      "testId": "proposal-guidance",
+      "selector": "[data-testid=\"proposal-guidance\"]"
+    },
+    "proposals.versionHelp": {
+      "testId": "proposal-version-help",
+      "selector": "[data-testid=\"proposal-version-help\"]"
+    },
     "errorToast": {
       "testId": "error-toast",
       "selector": "[data-testid=\"error-toast\"]"
@@ -245,6 +293,6 @@
   },
   "sources": {
     "ui/src/consts/selectors.library.ts": "0a9333cceea22496c793687e3a716cd8ac51d5abc56d9bf9ca1704db075f0b10",
-    "ui/src/consts/selectors.ts": "df0cb16359e19e12a7b9191a2e993800ddaeb42612bdd1ba9bdf0f0d16da7f5e"
+    "ui/src/consts/selectors.ts": "e06657612d138cb1a04718f025a27c575405dfb004513670caea8d10f4d33822"
   }
 }

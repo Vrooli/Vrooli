@@ -1,3 +1,4 @@
+// [REQ:GCT-PROPOSAL-CAPTURE]
 package main
 
 import (
@@ -18,6 +19,7 @@ import (
 	"github.com/vrooli/cli-core/cliutil"
 	proposalsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/proposals"
 	proposalsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/proposals/proposals_v1connect"
+	repov1 "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/repo"
 )
 
 type proposalTransport struct {
@@ -108,10 +110,10 @@ func (p *proposalTransport) createViaAgent(t *testing.T) *proposalsv1.Proposal {
 
 // issueApplyIntent issues a human intent for the proposal's current
 // revision, exactly as ConfirmMutation does.
-func (p *proposalTransport) issueApplyIntent(t *testing.T, proposal *proposalsv1.Proposal) string {
+func (p *proposalTransport) issueApplyIntent(t *testing.T, proposal *proposalsv1.Proposal, keepLater ...bool) string {
 	t.Helper()
 	human := policygate.WithPrincipal(context.Background(), policygate.Principal{Subject: "test-human", Kind: cliutil.CallerKindHuman, Verified: true})
-	preview, err := p.server.prepareMutationWithContext(human, "", mutationOperationApplyProposal, proposals.SubjectContext(proposal.GetId(), int(proposal.GetRevision())))
+	preview, err := p.server.prepareMutationWithContext(human, "", mutationOperationApplyProposal, proposals.ApprovalContext(proposal.GetId(), int(proposal.GetRevision()), true, len(keepLater) > 0 && keepLater[0]))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -124,7 +126,7 @@ func (p *proposalTransport) issueApplyIntent(t *testing.T, proposal *proposalsv1
 }
 
 func (p *proposalTransport) apply(kind, intentID string, proposal *proposalsv1.Proposal) (*proposalsv1.ApplyProposalResponse, error) {
-	resp, err := p.client.ApplyProposal(context.Background(), asPrincipal(&proposalsv1.ApplyProposalRequest{IntentId: intentID, Id: proposal.GetId(), Revision: proposal.GetRevision()}, kind))
+	resp, err := p.client.ApplyProposal(context.Background(), asPrincipal(&proposalsv1.ApplyProposalRequest{IntentId: intentID, Id: proposal.GetId(), Revision: proposal.GetRevision(), AcknowledgePriorWork: true}, kind))
 	if err != nil {
 		return nil, err
 	}
@@ -246,5 +248,89 @@ func TestApplyProposalIntentIsExactSingleUseAndExpires(t *testing.T) {
 	}
 	if len(p.git.StageCalls()) != 0 || p.git.CommitCount() != 1 {
 		t.Fatal("refused applies changed the repository")
+	}
+}
+
+func TestProposalTypedDiffRetainsReviewedBytesAndComparisonIsReadOnly(t *testing.T) {
+	p := newProposalTransport(t)
+	proposal := p.createViaAgent(t)
+	p.git.Write("a.go", "later unfinished bytes")
+	request := &repov1.GetRepoDiffRequest{RepositoryId: proposal.GetRepositoryId(), ProposalId: proposal.GetId(), ProposalRevision: proposal.GetRevision(), Path: "a.go"}
+	retained, err := p.server.getRepoDiffConnect(context.Background(), request)
+	if err != nil || !strings.Contains(retained.GetRaw(), "+a2") || strings.Contains(retained.GetRaw(), "later unfinished") {
+		t.Fatalf("retained=%v err=%v", retained, err)
+	}
+	request.CompareCurrent = true
+	compared, err := p.server.getRepoDiffConnect(context.Background(), request)
+	if err != nil || !strings.Contains(compared.GetRaw(), "later unfinished") {
+		t.Fatalf("comparison=%v err=%v", compared, err)
+	}
+	current, err := p.client.GetProposal(context.Background(), connect.NewRequest(&proposalsv1.GetProposalRequest{Id: proposal.GetId()}))
+	if err != nil || current.Msg.GetProposal().GetRevision() != proposal.GetRevision() || current.Msg.GetProposal().GetFreshness().GetState() != proposalsv1.FreshnessState_FRESHNESS_STATE_DRIFTED {
+		t.Fatalf("comparison altered proposal=%v err=%v", current, err)
+	}
+	request.Staged = true
+	if _, err := p.server.getRepoDiffConnect(context.Background(), request); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("mixed selectors err=%v", err)
+	}
+	other, err := p.server.repos.store.Upsert(context.Background(), RepoRecord{Path: "/fake/other-proposal-repo", Name: "other"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	request.Staged, request.RepositoryId = false, repositoryIDFor(&other)
+	if _, err := p.server.getRepoDiffConnect(context.Background(), request); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("cross-repo err=%v", err)
+	}
+}
+
+func TestProposalTypedCombinationClosesExactSourcesAndKeepsCode(t *testing.T) {
+	p := newProposalTransport(t)
+	first := p.createViaAgent(t)
+	p.git.Write("b.go", "b2")
+	next, err := p.client.CreateProposal(context.Background(), asPrincipal(&proposalsv1.CreateProposalRequest{Subject: "Second review", Paths: []string{"b.go"}, Work: &proposalsv1.ProposalWork{EffortRef: "effort:bas", Epoch: "E28", RunIds: []string{"70dd81be-0c15-4ef3-9b05-e18aa6ca7ccb"}}}, "agent"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	combined, err := p.client.CombineProposals(context.Background(), asPrincipal(&proposalsv1.CombineProposalsRequest{Subject: "Combined review", Sources: []*proposalsv1.ProposalRevisionReference{{Id: first.GetId(), Revision: first.GetRevision()}, {Id: next.Msg.GetProposal().GetId(), Revision: next.Msg.GetProposal().GetRevision()}}}, "human"))
+	if err != nil || len(combined.Msg.GetProposal().GetFiles()) != 2 || len(combined.Msg.GetProposal().GetFolds()) != 2 {
+		t.Fatalf("combined=%v err=%v", combined, err)
+	}
+	source, err := p.client.GetProposal(context.Background(), connect.NewRequest(&proposalsv1.GetProposalRequest{Id: first.GetId()}))
+	if err != nil || source.Msg.GetProposal().GetState() != proposalsv1.ProposalState_PROPOSAL_STATE_SUPERSEDED {
+		t.Fatalf("source=%v err=%v", source, err)
+	}
+	hash, err := p.git.Hash(context.Background(), []string{"a.go", "b.go"})
+	if err != nil || hash["a.go"].BlobID != first.GetFiles()[0].GetBlobId() || hash["b.go"].BlobID != next.Msg.GetProposal().GetFiles()[0].GetBlobId() || p.git.CommitCount() != 1 {
+		t.Fatal("combining changed repository contents or committed")
+	}
+}
+
+func TestProposalPreservedFilesIntentAllowsLaterWorkingEdits(t *testing.T) {
+	p := newProposalTransport(t)
+	proposal := p.createViaAgent(t)
+	intent := p.issueApplyIntent(t, proposal, true)
+	p.git.Write("a.go", "later working edits")
+	resp, err := p.client.ApplyProposal(context.Background(), asPrincipal(&proposalsv1.ApplyProposalRequest{Id: proposal.GetId(), Revision: proposal.GetRevision(), IntentId: intent, AcknowledgePriorWork: true, KeepLaterChanges: true}, "human"))
+	if err != nil || !resp.Msg.GetSuccess() {
+		t.Fatalf("saved approval=%v err=%v", resp, err)
+	}
+	expected, _ := proposals.NewMemoryGit(map[string]string{"a.go": "later working edits"}).Hash(context.Background(), []string{"a.go"})
+	contents, err := p.git.Hash(context.Background(), []string{"a.go"})
+	if err != nil || contents["a.go"].SHA256 != expected["a.go"].SHA256 {
+		t.Fatalf("later working edits changed: %+v err=%v", contents, err)
+	}
+}
+
+func TestProposalApprovalIntentCannotChangeWorkingFileMode(t *testing.T) {
+	for _, keep := range []bool{false, true} {
+		t.Run(map[bool]string{false: "strict-to-preserved", true: "preserved-to-strict"}[keep], func(t *testing.T) {
+			p := newProposalTransport(t)
+			proposal := p.createViaAgent(t)
+			intent := p.issueApplyIntent(t, proposal, keep)
+			resp, err := p.client.ApplyProposal(context.Background(), asPrincipal(&proposalsv1.ApplyProposalRequest{Id: proposal.GetId(), Revision: proposal.GetRevision(), IntentId: intent, AcknowledgePriorWork: true, KeepLaterChanges: !keep}, "human"))
+			if err == nil || (resp != nil && resp.Msg.GetSuccess()) || len(p.git.StageCalls()) != 0 {
+				t.Fatalf("intent mode change accepted: %v err=%v", resp, err)
+			}
+		})
 	}
 }

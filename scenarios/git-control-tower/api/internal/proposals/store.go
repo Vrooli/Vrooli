@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"git-control-tower/internal/dbschema"
+	coredb "github.com/vrooli/api-core/database"
 )
 
 // Store keeps anchors and proposals in GCT's database. Each record is one
@@ -28,25 +29,7 @@ func NewStore(db dbschema.DB) (*Store, error) {
 }
 
 func (s *Store) ensureSchema(ctx context.Context) error {
-	for _, statement := range []string{
-		`CREATE TABLE IF NOT EXISTS gct_proposal_anchors (
-			id TEXT PRIMARY KEY, repository_id TEXT NOT NULL, effort_ref TEXT NOT NULL DEFAULT '',
-			epoch TEXT NOT NULL DEFAULT '', record_json TEXT NOT NULL, created_at TEXT NOT NULL)`,
-		`CREATE INDEX IF NOT EXISTS idx_gct_proposal_anchors_work ON gct_proposal_anchors(repository_id, effort_ref, epoch, created_at)`,
-		`CREATE TABLE IF NOT EXISTS gct_proposals (
-			id TEXT PRIMARY KEY, repository_id TEXT NOT NULL, state TEXT NOT NULL, revision INTEGER NOT NULL,
-			effort_ref TEXT NOT NULL DEFAULT '', epoch TEXT NOT NULL DEFAULT '', record_json TEXT NOT NULL,
-			created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
-		`CREATE INDEX IF NOT EXISTS idx_gct_proposals_queue ON gct_proposals(repository_id, state, created_at)`,
-		`CREATE INDEX IF NOT EXISTS idx_gct_proposals_work ON gct_proposals(repository_id, effort_ref, epoch, state)`,
-		`CREATE TABLE IF NOT EXISTS gct_proposal_digests (
-			day TEXT PRIMARY KEY, proposal_count INTEGER NOT NULL, sent_at TEXT NOT NULL)`,
-	} {
-		if _, err := s.db.ExecContext(ctx, statement); err != nil {
-			return fmt.Errorf("create proposal schema: %w", err)
-		}
-	}
-	return nil
+	return coredb.EnsureSchemas(ctx, s.db, coredb.SchemaProviderFunc(Schema))
 }
 
 func (s *Store) SaveAnchor(ctx context.Context, anchor Anchor) error {
@@ -92,10 +75,21 @@ func (s *Store) Insert(ctx context.Context, proposal Proposal) error {
 	if err != nil {
 		return err
 	}
-	_, err = s.db.ExecContext(ctx, `INSERT INTO gct_proposals (id, repository_id, state, revision, effort_ref, epoch, record_json, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)`,
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	_, err = tx.ExecContext(ctx, `INSERT INTO gct_proposals (id, repository_id, state, revision, effort_ref, epoch, record_json, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)`,
 		proposal.ID, proposal.RepositoryID, string(proposal.State), proposal.Revision, proposal.Work.EffortRef, proposal.Work.Epoch,
 		string(data), proposal.CreatedAt.UTC().Format(time.RFC3339Nano), proposal.UpdatedAt.UTC().Format(time.RFC3339Nano))
-	return err
+	if err != nil {
+		return err
+	}
+	if _, err = tx.ExecContext(ctx, `INSERT INTO gct_proposal_revisions (proposal_id, revision, record_json) VALUES (?,?,?)`, proposal.ID, proposal.Revision, string(data)); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 // Update replaces a proposal only when the stored revision and state still
@@ -105,7 +99,17 @@ func (s *Store) Update(ctx context.Context, proposal Proposal, expectedRevision 
 	if err != nil {
 		return err
 	}
-	result, err := s.db.ExecContext(ctx, `UPDATE gct_proposals SET state = ?, revision = ?, record_json = ?, updated_at = ? WHERE id = ? AND revision = ? AND state = ?`,
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	// Preserve the old payload before a legacy record advances, and never
+	// rewrite immutable content revisions for lifecycle/activity-only updates.
+	if _, err = tx.ExecContext(ctx, `INSERT OR IGNORE INTO gct_proposal_revisions (proposal_id, revision, record_json) SELECT id, revision, record_json FROM gct_proposals WHERE id = ? AND revision = ? AND state = ?`, proposal.ID, expectedRevision, expectedState); err != nil {
+		return err
+	}
+	result, err := tx.ExecContext(ctx, `UPDATE gct_proposals SET state = ?, revision = ?, record_json = ?, updated_at = ? WHERE id = ? AND revision = ? AND state = ?`,
 		string(proposal.State), proposal.Revision, string(data), proposal.UpdatedAt.UTC().Format(time.RFC3339Nano), proposal.ID, expectedRevision, string(expectedState))
 	if err != nil {
 		return err
@@ -113,7 +117,101 @@ func (s *Store) Update(ctx context.Context, proposal Proposal, expectedRevision 
 	if rows, rowsErr := result.RowsAffected(); rowsErr != nil || rows != 1 {
 		return ErrConflict
 	}
-	return nil
+	if proposal.Revision != expectedRevision {
+		if _, err = tx.ExecContext(ctx, `INSERT INTO gct_proposal_revisions (proposal_id, revision, record_json) VALUES (?,?,?)`, proposal.ID, proposal.Revision, string(data)); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+func (s *Store) Revision(ctx context.Context, id string, revision int) (Proposal, error) {
+	var raw string
+	err := s.db.QueryRowContext(ctx, `SELECT record_json FROM gct_proposal_revisions WHERE proposal_id = ? AND revision = ?`, id, revision).Scan(&raw)
+	if errors.Is(err, sql.ErrNoRows) {
+		current, currentErr := s.Get(ctx, id)
+		if currentErr == nil && current.Revision == revision {
+			return current, nil
+		}
+		return Proposal{}, ErrNotFound
+	}
+	if err != nil {
+		return Proposal{}, err
+	}
+	var p Proposal
+	return p, json.Unmarshal([]byte(raw), &p)
+}
+
+func (s *Store) SaveBlobs(ctx context.Context, blobs map[string][]byte) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	for id, data := range blobs {
+		if data == nil {
+			data = []byte{}
+		}
+		if _, err = tx.ExecContext(ctx, `INSERT OR IGNORE INTO gct_proposal_blobs (blob_id, content) VALUES (?,?)`, id, data); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+func (s *Store) Blob(ctx context.Context, id string) ([]byte, error) {
+	if id == "" || id == DeletedBlob {
+		return nil, nil
+	}
+	var data []byte
+	err := s.db.QueryRowContext(ctx, `SELECT content FROM gct_proposal_blobs WHERE blob_id = ?`, id).Scan(&data)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, fmt.Errorf("%w: captured content unavailable", ErrNotFound)
+	}
+	return data, err
+}
+
+// Combine creates the package and closes all exact source revisions in one
+// transaction. A concurrent edit/apply cannot leave a partially combined inbox.
+func (s *Store) Combine(ctx context.Context, p Proposal, sources []Proposal, actor Actor) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	for _, old := range sources {
+		original, err := json.Marshal(old)
+		if err != nil {
+			return err
+		}
+		if _, err = tx.ExecContext(ctx, `INSERT OR IGNORE INTO gct_proposal_revisions (proposal_id, revision, record_json) VALUES (?,?,?)`, old.ID, old.Revision, string(original)); err != nil {
+			return err
+		}
+		old.State, old.SupersededBy, old.UpdatedAt = StateSuperseded, p.ID, p.UpdatedAt
+		old.Events = append(old.Events, Event{Action: "superseded", Actor: actor, Revision: old.Revision, Detail: "explicitly combined into " + p.ID, Timestamp: p.UpdatedAt})
+		data, err := json.Marshal(old)
+		if err != nil {
+			return err
+		}
+		result, err := tx.ExecContext(ctx, `UPDATE gct_proposals SET state = ?, record_json = ?, updated_at = ? WHERE id = ? AND revision = ? AND state = ?`, string(old.State), string(data), old.UpdatedAt.UTC().Format(time.RFC3339Nano), old.ID, old.Revision, string(StateOpen))
+		if err != nil {
+			return err
+		}
+		if n, err := result.RowsAffected(); err != nil || n != 1 {
+			return ErrConflict
+		}
+	}
+	data, err := json.Marshal(p)
+	if err != nil {
+		return err
+	}
+	if _, err = tx.ExecContext(ctx, `INSERT INTO gct_proposals (id, repository_id, state, revision, effort_ref, epoch, record_json, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)`, p.ID, p.RepositoryID, string(p.State), p.Revision, p.Work.EffortRef, p.Work.Epoch, string(data), p.CreatedAt.UTC().Format(time.RFC3339Nano), p.UpdatedAt.UTC().Format(time.RFC3339Nano)); err != nil {
+		return err
+	}
+	if _, err = tx.ExecContext(ctx, `INSERT INTO gct_proposal_revisions (proposal_id, revision, record_json) VALUES (?,?,?)`, p.ID, p.Revision, string(data)); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (s *Store) Get(ctx context.Context, id string) (Proposal, error) {
@@ -197,8 +295,105 @@ func (s *Store) List(ctx context.Context, filter ListFilter) ([]Proposal, error)
 }
 
 // CountOpen returns the number of open proposals for a repository.
+// Publish takes a short write lease across ref publication so concurrent edits
+// cannot change the reviewed revision. Nonempty OID on error means publication
+// succeeded but durable recording failed; never restore the old index then.
+func (s *Store) Publish(ctx context.Context, reviewed Proposal, actor Actor, publish func(context.Context) (string, error), now time.Time) (string, Proposal, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return "", Proposal{}, err
+	}
+	defer tx.Rollback()
+	result, err := tx.ExecContext(ctx, `UPDATE gct_proposals SET revision = revision WHERE id = ? AND revision = ? AND state = ?`, reviewed.ID, reviewed.Revision, string(StateOpen))
+	if err != nil {
+		return "", Proposal{}, err
+	}
+	if n, err := result.RowsAffected(); err != nil || n != 1 {
+		return "", Proposal{}, ErrConflict
+	}
+	var raw string
+	if err = tx.QueryRowContext(ctx, `SELECT record_json FROM gct_proposals WHERE id = ?`, reviewed.ID).Scan(&raw); err != nil {
+		return "", Proposal{}, err
+	}
+	var p Proposal
+	if err = json.Unmarshal([]byte(raw), &p); err != nil {
+		return "", Proposal{}, err
+	}
+	oid, err := publish(ctx)
+	if err != nil {
+		return oid, p, err
+	}
+	if oid == "" {
+		return "", p, fmt.Errorf("publisher returned no commit identity")
+	}
+	p.State, p.CommitOID, p.UpdatedAt, p.CommittedAt = StateCommitted, oid, now, &now
+	p.Events = append(p.Events, Event{Action: "committed", Actor: actor, Revision: p.Revision, Detail: "published verified candidate " + oid, Timestamp: now})
+	data, err := json.Marshal(p)
+	if err != nil {
+		return oid, p, err
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE gct_proposals SET state = ?, record_json = ?, updated_at = ? WHERE id = ?`, string(p.State), string(data), now.UTC().Format(time.RFC3339Nano), p.ID); err != nil {
+		return oid, p, err
+	}
+	return oid, p, tx.Commit()
+}
+
+// CountOpen returns the number of open proposals for a repository.
 func (s *Store) CountOpen(ctx context.Context, repositoryID string) (int, error) {
 	var count int
 	err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM gct_proposals WHERE repository_id = ? AND state = ?`, repositoryID, string(StateOpen)).Scan(&count)
 	return count, err
+}
+
+// AvailableRevisions reports retained records, never guesses missing legacy history.
+func (s *Store) AvailableRevisions(ctx context.Context, id string) ([]int, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT revision FROM gct_proposal_revisions WHERE proposal_id = ? ORDER BY revision`, id)
+	if err != nil {
+		return nil, err
+	}
+	values := []int{}
+	for rows.Next() {
+		var value int
+		if err = rows.Scan(&value); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		values = append(values, value)
+	}
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		return nil, err
+	}
+	current, err := s.Get(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if len(values) == 0 || values[len(values)-1] != current.Revision {
+		values = append(values, current.Revision)
+	}
+	return values, nil
+}
+
+func (s *Store) captureSize(ctx context.Context, files []File) (int64, error) {
+	seen := map[string]bool{}
+	var total int64
+	for _, file := range files {
+		for _, id := range []string{file.BaseBlobID, file.BlobID} {
+			if id == "" || seen[id] {
+				continue
+			}
+			seen[id] = true
+			var size int64
+			err := s.db.QueryRowContext(ctx, `SELECT length(content) FROM gct_proposal_blobs WHERE blob_id = ?`, id).Scan(&size)
+			if err != nil {
+				return 0, err
+			}
+			total += size
+			if total > MaxCaptureBytes {
+				return total, nil
+			}
+		}
+	}
+	return total, nil
 }

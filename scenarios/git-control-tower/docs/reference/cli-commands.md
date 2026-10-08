@@ -47,10 +47,12 @@ human-only.
 | `anchor`   | Fingerprint files already dirty in scope at epoch admission (`--effort REF --epoch E<n> --scope GLOB...`) |
 | `create`   | Create a proposal from listed paths (`--request-file F` or `--effort --epoch --subject [--body-file] --path P... [--run ID...] [--plan REF...] [--trailer K=V...] [--gate D...]`; `--validate-only` stores nothing) |
 | `list`     | List proposals with live freshness (`[--state open\|committed\|withdrawn\|superseded\|all] [--effort REF]`) |
-| `show`     | Show files, flags, exclusions, message, trailers and history (`ID [--message]`) |
+| `show`     | Show files, flags, exclusions, message, trailers and history (`ID [--revision N] [--message]`) |
+| `diff`     | Review captured contents (`ID --revision N --path P [--compare-current] [--json]`); comparison never updates the proposal |
+| `combine`  | Explicitly combine 2–20 sources (`--source ID@REV... --subject S [--body-file F]`); keeps code and source revision history |
 | `edit`     | New revision with a changed subject, body or trailers, or dropped files (`ID --revision N [--subject] [--body-file] [--replace-trailers --trailer K=V...] [--remove-path P...]`) |
-| `approve`  | Human only: print files, flags and message, ask for `confirm`, then prepare, confirm and apply one `repo.apply_proposal` intent (`ID [--yes] [--skip-precommit]`) |
-| `withdraw` | Withdraw an open proposal; history is kept (`ID [--reason R]`) |
+| `approve`  | Human only: print files, flags and message, ask for `confirm`, then prepare, confirm and apply one `repo.apply_proposal` intent (`ID [--yes] [--acknowledge-prior-work] [--keep-later-changes] [--skip-precommit]`) |
+| `withdraw` | Close an open proposal; all code, staged changes and history are kept (`ID [--reason R] [--replacement ID] [--revision N]`) |
 | `refresh`  | Re-hash current content into a new revision and recompute flags (`ID [--revision N]`) |
 
 Delivery orchestrators run `anchor` when they admit an epoch and `create` when
@@ -70,19 +72,18 @@ changed paths in the anchor scope that are not listed are recorded in
 `excluded`. A file dirty at the anchor and changed since is flagged
 `mixed_prior_uncommitted`. Shared paths (`other_open_proposal`), Workspace
 Sandbox pending paths (`sandbox_pending`) and `already_staged` are computed when
-read. A new proposal for the same effort and epoch supersedes the open one and
-keeps operator message edits.
+read. Each submission preserves older proposals and their review contents.
+Final contents identical to HEAD are excluded as `matches_commit_base`; an
+index-only difference is not a contribution to a commit.
 
-`create` never refuses because an effort has many open proposals. It folds
-every open proposal of the same effort that shares a path with it, that has
-drifted, or that shares a path with one already folded, into one combined
-proposal: the union of paths at current content, a `Vrooli-Epoch` trailer per
-epoch, the runs of every epoch (up to the 20-run trailer limit), and a body
-paragraph naming each folded epoch. Folded proposals become `superseded` with
-`superseded_by` and a history line; they are never deleted
-(`list --state superseded`). A folded path that is now clean is recorded in
-`excluded` as `now_clean`. Fresh proposals that share nothing stay separate.
-The created event and the CLI's `Folded …` line name each folded proposal.
+`combine` requires exact retained source revisions, the same repository, base
+and branch, and identical captured versions for shared files. It creates one
+review package and atomically supersedes its sources, preserving their exact
+revision manifests, evidence and relationships. Conflicting versions require
+an operator decision and a newly captured revision; they are never replaced
+with live bytes. `withdraw --replacement` records a relationship and omitted
+paths; it does not combine content. Prior submissions remain addressable.
+
 Agent-created messages must pass trailer grammar;
 an agent `Co-Authored-By` is refused because the operator is always the author.
 
@@ -95,12 +96,29 @@ and `proposal_ids`; Notification Hub writes the notification copy. Notification
 Hub delivers it to the phone only when its notification pattern includes
 `git_control_tower.**` (default `incident.**`).
 
-`approve` refuses, naming each path, when content drifted from the reviewed
-blobs, when HEAD moved and the move touched a proposal path (`base_moved`), or
-when a path outside the proposal is staged. It stages exactly the proposal paths
-(deletions included), verifies the staged blob IDs, runs the configured
-pre-commit check and commits the rendered message. On failure it restores the
-index to its prior state.
+`approve` defaults to strict mode, refusing working drift in raw bytes, canonical
+Git blobs or modes. `--keep-later-changes` instead commits the saved proposal
+blobs/modes and leaves subsequent working edits untouched and uncommitted; this
+choice is bound to the single-use intent. It refuses proposal paths with different
+staged versions before altering staging. Review or unstage those versions first.
+Both modes refuse missing retained bytes, a changed destination branch, a base
+move touching proposal files, or any foreign staged path. The UI uses saved-version
+mode and offers “Use latest working files” to explicitly update and review a new
+proposal revision. Mixed-prior/no-anchor/outside-scope
+files require `--acknowledge-prior-work` even with `--yes`; the acknowledgment
+is bound to the single-use intent. Review `proposal diff` before approving.
+The server stages exactly the reviewed paths and runs portable checks and hooks
+in a private candidate checkout. It verifies the resulting tree and message
+before publishing to the named branch under Git ref/index locks. Failure before
+publication restores the index; a failure with a commit ID explicitly reports
+that commit and does not reset an index after publication. Approval does not push.
+Legacy proposals require an explicit `refresh` and review of the new revision.
+
+History exposes full bodies, trailers and proposal links. Continue keeps work
+relationships and adds `Vrooli-Continues` with the predecessor hash; it does not
+reuse the old proposal, epoch, run or authorship trailers. P/pN subjects remain
+supported. Effort/epoch/run/plan/backlog labels come from their typed owners;
+unavailable or private owners do not imply a resolved link.
 
 ### Trailer vocabulary v1
 
@@ -115,7 +133,7 @@ authorship proof. Source: [CODE: api/internal/trailers/registry.go].
 | --- | --- | --- |
 | `Vrooli-Effort`    | `effort:<slug>[@<revision>]` | n |
 | `Vrooli-Epoch`     | `effort:<slug>#E<n>` | n |
-| `Vrooli-Run`       | Agent Manager run UUID | 20 |
+| `Vrooli-Run`       | Agent Manager run UUID | 400 (explicit source unions; overflow refused) |
 | `Vrooli-Plan`      | plan ID or slug, optional `#phase-<n>` | n |
 | `Vrooli-Backlog`   | `<kind>/<name>` | n |
 | `Vrooli-Continues` | 7–40 hex commit ID | 1 |

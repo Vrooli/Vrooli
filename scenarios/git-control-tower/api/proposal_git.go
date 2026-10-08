@@ -22,13 +22,14 @@ import (
 const emptyTreeOID = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
 
 // proposalGit adapts the git binary to the proposals seam. Reads use
-// --no-optional-locks and literal pathspecs; only Stage and RestoreIndex
-// write, and only ApplyProposal reaches them under the repository lock and a
+// --no-optional-locks and literal pathspecs; Stage, StageCaptured and RestoreIndex
+// own index/object mutations, reached only by ApplyProposal under a lock and a
 // consumed human intent.
 type proposalGit struct {
-	gitPath string
-	repoDir string
-	status  func(ctx context.Context) (*RepoStatus, error)
+	gitPath          string
+	repoDir          string
+	keepLaterChanges bool
+	status           func(ctx context.Context) (*RepoStatus, error)
 }
 
 func newProposalGit(git GitRunner, repoDir string) *proposalGit {
@@ -144,20 +145,47 @@ func (g *proposalGit) Hash(ctx context.Context, paths []string) (map[string]prop
 			if err != nil {
 				return nil, err
 			}
-			result[path] = proposals.Content{BlobID: rawBlobID([]byte(target)), SHA256: sha256Hex([]byte(target))}
+			result[path] = proposals.Content{BlobID: rawBlobID([]byte(target)), SHA256: sha256Hex([]byte(target)), Mode: "120000"}
 		case strings.ContainsAny(path, "\n\r"):
 			data, err := os.ReadFile(full)
 			if err != nil {
 				return nil, err
 			}
-			result[path] = proposals.Content{BlobID: rawBlobID(data), SHA256: sha256Hex(data)}
+			mode := "100644"
+			if info.Mode()&0111 != 0 {
+				mode = "100755"
+			}
+			result[path] = proposals.Content{BlobID: rawBlobID(data), SHA256: sha256Hex(data), Mode: mode}
 		default:
 			digest, err := sha256File(full)
 			if err != nil {
 				return nil, err
 			}
-			result[path] = proposals.Content{SHA256: digest}
+			mode := "100644"
+			if info.Mode()&0111 != 0 {
+				mode = "100755"
+			}
+			result[path] = proposals.Content{SHA256: digest, Mode: mode}
 			regular = append(regular, path)
+		}
+	}
+	// Git deliberately preserves tracked mode when core.filemode is false.
+	// Use the same effective mode in capture, freshness and index verification.
+	if len(regular) > 0 {
+		value, configErr := g.read(ctx, nil, "config", "--bool", "--get", "core.filemode")
+		if configErr == nil && strings.TrimSpace(string(value)) == "false" {
+			index, err := g.IndexEntries(ctx, regular)
+			if err != nil {
+				return nil, err
+			}
+			for _, path := range regular {
+				content := result[path]
+				content.Mode = "100644"
+				if entry, ok := index[path]; ok {
+					content.Mode = entry.Mode
+				}
+				result[path] = content
+			}
 		}
 	}
 	for start := 0; start < len(regular); start += 1000 {
@@ -258,6 +286,7 @@ func (g *proposalGit) ObjectExists(ctx context.Context, oid string) (bool, error
 
 // Stage adds exactly the given paths, deletions included.
 func (g *proposalGit) Stage(ctx context.Context, paths []string) error {
+	g.keepLaterChanges = false
 	return g.write(ctx, []byte(strings.Join(paths, "\x00")), "add", "--all", "--pathspec-from-file=-", "--pathspec-file-nul")
 }
 
@@ -280,7 +309,7 @@ func (g *proposalGit) CommitFacts(ctx context.Context, oid string) (proposals.Co
 	if err != nil {
 		return proposals.CommitFacts{}, err
 	}
-	facts := proposals.CommitFacts{Blobs: map[string]string{}}
+	facts := proposals.CommitFacts{Blobs: map[string]string{}, Modes: map[string]string{}}
 	records := strings.Split(string(out), "\x00")
 	for i := 0; i+1 < len(records); i += 2 {
 		fields := strings.Fields(strings.TrimPrefix(records[i], ":"))
@@ -288,16 +317,25 @@ func (g *proposalGit) CommitFacts(ctx context.Context, oid string) (proposals.Co
 			continue
 		}
 		blob := fields[3]
+		if !strings.HasPrefix(fields[4], "D") {
+			facts.Modes[records[i+1]] = fields[1]
+		}
 		if strings.HasPrefix(fields[4], "D") {
 			blob = proposals.DeletedBlob
 		}
 		facts.Blobs[records[i+1]] = blob
 	}
-	message, err := g.read(ctx, nil, "log", "-1", "--format=%B", oid)
+	message, err := g.read(ctx, nil, "cat-file", "commit", oid)
 	if err != nil {
 		return proposals.CommitFacts{}, err
 	}
-	facts.Message = strings.TrimRight(string(message), "\n")
+	_, body, ok := strings.Cut(string(message), "\n\n")
+	if !ok {
+		return proposals.CommitFacts{}, fmt.Errorf("commit message boundary missing")
+	}
+	// Git's final LF is structural. Preserve all additional whitespace so hooks
+	// cannot change the reviewed message without a pre-publication refusal.
+	facts.Message = strings.TrimSuffix(body, "\n")
 	return facts, nil
 }
 
@@ -332,4 +370,34 @@ func sha256File(path string) (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(hash.Sum(nil)), nil
+}
+
+// StageCaptured stages retained canonical bytes without reading or writing any
+// working file. Only the human-authorized Apply seam calls this mutation.
+func (g *proposalGit) StageCaptured(ctx context.Context, files []proposals.File, blob func(context.Context, string) ([]byte, error)) error {
+	entries := map[string]proposals.IndexEntry{}
+	paths := make([]string, 0, len(files))
+	for _, file := range files {
+		paths = append(paths, file.Path)
+		if file.Deleted {
+			continue
+		}
+		data, err := blob(ctx, file.BlobID)
+		if err != nil {
+			return err
+		}
+		out, err := g.read(ctx, data, "hash-object", "-w", "--no-filters", "--stdin")
+		if err != nil {
+			return err
+		}
+		if strings.TrimSpace(string(out)) != file.BlobID {
+			return fmt.Errorf("retained blob identity mismatch for %s", file.Path)
+		}
+		entries[file.Path] = proposals.IndexEntry{BlobID: file.BlobID, Mode: file.Mode}
+	}
+	if err := g.RestoreIndex(ctx, paths, entries); err != nil {
+		return err
+	}
+	g.keepLaterChanges = true
+	return nil
 }

@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"git-control-tower/internal/trailers"
 	"io"
 	"log"
 	"os"
@@ -91,47 +92,23 @@ func filterHistoryLines(lines []string) []string {
 }
 
 func parseHistoryDetails(out []byte) []RepoHistoryEntry {
-	raw := strings.TrimSpace(string(out))
-	if raw == "" {
-		return []RepoHistoryEntry{}
-	}
-
-	blocks := strings.Split(raw, "\n\n")
-	entries := make([]RepoHistoryEntry, 0, len(blocks))
-	for _, block := range blocks {
-		block = strings.TrimSpace(block)
-		if block == "" {
+	entries := []RepoHistoryEntry{}
+	for _, block := range strings.Split(string(out), "\x1e") {
+		parts := strings.SplitN(block, "\x00", 5)
+		if len(parts) < 5 || strings.TrimSpace(parts[0]) == "" {
 			continue
 		}
-		lines := strings.Split(block, "\n")
-		if len(lines) == 0 {
-			continue
-		}
-		header := lines[0]
-		parts := strings.Split(header, "\x00")
-		if len(parts) < 4 {
-			continue
-		}
-		entry := RepoHistoryEntry{
-			Hash:    strings.TrimSpace(parts[0]),
-			Author:  strings.TrimSpace(parts[1]),
-			Date:    strings.TrimSpace(parts[2]),
-			Subject: strings.TrimSpace(parts[3]),
-			Files:   []string{},
-		}
-		for _, line := range lines[1:] {
-			path := strings.TrimSpace(line)
-			if path == "" {
-				continue
+		message := trailers.Parse(parts[3])
+		entry := RepoHistoryEntry{Hash: strings.TrimSpace(parts[0]), Author: parts[1], Date: parts[2], Subject: message.Subject, FullMessage: parts[3], Body: message.Body, Trailers: message.Entries, Files: []string{}}
+		// Git writes one separator newline between the pretty header and -z paths.
+		paths := strings.TrimPrefix(parts[4], "\n")
+		for _, path := range strings.Split(paths, "\x00") {
+			if path != "" && path != "\n" {
+				entry.Files = append(entry.Files, path)
 			}
-			entry.Files = append(entry.Files, path)
-		}
-		if entry.Hash == "" {
-			continue
 		}
 		entries = append(entries, entry)
 	}
-
 	return entries
 }
 

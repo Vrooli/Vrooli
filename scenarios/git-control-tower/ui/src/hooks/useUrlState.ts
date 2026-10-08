@@ -19,6 +19,9 @@ export interface UrlState {
   panel?: "changes" | "related";
   /** Commit hash when in history mode */
   commit?: string;
+  proposal?: string;
+  proposalFile?: string;
+  proposalRevision?: number;
   /** Primary panel (when set to review with a scenario slug) */
   primary?: string;
   /** Scenario slug for review panel */
@@ -39,6 +42,12 @@ export interface UrlState {
 export function parseUrlState(search: string): UrlState {
   const params = new URLSearchParams(search);
   const state: UrlState = {};
+  const proposal = params.get("proposal");
+  const proposalFile = params.get("proposalFile");
+  if (proposal) state.proposal = proposal;
+  if (proposalFile) state.proposalFile = proposalFile;
+  const proposalRevision = Number(params.get("proposalRevision"));
+  if (Number.isSafeInteger(proposalRevision) && proposalRevision > 0) state.proposalRevision = proposalRevision;
 
   const file = params.get("file");
   if (file) {
@@ -105,6 +114,9 @@ export function parseUrlState(search: string): UrlState {
  */
 export function buildUrlSearch(state: UrlState): string {
   const params = new URLSearchParams();
+  if (state.proposal) params.set("proposal", state.proposal);
+  if (state.proposalFile) params.set("proposalFile", state.proposalFile);
+  if (state.proposalRevision) params.set("proposalRevision", String(state.proposalRevision));
 
   if (state.file) {
     params.set("file", encodeURIComponent(state.file));

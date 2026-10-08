@@ -65,7 +65,7 @@ func (s *Server) mountConnectHandlers() {
 	// procedures require a verified principal and exact server-issued intent.
 	// The legacy AgentAccess setting remains useful for diagnostics, but cannot
 	// authorize a human mutation.
-	policyOpt := connect.WithInterceptors(policygate.NewInterceptor(s.policy.Policy, policygate.StdAuditLogger()))
+	policyOpt := connect.WithInterceptors(ownerReadInterceptor(), policygate.NewInterceptor(s.policy.Policy, policygate.StdAuditLogger()))
 
 	wtPath, wtHandler := worktreeH.NewHandler(worktreeH.Deps{Service: worktreeSvc}, policyOpt)
 	repoPath, repoHandler := repoH.NewHandler(repoH.Deps{

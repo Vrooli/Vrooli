@@ -18,7 +18,7 @@ func Digest(baseHead string, files []File, rendered string) string {
 	hash := sha256.New()
 	hash.Write([]byte("gct-proposal-v1\x00" + baseHead + "\x00"))
 	for _, file := range sorted {
-		hash.Write([]byte(file.Path + "\x00" + file.ContentID() + "\x00"))
+		hash.Write([]byte(file.Path + "\x00" + file.ContentID() + "\x00" + file.Mode + "\x00"))
 	}
 	hash.Write([]byte("\x00" + rendered))
 	return hex.EncodeToString(hash.Sum(nil))
@@ -29,8 +29,21 @@ func SubjectContext(id string, revision int) string {
 	return "proposal:" + strings.TrimSpace(id) + "@" + strconv.Itoa(revision)
 }
 
+func ApprovalContext(id string, revision int, acknowledge, keepLaterChanges bool) string {
+	value := SubjectContext(id, revision)
+	if acknowledge {
+		value += ";prior-work=acknowledged"
+	}
+	if keepLaterChanges {
+		value += ";working-files=preserved"
+	}
+	return value
+}
+
 // ParseSubjectContext splits "proposal:<id>@<revision>".
 func ParseSubjectContext(value string) (string, int, bool) {
+	value = strings.TrimSuffix(value, ";working-files=preserved")
+	value = strings.TrimSuffix(value, ";prior-work=acknowledged")
 	rest, ok := strings.CutPrefix(strings.TrimSpace(value), "proposal:")
 	if !ok {
 		return "", 0, false
@@ -52,4 +65,8 @@ func newID(prefix string) string {
 		panic("proposals: crypto/rand unavailable: " + err.Error())
 	}
 	return prefix + hex.EncodeToString(raw[:])
+}
+
+func KeepsLaterChanges(value string) bool {
+	return strings.HasSuffix(value, ";working-files=preserved")
 }

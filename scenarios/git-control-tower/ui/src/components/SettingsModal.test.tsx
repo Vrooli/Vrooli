@@ -99,7 +99,7 @@ describe("SettingsModal", () => {
   });
 
   it("switches to the integrations tab and renders capability status from the API", async () => {
-    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL) => {
       return jsonResponse({
         capabilities: [
           {

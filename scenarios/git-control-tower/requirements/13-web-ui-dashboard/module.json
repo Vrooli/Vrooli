@@ -11,8 +11,16 @@
       "status": "pending",
       "prd_ref": "OT-P2-001",
       "category": "operational_target.p2",
-    "description": "Visual diff viewer, interactive staging, branch management, service health monitoring",
-    "validation": [{"type":"test","ref":"ui/src/AppPanels.test.tsx","phase":"unit","status":"implemented","notes":"Covers desktop/mobile panel routing and diff-first workspace behavior."}]
+      "description": "Visual diff viewer, interactive staging, branch management, service health monitoring",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/AppPanels.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Covers desktop/mobile panel routing and diff-first workspace behavior."
+        }
+      ]
     },
     {
       "id": "GCT-DESCRIPTOR-REVIEW-P2",
@@ -63,6 +71,44 @@
           "phase": "unit",
           "status": "failing",
           "notes": "Exercises single-run baseline identity, dynamic outcome counts, stale/dirty/catalog-change indicators, comparison reasons, and collapsed clean phases without a phase registry."
+        }
+      ]
+    },
+    {
+      "id": "GCT-PROPOSAL-WORKSPACE",
+      "title": "When the operator opens proposal review, GCT should provide a full diff-first workspace on desktop and mobile.",
+      "description": "GCT should retain working/history navigation, expose immutable review identity, make closure preservation and replacement omissions explicit, group exact revisions, preserve drafts, explain saved versus latest working versions through contextual help and clickable blocked actions with next steps, allow saved-version approval after later edits, and display full-message trailer relationships in history.",
+      "prd_ref": "OT-P2-001",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/features/proposals/ProposalWorkspace.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Desktop/mobile routing, retained content, safe draft and review actions, structured history relationships."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/features/proposals/ProposalDetail.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Desktop/mobile routing, retained content, safe draft and review actions, structured history relationships."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/components/GitHistory.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Desktop/mobile routing, retained content, safe draft and review actions, structured history relationships."
+        },
+        {
+          "type": "automation",
+          "ref": "bas/cases/proposal-review/inbox-observer.json",
+          "phase": "workflow",
+          "status": "implemented",
+          "scenario": "browser-automation-studio",
+          "notes": "Given any proposal count, when the inbox opens, then review navigation and preservation guidance are visible; no proposal or repository mutations."
         }
       ]
     }

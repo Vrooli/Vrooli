@@ -12,7 +12,52 @@
       "title": "Commit composition API",
       "description": "Create commits with conventional commit message validation, returns commit hash",
       "status": "pending",
-    "validation": [{"type":"test","ref":"api/commit_service_test.go","phase":"unit","status":"implemented","notes":"Covers commit validation and fake-writer behavior; real-repository cases remain separately classified by the safety admission report."}]
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/commit_service_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Covers commit validation and fake-writer behavior; real-repository cases remain separately classified by the safety admission report."
+        }
+      ]
+    },
+    {
+      "id": "GCT-PROPOSAL-CAPTURE",
+      "title": "When an operator approves a proposal, GCT shall commit the exact retained revision after validating a private candidate.",
+      "description": "GCT shall retain reviewed bytes/modes/base/message and source relationships; refuse strict-mode working drift, index/branch/revision changes, affected base moves, foreign staging and missing prior-work acknowledgment; explicitly intent-bound saved-version mode commits retained bytes/modes while preserving newer working edits and refusing different staged versions; preserve files/index during draft closure and grouping.",
+      "prd_ref": "OT-P0-005",
+      "status": "complete",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/proposals/fold_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Exact source union/conflicts/revision retention/publication lease and prior-work acknowledgment."
+        },
+        {
+          "type": "test",
+          "ref": "api/proposal_candidate_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Production adapter uses only temporary repositories; preserves unfinished work, refuses hook rewrite and canonical-equal raw drift."
+        },
+        {
+          "type": "test",
+          "ref": "api/proposal_connect_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Typed retained diff/comparison/scope and exact-source grouping plus human intent refusal."
+        },
+        {
+          "type": "test",
+          "ref": "cli/domains/proposal/register_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Human approval acknowledgment, revision-bound read-only diff and truthful published failure recovery."
+        }
+      ]
     }
   ]
 }

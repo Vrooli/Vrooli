@@ -2,7 +2,7 @@
 // Core Git/Repo API Functions
 // ============================================================================
 
-import { API_BASE, buildRepoHeaders, handleResponse, buildApiUrl, extractErrorMessage } from "./api-internals";
+import { API_BASE, buildRepoHeaders, handleResponse, buildApiUrl } from "./api-internals";
 import { create } from "@bufbuild/protobuf";
 import { Code, ConnectError } from "@connectrpc/connect";
 import {
@@ -19,7 +19,8 @@ import {
   type BranchWarning as ProtoBranchWarning,
 } from "@vrooli/proto-types/git-control-tower/v1/branch/branch_pb";
 import { branchClient, humanControlClient, repoClient } from "./connect";
-import { CreateCommitRequestSchema, DeletePathRequestSchema, DiscardFilesRequestSchema, GetApprovedChangesRequestSchema, GetDirectoryContentsRequestSchema, GetFilesRequestSchema, GetPrecommitConfigRequestSchema, GetProvenanceRequestSchema, GetRelatedFilesRequestSchema, GetRepoDiffRequestSchema, GetRepoHistoryRequestSchema, GetRepoStatusRequestSchema, GetSyncStatusRequestSchema, IgnorePathRequestSchema, PullFromRemoteRequestSchema, PushToRemoteRequestSchema, RunPrecommitRequestSchema, RunUpstreamActionRequestSchema, SaveFileContentRequestSchema, SavePrecommitConfigRequestSchema, SearchContentRequestSchema, SearchProvenanceRequestSchema, StageFilesRequestSchema, UnstageFilesRequestSchema } from "@vrooli/proto-types/git-control-tower/v1/repo/repo_pb";
+import type { GetRepoDiffResponse } from "@vrooli/proto-types/git-control-tower/v1/repo/repo_pb";
+import { CreateCommitRequestSchema, DeletePathRequestSchema, DiscardFilesRequestSchema, GetApprovedChangesRequestSchema, GetDirectoryContentsRequestSchema, GetFilesRequestSchema, GetPrecommitConfigRequestSchema, GetProvenanceRequestSchema, GetRelatedFilesRequestSchema, GetRepoDiffRequestSchema, GetRepoHistoryRequestSchema, GetRepoStatusRequestSchema, GetSyncStatusRequestSchema, IgnorePathRequestSchema, PullFromRemoteRequestSchema, PushToRemoteRequestSchema, RunPrecommitRequestSchema, RunUpstreamActionRequestSchema, SaveFileContentRequestSchema, SavePrecommitConfigRequestSchema, SearchContentRequestSchema, StageFilesRequestSchema, UnstageFilesRequestSchema } from "@vrooli/proto-types/git-control-tower/v1/repo/repo_pb";
 import type { HealthResponse, RepoStatus, RepoHistoryResponse, RepoBranchesResponse, BranchInfo, BranchWarning, BranchCreateResponse, BranchSwitchResponse, BranchPublishResponse, CreateBranchRequest, SwitchBranchRequest, PublishBranchRequest, CommitCheckKind, CommitCheckStatus } from "./api-types-repo";
 import {
   FileContentConflictError,
@@ -164,6 +165,7 @@ export async function fetchRepoHistory(
       author: entry.author,
       date: entry.date,
       subject: entry.subject,
+ full_message: entry.fullMessage, body: entry.body, trailers: entry.trailers, continuation_message: entry.continuationMessage,
       files: entry.files,
       checks: entry.checks.map((check) => ({
         kind: check.kind as CommitCheckKind,
@@ -201,6 +203,11 @@ export async function fetchDiff(
     mode,
     any,
   }));
+  return mapDiffResponse(response);
+}
+
+/** One mapping for working, historical and immutable proposal diffs. */
+export function mapDiffResponse(response: GetRepoDiffResponse): DiffResponse {
   const stats = response.stats;
   return {
     repo_dir: response.repoDir,
@@ -387,22 +394,6 @@ function precommitRunResultFromProto(result?: { status: string; command: string;
     override_allowed: result?.overrideAllowed ?? false,
     timestamp: result?.timestamp ?? "",
   };
-}
-
-function parseSSEEvent(block: string): PrecommitStreamEvent | null {
-  let data = "";
-  for (const rawLine of block.split("\n")) {
-    const line = rawLine.replace(/\r$/, "");
-    if (line.startsWith("data:")) {
-      data += line.slice(5).replace(/^ /, "");
-    }
-  }
-  if (!data) return null;
-  try {
-    return JSON.parse(data) as PrecommitStreamEvent;
-  } catch {
-    return null;
-  }
 }
 
 export async function discardFiles(request: DiscardRequest, repoId?: string): Promise<DiscardResponse> {

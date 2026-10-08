@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"connectrpc.com/connect"
+	"git-control-tower/internal/proposals"
 	repov1 "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/repo"
 )
 
@@ -17,6 +18,50 @@ func (s *Server) getRepoDiffConnect(ctx context.Context, req *repov1.GetRepoDiff
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 
+	if req.GetProposalId() != "" {
+		if req.GetProposalRevision() <= 0 || req.GetCommit() != "" || req.GetBase() != "" || req.GetStaged() || req.GetUntracked() || req.GetAny() || (req.GetMode() != "" && req.GetMode() != "diff") {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("captured proposal diff requires an exact revision and no working/history selectors"))
+		}
+		record, repo, err := s.proposalRepoByID(ctx, req.GetProposalId())
+		if err != nil {
+			return nil, err
+		}
+		if record.Path != resolved.Path {
+			return nil, connect.NewError(connect.CodePermissionDenied, errors.New("proposal belongs to another repository"))
+		}
+		file, before, after, err := s.proposalService.ReviewFile(ctx, repo, req.GetProposalId(), int(req.GetProposalRevision()), req.GetPath())
+		if err != nil {
+			return nil, proposalError(err)
+		}
+		if req.GetCompareCurrent() {
+			// Capture just this live path using the same canonical byte rules. No
+			// proposal or repository storage is changed by this comparison.
+			contents, hashErr := repo.Git.Hash(ctx, []string{file.Path})
+			if hashErr != nil {
+				return nil, proposalError(hashErr)
+			}
+			content := contents[file.Path]
+			current, blobs, captureErr := repo.Git.Capture(ctx, "", []proposals.File{{Path: file.Path, BlobID: content.BlobID, SHA256: content.SHA256, Deleted: content.Deleted, Mode: content.Mode}})
+			if captureErr != nil {
+				return nil, proposalError(captureErr)
+			}
+			oldID, oldMode := file.BlobID, file.Mode
+			if file.Deleted {
+				oldID, oldMode = "", ""
+			}
+			before, after, file = after, blobs[current[0].BlobID], current[0]
+			file.BaseBlobID, file.BaseMode = oldID, oldMode
+		}
+		result, err := capturedProposalDiff(ctx, file, before, after)
+		if result != nil {
+			result.RepoDir = resolved.Path
+		}
+		return result, err
+	}
+
+	if req.GetCompareCurrent() {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("current-content comparison requires an exact proposal revision"))
+	}
 	mode := ViewMode(req.GetMode())
 	switch mode {
 	case ViewModeDiff, ViewModeFullDiff, ViewModeSource, ViewModePreview, "":

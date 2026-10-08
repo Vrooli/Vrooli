@@ -46,6 +46,21 @@ const literalSelectors = {
     minimapTextureLine: "diff-minimap-texture-line"
   },
 
+  proposals: {
+    workspace: "proposal-workspace",
+    inbox: "proposal-inbox",
+    inboxOpen: "proposal-inbox-open",
+    back: "proposal-workspace-back",
+    detail: "proposal-detail",
+    card: "proposal-card",
+    captureUnavailable: "proposal-capture-unavailable",
+    close: "proposal-withdraw",
+    approve: "proposal-approve",
+    approveExplanation: "proposal-approve-explain",
+    guidance: "proposal-guidance",
+    versionHelp: "proposal-version-help"
+  },
+
   // Toast/notifications
   errorToast: "error-toast"
 } as const;

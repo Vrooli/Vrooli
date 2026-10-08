@@ -2,6 +2,68 @@
 
 Known issues, tech debt, and deferred work for the git-control-tower scenario.
 
+## Active delivery — proposal review (2026-10-08)
+
+Current status: delivered and feature acceptance verified. Final API/UI/CLI checks,
+proto owner verification, lifecycle rebuild, and desktop/mobile observer evidence
+are recorded in the final checkpoint below. Wider scenario certification remains
+failed on separately reported policy/catalog/experience debt. No real proposal or
+operator Git history/index was mutated; no Plan Manager was used.
+
+The foundation list below is historical; latest receipts and corrections appear
+in the appended delivery checkpoints.
+
+- Authority: operator approved the findings/recommendations, full implementation,
+  cleanup and validation; explicitly prohibited Plan Manager.
+- Shape: bounded delivery; canonical context/decisions/sequence/acceptance and
+  harness handoff live in `../../DESIGN.md#proposal-review-delivery-specification--approved-2026-10-08`.
+- Rung: W3 scoped implementation/UX under existing diff-first/human-authority
+  targets; baseline evidence is source/test inspection and desktop/mobile BAS
+  executions b526cb81-7e34-4422-ab64-3a0fb2515627 and
+  3fc1bd3b-fd44-4ffe-a21b-505a4ccca19b. No approval or withdrawal was exercised.
+- Completed foundation: immutable revision/content tables and transactional
+  retention; bounded canonical capture (8 MiB/file, 64 MiB/package) into scenario
+  storage using temporary Git objects; captured diff RPC reusing diff parsing;
+  explicit Combine RPC with exact revisions and atomic source closure; Close
+  reason/replacement/revision support; no automatic content folding; source
+  manifests include source revisions/evidence; prior-work acknowledgment and
+  branch/content/mode checks; candidate prepare/verify/publish seam and short
+  SQLite publication lease; isolated candidate implementation. Product UI/CLI
+  and history integration have NOT been updated yet. No real proposal mutated.
+- Canonical schema extensions: GetProposalDiff, CombineProposals, captured
+  standing, revision reads, source revision/evidence, close revision/replacement,
+  prior-work acknowledgment. Generated only through proto owner. Vrooli-Run max
+  raised to 400 for explicit source unions; overflow errors instead of truncation.
+- Removed: dead automatic fold implementation. Replaced obsolete fold tests
+  with explicit union/conflict/stale-source/retention/acknowledgment/edit-during-
+  checks regressions. Existing submission now preserves older operator review.
+- Validation so far: pre-change `make verify-committed-gen` passed; scoped owner
+  generation published artifact e0297678ffff507050b615dcb696e5dc30db76f91046d4841dd70fef8656ad6f
+  (closure common/git-control-tower/test-genie). All proposals/trailers domain
+  tests passed (`go test ./internal/proposals ./internal/trailers -v`). Five
+  focused API transport/digest tests passed with in-memory repository fixtures
+  (`go test . -run 'Test(Proposal|ApplyProposal|CommitWriteTimeout)' -v`).
+- Next safety cleanup: finish lock-time source-index validation in candidate
+  publication; remove now-dead markCommitted retry path; truthful restore error
+  handling; environment/check portability and canonical schema ownership;
+  production candidate/capture/diff regressions (safe seams, never real Git writes).
+- Next product work: UI API acknowledgment context `;prior-work=acknowledged`,
+  captured-diff mapping/hooks, feature-owned full workspace/inbox with URL state,
+  close/remove/refresh comparisons/evidence, explicit combine/replacement,
+  mobile composition/mockups; CLI parity; full-message history/trailer Continue;
+  owner resolution integration; lifecycle rebuild/observer QA and scoped Test Genie.
+- Key files: api/internal/proposals/{model,store,service,review,apply,digest,memory_git}.go;
+  api/proposal_{capture,candidate,review_connect,connect,git}.go;
+  packages/proto/schemas/git-control-tower/v1/proposals/proposals.proto. UI still
+  uses old ProposalsSection/ProposalDetail and must be replaced/extracted, not
+  left as a competing review surface. App has desktop/mobile mount duplication.
+- Validation remaining: proto reverify after final schemas; UI/CLI regressions;
+  scoped Test Genie structure/unit/lint/integration/appropriate UI gate; desktop
+  and mobile live BAS observer assertions/captures; final scoped review and work
+  record. Never claim full acceptance from these partial passes.
+- Checkpoints: append decisions and receipts here as slices land; this entry is
+  the continuation source after compaction. No separate session audit document.
+
 ## Open Issues
 
 ### Scenario-level
@@ -374,3 +436,180 @@ Scoped W3 repair: user reported the recovery dialog lacked the visual hierarchy 
 - Repair: the first stage action remains immediate. Additional stage actions received while it is active are deduplicated and sent as one follow-up path batch. Queued paths keep per-row pending indicators, and the batch is scoped to the active repository.
 - Validation: focused stage-batcher and core mutation tests pass (7 tests total), TypeScript passes, changed-file ESLint passes, and `git diff --check` passes. Test Genie unit run `20260908-155346-1ec82ebf` failed on existing `UNIT_POLICY_PROJECTION_DRIFT`, `TEST_EXECUTION_FAILURE`, and architecture findings; it does not certify or invalidate this focused repair.
 - Delivery: no service restart, repository staging, commit, recovery preparation, or push was performed.
+
+### Proposal delivery checkpoint — full workspace/history slice
+
+- Full proposal workspace is mounted once in App with deep-linked proposal/file/
+  revision state; desktop file/diff/inspector panes and mobile overview/files/diff.
+  Inbox groups work and explicitly combines frozen selected revisions. Old inline
+  detail mount/live working diff fallback removed. Close optional reason/replacement,
+  exclusion, prior-work acknowledgment, retained revision reads and reported source
+  evidence are present. Immutable diff reuses RepoService.GetRepoDiff and existing
+  diff decoder/renderer; separate proposal diff RPC retired to reduce duplication.
+- Added explicit captured-to-current comparison (read only) and confirmation before
+  adopting current contents; comparison cannot be approved. Snapshot unavailable
+  legacy revisions are honest and require explicit adoption. No real proposals changed.
+- History now reads full Git messages and NUL-delimited paths, exposes body/trailers/
+  continuation message, and selected history links back to proposals. Shared Continue
+  parser retains effort/plan/backlog/work links, adds predecessor hash, excludes old
+  proposal/run/epoch/author attestations. P/pN remains usable. Owner read adapters for
+  effort/epoch/run/plan/backlog use typed Connect, truthful missing/private states and
+  bounded response budgets. No Plan Manager used to manage this engagement.
+- Domain schema moved from inline SQL to embedded proposals/schema.sql via api-core
+  SchemaProvider/EnsureSchemas. Retired dead automatic fold domain/CLI behavior.
+- Production temporary-repository regressions caught manual HEAD.lock conflicting
+  with Git's own reflog lock. Publication now uses prepared Git ref transaction plus
+  index lease and checks destination after transaction lock acquisition. Successful
+  exact staged+unstaged publication, hook tree/message rewrite refusal, binary/
+  deletion/mode/symlink retention and full-message/literal newline path history tests
+  PASS. Domain/transport/CLI focused tests pass; proposal UI tests updated for new
+  expected UX (one save-blocker ordering fix pending rerun).
+- Governed dependency owner installed approved genproto/googleapis/api annotations
+  dependency required by typed Agent Manager client. Scenario setup succeeded after
+  correcting compile issues and refreshed copied UI proto dependency; UI type-check
+  passed before final comparison schema. Final schema generation pending completion.
+- Remaining: validate final proto/consumer refresh; finish provenance/continuation UI
+  tests; workspace/mobile/inbox/conflict regression tests; request-scoped owner auth/
+  resolver evidence tests; candidate lock/race/filter/unborn/base-move regressions;
+  lint cleanup and bounded list/revision controls; actual BAS desktop/mobile captures
+  against mockups; scoped Test Genie phases and owner waits; final docs/work journal.
+- Existing whole-UI lint also flags unrelated SourceDistributionPanel typing,
+  SettingsModal unused test argument, api-core dead SSE imports and AIProvenanceTab
+  memo warning. Fix narrow debt where safe; preserve concurrent dirty work.
+
+### Proposal delivery checkpoint — final correctness and validation
+
+- Actual retained revision list replaces inferred legacy history; exact destination
+  name/path displayed, immutable history ignores but preserves current message drafts.
+  Async approval preparation cannot reuse a changed review/acknowledgment/draft.
+  Diff load failure blocks approval. Closing replacement previews omitted paths.
+- Added anchor effective mode, raw-byte drift verification even with canonical-equal
+  filtered blobs, and index-only/no-contribution exclusions without touching staging.
+  Named destination branches required; restore work has bounded original context.
+  Verified proposal commits record precommit receipts; receipt errors remain visible.
+- CLI retained diff and exact-revision explicit combination/close paths delivered;
+  published-but-failed approval displays recovery commit identity and notes.
+- Owner auth forwarding is read-only, response bounded to 800 ms, duplicate reads
+  deduplicated. Regression coverage includes owner revision/epoch/missing/privacy states.
+- Removed obsolete nested queue, duplicate diff RPC/decoder/SSE parser/union helper,
+  inline schema SQL, automatic folding and old post-publication retry. Narrow existing
+  UI lint issues and virtualized FileList test fixtures repaired, not relaxed.
+- Owner artifact 6eda94b04237575c4c9d7403697e6bcec53bb957dd25d032eed92a9069498a6e;
+  final make verify-committed-gen PASSED. Governed lifecycle setup refreshed consumer.
+- Full API go test ./... PASSED. Full UI 60 files/493 tests PASSED; additional two
+  final review guard/replacement regressions PASSED. UI type check and lint PASSED.
+  Proposal CLI + worktree manifest contract tests PASSED; full CLI has three unrelated
+  trusted-base/baseline fixture failures reported as knw-1791478030261644073.
+- First scoped Test Genie run 20261008-162550-e81e998d: structure/api passed;
+  unit/quality/workflow/experience failed. API restore note/UI virtualization failures
+  fixed; stale chunk recovery fixed with manual reload preserving drafts. Remaining
+  policy projection/architecture/playbook/experience binding debt requires final rerun
+  and honest report. No real proposals closed/refreshed/approved, and no operator
+  repository staging/commit/push performed. No Plan Manager engagement operations.
+
+### Proposal delivery checkpoint — observer proof and publication recovery
+
+- Final live BAS desktop journey 7a89cd95-328f-4c75-bd75-5e168d0c76b7 and mobile
+  4dd6f9f1-67d1-4788-aecb-8691da14d32a completed: deep link, files/diff/mobile
+  transitions, close form with explicit code/index preservation, and inbox return.
+  Neither confirms closure or applies a commit. Legacy capture-needed view inspected.
+- Browser-local captured review fixtures 89878c3f-770d-46aa-a7ce-07883a4e3bac desktop
+  and c5f9ee0d-fef7-4446-aba1-166a9043d3e4 mobile completed and captures inspected.
+  Fixture heading identifies simulated data; mutation RPCs are blocked. These prove
+  rendering/layout only, not production API publication or a human approval.
+- Maintained proposal-review/inbox-observer uses owner-registered selectors and V2
+  actions. Workflow owner requires snake-case execution_mode=observer; its classifier
+  treats all clicks as mutating, so maintained observer uses assertions/navigation
+  only. Live back/close-tab journeys remain separate bounded observer receipts.
+- Production adapter check regression verifies portable configured precommit against
+  private candidate, mapped environment root, exact proposed file and base contents
+  for unrelated unfinished files; passing timestamp/stdout retained. PASSED.
+- Lost Git ref acknowledgment regression forces publication then suppresses commit
+  acknowledgment. Publisher now resolves the destination under a bounded detached
+  recovery context before deciding whether index restore is safe. Verified publication
+  is recorded; uncertain publication names the candidate and requires recovery review.
+  Regression PASSED with temporary Git/SQLite only.
+- Final wider run 20261008-172905-8e73d8d5: structure/api PASSED, unit/quality/
+  workflow/experience FAILED. Full API/UI execution passed; CLI trusted-base tests,
+  policy projection/companion/coverage debt remain. Quality includes existing branch/
+  repo interactive boundary, missing Makefile targets and global TS assertion debt.
+  Six API playbooks use retired BAS schema; workspace experience bindings/claims and
+  mobile chrome measurement fail. One new observer metadata/classifier issue found
+  in that run was repaired and rechecked through workflow owner/standalone BAS.
+- Original virtualized FileList fixture bug report knw-1791478030259573196 is now
+  repaired by this delivery (20/20 pass); published entry remains immutable. The
+  trusted-base fixture report remains knw-1791478030261644073. Additional catalog/
+  experience observations filed separately; receipt IDs will be added below.
+
+### Final delivery record — 2026-10-08
+
+- Feature acceptance: complete across retained capture/revision/diff, explicit
+  combination/closure/exclusion, risk acknowledgment, isolated candidate publication,
+  full proposal workspace/mobile navigation/drafts, full-message history/Continue
+  and typed owner-backed provenance. Scope limits remain as stated in DESIGN.md.
+- Final checks: all API packages PASS (`go test ./...`); all UI 60 test files/496
+  tests PASS; UI type check/lint/production build PASS; proposal CLI plus worktree
+  manifest tests PASS; proposals/trailers domain tests PASS; governed proto verifier
+  PASS with artifact 6eda94b04237575c4c9d7403697e6bcec53bb957dd25d032eed92a9069498a6e.
+  Production adapter regressions explicitly cover configured private checks,
+  hook tree/message/whitespace rewrites, lost acknowledgment, effective Git mode,
+  raw-byte drift with equal filtered blobs, anchor chmod and index-only exclusions.
+- Final unit/api/workflow run 20261008-174336-5b7a06fa: API PASS; unit/workflow FAIL.
+  Unit's execution failure is CLI trusted-base fixture debt; no API or UI execution
+  failure. The new proposal observer has zero findings in the native workflow
+  report; broader catalog has 29 findings. Wider six-phase run
+  20261008-172905-8e73d8d5 remains the quality/experience/structure receipt.
+  These are failed scenario runs, not a production-readiness certificate.
+- Maintained read-only observer efc0ddc6-6d77-443b-a801-174e55ca817e PASS; static
+  workflow owner recheck has no proposal-review findings. API playbook schema debt
+  filed as knw-1791481217193596235; workspace experience reconciliation debt as
+  knw-1791481220743111198 through report-bug. Existing CLI trusted-base observation
+  remains knw-1791478030261644073; FileList fixture observation was repaired here.
+- Final lifecycle setup/restart completed healthy at 13:48 EDT, API 18710/UI 21400.
+  Live read-only observer captures and simulated captured-diff evidence are named
+  above; mobile concept mockup inspected. Inbox load/completed and legacy capture
+  standing inspected. Explicit source revision selection survives review and
+  proposal file arrows move focus with selection.
+- Ordinary/operator repository commits, staging, push, history rewrite, real
+  proposal mutation and human production approval were not performed. The operator
+  can enter ?proposal=inbox; the existing open legacy review requires Adopt current
+  contents before it becomes approvable. Whole-file risk is explicit, not isolated
+  hunk attribution. Large real-repository approval latency and human actuation
+  remain unmeasured; safe temporary-repository publication is the behavioral proof.
+- Validation logs currently at /tmp/gct-{api-final-full,ui-final-full,cli-final-focused,
+  type-final,lint-final,ui-final-build,proto-final-verifier}.log; durable scenario run
+  findings/artifacts and BAS execution IDs are the long-lived receipt owners.
+
+- Immutable work journal receipt: 16a0ff35-bc84-42a3-b315-b47558e5bfff.
+- Final message verification reads the raw commit object and removes only Git’s
+  structural final LF. Additional hook whitespace is a mismatch and refuses before
+  publication; the named whitespace regression and full API suite pass.
+- Production build succeeds with the existing large-chunk warning (main bundle
+  about 1.4 MB before gzip); broad bundle splitting remains separate performance debt.
+
+
+## Completed follow-up — proposal guidance and saved-version approval
+
+- Authority: operator requests intuitive terminology/help, clickable blocked-action
+  explanations with next steps, and approval despite later file changes.
+- Rung: scoped W3 behavior extension under the approved exact-reviewed-content target;
+  DESIGN.md follow-up supersedes blanket drift refusal only in intent-bound snapshot mode.
+- Recall: search-hub found existing GCT documentation; run/memory providers degraded.
+  Skills reused: experiential-ui-design, scenario-work-ladder and their prior-loaded guidance.
+- Design: retained blobs staged via a new Git seam; no writes to working files. Different
+  staged versions require human review/unstaging, not silent replacement. Existing strict
+  mode remains for clients that do not opt into saved-version approval. Dialog/help composition
+  remains feature-owned; no dependency additions or Plan Manager work.
+- Complete: contextual help, blocked-button guidance with specific next steps, and
+  explicit saved-version versus latest-files review choices. Shared blocker composition
+  keeps explanations/actions aligned and removes duplicated message-save logic.
+- Validation: full API passes; 504 UI tests pass; focused CLI proposal/worktree tests pass;
+  lint/type-check/build/selector check/proto owner verifier pass. Desktop/mobile BAS
+  help/update-cancel passes against real data; browser-local captured/later-edit fixtures
+  pass with mutation RPCs blocked. Exact commit behavior is proved only in temp repos.
+- Broader run 20261008-182338-da144e10: API passes; unit/workflow/quality retain existing
+  policy/schema/quality failures. The earlier concurrent-setup run admitted no phases.
+  Feature results are separate from scenario certification. Detailed evidence and BAS
+  execution IDs live in DESIGN.md. No real proposal mutation or Plan Manager use.
+
+- Follow-up work journal receipt: `3b8a385d-a446-4ba6-ab77-009c5c97b27c`. Final lifecycle restart healthy at 2026-10-08 14:31 EDT (API 18710 / UI 21400).

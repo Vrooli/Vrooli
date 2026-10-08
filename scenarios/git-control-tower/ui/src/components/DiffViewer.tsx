@@ -49,6 +49,8 @@ interface DiffViewerProps {
   isDiscarding?: boolean;
   // History mode props
   isHistoryMode?: boolean;
+  /** Immutable proposal subject: no working-tree actions or live view modes. */
+  isProposalMode?: boolean;
   commitHash?: string;
   // Related files
   onShowRelatedFiles?: (path: string) => void;
@@ -601,17 +603,19 @@ function DiffViewerImpl({
   isStaging = false,
   isDiscarding = false,
   isHistoryMode = false,
+  isProposalMode = false,
   commitHash,
   onShowRelatedFiles,
   onOpenSearch,
   onOpenReview,
-  isReadOnly = false,
+  isReadOnly: readOnlyProp = false,
   onSaveFileContent,
   isSavingFile = false,
   onDeletePath,
   isDeleting = false
 }: DiffViewerProps) {
   const isMobile = useIsMobile();
+  const isReadOnly = readOnlyProp || isProposalMode;
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const minimapRailRef = useRef<HTMLDivElement>(null);
   const { canScrollLeft, canScrollRight } = useScrollHints(scrollContainerRef);
@@ -640,7 +644,7 @@ function DiffViewerImpl({
   const [mobileActionsOpen, setMobileActionsOpen] = useState(false);
 
   const isBinaryDiff = Boolean(
-    diff?.raw && (diff.raw.includes("Binary files") || diff.raw.includes("GIT binary patch"))
+    diff?.stats?.is_binary || (diff?.raw && (diff.raw.includes("Binary files") || diff.raw.includes("GIT binary patch")))
   );
   const absolutePath =
     selectedFile && repoDir ? `${repoDir.replace(/\/$/, "")}/${selectedFile}` : selectedFile;
@@ -738,6 +742,7 @@ function DiffViewerImpl({
   const canEdit =
     Boolean(selectedFile) &&
     !isHistoryMode &&
+    !isProposalMode &&
     hasFullContent &&
     canEditTextFile &&
     Boolean(onSaveFileContent);
@@ -1020,7 +1025,7 @@ function DiffViewerImpl({
               </button>
             )}
             {selectedFile && !isMobile && !isFullscreen && (
-              isHistoryMode ? (
+              isProposalMode ? <Badge variant="info">Proposed</Badge> : isHistoryMode ? (
                 <Badge variant="warning">
                   {commitHash ? commitHash.substring(0, 7) : "history"}
                 </Badge>
@@ -1035,7 +1040,7 @@ function DiffViewerImpl({
           {/* Right side of row 1 */}
           <div className={`flex items-center flex-shrink-0 ${isMobile ? "gap-2" : "gap-3"}`}>
             {/* Mobile: colored dot status indicator (hidden in fullscreen) */}
-            {selectedFile && isMobile && !isFullscreen && !isHistoryMode && (
+            {selectedFile && isMobile && !isFullscreen && !isHistoryMode && !isProposalMode && (
               <span
                 className={`flex-shrink-0 rounded-full h-2.5 w-2.5 ${
                   isUntracked ? "bg-slate-400" :
@@ -1070,7 +1075,7 @@ function DiffViewerImpl({
             )}
 
             {/* Fullscreen: inline view mode + edit controls */}
-            {isFullscreen && selectedFile && !isLoading && !error && (
+            {isFullscreen && selectedFile && !isLoading && !error && !isProposalMode && (
               <ViewModeSelector
                 mode={viewMode}
                 onChange={onViewModeChange}
@@ -1194,7 +1199,7 @@ function DiffViewerImpl({
             {/* Desktop: view mode + edit/save buttons (hidden in fullscreen) */}
             {!isMobile && !isFullscreen && (
               <>
-                {selectedFile && !isLoading && !error && (
+                {selectedFile && !isLoading && !error && !isProposalMode && (
                   <ViewModeSelector
                     mode={viewMode}
                     onChange={onViewModeChange}
@@ -1262,7 +1267,7 @@ function DiffViewerImpl({
         </div>
 
         {/* Row 2 (mobile only): View mode + edit actions (hidden in fullscreen) */}
-        {isMobile && !isFullscreen && selectedFile && !isLoading && !error && (
+        {isMobile && !isFullscreen && selectedFile && !isLoading && !error && !isProposalMode && (
           <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-800/50">
             <ViewModeSelector
               mode={viewMode}
@@ -1599,7 +1604,7 @@ function DiffViewerImpl({
         )}
 
         {/* Mobile Action Bar - normal mode (hidden in fullscreen) */}
-        {isMobile && !isFullscreen && selectedFile && !isLoading && !isHistoryMode && !isEditing && (
+        {isMobile && !isFullscreen && selectedFile && !isLoading && !isHistoryMode && !isProposalMode && !isEditing && (
           <div className="flex-none p-3 bg-slate-900/95 backdrop-blur-sm border-t border-slate-800" data-testid="diff-mobile-actions">
             {confirmingDiscard ? (
               <div className="flex items-center gap-2">

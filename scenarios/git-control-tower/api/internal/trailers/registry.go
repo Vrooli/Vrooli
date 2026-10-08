@@ -32,7 +32,7 @@ var (
 var Registry = []Spec{
 	{Key: "Vrooli-Effort", Kind: "effort", Grammar: regexp.MustCompile(`^` + effortRefPattern + `(@` + revisionPattern + `)?$`), Example: "effort:browser-automation-studio-rehabilitation@9"},
 	{Key: "Vrooli-Epoch", Kind: "epoch", Grammar: regexp.MustCompile(`^` + effortRefPattern + `#E[0-9]{1,6}$`), Example: "effort:browser-automation-studio-rehabilitation#E26"},
-	{Key: "Vrooli-Run", Kind: "run", Max: 20, Grammar: regexp.MustCompile(`^(?i:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$`), Example: "e8c322ca-72e7-434c-9d37-1d2cf853961f"},
+	{Key: "Vrooli-Run", Kind: "run", Max: 400, Grammar: regexp.MustCompile(`^(?i:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$`), Example: "e8c322ca-72e7-434c-9d37-1d2cf853961f"},
 	{Key: "Vrooli-Plan", Kind: "plan", Grammar: regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:-]*(#phase-[0-9]{1,4})?$`), Example: "git-control-tower-advisory-maturity-20260905#phase-6"},
 	{Key: "Vrooli-Backlog", Kind: "backlog", Grammar: regexp.MustCompile(`^[a-z0-9][a-z0-9_-]*/[A-Za-z0-9][A-Za-z0-9._:/-]*$`), Example: "bug-inbox/gct-commit-timeout"},
 	{Key: "Vrooli-Continues", Kind: "commit", Max: 1, Grammar: regexp.MustCompile(`^[0-9a-f]{7,40}$`), Example: "0e1f1210438"},

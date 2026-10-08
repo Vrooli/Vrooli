@@ -69,6 +69,7 @@ interface GitHistoryProps {
   onExitBlameMode?: () => void;
   // Continuation actions for pN-patterned commits
   onContinueCommit?: (message: string) => void;
+  onOpenProposal?: (id: string) => void;
   // Group filter for pN-patterned commits
   activeGroupFilter?: { prefix: string; count: number } | null;
   onFilterGroup?: (prefix: string) => void;
@@ -174,6 +175,7 @@ function GitHistoryImpl({
   blameFileName,
   onExitBlameMode,
   onContinueCommit,
+  onOpenProposal,
   activeGroupFilter,
   onFilterGroup,
   onClearGroupFilter,
@@ -393,6 +395,14 @@ function GitHistoryImpl({
     },
     [entries]
   );
+  const continuationFor = (entry: HistoryEntry) => resolveDetails(entry.hash)?.continuation_message || (buildContinueMessage(entry.message) ? `${buildContinueMessage(entry.message)}\n\nVrooli-Continues: ${entry.hash}` : null);
+  const groupFor = (entry: HistoryEntry) => {
+    const trailer = resolveDetails(entry.hash)?.trailers?.find((value) => value.known && (value.kind === "effort" || value.key.toLowerCase() === "vrooli-work"));
+    if (trailer) return { prefix: `${trailer.key}: ${trailer.value.split("@")[0]}`, part: 0 };
+    return parseCommitGroup(entry.message);
+  };
+
+
   const visibleEntries = useMemo(() => {
     return historyEntries.filter((entry) => {
       const details = resolveDetails(entry.hash);
@@ -682,8 +692,10 @@ function GitHistoryImpl({
                             <div className="mt-1 text-xs text-slate-200 whitespace-pre-wrap break-words">
                               {entry.message}
                             </div>
+                            {isSelected && details && <details className="mt-2 text-xs text-slate-400" open onClick={(event) => event.stopPropagation()}><summary className="cursor-pointer">Commit context &amp; links</summary>{details.body && <p className="mt-2 whitespace-pre-wrap break-words">{details.body}</p>}<ul className="mt-2 space-y-1">{details.trailers?.map((trailer, index) => <li key={`${trailer.key}-${index}`} className="break-all" title={trailer.detail}>{trailer.kind === "proposal" && onOpenProposal ? <button className="min-h-8 text-cyan-300 hover:underline" onClick={() => onOpenProposal(trailer.value)}>View proposal · {trailer.value}</button> : <span>{trailer.key}: {trailer.value}</span>}<span className="ml-2 text-[10px] text-slate-500">{trailer.detail}</span></li>)}</ul></details>}
+
                           </div>
-                          {parseCommitGroup(entry.message) && (onContinueCommit || onFilterGroup) && (
+                          {((continuationFor(entry) && onContinueCommit) || (groupFor(entry) && onFilterGroup)) && (
                             isMobile ? (
                               <button
                                 className="p-1 rounded hover:bg-slate-700 transition-all flex-shrink-0 self-center"
@@ -703,10 +715,10 @@ function GitHistoryImpl({
                                     className="p-1 rounded hover:bg-slate-700 transition-all"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      const next = buildContinueMessage(entry.message);
+                                      const next = continuationFor(entry);
                                       if (next) onContinueCommit(next);
                                     }}
-                                    title={`Continue as: ${buildContinueMessage(entry.message)}`}
+                                    title={`Continue as: ${continuationFor(entry)}`}
                                     data-testid="history-continue-btn"
                                   >
                                     <StepForward className="h-3 w-3 text-emerald-400" />
@@ -717,10 +729,10 @@ function GitHistoryImpl({
                                     className="p-1 rounded hover:bg-slate-700 transition-all"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      const group = parseCommitGroup(entry.message);
+                                      const group = groupFor(entry);
                                       if (group) onFilterGroup(group.prefix);
                                     }}
-                                    title={`Filter group: ${parseCommitGroup(entry.message)?.prefix}`}
+                                    title={`Filter group: ${groupFor(entry)?.prefix}`}
                                     data-testid="history-filter-group-btn"
                                   >
                                     <Filter className="h-3 w-3 text-violet-400" />
@@ -767,24 +779,24 @@ function GitHistoryImpl({
           onClose={() => setMobileActionEntry(null)}
           title="Commit group actions"
         >
-          {mobileActionEntry && onContinueCommit && buildContinueMessage(mobileActionEntry.message) && (
+          {mobileActionEntry && onContinueCommit && continuationFor(mobileActionEntry) && (
             <BottomSheetAction
               icon={<StepForward className="h-5 w-5" />}
-              label={`Continue as: ${buildContinueMessage(mobileActionEntry.message)}`}
+              label={`Continue as: ${continuationFor(mobileActionEntry)}`}
               onClick={() => {
-                const next = buildContinueMessage(mobileActionEntry.message);
+                const next = continuationFor(mobileActionEntry);
                 if (next) onContinueCommit(next);
                 setMobileActionEntry(null);
               }}
               variant="success"
             />
           )}
-          {mobileActionEntry && onFilterGroup && parseCommitGroup(mobileActionEntry.message) && (
+          {mobileActionEntry && onFilterGroup && groupFor(mobileActionEntry) && (
             <BottomSheetAction
               icon={<Filter className="h-5 w-5" />}
-              label={`Filter group: ${parseCommitGroup(mobileActionEntry.message)?.prefix}`}
+              label={`Filter group: ${groupFor(mobileActionEntry)?.prefix}`}
               onClick={() => {
-                const group = parseCommitGroup(mobileActionEntry.message);
+                const group = groupFor(mobileActionEntry);
                 if (group) onFilterGroup(group.prefix);
                 setMobileActionEntry(null);
               }}

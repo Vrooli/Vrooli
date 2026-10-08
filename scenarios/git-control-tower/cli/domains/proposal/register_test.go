@@ -1,3 +1,4 @@
+// [REQ:GCT-PROPOSAL-CAPTURE]
 package proposal
 
 import (
@@ -20,12 +21,15 @@ import (
 	humancontrolconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/human_control/human_control_v1connect"
 	proposalsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/proposals"
 	proposalsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/proposals/proposals_v1connect"
+	repov1 "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/repo"
+	repoconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/repo/repo_v1connect"
 )
 
 // recordingServer records every call. CLI tests never reach a repository.
 type recordingServer struct {
 	proposalsconnect.UnimplementedProposalServiceHandler
 	humancontrolconnect.UnimplementedHumanControlServiceHandler
+	repoconnect.UnimplementedRepoServiceHandler
 	calls       []string
 	proposal    *proposalsv1.Proposal
 	canMutate   bool
@@ -33,6 +37,7 @@ type recordingServer struct {
 	create      *proposalsv1.CreateProposalRequest
 	prepare     *humancontrolv1.PrepareMutationRequest
 	apply       *proposalsv1.ApplyProposalRequest
+	diff        *repov1.GetRepoDiffRequest
 }
 
 func (s *recordingServer) GetAuthorityStatus(context.Context, *connect.Request[humancontrolv1.GetAuthorityStatusRequest]) (*connect.Response[humancontrolv1.AuthorityStatus], error) {
@@ -70,7 +75,7 @@ func (s *recordingServer) ApplyProposal(_ context.Context, req *connect.Request[
 
 func openProposal() *proposalsv1.Proposal {
 	return &proposalsv1.Proposal{
-		Id: "gctp-0123456789ab", RepositoryId: "1", Revision: 3, State: proposalsv1.ProposalState_PROPOSAL_STATE_OPEN,
+		Id: "gctp-0123456789ab", RepositoryId: "1", Revision: 3, Captured: true, State: proposalsv1.ProposalState_PROPOSAL_STATE_OPEN,
 		Work:      &proposalsv1.ProposalWork{EffortRef: "effort:bas", Epoch: "E27"},
 		Freshness: &proposalsv1.ProposalFreshness{State: proposalsv1.FreshnessState_FRESHNESS_STATE_FRESH},
 		Files:     []*proposalsv1.ProposalFile{{Path: "a.go", Kind: proposalsv1.FileChangeKind_FILE_CHANGE_KIND_MODIFIED, Flags: []*proposalsv1.ProposalFlag{{Code: "mixed_prior_uncommitted"}}}, {Path: "gone.go", Kind: proposalsv1.FileChangeKind_FILE_CHANGE_KIND_DELETED, Deleted: true}},
@@ -83,9 +88,15 @@ func serve(t *testing.T, impl *recordingServer, input string) *bytes.Buffer {
 	mux := http.NewServeMux()
 	mux.Handle(proposalsconnect.NewProposalServiceHandler(impl))
 	mux.Handle(humancontrolconnect.NewHumanControlServiceHandler(impl))
+	mux.Handle(repoconnect.NewRepoServiceHandler(impl))
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
 	previousProposal, previousApply, previousHuman := proposalClientFactory, applyClientFactory, humanControlClientFactory
+	previousRepo := repoClientFactory
+	repoClientFactory = func(*cliapp.ScenarioApp) repoconnect.RepoServiceClient {
+		return repoconnect.NewRepoServiceClient(server.Client(), server.URL)
+	}
+	t.Cleanup(func() { repoClientFactory = previousRepo })
 	previousInput, previousOutput, previousDetect := confirmInput, output, detectCaller
 	t.Cleanup(func() {
 		proposalClientFactory, applyClientFactory, humanControlClientFactory = previousProposal, previousApply, previousHuman
@@ -107,7 +118,7 @@ func serve(t *testing.T, impl *recordingServer, input string) *bytes.Buffer {
 func TestApproveShowsTheProposalAndRequiresConfirm(t *testing.T) {
 	impl := &recordingServer{proposal: openProposal(), canMutate: true}
 	out := serve(t, impl, "no\n")
-	err := runApprove(nil, []string{"gctp-0123456789ab"})
+	err := runApprove(nil, []string{"gctp-0123456789ab", "--acknowledge-prior-work"})
 	if err == nil || !strings.Contains(err.Error(), "not confirmed") {
 		t.Fatalf("err = %v", err)
 	}
@@ -124,13 +135,13 @@ func TestApproveShowsTheProposalAndRequiresConfirm(t *testing.T) {
 func TestApproveConfirmsOneExactIntentAndAppliesOnce(t *testing.T) {
 	impl := &recordingServer{proposal: openProposal(), canMutate: true, applyResult: &proposalsv1.ApplyProposalResponse{Success: true, CommitOid: "abc123", CommitVerified: true}}
 	out := serve(t, impl, "confirm\n")
-	if err := runApprove(nil, []string{"gctp-0123456789ab"}); err != nil {
+	if err := runApprove(nil, []string{"gctp-0123456789ab", "--acknowledge-prior-work"}); err != nil {
 		t.Fatal(err)
 	}
 	if strings.Join(impl.calls, ",") != "authority,get,prepare,confirm,apply" {
 		t.Fatalf("calls = %v", impl.calls)
 	}
-	if impl.prepare.GetOperation() != applyOperation || impl.prepare.GetSubjectContext() != "proposal:gctp-0123456789ab@3" {
+	if impl.prepare.GetOperation() != applyOperation || impl.prepare.GetSubjectContext() != "proposal:gctp-0123456789ab@3;prior-work=acknowledged" {
 		t.Fatalf("prepare = %v", impl.prepare)
 	}
 	if impl.apply.GetIntentId() != "intent-1" || impl.apply.GetRevision() != 3 || impl.apply.GetId() != "gctp-0123456789ab" {
@@ -146,7 +157,7 @@ func TestApproveDriftRefusalListsEveryFile(t *testing.T) {
 		Refusal: &proposalsv1.ApplyRefusal{Code: "content_drift", Paths: []string{"a.go", "gone.go"}, Detail: "content changed since the proposal; refresh it or remove the files"},
 	}}
 	serve(t, impl, "")
-	err := runApprove(nil, []string{"gctp-0123456789ab", "--yes"})
+	err := runApprove(nil, []string{"gctp-0123456789ab", "--yes", "--acknowledge-prior-work"})
 	if err == nil || !strings.Contains(err.Error(), "content_drift") || !strings.Contains(err.Error(), "a.go") || !strings.Contains(err.Error(), "gone.go") {
 		t.Fatalf("err = %v", err)
 	}
@@ -155,7 +166,7 @@ func TestApproveDriftRefusalListsEveryFile(t *testing.T) {
 func TestApproveIsRefusedForAgentsBeforeAnyIntent(t *testing.T) {
 	impl := &recordingServer{proposal: openProposal(), canMutate: false}
 	serve(t, impl, "confirm\n")
-	err := runApprove(nil, []string{"gctp-0123456789ab", "--yes"})
+	err := runApprove(nil, []string{"gctp-0123456789ab", "--yes", "--acknowledge-prior-work"})
 	if err == nil || !strings.Contains(err.Error(), "only the operator") || strings.Join(impl.calls, ",") != "authority" {
 		t.Fatalf("err = %v calls = %v", err, impl.calls)
 	}
@@ -165,7 +176,7 @@ func TestApproveRefusesAgentProcessesBeforeAnyCall(t *testing.T) {
 	impl := &recordingServer{proposal: openProposal(), canMutate: true}
 	serve(t, impl, "confirm\n")
 	detectCaller = func() cliutil.CallerKind { return cliutil.CallerKindVrooliAgent }
-	err := runApprove(nil, []string{"gctp-0123456789ab", "--yes"})
+	err := runApprove(nil, []string{"gctp-0123456789ab", "--yes", "--acknowledge-prior-work"})
 	if err == nil || !strings.Contains(err.Error(), "only the operator") || len(impl.calls) != 0 {
 		t.Fatalf("err = %v calls = %v", err, impl.calls)
 	}
@@ -176,7 +187,7 @@ func TestApproveRefusesStaleProposalWithoutAnIntent(t *testing.T) {
 	stale.Freshness = &proposalsv1.ProposalFreshness{State: proposalsv1.FreshnessState_FRESHNESS_STATE_DRIFTED, DriftedPaths: []string{"a.go"}}
 	impl := &recordingServer{proposal: stale, canMutate: true}
 	serve(t, impl, "confirm\n")
-	if err := runApprove(nil, []string{"gctp-0123456789ab", "--yes"}); err == nil || !strings.Contains(err.Error(), "refresh") {
+	if err := runApprove(nil, []string{"gctp-0123456789ab", "--yes", "--acknowledge-prior-work"}); err == nil || !strings.Contains(err.Error(), "refresh") {
 		t.Fatalf("err = %v", err)
 	}
 	if strings.Contains(strings.Join(impl.calls, ","), "prepare") {
@@ -213,16 +224,12 @@ func TestCreateMergesRequestFileFlagsAndCreatorRun(t *testing.T) {
 	}
 }
 
-func TestCreateReportsFoldedProposals(t *testing.T) {
-	proposal := openProposal()
-	proposal.Events = []*proposalsv1.ProposalEvent{{Action: "created", Detail: "3 files; folded gctp-aaaaaaaaaaaa (E25, overlapping_paths: a.go); gctp-bbbbbbbbbbbb (E26, drifted)"}}
-	impl := &recordingServer{proposal: proposal}
-	out := serve(t, impl, "")
-	if err := runCreate(nil, []string{"--effort", "effort:bas", "--epoch", "E27", "--subject", "bas: E27", "a.go"}); err != nil {
-		t.Fatal(err)
-	}
-	if want := "Folded gctp-aaaaaaaaaaaa (E25, overlapping_paths: a.go); gctp-bbbbbbbbbbbb (E26, drifted)\n"; !strings.Contains(out.String(), want) {
-		t.Fatalf("output missing %q:\n%s", want, out.String())
+func TestApprovalPriorWorkRequiresExplicitAcknowledgment(t *testing.T) {
+	impl := &recordingServer{proposal: openProposal(), canMutate: true}
+	serve(t, impl, "confirm\n")
+	err := runApprove(nil, []string{"gctp-0123456789ab", "--yes"})
+	if err == nil || !strings.Contains(err.Error(), "--acknowledge-prior-work") || strings.Join(impl.calls, ",") != "authority,get" {
+		t.Fatalf("err=%v calls=%v", err, impl.calls)
 	}
 }
 
@@ -232,4 +239,57 @@ func TestManifestCoversProposalService(t *testing.T) {
 		t.Fatal(err)
 	}
 	cliapp.RequireProtoServiceCoverage(t, raw, proposalsv1.File_git_control_tower_v1_proposals_proposals_proto, "ProposalService")
+}
+
+func (s *recordingServer) GetRepoDiff(_ context.Context, req *connect.Request[repov1.GetRepoDiffRequest]) (*connect.Response[repov1.GetRepoDiffResponse], error) {
+	s.calls, s.diff = append(s.calls, "diff"), req.Msg
+	return connect.NewResponse(&repov1.GetRepoDiffResponse{Raw: "-base\n+captured\n"}), nil
+}
+func TestDiffReviewsExactRevisionWithoutMutation(t *testing.T) {
+	impl := &recordingServer{proposal: openProposal()}
+	out := serve(t, impl, "")
+	if err := runDiff(nil, []string{impl.proposal.GetId(), "--revision", "3", "--path", "a.go"}); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(impl.calls, ",") != "get,diff" || impl.diff.GetProposalRevision() != 3 || impl.diff.GetProposalId() != impl.proposal.GetId() || impl.diff.GetRepositoryId() != "1" || !strings.Contains(out.String(), "+captured") {
+		t.Fatalf("calls=%v request=%v output=%s", impl.calls, impl.diff, out.String())
+	}
+}
+func TestFailedPublishedCommitReportsRecoveryIdentity(t *testing.T) {
+	out := serve(t, &recordingServer{}, "")
+	err := reportApply(&proposalsv1.ApplyProposalResponse{CommitOid: "abc123", Error: "receipt failed", VerificationNotes: []string{"index not restored because commit exists"}})
+	if err == nil || !strings.Contains(out.String(), "Review history before retrying") || !strings.Contains(out.String(), "abc123") {
+		t.Fatalf("err=%v output=%s", err, out.String())
+	}
+}
+
+func TestApproveSavedVersionBindsModeAndAllowsLaterWorkingEdits(t *testing.T) {
+	proposal := openProposal()
+	proposal.Freshness = &proposalsv1.ProposalFreshness{State: proposalsv1.FreshnessState_FRESHNESS_STATE_DRIFTED, DriftedPaths: []string{"a.go"}}
+	impl := &recordingServer{proposal: proposal, canMutate: true, applyResult: &proposalsv1.ApplyProposalResponse{Success: true, CommitOid: "abc123", CommitVerified: true}}
+	out := serve(t, impl, "confirm\n")
+	if err := runApprove(nil, []string{proposal.GetId(), "--keep-later-changes", "--acknowledge-prior-work"}); err != nil {
+		t.Fatal(err)
+	}
+	if !impl.apply.GetKeepLaterChanges() || impl.prepare.GetSubjectContext() != "proposal:gctp-0123456789ab@3;prior-work=acknowledged;working-files=preserved" || !strings.Contains(out.String(), "Later working edits stay uncommitted") {
+		t.Fatalf("mode not bound: prepare=%v apply=%v output=%s", impl.prepare, impl.apply, out.String())
+	}
+}
+
+func TestApproveSavedVersionRefusesCommittedBaseOrDifferentStaging(t *testing.T) {
+	for _, blocker := range []string{"base", "staging"} {
+		t.Run(blocker, func(t *testing.T) {
+			proposal := openProposal()
+			if blocker == "base" {
+				proposal.Freshness = &proposalsv1.ProposalFreshness{State: proposalsv1.FreshnessState_FRESHNESS_STATE_DRIFTED, BaseChangedPaths: []string{"a.go"}}
+			} else {
+				proposal.Files[0].Flags = append(proposal.Files[0].Flags, &proposalsv1.ProposalFlag{Code: "staged_version_differs"})
+			}
+			impl := &recordingServer{proposal: proposal, canMutate: true}
+			serve(t, impl, "confirm\n")
+			if err := runApprove(nil, []string{proposal.GetId(), "--keep-later-changes", "--acknowledge-prior-work"}); err == nil || strings.Contains(strings.Join(impl.calls, ","), "prepare") {
+				t.Fatalf("guard missing: err=%v calls=%v", err, impl.calls)
+			}
+		})
+	}
 }

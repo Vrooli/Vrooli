@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"git-control-tower/internal/dbschema"
+	"git-control-tower/internal/proposals"
 
 	coredb "github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/storage"
@@ -34,7 +35,7 @@ func ensureDatabaseSchema(db *sql.DB) error {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	if err := coredb.EnsureSchemas(ctx, db, coredb.SchemaProviderFunc(dbschema.Schema)); err != nil {
+	if err := coredb.EnsureSchemas(ctx, db, coredb.SchemaProviderFunc(dbschema.Schema), coredb.SchemaProviderFunc(proposals.Schema)); err != nil {
 		return fmt.Errorf("apply schema: %w", err)
 	}
 	return nil

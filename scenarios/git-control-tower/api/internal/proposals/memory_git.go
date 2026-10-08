@@ -19,6 +19,7 @@ type MemoryGit struct {
 	head       string
 	index      map[string]string // path -> blob
 	worktree   map[string]string // path -> content
+	blobs      map[string]string
 	ignored    map[string]bool
 	stageCalls [][]string
 	afterStage func()
@@ -38,12 +39,13 @@ func memoryBlobID(content string) string {
 }
 
 func NewMemoryGit(files map[string]string) *MemoryGit {
-	r := &MemoryGit{commits: map[string]memoryCommit{}, index: map[string]string{}, worktree: map[string]string{}, ignored: map[string]bool{}}
+	r := &MemoryGit{commits: map[string]memoryCommit{}, index: map[string]string{}, worktree: map[string]string{}, blobs: map[string]string{}, ignored: map[string]bool{}}
 	tree := map[string]string{}
 	for path, content := range files {
 		tree[path] = memoryBlobID(content)
 		r.index[path] = memoryBlobID(content)
 		r.worktree[path] = content
+		r.blobs[memoryBlobID(content)] = content
 	}
 	r.head = r.addCommit("", tree, "initial")
 	return r
@@ -59,8 +61,11 @@ func (r *MemoryGit) addCommit(parent string, tree map[string]string, message str
 func (r *MemoryGit) headTree() map[string]string { return r.commits[r.head].tree }
 
 // Write changes a working-tree file; Delete removes it.
-func (r *MemoryGit) Write(path, content string) { r.worktree[path] = content }
-func (r *MemoryGit) Delete(path string)         { delete(r.worktree, path) }
+func (r *MemoryGit) Write(path, content string) {
+	r.worktree[path] = content
+	r.blobs[memoryBlobID(content)] = content
+}
+func (r *MemoryGit) Delete(path string) { delete(r.worktree, path) }
 
 // StageDirect models a human `git add` outside the proposal flow.
 func (r *MemoryGit) StageDirect(path string) {
@@ -82,18 +87,30 @@ func (r *MemoryGit) CommitOutside(files map[string]string) {
 		tree[path] = memoryBlobID(content)
 		r.index[path] = memoryBlobID(content)
 		r.worktree[path] = content
+		r.blobs[memoryBlobID(content)] = content
 	}
 	r.head = r.addCommit(r.head, tree, "outside")
 }
 
 // CommitIndex is a CommitFunc that commits the index.
-func (r *MemoryGit) CommitIndex(_ context.Context, message string) (CommitOutcome, error) {
+func (r *MemoryGit) CommitIndex(ctx context.Context, message string) (CommitOutcome, error) {
 	tree := map[string]string{}
 	for path, blob := range r.index {
 		tree[path] = blob
 	}
-	r.head = r.addCommit(r.head, tree, message)
-	return CommitOutcome{OID: r.head, Precommit: &PrecommitOutcome{Status: "passed", Summary: "Precommit checks passed"}}, nil
+	head := r.head
+	oid := r.addCommit(head, tree, message)
+	facts, err := r.CommitFacts(ctx, oid)
+	if err != nil {
+		return CommitOutcome{}, err
+	}
+	return CommitOutcome{OID: oid, Facts: &facts, Publish: func(context.Context) (string, error) {
+		if r.head != head {
+			return "", ErrConflict
+		}
+		r.head = oid
+		return oid, nil
+	}, Precommit: &PrecommitOutcome{Status: "passed", Summary: "Precommit checks passed"}}, nil
 }
 
 func (r *MemoryGit) Head(context.Context) (string, error)   { return r.head, nil }
@@ -149,7 +166,7 @@ func (r *MemoryGit) Hash(_ context.Context, paths []string) (map[string]Content,
 			continue
 		}
 		sum := sha256.Sum256([]byte(content))
-		result[path] = Content{BlobID: memoryBlobID(content), SHA256: hex.EncodeToString(sum[:])}
+		result[path] = Content{BlobID: memoryBlobID(content), SHA256: hex.EncodeToString(sum[:]), Mode: "100644"}
 	}
 	return result, nil
 }
@@ -251,7 +268,40 @@ func (r *MemoryGit) CommitFacts(_ context.Context, oid string) (CommitFacts, err
 			blobs[path] = DeletedBlob
 		}
 	}
-	return CommitFacts{Blobs: blobs, Message: commit.message}, nil
+	modes := map[string]string{}
+	for path, blob := range blobs {
+		if blob != DeletedBlob {
+			modes[path] = "100644"
+		}
+	}
+	return CommitFacts{Blobs: blobs, Modes: modes, Message: commit.message}, nil
+}
+
+func (r *MemoryGit) Capture(ctx context.Context, base string, files []File) ([]File, map[string][]byte, error) {
+	result := append([]File(nil), files...)
+	blobs := map[string][]byte{}
+	for i := range result {
+		f := &result[i]
+		f.BaseBlobID = r.commits[base].tree[f.Path]
+		if f.BaseBlobID != "" {
+			f.BaseMode = "100644"
+			blobs[f.BaseBlobID] = []byte(r.blobs[f.BaseBlobID])
+		}
+		if !f.Deleted {
+			data := r.worktree[f.Path]
+			if memoryBlobID(data) != f.BlobID {
+				return nil, nil, ErrConflict
+			}
+			f.Mode = "100644"
+			blobs[f.BlobID] = []byte(data)
+		}
+		f.Captured = true
+	}
+	return result, blobs, nil
+}
+
+func (r *MemoryGit) PrepareCommit(ctx context.Context, p Proposal, blob func(context.Context, string) ([]byte, error), check CandidateCheck, skip bool) (CommitOutcome, error) {
+	return r.CommitIndex(ctx, p.Message.Rendered)
 }
 
 // HeadOID returns the current HEAD commit.
@@ -262,3 +312,32 @@ func (r *MemoryGit) CommitCount() int { return len(r.commits) }
 
 // StageCalls returns the path lists passed to Stage, in call order.
 func (r *MemoryGit) StageCalls() [][]string { return append([][]string(nil), r.stageCalls...) }
+
+func (r *MemoryGit) StageCaptured(ctx context.Context, files []File, blob func(context.Context, string) ([]byte, error)) error {
+	var paths []string
+	for _, file := range files {
+		paths = append(paths, file.Path)
+	}
+	r.stageCalls = append(r.stageCalls, paths)
+	if r.stageErr != nil {
+		return r.stageErr
+	}
+	for _, file := range files {
+		if file.Deleted {
+			delete(r.index, file.Path)
+			continue
+		}
+		data, err := blob(ctx, file.BlobID)
+		if err != nil {
+			return err
+		}
+		if memoryBlobID(string(data)) != file.BlobID {
+			return fmt.Errorf("retained blob mismatch")
+		}
+		r.blobs[file.BlobID], r.index[file.Path] = string(data), file.BlobID
+	}
+	if r.afterStage != nil {
+		r.afterStage()
+	}
+	return nil
+}

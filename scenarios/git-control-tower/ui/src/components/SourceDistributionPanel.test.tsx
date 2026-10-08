@@ -11,7 +11,7 @@ describe("SourceDistributionPanel", () => {
   it("renders the exact tuple, safe exclusions, handoff, and drift separately", async () => {
     const detailPayload = { available: true, distribution: candidate, contents: [{ path: "api/main.go", source_path: "api/main.go", category: "application", digest: "sha256:file", size_bytes: 12 }], exclusions: [{ path: ".env", category: "private material", safe_reason: "privacy policy" }], unresolved_obligations: [], runtime_requirements: [], handoff: { status: "awaiting_human", artifact_id: "artifact-1", artifact_digest: "sha256:artifact", destination: "operator/repo", human_action: "Publish manually", readback_oracle: "exact read-back", preconditions: [], approval_reference: "decision-1", source_of_truth: "scenario-to-repository", freshness: "current" }, drift: { state: "destination_edits_detected", source_changed: false, destination_changed: true, current_source_digest: "sha256:source", recorded_source_digest: "sha256:source", current_artifact_digest: "sha256:artifact", recorded_artifact_digest: "sha256:artifact", actions: ["review independent edits"], source_of_truth: "scenario-to-repository", freshness: "current" } };
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
-      const isDetail = String(input).includes("/source-distributions/");
+      const isDetail = (input instanceof Request ? input.url : String(input)).includes("/source-distributions/");
       return { ok: true, status: 200, json: async () => isDetail ? detailPayload : { available: true, distributions: [candidate] } } as Response;
     });
     vi.stubGlobal("fetch", fetchMock);

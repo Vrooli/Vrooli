@@ -1,3 +1,5 @@
+import { create } from "@bufbuild/protobuf";
+import { ProposalTrailerSchema } from "@vrooli/proto-types/git-control-tower/v1/proposals/proposals_pb";
 import { fireEvent, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { GitHistory } from "./GitHistory";
@@ -63,7 +65,7 @@ describe("GitHistory continue action", () => {
     const buttons = screen.getAllByTestId("history-continue-btn");
     fireEvent.click(buttons[0] as HTMLElement);
 
-    expect(onContinue).toHaveBeenCalledWith("web-console TTS p11");
+    expect(onContinue).toHaveBeenCalledWith("web-console TTS p11\n\nVrooli-Continues: abc1234");
   });
 
   it("increments correctly for second entry", () => {
@@ -73,7 +75,7 @@ describe("GitHistory continue action", () => {
     const buttons = screen.getAllByTestId("history-continue-btn");
     fireEvent.click(buttons[1] as HTMLElement);
 
-    expect(onContinue).toHaveBeenCalledWith("web-console TTS p10");
+    expect(onContinue).toHaveBeenCalledWith("web-console TTS p10\n\nVrooli-Continues: def5678");
   });
 });
 
@@ -154,4 +156,19 @@ describe("GitHistory commit check badges", () => {
 
     expect(screen.getByTestId("history-precommit-badge")).toHaveTextContent("precommit passed");
   });
+});
+
+it("uses structured work relationships and server continuation metadata in ordinary history", () => {
+  const onContinue = vi.fn();
+  const onFilter = vi.fn();
+  const continuation = "Next work\n\nVrooli-Effort: effort:example\nVrooli-Continues: fff9999";
+  renderHistory({ onContinueCommit: onContinue, onFilterGroup: onFilter, entries: [{ hash: "fff9999", subject: "fix typo in readme", files: ["README.md"], continuation_message: continuation, trailers: [create(ProposalTrailerSchema, { key: "Vrooli-Effort", value: "effort:example@3", kind: "effort", known: true })] }] });
+  const continueButton = screen.getAllByTestId("history-continue-btn").slice(-1)[0];
+  if (!continueButton) throw new Error("Missing structured continuation action");
+  fireEvent.click(continueButton);
+  expect(onContinue).toHaveBeenCalledWith(continuation);
+  const filterButton = screen.getAllByTestId("history-filter-group-btn").slice(-1)[0];
+  if (!filterButton) throw new Error("Missing structured group filter");
+  fireEvent.click(filterButton);
+  expect(onFilter).toHaveBeenCalledWith("Vrooli-Effort: effort:example");
 });

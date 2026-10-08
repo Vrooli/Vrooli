@@ -104,16 +104,20 @@ principal and asserted run are recorded on every revision.
 
 | Method | Notes |
 | --- | --- |
-| `AnchorScope` | Records HEAD plus sha256 and git blob ID of each dirty file in the scope globs. |
-| `CreateProposal` | Hashes listed paths against the anchor, records flags and exclusions, renders the trailer-linked message; `validate_only` stores nothing. Supersedes the open proposal for the same effort and epoch, and folds open proposals of the effort that share a path or drifted into one combined proposal; never refused for the number of open proposals. |
-| `ListProposals` / `GetProposal` | Proposals with read-time flags and freshness (`fresh`, `drifted`, `base_moved`). |
-| `EditProposal` | New revision against `expected_revision`; unknown trailers and operator order are kept. |
-| `WithdrawProposal` / `RefreshProposal` | Withdraw keeps history; refresh re-hashes into a new revision and drops paths that are now clean. |
-| `ApplyProposal` | Human only. Consumes a single-use `repo.apply_proposal` intent prepared with subject context `proposal:<id>@<revision>`; the digest binds HEAD, the proposal digest, current blob IDs of its paths and the current index. Refuses drift, a base move touching its paths, or foreign staged paths; stages exactly its paths, verifies staged blobs, commits the rendered message as the operator and restores the index on failure. |
+| `AnchorScope` | Records HEAD plus raw SHA-256, canonical blob and effective Git mode of each dirty scoped file. |
+| `CreateProposal` | Retains exact candidate/base bytes and modes; records flags/exclusions and trailer-linked message. Preserves older proposals; `validate_only` stores nothing. Limits: 2,000 paths, 8 MiB/file, 64 MiB captured package. |
+| `ListProposals` / `GetProposal` | Live freshness/flags, destination identity, actual retained revisions. `revision` reads an immutable payload; legacy missing captures remain explicit. |
+| `RepoService.GetRepoDiff` | `proposal_id`, exact positive `proposal_revision`, `path`: retained base-to-candidate diff with no working/history selectors. `compare_current` explicitly compares candidate to current files without updating proposal storage. Binary/mode/empty-file standing is explicit; diff output capped at 2 MiB. |
+| `EditProposal` | Creates a revision against `expected_revision`; removing paths preserves working files/index; unknown trailers/operator order retained. |
+| `CombineProposals` | 2–20 exact open captured source revisions; requires shared base/branch and matching shared-file versions. Atomic source closure/new package with retained source manifests and union provenance, never live rehash or silent truncation. |
+| `WithdrawProposal` | Optional reason/replacement, exact source revision; closes only the review record, preserving files, index and history. Records paths omitted by the replacement. |
+| `RefreshProposal` | Explicitly captures current contents into a new revision and drops clean/unchanged/no-contribution paths. Source evidence remains attributed rather than certified against new bytes. |
+| `ApplyProposal` | Verified human only. Consumes `repo.apply_proposal` intent bound to revision, branch/HEAD, files/modes/message and index. Uncertain prior work requires `acknowledge_prior_work` and intent context suffix `;prior-work=acknowledged`. Checks/hook effects run in a private candidate; tree/message verified before ref publication under repository, Git and proposal revision leases. `keep_later_changes=true` binds `;working-files=preserved` to the intent, stages retained blobs/modes and keeps later working edits untouched. Default false refuses working drift. Both modes refuse affected base/branch/foreign-index changes; saved-version mode also refuses different staged versions on proposal paths; failed pre-publication operations restore the index. A published OID is reported truthfully even when recording fails. |
 
 ### Repo history includes
 
-`RepoService/GetRepoHistory` accepts:
+Detailed entries include `full_message`, `body`, parsed/resolved `trailers`, and
+server-rendered `continuation_message`. `RepoService/GetRepoHistory` accepts:
 - `limit=<n>`: cap returned commits.
 - `grep=<text>`: filter commits by message text.
 - `include=files`: return detailed `entries` with changed files.

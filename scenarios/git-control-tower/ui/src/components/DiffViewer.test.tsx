@@ -175,7 +175,7 @@ describe("DiffViewer minimap", () => {
     );
 
     fireEvent.click(screen.getByTestId("start-editing-button"));
-    const editor = screen.getByTestId("monaco-editor");
+    const editor = await screen.findByTestId("monaco-editor");
     fireEvent.change(editor, { target: { value: "const a = 2;\n" } });
     fireEvent.click(screen.getByTestId("save-file-button"));
 
@@ -198,7 +198,7 @@ describe("DiffViewer minimap", () => {
     );
 
     fireEvent.click(screen.getByTestId("start-editing-button"));
-    const editor = screen.getByTestId("monaco-editor");
+    const editor = await screen.findByTestId("monaco-editor");
     fireEvent.change(editor, { target: { value: "const a = 3;\n" } });
     fireEvent.click(screen.getByTestId("save-file-button"));
 
@@ -235,4 +235,15 @@ describe("DiffViewer image preview", () => {
     const img = screen.getByAltText("assets/logo.png") as HTMLImageElement;
     expect(img.src).toBe("data:image/png;base64,iVBORw0KGgo=");
   });
+});
+
+it("keeps captured proposal diffs immutable even when write callbacks are supplied", async () => {
+  renderViewer(buildDiffResponse({ full_content: "retained contents" }), "diff", {
+    isProposalMode: true,
+    onStage: vi.fn(), onDiscard: vi.fn(), onSaveFileContent: vi.fn(),
+  });
+  await screen.findByText("Proposed");
+  expect(screen.queryByRole("button", { name: /^edit/i })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /^stage/i })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /^discard/i })).not.toBeInTheDocument();
 });

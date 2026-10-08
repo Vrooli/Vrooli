@@ -1,3 +1,4 @@
+import type { ProposalTrailer } from "@vrooli/proto-types/git-control-tower/v1/proposals/proposals_pb";
 // ============================================================================
 // Core Repo & Branch Type Definitions
 // ============================================================================
@@ -192,6 +193,10 @@ export interface RepoHistoryResponse {
 }
 
 export interface RepoHistoryEntry {
+ full_message?: string;
+ body?: string;
+ trailers?: ProposalTrailer[];
+ continuation_message?: string;
   hash: string;
   author?: string;
   date?: string;

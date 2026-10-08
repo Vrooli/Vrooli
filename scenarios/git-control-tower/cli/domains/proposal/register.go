@@ -33,6 +33,8 @@ import (
 	humancontrolconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/human_control/human_control_v1connect"
 	proposalsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/proposals"
 	proposalsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/proposals/proposals_v1connect"
+	repov1 "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/repo"
+	repoconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/repo/repo_v1connect"
 )
 
 // applyOperation is the human-control operation for applying a proposal.
@@ -44,6 +46,10 @@ const applyClientTimeout = 31 * time.Minute
 
 // Client factories. Overridable in tests.
 var (
+	repoClientFactory = func(core *cliapp.ScenarioApp) repoconnect.RepoServiceClient {
+		httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
+		return repoconnect.NewRepoServiceClient(httpClient, baseURL, connect.WithInterceptors(callerheader.New()))
+	}
 	proposalClientFactory = func(core *cliapp.ScenarioApp) proposalsconnect.ProposalServiceClient {
 		httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
 		return proposalsconnect.NewProposalServiceClient(httpClient, baseURL, connect.WithInterceptors(callerheader.New()))
@@ -71,12 +77,14 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 		NeedsAPI:    true,
 		Subcommands: []cliapp.Command{
 			{Name: "anchor", NeedsAPI: true, Description: "Fingerprint files already dirty in a scope at epoch admission (--effort REF --epoch E<n> --scope GLOB...)", Run: func(a []string) error { return runAnchor(core, a) }},
-			{Name: "create", NeedsAPI: true, Description: "Create a proposal from listed paths (--request-file F | --effort --epoch --subject [--body-file] --path P... [--run ID...]); folds open proposals of the effort that share a path or drifted; --validate-only stores nothing", Run: func(a []string) error { return runCreate(core, a) }},
+			{Name: "create", NeedsAPI: true, Description: "Create a proposal from listed paths (--request-file F | --effort --epoch --subject [--body-file] --path P... [--run ID...]); retains exact contents without changing older proposals; --validate-only stores nothing", Run: func(a []string) error { return runCreate(core, a) }},
 			{Name: "list", NeedsAPI: true, Description: "List proposals with freshness ([--state open|committed|withdrawn|superseded|all] [--effort REF])", Run: func(a []string) error { return runList(core, a) }},
 			{Name: "show", NeedsAPI: true, Description: "Show one proposal: files, flags, exclusions, message and history (ID [--message])", Run: func(a []string) error { return runShow(core, a) }},
+			{Name: "diff", NeedsAPI: true, Description: "Review retained contents (ID --revision N --path P [--compare-current] [--json])", Run: func(a []string) error { return runDiff(core, a) }},
 			{Name: "edit", NeedsAPI: true, Description: "Edit subject, body or trailers, or drop files (ID --revision N [--subject S] [--body-file F] [--trailer K=V...] [--remove-path P...])", Run: func(a []string) error { return runEdit(core, a) }},
 			{Name: "approve", NeedsAPI: true, Description: "Human only: review and commit exactly the proposal (ID [--yes] [--skip-precommit])", Run: func(a []string) error { return runApprove(core, a) }},
-			{Name: "withdraw", NeedsAPI: true, Description: "Withdraw an open proposal (ID [--reason R])", Run: func(a []string) error { return runWithdraw(core, a) }},
+			{Name: "combine", NeedsAPI: true, Description: "Explicitly combine retained sources (--source ID@REV... --subject S [--body-file F]); closes sources and keeps code", Run: func(a []string) error { return runCombine(core, a) }},
+			{Name: "withdraw", NeedsAPI: true, Description: "Close a proposal; keeps all code and staged changes (ID [--reason R] [--replacement ID] [--revision N])", Run: func(a []string) error { return runWithdraw(core, a) }},
 			{Name: "refresh", NeedsAPI: true, Description: "Re-hash current content into a new revision (ID [--revision N])", Run: func(a []string) error { return runRefresh(core, a) }},
 		},
 	}
@@ -231,16 +239,6 @@ func runCreate(core *cliapp.ScenarioApp, args []string) error {
 		verb = "Validated (not stored)"
 	}
 	fmt.Fprintf(output, "%s proposal %s r%d: %d files, %d excluded\n", verb, p.GetId(), p.GetRevision(), len(p.GetFiles()), len(p.GetExcluded()))
-	if id := resp.Msg.GetSupersededId(); id != "" {
-		fmt.Fprintf(output, "Superseded %s\n", id)
-	}
-	// Earlier open proposals of the effort that share a path or drifted are
-	// folded into this one; the created event names each of them.
-	if events := p.GetEvents(); len(events) > 0 {
-		if _, folded, ok := strings.Cut(events[0].GetDetail(), "folded "); ok {
-			fmt.Fprintf(output, "Folded %s\n", folded)
-		}
-	}
 	printIssues(resp.Msg.GetIssues())
 	printFiles(p)
 	return nil
@@ -287,14 +285,14 @@ func runList(core *cliapp.ScenarioApp, args []string) error {
 	if err != nil {
 		return err
 	}
-	resp, err := proposalClientFactory(core).ListProposals(context.Background(), connect.NewRequest(&proposalsv1.ListProposalsRequest{RepositoryId: *repoID, States: states, EffortRef: *effort, Limit: int32(*limit)}))
+	resp, err := proposalClientFactory(core).ListProposals(context.Background(), connect.NewRequest(&proposalsv1.ListProposalsRequest{RepositoryId: *repoID, States: states, EffortRef: canonicalEffort(*effort), Limit: int32(*limit)}))
 	if err != nil {
 		return err
 	}
 	if *jsonOut {
 		return printJSON(resp.Msg)
 	}
-	fmt.Fprintf(output, "Proposals (%d open)\n", resp.Msg.GetOpenCount())
+	fmt.Fprintf(output, "Proposals (%d shown; %d open in repository)\n", len(resp.Msg.GetProposals()), resp.Msg.GetOpenCount())
 	for _, p := range resp.Msg.GetProposals() {
 		fmt.Fprintf(output, "  %s r%d %-10s %-11s %3d files  %s %s  %s\n", p.GetId(), p.GetRevision(), stateLabel(p.GetState()), freshnessLabel(p.GetFreshness().GetState()),
 			len(p.GetFiles()), p.GetWork().GetEpoch(), flagSummary(p), p.GetMessage().GetSubject())
@@ -304,6 +302,7 @@ func runList(core *cliapp.ScenarioApp, args []string) error {
 
 func runShow(core *cliapp.ScenarioApp, args []string) error {
 	fs := newFlagSet("show")
+	revision := fs.Int("revision", 0, "Retained revision (default: current)")
 	messageOnly := fs.Bool("message", false, "Print only the rendered commit message")
 	jsonOut := fs.Bool("json", false, "Emit JSON")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
@@ -313,7 +312,7 @@ func runShow(core *cliapp.ScenarioApp, args []string) error {
 	if err != nil {
 		return err
 	}
-	resp, err := proposalClientFactory(core).GetProposal(context.Background(), connect.NewRequest(&proposalsv1.GetProposalRequest{Id: id}))
+	resp, err := proposalClientFactory(core).GetProposal(context.Background(), connect.NewRequest(&proposalsv1.GetProposalRequest{Id: id, Revision: int32(*revision)}))
 	if err != nil {
 		return err
 	}
@@ -390,7 +389,9 @@ func runEdit(core *cliapp.ScenarioApp, args []string) error {
 
 func runWithdraw(core *cliapp.ScenarioApp, args []string) error {
 	fs := newFlagSet("withdraw")
-	reason := fs.String("reason", "", "Reason recorded in history")
+	reason := fs.String("reason", "", "Optional reason recorded in history")
+	revision := fs.Int("revision", 0, "Revision being closed")
+	replacement := fs.String("replacement", "", "Replacement proposal ID; requires --revision")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
@@ -398,10 +399,10 @@ func runWithdraw(core *cliapp.ScenarioApp, args []string) error {
 	if err != nil {
 		return err
 	}
-	if _, err := proposalClientFactory(core).WithdrawProposal(context.Background(), connect.NewRequest(&proposalsv1.WithdrawProposalRequest{Id: id, Reason: *reason})); err != nil {
+	if _, err := proposalClientFactory(core).WithdrawProposal(context.Background(), connect.NewRequest(&proposalsv1.WithdrawProposalRequest{Id: id, Reason: *reason, ExpectedRevision: int32(*revision), ReplacementId: *replacement})); err != nil {
 		return err
 	}
-	fmt.Fprintf(output, "Withdrew %s\n", id)
+	fmt.Fprintf(output, "Closed %s; all code and staged changes were kept.\n", id)
 	return nil
 }
 
@@ -436,6 +437,8 @@ func runRefresh(core *cliapp.ScenarioApp, args []string) error {
 func runApprove(core *cliapp.ScenarioApp, args []string) error {
 	fs := newFlagSet("approve")
 	yes := fs.Bool("yes", false, "Skip the confirmation prompt")
+	acknowledge := fs.Bool("acknowledge-prior-work", false, "Explicitly accept earlier or unattributed contents in flagged files")
+	keepLater := fs.Bool("keep-later-changes", false, "Commit the saved proposal version; keep later working edits uncommitted")
 	skipPrecommit := fs.Bool("skip-precommit", false, "Skip the configured pre-commit check for this commit")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
@@ -469,13 +472,33 @@ func runApprove(core *cliapp.ScenarioApp, args []string) error {
 		return fmt.Errorf("proposal %s is %s; only open proposals can be approved", id, stateLabel(p.GetState()))
 	}
 	printProposal(p)
-	if fresh := p.GetFreshness(); fresh.GetState() != proposalsv1.FreshnessState_FRESHNESS_STATE_FRESH {
+	if !p.GetCaptured() {
+		return errors.New("proposal has no retained contents; explicitly refresh and review a new revision")
+	}
+	for _, file := range p.GetFiles() {
+		for _, flag := range file.GetFlags() {
+			if *keepLater && flag.GetCode() == "staged_version_differs" {
+				return errors.New("different proposal file versions are staged; review or unstage them first (working files are preserved)")
+			}
+			if (flag.GetCode() == "mixed_prior_uncommitted" || flag.GetCode() == "no_anchor" || flag.GetCode() == "outside_anchor_scope") && !*acknowledge {
+				return errors.New("proposal includes earlier or unattributed work; review it and pass --acknowledge-prior-work explicitly")
+			}
+		}
+	}
+	if fresh := p.GetFreshness(); len(fresh.GetBaseChangedPaths()) > 0 || (fresh.GetState() != proposalsv1.FreshnessState_FRESHNESS_STATE_FRESH && !(*keepLater && fresh.GetState() == proposalsv1.FreshnessState_FRESHNESS_STATE_DRIFTED)) {
 		return fmt.Errorf("proposal is %s; run `git-control-tower proposal refresh %s` and review it again", freshnessLabel(fresh.GetState()), id)
 	}
 	if staged := p.GetFreshness().GetForeignStagedPaths(); len(staged) > 0 {
 		return fmt.Errorf("other paths are staged (%s); unstage them first so the commit holds only the proposal", strings.Join(staged, ", "))
 	}
 	subjectContext := "proposal:" + id + "@" + strconv.Itoa(int(p.GetRevision()))
+	if *acknowledge {
+		subjectContext += ";prior-work=acknowledged"
+	}
+	if *keepLater {
+		subjectContext += ";working-files=preserved"
+		fmt.Fprintln(output, "Committing the saved proposal version. Later working edits stay uncommitted; different staged versions are refused.")
+	}
 	preview, err := human.PrepareMutation(ctx, connect.NewRequest(&humancontrolv1.PrepareMutationRequest{RepositoryId: p.GetRepositoryId(), Operation: applyOperation, SubjectContext: subjectContext}))
 	if err != nil {
 		return err
@@ -502,7 +525,7 @@ func runApprove(core *cliapp.ScenarioApp, args []string) error {
 		return errors.New("mutation intent response did not contain an intent id")
 	}
 	resp, err := applyClientFactory(core).ApplyProposal(ctx, connect.NewRequest(&proposalsv1.ApplyProposalRequest{
-		RepositoryId: preview.Msg.GetRepositoryId(), IntentId: intent.Msg.GetIntentId(), Id: id, Revision: p.GetRevision(), SkipPrecommitOnce: *skipPrecommit,
+		RepositoryId: preview.Msg.GetRepositoryId(), IntentId: intent.Msg.GetIntentId(), Id: id, Revision: p.GetRevision(), SkipPrecommitOnce: *skipPrecommit, AcknowledgePriorWork: *acknowledge, KeepLaterChanges: *keepLater,
 	}))
 	if err != nil {
 		return err
@@ -513,12 +536,16 @@ func runApprove(core *cliapp.ScenarioApp, args []string) error {
 func reportApply(result *proposalsv1.ApplyProposalResponse) error {
 	if result.GetSuccess() {
 		fmt.Fprintf(output, "Committed %s\n", result.GetCommitOid())
-		if !result.GetCommitVerified() {
-			for _, note := range result.GetVerificationNotes() {
-				fmt.Fprintf(output, "  ! %s\n", note)
-			}
+		for _, note := range result.GetVerificationNotes() {
+			fmt.Fprintf(output, "  ! %s\n", note)
 		}
 		return nil
+	}
+	if result.GetCommitOid() != "" {
+		fmt.Fprintf(output, "Candidate commit %s needs review. Review history before retrying; approval was not reported as successful.\n", result.GetCommitOid())
+	}
+	for _, note := range result.GetVerificationNotes() {
+		fmt.Fprintf(output, "  ! %s\n", note)
 	}
 	if precommit := result.GetPrecommit(); precommit != nil && precommit.GetStatus() != "passed" {
 		fmt.Fprintf(output, "Pre-commit %s (exit %d): %s\n", precommit.GetStatus(), precommit.GetExitCode(), precommit.GetSummary())
@@ -635,4 +662,94 @@ func printProposal(p *proposalsv1.Proposal) {
 		fmt.Fprintf(output, "  %s: %s [%s]\n", trailer.GetKey(), trailer.GetValue(), strings.ToLower(strings.TrimPrefix(trailer.GetResolution().String(), "TRAILER_RESOLUTION_")))
 	}
 	printIssues(p.GetIssues())
+}
+
+func canonicalEffort(value string) string {
+	value = strings.TrimSpace(value)
+	if value != "" && !strings.HasPrefix(value, "effort:") {
+		return "effort:" + value
+	}
+	return value
+}
+
+func runCombine(core *cliapp.ScenarioApp, args []string) error {
+	fs := newFlagSet("combine")
+	var sources repeated
+	fs.Var(&sources, "source", "Exact source ID@REV; repeat 2–20 times")
+	subject := fs.String("subject", "", "Combined commit subject")
+	bodyFile := fs.String("body-file", "", "Body file")
+	jsonOut := fs.Bool("json", false, "Emit JSON")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() != 0 || len(sources) < 2 || len(sources) > 20 || strings.TrimSpace(*subject) == "" {
+		return errors.New("combine requires 2–20 --source ID@REV values and --subject")
+	}
+	req := &proposalsv1.CombineProposalsRequest{Subject: *subject}
+	for _, value := range sources {
+		id, version, ok := strings.Cut(value, "@")
+		revision, err := strconv.Atoi(version)
+		if !ok || id == "" || err != nil || revision < 1 {
+			return fmt.Errorf("invalid source %q; use ID@REV", value)
+		}
+		req.Sources = append(req.Sources, &proposalsv1.ProposalRevisionReference{Id: id, Revision: int32(revision)})
+	}
+	if *bodyFile != "" {
+		data, err := os.ReadFile(*bodyFile)
+		if err != nil {
+			return err
+		}
+		req.Body = string(data)
+	}
+	response, err := proposalClientFactory(core).CombineProposals(context.Background(), connect.NewRequest(req))
+	if err != nil {
+		return err
+	}
+	if *jsonOut {
+		return printJSON(response.Msg)
+	}
+	fmt.Fprintln(output, "Sources closed into one captured proposal; all code was kept.")
+	printProposal(response.Msg.GetProposal())
+	return nil
+}
+
+func runDiff(core *cliapp.ScenarioApp, args []string) error {
+	fs := newFlagSet("diff")
+	revision := fs.Int("revision", 0, "Exact retained revision")
+	path := fs.String("path", "", "Proposal file path")
+	compare := fs.Bool("compare-current", false, "Read-only captured-to-current comparison; not approval content")
+	jsonOut := fs.Bool("json", false, "Emit typed JSON")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	id, err := singleID(fs)
+	if err != nil {
+		return err
+	}
+	if *revision <= 0 || strings.TrimSpace(*path) == "" {
+		return errors.New("diff requires --revision N and --path P")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	proposal, err := proposalClientFactory(core).GetProposal(ctx, connect.NewRequest(&proposalsv1.GetProposalRequest{Id: id, Revision: int32(*revision)}))
+	if err != nil {
+		return err
+	}
+	if proposal.Msg.GetProposal() == nil {
+		return errors.New("proposal response did not contain a proposal")
+	}
+	response, err := repoClientFactory(core).GetRepoDiff(ctx, connect.NewRequest(&repov1.GetRepoDiffRequest{RepositoryId: proposal.Msg.GetProposal().GetRepositoryId(), ProposalId: id, ProposalRevision: int32(*revision), Path: *path, CompareCurrent: *compare}))
+	if err != nil {
+		return err
+	}
+	if *jsonOut {
+		return printJSON(response.Msg)
+	}
+	if *compare {
+		fmt.Fprintln(output, "Captured proposal → current workspace (unreviewed)")
+	} else {
+		fmt.Fprintln(output, "Commit base → captured proposal")
+	}
+	fmt.Fprint(output, response.Msg.GetRaw())
+	return nil
 }

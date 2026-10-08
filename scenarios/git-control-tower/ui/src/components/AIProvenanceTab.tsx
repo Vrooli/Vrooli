@@ -32,7 +32,7 @@ function RunGroupCard({ group, selectedPath, onSelect }: { group: ProvenanceRunG
 }
 
 export function AIProvenanceTab({ repoId }: AIProvenanceTabProps) {
-  const provenanceQuery = useProvenance(repoId); const groups = provenanceQuery.data?.runGroups ?? [];
+  const provenanceQuery = useProvenance(repoId); const groups = useMemo(() => provenanceQuery.data?.runGroups ?? [], [provenanceQuery.data?.runGroups]);
   const firstPath = useMemo(() => groups[0]?.files[0] ? (groups[0].files[0].relativePath || groups[0].files[0].filePath) : undefined, [groups]);
   const [selectedPath, setSelectedPath] = useState<string>(); const activePath = selectedPath || firstPath;
   if (provenanceQuery.isLoading) return <div className="space-y-3"><div className="h-20 animate-pulse rounded-lg bg-slate-800" /><div className="h-20 animate-pulse rounded-lg bg-slate-800" /></div>;

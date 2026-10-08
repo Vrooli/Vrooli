@@ -1,6 +1,9 @@
 package main
 
-import "time"
+import (
+	"git-control-tower/internal/trailers"
+	"time"
+)
 
 type RepoStatusDeps struct {
 	Git             GitRunner
@@ -43,12 +46,15 @@ type RepoHistory struct {
 }
 
 type RepoHistoryEntry struct {
-	Hash    string           `json:"hash"`
-	Author  string           `json:"author,omitempty"`
-	Date    string           `json:"date,omitempty"`
-	Subject string           `json:"subject"`
-	Files   []string         `json:"files"`
-	Checks  []CommitCheckRun `json:"checks,omitempty"`
+	FullMessage string           `json:"full_message"`
+	Body        string           `json:"body,omitempty"`
+	Trailers    []trailers.Entry `json:"trailers,omitempty"`
+	Hash        string           `json:"hash"`
+	Author      string           `json:"author,omitempty"`
+	Date        string           `json:"date,omitempty"`
+	Subject     string           `json:"subject"`
+	Files       []string         `json:"files"`
+	Checks      []CommitCheckRun `json:"checks,omitempty"`
 }
 
 type RepoAuthorStatus struct {

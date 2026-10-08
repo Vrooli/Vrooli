@@ -37,12 +37,13 @@ const (
 // recomputed on every read because they depend on other records or the
 // index.
 const (
-	FlagMixedPrior         = "mixed_prior_uncommitted"
-	FlagOtherOpenProposal  = "other_open_proposal"
-	FlagSandboxPending     = "sandbox_pending"
-	FlagAlreadyStaged      = "already_staged"
-	FlagNoAnchor           = "no_anchor"
-	FlagOutsideAnchorScope = "outside_anchor_scope"
+	FlagMixedPrior           = "mixed_prior_uncommitted"
+	FlagOtherOpenProposal    = "other_open_proposal"
+	FlagSandboxPending       = "sandbox_pending"
+	FlagAlreadyStaged        = "already_staged"
+	FlagStagedVersionDiffers = "staged_version_differs"
+	FlagNoAnchor             = "no_anchor"
+	FlagOutsideAnchorScope   = "outside_anchor_scope"
 )
 
 // Freshness states. Freshness is computed on read and never stored.
@@ -116,13 +117,17 @@ type Flag struct {
 }
 
 type File struct {
-	Path    string     `json:"path"`
-	Kind    ChangeKind `json:"kind"`
-	SHA256  string     `json:"sha256,omitempty"`
-	BlobID  string     `json:"blob_id,omitempty"`
-	Deleted bool       `json:"deleted,omitempty"`
-	Source  string     `json:"source"`
-	Flags   []Flag     `json:"flags,omitempty"`
+	Path       string     `json:"path"`
+	Kind       ChangeKind `json:"kind"`
+	SHA256     string     `json:"sha256,omitempty"`
+	BlobID     string     `json:"blob_id,omitempty"`
+	Deleted    bool       `json:"deleted,omitempty"`
+	Source     string     `json:"source"`
+	Flags      []Flag     `json:"flags,omitempty"`
+	Mode       string     `json:"mode,omitempty"`
+	BaseBlobID string     `json:"base_blob_id,omitempty"`
+	BaseMode   string     `json:"base_mode,omitempty"`
+	Captured   bool       `json:"captured,omitempty"`
 }
 
 // ContentID is the comparable identity of the file's proposed content.
@@ -157,7 +162,10 @@ type Fold struct {
 	Reason  string `json:"reason"`
 	// Paths are the folded proposal's files, so a same-epoch replacement of
 	// the combined proposal keeps carrying them.
-	Paths []string `json:"paths,omitempty"`
+	Paths     []string `json:"paths,omitempty"`
+	Revision  int      `json:"revision,omitempty"`
+	EffortRef string   `json:"effort_ref,omitempty"`
+	Evidence  Evidence `json:"evidence,omitempty"`
 }
 
 type Event struct {
@@ -201,6 +209,7 @@ func (p Proposal) Paths() []string {
 }
 
 type AnchorFile struct {
+	Mode    string `json:"mode,omitempty"`
 	Path    string `json:"path"`
 	SHA256  string `json:"sha256,omitempty"`
 	BlobID  string `json:"blob_id,omitempty"`
@@ -252,6 +261,7 @@ type Content struct {
 	BlobID  string
 	SHA256  string
 	Deleted bool
+	Mode    string
 }
 
 // ContentID is the comparable identity of the content.
@@ -279,6 +289,7 @@ type IndexEntry struct {
 // maps each changed path to its new blob ID, or DeletedBlob.
 type CommitFacts struct {
 	Blobs   map[string]string
+	Modes   map[string]string
 	Message string
 }
 
@@ -296,9 +307,15 @@ type Git interface {
 	Ignored(ctx context.Context, paths []string) ([]string, error)
 	ObjectExists(ctx context.Context, oid string) (bool, error)
 	Stage(ctx context.Context, paths []string) error
+	StageCaptured(ctx context.Context, files []File, blob func(context.Context, string) ([]byte, error)) error
 	RestoreIndex(ctx context.Context, paths []string, prior map[string]IndexEntry) error
 	CommitFacts(ctx context.Context, oid string) (CommitFacts, error)
+	Capture(ctx context.Context, base string, files []File) ([]File, map[string][]byte, error)
+	PrepareCommit(ctx context.Context, proposal Proposal, blob func(context.Context, string) ([]byte, error), check CandidateCheck, skipHooks bool) (CommitOutcome, error)
 }
+
+// CandidateCheck runs configured checks in the isolated candidate directory.
+type CandidateCheck func(context.Context, string) (*PrecommitOutcome, error)
 
 // SandboxPending returns, per path, the Workspace Sandbox runs whose applied
 // changes are still pending commit. Nil means unavailable.
@@ -306,7 +323,9 @@ type SandboxPending func(ctx context.Context) (map[string][]string, error)
 
 // Repo identifies the repository an operation runs against.
 type Repo struct {
-	ID      string
-	Git     Git
-	Sandbox SandboxPending
+	DisplayName string
+	Directory   string
+	ID          string
+	Git         Git
+	Sandbox     SandboxPending
 }

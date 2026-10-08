@@ -7,46 +7,50 @@ import {
 
 type Tone = "success" | "warning" | "error" | "info" | "default";
 
-export function freshnessMeta(state: FreshnessState | undefined): { label: string; tone: Tone; hint: string } {
+export function freshnessMeta(state: FreshnessState | undefined): {
+  label: string;
+  tone: Tone;
+  hint: string;
+} {
   switch (state) {
     case FreshnessState.FRESH:
-      return { label: "Fresh", tone: "success", hint: "Files still hold the proposed content" };
+      return {
+        label: "Unchanged",
+        tone: "success",
+        hint: "Working files match the saved proposal version; this does not establish attribution",
+      };
     case FreshnessState.DRIFTED:
-      return { label: "Drifted", tone: "warning", hint: "Some files changed after the proposal; refresh before approving" };
+      return {
+        label: "Newer edits",
+        tone: "warning",
+        hint: "These files have newer working edits. You can commit the proposal version and keep those edits uncommitted, or update the proposal to review the latest files.",
+      };
     case FreshnessState.BASE_MOVED:
-      return { label: "Base moved", tone: "warning", hint: "New commits touch proposal files; refresh before approving" };
+      return {
+        label: "Base changed",
+        tone: "warning",
+        hint: "New commits touch these files. Compare them and update the proposal before committing.",
+      };
     case FreshnessState.UNKNOWN:
-      return { label: "Unknown", tone: "default", hint: "The repository could not be read" };
+      return {
+        label: "Unknown",
+        tone: "default",
+        hint: "Approval standing could not be confirmed. See the reason below.",
+      };
     default:
-      return { label: "Closed", tone: "default", hint: "The proposal is no longer open" };
+      return {
+        label: "Closed",
+        tone: "default",
+        hint: "The proposal is no longer open",
+      };
   }
 }
 
-const FLAG_LABELS: Record<string, { label: string; hint: string; tone: Tone }> = {
-  mixed_prior_uncommitted: { label: "mixed", hint: "Dirty before the epoch began: the whole-file commit carries older uncommitted work", tone: "warning" },
-  other_open_proposal: { label: "shared", hint: "Another open proposal includes this file", tone: "warning" },
-  sandbox_pending: { label: "sandbox", hint: "Workspace Sandbox has applied changes to this file that are not committed", tone: "info" },
-  already_staged: { label: "staged", hint: "Already staged in the index", tone: "info" },
-  no_anchor: { label: "no anchor", hint: "No admission anchor existed, so older work could not be separated", tone: "default" },
-  outside_anchor_scope: { label: "out of scope", hint: "Outside the anchored scope", tone: "default" },
-};
-
-export function flagMeta(code: string): { label: string; hint: string; tone: Tone } {
-  return FLAG_LABELS[code] ?? { label: code.replace(/_/g, " "), hint: code, tone: "default" };
-}
-
-/** Flag counts across files, in first-seen order. */
-export function flagCounts(proposal: Proposal): Array<{ code: string; count: number }> {
-  const counts = new Map<string, number>();
-  for (const file of proposal.files) {
-    for (const flag of file.flags) {
-      counts.set(flag.code, (counts.get(flag.code) ?? 0) + 1);
-    }
-  }
-  return Array.from(counts, ([code, count]) => ({ code, count }));
-}
-
-export function kindMarker(kind: FileChangeKind): { letter: string; className: string; label: string } {
+export function kindMarker(kind: FileChangeKind): {
+  letter: string;
+  className: string;
+  label: string;
+} {
   switch (kind) {
     case FileChangeKind.ADDED:
       return { letter: "A", className: "text-emerald-400", label: "added" };
@@ -57,22 +61,46 @@ export function kindMarker(kind: FileChangeKind): { letter: string; className: s
   }
 }
 
-export function resolutionMeta(resolution: TrailerResolution): { label: string; className: string } {
+export function resolutionMeta(resolution: TrailerResolution): {
+  label: string;
+  className: string;
+} {
   switch (resolution) {
     case TrailerResolution.RESOLVED:
-      return { label: "resolved", className: "border-emerald-800/70 bg-emerald-950/40 text-emerald-200" };
+      return {
+        label: "resolved",
+        className: "border-emerald-800/70 bg-emerald-950/40 text-emerald-200",
+      };
     case TrailerResolution.LEGACY:
-      return { label: "legacy", className: "border-slate-700 bg-slate-900 text-slate-400" };
+      return {
+        label: "legacy",
+        className: "border-slate-700 bg-slate-900 text-slate-400",
+      };
     case TrailerResolution.NOT_APPLICABLE:
-      return { label: "kept", className: "border-slate-700 bg-slate-900 text-slate-300" };
+      return {
+        label: "kept",
+        className: "border-slate-700 bg-slate-900 text-slate-300",
+      };
     case TrailerResolution.INACCESSIBLE:
-      return { label: "private", className: "border-slate-700 bg-slate-900 text-slate-400" };
+      return {
+        label: "private",
+        className: "border-slate-700 bg-slate-900 text-slate-400",
+      };
     case TrailerResolution.DELETED:
-      return { label: "deleted", className: "border-red-900/70 bg-red-950/30 text-red-300" };
+      return {
+        label: "deleted",
+        className: "border-red-900/70 bg-red-950/30 text-red-300",
+      };
     case TrailerResolution.AMBIGUOUS:
-      return { label: "ambiguous", className: "border-amber-800/70 bg-amber-950/30 text-amber-200" };
+      return {
+        label: "ambiguous",
+        className: "border-amber-800/70 bg-amber-950/30 text-amber-200",
+      };
     default:
-      return { label: "unresolved", className: "border-blue-900/70 bg-blue-950/30 text-blue-200" };
+      return {
+        label: "unresolved",
+        className: "border-blue-900/70 bg-blue-950/30 text-blue-200",
+      };
   }
 }
 
@@ -91,7 +119,10 @@ export function shortOid(oid: string): string {
 export function proposalEpochs(proposal: Proposal): string[] {
   const epochs: string[] = [];
   for (const trailer of proposal.message?.trailers ?? []) {
-    const epoch = trailer.key.toLowerCase() === "vrooli-epoch" ? /#(E\d+)$/.exec(trailer.value.trim())?.[1] : undefined;
+    const epoch =
+      trailer.key.toLowerCase() === "vrooli-epoch"
+        ? /#(E\d+)$/.exec(trailer.value.trim())?.[1]
+        : undefined;
     if (epoch && !epochs.includes(epoch)) epochs.push(epoch);
   }
   const own = proposal.work?.epoch;
@@ -103,6 +134,44 @@ export function proposalEpochs(proposal: Proposal): string[] {
 export function epochsLabel(epochs: string[]): string {
   if (epochs.length <= 1) return epochs[0] ?? "";
   const numbers = epochs.map((epoch) => Number(epoch.slice(1)));
-  const consecutive = numbers.every((value, index) => index === 0 || value === (numbers[index - 1] ?? Number.NaN) + 1);
-  return consecutive ? `${epochs[0]}–${epochs[epochs.length - 1]}` : epochs.join(", ");
+  const consecutive = numbers.every(
+    (value, index) =>
+      index === 0 || value === (numbers[index - 1] ?? Number.NaN) + 1,
+  );
+  return consecutive
+    ? `${epochs[0]}–${epochs[epochs.length - 1]}`
+    : epochs.join(", ");
+}
+
+/** Earlier/unattributed whole-file content requires deliberate operator review. */
+export function hasPriorWork(
+  file: Pick<Proposal["files"][number], "flags">,
+): boolean {
+  return file.flags.some((flag) =>
+    ["mixed_prior_uncommitted", "no_anchor", "outside_anchor_scope"].includes(
+      flag.code,
+    ),
+  );
+}
+
+/** Plain-language review metadata shared by file rows and the captured diff. */
+export function describeFlag(code: string): string {
+  switch (code) {
+    case "mixed_prior_uncommitted":
+      return "Includes earlier uncommitted work";
+    case "no_anchor":
+      return "Earlier work could not be separated";
+    case "outside_anchor_scope":
+      return "Outside the epoch's anchored scope";
+    case "other_open_proposal":
+      return "Shared with another open proposal";
+    case "sandbox_pending":
+      return "Includes pending sandbox changes";
+    case "staged_version_differs":
+      return "A different version is staged";
+    case "already_staged":
+      return "Already staged";
+    default:
+      return code.replace(/_/g, " ");
+  }
 }
