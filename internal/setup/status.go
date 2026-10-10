@@ -61,8 +61,9 @@ func (s *setupService) runSetupStatus(root, home string, opts Options, stdout io
 	}
 	report = vrooliruntime.AnnotateInspectOnly(report, opts.IncludeOptional)
 	verdict := verifySetupReadiness(root, report, nil)
+	broker := s.deps.inspectPrivilegeBroker()
 	if opts.JSON {
-		return writeSetupStatusJSON(stdout, phase, report, verdict)
+		return writeSetupStatusJSON(stdout, phase, report, verdict, broker)
 	}
 	if verdict.Source == ReadinessSourceUnavailable {
 		_, _ = fmt.Fprintf(stdout, "[INFO]    Readiness: unverified (%s)\n", verdict.Reason)
@@ -81,7 +82,7 @@ func (s *setupService) runSetupStatus(root, home string, opts Options, stdout io
 		mode = renderModeVerbose
 	}
 	renderSetupRequirementOverview(stdout, report, false, mode)
-	renderPrivilegeBrokerStatus(stdout, s.deps.inspectPrivilegeBroker())
+	renderPrivilegeBrokerStatus(stdout, broker)
 	bootRecovery, bootErr := s.deps.bootRecoveryStatus(context.Background())
 	renderBootRecovery(stdout, bootRecovery, bootErr)
 	return nil
@@ -92,14 +93,15 @@ func (s *setupService) runSetupStatus(root, home string, opts Options, stdout io
 // `applied`, `execution_state`, `notes` and `evidence` fields; the shape is
 // the inspection report the human rendering is built from, not a summary.
 type SetupStatusReport struct {
-	Version     string                  `json:"version"`
-	Phase       string                  `json:"phase"`
-	Environment string                  `json:"environment"`
-	Readiness   SetupReadiness          `json:"readiness"`
-	Tools       []hostreqkit.ToolStatus `json:"tools"`
-	Safeguards  []hostreqkit.ItemStatus `json:"safeguards"`
-	Missing     SetupStatusMissing      `json:"missing"`
-	Host        hostreqkit.Host         `json:"host"`
+	Version         string                       `json:"version"`
+	Phase           string                       `json:"phase"`
+	Environment     string                       `json:"environment"`
+	Readiness       SetupReadiness               `json:"readiness"`
+	Tools           []hostreqkit.ToolStatus      `json:"tools"`
+	Safeguards      []hostreqkit.ItemStatus      `json:"safeguards"`
+	Missing         SetupStatusMissing           `json:"missing"`
+	Host            hostreqkit.Host              `json:"host"`
+	PrivilegeBroker *privilegebroker.SetupStatus `json:"privilege_broker,omitempty"`
 }
 
 // SetupStatusMissing lists the requirements the inspection found unmet.
@@ -112,7 +114,7 @@ type SetupStatusMissing struct {
 // branch on it and ignore unknown fields.
 const SetupStatusReportVersion = "1"
 
-func writeSetupStatusJSON(stdout io.Writer, phase string, report hostreqkit.Report, verdict SetupReadiness) error {
+func writeSetupStatusJSON(stdout io.Writer, phase string, report hostreqkit.Report, verdict SetupReadiness, broker ...privilegebroker.SetupStatus) error {
 	payload := SetupStatusReport{
 		Version:     SetupStatusReportVersion,
 		Phase:       phase,
@@ -123,6 +125,9 @@ func writeSetupStatusJSON(stdout io.Writer, phase string, report hostreqkit.Repo
 		Missing:     SetupStatusMissing{Required: append([]string{}, report.MissingRequired...), Optional: append([]string{}, report.MissingOptional...)},
 		Host:        report.Host,
 	}
+	if len(broker) > 0 {
+		payload.PrivilegeBroker = &broker[0]
+	}
 	encoder := json.NewEncoder(stdout)
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(payload)
@@ -131,6 +136,9 @@ func writeSetupStatusJSON(stdout io.Writer, phase string, report hostreqkit.Repo
 func renderPrivilegeBrokerStatus(stdout io.Writer, status privilegebroker.SetupStatus) {
 	if status.Available {
 		_, _ = fmt.Fprintf(stdout, "[INFO]    Privilege broker: available (%s)\n", status.SocketPath)
+		if len(status.Capabilities) > 0 {
+			_, _ = fmt.Fprintf(stdout, "[INFO]    Setup-managed capabilities: %s\n", strings.Join(status.Capabilities, ", "))
+		}
 		return
 	}
 	if status.Supported {

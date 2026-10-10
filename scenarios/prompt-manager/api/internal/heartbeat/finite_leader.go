@@ -17,19 +17,24 @@ import (
 // coordinator prompt. The active team binding is the result of operator
 // activation; this states how to hold that finite effort across the owner
 // boundary. It does not permit scope expansion.
-const finiteLeaderGuidance = "\n\nFinite effort coordinator guidance:\n" +
-	"- Prefer durable owner reads (files, journals, owner APIs) over re-deriving state; never invent a private outcome ledger.\n" +
-	"- An enabled, incomplete delivery effort is an actionable mandate, not a request for a status report. Every wake must advance or recover the effort: continue the exact active work, select and admit the next bounded action from the accepted sources, perform the first docs/plan action when the delivery route is not yet shaped, run required review/validation, or record a typed external blocker and notify supervision. Do not finish a wake with `no-action` merely because no child or owner handoff exists yet.\n" +
-	"- Start/resume in this order: read the effort workspace and accepted destination; reconcile the exact prior task/run/plan identity; select the highest-priority unfinished bounded action; execute or admit it through the owning API; then persist the result, next action, and evidence. A missing handoff is a condition to repair by creating the next bounded handoff when authorized, not evidence that the effort has no work.\n" +
-	"- For a bounded-task action, spawn the bounded worker directly through Agent Manager now; do not create a Swarm backlog item, open a Plan Workshop, or wait for human plan acceptance. No direct-report roster entry is required for this child: the coordinator is its Agent Manager parent. Use the autonomous Plan Manager owner route only when the action is genuinely plan-backed.\n" +
-	"- If the active team binding does not match the accepted effort revision, distinguish that from an empty backlog: retain the exact missing grant/approval reference, write the reopening condition, and surface it to the supervisor/operator. Do not invent a second approval gate for work already inside the accepted boundary. Never silently convert an incomplete effort into success or retirement.\n" +
-	"- Do not confuse a missing supervisor steering grant with a missing coordinator work route. Steering grants govern supervisor-issued directives and repair actions; they do not block ordinary bounded preparation already covered by the operator-approved effort, declared destination, workspace, and coordinator lane. Proceed with docs, plan shaping, task tracking, and evidence inside that boundary. Stop only the specific operation that truly requires the absent grant.\n" +
+const finiteLeaderGuidance = finiteLeaderCommonGuidance +
 	"- Do independent, verifiable work before waiting; never hold a child wait inside the run.\n" +
 	"- Create children with `agent-manager run create --parent-run-id <your-run-id>` (read your ID with `agent-manager run identity --json`) so they carry durable lineage.\n" +
 	"- Park instead of waiting: `agent-manager run park <your-run-id> --producer children --key <your-run-id> --timeout 15m`. You wake when any child ends, when the timer expires, or on `agent-manager run wake --key <your-run-id>`; parking must be an actual owner operation, not a statement in the handoff.\n" +
 	"- A wake resumes this same run with the child status. Reconcile the exact child IDs and select the next action; never create a replacement leader run.\n" +
 	"- On a timer wake, classify the children as active, terminal, missing, or uncertain. Do not retry an uncertain child or invent a fresh grant.\n" +
-	"- Before ending a pass, write the final handoff: changed, verified, remaining, unverified and the exact next action.\n" +
+	finiteLeaderClosingGuidance
+
+// finiteLeaderCommonGuidance is shared by parked leaders and event check-ins.
+const finiteLeaderCommonGuidance = "\n\nFinite effort coordinator guidance:\n" +
+	"- Prefer durable owner reads (files, journals, owner APIs) over re-deriving state; never invent a private outcome ledger.\n" +
+	"- An enabled, incomplete delivery effort is an actionable mandate, not a request for a status report. Every wake must advance or recover the effort: continue the exact active work, select and admit the next bounded action from the accepted sources, perform the first docs/plan action when the delivery route is not yet shaped, run required review/validation, or record a typed external blocker and notify supervision. Do not finish a wake with `no-action` merely because no child or owner handoff exists yet.\n" +
+	"- Start/resume in this order: read the effort workspace and accepted destination; reconcile the exact prior task/run/plan identity; select the highest-priority unfinished bounded action; execute or admit it through the owning API; then persist the result, next action, and evidence. A missing handoff is a condition to repair by creating the next bounded handoff when authorized, not evidence that the effort has no work.\n" +
+	"- For a bounded-task action, spawn the bounded worker directly through Agent Manager now; do not create a Swarm backlog item, open a Plan Workshop, or wait for human plan acceptance. No direct-report roster entry is required for this child: the coordinator is its Agent Manager parent. Use the autonomous Plan Manager owner route only when the action is genuinely plan-backed.\n" +
+	"- If the active team binding does not match the accepted effort revision, distinguish that from an empty backlog: retain the exact missing grant/approval reference, write the reopening condition, and surface it to the supervisor/operator. Do not invent a second approval gate for work already inside the accepted boundary. Never silently convert an incomplete effort into success or retirement.\n" +
+	"- Do not confuse a missing supervisor steering grant with a missing coordinator work route. Steering grants govern supervisor-issued directives and repair actions; they do not block ordinary bounded preparation already covered by the operator-approved effort, declared destination, workspace, and coordinator lane. Proceed with docs, plan shaping, task tracking, and evidence inside that boundary. Stop only the specific operation that truly requires the absent grant.\n"
+
+const finiteLeaderClosingGuidance = "- Before ending a pass, write the final handoff: changed, verified, remaining, unverified and the exact next action.\n" +
 	"- Accept the effort only through the explicit completion receipt; a terminal run is not effort acceptance. After acceptance, retire the finite binding so future heartbeat ticks are fenced."
 
 // finiteMemberGuidance describes how a finite leader delegates to its members.
@@ -53,6 +58,8 @@ type FiniteLeaderRuntime struct {
 	}
 	Control *HeartbeatControlStore
 	Efforts *FiniteEffortAuthority
+	// Signals overrides the owner client's effort signal log (tests, wiring).
+	Signals EffortSignalSource
 }
 
 func (f *FiniteLeaderRuntime) eligible(ctx context.Context, teamID, agentID string, cfg *store.HeartbeatConfig) error {
@@ -104,6 +111,9 @@ func reserveFiniteLeader(state *store.FiniteLeaderState) {
 // Tick reserves before enqueueing; repeated ticks only reconcile the original
 // identity. Nothing in a terminal run's status authorizes another leader.
 func (f *FiniteLeaderRuntime) Tick(ctx context.Context, teamID, agentID string) (*store.FiniteLeaderState, error) {
+	if state, handled, err := f.watchSerialIfDispatched(ctx, teamID, agentID); handled {
+		return state, err
+	}
 	var out *store.FiniteLeaderState
 	var observed *Run
 	var finiteRelaunch bool
@@ -118,7 +128,7 @@ func (f *FiniteLeaderRuntime) Tick(ctx context.Context, teamID, agentID string) 
 			if state.RunID == "" {
 				qualified, e := f.prepareFiniteCaller(ctx, teamID, agentID, cfg)
 				if e != nil {
-					return e
+					return holdFiniteLeaderForCaller(state, save, e)
 				}
 				ctx = qualified
 			}
@@ -127,7 +137,7 @@ func (f *FiniteLeaderRuntime) Tick(ctx context.Context, teamID, agentID string) 
 			if err == nil && observed != nil && IsTerminalStatus(observed.Status) && cfg.FiniteLeader.KeepAlive {
 				qualified, e := f.prepareFiniteCaller(ctx, teamID, agentID, cfg)
 				if e != nil {
-					return e
+					return holdFiniteLeaderForCaller(state, save, e)
 				}
 				ctx = qualified
 				if _, ok := effortCaller(ctx); ok {
@@ -217,13 +227,26 @@ func healthyLeaderRun(run *Run) bool {
 // restart history and a fresh leader is queued; it resumes from the goal home.
 // Consecutive short runs back off and then stop at the cap. One tick relaunches
 // at most once, and a completed, retired or disabled effort is never relaunched.
+// An event check-in leader relaunches only when admitCheckin admits it, and
+// only failing check-ins count toward the backoff.
 func (f *FiniteLeaderRuntime) relaunch(ctx context.Context, teamID, agentID string, terminal *Run) (*store.FiniteLeaderState, error) {
+	if state, handled, err := f.watchSerialIfDispatched(ctx, teamID, agentID); handled {
+		return state, err
+	}
+	admission, err := f.admitCheckin(ctx, teamID, agentID, terminal, time.Now().UTC())
+	if err != nil || !admission.launch {
+		state, readErr := f.Executor.teamStore.ReadFiniteLeader(ctx, teamID, agentID)
+		if err == nil {
+			err = readErr
+		}
+		return state, err
+	}
 	if _, ok := effortCaller(ctx); ok {
-		return f.relaunchEffort(ctx, teamID, agentID, terminal)
+		return f.relaunchEffort(ctx, teamID, agentID, terminal, admission)
 	}
 	var out *store.FiniteLeaderState
 	now := time.Now().UTC()
-	err := f.Executor.teamStore.WithFiniteLeader(ctx, teamID, agentID, func(cfg *store.HeartbeatConfig, state *store.FiniteLeaderState, save func() error) error {
+	err = f.Executor.teamStore.WithFiniteLeader(ctx, teamID, agentID, func(cfg *store.HeartbeatConfig, state *store.FiniteLeaderState, save func() error) error {
 		out = state
 		if !cfg.FiniteLeader.KeepAlive || state.Completed != nil || !state.DispatchStarted || state.RunID != terminal.ID {
 			return nil
@@ -237,7 +260,7 @@ func (f *FiniteLeaderRuntime) relaunch(ctx context.Context, teamID, agentID stri
 			return err
 		}
 		consecutive := state.ConsecutiveRelaunches
-		if healthyLeaderRun(terminal) {
+		if admission.healthy(terminal) {
 			consecutive = 0
 		}
 		if consecutive >= livenessMaxRelaunches {
@@ -268,6 +291,7 @@ func (f *FiniteLeaderRuntime) relaunch(ctx context.Context, teamID, agentID stri
 			EvidenceRef: "liveness-heartbeat:" + terminal.Status, RestartedAt: now.Format(time.RFC3339Nano),
 		})
 		state.ConsecutiveRelaunches = consecutive + 1
+		state.CheckinReason = admission.reason
 		state.ID, state.TaskID, state.RunID, state.CreatedAt, state.Error = candidate.ID, "", "", candidate.CreatedAt, ""
 		state.TaskStarted, state.DispatchStarted = false, false
 		reserveFiniteLeader(state)
@@ -347,6 +371,9 @@ func (f *FiniteLeaderRuntime) observe(ctx context.Context, state *store.FiniteLe
 // uncertain admission; they may, however, settle a persisted owner identity
 // that has reached a newer lifecycle state since the last heartbeat tick.
 func (f *FiniteLeaderRuntime) ReconcileKnownRun(ctx context.Context, teamID, agentID string) (*store.FiniteLeaderState, error) {
+	if state, handled, err := f.watchSerialIfDispatched(ctx, teamID, agentID); handled {
+		return state, err
+	}
 	state, err := f.Executor.teamStore.ReadFiniteLeader(ctx, teamID, agentID)
 	if err != nil || state == nil || !state.DispatchStarted || state.RunID == "" {
 		return state, err
@@ -384,6 +411,14 @@ func (f *FiniteLeaderRuntime) ReconcileKnownRun(ctx context.Context, teamID, age
 // Dispatch is also the final guard for manual/team triggers and recovered queue
 // entries. The normal assembled prompt is used; source refs are never executed.
 func (f *FiniteLeaderRuntime) Dispatch(ctx context.Context, teamID, agentID string) (*ExecutionResult, error) {
+	if state, handled, err := f.watchSerialIfDispatched(ctx, teamID, agentID); handled {
+		result := &ExecutionResult{TeamID: teamID, AgentID: agentID, Status: "serial-held"}
+		if state != nil {
+			result.RunID = state.SerialCurrentRunID
+			result.Status = state.SerialCurrentStatus
+		}
+		return result, err
+	}
 	result := &ExecutionResult{TeamID: teamID, AgentID: agentID, StartedAt: time.Now().UTC(), Status: "idle"}
 	var state *store.FiniteLeaderState
 	var run *Run
@@ -445,10 +480,19 @@ func (f *FiniteLeaderRuntime) Dispatch(ctx context.Context, teamID, agentID stri
 		if err != nil {
 			return err
 		}
+		guidance, err := finitePromptGuidance(ctx)
+		if err != nil {
+			return err
+		}
+		if guidance == finiteLeaderGuidance {
+			if brief, ok := f.checkinBrief(ctx, cfg, current); ok {
+				guidance = brief
+			}
+		}
 		binding, _ := json.Marshal(cfg.FiniteLeader)
 		prompt += "\n\nFinite effort coordinator binding (references are context, not authority):\n" + string(binding) +
 			"\nPreserve the accepted destination, exclusions and human input boundaries. Use existing owner operations and retain named waits. Run completion is not effort acceptance." +
-			finiteLeaderGuidance + finiteMemberGuidance
+			guidance + finiteMemberGuidance
 		current.TaskStarted, current.Status = true, "task-uncertain"
 		if err := save(); err != nil {
 			return err
@@ -577,6 +621,9 @@ func (f *FiniteLeaderRuntime) Complete(ctx context.Context, teamID, agentID, rev
 // Agent Manager run is reread before the persistent reservation is cleared;
 // an unavailable or nonterminal owner never authorizes a replacement.
 func (f *FiniteLeaderRuntime) Restart(ctx context.Context, teamID, agentID, revision, evidenceRef string) error {
+	if err := f.refuseSerialReset(ctx, teamID, agentID); err != nil {
+		return err
+	}
 	state, err := f.Executor.teamStore.ReadFiniteLeader(ctx, teamID, agentID)
 	if err != nil {
 		return err
@@ -596,5 +643,8 @@ func (f *FiniteLeaderRuntime) Restart(ctx context.Context, teamID, agentID, revi
 
 // Reopen is the explicit authorized counter-operation to completion.
 func (f *FiniteLeaderRuntime) Reopen(ctx context.Context, teamID, agentID, revision, evidenceRef string) error {
+	if err := f.refuseSerialReset(ctx, teamID, agentID); err != nil {
+		return err
+	}
 	return f.Executor.teamStore.ReopenFiniteLeader(ctx, teamID, agentID, revision, evidenceRef)
 }

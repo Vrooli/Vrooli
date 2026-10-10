@@ -99,11 +99,17 @@ not a display name or an unverified historical key:
 }
 ```
 
-Add `--update` only to bind an existing unused disabled heartbeat. Provisioning
-always sends `enabled:false`. It validates a single JSON object of at most 16 KiB
-and refuses unknown fields, including an activation flag. The command verifies
-the returned exact binding and disabled state; an older server ignoring the new
-fields cannot be reported as successful provisioning. Neither command starts an
+Provisioning a new binding always sends `enabled:false`. `--update` changes an
+existing binding's policy and never sends `enabled`, so an active leader stays
+active and a disabled one stays disabled. With `--update` and no
+`--request-file`, `--checkin-mode parked|event`, `--checkin-poll <duration>` and
+`--checkin-backstop <duration>` change only the check-in policy of the current
+binding (see Orchestrator liveness in `docs/concepts/HEARTBEATS.md`); the flags
+also override the policy in a request file. The binding file is a single JSON
+object of at most 16 KiB with no unknown fields, including an activation flag.
+The command verifies the returned exact binding and an unchanged enabled state;
+an older server ignoring the new fields cannot be reported as successful
+provisioning. Neither command starts an
 agent or supplies an effort grant.
 
 Retire future finite dispatch while retaining the current run and reservation:

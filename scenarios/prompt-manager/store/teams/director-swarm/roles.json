@@ -16,7 +16,7 @@
     {
       "id": "vision-walk-prep",
       "name": "Vision Walk Prep",
-      "description": "Synthesizes a daily structured briefing from all director-swarm outputs and swarm-manager state for the human's morning vision walk."
+      "description": "Prepares the operator's morning vision-walk briefing by executing the command-center-vision-walk-prep capability; Command Center owns the preparation contract, its sources, and its bounds."
     },
     {
       "id": "director-contrarian",

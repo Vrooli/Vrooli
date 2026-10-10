@@ -33,13 +33,19 @@ func effortDiscoveryConfig() supervision.EffortDiscoveryConfig {
 		}
 	}
 	interval, _ := time.ParseDuration(os.Getenv("AGENT_MANAGER_EFFORT_SCAN_INTERVAL"))
-	return supervision.EffortDiscoveryConfig{Root: root, Interval: interval, StandingAllowanceRef: strings.TrimSpace(os.Getenv("AGENT_MANAGER_SUPERVISION_ALLOWANCE_REF"))}
+	projectRoot := strings.TrimSpace(os.Getenv("PROJECT_ROOT"))
+	if projectRoot == "" {
+		projectRoot, _ = filepath.Abs(filepath.Join("..", "..", ".."))
+	}
+	return supervision.EffortDiscoveryConfig{Root: root, Interval: interval, StandingAllowanceRef: strings.TrimSpace(os.Getenv("AGENT_MANAGER_SUPERVISION_ALLOWANCE_REF")), ProjectRoot: projectRoot}
 }
 
 type supervisionRunController struct{ orchestrator *orchestration.Orchestrator }
 
+// GetRun reads stored run state. Supervision decides from status, lineage
+// and admission fields, never from the derived goal status or action views.
 func (c supervisionRunController) GetRun(ctx context.Context, id uuid.UUID) (*domain.Run, error) {
-	return c.orchestrator.GetRun(ctx, id)
+	return c.orchestrator.GetStoredRun(ctx, id)
 }
 
 func (c supervisionRunController) ContinueRun(ctx context.Context, id uuid.UUID, message, idempotencyKey string) error {

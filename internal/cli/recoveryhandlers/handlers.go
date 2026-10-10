@@ -106,10 +106,10 @@ func buildCommandTable[C any](deps rootcli.HandlerDeps[C]) []commandtree.Spec[ro
 		recoverycli.CommandClean: recoveryCommand(deps.Stdout,
 			deps.OutputFormat,
 			serviceFactory,
-			func(ctx C, args []string) (recoveryapp.Ref, error) {
-				return recoverycli.ParseRefRequest(recoverycli.CommandClean, "recovery clean", args)
+			func(ctx C, args []string) (recoveryapp.CleanRequest, error) {
+				return recoverycli.ParseCleanRequest(args)
 			},
-			func(service recoveryapp.Service, req recoveryapp.Ref) (recoveryapp.CleanOutput, error) {
+			func(service recoveryapp.Service, req recoveryapp.CleanRequest) (recoveryapp.CleanOutput, error) {
 				return service.Clean(req)
 			},
 			recoverycli.RenderClean,
@@ -156,7 +156,7 @@ func newService[C any](deps rootcli.HandlerDeps[C], ctx C) (recoveryapp.Service,
 	if err != nil {
 		return recoveryapp.Service{}, err
 	}
-	return recoveryapp.Service{Root: deps.Root(ctx), Store: store, Clock: deps.Clock}, nil
+	return recoveryapp.Service{Root: deps.Root(ctx), Store: store, Clock: deps.Clock, Live: liveControl[C]{deps: deps, ctx: ctx}}, nil
 }
 
 func resolveStore[C any](deps rootcli.HandlerDeps[C], ctx C) (*baselinefloor.Store, error) {

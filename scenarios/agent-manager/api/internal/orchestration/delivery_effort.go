@@ -1,3 +1,4 @@
+// Responsibility: enforce the retained delivery resource identity during continuation.
 package orchestration
 
 import (

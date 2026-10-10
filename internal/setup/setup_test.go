@@ -1550,6 +1550,12 @@ func stubSetupDeps(t *testing.T) *setupService {
 	// credential backend readiness is covered by the securestore tests and is
 	// deliberately not allowed to probe the developer's real keyring here.
 	deps.configureCredentialBackend = func(io.Writer, io.Writer) error { return nil }
+	// Setup orchestration fixtures must never install real resources or probe
+	// operator capability owners. Individual boundary tests replace these seams.
+	deps.resourceController = func(string, string) resourceRunner {
+		return resourceRunnerFunc(func(string, []string, io.Writer, io.Writer) error { return nil })
+	}
+	deps.discoverCapabilities = func(context.Context, string, string) ([]operatorcapability.Status, error) { return nil, nil }
 	return newSetupService(deps)
 }
 

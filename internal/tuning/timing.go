@@ -67,6 +67,12 @@ const (
 	defaultHostInventoryTTL                 = 30 * time.Second
 	// SupervisorHealthInterval controls supervisor health observation cadence.
 	defaultSupervisorHealthInterval = 45 * time.Second
+	// AgentSessionIdleAfter is how long a live agent session may show no
+	// activity before `vrooli agent list` reports it idle.
+	defaultAgentSessionIdleAfter = 7 * 24 * time.Hour
+	// AgentOrphanReapInterval is the runtime supervisor's orphaned agent
+	// session reap cadence. Zero is off, the compiled default.
+	defaultAgentOrphanReapInterval time.Duration = 0
 	// ReachabilityTimeout bounds a service reachability probe.
 	defaultReachabilityTimeout = 60 * time.Second
 	// CredentialRepairTimeout bounds credential repair attempts.
@@ -359,6 +365,19 @@ func StructureProviderBudget() time.Duration {
 // HostInventoryTTL controls host inventory ttl.
 func HostInventoryTTL() time.Duration {
 	return Duration("HostInventoryTTL", defaultHostInventoryTTL)
+}
+
+// AgentSessionIdleAfter controls how long a live agent session may show no
+// activity before it is reported idle.
+func AgentSessionIdleAfter() time.Duration {
+	return Duration("AgentSessionIdleAfter", defaultAgentSessionIdleAfter)
+}
+
+// AgentOrphanReapInterval controls how often the runtime supervisor stops
+// orphaned agent sessions. Zero (the compiled default) disables the periodic
+// reap; `vrooli agent reap --orphaned` remains the operator path.
+func AgentOrphanReapInterval() time.Duration {
+	return Duration("AgentOrphanReapInterval", defaultAgentOrphanReapInterval)
 }
 
 // SupervisorHealthInterval controls supervisor health interval.

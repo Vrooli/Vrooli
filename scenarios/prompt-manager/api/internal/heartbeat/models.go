@@ -262,6 +262,16 @@ type UpdateTeamCorpusRequest struct {
 type KnowledgeListResponse struct {
 	TeamID  string                 `json:"teamId"`
 	Entries []store.KnowledgeEntry `json:"entries"`
+	// Total is the number of matching entries before `last` was applied.
+	Total int `json:"total"`
+}
+
+// CloseTeamCorpusRequest closes a team-corpus entry. Reason is one of fixed,
+// stale, duplicate-of, routed-to; Ref is required for the last two.
+type CloseTeamCorpusRequest struct {
+	Reason string `json:"reason"`
+	Ref    string `json:"ref,omitempty"`
+	Note   string `json:"note,omitempty"`
 }
 
 // BugCaptureRequest is the typed Scenario QA reporter surface. It mirrors the

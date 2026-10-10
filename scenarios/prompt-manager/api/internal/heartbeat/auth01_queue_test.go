@@ -3,12 +3,13 @@ package heartbeat
 import (
 	"context"
 	"encoding/json"
-	"github.com/vrooli/api-core/owneridentity"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/vrooli/api-core/owneridentity"
 )
 
 type auth01QueueExecutor struct{ calls chan context.Context }
@@ -17,7 +18,9 @@ func (e *auth01QueueExecutor) Execute(ctx context.Context, _, _, _ string) (*Exe
 	e.calls <- ctx
 	return &ExecutionResult{}, nil
 }
+
 func TestAuth01ManualQueueCarriesOriginalProof(t *testing.T) {
+	enforceAuth01(t)
 	e := &auth01QueueExecutor{make(chan context.Context, 2)}
 	client := &AgentManagerClient{createCallerVerifier: auth01ConversationVerifier{}}
 	q := newTeamExecutionContext("fixture", e, t.TempDir(), client)
@@ -50,7 +53,9 @@ func TestAuth01ManualQueueCarriesOriginalProof(t *testing.T) {
 	}
 	q.executionWG.Wait()
 }
+
 func TestAuth01QueueMissingExpiredRecoveryHasNoDispatch(t *testing.T) {
+	enforceAuth01(t)
 	client := &AgentManagerClient{createCallerVerifier: auth01ConversationVerifier{}}
 	q := newTeamExecutionContext("fixture", &auth01QueueExecutor{make(chan context.Context, 1)}, t.TempDir(), client)
 	if _, err := q.Enqueue(context.Background(), "bad", "profile"); err == nil || len(q.running) != 0 || len(q.queue) != 0 {
@@ -79,7 +84,9 @@ type auth01QueueExpiredVerifier struct{}
 func (auth01QueueExpiredVerifier) Validate(context.Context, string) (owneridentity.Identity, error) {
 	return owneridentity.Identity{Subject: "fixture", Scopes: []string{"agent-manager:write"}, ExpiresAt: time.Now().Add(-time.Hour)}, nil
 }
+
 func TestAuth01ManualTriggersRefuseBeforeEffects(t *testing.T) {
+	enforceAuth01(t)
 	h := &Handlers{runCallerValidator: auth01ConversationVerifier{}}
 	for _, handler := range []func(http.ResponseWriter, *http.Request){h.TriggerHeartbeat, h.TriggerTeam} {
 		for _, header := range []http.Header{{}, {"Authorization": []string{"Bearer valid", "Bearer duplicate"}}, {"Authorization": []string{"Bearer valid"}, "X-Agent-Identity-Token": []string{"wrong-channel"}}} {
@@ -95,6 +102,7 @@ func TestAuth01ManualTriggersRefuseBeforeEffects(t *testing.T) {
 }
 
 func TestAuth01ManualQueueRecoveryHeldWithoutProof(t *testing.T) {
+	enforceAuth01(t)
 	dir := t.TempDir()
 	client := &AgentManagerClient{createCallerVerifier: auth01ConversationVerifier{}}
 	q := newTeamExecutionContext("fixture", &captureExecutor{}, dir, client)
@@ -113,4 +121,19 @@ func TestAuth01ManualQueueRecoveryHeldWithoutProof(t *testing.T) {
 	if len(restored.dispatchAvailableLocked()) != 0 {
 		t.Fatal("recovered intent dispatched")
 	}
+	// P-18: with enforcement off a recovered ordinary intent is a stale tick,
+	// as before AUTH-01, so it neither holds the member nor dispatches.
+	t.Setenv(owneridentity.CreateRunCallerEnforceEnv, "")
+	released := newTeamExecutionContext("fixture", &captureExecutor{}, dir, client)
+	released.Recover(context.Background())
+	if len(released.queue) != 0 || released.queued["manual"] {
+		t.Fatal("stale manual intent held while enforcement is off")
+	}
+}
+
+// enforceAuth01 runs a test with the AUTH-01 caller switch on. Enforcement is
+// off by default (operator decision P-18); these tests qualify the on state.
+func enforceAuth01(t *testing.T) {
+	t.Helper()
+	t.Setenv(owneridentity.CreateRunCallerEnforceEnv, "true")
 }

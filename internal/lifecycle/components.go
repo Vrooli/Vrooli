@@ -155,7 +155,24 @@ func goModuleBuildArgvForRoot(root string) ([]string, error) {
 		}
 		return nil, err
 	}
-	flags := policy.For("scenario")
+	return withGoBuildFlags(argv, policy.For("scenario")), nil
+}
+
+// goModuleBuildArgvForItem is the Go build argv for one scenario instance. An
+// instance routed to a serving tree (SourceDir set) builds outside the
+// repository checkout, so Go's VCS stamping would probe an unrelated ancestor
+// directory (a stray ~/.git fails the build) instead of the repository.
+// Stamping is disabled for that build only.
+func goModuleBuildArgvForItem(root string, item scenario.Scenario) ([]string, error) {
+	argv, err := goModuleBuildArgvForRoot(root)
+	if err != nil || strings.TrimSpace(item.SourceDir) == "" {
+		return argv, err
+	}
+	return withGoBuildFlags(argv, []string{"-buildvcs=false"}), nil
+}
+
+// withGoBuildFlags inserts each flag that is not already present before -o.
+func withGoBuildFlags(argv, flags []string) []string {
 	insertAt := len(argv)
 	for index, value := range argv {
 		if value == "-o" {
@@ -178,7 +195,7 @@ func goModuleBuildArgvForRoot(root string) ([]string, error) {
 			insertAt++
 		}
 	}
-	return argv, nil
+	return argv
 }
 
 // NormalizeBuildMode folds a raw VROOLI_BUILD_MODE value to the recognised

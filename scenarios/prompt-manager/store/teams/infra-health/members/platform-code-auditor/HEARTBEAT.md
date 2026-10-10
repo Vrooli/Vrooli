@@ -16,3 +16,9 @@ Audit one platform slice deeply. The goal is actionable reliability signal, not 
 ## Run Decision
 
 Record durable continuity in your declared Source Ledger topics. Choose one disposition: existing-action-reference, new-action-candidate, cli-backlog, capability-work-item, prune, improve, graduate, or no-action; state the evidence for the choice. Preserve any narrower lane-specific decisions stated in the task loop.
+
+## Stop Conditions
+
+- **Instrument unavailable.** If the instrument or tool this slice depends on cannot be read, record one line naming it and stop.
+- **Nothing changed.** If the platform code in the selected slice has not changed since its last `platform-code-audit/*` entry, record one line saying so and stop. Do not re-audit an unchanged slice.
+- **Never file a challenge as a new Swarm item.** Record a disagreement with an existing item as an annotation on that item (`swarm-manager backlog update --kind <kind> --name <name> --data '<json>'`), not as a new item.

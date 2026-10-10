@@ -2,10 +2,10 @@
 
 ## Resume Protocol
 
-On the first heartbeat after the team is re-enabled (or after any long pause), re-baseline before proposing anything: read `path:scenarios/swarm-manager/docs/concepts/OPERATOR-JOURNEYS.md` for the current operator loop, take a fresh `swarm-manager goals context` snapshot into `goal-portfolio-record/YYYY-MM-DD`, and verify which approved work items were applied while paused. Triage open work items whose context no longer exists in `team.json`: supersede each one, re-raising it under the current work item vocabulary only if its evidence still holds. Raise no other new work items on that pass.
+On the first heartbeat after the team is re-enabled (or after any long pause), re-baseline before proposing anything: read `path:scenarios/swarm-manager/docs/concepts/OPERATOR-JOURNEYS.md` for the current operator loop, take a fresh snapshot from `swarm-manager goals list --json` (and `swarm-manager goals context --name <goal> --json` for each active goal) into `goal-portfolio-record/YYYY-MM-DD`, and verify which approved work items were applied while paused. Triage open work items whose context no longer exists in `team.json`: supersede each one, re-raising it under the current work item vocabulary only if its evidence still holds. Raise no other new work items on that pass.
 
 ## Task Loop
-1. Review accepted portfolio work items and mark supported applications.
+1. Review portfolio work items the operator has moved to `ready` (Swarm Manager has no `accepted` status; see `path:docs/agent-system/SWARM_MANAGER_WORK.md` §"Lifecycle") and mark supported applications. Operator decision is the consumer of this team's items.
 2. Inspect current goal and backlog state.
 3. Read Swarm Manager's canonical item staleness verdict from `swarm-manager backlog list --status backlog --archived false --json`. Select only rows where `.stale == true`, sort by `.updated` ascending, and inspect at most the 6 oldest items. For each selected item, assign `keep`, `refresh`, or `supersede` and cite its age, whether its plan reference resolves, and whether its acceptance paths still exist.
 4. Separately select active goals whose `.goal.updated` is at least 14 days old from `swarm-manager goals list --json`, sort oldest first, and inspect at most the 3 oldest goals. For each selected goal, assign `keep`, `refresh`, or `supersede` and cite its age, acceptance criteria, milestone state, and target state.
@@ -20,3 +20,9 @@ On the first heartbeat after the team is re-enabled (or after any long pause), r
 ## Run Decision
 
 Record durable continuity in your declared Source Ledger topics. Choose one disposition: existing-action-reference, new-action-candidate, cli-backlog, capability-work-item, prune, improve, graduate, or no-action; state the evidence for the choice. Preserve any narrower lane-specific decisions stated in the task loop.
+
+## Stop Conditions
+
+- **Instrument unavailable.** If `swarm-manager` cannot be reached, record one line saying so and stop.
+- **Nothing changed.** If the stale batch and the roadmap delta match the last `goal-portfolio-record/*` entry and that batch is still undispositioned, record one line saying so and stop. Do not re-propose the same batch.
+- **Never file a challenge as a new Swarm item.** Record a disagreement with an existing item as an annotation on that item (`swarm-manager backlog update --kind <kind> --name <name> --data '<json>'`), not as a new item.

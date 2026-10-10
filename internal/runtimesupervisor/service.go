@@ -21,6 +21,7 @@ import (
 	"github.com/vrooli/platform-go"
 	"github.com/vrooli/repo-contract-go/cliinvoke"
 	"github.com/vrooli/vrooli/internal/accel"
+	"github.com/vrooli/vrooli/internal/agentsession"
 	"github.com/vrooli/vrooli/internal/hostsession"
 	"github.com/vrooli/vrooli/internal/maintenance"
 	"github.com/vrooli/vrooli/internal/network"
@@ -134,6 +135,14 @@ type Config struct {
 	// which is the correct behaviour anywhere the control plane's resource
 	// layer is not reachable.
 	AcceleratorProbe AcceleratorProbe
+	// AgentOrphanReapInterval is how often the supervisor stops agent
+	// sessions whose owner is confirmed gone. Zero takes
+	// tuning.AgentOrphanReapInterval(), whose compiled default is zero: the
+	// periodic reap is OFF unless the operator sets
+	// VROOLI_TUNING_AGENT_ORPHAN_REAP_INTERVAL for the supervisor.
+	AgentOrphanReapInterval time.Duration
+	// AgentOrphanReap performs one reap; nil uses agentsession.ReapOrphaned.
+	AgentOrphanReap func(ctx context.Context, request agentsession.ReapRequest) ([]agentsession.Result, error)
 }
 
 type Service struct {
@@ -150,6 +159,8 @@ type Service struct {
 	// lastLogBound is when the scenario log size bound last ran; it runs at
 	// most once per logBoundInterval, not every renewal tick.
 	lastLogBound time.Time
+	// lastAgentReap is when the orphaned agent session reap last ran.
+	lastAgentReap time.Time
 }
 
 // logBoundInterval spaces log bound sweeps. A runaway writer is caught within
@@ -175,6 +186,15 @@ type TickReport struct {
 	Accelerator AcceleratorReprobeReport `json:"accelerator"`
 	// LogBound reports the scenario log size bound when it ran this tick.
 	LogBound LogBoundReport `json:"log_bound"`
+	// AgentReap reports the orphaned agent session reap when it ran.
+	AgentReap AgentReapReport `json:"agent_reap"`
+}
+
+// AgentReapReport is one periodic orphaned agent session reap.
+type AgentReapReport struct {
+	Ran     bool `json:"ran"`
+	Stopped int  `json:"stopped"`
+	Failed  int  `json:"failed"`
 }
 
 type LogBoundReport struct {
@@ -474,8 +494,56 @@ func (s *Service) Tick(ctx context.Context) (TickReport, error) {
 	report.Recovery = recovery
 	report.Accelerator = s.reprobeAccelerators(ctx)
 	report.LogBound = s.boundLogs()
+	report.AgentReap = s.reapOrphanedAgentSessions(ctx)
 	s.lastReport = report
 	return report, nil
+}
+
+// reapOrphanedAgentSessions stops agent sessions whose owner is confirmed
+// gone, at most once per configured interval. It is off by default: the
+// interval's compiled default is zero, and the operator path `vrooli agent
+// reap --orphaned [--dry-run]` exists so the policy can be watched before it
+// is trusted unattended. A reap failure is logged and never fails the tick.
+func (s *Service) reapOrphanedAgentSessions(ctx context.Context) AgentReapReport {
+	interval := s.cfg.AgentOrphanReapInterval
+	if interval <= 0 {
+		interval = tuning.AgentOrphanReapInterval()
+	}
+	if interval <= 0 {
+		return AgentReapReport{}
+	}
+	now := s.now()
+	if !s.lastAgentReap.IsZero() && now.Sub(s.lastAgentReap) < interval {
+		return AgentReapReport{}
+	}
+	s.lastAgentReap = now
+	reap := s.cfg.AgentOrphanReap
+	if reap == nil {
+		reap = agentsession.ReapOrphaned
+	}
+	results, err := reap(ctx, agentsession.ReapRequest{
+		Home: s.cfg.HomeDir, DBPath: s.cfg.DBPath, Initiator: "runtime-supervisor",
+		Policy: agentsession.ReapPolicy{OlderThan: agentsession.DefaultReapOlderThan},
+	})
+	report := AgentReapReport{Ran: true}
+	if err != nil {
+		s.logf("orphaned agent session reap degraded: %v", err)
+		return report
+	}
+	for _, result := range results {
+		switch result.Outcome {
+		case agentsession.OutcomeStopped:
+			report.Stopped++
+		case agentsession.OutcomeKept, agentsession.OutcomeOwnerReturns:
+		default:
+			report.Failed++
+			s.logf("orphaned agent session %s not stopped: %s %s", result.Candidate.Session.ScopeUnit(), result.Outcome, result.Error)
+		}
+	}
+	if report.Stopped > 0 {
+		s.logf("orphaned agent session reap stopped %d session(s)", report.Stopped)
+	}
+	return report
 }
 
 // boundLogs keeps every scenario log under the runtime logs root within

@@ -23,7 +23,7 @@
       "prompt-manager"
     ]
   },
-  "revision": 20,
+  "revision": 22,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
@@ -33,5 +33,5 @@
     "orchestration",
     "evidence"
   ],
-  "updatedAt": "2026-09-30T18:00:00Z"
+  "updatedAt": "2026-10-06T18:00:00Z"
 }

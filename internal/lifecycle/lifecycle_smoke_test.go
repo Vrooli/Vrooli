@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -119,10 +120,24 @@ func (s *restartOrderSink) Publish(event ProgressEvent) {
 	}
 }
 
-// Explicit restart is interruption-first: engagement/source-layout resolution
-// must not delay the stop boundary for an already-running scenario. This keeps
-// accepted browser effects from surviving a slow control-plane read.
-func TestRestartStopsBeforeResolvingEngagementLayout(t *testing.T) {
+// liveScenarioPID returns the PID of the single live process of a scenario.
+func liveScenarioPID(t *testing.T, home, name string) int {
+	t.Helper()
+	records, err := process.ReadScenarioRecords(home, name)
+	if err != nil {
+		t.Fatalf("ReadScenarioRecords(%s): %v", name, err)
+	}
+	live := process.LiveRecords(records)
+	if len(live) != 1 {
+		t.Fatalf("expected one live %s process, got %#v", name, live)
+	}
+	return live[0].PID
+}
+
+// O14: an explicit restart resolves its source layout and builds its
+// replacement before it stops the running instance, as a stale replacement
+// does, so a failed build leaves the old instance serving.
+func TestRestartBuildsBeforeStoppingAndKeepsServingOnBuildFailure(t *testing.T) {
 	if runtime.GOOS != "linux" {
 		testkitgo.SkipPlatform(t, "lifecycle process management currently targets linux")
 	}
@@ -134,17 +149,46 @@ func TestRestartStopsBeforeResolvingEngagementLayout(t *testing.T) {
 	if _, err := runner.Start("alpha", StartOptions{}); err != nil {
 		t.Fatalf("initial start: %v", err)
 	}
+	cleanupRunner(t, runner, "alpha", StopOptions{})
+	before := liveScenarioPID(t, home, "alpha")
+
+	// A broken source: the replacement build fails.
+	mainGo := filepath.Join(root, "scenarios", "alpha", "api", "main.go")
+	original, err := os.ReadFile(mainGo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	testkitgo.WriteFile(t, mainGo, "package main\n\nfunc main() { undefinedSymbol() }\n")
 	events = events[:0]
 	runner.WithProgressSink(&restartOrderSink{events: &events})
+	_, err = runner.Restart("alpha", StartOptions{})
+	if err == nil || !strings.Contains(err.Error(), "was not stopped") {
+		t.Fatalf("restart with a broken build: %v", err)
+	}
+	if slices.Contains(events, "stop") {
+		t.Fatalf("a failed replacement build stopped the running instance: %v", events)
+	}
+	if after := liveScenarioPID(t, home, "alpha"); after != before {
+		t.Fatalf("running instance replaced despite the failed build: pid %d -> %d", before, after)
+	}
 
-	if _, err := runner.Restart("alpha", StartOptions{}); err != nil {
-		t.Fatalf("restart: %v", err)
+	// Fixed source: the restart builds first, then stops, then serves the
+	// new build.
+	testkitgo.WriteFile(t, mainGo, string(original)+"\nvar rebuilt = true\n")
+	events = events[:0]
+	result, err := runner.Restart("alpha", StartOptions{})
+	if err != nil {
+		t.Fatalf("restart after fix: %v", err)
 	}
-	if len(events) < 2 || events[0] != "stop" || events[1] != "engagement" {
-		t.Fatalf("restart ordering = %v, want stop before engagement resolution", events)
+	if result.Health != "healthy" {
+		t.Fatalf("restart health = %q", result.Health)
 	}
-	if err := runner.Stop("alpha", StopOptions{}); err != nil {
-		t.Fatalf("cleanup stop: %v", err)
+	stop := slices.Index(events, "stop")
+	if stop < 1 || events[0] != "engagement" {
+		t.Fatalf("restart ordering = %v, want layout resolution and build before the stop", events)
+	}
+	if after := liveScenarioPID(t, home, "alpha"); after == before {
+		t.Fatalf("restart did not replace the instance (pid %d)", after)
 	}
 }
 

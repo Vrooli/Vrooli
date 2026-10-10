@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"agent-manager/internal/eventlog"
@@ -47,6 +48,9 @@ type CursorCheckpoint struct {
 type Repository struct {
 	db  sqlcompat.DB
 	now func() time.Time
+	// signalMu serializes signal appends so per-effort seq allocation never
+	// races inside this process.
+	signalMu sync.Mutex
 }
 
 type Measures struct {

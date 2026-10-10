@@ -60,6 +60,7 @@ import (
 	"github.com/vrooli/vrooli/internal/tools/rasdaemon"
 	"github.com/vrooli/vrooli/internal/tools/stripe"
 	"github.com/vrooli/vrooli/internal/tools/vault"
+	"github.com/vrooli/vrooli/internal/tools/webkitgtk"
 )
 
 const (
@@ -83,6 +84,7 @@ var customToolHandlers = map[string]func(hostreqkit.ToolManifest) hostreqkit.Han
 	"rasdaemon":             rasdaemon.NewHandler,
 	"stripe":                stripe.NewHandler,
 	"vault":                 vault.NewHandler,
+	"webkitgtk":             webkitgtk.NewHandler,
 }
 
 // customSafeguardHandlers must stay in sync with every safeguard.json

@@ -21,6 +21,9 @@ type RunStatusTransitionInput struct {
 	ProgressPercent *int
 	Summary         *domain.RunSummary
 	Result          *domain.RunResult
+	// StopReason, when set on a terminal transition, is written with the
+	// status in the same update (with its terminal class).
+	StopReason domain.RunStopReason
 }
 
 func (o *Orchestrator) applyRunStatusTransition(ctx context.Context, input RunStatusTransitionInput) (*domain.Run, error) {
@@ -81,6 +84,10 @@ func (o *Orchestrator) applyRunStatusTransition(ctx context.Context, input RunSt
 	}
 	if input.Result != nil {
 		run.Result = input.Result
+	}
+	if input.StopReason != "" && input.NewStatus.IsTerminal() {
+		run.StopReason = input.StopReason
+		run.TerminalClass = domain.TerminalClassForStopReason(input.StopReason)
 	}
 	run.UpdatedAt = now
 

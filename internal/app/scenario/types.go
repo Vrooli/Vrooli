@@ -33,6 +33,9 @@ type RestartRequest struct {
 	OpenAfter bool
 	// TimeoutSeconds is the ceiling for the whole restart; 0 = unbounded.
 	TimeoutSeconds int
+	// DeployReport prints the pre-deploy change report before restarting.
+	// It never changes what the restart does.
+	DeployReport bool
 }
 
 type ListRequest struct {

@@ -220,7 +220,7 @@ func TestSearchRegistrationStartsBeforeListener(t *testing.T) {
 	}
 	text := string(source)
 	registerAt := strings.Index(text, "srv.startSearchRegistration(")
-	serveAt := strings.Index(text, "server.Run(")
+	serveAt := strings.Index(text, "runPublic(server.Config{")
 	if registerAt < 0 || serveAt < 0 || registerAt >= serveAt {
 		t.Fatalf("registration must start before listener: register=%d serve=%d", registerAt, serveAt)
 	}

@@ -24,8 +24,6 @@ Post types without a paired skill are `v0` and cannot be approved; check `conten
 ## Cross-references
 - You are the **sole draft producer**: every open work slot in an active campaign is owned by you, and you own it by role until an explicitly bounded parallel commission is configured. Identify it with `content-desk campaigns launch-assets --scenario <name> --json`, then draft via `content-desk artifacts create` and `artifacts revise` / `artifacts transition` / `artifacts submit-release`.
 - Campaigns, drafts, claims, and publish history are Content Desk state. Query it, do not reconstruct it. Use `content-desk artifacts list --json` for draft ids/statuses and `content-desk claims list-draft <draft-id>` for which claims a draft actually cites.
-- Launch source constraints and per-claim evidence status for the Aquila launch live in the effort findings workspace `/home/matthalloran8/.vrooli/plan-artifacts/efforts/aquila-launch-2026-09-17/findings/` (see `aquila-positioning-and-claim-brief-2026-09-12.md` and `aquila-campaign-funnel-brief-2026-09-12.md`). Read those before drafting launch material.
-- **The indexed launch bundle is `findings/aquila-launch-bundle-manifest-2026-09-12.md` (machine-readable `.json`):** read it first when resuming. It resolves every artifact id/status, each real media file with its sha256 and producing-owner execution/recipe, the source drafts that have no ledger post type, the claim states, and the mandatory pre-publication redaction.
 - Review and approval: the marketing-contrarian challenges drafts; the operator is the only approver, through the Content Desk gate. You never approve your own work.
 
 ## Boundaries

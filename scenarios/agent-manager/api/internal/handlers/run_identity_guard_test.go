@@ -16,6 +16,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	requestidentity "github.com/vrooli/api-core/identity"
 	"github.com/vrooli/cli-core/cliutil"
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	eventpb "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
@@ -164,6 +165,57 @@ func TestLineageLifecycleExceptionStaysInsideTheCallersLineage(t *testing.T) {
 	operator := httptest.NewRequest(http.MethodPost, "/api/v1/runs/x/wake", nil)
 	if handlerFor(workerRun).lineageLifecycleAllowed(operator, orchestratorRun, true) {
 		t.Fatal("a request without a run identity must use the operator path, not the lineage exception")
+	}
+}
+
+func TestLineageLetsTheCurrentEffortOrchestratorSteerAnEarlierCheckinsWorker(t *testing.T) {
+	ref := func(effort, relationship string) *eventpb.WorkReference {
+		return &eventpb.WorkReference{Kind: "effort", Id: effort, Relationship: relationship, Verified: true, State: eventpb.WorkReferenceState_WORK_REFERENCE_STATE_ACTIVE}
+	}
+	orchestrate, plain := uuid.New(), uuid.New()
+	earlier, current, worker := uuid.New(), uuid.New(), uuid.New()
+	otherEffort, child, unscoped, foreignWorker, selfDeclared, stopped := uuid.New(), uuid.New(), uuid.New(), uuid.New(), uuid.New(), uuid.New()
+	runs := map[uuid.UUID]*domain.Run{
+		// Check-in N started the worker and has ended; check-in N+1 is running.
+		earlier: {ID: earlier, Status: domain.RunStatusComplete, AgentProfileID: &orchestrate, WorkReferences: []*eventpb.WorkReference{ref("effort:goal", "orchestrator")}},
+		current: {ID: current, Status: domain.RunStatusRunning, AgentProfileID: &orchestrate, WorkReferences: []*eventpb.WorkReference{ref("effort:goal", "orchestrator")}},
+		worker:  {ID: worker, Status: domain.RunStatusRunning, ParentRunID: &earlier, WorkReferences: []*eventpb.WorkReference{ref("effort:goal", "worker")}},
+		// Refused callers and targets.
+		otherEffort:   {ID: otherEffort, Status: domain.RunStatusRunning, AgentProfileID: &orchestrate, WorkReferences: []*eventpb.WorkReference{ref("effort:other", "orchestrator")}},
+		child:         {ID: child, Status: domain.RunStatusRunning, ParentRunID: &earlier, AgentProfileID: &orchestrate, WorkReferences: []*eventpb.WorkReference{ref("effort:goal", "orchestrator")}},
+		unscoped:      {ID: unscoped, Status: domain.RunStatusRunning, AgentProfileID: &plain, WorkReferences: []*eventpb.WorkReference{ref("effort:goal", "orchestrator")}},
+		stopped:       {ID: stopped, Status: domain.RunStatusParked, AgentProfileID: &orchestrate, WorkReferences: []*eventpb.WorkReference{ref("effort:goal", "orchestrator")}},
+		foreignWorker: {ID: foreignWorker, Status: domain.RunStatusRunning, ParentRunID: &otherEffort, WorkReferences: []*eventpb.WorkReference{ref("effort:goal", "worker")}},
+		selfDeclared:  {ID: selfDeclared, Status: domain.RunStatusRunning, WorkReferences: []*eventpb.WorkReference{ref("effort:goal", "worker")}},
+	}
+	profiles := map[uuid.UUID]*domain.AgentProfile{orchestrate: {ID: orchestrate, DeclaredScopes: []string{OrchestrateScope}}, plain: {ID: plain}}
+	handlerFor := func(caller uuid.UUID) *Handler {
+		return New(orchestration.HandlerServices{
+			IdentityService: guardIdentityService{result: &orchestration.IdentityVerifyResult{Valid: true, Claims: &identity.Claims{RunID: caller}}},
+			RunService:      lineageRuns{runs: runs},
+			ProfileService:  lineageProfiles{profiles: profiles},
+		})
+	}
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/runs/x/stop", nil)
+	request.Header.Set(cliutil.HeaderAgentIdentityToken, "run-token")
+	for _, tc := range []struct {
+		name           string
+		caller, target uuid.UUID
+		want           bool
+	}{
+		{"current check-in steers the earlier check-in's worker", current, worker, true},
+		{"an orchestrator of another effort cannot", otherEffort, worker, false},
+		{"a child holding an orchestrator reference cannot", child, worker, false},
+		{"a profile without the orchestrate scope cannot", unscoped, worker, false},
+		{"a parked orchestrator cannot", stopped, worker, false},
+		{"a worker whose parent was not the effort's orchestrator is out of reach", current, foreignWorker, false},
+		{"a self-declared worker with no parent is out of reach", current, selfDeclared, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := handlerFor(tc.caller).lineageLifecycleAllowed(request, tc.target, false); got != tc.want {
+				t.Fatalf("lineageLifecycleAllowed = %v, want %v", got, tc.want)
+			}
+		})
 	}
 }
 
@@ -331,6 +383,61 @@ func TestEffortDestinationScenario(t *testing.T) {
 	} {
 		if got := effortDestinationScenario(destination); got != want {
 			t.Errorf("effortDestinationScenario(%q) = %q, want %q", destination, got, want)
+		}
+	}
+}
+
+func TestRunIdentityManagementGrantIsObjectBoundAndCannotApprove(t *testing.T) {
+	target := uuid.NewString()
+	grant := &requestidentity.OperationGrant{ID: "approval", Approver: "owner", Operations: []string{"agent.manage"}, Targets: []string{"agent-manager:run/" + target}, ExpiresAt: time.Now().Add(time.Hour)}
+	raw, _ := json.Marshal(grant)
+	h := New(orchestration.HandlerServices{IdentityService: guardIdentityService{result: &orchestration.IdentityVerifyResult{Valid: true, Claims: &identity.Claims{RunID: uuid.New(), Scopes: []string{"agent-manager:write"}, Meta: map[string]string{"operation_grant": string(raw)}}}}})
+	for _, tc := range []struct {
+		operation, target string
+		denied            bool
+	}{
+		{"stop-run", target, false},
+		{"continue-run", target, false},
+		{"wake-run", target, false},
+		{"recover-run", target, false},
+		{"stop-run", uuid.NewString(), true},
+		{"approve-run", target, true},
+		{"stop-all", "", true},
+		{"create-run", target, true},
+	} {
+		req := mux.SetURLVars(httptest.NewRequest(http.MethodPost, "/api/v1/runs/"+tc.target, nil), map[string]string{"id": tc.target})
+		req.Header.Set(cliutil.HeaderAgentIdentityToken, "approved-agent")
+		if got := h.denyRunInitiatedLifecycleOperation(httptest.NewRecorder(), req, tc.operation); got != tc.denied {
+			t.Fatalf("%s target=%s denied=%v", tc.operation, tc.target, got)
+		}
+	}
+}
+
+func TestOnlyARunningOrchestratorCreatesTasksFromARun(t *testing.T) {
+	orchestratorProfile, workerProfile := uuid.New(), uuid.New()
+	running, parked, worker := uuid.New(), uuid.New(), uuid.New()
+	runs := map[uuid.UUID]*domain.Run{
+		running: {ID: running, AgentProfileID: &orchestratorProfile, Status: domain.RunStatusRunning},
+		parked:  {ID: parked, AgentProfileID: &orchestratorProfile, Status: domain.RunStatusParked},
+		worker:  {ID: worker, AgentProfileID: &workerProfile, Status: domain.RunStatusRunning, ParentRunID: &running},
+	}
+	profiles := map[uuid.UUID]*domain.AgentProfile{
+		orchestratorProfile: {ID: orchestratorProfile, DeclaredScopes: []string{OrchestrateScope}},
+		workerProfile:       {ID: workerProfile},
+	}
+	for name, tc := range map[string]struct {
+		caller uuid.UUID
+		want   bool
+	}{"running orchestrator": {running, true}, "parked orchestrator": {parked, false}, "worker": {worker, false}} {
+		h := New(orchestration.HandlerServices{
+			IdentityService: guardIdentityService{result: &orchestration.IdentityVerifyResult{Valid: true, Claims: &identity.Claims{RunID: tc.caller}}},
+			RunService:      lineageRuns{runs: runs},
+			ProfileService:  lineageProfiles{profiles: profiles},
+		})
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/tasks", nil)
+		req.Header.Set(cliutil.HeaderAgentIdentityToken, "run-token")
+		if got := h.orchestratorTaskCreateAllowed(req); got != tc.want {
+			t.Fatalf("%s: task create allowed = %v, want %v", name, got, tc.want)
 		}
 	}
 }

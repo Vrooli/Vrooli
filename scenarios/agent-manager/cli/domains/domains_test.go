@@ -34,6 +34,10 @@ func TestEffortDispatcherCommandsReachTheirRegisteredHandler(t *testing.T) {
 		{"lint", "goal", "--json"},
 		{"handoff", "set", "goal", "--stdin"},
 		{"park", "goal", "--run", "run-1", "--timeout", "1h"},
+		{"signals", "effort:goal", "--after", "3", "--json"},
+		{"signal", "effort:goal", "--kind", "feedback", "--detail", "FB-070"},
+		{"decision", "raise", "goal", "--id", "BAS-D-070", "--option", "a=A", "--option", "b=B", "--recommend", "a", "--dry-run", "--json"},
+		{"decision", "sync", "goal", "--json"},
 	} {
 		t.Run(args[0], func(t *testing.T) {
 			var received []string

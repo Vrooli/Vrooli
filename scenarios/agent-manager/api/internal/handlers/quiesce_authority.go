@@ -14,7 +14,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/vrooli/cli-core/cliutil"
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
-	eventpb "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 )
 
 // EffortEnrollmentReader reads one effort's enrollment. The quiesce guard uses
@@ -134,15 +133,7 @@ func (h *Handler) effortQuiesceRefusal(ctx context.Context, callerID uuid.UUID, 
 // orchestratorEffortRefs lists the efforts a run holds as an active, verified
 // orchestrator reference.
 func orchestratorEffortRefs(run *domain.Run) []string {
-	var refs []string
-	for _, ref := range run.WorkReferences {
-		if ref.GetKind() == "effort" && ref.GetRelationship() == "orchestrator" && ref.GetVerified() &&
-			ref.GetState() == eventpb.WorkReferenceState_WORK_REFERENCE_STATE_ACTIVE && ref.GetId() != "" &&
-			!slices.Contains(refs, ref.GetId()) {
-			refs = append(refs, ref.GetId())
-		}
-	}
-	return refs
+	return effortRefsWithRelationship(run, "orchestrator")
 }
 
 // effortDestinationScenario derives the scenario an effort destination lies in.

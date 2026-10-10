@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/vrooli/envkit-go"
 )
 
 func TestFindRepositoryRoot(t *testing.T) {
@@ -90,6 +92,48 @@ func TestStaleCheckerRebuildsAndReexecs(t *testing.T) {
 	}
 	if !restarted {
 		t.Fatalf("expected reexec to be called")
+	}
+}
+
+func TestStaleCheckerReexecPreservesAgentIdentity(t *testing.T) {
+	parent := envkit.Env{
+		"PATH=/usr/bin",
+		"API_PORT=1234",
+		"OPENAI_API_KEY=sk-test",
+		EnvIdentityToken + "=token-abc",
+		EnvCodexThreadID + "=thread-1",
+		EnvClaudeCodeSessionID + "=session-1",
+		rebuildLoopEnvVar + "=stale",
+	}
+	got := map[string]string{}
+	for _, entry := range selfReexecEnv(parent, "fresh") {
+		key, value, _ := strings.Cut(entry, "=")
+		got[key] = value
+	}
+	want := map[string]string{
+		"PATH":                 "/usr/bin",
+		"API_PORT":             "1234",
+		"OPENAI_API_KEY":       "sk-test",
+		EnvIdentityToken:       "token-abc",
+		EnvCodexThreadID:       "thread-1",
+		EnvClaudeCodeSessionID: "session-1",
+		rebuildLoopEnvVar:      "fresh",
+	}
+	if len(got) != len(want) {
+		t.Fatalf("re-exec env = %v, want exactly %v", got, want)
+	}
+	for key, value := range want {
+		if got[key] != value {
+			t.Fatalf("re-exec env %s = %q, want %q (env %v)", key, got[key], value, got)
+		}
+	}
+
+	// A caller without identity gets none: the overlay only carries forward
+	// what the invoking process already held.
+	for _, entry := range selfReexecEnv(envkit.Env{"PATH=/usr/bin"}, "fresh") {
+		if key, _, _ := strings.Cut(entry, "="); key == EnvIdentityToken {
+			t.Fatalf("re-exec invented an identity token: %v", entry)
+		}
 	}
 }
 

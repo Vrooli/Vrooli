@@ -2,15 +2,17 @@
 package orchestration
 
 import (
+	"context"
+	"errors"
+	"fmt"
+	"strings"
+
 	"agent-manager/internal/adapters/sandbox"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration/phases"
 	"agent-manager/internal/repository"
-	"context"
-	"errors"
-	"fmt"
+
 	"github.com/google/uuid"
-	"strings"
 )
 
 func (o *Orchestrator) GetRun(ctx context.Context, id uuid.UUID) (*domain.Run, error) {
@@ -25,6 +27,21 @@ func (o *Orchestrator) GetRun(ctx context.Context, id uuid.UUID) (*domain.Run, e
 		return nil, err
 	}
 	return o.attachRunActions(ctx, run), nil
+}
+
+// GetStoredRun returns the persisted run without derived views: no goal
+// status observed from the event history and no available actions. Batch
+// readers such as the effort board use it; each derived read can scan a long
+// run's whole history.
+func (o *Orchestrator) GetStoredRun(ctx context.Context, id uuid.UUID) (*domain.Run, error) {
+	run, err := o.runs.Get(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if run == nil {
+		return nil, domain.NewNotFoundError("Run", id)
+	}
+	return run, nil
 }
 
 // GetRunByImportProvenance resolves an imported external session without
@@ -189,6 +206,13 @@ func (o *Orchestrator) StopAllRuns(ctx context.Context, opts StopAllOptions) (*S
 }
 
 func (o *Orchestrator) StopRun(ctx context.Context, id uuid.UUID) error {
+	return o.stopRun(ctx, id, "")
+}
+
+// stopRun stops a run. A non-empty stopReason is written with the cancelled
+// status in the same update on the parked and process paths; the interactive
+// path and a process exit that finalizes first leave it to the caller.
+func (o *Orchestrator) stopRun(ctx context.Context, id uuid.UUID, stopReason domain.RunStopReason) error {
 	run, err := o.GetRun(ctx, id)
 	if err != nil {
 		return err
@@ -230,11 +254,12 @@ func (o *Orchestrator) StopRun(ctx context.Context, id uuid.UUID) error {
 		run.AwaitHandle = nil
 		endedAt := o.now()
 		_, err = o.applyRunStatusTransition(ctx, RunStatusTransitionInput{
-			Run:       run,
-			NewStatus: domain.RunStatusCancelled,
-			Phase:     domain.RunPhaseCompleted,
-			Reason:    "Parked run stopped by request",
-			EndedAt:   &endedAt,
+			Run:        run,
+			NewStatus:  domain.RunStatusCancelled,
+			Phase:      domain.RunPhaseCompleted,
+			Reason:     "Parked run stopped by request",
+			EndedAt:    &endedAt,
+			StopReason: stopReason,
 		})
 		return err
 	}
@@ -259,7 +284,7 @@ func (o *Orchestrator) StopRun(ctx context.Context, id uuid.UUID) error {
 			return result.Error
 		}
 
-		_, err = o.finalizeRunCancellation(ctx, id, "Run stopped by request")
+		_, err = o.finalizeRunCancellation(ctx, id, "Run stopped by request", stopReason)
 		return err
 	}
 
@@ -278,7 +303,7 @@ func (o *Orchestrator) StopRun(ctx context.Context, id uuid.UUID) error {
 		}
 	}
 
-	_, err = o.finalizeRunCancellation(ctx, id, "Run stopped by request")
+	_, err = o.finalizeRunCancellation(ctx, id, "Run stopped by request", stopReason)
 	return err
 }
 
@@ -288,7 +313,7 @@ func (o *Orchestrator) StopRun(ctx context.Context, id uuid.UUID) error {
 // HandleResult adopted the persisted cancellation intent), this is a no-op
 // instead of a second terminal write. That makes stop a replay-safe operation
 // whether the terminator or the executor wins the terminal race.
-func (o *Orchestrator) finalizeRunCancellation(ctx context.Context, id uuid.UUID, reason string) (*domain.Run, error) {
+func (o *Orchestrator) finalizeRunCancellation(ctx context.Context, id uuid.UUID, reason string, stopReason domain.RunStopReason) (*domain.Run, error) {
 	current, err := o.GetRun(ctx, id)
 	if err != nil {
 		return nil, err
@@ -298,11 +323,12 @@ func (o *Orchestrator) finalizeRunCancellation(ctx context.Context, id uuid.UUID
 	}
 	endedAt := o.now()
 	return o.applyRunStatusTransition(ctx, RunStatusTransitionInput{
-		Run:       current,
-		NewStatus: domain.RunStatusCancelled,
-		Phase:     domain.RunPhaseCompleted,
-		Reason:    reason,
-		EndedAt:   &endedAt,
+		Run:        current,
+		NewStatus:  domain.RunStatusCancelled,
+		Phase:      domain.RunPhaseCompleted,
+		Reason:     reason,
+		EndedAt:    &endedAt,
+		StopReason: stopReason,
 	})
 }
 

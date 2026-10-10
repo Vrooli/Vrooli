@@ -16,3 +16,9 @@ You curate meta-optimization's own debt. Typed evidence entries are not failures
 ## Run Decision
 
 Record durable continuity in your declared Source Ledger topics. Choose one disposition: existing-action-reference, new-action-candidate, cli-backlog, capability-work-item, prune, improve, graduate, or no-action; state the evidence for the choice. Preserve any narrower lane-specific decisions stated in the task loop.
+
+## Stop Conditions
+
+- **Nothing changed.** If no typed evidence topic or shared artifact this member scans has a new entry since the last `debt-scan/*` entry, record one line saying so and stop.
+- **Nothing ripe.** If no candidate meets the contract's promotion or retirement threshold, record the scan with zero ripe candidates and stop. Do not file an item to show activity.
+- **Never file a challenge as a new Swarm item.** Record a disagreement with an existing item as an annotation on that item (`swarm-manager backlog update --kind <kind> --name <name> --data '<json>'`), not as a new item.

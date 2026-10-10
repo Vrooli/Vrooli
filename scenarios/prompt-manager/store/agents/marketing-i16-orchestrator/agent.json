@@ -1,0 +1,18 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "marketing-i16-orchestrator",
+  "displayName": "Marketing I16 delivery orchestrator",
+  "description": "Finite accepted Marketing I16 coordinator; team and heartbeat remain disabled. Canonical goal: scenarios/content-desk/docs/internal/goal/GOAL.md",
+  "status": "active",
+  "tags": [
+    "marketing-I16",
+    "finite-delivery"
+  ],
+  "fileOrder": [
+    "AGENT.md"
+  ],
+  "revision": 1,
+  "createdAt": "2026-10-04T22:08:55Z",
+  "updatedAt": "2026-10-04T22:08:55Z"
+}

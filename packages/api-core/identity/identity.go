@@ -93,8 +93,11 @@ func FailureFromError(err error) (Failure, bool) {
 // Principal is the only identity shape that domain authorization should
 // consume. Subject and claims are accepted only after provider verification.
 type Principal struct {
-	Kind      ActorKind
-	Subject   string
+	Kind    ActorKind
+	Subject string
+	// Owner is the verified account on whose behalf an agent operates. It is
+	// never substituted for the actor's Subject in attribution or approvals.
+	Owner     string
 	Email     string
 	Realm     string
 	Roles     []string
@@ -105,6 +108,69 @@ type Principal struct {
 	Issuer    string
 	Audience  string
 	ExpiresAt time.Time
+	// Grant is present only on a live, Agent Manager-verified interactive
+	// delegation. The approver remains distinct from this agent's Subject.
+	Grant *OperationGrant
+}
+
+type OperationGrant struct {
+	ID         string    `json:"id"`
+	Policy     string    `json:"policy"`
+	Approver   string    `json:"approver"`
+	Operations []string  `json:"operations"`
+	Targets    []string  `json:"targets"`
+	ExpiresAt  time.Time `json:"expires_at"`
+	// Rules pairs each reviewed policy's operations with its own targets when
+	// one consent covers several policies. When present, Allows matches only
+	// within a rule, so an operation of one policy never reaches a target of
+	// another; Operations and Targets are then the display union.
+	Rules []OperationRule `json:"rules,omitempty"`
+}
+
+// OperationRule is one reviewed policy inside a multi-policy grant.
+type OperationRule struct {
+	Policy     string   `json:"policy"`
+	Operations []string `json:"operations"`
+	Targets    []string `json:"targets"`
+}
+
+// Allows uses exact operations and explicit domain-wide or exact object
+// targets. It never accepts arbitrary glob or prefix expressions.
+func (g *OperationGrant) Allows(operation, target string, now time.Time) bool {
+	if g == nil || g.ID == "" || g.Approver == "" || !now.Before(g.ExpiresAt) {
+		return false
+	}
+	if len(g.Rules) > 0 {
+		for _, rule := range g.Rules {
+			if operationTargetAllowed(rule.Operations, rule.Targets, operation, target) {
+				return true
+			}
+		}
+		return false
+	}
+	return operationTargetAllowed(g.Operations, g.Targets, operation, target)
+}
+
+func operationTargetAllowed(operations, targets []string, operation, target string) bool {
+	op := false
+	for _, allowed := range operations {
+		if allowed == operation {
+			op = true
+		}
+	}
+	if !op || target == "" {
+		return false
+	}
+	domain, _, ok := strings.Cut(target, ":")
+	if !ok || domain == "" {
+		return false
+	}
+	for _, allowed := range targets {
+		if allowed == target || allowed == domain+":*" {
+			return true
+		}
+	}
+	return false
 }
 
 func (p Principal) IsVerified() bool {
@@ -112,6 +178,16 @@ func (p Principal) IsVerified() bool {
 }
 
 func (p Principal) IsHuman() bool { return p.IsVerified() && p.Kind == ActorHuman }
+
+func (p Principal) OwnerSubject() string {
+	if !p.IsVerified() {
+		return ""
+	}
+	if p.Kind == ActorAgent {
+		return p.Owner
+	}
+	return p.Subject
+}
 
 type AuthState string
 

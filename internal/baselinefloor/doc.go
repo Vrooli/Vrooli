@@ -15,10 +15,28 @@
 //     cross-platform, git-free code-level undo. It prefers a copy-on-write
 //     reflink fast path where the filesystem supports it and falls back to a
 //     native-Go deep copy everywhere else; it NEVER hardlinks (in-place edits
-//     would corrupt the snapshot). The exclude list is aligned to the repo
-//     .gitignore so build artifacts (node_modules/dist/coverage/.git/.vrooli/
-//     generated/.build-fingerprint.json) are skipped — the single biggest size
-//     and speed win, and safe because excluded == git-ignored == regenerable.
+//     would corrupt the snapshot). A restore point holds source and
+//     configuration only. Build artifacts and outputs (node_modules, dist,
+//     coverage, .git, generated, binaries) and runtime data (databases,
+//     logs, caches) are excluded: the IgnoreMatcher applies the repository's
+//     .gitignore files without git, plus the scenario's declared build
+//     outputs and data directories and the floor patterns. The scenario's
+//     own .vrooli configuration (service.json and similar) is kept because
+//     builds read it; .vrooli runtime state (secrets, locks, local
+//     overrides, state/, runtime/) is not. Data rollback belongs to
+//     data-backup-manager, never to a restore point.
+//
+//   - The capture record and shared-source snapshot (CaptureRecord,
+//     CaptureSharedSources): each capture gets a capture ID, and the repo
+//     sources the scenario build reaches outside its own directory (Go
+//     replace closure, pnpm file: dependencies, bundler aliases) are copied
+//     with their generated outputs into the engagement, so an engaged live
+//     instance builds against the shared packages it was accepted with.
+//
+//   - The serving tree (MaterializeServing): a generation-addressed,
+//     repo-shaped tree around the frozen sources that an engaged live
+//     instance builds and runs from. Frozen roots are real copies; every
+//     other repository entry is a symlink into the repository.
 //
 //   - The floor-owned engagement manifest (Manifest, Store): the
 //     recovery-critical engagement intent (scenario, variant, mode, restore-point

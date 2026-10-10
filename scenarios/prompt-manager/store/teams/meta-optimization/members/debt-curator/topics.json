@@ -1,4 +1,5 @@
 {
+  "loop_kind": "reactive",
   "intake": [],
   "required_read": [
     {

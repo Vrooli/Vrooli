@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestPrincipalStatesAreExplicit(t *testing.T) {
@@ -57,3 +58,25 @@ type fmtWrap struct{ err error }
 
 func (w fmtWrap) Error() string { return "wrapped failure" }
 func (w fmtWrap) Unwrap() error { return w.err }
+
+func TestOperationGrantRulesNeverCrossPolicies(t *testing.T) {
+	g := &OperationGrant{
+		ID: "g", Approver: "owner", ExpiresAt: time.Now().Add(time.Hour),
+		Operations: []string{"agent.manage", "effort.reconcile"},
+		Targets:    []string{"agent-manager:*", "agent-manager:effort/bas"},
+		Rules: []OperationRule{
+			{Policy: "agent-management", Operations: []string{"agent.manage"}, Targets: []string{"agent-manager:*"}},
+			{Policy: "effort-metadata", Operations: []string{"effort.reconcile"}, Targets: []string{"agent-manager:effort/bas"}},
+		},
+	}
+	if !g.Allows("agent.manage", "agent-manager:run/1", time.Now()) || !g.Allows("effort.reconcile", "agent-manager:effort/bas", time.Now()) {
+		t.Fatal("a rule's own operation and target were refused")
+	}
+	if g.Allows("effort.reconcile", "agent-manager:effort/other", time.Now()) {
+		t.Fatal("effort.reconcile borrowed the agent-management wildcard target")
+	}
+	legacy := &OperationGrant{ID: "g", Approver: "owner", ExpiresAt: time.Now().Add(time.Hour), Operations: []string{"agent.manage"}, Targets: []string{"agent-manager:run/1"}}
+	if !legacy.Allows("agent.manage", "agent-manager:run/1", time.Now()) || legacy.Allows("agent.manage", "agent-manager:run/2", time.Now()) {
+		t.Fatal("a single-policy grant changed meaning")
+	}
+}

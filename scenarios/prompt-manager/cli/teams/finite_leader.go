@@ -26,16 +26,80 @@ type finiteLeaderBindingInput struct {
 
 func cmdHeartbeatBindEffort(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("heartbeat-bind-effort", flag.ContinueOnError)
-	file := fs.String("request-file", "", "JSON binding: schedule, profileKey, finiteLeader (always provisioned disabled)")
-	update := fs.Bool("update", false, "Bind an existing unused disabled heartbeat")
+	file := fs.String("request-file", "", "JSON binding: schedule, profileKey, finiteLeader (a new binding is always provisioned disabled)")
+	update := fs.Bool("update", false, "Update an existing binding (enabled state is kept); without --request-file, change only the check-in policy")
+	checkinMode := fs.String("checkin-mode", "", "Orchestrator check-in mode: parked or event (event requires keepAlive)")
+	checkinPoll := fs.String("checkin-poll", "", "Event check-in signal poll interval, e.g. 2m")
+	checkinBackstop := fs.String("checkin-backstop", "", "Event check-in backstop without signals, e.g. 6h")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-	if fs.NArg() != 2 || *file == "" {
-		return fmt.Errorf("usage: team heartbeat-bind-effort <team-id> <agent-id> --request-file <binding.json> [--update] [--json]")
+	checkinFlags := *checkinMode != "" || *checkinPoll != "" || *checkinBackstop != ""
+	if fs.NArg() != 2 || (*file == "" && !(*update && checkinFlags)) {
+		return fmt.Errorf("usage: team heartbeat-bind-effort <team-id> <agent-id> (--request-file <binding.json> | --update --checkin-mode <parked|event>) [--update] [--checkin-mode parked|event] [--checkin-poll 2m] [--checkin-backstop 6h] [--json]")
 	}
-	reader, err := os.Open(*file)
+	team, agent := fs.Arg(0), fs.Arg(1)
+	path := fmt.Sprintf("/teams/%s/heartbeats/%s", url.PathEscape(team), url.PathEscape(agent))
+	var current HeartbeatConfig
+	if *update {
+		if err := ctx.Get(path, &current); err != nil {
+			return fmt.Errorf("read heartbeat before update: %w", err)
+		}
+	}
+	var input finiteLeaderBindingInput
+	if *file != "" {
+		if err := readFiniteLeaderBinding(*file, &input); err != nil {
+			return err
+		}
+	} else {
+		if current.FiniteLeader == nil || current.TeamID != team || current.AgentID != agent {
+			return fmt.Errorf("exact finite leader binding unavailable")
+		}
+		input = finiteLeaderBindingInput{Schedule: current.Schedule, ProfileKey: current.ProfileKey, FiniteLeader: current.FiniteLeader}
+	}
+	if input.FiniteLeader == nil || strings.TrimSpace(input.Schedule) == "" {
+		return fmt.Errorf("finiteLeader and schedule are required")
+	}
+	if checkinFlags {
+		policy := teamconfig.CheckinPolicy{}
+		if input.FiniteLeader.Checkin != nil {
+			policy = *input.FiniteLeader.Checkin
+		}
+		for _, field := range []struct {
+			flag string
+			dst  *string
+		}{{*checkinMode, &policy.Mode}, {*checkinPoll, &policy.PollInterval}, {*checkinBackstop, &policy.Backstop}} {
+			if field.flag != "" {
+				*field.dst = field.flag
+			}
+		}
+		input.FiniteLeader.Checkin = &policy
+	}
+	if err := input.FiniteLeader.Validate(input.ProfileKey); err != nil {
+		return err
+	}
+	disabled := false
+	var result HeartbeatConfig
+	var err error
+	if *update {
+		// An update never changes activation: enable and disable stay separate owner controls.
+		err = ctx.Put(path, UpdateHeartbeatRequest{FiniteLeader: input.FiniteLeader, Schedule: &input.Schedule, ProfileKey: &input.ProfileKey}, &result)
+	} else {
+		err = ctx.Post(path, CreateHeartbeatRequest{FiniteLeader: input.FiniteLeader, Schedule: input.Schedule, ProfileKey: input.ProfileKey, Enabled: &disabled}, &result)
+	}
+	if err != nil {
+		return fmt.Errorf("bind finite leader: %w", err)
+	}
+	if result.TeamID != team || result.AgentID != agent || result.Enabled != current.Enabled || result.ProfileKey != input.ProfileKey || !reflect.DeepEqual(result.FiniteLeader, input.FiniteLeader) {
+		return fmt.Errorf("owner response did not confirm the exact binding and unchanged enabled state; inspect heartbeat state before activation")
+	}
+	return printFiniteLeaderBinding(result, *jsonOut)
+}
+
+// readFiniteLeaderBinding decodes one bounded binding object with no unknown fields.
+func readFiniteLeaderBinding(file string, input *finiteLeaderBindingInput) error {
+	reader, err := os.Open(file)
 	if err != nil {
 		return err
 	}
@@ -49,35 +113,13 @@ func cmdHeartbeatBindEffort(ctx appctx.Context, args []string) error {
 	}
 	decoder := json.NewDecoder(strings.NewReader(string(data)))
 	decoder.DisallowUnknownFields()
-	var input finiteLeaderBindingInput
-	if err := decoder.Decode(&input); err != nil {
+	if err := decoder.Decode(input); err != nil {
 		return fmt.Errorf("decode finite leader binding: %w", err)
 	}
 	if err := decoder.Decode(new(any)); err != io.EOF {
 		return fmt.Errorf("finite leader binding must contain exactly one JSON object")
 	}
-	if input.FiniteLeader == nil || strings.TrimSpace(input.Schedule) == "" {
-		return fmt.Errorf("finiteLeader and schedule are required")
-	}
-	if err := input.FiniteLeader.Validate(input.ProfileKey); err != nil {
-		return err
-	}
-	team, agent := fs.Arg(0), fs.Arg(1)
-	path := fmt.Sprintf("/teams/%s/heartbeats/%s", url.PathEscape(team), url.PathEscape(agent))
-	disabled := false
-	var result HeartbeatConfig
-	if *update {
-		err = ctx.Put(path, UpdateHeartbeatRequest{FiniteLeader: input.FiniteLeader, Schedule: &input.Schedule, ProfileKey: &input.ProfileKey, Enabled: &disabled}, &result)
-	} else {
-		err = ctx.Post(path, CreateHeartbeatRequest{FiniteLeader: input.FiniteLeader, Schedule: input.Schedule, ProfileKey: input.ProfileKey, Enabled: &disabled}, &result)
-	}
-	if err != nil {
-		return fmt.Errorf("bind finite leader: %w", err)
-	}
-	if result.TeamID != team || result.AgentID != agent || result.Enabled || result.ProfileKey != input.ProfileKey || !reflect.DeepEqual(result.FiniteLeader, input.FiniteLeader) {
-		return fmt.Errorf("owner response did not confirm the exact disabled binding; inspect heartbeat state before activation")
-	}
-	return printFiniteLeaderBinding(result, *jsonOut)
+	return nil
 }
 
 func cmdHeartbeatRetireEffort(ctx appctx.Context, args []string) error {
@@ -193,8 +235,8 @@ func printFiniteLeaderBinding(config HeartbeatConfig, jsonOut bool) error {
 		encoder.SetIndent("", "  ")
 		return encoder.Encode(config)
 	}
-	fmt.Printf("Finite effort: %s\nAccepted revision: %s\nCoordinator: %s/%s\nProfile: %s\nEnabled: %t\nRetired: %t\nKeep alive: %t\n",
-		config.FiniteLeader.EffortRef, config.FiniteLeader.AcceptedRevision, config.TeamID, config.AgentID, config.ProfileKey, config.Enabled, config.FiniteLeader.Retired, config.FiniteLeader.KeepAlive)
+	fmt.Printf("Finite effort: %s\nAccepted revision: %s\nCoordinator: %s/%s\nProfile: %s\nEnabled: %t\nRetired: %t\nKeep alive: %t\nCheck-in mode: %s\n",
+		config.FiniteLeader.EffortRef, config.FiniteLeader.AcceptedRevision, config.TeamID, config.AgentID, config.ProfileKey, config.Enabled, config.FiniteLeader.Retired, config.FiniteLeader.KeepAlive, config.FiniteLeader.CheckinMode())
 	if len(config.FiniteLeaderState) != 0 {
 		fmt.Printf("Leader state: %s\n", config.FiniteLeaderState)
 	}

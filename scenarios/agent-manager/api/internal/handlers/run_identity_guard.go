@@ -9,11 +9,14 @@ import (
 	"sync"
 	"time"
 
+	"agent-manager/internal/domain"
+
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/provenance"
 	"github.com/vrooli/api-core/scopecatalog"
 	"github.com/vrooli/cli-core/cliutil"
+	eventpb "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 )
 
 var lifecycleRefusalCounts = struct {
@@ -120,7 +123,12 @@ const OrchestrateScope = "agent-manager:orchestrate"
 // needs from inside a run, and nothing wider:
 //   - any run may wake its own parked parent (a worker's friction wake);
 //   - a run whose profile declares OrchestrateScope may wake or stop its own
-//     direct child runs.
+//     direct child runs;
+//   - lineage is also effort-level (DL-2): a running root run whose profile
+//     declares OrchestrateScope and that holds effort E as orchestrator may
+//     wake, continue or stop a run holding E as worker whose parent held E as
+//     orchestrator. A check-in may therefore steer workers an earlier check-in
+//     started; ParentRunID stays the immutable provenance link.
 //
 // Every other run-initiated lifecycle request still goes through
 // denyRunInitiatedLifecycleOperation.
@@ -141,12 +149,83 @@ func (h *Handler) lineageLifecycleAllowed(r *http.Request, target uuid.UUID, all
 		return true
 	}
 	targetRun, err := h.svc.GetRun(r.Context(), target)
-	if err != nil || targetRun == nil || targetRun.ParentRunID == nil || *targetRun.ParentRunID != caller.ID {
+	if err != nil || targetRun == nil || targetRun.ParentRunID == nil {
 		return false
 	}
 	if caller.AgentProfileID == nil {
 		return false
 	}
 	profile, err := h.svc.GetProfile(r.Context(), *caller.AgentProfileID)
+	if err != nil || profile == nil || !slices.Contains(profile.DeclaredScopes, OrchestrateScope) {
+		return false
+	}
+	if *targetRun.ParentRunID == caller.ID {
+		return true
+	}
+	return h.effortLineageAllowed(r, caller, targetRun)
+}
+
+// orchestratorTaskCreateAllowed admits task creation from a run identity only
+// for a running run whose profile declares OrchestrateScope. A task is an inert
+// record; the child run it is for still passes run-creation admission.
+func (h *Handler) orchestratorTaskCreateAllowed(r *http.Request) bool {
+	token := strings.TrimSpace(r.Header.Get(cliutil.HeaderAgentIdentityToken))
+	if token == "" || h.svc.IdentityService == nil || h.svc.RunService == nil || h.svc.ProfileService == nil {
+		return false
+	}
+	verified, err := h.svc.VerifyIdentityToken(r.Context(), token)
+	if err != nil || verified == nil || !verified.Valid || verified.Claims == nil {
+		return false
+	}
+	caller, err := h.svc.GetRun(r.Context(), verified.Claims.RunID)
+	if err != nil || caller == nil || caller.Status != domain.RunStatusRunning || caller.AgentProfileID == nil {
+		return false
+	}
+	profile, err := h.svc.GetProfile(r.Context(), *caller.AgentProfileID)
 	return err == nil && profile != nil && slices.Contains(profile.DeclaredScopes, OrchestrateScope)
+}
+
+// effortLineageAllowed is the effort-level rule of lineageLifecycleAllowed.
+// The caller's profile has already been checked for OrchestrateScope.
+func (h *Handler) effortLineageAllowed(r *http.Request, caller, target *domain.Run) bool {
+	if caller.Status != domain.RunStatusRunning || caller.ParentRunID != nil {
+		return false
+	}
+	efforts := orchestratorEffortRefs(caller)
+	if len(efforts) == 0 {
+		return false
+	}
+	var shared []string
+	for _, ref := range effortRefsWithRelationship(target, "worker") {
+		if slices.Contains(efforts, ref) {
+			shared = append(shared, ref)
+		}
+	}
+	if len(shared) == 0 {
+		return false
+	}
+	parent, err := h.svc.GetRun(r.Context(), *target.ParentRunID)
+	if err != nil || parent == nil {
+		return false
+	}
+	for _, ref := range orchestratorEffortRefs(parent) {
+		if slices.Contains(shared, ref) {
+			return true
+		}
+	}
+	return false
+}
+
+// effortRefsWithRelationship lists the efforts a run holds as an active,
+// verified reference with the given relationship.
+func effortRefsWithRelationship(run *domain.Run, relationship string) []string {
+	var refs []string
+	for _, ref := range run.WorkReferences {
+		if ref.GetKind() == "effort" && ref.GetRelationship() == relationship && ref.GetVerified() &&
+			ref.GetState() == eventpb.WorkReferenceState_WORK_REFERENCE_STATE_ACTIVE && ref.GetId() != "" &&
+			!slices.Contains(refs, ref.GetId()) {
+			refs = append(refs, ref.GetId())
+		}
+	}
+	return refs
 }

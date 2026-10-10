@@ -130,18 +130,20 @@ func TestQuiesce_ForceCancelsSurvivors(t *testing.T) {
 func TestQuiesceExcludedActiveRunIsReportedNotRejected(t *testing.T) {
 	svc, runRepo, taskID := quiesceFixture(t, "scenarios/quiesce-target")
 	excludedID := seedRun(t, runRepo, taskID, domain.RunStatusRunning, "")
+	shadowWorker := seedRun(t, runRepo, taskID, domain.RunStatusRunning, "")
 
 	opts := fastQuiesce("quiesce-target", false)
 	opts.ExcludeRunID = &excludedID
+	opts.ExcludeRunIDs = []uuid.UUID{shadowWorker, excludedID}
 	res, err := svc.QuiesceScenario(context.Background(), opts)
 	if err != nil {
 		t.Fatalf("an active excluded run must be reported, not rejected: %v", err)
 	}
 	if !res.Drained || res.Aborted || res.Initial != 0 {
-		t.Fatalf("excluded run must not be waited on, got %+v", res)
+		t.Fatalf("excluded runs must not be waited on, got %+v", res)
 	}
-	if len(res.Excluded) != 1 || res.Excluded[0].ID != excludedID.String() {
-		t.Fatalf("expected the excluded run reported, got %+v", res.Excluded)
+	if len(res.Excluded) != 2 || res.Excluded[0].ID != excludedID.String() || res.Excluded[1].ID != shadowWorker.String() {
+		t.Fatalf("expected each excluded run reported once, got %+v", res.Excluded)
 	}
 	if !strings.Contains(res.Reason, "excluded run "+excludedID.String()) {
 		t.Fatalf("reason must name the excluded run, got %q", res.Reason)
@@ -182,8 +184,16 @@ func TestQuiesceRejectsTimeoutAboveMax(t *testing.T) {
 
 func TestQuiesceDrainsLiveAndUndeclaredRunsButNotOtherInstances(t *testing.T) {
 	svc, runRepo, taskID := quiesceFixture(t, "scenarios/quiesce-target")
+	// Declarations arrive as CreateRunRequest.target_instances.
 	target := func(id string) *eventpb.WorkReference {
-		return &eventpb.WorkReference{Kind: "scenario-instance", Id: id, Relationship: "targets"}
+		refs, err := orchestration.TargetInstanceReferences([]string{id})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return refs[0]
+	}
+	if _, err := orchestration.TargetInstanceReferences([]string{"no-instance"}); err == nil {
+		t.Fatal("a target without @<instance> must be refused")
 	}
 	undeclared := seedRun(t, runRepo, taskID, domain.RunStatusRunning, "")
 	live := seedRun(t, runRepo, taskID, domain.RunStatusRunning, "", target("quiesce-target@live"))

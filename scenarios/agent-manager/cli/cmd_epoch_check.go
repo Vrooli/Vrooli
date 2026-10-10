@@ -28,9 +28,10 @@ const exitRefused = 4
 // goal-level findings, the acceptance verdict and the runs a step-back woke.
 type epochCheckReport struct {
 	*goalhome.EpochReport
-	Findings          []goalhome.Finding `json:"findings,omitempty"`
-	AcceptanceBlocked []string           `json:"acceptance_blocked,omitempty"`
-	Woken             []string           `json:"woken,omitempty"`
+	Findings          []goalhome.Finding     `json:"findings,omitempty"`
+	AcceptanceBlocked []string               `json:"acceptance_blocked,omitempty"`
+	Woken             []string               `json:"woken,omitempty"`
+	Signal            *domainpb.EffortSignal `json:"signal,omitempty"`
 }
 
 // effortEpochCheck is `agent-manager effort epoch-check <epoch-file>`.
@@ -45,6 +46,7 @@ func (a *App) effortEpochCheck(args []string) error {
 	spendThreshold := fs.Float64("spend-threshold", 0, "Weighted non-cache tokens of the epoch's workers above which spend fires (0 = not evaluated)")
 	runs := fs.String("runs", "", "Comma-separated worker run IDs for the spend trigger (default: the brief's Workers field)")
 	wakeKey := fs.String("wake-key", "", "On a fired step-back, wake the run parked on this key (the orchestrator's run ID)")
+	effortRef := fs.String("effort", "", "On a fired step-back, record a step_back signal in this effort's signal log (wakes the next check-in)")
 	acceptance := fs.Bool("acceptance", false, "Orchestrator acceptance check: exit 4 on an unmet typed gate or an unanswered diminishing-returns finding; never exits 3 or wakes")
 	var path string
 	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
@@ -54,7 +56,7 @@ func (a *App) effortEpochCheck(args []string) error {
 		return err
 	}
 	if path == "" {
-		return fmt.Errorf("usage: agent-manager effort epoch-check <epoch-file> [--acceptance] [--wake-key <run-id>] [--runs ids] [--spend-threshold n] [--json]")
+		return fmt.Errorf("usage: agent-manager effort epoch-check <epoch-file> [--acceptance] [--wake-key <run-id>] [--effort <ref>] [--runs ids] [--spend-threshold n] [--json]")
 	}
 	handle, err := os.Open(path)
 	if err != nil {
@@ -70,7 +72,7 @@ func (a *App) effortEpochCheck(args []string) error {
 		workerIDs = file.Fields["workers"]
 	}
 	var weighted *float64
-	if ids := workerRunIDs(workerIDs); *spendThreshold > 0 && len(ids) > 0 {
+	if ids := goalhome.WorkerRunIDs(workerIDs); *spendThreshold > 0 && len(ids) > 0 {
 		spend, err := a.weightedTokens(ids, defaultTierWeights)
 		if err != nil {
 			return fmt.Errorf("worker spend: %w", err)
@@ -89,6 +91,14 @@ func (a *App) effortEpochCheck(args []string) error {
 		}
 		report.Woken = woken
 	}
+	if !*acceptance && len(report.StepBack) > 0 && *effortRef != "" {
+		signal, err := a.recordStepBack(*effortRef, path, report.StepBack, len(file.Log))
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "step_back signal failed: %v\n", err)
+		} else {
+			report.Signal = signal
+		}
+	}
 	if *jsonOut {
 		data, err := json.Marshal(report)
 		if err != nil {
@@ -105,23 +115,6 @@ func (a *App) effortEpochCheck(args []string) error {
 		return exitCodeError{code: exitStepBack}
 	}
 	return nil
-}
-
-// workerRunIDs reads the Workers field: run IDs separated by commas or
-// spaces, optionally followed by parenthesized notes.
-func workerRunIDs(raw string) []string {
-	var ids []string
-	depth := 0
-	for _, token := range strings.FieldsFunc(raw, func(r rune) bool { return r == ',' || r == ' ' || r == ';' }) {
-		if depth == 0 && !strings.HasPrefix(token, "(") {
-			ids = append(ids, token)
-		}
-		depth += strings.Count(token, "(") - strings.Count(token, ")")
-		if depth < 0 {
-			depth = 0
-		}
-	}
-	return ids
 }
 
 // goalFindings evaluates diminishing returns for the goal home that holds the

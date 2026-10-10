@@ -22,3 +22,9 @@ peer record, and the walk's Phase 3 loses its contrarian challenge. Keep
 kind is what makes it readable.
 
 Choose one disposition: existing-action-reference, new-action-candidate, cli-backlog, capability-work-item, prune, improve, graduate, or no-action; state the evidence.
+
+## Stop Conditions
+
+- **Instrument unavailable.** If `prompt-manager graph instruments` or `prompt-manager graph orientation-cost` cannot be read, record one line saying which and stop.
+- **Nothing changed.** If director-swarm's instrument, roster, addresses, and operating documents are unchanged since the last `contrarian-scan/*` entry, record one line saying so and stop. A clean pass is worth recording once, not every heartbeat.
+- **Never file a challenge as a new Swarm item.** Record a challenge to an existing item as an annotation on that item (`swarm-manager backlog update --kind <kind> --name <name> --data '<json>'`), not as a new item.

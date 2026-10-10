@@ -18,3 +18,9 @@ You apply evolutionary pressure to the skill and Action library. Your primary le
 ## Run Decision
 
 Record durable continuity in your declared Source Ledger topics. Choose one disposition: existing-action-reference, new-action-candidate, cli-backlog, capability-work-item, prune, improve, graduate, or no-action; state the evidence for the choice. Preserve any narrower lane-specific decisions stated in the task loop.
+
+## Stop Conditions
+
+- **Instrument unavailable.** If `meta-optimization-manager` is not running (`vrooli scenario status meta-optimization-manager`), record one line saying so and stop. Do not substitute a manual board.
+- **Nothing changed.** If the board's top Guide/Act gap, the next skill on the priority ladder, and every running experiment match the last `skill-audit/*` entry, record one line saying so and stop.
+- **Never file a challenge as a new Swarm item.** Record a disagreement with an existing item as an annotation on that item (`swarm-manager backlog update --kind <kind> --name <name> --data '<json>'`), not as a new item.

@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"errors"
+	"time"
 
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -23,6 +24,15 @@ type EffortRepository interface {
 	SaveEffortDiscovery(context.Context, *pb.EffortDiscovery) error
 	EffortRegistryOffset(context.Context) (int, error)
 	SaveEffortRegistryOffset(context.Context, int) error
+	AppendEffortSignal(ctx context.Context, ref, kind, runID, detail, dedupeKey string) (*pb.EffortSignal, bool, error)
+	ListEffortSignals(ctx context.Context, ref string, after int64, limit int) ([]*pb.EffortSignal, int64, error)
+	EffortSignalCursor(context.Context) (time.Time, error)
+	SaveEffortSignalCursor(context.Context, time.Time) error
+	InsertEffortDecision(ctx context.Context, d *pb.EffortDecision, digest string) (bool, error)
+	GetEffortDecision(ctx context.Context, home, id string) (*pb.EffortDecision, string, error)
+	FindEffortDecisionByEvent(ctx context.Context, eventID string) (*pb.EffortDecision, error)
+	SaveEffortDecision(context.Context, *pb.EffortDecision) error
+	ListEffortDecisions(ctx context.Context, home, effortRef string, limit int) ([]*pb.EffortDecision, error)
 }
 
 var effortJSON = protojson.MarshalOptions{UseProtoNames: true}

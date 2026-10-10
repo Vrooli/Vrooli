@@ -555,7 +555,7 @@ func goListFreshnessInputsContext(ctx context.Context, binaryDir, repoRoot strin
 		if strings.TrimSpace(abs) == "" {
 			return
 		}
-		clean := filepath.Clean(abs)
+		clean := repoCanonicalPath(cleanRepo, filepath.Clean(abs))
 		if !pathUnderRoot(cleanRepo, clean) {
 			return
 		}
@@ -928,6 +928,7 @@ func (r *Runner) stampArtifactFreshness(art artifactFreshness) error {
 	if err != nil {
 		return err
 	}
+	recordEnvSwitches(art, &manifest)
 	return cliutil.WriteFreshnessManifest(art.ManifestPath, manifest)
 }
 

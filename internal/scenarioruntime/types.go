@@ -16,7 +16,7 @@ const (
 	// shape and schemaMigrations carries additive upgrades for local registries.
 	// A version bump must update both the greenfield schema and its migration
 	// rung; destructive conversions remain operator-owned.
-	SchemaVersion = 13
+	SchemaVersion = 14
 
 	StatusStarting = "starting"
 	StatusRunning  = "running"
@@ -556,7 +556,33 @@ type EditorLease struct {
 	HeartbeatDeadlineAt time.Time
 	StoppedAt           *time.Time
 	StopReason          string
+	// Owner is what the session belongs to: the Agent Manager run, the
+	// web-console session, the bundled desktop app or the operator terminal
+	// that started it. It is recorded at launch, or backfilled from kernel
+	// and environment evidence for a session launched before owners existed;
+	// it is never derived from the scope name. See internal/agentsession.
+	Owner EditorLeaseOwner
 }
+
+// EditorLeaseOwner is the persisted owner of one agent session.
+type EditorLeaseOwner struct {
+	// Kind is one of agentsession's owner kinds; empty means not recorded.
+	Kind string
+	// Ref identifies the owner within its kind (run id, web-console session
+	// id, desktop app data directory).
+	Ref string
+	// EvidenceJSON is the evidence the owner was read from, as JSON.
+	EvidenceJSON string
+	// Source says how it was recorded: "launch" or "backfill".
+	Source     string
+	RecordedAt *time.Time
+}
+
+// Editor lease owner sources.
+const (
+	EditorLeaseOwnerLaunch   = "launch"
+	EditorLeaseOwnerBackfill = "backfill"
+)
 
 // EditorLeaseRepository is the registry's view of live agent sessions.
 type EditorLeaseRepository interface {
@@ -565,4 +591,40 @@ type EditorLeaseRepository interface {
 	StopEditorLease(ctx context.Context, sessionID, reason string) (EditorLease, error)
 	ListEditorLeases(ctx context.Context, includeStopped bool) ([]EditorLease, error)
 	ExpireStaleEditorLeases(ctx context.Context, at time.Time, guard StartingLeaseGuard) ([]EditorLease, error)
+	BackfillEditorLeaseOwner(ctx context.Context, sessionID string, owner EditorLeaseOwner) (bool, error)
+	RefreshEditorLeaseOwnerEvidence(ctx context.Context, sessionID string, owner EditorLeaseOwner) (bool, error)
+}
+
+// AgentSessionReap is the audit record of one owner-safe reap: which session
+// was stopped (or would have been, or failed to be), the owner evidence that
+// made it eligible, and what it held when it was stopped.
+type AgentSessionReap struct {
+	ReapID            string
+	SessionID         string
+	Scope             string
+	OwnerKind         string
+	OwnerRef          string
+	OwnerEvidenceJSON string
+	LivenessDetail    string
+	MemoryBytes       int64
+	SwapBytes         int64
+	Tasks             int64
+	// Outcome is stopped, failed or unsupported.
+	Outcome   string
+	Error     string
+	Initiator string
+	CreatedAt time.Time
+}
+
+// Agent session reap outcomes.
+const (
+	AgentSessionReapStopped     = "stopped"
+	AgentSessionReapFailed      = "failed"
+	AgentSessionReapUnsupported = "unsupported"
+)
+
+// AgentSessionReapRepository records and lists reap audits.
+type AgentSessionReapRepository interface {
+	RecordAgentSessionReap(ctx context.Context, reap AgentSessionReap) (AgentSessionReap, error)
+	ListAgentSessionReaps(ctx context.Context, limit int) ([]AgentSessionReap, error)
 }

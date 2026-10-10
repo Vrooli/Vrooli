@@ -7,13 +7,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/vrooli/cli-core/cliutil"
 	"net"
 	"net/http"
 	"os"
 	"path/filepath"
 	"syscall"
 	"time"
+
+	"agent-manager/internal/domain"
+	"github.com/vrooli/cli-core/cliutil"
 )
 
 type authorizationPeer struct {
@@ -26,8 +28,16 @@ type authorizationPeerKey struct{}
 // descendants of an approved process incarnation. It shares this API owner's
 // lifecycle and signer; it is not an independent identity daemon.
 func (o *Orchestrator) StartAuthorizationBroker() (func() error, error) {
-	path := cliutil.AgentCredentialSocket()
-	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+	// Only the canonical authority owns the host credential socket. Isolated
+	// scenario variants must not intercept live sessions or stop the owner.
+	if variant := os.Getenv("VROOLI_VARIANT"); variant != "" && variant != "live" && variant != "default" {
+		return func() error { return nil }, nil
+	}
+	return o.startAuthorizationBrokerAt(cliutil.AgentCredentialSocket())
+}
+
+func (o *Orchestrator) startAuthorizationBrokerAt(path string) (func() error, error) {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return nil, err
 	}
 	info, err := os.Lstat(filepath.Dir(path))
@@ -35,7 +45,7 @@ func (o *Orchestrator) StartAuthorizationBroker() (func() error, error) {
 		return nil, err
 	}
 	stat, ok := info.Sys().(*syscall.Stat_t)
-	if !ok || int(stat.Uid) != os.Getuid() || info.Mode().Perm() != 0700 || !info.IsDir() {
+	if !ok || int(stat.Uid) != os.Getuid() || info.Mode().Perm() != 0o700 || !info.IsDir() {
 		return nil, errors.New("unsafe agent credential socket directory")
 	}
 	if _, err := os.Lstat(path); err == nil {
@@ -58,11 +68,12 @@ func (o *Orchestrator) StartAuthorizationBroker() (func() error, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := os.Chmod(path, 0600); err != nil {
+	if err := os.Chmod(path, 0o600); err != nil {
 		listener.Close()
 		return nil, err
 	}
-	server := &http.Server{ReadHeaderTimeout: 3 * time.Second, WriteTimeout: 5 * time.Second,
+	server := &http.Server{
+		ReadHeaderTimeout: 3 * time.Second, WriteTimeout: 5 * time.Second,
 		ConnContext: func(ctx context.Context, conn net.Conn) context.Context {
 			peer := authorizationPeer{err: errors.New("peer credentials unavailable")}
 			if unix, ok := conn.(*net.UnixConn); ok {
@@ -95,7 +106,14 @@ func (o *Orchestrator) StartAuthorizationBroker() (func() error, error) {
 			}
 			token, found, err := o.ResolveAuthorizationCredential(r.Context(), peer.pid)
 			if err != nil {
-				http.Error(w, "authorization expired, revoked or unavailable", http.StatusForbidden)
+				code := "unavailable"
+				var refused *domain.AuthorizationError
+				if errors.As(err, &refused) {
+					code = refused.Code
+				}
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusForbidden)
+				json.NewEncoder(w).Encode(map[string]string{"code": code, "recovery": "vrooli agent authorization <session-or-run>"})
 				return
 			}
 			if !found {
@@ -104,7 +122,8 @@ func (o *Orchestrator) StartAuthorizationBroker() (func() error, error) {
 			}
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(map[string]string{"token": token})
-		})}
+		}),
+	}
 	go func() {
 		if err := server.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			o.logAuthorizationBrokerFailure(err)
@@ -116,6 +135,7 @@ func (o *Orchestrator) StartAuthorizationBroker() (func() error, error) {
 		return server.Shutdown(ctx)
 	}, nil
 }
+
 func (o *Orchestrator) logAuthorizationBrokerFailure(err error) {
 	fmt.Fprintln(os.Stderr, "agent authorization broker stopped:", err)
 }

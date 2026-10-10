@@ -302,13 +302,13 @@ func composeManagedServiceArtifact(ctx context.Context, target binaryfetch.Acqui
 			if runtime.GOOS == string(hostreqspec.PlatformWindows) {
 				platform = arch + "-pc-windows-msvc"
 			}
-			command, err := pythonWheelsCommand(ctx, step, dest, lockfile, platform)
+			command, err := PythonWheelsCommand(ctx, step, dest, lockfile, platform)
 			if err != nil {
 				return err
 			}
 			command.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.Resource, envkit.Env{"UV_NO_PROGRESS=1"})
 			if output, err := command.CombinedOutput(); err != nil {
-				return fmt.Errorf("uv wheel resolution failed: %w: %s", err, strings.TrimSpace(string(output)))
+				return fmt.Errorf("uv wheel resolution failed: %w: %s (command: %s)", err, strings.TrimSpace(string(output)), strings.Join(command.Args, " "))
 			}
 		case "local":
 			source := filepath.Join(resourceRoot, filepath.FromSlash(step.Source))
@@ -326,7 +326,10 @@ func composeManagedServiceArtifact(ctx context.Context, target binaryfetch.Acqui
 	return writeManagedComposeManifest(target, artifactRoot, platformOS+"-"+runtime.GOARCH, resourceRoot)
 }
 
-func pythonWheelsCommand(ctx context.Context, step binaryfetch.ComposeStep, dest, lockfile, platform string) (*exec.Cmd, error) {
+// PythonWheelsCommand builds the governed wheel-only installation command for
+// a composed resource target. Release staging and runtime acquisition share
+// this path so index, hash, and source-distribution policy cannot drift.
+func PythonWheelsCommand(ctx context.Context, step binaryfetch.ComposeStep, dest, lockfile, platform string) (*exec.Cmd, error) {
 	// The lock is the complete resolved closure. Installing without dependency
 	// re-resolution is important here: it prevents a package metadata edge from
 	// reintroducing an unqualified source distribution after the lock has

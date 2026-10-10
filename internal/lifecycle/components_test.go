@@ -710,6 +710,35 @@ func TestGoModuleBuildArgvUsesRepositoryFlagPolicy(t *testing.T) {
 	}
 }
 
+// TestGoModuleBuildArgvDisablesVCSStampingOutsideCheckout: an engaged serving
+// tree lives under the cache, outside the repository checkout, so Go's VCS
+// probe would reach an unrelated ancestor (a stray ~/.git fails the build).
+// Working-tree builds keep the repository policy unchanged.
+func TestGoModuleBuildArgvDisablesVCSStampingOutsideCheckout(t *testing.T) {
+	root := t.TempDir()
+	if err := os.Mkdir(filepath.Join(root, ".vrooli"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	contract := `{"build.go_flags":{"develop":["-trimpath"],"distribution":["-trimpath","-buildvcs=false"],"scenario":["-trimpath"]}}`
+	if err := os.WriteFile(filepath.Join(root, ".vrooli", "repo-contract.json"), []byte(contract), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	working, err := goModuleBuildArgvForItem(root, scenario.Scenario{Slug: "demo", Path: "/repo/scenarios/demo"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"go", "build", "-trimpath", "-o", "{output}", "{entry}"}; !reflect.DeepEqual(working, want) {
+		t.Fatalf("working-tree Go argv = %v, want %v", working, want)
+	}
+	serving, err := goModuleBuildArgvForItem(root, scenario.Scenario{Slug: "demo", Path: "/repo/scenarios/demo", SourceDir: "/cache/serving-tree/scenarios/demo"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"go", "build", "-trimpath", "-buildvcs=false", "-o", "{output}", "{entry}"}; !reflect.DeepEqual(serving, want) {
+		t.Fatalf("serving-tree Go argv = %v, want %v", serving, want)
+	}
+}
+
 // TestBuildArgvIsShellFree: no builder channel may carry a shell metacharacter.
 // A conditional inside a package script is exactly what made the perf-build
 // channel unreachable on Windows; the selection belongs in Go.

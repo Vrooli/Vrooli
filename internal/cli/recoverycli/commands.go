@@ -54,6 +54,8 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 					slugOption(),
 					{Name: "--source", ValueName: "path", Description: "Working-tree path to capture (default scenarios/<scenario>)"},
 					{Name: "--no-reflink", Description: "Force the portable deep-copy floor instead of the CoW fast path"},
+					{Name: "--allow-unfrozen", Description: "Capture even when the shared sources the build needs cannot be frozen (the serving build then reads the repository's current shared packages)"},
+					{Name: "--replace", Description: "Recapture the restore point of an open engagement for the same scenario and slug (refused without it)"},
 					commandtree.JSONOption(),
 				},
 			},
@@ -151,10 +153,16 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 		},
 		{
 			Name:    string(CommandClean),
-			Summary: "Tear down an engagement (restore point + manifest)",
+			Summary: "Tear down an engagement (restore point, manifest, frozen sources, serving trees); refused while live runs from it",
 			Group:   groupEngagement,
 			Args: commandtree.ArgSchema{
-				Options: []commandtree.OptionArg{scenarioOption(), slugOption(), commandtree.JSONOption()},
+				Options: []commandtree.OptionArg{
+					scenarioOption(),
+					slugOption(),
+					{Name: "--restart-live", Description: "Restart an instance that runs from the engagement onto the working tree first (build before stop); keep the engagement if that fails"},
+					{Name: "--force", Description: "Clean even when an instance runs from the engagement: restart it from the working tree, or stop it if the restart fails"},
+					commandtree.JSONOption(),
+				},
 			},
 			Handler: CommandClean,
 		},
@@ -206,10 +214,25 @@ func ParseCaptureRequest(args []string) (recoveryapp.CaptureRequest, error) {
 		return recoveryapp.CaptureRequest{}, err
 	}
 	return recoveryapp.CaptureRequest{
-		Scenario:  parsed.FlagValue("--scenario"),
-		Slug:      parsed.FlagValue("--slug"),
-		Source:    parsed.FlagValue("--source"),
-		NoReflink: parsed.HasFlag("--no-reflink"),
+		Scenario:      parsed.FlagValue("--scenario"),
+		Slug:          parsed.FlagValue("--slug"),
+		Source:        parsed.FlagValue("--source"),
+		NoReflink:     parsed.HasFlag("--no-reflink"),
+		AllowUnfrozen: parsed.HasFlag("--allow-unfrozen"),
+		Replace:       parsed.HasFlag("--replace"),
+	}, nil
+}
+
+func ParseCleanRequest(args []string) (recoveryapp.CleanRequest, error) {
+	parsed, err := parse(CommandClean, "recovery clean", args)
+	if err != nil {
+		return recoveryapp.CleanRequest{}, err
+	}
+	return recoveryapp.CleanRequest{
+		Scenario:    parsed.FlagValue("--scenario"),
+		Slug:        parsed.FlagValue("--slug"),
+		RestartLive: parsed.HasFlag("--restart-live"),
+		Force:       parsed.HasFlag("--force"),
 	}, nil
 }
 

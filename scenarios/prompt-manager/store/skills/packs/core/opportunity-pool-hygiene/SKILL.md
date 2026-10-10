@@ -85,7 +85,7 @@ For each entry in the pool:
    - The bet has been superseded by a better-shaped sibling already in the pool.
    - The entry has been in the pool >180 days with no trigger movement and no recent reinforcing signal.
 
-   For retirement: prefer `--content` update with `status: retired` + a `## Retirement note` body section over hard `knowledge-delete`. Hard-delete only when the entry was a duplicate or malformed. Retired entries remain searchable for institutional memory.
+   For retirement: prefer `--content` update with `status: retired` + a `## Retirement note` body section over closing it. Close it (`knowledge-close`) only when the entry was a duplicate or malformed; the knowledge store is append-only, so `knowledge-delete` always refuses. Retired entries remain searchable for institutional memory.
 
 4. **Pool-size pressure.** If the pool has >25 active entries (`status` ∈ {`idea`, `candidate`, `trigger-met`}):
 
@@ -115,9 +115,9 @@ Retire an entry softly (preferred):
 prompt-manager team knowledge-update monetization "<id>" --content="<...>"
 ```
 
-Delete an entry hard (duplicates / malformed only):
+Close an entry (duplicates / malformed only; hidden from default listings):
 ```bash
-prompt-manager team knowledge-delete monetization "<id>"
+prompt-manager team knowledge-close monetization "<id>" --reason=duplicate-of --ref="<kept-id>"
 ```
 
 Raise a catalog-promotion decision:

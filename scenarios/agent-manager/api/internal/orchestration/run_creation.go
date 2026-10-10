@@ -2,28 +2,31 @@
 package orchestration
 
 import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"slices"
+	"strings"
+	"time"
+
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/adapters/sandbox"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/identity"
 	"agent-manager/internal/metrics"
 	"agent-manager/internal/orchestration/obs"
 	"agent-manager/internal/orchestration/phases"
 	"agent-manager/internal/orchestration/spawn"
 	"agent-manager/internal/policy"
 	"agent-manager/internal/tokenaccounting"
-	"context"
-	"encoding/json"
-	"fmt"
+
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/effortauthority"
 	isolation "github.com/vrooli/vrooli/packages/nativeisolation"
 	eventpb "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 	"google.golang.org/protobuf/proto"
-	"os"
-	"path/filepath"
-	"slices"
-	"strings"
-	"time"
 )
 
 func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*domain.Run, error) {
@@ -486,6 +489,12 @@ func (o *Orchestrator) createRun(ctx context.Context, req CreateRunRequest, reco
 	resolvedConfig.SandboxConfig = sandboxConfig
 	narrowEffortConfig(req, resolvedConfig, o.now())
 	resolvedConfig.Admission = buildRunAdmission(req, resolvedConfig)
+	identityOwnerScopes := req.OwnerScopes
+	if identityOwnerScopes == nil {
+		identityOwnerScopes = []string{}
+	}
+	identityScopes := identity.IntersectScopes(identityOwnerScopes, profile.IdentityScopeCeiling(), req.RequestedScopes)
+	resolvedConfig.Admission.FrozenIdentityScopes = &identityScopes
 	// Record the runner-native control arguments the selected codec emits for
 	// the resolved configuration, so the "passed" layer is durable alongside
 	// the requested and effective layers.
@@ -499,6 +508,7 @@ func (o *Orchestrator) createRun(ctx context.Context, req CreateRunRequest, reco
 		failCreation()
 		return nil, err
 	}
+	o.inheritParentEffortReferences(ctx, &req)
 	if err := o.revalidateCreateRunCaller(ctx, req); err != nil {
 		return nil, err
 	}

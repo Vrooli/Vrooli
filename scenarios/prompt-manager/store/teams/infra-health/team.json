@@ -15,7 +15,7 @@
   },
   "createdAt": "2026-04-28T00:00:00Z",
   "displayName": "Infra Health Team",
-  "enabled": false,
+  "enabled": true,
   "execution": {
     "queuePolicy": "bounded-parallel",
     "maxConcurrentRuns": 3
@@ -34,7 +34,7 @@
       "test-genie",
       "scenario-dependency-analyzer"
     ],
-    "gapMarker": "2026-08-20 (second revision) — the instrument is wired to its own condition domain and to a new substrate projection. Fixed since the first marker: the batch saturation read removed the N+1 per-check fan-out that was reporting deadline expiry as UNTRUSTED on roughly two thirds of checks; ghost classification now tests target existence rather than core-set membership, so installed scenarios outside the core set are reported as out-of-scope and stay in every aggregate; the focus surface now joins out-of-band and untrusted readings, so inner cascade tiers can outrank coverage gaps; and 24 of 28 setpoint bars now carry a unit and a numeric threshold, with the remaining four declared not-gradeable with stated reasons. Still open: substrate bars are provisional pending operator ratification, setpoint confidence is SKETCH, peer sources other than vrooli-autoheal have no typed reader, capability availability history is unavailable, the infra-health loop remains paused, and template provenance remains quarantined upstream. The plant remains the layer stack in docs/infra-health/operating/OPERATING_MODEL.md section Platform Under Control — not the *-health scenario fleet, which is scenario-qa's plant."
+    "gapMarker": "2026-08-20 (second revision) — the instrument is wired to its own condition domain and to a new substrate projection. Fixed since the first marker: the batch saturation read removed the N+1 per-check fan-out that was reporting deadline expiry as UNTRUSTED on roughly two thirds of checks; ghost classification now tests target existence rather than core-set membership, so installed scenarios outside the core set are reported as out-of-scope and stay in every aggregate; the focus surface now joins out-of-band and untrusted readings, so inner cascade tiers can outrank coverage gaps; and 24 of 28 setpoint bars now carry a unit and a numeric threshold, with the remaining four declared not-gradeable with stated reasons. Still open: substrate bars are provisional pending operator ratification, setpoint confidence is SKETCH, peer sources other than vrooli-autoheal have no typed reader, capability availability history is unavailable, the team is disabled (team.json enabled:false since 2026-09-14; no Swarm consumer drains its items), infrastructure-manager is stopped as of 2026-10-07, and template provenance remains quarantined upstream. The plant remains the layer stack in docs/infra-health/operating/OPERATING_MODEL.md section Platform Under Control — not the *-health scenario fleet, which is scenario-qa's plant."
   },
   "kind": "team",
   "lifetime": "standing",
@@ -283,7 +283,7 @@
     }
   },
   "purpose": "domain-stewardship",
-  "revision": 5,
+  "revision": 6,
   "runtime": {
     "mode": "multi-process"
   },
@@ -309,5 +309,5 @@
       "purpose": "Stale work-item and failure-mode review snapshot."
     }
   ],
-  "updatedAt": "2026-09-14T05:05:43Z"
+  "updatedAt": "2026-10-08T01:26:34Z"
 }

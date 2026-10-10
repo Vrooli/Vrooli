@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/vrooli/cli-core/cliutil"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"google.golang.org/protobuf/encoding/protojson"
 )
@@ -37,6 +38,9 @@ func (a *App) streamEvents(runID string) error {
 	a.core.HTTPClient.ApplyRequestHeaders(handshake)
 	for name, value := range a.core.APIClient.AuthHeaders() {
 		handshake.Header.Set(name, value)
+	}
+	if err := cliutil.ApplyAgentIdentity(handshake); err != nil {
+		return fmt.Errorf("failed to resolve WebSocket identity: %w", err)
 	}
 	conn, _, err := websocket.DefaultDialer.Dial(wsURL, handshake.Header)
 	if err != nil {

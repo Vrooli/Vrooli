@@ -3,15 +3,17 @@ package heartbeat
 import (
 	"context"
 	"encoding/json"
-	"github.com/vrooli/api-core/owneridentity"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/vrooli/api-core/owneridentity"
 )
 
 func TestAuth01DirectCreateRunPreservesOfferedProofWithoutDefaultMutation(t *testing.T) {
+	enforceAuth01(t)
 	for _, kind := range []string{"human", "run", "both", "refused", "redirect"} {
 		t.Run(kind, func(t *testing.T) {
 			auth, runProof := "Bearer fixture-owner", ""
@@ -74,7 +76,9 @@ func TestAuth01DirectCreateRunPreservesOfferedProofWithoutDefaultMutation(t *tes
 		})
 	}
 }
+
 func TestAuth01DirectCreateRunIngressRejectsMissingOrMalformedProofBeforeOwnerCall(t *testing.T) {
+	enforceAuth01(t)
 	calls := 0
 	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { calls++ }))
 	defer srv.Close()
@@ -90,7 +94,9 @@ func TestAuth01DirectCreateRunIngressRejectsMissingOrMalformedProofBeforeOwnerCa
 		}
 	}
 }
+
 func TestAuth01CreateRunProofDoesNotAuthorizeSiblingRequests(t *testing.T) {
+	enforceAuth01(t)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Authorization") != "" || r.Header.Get("X-Agent-Identity-Token") != "" {
 			t.Error("CreateRun proof widened to sibling")
@@ -106,6 +112,7 @@ func TestAuth01CreateRunProofDoesNotAuthorizeSiblingRequests(t *testing.T) {
 }
 
 func TestAuth01RESTIngressPreservesCallerAndExactParent(t *testing.T) {
+	enforceAuth01(t)
 	for _, headers := range [][2]string{{"Bearer fixture-owner", ""}, {"", "fixture-run"}, {"Bearer fixture-owner", "fixture-run"}} {
 		calls := 0
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -144,7 +151,9 @@ func (v auth01ConversationVerifier) Validate(_ context.Context, token string) (o
 	}
 	return owneridentity.Identity{Subject: "fixture", Scopes: []string{"agent-manager:write"}, ExpiresAt: time.Now().Add(time.Hour)}, nil
 }
+
 func TestAuth01ConversationInvalidCallerRejectsBeforeTaskOrReplay(t *testing.T) {
+	enforceAuth01(t)
 	h, client, _ := conversationFixture(t)
 	h.runCallerValidator = auth01ConversationVerifier{invalid: true}
 	req := httptest.NewRequest(http.MethodPost, "/runs", strings.NewReader(conversationBody))
@@ -157,6 +166,7 @@ func TestAuth01ConversationInvalidCallerRejectsBeforeTaskOrReplay(t *testing.T) 
 }
 
 func TestAuth01AmbiguousOrBlankOfferedChannelsRejectBeforeProxy(t *testing.T) {
+	enforceAuth01(t)
 	h := &Handlers{agentClient: newMockAgentClient()}
 	for _, headers := range []http.Header{{"Authorization": []string{"Bearer fixture", ""}}, {"Authorization": []string{"Bearer fixture"}, "X-Agent-Identity-Token": []string{""}}, {"Authorization": []string{""}, "X-Agent-Identity-Token": []string{"fixture"}}} {
 		r := httptest.NewRequest(http.MethodPost, "/runs", strings.NewReader(`{bad`))
@@ -170,6 +180,7 @@ func TestAuth01AmbiguousOrBlankOfferedChannelsRejectBeforeProxy(t *testing.T) {
 }
 
 func TestAuth01ClientMissingProofRejectsWithoutAnonymousRetry(t *testing.T) {
+	enforceAuth01(t)
 	calls := 0
 	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { calls++ }))
 	defer srv.Close()
@@ -180,6 +191,7 @@ func TestAuth01ClientMissingProofRejectsWithoutAnonymousRetry(t *testing.T) {
 }
 
 func TestAuth01RealExecutorMissingCallerRejectsBeforeLocalOrTaskEffects(t *testing.T) {
+	enforceAuth01(t)
 	e := &Executor{agentClient: &AgentManagerClient{}}
 	_, err := e.Execute(context.Background(), "fixture", "fixture", "fixture")
 	if err == nil {

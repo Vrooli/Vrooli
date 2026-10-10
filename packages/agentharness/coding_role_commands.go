@@ -15,6 +15,7 @@ import (
 )
 
 type codingRoleResponse struct {
+	Effort         string                         `json:"effort,omitempty"`
 	SchemaVersion  string                         `json:"schema_version"`
 	Runner         string                         `json:"runner"`
 	Role           string                         `json:"role"`
@@ -132,7 +133,13 @@ func codingPolicyRoles(cfg CodingPolicyConfig, args []string) error {
 	roles := sortedRoles(catalog)
 	responses := make([]codingRoleResponse, 0, len(roles))
 	for _, role := range roles {
-		responses = append(responses, responseFor(cfg, catalog, role, data))
+		response := responseFor(cfg, catalog, role, data)
+		effort, err := deliveryDeclaredEffort(role, catalog.Roles[role])
+		if err != nil {
+			return err
+		}
+		response.Effort = effort
+		responses = append(responses, response)
 	}
 	if *jsonOut {
 		return writeJSON(cfg.Stdout, map[string]any{"schema_version": CodingRolePolicySchemaVersion, "runner": catalog.Runner, "roles": responses})
@@ -161,6 +168,11 @@ func codingPolicyResolve(cfg CodingPolicyConfig, args []string) error {
 		return fmt.Errorf("unknown coding role %q", *role)
 	}
 	response := responseFor(cfg, catalog, *role, data)
+	effort, err := deliveryDeclaredEffort(*role, catalog.Roles[*role])
+	if err != nil {
+		return err
+	}
+	response.Effort = effort
 	if *jsonOut {
 		return writeJSON(cfg.Stdout, response)
 	}

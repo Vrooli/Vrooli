@@ -13,11 +13,40 @@ import (
 )
 
 func RenderCapture(w io.Writer, format cliout.Format, resp recoveryapp.CaptureOutput) error {
+	detail := []string{"source: " + filepath.ToSlash(resp.Source), "restore point: " + filepath.ToSlash(resp.RestorePointPath)}
+	if resp.CaptureID != "" {
+		detail = append(detail, "capture id: "+resp.CaptureID, "shared sources: "+sharedSourcesLabel(resp.SharedSources))
+	}
 	return renderTransfer(w, format,
 		func(w io.Writer) error { return cliout.WriteProtoJSON(w, RecoveryCaptureResponse(resp)) },
 		fmt.Sprintf("captured %s/%s", resp.Scenario, resp.Slug),
-		[]string{"source: " + filepath.ToSlash(resp.Source), "restore point: " + filepath.ToSlash(resp.RestorePointPath)},
+		detail,
 		resp.Stats)
+}
+
+// sharedSourcesLabel summarizes a shared-source freeze for humans. An
+// unfrozen capture is a warning: the serving build reads the moving
+// repository.
+func sharedSourcesLabel(shared baselinefloor.SharedSources) string {
+	if shared.Frozen() {
+		label := fmt.Sprintf("frozen (%d roots, %d bytes)", len(shared.Roots), shared.Bytes)
+		if shared.ProtoArtifactID != "" {
+			label += ", proto artifact " + shared.ProtoArtifactID
+		}
+		return label
+	}
+	label := "WARNING unfrozen; the serving build reads the repository's current shared packages"
+	if shared.Reason != "" {
+		label += " (" + firstLine(shared.Reason) + ")"
+	}
+	return label
+}
+
+func firstLine(text string) string {
+	if index := strings.IndexByte(text, '\n'); index >= 0 {
+		return text[:index]
+	}
+	return text
 }
 
 func RenderRestore(w io.Writer, format cliout.Format, resp recoveryapp.RestoreOutput) error {
@@ -57,6 +86,12 @@ func RenderClean(w io.Writer, format cliout.Format, resp recoveryapp.CleanOutput
 	return cliout.RenderJSONOr(w, format, func(w io.Writer) error { return cliout.WriteProtoJSON(w, RecoveryCleanResponse(resp)) }, func(w io.Writer) error {
 		_, _ = fmt.Fprintf(w, "cleaned %s/%s\n", resp.Scenario, resp.Slug)
 		_, _ = fmt.Fprintf(w, "  removed: %s\n", filepath.ToSlash(resp.EngagementDir))
+		if len(resp.Restarted) > 0 {
+			_, _ = fmt.Fprintf(w, "  restarted from the working tree: %s\n", strings.Join(resp.Restarted, ", "))
+		}
+		if len(resp.Stopped) > 0 {
+			_, _ = fmt.Fprintf(w, "  stopped (restart failed): %s\n", strings.Join(resp.Stopped, ", "))
+		}
 		return nil
 	})
 }
@@ -109,6 +144,12 @@ func printEngagement(w io.Writer, e recoveryapp.EngagementView) {
 	}
 	if e.AnchorBaselineName != "" {
 		_, _ = fmt.Fprintf(w, "  anchor: %s\n", e.AnchorBaselineName)
+	}
+	if e.Capture != nil {
+		_, _ = fmt.Fprintf(w, "  capture id: %s\n", e.Capture.CaptureID)
+		_, _ = fmt.Fprintf(w, "  shared sources: %s\n", sharedSourcesLabel(e.Capture.SharedSources))
+	} else {
+		_, _ = fmt.Fprintf(w, "  shared sources: WARNING unfrozen (captured before shared-source freezing)\n")
 	}
 	_, _ = fmt.Fprintf(w, "  ttl: %s\n", ttlLabel(e))
 	_, _ = fmt.Fprintf(w, "  expires: %s\n", expiryLabel(e))

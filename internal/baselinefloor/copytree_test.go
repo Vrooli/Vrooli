@@ -72,7 +72,7 @@ func TestCopyTree_SkipsExcludedDirsAndFiles(t *testing.T) {
 	writeFile(t, src, "ui/dist/bundle.js", "drop", 0o644)
 	writeFile(t, src, "coverage/lcov.info", "drop", 0o644)
 	writeFile(t, src, ".git/config", "drop", 0o644)
-	writeFile(t, src, ".vrooli/service.json", "drop", 0o644)
+	writeFile(t, src, ".vrooli/service.json", "keep", 0o644)
 	writeFile(t, src, ".build-fingerprint.json", "drop", 0o644)
 	writeFile(t, src, "api/generated/pb.go", "drop", 0o644)
 
@@ -80,14 +80,15 @@ func TestCopyTree_SkipsExcludedDirsAndFiles(t *testing.T) {
 		t.Fatalf("CopyTree: %v", err)
 	}
 
-	mustExist := []string{"main.go"}
+	// The scenario's .vrooli configuration is source that builds read.
+	mustExist := []string{"main.go", ".vrooli/service.json"}
 	for _, p := range mustExist {
 		if _, err := os.Stat(filepath.Join(dst, p)); err != nil {
 			t.Errorf("expected %s to be copied: %v", p, err)
 		}
 	}
 	mustNotExist := []string{
-		"node_modules", "ui/dist", "coverage", ".git", ".vrooli",
+		"node_modules", "ui/dist", "coverage", ".git",
 		".build-fingerprint.json", "api/generated",
 	}
 	for _, p := range mustNotExist {

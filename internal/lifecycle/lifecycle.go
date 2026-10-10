@@ -638,10 +638,14 @@ func (r *Runner) startLocked(name string, opts StartOptions, session *startSessi
 	var err error
 	var restartStopStartedAt time.Time
 	if opts.stopFirst && name != "agent-manager" {
-		// Restart is an explicit interruption request. Cross the stop boundary
-		// before loading the manifest, resolving engagement, provider fencing,
-		// host preflight, or dependency preparation. These control-plane reads
-		// can block; none may keep an accepted provider effect live.
+		// Build and preflight before the stop: a restart whose replacement
+		// cannot be built or whose host requirements fail must leave the
+		// running instance serving (O14), as an ordinary stale replacement
+		// does. When the build is fresh this costs only the layout, preflight
+		// and freshness reads; the stop that follows is immediate.
+		if err := r.prepareRestartBeforeStop(name, &opts); err != nil {
+			return Result{}, err
+		}
 		restartStopStartedAt = r.runtimeDeps().now()
 		if err := r.stopLocked(name, StopOptions{
 			Context: opts.Context, Variant: opts.Variant, CustomPath: opts.CustomPath, immediate: true,
@@ -718,22 +722,10 @@ func (r *Runner) startLocked(name string, opts StartOptions, session *startSessi
 			return Result{}, err
 		}
 	}
-	treePaths, err := r.startTreeScenarioPaths(item)
-	if err != nil {
-		return Result{}, err
-	}
-	// Optional host capabilities are deliberately skipped by runtime.Enforce
-	// unless an operator opts into them. Do not pay the host-catalog/handler
-	// cost after an explicit restart when the entire tree is optional; a
-	// required declaration still takes the normal fail-closed path.
-	if !opts.restartAfterStop || scenarioTreeHasRequiredHostRequirements(item, treePaths) {
-		if err := r.enforceScenarioHostRequirementsTree(item, treePaths); err != nil {
+	if opts.hostRequirementsPreflighted == nil {
+		if err := r.preflightStartTree(item, &opts); err != nil {
 			return Result{}, fmt.Errorf("preflight host requirements for scenario %q: %w", name, err)
 		}
-	}
-	opts.hostRequirementsPreflighted = make(map[string]struct{}, len(treePaths))
-	for _, path := range treePaths {
-		opts.hostRequirementsPreflighted[path] = struct{}{}
 	}
 
 	_ = recorder // the deferred recorder remains attached for the full transaction
@@ -920,12 +912,17 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, sessio
 		r.logDebug("Stopping existing instance before start",
 			logx.AttrScenario, item.Slug, "reason", plan.RestartReason)
 		// Build the replacement while the current instance still owns the
-		// serving process for implicit stale/unhealthy replacement. Explicit
-		// restart has already crossed its interruption boundary and prepares
-		// after stop, so setup latency cannot delay input cancellation.
-		if !opts.stopFirst && observed.View.Authoritative && string(observed.View.Instance.Status) != scenarioruntime.StatusFailed {
-			if err := r.prepareReplacementArtifacts(ctxOrBackground(opts.Context), item, observed.View); err != nil {
+		// serving process, so a failed build leaves it serving. An explicit
+		// restart that reaches here (Agent Manager's self-restart; other
+		// scenarios prepare in prepareRestartBeforeStop) builds first only
+		// when its build is stale or forced.
+		if observed.View.Authoritative && string(observed.View.Instance.Status) != scenarioruntime.StatusFailed &&
+			(!opts.stopFirst || observed.FreshnessStale || forceSetup) {
+			if err := r.prepareReplacementArtifacts(ctxOrBackground(opts.Context), item, observed.View, forceSetup, opts.Operation); err != nil {
 				return Result{}, err
+			}
+			if opts.stopFirst {
+				forceSetup = false
 			}
 		}
 		if err := r.stopLocked(item.Slug, StopOptions{Context: opts.Context, Variant: item.Variant, CustomPath: opts.CustomPath, maintenanceRevision: maintenanceRevision, recoveryFirst: opts.recoveryFirstRestart, immediate: opts.stopFirst}); err != nil {
@@ -955,17 +952,6 @@ func ctxOrBackground(ctx context.Context) context.Context {
 		return context.Background()
 	}
 	return ctx
-}
-
-func (r *Runner) prepareReplacementArtifacts(ctx context.Context, item scenario.Scenario, view registryRuntimeView) error {
-	env := envFromRuntimeView(item.Manifest, view)
-	if _, err := r.runWithLifecycleLog(startLifecycleLogContext(instanceLogName(item), "stage", "setup"), func(logWriter, childWriter io.Writer) error {
-		_, execErr := r.executePhaseDetailed(ctx, item, "setup", env, logWriter, childWriter, false)
-		return execErr
-	}); err != nil {
-		return fmt.Errorf("prepare replacement artifacts for %s: %w", item.Slug, err)
-	}
-	return nil
 }
 
 // executeStart runs the start steps for one instance whose teardown/reuse
@@ -1514,7 +1500,17 @@ func scenarioTreeHasRequiredHostRequirements(root scenario.Scenario, paths []str
 	return false
 }
 
-func (r *Runner) startTreeScenarioPaths(root scenario.Scenario) ([]string, error) {
+// startTreeScenarioPaths returns the scenario paths whose host requirements a
+// start preflights at when=develop: the root, and every dependency in the
+// recursive dependency tree that is not already serving. A dependency with an
+// authoritative running instance will not be built or started by this start,
+// so its develop-time requirements (frontend generators, native toolkits) are
+// not this start's concern; if it does need a replacement later, its own
+// start enforces them (executeStart checks every path this preflight did not
+// cover). A dependency whose registry state cannot be read is preflighted.
+// The tree is still walked through running dependencies, because their own
+// dependencies may need to start.
+func (r *Runner) startTreeScenarioPaths(ctx context.Context, root scenario.Scenario) ([]string, error) {
 	paths := []string{}
 	seen := map[string]struct{}{}
 	var visit func(scenario.Scenario) error
@@ -1523,7 +1519,9 @@ func (r *Runner) startTreeScenarioPaths(root scenario.Scenario) ([]string, error
 			return nil
 		}
 		seen[item.Path] = struct{}{}
-		paths = append(paths, item.Path)
+		if item.Path == root.Path || !r.dependencyServing(ctx, item) {
+			paths = append(paths, item.Path)
+		}
 		for dependencyName := range item.Manifest.Dependencies.Scenarios {
 			dependency, err := r.loadScenario(dependencyName, "")
 			if err != nil {
@@ -1540,6 +1538,13 @@ func (r *Runner) startTreeScenarioPaths(root scenario.Scenario) ([]string, error
 	}
 	slices.Sort(paths)
 	return paths, nil
+}
+
+// dependencyServing reports whether a dependency (resolved at live, as the
+// dependency bootstrap resolves it) has an authoritative running instance.
+func (r *Runner) dependencyServing(ctx context.Context, dependency scenario.Scenario) bool {
+	view, err := r.lookupRegistryRuntime(ctxOrBackground(ctx), dependency)
+	return err == nil && view.Authoritative
 }
 
 func (r *Runner) enforceScenarioHostRequirementsTree(item scenario.Scenario, paths []string) error {

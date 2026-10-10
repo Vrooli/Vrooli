@@ -18,6 +18,9 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+// ProgramEventWebhookPath is the program-runtime event webhook route.
+const ProgramEventWebhookPath = "/api/v1/events/program-runtime"
+
 // ProgramEventWebhook receives the signed webhook envelope emitted by
 // vrooli-events. Event IDs are the durable idempotency key.
 func ProgramEventWebhook(db *database.DB, secret string) http.Handler {

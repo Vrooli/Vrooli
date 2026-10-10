@@ -29,3 +29,28 @@ func TestFiniteLeaderRequiresExactBoundedConfiguration(t *testing.T) {
 		})
 	}
 }
+
+func TestFiniteLeaderCheckinPolicyDefaultsToParkedAndValidates(t *testing.T) {
+	b := &FiniteLeader{EffortRef: "any:effort", AcceptedRevision: "r7", CoordinatorPromptRef: "pm:coordinator", SourceRefs: []string{"owner:assignment"}, KeepAlive: true}
+	if b.EventCheckins() || b.CheckinPollInterval() != DefaultCheckinPollInterval || b.CheckinBackstop() != DefaultCheckinBackstop {
+		t.Fatalf("absent checkin policy is not parked with defaults")
+	}
+	b.Checkin = &CheckinPolicy{Mode: CheckinModeEvent, PollInterval: "5m", Backstop: "12h"}
+	if err := b.Validate("qualified"); err != nil || !b.EventCheckins() || b.CheckinPollInterval().String() != "5m0s" || b.CheckinBackstop().String() != "12h0m0s" {
+		t.Fatalf("event policy not honoured: %v", err)
+	}
+	for name, policy := range map[string]*CheckinPolicy{
+		"mode":     {Mode: "wake"},
+		"poll":     {Mode: CheckinModeEvent, PollInterval: "10s"},
+		"backstop": {Mode: CheckinModeEvent, Backstop: "soon"},
+	} {
+		b.Checkin = policy
+		if err := b.Validate("qualified"); err == nil {
+			t.Fatalf("%s: invalid checkin policy accepted", name)
+		}
+	}
+	b.KeepAlive, b.Checkin = false, &CheckinPolicy{Mode: CheckinModeEvent}
+	if err := b.Validate("qualified"); err == nil || b.EventCheckins() {
+		t.Fatal("event check-ins accepted without keepAlive")
+	}
+}

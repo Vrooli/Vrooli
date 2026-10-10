@@ -269,3 +269,20 @@ func (e *Epoch) Yield() (*Quantity, string) {
 	}
 	return nil, ""
 }
+
+// WorkerRunIDs reads an epoch's Workers field: run IDs separated by commas or
+// spaces, optionally followed by parenthesized notes.
+func WorkerRunIDs(raw string) []string {
+	var ids []string
+	depth := 0
+	for _, token := range strings.FieldsFunc(raw, func(r rune) bool { return r == ',' || r == ' ' || r == ';' }) {
+		if depth == 0 && !strings.HasPrefix(token, "(") {
+			ids = append(ids, token)
+		}
+		depth += strings.Count(token, "(") - strings.Count(token, ")")
+		if depth < 0 {
+			depth = 0
+		}
+	}
+	return ids
+}

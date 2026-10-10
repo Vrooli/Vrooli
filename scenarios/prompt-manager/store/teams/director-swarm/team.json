@@ -28,7 +28,7 @@
       "swarm-manager",
       "command-center"
     ],
-    "gapMarker": "2026-08-13 — two addresses. swarm-manager holds the portfolio state, so the never-own-your-own-denominator rule disqualifies it from grading that portfolio; command-center is the only candidate that owns none of what it would observe. Blocked on deciding whether the objective join moves out of `prompt-manager graph objectives` or is read from there as a transmitter."
+    "gapMarker": "2026-10-07 — measured deviation: `prompt-manager graph orientation-cost` reports 2 addresses the instrument does not account for (scenarios, source-ledger), and no instrument scenario is declared. swarm-manager holds the portfolio state, so the never-own-your-own-denominator rule disqualifies it from grading that portfolio; command-center is the only candidate that owns none of what it would observe. Declaring command-center as the instrument is an open operator choice; also blocked on deciding whether the objective join moves out of `prompt-manager graph objectives` or is read from there as a transmitter. Team disabled (team.json enabled:false) since 2026-09-14."
   },
   "kind": "team",
   "lifetime": "standing",
@@ -165,7 +165,7 @@
     },
     "members": {
       "portfolio-manager": {
-        "lane": "Keep Swarm Manager goal flow healthy; apply accepted portfolio work items and propose bounded corrections. Hold ranking authority for objective I3 (Enablement): apply the instrument rule so a goal producing a sensor, measurement surface, or actuator borrows the band of the highest-ranked goal it unblocks rather than competing with it.",
+        "lane": "Keep Swarm Manager goal flow healthy; apply portfolio work items the operator moved to `ready` and propose bounded corrections. Hold ranking authority for objective I3 (Enablement): apply the instrument rule so a goal producing a sensor, measurement surface, or actuator borrows the band of the highest-ranked goal it unblocks rather than competing with it.",
         "allowedWrites": [
           {
             "kind": "knowledge"

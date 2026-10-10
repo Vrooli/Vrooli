@@ -78,6 +78,31 @@ type EngagementInfo struct {
 	Mode string
 	// Slug is the engagement slug (baseline-<slug>).
 	Slug string
+	// Generation identifies the restore-point capture: the capture ID, or the
+	// engagement creation time for an engagement captured before capture IDs
+	// existed. A serving tree materialized from another generation is stale.
+	Generation string
+	// SharedSourcesFrozen reports that the capture froze the shared sources
+	// the build reaches outside the scenario (Go replace closure, pnpm file:
+	// dependencies, bundler aliases) together with their generated outputs.
+	// A serving instance built from such a tree must not regenerate the
+	// repository's shared outputs: it does not read them.
+	SharedSourcesFrozen bool
+	// CaptureID and ProtoArtifactID name the frozen capture in lifecycle logs,
+	// so a frozen build failure points at the capture it compiled against.
+	CaptureID       string
+	ProtoArtifactID string
+}
+
+// ServingSourceMaterializer is an optional capability of an
+// EngagementResolver. The restore point is a bare copy of the scenario
+// directory, so the relative references in its sources (Go replace
+// directives, pnpm file: dependencies, bundler aliases) do not resolve from
+// it. A materializer prepares a repo-shaped serving tree around the frozen
+// sources and returns the scenario directory in it. When the resolver does
+// not implement it, the serving instance runs from the restore point itself.
+type ServingSourceMaterializer interface {
+	MaterializeServingSource(scenario string, info EngagementInfo, repoRoot string) (string, error)
 }
 
 // defaultEngagementResolver is the process-wide engagement resolver applied to
@@ -142,13 +167,22 @@ func (r *Runner) effectiveSourceDir(item scenario.Scenario) (string, error) {
 			return "", fmt.Errorf("engagement for %q routes %s to the restore-point copy but the manifest has no restore-point path",
 				item.Slug, layoutVariant(item))
 		}
+		sourceDir := info.RestorePointDir
+		if materializer, ok := r.Engagements.(ServingSourceMaterializer); ok {
+			sourceDir, err = materializer.MaterializeServingSource(item.Slug, info, r.Root)
+			if err != nil {
+				// Fail closed: never fall back to the working tree the candidate owns.
+				return "", fmt.Errorf("materialize serving source for %q: %w", item.Slug, err)
+			}
+		}
 		r.logDebug("Resolving instance source dir to restore-point copy",
 			logx.AttrScenario, item.Slug,
 			"variant", string(layoutVariant(item)),
 			"engagement_slug", info.Slug,
-			"source_dir", info.RestorePointDir,
+			"restore_point", info.RestorePointDir,
+			"source_dir", sourceDir,
 		)
-		return info.RestorePointDir, nil
+		return sourceDir, nil
 	default:
 		return item.Path, nil
 	}
@@ -168,4 +202,19 @@ func (r *Runner) withSourceLayout(item scenario.Scenario) (scenario.Scenario, er
 		item.SourceDir = dir
 	}
 	return item, nil
+}
+
+// frozenServingSources reports whether item builds from a serving tree whose
+// capture froze the shared sources. Only an instance routed away from the
+// working tree (SourceDir set) qualifies; the answer comes from the same
+// engagement fact the layout decision used.
+func (r *Runner) frozenServingSources(item scenario.Scenario) (EngagementInfo, bool) {
+	if r.Engagements == nil || item.SourceDir == "" || item.SourceDir == item.Path {
+		return EngagementInfo{}, false
+	}
+	info, engaged, err := r.Engagements.Engagement(item.Slug)
+	if err != nil || !engaged || !info.SharedSourcesFrozen {
+		return EngagementInfo{}, false
+	}
+	return info, true
 }

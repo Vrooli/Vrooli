@@ -197,20 +197,33 @@ type AttributionInfo struct {
 }
 
 type KnowledgeEntry struct {
-	ID          string          `json:"id"`
-	At          string          `json:"at"`
-	Topic       string          `json:"topic"`
-	Content     string          `json:"content"`
-	Source      string          `json:"source,omitempty"`
-	Supersedes  string          `json:"supersedes,omitempty"`
-	Caller      string          `json:"caller"`
-	CallerNote  string          `json:"caller_note,omitempty"`
-	Attribution AttributionInfo `json:"attribution"`
+	ID          string            `json:"id"`
+	At          string            `json:"at"`
+	Topic       string            `json:"topic"`
+	Content     string            `json:"content"`
+	Source      string            `json:"source,omitempty"`
+	Supersedes  string            `json:"supersedes,omitempty"`
+	Caller      string            `json:"caller"`
+	CallerNote  string            `json:"caller_note,omitempty"`
+	Attribution AttributionInfo   `json:"attribution"`
+	Closure     *KnowledgeClosure `json:"closure,omitempty"`
+}
+
+// KnowledgeClosure records why and by whom a knowledge entry was resolved.
+type KnowledgeClosure struct {
+	KnowledgeID string `json:"knowledgeId"`
+	Reason      string `json:"reason"`
+	Ref         string `json:"ref,omitempty"`
+	Note        string `json:"note,omitempty"`
+	Actor       string `json:"actor,omitempty"`
+	At          string `json:"at,omitempty"`
 }
 
 type KnowledgeListResponse struct {
 	TeamID  string           `json:"teamId"`
 	Entries []KnowledgeEntry `json:"entries"`
+	// Total is the number of matching entries before --last was applied.
+	Total int `json:"total"`
 }
 
 // AddKnowledgeRequest is the request body for adding a knowledge entry.
@@ -671,6 +684,8 @@ func route(ctx appctx.Context, args []string) error {
 		return cmdKnowledgeUpdate(ctx, subArgs)
 	case "knowledge-delete":
 		return cmdKnowledgeDelete(ctx, subArgs)
+	case "knowledge-close":
+		return cmdKnowledgeClose(ctx, subArgs)
 	case "bug-capture":
 		return cmdBugCapture(ctx, subArgs)
 	case "bug-repair":
@@ -719,7 +734,7 @@ Heartbeat Commands:
   heartbeat-fleet-health                      Count durable work products, blocked runs, and failures in the last 24 hours
   heartbeat <team-id> <agent-id>              Show heartbeat config
   heartbeat-enable <team-id> <agent-id>       Enable heartbeat with schedule
-  heartbeat-bind-effort <team-id> <agent-id>  Bind a disabled finite leader from --request-file
+  heartbeat-bind-effort <team-id> <agent-id>  Bind a disabled finite leader from --request-file (--update keeps enabled; --checkin-mode parked|event)
   heartbeat-retire-effort <team-id> <agent-id> Retire finite leader scheduling; retain run identity
   heartbeat-complete-effort <team-id> <agent-id> Record the revision-checked completion receipt from --request-file
   heartbeat-reopen-effort <team-id> <agent-id> Reopen a completed finite effort with a replacement revision from --request-file
@@ -756,7 +771,8 @@ Knowledge Log Commands:
   knowledge-add <team-id>               Add a knowledge entry
   knowledge-list <team-id>              List knowledge entries
   knowledge-update <team-id> <id>       Update a knowledge entry
-  knowledge-delete <team-id> <id>       Delete a knowledge entry
+  knowledge-delete <team-id> <id>       Delete a knowledge entry (fixture stores only; the ledger is append-only)
+  knowledge-close <team-id> <id>        Close a resolved entry (--reason=fixed|stale|duplicate-of|routed-to [--ref=...])
   bug-capture <team-id>                 Capture a Scenario QA bug (publishes or saves a private draft)
   bug-repair <team-id> <draft-id>       Repair a private bug draft; publishes when complete
 
@@ -3721,12 +3737,13 @@ func cmdKnowledgeList(ctx appctx.Context, args []string) error {
 	topic := fs.String("topic", "", "Filter by exact topic match")
 	topicPrefix := fs.String("topic-prefix", "", "Filter by topic prefix (e.g. 'research-inbox/')")
 	last := fs.Int("last", 20, "Number of entries to show")
+	includeClosed := fs.Bool("include-closed", false, "Include closed (resolved) entries")
 	jsonOut := fs.Bool("json", false, "Output as JSON")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() < 1 {
-		return fmt.Errorf("usage: team knowledge-list <team-id> [--topic=<tag> | --topic-prefix=<prefix>] [--last=N] [--json]")
+		return fmt.Errorf("usage: team knowledge-list <team-id> [--topic=<tag> | --topic-prefix=<prefix>] [--last=N] [--include-closed] [--json]")
 	}
 	if *topic != "" && *topicPrefix != "" {
 		return fmt.Errorf("--topic and --topic-prefix are mutually exclusive")
@@ -3739,6 +3756,9 @@ func cmdKnowledgeList(ctx appctx.Context, args []string) error {
 	}
 	if *topicPrefix != "" {
 		query += "&topic_prefix=" + url.QueryEscape(*topicPrefix)
+	}
+	if *includeClosed {
+		query += "&include_closed=true"
 	}
 
 	var resp KnowledgeListResponse
@@ -3766,8 +3786,19 @@ func cmdKnowledgeList(ctx appctx.Context, args []string) error {
 		if entry.Source != "" {
 			sourceStr = fmt.Sprintf(" (source: %s)", entry.Source)
 		}
-		fmt.Printf("--- %s [%s] by %s%s%s ---\n", entry.ID, entry.Topic, entry.Caller, supersededStr, sourceStr)
+		closedStr := ""
+		if entry.Closure != nil {
+			closedStr = fmt.Sprintf(" (closed: %s", entry.Closure.Reason)
+			if entry.Closure.Ref != "" {
+				closedStr += " " + entry.Closure.Ref
+			}
+			closedStr += " by " + entry.Closure.Actor + ")"
+		}
+		fmt.Printf("--- %s [%s] by %s%s%s%s ---\n", entry.ID, entry.Topic, entry.Caller, supersededStr, sourceStr, closedStr)
 		fmt.Printf("%s\n\n", entry.Content)
+	}
+	if resp.Total > len(resp.Entries) {
+		fmt.Printf("Showing %d of %d matching entries (most recent); raise --last to see more.\n", len(resp.Entries), resp.Total)
 	}
 	return nil
 }
@@ -3834,6 +3865,54 @@ func cmdKnowledgeDelete(ctx appctx.Context, args []string) error {
 	}
 
 	fmt.Printf("Deleted knowledge %s\n", knowledgeID)
+	return nil
+}
+
+// cmdKnowledgeClose records that a knowledge entry is resolved. The team
+// corpus is append-only, so closing appends a closure record; default
+// knowledge-list output hides closed entries (--include-closed shows them).
+func cmdKnowledgeClose(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("knowledge-close", flag.ContinueOnError)
+	reason := fs.String("reason", "", "Closure reason: fixed, stale, duplicate-of, routed-to")
+	ref := fs.String("ref", "", "Kept entry id (duplicate-of) or destination such as a swarm item kind/name (routed-to)")
+	note := fs.String("note", "", "Optional short note")
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	usage := "usage: team knowledge-close <team-id> <knowledge-id> --reason=fixed|stale|duplicate-of|routed-to [--ref=<id-or-destination>] [--note=...] [--json]"
+	if fs.NArg() < 2 || strings.TrimSpace(*reason) == "" {
+		return fmt.Errorf("%s", usage)
+	}
+	switch strings.TrimSpace(*reason) {
+	case "fixed", "stale":
+	case "duplicate-of", "routed-to":
+		if strings.TrimSpace(*ref) == "" {
+			return fmt.Errorf("--reason=%s requires --ref\n%s", *reason, usage)
+		}
+	default:
+		return fmt.Errorf("--reason must be fixed, stale, duplicate-of, or routed-to\n%s", usage)
+	}
+	teamID := fs.Arg(0)
+	knowledgeID := fs.Arg(1)
+	body := map[string]string{"reason": strings.TrimSpace(*reason), "ref": strings.TrimSpace(*ref), "note": *note}
+	var resp KnowledgeEntry
+	if err := ctx.Post(fmt.Sprintf("/teams/%s/knowledge/%s/close", teamID, knowledgeID), body, &resp); err != nil {
+		return fmt.Errorf("failed to close knowledge: %w", err)
+	}
+	if *jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(resp)
+	}
+	closure := ""
+	if resp.Closure != nil {
+		closure = resp.Closure.Reason
+		if resp.Closure.Ref != "" {
+			closure += " " + resp.Closure.Ref
+		}
+	}
+	fmt.Printf("Closed knowledge %s [%s]: %s\n", resp.ID, resp.Topic, closure)
 	return nil
 }
 

@@ -67,6 +67,9 @@ type Orchestrator struct {
 	parkCompaction  *parkCompactionSettings
 	// tokenCaps enforces weighted-token caps from persisted usage; nil is off.
 	tokenCaps *tokenCapEnforcer
+	// goalHomeParks reads goal homes for the orchestrator park policy; nil
+	// disables the policy.
+	goalHomeParks GoalHomeParkSource
 
 	// terminalAccounting remembers which ended standalone runs have settled
 	// terminal usage, so the reconcile sweep revisits only runs that still owe it.

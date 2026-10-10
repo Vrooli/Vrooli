@@ -194,6 +194,20 @@ func ThawScope(ref ScopeRef) error { return thawScope(ref) }
 // ScopeFrozen reports whether the tree is currently paused.
 func ScopeFrozen(ref ScopeRef) (bool, error) { return scopeFrozen(ref) }
 
+// StopScope ends every process in a contained tree and releases the tree.
+// On Linux the user manager stops the transient scope (SIGTERM, then SIGKILL
+// after the unit's stop timeout); a scope made by hand without the manager is
+// ended through cgroup.kill. Like FreezeScope it refuses a cgroup that is not
+// under an agent or test slice, so a supervisor, a resource or the operator's
+// desktop can never be stopped through it.
+//
+// macOS (a process group) and Windows (a Job Object) return ErrUnsupported:
+// neither body is host-verified, and a reaper must report "unsupported"
+// rather than believe a tree it never touched is gone. A future adapter
+// signals the group (macOS) or terminates the Job (Windows) behind this same
+// call.
+func StopScope(ref ScopeRef) error { return stopScope(ref) }
+
 // sizeSuffixes are systemd's binary size suffixes.
 var sizeSuffixes = map[string]int64{"K": kibibyte, "M": kibibyte * kibibyte, "G": kibibyte * kibibyte * kibibyte, "T": kibibyte * kibibyte * kibibyte * kibibyte}
 
@@ -337,6 +351,9 @@ type Occupancy struct {
 	// growing count is sustained reclaim pressure inside the ceiling, which
 	// no host-level bar sees.
 	MemoryHighEvents int64
+	// SwapBytes is the tree's swap use (memory.swap.current on Linux), or
+	// Unknown where the platform does not expose it.
+	SwapBytes int64
 }
 
 const (

@@ -146,6 +146,7 @@
               ".vrooli/agent-manager/heartbeat.json",
               ".vrooli/agent-manager/heartbeat-single-process.json",
               ".vrooli/agent-manager/delivery-orchestrator.json",
+              ".vrooli/agent-manager/marketing-i16-delivery-orchestrator.json",
               ".vrooli/agent-manager/delivery-epoch-worker.json",
               ".vrooli/agent-manager/delivery-review.json"
             ]

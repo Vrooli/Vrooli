@@ -65,7 +65,7 @@ func TestRenderInboxFlow_SingleIntake_AllSectionsPresent(t *testing.T) {
 		"`signal-classifier`",
 		"prompt-manager team knowledge-list marketing-crew --topic-prefix=research-inbox/",
 		"## Drain procedure (universal)",
-		"prompt-manager team knowledge-delete marketing-crew",
+		"prompt-manager team knowledge-close marketing-crew",
 		"## Destinations",
 		"audience-scan/*",
 		"monetization-benchmark-adjacent-record/*",

@@ -298,7 +298,7 @@ func TestCleanIsIdempotent(t *testing.T) {
 	if _, err := svc.WriteEngagement(WriteRequest{Scenario: "demo", Slug: "abc", Mode: "shadow"}); err != nil {
 		t.Fatalf("write: %v", err)
 	}
-	out, err := svc.Clean(Ref{Scenario: "demo", Slug: "abc"})
+	out, err := svc.Clean(CleanRequest{Scenario: "demo", Slug: "abc"})
 	if err != nil {
 		t.Fatalf("clean: %v", err)
 	}
@@ -306,7 +306,7 @@ func TestCleanIsIdempotent(t *testing.T) {
 		t.Fatalf("engagement dir not removed (err=%v)", err)
 	}
 	// A second clean of a now-missing engagement is not an error.
-	if _, err := svc.Clean(Ref{Scenario: "demo", Slug: "abc"}); err != nil {
+	if _, err := svc.Clean(CleanRequest{Scenario: "demo", Slug: "abc"}); err != nil {
 		t.Fatalf("idempotent clean failed: %v", err)
 	}
 }

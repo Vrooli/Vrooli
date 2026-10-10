@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	eventpb "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 
 	"agent-manager/internal/domain"
 	"agent-manager/internal/repository"
@@ -72,10 +73,13 @@ type QuiesceOptions struct {
 	// excluded run's owner.
 	ExcludeRunID *uuid.UUID
 
+	// ExcludeRunIDs removes more runs, with the same reporting as ExcludeRunID.
+	ExcludeRunIDs []uuid.UUID
+
 	// Instance is the scenario instance being restarted. Empty means live. Runs
 	// that declare a different instance of the scenario are reported in
 	// QuiesceResult.NotDrained instead of being drained; undeclared runs count
-	// as live. The request field that sets it arrives with the wave-2 proto.
+	// as live. QuiesceScenarioRequest.instance sets it.
 	Instance string
 
 	// Timeout bounds the wait for in-flight runs to terminate. 0 ⇒ DefaultQuiesceTimeout.
@@ -110,8 +114,8 @@ type QuiesceResult struct {
 	Initial   int             `json:"initial"`             // in-flight count when the drain started (after exclusion)
 	InFlight  []QuiesceRunRef `json:"inFlight,omitempty"`  // runs still active at the end (abort case)
 	Cancelled []QuiesceRunRef `json:"cancelled,omitempty"` // runs force-cancelled
-	// Excluded lists the active run removed by ExcludeRunID. It was not waited
-	// on and keeps running through the restart.
+	// Excluded lists the active runs removed by exclusion. They were not
+	// waited on and keep running through the restart.
 	Excluded []QuiesceRunRef `json:"excluded,omitempty"`
 	// NotDrained lists active runs that declare another instance of the
 	// scenario (for example a shadow), so the restart does not affect them.
@@ -144,8 +148,8 @@ var quiesceActiveStatuses = []domain.RunStatus{
 //     timeout, ABORT and report the in-flight runs without touching them
 //     (promote is re-runnable).
 //   - Force=true: on timeout, cancel survivors via the graceful-first StopRun.
-//   - Exclusion: ExcludeRunID is removed from the drain set and reported in
-//     Excluded. Only agent-manager's own promote rejects an active excluded run,
+//   - Exclusion: ExcludeRunID and ExcludeRunIDs are removed from the drain
+//     set and reported in Excluded. Only agent-manager's own promote rejects an active excluded run,
 //     because restarting agent-manager ends that run's owner.
 //   - Instances: runs declaring another instance of the scenario are reported in
 //     NotDrained; undeclared runs count as live.
@@ -183,12 +187,16 @@ func (o *Orchestrator) QuiesceScenario(ctx context.Context, opts QuiesceOptions)
 	}
 
 	result := &QuiesceResult{Scenario: scenario}
+	excluded := opts.ExcludeRunIDs
+	if opts.ExcludeRunID != nil {
+		excluded = append([]uuid.UUID{*opts.ExcludeRunID}, excluded...)
+	}
 	drainSet := func() ([]QuiesceRunRef, error) {
 		refs, err := o.activeRunsForScenario(ctx, scenario, scopePrefix, tagPrefix)
 		if err != nil {
 			return nil, err
 		}
-		drain, _ := splitQuiesceInstance(excludeRun(refs, opts.ExcludeRunID), instance)
+		drain, _ := splitQuiesceInstance(excludeRuns(refs, excluded), instance)
 		return drain, nil
 	}
 
@@ -196,8 +204,8 @@ func (o *Orchestrator) QuiesceScenario(ctx context.Context, opts QuiesceOptions)
 	if err != nil {
 		return nil, err
 	}
-	if opts.ExcludeRunID != nil {
-		if ref, isMember := findRunRef(initial, *opts.ExcludeRunID); isMember {
+	for _, id := range excluded {
+		if ref, isMember := findRunRef(initial, id); isMember && !slices.ContainsFunc(result.Excluded, func(r QuiesceRunRef) bool { return r.ID == ref.ID }) {
 			if selfidentity.Is(scenario) {
 				return nil, domain.NewValidationErrorWithHint(
 					"exclude_run_id",
@@ -205,10 +213,10 @@ func (o *Orchestrator) QuiesceScenario(ctx context.Context, opts QuiesceOptions)
 					"run the agent-manager promote from an operator session",
 				)
 			}
-			result.Excluded = []QuiesceRunRef{ref}
+			result.Excluded = append(result.Excluded, ref)
 		}
 	}
-	initialDrain, notDrained := splitQuiesceInstance(excludeRun(initial, opts.ExcludeRunID), instance)
+	initialDrain, notDrained := splitQuiesceInstance(excludeRuns(initial, excluded), instance)
 	result.NotDrained = notDrained
 	result.Initial = len(initialDrain)
 	if len(initialDrain) == 0 {
@@ -348,6 +356,21 @@ func declaredQuiesceInstances(run *domain.Run, scenario string) []string {
 	return instances
 }
 
+// TargetInstanceReferences turns declared "<scenario>@<instance>" targets
+// (CreateRunRequest.target_instances) into the scenario-instance work
+// references the drain reads.
+func TargetInstanceReferences(targets []string) ([]*eventpb.WorkReference, error) {
+	refs := make([]*eventpb.WorkReference, 0, len(targets))
+	for _, target := range targets {
+		name, instance, ok := strings.Cut(strings.TrimSpace(target), "@")
+		if !ok || strings.TrimSpace(name) == "" || strings.TrimSpace(instance) == "" || strings.ContainsAny(target, " /\\") {
+			return nil, domain.NewValidationErrorWithHint("target_instances", fmt.Sprintf("%q is not <scenario>@<instance>", target), "declare targets like browser-automation-studio@shadow")
+		}
+		refs = append(refs, &eventpb.WorkReference{Kind: quiesceTargetReferenceKind, Id: strings.TrimSpace(target), Relationship: quiesceTargetRelationship})
+	}
+	return refs, nil
+}
+
 // activeRunsForScenario enumerates the runs holding a live process against the
 // scenario: scope-matched runs (task ScopePath under scenarios/<X>, refined to
 // the exact directory boundary) unioned with tag-matched runs (whole-repo
@@ -424,16 +447,15 @@ func findRunRef(refs []QuiesceRunRef, id uuid.UUID) (QuiesceRunRef, bool) {
 	return QuiesceRunRef{}, false
 }
 
-// excludeRun returns a new slice without the given run ID (no-op if id is nil or
-// absent); it never mutates the input.
-func excludeRun(refs []QuiesceRunRef, id *uuid.UUID) []QuiesceRunRef {
-	if id == nil {
+// excludeRuns returns a new slice without the given run IDs; it never
+// mutates the input.
+func excludeRuns(refs []QuiesceRunRef, ids []uuid.UUID) []QuiesceRunRef {
+	if len(ids) == 0 {
 		return refs
 	}
-	target := id.String()
 	out := make([]QuiesceRunRef, 0, len(refs))
 	for _, r := range refs {
-		if r.ID == target {
+		if slices.ContainsFunc(ids, func(id uuid.UUID) bool { return id.String() == r.ID }) {
 			continue
 		}
 		out = append(out, r)

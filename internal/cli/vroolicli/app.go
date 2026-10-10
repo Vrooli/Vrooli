@@ -200,7 +200,7 @@ func RegisteredLeafPaths() ([]string, error) {
 			paths = append(paths, strings.TrimSpace(prefix+" "+name))
 		}
 	}
-	paths = append(paths, "agent launch", "agent list", "hygiene", "lifecycle protect")
+	paths = append(paths, "agent launch", "agent list", "agent reap", "agent authorize", "agent authorization", "agent revoke-authorization", "hygiene", "lifecycle protect")
 	paths = append(paths,
 		"cleanup orphans", "cleanup locks", "cleanup template-validation",
 		"orphans list", "orphans kill", "locks list", "locks clean",
@@ -835,9 +835,19 @@ func topLevelHandlerDefinitions() map[topcli.CommandID]rootcli.Handler[*AppConte
 			OutputFormat: projectOutputFormat,
 		}),
 		topcli.CommandRecovery: recoveryhandlers.RootHandler(rootcli.HandlerDeps[*AppContext]{
-			Stdout:       commandStdout,
-			Root:         func(ctx *AppContext) string { return ctx.Root },
-			OutputFormat: projectOutputFormat,
+			Stdout:           commandStdout,
+			Root:             func(ctx *AppContext) string { return ctx.Root },
+			OutputFormat:     projectOutputFormat,
+			OperationContext: func(ctx *AppContext) context.Context { return ctx.OperationContext() },
+			HomeDir:          func(ctx *AppContext) (string, error) { return ctx.HomeDir() },
+			// `recovery clean` moves an instance off an engagement's serving
+			// tree (restart from the working tree) before deleting it.
+			ScenarioOperations: func(ctx *AppContext) (scenarioapp.ScenarioOperations, error) {
+				return ctx.app.newScenarioService(ctx)
+			},
+			LifecycleRunner: func(ctx *AppContext) (scenarioapp.PhaseRunner, error) {
+				return ctx.app.newScenarioLifecycleRunner(ctx)
+			},
 		}),
 		topcli.CommandHost: hosthandlers.RootHandler(rootcli.HandlerDeps[*AppContext]{Root: func(ctx *AppContext) string { return ctx.Root }, Globals: func(ctx *AppContext) rootcli.GlobalOptions { return ctx.Globals }, OperationContext: func(ctx *AppContext) context.Context { return ctx.OperationContext() }, Stdout: commandStdout, Stderr: func(ctx *AppContext) io.Writer { return ctx.Stderr }}),
 		topcli.CommandHostWatchdog: func(ctx *AppContext, args []string) error {

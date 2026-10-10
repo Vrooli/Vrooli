@@ -15,9 +15,7 @@
   },
   "createdAt": "2026-02-09T12:00:00Z",
   "displayName": "Marketing Crew",
-  "effortRefs": [
-    "workspace:/home/matthalloran8/Vrooli#aquila-launch-2026-09-17"
-  ],
+  "effortRefs": [],
   "enabled": false,
   "execution": {
     "queuePolicy": "bounded-parallel",

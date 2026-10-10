@@ -61,6 +61,13 @@ type FreshnessManifest struct {
 	KeyInputs   map[string]string        `json:"key_inputs,omitempty"`
 	Files       []FileManifestEntry      `json:"files"`
 	Directories []DirectoryManifestEntry `json:"directories,omitempty"`
+	// EnvSwitches lists the environment variable names the build's sources
+	// read as switches, so a pre-deploy report can name the switches a newer
+	// tree adds. It is a record of the build, never a freshness input.
+	// EnvSwitchesRecorded distinguishes "none" from a manifest written before
+	// the field existed.
+	EnvSwitches         []string `json:"env_switches,omitempty"`
+	EnvSwitchesRecorded bool     `json:"env_switches_recorded,omitempty"`
 }
 
 // FreshnessVerdict is the result of comparing the live input set against a

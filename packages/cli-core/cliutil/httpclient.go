@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -166,16 +167,39 @@ func (t identityForwardingTransport) RoundTrip(req *http.Request) (*http.Respons
 	if req == nil {
 		return t.roundTripper().RoundTrip(req)
 	}
-	if strings.TrimSpace(req.Header.Get(HeaderAgentIdentityToken)) != "" || strings.TrimSpace(os.Getenv(EnvIdentityToken)) == "" {
-		return t.roundTripper().RoundTrip(req)
-	}
 	clone := req.Clone(req.Context())
 	clone.Header = req.Header.Clone()
-	if clone.Header == nil {
-		clone.Header = make(http.Header)
+	if err := ApplyAgentIdentity(clone); err != nil {
+		return nil, err
 	}
-	clone.Header.Set(HeaderAgentIdentityToken, os.Getenv(EnvIdentityToken))
 	return t.roundTripper().RoundTrip(clone)
+}
+
+// ApplyAgentIdentity resolves current authority for a direct transport, such
+// as a WebSocket upgrade. It also strips inherited identity on remote hops.
+func ApplyAgentIdentity(req *http.Request) error {
+	if !TrustedIdentityDestination(req) {
+		if req != nil {
+			req.Header.Del(HeaderAgentIdentityToken)
+		}
+		return nil
+	}
+	if supplied := strings.TrimSpace(req.Header.Get(HeaderAgentIdentityToken)); supplied != "" && supplied != strings.TrimSpace(os.Getenv(EnvIdentityToken)) {
+		return nil
+	}
+	token, err := ResolveAgentCredential(req.Context())
+	if err != nil {
+		return err
+	}
+	if req.Header == nil {
+		req.Header = make(http.Header)
+	}
+	if token == "" {
+		req.Header.Del(HeaderAgentIdentityToken)
+	} else {
+		req.Header.Set(HeaderAgentIdentityToken, token)
+	}
+	return nil
 }
 
 func (t identityForwardingTransport) roundTripper() http.RoundTripper {
@@ -353,6 +377,9 @@ func applyHeaderSource(req *http.Request, source func() map[string]string) {
 		return
 	}
 	for k, v := range source() {
+		if k == HeaderAgentIdentityToken && !TrustedIdentityDestination(req) {
+			continue
+		}
 		if v == "" {
 			continue
 		}
@@ -372,4 +399,15 @@ func ExtractErrorMessage(data []byte) string {
 		}
 	}
 	return strings.TrimSpace(string(data))
+}
+
+// TrustedIdentityDestination bounds ambient identity forwarding to the local
+// scenario transport. Remote hops require an explicit owner-configured client.
+func TrustedIdentityDestination(req *http.Request) bool {
+	if req == nil || req.URL == nil || (req.URL.Scheme != "http" && req.URL.Scheme != "https" && req.URL.Scheme != "ws" && req.URL.Scheme != "wss") {
+		return false
+	}
+	host := req.URL.Hostname()
+	ip := net.ParseIP(host)
+	return host == "localhost" || (ip != nil && ip.IsLoopback())
 }

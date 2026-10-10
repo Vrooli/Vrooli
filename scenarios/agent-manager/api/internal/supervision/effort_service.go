@@ -24,7 +24,11 @@ type EffortActor struct {
 	ID                 string
 	Operator           bool
 	MetadataReconciler bool
-	Scopes             []string
+	// Delegated is a live session holding an owner-approved interactive
+	// grant for effort.reconcile on this effort; ApprovedBy is the owner.
+	Delegated  bool
+	ApprovedBy string
+	Scopes     []string
 }
 
 const EffortMetadataReconcileScope = "agent-manager:effort-reconcile"
@@ -32,6 +36,9 @@ const EffortMetadataReconcileScope = "agent-manager:effort-reconcile"
 func (a EffortActor) canReconcileMetadata(e *pb.EffortEnrollment) bool {
 	if a.Operator {
 		return a.ID != ""
+	}
+	if a.Delegated {
+		return a.ID != "" && a.ApprovedBy != ""
 	}
 	if !a.MetadataReconciler || a.ID == "" || e == nil {
 		return false
@@ -58,6 +65,12 @@ type EffortService struct {
 	nextScan    time.Time
 	runRegistry EffortRunRegistry
 	quotaStore  pricing.QuotaObservationRepository
+	// decisionMu serializes decision transitions (raise, answer, resolve,
+	// record) so each answer yields exactly one operator_answer signal.
+	decisionMu        sync.Mutex
+	decisionPublisher DecisionPublisher
+	spend             EffortSpendReader
+	goalHomes         goalHomeCache
 }
 
 func NewEffortService(repo EffortRepository, controller ActionController, config EffortDiscoveryConfig) *EffortService {
@@ -386,9 +399,13 @@ func (s *EffortService) Board(ctx context.Context, req *pb.GetEffortBoardRequest
 			return nil, getErr
 		}
 		row := s.projectEffort(ctx, e, ob, d)
+		row.GoalHome = s.projectGoalHome(ctx, e, row)
 		quotaObservationsForRow(row, quotaByRun)
 		cut := proto.Clone(row).(*pb.EffortBoardRow)
 		cut.ObservedAt = nil
+		if cut.GoalHome != nil {
+			cut.GoalHome.ReadAt = nil
+		}
 		cut.ChangeIdentity = ""
 		cut.VisibilityChangeIdentity = ""
 		for _, a := range cut.Assignments {
@@ -666,5 +683,5 @@ func (s *EffortService) Tick(ctx context.Context) error {
 	}
 	_, err := s.reconcileDiscovery(ctx)
 	s.nextScan = now.Add(s.config.Interval)
-	return err
+	return errors.Join(err, s.sweepEndedRuns(ctx), s.publishPendingDecisions(ctx))
 }

@@ -12,11 +12,28 @@ import (
 	"github.com/vrooli/api-core/discovery"
 )
 
-const programRuntimeEventPattern = "vrooli.program_runtime.program_event.v1"
+const (
+	programRuntimeEventPattern = "vrooli.program_runtime.program_event.v1"
+	// askResolvedEventPattern carries operator answers to effort decisions.
+	askResolvedEventPattern = "notification_hub.ask.resolved.v1"
+)
 
-// ReconcileProgramRuntimeSubscription creates or updates the one subscription
-// owned by agent-manager. vrooli-events remains the owner of the durable row.
+// ReconcileProgramRuntimeSubscription creates or updates the program-runtime
+// subscription owned by agent-manager. vrooli-events remains the owner of the
+// durable row.
 func ReconcileProgramRuntimeSubscription(ctx context.Context, target string) error {
+	return reconcileEventSubscription(ctx, "agent-manager-program-events", programRuntimeEventPattern, target)
+}
+
+// ReconcileDecisionEventSubscription creates or updates the subscription that
+// delivers notification-hub ask resolutions to the effort decision webhook.
+func ReconcileDecisionEventSubscription(ctx context.Context, target string) error {
+	return reconcileEventSubscription(ctx, "agent-manager-decision-answers", askResolvedEventPattern, target)
+}
+
+// reconcileEventSubscription keeps one enabled subscription per delivery
+// target.
+func reconcileEventSubscription(ctx context.Context, name, pattern, target string) error {
 	base, err := discovery.ResolveScenarioURLDefault(ctx, "vrooli-events")
 	if err != nil {
 		return err
@@ -44,13 +61,13 @@ func ReconcileProgramRuntimeSubscription(ctx context.Context, target string) err
 	if err := json.NewDecoder(resp.Body).Decode(&existing); err != nil {
 		return err
 	}
-	payload := map[string]any{"name": "agent-manager-program-events", "owner_scenario": "agent-manager", "event_pattern": programRuntimeEventPattern, "delivery_type": "webhook", "delivery_target": target, "enabled": true}
+	payload := map[string]any{"name": name, "owner_scenario": "agent-manager", "event_pattern": pattern, "delivery_type": "webhook", "delivery_target": target, "enabled": true}
 	body, err := json.Marshal(payload)
 	if err != nil {
 		return err
 	}
 	for _, item := range existing {
-		if item.Enabled && item.DeliveryTarget == target && item.EventPattern == programRuntimeEventPattern {
+		if item.Enabled && item.DeliveryTarget == target && item.EventPattern == pattern {
 			return nil
 		}
 		if item.Enabled && item.DeliveryTarget == target {

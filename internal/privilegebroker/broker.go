@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/vrooli/vrooli/internal/storageactivity"
 	"github.com/vrooli/vrooli/internal/tuning"
 )
 
@@ -30,6 +31,7 @@ type Config struct {
 	AuditPath         string
 	Executor          Executor
 	RuntimeHomeRepair func(context.Context, RuntimeHomeSubject) Result
+	TemporaryActivity func(context.Context, uint32) (storageactivity.Snapshot, error)
 }
 
 // Executor is the narrow test seam. Implementations receive only broker-built
@@ -49,6 +51,9 @@ func New(config Config) (*Broker, error) {
 	}
 	if config.Executor == nil {
 		config.Executor = OSExecutor{}
+	}
+	if config.TemporaryActivity == nil {
+		config.TemporaryActivity = storageactivity.Observe
 	}
 	return &Broker{config: config}, nil
 }
@@ -129,6 +134,7 @@ func (b *Broker) Execute(ctx context.Context, req Request, callerUID uint32) Res
 		return NewFailure(req.RequestID, req.Action, "runtime_home_identity_not_caller")
 	}
 	result := b.dispatch(ctx, req)
+	result.Version, result.RequestID, result.Action = ProtocolVersion, req.RequestID, req.Action
 	b.audit(callerUID, req, result)
 	return result
 }
@@ -138,6 +144,18 @@ func (b *Broker) Execute(ctx context.Context, req Request, callerUID uint32) Res
 // recognise never reaches here.
 func (b *Broker) dispatch(ctx context.Context, req Request) Result {
 	switch req.Action {
+	case ActionCapabilitiesInspect:
+		return Result{Version: ProtocolVersion, RequestID: req.RequestID, Action: req.Action, Status: "completed", Capabilities: capabilities()}
+	case ActionTemporaryActivityObserve:
+		ctx, cancel := context.WithTimeout(ctx, temporaryObservationTimeout)
+		defer cancel()
+		snapshot, err := b.config.TemporaryActivity(ctx, b.config.AllowedUID)
+		if err != nil || !snapshot.Complete || snapshot.UID != b.config.AllowedUID || snapshot.UID == 0 {
+			result := NewFailure(req.RequestID, req.Action, "temporary_activity_incomplete")
+			result.Evidence.Detail = storageactivity.FailureDetail(err)
+			return result
+		}
+		return Result{Version: ProtocolVersion, RequestID: req.RequestID, Action: req.Action, Status: "completed", TemporaryActivity: &snapshot}
 	case ActionVolumeFilesystemCheck, ActionVolumeFilesystemRepair:
 		return executeVolume(ctx, b.config.Executor, req)
 	case ActionRuntimeHomeOwnershipRepair:

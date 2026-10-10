@@ -29,26 +29,77 @@ func finiteCLIRequest(t *testing.T, payload string) string {
 }
 
 func TestFiniteLeaderCLIProvisioningIsDisabledAndExact(t *testing.T) {
-	for _, update := range []bool{false, true} {
-		config := finiteCLIConfig()
-		input, _ := json.Marshal(finiteLeaderBindingInput{Schedule: config.Schedule, ProfileKey: config.ProfileKey, FiniteLeader: config.FiniteLeader})
-		ctx := &fakeContext{response: config}
-		args := []string{"new-team", "leader", "--request-file", finiteCLIRequest(t, string(input)), "--json"}
-		method := "POST"
-		if update {
-			args = append(args, "--update")
-			method = "PUT"
-		}
-		if err := route(ctx, append([]string{"heartbeat-bind-effort"}, args...)); err != nil {
+	config := finiteCLIConfig()
+	input, _ := json.Marshal(finiteLeaderBindingInput{Schedule: config.Schedule, ProfileKey: config.ProfileKey, FiniteLeader: config.FiniteLeader})
+	ctx := &fakeContext{response: config}
+	if err := route(ctx, []string{"heartbeat-bind-effort", "new-team", "leader", "--request-file", finiteCLIRequest(t, string(input)), "--json"}); err != nil {
+		t.Fatal(err)
+	}
+	ctx.assertMethodPath(t, "POST", "/teams/new-team/heartbeats/leader")
+	var sent CreateHeartbeatRequest
+	if err := json.Unmarshal(ctx.gotPayload, &sent); err != nil {
+		t.Fatal(err)
+	}
+	if sent.Enabled == nil || *sent.Enabled || sent.FiniteLeader == nil || sent.FiniteLeader.AcceptedRevision != "accepted:r3" || sent.ProfileKey != "qualified" {
+		t.Fatalf("provisioning changed identity or enabled work: %s", ctx.gotPayload)
+	}
+}
+
+func TestFiniteLeaderCLIUpdatePreservesActivation(t *testing.T) {
+	for _, enabled := range []bool{false, true} {
+		current := finiteCLIConfig()
+		current.Enabled = enabled
+		input, _ := json.Marshal(finiteLeaderBindingInput{Schedule: current.Schedule, ProfileKey: current.ProfileKey, FiniteLeader: current.FiniteLeader})
+		ctx := &fakeContext{getResponse: current, response: current}
+		if err := route(ctx, []string{"heartbeat-bind-effort", "new-team", "leader", "--update", "--request-file", finiteCLIRequest(t, string(input)), "--json"}); err != nil {
 			t.Fatal(err)
 		}
-		ctx.assertMethodPath(t, method, "/teams/new-team/heartbeats/leader")
-		var sent CreateHeartbeatRequest
+		ctx.assertMethodPath(t, "PUT", "/teams/new-team/heartbeats/leader")
+		var sent UpdateHeartbeatRequest
 		if err := json.Unmarshal(ctx.gotPayload, &sent); err != nil {
 			t.Fatal(err)
 		}
-		if sent.Enabled == nil || *sent.Enabled || sent.FiniteLeader == nil || sent.FiniteLeader.AcceptedRevision != "accepted:r3" || sent.ProfileKey != "qualified" {
-			t.Fatalf("provisioning changed identity or enabled work: %s", ctx.gotPayload)
+		if sent.Enabled != nil || sent.FiniteLeader == nil || sent.FiniteLeader.AcceptedRevision != "accepted:r3" || sent.ProfileKey == nil || *sent.ProfileKey != "qualified" {
+			t.Fatalf("update changed activation or identity (enabled=%t): %s", enabled, ctx.gotPayload)
+		}
+		flipped := current
+		flipped.Enabled = !enabled
+		ctx = &fakeContext{getResponse: current, response: flipped}
+		if err := cmdHeartbeatBindEffort(ctx, []string{"new-team", "leader", "--update", "--request-file", finiteCLIRequest(t, string(input))}); err == nil {
+			t.Fatalf("owner response that changed activation (enabled=%t) was reported as confirmed", enabled)
+		}
+	}
+}
+
+func TestFiniteLeaderCLIUpdateChangesOnlyCheckinPolicy(t *testing.T) {
+	current := finiteCLIConfig()
+	current.Enabled = true
+	current.FiniteLeader.KeepAlive = true
+	current.FiniteLeader.Checkin = &teamconfig.CheckinPolicy{Backstop: "4h"}
+	want := finiteCLIConfig()
+	want.Enabled = true
+	want.FiniteLeader.KeepAlive = true
+	want.FiniteLeader.Checkin = &teamconfig.CheckinPolicy{Mode: teamconfig.CheckinModeEvent, PollInterval: "3m", Backstop: "4h"}
+	ctx := &fakeContext{getResponse: current, response: want}
+	if err := route(ctx, []string{"heartbeat-bind-effort", "new-team", "leader", "--update", "--checkin-mode", "event", "--checkin-poll", "3m", "--json"}); err != nil {
+		t.Fatal(err)
+	}
+	ctx.assertMethodPath(t, "PUT", "/teams/new-team/heartbeats/leader")
+	var sent UpdateHeartbeatRequest
+	if err := json.Unmarshal(ctx.gotPayload, &sent); err != nil {
+		t.Fatal(err)
+	}
+	if sent.Enabled != nil || sent.FiniteLeader == nil || sent.FiniteLeader.Checkin == nil || *sent.FiniteLeader.Checkin != *want.FiniteLeader.Checkin ||
+		sent.FiniteLeader.EffortRef != current.FiniteLeader.EffortRef || sent.Schedule == nil || *sent.Schedule != current.Schedule {
+		t.Fatalf("check-in update did not keep the binding and merge the policy: %s", ctx.gotPayload)
+	}
+	for _, args := range [][]string{
+		{"new-team", "leader", "--checkin-mode", "event"},
+		{"new-team", "leader", "--update", "--checkin-mode", "sometimes"},
+	} {
+		ctx := &fakeContext{getResponse: current}
+		if err := cmdHeartbeatBindEffort(ctx, args); err == nil || ctx.gotMethod == "PUT" || ctx.gotMethod == "POST" {
+			t.Fatalf("invalid check-in request %v reached a mutation", args)
 		}
 	}
 }

@@ -6,7 +6,7 @@ You validate Vrooli's development toolchain against a gold-star reference scenar
 
 0. **Start from the board, not from the tools.** Run `meta-optimization-manager convergence status` and `convergence fitness` to get per-template four-lens fitness and gold-star generated-golden health, and `meta-optimization-manager focus next` for the ranked gaps. This is the measured view of the work steps 1–5 audit by hand; use it to *choose* where to look, then run the tools for depth. Its lens counts are **filesystem proxies** (LOC, comment-grep) — structural signals, not semantic analysis — so the board ranks, your audit judges. If `meta-optimization-manager` is unavailable, say so in the continuity record and fall back to the manual path below; never silently skip the board.
 
-1. Pick tools: prefer the consolidated validator when healthy; otherwise use the fallback toolchain.
+1. Pick tools: prefer the consolidated validator when healthy — `development-toolchain-validator validation start` queues a (skill|tool, golden) run and `development-toolchain-validator report golden-summary` reads the latest verdicts (there is no `validate` command). If `vrooli scenario status development-toolchain-validator` is not running, use the fallback toolchain.
 2. Run against the gold-star reference and collect full output.
 3. Categorize each violation by severity and tool.
 4. Compare to the prior scan: new, resolved, persistent.
@@ -21,10 +21,12 @@ You validate Vrooli's development toolchain against a gold-star reference scenar
      - **Metrics-adoption regression**: a delegated provider that previously reported `metrics_adopted=true` is now `reachable && metrics_adopted=false` (it dropped ExecutionMetrics).
    - When a threshold trips with a baseline present, raise the work item under the owned context:
      ```
-     swarm-manager backlog create meta-optimization --by=toolchain-validator \
-       --context=toolchain-violation \
-       --work item="Self-health regression: <metric> <current> vs baseline <previous> (since <captured_at>)" \
-       --rationale="<which threshold tripped; offending phase/provider; trend_series evidence; link self-health/test-genie/<YYYY-MM-DD>>"
+     swarm-manager backlog create --data '{
+       "kind": "fix",
+       "name": "toolchain-violation-<metric>-<YYYYMMDD>",
+       "title": "Self-health regression: <metric> <current> vs baseline <previous> (since <captured_at>)",
+       "description": "<which threshold tripped; offending phase/provider; trend_series evidence; link self-health/test-genie/<YYYY-MM-DD>>"
+     }'
      ```
      A missing/broken `test-genie health` surface itself (opaque error, no ledger) is a `capability work item`, not a regression.
 7. Mine CLI, validator, test, and toolchain friction: missing commands, unstable output, confusing failures, slow checks, manual fallback pressure, or repeated deterministic checks that should be discoverable as Actions.
@@ -35,3 +37,10 @@ You validate Vrooli's development toolchain against a gold-star reference scenar
 ## Run Decision
 
 Record durable continuity in your declared Source Ledger topics. Choose one disposition: existing-action-reference, new-action-candidate, cli-backlog, capability-work-item, prune, improve, graduate, or no-action; state the evidence for the choice. Preserve any narrower lane-specific decisions stated in the task loop.
+
+## Stop Conditions
+
+- **Instrument unavailable.** If `meta-optimization-manager` and `development-toolchain-validator` are both not running (`vrooli scenario status <name>`), record one line saying so and stop. Do not run the manual toolchain fallback as a substitute for a whole scan.
+- **No baseline.** If `test-genie health --json --trend` carries no baseline (`ledger.captured_at` empty and `ledger.trend` nil), record the numbers and file no work item.
+- **Nothing changed.** If the board, the toolchain scan, and the self-health snapshot match the last `toolchain-audit/*` entry, record one line saying so and stop.
+- **Never file a challenge as a new Swarm item.** Record a disagreement with an existing item as an annotation on that item (`swarm-manager backlog update --kind <kind> --name <name> --data '<json>'`), not as a new item.

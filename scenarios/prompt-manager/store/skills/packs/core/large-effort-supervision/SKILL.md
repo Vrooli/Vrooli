@@ -9,9 +9,9 @@ metadata:
   tags: [supervision, effort, efficiency, orchestration, evidence]
   icon: eye
   status: active
-  revision: 21
+  revision: 22
   createdAt: "2026-09-12T00:00:00Z"
-  updatedAt: "2026-10-01T15:00:00Z"
+  updatedAt: "2026-10-06T18:00:00Z"
   requires:
     scenarios: [agent-manager, prompt-manager]
     commands: [agent-manager, prompt-manager skill read]
@@ -29,12 +29,16 @@ acceptance; `path:docs/agent-system/EFFORT_SUPERVISION.md` owns authority and th
 qualification rows.
 
 Model: Sol. Every wake costs about 10× a Luna wake, so each wake needs a reason.
+Keep a daily check under about 30k non-cache tokens (300k weighted). Diagnose in
+Sol; hand any repair that takes more than a few commands to a bounded Luna run
+(§3). Your own spend counts against the goal's overhead (§2 step 3).
 
 ### 1. Wakes
 
 | Wake | Trigger | Work |
 |---|---|---|
-| Daily check | Supervisor team heartbeat, once a day | §2 for every active goal. |
+| Daily check | Supervisor team heartbeat, once a day | §2 for every active goal: read and report only, no gate reruns. |
+| Audit | An orchestrator's trigger after every 3rd acceptance | Audit that epoch (§4). |
 | Step-back | An orchestrator's trigger after a `STEP_BACK` or park/switch/shrink entry in `QUEUE.md` | Audit it (§4). |
 | Repeated workaround | The same `WORKAROUNDS.md` failure logged twice, or by two goals | Repair it (§3). |
 | Spend spike | A goal's weighted tokens per day above twice its 7-day median | Find the cause; steer or repair. |
@@ -48,9 +52,12 @@ quiet disposition and ends. With no active goal, stay idle.
 ### 2. Daily check
 
 For each active goal home:
-1. Read `QUEUE.md`, the active epoch's brief and last 20 slice-log lines, new
-   `WORKAROUNDS.md` entries and the latest daily qualification result. Never read
-   full transcripts to orient.
+1. Read the `QUEUE.md` Forecast, `## Handoff` and `## Needs operator`, the
+   active epoch's last 20 slice-log lines, new `WORKAROUNDS.md` entries and the
+   latest daily qualification result. Never read full transcripts to orient,
+   and never rerun gates in a daily check. If nothing changed since your last
+   check (no acceptance, slice-log line, workaround or feedback), record a
+   one-line disposition and end.
 2. Read weighted non-cache tokens:
    `agent-manager run tokens <orchestrator run ID> --children --json` (Sol 10,
    Luna 1). Subscription dollar figures are $0 by construction; unknown usage stays
@@ -63,7 +70,12 @@ For each active goal home:
    a scaled queue that cannot close the gap with no planning under way, is a
    steering entry (§5).
 4. Confirm the orchestrator is running or parked. A repeated heartbeat relaunch
-   within a day is a repair target, not a reason to relaunch again.
+   within a day is a repair target, not a reason to relaunch again. A goal with
+   no accepted epoch and no live worker for 24 hours is stalled. Write a steering
+   entry that names the cause: the orchestrator must plan a slice (a redesign if
+   nothing is deletable), or move remainders that wait on others out of the way.
+   If an operator decision is truly needed, check that `## Needs operator` states
+   it with options.
 5. Reconcile open repair handoffs: submitted/admitted, source-applied, receiver
    acknowledged, and verified recovery are separate states. Retain the exact
    receiving owner, feedback ID, receipt, next handling condition/deadline and
@@ -72,16 +84,18 @@ For each active goal home:
    predicate; do not assume new feedback wakes a child/timer wait or bypass a
    denied wake through another identity. Recheck on changed evidence or the
    existing daily/event opportunity, not repeated unchanged triggers.
-6. Repair (§3) the open workaround that costs delivery the most, every daily
-   check. A report without a repair or a named reason it could not be done is an
-   incomplete check.
+6. Start a repair (§3) of the open workaround that costs delivery the most.
+   Usually that means dispatching a bounded Luna repair run, not fixing it in
+   this session. A report that neither starts a repair nor names why it could
+   not is an incomplete check.
 
 ### 3. Repair shared infrastructure
 
 For each open workaround entry: reproduce the failure once, fix it in the owning
 scenario (Agent Manager, Prompt Manager, Program Runtime, Test Genie, Workspace
 Sandbox, Git Control Tower, the bridge) or dispatch one bounded repair run through
-Agent Manager with its own `--until`, then mark the entry resolved with evidence
+Agent Manager (Luna, its own `--until`; prefer this for anything beyond a few
+commands), then mark the entry resolved with evidence
 so orchestrators stop using the fallback. Source/test success is a repair
 handoff, not closure: require receiver acknowledgement plus the original
 consumer operation against the qualified changed build, or retain an exact
@@ -90,7 +104,8 @@ credential, dependency approval or production effect you do not hold.
 
 ### 4. Audits
 
-Audit every 3rd accepted epoch per goal and every step-back. Read the epoch file,
+Audit every 3rd accepted epoch per goal and every step-back, on the event wake
+that reports it, never in the daily check. Read the epoch file,
 deletion list and changed files, then rerun the exit-gate commands and affected
 journeys. Check that the gates match those set at admission (or each amendment
 has a recorded reason), the deletion list names concrete items from the

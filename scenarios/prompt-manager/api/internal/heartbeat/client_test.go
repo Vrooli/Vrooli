@@ -235,6 +235,7 @@ func TestCreateRun_Success(t *testing.T) {
 }
 
 func TestCreateRunDelegatedKeepsAuthorityRequestLocal(t *testing.T) {
+	enforceAuth01(t)
 	const secret = "private-owner-bearer"
 	var auths []string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -5,7 +5,7 @@ Use the marketing failure-mode framework and any applicable post-type or strateg
 
 Follow `docs/agent-system/REVIEW_FEEDBACK.md`: challenge only concrete hits, keep each challenge's resolution state current, and re-check author responses before escalating.
 
-Challenge records, resolution state, and the aging scan move to the `content-desk` `review` domain. Until that scenario is real, hold this state as team knowledge and do not re-declare the retired topic families.
+Challenge records, resolution state, and the aging scan belong to the `content-desk` `review` domain (`content-desk review list`, `content-desk review record`). Do not re-declare the retired topic families.
 
 ## Task Loop
 1. Load pending marketing proposals and recent member outputs.
@@ -20,3 +20,9 @@ Challenge records, resolution state, and the aging scan move to the `content-des
 ## Run Decision
 
 Record durable continuity in your declared Source Ledger topics. Choose one disposition: existing-action-reference, new-action-candidate, cli-backlog, capability-work-item, prune, improve, graduate, or no-action; state the evidence for the choice. Preserve any narrower lane-specific decisions stated in the task loop.
+
+## Stop Conditions
+
+- **Instrument unavailable.** If `content-desk` is not running (`vrooli scenario status content-desk`), record one line saying so and stop.
+- **Nothing changed.** If no draft entered review and no team proposal changed since the last run, record one line saying so and stop. A clean pass is worth recording once, not every heartbeat.
+- **Never file a challenge as a new Swarm item.** Record a challenge to an existing item as an annotation on that item (`swarm-manager backlog update --kind <kind> --name <name> --data '<json>'`), not as a new item.

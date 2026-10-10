@@ -251,11 +251,10 @@ func LaunchCodingAgentResult(ctx context.Context, request AgentLaunchRequest) (L
 	// process liveness (see attachedRunProcessAlive).
 	willExec := request.RunChild == nil && execReplaceSupported && stdioIsInherited(request)
 
-	// The scope is named from the harness session id: it exists before the
-	// attach, so agent-manager's run row, the lease and the cgroup all carry
-	// the same name whether or not a run id is minted.
+	// The scope is named from the harness session id before attachment, so the
+	// lease and cgroup use a stable name whether or not a run id is minted.
 	scope := agentScopeName("", harnessSessionID(harnessKind))
-	attach := attachCodingAgent(ctx, request, harnessKind, willExec, scope)
+	attach := attachCodingAgent(ctx, request, harnessKind, willExec)
 	launchResult := LaunchResult{Tier: "tier-4"}
 	containment, containmentSource := agentContainmentFn()
 	var report containmentReport
@@ -467,7 +466,7 @@ func codingAgentSpec(agent string) (harnessKind, binary string, err error) {
 // process's pid will still be the agent's pid afterwards. Sending it turns
 // agent-manager's liveness check into a single stat of /proc/<pid> instead of a
 // scan of every process environment.
-func attachCodingAgent(parent context.Context, request AgentLaunchRequest, harnessKind string, reportPID bool, scope string) codingAgentAttachment {
+func attachCodingAgent(parent context.Context, request AgentLaunchRequest, harnessKind string, reportPID bool) codingAgentAttachment {
 	// An identity already in the environment means something else already owns a
 	// run for this work. agent-manager mints one per run and scrubs inherited
 	// ones precisely so ownership is unambiguous, so the right move here is to
@@ -495,14 +494,9 @@ func attachCodingAgent(parent context.Context, request AgentLaunchRequest, harne
 	if reportPID {
 		body["process_id"] = os.Getpid()
 	}
-	// The tree and the ceiling travel with the attach so agent-manager's
-	// run row can say where a run edits and which scope contains it.
-	if dir := launchWorkingDir(request); dir != "" {
-		body["working_dir"] = dir
-	}
-	if scope != "" {
-		body["scope"] = scope
-	}
+	// Tree and containment metadata belong to the editor lease. The attach API
+	// accepts only harness identity, optional task, PID and title; adding lease
+	// fields here causes strict request decoding to reject the entire attach.
 	payload, err := json.Marshal(body)
 	if err != nil {
 		return codingAgentAttachment{failure: "malformed request"}

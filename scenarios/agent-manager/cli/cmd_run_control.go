@@ -169,7 +169,9 @@ func (a *App) runQuiesce(args []string) error {
 	scenario := fs.String("scenario", "", "Target scenario slug to quiesce (required)")
 	scopePrefix := fs.String("scope-prefix", "", "Override the working-tree scope (default scenarios/<scenario>)")
 	tagPrefix := fs.String("tag-prefix", "", "Also enumerate in-flight runs by this tag prefix (whole-repo runs)")
-	excludeRun := fs.String("exclude-run", "", "A run to leave out of the drain set (for example the promoting run); it is reported as excluded")
+	var excludeRuns cliutil.StringList
+	fs.Var(&excludeRuns, "exclude-run", "A run to leave out of the drain set (repeatable; for example the promoting run); it is reported as excluded")
+	instance := fs.String("instance", "", "Scenario instance being restarted (default live); runs declaring another instance are reported, not drained")
 	timeout := fs.String("timeout", "", "Max wait for in-flight runs to terminate (e.g. 5m; at most 30m)")
 	force := fs.Bool("force", false, "On timeout, cancel survivors instead of aborting")
 
@@ -187,9 +189,8 @@ func (a *App) runQuiesce(args []string) error {
 	if *tagPrefix != "" {
 		req.TagPrefix = protoString(*tagPrefix)
 	}
-	if *excludeRun != "" {
-		req.ExcludeRunId = protoString(*excludeRun)
-	}
+	req.ExcludeRunIds = excludeRuns.Values()
+	req.Instance = *instance
 	if *timeout != "" {
 		req.Timeout = protoString(*timeout)
 	}
@@ -214,6 +215,12 @@ func (a *App) runQuiesce(args []string) error {
 	}
 	for _, ref := range result.InFlight {
 		fmt.Printf("  in-flight: %s [%s] %s\n", ref.Id, ref.Status, ref.Tag)
+	}
+	for _, ref := range result.Excluded {
+		fmt.Printf("  excluded (not waited on): %s [%s] %s\n", ref.Id, ref.Status, ref.Tag)
+	}
+	for _, ref := range result.NotDrained {
+		fmt.Printf("  not drained (declares %s): %s [%s] %s\n", strings.Join(ref.Instances, ","), ref.Id, ref.Status, ref.Tag)
 	}
 	if result.Reason != "" {
 		fmt.Printf("→ %s\n", result.Reason)

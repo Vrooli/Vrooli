@@ -2,12 +2,15 @@ package vroolicli
 
 import (
 	"bytes"
+	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/vrooli/vrooli/internal/agentscope"
+	"github.com/vrooli/vrooli/internal/agentsession"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
 
@@ -26,7 +29,7 @@ func TestAgentListRendersTreeScopePid(t *testing.T) {
 		}
 		return "n/a"
 	}
-	if err := renderAgentList(&out, func() ([]scenarioruntime.EditorLease, error) { return leases, nil }, frozen, emptyCensus, alwaysAlive, now, false); err != nil {
+	if err := renderAgentList(context.Background(), &out, func() ([]scenarioruntime.EditorLease, error) { return leases, nil }, agentsession.Reconciler{Census: emptyCensus, Alive: alwaysAlive, Frozen: frozen, Now: fixedClock(now)}, false); err != nil {
 		t.Fatal(err)
 	}
 	text := out.String()
@@ -36,11 +39,11 @@ func TestAgentListRendersTreeScopePid(t *testing.T) {
 		}
 	}
 	out.Reset()
-	if err := renderAgentList(&out, func() ([]scenarioruntime.EditorLease, error) { return nil, nil }, frozen, emptyCensus, alwaysAlive, now, false); err != nil || !strings.Contains(out.String(), "No live agent sessions") {
+	if err := renderAgentList(context.Background(), &out, func() ([]scenarioruntime.EditorLease, error) { return nil, nil }, agentsession.Reconciler{Census: emptyCensus, Alive: alwaysAlive, Frozen: frozen, Now: fixedClock(now)}, false); err != nil || !strings.Contains(out.String(), "No live agent sessions") {
 		t.Fatalf("empty list = %q, %v", out.String(), err)
 	}
 	out.Reset()
-	if err := renderAgentList(&out, func() ([]scenarioruntime.EditorLease, error) { return leases, nil }, frozen, emptyCensus, alwaysAlive, now, true); err != nil || !strings.Contains(out.String(), `"sessions"`) {
+	if err := renderAgentList(context.Background(), &out, func() ([]scenarioruntime.EditorLease, error) { return leases, nil }, agentsession.Reconciler{Census: emptyCensus, Alive: alwaysAlive, Frozen: frozen, Now: fixedClock(now)}, true); err != nil || !strings.Contains(out.String(), `"sessions"`) {
 		t.Fatalf("json list = %q, %v", out.String(), err)
 	}
 	if got := absoluteClaims([]string{"internal/setpoint", "/abs/path", " "}, "/home/op/Vrooli"); len(got) != 2 || got[0] != "/home/op/Vrooli/internal/setpoint" || got[1] != "/abs/path" {
@@ -58,6 +61,9 @@ func frozenUnknown(string) string { return "n/a" }
 
 func alwaysAlive(int) bool { return true }
 
+// fixedClock pins the reconciliation's clock to a case's own instant.
+func fixedClock(at time.Time) func() time.Time { return func() time.Time { return at } }
+
 // A lease whose process is gone is a ghost: a row waiting for the registry's
 // next sweep, not a session. On 2026-09-04 735 of 773 "active" leases were
 // ghosts and this command presented every one of them as a live session.
@@ -69,7 +75,7 @@ func TestAgentListMarksALeaseWithADeadProcessAsAGhost(t *testing.T) {
 	}}
 	var out bytes.Buffer
 	dead := func(int) bool { return false }
-	if err := renderAgentList(&out, func() ([]scenarioruntime.EditorLease, error) { return leases, nil }, frozenUnknown, emptyCensus, dead, now, false); err != nil {
+	if err := renderAgentList(context.Background(), &out, func() ([]scenarioruntime.EditorLease, error) { return leases, nil }, agentsession.Reconciler{Census: emptyCensus, Alive: dead, Frozen: frozenUnknown, Now: fixedClock(now)}, false); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(out.String(), "ghost") {
@@ -89,12 +95,12 @@ func TestAgentListShowsScopesNoLeaseNames(t *testing.T) {
 		}, nil
 	}
 	var out bytes.Buffer
-	if err := renderAgentList(&out, func() ([]scenarioruntime.EditorLease, error) { return nil, nil }, frozenUnknown, census, alwaysAlive, now, false); err != nil {
+	if err := renderAgentList(context.Background(), &out, func() ([]scenarioruntime.EditorLease, error) { return nil, nil }, agentsession.Reconciler{Census: census, Alive: alwaysAlive, Frozen: frozenUnknown, Now: fixedClock(now)}, false); err != nil {
 		t.Fatal(err)
 	}
 	rendered := out.String()
-	if !strings.Contains(rendered, "vrooli-agent-codex-eb0c.scope") || !strings.Contains(rendered, "orphan") {
-		t.Fatalf("a scope whose agent has exited must be listed as an orphan:\n%s", rendered)
+	if !strings.Contains(rendered, "vrooli-agent-codex-eb0c.scope") || !strings.Contains(rendered, "agentless") {
+		t.Fatalf("a scope whose agent has exited must be listed as agentless:\n%s", rendered)
 	}
 	if !strings.Contains(rendered, "unrecorded") {
 		t.Fatalf("a scope with no lease must be listed as unrecorded:\n%s", rendered)
@@ -110,7 +116,7 @@ func TestAgentListMarksALeaseNamingNoLiveScope(t *testing.T) {
 		Scope: "vrooli-agent-claude-code-3fb16182", CreatedAt: now.Add(-time.Minute),
 	}}
 	var out bytes.Buffer
-	if err := renderAgentList(&out, func() ([]scenarioruntime.EditorLease, error) { return leases, nil }, frozenUnknown, emptyCensus, alwaysAlive, now, false); err != nil {
+	if err := renderAgentList(context.Background(), &out, func() ([]scenarioruntime.EditorLease, error) { return leases, nil }, agentsession.Reconciler{Census: emptyCensus, Alive: alwaysAlive, Frozen: frozenUnknown, Now: fixedClock(now)}, false); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(out.String(), "unrecorded") {
@@ -127,7 +133,7 @@ func TestAgentListReportsUndeterminedWhenTheKernelCannotBeRead(t *testing.T) {
 	}}
 	blind := func() ([]agentscope.Entry, error) { return nil, errKernelUnreadable }
 	var out bytes.Buffer
-	if err := renderAgentList(&out, func() ([]scenarioruntime.EditorLease, error) { return leases, nil }, frozenUnknown, blind, alwaysAlive, now, false); err != nil {
+	if err := renderAgentList(context.Background(), &out, func() ([]scenarioruntime.EditorLease, error) { return leases, nil }, agentsession.Reconciler{Census: blind, Alive: alwaysAlive, Frozen: frozenUnknown, Now: fixedClock(now)}, false); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(out.String(), "undetermined") {
@@ -136,3 +142,65 @@ func TestAgentListReportsUndeterminedWhenTheKernelCannotBeRead(t *testing.T) {
 }
 
 var errKernelUnreadable = errors.New("cgroup unreadable")
+
+// The list carries the reap policy's verdict and explicit-unknown usage per
+// row, and a summary that never folds an unknown figure in as 0.
+func TestAgentListJSONCarriesUsageAndReapVerdict(t *testing.T) {
+	now := time.Date(2026, 10, 7, 12, 0, 0, 0, time.UTC)
+	old := now.Add(-20 * 24 * time.Hour)
+	leases := []scenarioruntime.EditorLease{
+		{
+			SessionID: "desktop", PID: 1, Scope: "vrooli-agent-desktop", CreatedAt: old, LastHeartbeatAt: now,
+			Owner: scenarioruntime.EditorLeaseOwner{Kind: agentsession.KindDesktopApp, Ref: "/data", Source: "launch"},
+		},
+		{
+			SessionID: "ui", PID: 2, Scope: "vrooli-agent-ui", CreatedAt: old, LastHeartbeatAt: now,
+			Owner: scenarioruntime.EditorLeaseOwner{Kind: agentsession.KindWebConsoleSession, Ref: "wc", Source: "launch", EvidenceJSON: `{"web_console_origin":"ui"}`},
+		},
+	}
+	census := func() ([]agentscope.Entry, error) {
+		return []agentscope.Entry{{Name: "vrooli-agent-desktop.scope"}, {Name: "vrooli-agent-ui.scope"}}, nil
+	}
+	reconciler := agentsession.Reconciler{
+		Census: census, Alive: alwaysAlive, Frozen: frozenUnknown, Now: fixedClock(now),
+		Probes: agentsession.Probes{
+			DesktopAppProcesses: func(string) ([]int, error) { return nil, nil },
+			WebConsoleSession: func(context.Context, string, string) (agentsession.WebConsoleSession, error) {
+				return agentsession.WebConsoleSession{}, agentsession.ErrNotFound
+			},
+		},
+	}
+	var out bytes.Buffer
+	if err := renderAgentList(context.Background(), &out, func() ([]scenarioruntime.EditorLease, error) { return leases, nil }, reconciler, true); err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		Sessions []map[string]any `json:"sessions"`
+		Summary  AgentListSummary `json:"summary"`
+	}
+	if err := json.Unmarshal(out.Bytes(), &doc); err != nil {
+		t.Fatalf("decode %s: %v", out.String(), err)
+	}
+	rows := map[string]map[string]any{}
+	for _, row := range doc.Sessions {
+		rows[row["session"].(string)] = row
+	}
+	desktop, ui := rows["desktop"], rows["ui"]
+	if desktop["reapable"] != true || ui["reapable"] != false || ui["reap_reason"] != "web-console session origin ui: an operator terminal is never auto-reaped" {
+		t.Fatalf("verdicts: desktop %v %v, ui %v %v", desktop["reapable"], desktop["reap_reason"], ui["reapable"], ui["reap_reason"])
+	}
+	// No host reader in this fixture: the figures are unknown, so they are
+	// null with a status, never 0.
+	for _, key := range []string{"memory_bytes", "swap_bytes"} {
+		if value, present := desktop[key]; !present || value != nil {
+			t.Fatalf("%s = %v (present %v), want an explicit null", key, value, present)
+		}
+	}
+	if desktop["memory_status"] != agentsession.UsageUnavailable || desktop["swap_status"] != agentsession.UsageUnavailable {
+		t.Fatalf("statuses = %v / %v", desktop["memory_status"], desktop["swap_status"])
+	}
+	if s := doc.Summary; s.Sessions != 2 || s.Reapable != 1 || s.MemoryUnknown != 2 || s.SwapUnknown != 2 || s.MemoryBytes != 0 ||
+		s.ByOwnerKind[agentsession.KindDesktopApp][agentsession.StateOrphaned] != 1 {
+		t.Fatalf("summary = %+v", s)
+	}
+}

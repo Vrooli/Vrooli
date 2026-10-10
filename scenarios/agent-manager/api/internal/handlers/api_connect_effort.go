@@ -3,10 +3,15 @@ package handlers
 import (
 	"context"
 	"errors"
+	"log"
 	"net/http"
+	"strings"
 
 	"agent-manager/internal/supervision"
 	"connectrpc.com/connect"
+
+	"github.com/vrooli/api-core/authn"
+	requestidentity "github.com/vrooli/api-core/identity"
 
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
@@ -119,18 +124,54 @@ func (h *AgentManagerConnectHandler) ReconcileEffortMetadata(ctx context.Context
 	if authority == pb.WatchAuthority_WATCH_AUTHORITY_UNSPECIFIED {
 		authority = pb.WatchAuthority_WATCH_AUTHORITY_OPERATOR
 	}
-	actor, err := h.effortActor(ctx, effortToken(req.Header(), authority), authority)
+	actor, delegated, err := effortGrantActor(ctx, req.Msg.GetEnrollment().GetEffortRef(), authority)
 	if err != nil {
 		return nil, err
 	}
-	if authority == pb.WatchAuthority_WATCH_AUTHORITY_FAMILY_PARENT {
-		actor.MetadataReconciler = true
+	if !delegated {
+		actor, err = h.effortActor(ctx, effortToken(req.Header(), authority), authority)
+		if err != nil {
+			return nil, err
+		}
+		if authority == pb.WatchAuthority_WATCH_AUTHORITY_FAMILY_PARENT {
+			actor.MetadataReconciler = true
+		}
 	}
 	out, err := s.ReconcileMetadata(ctx, req.Msg, actor)
 	if err != nil {
 		return nil, watchConnectError(err)
 	}
 	return connect.NewResponse(out), nil
+}
+
+// EffortGrantTarget is the interactive-grant object for one effort:
+// agent-manager:effort/<name> for effort ref effort:<name>.
+func EffortGrantTarget(effortRef string) string {
+	return "agent-manager:effort/" + strings.TrimPrefix(strings.TrimSpace(effortRef), "effort:")
+}
+
+// effortGrantActor admits a live session holding an owner-approved
+// interactive grant with effort.reconcile on this exact effort. It reports
+// delegated=false for callers without an interactive grant, which keep the
+// owner and orchestrator paths. The service still refuses any change beyond
+// owner-facing metadata, so the grant cannot touch authority or subjects.
+func effortGrantActor(ctx context.Context, effortRef string, authority pb.WatchAuthority) (supervision.EffortActor, bool, error) {
+	p, ok := requestidentity.PrincipalFromContext(ctx)
+	if !ok || p.Kind != requestidentity.ActorAgent || p.Grant == nil {
+		return supervision.EffortActor{}, false, nil
+	}
+	if authority != pb.WatchAuthority_WATCH_AUTHORITY_OPERATOR {
+		return supervision.EffortActor{}, true, connect.NewError(connect.CodePermissionDenied, errors.New("an interactive grant acts only with delegated operator authority"))
+	}
+	if strings.TrimSpace(effortRef) == "" {
+		return supervision.EffortActor{}, true, connect.NewError(connect.CodeInvalidArgument, errors.New("effort reference required"))
+	}
+	target := EffortGrantTarget(effortRef)
+	if _, err := authn.RequireOperation(ctx, "agent-manager:write", "effort.reconcile", target); err != nil {
+		return supervision.EffortActor{}, true, connect.NewError(connect.CodePermissionDenied, errors.New("interactive grant does not allow effort.reconcile on "+target))
+	}
+	log.Printf("agent-manager effort metadata delegated caller=%s owner=%s grant=%s approver=%s target=%s", p.Subject, p.Owner, p.Grant.ID, p.Grant.Approver, target)
+	return supervision.EffortActor{ID: p.Subject, Delegated: true, ApprovedBy: p.Grant.Approver}, true, nil
 }
 
 func (h *AgentManagerConnectHandler) WithdrawEffort(ctx context.Context, req *connect.Request[pb.WithdrawEffortRequest]) (*connect.Response[pb.EffortEnrollment], error) {

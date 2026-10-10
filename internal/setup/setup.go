@@ -142,7 +142,7 @@ type setupDeps struct {
 	runOnboardingCLI            func(executable, root string, stdin io.Reader, stdout, stderr io.Writer) error
 	detectPresentation          func(context.Context) hostinventory.Capability
 	resourceController          func(root, home string) resourceRunner
-	installPrivilegeBroker      func(context.Context, string) (privilegebroker.SetupStatus, error)
+	installPrivilegeBroker      func(context.Context, string, Options, io.Writer, io.Writer) (privilegebroker.SetupStatus, error)
 	inspectPrivilegeBroker      func() privilegebroker.SetupStatus
 	configureCredentialBackend  func(io.Writer, io.Writer) error
 	discoverCapabilities        func(context.Context, string, string) ([]operatorcapability.Status, error)
@@ -198,8 +198,8 @@ func defaultSetupDeps(repoRoots ...string) setupDeps {
 		resourceController: func(root, home string) resourceRunner {
 			return resources.NewController(root, home)
 		},
-		installPrivilegeBroker: func(ctx context.Context, executable string) (privilegebroker.SetupStatus, error) {
-			return privilegebroker.DefaultInstallerForRepo(executable, repoRoot).Install(ctx)
+		installPrivilegeBroker: func(ctx context.Context, executable string, opts Options, stdout, stderr io.Writer) (privilegebroker.SetupStatus, error) {
+			return privilegebroker.DefaultInstallerForRepo(executable, repoRoot).InstallForSetup(ctx, opts.SudoMode, stdout, stderr)
 		},
 		inspectPrivilegeBroker: privilegebroker.Inspect,
 		configureCredentialBackend: func(stdout, stderr io.Writer) error {
@@ -406,7 +406,7 @@ func (f setupFlow) applyRequirements(resolved resolvedSetup) (vrooliruntime.Repo
 		// remaining host requirements. Install it as soon as the native CLI is
 		// available so a first setup cannot deadlock behind a later safeguard
 		// that needs source or services delivered by the deployment itself.
-		if _, err := f.service.deps.installPrivilegeBroker(context.Background(), resolved.executable); err != nil {
+		if _, err := f.service.deps.installPrivilegeBroker(context.Background(), resolved.executable, f.opts, f.stdout, f.stderr); err != nil {
 			return vrooliruntime.Report{}, false, fmt.Errorf("install privilege broker before host requirements: %w", err)
 		}
 	}
@@ -489,7 +489,7 @@ func (f setupFlow) configureCredentialsAndBroker(executable string) error {
 	f.progress.StartPhase(PhasePrivilegeBroker)
 	f.progress.Operation("Installing the privilege broker")
 	_, _ = fmt.Fprintln(f.stdout, "[INFO]    Installing the privilege broker...")
-	status, err := f.service.deps.installPrivilegeBroker(context.Background(), executable)
+	status, err := f.service.deps.installPrivilegeBroker(context.Background(), executable, f.opts, f.stdout, f.stderr)
 	if err != nil {
 		return err
 	}

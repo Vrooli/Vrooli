@@ -15,6 +15,7 @@
 package recovery
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -22,7 +23,9 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/baselinefloor"
+	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
+	"github.com/vrooli/vrooli/internal/scenario"
 )
 
 const (
@@ -44,6 +47,13 @@ type Service struct {
 	// (`recovery namespace`). Nil uses os.UserHomeDir; tests point it at a temp
 	// tree. It is unused by the restore-point/manifest verbs.
 	HomeDir func() (string, error)
+	// SharedSourceRoots resolves the shared sources a capture freezes. Nil
+	// uses lifecycle.SharedSourceRoots.
+	SharedSourceRoots func(ctx context.Context, repoRoot string, item scenario.Scenario) ([]lifecycle.SharedSourceRoot, error)
+	// Live reports which registered instances run from an engagement and
+	// restarts or stops them, so `clean` never deletes a tree a live instance
+	// runs from. Nil disables the guard (callers without a runtime).
+	Live LiveControl
 }
 
 func (s Service) now() time.Time {
@@ -68,6 +78,9 @@ func (s Service) view(m baselinefloor.Manifest) EngagementView {
 	if expiry, ok := m.ExpiresAt(); ok {
 		out.ExpiresAt = &expiry
 	}
+	if record, ok, err := s.Store.ReadCaptureRecord(m.Scenario, m.Slug); err == nil && ok {
+		out.Capture = &record
+	}
 	return out
 }
 
@@ -81,6 +94,9 @@ type EngagementView struct {
 	ExpiresAt *time.Time `json:"expiresAt,omitempty"`
 	// Expired reports whether the idle TTL has elapsed as of the service clock.
 	Expired bool `json:"expired"`
+	// Capture is the latest capture record (capture ID and shared-source
+	// freeze state); nil for an engagement captured before capture records.
+	Capture *baselinefloor.CaptureRecord `json:"capture,omitempty"`
 }
 
 // CaptureRequest takes a restore point of a scenario's working tree.
@@ -92,6 +108,15 @@ type CaptureRequest struct {
 	// NoReflink forces the portable deep-copy floor even where CoW is available
 	// (deterministic copy stats; mainly for tests).
 	NoReflink bool
+	// AllowUnfrozen records an unfrozen capture when the shared sources cannot
+	// be resolved or copied, instead of failing the capture. The serving tree
+	// then links the repository's current shared sources.
+	AllowUnfrozen bool
+	// Replace takes over an open engagement for the same scenario and slug:
+	// its restore point is recaptured from the working tree. Without it a
+	// capture into an open engagement is refused, because that restore point
+	// is what the engaged live instance serves and what abandon restores.
+	Replace bool
 }
 
 // CaptureOutput reports a completed capture.
@@ -101,21 +126,66 @@ type CaptureOutput struct {
 	Source           string                  `json:"source"`
 	RestorePointPath string                  `json:"restorePointPath"`
 	Stats            baselinefloor.CopyStats `json:"stats"`
+	// CaptureID identifies this capture; it is the serving-tree generation.
+	CaptureID string `json:"captureId"`
+	// SharedSources reports the shared-source freeze.
+	SharedSources baselinefloor.SharedSources `json:"sharedSources"`
 }
 
-// Capture copies the scenario working tree into the engagement's restore point,
-// excluding build artifacts. It is idempotent (re-capture overlays).
+// Capture takes the engagement's restore point and freezes the shared
+// sources the scenario build reaches outside its directory.
+//
+// The restore point holds source and configuration only: the repository's
+// .gitignore rules, the scenario's declared build outputs and data
+// directories, and the floor patterns exclude runtime data and build
+// outputs, while the scenario's .vrooli configuration is kept. The shared
+// sources are resolved and copied first: when they cannot be frozen the
+// capture fails before the restore point changes, unless AllowUnfrozen.
+// Every capture gets a new capture ID, so the next serving start
+// materializes a tree from this capture. The restore point itself is an
+// overlay (a re-capture refreshes it).
 func (s Service) Capture(req CaptureRequest) (CaptureOutput, error) {
 	if err := requireRef(req.Scenario, req.Slug); err != nil {
 		return CaptureOutput{}, err
+	}
+	if existing, err := s.Store.ReadManifest(req.Scenario, req.Slug); err == nil && !req.Replace && !existing.Expired(s.now()) {
+		return CaptureOutput{}, fmt.Errorf("%w: %s/%s in %s mode since %s; capturing would overwrite its restore point (pass --replace to recapture it)", ErrEngagementLive,
+			existing.Scenario, existing.Slug, existing.Mode, existing.CreatedAt.UTC().Format(time.RFC3339))
 	}
 	source := strings.TrimSpace(req.Source)
 	if source == "" {
 		source = s.scenarioDir(req.Scenario)
 	}
-	dest := s.Store.RestorePointPath(req.Scenario, req.Slug)
-	stats, err := baselinefloor.Capture(source, dest, copyOpts(req.NoReflink))
+	if abs, err := filepath.Abs(source); err == nil {
+		source = abs
+	}
+	item, declared, err := captureScenario(req.Scenario, source)
 	if err != nil {
+		return CaptureOutput{}, err
+	}
+	shared := baselinefloor.SharedSources{Status: baselinefloor.SharedSourcesFrozen}
+	if declared {
+		if shared, err = s.freezeSharedSources(req, item); err != nil {
+			return CaptureOutput{}, err
+		}
+	}
+	dest := s.Store.RestorePointPath(req.Scenario, req.Slug)
+	stats, err := baselinefloor.Capture(source, dest, &baselinefloor.CopyOptions{
+		Exclude: baselinefloor.DefaultExcludes(),
+		Ignore:  s.treeIgnorer(item, declared, source),
+		Reflink: !req.NoReflink,
+	})
+	if err != nil {
+		return CaptureOutput{}, err
+	}
+	now := s.now()
+	record := baselinefloor.CaptureRecord{
+		CaptureID:     baselinefloor.NewCaptureID(now),
+		CapturedAt:    now,
+		Source:        source,
+		SharedSources: shared,
+	}
+	if err := s.Store.WriteCaptureRecord(req.Scenario, req.Slug, record); err != nil {
 		return CaptureOutput{}, err
 	}
 	return CaptureOutput{
@@ -124,6 +194,8 @@ func (s Service) Capture(req CaptureRequest) (CaptureOutput, error) {
 		Source:           source,
 		RestorePointPath: dest,
 		Stats:            stats,
+		CaptureID:        record.CaptureID,
+		SharedSources:    shared,
 	}, nil
 }
 
@@ -146,7 +218,10 @@ type RestoreOutput struct {
 }
 
 // Restore overlays the engagement's restore point onto the destination — the
-// sanctioned, git-free code-level undo.
+// sanctioned, git-free code-level undo. The destination's ignore rules apply
+// to the overlay, so a restore point captured before runtime data was
+// excluded never overlays a stale database, log or binary onto the working
+// tree.
 func (s Service) Restore(req RestoreRequest) (RestoreOutput, error) {
 	if err := requireRef(req.Scenario, req.Slug); err != nil {
 		return RestoreOutput{}, err
@@ -155,8 +230,19 @@ func (s Service) Restore(req RestoreRequest) (RestoreOutput, error) {
 	if dest == "" {
 		dest = s.scenarioDir(req.Scenario)
 	}
+	if abs, err := filepath.Abs(dest); err == nil {
+		dest = abs
+	}
+	item, declared, err := captureScenario(req.Scenario, dest)
+	if err != nil {
+		return RestoreOutput{}, err
+	}
 	src := s.Store.RestorePointPath(req.Scenario, req.Slug)
-	stats, err := baselinefloor.Restore(src, dest, copyOpts(req.NoReflink))
+	stats, err := baselinefloor.Restore(src, dest, &baselinefloor.CopyOptions{
+		Exclude: baselinefloor.DefaultExcludes(),
+		Ignore:  s.treeIgnorer(item, declared, dest),
+		Reflink: !req.NoReflink,
+	})
 	if err != nil {
 		return RestoreOutput{}, err
 	}
@@ -352,35 +438,6 @@ func (s Service) SetTTL(req SetTTLRequest) (EngagementView, error) {
 		return EngagementView{}, err
 	}
 	return s.view(m), nil
-}
-
-// CleanOutput reports a torn-down engagement.
-type CleanOutput struct {
-	Scenario      string `json:"scenario"`
-	Slug          string `json:"slug"`
-	EngagementDir string `json:"engagementDir"`
-}
-
-// Clean removes an entire engagement directory (restore point + manifest). It is
-// idempotent: tearing down a missing engagement is not an error.
-func (s Service) Clean(ref Ref) (CleanOutput, error) {
-	if err := requireRef(ref.Scenario, ref.Slug); err != nil {
-		return CleanOutput{}, err
-	}
-	dir := s.Store.EngagementDir(ref.Scenario, ref.Slug)
-	if err := s.Store.Clean(ref.Scenario, ref.Slug); err != nil {
-		return CleanOutput{}, err
-	}
-	return CleanOutput{Scenario: ref.Scenario, Slug: ref.Slug, EngagementDir: dir}, nil
-}
-
-// copyOpts builds the restore-point copy options: nil (defaults: gitignore-aligned
-// excludes + reflink fast path) unless the caller forced the deep-copy floor.
-func copyOpts(noReflink bool) *baselinefloor.CopyOptions {
-	if !noReflink {
-		return nil
-	}
-	return &baselinefloor.CopyOptions{Exclude: baselinefloor.DefaultExcludes(), Reflink: false}
 }
 
 func requireRef(scenario, slug string) error {

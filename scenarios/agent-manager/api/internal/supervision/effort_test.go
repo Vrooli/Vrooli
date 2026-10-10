@@ -429,6 +429,35 @@ func TestEffortMetadataReconciliationIsScopedAndPreservesAuthority(t *testing.T)
 	}
 }
 
+func TestDelegatedEffortMetadataNeedsAnApproverAndKeepsAuthority(t *testing.T) {
+	s, _, c := effortFixture(t)
+	ctx := context.Background()
+	e := enrollmentFixture(t, s, c, domain.RunStatusRunning)
+	request := func(key string) *pb.ReconcileEffortMetadataRequest {
+		return &pb.ReconcileEffortMetadataRequest{Enrollment: proto.Clone(e).(*pb.EffortEnrollment), ExpectedRevision: e.Revision, IdempotencyKey: key}
+	}
+	unapproved := request("unapproved")
+	unapproved.Enrollment.DestinationRef = "path:goal/GOAL.md"
+	if _, err := s.ReconcileMetadata(ctx, unapproved, EffortActor{ID: "session-run", Delegated: true}); err == nil {
+		t.Fatal("a delegated session without an approving owner reconciled metadata")
+	}
+	forged := request("delegated-authority")
+	forged.Enrollment.AuthorityRef = "forged"
+	delegate := EffortActor{ID: "session-run", Delegated: true, ApprovedBy: "owner"}
+	if _, err := s.ReconcileMetadata(ctx, forged, delegate); err == nil {
+		t.Fatal("a delegated session changed effort authority")
+	}
+	home := request("delegated-home")
+	home.Enrollment.DestinationRef = "path:goal/GOAL.md"
+	updated, err := s.ReconcileMetadata(ctx, home, delegate)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updated.DestinationRef != "path:goal/GOAL.md" || updated.AuthorizedBy != e.AuthorizedBy || len(updated.Subjects) != len(e.Subjects) {
+		t.Fatalf("delegated reconciliation changed more than metadata: %+v", updated)
+	}
+}
+
 func TestEffortDeclaredCheckpointKeepsIndependentBlocker(t *testing.T) {
 	s, _, _ := effortFixture(t)
 	workspaceFixture(t, s.config.Root, "mixed", "effort:mixed", map[string]any{"checkpoint": "handoffs/current.json"})

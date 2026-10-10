@@ -231,12 +231,15 @@ func buildFreshnessSpec(modulePath, contextRoot string, inputs []string, binaryN
 		contextRoot = absContextRoot
 	}
 
-	return cliutil.FreshnessSpec{
+	// Expansion is idempotent, so inputs a caller already expanded (the
+	// canonical specs, a StaleChecker auto-rebuild) are unchanged, and the
+	// baked list matches what the runtime checker derives.
+	return cliutil.WithGoReplaceFreshnessInputs(cliutil.FreshnessSpec{
 		SourceRoot:  modulePath,
 		ContextRoot: contextRoot,
 		Inputs:      append([]string(nil), inputs...),
 		SkipFiles:   []string{binaryName},
-	}, nil
+	}), nil
 }
 
 func determineDestination(modulePath, explicitOutput, installDir, name string) (string, error) {

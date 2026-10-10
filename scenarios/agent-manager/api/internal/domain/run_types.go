@@ -670,6 +670,9 @@ type CreateRunCaller struct {
 }
 
 type RunAdmission struct {
+	// FrozenIdentityScopes is the original owner/profile/request intersection.
+	// A nil pointer means historical admission has no provable grant ceiling.
+	FrozenIdentityScopes *[]string `json:"frozenIdentityScopes,omitempty"`
 	// Native-owned finite task projection, bound by EffortIntent.InputDigest.
 	// Stored privately with RunConfig; never a caller identity projection.
 	EffortTaskProjection []byte `json:"effortTaskProjection,omitempty"`
@@ -756,6 +759,9 @@ type RunConfig struct {
 	MaxToolCalls int           `json:"maxToolCalls,omitempty"`
 	Timeout      time.Duration `json:"timeout,omitempty"`
 	Effort       Effort        `json:"effort,omitempty"`
+	// MaxWeightedTokens is the effective weighted-token cap (DL-8): the
+	// profile cap, lowered by a run override. Zero means none.
+	MaxWeightedTokens int64 `json:"maxWeightedTokens,omitempty"`
 
 	// PolicySnapshot pins the exact active catalog revision and ordered
 	// candidate sequence selected before this run was persisted.
@@ -823,6 +829,7 @@ func (c *RunConfig) ApplyProfile(profile *AgentProfile) {
 	c.MaxTurns = profile.MaxTurns
 	c.Timeout = profile.Timeout
 	c.Effort = profile.Effort
+	c.MaxWeightedTokens = profile.MaxWeightedTokens
 	c.AllowedTools = profile.AllowedTools
 	c.DeniedTools = profile.DeniedTools
 	c.ToolRestrictionPolicy = profile.ToolRestrictionPolicy.Effective()

@@ -103,11 +103,13 @@ func (s *Store) MigrationsPath(scenario, slug string) string {
 	return filepath.Join(s.EngagementDir(scenario, slug), migrationsSubdir)
 }
 
-// Clean removes an entire engagement directory (restore point + manifest). It is
-// idempotent: a missing engagement is not an error. This is the teardown
-// primitive promote/abandon/gc call once an engagement closes.
+// Clean removes an entire engagement directory (restore point, manifest,
+// capture record, shared-source snapshot and serving trees). It is idempotent:
+// a missing engagement is not an error. This is the teardown primitive
+// promote/abandon/gc call once an engagement closes; the recovery service
+// refuses it while a live instance still runs from the engagement.
 func (s *Store) Clean(scenario, slug string) error {
-	if err := os.RemoveAll(s.EngagementDir(scenario, slug)); err != nil {
+	if err := removeTree(s.EngagementDir(scenario, slug)); err != nil {
 		return fmt.Errorf("baselinefloor: clean engagement %s/%s: %w", scenario, slug, err)
 	}
 	return nil

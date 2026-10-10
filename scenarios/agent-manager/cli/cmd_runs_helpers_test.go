@@ -125,7 +125,7 @@ func TestRunCreateModelOverrideIsOptional(t *testing.T) {
 			}))
 			defer server.Close()
 			api := cliutil.NewAPIClient(cliutil.NewHTTPClient(cliutil.HTTPClientOptions{}), func() cliutil.APIBaseOptions { return cliutil.APIBaseOptions{DefaultBase: server.URL} }, nil)
-			args := []string{"create", "--task-id=task-1", "--profile-id=profile-1", "--json"}
+			args := []string{"create", "--task-id=11111111-1111-4111-8111-111111111111", "--profile-id=22222222-2222-4222-8222-222222222222", "--json"}
 			if tc.model != "" {
 				args = append(args, "--model="+tc.model)
 			}
@@ -159,7 +159,7 @@ func TestRunCreateUntilOverrideIsForwarded(t *testing.T) {
 	}))
 	defer server.Close()
 	api := cliutil.NewAPIClient(cliutil.NewHTTPClient(cliutil.HTTPClientOptions{}), func() cliutil.APIBaseOptions { return cliutil.APIBaseOptions{DefaultBase: server.URL} }, nil)
-	if err := (&App{services: NewServices(api)}).cmdRun([]string{"create", "--task-id=task-1", "--profile-id=profile-1", "--until=file GOAL_DONE.txt exists", "--json"}); err != nil {
+	if err := (&App{services: NewServices(api)}).cmdRun([]string{"create", "--task-id=11111111-1111-4111-8111-111111111111", "--profile-id=22222222-2222-4222-8222-222222222222", "--until=file GOAL_DONE.txt exists", "--json"}); err != nil {
 		t.Fatal(err)
 	}
 	if received.InlineConfig == nil || received.InlineConfig.GetUntil() != "file GOAL_DONE.txt exists" {
@@ -184,13 +184,13 @@ func TestRunCreateParentRunIDIsForwarded(t *testing.T) {
 	defer server.Close()
 	api := cliutil.NewAPIClient(cliutil.NewHTTPClient(cliutil.HTTPClientOptions{}), func() cliutil.APIBaseOptions { return cliutil.APIBaseOptions{DefaultBase: server.URL} }, nil)
 	if err := (&App{services: NewServices(api)}).cmdRun([]string{
-		"create", "--task-id=task-1", "--profile-id=profile-1",
-		"--parent-run-id=parent-run", "--json",
+		"create", "--task-id=11111111-1111-4111-8111-111111111111", "--profile-id=22222222-2222-4222-8222-222222222222",
+		"--parent-run-id=33333333-3333-4333-8333-333333333333", "--json",
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if received.GetParentRunId() != "parent-run" {
-		t.Fatalf("parent run ID = %q, want parent-run", received.GetParentRunId())
+	if received.GetParentRunId() != "33333333-3333-4333-8333-333333333333" {
+		t.Fatalf("parent run ID = %q, want 33333333-3333-4333-8333-333333333333", received.GetParentRunId())
 	}
 }
 
@@ -262,7 +262,7 @@ func TestRejectRunIdentityLifecycleCommand(t *testing.T) {
 
 	for _, subcommand := range []string{
 		"apply-investigation", "approve", "delete",
-		"investigate", "recover", "reject", "sandbox-sync",
+		"reject", "sandbox-sync",
 		"stop-all", "stop-by-tag",
 	} {
 		if err := rejectRunIdentityLifecycleCommand(subcommand); err == nil {
@@ -272,7 +272,7 @@ func TestRejectRunIdentityLifecycleCommand(t *testing.T) {
 
 	// Lineage operations reach the API, which admits only the caller's own
 	// lineage; quiesce reaches it to admit an effort orchestrator's own scenario.
-	for _, subcommand := range []string{"get", "report", "stats", "events", "diff", "park", "create", "identity", "stop", "continue", "wake", "quiesce"} {
+	for _, subcommand := range []string{"get", "report", "stats", "events", "diff", "park", "create", "identity", "stop", "continue", "wake", "quiesce", "investigate", "recover"} {
 		if err := rejectRunIdentityLifecycleCommand(subcommand); err != nil {
 			t.Errorf("%s was unexpectedly rejected: %v", subcommand, err)
 		}
@@ -400,5 +400,15 @@ func TestRunEventDataStringDoesNotMutateEvent(t *testing.T) {
 	_ = runEventDataString(event)
 	if !reflect.DeepEqual(before, event.GetLog()) {
 		t.Fatal("rendering must not mutate the event payload")
+	}
+}
+
+func TestRunCreateEchoesAMistypedID(t *testing.T) {
+	err := requireUUIDFlag("--task-id", "cd963a1c-40b3-4247-85af-7a5751ed87a")
+	if err == nil || !strings.Contains(err.Error(), `"cd963a1c-40b3-4247-85af-7a5751ed87a"`) || !strings.Contains(err.Error(), "35 characters") {
+		t.Fatalf("a truncated task ID was not echoed with its length: %v", err)
+	}
+	if err := requireUUIDFlag("--task-id", "cd963a1c-40b3-4247-85af-7a5751ed87a1"); err != nil {
+		t.Fatal(err)
 	}
 }

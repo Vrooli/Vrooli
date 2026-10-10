@@ -1,9 +1,11 @@
 package privilegebroker
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
-	"net"
+	"io"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -12,6 +14,7 @@ import (
 	"strings"
 
 	platformgo "github.com/vrooli/platform-go"
+	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/tuning"
@@ -35,11 +38,12 @@ func SocketPath() string {
 }
 
 type SetupStatus struct {
-	Available  bool   `json:"available"`
-	Supported  bool   `json:"supported"`
-	SocketPath string `json:"socket_path"`
-	Reason     string `json:"reason,omitempty"`
-	Recovery   string `json:"recovery,omitempty"`
+	Available    bool     `json:"available"`
+	Supported    bool     `json:"supported"`
+	SocketPath   string   `json:"socket_path"`
+	Reason       string   `json:"reason,omitempty"`
+	Recovery     string   `json:"recovery,omitempty"`
+	Capabilities []string `json:"capabilities,omitempty"`
 }
 
 type Installer struct {
@@ -47,6 +51,44 @@ type Installer struct {
 	RepoRoot   string
 	Run        func(context.Context, string, ...string) ([]byte, error)
 	Copy       func(string, string) error
+	// SetupRun executes only the setup-owned elevation child, preserving the
+	// operator's terminal on stderr. It is a controlled installation test seam.
+	SetupRun     func(context.Context, string, []string, io.Writer, io.Writer) error
+	effectiveUID func() int
+}
+
+// InstallForSetup honors the project setup consent boundary. The parent stays
+// in the owner's session; only this fixed installation child becomes root.
+func (i Installer) InstallForSetup(ctx context.Context, mode string, stdout, stderr io.Writer) (SetupStatus, error) {
+	identity := i.effectiveUID
+	if identity == nil {
+		identity = os.Geteuid
+	}
+	if runtime.GOOS != "linux" || identity() == 0 {
+		return i.Install(ctx)
+	}
+	if strings.TrimSpace(mode) == "" || mode == "skip" {
+		return Inspect(), nil
+	}
+	command, args, err := hostreqkit.WithSudo(mode, i.Executable, []string{"__privilege-broker", "install", "--repo-root", i.RepoRoot})
+	if err != nil {
+		return SetupStatus{}, err
+	}
+	run := i.SetupRun
+	if run == nil {
+		run = func(ctx context.Context, name string, args []string, out, errOut io.Writer) error {
+			return shell.CommandWithDefaults(shell.Spec{Context: ctx, Name: name, Args: args, Stdout: out, Stderr: errOut, Stdin: os.Stdin}).Run()
+		}
+	}
+	var output bytes.Buffer
+	if err := run(ctx, command, args, &output, stderr); err != nil {
+		return SetupStatus{}, fmt.Errorf("setup privilege broker installation: %w", err)
+	}
+	var status SetupStatus
+	if err := json.Unmarshal(output.Bytes(), &status); err != nil || !status.Available {
+		return SetupStatus{}, fmt.Errorf("setup privilege broker installation did not verify availability")
+	}
+	return status, nil
 }
 
 func DefaultInstaller(executable string) Installer {
@@ -99,7 +141,7 @@ func (i Installer) Install(ctx context.Context) (SetupStatus, error) {
 			return SetupStatus{}, fmt.Errorf("systemctl %s: %w: %s", strings.Join(args, " "), err, strings.TrimSpace(string(out)))
 		}
 	}
-	return SetupStatus{Available: true, Supported: true, SocketPath: SocketPath()}, nil
+	return SetupStatus{Available: true, Supported: true, SocketPath: SocketPath(), Capabilities: capabilities()}, nil
 }
 
 // brokerServiceCommands deliberately restarts the broker after an install or
@@ -114,12 +156,16 @@ func Inspect() SetupStatus {
 		return SetupStatus{Supported: false, SocketPath: SocketPath(), Reason: "privilege broker is currently supported only on Linux with systemd"}
 	}
 	socket := SocketPath()
-	conn, err := net.Dial("unix", socket)
+	client := NewClient()
+	client.Timeout = tuning.PrivilegeBrokerUnlockTimeout()
+	result, err := client.Do(context.Background(), Request{Version: ProtocolVersion, RequestID: "setup-inspect", Action: ActionCapabilitiesInspect})
 	if err != nil {
 		return SetupStatus{Supported: true, SocketPath: socket, Reason: "broker socket is unavailable", Recovery: "Re-run `vrooli setup --sudo-mode=ask` to install or repair the privilege broker."}
 	}
-	_ = conn.Close()
-	return SetupStatus{Available: true, Supported: true, SocketPath: socket}
+	if result.Status != "completed" || len(result.Capabilities) == 0 {
+		return SetupStatus{Supported: true, SocketPath: socket, Reason: "broker capability registry is unavailable or outdated", Recovery: "Re-run `vrooli setup --sudo-mode=ask` to upgrade the privilege broker."}
+	}
+	return SetupStatus{Available: true, Supported: true, SocketPath: socket, Capabilities: result.Capabilities}
 }
 
 func systemdUnit(executable string, uid, gid int) string {
@@ -146,7 +192,10 @@ RuntimeDirectoryMode=755
 LogsDirectory=vrooli
 LogsDirectoryMode=750
 NoNewPrivileges=true
-PrivateTmp=true
+# Temporary activity must be observed against the host namespace. Give it
+# read-only visibility rather than a private, empty temporary filesystem.
+PrivateTmp=false
+ReadOnlyPaths=/tmp /var/tmp
 ProtectHome=false
 ProtectSystem=strict
 # UFW creates this lock even for read-only status requests, and writes its

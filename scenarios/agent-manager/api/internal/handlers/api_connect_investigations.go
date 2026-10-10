@@ -8,6 +8,8 @@ import (
 
 	"agent-manager/internal/investigation"
 	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/authn"
+	"github.com/vrooli/api-core/identity"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -19,7 +21,16 @@ func (h *AgentManagerConnectHandler) StartInvestigation(ctx context.Context, req
 	if req == nil || req.Msg == nil || req.Msg.GetRequest() == nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("investigation request is required"))
 	}
-	item, reused, err := h.h.admitInvestigation(ctx, investigationRequestFromProto(req.Msg.GetRequest()))
+	input := investigationRequestFromProto(req.Msg.GetRequest())
+	actor, err := h.h.authorizeInvestigationHeaders(ctx, req.Header(), input.Subject)
+	if err != nil {
+		return nil, investigationConnectError(err)
+	}
+	if actor != "" {
+		input.CallerAuthority = "agent"
+		input.RequestKey = actor + "/" + input.RequestKey
+	}
+	item, reused, err := h.h.admitInvestigation(ctx, input)
 	if err != nil {
 		return nil, investigationConnectError(err)
 	}
@@ -83,6 +94,16 @@ func (h *AgentManagerConnectHandler) CancelInvestigation(ctx context.Context, re
 	}
 	if req == nil || req.Msg == nil || req.Msg.GetInvestigationId() == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("investigation id is required"))
+	}
+	stored, err := h.h.investigations.Get(ctx, req.Msg.GetInvestigationId())
+	if err != nil {
+		return nil, investigationConnectError(err)
+	}
+	if stored == nil {
+		return nil, connect.NewError(connect.CodeNotFound, investigation.ErrNotFound)
+	}
+	if _, err := h.h.authorizeInvestigationHeaders(ctx, req.Header(), stored.Request.Subject); err != nil {
+		return nil, investigationConnectError(err)
 	}
 	item, err := h.h.cancelInvestigation(ctx, req.Msg.GetInvestigationId())
 	if err != nil {
@@ -153,6 +174,10 @@ func optionalTimestamp(value *time.Time) *timestamppb.Timestamp {
 func investigationConnectError(err error) error {
 	code := connect.CodeInternal
 	switch {
+	case errors.Is(err, authn.ErrOperation):
+		code = connect.CodePermissionDenied
+	case errors.As(err, new(*identity.Failure)):
+		code = connect.CodeUnauthenticated
 	case errors.Is(err, investigation.ErrInvalidRequest), errors.Is(err, investigation.ErrInvalidResult):
 		code = connect.CodeInvalidArgument
 	case errors.Is(err, investigation.ErrRequestKeyConflict), errors.Is(err, investigation.ErrInvalidTransition):

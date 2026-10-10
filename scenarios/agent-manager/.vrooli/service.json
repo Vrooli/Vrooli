@@ -11,17 +11,35 @@
     "version": 1,
     "profile": "local_read_only",
     "default_mode": "personal_local",
-    "supported_modes": ["personal_local", "local_multi_user", "remote_vrooli"],
+    "supported_modes": [
+      "personal_local",
+      "local_multi_user",
+      "remote_vrooli"
+    ],
     "human_sign_in": "optional",
     "provider": "scenario-authenticator",
     "resource": "agent-manager",
     "audience": "scenario-authenticator:agent-manager",
     "offline": true,
-    "protected_routes": ["/api"],
+    "protected_routes": [
+      "/api"
+    ],
     "capabilities": [
-      {"id": "agent-manager:read", "effect": "read", "agent_eligible": true},
-      {"id": "agent-manager:write", "effect": "write", "agent_eligible": false},
-      {"id": "agent-manager:destructive", "effect": "destructive", "agent_eligible": false}
+      {
+        "id": "agent-manager:read",
+        "effect": "read",
+        "agent_eligible": true
+      },
+      {
+        "id": "agent-manager:write",
+        "effect": "write",
+        "agent_eligible": true
+      },
+      {
+        "id": "agent-manager:destructive",
+        "effect": "destructive",
+        "agent_eligible": false
+      }
     ],
     "requires_authenticator": false
   },
@@ -303,7 +321,9 @@
         "safety_tier": "safe_with_owner",
         "default_mode": "enabled",
         "default_approval": "operator",
-        "storage_entries": ["conversation_search_qdrant"]
+        "storage_entries": [
+          "conversation_search_qdrant"
+        ]
       }
     ],
     "rationale": "Canonical state is physically non-regenerable. Conversation-search catalog, FTS, checkpoint, generation, and content-free bounded telemetry tables are logical projections inside that protected SQLite file; they may be rebuilt or reclaimed only through domain-owned operations, and whole-file cleanup remains forbidden. The governed optional Qdrant dependency owns variant-isolated semantic generations under storage.Collection(\"conversation-search\"); failed shadows roll back and successful retired generations remain for reviewed rollback."
@@ -318,7 +338,8 @@
     }
   },
   "environment": {
-    "AGENT_MANAGER_WORKSPACE_ID": "local"
+    "AGENT_MANAGER_WORKSPACE_ID": "local",
+    "AGENT_MANAGER_AUTHORIZATION_URL": "https://agent-manager.itsagitime.com"
   },
   "credentials": {
     "descriptors": [

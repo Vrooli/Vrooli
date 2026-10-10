@@ -10,6 +10,7 @@ import (
 	"agent-manager/internal/domain"
 	"agent-manager/internal/identity"
 	"github.com/google/uuid"
+	coreidentity "github.com/vrooli/api-core/identity"
 	"github.com/vrooli/api-core/owneridentity"
 	"github.com/vrooli/api-core/scopecatalog"
 )
@@ -23,7 +24,8 @@ func (o *Orchestrator) authenticateCreateRunCaller(ctx context.Context, req *Cre
 	if req.EffortProof != "" {
 		return o.authenticateEffortCaller(ctx, req)
 	}
-	ownerOffered := req.OwnerToken != ""
+	verifiedOwner, hasVerifiedOwner := coreidentity.PrincipalFromContext(ctx)
+	ownerOffered := req.OwnerToken != "" || (hasVerifiedOwner && verifiedOwner.IsHuman())
 	runOffered := req.RunIdentityToken != ""
 	if !ownerOffered && !runOffered {
 		// With AUTH-01 off (P-18) an unattended caller keeps the pre-AUTH-01

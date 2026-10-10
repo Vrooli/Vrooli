@@ -9,9 +9,9 @@ metadata:
   tags: [orchestration, multi-agent, effort, epochs, continuity, recovery]
   icon: network
   status: active
-  revision: 25
+  revision: 28
   createdAt: "2026-09-10T00:00:00Z"
-  updatedAt: "2026-10-03T13:13:18Z"
+  updatedAt: "2026-10-07T19:20:00Z"
   requires:
     scenarios: [prompt-manager, agent-manager]
     commands: [prompt-manager skill read, agent-manager]
@@ -52,19 +52,24 @@ The team heartbeat (about every 30 minutes) only keeps the orchestrator alive: i
 skips while the orchestrator run is running or parked, and relaunches one from the
 goal home, with backoff and a cap, when it has ended.
 
-1. **Resume.** Read `GOAL.md`, `QUEUE.md`, the active epoch file, `WORKAROUNDS.md`
-   and new `FEEDBACK.md` entries. Your run ID is `.claims.run_id` in
+1. **Resume.** Run `agent-manager effort lint <goal home>` first. Each open
+   FEEDBACK entry it names is new steering, and it outranks the handoff: act on
+   it this check-in. Then read `GOAL.md`, `QUEUE.md`, the active epoch file and
+   `WORKAROUNDS.md`. Your run ID is `.claims.run_id` in
    `agent-manager run identity --json`.
 2. **Admit.** If no epoch is active, take the next `QUEUE.md` slice, write its brief
-   (§4.2) and set its gates. If the queue cannot reach the destination, plan
-   first (§2.1).
+   (§4.2) and set its gates. Run `git-control-tower proposal anchor --effort
+   effort:<slug> --epoch E<n> --scope '<scenario path>/**' --json`, which
+   fingerprints files that are already dirty. If the queue cannot reach the
+   destination, plan first (§2.1).
 3. **Spawn.** If the active epoch has no live worker:
    `agent-manager task create --title "<goal> E<n>" --scope-path <scenario path>`, then
    `agent-manager run create --task-id <task> --profile-id <worker profile> --parent-run-id <your run ID> --until "<epoch outcome and exit gate>" --model <luna> --effort medium --workload-key <goal>/E<n>`.
    The prompt names the epoch file, your run ID and the worker card. The worker
    profile runs on the interactive substrate, whose native `/goal` loop keeps it
    going across turns. Record the run ID in the brief's `Workers` field.
-4. **Park.** `agent-manager run park <your run ID> --producer children --key <your run ID> --timeout 1h`.
+4. **Park.** `agent-manager effort park <goal home> --run <your run ID> --timeout 1h`
+   (it applies the park policy below; do not call `run park` directly).
    You wake when a child run ends, something calls
    `agent-manager run wake --key <your run ID>` (the worker's epoch-check step-back
    wake, new feedback), or the timer expires. The timer is only a backstop for a
@@ -96,12 +101,26 @@ admissible slices remain. Measure the modules against the budgets in `GOAL.md` o
 features, files or duplicate surfaces over slices that only move ownership. Give
 every new slice a deletion list and an estimate from measurement, not from hope.
 
+When censuses find no large dead or duplicate code, plan a **redesign slice**:
+one simpler owner replaces several existing ones for the same behavior. Its
+brief carries a short design (the new owner, the behavior it keeps, the
+journeys that prove it) and names the owners it replaces. Those owners are its
+deletion list. The estimate is their measured lines minus the new owner's.
+Finding no deletable code is never a reason to stop planning; it is the
+signal to redesign. Only the operator may retire a live feature.
+
+Do not let an epoch remainder that waits on an outside owner (QA, a contract
+owner, a missing machine or account) hold acceptance or any other slice. List
+it under `## Waiting on others` in `QUEUE.md` with its return condition, and
+pick it up when that condition changes.
+
 Three accepted epochs in a row below half their estimate is a planning finding:
 record it in the Forecast with your explanation, re-estimate the queued slices,
 and wake the supervisor. So is a destination the queue can no longer reach.
 
-**Waking the supervisor.** After recording a step-back, a workaround logged a
-second time, a spend spike or a planning finding (§2.1) in the goal home, run
+**Waking the supervisor.** After recording a step-back, every 3rd acceptance, a
+workaround logged a second time, a spend spike, a planning finding (§2.1) or a new
+`## Needs operator` item in the goal home, run
 `prompt-manager team heartbeat-trigger effort-supervision effort-supervisor`
 (delivery members may wake a supervision member; at most one event wake per
 schedule window). The supervisor reads the goal home, so record the event first.
@@ -110,10 +129,23 @@ schedule window). The supervisor reads the goal home, so record the event first.
 `run continue --message` your own direct child runs; nothing wider.
 
 A parked epoch never idles the goal: after recording a park, switch or shrink,
-go straight to step 2 and admit the next slice. Only when `QUEUE.md` has no
-admissible slice left (every remaining one waits on an operator decision or an
-outside repair), park with `--timeout 12h` instead of ending; an ended run is
-relaunched and rereads the goal home for nothing. Never poll children in a loop.
+go straight to step 2 and admit the next slice. If no slice is admissible,
+plan one (§2.1). Only when every remaining slice really waits on an operator
+decision or an outside repair:
+1. Put the decisions needed, with options and your recommendation, under
+   `## Needs operator` at the top of `QUEUE.md`.
+2. Wake the supervisor once.
+3. Park with `--timeout 72h`. Feedback or a repair wakes you sooner. Do not
+   end the run, because an ended run is relaunched and rereads the goal home for
+   nothing.
+
+Never poll children in a loop.
+
+**Handoff.** `QUEUE.md` holds one `## Handoff` section (what changed, what was
+verified, what remains, the exact next action). Replace it only with
+`agent-manager effort handoff set <goal home> --file <path>` at each check-in
+that changed something; name every open FEEDBACK entry in it. A timer wake that finds no
+change writes nothing and parks again.
 
 **Steering.** Append a directive to the epoch file's `## Directives`
 (`- D<n> <ISO time> <text>`). The worker acknowledges it in its next slice-log
@@ -141,7 +173,11 @@ goal/
   TARGETS.md       validation targets and tiers
 ```
 
-Archive history. Never delete a ledger.
+Keep the files you read on every resume (`GOAL.md`, `QUEUE.md`, open
+`FEEDBACK.md`, open `WORKAROUNDS.md`) under 30 KB together. When they grow past
+that, move done slices, resolved entries and census evidence to
+`goal/archive/`, leaving a one-line pointer. Archive history; never delete a
+ledger.
 
 ### 4. The epoch standard
 
@@ -216,9 +252,12 @@ Rerun the gate yourself; a worker's report is not evidence. The `QUEUE.md` slice
 is done only when its whole deletion list is done. If you accept an epoch with
 items left, put them back at the top of `QUEUE.md` as a named remainder slice,
 and state in the `ACCEPTED` line how the result compares with the brief's
-estimate. Never mark a slice done on partial work. Record
-`ACCEPTED <time> <summary>` as the final log line, with the changed files and a
-suggested commit message; the operator commits. That line is the denominator for
+estimate. Never mark a slice done on partial work. Then run `git-control-tower proposal create --effort effort:<slug> --epoch E<n>
+--subject '<scenario>: <outcome> (E<n>)' --body-file <body> --path <file>…
+--run <worker run> --run <your run> --json`. The body states the outcome, the
+deletion-list result, the gates and the metric delta. Record
+`ACCEPTED <time> <summary>` as the final log line and cite the returned
+`gctp-…` ID; the operator approves the proposal in Git Control Tower. That line is the denominator for
 cost per accepted epoch.
 
 Gates are set at admission. Amend one only with a recorded reason (too strict,

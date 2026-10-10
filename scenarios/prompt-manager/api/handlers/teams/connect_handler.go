@@ -34,6 +34,7 @@ type knowledgeHandlers interface {
 	ListTeamCorpus(http.ResponseWriter, *http.Request)
 	UpdateTeamCorpusHandler(http.ResponseWriter, *http.Request)
 	DeleteTeamCorpusHandler(http.ResponseWriter, *http.Request)
+	CloseTeamCorpusHandler(http.ResponseWriter, *http.Request)
 }
 
 func NewConnectMount(legacy *domain.Handlers, extras ...any) (string, http.Handler) {
@@ -607,6 +608,9 @@ func (h *connectHandler) ListKnowledge(ctx context.Context, req *connect.Request
 	if req.Msg.GetLast() != 0 {
 		query.Set("last", fmt.Sprintf("%d", req.Msg.GetLast()))
 	}
+	if req.Msg.GetIncludeClosed() {
+		query.Set("include_closed", "true")
+	}
 	if encoded := query.Encode(); encoded != "" {
 		suffix += "?" + encoded
 	}
@@ -666,6 +670,17 @@ func (h *connectHandler) DeleteKnowledge(ctx context.Context, req *connect.Reque
 		return nil, err
 	}
 	return connect.NewResponse(&teamsv1.DeleteKnowledgeResponse{}), nil
+}
+
+// CloseKnowledge records that a knowledge entry is resolved; default
+// listings then hide it.
+func (h *connectHandler) CloseKnowledge(ctx context.Context, req *connect.Request[teamsv1.CloseKnowledgeRequest]) (*connect.Response[teamsv1.KnowledgeEntry], error) {
+	if h.knowledge == nil {
+		return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("knowledge handler is not configured"))
+	}
+	body := map[string]string{"reason": req.Msg.GetReason(), "ref": req.Msg.GetRef(), "note": req.Msg.GetNote()}
+	vars := map[string]string{"knowledgeId": req.Msg.GetKnowledgeId()}
+	return knowledgeCall(ctx, req.Header(), h.knowledge.CloseTeamCorpusHandler, http.MethodPost, req.Msg.GetTeamId(), "/knowledge/"+url.PathEscape(req.Msg.GetKnowledgeId())+"/close", body, vars, &teamsv1.KnowledgeEntry{})
 }
 
 func knowledgeCall[T any](ctx context.Context, headers http.Header, handler http.HandlerFunc, method, teamID, suffix string, body any, vars map[string]string, out *T) (*connect.Response[T], error) {

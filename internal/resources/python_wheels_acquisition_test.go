@@ -15,7 +15,7 @@ func TestPythonWheelsCommandCarriesPinnedIndexAndHashMode(t *testing.T) {
 	if err := os.WriteFile(lockfile, []byte("demo==1.0 --hash=sha256:"+strings.Repeat("a", 64)+"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	command, err := pythonWheelsCommand(context.Background(), binaryfetch.ComposeStep{
+	command, err := PythonWheelsCommand(context.Background(), binaryfetch.ComposeStep{
 		IndexURL: "https://wheels.example.test/simple", ExtraIndexURLs: []string{"https://mirror.example.test/simple"},
 	}, "/artifact/lib", lockfile, "x86_64-unknown-linux-gnu")
 	if err != nil {
@@ -34,7 +34,7 @@ func TestPythonWheelsCommandAllowsLockedSourceDistributionsWhenDeclared(t *testi
 	if err := os.WriteFile(lockfile, []byte("demo==1.0 --hash=sha256:"+strings.Repeat("a", 64)+"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	command, err := pythonWheelsCommand(context.Background(), binaryfetch.ComposeStep{AllowSDists: true}, "/artifact/lib", lockfile, "x86_64-unknown-linux-gnu")
+	command, err := PythonWheelsCommand(context.Background(), binaryfetch.ComposeStep{AllowSDists: true}, "/artifact/lib", lockfile, "x86_64-unknown-linux-gnu")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -52,7 +52,7 @@ func TestPythonWheelsCommandRejectsUnhashedThirdPartyIndex(t *testing.T) {
 	if err := os.WriteFile(lockfile, []byte("demo==1.0\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	_, err := pythonWheelsCommand(context.Background(), binaryfetch.ComposeStep{IndexURL: "https://wheels.example.test/simple"}, "/artifact/lib", lockfile, "x86_64-unknown-linux-gnu")
+	_, err := PythonWheelsCommand(context.Background(), binaryfetch.ComposeStep{IndexURL: "https://wheels.example.test/simple"}, "/artifact/lib", lockfile, "x86_64-unknown-linux-gnu")
 	if err == nil || !strings.Contains(err.Error(), "hash-pinned") {
 		t.Fatalf("unhashed indexed lockfile error = %v", err)
 	}

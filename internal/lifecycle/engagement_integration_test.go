@@ -1,11 +1,17 @@
 package lifecycle
 
 import (
+	"context"
 	"os"
 	"path/filepath"
+	"runtime"
+	"slices"
+	"strings"
 	"testing"
 
+	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
 	"github.com/vrooli/vrooli/internal/baselinefloor"
+	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenario"
 )
 
@@ -143,5 +149,109 @@ func TestEngagedLiveBuildsAndRunsFromFrozenCopy(t *testing.T) {
 	workingArtifact := filepath.Join(workingTree, "api", "mock-api")
 	if _, err := os.Stat(workingArtifact); err == nil {
 		t.Fatal("engaged live wrote its build artifact into the working tree the candidate owns")
+	}
+}
+
+// frozenFloorResolver is the production resolver's shape (cmd/vrooli
+// floorEngagementResolver) over a test store: a shadow engagement whose
+// capture froze the shared sources, served from a generation tree.
+type frozenFloorResolver struct {
+	store    *baselinefloor.Store
+	slug     string
+	frozen   []string
+	captured string
+}
+
+func (r *frozenFloorResolver) Engagement(scenarioName string) (EngagementInfo, bool, error) {
+	return EngagementInfo{
+		RestorePointDir:     r.store.RestorePointPath(scenarioName, r.slug),
+		Mode:                "shadow",
+		Slug:                r.slug,
+		Generation:          r.captured,
+		CaptureID:           r.captured,
+		SharedSourcesFrozen: true,
+	}, true, nil
+}
+
+func (r *frozenFloorResolver) MaterializeServingSource(scenarioName string, info EngagementInfo, repoRoot string) (string, error) {
+	return baselinefloor.MaterializeServing(r.store.ServingBasePath(scenarioName, info.Slug), baselinefloor.ServingSpec{
+		Scenario:      scenarioName,
+		RepoRoot:      repoRoot,
+		RestorePoint:  info.RestorePointDir,
+		Generation:    info.Generation,
+		SharedSources: r.store.SharedSourcesPath(scenarioName, info.Slug),
+		Frozen:        r.frozen,
+	})
+}
+
+// TestEngagedLiveBuildsFromFrozenSharedSources is the DL-7 acceptance at the
+// lifecycle level (O9):
+//
+//	Given an engaged shadow and a change to a shared package in the working tree
+//	When live restarts during the engagement
+//	Then live builds from its frozen shared packages and reports healthy
+func TestEngagedLiveBuildsFromFrozenSharedSources(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		testkitgo.SkipPlatform(t, "lifecycle process management currently targets linux")
+	}
+	root, home := t.TempDir(), t.TempDir()
+	writeLifecycleFixture(t, root, "alpha")
+	workingTree := filepath.Join(root, "scenarios", "alpha")
+	testkitgo.WriteFile(t, filepath.Join(root, "packages", "shared", "go.mod"), "module example.com/shared\n\ngo 1.22\n")
+	testkitgo.WriteFile(t, filepath.Join(root, "packages", "shared", "shared.go"), "package shared\n\nfunc Status() string { return \"healthy\" }\n")
+	testkitgo.WriteFile(t, filepath.Join(workingTree, "api", "go.mod"), "module fixture\n\ngo 1.22\n\nrequire example.com/shared v0.0.0\n\nreplace example.com/shared => ../../../packages/shared\n")
+	mainGo := readFile(t, filepath.Join(workingTree, "api", "main.go"))
+	mainGo = strings.Replace(mainGo, "import (\n", "import (\n \"example.com/shared\"\n", 1)
+	mainGo = strings.Replace(mainGo, `{\"status\":\"healthy\"`, `{\"status\":\"`+"\"+shared.Status()+\""+`\"`, 1)
+	writeFile(t, filepath.Join(workingTree, "api", "main.go"), mainGo)
+
+	// Capture: restore point plus the frozen shared sources.
+	item, err := scenario.Load(root, "alpha", scenario.SandboxEnv{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	roots, err := SharedSourceRoots(context.Background(), root, item)
+	if err != nil {
+		t.Fatalf("SharedSourceRoots: %v", err)
+	}
+	store := baselinefloor.NewStore(t.TempDir())
+	if _, err := baselinefloor.Capture(workingTree, store.RestorePointPath("alpha", "goal"), nil); err != nil {
+		t.Fatalf("capture: %v", err)
+	}
+	floorRoots := make([]baselinefloor.SharedRoot, 0, len(roots))
+	frozen := make([]string, 0, len(roots))
+	for _, root := range roots {
+		floorRoots = append(floorRoots, baselinefloor.SharedRoot{Path: root.Path, Reason: root.Reason})
+		frozen = append(frozen, root.Path)
+	}
+	if !slices.Contains(frozen, "packages/shared") {
+		t.Fatalf("shared package not in the freeze: %v", frozen)
+	}
+	if _, _, err := baselinefloor.CaptureSharedSources(root, store.SharedSourcesPath("alpha", "goal"), floorRoots, false); err != nil {
+		t.Fatalf("freeze: %v", err)
+	}
+
+	// The candidate breaks the shared package in the working tree.
+	testkitgo.WriteFile(t, filepath.Join(root, "packages", "shared", "shared.go"), "package shared\n\nfunc Renamed() string { return \"moved\" }\n")
+
+	runner := newLifecycleRunnerForTest(t, root, home, nil)
+	runner.Engagements = &frozenFloorResolver{store: store, slug: "goal", frozen: frozen, captured: "capture-1"}
+	result, err := runner.Start("alpha", StartOptions{})
+	if err != nil {
+		t.Fatalf("engaged live start against a broken working-tree shared package: %v", err)
+	}
+	cleanupRunner(t, runner, "alpha", StopOptions{})
+	if result.Health != "healthy" {
+		t.Fatalf("health = %q", result.Health)
+	}
+	if _, err := runner.Restart("alpha", StartOptions{ForceSetup: true}); err != nil {
+		t.Fatalf("forced rebuild of engaged live: %v", err)
+	}
+	logPath, err := process.ScenarioLifecycleLogPath(home, "alpha")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if log := readFile(t, logPath); !strings.Contains(log, "serving-tree event=frozen-shared") || !strings.Contains(log, `capture_id="capture-1"`) {
+		t.Fatalf("frozen build did not skip repository regeneration or name its capture:\n%s", log)
 	}
 }

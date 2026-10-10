@@ -23,6 +23,7 @@ import (
 	"github.com/vrooli/cli-core/cliutil"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	eventpb "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 )
 
 // =============================================================================
@@ -117,6 +118,14 @@ func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
 		RunIdentityToken: identityToken,
 		WorkReferences:   protoReq.GetWorkReferences(),
 	}
+	if targets := protoReq.GetTargetInstances(); len(targets) > 0 {
+		refs, refErr := orchestration.TargetInstanceReferences(targets)
+		if refErr != nil {
+			writeError(w, r, refErr)
+			return
+		}
+		req.WorkReferences = append(append([]*eventpb.WorkReference(nil), req.WorkReferences...), refs...)
+	}
 	if narrowing := protoReq.GetRequestedScopes(); narrowing != nil {
 		req.RequestedScopes = append([]string{}, narrowing.GetScopes()...)
 		req.ExpectedOwnerSubject = narrowing.GetExpectedOwnerSubject()
@@ -183,6 +192,10 @@ func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
 		if inline.MaxTurns != nil {
 			maxTurns := int(inline.GetMaxTurns())
 			req.MaxTurns = &maxTurns
+		}
+		if inline.MaxWeightedTokens != nil {
+			maxWeighted := inline.GetMaxWeightedTokens()
+			req.MaxWeightedTokens = &maxWeighted
 		}
 		if inline.Timeout != nil {
 			timeout := inline.Timeout.AsDuration()

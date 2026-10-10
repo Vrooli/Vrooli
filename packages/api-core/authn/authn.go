@@ -4,8 +4,12 @@ package authn
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -17,6 +21,8 @@ import (
 )
 
 var ErrNoProvider = errors.New("authentication provider not configured")
+
+const scenarioAuthenticatorAccessCookie = "vrooli_access_token"
 
 var (
 	ErrHumanRequired   = errors.New("verified human identity required")
@@ -85,6 +91,7 @@ type Config struct {
 	Providers        []Provider
 	RecoveryURL      string
 	IdentityMappings []IdentityMapping
+	OwnerBindings    []OwnerBinding
 }
 
 // IdentityMapping is an operator-owned link between two verified provider
@@ -116,12 +123,16 @@ func FromEnvironment(getenv func(string) string) (Config, error) {
 		case "":
 			continue
 		case "scenario_authenticator":
+			cookieName := strings.TrimSpace(getenv("VROOLI_AUTH_SCENARIO_COOKIE"))
+			if cookieName == "" {
+				cookieName = scenarioAuthenticatorAccessCookie
+			}
 			providers = append(providers, NewScenarioAuthenticatorProvider(JWTConfig{
 				Issuer:     getenv("VROOLI_AUTH_SCENARIO_ISSUER"),
 				Audience:   getenv("VROOLI_AUTH_SCENARIO_AUDIENCE"),
 				JWKSURL:    getenv("VROOLI_AUTH_SCENARIO_JWKS_URL"),
 				Client:     &http.Client{Timeout: 5 * time.Second},
-				CookieName: strings.TrimSpace(getenv("VROOLI_AUTH_SCENARIO_COOKIE")),
+				CookieName: cookieName,
 			}))
 		case "cloudflare_access":
 			cfg, err := cloudflareaccess.ConfigFromEnv(getenv)
@@ -140,10 +151,75 @@ func FromEnvironment(getenv func(string) string) (Config, error) {
 			return Config{}, errors.New("unsupported VROOLI_AUTH_PROVIDERS value")
 		}
 	}
-	return Config{Providers: providers, RecoveryURL: recoveryURL}, nil
+	var bindings []OwnerBinding
+	raw := strings.TrimSpace(getenv("VROOLI_AUTH_OWNER_BINDINGS"))
+	if raw == "" {
+		path := strings.TrimSpace(getenv("VROOLI_AUTH_OWNER_BINDINGS_FILE"))
+		explicit := path != ""
+		if !explicit && strings.TrimSpace(getenv("HOME")) != "" {
+			path = filepath.Join(getenv("HOME"), ".config", "vrooli", "owner-bindings.json")
+		}
+		if path != "" {
+			file, err := os.Open(path)
+			if err != nil && (explicit || !errors.Is(err, os.ErrNotExist)) {
+				return Config{}, errors.New("owner binding policy file unavailable")
+			}
+			if err == nil {
+				data, readErr := io.ReadAll(io.LimitReader(file, 65537))
+				_ = file.Close()
+				if readErr != nil || len(data) > 65536 || len(strings.TrimSpace(string(data))) == 0 {
+					return Config{}, errors.New("invalid owner binding policy file")
+				}
+				raw = string(data)
+			}
+		}
+	}
+	if raw != "" {
+		if err := json.Unmarshal([]byte(raw), &bindings); err != nil {
+			return Config{}, errors.New("invalid VROOLI_AUTH_OWNER_BINDINGS")
+		}
+		for _, binding := range bindings {
+			if binding.Source == identity.SourceUnknown || binding.Source == "" || binding.Subject == "" || binding.CanonicalSubject == "" {
+				return Config{}, errors.New("owner bindings require provider, verified subject and canonical subject")
+			}
+		}
+		// A shared host policy may target selected relying scenarios. Unrelated
+		// providers keep their existing assignment instead of losing scopes.
+		resource := strings.TrimSpace(getenv("VROOLI_SCENARIO"))
+		if resource == "" {
+			resource = strings.TrimSpace(getenv("SCENARIO_NAME"))
+		}
+		selected := make([]OwnerBinding, 0, len(bindings))
+		for _, binding := range bindings {
+			allowed := len(binding.Resources) == 0
+			for _, candidate := range binding.Resources {
+				if candidate == resource {
+					allowed = true
+					break
+				}
+			}
+			if allowed {
+				selected = append(selected, binding)
+			}
+		}
+		bindings = selected
+	}
+	return Config{Providers: providers, RecoveryURL: recoveryURL, OwnerBindings: bindings}, nil
 }
 
 func (c Config) Enabled() bool { return len(c.Providers) > 0 }
+
+// WithScenarioAuthenticator retains explicit provider configuration and adds
+// the scenario's native audience when no native provider is configured.
+func (c Config) WithScenarioAuthenticator(resource string) Config {
+	for _, provider := range c.Providers {
+		if provider != nil && provider.Source() == identity.SourceScenarioAuthenticator {
+			return c
+		}
+	}
+	c.Providers = append(append([]Provider(nil), c.Providers...), NewScenarioAuthenticatorProvider(JWTConfig{Audience: "scenario-authenticator:" + resource, CookieName: scenarioAuthenticatorAccessCookie}))
+	return c
+}
 
 // Authenticate evaluates all configured providers. A presented invalid or
 // service credential wins over a valid provider. Multiple providers may be
@@ -151,7 +227,21 @@ func (c Config) Enabled() bool { return len(c.Providers) > 0 }
 // subjects; equal subject strings are not sufficient evidence.
 func (c Config) Authenticate(ctx context.Context, req *http.Request) (identity.Principal, error) {
 	if len(c.Providers) == 0 {
+		if req != nil && (req.Header.Get("Authorization") != "" || req.Header.Get("Cf-Access-Jwt-Assertion") != "") {
+			return identity.Principal{}, identity.NewFailure(identity.FailureUnavailable, identity.SourceUnknown)
+		}
 		return identity.Principal{}, identity.NewFailure(identity.FailureMissing, identity.SourceUnknown)
+	}
+	if req != nil && len(req.Header.Values("Authorization")) > 0 {
+		bearerProvider := false
+		for _, provider := range c.Providers {
+			if provider != nil && provider.Source() != identity.SourceCloudflareAccess {
+				bearerProvider = true
+			}
+		}
+		if !bearerProvider {
+			return identity.Principal{}, identity.NewFailure(identity.FailureInvalid, identity.SourceUnknown)
+		}
 	}
 	var principals []identity.Principal
 	var firstFailure *identity.Failure
@@ -212,6 +302,16 @@ func (c Config) Authenticate(ctx context.Context, req *http.Request) (identity.P
 		selected.Sources = appendUnique(selected.Sources, candidate.Source)
 		selected.Roles = appendUniqueStrings(selected.Roles, candidate.Roles...)
 		selected.Scopes = appendUniqueStrings(selected.Scopes, candidate.Scopes...)
+		if !candidate.ExpiresAt.IsZero() && (selected.ExpiresAt.IsZero() || candidate.ExpiresAt.Before(selected.ExpiresAt)) {
+			selected.ExpiresAt = candidate.ExpiresAt
+		}
+	}
+	for _, binding := range c.OwnerBindings {
+		if selected.IsHuman() && binding.Source == selected.Source && binding.Subject == selected.Subject {
+			selected.Subject = binding.CanonicalSubject
+			selected.Scopes = appendUniqueStrings(selected.Scopes, binding.Scopes...)
+			break
+		}
 	}
 	return selected, nil
 }
@@ -283,16 +383,37 @@ func appendUniqueStrings(values []string, additions ...string) []string {
 
 // Middleware is deliberately passive: authentication failures become a
 // browser-safe context status and do not make read-only routes unavailable.
-// Domain mutation boundaries must require a verified human principal.
+// Domain boundaries select the actor, capability, operation and target policy.
 func Middleware(cfg Config) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
-			if !cfg.Enabled() {
-				next.ServeHTTP(w, r.WithContext(identity.WithStatus(ctx, identity.Status{State: identity.StateSignedOut})))
-				return
-			}
 			principal, err := cfg.Authenticate(ctx, r)
+			agent := provenance.FromContext(ctx)
+			if r.Header.Get("X-Agent-Identity-Token") != "" && !agent.IsVerifiedAgent() {
+				err = identity.NewFailure(identity.FailureInvalid, identity.SourceAgentProvenance)
+			}
+			if err == nil && agent.IsVerifiedAgent() && agent.Grant != nil {
+				// A forwarded human credential cannot turn bounded delegated work
+				// into an unrestricted operator request. Preserve the agent actor
+				// and intersect its grant with the currently verified owner policy.
+				if !principal.IsHuman() || principal.OwnerSubject() != agent.Subject || agent.Grant.Approver != agent.Subject {
+					err = identity.NewFailure(identity.FailureConflict, identity.SourceAgentProvenance)
+				} else {
+					var scopes []string
+					for _, scope := range agent.Scopes {
+						if scopecatalog.Resolve(principal.Scopes, scope) {
+							scopes = append(scopes, scope)
+						}
+					}
+					expires := principal.ExpiresAt
+					if expires.IsZero() || agent.Grant.ExpiresAt.Before(expires) {
+						expires = agent.Grant.ExpiresAt
+					}
+					principal = identity.Principal{Kind: identity.ActorAgent, Subject: agent.RunID, Owner: agent.Subject, Verified: true, Source: identity.SourceAgentProvenance, Scopes: scopes, Grant: agent.Grant, ExpiresAt: expires}
+				}
+			}
+
 			if err == nil {
 				state := identity.StateVerified
 				switch principal.Kind {
@@ -307,6 +428,11 @@ func Middleware(cfg Config) func(http.Handler) http.Handler {
 				next.ServeHTTP(w, r.WithContext(identity.WithStatus(identity.WithPrincipal(ctx, principal), status)))
 				return
 			}
+			if failure, ok := identity.FailureFromError(err); !ok || failure.Class != identity.FailureMissing {
+				// Nested authentication must not retain an earlier principal when
+				// the offered proof fails this relying party's verification.
+				ctx = identity.WithPrincipal(ctx, identity.Principal{})
+			}
 			status := statusForFailure(err, cfg.RecoveryURL)
 			status.ProviderSources = configuredSources(cfg.Providers)
 			if status.Source == identity.SourceUnknown && len(status.ProviderSources) > 0 {
@@ -318,7 +444,7 @@ func Middleware(cfg Config) func(http.Handler) http.Handler {
 			// never turns that agent into a human principal.
 			if failure, ok := identity.FailureFromError(err); ok && failure.Class == identity.FailureMissing {
 				if agent := provenance.FromContext(ctx); agent.IsVerifiedAgent() {
-					principal := identity.Principal{Kind: identity.ActorAgent, Subject: agent.RunID, Verified: true, Source: identity.SourceAgentProvenance, Scopes: append([]string(nil), agent.Scopes...)}
+					principal := identity.Principal{Kind: identity.ActorAgent, Subject: agent.RunID, Owner: agent.Subject, Verified: true, Source: identity.SourceAgentProvenance, Scopes: append([]string(nil), agent.Scopes...), Grant: agent.Grant}
 					status.State = identity.StateAgent
 					status.Authenticated = true
 					status.Source = identity.SourceAgentProvenance

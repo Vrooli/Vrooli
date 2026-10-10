@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	requestidentity "github.com/vrooli/api-core/identity"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
@@ -21,6 +22,10 @@ import (
 
 // CreateTask creates a new task.
 func (h *Handler) CreateTask(w http.ResponseWriter, r *http.Request) {
+	if p, ok := requestidentity.PrincipalFromContext(r.Context()); ok && p.Kind == requestidentity.ActorAgent && !h.orchestratorTaskCreateAllowed(r) {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "task creation from a run requires a running run whose profile declares " + OrchestrateScope})
+		return
+	}
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		writeSimpleError(w, r, "body", "failed to read request body")

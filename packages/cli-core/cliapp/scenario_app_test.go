@@ -3,6 +3,7 @@ package cliapp
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -12,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/cli-core/cliutil"
 	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
 )
 
@@ -963,4 +965,27 @@ func writeScenarioRepoFixture(t *testing.T, scenarioDir string) string {
 	}
 
 	return fixture.Root
+}
+
+func TestRefusedAgentAuthorizationIsNotReportedAsAnUnreachableAPI(t *testing.T) {
+	t.Setenv("CLI_CONFIG_DIR_OVERRIDE", t.TempDir())
+	t.Setenv("API_BASE_ENV", "http://127.0.0.1:1")
+	app, err := NewScenarioApp(ScenarioOptions{
+		Name:             "demo",
+		ConfigDirEnvVars: []string{"CLI_CONFIG_DIR_OVERRIDE"},
+		APIEnvVars:       []string{"API_BASE_ENV"},
+		AllowAnonymous:   true,
+		HealthFetcher: func() ([]byte, error) {
+			return nil, fmt.Errorf("request failed: %w", &cliutil.AgentAuthorizationError{Code: "revoked"})
+		},
+	})
+	if err != nil {
+		t.Fatalf("NewScenarioApp: %v", err)
+	}
+	app.SetCommands([]CommandGroup{{Title: "Test", Commands: []Command{{Name: "run", NeedsAPI: true, Run: func([]string) error { return nil }}}}})
+	err = app.CLI.Run([]string{"run"})
+	var refused *cliutil.AgentAuthorizationError
+	if !errors.As(err, &refused) || strings.Contains(err.Error(), "Unable to reach") {
+		t.Fatalf("authorization refusal was reported as an outage: %v", err)
+	}
 }

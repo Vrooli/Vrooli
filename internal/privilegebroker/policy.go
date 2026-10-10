@@ -18,6 +18,11 @@ func Validate(req Request) error {
 		return fmt.Errorf("invalid_request_id")
 	}
 	switch req.Action {
+	case ActionTemporaryActivityObserve, ActionCapabilitiesInspect:
+		if req.Subject != (Subject{}) || req.Volume != nil || req.RuntimeHome != nil || req.Log != nil || req.Journal != nil || req.Docker != nil || hasCloudSubject(req) {
+			return fmt.Errorf("subject_not_allowed")
+		}
+		return nil
 	case ActionBridgeUFWInspect, ActionBridgeUFWAllow, ActionBridgeUFWVerify, ActionBridgeUFWRevoke:
 		return validateBridge(req)
 	case ActionVolumeFilesystemCheck, ActionVolumeFilesystemRepair:

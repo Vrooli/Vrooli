@@ -315,6 +315,12 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 	supervisionService.Efforts = supervision.NewEffortService(supervisionRepo, supervisionRunController{orchestrator: orch}, effortConfig)
 	supervisionService.Efforts.SetRunRegistry(repos.Runs)
 	supervisionService.Efforts.SetQuotaObservationStore(quotaObservationStore)
+	supervisionService.Efforts.SetSpendReader(orch)
+	orch.SetGoalHomeParkSource(supervisionService.Efforts)
+	if receiptsClient.Enabled() {
+		// Operator decisions (DL-5) publish decision_requested events here.
+		supervisionService.Efforts.SetDecisionPublisher(receiptsClient)
+	}
 	supervisionScheduler.SetEffortService(supervisionService.Efforts)
 	supervisionService.SetSchedulerKick(supervisionScheduler.Kick)
 	awaitRegistry.RegisterWaiter(orchestration.NewSupervisionWaiter(supervisionService))

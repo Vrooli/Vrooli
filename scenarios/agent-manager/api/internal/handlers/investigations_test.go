@@ -11,11 +11,16 @@ import (
 	"time"
 
 	"agent-manager/internal/domain"
+	runidentity "agent-manager/internal/identity"
 	"agent-manager/internal/investigation"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/runreport"
+	"connectrpc.com/connect"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	requestidentity "github.com/vrooli/api-core/identity"
+	"github.com/vrooli/cli-core/cliutil"
+	api "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 )
 
 type investigationRepositoryStub struct {
@@ -31,12 +36,15 @@ func (s *investigationRepositoryStub) Reserve(_ context.Context, request investi
 	s.reused = true
 	return s.item, true, nil
 }
+
 func (s *investigationRepositoryStub) Get(context.Context, string) (*investigation.Lifecycle, error) {
 	return s.item, nil
 }
+
 func (s *investigationRepositoryStub) List(context.Context, string, int) ([]*investigation.Lifecycle, error) {
 	return []*investigation.Lifecycle{s.item}, nil
 }
+
 func (s *investigationRepositoryStub) Wait(context.Context, string, time.Duration) (*investigation.Lifecycle, bool, error) {
 	return s.item, s.item != nil && s.item.OperationStatus == investigation.OperationCompleted, nil
 }
@@ -50,9 +58,11 @@ func (s *investigationRepositoryStub) UpdateStatus(_ context.Context, _ string, 
 	}
 	return s.item, nil
 }
+
 func (s *investigationRepositoryStub) Complete(context.Context, string, investigation.Result) (*investigation.Lifecycle, error) {
 	return s.item, nil
 }
+
 func (s *investigationRepositoryStub) Cancel(context.Context, string) (*investigation.Lifecycle, error) {
 	return s.item, nil
 }
@@ -246,5 +256,61 @@ func TestInvestigationRouteRejectsUnknownAuthorityBeforeReserve(t *testing.T) {
 	router.ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "/api/v1/investigations", bytes.NewReader(body)))
 	if recorder.Code != http.StatusBadRequest || repository.item != nil {
 		t.Fatalf("invalid authority status=%d body=%s item=%+v", recorder.Code, recorder.Body.String(), repository.item)
+	}
+}
+
+func TestInvestigationAgentGrantBindsSubjectsAndCallerAttribution(t *testing.T) {
+	target, actor := uuid.NewString(), uuid.New()
+	g := requestidentity.OperationGrant{ID: "consent", Approver: "owner", Operations: []string{"agent.investigate"}, Targets: []string{"agent-manager:run/" + target}, ExpiresAt: time.Now().Add(time.Hour)}
+	raw, _ := json.Marshal(g)
+	services := orchestration.EmptyHandlerServices()
+	services.IdentityService = guardIdentityService{result: &orchestration.IdentityVerifyResult{Valid: true, Claims: &runidentity.Claims{RunID: actor, Scopes: []string{"agent-manager:write"}, Meta: map[string]string{"operation_grant": string(raw)}}}}
+	for _, tc := range []struct {
+		target string
+		want   int
+	}{{target, http.StatusCreated}, {uuid.NewString(), http.StatusForbidden}} {
+		repo := &investigationRepositoryStub{}
+		h := New(services, WithInvestigationLifecycle(repo))
+		input := apiRequest()
+		input.Subject.RunIDs = []string{tc.target}
+		input.CallerAuthority = "service"
+		body, _ := json.Marshal(input)
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/investigations", bytes.NewReader(body))
+		req.Header.Set(cliutil.HeaderAgentIdentityToken, "approved-agent")
+		response := httptest.NewRecorder()
+		h.StartInvestigation(response, req)
+		if response.Code != tc.want {
+			t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+		}
+		if tc.want == http.StatusCreated && (repo.item.Request.CallerAuthority != "agent" || !strings.HasPrefix(repo.item.Request.RequestKey, actor.String()+"/")) {
+			t.Fatal("agent forged service attribution")
+		}
+		if tc.want == http.StatusForbidden && repo.item != nil {
+			t.Fatal("refused investigation performed admission")
+		}
+	}
+}
+
+func TestConnectInvestigationUsesTheSameBoundedGrantAsREST(t *testing.T) {
+	target := uuid.NewString()
+	for _, allowed := range []bool{false, true} {
+		repo := &investigationRepositoryStub{}
+		h := NewAgentManagerConnectHandler(New(orchestration.EmptyHandlerServices(), WithInvestigationLifecycle(repo)))
+		grant := &requestidentity.OperationGrant{ID: "consent", Approver: "owner", Operations: []string{"agent.investigate"}, Targets: []string{"agent-manager:run/" + target}, ExpiresAt: time.Now().Add(time.Hour)}
+		p := requestidentity.Principal{Kind: requestidentity.ActorAgent, Subject: uuid.NewString(), Owner: "owner", Verified: true, Scopes: []string{"agent-manager:write"}, Grant: grant}
+		input := apiRequest()
+		input.Subject.RunIDs = []string{target}
+		input.CallerAuthority = "service"
+		if !allowed {
+			input.Subject.RunIDs = []string{uuid.NewString()}
+		}
+		_, err := h.StartInvestigation(requestidentity.WithPrincipal(context.Background(), p), connect.NewRequest(&api.StartInvestigationRequest{Request: investigationRequestToProto(input)}))
+		if allowed {
+			if err != nil || repo.item == nil || repo.item.Request.CallerAuthority != "agent" {
+				t.Fatalf("approved typed investigation failed: %v", err)
+			}
+		} else if connect.CodeOf(err) != connect.CodePermissionDenied || repo.item != nil {
+			t.Fatal("typed transport bypassed target authorization")
+		}
 	}
 }

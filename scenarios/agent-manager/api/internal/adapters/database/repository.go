@@ -102,6 +102,7 @@ type profileRow struct {
 	MaxTurns              int                      `db:"max_turns"`
 	TimeoutMs             int64                    `db:"timeout_ms"`
 	Effort                string                   `db:"effort"`
+	MaxWeightedTokens     int64                    `db:"max_weighted_tokens"`
 	AllowedTools          StringSlice              `db:"allowed_tools"`
 	DeniedTools           StringSlice              `db:"denied_tools"`
 	ToolRestrictionPolicy string                   `db:"tool_restriction_policy"`
@@ -137,6 +138,7 @@ func (r *profileRow) toDomain() *domain.AgentProfile {
 		MaxTurns:              r.MaxTurns,
 		Timeout:               time.Duration(r.TimeoutMs) * time.Millisecond,
 		Effort:                domain.Effort(r.Effort),
+		MaxWeightedTokens:     r.MaxWeightedTokens,
 		AllowedTools:          r.AllowedTools,
 		DeniedTools:           r.DeniedTools,
 		ToolRestrictionPolicy: domain.ToolRestrictionPolicy(r.ToolRestrictionPolicy).Effective(),
@@ -179,6 +181,7 @@ func profileFromDomain(p *domain.AgentProfile) *profileRow {
 		MaxTurns:              p.MaxTurns,
 		TimeoutMs:             int64(p.Timeout / time.Millisecond),
 		Effort:                string(p.Effort),
+		MaxWeightedTokens:     p.MaxWeightedTokens,
 		AllowedTools:          p.AllowedTools,
 		DeniedTools:           p.DeniedTools,
 		ToolRestrictionPolicy: string(p.ToolRestrictionPolicy.Effective()),
@@ -217,7 +220,7 @@ func decodeSpawnPolicy(raw string) *domain.SpawnPolicy {
 }
 
 const profileColumns = `id, name, profile_key, description, role_ref, max_turns, timeout_ms,
-	effort, allowed_tools, denied_tools, tool_restriction_policy, skip_permission_prompt, features, extra_flags,
+	effort, max_weighted_tokens, allowed_tools, denied_tools, tool_restriction_policy, skip_permission_prompt, features, extra_flags,
 	network_access, sandbox_config, spawn_policy, allowed_paths, denied_paths, declared_scopes, skill_pack, skill_experiment_id, created_by, owner_scenario, source_path,
 	source_hash, last_applied_hash, source_updated_at, local_override, created_at, updated_at`
 
@@ -231,11 +234,11 @@ func (r *profileRepository) Create(ctx context.Context, profile *domain.AgentPro
 
 	row := profileFromDomain(profile)
 	query := `INSERT INTO agent_profiles (id, name, profile_key, description, role_ref, max_turns, timeout_ms,
-		effort, allowed_tools, denied_tools, tool_restriction_policy, skip_permission_prompt, features, extra_flags,
+		effort, max_weighted_tokens, allowed_tools, denied_tools, tool_restriction_policy, skip_permission_prompt, features, extra_flags,
 		network_access, sandbox_config, spawn_policy, allowed_paths, denied_paths, declared_scopes, skill_pack, skill_experiment_id, created_by, owner_scenario, source_path,
 		source_hash, last_applied_hash, source_updated_at, local_override, created_at, updated_at)
 		VALUES (:id, :name, :profile_key, :description, :role_ref, :max_turns, :timeout_ms,
-		:effort, :allowed_tools, :denied_tools, :tool_restriction_policy, :skip_permission_prompt, :features, :extra_flags,
+		:effort, :max_weighted_tokens, :allowed_tools, :denied_tools, :tool_restriction_policy, :skip_permission_prompt, :features, :extra_flags,
 		:network_access, :sandbox_config, :spawn_policy, :allowed_paths, :denied_paths, :declared_scopes, :skill_pack, :skill_experiment_id, :created_by, :owner_scenario, :source_path,
 		:source_hash, :last_applied_hash, :source_updated_at, :local_override, :created_at, :updated_at)`
 
@@ -305,7 +308,7 @@ func (r *profileRepository) Update(ctx context.Context, profile *domain.AgentPro
 	row := profileFromDomain(profile)
 
 	query := `UPDATE agent_profiles SET name = :name, profile_key = :profile_key, description = :description,
-	role_ref = :role_ref, max_turns = :max_turns, timeout_ms = :timeout_ms, effort = :effort,
+	role_ref = :role_ref, max_turns = :max_turns, timeout_ms = :timeout_ms, effort = :effort, max_weighted_tokens = :max_weighted_tokens,
 		allowed_tools = :allowed_tools, denied_tools = :denied_tools, tool_restriction_policy = :tool_restriction_policy,
 		skip_permission_prompt = :skip_permission_prompt, features = :features, extra_flags = :extra_flags,
 		network_access = :network_access,

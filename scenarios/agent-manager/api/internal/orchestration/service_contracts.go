@@ -2,14 +2,16 @@
 package orchestration
 
 import (
+	"encoding/json"
+	"time"
+
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/identity"
 	"agent-manager/internal/invocationreadmodel"
-	"encoding/json"
+
 	"github.com/google/uuid"
 	eventpb "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
-	"time"
 )
 
 // ListOptions specifies pagination and filtering for list operations.
@@ -113,9 +115,12 @@ type CreateRunRequest struct {
 	SourceInvestigationRunID *uuid.UUID  `json:"sourceInvestigationRunId,omitempty"`
 
 	// Inline config (optional - used if no profile, or overrides profile)
-	RoleRef              *string                 `json:"roleRef,omitempty"`
-	MaxTurns             *int                    `json:"maxTurns,omitempty"`
-	MaxToolCalls         *int                    `json:"maxToolCalls,omitempty"`
+	RoleRef      *string `json:"roleRef,omitempty"`
+	MaxTurns     *int    `json:"maxTurns,omitempty"`
+	MaxToolCalls *int    `json:"maxToolCalls,omitempty"`
+	// MaxWeightedTokens lowers the profile's weighted-token cap; it can never
+	// raise it.
+	MaxWeightedTokens    *int64                  `json:"maxWeightedTokens,omitempty"`
 	Timeout              *time.Duration          `json:"timeout,omitempty"`
 	Model                *string                 `json:"model,omitempty"`
 	PreferredRunner      string                  `json:"preferredRunner,omitempty"`

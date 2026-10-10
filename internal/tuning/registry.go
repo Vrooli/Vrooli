@@ -80,6 +80,8 @@ var durationDefinitions = []durationDefinition{
 	{Name: "StructureProviderBudget", CompiledDefault: defaultStructureProviderBudget, CallerProvidedDefault: false},
 	{Name: "HostInventoryTTL", CompiledDefault: defaultHostInventoryTTL, CallerProvidedDefault: false},
 	{Name: "SupervisorHealthInterval", CompiledDefault: defaultSupervisorHealthInterval, CallerProvidedDefault: false},
+	{Name: "AgentSessionIdleAfter", CompiledDefault: defaultAgentSessionIdleAfter, CallerProvidedDefault: false},
+	{Name: "AgentOrphanReapInterval", CompiledDefault: defaultAgentOrphanReapInterval, CallerProvidedDefault: false},
 	{Name: "ReachabilityTimeout", CompiledDefault: defaultReachabilityTimeout, CallerProvidedDefault: false},
 	{Name: "CredentialRepairTimeout", CompiledDefault: defaultCredentialRepairTimeout, CallerProvidedDefault: false},
 	{Name: "TidinessProviderBudget", CompiledDefault: defaultTidinessProviderBudget, CallerProvidedDefault: false},

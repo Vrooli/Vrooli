@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"sync"
@@ -15,6 +16,10 @@ import (
 	"time"
 
 	"github.com/vrooli/envkit-go"
+	"github.com/vrooli/vrooli/packages/proto/descriptorimage"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/types/dynamicpb"
 )
 
 func TestLaunchCodingAgentFallsBackWhenAgentManagerUnavailable(t *testing.T) {
@@ -147,6 +152,18 @@ func TestLaunchCodingAgentAttachesAddsOnlyTokenAndDetaches(t *testing.T) {
 	// A token in the ambient environment would make the launcher adopt it and
 	// skip attaching, so pin it empty to keep this test about the attach path.
 	t.Setenv(AgentManagerIdentityTokenEnv, "")
+	source, err := descriptorimage.New(descriptorimage.Config{DescriptorPath: filepath.Join("..", "..", "proto", "gen", "descriptor", "image.binpb")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err := source.Snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	descriptor, err := snapshot.Files.FindDescriptorByName("agent_manager.v1.AttachRunRequest")
+	if err != nil {
+		t.Fatal(err)
+	}
 	var mu sync.Mutex
 	var attachBody map[string]string
 	var childPath string
@@ -161,7 +178,21 @@ func TestLaunchCodingAgentAttachesAddsOnlyTokenAndDetaches(t *testing.T) {
 			if r.Method != http.MethodPost {
 				t.Errorf("attach method = %s", r.Method)
 			}
-			if err := jsonDecode(r, &attachBody); err != nil {
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				t.Errorf("read attach: %v", err)
+				http.Error(w, "failed to read attach request", http.StatusBadRequest)
+				return
+			}
+			// Match Agent Manager's strict decoding of the published request.
+			// A permissive map-only fixture concealed unsupported launch fields.
+			request := dynamicpb.NewMessage(descriptor.(protoreflect.MessageDescriptor))
+			if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(body, request); err != nil {
+				t.Errorf("attach does not match the API contract: %v", err)
+				http.Error(w, "invalid attach request", http.StatusBadRequest)
+				return
+			}
+			if err := json.Unmarshal(body, &attachBody); err != nil {
 				t.Errorf("decode attach: %v", err)
 			}
 			w.Header().Set("Content-Type", "application/json")
@@ -176,7 +207,7 @@ func TestLaunchCodingAgentAttachesAddsOnlyTokenAndDetaches(t *testing.T) {
 	defer server.Close()
 
 	baseEnvironment := []string{"PATH=/safe", "VROOLI_AGENT_IDENTITY_TOKEN=old-token", "SAFE_VALUE=keep"}
-	err := LaunchCodingAgent(context.Background(), AgentLaunchRequest{
+	err = LaunchCodingAgent(context.Background(), AgentLaunchRequest{
 		Agent:       "codex",
 		TaskID:      "safe-task-id",
 		APIBase:     server.URL,
@@ -200,9 +231,9 @@ func TestLaunchCodingAgentAttachesAddsOnlyTokenAndDetaches(t *testing.T) {
 	}
 	mu.Lock()
 	defer mu.Unlock()
-	// The attach carries the task, the harness identity, the tree and the
-	// scope the session is born in; nothing else.
-	if !reflect.DeepEqual(attachBody, map[string]string{"task_id": "safe-task-id", "harness_kind": "codex", "harness_session_id": attachBody["harness_session_id"], "working_dir": attachBody["working_dir"], "scope": attachBody["scope"]}) || attachBody["harness_session_id"] == "" || attachBody["working_dir"] == "" || !strings.HasPrefix(attachBody["scope"], "vrooli-agent-") {
+	// The attach carries only fields admitted by the API. Tree and containment
+	// metadata remain on the editor lease, independently of attachment.
+	if !reflect.DeepEqual(attachBody, map[string]string{"task_id": "safe-task-id", "harness_kind": "codex", "harness_session_id": attachBody["harness_session_id"]}) || attachBody["harness_session_id"] == "" {
 		t.Fatalf("attach body = %#v", attachBody)
 	}
 	if childPath != "/safe/fixture/codex" || !reflect.DeepEqual(childArgs, []string{"--unchanged", "literal value"}) {

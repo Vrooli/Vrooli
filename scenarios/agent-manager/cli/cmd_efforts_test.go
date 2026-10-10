@@ -210,3 +210,21 @@ func TestEffortParkLiveChildUsesChildrenBackstop(t *testing.T) {
 		}
 	}
 }
+
+func TestEffortBoardPrintsGoalHomeFactsAndUnknowns(t *testing.T) {
+	target, weighted := 24.0, 450000.0
+	board := &pb.EffortBoard{Rows: []*pb.EffortBoardRow{{Enrollment: &pb.EffortEnrollment{EffortRef: "effort:bas"}, GoalHome: &pb.EffortGoalHome{
+		Path: "scenarios/browser-automation-studio/docs/internal/goal", State: "available", DestinationMetric: "journeys", DestinationOp: ">=", DestinationTarget: &target,
+		ActiveEpoch: "E34", ActiveStatus: "in-progress", NeedsOperator: []string{"[decision BAS-D-070] Close or re-aim?"}, CanaryStatus: "unknown",
+		CapUsage:      []*pb.EffortCapUsage{{RunId: "run-1", Role: "worker", WeightedTokens: &weighted, Mode: "report"}},
+		OpenDecisions: []*pb.EffortDecision{{DecisionId: "BAS-D-070", GoalHome: "g", State: "pending", Recommended: "re-aim", Question: "Close or re-aim?"}},
+	}}}}
+	for _, print := range []func(*pb.EffortBoard){printEffortBoard, printCompactEffortBoard} {
+		output := captureStdout(t, func() error { print(board); return nil })
+		for _, want := range []string{"Destination: journeys >= 24; current: unknown", "Active epoch: E34 in-progress", "workarounds=unknown", "spend per accepted epoch=unknown", "Needs operator: [decision BAS-D-070]", "Decision: BAS-D-070  g  pending recommended=re-aim unpublished", "Cap: worker run=run-1 weighted=450000 cap=none mode=report"} {
+			if !strings.Contains(output, want) {
+				t.Fatalf("board omitted %q:\n%s", want, output)
+			}
+		}
+	}
+}

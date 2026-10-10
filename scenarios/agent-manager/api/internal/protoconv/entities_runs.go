@@ -337,6 +337,7 @@ func RunConfigToProto(c *domain.RunConfig) *pb.RunConfig {
 		MaxTurns:              int32(c.MaxTurns),
 		Timeout:               DurationToProto(c.Timeout),
 		Effort:                string(c.Effort),
+		MaxWeightedTokens:     c.MaxWeightedTokens,
 		AllowedTools:          c.AllowedTools,
 		DeniedTools:           c.DeniedTools,
 		ToolRestrictionPolicy: string(c.ToolRestrictionPolicy.Effective()),

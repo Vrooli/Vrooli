@@ -16,12 +16,12 @@
     {
       "id": "financial-tracker",
       "name": "Financial Tracker",
-      "description": "Maintains the ledger of costs, revenue, channel attribution, time allocation, runway, and default-alive gap. Flags material deltas and services-trap warning signals."
+      "description": "Interprets the financial posture Money Ledger reports through the Offer Desk board (costs, revenue, channel attribution, time allocation, runway, and default-alive gap); Money Ledger owns the ledger. Flags material deltas and services-trap warning signals."
     },
     {
       "id": "market-validator",
       "name": "Market Validator",
-      "description": "Grounds pricing, retention, and competitive assumptions in external benchmarks for the active tier. Keeps BENCHMARKS.md current. Triages narrowly — does not deep-dive on dormant candidates."
+      "description": "Grounds pricing, retention, and competitive assumptions in external benchmarks for the active tier. Proposes benchmark changes through work items; it does not edit docs/monetization/ directly. Triages narrowly — does not deep-dive on dormant candidates."
     },
     {
       "id": "monetization-contrarian",

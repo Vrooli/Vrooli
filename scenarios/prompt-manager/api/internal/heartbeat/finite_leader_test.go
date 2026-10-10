@@ -2,6 +2,7 @@ package heartbeat
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -16,6 +17,7 @@ import (
 	"prompt-manager/internal/teamconfig"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/owneridentity"
 )
 
 type finiteFixture struct {
@@ -692,5 +694,78 @@ func TestOrchestratorHeartbeatHealthyLongRunResetsTheCap(t *testing.T) {
 	state, err := f.runtime.Tick(ctx, "committee", "lead")
 	if err != nil || state.ConsecutiveRelaunches != 1 || state.DispatchStarted {
 		t.Fatalf("healthy long run did not reset the relaunch cap: %+v %v", state, err)
+	}
+}
+
+// A scheduled tick has no caller proof. Under AUTH-01 it must not replay a
+// retained dispatch, and the leader state must name the hold instead of
+// keeping the stale owner error.
+// P-18: with AUTH-01 off (the default) a scheduled tick on the real owner
+// client carries no caller and still relaunches a terminal keep-alive leader;
+// the relaunched leader run is created without any caller proof.
+func TestFiniteLeaderScheduledTickRelaunchesWithEnforcementOff(t *testing.T) {
+	t.Setenv(owneridentity.CreateRunCallerEnforceEnv, "")
+	f := newFiniteFixtureWithKeepAlive(t, true)
+	original := f.dispatch(t)
+	var mu sync.Mutex
+	var createAuth []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/runs/leader-1":
+			_ = json.NewEncoder(w).Encode(GetRunResponse{Run: &Run{ID: "leader-1", TaskID: "task-1", Status: "failed", StartedAt: "2026-09-29T10:00:00Z", EndedAt: "2026-09-29T11:00:00Z"}})
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/runs/leader-2":
+			_ = json.NewEncoder(w).Encode(GetRunResponse{Run: &Run{ID: "leader-2", TaskID: "task-2", Status: "running"}})
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/tasks":
+			_ = json.NewEncoder(w).Encode(CreateTaskResponse{Task: &Task{ID: "task-2"}})
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/runs":
+			createAuth = append(createAuth, r.Header.Get("Authorization")+r.Header.Get("X-Agent-Identity-Token"))
+			_ = json.NewEncoder(w).Encode(CreateRunResponse{Run: &Run{ID: "leader-2", TaskID: "task-2", Status: "running"}})
+		default:
+			t.Errorf("unexpected owner call %s %s", r.Method, r.URL.Path)
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+	f.runtime.Executor.agentClient = newTestClient(t, srv)
+	enqueues := f.queue.enqueues
+	state, err := f.runtime.Tick(context.Background(), "committee", "lead")
+	if err != nil {
+		t.Fatalf("scheduled tick refused while enforcement is off: %v", err)
+	}
+	if state.ID == original.ID || f.queue.enqueues != enqueues+1 || strings.Contains(state.Error, "held") {
+		t.Fatalf("terminal leader was not relaunched: state=%+v enqueues=%d", state, f.queue.enqueues)
+	}
+	if _, err := f.runtime.Executor.Execute(context.Background(), "committee", "lead", ""); err != nil {
+		t.Fatalf("scheduled relaunch dispatch refused: %v", err)
+	}
+	relaunched, _ := f.teams.ReadFiniteLeader(context.Background(), "committee", "lead")
+	mu.Lock()
+	defer mu.Unlock()
+	if relaunched.RunID != "leader-2" || len(createAuth) != 1 || createAuth[0] != "" {
+		t.Fatalf("relaunch did not create an unattended leader run: %+v proofs=%q", relaunched, createAuth)
+	}
+}
+
+func TestFiniteLeaderScheduledTickWithoutCallerReportsTheHold(t *testing.T) {
+	enforceAuth01(t)
+	f := newFiniteFixtureWithKeepAlive(t, true)
+	f.agent.createRunErr = errors.New("dispatch rejected: create-run requires verified caller identity")
+	if _, err := f.runtime.Dispatch(context.Background(), "committee", "lead"); err == nil {
+		t.Fatal("expected rejected dispatch")
+	}
+	f.runtime.Executor.agentClient = &AgentManagerClient{createCallerVerifier: auth01ConversationVerifier{}}
+	for i := 0; i < 2; i++ {
+		if _, err := f.runtime.Tick(context.Background(), "committee", "lead"); err == nil {
+			t.Fatal("anonymous tick admitted the retained dispatch")
+		}
+	}
+	state, _ := f.teams.ReadFiniteLeader(context.Background(), "committee", "lead")
+	if !state.DispatchStarted || state.TaskID != "task-1" || state.RunID != "" || len(f.agent.createRunCalls) != 1 {
+		t.Fatalf("hold changed the retained reservation: %+v calls=%d", state, len(f.agent.createRunCalls))
+	}
+	if !strings.Contains(state.Error, "finite leader held") || !strings.Contains(state.Error, "verified human caller") {
+		t.Fatalf("hold not reported in leader state: %q", state.Error)
 	}
 }

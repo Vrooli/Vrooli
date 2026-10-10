@@ -198,10 +198,10 @@ func Run(cfg Config) error {
 	// middleware is passive without the identity header, so scenarios inherit
 	// request-context capture without custom server wiring. Verification failure
 	// remains an explicit context state rather than a request failure.
-	cfg.Handler = provenance.Middleware(provenance.CLIUtilVerifier{})(cfg.Handler)
 	if cfg.Authentication != nil {
 		cfg.Handler = authn.Middleware(*cfg.Authentication)(cfg.Handler)
 	}
+	cfg.Handler = provenance.Middleware(provenance.CLIUtilVerifier{})(cfg.Handler)
 	cfg.Handler = accessLog(cfg.log, cfg.Handler)
 	cfg.Handler = recoverPanics(cfg.log, cfg.Handler)
 

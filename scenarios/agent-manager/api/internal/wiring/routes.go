@@ -99,10 +99,11 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 	if err != nil {
 		panic(fmt.Errorf("authentication configuration: %w", err))
 	}
-	if !authConfig.Enabled() {
-		authConfig.Providers = []authn.Provider{authn.NewScenarioAuthenticatorProvider(authn.JWTConfig{Audience: "scenario-authenticator:agent-manager"})}
-	}
+	authConfig = authConfig.WithScenarioAuthenticator("agent-manager")
+	authConfig = authConfig.WithCreateRunCallerAudience("swarm-manager")
+	authConfig = authConfig.WithManagedCloudflare("agent-manager")
 	router.Use(authn.Middleware(authConfig))
+	router.Use(handlers.AgentOperationMiddleware)
 	if deps.Orchestrator != nil {
 		handlers.RegisterAuthorizations(router, deps.Orchestrator)
 	}
@@ -209,13 +210,17 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 		}
 	}
 	if secret != "" {
-		router.Handle("/api/v1/events/program-runtime", handlers.ProgramEventWebhook(deps.DB, secret)).Methods(http.MethodPost)
+		router.Handle(handlers.ProgramEventWebhookPath, handlers.ProgramEventWebhook(deps.DB, secret)).Methods(http.MethodPost)
+		router.Handle(handlers.DecisionEventWebhookPath, handlers.DecisionResolvedWebhook(deps.SupervisionService, secret)).Methods(http.MethodPost)
 		if port := strings.TrimSpace(os.Getenv("API_PORT")); port != "" {
 			go func() {
 				ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 				defer cancel()
-				if err := ReconcileProgramRuntimeSubscription(ctx, "http://127.0.0.1:"+port+"/api/v1/events/program-runtime"); err != nil {
+				if err := ReconcileProgramRuntimeSubscription(ctx, "http://127.0.0.1:"+port+handlers.ProgramEventWebhookPath); err != nil {
 					obs.Component("routes").Warn("program-runtime event subscription reconciliation failed", obs.KeyError, err.Error())
+				}
+				if err := ReconcileDecisionEventSubscription(ctx, "http://127.0.0.1:"+port+handlers.DecisionEventWebhookPath); err != nil {
+					obs.Component("routes").Warn("decision answer event subscription reconciliation failed", obs.KeyError, err.Error())
 				}
 			}()
 		}

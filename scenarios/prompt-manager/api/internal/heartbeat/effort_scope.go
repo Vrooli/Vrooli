@@ -32,6 +32,12 @@ type FiniteEffortScope struct {
 }
 
 func (s *FiniteEffortScope) CheckEffortScope(ctx context.Context, p effortauthority.Policy) error {
+	return s.checkScope(ctx, p, true)
+}
+
+// checkScope permits a disabled authored target only for private commissioning
+// reads. Admission and heartbeat retain their existing enabled-state checks.
+func (s *FiniteEffortScope) checkScope(ctx context.Context, p effortauthority.Policy, requireEnabled bool) error {
 	if s == nil || s.Teams == nil || s.Accepted == nil || s.Profiles == nil {
 		return effortauthority.ErrRefused
 	}
@@ -39,14 +45,14 @@ func (s *FiniteEffortScope) CheckEffortScope(ctx context.Context, p effortauthor
 		return effortauthority.ErrRefused
 	}
 	team, e := s.Teams.Get(ctx, p.Team)
-	if e != nil || team == nil || validateTeamEnabled(team) != nil || effortauthority.Digest(team.Contract()) != p.TeamDigest {
+	if e != nil || team == nil || (requireEnabled && validateTeamEnabled(team) != nil) || effortauthority.Digest(team.Contract()) != p.TeamDigest {
 		return effortauthority.ErrRefused
 	}
 	if team.Coordination.Pattern != teamconfig.CoordinationPatternLeaderLed || team.Execution.QueuePolicy != teamconfig.QueuePolicySerialized || team.Execution.MaxConcurrentRuns != 1 {
 		return effortauthority.ErrRefused
 	}
 	cfg, e := s.Teams.GetHeartbeatConfig(ctx, p.Team, team.Coordination.LeadAgentID)
-	if e != nil || cfg == nil || cfg.FiniteLeader == nil || !cfg.Enabled || cfg.FiniteLeader.Retired || cfg.FiniteLeader.EffortRef != p.Effort || cfg.FiniteLeader.AcceptedRevision != p.Revision || effortauthority.Digest(cfg.FiniteLeader) != p.BindingDigest || p.Profiles[cfg.ProfileKey] == "" {
+	if e != nil || cfg == nil || cfg.FiniteLeader == nil || (requireEnabled && !cfg.Enabled) || cfg.FiniteLeader.Retired || cfg.FiniteLeader.EffortRef != p.Effort || cfg.FiniteLeader.AcceptedRevision != p.Revision || effortauthority.Digest(cfg.FiniteLeader) != p.BindingDigest || p.Profiles[cfg.ProfileKey] == "" {
 		return effortauthority.ErrRefused
 	}
 	for key, digest := range p.Profiles {

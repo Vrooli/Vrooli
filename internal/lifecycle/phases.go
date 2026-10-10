@@ -324,7 +324,15 @@ func (r *Runner) executePhaseDetailed(ctx context.Context, item scenario.Scenari
 		// schema, selector, registry, descriptor, or runtime bundle. The
 		// preflight acquires its own owner lock, so it must run before the
 		// phase-sized lock to avoid lock inversion.
-		if err := ProvisionGeneratedPackages(r.Root, r.Home, childWriter, logWriter); err != nil {
+		//
+		// An engaged serving instance whose capture froze its shared sources
+		// builds against the frozen copies (generated outputs included), not
+		// the repository's: regenerating the repository from working-tree
+		// schemas would neither help it nor be safe (a broken candidate
+		// schema would fail the live start).
+		if frozen, ok := r.frozenServingSources(item); ok {
+			_, _ = fmt.Fprintf(logWriter, "serving-tree event=frozen-shared engagement=%q capture_id=%q proto_artifact_id=%q source_dir=%q\n", frozen.Slug, frozen.CaptureID, frozen.ProtoArtifactID, item.SourcePath())
+		} else if err := ProvisionGeneratedPackages(r.Root, r.Home, childWriter, logWriter); err != nil {
 			return result, fmt.Errorf("provision repository-generated packages: %w", err)
 		}
 		var lockErr error
@@ -838,7 +846,7 @@ func (r *Runner) buildDeclaredComponentsSerial(ctx context.Context, item scenari
 		for _, buildTarget := range targets {
 			buildArgv := spec.BuildArgv(buildMode)
 			if spec.Kind == "go_module" {
-				buildArgv, err = goModuleBuildArgvForRoot(r.Root)
+				buildArgv, err = goModuleBuildArgvForItem(r.Root, item)
 				if err != nil {
 					return executed, fmt.Errorf("load Go build flag policy: %w", err)
 				}
@@ -1477,16 +1485,24 @@ func (r *Runner) runWithLifecycleLog(ctx lifecycleLogContext, fn func(logWriter,
 	defer file.Close()
 	_ = config.ChownToInvokingUser(path)
 
-	logWriter, childWriter := newLogFirstTees(file, r.consoleOut(), r.childStdoutConsole())
 	startedAt := time.Now().UTC()
 	runID := strings.TrimSpace(ctx.RunID)
 	if runID == "" {
 		runID = lifecycleRunID(startedAt)
 	}
-	writeLifecycleRunStart(file, ctx, runID, startedAt)
+	// The logs root can be reclaimed under disk pressure at any time; the
+	// retained copy keeps the last runs of each instance (O18).
+	retained := openRetainedRunLog(r.Home, ctx, runID)
+	defer retained.close()
+	sink := teeRetained(file, retained)
+	logWriter, childWriter := newLogFirstTees(sink, r.consoleOut(), r.childStdoutConsole())
+	writeLifecycleRunStart(sink, ctx, runID, startedAt)
 	err = fn(logWriter, childWriter)
 	endedAt := time.Now().UTC()
-	writeLifecycleRunEnd(file, ctx, runID, startedAt, endedAt, err)
+	writeLifecycleRunEnd(sink, ctx, runID, startedAt, endedAt, err)
+	if err != nil && retained != nil {
+		r.logInfo("Lifecycle run failed; its log is retained", logx.AttrScenario, ctx.Scenario, "run_id", runID, "retained_log", retained.path)
+	}
 	return RunMeta{RunID: runID, StartedAt: startedAt, EndedAt: endedAt}, err
 }
 

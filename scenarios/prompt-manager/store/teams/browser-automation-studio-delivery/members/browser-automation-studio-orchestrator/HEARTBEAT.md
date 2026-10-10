@@ -19,6 +19,8 @@ End each check-in as `parked`, `accepted`, `step-back` or `closed`
 
 ## Stop Conditions
 
-When every remaining slice waits on an operator decision or an outside repair,
-park with `--timeout 12h` rather than ending. Accept only through §4.4. When the
+If no slice is admissible, plan one, a redesign slice if nothing is deletable
+(`large-effort-orchestration` §2.1). Only when every remaining slice waits on an
+operator decision or an outside repair, follow §2's `## Needs operator` steps and
+park for 72h. Accept only through §4.4. When the
 queue is done, close per §6.

@@ -1,10 +1,11 @@
 package protoconv
 
 import (
+	"strings"
+
 	"agent-manager/internal/domain"
 	"github.com/google/uuid"
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
-	"strings"
 )
 
 // validUTF8 protects the protobuf boundary from historical/imported data that
@@ -44,6 +45,7 @@ func AgentProfileToProto(p *domain.AgentProfile) *pb.AgentProfile {
 		MaxTurns:              int32(p.MaxTurns),
 		Timeout:               DurationToProto(p.Timeout),
 		Effort:                string(p.Effort),
+		MaxWeightedTokens:     p.MaxWeightedTokens,
 		AllowedTools:          p.AllowedTools,
 		DeniedTools:           p.DeniedTools,
 		ToolRestrictionPolicy: string(p.ToolRestrictionPolicy.Effective()),
@@ -83,6 +85,7 @@ func AgentProfileFromProto(p *pb.AgentProfile) *domain.AgentProfile {
 		MaxTurns:              int(p.MaxTurns),
 		Timeout:               DurationFromProto(p.Timeout),
 		Effort:                domain.Effort(p.Effort),
+		MaxWeightedTokens:     p.MaxWeightedTokens,
 		AllowedTools:          p.AllowedTools,
 		DeniedTools:           p.DeniedTools,
 		ToolRestrictionPolicy: domain.ToolRestrictionPolicy(p.ToolRestrictionPolicy),

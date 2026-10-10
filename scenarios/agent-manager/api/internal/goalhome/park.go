@@ -11,9 +11,10 @@ import (
 // without ending) or an operator decision recorded under ## Needs operator.
 // With neither, parking only idles the goal.
 //
-// `agent-manager effort park` applies this in the CLI. Wave 2 applies the
-// same DecidePark server-side in orchestration.ParkRunFromAgent, next to the
-// re-park guard, so a raw `run park` cannot bypass it.
+// `agent-manager effort park` applies this in the CLI, and
+// orchestration.ParkRunFromAgent applies the same DecidePark to an
+// orchestrator's raw `run park` on its children: report-only by default,
+// refusing when VROOLI_EFFORT_PARK_ENFORCE is on.
 const (
 	ChildBackstop = time.Hour
 	DecisionWait  = 72 * time.Hour

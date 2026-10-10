@@ -13,6 +13,7 @@ import (
 	"prompt-manager/internal/teamconfig"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/owneridentity"
 )
 
 func TestTriggerHeartbeatRequiresConfig(t *testing.T) {
@@ -546,5 +547,62 @@ func TestTriggerHeartbeat_DeliveryMemberMayWakeSupervisor(t *testing.T) {
 	}
 	if got := trigger("delivery"); got.Code != http.StatusAccepted {
 		t.Fatalf("delivery wake of supervisor: status=%d body=%s", got.Code, got.Body.String())
+	}
+}
+
+// P-18: with AUTH-01 off (the default) an agent-attributed delivery member that
+// offers only its run identity may wake a supervisor through the real owner
+// client queue. With enforcement on the same request is refused before effects.
+func TestTriggerHeartbeat_AgentDeliveryMemberWakesSupervisorWithEnforcementOff(t *testing.T) {
+	roots := paths.RootsForTest(t)
+	fileStore := newFileStore(t, roots)
+	teamStore := fileStore.Teams().(*store.FileTeamStore)
+	agentStore := fileStore.Agents().(*store.FileAgentStore)
+	relationStore := fileStore.Relations()
+	ctx := context.Background()
+	for id, purpose := range map[string]string{"supervision": teamconfig.PurposeSupervision, "delivery": teamconfig.PurposeDelivery} {
+		team := newIndependentTestTeam(id, id)
+		team.Purpose = purpose
+		if err := teamStore.Create(ctx, team); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := agentStore.Create(ctx, &store.Agent{ID: "agent-1", DisplayName: "Supervisor"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := relationStore.SetTeamMember(ctx, &store.TeamMemberRelation{TeamID: "supervision", AgentID: "agent-1", Status: store.MemberStatusActive}); err != nil {
+		t.Fatal(err)
+	}
+	if err := teamStore.SetHeartbeatConfig(ctx, "supervision", "agent-1", &store.HeartbeatConfig{TeamID: "supervision", AgentID: "agent-1", Schedule: "0 13 * * *", Enabled: true}); err != nil {
+		t.Fatal(err)
+	}
+	capture := &captureExecutor{}
+	ownerClient := &AgentManagerClient{createCallerVerifier: auth01ConversationVerifier{}}
+	teamExecStore := NewTeamExecutionStore(teamStore, capture, t.TempDir(), ownerClient)
+	handlers := NewHandlers(HandlersDeps{TeamStore: teamStore, AgentStore: agentStore, RelationStore: relationStore, Executor: newTestExecutor(t, teamStore, agentStore, nil, "", nil, nil), TeamExecStore: teamExecStore, RunCallerValidator: auth01ConversationVerifier{}})
+	trigger := func() *httptest.ResponseRecorder {
+		fromTeam, member := "delivery", "orchestrator"
+		req := httptest.NewRequest(http.MethodPost, "/teams/supervision/heartbeats/agent-1/trigger", nil)
+		req.Header.Set(attributionHeaderName, encodeAttribution(t, store.AttributionInfo{Kind: store.KnowledgeKindAgentMember, SpawnOrigin: store.SpawnOriginHeartbeat, TeamID: &fromTeam, MemberID: &member}))
+		req.Header.Set("X-Agent-Identity-Token", "delivery-orchestrator-run")
+		req = mux.SetURLVars(req, map[string]string{"id": "supervision", "agentId": "agent-1"})
+		w := httptest.NewRecorder()
+		handlers.TriggerHeartbeat(w, req)
+		return w
+	}
+
+	t.Setenv(owneridentity.CreateRunCallerEnforceEnv, "true")
+	if got := trigger(); got.Code != http.StatusUnauthorized {
+		t.Fatalf("agent wake admitted while enforced: status=%d body=%s", got.Code, got.Body.String())
+	}
+	t.Setenv(owneridentity.CreateRunCallerEnforceEnv, "")
+	if got := trigger(); got.Code != http.StatusAccepted {
+		t.Fatalf("delivery agent wake of supervisor refused while off: status=%d body=%s", got.Code, got.Body.String())
+	}
+	teamExecStore.GetOrCreate("supervision").Shutdown()
+	capture.mu.Lock()
+	defer capture.mu.Unlock()
+	if len(capture.calls) != 1 || capture.calls[0].agentID != "agent-1" {
+		t.Fatalf("supervisor wake was not dispatched: %+v", capture.calls)
 	}
 }

@@ -87,3 +87,25 @@ func TestStorageActionPolicyAcceptsOnlyBoundedSubjects(t *testing.T) {
 		}
 	}
 }
+
+func TestTemporaryObservationPolicyAcceptsNoCallerSelectedTarget(t *testing.T) {
+	req := Request{Version: ProtocolVersion, RequestID: "temporary-1", Action: "storage.temporary-activity.observe"}
+	if err := Validate(req); err != nil {
+		t.Fatalf("read-only temporary observation must be available through the setup broker: %v", err)
+	}
+	for _, mutate := range []func(*Request){
+		func(r *Request) { r.Subject.Scenario = "storage-manager" },
+		func(r *Request) { r.Volume = &VolumeSubject{} },
+		func(r *Request) { r.RuntimeHome = &RuntimeHomeSubject{ExpectedUID: 1001} },
+		func(r *Request) { r.Log = &LogSubject{} },
+		func(r *Request) { r.Journal = &JournalSubject{} },
+		func(r *Request) { r.Docker = &DockerSubject{} },
+		func(r *Request) { r.Process = &ProcessSubject{} },
+	} {
+		altered := req
+		mutate(&altered)
+		if err := Validate(altered); err == nil {
+			t.Fatal("observation accepted a caller-selected target or unrelated mutation subject")
+		}
+	}
+}

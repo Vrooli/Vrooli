@@ -7,32 +7,35 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/vrooli/vrooli/internal/repocontractmeta"
 	"github.com/vrooli/vrooli/internal/tuning"
-
 )
 
-// defaultExcludes is the restore-point copy ladder exclude set, aligned to the
-// repo .gitignore. Every entry is a build artifact or VCS/runtime directory that
-// is regenerated on restart (dist/generated/.build-fingerprint.json), recomputed
-// by tooling (coverage), VCS-managed (.git), or operator runtime state that must
-// NOT be snapshotted into a code restore point (.vrooli). Excluding them is the
-// single biggest size/speed win (60–80% smaller on UI scenarios) and is safe
-// because excluded == git-ignored == regenerable; excluding a stale dist is in
-// fact MORE correct, since cli-core rebuilds from source on restart.
+// defaultExcludes is the restore-point copy ladder's base-name exclude set:
+// build artifacts and VCS or cache directories that are regenerated on
+// restart (dist/generated/.build-fingerprint.json), recomputed by tooling
+// (coverage), or VCS-managed (.git). It is the git-free floor that holds even
+// where no .gitignore exists; a capture also honors the repository's
+// .gitignore files and the scenario's declared build outputs and data
+// directories (see IgnoreMatcher and the recovery capture), so runtime data
+// (databases, logs, caches) and build outputs stay out of a code restore
+// point.
+//
+// The project config directory (.vrooli) is deliberately NOT a base-name
+// exclude: a scenario's .vrooli configuration (service.json, testing.json,
+// ...) is source that builds read. Its runtime state (secrets, locks, local
+// overrides, state/ and runtime/) is excluded by floorIgnorePatterns.
 //
 // Matched by base name at any depth, against both directories and files.
 var defaultExcludes = map[string]struct{}{
-	"node_modules":                    {},
-	"dist":                            {},
-	"coverage":                        {},
-	".git":                            {},
-	repocontractmeta.ProjectConfigDir: {},
-	"generated":                       {},
-	".build-fingerprint.json":         {},
-	".turbo":                          {},
-	".next":                           {},
-	"__pycache__":                     {},
+	"node_modules":            {},
+	"dist":                    {},
+	"coverage":                {},
+	".git":                    {},
+	"generated":               {},
+	".build-fingerprint.json": {},
+	".turbo":                  {},
+	".next":                   {},
+	"__pycache__":             {},
 }
 
 // DefaultExcludes returns a fresh copy of the restore-point exclude set so a
@@ -52,6 +55,10 @@ type CopyOptions struct {
 	// skipped during the walk. Use DefaultExcludes() as a starting point. A nil
 	// map copies everything.
 	Exclude map[string]struct{}
+	// Ignore excludes paths by pattern (an IgnoreMatcher applies .gitignore
+	// rules). Capture and Restore fill a nil Ignore with the floor patterns
+	// (FloorIgnorePatterns); CopyTree itself treats nil as "no patterns".
+	Ignore Ignorer
 	// Reflink enables the copy-on-write reflink fast path per regular file where
 	// the OS + filesystem support it (Linux FICLONE; no-op elsewhere). On any
 	// reflink failure the file falls back to a native-Go deep copy, so enabling
@@ -79,7 +86,9 @@ type CopyStats struct {
 //     the excluded content).
 //   - Regular files use the reflink fast path when opts.Reflink is set and the
 //     filesystem supports it, else a native-Go deep copy. NEVER a hardlink.
-//   - Excluded base names are skipped (SkipDir for directories).
+//   - Excluded base names and paths the Ignore matcher excludes are skipped
+//     (SkipDir for directories, so nothing below an excluded directory is
+//     copied or re-included).
 //   - dst is overlaid: existing files are overwritten, making re-copy idempotent.
 //     Files present in dst but absent in src are left in place (callers that need
 //     an exact mirror clean dst first).
@@ -100,19 +109,22 @@ func CopyTree(src, dst string, opts CopyOptions) (CopyStats, error) {
 		}
 
 		base := d.Name()
+		rel, relErr := filepath.Rel(src, path)
+		if relErr != nil {
+			return relErr
+		}
 		if path != src {
-			if _, skip := opts.Exclude[base]; skip {
+			_, skip := opts.Exclude[base]
+			if !skip && opts.Ignore != nil {
+				skip = opts.Ignore.Ignored(filepath.ToSlash(rel), d.IsDir())
+			}
+			if skip {
 				stats.Excluded++
 				if d.IsDir() {
 					return filepath.SkipDir
 				}
 				return nil
 			}
-		}
-
-		rel, relErr := filepath.Rel(src, path)
-		if relErr != nil {
-			return relErr
 		}
 		target := filepath.Join(dst, rel)
 

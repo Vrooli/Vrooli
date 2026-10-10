@@ -30,3 +30,9 @@ For validation-cost scans, treat the Test Genie report as the source of truth. D
 ## Run Decision
 
 Record durable continuity in your declared Source Ledger topics. Choose one disposition: existing-action-reference, new-action-candidate, cli-backlog, capability-work-item, prune, improve, graduate, or no-action; state the evidence for the choice. Preserve any narrower lane-specific decisions stated in the task loop.
+
+## Stop Conditions
+
+- **Instrument unavailable.** If `infrastructure-manager focus next --json` is unavailable, record one line saying the instrument is unavailable (file no new Swarm item if one is already open for the outage) and stop. Do not run the step-5 fallback sweep.
+- **Nothing changed.** If the `start-failed` population, dependency drift, and the top `focus next` finding all match the last `runtime-health-audit/*` entry, record one line saying so and stop.
+- **Never file a challenge as a new Swarm item.** Record a disagreement with an existing item as an annotation on that item (`swarm-manager backlog update --kind <kind> --name <name> --data '<json>'`), not as a new item.

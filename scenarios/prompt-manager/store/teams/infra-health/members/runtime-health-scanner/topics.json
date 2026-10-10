@@ -1,4 +1,5 @@
 {
+  "loop_kind": "reactive",
   "required_read": [
     {
       "prefix": "runtime-health-audit/YYYY-MM-DD"

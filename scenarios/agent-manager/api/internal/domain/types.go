@@ -7,9 +7,10 @@
 package domain
 
 import (
-	"github.com/google/uuid"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // AgentProfile defines the configuration for running an agent.
@@ -30,6 +31,9 @@ type AgentProfile struct {
 	MaxTurns   int           `json:"maxTurns,omitempty" db:"max_turns"`
 	Timeout    time.Duration `json:"timeout,omitempty" db:"timeout_ms"`
 	Effort     Effort        `json:"effort,omitempty" db:"effort"`
+	// MaxWeightedTokens caps one run's weighted non-cache tokens (DL-8); 0
+	// means no profile cap. Enforcement follows AGENT_MANAGER_TOKEN_CAP_MODE.
+	MaxWeightedTokens int64 `json:"maxWeightedTokens,omitempty" db:"max_weighted_tokens"`
 
 	// Tool permissions
 	AllowedTools          []string              `json:"allowedTools,omitempty" db:"allowed_tools"`

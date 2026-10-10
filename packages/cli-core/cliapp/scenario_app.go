@@ -629,6 +629,11 @@ func (a *ScenarioApp) ensureAPIReachable(cmd Command, autoStart bool) error {
 	}
 
 	probeErr := a.probeAPIHealth()
+	var refused *cliutil.AgentAuthorizationError
+	if errors.As(probeErr, &refused) {
+		// The API may be healthy; this session's own authority was refused.
+		return refused
+	}
 	if probeErr == nil {
 		return nil
 	} else if autoStart {

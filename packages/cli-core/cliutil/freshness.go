@@ -100,7 +100,8 @@ func GoModuleInstallerArgs(modulePath, manifestPath, binaryName, installDir stri
 // the module). modulePath is the absolute path to the CLI's Go module. Custom
 // inputs extend the default while preserving the shared cli-core input: a
 // custom manifest must not make a CLI blind to changes in the code that builds
-// and runs it.
+// and runs it. Local replace targets the CLI imports are appended by
+// WithGoReplaceFreshnessInputs.
 func CanonicalScenarioGoModuleFreshnessSpec(scenarioRoot, modulePath, binaryName string, customInputs []string) FreshnessSpec {
 	moduleDir := strings.TrimSpace(filepath.Base(modulePath))
 	if moduleDir == "" || moduleDir == "." || moduleDir == string(filepath.Separator) {
@@ -110,12 +111,12 @@ func CanonicalScenarioGoModuleFreshnessSpec(scenarioRoot, modulePath, binaryName
 	if trimmed := trimNonEmpty(customInputs); len(trimmed) > 0 {
 		inputs = withSharedCLICoreFreshnessInput(trimmed)
 	}
-	return FreshnessSpec{
+	return WithGoReplaceFreshnessInputs(FreshnessSpec{
 		SourceRoot:  modulePath,
 		ContextRoot: scenarioRoot,
 		Inputs:      inputs,
 		SkipFiles:   []string{binaryName},
-	}
+	})
 }
 
 // CanonicalResourceGoModuleFreshnessSpec returns the freshness contract used
@@ -132,12 +133,12 @@ func CanonicalResourceGoModuleFreshnessSpec(resourceRoot, modulePath, binaryName
 	if trimmed := trimNonEmpty(customInputs); len(trimmed) > 0 {
 		inputs = withSharedCLICoreFreshnessInput(trimmed)
 	}
-	return FreshnessSpec{
+	return WithGoReplaceFreshnessInputs(FreshnessSpec{
 		SourceRoot:  modulePath,
 		ContextRoot: resourceRoot,
 		Inputs:      inputs,
 		SkipFiles:   []string{binaryName},
-	}
+	})
 }
 
 // ComputeFreshnessFingerprint computes a deterministic fingerprint from one

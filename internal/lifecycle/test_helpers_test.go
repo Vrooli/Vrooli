@@ -89,7 +89,11 @@ func writeLifecycleFixtureManifest(t *testing.T, root string, manifest scenario.
 	// succeeds with an empty scope; tests that exercise host requirements can
 	// overwrite this fixture.
 	testscenario.WriteProjectService(t, root, testscenario.ProjectServiceManifest())
-	if err := os.WriteFile(filepath.Join(root, ".vrooli", "repo-contract.json"), []byte(`{"build.go_flags":{"develop":["-trimpath"],"distribution":["-trimpath","-buildvcs=false"],"scenario":["-trimpath"]}}`), 0o644); err != nil {
+	// Fixture repositories live under the OS temp dir, outside any checkout.
+	// Go's VCS stamping would probe whatever ancestor .git it finds (a stray
+	// /tmp/.git or ~/.git fails every build with "error obtaining VCS
+	// status"), so fixture scenario builds never stamp.
+	if err := os.WriteFile(filepath.Join(root, ".vrooli", "repo-contract.json"), []byte(`{"build.go_flags":{"develop":["-trimpath","-buildvcs=false"],"distribution":["-trimpath","-buildvcs=false"],"scenario":["-trimpath","-buildvcs=false"]}}`), 0o644); err != nil {
 		t.Fatalf("write build flag policy: %v", err)
 	}
 	testscenario.WriteScenarioService(t, root, manifest.Service.Name, manifest)

@@ -215,3 +215,10 @@ func TestParseQuantityReadsSignsSeparatorsAndUnits(t *testing.T) {
 		}
 	}
 }
+
+func TestWorkerRunIDsSkipsParenthesizedNotes(t *testing.T) {
+	raw := "c33912b5 (task 42f4; prompt-manager/delivery-epoch-worker, gpt-6-luna medium; canceled after handoff), 6980e693 (handoff follow-through only), a7240424"
+	if got := strings.Join(WorkerRunIDs(raw), ","); got != "c33912b5,6980e693,a7240424" {
+		t.Fatalf("worker IDs = %s", got)
+	}
+}

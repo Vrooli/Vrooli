@@ -4,13 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/vrooli/api-core/effortauthority"
 	"log"
 	"os"
 	"path/filepath"
 	"sort"
 	"sync"
 	"time"
+
+	"github.com/vrooli/api-core/effortauthority"
+	"github.com/vrooli/api-core/owneridentity"
 
 	"prompt-manager/internal/teamconfig"
 )
@@ -448,6 +450,7 @@ func (c *TeamExecutionContext) Shutdown() {
 func (c *TeamExecutionContext) BeginDispatch(agentID string, intent DispatchIntent) {
 	_ = c.BeginDispatchDurable(agentID, intent)
 }
+
 func (c *TeamExecutionContext) BeginDispatchDurable(agentID string, intent DispatchIntent) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -697,6 +700,12 @@ func (c *TeamExecutionContext) Recover(ctx context.Context) {
 		if !item.ManualAdmission {
 			continue
 		} // stale scheduled ticks remain discarded
+		// With AUTH-01 off (P-18) an ordinary manual intent is a stale tick as
+		// before AUTH-01: the schedule, not a held intent, restarts the member.
+		// Finite effort entries keep their own protected binding either way.
+		if item.EffortBinding == nil && !owneridentity.CreateRunCallerEnforced() {
+			continue
+		}
 		item.caller = nil
 		item.State = "caller_required"
 		if client, ok := c.agentClient.(*AgentManagerClient); ok && client.efforts != nil && item.EffortBinding != nil {

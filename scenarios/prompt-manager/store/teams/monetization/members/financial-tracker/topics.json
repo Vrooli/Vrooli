@@ -1,4 +1,5 @@
 {
+  "loop_kind": "reactive",
   "required_read": [],
   "evidence_consumed": [],
   "output": [],

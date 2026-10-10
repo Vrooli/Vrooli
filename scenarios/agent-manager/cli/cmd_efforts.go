@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -32,6 +33,12 @@ func (a *App) cmdEffort(args []string) error {
 		return a.effortHandoff(args[1:])
 	case "park":
 		return a.effortPark(args[1:])
+	case "signals":
+		return a.effortSignals(args[1:])
+	case "signal":
+		return a.effortSignal(args[1:])
+	case "decision":
+		return a.effortDecision(args[1:])
 	}
 	fs := flag.NewFlagSet("effort "+command, flag.ContinueOnError)
 	file := fs.String("request-file", "", "Typed RPC request JSON for mutation")
@@ -108,7 +115,7 @@ func (a *App) cmdEffort(args []string) error {
 			return fmt.Errorf("--local-owner is only for explicit operator mutations")
 		}
 		if strings.TrimSpace(os.Getenv(cliutil.EnvIdentityToken)) != "" {
-			return fmt.Errorf("--local-owner is unavailable inside an identified agent run; use the run's granted authority")
+			return fmt.Errorf("--local-owner is unavailable inside an identified agent run; drop --local-owner and use the run's granted authority (an interactive session can ask the owner: vrooli agent authorize <session> --policy effort-metadata --target agent-manager:effort/<name>)")
 		}
 		if scoped, ok := request.(interface{ GetAuthority() pb.WatchAuthority }); ok && scoped.GetAuthority() != pb.WatchAuthority_WATCH_AUTHORITY_OPERATOR {
 			return fmt.Errorf("--local-owner requires operator authority")
@@ -186,6 +193,7 @@ func printCompactEffortBoard(b *pb.EffortBoard) {
 		} else {
 			fmt.Println("  Named waits: none")
 		}
+		printGoalHome(r.GetGoalHome())
 		refs := append([]string{}, r.GetEvidenceRefs()...)
 		refs = append(refs, r.GetPendingOperations()...)
 		refs = append(refs, "agent-manager:GetEffortBoard:"+e.GetEffortRef())
@@ -258,6 +266,7 @@ func printEffortBoard(b *pb.EffortBoard) {
 			fmt.Printf("  %s: %s/%s run=%s state=%s %s\n", a.GetSubject().GetRole(), a.GetSubject().GetOwner(), a.GetSubject().GetReference(), a.GetSubject().GetRunId(), a.RuntimeState, a.UnavailableReason)
 			fmt.Printf("    Requested: runner=%s model=%s reasoning=%s; effective: runner=%s model=%s reasoning=%s\n", effortKnown(a.RequestedRunner), effortKnown(a.RequestedModel), effortKnown(a.RequestedReasoning), effortKnown(a.EffectiveRunner), effortKnown(a.EffectiveModel), effortKnown(a.EffectiveReasoning))
 		}
+		printGoalHome(r.GetGoalHome())
 		for _, v := range r.Blockers {
 			fmt.Println("  Blocker: " + v)
 		}
@@ -272,6 +281,51 @@ func printEffortBoard(b *pb.EffortBoard) {
 		fmt.Printf("Discovery %s: %s\n", f.Source, f.Reason)
 	}
 	printEffortPage(b.NextPageToken)
+}
+
+// printGoalHome prints a registered goal home's facts (DL-9). Absent facts
+// print as unknown, never zero.
+func printGoalHome(g *pb.EffortGoalHome) {
+	if g == nil {
+		return
+	}
+	number := func(v *float64) string {
+		if v == nil {
+			return "unknown"
+		}
+		return strconv.FormatFloat(*v, 'f', -1, 64)
+	}
+	fmt.Printf("  Goal: %s (%s, read %s)\n", g.GetPath(), g.GetState(), effortTimestamp(g.GetReadAt()))
+	destination := "unknown"
+	if g.GetDestinationMetric() != "" {
+		destination = fmt.Sprintf("%s %s %s", g.GetDestinationMetric(), g.GetDestinationOp(), number(g.DestinationTarget))
+	}
+	fmt.Printf("    Destination: %s; current: %s (as of %s)\n", destination, number(g.CurrentValue), effortTimestamp(g.GetCurrentAsOf()))
+	fmt.Printf("    Active epoch: %s %s workers=%s; last accepted: %s at %s yield=%s\n", effortKnown(g.GetActiveEpoch()), g.GetActiveStatus(), effortKnown(strings.Join(g.GetActiveWorkers(), ",")), effortKnown(g.GetLastAcceptedEpoch()), effortTimestamp(g.GetLastAcceptedAt()), effortKnown(g.GetLastYield()))
+	workarounds := "unknown"
+	if g.OpenWorkarounds != nil {
+		workarounds = fmt.Sprint(g.GetOpenWorkarounds())
+	}
+	fmt.Printf("    Open: workarounds=%s feedback=%s; spend per accepted epoch=%s weighted (measured %d); canary=%s\n", workarounds, effortKnown(strings.Join(g.GetOpenFeedbackIds(), ",")), number(g.WeightedTokensPerAcceptedEpoch), g.GetAcceptedEpochsMeasured(), effortKnown(g.GetCanaryStatus()))
+	for _, item := range g.GetNeedsOperator() {
+		fmt.Println("    Needs operator: " + item)
+	}
+	for _, d := range g.GetOpenDecisions() {
+		fmt.Println("    Decision: " + decisionLine(d))
+	}
+	for _, usage := range g.GetCapUsage() {
+		limit := "none"
+		if usage.Cap != nil {
+			limit = fmt.Sprint(usage.GetCap())
+		}
+		fmt.Printf("    Cap: %s run=%s weighted=%s cap=%s mode=%s\n", effortKnown(usage.GetRole()), usage.GetRunId(), number(usage.WeightedTokens), limit, usage.GetMode())
+	}
+	if findings := g.GetLintFindings(); len(findings) > 0 {
+		fmt.Println("    Lint: " + strings.Join(findings, ", "))
+	}
+	for _, v := range g.GetLimitations() {
+		fmt.Println("    Goal limitation: " + v)
+	}
 }
 
 func effortKnown(value string) string {

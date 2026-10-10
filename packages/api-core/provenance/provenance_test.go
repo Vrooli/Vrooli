@@ -6,8 +6,22 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/vrooli/api-core/identity"
 	"github.com/vrooli/cli-core/cliutil"
 )
+
+func TestWriteFieldsSeparatesInteractiveAgentFromItsOwner(t *testing.T) {
+	p := Provenance{Actor: ActorAgent, VerificationStatus: VerificationVerified, RunID: "approved-run", Subject: "human-owner", ProfileKey: "codex", Grant: &identity.OperationGrant{Approver: "human-owner"}}
+	actor, kind, _, verification, run, _ := p.WriteFields()
+	if actor != "approved-run" || kind != ActorAgent || verification != VerificationVerified || run != "approved-run" {
+		t.Fatalf("interactive actor attribution = %q/%q/%q/%q", actor, kind, verification, run)
+	}
+	p.Grant = nil
+	actor, _, _, _, _, _ = p.WriteFields()
+	if actor != "human-owner" {
+		t.Fatalf("legacy subject attribution changed: %q", actor)
+	}
+}
 
 func TestRequireScopeRejectsUnverifiedAndMissingScopes(t *testing.T) {
 	for _, p := range []Provenance{

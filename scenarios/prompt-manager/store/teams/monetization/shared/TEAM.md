@@ -41,7 +41,9 @@ The canon is split into two documents so a heartbeat does not load 44 files to
 apply a rule:
 
 - **`monetization-judgment`** (21 paths) — the rules a decision must satisfy.
-  Read this every heartbeat.
+  Do not reread the whole set every heartbeat. Read the doc that governs the
+  row you are judging, and reread the set only when one of its files changed
+  since your last continuity record.
 - **`monetization-rationale`** (23 paths) — the reasoning behind individual
   offers, channels, revenue lines, tiers, and prices. Their live matrices were
   removed at adoption and each carries an authority note. Read one when the

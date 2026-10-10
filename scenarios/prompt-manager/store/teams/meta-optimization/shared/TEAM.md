@@ -20,7 +20,7 @@ Durable context lives in the `team:meta-optimization` source-ledger scope. Use `
 
 ## Audit coverage
 
-The team is six agents. Five run audits across different lenses; one is a mandatory skeptic. Each produces evidence and routed work; none of them implement directly (the team's role is evolutionary pressure, not execution).
+The team is seven agents. Five run audits across different lenses, one (`friction-curator`) drains the universal `friction-inbox/*` intake and routes each entry to the owning auditor, and one is a mandatory skeptic. Each produces evidence and routed work; none of them implement directly (the team's role is evolutionary pressure, not execution).
 
 ```mermaid
 flowchart TB
@@ -34,9 +34,11 @@ flowchart TB
       M4[debt-curator<br/>typed evidence scan;<br/>promote to canon /<br/>retire when obsolete]
       M5[toolchain-validator<br/>development-toolchain-validator<br/>against gold-star scenarios]
       M6[meta-contrarian<br/>skeptic across all<br/>proposals; aging scan<br/>on the work queue]
+      M7[friction-curator<br/>drains friction-inbox;<br/>routes to the<br/>owning auditor]
     end
 
     TRIG --> M1 & M2 & M3 & M4 & M5
+    M7 -.friction-report.-> M1 & M3 & M4 & M5
 
     M1 --> OUT[Work Items filed]
     M2 --> OUT
@@ -64,8 +66,9 @@ flowchart TB
 | `debt-curator` | The team's own typed evidence topics and shared artifacts; promotion + retirement candidates | `meta-self-improvement` |
 | `toolchain-validator` | Dev toolchain (development-toolchain-validator and fallbacks) against gold-star reference scenarios | `meta-self-improvement`, `capability work item` |
 | `meta-contrarian` | Skepticism across all of the above; aging scan on the team's work queue (the team's stale-work-item-handler) | (none owned; proposes counterargument and supersession) |
+| `friction-curator` | The universal `friction-inbox/*` intake; validates each entry's scope and routes it to `friction-report/<scope>/*` for the owning auditor | (none owned; writes `friction-triage-record/*`) |
 
-### Why six members and not one big auditor
+### Why separate members and not one big auditor
 
 Each lens looks at a different surface, with different cadence and different evidence. Folding them into one member would either flatten the audits to whichever lens shouts loudest, or require one member to context-switch between five orthogonal jobs each heartbeat. Splitting them keeps each audit small, focused, and independently improvable.
 

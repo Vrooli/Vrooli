@@ -2,6 +2,8 @@ package lifecycle
 
 import (
 	"errors"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/vrooli/vrooli/internal/scenario"
@@ -128,5 +130,78 @@ func TestLayoutVariantTreatsNormalizedLiveAsLive(t *testing.T) {
 	}
 	if got := layoutVariant(scenario.Scenario{Slug: "demo", Variant: "shadow"}); got != shadowVariant {
 		t.Errorf("layoutVariant(shadow) = %q, want shadow", got)
+	}
+}
+
+// materializingEngagementResolver also implements ServingSourceMaterializer,
+// as the production floor resolver does.
+type materializingEngagementResolver struct {
+	fakeEngagementResolver
+	dir      string
+	err      error
+	repoRoot string
+}
+
+func (m *materializingEngagementResolver) MaterializeServingSource(_ string, _ EngagementInfo, repoRoot string) (string, error) {
+	m.repoRoot = repoRoot
+	return m.dir, m.err
+}
+
+// TestEffectiveSourceDirUsesServingTree covers the engaged live build that
+// could not resolve ../../../packages from the bare restore point: when the
+// resolver can materialize a repo-shaped serving tree, the live instance
+// builds there, and a materialization failure fails closed instead of falling
+// back to the candidate working tree.
+func TestEffectiveSourceDirUsesServingTree(t *testing.T) {
+	const servingDir = "/cache/vrooli/demo/baseline-x/serving-tree/scenarios/demo"
+	engaged := fakeEngagementResolver{engaged: true, info: EngagementInfo{RestorePointDir: "/cache/rp", Slug: "x"}}
+
+	resolver := &materializingEngagementResolver{fakeEngagementResolver: engaged, dir: servingDir}
+	r := &Runner{Root: "/repo", Engagements: resolver}
+	got, err := r.effectiveSourceDir(newSourceDirItem(""))
+	if err != nil || got != servingDir {
+		t.Fatalf("live source dir = %q, %v; want %q", got, err, servingDir)
+	}
+	if resolver.repoRoot != "/repo" {
+		t.Errorf("materializer repo root = %q, want /repo", resolver.repoRoot)
+	}
+
+	shadow, err := r.effectiveSourceDir(newSourceDirItem("shadow"))
+	if err != nil || shadow != "/repo/scenarios/demo" {
+		t.Fatalf("shadow source dir = %q, %v; want working tree", shadow, err)
+	}
+
+	failing := &materializingEngagementResolver{fakeEngagementResolver: engaged, err: errors.New("disk full")}
+	r = &Runner{Root: "/repo", Engagements: failing}
+	if got, err := r.effectiveSourceDir(newSourceDirItem("")); err == nil {
+		t.Fatalf("materialization failure returned %q, want error", got)
+	}
+}
+
+// TestRepoCanonicalPathMapsServingTreeLinks: a serving tree reaches shared
+// packages through symlinks into the repository. Shared-package provisioning
+// and Go freshness must see the repository path, or they silently skip the
+// package because it is "outside the repo".
+func TestRepoCanonicalPathMapsServingTreeLinks(t *testing.T) {
+	repo := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(repo, "packages", "shared"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	repo, _ = filepath.EvalSymlinks(repo)
+	serving := t.TempDir()
+	if err := os.Symlink(filepath.Join(repo, "packages"), filepath.Join(serving, "packages")); err != nil {
+		t.Fatal(err)
+	}
+	linked := filepath.Join(serving, "packages", "shared")
+	if got, want := repoCanonicalPath(repo, linked), filepath.Join(repo, "packages", "shared"); got != want {
+		t.Errorf("repoCanonicalPath(linked) = %q, want %q", got, want)
+	}
+	inRepo := filepath.Join(repo, "packages", "shared")
+	if got := repoCanonicalPath(repo, inRepo); got != inRepo {
+		t.Errorf("repoCanonicalPath(in repo) = %q, want unchanged", got)
+	}
+	outside := filepath.Join(serving, "missing")
+	if got := repoCanonicalPath(repo, outside); got != outside {
+		t.Errorf("repoCanonicalPath(outside) = %q, want unchanged", got)
 	}
 }

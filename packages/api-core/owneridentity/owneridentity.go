@@ -51,6 +51,7 @@ type Config struct {
 	Resolver     URLResolver
 	HTTPClient   *http.Client
 	AuthScenario string
+	Audience     string
 	JWKSURL      string
 	Now          func() time.Time
 	JWKSGrace    time.Duration
@@ -85,7 +86,7 @@ func NewClient(cfg Config) *Client {
 	return &Client{verifier: authn.NewJWTVerifier(authn.JWTConfig{
 		Source:      identity.SourceScenarioAuthenticator,
 		Issuer:      ExpectedIssuer,
-		Audience:    ExpectedAudience,
+		Audience:    configuredAudience(cfg.Audience),
 		Kind:        identity.ActorHuman,
 		ResolveJWKS: resolveJWKS,
 		Client:      cfg.HTTPClient,
@@ -123,4 +124,11 @@ func (c *Client) Reachable(ctx context.Context) error {
 		return fmt.Errorf("%w: %v", ErrUnavailable, err)
 	}
 	return nil
+}
+
+func configuredAudience(audience string) string {
+	if audience = strings.TrimSpace(audience); audience != "" {
+		return audience
+	}
+	return ExpectedAudience
 }

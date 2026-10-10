@@ -33,3 +33,6 @@ func sliceCgroupPath(string) (string, error) { return "", ErrUnsupported }
 // ErrUnsupported, so a caller must read an uncontained session here as the
 // platform's honest limit rather than as a defect.
 func supportsContainment() bool { return false }
+
+// stopScope is not implemented on this platform; see StopScope.
+func stopScope(ScopeRef) error { return ErrUnsupported }

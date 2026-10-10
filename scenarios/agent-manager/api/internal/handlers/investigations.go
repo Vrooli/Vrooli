@@ -17,6 +17,8 @@ import (
 	"agent-manager/internal/runreport"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/authn"
+	requestidentity "github.com/vrooli/api-core/identity"
 	"github.com/vrooli/api-core/provenance"
 	"github.com/vrooli/api-core/scopecatalog"
 	"github.com/vrooli/cli-core/cliutil"
@@ -39,23 +41,13 @@ func (h *Handler) StartInvestigation(w http.ResponseWriter, r *http.Request) {
 		writeInvestigationError(w, r, err)
 		return
 	}
-	if token := strings.TrimSpace(r.Header.Get(cliutil.HeaderAgentIdentityToken)); token != "" {
-		verified, err := h.svc.VerifyIdentityToken(r.Context(), token)
-		if err != nil || verified == nil || !verified.Valid || verified.Claims == nil {
-			writeJSONError(w, http.StatusUnauthorized, "verified investigation caller required")
-			return
-		}
-		grant := provenance.OperationGrantFromMeta(verified.Claims.Meta)
-		if len(request.Subject.RunIDs) == 0 || !scopecatalog.Resolve(verified.Claims.Scopes, "agent-manager:write") {
-			writeJSONError(w, http.StatusForbidden, "bounded run investigation grant required")
-			return
-		}
-		for _, id := range request.Subject.RunIDs {
-			if !grant.Allows("agent.investigate", "agent-manager:run/"+id, time.Now()) {
-				writeJSONError(w, http.StatusForbidden, "investigation target is outside the approved grant")
-				return
-			}
-		}
+	callerRun, allowed := h.authorizeInvestigationAgent(w, r, request.Subject)
+	if !allowed {
+		return
+	}
+	if callerRun != "" {
+		request.CallerAuthority = "agent"
+		request.RequestKey = callerRun + "/" + request.RequestKey
 	}
 	item, reused, err := h.admitInvestigation(r.Context(), request)
 	if err != nil {
@@ -261,6 +253,21 @@ func (h *Handler) CompleteInvestigation(w http.ResponseWriter, r *http.Request) 
 		writeJSONError(w, http.StatusServiceUnavailable, "investigation lifecycle is unavailable")
 		return
 	}
+	if strings.TrimSpace(r.Header.Get(cliutil.HeaderAgentIdentityToken)) != "" {
+		item, err := h.investigations.Get(r.Context(), strings.TrimSpace(mux.Vars(r)["id"]))
+		if err != nil {
+			writeInvestigationError(w, r, err)
+			return
+		}
+		if item == nil {
+			writeJSONError(w, http.StatusNotFound, "investigation not found")
+			return
+		}
+		if _, allowed := h.authorizeInvestigationAgent(w, r, item.Request.Subject); !allowed {
+			return
+		}
+	}
+
 	var result investigation.Result
 	decoder := json.NewDecoder(io.LimitReader(r.Body, maxInvestigationRequestBytes+1))
 	decoder.DisallowUnknownFields()
@@ -281,6 +288,21 @@ func (h *Handler) CancelInvestigation(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusServiceUnavailable, "investigation lifecycle is unavailable")
 		return
 	}
+	if strings.TrimSpace(r.Header.Get(cliutil.HeaderAgentIdentityToken)) != "" {
+		item, err := h.investigations.Get(r.Context(), strings.TrimSpace(mux.Vars(r)["id"]))
+		if err != nil {
+			writeInvestigationError(w, r, err)
+			return
+		}
+		if item == nil {
+			writeJSONError(w, http.StatusNotFound, "investigation not found")
+			return
+		}
+		if _, allowed := h.authorizeInvestigationAgent(w, r, item.Request.Subject); !allowed {
+			return
+		}
+	}
+
 	item, err := h.cancelInvestigation(r.Context(), strings.TrimSpace(mux.Vars(r)["id"]))
 	if err != nil {
 		writeInvestigationError(w, r, err)
@@ -294,6 +316,21 @@ func (h *Handler) RetryInvestigationLearning(w http.ResponseWriter, r *http.Requ
 		writeJSONError(w, http.StatusServiceUnavailable, "investigation lifecycle is unavailable")
 		return
 	}
+	if strings.TrimSpace(r.Header.Get(cliutil.HeaderAgentIdentityToken)) != "" {
+		item, err := h.investigations.Get(r.Context(), strings.TrimSpace(mux.Vars(r)["id"]))
+		if err != nil {
+			writeInvestigationError(w, r, err)
+			return
+		}
+		if item == nil {
+			writeJSONError(w, http.StatusNotFound, "investigation not found")
+			return
+		}
+		if _, allowed := h.authorizeInvestigationAgent(w, r, item.Request.Subject); !allowed {
+			return
+		}
+	}
+
 	retrier, ok := h.svc.WorkflowService.(interface {
 		RetryPendingInvestigationLearning(context.Context, string) (*investigation.Lifecycle, error)
 	})
@@ -343,4 +380,46 @@ func writeInvestigationError(w http.ResponseWriter, r *http.Request, err error) 
 		return
 	}
 	writeJSON(w, status, map[string]any{"error": err.Error()})
+}
+
+// Agent-authored investigation work is bound to every authoritative subject
+// run. Caller labels and investigation identifiers do not widen the grant.
+
+func (h *Handler) authorizeInvestigationAgent(w http.ResponseWriter, r *http.Request, subject investigation.Subject) (string, bool) {
+	actor, err := h.authorizeInvestigationHeaders(r.Context(), r.Header, subject)
+	if err != nil {
+		status := http.StatusForbidden
+		if failure, ok := requestidentity.FailureFromError(err); ok && failure.Class == requestidentity.FailureInvalid {
+			status = http.StatusUnauthorized
+		}
+		writeJSONError(w, status, err.Error())
+		return "", false
+	}
+	return actor, true
+}
+
+// Both HTTP and Connect consume the same current identity and exact targets.
+func (h *Handler) authorizeInvestigationHeaders(ctx context.Context, headers http.Header, subject investigation.Subject) (string, error) {
+	token := strings.TrimSpace(headers.Get(cliutil.HeaderAgentIdentityToken))
+	p, present := requestidentity.PrincipalFromContext(ctx)
+	if token != "" {
+		verified, err := h.svc.VerifyIdentityToken(ctx, token)
+		if err != nil || verified == nil || !verified.Valid || verified.Claims == nil {
+			return "", requestidentity.NewFailure(requestidentity.FailureInvalid, requestidentity.SourceAgentProvenance)
+		}
+		p = requestidentity.Principal{Kind: requestidentity.ActorAgent, Subject: verified.Claims.RunID.String(), Owner: verified.Claims.Subject, Verified: true, Scopes: verified.Claims.Scopes, Grant: provenance.OperationGrantFromMeta(verified.Claims.Meta)}
+		present = true
+	}
+	if !present || p.Kind != requestidentity.ActorAgent {
+		return "", nil
+	}
+	if len(subject.RunIDs) == 0 || !scopecatalog.Resolve(p.Scopes, "agent-manager:write") {
+		return "", authn.ErrOperation
+	}
+	for _, id := range subject.RunIDs {
+		if !p.Grant.Allows("agent.investigate", "agent-manager:run/"+id, time.Now()) {
+			return "", authn.ErrOperation
+		}
+	}
+	return p.Subject, nil
 }

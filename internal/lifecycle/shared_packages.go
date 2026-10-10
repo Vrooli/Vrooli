@@ -411,9 +411,26 @@ func requiredSharedPackage(repoRoot, name string) (sharedPackageDependency, erro
 	}, nil
 }
 
+// repoCanonicalPath maps a path that reaches repository content through
+// symlinks onto its repository path. An engaged serving instance builds from a
+// serving tree whose shared entries (packages/, internal/, ...) are symlinks
+// into the repository, so its relative references arrive outside repoRoot.
+// A path already under repoRoot, or one that does not resolve into it, is
+// returned unchanged.
+func repoCanonicalPath(repoRoot, path string) string {
+	if strings.TrimSpace(repoRoot) == "" || pathUnderRoot(repoRoot, path) {
+		return path
+	}
+	resolved, err := filepath.EvalSymlinks(path)
+	if err != nil || !pathUnderRoot(repoRoot, resolved) {
+		return path
+	}
+	return resolved
+}
+
 func loadGovernedPackage(repoRoot, dependencyRoot string) (packagegov.Package, string, bool, error) {
 	packagesRoot := filepath.Join(repoRoot, "packages")
-	dependencyRoot = filepath.Clean(dependencyRoot)
+	dependencyRoot = repoCanonicalPath(repoRoot, filepath.Clean(dependencyRoot))
 	if !pathUnderRoot(packagesRoot, dependencyRoot) || dependencyRoot == packagesRoot {
 		return packagegov.Package{}, "", false, nil
 	}

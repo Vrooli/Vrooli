@@ -33,9 +33,10 @@ const (
 	TokenCapEnforce TokenCapMode = "enforce"
 )
 
-// Environment keys for the internal cap configuration. Profile and run fields
-// that set a cap need proto changes and arrive later; until then a cap is set
-// per agent profile key.
+// Environment keys for the cap configuration. A run's cap is its resolved
+// MaxWeightedTokens (the profile's AgentProfile.MaxWeightedTokens, lowered by
+// a CreateRun override); AGENT_MANAGER_TOKEN_CAPS, keyed by profile key, is
+// the fallback for runs without one. The mode applies to both.
 const (
 	tokenCapModeEnv    = "AGENT_MANAGER_TOKEN_CAP_MODE"
 	tokenCapsEnv       = "AGENT_MANAGER_TOKEN_CAPS"        // JSON object: profile key -> weighted cap
@@ -268,8 +269,12 @@ func (o *Orchestrator) checkTokenCap(runID uuid.UUID, state *tokenCapRun) {
 	}
 }
 
-// tokenCapFor resolves a run's cap from its agent profile key.
+// tokenCapFor resolves a run's cap: its resolved MaxWeightedTokens, else the
+// environment cap of its agent profile key.
 func (o *Orchestrator) tokenCapFor(ctx context.Context, run *domain.Run, policy TokenCapPolicy) int64 {
+	if run.ResolvedConfig != nil && run.ResolvedConfig.MaxWeightedTokens > 0 {
+		return run.ResolvedConfig.MaxWeightedTokens
+	}
 	if run.AgentProfileID == nil || o.profiles == nil || len(policy.Caps) == 0 {
 		return 0
 	}
@@ -291,12 +296,23 @@ func (o *Orchestrator) weightedRunTokens(ctx context.Context, run *domain.Run, p
 	return float64(accounting.NonCacheTokens) * policy.weight(accounting.Model), nil
 }
 
+// recordTokenCapNudge records the nudge on the run timeline. With
+// enforcement on, an interactive run also receives it as input, so the agent
+// can log its slice and write the handoff before the stop; a codec-pipe run
+// cannot take input mid-turn, so it sees only the stop's stop_reason.
 func (o *Orchestrator) recordTokenCapNudge(ctx context.Context, run *domain.Run, weighted float64, limit int64, policy TokenCapPolicy) {
 	message := fmt.Sprintf("token cap: %.0f of %d weighted tokens used (%.0f%%); log a slice line, write the handoff, and end the run", weighted, limit, 100*weighted/float64(limit))
 	if policy.Mode == TokenCapReport {
 		message = fmt.Sprintf("token cap (report-only): %.0f of %d weighted tokens used (%.0f%%)", weighted, limit, 100*weighted/float64(limit))
 	}
 	o.appendTokenCapEvent(ctx, run.ID, message)
+	if policy.Mode != TokenCapEnforce || run.ExecutionMode.Normalized() != domain.ExecutionModeInteractive {
+		return
+	}
+	nudge := fmt.Sprintf("[agent-manager] Token cap: %s. At 100%% Agent Manager stops this run with stop_reason=%s.", message, domain.RunStopReasonTokenCap)
+	if _, err := o.ContinueRun(ctx, ContinueRunRequest{RunID: run.ID, Message: nudge, IdempotencyKey: "token-cap-nudge:" + run.ID.String()}); err != nil {
+		obs.Component("token-cap").Warn("token cap nudge not delivered", obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
+	}
 }
 
 func (o *Orchestrator) recordTokenCapReached(ctx context.Context, run *domain.Run, weighted float64, limit int64, mode TokenCapMode) {
@@ -319,9 +335,11 @@ func (o *Orchestrator) appendTokenCapEvent(ctx context.Context, runID uuid.UUID,
 	}
 }
 
-// stopRunForTokenCap stops the run through the ordinary graceful stop, then
-// records the typed terminal pair. A run that another path already ended keeps
-// its own stop reason.
+// stopRunForTokenCap stops the run through the ordinary graceful stop with
+// stop_reason=token_cap written in the same update as the cancelled status.
+// The interactive path, and a process exit that finalizes the cancellation
+// first, end without a reason; for those the typed pair is written after. A
+// run that another path already ended keeps its own stop reason.
 func (o *Orchestrator) stopRunForTokenCap(ctx context.Context, runID uuid.UUID) error {
 	current, err := o.runs.Get(ctx, runID)
 	if err != nil {
@@ -330,7 +348,7 @@ func (o *Orchestrator) stopRunForTokenCap(ctx context.Context, runID uuid.UUID) 
 	if current.Status.IsTerminal() {
 		return nil
 	}
-	if err := o.StopRun(ctx, runID); err != nil {
+	if err := o.stopRun(ctx, runID, domain.RunStopReasonTokenCap); err != nil {
 		return err
 	}
 	stopped, err := o.runs.Get(ctx, runID)
@@ -344,4 +362,41 @@ func (o *Orchestrator) stopRunForTokenCap(ctx context.Context, runID uuid.UUID) 
 	stopped.StopReason = domain.RunStopReasonTokenCap
 	stopped.UpdatedAt = o.now()
 	return o.runs.Update(ctx, stopped)
+}
+
+// capPolicy is the installed cap policy, or the default (off, sol=10,
+// luna=1) when none is installed.
+func (o *Orchestrator) capPolicy() TokenCapPolicy {
+	if o.tokenCaps != nil {
+		return o.tokenCaps.policy
+	}
+	return DefaultTokenCapPolicy()
+}
+
+// WeightedRunTokens is a run's metered non-cache tokens times its model tier
+// weight, the weighting the caps use. known is false when the run's usage is
+// not authoritatively metered.
+func (o *Orchestrator) WeightedRunTokens(ctx context.Context, runID uuid.UUID) (float64, bool, error) {
+	accounting, err := o.RunAccounting(ctx, runID)
+	if err != nil {
+		return 0, false, err
+	}
+	return float64(accounting.NonCacheTokens) * o.capPolicy().weight(accounting.Model), accounting.TokensKnown, nil
+}
+
+// TokenCapUsage reads an active run's weighted usage recounted from persisted
+// usage events (nil when unreadable), its resolved cap (0 for none) and the
+// cap mode.
+func (o *Orchestrator) TokenCapUsage(ctx context.Context, runID uuid.UUID) (*float64, int64, string) {
+	policy := o.capPolicy()
+	run, err := o.runs.Get(ctx, runID)
+	if err != nil || run == nil {
+		return nil, 0, string(policy.Mode)
+	}
+	limit := o.tokenCapFor(ctx, run, policy)
+	weighted, err := o.weightedRunTokens(ctx, run, policy)
+	if err != nil {
+		return nil, limit, string(policy.Mode)
+	}
+	return &weighted, limit, string(policy.Mode)
 }

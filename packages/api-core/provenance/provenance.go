@@ -5,13 +5,17 @@ package provenance
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
 	"net/http"
 	"path"
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
+	"github.com/vrooli/api-core/identity"
+	"github.com/vrooli/api-core/scopecatalog"
 	"github.com/vrooli/cli-core/cliutil"
 )
 
@@ -39,22 +43,33 @@ type Invocation struct {
 // value with ActorAgent and VerificationVerified may be used as evidence that
 // an Agent Manager run performed an attributed mutation.
 type Provenance struct {
-	Actor               string     `json:"actor"`
-	VerificationStatus  string     `json:"verification_status"`
-	RunID               string     `json:"run_id,omitempty"`
-	TaskID              string     `json:"task_id,omitempty"`
-	Subject             string     `json:"subject,omitempty"`
-	WorkspaceID         string     `json:"workspace_id,omitempty"`
-	Scopes              []string   `json:"scopes,omitempty"`
-	ProfileKey          string     `json:"profile_key,omitempty"`
-	ScopePath           string     `json:"scope_path,omitempty"`
-	WorkflowExecutionID string     `json:"workflow_execution_id,omitempty"`
-	WorkflowNodeID      string     `json:"workflow_node_id,omitempty"`
-	Attempt             uint32     `json:"attempt,omitempty"`
-	SessionID           string     `json:"session_id,omitempty"`
-	SessionKind         string     `json:"session_kind,omitempty"`
-	Source              string     `json:"source,omitempty"`
-	Invocation          Invocation `json:"invocation,omitempty"`
+	Actor               string                   `json:"actor"`
+	VerificationStatus  string                   `json:"verification_status"`
+	RunID               string                   `json:"run_id,omitempty"`
+	TaskID              string                   `json:"task_id,omitempty"`
+	Subject             string                   `json:"subject,omitempty"`
+	WorkspaceID         string                   `json:"workspace_id,omitempty"`
+	Scopes              []string                 `json:"scopes,omitempty"`
+	ProfileKey          string                   `json:"profile_key,omitempty"`
+	ScopePath           string                   `json:"scope_path,omitempty"`
+	WorkflowExecutionID string                   `json:"workflow_execution_id,omitempty"`
+	WorkflowNodeID      string                   `json:"workflow_node_id,omitempty"`
+	Attempt             uint32                   `json:"attempt,omitempty"`
+	SessionID           string                   `json:"session_id,omitempty"`
+	SessionKind         string                   `json:"session_kind,omitempty"`
+	Source              string                   `json:"source,omitempty"`
+	Invocation          Invocation               `json:"invocation,omitempty"`
+	Grant               *identity.OperationGrant `json:"grant,omitempty"`
+}
+
+// OperationGrantFromMeta interprets signed metadata only after the authority
+// has verified the current grant and run. Malformed metadata grants nothing.
+func OperationGrantFromMeta(meta map[string]string) *identity.OperationGrant {
+	var grant identity.OperationGrant
+	if err := json.Unmarshal([]byte(meta["operation_grant"]), &grant); err != nil || grant.ID == "" || grant.Approver == "" || !time.Now().Before(grant.ExpiresAt) {
+		return nil
+	}
+	return &grant
 }
 
 // ScopeDeniedError is returned when a verified agent token lacks a required
@@ -89,17 +104,7 @@ func (p Provenance) HasScope(required string) bool {
 	if !p.IsVerifiedAgent() || strings.TrimSpace(required) == "" {
 		return false
 	}
-	required = strings.TrimSpace(required)
-	for _, grant := range p.Scopes {
-		grant = strings.TrimSpace(grant)
-		if grant == "*" || grant == required {
-			return true
-		}
-		if strings.HasSuffix(grant, "*") && strings.HasPrefix(required, strings.TrimSuffix(grant, "*")) {
-			return true
-		}
-	}
-	return false
+	return scopecatalog.Resolve(p.Scopes, required)
 }
 
 // WriteFields returns the bounded attribution fields that a write seam may
@@ -123,7 +128,13 @@ func (p Provenance) WriteFields() (actorID, actorKind, sourceRuntime, verificati
 		sourceRuntime = strings.TrimSpace(p.Source)
 	}
 	if p.IsVerifiedAgent() {
-		actorID = strings.TrimSpace(p.Subject)
+		// Interactive claims carry the human owner in Subject for account
+		// boundaries. The acting agent is the independently identified run.
+		if p.Grant != nil {
+			actorID = strings.TrimSpace(p.RunID)
+		} else {
+			actorID = strings.TrimSpace(p.Subject)
+		}
 		if actorID == "" {
 			actorID = strings.TrimSpace(p.ProfileKey)
 		}
@@ -175,8 +186,14 @@ func (t ForwardingTransport) RoundTrip(request *http.Request) (*http.Response, e
 	if request == nil {
 		return base.RoundTrip(request)
 	}
+	if !cliutil.TrustedIdentityDestination(request) && request.Header.Get(cliutil.HeaderAgentIdentityToken) != "" {
+		clone := request.Clone(request.Context())
+		clone.Header = request.Header.Clone()
+		clone.Header.Del(cliutil.HeaderAgentIdentityToken)
+		return base.RoundTrip(clone)
+	}
 	token := ForwardedIdentityToken(request.Context())
-	if token == "" {
+	if token == "" || !cliutil.TrustedIdentityDestination(request) {
 		return base.RoundTrip(request)
 	}
 	clone := request.Clone(request.Context())
@@ -313,6 +330,7 @@ func Middleware(verifier Verifier) func(http.Handler) http.Handler {
 			provenance.Subject = strings.TrimSpace(result.Claims.Subject)
 			provenance.WorkspaceID = strings.TrimSpace(result.Claims.WorkspaceID)
 			provenance.Scopes = append([]string(nil), result.Claims.Scopes...)
+			provenance.Grant = OperationGrantFromMeta(result.Claims.Meta)
 			provenance.ProfileKey = strings.TrimSpace(result.Claims.ProfileKey)
 			provenance.ScopePath = strings.TrimSpace(result.Claims.ScopePath)
 			// Claims.Meta is part of the verified identity response. These optional

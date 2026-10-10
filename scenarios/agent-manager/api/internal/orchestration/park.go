@@ -376,6 +376,10 @@ func (o *Orchestrator) ParkRunFromAgent(ctx context.Context, req ParkRunFromAgen
 		}, nil
 	}
 
+	if refusal := o.checkGoalHomePark(ctx, current, req.Producer, req.Deadline); refusal != "" {
+		return &ParkRunResult{Run: o.attachRunActions(ctx, current), Message: refusal, Refused: true}, nil
+	}
+
 	run, err := o.ParkRun(ctx, ParkRunInput{
 		RunID:             req.RunID,
 		Producer:          req.Producer,

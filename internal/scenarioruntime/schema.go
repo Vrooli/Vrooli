@@ -242,7 +242,7 @@ CREATE INDEX IF NOT EXISTS idx_runtime_demand_leases_scenario
   ON runtime_demand_leases(scenario, variant, status, expires_at);
 CREATE INDEX IF NOT EXISTS idx_runtime_demand_leases_consumer
   ON runtime_demand_leases(consumer_id, status);
-` + editorLeaseSchemaSQL + demandIdleSchemaSQL + demandStopSchemaSQL
+` + editorLeaseSchemaSQL + demandIdleSchemaSQL + demandStopSchemaSQL + agentSessionReapSchemaSQL
 
 func (s *SQLiteStore) ensureSchema(ctx context.Context) error {
 	current, err := readSchemaVersion(ctx, s.db)
@@ -338,6 +338,7 @@ var schemaMigrations = map[int]func(context.Context, *sql.DB) error{
 		_, err := db.ExecContext(ctx, demandIdleSchemaSQL)
 		return err
 	},
+	13: addEditorLeaseOwner,
 }
 
 const demandIdleSchemaSQL = `
@@ -410,11 +411,58 @@ CREATE TABLE IF NOT EXISTS runtime_editor_leases (
   last_heartbeat_at TEXT NOT NULL,
   heartbeat_deadline_at TEXT NOT NULL,
   stopped_at TEXT,
-  stop_reason TEXT NOT NULL DEFAULT ''
+  stop_reason TEXT NOT NULL DEFAULT '',
+  owner_kind TEXT NOT NULL DEFAULT '',
+  owner_ref TEXT NOT NULL DEFAULT '',
+  owner_evidence_json TEXT NOT NULL DEFAULT '',
+  owner_source TEXT NOT NULL DEFAULT '',
+  owner_recorded_at TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_runtime_editor_leases_status ON runtime_editor_leases(status);
 CREATE INDEX IF NOT EXISTS idx_runtime_editor_leases_working_dir ON runtime_editor_leases(working_dir);
 `
+
+// agentSessionReapSchemaSQL is the audit of owner-safe agent session reaps
+// (schema 14): one row per session stopped, or failed to stop, with the
+// owner evidence that made it eligible and the memory it held.
+const agentSessionReapSchemaSQL = `
+CREATE TABLE IF NOT EXISTS runtime_agent_session_reaps (
+  reap_id TEXT PRIMARY KEY,
+  session_id TEXT NOT NULL DEFAULT '',
+  scope TEXT NOT NULL DEFAULT '',
+  owner_kind TEXT NOT NULL DEFAULT '',
+  owner_ref TEXT NOT NULL DEFAULT '',
+  owner_evidence_json TEXT NOT NULL DEFAULT '',
+  liveness_detail TEXT NOT NULL DEFAULT '',
+  memory_bytes INTEGER NOT NULL DEFAULT 0,
+  swap_bytes INTEGER NOT NULL DEFAULT 0,
+  tasks INTEGER NOT NULL DEFAULT 0,
+  outcome TEXT NOT NULL,
+  error TEXT NOT NULL DEFAULT '',
+  initiator TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_runtime_agent_session_reaps_created ON runtime_agent_session_reaps(created_at DESC);
+`
+
+// addEditorLeaseOwner is schema 13 -> 14: the owner columns on the lease and
+// the reap audit table. Columns are added one at a time and a column that is
+// already present is treated as done, so the step is safe to re-run.
+func addEditorLeaseOwner(ctx context.Context, db *sql.DB) error {
+	for _, statement := range []string{
+		`ALTER TABLE runtime_editor_leases ADD COLUMN owner_kind TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE runtime_editor_leases ADD COLUMN owner_ref TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE runtime_editor_leases ADD COLUMN owner_evidence_json TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE runtime_editor_leases ADD COLUMN owner_source TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE runtime_editor_leases ADD COLUMN owner_recorded_at TEXT`,
+	} {
+		if _, err := db.ExecContext(ctx, statement); err != nil && !strings.Contains(strings.ToLower(err.Error()), "duplicate column name") {
+			return err
+		}
+	}
+	_, err := db.ExecContext(ctx, agentSessionReapSchemaSQL)
+	return err
+}
 
 const recoverySchemaSQL = `
 CREATE TABLE IF NOT EXISTS runtime_recovery_policies (

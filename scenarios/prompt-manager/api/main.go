@@ -12,6 +12,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/vrooli/api-core/effortauthority"
 	"log"
 	"net/http"
 	"os"
@@ -370,7 +371,23 @@ const (
 	worldScheduleInterval = 30 * time.Second
 )
 
+// The default executable has no owner installation. A separately governed
+// executable composition may supply only this concrete prepared owner object;
+// environment/header/config booleans cannot populate it.
 func main() {
+	owner, err := loadProtectedFiniteOwnerStartup(context.Background())
+	if err != nil {
+		log.Fatalf("protected finite startup refused: %v", err)
+	}
+	if owner != nil && owner.CheckStartup() != nil {
+		log.Fatal("protected finite startup expired or outside original window")
+	}
+	runMainWithFiniteOwner(owner)
+}
+func runMainWithFiniteOwner(finiteOwner *heartbeat.FiniteOwnerStartup) {
+	if err := effortauthority.MainInstallationGate(os.Getenv("VROOLI_FINITE_ENABLED"), finiteOwner != nil && finiteOwner.Live()); err != nil {
+		log.Fatal(err)
+	}
 	// Preflight checks
 	if preflight.Run(preflight.Config{
 		ScenarioName: "prompt-manager",
@@ -1086,12 +1103,29 @@ func main() {
 	heartbeatControlStore := heartbeat.NewHeartbeatControlStore(roots.RuntimeData)
 	heartbeatExecutor.OnComplete = teamExecStore.OnComplete
 	heartbeatExecutor.SetTeamExecStore(teamExecStore)
-	heartbeatScheduler := heartbeat.NewScheduler(
-		heartbeatExecutor,
-		agentManagerClient,
-		fileStore.Teams().(*store.FileTeamStore),
-		teamExecStore,
-	)
+	var privatePublication *effortauthority.ProtectedPublication
+	var preparedFinite *heartbeat.PreparedFiniteInstallation
+	if finiteOwner != nil {
+		privatePublication, err = finiteOwner.PublishReadPhase(context.Background(), fileStore.Teams().(*store.FileTeamStore))
+		if err != nil {
+			log.Fatalf("finite protected read publication: %v", err)
+		}
+		defer func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			_ = privatePublication.Close(ctx)
+		}()
+		if finiteOwner.Live() {
+			preparedFinite, err = finiteOwner.PrepareForGraph(context.Background(), fileStore.Teams().(*store.FileTeamStore), agentManagerClient)
+			if err != nil {
+				log.Fatalf("finite owner actual graph: %v", err)
+			}
+		}
+	}
+	heartbeatScheduler, err := heartbeat.NewSchedulerWithFinite(heartbeatExecutor, agentManagerClient, fileStore.Teams().(*store.FileTeamStore), teamExecStore, preparedFinite)
+	if err != nil {
+		log.Fatalf("finite owner scheduler publication: %v", err)
+	}
 	heartbeatScheduler.SetControlStore(heartbeatControlStore)
 	// World feed: the run registry and scheduler are the only signal sources
 	// the 3D world projects; nothing here invents agent behaviour.
@@ -1121,47 +1155,64 @@ func main() {
 	teamHandlers.SetHeartbeatScheduler(heartbeatScheduler)
 
 	// Recover any active runs from a previous process
-	runRegistry.Recover(context.Background(), agentManagerClient)
-	teamExecStore.Recover(context.Background())
-
-	// Start scheduler. Heartbeats run only when explicitly enabled.
-	go func() {
-		if err := heartbeatScheduler.Start(context.Background()); err != nil {
-			log.Printf("Warning: Failed to start heartbeat scheduler: %v", err)
+	if finiteOwner == nil || finiteOwner.Live() {
+		if finiteOwner == nil {
+			runRegistry.Recover(context.Background(), agentManagerClient)
+			teamExecStore.Recover(context.Background())
+		} else {
+			teamExecStore.GetOrCreate(finiteOwner.Team()).Recover(context.Background())
 		}
 
-		// Load enabled heartbeats from all teams
-		teams, _ := fileStore.Teams().List(context.Background())
-		for _, team := range teams {
-			if !team.Enabled {
-				continue
+		// Start scheduler. Heartbeats run only when explicitly enabled.
+		go func() {
+			if err := heartbeatScheduler.Start(context.Background()); err != nil {
+				log.Printf("Warning: Failed to start heartbeat scheduler: %v", err)
 			}
-			teamStore := fileStore.Teams().(*store.FileTeamStore)
-			if err := teamStore.ValidateHeartbeatRoster(context.Background(), team.ID); err != nil {
-				log.Printf("Warning: Refusing to schedule team with heartbeat roster drift: %v", err)
-				continue
-			}
-			configs, _ := teamStore.ListHeartbeatConfigs(context.Background(), team.ID)
-			for _, config := range configs {
-				if config.Enabled {
-					if err := heartbeatScheduler.Schedule(config.TeamID, config.AgentID, config.Schedule); err != nil {
-						log.Printf("Warning: Failed to schedule heartbeat for %s/%s: %v", config.TeamID, config.AgentID, err)
+
+			// Load enabled heartbeats from all teams
+			teams, _ := fileStore.Teams().List(context.Background())
+			for _, team := range teams {
+				if finiteOwner != nil && team.ID != finiteOwner.Team() {
+					continue
+				}
+				if !team.Enabled {
+					continue
+				}
+				teamStore := fileStore.Teams().(*store.FileTeamStore)
+				if err := teamStore.ValidateHeartbeatRoster(context.Background(), team.ID); err != nil {
+					log.Printf("Warning: Refusing to schedule team with heartbeat roster drift: %v", err)
+					continue
+				}
+				configs, _ := teamStore.ListHeartbeatConfigs(context.Background(), team.ID)
+				for _, config := range configs {
+					if finiteOwner != nil && !finiteOwner.Member(config.AgentID) {
+						continue
+					}
+					if config.Enabled {
+						if err := heartbeatScheduler.Schedule(config.TeamID, config.AgentID, config.Schedule); err != nil {
+							log.Printf("Warning: Failed to schedule heartbeat for %s/%s: %v", config.TeamID, config.AgentID, err)
+						}
 					}
 				}
 			}
-		}
-	}()
+		}()
 
-	log.Printf("Prompt Manager API v2.0 starting")
-	log.Printf("Config root: %s", roots.Config)
-	log.Printf("Runtime data root: %s", roots.RuntimeData)
-	log.Printf("Runtime cache root: %s", roots.RuntimeCache)
-	if ollamaEnabled {
-		log.Printf("Ollama gateway: %s", ollamaGatewayBin)
+		log.Printf("Prompt Manager API v2.0 starting")
+		log.Printf("Config root: %s", roots.Config)
+		log.Printf("Runtime data root: %s", roots.RuntimeData)
+		log.Printf("Runtime cache root: %s", roots.RuntimeCache)
+		if ollamaEnabled {
+			log.Printf("Ollama gateway: %s", ollamaGatewayBin)
+		}
+
 	}
 
 	handler := securityHeaders(apihttp.TestModeMiddleware(corsHandler(router)))
-	if err := server.Run(server.Config{
+	runPublic := server.Run
+	if privatePublication != nil {
+		runPublic = privatePublication.RunPublic
+	}
+	if err := runPublic(server.Config{
 		Handler: handler,
 		Cleanup: func(ctx context.Context) error {
 			if db != nil {

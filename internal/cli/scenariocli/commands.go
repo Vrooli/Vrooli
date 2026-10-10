@@ -122,6 +122,7 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 				Options:     []commandtree.OptionArg{commandtree.JSONOption(), {Name: "--explain", Description: "Print every check (fresh and stale) plus resolved dependency policies"}, {Name: "--inputs", Description: "Resolve declared build input closure and keys without evaluating artifacts"}, {Name: "--path", ValueName: "path"}},
 			},
 		},
+		deployReportSpec(),
 		{
 			Name: string(CommandTimings), Group: "Read-only Commands", Summary: "Show retained start and restart timing aggregates", Handler: CommandTimings, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
 			Args: commandtree.ArgSchema{Options: []commandtree.OptionArg{{Name: "--scenario", ValueName: "name", Description: "Limit timing rows to one scenario"}, {Name: "--since", ValueName: "date", Description: "Include records on or after YYYY-MM-DD or RFC3339"}, commandtree.JSONOption()}},
@@ -146,7 +147,7 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 			Name: string(CommandRestart), Group: "Lifecycle and Utility Commands", Summary: "Restart a scenario", Handler: CommandRestart, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
 			Args: commandtree.ArgSchema{
 				Positionals: []commandtree.PositionalArg{{Name: "scenario name", Required: true}},
-				Options:     []commandtree.OptionArg{{Name: "--path", ValueName: "path"}, {Name: "--best-effort"}, {Name: "--clean-stale"}, {Name: "--demand-managed", Description: "Tie this instance to renewable demand leases"}, {Name: "--force", Description: "Rebuild artifacts even when their inputs are fresh"}, {Name: "--accept-credential-loss", Description: "Explicitly permit witnessed generated-credential replacement"}, {Name: "--variant-dependencies", ValueName: "scenarios", Description: "Comma-separated dependencies this non-live instance resolves at its own variant instead of live (no live fallback)"}, {Name: "--force-lifecycle", Description: "Emergency restart: override drain-only lifecycle blockers"}, {Name: "--lifecycle-override-reason", ValueName: "reason", Description: "Audit reason required with --force-lifecycle"}, {Name: "--open"}, {Name: "--timeout", ValueName: "seconds", Description: "Ceiling for the whole restart; on expiry exit 124 — the operation record stays honest and the next start/wait resumes"}, commandtree.JSONOption(), instanceOption(), nodeOption()},
+				Options:     []commandtree.OptionArg{{Name: "--path", ValueName: "path"}, {Name: "--best-effort"}, {Name: "--clean-stale"}, {Name: "--demand-managed", Description: "Tie this instance to renewable demand leases"}, {Name: "--force", Description: "Rebuild artifacts even when their inputs are fresh"}, {Name: "--accept-credential-loss", Description: "Explicitly permit witnessed generated-credential replacement"}, {Name: "--variant-dependencies", ValueName: "scenarios", Description: "Comma-separated dependencies this non-live instance resolves at its own variant instead of live (no live fallback)"}, {Name: "--force-lifecycle", Description: "Emergency restart: override drain-only lifecycle blockers"}, {Name: "--lifecycle-override-reason", ValueName: "reason", Description: "Audit reason required with --force-lifecycle"}, {Name: "--open"}, {Name: "--timeout", ValueName: "seconds", Description: "Ceiling for the whole restart; on expiry exit 124 — the operation record stays honest and the next start/wait resumes"}, {Name: restartDeployReportFlag, Description: "Print the deploy report (changes since the running build) to stderr before restarting"}, commandtree.JSONOption(), instanceOption(), nodeOption()},
 			},
 		},
 		{
@@ -477,11 +478,12 @@ func ParseRestartRequest(globalsJSON bool, args []string) (RestartRequest, error
 			return RestartRequest{}, clipolicy.CommandHelpOnly(commandHelpText(CommandRestart))
 		}
 	}
+	args, deployReport := stripRestartDeployReportFlag(args)
 	parsed, err := ParseScenarioSingleStartArgs("restart", globalsJSON, args)
 	if err != nil {
 		return RestartRequest{}, err
 	}
-	return RestartRequest{Name: parsed.Names[0], Options: parsed.Options, JSON: parsed.JSON, OpenAfter: parsed.OpenAfter, TimeoutSeconds: parsed.TimeoutSeconds}, nil
+	return RestartRequest{Name: parsed.Names[0], Options: parsed.Options, JSON: parsed.JSON, OpenAfter: parsed.OpenAfter, TimeoutSeconds: parsed.TimeoutSeconds, DeployReport: deployReport}, nil
 }
 
 func ParseWaitRequest(globalsJSON bool, args []string) (WaitRequest, error) {

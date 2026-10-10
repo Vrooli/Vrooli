@@ -5,10 +5,85 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/vrooli/api-core/identity"
 )
+
+func TestOwnerPolicySurvivesFreshConfigurationAndFailsClosedWhenInvalid(t *testing.T) {
+	home := t.TempDir()
+	path := filepath.Join(home, ".config", "vrooli", "owner-bindings.json")
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+		t.Fatal(err)
+	}
+	getenv := func(key string) string {
+		if key == "HOME" {
+			return home
+		}
+		return ""
+	}
+	if cfg, err := FromEnvironment(getenv); err != nil || len(cfg.OwnerBindings) != 0 {
+		t.Fatal("absent optional policy changed authority", err)
+	}
+	data := `[{"source":"cloudflare_access","subject":"verified-subject","canonical_subject":"owner","scopes":["agent-manager:write"]}]`
+	if err := os.WriteFile(path, []byte(data), 0600); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 2; i++ {
+		cfg, err := FromEnvironment(getenv)
+		if err != nil || len(cfg.OwnerBindings) != 1 || cfg.OwnerBindings[0].CanonicalSubject != "owner" {
+			t.Fatalf("fresh configuration lost explicit policy: %+v %v", cfg, err)
+		}
+	}
+	if err := os.WriteFile(path, []byte(`{invalid`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := FromEnvironment(getenv); err == nil {
+		t.Fatal("invalid existing policy silently discarded")
+	}
+	if _, err := FromEnvironment(func(key string) string {
+		if key == "VROOLI_AUTH_OWNER_BINDINGS_FILE" {
+			return path + ".missing"
+		}
+		return ""
+	}); err == nil {
+		t.Fatal("missing explicit policy silently discarded")
+	}
+}
+
+func TestScopedHostOwnerPolicyLeavesUnrelatedProviderAuthorityUnchanged(t *testing.T) {
+	policy := `[{"source":"cloudflare_access","subject":"owner","canonical_subject":"owner","scopes":["agent-manager:write"],"resources":["agent-manager"]}]`
+	for _, resource := range []string{"agent-manager", "git-control-tower"} {
+		cfg, err := FromEnvironment(func(key string) string {
+			if key == "VROOLI_AUTH_OWNER_BINDINGS" {
+				return policy
+			}
+			if key == "VROOLI_SCENARIO" {
+				return resource
+			}
+			return ""
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		cfg.Providers = []Provider{fakeProvider{source: identity.SourceCloudflareAccess, fn: func() (identity.Principal, error) {
+			return identity.Principal{Kind: identity.ActorHuman, Verified: true, Source: identity.SourceCloudflareAccess, Subject: "owner", Scopes: []string{"git-control-tower:write"}}, nil
+		}}}
+		p, err := cfg.Authenticate(t.Context(), httptest.NewRequest(http.MethodGet, "/", nil))
+		if err != nil {
+			t.Fatal(err)
+		}
+		wantCount := 1
+		if resource == "agent-manager" {
+			wantCount = 2
+		}
+		if len(p.Scopes) != wantCount || p.Scopes[0] != "git-control-tower:write" || (wantCount == 2 && p.Scopes[1] != "agent-manager:write") {
+			t.Fatalf("%s authority changed: %+v", resource, p)
+		}
+	}
+}
 
 func TestFromEnvironmentBuildsSharedCloudflareProvider(t *testing.T) {
 	values := map[string]string{

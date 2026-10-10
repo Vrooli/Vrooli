@@ -1747,68 +1747,163 @@ func (s *FileTeamStore) AppendTeamCorpus(ctx context.Context, teamID string, ent
 	return nil
 }
 
-// ListTeamCorpus reads team context, optionally filtered by exact topic
-// match, topic prefix match, and limited to the most recent N entries. When
-// both topicFilter and topicPrefix are non-empty, an entry must satisfy both
-// to be returned; in practice upstream layers enforce mutual exclusion so the
-// AND semantics rarely matter.
+// ListTeamCorpus reads the open team context, optionally filtered by exact
+// topic match, topic prefix match, and limited to the most recent N entries.
+// When both topicFilter and topicPrefix are non-empty, an entry must satisfy
+// both to be returned; in practice upstream layers enforce mutual exclusion so
+// the AND semantics rarely matter. Closed entries are hidden; use
+// QueryTeamCorpus with IncludeClosed to see them.
 func (s *FileTeamStore) ListTeamCorpus(ctx context.Context, teamID, topicFilter, topicPrefix string, last int) ([]KnowledgeEntry, error) {
+	result, err := s.QueryTeamCorpus(ctx, teamID, KnowledgeListOptions{Topic: topicFilter, TopicPrefix: topicPrefix, Last: last})
+	return result.Entries, err
+}
+
+// QueryTeamCorpus reads the full team corpus by following source-ledger
+// cursors (bounded by maxTeamCorpusPages), keeps only the latest version of
+// each entry id (updates append superseding copies), attaches closure records,
+// and applies the topic, closure, and recency filters. Total reports the
+// number of matches before Last was applied.
+func (s *FileTeamStore) QueryTeamCorpus(ctx context.Context, teamID string, opts KnowledgeListOptions) (KnowledgeListResult, error) {
 	if scoped := s.forContext(ctx); scoped != s {
-		return scoped.ListTeamCorpus(ctx, teamID, topicFilter, topicPrefix, last)
+		return scoped.QueryTeamCorpus(ctx, teamID, opts)
+	}
+	var knowledge []KnowledgeEntry
+	closures := map[string]KnowledgeClosure{}
+	truncated := false
+	if s.ledger != nil {
+		cursor := ""
+		for page := 0; ; page++ {
+			if page >= maxTeamCorpusPages {
+				truncated = true
+				break
+			}
+			result, err := s.ledger.ListPage(ctx, sourceLedgerScope(teamID), cursor, teamCorpusPageSize)
+			if err != nil {
+				return KnowledgeListResult{}, err
+			}
+			for _, item := range result.Entries {
+				switch item.Kind {
+				case sourceLedgerKnowledgeKind:
+					entry, ok := decodeKnowledge(item.Body)
+					if !ok {
+						continue
+					}
+					if entry.At == "" {
+						entry.At = item.CreatedAt
+					}
+					entry.Closure = nil
+					knowledge = append(knowledge, entry)
+				case sourceLedgerKnowledgeClosureKind:
+					if closure, ok := decodeKnowledgeClosure(item.Body); ok {
+						if closure.At == "" {
+							closure.At = item.CreatedAt
+						}
+						closures[closure.KnowledgeID] = closure
+					}
+				}
+			}
+			if result.NextCursor == "" || result.NextCursor == cursor {
+				break
+			}
+			cursor = result.NextCursor
+		}
+	} else {
+		s.corpus.mu.Lock()
+		knowledge = append([]KnowledgeEntry(nil), s.corpus.knowledge[teamID]...)
+		for _, closure := range s.corpus.closures[teamID] {
+			closures[closure.KnowledgeID] = closure
+		}
+		s.corpus.mu.Unlock()
+	}
+	result := filterTeamCorpus(knowledge, closures, opts)
+	result.Truncated = truncated
+	return result, nil
+}
+
+// filterTeamCorpus dedupes by id (latest append wins and takes the latest
+// position), attaches closures, and applies the listing filters.
+func filterTeamCorpus(knowledge []KnowledgeEntry, closures map[string]KnowledgeClosure, opts KnowledgeListOptions) KnowledgeListResult {
+	seen := make(map[string]bool, len(knowledge))
+	latest := make([]KnowledgeEntry, 0, len(knowledge))
+	for i := len(knowledge) - 1; i >= 0; i-- {
+		entry := knowledge[i]
+		if entry.ID != "" {
+			if seen[entry.ID] {
+				continue
+			}
+			seen[entry.ID] = true
+		}
+		latest = append(latest, entry)
+	}
+	out := make([]KnowledgeEntry, 0, len(latest))
+	for i := len(latest) - 1; i >= 0; i-- {
+		entry := latest[i]
+		entry.Closure = nil
+		if closure, ok := closures[entry.ID]; ok && entry.ID != "" {
+			if !opts.IncludeClosed {
+				continue
+			}
+			c := closure
+			entry.Closure = &c
+		}
+		if opts.Topic != "" && entry.Topic != opts.Topic {
+			continue
+		}
+		if opts.TopicPrefix != "" && !strings.HasPrefix(entry.Topic, opts.TopicPrefix) {
+			continue
+		}
+		out = append(out, entry)
+	}
+	total := len(out)
+	if opts.Last > 0 && len(out) > opts.Last {
+		out = out[len(out)-opts.Last:]
+	}
+	return KnowledgeListResult{Entries: out, Total: total}
+}
+
+// CloseTeamCorpus records that a knowledge entry is resolved. The corpus is
+// append-only, so closure is an appended closure record keyed by entry id;
+// the most recent closure record for an id wins.
+func (s *FileTeamStore) CloseTeamCorpus(ctx context.Context, teamID string, closure KnowledgeClosure) (KnowledgeEntry, error) {
+	if scoped := s.forContext(ctx); scoped != s {
+		return scoped.CloseTeamCorpus(ctx, teamID, closure)
+	}
+	if err := ValidateKnowledgeClosure(&closure); err != nil {
+		return KnowledgeEntry{}, err
+	}
+	current, err := s.QueryTeamCorpus(ctx, teamID, KnowledgeListOptions{IncludeClosed: true})
+	if err != nil {
+		return KnowledgeEntry{}, err
+	}
+	var target *KnowledgeEntry
+	for i := range current.Entries {
+		if current.Entries[i].ID == closure.KnowledgeID {
+			target = &current.Entries[i]
+			break
+		}
+	}
+	if target == nil {
+		return KnowledgeEntry{}, fmt.Errorf("knowledge entry not found: %s", closure.KnowledgeID)
+	}
+	if closure.At == "" {
+		closure.At = time.Now().UTC().Format(time.RFC3339)
 	}
 	if s.ledger != nil {
-		entries, err := s.ledger.List(ctx, sourceLedgerScope(teamID), 500)
+		body, err := json.Marshal(closure)
 		if err != nil {
-			return nil, err
+			return KnowledgeEntry{}, err
 		}
-		knowledge := make([]KnowledgeEntry, 0, len(entries))
-		for _, item := range entries {
-			if item.Kind != sourceLedgerKnowledgeKind {
-				continue
-			}
-			entry, ok := decodeKnowledge(item.Body)
-			if !ok {
-				continue
-			}
-			if entry.At == "" {
-				entry.At = item.CreatedAt
-			}
-			if topicFilter != "" && entry.Topic != topicFilter {
-				continue
-			}
-			if topicPrefix != "" && !strings.HasPrefix(entry.Topic, topicPrefix) {
-				continue
-			}
-			knowledge = append(knowledge, entry)
+		if _, err := s.ledger.Append(ctx, sourceLedgerScope(teamID), string(body), sourceLedgerKnowledgeClosureKind); err != nil {
+			return KnowledgeEntry{}, err
 		}
-		if last > 0 && len(knowledge) > last {
-			knowledge = knowledge[len(knowledge)-last:]
-		}
-		return knowledge, nil
+	} else {
+		s.corpus.mu.Lock()
+		s.corpus.closures[teamID] = append(s.corpus.closures[teamID], closure)
+		s.corpus.mu.Unlock()
 	}
-	s.corpus.mu.Lock()
-	entries := append([]KnowledgeEntry(nil), s.corpus.knowledge[teamID]...)
-	s.corpus.mu.Unlock()
-
-	if topicFilter != "" || topicPrefix != "" {
-		filtered := make([]KnowledgeEntry, 0, len(entries))
-		for _, e := range entries {
-			if topicFilter != "" && e.Topic != topicFilter {
-				continue
-			}
-			if topicPrefix != "" && !strings.HasPrefix(e.Topic, topicPrefix) {
-				continue
-			}
-			filtered = append(filtered, e)
-		}
-		entries = filtered
-	}
-
-	if last > 0 && len(entries) > last {
-		entries = entries[len(entries)-last:]
-	}
-
-	return entries, nil
+	entry := *target
+	entry.Closure = &closure
+	return entry, nil
 }
 
 // WakeTeamCorpus returns the bounded ambient context for a team from its
@@ -1830,13 +1925,15 @@ func (s *FileTeamStore) UpdateTeamCorpus(ctx context.Context, teamID, knowledgeI
 		return scoped.UpdateTeamCorpus(ctx, teamID, knowledgeID, updater)
 	}
 	if s.ledger != nil {
-		entries, err := s.ListTeamCorpus(ctx, teamID, "", "", 0)
+		current, err := s.QueryTeamCorpus(ctx, teamID, KnowledgeListOptions{IncludeClosed: true})
 		if err != nil {
 			return err
 		}
+		entries := current.Entries
 		for i := range entries {
 			if entries[i].ID == knowledgeID {
 				updater(&entries[i])
+				entries[i].Closure = nil
 				return s.AppendTeamCorpus(ctx, teamID, &entries[i])
 			}
 		}

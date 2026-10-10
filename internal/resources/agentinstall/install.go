@@ -42,6 +42,11 @@ type Spec struct {
 	// precedence over the legacy URL/NPM fields and is checksum-verified.
 	Acquisition  *binaryfetch.Acquisition
 	ResourceName string
+	// UpstreamSourceKind and UpstreamSourceID identify the published release
+	// channel `update` resolves. Empty defaults to npm and the package named by
+	// the acquisition contract.
+	UpstreamSourceKind string
+	UpstreamSourceID   string
 }
 
 func acquisitionFromSourceManifest(name string) (*binaryfetch.Acquisition, error) {
@@ -209,28 +214,17 @@ func Install(ctx context.Context, spec Spec) error {
 			if err := binaryfetch.VerifyURL(ctx, packageURL, target.SHA256); err != nil {
 				return fmt.Errorf("verify npm package %s: %w", target.Package, err)
 			}
-			cmd := shell.NewCommandContext(ctx, "npm", "install", "--prefix", filepath.Dir(spec.BinDir), "--no-fund", "--no-audit", target.Package+"@"+target.Version)
-			cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
-			if err := cmd.Run(); err != nil {
-				return fmt.Errorf("install %s: %w", target.Package, err)
-			}
-			return linkNPMBinary(filepath.Dir(spec.BinDir), spec.Binary, spec.BinDir)
+			return installNPM(ctx, filepath.Dir(spec.BinDir), spec.BinDir, spec.Binary, target.Package+"@"+target.Version)
 		}
 		_, err = binaryfetch.Fetch(ctx, binaryfetch.Target{Name: spec.Binary, URL: target.URL, SHA256: target.SHA256, Archive: target.Archive, BinPath: target.BinPath, Mode: target.Mode}, spec.BinDir, nil)
 		return err
 	}
 	if spec.NPM != "" {
-		prefix := filepath.Dir(spec.BinDir)
 		packageRef := spec.NPM
 		if spec.Version != "" {
 			packageRef += "@" + strings.TrimPrefix(spec.Version, "v")
 		}
-		cmd := shell.NewCommandContext(ctx, "npm", "install", "--prefix", prefix, "--no-fund", "--no-audit", packageRef)
-		cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
-		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("install %s: %w", spec.NPM, err)
-		}
-		return linkNPMBinary(prefix, spec.Binary, spec.BinDir)
+		return installNPM(ctx, filepath.Dir(spec.BinDir), spec.BinDir, spec.Binary, packageRef)
 	}
 	url := strings.TrimSpace(os.Getenv(strings.ToUpper(spec.Binary) + "_ARTIFACT_URL"))
 	if url == "" {
@@ -241,6 +235,18 @@ func Install(ctx context.Context, spec Spec) error {
 		}
 	}
 	return download(ctx, url, target, spec.ArchiveEntry)
+}
+
+// installNPM installs one npm package reference into a user-owned prefix and
+// links the executable into the declared bin directory. npm authenticates the
+// download against the registry-published integrity for the resolved version.
+func installNPM(ctx context.Context, prefix, binDir, binary, packageRef string) error {
+	cmd := shell.NewCommandContext(ctx, "npm", "install", "--prefix", prefix, "--no-fund", "--no-audit", packageRef)
+	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("install %s: %w", packageRef, err)
+	}
+	return linkNPMBinary(prefix, binary, binDir)
 }
 
 // linkNPMBinary exposes an npm-installed executable at the install location

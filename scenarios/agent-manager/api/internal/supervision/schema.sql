@@ -264,3 +264,38 @@ CREATE TABLE IF NOT EXISTS supervision_rollout_families (
  admitted_at TEXT NOT NULL,
  PRIMARY KEY(version, family_execution_id)
 );
+-- Durable per-effort signal log (DL-2). seq increases monotonically per
+-- effort; dedupe_key makes one fact one signal across restarts and replays.
+CREATE TABLE IF NOT EXISTS supervision_effort_signals (
+    effort_ref TEXT NOT NULL,
+    seq INTEGER NOT NULL,
+    kind TEXT NOT NULL,
+    run_id TEXT NOT NULL DEFAULT '',
+    detail TEXT NOT NULL DEFAULT '',
+    dedupe_key TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (effort_ref, seq),
+    UNIQUE (effort_ref, dedupe_key)
+);
+-- Watermark of the terminal-run sweep that derives child_run_ended and
+-- cap_stop signals.
+CREATE TABLE IF NOT EXISTS supervision_effort_signal_cursor (
+    singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+    ended_through TEXT NOT NULL
+);
+-- Operator decisions (DL-5): one row per (goal home, decision id). The typed
+-- record is EffortDecision; event_id is the deterministic decision_requested
+-- event id notification-hub echoes as requester_ref.
+CREATE TABLE IF NOT EXISTS supervision_effort_decisions (
+    goal_home TEXT NOT NULL,
+    decision_id TEXT NOT NULL,
+    effort_ref TEXT NOT NULL DEFAULT '',
+    event_id TEXT NOT NULL,
+    content_digest TEXT NOT NULL,
+    decision_json TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (goal_home, decision_id)
+);
+CREATE INDEX IF NOT EXISTS idx_supervision_effort_decisions_event ON supervision_effort_decisions(event_id);
+CREATE INDEX IF NOT EXISTS idx_supervision_effort_decisions_effort ON supervision_effort_decisions(effort_ref);

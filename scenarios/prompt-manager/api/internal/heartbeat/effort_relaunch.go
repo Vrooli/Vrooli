@@ -3,10 +3,11 @@ package heartbeat
 import (
 	"context"
 	"fmt"
-	"github.com/google/uuid"
-	"prompt-manager/internal/store"
 	"sync"
 	"time"
+
+	"github.com/google/uuid"
+	"prompt-manager/internal/store"
 )
 
 // The supported FileTeamStore topology is one PM process per owner store.
@@ -18,7 +19,7 @@ var finiteEffortRelaunchMu sync.Mutex
 // changing any Planner state. Its deterministic preparation key survives a
 // crash between that commit and Planner saves; no deadline/budget is renewed.
 // Native terminal evidence, not this method, settles the predecessor's slot.
-func (f *FiniteLeaderRuntime) relaunchEffort(ctx context.Context, team, member string, terminal *Run) (*store.FiniteLeaderState, error) {
+func (f *FiniteLeaderRuntime) relaunchEffort(ctx context.Context, team, member string, terminal *Run, admission checkinAdmission) (*store.FiniteLeaderState, error) {
 	finiteEffortRelaunchMu.Lock()
 	defer finiteEffortRelaunchMu.Unlock()
 	state, e := f.Executor.teamStore.ReadFiniteLeader(ctx, team, member)
@@ -41,7 +42,7 @@ func (f *FiniteLeaderRuntime) relaunchEffort(ctx context.Context, team, member s
 		return state, e
 	}
 	consecutive := state.ConsecutiveRelaunches
-	if healthyLeaderRun(terminal) {
+	if admission.healthy(terminal) {
 		consecutive = 0
 	}
 	if consecutive >= livenessMaxRelaunches {
@@ -74,6 +75,7 @@ func (f *FiniteLeaderRuntime) relaunchEffort(ctx context.Context, team, member s
 		}
 		current.RecordRestart(store.FiniteLeaderRestart{RunID: current.RunID, TaskID: current.TaskID, Revision: cfg.FiniteLeader.AcceptedRevision, EvidenceRef: "liveness-heartbeat:" + terminal.Status, RestartedAt: now.Format(time.RFC3339Nano)})
 		current.ConsecutiveRelaunches = consecutive + 1
+		current.CheckinReason = admission.reason
 		current.ID, current.TaskID, current.RunID, current.CreatedAt, current.Error = candidate.ID, "", "", candidate.CreatedAt, ""
 		current.TaskStarted, current.DispatchStarted = false, false
 		current.Status = "queued"

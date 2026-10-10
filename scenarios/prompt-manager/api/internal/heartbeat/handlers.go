@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/vrooli/api-core/discovery"
-	"github.com/vrooli/api-core/owneridentity"
 	"log"
 	"net/http"
 	"os"
@@ -16,6 +14,9 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/owneridentity"
 
 	"prompt-manager/internal/store"
 	"prompt-manager/internal/teamconfig"
@@ -545,7 +546,8 @@ func (h *Handlers) UpdateHeartbeat(w http.ResponseWriter, r *http.Request) {
 
 	// Handle schedule changes
 	if h.scheduler != nil {
-		if config.Enabled && team.Enabled && (!wasEnabled || req.Schedule != nil) {
+		// A finiteLeader update may change the check-in poll cadence.
+		if config.Enabled && team.Enabled && (!wasEnabled || req.Schedule != nil || req.FiniteLeader != nil) {
 			// Need to (re)schedule
 			if err := h.scheduler.Schedule(teamID, agentID, config.Schedule); err != nil {
 				config.Enabled = false
@@ -671,12 +673,15 @@ func (h *Handlers) TriggerHeartbeat(w http.ResponseWriter, r *http.Request) {
 	if verifier == nil {
 		verifier = owneridentity.NewClient(owneridentity.Config{Resolver: discovery.NewResolver(discovery.ResolverConfig{})})
 	}
-	qualified, authErr := owneridentity.AuthorizeCreateRunCaller(r.Context(), r.Header, verifier, time.Now())
+	// AUTH-01 refuses unverified callers only while VROOLI_AUTH01_ENFORCE is on
+	// (P-18). Either way only verified human proof is forwarded for attribution.
+	qualified, authErr := owneridentity.AdmitCreateRunCaller(r.Context(), r.Header, verifier, time.Now())
 	if authErr != nil {
 		http.Error(w, "verified human heartbeat caller required", http.StatusUnauthorized)
 		return
 	}
-	qualified = withCreateRunCaller(qualified, r.Header.Get("Authorization"), "")
+	verifiedAuthorization, _ := owneridentity.CreateRunAuthorization(qualified, time.Now())
+	qualified = withCreateRunCaller(qualified, verifiedAuthorization, "")
 	r = r.WithContext(qualified)
 	ctx := r.Context()
 	vars := mux.Vars(r)
@@ -1730,12 +1735,15 @@ func (h *Handlers) TriggerTeam(w http.ResponseWriter, r *http.Request) {
 	if verifier == nil {
 		verifier = owneridentity.NewClient(owneridentity.Config{Resolver: discovery.NewResolver(discovery.ResolverConfig{})})
 	}
-	qualified, authErr := owneridentity.AuthorizeCreateRunCaller(r.Context(), r.Header, verifier, time.Now())
+	// AUTH-01 refuses unverified callers only while VROOLI_AUTH01_ENFORCE is on
+	// (P-18). Either way only verified human proof is forwarded for attribution.
+	qualified, authErr := owneridentity.AdmitCreateRunCaller(r.Context(), r.Header, verifier, time.Now())
 	if authErr != nil {
 		http.Error(w, "verified human heartbeat caller required", http.StatusUnauthorized)
 		return
 	}
-	qualified = withCreateRunCaller(qualified, r.Header.Get("Authorization"), "")
+	verifiedAuthorization, _ := owneridentity.CreateRunAuthorization(qualified, time.Now())
+	qualified = withCreateRunCaller(qualified, verifiedAuthorization, "")
 	r = r.WithContext(qualified)
 	ctx := r.Context()
 	vars := mux.Vars(r)
@@ -2362,7 +2370,7 @@ func (h *Handlers) CreateRun(w http.ResponseWriter, r *http.Request) {
 	// The receiving Agent Manager verifies it; this proxy supplies no grant.
 	authorization, runProof := r.Header.Get("Authorization"), r.Header.Get("X-Agent-Identity-Token")
 	parts := strings.Fields(authorization)
-	if (strings.TrimSpace(authorization) == "" && strings.TrimSpace(runProof) == "") ||
+	if (owneridentity.CreateRunCallerEnforced() && strings.TrimSpace(authorization) == "" && strings.TrimSpace(runProof) == "") ||
 		(len(r.Header.Values("Authorization")) != 0 && (len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer"))) ||
 		(len(r.Header.Values("X-Agent-Identity-Token")) != 0 && strings.TrimSpace(runProof) == "") {
 		http.Error(w, "CreateRun requires an existing caller proof in its correct channel", http.StatusUnauthorized)
@@ -2384,7 +2392,7 @@ func (h *Handlers) CreateRun(w http.ResponseWriter, r *http.Request) {
 		if verifier == nil {
 			verifier = owneridentity.NewClient(owneridentity.Config{Resolver: discovery.NewResolver(discovery.ResolverConfig{})})
 		}
-		ctx, err := owneridentity.AuthorizeCreateRunCaller(r.Context(), r.Header, verifier, time.Now())
+		ctx, err := owneridentity.AdmitCreateRunCaller(r.Context(), r.Header, verifier, time.Now())
 		if err != nil {
 			http.Error(w, "verified human conversation caller required", http.StatusUnauthorized)
 			return
@@ -2950,7 +2958,8 @@ func (h *Handlers) AddKnowledge(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(entry)
 }
 
-// ListTeamCorpus handles the internal team-corpus view.
+// ListTeamCorpus handles the internal team-corpus view. Closed entries are
+// hidden unless include_closed is true; total counts matches before `last`.
 func (h *Handlers) ListTeamCorpus(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	teamID := vars["id"]
@@ -2966,12 +2975,17 @@ func (h *Handlers) ListTeamCorpus(w http.ResponseWriter, r *http.Request) {
 			last = n
 		}
 	}
+	includeClosed := false
+	if v := r.URL.Query().Get("include_closed"); v != "" {
+		includeClosed, _ = strconv.ParseBool(v)
+	}
 
-	entries, err := h.teamStore.ListTeamCorpus(r.Context(), teamID, topicFilter, topicPrefix, last)
+	result, err := h.teamStore.QueryTeamCorpus(r.Context(), teamID, store.KnowledgeListOptions{Topic: topicFilter, TopicPrefix: topicPrefix, Last: last, IncludeClosed: includeClosed})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	entries := result.Entries
 	if entries == nil {
 		entries = []store.KnowledgeEntry{}
 	}
@@ -2980,7 +2994,54 @@ func (h *Handlers) ListTeamCorpus(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(KnowledgeListResponse{
 		TeamID:  teamID,
 		Entries: entries,
+		Total:   result.Total,
 	})
+}
+
+// CloseTeamCorpusHandler records that a team-corpus entry is resolved
+// (fixed, stale, duplicate-of <id>, routed-to <destination>). The corpus is
+// append-only, so closure is an appended record that hides the entry from
+// default listings. Like AddKnowledge it requires the attribution header,
+// which supplies the closing actor.
+func (h *Handlers) CloseTeamCorpusHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	teamID := vars["id"]
+	knowledgeID := vars["knowledgeId"]
+
+	info, err := parseAttributionHeader(r.Header.Get(attributionHeaderName))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := validateAttribution(info, teamID); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	var req CloseTeamCorpusRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	if len(req.Note) > callerNoteMaxLen*4 {
+		http.Error(w, fmt.Sprintf("note exceeds %d-character cap", callerNoteMaxLen*4), http.StatusBadRequest)
+		return
+	}
+	closure := store.KnowledgeClosure{KnowledgeID: knowledgeID, Reason: req.Reason, Ref: req.Ref, Note: req.Note, Actor: deriveCaller(info, teamID)}
+	if err := store.ValidateKnowledgeClosure(&closure); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	entry, err := h.teamStore.CloseTeamCorpus(r.Context(), teamID, closure)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(entry)
 }
 
 // UpdateTeamCorpusHandler appends a superseding team-corpus entry.
@@ -3018,8 +3079,10 @@ func (h *Handlers) UpdateTeamCorpusHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// Fetch updated entry to return
-	entries, err := h.teamStore.ListTeamCorpus(r.Context(), teamID, "", "", 0)
+	// Fetch updated entry to return (closed entries included: an update to a
+	// closed entry must still be returned).
+	updated, err := h.teamStore.QueryTeamCorpus(r.Context(), teamID, store.KnowledgeListOptions{IncludeClosed: true})
+	entries := updated.Entries
 	if err != nil {
 		http.Error(w, "knowledge updated but fetch failed", http.StatusInternalServerError)
 		return

@@ -156,6 +156,15 @@ func (h *Handler) QuiesceScenario(w http.ResponseWriter, r *http.Request) {
 		}
 		opts.ExcludeRunID = &id
 	}
+	for _, v := range req.GetExcludeRunIds() {
+		id, perr := uuid.Parse(v)
+		if perr != nil {
+			writeSimpleError(w, r, "exclude_run_ids", "invalid UUID format in exclude_run_ids")
+			return
+		}
+		opts.ExcludeRunIDs = append(opts.ExcludeRunIDs, id)
+	}
+	opts.Instance = req.GetInstance()
 	if v := req.GetTimeout(); v != "" {
 		d, perr := time.ParseDuration(v)
 		if perr != nil {
@@ -181,14 +190,16 @@ func quiesceResultToProto(res *orchestration.QuiesceResult) *apipb.QuiesceResult
 		return nil
 	}
 	return &apipb.QuiesceResult{
-		Scenario:  res.Scenario,
-		Drained:   res.Drained,
-		Aborted:   res.Aborted,
-		Initial:   int32(res.Initial),
-		InFlight:  quiesceRefsToProto(res.InFlight),
-		Cancelled: quiesceRefsToProto(res.Cancelled),
-		WaitedMs:  res.WaitedMs,
-		Reason:    res.Reason,
+		Scenario:   res.Scenario,
+		Drained:    res.Drained,
+		Aborted:    res.Aborted,
+		Initial:    int32(res.Initial),
+		InFlight:   quiesceRefsToProto(res.InFlight),
+		Cancelled:  quiesceRefsToProto(res.Cancelled),
+		WaitedMs:   res.WaitedMs,
+		Reason:     res.Reason,
+		Excluded:   quiesceRefsToProto(res.Excluded),
+		NotDrained: quiesceRefsToProto(res.NotDrained),
 	}
 }
 
@@ -203,6 +214,7 @@ func quiesceRefsToProto(refs []orchestration.QuiesceRunRef) []*apipb.QuiesceRunR
 			Tag:       ref.Tag,
 			Status:    ref.Status,
 			ScopePath: ref.ScopePath,
+			Instances: ref.Instances,
 		}
 	}
 	return out

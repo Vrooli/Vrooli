@@ -711,7 +711,19 @@ func callTeams(ctx context.Context, client teamsconnect.TeamsServiceClient, meth
 				last = int32(parsed)
 			}
 		}
-		resp, err := client.ListKnowledge(ctx, connect.NewRequest(&teamsv1.ListKnowledgeRequest{TeamId: s[1], Topic: query.Get("topic"), TopicPrefix: query.Get("topic_prefix"), Last: last}))
+		includeClosed, _ := strconv.ParseBool(query.Get("include_closed"))
+		resp, err := client.ListKnowledge(ctx, connect.NewRequest(&teamsv1.ListKnowledgeRequest{TeamId: s[1], Topic: query.Get("topic"), TopicPrefix: query.Get("topic_prefix"), Last: last, IncludeClosed: includeClosed}))
+		return rpcBody(resp, "", true, err)
+	case method == "POST" && len(s) == 5 && s[2] == "knowledge" && s[4] == "close":
+		var body struct {
+			Reason string `json:"reason"`
+			Ref    string `json:"ref"`
+			Note   string `json:"note"`
+		}
+		if err := decodePayload(payload, &body); err != nil {
+			return nil, true, err
+		}
+		resp, err := client.CloseKnowledge(ctx, connect.NewRequest(&teamsv1.CloseKnowledgeRequest{TeamId: s[1], KnowledgeId: s[3], Reason: body.Reason, Ref: body.Ref, Note: body.Note}))
 		return rpcBody(resp, "", true, err)
 	case method == "POST" && len(s) == 3 && s[2] == "knowledge":
 		var body struct {

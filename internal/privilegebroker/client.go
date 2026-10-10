@@ -2,12 +2,11 @@ package privilegebroker
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net"
 	"time"
 
+	platformgo "github.com/vrooli/platform-go"
 	"github.com/vrooli/vrooli/internal/tuning"
 )
 
@@ -73,20 +72,17 @@ func (c *Client) Do(ctx context.Context, req Request) (Result, error) {
 	ctx, cancel := context.WithTimeout(ctx, tuning.PrivilegeBrokerRequestTimeout(timeout))
 	defer cancel()
 
-	conn, err := c.dialer()(ctx, c.socket())
-	if err != nil {
-		return Result{}, fmt.Errorf("dial privilege broker: %w", err)
-	}
-	defer conn.Close()
-	if deadline, ok := ctx.Deadline(); ok {
-		_ = conn.SetDeadline(deadline)
-	}
-	if err := json.NewEncoder(conn).Encode(req); err != nil {
-		return Result{}, fmt.Errorf("send broker request: %w", err)
-	}
 	var result Result
-	if err := json.NewDecoder(io.LimitReader(conn, clientParameterB<<clientParameterA)).Decode(&result); err != nil {
+	limit := int64(clientParameterB << clientParameterA)
+	if req.Action == ActionTemporaryActivityObserve {
+		limit = 8 << 20
+	}
+	transport := platformgo.PrivilegeBrokerTransport{SocketPath: c.socket(), Timeout: timeout, MaxResponseBytes: limit}
+	if err := transport.Exchange(ctx, req, &result); err != nil {
 		return Result{}, fmt.Errorf("read broker response: %w", err)
+	}
+	if result.Version != req.Version || result.RequestID != req.RequestID || result.Action != req.Action {
+		return Result{}, fmt.Errorf("privilege broker response identity mismatch")
 	}
 	return result, nil
 }

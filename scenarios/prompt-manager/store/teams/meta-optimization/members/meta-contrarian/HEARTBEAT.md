@@ -17,3 +17,9 @@ Follow `docs/agent-system/REVIEW_FEEDBACK.md` for the challenge lifecycle.
 ## Run Decision
 
 Record durable continuity in your declared Source Ledger topics. Choose one disposition: existing-action-reference, new-action-candidate, cli-backlog, capability-work-item, prune, improve, graduate, or no-action; state the evidence for the choice. Preserve any narrower lane-specific decisions stated in the task loop.
+
+## Stop Conditions
+
+- **Instrument unavailable.** If Swarm Manager or the team's knowledge store cannot be read, record one line naming which and stop.
+- **Nothing changed.** If no open team item and no member output changed since the last run, record one line saying so and stop. A clean pass is worth recording once, not every heartbeat.
+- **Never file a challenge as a new Swarm item.** Record a challenge to an existing item as an annotation on that item (`swarm-manager backlog update --kind <kind> --name <name> --data '<json>'`), not as a new item.

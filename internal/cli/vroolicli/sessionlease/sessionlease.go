@@ -9,10 +9,12 @@ package sessionlease
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/vrooli/cli-core/cliutil"
 	platform "github.com/vrooli/platform-go"
+	"github.com/vrooli/vrooli/internal/agentsession"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/hostsession"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
@@ -22,6 +24,10 @@ import (
 type Recorder struct {
 	// Open returns the registry store; tests inject a temporary one.
 	Open func(ctx context.Context) (*scenarioruntime.SQLiteStore, error)
+	// Owner is what the session about to start belongs to. Nil reads it
+	// from this (the launcher's) process: its environment, its terminal and,
+	// for a bundled desktop app, the app runtime among its ancestors.
+	Owner func() scenarioruntime.EditorLeaseOwner
 }
 
 // Register installs the recorder as cli-core's default.
@@ -42,7 +48,15 @@ func (r Recorder) open(ctx context.Context) (*scenarioruntime.SQLiteStore, error
 	return r.Open(ctx)
 }
 
-// Create writes the session's lease; the boot id makes a reboot provable.
+// launchOwner reads the launcher's own process: the recorder runs inside the
+// launcher before it execs or spawns the agent, so its environment is the
+// session's environment.
+func launchOwner() scenarioruntime.EditorLeaseOwner {
+	return agentsession.OwnerAtLaunch(agentsession.EnvironMap(os.Environ()), os.Getpid(), agentsession.NewHostFacts()).LeaseOwner()
+}
+
+// Create writes the session's lease with its owner; the boot id makes a
+// reboot provable.
 func (r Recorder) Create(ctx context.Context, record cliutil.EditorLeaseRecord) error {
 	store, err := r.open(ctx)
 	if err != nil {
@@ -53,6 +67,11 @@ func (r Recorder) Create(ctx context.Context, record cliutil.EditorLeaseRecord) 
 		SessionID: record.SessionID, Harness: record.Harness, Agent: record.Agent, PID: record.PID,
 		WorkingDir: record.WorkingDir, Scope: record.Scope, ContainmentMethod: record.ContainmentMethod, Claims: record.Claims,
 	}
+	owner := r.Owner
+	if owner == nil {
+		owner = launchOwner
+	}
+	lease.Owner = owner()
 	if host, err := (hostsession.DefaultProvider{}).Current(ctx, ""); err == nil {
 		lease.HostBootID = host.BootID
 	}

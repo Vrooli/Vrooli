@@ -219,8 +219,7 @@ func (c *StaleChecker) reexec() func(string, []string, string) error {
 	}
 	return func(executable string, args []string, fingerprint string) error {
 		cmd := exec.Command(executable, args...)
-		// Set the rebuild fingerprint env var to detect loops
-		cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{fmt.Sprintf("%s=%s", rebuildLoopEnvVar, fingerprint)})
+		cmd.Env = selfReexecEnv(envkit.Env(os.Environ()), fingerprint)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		cmd.Stdin = os.Stdin
@@ -234,6 +233,33 @@ func (c *StaleChecker) reexec() func(string, []string, string) error {
 		os.Exit(0)
 		return nil
 	}
+}
+
+// selfReexecIdentityEnvVars are the agent identity variables envkit drops at
+// every boundary except a delegated agent. A re-exec of the rebuilt binary is
+// the same invocation by the same agent, so it keeps them; without this an
+// agent's first CLI call after a source edit runs with no identity.
+var selfReexecIdentityEnvVars = []string{EnvIdentityToken, EnvClaudeCodeSessionID, EnvCodexThreadID}
+
+// selfReexecEnv derives the environment for re-executing the rebuilt CLI. It
+// is the SameScenario environment plus the caller's own identity variables
+// (only those present in parent) and the rebuild fingerprint that detects loops.
+func selfReexecEnv(parent envkit.Env, fingerprint string) envkit.Env {
+	platform := envkit.DefaultPlatform()
+	overlay := envkit.Env{fmt.Sprintf("%s=%s", rebuildLoopEnvVar, fingerprint)}
+	for _, entry := range parent {
+		key, _, ok := strings.Cut(entry, "=")
+		if !ok {
+			continue
+		}
+		for _, identityKey := range selfReexecIdentityEnvVars {
+			if key == identityKey || (platform.CaseInsensitive && strings.EqualFold(key, identityKey)) {
+				overlay = append(overlay, entry)
+				break
+			}
+		}
+	}
+	return envkit.WithOverlayWithPlatform(parent, envkit.SameScenario, overlay, platform)
 }
 
 func (c *StaleChecker) installerModule() string {
@@ -283,12 +309,15 @@ func truthy(value string) bool {
 	return true
 }
 
+// freshnessSpec derives the same spec the installer recorded: declared inputs
+// plus the local replace targets the CLI imports. Caller-provided inputs are
+// not baked, so the runtime must expand them itself to agree with the build.
 func (c *StaleChecker) freshnessSpec(srcRoot string) FreshnessSpec {
-	return FreshnessSpec{
+	return WithGoReplaceFreshnessInputs(FreshnessSpec{
 		SourceRoot:  srcRoot,
 		ContextRoot: c.sourceContextRoot(srcRoot),
 		Inputs:      append([]string(nil), c.FreshnessInputs...),
-	}
+	})
 }
 
 func (c *StaleChecker) manifestSourcePath(contextRoot string) string {

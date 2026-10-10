@@ -2,7 +2,11 @@
 // boundary. It intentionally has no generic command execution API.
 package privilegebroker
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/vrooli/vrooli/internal/storageactivity"
+)
 
 const (
 	ProtocolVersion = "v1"
@@ -31,6 +35,9 @@ const (
 	ActionJournaldVacuum             = "journald.vacuum"
 	ActionDockerPruneUnusedImages    = "docker.prune.unused-images"
 	ActionDockerPruneUnusedVolumes   = "docker.prune.unused-volumes"
+	// No subject is accepted: the target is the authenticated Unix peer.
+	ActionTemporaryActivityObserve = "storage.temporary-activity.observe"
+	ActionCapabilitiesInspect      = "broker.capabilities.inspect"
 
 	// Cloud target actions replace the shell strings scenario-to-cloud used to
 	// run over SSH. Each has a closed subject: package names from a compiled
@@ -131,13 +138,15 @@ type Subject struct {
 }
 
 type Result struct {
-	Version   string   `json:"version"`
-	RequestID string   `json:"request_id,omitempty"`
-	Action    string   `json:"action,omitempty"`
-	Status    string   `json:"status"`
-	Code      string   `json:"code,omitempty"`
-	Changed   bool     `json:"changed,omitempty"`
-	Evidence  Evidence `json:"evidence,omitempty"`
+	Version           string                    `json:"version"`
+	RequestID         string                    `json:"request_id,omitempty"`
+	Action            string                    `json:"action,omitempty"`
+	Status            string                    `json:"status"`
+	Code              string                    `json:"code,omitempty"`
+	Changed           bool                      `json:"changed,omitempty"`
+	Evidence          Evidence                  `json:"evidence,omitempty"`
+	TemporaryActivity *storageactivity.Snapshot `json:"temporary_activity,omitempty"`
+	Capabilities      []string                  `json:"capabilities,omitempty"`
 }
 
 type Evidence struct {

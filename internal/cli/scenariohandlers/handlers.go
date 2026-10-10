@@ -244,7 +244,31 @@ func buildScenarioReadHandlers[C any](deps rootcli.HandlerDeps[C]) map[CommandID
 			},
 			RenderFreshnessResponse,
 		),
+		CommandDeployReport: scenarioServiceCommand(deps.Stdout, deps.OutputFormat,
+			func(ctx C, args []string) (DeployReportRequest, error) {
+				return ParseDeployReportRequest(deps.Globals(ctx).JSON, args)
+			},
+			func(ctx C, format cliout.Format, req DeployReportRequest) (DeployReportResponse, error) {
+				report, err := runDeployReport(deps, ctx, req.Name, req.Path)
+				return DeployReportResponse{Report: report}, err
+			},
+			RenderDeployReportResponse,
+		),
 	}
+}
+
+// runDeployReport builds the pre-deploy change report through the lifecycle
+// runner. It only reads: no build, stamp or restart.
+func runDeployReport[C any](deps rootcli.HandlerDeps[C], ctx C, name, customPath string) (lifecycle.DeployReport, error) {
+	runner, err := deps.LifecycleRunner(ctx)
+	if err != nil {
+		return lifecycle.DeployReport{}, err
+	}
+	reporter, ok := runner.(DeployReporter)
+	if !ok {
+		return lifecycle.DeployReport{}, fmt.Errorf("scenario deploy-report is not supported by this lifecycle runner")
+	}
+	return reporter.DeployReportByName(rootcli.ResolveOperationContext(deps, ctx), name, customPath)
 }
 
 func scenarioWaitHandler[C any](deps rootcli.HandlerDeps[C]) rootcli.Handler[C] {
@@ -440,6 +464,16 @@ func buildScenarioStartHandlers[C any](deps rootcli.HandlerDeps[C]) map[CommandI
 						}
 						items, decodeErr := decodeRemoteLifecycle(payload)
 						return items, decodeErr
+					}
+					if req.DeployReport {
+						// Advisory only: a report failure is shown and the restart
+						// proceeds exactly as it would without the flag.
+						report, reportErr := runDeployReport(deps, ctx, req.Name, req.Options.CustomPath)
+						if reportErr != nil {
+							fmt.Fprintf(deps.Stderr(ctx), "deploy report unavailable: %v\n", reportErr)
+						} else {
+							_ = WriteDeployReport(deps.Stderr(ctx), report)
+						}
 					}
 					if req.Options.CustomPath == "" {
 						if err := ensureScenarioCLIs(deps, ctx, req.Name); err != nil {

@@ -1,6 +1,9 @@
 package scenariocli
 
-import "testing"
+import (
+	"reflect"
+	"testing"
+)
 
 func TestParseTestArgsPassesThroughTestGenieFlags(t *testing.T) {
 	got, err := ParseTestArgs(false, false, []string{
@@ -69,5 +72,39 @@ func TestParseTestRequestOnlyInterceptsHelpBeforeScenario(t *testing.T) {
 	}
 	if len(got.Args) != 1 || got.Args[0] != "--help" {
 		t.Fatalf("args = %v, want [--help]", got.Args)
+	}
+}
+
+// --deploy-report only adds a printed report; every restart option parses as
+// it does without it.
+func TestParseRestartRequestDeployReportLeavesRestartOptionsUnchanged(t *testing.T) {
+	args := []string{"agent-manager", "--force", "--timeout", "90"}
+	plain, err := ParseRestartRequest(false, args)
+	if err != nil {
+		t.Fatal(err)
+	}
+	withReport, err := ParseRestartRequest(false, append([]string{"--deploy-report"}, args...))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if plain.DeployReport || !withReport.DeployReport {
+		t.Fatalf("DeployReport plain=%v with=%v", plain.DeployReport, withReport.DeployReport)
+	}
+	withReport.DeployReport = false
+	if !reflect.DeepEqual(plain, withReport) {
+		t.Fatalf("restart request changed by --deploy-report:\n plain: %+v\n with:  %+v", plain, withReport)
+	}
+}
+
+func TestParseDeployReportRequest(t *testing.T) {
+	req, err := ParseDeployReportRequest(false, []string{"agent-manager", "--json"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if req.Name != "agent-manager" || !req.JSON {
+		t.Fatalf("request = %+v", req)
+	}
+	if _, err := ParseDeployReportRequest(false, nil); err == nil {
+		t.Fatal("deploy-report without a scenario name must be a usage error")
 	}
 }

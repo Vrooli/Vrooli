@@ -97,6 +97,15 @@ func (o *Orchestrator) resolveRunConfig(ctx context.Context, req CreateRunReques
 		}
 		cfg.MaxToolCalls = *req.MaxToolCalls
 	}
+	if req.MaxWeightedTokens != nil {
+		if *req.MaxWeightedTokens <= 0 {
+			return nil, nil, domain.NewValidationError("maxWeightedTokens", "must be positive")
+		}
+		// A run can only lower its profile's cap.
+		if cfg.MaxWeightedTokens == 0 || *req.MaxWeightedTokens < cfg.MaxWeightedTokens {
+			cfg.MaxWeightedTokens = *req.MaxWeightedTokens
+		}
+	}
 	if req.Timeout != nil {
 		cfg.Timeout = *req.Timeout
 	}

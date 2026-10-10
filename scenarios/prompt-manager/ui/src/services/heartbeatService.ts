@@ -32,12 +32,25 @@ export interface HeartbeatConfig {
   profileKey?: string
   lifecycleState?: string
   wakeAdmission?: WakeAdmission
-  finiteLeader?: { effortRef?: string; acceptedRevision?: string; retired?: boolean; keepAlive?: boolean }
+  finiteLeader?: {
+    effortRef?: string
+    acceptedRevision?: string
+    retired?: boolean
+    keepAlive?: boolean
+    checkin?: FiniteLeaderCheckin
+  }
   lastExecution?: HeartbeatExecResult
   nextExecution?: string
   nextExecutions?: string[]
   createdAt: string
   updatedAt: string
+}
+
+/** Orchestrator check-in policy; unset mode means parked. Durations use Go syntax (e.g. "2m", "6h"). */
+export interface FiniteLeaderCheckin {
+  mode?: 'parked' | 'event'
+  pollInterval?: string
+  backstop?: string
 }
 
 export interface WakeAdmission {

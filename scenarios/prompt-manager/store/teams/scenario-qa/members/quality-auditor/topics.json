@@ -1,4 +1,6 @@
 {
+  "loop_kind": "sweep",
+  "population": ["scenario"],
   "required_read": [
     {
       "prefix": "quality-audit/<scenario-id>/<skill-id>"

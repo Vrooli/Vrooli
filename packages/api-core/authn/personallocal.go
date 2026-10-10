@@ -64,13 +64,14 @@ func (p PersonalLocalProvider) VerifyRequest(ctx context.Context, req *http.Requ
 	if req == nil || !isLoopbackRequest(req) {
 		return identity.Principal{}, identity.NewFailure(identity.FailureInvalid, p.Source())
 	}
-	if provenance.FromContext(ctx).IsVerifiedAgent() {
-		return identity.Principal{}, identity.NewFailure(identity.FailureInvalid, p.Source())
-	}
 	presented := extractLocalSessionToken(req)
 	if presented == "" {
 		return identity.Principal{}, identity.NewFailure(identity.FailureMissing, p.Source())
 	}
+	if provenance.FromContext(ctx).IsVerifiedAgent() {
+		return identity.Principal{}, identity.NewFailure(identity.FailureInvalid, p.Source())
+	}
+
 	expected, err := p.expectedToken()
 	if err != nil {
 		return identity.Principal{}, identity.NewFailure(identity.FailureUnavailable, p.Source())

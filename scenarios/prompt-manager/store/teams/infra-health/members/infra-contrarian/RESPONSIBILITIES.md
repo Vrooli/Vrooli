@@ -3,7 +3,7 @@
 ## Primary Duties
 - Score pending infra-health work items against the team's failure-mode rubric.
 - Run the stale work item scan.
-- Write challenge notes, challenge-resolution records, and rejection/framework work items only when a proposal actually fails the rubric.
+- When a proposal actually fails the rubric, record the challenge as an annotation on the target item (`swarm-manager backlog update --kind <kind> --name <name> --data '<json>'`) plus a challenge-resolution record in your Source Ledger topic. Never file a challenge as a new `challenge-*` Swarm item. Raise a rejection or framework work item only when the rubric failure is not about one existing item.
 - Follow `docs/agent-system/REVIEW_FEEDBACK.md` for open/resolved/escalated challenge state. Local rename: where that canon names the framework work item `framework-update`, this team's context is `framework-meta` — file framework challenges under `framework-meta`.
 
 ## Failure Modes
@@ -20,7 +20,6 @@ Three rubric hazards are checkable against the instrument (`infrastructure-manag
 - **Dead-sensor evidence:** a finding whose evidence carries a trust verdict other than `VALID` — a ghost check (target no longer exists), a saturated check's repeat events (only the transition and its single durable incident count), a shelved check, or an `UNTRUSTED` reading whose qualifier could not be read at all. Check with `infrastructure-manager condition explain <cell-ref> --json`. Two near-misses to fail specifically: citing an **out-of-scope** check as a ghost (its target exists and its reading counts), and citing an `UNTRUSTED` reading as evidence of plant state (it is evidence about the sensor, and routes to the instrument's owner).
 - **Cascade violation:** a work item at an outer tier raised while an inner tier holds an unresolved excursion. `infrastructure-manager focus next --json` reports each finding's `cascade_stage`; a proposal that jumps the queue fails on that field alone. A `focus next` response in which any source reports `available: false` cannot be cited as "nothing inner is open" — an unread source is not an empty one.
 - **Roster creep:** a target, sensor cell, finding, or proposal that enumerates capability members (scenario names in a list) instead of naming a derivation query (SDA core-set closure; the capability owner's load-bearing declared members) — see operating-model rule 6. Also fails: member-level performance thresholds recorded in team docs instead of the member's own `.vrooli/` declaration, and any capability-architecture prescription (how search/testing/guidance should be built) inside an infra-health finding.
-- **Cascade violation:** an outer-layer finding (capability availability, performance/efficiency trend) raised while an inner layer (sensor-channel integrity, host/process substrate) holds an unresolved out-of-band excursion covering the same evidence path.
 
 The tighten/loosen asymmetry is deliberate hysteresis — it prevents target flapping. The remaining hazards (polishing, premature cross-platform work, instrumentation sprawl, scope creep) stay judgment calls; do not fake precision for them.
 

@@ -1,9 +1,10 @@
 ## Task Loop
 
-1. Read every active goal home (`QUEUE.md`, `WORKAROUNDS.md`, the active epoch
-   file). Audit new step-backs and due epoch samples, and repair the open
-   workaround that costs delivery the most, however old it is
-   (`large-effort-supervision` §2 step 5). Open workarounds are never "quiet".
+1. Daily check: follow `large-effort-supervision` §2 for each active goal home.
+   That means reading and reporting only, flagging stalls, and starting one
+   repair (usually a bounded Luna run) for the costliest open workaround.
+   Event wakes: audit the step-back or the 3rd acceptance that triggered the wake
+   (§4). Open workarounds are never "quiet".
 2. Follow `large-effort-supervision` for the goals involved.
 3. Record one concise `supervision-assessment/<date>` entry with
    `prompt-manager team knowledge-add`.

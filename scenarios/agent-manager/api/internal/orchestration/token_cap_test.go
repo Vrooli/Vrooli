@@ -177,3 +177,52 @@ func TestTokenCapPolicyFromEnvDefaultsOff(t *testing.T) {
 		t.Fatalf("invalid caps were applied: %+v", policy.Caps)
 	}
 }
+
+func TestCreateRunCanOnlyLowerTheProfileTokenCap(t *testing.T) {
+	repos, _, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	ctx := context.Background()
+	profile := fixtures.NewAgentProfile(t, fixtures.WithAgentProfileName("test/capped-profile"))
+	profile.MaxWeightedTokens = 1000
+	if err := repos.Profiles.Create(ctx, profile); err != nil {
+		t.Fatal(err)
+	}
+	stored, err := repos.Profiles.Get(ctx, profile.ID)
+	if err != nil || stored.MaxWeightedTokens != 1000 {
+		t.Fatalf("the profile cap did not persist: %+v %v", stored, err)
+	}
+	o := New(repos.Profiles, repos.Tasks, repos.Runs, newCurrentModelPolicyFixtureOption(t))
+	for _, tc := range []struct {
+		override *int64
+		want     int64
+	}{{nil, 1000}, {ptrInt64(400), 400}, {ptrInt64(5000), 1000}} {
+		cfg, _, err := o.resolveRunConfig(ctx, CreateRunRequest{AgentProfileID: &profile.ID, MaxWeightedTokens: tc.override})
+		if err != nil || cfg.MaxWeightedTokens != tc.want {
+			t.Fatalf("override %v: resolved %+v, want cap %d (err %v)", tc.override, cfg, tc.want, err)
+		}
+	}
+	if _, _, err := o.resolveRunConfig(ctx, CreateRunRequest{AgentProfileID: &profile.ID, MaxWeightedTokens: ptrInt64(0)}); err == nil {
+		t.Fatal("a zero run cap must be refused, not read as no cap")
+	}
+}
+
+func TestTokenCapPrefersTheRunCapOverTheEnvironmentFallback(t *testing.T) {
+	repos, events, run := tokenCapFixture(t, "gpt-6-luna")
+	run.ResolvedConfig.MaxWeightedTokens = 500
+	if err := repos.Runs.Update(context.Background(), run); err != nil {
+		t.Fatal(err)
+	}
+	o := tokenCapOrchestrator(repos, events, TokenCapEnforce) // environment cap 1,000
+	if err := o.runEventSink(run.ID).Emit(usageEvent(run.ID, "gpt-6-luna", 520, 1)); err != nil {
+		t.Fatal(err)
+	}
+	eventually(t, "the stop at the run cap", func() bool {
+		current, err := repos.Runs.Get(context.Background(), run.ID)
+		return err == nil && current.Status == domain.RunStatusCancelled && current.StopReason == domain.RunStopReasonTokenCap
+	})
+	if messages := tokenCapMessages(t, events, run.ID); len(messages) == 0 || !strings.Contains(messages[len(messages)-1], "reached the cap of 500") {
+		t.Fatalf("the run cap of 500 was not the enforced cap: %q", messages)
+	}
+}
+
+func ptrInt64(v int64) *int64 { return &v }

@@ -14,6 +14,24 @@ func TestParseCaptureRequest(t *testing.T) {
 	if req.Scenario != "demo" || req.Slug != "abc" || req.Source != "/tmp/x" || !req.NoReflink { //nolint:goconst // parser fixture
 		t.Fatalf("unexpected capture request: %+v", req)
 	}
+	if req.AllowUnfrozen || req.Replace {
+		t.Fatalf("freeze and takeover overrides must be opt-in: %+v", req)
+	}
+	req, err = ParseCaptureRequest([]string{"--scenario", "demo", "--slug", "abc", "--allow-unfrozen", "--replace"})
+	if err != nil || !req.AllowUnfrozen || !req.Replace {
+		t.Fatalf("capture overrides not mapped: %+v %v", req, err)
+	}
+}
+
+func TestParseCleanRequestMapsLiveFlags(t *testing.T) {
+	req, err := ParseCleanRequest([]string{"--scenario", "demo", "--slug", "abc"})
+	if err != nil || req.RestartLive || req.Force {
+		t.Fatalf("clean must refuse by default: %+v %v", req, err)
+	}
+	req, err = ParseCleanRequest([]string{"--scenario", "demo", "--slug", "abc", "--restart-live", "--force"})
+	if err != nil || !req.RestartLive || !req.Force || req.Scenario != "demo" || req.Slug != "abc" {
+		t.Fatalf("clean flags not mapped: %+v %v", req, err)
+	}
 }
 
 func TestParseNamespaceRequestDefaultsToShadow(t *testing.T) {

@@ -3146,7 +3146,7 @@
     {
       "command": "team heartbeat-bind-effort",
       "class": "passthrough",
-      "reason": "Finite leader provisioning validates a bounded binding file, creates or explicitly updates a disabled heartbeat, and verifies the owner response."
+      "reason": "Finite leader provisioning validates a bounded binding file or check-in policy flags, creates a disabled heartbeat or explicitly updates one without changing its enabled state, and verifies the owner response."
     },
     {
       "command": "team heartbeat-retire-effort",

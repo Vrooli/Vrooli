@@ -19,9 +19,8 @@ import (
 // (goalhome.DecidePark). It allows up to 1h while a direct child run is live,
 // up to 72h while ## Needs operator holds an item, and otherwise refuses with
 // exit 4. It parks through the same server call as `run park` (producer
-// children, keyed by the run). Server-side seam: wave 2 applies the same
-// goalhome.DecidePark in orchestration.ParkRunFromAgent so a raw `run park`
-// cannot bypass the policy; until then only this command enforces it.
+// children, keyed by the run). The server applies the same goalhome.DecidePark
+// to a raw `run park` (report-only unless VROOLI_EFFORT_PARK_ENFORCE is on).
 func (a *App) effortPark(args []string) error {
 	fs := flag.NewFlagSet("effort park", flag.ContinueOnError)
 	jsonOut := cliutil.JSONFlag(fs)

@@ -58,6 +58,65 @@ func TestJWTVerifierValidatesCanonicalPrincipalAndCachesJWKS(t *testing.T) {
 	}
 }
 
+func TestJWTVerifierMapsAuthenticatorServicePrincipalKind(t *testing.T) {
+	key, err := rsa.GenerateKey(rand.Reader, 1024)
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Unix(1_700_000_000, 0).UTC()
+	server := httptest.NewServer(jwksHandler(key))
+	defer server.Close()
+	token := signJWT(t, key, map[string]any{
+		"user_id": "service:deployment-manager:preparation", "actor_kind": "service",
+		"scope": []string{"deployment-manager:write"}, "iss": "scenario-authenticator",
+		"aud": []string{"scenario-authenticator:deployment-manager"}, "exp": now.Add(5 * time.Minute).Unix(),
+	})
+	verifier := NewJWTVerifier(JWTConfig{
+		Source: identity.SourceScenarioAuthenticator, Issuer: "scenario-authenticator",
+		Audience: "scenario-authenticator:deployment-manager", JWKSURL: server.URL, Now: func() time.Time { return now },
+	})
+	principal, err := verifier.Verify(context.Background(), token)
+	if err != nil {
+		t.Fatalf("Verify() error = %v", err)
+	}
+	if principal.Kind != identity.ActorService || principal.Subject != "service:deployment-manager:preparation" || len(principal.Scopes) != 1 || principal.Scopes[0] != "deployment-manager:write" {
+		t.Fatalf("principal = %#v", principal)
+	}
+}
+
+func TestFromEnvironmentAcceptsScenarioAuthenticatorAccessCookieByDefault(t *testing.T) {
+	key, err := rsa.GenerateKey(rand.Reader, 1024)
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now().UTC()
+	token := signJWT(t, key, map[string]any{
+		"sub": "owner-1", "iss": "scenario-authenticator", "aud": "scenario-authenticator:nutrition-planner",
+		"exp": now.Add(time.Hour).Unix(),
+	})
+	server := httptest.NewServer(jwksHandler(key))
+	defer server.Close()
+	values := map[string]string{
+		"VROOLI_AUTH_PROVIDERS":         "scenario_authenticator",
+		"VROOLI_AUTH_SCENARIO_AUDIENCE": "scenario-authenticator:nutrition-planner",
+		"VROOLI_AUTH_SCENARIO_ISSUER":   "scenario-authenticator",
+		"VROOLI_AUTH_SCENARIO_JWKS_URL": server.URL,
+	}
+	cfg, err := FromEnvironment(func(name string) string { return values[name] })
+	if err != nil {
+		t.Fatalf("FromEnvironment() error = %v", err)
+	}
+	req := httptest.NewRequest(http.MethodGet, "/api", nil)
+	req.AddCookie(&http.Cookie{Name: scenarioAuthenticatorAccessCookie, Value: token})
+	principal, err := cfg.Authenticate(t.Context(), req)
+	if err != nil {
+		t.Fatalf("Authenticate() error = %v", err)
+	}
+	if !principal.IsHuman() || principal.Subject != "owner-1" {
+		t.Fatalf("principal = %#v", principal)
+	}
+}
+
 func TestJWTVerifierFailsClosedForIssuerAudienceAlgorithmAndExpiry(t *testing.T) {
 	key, err := rsa.GenerateKey(rand.Reader, 1024)
 	if err != nil {

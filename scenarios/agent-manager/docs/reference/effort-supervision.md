@@ -107,6 +107,32 @@ For a coordinator run, set `authority` to `WATCH_AUTHORITY_FAMILY_PARENT` in
 `metadata.json`; the inherited `VROOLI_AGENT_IDENTITY_TOKEN` is forwarded as
 the run credential and `--local-owner` must not be used.
 
+An interactive session (an operator's attached coding session) can carry the
+owner's metadata authority for one named effort through an owner-approved
+grant. The grant names one effort and expires within 8 h; the owner confirms
+it in the browser:
+
+```bash
+vrooli agent authorize <session-or-run> --policy effort-metadata \
+  --target agent-manager:effort/<name> \
+  --approval-base https://<authenticated-agent-manager-host>
+agent-manager effort reconcile-metadata --request-file metadata.json --json
+```
+
+`<name>` is the effort reference without its `effort:` prefix. The request keeps
+`authority: WATCH_AUTHORITY_OPERATOR`. Agent Manager checks the
+`effort.reconcile` operation against that exact target, logs the session, owner,
+grant and approver, and applies the same metadata-only rule. Other policies
+(for example `agent-management`) and grants naming another effort are refused.
+
+**Lifecycle lineage.** A run may wake its parked parent, and a run whose
+profile declares `agent-manager:orchestrate` may stop, continue or wake its
+direct children. Lineage is also effort-level: a running root run with that
+scope that holds effort E as `orchestrator` may do the same to a run holding E
+as `worker` whose parent held E as `orchestrator`. So a check-in can steer the
+workers an earlier check-in started. A child inherits its parent's verified
+effort references as `worker`; `ParentRunID` stays the provenance link.
+
 ## Delivery orchestration commands
 
 These commands serve the epoch model (`large-effort-orchestration`): one
@@ -246,9 +272,59 @@ them), and a QUEUE.md that changed between read and write.
   `[ready]` slice (or plan one), or record a decision under `## Needs operator`.
 
 `--timeout` may only shorten the maximum; a longer request is refused. The park
-itself is the `run park` call (producer `children`, key = the run). Until the
-server applies the same policy (`goalhome.DecidePark` in
-`orchestration.ParkRunFromAgent`), a raw `run park` can still bypass it.
+itself is the `run park` call (producer `children`, key = the run). The server
+applies the same `goalhome.DecidePark` to any `run park` on `children` by a run
+that orchestrates an effort with a registered goal home. By default it only
+records "park policy (report-only)" on the run timeline;
+`VROOLI_EFFORT_PARK_ENFORCE=1` makes it refuse. An unreadable goal home never
+refuses a park.
+
+**Signals (DL-2).** Agent Manager keeps a durable per-effort signal log. `seq`
+increases by one per effort; a dedupe key makes one fact one signal across
+restarts. Kinds:
+
+| Kind | Written by |
+| --- | --- |
+| `child_run_ended` | Agent Manager: a run holding the effort reference (not as orchestrator or supervisor) ended. |
+| `cap_stop` | Agent Manager: a run of the effort stopped with `stop_reason=token_cap`. |
+| `operator_answer` | Agent Manager: a decision was answered, defaulted, or answered late. |
+| `step_back` | `effort epoch-check --effort <ref>` on STEP_BACK. |
+| `feedback` | Whoever writes an operator or supervisor FEEDBACK.md entry: `effort signal <ref> --kind feedback --detail "FB-070 …"`. |
+
+`effort signals <ref> [--after N] [--limit 100] [--json]` reads the log after a
+cursor (RPC `ListEffortSignals`, response `{signals, latest_seq}`).
+
+**Decisions (DL-5).** `effort decision raise <home> --id <id> --question <q>
+--option key=label … --recommend <key> [--why …] [--default <key> --reversible]
+[--deadline 24h] [--dry-run]` stores one record per (goal home, id), publishes
+one `agent_manager.effort.decision_requested.v1` event (notification-hub asks
+the operator once) and adds a `[decision <id>]` item under `## Needs operator`.
+An identical re-raise changes nothing; a changed one is refused (use a new id).
+A default needs `--reversible`; notification-hub applies it only after the
+question was delivered. notification-hub's `ask.resolved` event records the
+answer, appends an `operator_answer` signal and wakes a parked orchestrator of
+the effort. `effort decision sync <home>` writes each answer verbatim into
+FEEDBACK.md (a default reads "applied by default"), removes the item and marks
+the decision recorded; it is idempotent. `effort decision answer <home> <id>
+<key>` is the operator's desktop answer (agent runs are refused);
+`effort decision list` lists them. `--home-ref` names the repository-relative
+goal home when the directory is a copy.
+
+**Board (DL-9).** Register a goal home with `destination_ref =
+"path:<repo-relative goal home>/GOAL.md"` (through `reconcile-metadata`). The
+board then carries a typed `goal_home`: destination and current value, active
+epoch and workers, last acceptance and yield, `## Needs operator` items, open
+workarounds and feedback, unrecorded decisions, mean weighted tokens of the
+last accepted epochs whose workers are all metered, cap usage of active runs,
+and blocking lint codes. A fact that cannot be read is absent and printed
+"unknown", never zero.
+
+**Token caps (DL-8).** A profile's `maxWeightedTokens` caps each of its runs;
+`CreateRunRequest.inline_config.max_weighted_tokens` may only lower it. Runs
+without one fall back to `AGENT_MANAGER_TOKEN_CAPS`. Caps act only when
+`AGENT_MANAGER_TOKEN_CAP_MODE` is `report` (timeline records) or `enforce` (an
+85% nudge, typed into interactive runs, then a stop with
+`stop_reason=token_cap` and a `cap_stop` signal).
 
 ## Observation and trigger semantics
 

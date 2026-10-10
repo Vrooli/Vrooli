@@ -449,6 +449,47 @@ func writeFreeze(ref ScopeRef, value string) error {
 	return nil
 }
 
+// stopScope asks the user manager to stop the scope unit, which signals every
+// member and removes the cgroup. A scope placed by hand (MethodCgroupWrite) is
+// not a unit the manager knows; it is ended through cgroup.kill, which the
+// kernel applies to every member at once. Both paths pass the same guard as
+// freezing: only an agent or test slice is ever touched.
+func stopScope(ref ScopeRef) error {
+	path, err := freezableCgroup(ref)
+	if err != nil {
+		return err
+	}
+	dir := filepath.Dir(path)
+	if _, statErr := os.Stat(dir); statErr != nil {
+		if os.IsNotExist(statErr) {
+			// Already gone: the goal state holds.
+			return nil
+		}
+		return fmt.Errorf("platform: stat %s: %w", dir, statErr)
+	}
+	unit := filepath.Base(dir)
+	if strings.HasSuffix(unit, scopeSuffix) {
+		cmd := exec.Command("systemctl", "--user", "stop", "--", unit)
+		cmd.Env = userManagerEnv(nil)
+		output, runErr := cmd.CombinedOutput()
+		if runErr == nil {
+			return nil
+		}
+		if _, statErr := os.Stat(dir); os.IsNotExist(statErr) {
+			return nil
+		}
+		killErr := os.WriteFile(filepath.Join(dir, "cgroup.kill"), []byte("1"), cgroupFileMode)
+		if killErr == nil {
+			return nil
+		}
+		return fmt.Errorf("platform: stop %s: %w: %s; cgroup.kill: %v", unit, runErr, strings.TrimSpace(string(output)), killErr)
+	}
+	if killErr := os.WriteFile(filepath.Join(dir, "cgroup.kill"), []byte("1"), cgroupFileMode); killErr != nil {
+		return fmt.Errorf("platform: kill %s: %w", dir, killErr)
+	}
+	return nil
+}
+
 func scopeFrozen(ref ScopeRef) (bool, error) {
 	path, err := freezableCgroup(ref)
 	if err != nil {
@@ -526,6 +567,7 @@ func scopeOccupancy(ref ScopeRef) (Occupancy, error) {
 		MemoryHighBytes:  cgroupNumber(dir, "memory.high"),
 		MemoryMaxBytes:   cgroupNumber(dir, "memory.max"),
 		MemoryHighEvents: cgroupEvent(dir, "memory.events", "high"),
+		SwapBytes:        cgroupNumber(dir, "memory.swap.current"),
 	}
 	return out, nil
 }

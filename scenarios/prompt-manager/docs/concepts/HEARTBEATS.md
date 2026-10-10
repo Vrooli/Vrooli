@@ -122,6 +122,26 @@ minutes) only keeps it alive:
 `keepAlive` is policy, not binding identity: it can be set on an existing
 binding with `heartbeat-bind-effort --update`.
 
+**Event check-ins.** A keepAlive leader with `"checkin": {"mode": "event"}`
+is not parked between wakes. Each check-in is a fresh run that reads the goal
+home and current canon, acts once, writes the handoff and ends. When a check-in
+is terminal, the heartbeat reads Agent Manager's effort signal log
+(`ListEffortSignals`: child run ended, step-back, feedback, operator answer,
+cap stop) every `pollInterval` (default `2m`) and queues the next check-in only
+on a new signal, a failed check-in (retry), or when `backstop` (default `6h`)
+has passed since the last one ended. The first event check-in is a bootstrap.
+A quiet poll writes nothing but the settled run. Signals about the ended
+check-in itself are ignored, and the prompt lists the new signals (as owner
+data, not instructions); the signal cursor is kept in the leader state. The
+existing reservation and lock still allow one check-in at a time. Short
+check-ins are healthy: only failed check-ins (and cancellations other than a
+`token_cap` stop) count toward the relaunch backoff and cap. If Agent Manager
+does not serve the signal log, the leader keeps the parked policy and parked
+guidance above. Set the mode on an existing binding with `heartbeat-bind-effort
+<team> <member> --update --checkin-mode event [--checkin-poll 2m]
+[--checkin-backstop 6h]`; an update never changes `enabled`. The default mode
+is `parked`.
+
 Every other finite leader keeps one dispatch per effort: a terminal owner run
 neither accepts the effort nor authorizes a replacement, and recovery uses the
 explicit `Restart` operation on the exact retained run.

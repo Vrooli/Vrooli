@@ -1,4 +1,5 @@
 {
+  "loop_kind": "sweep",
   "required_read": [
     {
       "prefix": "platform-code-audit/YYYY-MM-DD"

@@ -24,7 +24,15 @@ import (
 // resolveCreateRunIdentity authenticates before any reservation or dispatch.
 // Narrowing is never accepted as a substitute for verified authority.
 func (o *Orchestrator) resolveCreateRunIdentity(ctx context.Context, req *CreateRunRequest) error {
-	if strings.TrimSpace(req.OwnerToken) != "" {
+	if owner, ok := coreidentity.PrincipalFromContext(ctx); ok && owner.IsHuman() {
+		if owner.ExpiresAt.IsZero() || !owner.ExpiresAt.After(o.now()) {
+			return domain.NewValidationErrorWithCode("authorization", "verified owner proof expired", domain.ErrCodePolicyScope)
+		}
+		req.OwnerSubject = owner.Subject
+		req.OwnerScopes = append([]string(nil), owner.Scopes...)
+		expires := owner.ExpiresAt
+		req.OwnerExpiresAt = &expires
+	} else if strings.TrimSpace(req.OwnerToken) != "" {
 		if o.ownerIdentity == nil {
 			return domain.NewConfigMissingError("owner_identity", "verifier not configured", nil)
 		}

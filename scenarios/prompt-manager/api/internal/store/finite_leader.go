@@ -24,25 +24,49 @@ var finiteLeaderMu sync.Mutex
 // FiniteLeaderState is the heartbeat's admission receipt, not an effort ledger
 // or a queue. The exact identity remains after terminal owner observations.
 type FiniteLeaderState struct {
-	Version           int                      `json:"version"`
-	TeamID            string                   `json:"teamId"`
-	AgentID           string                   `json:"agentId"`
-	Binding           teamconfig.FiniteLeader  `json:"binding"`
-	ProfileKey        string                   `json:"profileKey"`
-	ID                string                   `json:"id"`
-	TaskID            string                   `json:"taskId,omitempty"`
-	RunID             string                   `json:"runId,omitempty"`
-	TaskStarted       bool                     `json:"taskStarted"`
-	DispatchStarted   bool                     `json:"dispatchStarted"`
-	CreatedAt         string                   `json:"createdAt"`
-	Status            string                   `json:"status"`
-	Error             string                   `json:"error,omitempty"`
-	Completed         *FiniteLeaderCompletion  `json:"completed,omitempty"`
-	CompletionHistory []FiniteLeaderCompletion `json:"completionHistory,omitempty"`
-	RestartHistory    []FiniteLeaderRestart    `json:"restartHistory,omitempty"`
+	SerialEpisodes      []FiniteLeaderSerialEpisode `json:"serialEpisodes,omitempty"`
+	SerialCurrentRunID  string                      `json:"serialCurrentRunId,omitempty"`
+	SerialCurrentStatus string                      `json:"serialCurrentStatus,omitempty"`
+	Version             int                         `json:"version"`
+	TeamID              string                      `json:"teamId"`
+	AgentID             string                      `json:"agentId"`
+	Binding             teamconfig.FiniteLeader     `json:"binding"`
+	ProfileKey          string                      `json:"profileKey"`
+	ID                  string                      `json:"id"`
+	TaskID              string                      `json:"taskId,omitempty"`
+	RunID               string                      `json:"runId,omitempty"`
+	TaskStarted         bool                        `json:"taskStarted"`
+	DispatchStarted     bool                        `json:"dispatchStarted"`
+	CreatedAt           string                      `json:"createdAt"`
+	Status              string                      `json:"status"`
+	Error               string                      `json:"error,omitempty"`
+	Completed           *FiniteLeaderCompletion     `json:"completed,omitempty"`
+	CompletionHistory   []FiniteLeaderCompletion    `json:"completionHistory,omitempty"`
+	RestartHistory      []FiniteLeaderRestart       `json:"restartHistory,omitempty"`
 	// ConsecutiveRelaunches counts liveness relaunches since the last healthy
 	// long leader run or explicit restart; it drives relaunch backoff and cap.
 	ConsecutiveRelaunches int `json:"consecutiveRelaunches,omitempty"`
+	// CheckinCursor is the last effort-signal sequence handed to a check-in.
+	// CheckinCursorSet distinguishes "never read" from sequence zero; a leader
+	// switched to event check-ins gets one orienting check-in before it is set.
+	CheckinCursor    int64 `json:"checkinCursor,omitempty"`
+	CheckinCursorSet bool  `json:"checkinCursorSet,omitempty"`
+	// CheckinReason records why the current check-in was admitted
+	// (signal, backstop, bootstrap); empty for a parked-mode leader.
+	CheckinReason string `json:"checkinReason,omitempty"`
+}
+
+// FiniteLeaderSerialEpisode is an owner-read projection, never an execution
+// reservation, grant or queue. Original leader/task/profile identity is retained.
+type FiniteLeaderSerialEpisode struct {
+	ReservationKey string `json:"reservationKey"`
+	RunID          string `json:"runId"`
+	TaskID         string `json:"taskId"`
+	Member         string `json:"member"`
+	Profile        string `json:"profile"`
+	ParentRunID    string `json:"parentRunId,omitempty"`
+	Status         string `json:"status"`
+	Terminal       bool   `json:"terminal"`
 }
 
 // MaxFiniteLeaderRestartHistory bounds the retained restart records; older
@@ -96,6 +120,7 @@ func sameFiniteBinding(a, b *teamconfig.FiniteLeader) bool {
 	x, y := *a, *b
 	x.Retired, y.Retired = false, false
 	x.KeepAlive, y.KeepAlive = false, false
+	x.Checkin, y.Checkin = nil, nil
 	return reflect.DeepEqual(x, y)
 }
 

@@ -1032,6 +1032,10 @@ type KnowledgeEntry struct {
 	// rejects mutating writes that lack the X-Vrooli-Attribution header
 	// or carry a malformed payload.
 	Attribution AttributionInfo `json:"attribution"`
+	// Closure is derived at read time from the latest closure record for
+	// this id; it is set only on listings that include closed entries and is
+	// never persisted in the entry body.
+	Closure *KnowledgeClosure `json:"closure,omitempty"`
 }
 
 // BugDraft is a private, repairable Scenario QA intake submission. It is kept

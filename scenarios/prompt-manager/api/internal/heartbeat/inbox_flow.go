@@ -127,12 +127,12 @@ func renderUniversalDrainProcedure(b *strings.Builder, teamID string, topics *me
 	b.WriteString("For each entry:\n\n")
 	b.WriteString("1. If a classifier is declared, apply it to identify `signal_type`, `evidence_strength`, and `honesty_flags`. If no classifier is declared, take the topic-prefix segment after the inbox prefix as the signal_type.\n")
 	b.WriteString("2. Choose the smallest useful action from the taxonomy's `actionSelection` set:\n")
-	b.WriteString(fmt.Sprintf("   - **drop** — `prompt-manager team knowledge-delete %s <id>`\n", teamID))
+	b.WriteString(fmt.Sprintf("   - **drop** — `prompt-manager team knowledge-close %s <id> --reason=stale` (or `--reason=duplicate-of --ref=<kept-id>`)\n", teamID))
 	b.WriteString(fmt.Sprintf("   - **observe** — `prompt-manager team knowledge-update %s <id> --topic=\"<destination-prefix>\"`\n", teamID))
 	b.WriteString("   - **promote-to-canon** — same as observe; file the supporting evidence in the unified swarm work stream\n")
-	b.WriteString("   - **file-work** — create a typed capture or backlog item in swarm-manager; delete the inbox row if the artifact lives elsewhere\n")
+	b.WriteString(fmt.Sprintf("   - **file-work** — create a typed capture or backlog item in swarm-manager, then `prompt-manager team knowledge-close %s <id> --reason=routed-to --ref=<kind/name>`\n", teamID))
 	b.WriteString("   - **capability work** — file a typed capture or backlog item in Swarm Manager; leave the inbox entry until the gap is closed\n")
-	b.WriteString("3. After routing, the entry must no longer carry an inbox topic-prefix. The inbox view is the unrouted set.\n")
+	b.WriteString(fmt.Sprintf("3. After routing, the entry must leave the inbox view: retag it (observe/promote) or close it (`knowledge-close %s <id> --reason=fixed|stale|duplicate-of|routed-to`). The corpus is append-only, so `knowledge-delete` cannot remove it. The default inbox listing hides closed entries and is the unrouted set.\n", teamID))
 }
 
 func renderDestinationsBlock(b *strings.Builder, in *inboxFlowInputs) {

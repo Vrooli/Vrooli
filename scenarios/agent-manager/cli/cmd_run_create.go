@@ -5,13 +5,15 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"os"
+	"regexp"
+	"strings"
+	"time"
+
 	"github.com/vrooli/cli-core/cliutil"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"google.golang.org/protobuf/proto"
-	"os"
-	"strings"
-	"time"
 )
 
 func (a *App) runAttach(args []string) error {
@@ -124,6 +126,9 @@ func (a *App) runCreate(args []string) error {
 	workloadKey := fs.String("workload-key", "", "Stable workload key for grouping repeated work")
 	workloadKind := fs.String("workload-kind", "", "Workload kind (workflow_node, scheduled, interactive, adhoc, imported)")
 	parentRunID := fs.String("parent-run-id", "", "Parent run ID for durable child lineage")
+	var targetInstances cliutil.StringList
+	fs.Var(&targetInstances, "target-instance", "Scenario instance this run changes, <scenario>@<instance> (repeatable); a quiesce of another instance skips the run")
+	maxWeightedTokens := fs.Int64("max-weighted-tokens", 0, "Weighted-token cap for this run; may only lower the profile cap")
 
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
@@ -135,12 +140,27 @@ func (a *App) runCreate(args []string) error {
 	if *profileID == "" {
 		return fmt.Errorf("--profile-id is required")
 	}
+	for _, id := range []struct{ flag, value string }{{"--task-id", *taskID}, {"--profile-id", *profileID}, {"--parent-run-id", *parentRunID}} {
+		if err := requireUUIDFlag(id.flag, id.value); err != nil {
+			return err
+		}
+	}
 
 	req := &apipb.CreateRunRequest{
 		TaskId: *taskID,
 	}
 	if *parentRunID != "" {
 		req.ParentRunId = protoString(*parentRunID)
+	}
+	req.TargetInstances = targetInstances.Values()
+	if *maxWeightedTokens < 0 {
+		return fmt.Errorf("--max-weighted-tokens must be positive")
+	}
+	if *maxWeightedTokens > 0 {
+		if req.InlineConfig == nil {
+			req.InlineConfig = &domainpb.RunConfigOverrides{}
+		}
+		req.InlineConfig.MaxWeightedTokens = maxWeightedTokens
 	}
 	if *profileID != "" {
 		req.AgentProfileId = protoString(*profileID)
@@ -300,3 +320,14 @@ func parseResultSpec(schemaText, schemaFile, classification string, extraction b
 // =============================================================================
 // Run Stop
 // =============================================================================
+
+var uuidPattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
+
+// requireUUIDFlag echoes the value it refuses, so a caller that copied an ID
+// wrong (for example dropped its last character) can see the difference.
+func requireUUIDFlag(flag, value string) error {
+	if value == "" || uuidPattern.MatchString(value) {
+		return nil
+	}
+	return fmt.Errorf("%s %q is not a UUID (%d characters; a UUID has 36 in 8-4-4-4-12 form); copy the ID exactly from the command that returned it", flag, value, len(value))
+}

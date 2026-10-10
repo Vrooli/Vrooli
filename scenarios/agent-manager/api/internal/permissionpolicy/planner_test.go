@@ -10,6 +10,21 @@ import (
 	"agent-manager/internal/domain"
 )
 
+func TestIncompleteResourceAssessmentIsNotHealthyWithoutHardRequirements(t *testing.T) {
+	plan := AggregatePlan{HardEnforcementSatisfied: true, Resources: []ResourcePlan{{Status: "failed", Error: "resource contract could not be read"}}}
+	if plan.AssessmentComplete() {
+		t.Fatal("failed probes reported a complete policy assessment")
+	}
+	plan.Resources = []ResourcePlan{{Status: "unavailable"}}
+	if plan.AssessmentComplete() {
+		t.Fatal("missing probes reported a complete assessment")
+	}
+	plan.Resources = []ResourcePlan{{Status: "planned"}}
+	if !plan.AssessmentComplete() {
+		t.Fatal("successful assessment reported incomplete")
+	}
+}
+
 type fakeProjector struct {
 	calls   []ProjectionRequest
 	results map[domain.RunnerType]ProjectionResult

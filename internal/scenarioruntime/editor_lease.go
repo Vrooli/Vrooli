@@ -18,7 +18,8 @@ const (
 
 const editorLeaseSelectSQL = `
 SELECT session_id, harness, agent, pid, host_boot_id, working_dir, scope, containment_method, claims_json,
-  status, created_at, last_heartbeat_at, heartbeat_deadline_at, stopped_at, stop_reason
+  status, created_at, last_heartbeat_at, heartbeat_deadline_at, stopped_at, stop_reason,
+  owner_kind, owner_ref, owner_evidence_json, owner_source, owner_recorded_at
 FROM runtime_editor_leases`
 
 // CreateEditorLease records a live agent session. A session id that already
@@ -35,19 +36,31 @@ func (s *SQLiteStore) CreateEditorLease(ctx context.Context, lease EditorLease, 
 	if err != nil {
 		return EditorLease{}, fmt.Errorf("create editor lease: %w", err)
 	}
+	owner := normalizeEditorLeaseOwner(lease.Owner, EditorLeaseOwnerLaunch)
+	var ownerRecordedAt any
+	if owner.Kind != "" {
+		ownerRecordedAt = formatTime(now)
+	}
 	var out EditorLease
 	err = s.withTx(ctx, func(tx *sql.Tx) error {
 		_, err := tx.ExecContext(ctx, `
 INSERT INTO runtime_editor_leases (session_id, harness, agent, pid, host_boot_id, working_dir, scope, containment_method, claims_json,
-  status, created_at, last_heartbeat_at, heartbeat_deadline_at, stopped_at, stop_reason)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, '')
+  status, created_at, last_heartbeat_at, heartbeat_deadline_at, stopped_at, stop_reason,
+  owner_kind, owner_ref, owner_evidence_json, owner_source, owner_recorded_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, '', ?, ?, ?, ?, ?)
 ON CONFLICT(session_id) DO UPDATE SET
   harness = excluded.harness, agent = excluded.agent, pid = excluded.pid, host_boot_id = excluded.host_boot_id,
   working_dir = excluded.working_dir, scope = excluded.scope, containment_method = excluded.containment_method,
   claims_json = excluded.claims_json, status = excluded.status, last_heartbeat_at = excluded.last_heartbeat_at,
-  heartbeat_deadline_at = excluded.heartbeat_deadline_at, stopped_at = NULL, stop_reason = ''`,
+  heartbeat_deadline_at = excluded.heartbeat_deadline_at, stopped_at = NULL, stop_reason = '',
+  owner_kind = CASE WHEN excluded.owner_kind <> '' THEN excluded.owner_kind ELSE runtime_editor_leases.owner_kind END,
+  owner_ref = CASE WHEN excluded.owner_kind <> '' THEN excluded.owner_ref ELSE runtime_editor_leases.owner_ref END,
+  owner_evidence_json = CASE WHEN excluded.owner_kind <> '' THEN excluded.owner_evidence_json ELSE runtime_editor_leases.owner_evidence_json END,
+  owner_source = CASE WHEN excluded.owner_kind <> '' THEN excluded.owner_source ELSE runtime_editor_leases.owner_source END,
+  owner_recorded_at = CASE WHEN excluded.owner_kind <> '' THEN excluded.owner_recorded_at ELSE runtime_editor_leases.owner_recorded_at END`,
 			lease.SessionID, lease.Harness, lease.Agent, optionalPID(lease.PID), lease.HostBootID, lease.WorkingDir, lease.Scope,
-			lease.ContainmentMethod, string(claims), EditorLeaseActive, formatTime(now), formatTime(now), formatTime(deadline))
+			lease.ContainmentMethod, string(claims), EditorLeaseActive, formatTime(now), formatTime(now), formatTime(deadline),
+			owner.Kind, owner.Ref, owner.EvidenceJSON, owner.Source, ownerRecordedAt)
 		if err != nil {
 			return fmt.Errorf("create editor lease: %w", err)
 		}
@@ -223,9 +236,10 @@ func scanEditorLease(row editorLeaseScanner) (EditorLease, error) {
 	var lease EditorLease
 	var pid sql.NullInt64
 	var claims, createdAt, heartbeatAt, deadlineAt string
-	var stoppedAt sql.NullString
+	var stoppedAt, ownerRecordedAt sql.NullString
 	if err := row.Scan(&lease.SessionID, &lease.Harness, &lease.Agent, &pid, &lease.HostBootID, &lease.WorkingDir, &lease.Scope, &lease.ContainmentMethod, &claims,
-		&lease.Status, &createdAt, &heartbeatAt, &deadlineAt, &stoppedAt, &lease.StopReason); err != nil {
+		&lease.Status, &createdAt, &heartbeatAt, &deadlineAt, &stoppedAt, &lease.StopReason,
+		&lease.Owner.Kind, &lease.Owner.Ref, &lease.Owner.EvidenceJSON, &lease.Owner.Source, &ownerRecordedAt); err != nil {
 		return EditorLease{}, err
 	}
 	if pid.Valid {
@@ -245,7 +259,131 @@ func scanEditorLease(row editorLeaseScanner) (EditorLease, error) {
 	if lease.StoppedAt, err = parseOptionalTime(stoppedAt); err != nil {
 		return EditorLease{}, err
 	}
+	if lease.Owner.RecordedAt, err = parseOptionalTime(ownerRecordedAt); err != nil {
+		return EditorLease{}, err
+	}
 	return lease, nil
+}
+
+// normalizeEditorLeaseOwner trims the owner and stamps a default source. An
+// owner without a kind is "not recorded" and carries nothing else.
+func normalizeEditorLeaseOwner(owner EditorLeaseOwner, defaultSource string) EditorLeaseOwner {
+	owner.Kind = strings.TrimSpace(owner.Kind)
+	if owner.Kind == "" {
+		return EditorLeaseOwner{}
+	}
+	owner.Ref = strings.TrimSpace(owner.Ref)
+	owner.Source = strings.TrimSpace(owner.Source)
+	if owner.Source == "" {
+		owner.Source = defaultSource
+	}
+	return owner
+}
+
+// BackfillEditorLeaseOwner records an owner inferred after launch for an
+// active lease that has none. It never overwrites an owner already recorded:
+// the launch-time record is the stronger evidence, and a second inference is
+// not allowed to replace the first. It reports whether a row changed.
+func (s *SQLiteStore) BackfillEditorLeaseOwner(ctx context.Context, sessionID string, owner EditorLeaseOwner) (bool, error) {
+	sessionID = strings.TrimSpace(sessionID)
+	if sessionID == "" {
+		return false, fmt.Errorf("backfill editor lease owner: session_id is required")
+	}
+	owner = normalizeEditorLeaseOwner(owner, EditorLeaseOwnerBackfill)
+	if owner.Kind == "" {
+		return false, fmt.Errorf("backfill editor lease owner: owner kind is required")
+	}
+	result, err := s.db.ExecContext(ctx, `UPDATE runtime_editor_leases
+SET owner_kind = ?, owner_ref = ?, owner_evidence_json = ?, owner_source = ?, owner_recorded_at = ?
+WHERE session_id = ? AND status = ? AND owner_kind = ''`,
+		owner.Kind, owner.Ref, owner.EvidenceJSON, owner.Source, formatTime(s.now()), sessionID, EditorLeaseActive)
+	if err != nil {
+		return false, fmt.Errorf("backfill editor lease owner: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+	return affected > 0, nil
+}
+
+// RefreshEditorLeaseOwnerEvidence replaces the evidence of an owner already
+// recorded, only when the kind and ref still match: what an owner's authority
+// later reports (web-console's origin for a live session) is added to the
+// record, and a different owner can never be written over it this way.
+func (s *SQLiteStore) RefreshEditorLeaseOwnerEvidence(ctx context.Context, sessionID string, owner EditorLeaseOwner) (bool, error) {
+	sessionID = strings.TrimSpace(sessionID)
+	owner.Kind = strings.TrimSpace(owner.Kind)
+	if sessionID == "" || owner.Kind == "" {
+		return false, fmt.Errorf("refresh editor lease owner evidence: session_id and owner kind are required")
+	}
+	result, err := s.db.ExecContext(ctx, `UPDATE runtime_editor_leases SET owner_evidence_json = ?
+WHERE session_id = ? AND status = ? AND owner_kind = ? AND owner_ref = ?`,
+		owner.EvidenceJSON, sessionID, EditorLeaseActive, owner.Kind, strings.TrimSpace(owner.Ref))
+	if err != nil {
+		return false, fmt.Errorf("refresh editor lease owner evidence: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+	return affected > 0, nil
+}
+
+// RecordAgentSessionReap appends one reap audit row.
+func (s *SQLiteStore) RecordAgentSessionReap(ctx context.Context, reap AgentSessionReap) (AgentSessionReap, error) {
+	reap.Outcome = strings.TrimSpace(reap.Outcome)
+	if reap.Outcome == "" {
+		return AgentSessionReap{}, fmt.Errorf("record agent session reap: outcome is required")
+	}
+	if strings.TrimSpace(reap.SessionID) == "" && strings.TrimSpace(reap.Scope) == "" {
+		return AgentSessionReap{}, fmt.Errorf("record agent session reap: a session id or scope is required")
+	}
+	if strings.TrimSpace(reap.ReapID) == "" {
+		reap.ReapID = newID("reap")
+	}
+	if reap.CreatedAt.IsZero() {
+		reap.CreatedAt = s.now()
+	}
+	_, err := s.db.ExecContext(ctx, `
+INSERT INTO runtime_agent_session_reaps (reap_id, session_id, scope, owner_kind, owner_ref, owner_evidence_json, liveness_detail,
+  memory_bytes, swap_bytes, tasks, outcome, error, initiator, created_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		reap.ReapID, reap.SessionID, reap.Scope, reap.OwnerKind, reap.OwnerRef, reap.OwnerEvidenceJSON, reap.LivenessDetail,
+		reap.MemoryBytes, reap.SwapBytes, reap.Tasks, reap.Outcome, reap.Error, reap.Initiator, formatTime(reap.CreatedAt))
+	if err != nil {
+		return AgentSessionReap{}, fmt.Errorf("record agent session reap: %w", err)
+	}
+	return reap, nil
+}
+
+// ListAgentSessionReaps returns the newest reap audits first.
+func (s *SQLiteStore) ListAgentSessionReaps(ctx context.Context, limit int) ([]AgentSessionReap, error) {
+	if limit <= 0 || limit > 1000 {
+		limit = 100
+	}
+	rows, err := s.db.QueryContext(ctx, `
+SELECT reap_id, session_id, scope, owner_kind, owner_ref, owner_evidence_json, liveness_detail,
+  memory_bytes, swap_bytes, tasks, outcome, error, initiator, created_at
+FROM runtime_agent_session_reaps ORDER BY created_at DESC, reap_id DESC LIMIT ?`, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list agent session reaps: %w", err)
+	}
+	defer rows.Close()
+	var out []AgentSessionReap
+	for rows.Next() {
+		var reap AgentSessionReap
+		var createdAt string
+		if err := rows.Scan(&reap.ReapID, &reap.SessionID, &reap.Scope, &reap.OwnerKind, &reap.OwnerRef, &reap.OwnerEvidenceJSON, &reap.LivenessDetail,
+			&reap.MemoryBytes, &reap.SwapBytes, &reap.Tasks, &reap.Outcome, &reap.Error, &reap.Initiator, &createdAt); err != nil {
+			return nil, err
+		}
+		if reap.CreatedAt, err = parseRequiredTime(createdAt); err != nil {
+			return nil, err
+		}
+		out = append(out, reap)
+	}
+	return out, rows.Err()
 }
 
 func optionalPID(pid int) any {

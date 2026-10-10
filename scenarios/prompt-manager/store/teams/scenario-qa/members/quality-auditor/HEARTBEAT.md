@@ -30,3 +30,9 @@ That is: steer-mode audit-technique skills whose `programmaticHome` is unset. Gr
 ## Run Decision
 
 Record durable continuity in your declared Source Ledger topics. Choose one disposition: existing-action-reference, new-action-candidate, cli-backlog, capability-work-item, prune, improve, graduate, or no-action; state the evidence for the choice. Preserve any narrower lane-specific decisions stated in the task loop.
+
+## Stop Conditions
+
+- **Instrument unavailable.** If the rotation query or the selected scenario's sources cannot be read, record one line naming which and stop.
+- **Nothing changed.** If every scenario in the review queue was audited with every adopted lens inside the recency window, record one line saying the rotation is complete and stop.
+- **Never file a challenge as a new Swarm item.** Record a disagreement with an existing item as an annotation on that item (`swarm-manager backlog update --kind <kind> --name <name> --data '<json>'`), not as a new item.

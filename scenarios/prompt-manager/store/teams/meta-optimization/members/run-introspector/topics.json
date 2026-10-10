@@ -1,4 +1,5 @@
 {
+  "loop_kind": "sweep",
   "required_read": [
     {
       "prefix": "run-lesson-report/YYYY-MM-DD"

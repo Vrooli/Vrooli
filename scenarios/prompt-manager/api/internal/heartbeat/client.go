@@ -6,13 +6,14 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/vrooli/api-core/effortauthority"
-	"github.com/vrooli/api-core/owneridentity"
 	"io"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/effortauthority"
+	"github.com/vrooli/api-core/owneridentity"
 
 	"github.com/vrooli/api-core/discovery"
 	eventpb "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
@@ -116,6 +117,7 @@ type RunIdentityScopeRequest struct {
 // Run represents an agent run.
 // JSON tags use snake_case to match agent-manager's protojson UseProtoNames output.
 type Run struct {
+	ParentRunID           string `json:"parent_run_id,omitempty"`
 	RequestedModel        string `json:"requested_model,omitempty"`
 	ActualModel           string `json:"actual_model,omitempty"`
 	HarnessKind           string `json:"harness_kind,omitempty"`
@@ -365,7 +367,7 @@ func (c *AgentManagerClient) DeleteTask(ctx context.Context, taskID string) erro
 //   - transport failure or malformed 2xx body -> uncertain (run may exist)
 func (c *AgentManagerClient) CreateRun(ctx context.Context, req *CreateRunRequest) (*Run, error) {
 	proof := createRunCaller(ctx)
-	if _, effort := effortCaller(ctx); !effort && proof.authorization == "" && proof.runIdentity == "" {
+	if _, effort := effortCaller(ctx); !effort && proof.authorization == "" && proof.runIdentity == "" && owneridentity.CreateRunCallerEnforced() {
 		return nil, NewDispatchRejectedError(fmt.Errorf("CreateRun caller proof is missing"))
 	}
 	body, err := json.Marshal(req)
@@ -817,7 +819,8 @@ func (c *AgentManagerClient) parseError(resp *http.Response) error {
 }
 
 // prepareCreateRunCaller qualifies the two-step executor before local state or
-// task writes. Unattended contexts have no anonymous fallback. Direct raw
+// task writes. While AUTH-01 is enforced, unattended contexts have no
+// anonymous fallback; with it off (P-18) they continue unqualified. Direct raw
 // proxy requests retain the owner's exact-parent verification at CreateRun.
 func (c *AgentManagerClient) prepareCreateRunCaller(ctx context.Context) (context.Context, error) {
 	if admission, ok := effortCaller(ctx); ok {
@@ -838,7 +841,7 @@ func (c *AgentManagerClient) prepareCreateRunCaller(ctx context.Context) (contex
 	if verifier == nil {
 		verifier = owneridentity.NewClient(owneridentity.Config{Resolver: discovery.NewResolver(discovery.ResolverConfig{})})
 	}
-	return owneridentity.AuthorizeCreateRunCaller(ctx, headers, verifier, time.Now())
+	return owneridentity.AdmitCreateRunCaller(ctx, headers, verifier, time.Now())
 }
 
 // SetFiniteEffortAuthority requires explicit configured custody and policy

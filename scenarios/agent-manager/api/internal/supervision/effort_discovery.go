@@ -26,6 +26,9 @@ type EffortDiscoveryConfig struct {
 	Interval             time.Duration
 	StaleAfter           time.Duration
 	StandingAllowanceRef string
+	// ProjectRoot anchors registered goal homes (destination_ref
+	// "path:<repo-relative goal home>/GOAL.md").
+	ProjectRoot string
 }
 type discoveredEffort struct {
 	enrollment   *pb.EffortEnrollment

@@ -32,7 +32,7 @@
   },
   "kind": "team",
   "lifetime": "standing",
-  "mission": "Own the canonical monetization plan for Vrooli \u2014 catalog, tiers, funnel, revenue lines, and financial model \u2014 and surface the work items the operator must make each heartbeat to stay on a path to default-alive.",
+  "mission": "Own the canonical monetization plan for Vrooli \u2014 catalog, tiers, funnel, revenue lines, and financial model \u2014 and surface an operator decision only when the instrument shows a material change on the path to default-alive. Observe by default; a heartbeat with no material change produces no work item.",
   "objectivesServed": [
     {
       "id": "T1",
@@ -146,7 +146,7 @@
             "scenario-qa"
           ],
           "rationale": "The rules a member applies every heartbeat: positioning, lifecycle and packaging discipline, pricing principles, funnel definitions, evidence protocol, telemetry roadmap, taxonomies, governance, and operator-input guidance. None of these files carries live state \u2014 Offer Desk is authoritative for catalog, tier, channel, revenue-line, deliverable, pricing, and promotion state, and Money Ledger for financial posture.",
-          "useFor": "the rules and judgment a decision must satisfy; read this set every heartbeat and query the Offer Desk instrument for current state"
+          "useFor": "the rules and judgment a decision must satisfy; read it when it changes, or the specific rule that applies to the row being judged; query the Offer Desk instrument for current state"
         },
         {
           "id": "monetization-rationale",
