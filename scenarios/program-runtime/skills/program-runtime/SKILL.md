@@ -52,10 +52,16 @@ Is the task one command against one scenario?
     │           a needed operation is unbound → stop; file W1 against its owner (report-bug)
     └─ YES → what shape is the work?
         ├─ Reads across 2+ scenarios, counts or keys only
+        │     ├─ you need running/health state for a named scenario set → run program-runtime.supervision-sweep   [S3]
+        │     ├─ you need the latest recorded validation verdict for a named scenario set → run program-runtime.validation-sweep   [S3]
+        │     ├─ one scenario is flagged and you need WHY (status + freshness + log hypotheses) → run program-runtime.scenario-triage   [S3]
         │     ├─ you need bounded field summaries of runtime measures → run program-runtime.fleet-fanout         [S3]
         │     └─ you need the fan-out latency → run program-runtime.concurrent-fanout        [S3]
-        │       ok → use signals.surfaces; unavailable → the named scenario
-        │       is down: journal, do not estimate; binding_error → read errors[0].detail
+        │       supervision-sweep ok/partial → read signals.attention ({name,status,health} of any not
+        │       running/healthy or absent slug); validation-sweep ok/partial → read signals.attention ({name,status,run_id}
+        │       of any not passing or never validated) and signals.unavailable (reads that could not be performed — unknown,
+        │       never zero); fleet-fanout ok → use signals.surfaces; unavailable → the named
+        │       scenario (or the project control-plane API) is down: journal, do not estimate; binding_error → read errors[0].detail
         ├─ A label per text, closed label set
         │     → run ai-gateway.classify-batch (1–32 texts; caller supplies instruction)      [S3]
         │       typed-inference and batch-inference are examples composing this owner
@@ -90,6 +96,10 @@ An `[S3]` leaf runs a contract program with `program-runtime library run <scenar
 
 ### Portfolio work and usage
 
+For recurring supervision/investigation loops (health, validation, "why is this scenario
+unhealthy", the supervision cycle, and what is deliberately NOT a program), the standing
+front door is `path:scenarios/program-runtime/docs/guides/supervision-loops.md`.
+
 | Need | Program or command | Required inputs |
 |---|---|---|
 | Which of our programs need attention? | `program-runtime.portfolio-audit`, then `program-runtime.usage-triage` | `portfolio-audit`: optional `min_rung`, `scenario`, `window_days`; `usage-triage`: optional `window_days`, `max_pairs`, `scenario` |
@@ -98,6 +108,9 @@ An `[S3]` leaf runs a contract program with `program-runtime library run <scenar
 | Triage attributed program usage | `program-runtime library run program-runtime.usage-triage` | One bounded batch classification; branch on `status`, `fought_it`, `abandoned`, and `wrong_program`, and treat `partial` as an honest gap |
 | Classify a bounded corpus | `program-runtime.batch-inference` | optional `corpus`, `labels`, `instruction` |
 | Run independent reads concurrently | `program-runtime.concurrent-fanout` | no required inputs; contract defaults |
+| Supervise running/health across a scenario set | `program-runtime.supervision-sweep` | optional `scenarios` (CSV; defaults to the delivery/product set); one `vrooli/scenario/list` read, `signals.attention` names any not running/healthy |
+| Read latest validation verdict across a scenario set | `program-runtime.validation-sweep` | optional `scenarios` (CSV; same default set); one `validate` verb read per scenario of the latest RECORDED run (never starts a run); `signals.attention` names any not passing or never validated, `signals.unavailable` counts reads that could not be performed. Reads the primary recorded store — empty where runs are routed/isolated (`primary_root_writes=0`) |
+| Triage one flagged scenario (why is it unhealthy) | `program-runtime.scenario-triage` | required `scenario` (slug), optional `tail` (1..200); joins status + freshness + a bounded log tail into advisory `signals.hypotheses` ({cause, evidence}: schema_drift/port_conflict/dependency/permission/disk). Read-only; never restarts. Log classification needs a lifecycle log — dark for registry-runtime scenarios that have none (status + freshness still return live) |
 | Route one improvement reading | `program-runtime.improve-cycle` | `board`, optional `events` |
 | Compose improvement evidence | `program-runtime.improvement-evidence` | `campaign_id`, `run_ids`, optional `limit` |
 | Prepare one operation contract | `program-runtime.prepare-operation` | `name` |

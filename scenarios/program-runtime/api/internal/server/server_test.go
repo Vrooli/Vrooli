@@ -1,9 +1,12 @@
 package server_test
 
 import (
+	"github.com/vrooli/api-core/provenance"
+	"github.com/vrooli/cli-core/cliutil"
 	"io"
 	"log"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"program-runtime/internal/module"
@@ -16,6 +19,25 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
 )
+
+func TestServerForwardsOnlyVerifiedAgentProofToProgramContext(t *testing.T) {
+	for _, offered := range []string{"valid", "invalid", ""} {
+		var forwarded string
+		app := server.New(server.Deps{Clock: schedule.System(), IdentityVerifier: provenance.VerifierFunc(func(token string) (*cliutil.VerifyResult, error) {
+			return &cliutil.VerifyResult{Valid: token == "valid", Claims: &cliutil.VerifiedClaims{RunID: "approved-run"}}, nil
+		})}, module.Module{Name: "fixture", Mount: func(r *mux.Router) {
+			r.HandleFunc("/fixture", func(_ http.ResponseWriter, req *http.Request) {
+				forwarded = provenance.ForwardedIdentityToken(req.Context())
+			})
+		}})
+		req := httptest.NewRequest(http.MethodPost, "/fixture", nil)
+		req.Header.Set(cliutil.HeaderAgentIdentityToken, offered)
+		app.Handler().ServeHTTP(httptest.NewRecorder(), req)
+		if offered == "valid" && forwarded != offered || offered != "valid" && forwarded != "" {
+			t.Fatalf("offered %q produced forwarding %q", offered, forwarded)
+		}
+	}
+}
 
 // TestServer_MountsEachModule pins the contract the server owns:
 // every module passed to New has its Mount invoked exactly once on

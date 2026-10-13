@@ -39,9 +39,18 @@ func WorkEntries(work Work) []Entry {
 		}
 	}
 	effort := strings.TrimSpace(work.EffortRef)
+	revision := strings.TrimSpace(work.EffortRevision)
+	// A caller may pin the revision inside the reference (effort:x@12); the
+	// epoch names the effort itself, so it never carries the revision.
+	if base, pinned, ok := strings.Cut(effort, "@"); ok {
+		effort = base
+		if revision == "" {
+			revision = pinned
+		}
+	}
 	if effort != "" {
 		value := effort
-		if revision := strings.TrimSpace(work.EffortRevision); revision != "" {
+		if revision != "" {
 			value += "@" + revision
 		}
 		add("Vrooli-Effort", value)

@@ -20,6 +20,7 @@ import sys
 import threading
 import traceback
 import urllib.error
+import urllib.parse
 import urllib.request
 from typing import Any, Iterable
 
@@ -47,6 +48,28 @@ builtins.open = _guarded_open
 _INVOCATION_CONTEXT: contextvars.ContextVar[dict[str, str]] = contextvars.ContextVar(
     "program_runtime_invocation_context", default={}
 )
+
+# Execution-local agent proof stays separate from caller/learning metadata and
+# session globals. Resetting it prevents later submissions inheriting authority.
+_AGENT_IDENTITY: contextvars.ContextVar[str] = contextvars.ContextVar("agent_identity", default="")
+
+
+class _NoAgentRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+def _open_bridge_request(request, timeout):
+    token = _AGENT_IDENTITY.get()
+    destination = urllib.parse.urlsplit(request.full_url)
+    trusted = destination.scheme in ("http", "https") and destination.hostname in ("localhost", "127.0.0.1", "::1") and destination.username is None
+    if token and trusted:
+        request.add_header("X-Agent-Identity-Token", token)
+        # Proof-bearing local calls cannot use an ambient proxy or follow a
+        # redirect. The target owner verifies the original grant on each call.
+        return urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoAgentRedirect()).open(request, timeout=timeout)
+    request.remove_header("X-agent-identity-token")
+    return urllib.request.urlopen(request, timeout=timeout)
 
 
 class _Budgets:
@@ -423,7 +446,7 @@ class ProgramGlobals(dict):
             method="POST",
         )
         try:
-            with urllib.request.urlopen(request, timeout=_Budgets.telemetry):
+            with _open_bridge_request(request, timeout=_Budgets.telemetry):
                 pass
         except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, OSError):
             # Telemetry must never change the program's deterministic failure.
@@ -570,7 +593,7 @@ class Namespace:
             method="POST",
         )
         try:
-            with urllib.request.urlopen(request, timeout=_Budgets.describe) as response:
+            with _open_bridge_request(request, timeout=_Budgets.describe) as response:
                 payload = json.loads(response.read().decode())
         except urllib.error.HTTPError as exc:
             detail = exc.read().decode(errors="replace")
@@ -594,7 +617,7 @@ class Namespace:
                 method="POST",
             )
             try:
-                with urllib.request.urlopen(request, timeout=_Budgets.describe) as response:
+                with _open_bridge_request(request, timeout=_Budgets.describe) as response:
                     live = json.loads(response.read().decode())
                 if isinstance(live, dict):
                     rows = []
@@ -660,7 +683,7 @@ class Namespace:
         payload = {**kwargs, "session_id": self._session_id, "program_id": context.get("program_id", ""), "provenance": context.get("provenance", "")}
         request = urllib.request.Request(endpoint, data=json.dumps(payload).encode(), headers={"Content-Type": "application/json"}, method="POST")
         try:
-            with urllib.request.urlopen(request, timeout=_Budgets.invoke) as response:
+            with _open_bridge_request(request, timeout=_Budgets.invoke) as response:
                 payload = json.loads(response.read().decode())
         except urllib.error.HTTPError as exc:
             detail = exc.read().decode(errors="replace")
@@ -794,7 +817,7 @@ class Namespace:
                     headers={"Content-Type": "application/json"},
                     method="POST",
                 )
-                with urllib.request.urlopen(request, timeout=_Budgets.invoke) as response:
+                with _open_bridge_request(request, timeout=_Budgets.invoke) as response:
                     payload = json.loads(response.read().decode())
                 result = payload.get("result") or {}
                 binding = result.get("binding") or {}
@@ -1121,7 +1144,7 @@ class _DelegationSurface:
         body = json.dumps(request).encode()
         http_request = urllib.request.Request(endpoint, data=body, headers={"Content-Type": "application/json"}, method="POST")
         try:
-            with urllib.request.urlopen(http_request, timeout=timeout) as response:
+            with _open_bridge_request(http_request, timeout=timeout) as response:
                 return json.loads(response.read().decode())
         except urllib.error.HTTPError as exc:
             detail = exc.read().decode(errors="replace")
@@ -1227,7 +1250,7 @@ class BridgeBinding:
             method="POST",
         )
         try:
-            with urllib.request.urlopen(request, timeout=_Budgets.describe) as response:
+            with _open_bridge_request(request, timeout=_Budgets.describe) as response:
                 snapshot = json.loads(response.read().decode())
             scenario = self.binding_id.split("/", 1)[0]
             status = snapshot.get(scenario, {}) if isinstance(snapshot, dict) else {}
@@ -1243,7 +1266,7 @@ class BridgeBinding:
         request = json.dumps({"session_id": self.session_id, "program_id": context.get("program_id", ""), "provenance": context.get("provenance", ""), "binding_id": self.binding_id, "args": kwargs, "confirmed": confirmed, "rows": rows_override or ""}).encode()
         http_request = urllib.request.Request(self.bridge_url, data=request, headers={"Content-Type": "application/json"}, method="POST")
         try:
-            with urllib.request.urlopen(http_request, timeout=self.invoke_timeout) as response:
+            with _open_bridge_request(http_request, timeout=self.invoke_timeout) as response:
                 payload = json.loads(response.read().decode())
         except urllib.error.HTTPError as exc:
             # The bridge writes a structured body: error, class, status,
@@ -1397,7 +1420,7 @@ class SessionKernel:
         root._binding_contract_specs = binding_contract_specs
         self.globals = _program_globals(root, project, "program_runtime_session")
 
-    def execute(self, source: str, include_materialized: bool = False, program_id: str = "", provenance: str = "", caller: dict[str, str] | None = None, progress=None) -> dict[str, Any]:
+    def execute(self, source: str, include_materialized: bool = False, program_id: str = "", provenance: str = "", caller: dict[str, str] | None = None, progress=None, agent_identity_token: str = "") -> dict[str, Any]:
         output = _ProgressBuffer(progress)
         self.invocations.clear()
         context = {"program_id": program_id, "provenance": provenance, "source": source}
@@ -1406,6 +1429,7 @@ class SessionKernel:
             if value:
                 context[key] = value
         context_token = _INVOCATION_CONTEXT.set(context)
+        identity_token = _AGENT_IDENTITY.set(agent_identity_token)
         task_token = ACTIVE_TASK.set(None)
         helper = dict.get(self.globals, "program")
         if isinstance(helper, ProgramHelper):
@@ -1453,6 +1477,7 @@ class SessionKernel:
                 response["learning"] = learning_receipt
             return response
         finally:
+            _AGENT_IDENTITY.reset(identity_token)
             _INVOCATION_CONTEXT.reset(context_token)
             ACTIVE_TASK.reset(task_token)
 
@@ -1538,7 +1563,7 @@ def serve() -> None:
             result: dict[str, Any] = {}
 
             def run() -> None:
-                result.update(kernel.execute(str(request.get("source", "")), include_materialized, str(request.get("program_id", "")), str(request.get("provenance", "")), request.get("caller") or {}, progress))
+                result.update(kernel.execute(str(request.get("source", "")), include_materialized, str(request.get("program_id", "")), str(request.get("provenance", "")), request.get("caller") or {}, progress, str(request.get("agent_identity_token", ""))))
 
             worker = threading.Thread(target=run, name="program-runtime-kernel", daemon=True)
             worker.start()

@@ -45,7 +45,14 @@ var _ proposals.Git = (*proposalGit)(nil)
 var proposalGitFor = func(git GitRunner, repoDir string) proposals.Git { return newProposalGit(git, repoDir) }
 
 func (g *proposalGit) read(ctx context.Context, stdin []byte, args ...string) ([]byte, error) {
-	full := append([]string{"--no-optional-locks", "--literal-pathspecs", "-C", g.repoDir}, args...)
+	global := []string{"--no-optional-locks", "--literal-pathspecs", "-C", g.repoDir}
+	if args[0] == "check-ignore" {
+		// check-ignore refuses all pathspec magic, including the literal magic
+		// that --literal-pathspecs adds. It already reads each path as a
+		// plain name ("x*.log" and ":a" match only themselves).
+		global = []string{"--no-optional-locks", "-C", g.repoDir}
+	}
+	full := append(global, args...)
 	cmd := exec.CommandContext(ctx, g.gitPath, full...)
 	if stdin != nil {
 		cmd.Stdin = bytes.NewReader(stdin)

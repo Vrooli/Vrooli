@@ -277,3 +277,14 @@ func TestResolveNeverPromotesMetadataToAuthorship(t *testing.T) {
 		t.Fatalf("foreign ref=%#v", refs[2])
 	}
 }
+
+func TestEffortPinnedInsideItsReferenceStillNamesTheEpoch(t *testing.T) {
+	entries := WorkEntries(Work{EffortRef: "effort:bas@12", Epoch: "E34"})
+	want := []string{"Vrooli-Effort: effort:bas@12", "Vrooli-Epoch: effort:bas#E34"}
+	if got := keyed(entries); !reflect.DeepEqual(got, want) {
+		t.Fatalf("entries = %q, want %q", got, want)
+	}
+	if issues := Validate("bas: subject", "", entries, ValidateOptions{AgentAuthored: true}); len(issues) != 0 {
+		t.Fatalf("issues = %#v", issues)
+	}
+}

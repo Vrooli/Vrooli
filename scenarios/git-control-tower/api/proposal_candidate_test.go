@@ -513,3 +513,16 @@ func TestProposalSavedVersionRefusesAlreadyCommittedProposalPathChanges(t *testi
 		t.Fatalf("committed base changed=%+v err=%v", result, err)
 	}
 }
+
+func TestIgnoredReportsIgnoredPathsWithUnusualNames(t *testing.T) {
+	g, _, _, _ := candidateFixture(t)
+	WriteTestFile(t, filepath.Join(g.repoDir, ".gitignore"), "*.log\nbuild/\n")
+	ignored, err := g.Ignored(context.Background(), []string{"a.txt", "x*.log", ":odd.log", "build/out", "b[1].go"})
+	if err != nil {
+		t.Fatalf("check-ignore refused the request: %v", err)
+	}
+	want := []string{"x*.log", ":odd.log", "build/out"}
+	if strings.Join(ignored, ",") != strings.Join(want, ",") {
+		t.Fatalf("ignored = %q, want %q", ignored, want)
+	}
+}
