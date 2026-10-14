@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
@@ -10,6 +10,7 @@ import {
   recipientsClient,
   registerBrowserPushSubscription,
 } from "../api/notifications";
+import { fetchNotificationCatalog } from "../api/preferences";
 
 vi.mock("../api/notifications", () => ({
   identityClient: {
@@ -31,10 +32,84 @@ vi.mock("../api/notifications", () => ({
   registerBrowserPushSubscription: vi.fn(),
 }));
 
+// Keep the event-integration and notification-preference surfaces quiet so the
+// browser-push setup flow is the only thing driving a role="status" node.
+vi.mock("../api/integrations", () => ({
+  fetchEventIntegrationConfig: vi.fn().mockResolvedValue({
+    events_api_base: "",
+    webhook_url: "",
+    pattern: "incident.*",
+    sensitivity_by_severity: {},
+  }),
+  updateEventIntegrationConfig: vi.fn(),
+}));
+
+vi.mock("../api/preferences", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../api/preferences")>();
+  return {
+    ...actual,
+    // A populated catalog settles into the grouped list (no role="status"),
+    // unlike the loading/empty/error states which intentionally announce.
+    fetchNotificationCatalog: vi.fn().mockResolvedValue({
+      sources: [
+        {
+          source_scenario: "git-control-tower",
+          display_name: "Git Control Tower",
+          icon: "",
+          deep_link_base: "",
+          declared: true,
+          categories: [
+            {
+              category: "review",
+              display_name: "Review requests",
+              description: "A PR needs your review.",
+              declared: true,
+              default_enabled: true,
+              default_min_urgency: "normal",
+            },
+          ],
+        },
+      ],
+      preferences: [],
+    }),
+    updateNotificationPreference: vi.fn(),
+  };
+});
+
 const listDevices = vi.mocked(recipientsClient.listDevices);
 const registerPush = vi.mocked(registerBrowserPushSubscription);
 
+const populatedCatalog = {
+  sources: [
+    {
+      source_scenario: "git-control-tower",
+      display_name: "Git Control Tower",
+      icon: "",
+      deep_link_base: "",
+      declared: true,
+      categories: [
+        {
+          category: "review",
+          display_name: "Review requests",
+          description: "A PR needs your review.",
+          declared: true,
+          default_enabled: true,
+          default_min_urgency: "normal",
+        },
+      ],
+    },
+  ],
+  preferences: [],
+};
+
 describe("SettingsPage browser notification setup", () => {
+  beforeEach(() => {
+    // afterEach's restoreAllMocks wipes the factory's resolved value, so the
+    // catalog must be re-settled each test to keep the preferences section in
+    // its populated state (which emits no role="status") rather than erroring.
+    vi.mocked(fetchNotificationCatalog).mockResolvedValue(populatedCatalog);
+  });
+
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.restoreAllMocks();

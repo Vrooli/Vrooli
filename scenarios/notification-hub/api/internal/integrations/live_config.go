@@ -16,11 +16,13 @@ import (
 func Schema() string { return integrationconfig.Schema() }
 
 type LiveConfig struct {
-	EventsAPIBase         string                   `json:"events_api_base"`
-	WebhookURL            string                   `json:"webhook_url"`
-	Pattern               string                   `json:"pattern"`
-	Templates             map[string]EventTemplate `json:"templates,omitempty"`
-	SensitivityBySeverity map[string]string        `json:"sensitivity_by_severity,omitempty"`
+	EventsAPIBase          string                   `json:"events_api_base"`
+	WebhookURL             string                   `json:"webhook_url"`
+	Pattern                string                   `json:"pattern"`
+	Templates              map[string]EventTemplate `json:"templates,omitempty"`
+	SensitivityBySeverity  map[string]string        `json:"sensitivity_by_severity,omitempty"`
+	DecisionSensitivity    string                   `json:"decision_sensitivity,omitempty"`
+	DecisionDeadlineSecond int                      `json:"decision_default_deadline_seconds,omitempty"`
 }
 
 type EventTemplate struct {
@@ -48,8 +50,16 @@ func NewPersistentLiveConfigStore(ctx context.Context, db *database.RoutedDB, in
 	if _, err := db.ExecContext(ctx, `ALTER TABLE event_integration_config ADD COLUMN sensitivity_by_severity_json TEXT NOT NULL DEFAULT '{}'`); err != nil && !strings.Contains(strings.ToLower(err.Error()), "duplicate column") {
 		return nil, fmt.Errorf("ensure event integration sensitivity mapping: %w", err)
 	}
+	for _, stmt := range []string{
+		`ALTER TABLE event_integration_config ADD COLUMN decision_sensitivity TEXT NOT NULL DEFAULT 'private'`,
+		`ALTER TABLE event_integration_config ADD COLUMN decision_default_deadline_seconds INTEGER NOT NULL DEFAULT 86400`,
+	} {
+		if _, err := db.ExecContext(ctx, stmt); err != nil && !strings.Contains(strings.ToLower(err.Error()), "duplicate column") {
+			return nil, fmt.Errorf("ensure event integration decision defaults: %w", err)
+		}
+	}
 	var sensitivityJSON string
-	err := db.QueryRowContext(ctx, `SELECT events_api_base, webhook_url, pattern, templates_json, sensitivity_by_severity_json FROM event_integration_config WHERE id = 1`).Scan(&initial.EventsAPIBase, &initial.WebhookURL, &initial.Pattern, &templatesJSON, &sensitivityJSON)
+	err := db.QueryRowContext(ctx, `SELECT events_api_base, webhook_url, pattern, templates_json, sensitivity_by_severity_json, decision_sensitivity, decision_default_deadline_seconds FROM event_integration_config WHERE id = 1`).Scan(&initial.EventsAPIBase, &initial.WebhookURL, &initial.Pattern, &templatesJSON, &sensitivityJSON, &initial.DecisionSensitivity, &initial.DecisionDeadlineSecond)
 	if err != nil && err != sql.ErrNoRows {
 		return nil, fmt.Errorf("load event integration config: %w", err)
 	}
@@ -107,12 +117,13 @@ func (s *LiveConfigStore) persist(ctx context.Context, config LiveConfig) error 
 		return fmt.Errorf("encode event sensitivity mapping: %w", err)
 	}
 	_, err = s.db.ExecContext(ctx, `
-		INSERT INTO event_integration_config (id, events_api_base, webhook_url, pattern, templates_json, sensitivity_by_severity_json, updated_at)
-		VALUES (1, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+		INSERT INTO event_integration_config (id, events_api_base, webhook_url, pattern, templates_json, sensitivity_by_severity_json, decision_sensitivity, decision_default_deadline_seconds, updated_at)
+		VALUES (1, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
 		ON CONFLICT(id) DO UPDATE SET events_api_base = excluded.events_api_base,
 		webhook_url = excluded.webhook_url, pattern = excluded.pattern,
-		templates_json = excluded.templates_json, sensitivity_by_severity_json = excluded.sensitivity_by_severity_json, updated_at = CURRENT_TIMESTAMP`,
-		config.EventsAPIBase, config.WebhookURL, config.Pattern, string(templates), string(sensitivity))
+		templates_json = excluded.templates_json, sensitivity_by_severity_json = excluded.sensitivity_by_severity_json,
+		decision_sensitivity = excluded.decision_sensitivity, decision_default_deadline_seconds = excluded.decision_default_deadline_seconds, updated_at = CURRENT_TIMESTAMP`,
+		config.EventsAPIBase, config.WebhookURL, config.Pattern, string(templates), string(sensitivity), config.DecisionSensitivity, config.DecisionDeadlineSecond)
 	if err != nil {
 		return fmt.Errorf("persist event integration config: %w", err)
 	}
@@ -143,7 +154,15 @@ func normalizedConfig(config LiveConfig) LiveConfig {
 			sensitivity[severity] = label
 		}
 	}
-	return LiveConfig{EventsAPIBase: strings.TrimSpace(config.EventsAPIBase), WebhookURL: strings.TrimSpace(config.WebhookURL), Pattern: pattern, Templates: templates, SensitivityBySeverity: sensitivity}
+	decisionSensitivity := strings.ToLower(strings.TrimSpace(config.DecisionSensitivity))
+	if !validNotificationSensitivities[decisionSensitivity] {
+		decisionSensitivity = decisionSensitivityLabel
+	}
+	decisionDeadline := config.DecisionDeadlineSecond
+	if decisionDeadline <= 0 {
+		decisionDeadline = int(decisionDefaultDeadline.Seconds())
+	}
+	return LiveConfig{EventsAPIBase: strings.TrimSpace(config.EventsAPIBase), WebhookURL: strings.TrimSpace(config.WebhookURL), Pattern: pattern, Templates: templates, SensitivityBySeverity: sensitivity, DecisionSensitivity: decisionSensitivity, DecisionDeadlineSecond: decisionDeadline}
 }
 
 func Handler(store *LiveConfigStore, onChange func(LiveConfig) error) http.Handler {

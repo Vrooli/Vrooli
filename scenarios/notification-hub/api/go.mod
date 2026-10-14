@@ -9,6 +9,8 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/stretchr/testify v1.12.1
 	github.com/vrooli/api-core v0.0.0
+	github.com/vrooli/repo-contract-go v0.0.0
+	github.com/vrooli/vrooli v3.2.0+incompatible
 	github.com/vrooli/vrooli/packages/capability-registry-go v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
 	google.golang.org/protobuf v1.36.11
@@ -29,11 +31,8 @@ require (
 	github.com/vrooli/cli-core v0.0.0 // indirect
 	github.com/vrooli/envkit-go v0.0.0 // indirect
 	github.com/vrooli/platform-go v0.0.0 // indirect
-	github.com/vrooli/repo-contract-go v0.0.0 // indirect
-	github.com/vrooli/vrooli v3.2.0+incompatible // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/crypto v0.54.0 // indirect
-	golang.org/x/mod v0.37.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/tools v0.45.0 // indirect
 	modernc.org/libc v1.72.3 // indirect

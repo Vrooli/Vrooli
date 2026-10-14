@@ -29,6 +29,7 @@ self.addEventListener("push", (event) => {
   event.waitUntil(self.registration.showNotification(payload.title || "Notification Hub", {
     body: payload.body || "Notification available",
     tag: payload.id || undefined,
+    icon: payload.icon || undefined,
     data: { id: payload.id || "", url: payload.url || "" },
   }));
 });

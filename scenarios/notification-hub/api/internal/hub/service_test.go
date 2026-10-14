@@ -173,6 +173,37 @@ func TestProcess_RedactsSensitiveContentAndRecordsRetryReceipt(t *testing.T) {
 	require.Zero(t, pending)
 }
 
+// A delivered web_push notification carries the source scenario's resolved app
+// icon URL so the operator's device shows the originating app's icon instead of
+// notification-hub's own.
+func TestProcess_WebPushCarriesSourceIconURL(t *testing.T) {
+	service, db := testService(t)
+	recipient := "alice"
+	registerSubscription(t, service, recipient)
+	sender := &recordingSender{}
+	service.SetPushSender(sender)
+	service.SetIconResolver(func(_ context.Context, source string) string {
+		if source == "web-console" {
+			return "https://web-console.example/public/icon-192.png"
+		}
+		return ""
+	})
+
+	id := uuid.NewString()
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	_, err := db.ExecContext(context.Background(), `INSERT INTO notifications (id, requested_by, title, body, urgency, sensitivity_label, idempotency_key, dedupe_key, dedupe_window_seconds, source_scenario, created_at, updated_at) VALUES (?, ?, 'Test', 'hello', 'normal', 'public', ?, '', 300, 'web-console', ?, ?)`, id, recipient, uuid.NewString(), now, now)
+	require.NoError(t, err)
+	_, err = db.ExecContext(context.Background(), `INSERT INTO notification_events (notification_id, state, reason, created_at) VALUES (?, 'pending', 'test accepted', ?)`, id, now)
+	require.NoError(t, err)
+
+	require.NoError(t, service.Process(context.Background(), id))
+	n, _, err := service.Get(context.Background(), id)
+	require.NoError(t, err)
+	require.Equal(t, "delivered", n.State)
+	require.Len(t, sender.messages, 1)
+	require.Equal(t, "https://web-console.example/public/icon-192.png", sender.messages[0].Icon)
+}
+
 // [REQ:NOTIFICA-P0-001][REQ:NOTIFICA-P0-014][REQ:NOTIFICA-P0-015]
 func TestProcess_RemovesGoneSubscription(t *testing.T) {
 	service, db := testService(t)
@@ -376,6 +407,39 @@ func TestAsk_EscalatesThroughConfiguredChannelsThenExpires(t *testing.T) {
 	require.NoError(t, service.ProcessEscalations(context.Background()))
 	require.NoError(t, db.QueryRowContext(context.Background(), `SELECT state FROM asks WHERE id=?`, askID).Scan(&state))
 	require.Equal(t, "expired", state)
+}
+
+// Re-enabling browser notifications (re-adding the PWA mints a fresh service
+// worker + endpoint under the same origin) must be idempotent: the device is
+// keyed by (recipient, origin-name), so the second enable reuses the device
+// instead of tripping UNIQUE(recipient_id, name), and the NEW endpoint is
+// stored so delivery follows the live subscription.
+func TestRegisterPushSubscription_ReEnableRefreshesEndpoint(t *testing.T) {
+	service, db := testService(t)
+	ctx := context.Background()
+	const origin = "https://notification-hub.itsagitime.com"
+
+	require.NoError(t, service.RegisterPushSubscription(ctx, "alice", hub.PushSubscription{
+		Endpoint: "https://web.push.apple.com/old", P256DH: "k1", Auth: "a1", Origin: origin,
+	}))
+	// Second enable: same origin (same device name), brand-new endpoint.
+	require.NoError(t, service.RegisterPushSubscription(ctx, "alice", hub.PushSubscription{
+		Endpoint: "https://web.push.apple.com/new", P256DH: "k2", Auth: "a2", Origin: origin,
+	}))
+
+	// Exactly one device for this origin — the second enable reused it.
+	var deviceCount int
+	require.NoError(t, db.QueryRowContext(ctx,
+		`SELECT count(*) FROM devices WHERE recipient_id=(SELECT id FROM recipients WHERE subject=?) AND name=?`,
+		"alice", origin).Scan(&deviceCount))
+	require.Equal(t, 1, deviceCount)
+
+	// The live endpoint is stored and bound to that device.
+	var boundDevice string
+	require.NoError(t, db.QueryRowContext(ctx,
+		`SELECT device_id FROM push_subscriptions WHERE recipient_id=(SELECT id FROM recipients WHERE subject=?) AND endpoint=?`,
+		"alice", "https://web.push.apple.com/new").Scan(&boundDevice))
+	require.NotEmpty(t, boundDevice)
 }
 
 // [REQ:NOTIFICA-P1-005]

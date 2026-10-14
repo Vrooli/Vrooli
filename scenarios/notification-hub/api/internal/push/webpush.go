@@ -162,6 +162,7 @@ type Message struct {
 	Body  string `json:"body"`
 	ID    string `json:"id,omitempty"`
 	URL   string `json:"url,omitempty"`
+	Icon  string `json:"icon,omitempty"`
 }
 
 func (s *Sender) Send(ctx context.Context, subscription Subscription, title, body string) (string, error) {

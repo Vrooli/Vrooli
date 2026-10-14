@@ -53,6 +53,20 @@ func EventWebhookWithTemplatesAndSensitivity(service *hub.Service, secret string
 // secret that becomes resolvable after boot is used without a restart. An
 // unavailable secret fails closed with 401.
 func EventWebhookFromSecretSource(service *hub.Service, secretSource SecretSource, templates func() map[string]EventTemplate, sensitivity func() map[string]string) http.Handler {
+	return EventWebhookFromSecretSourceWithDecisionDefaults(service, secretSource, templates, sensitivity, nil)
+}
+
+// DecisionDefaults carries the operator-configured decision sensitivity label
+// and default deadline consulted when a *.decision_requested.v1 event omits its
+// own deadline. A nil accessor keeps the package defaults.
+type DecisionDefaults struct {
+	Sensitivity     string
+	DefaultDeadline time.Duration
+}
+
+// EventWebhookFromSecretSourceWithDecisionDefaults is EventWebhookFromSecretSource
+// with the operator-owned decision defaults threaded in.
+func EventWebhookFromSecretSourceWithDecisionDefaults(service *hub.Service, secretSource SecretSource, templates func() map[string]EventTemplate, sensitivity func() map[string]string, decisionDefaults func() DecisionDefaults) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			w.WriteHeader(http.StatusMethodNotAllowed)
@@ -89,7 +103,12 @@ func EventWebhookFromSecretSource(service *hub.Service, secretSource SecretSourc
 			if recipient == "" {
 				recipient = payload.SourceScenario
 			}
-			spec, specErr := DecisionAskSpec(recipient, payload.SourceScenario, payload.EventType, eventID, payload.Payload, time.Now().UTC())
+			sensitivityLabel, defaultDeadline := decisionSensitivityLabel, decisionDefaultDeadline
+			if decisionDefaults != nil {
+				defaults := decisionDefaults()
+				sensitivityLabel, defaultDeadline = defaults.Sensitivity, defaults.DefaultDeadline
+			}
+			spec, specErr := DecisionAskSpecWithDefaults(recipient, payload.SourceScenario, payload.EventType, eventID, payload.Payload, time.Now().UTC(), sensitivityLabel, defaultDeadline)
 			if specErr == nil {
 				var ask hub.AskRecord
 				ask, _, specErr = service.AskWithSpec(r.Context(), spec)
@@ -105,6 +124,36 @@ func EventWebhookFromSecretSource(service *hub.Service, secretSource SecretSourc
 			writeJSONError(w, status, specErr.Error())
 			return
 		}
+		// The recipient is the operator (override, then operator state). With
+		// neither set the notification is still recorded, owned by the source
+		// scenario, and its delivery attempt is 'unroutable' with the setting
+		// that fixes it; it is never silently dropped.
+		recipient := service.ResolveRecipient(r.Context())
+		if recipient == "" {
+			recipient = payload.SourceScenario
+		}
+		// Primary path: a domain-neutral FYI notification. It fires when the
+		// event type carries the notification suffix OR the payload parses into
+		// usable neutral facts (a non-empty body). The legacy incident renderer
+		// below stays the fallback for events that carry no neutral facts.
+		if IsNotificationRequest(payload.EventType) || func() bool { _, ok := parseNotificationFacts(payload.Payload); return ok }() {
+			facts, ok := parseNotificationFacts(payload.Payload)
+			if !ok || eventID == "" {
+				writeJSONError(w, http.StatusBadRequest, "event_id and a non-empty body are required")
+				return
+			}
+			notification, err := service.Send(r.Context(), notificationSendInput(recipient, payload.SourceScenario, payload.EventType, eventID, facts))
+			if err != nil {
+				status := http.StatusInternalServerError
+				if errors.Is(err, hub.ErrInvalidArgument) {
+					status = http.StatusBadRequest
+				}
+				writeJSONError(w, status, err.Error())
+				return
+			}
+			writeJSON(w, http.StatusAccepted, map[string]string{"notification_id": notification.ID, "event_id": eventID})
+			return
+		}
 		var configured map[string]EventTemplate
 		if templates != nil {
 			configured = templates()
@@ -117,14 +166,6 @@ func EventWebhookFromSecretSource(service *hub.Service, secretSource SecretSourc
 		if eventID == "" || rendered.Body == "" {
 			writeJSONError(w, http.StatusBadRequest, "event_id, body, and sensitivity_label are required")
 			return
-		}
-		// The recipient is the operator (override, then operator state). With
-		// neither set the notification is still recorded, owned by the source
-		// scenario, and its delivery attempt is 'unroutable' with the setting
-		// that fixes it; it is never silently dropped.
-		recipient := service.ResolveRecipient(r.Context())
-		if recipient == "" {
-			recipient = payload.SourceScenario
 		}
 		if payload.EventType == "incident.remediation_approval_requested.v1" {
 			ask, _, askErr := service.AskWithSpec(r.Context(), hub.AskSpec{
@@ -283,8 +324,9 @@ func nonEmpty(value, fallback string) string {
 // Subscription names owned by the hub. The operator configures the pattern
 // of the first; the decision subscription is part of the ask contract.
 const (
-	eventSubscriptionName    = "notification-hub-events"
-	decisionSubscriptionName = "notification-hub-decisions"
+	eventSubscriptionName        = "notification-hub-events"
+	decisionSubscriptionName     = "notification-hub-decisions"
+	notificationSubscriptionName = "notification-hub-notifications"
 )
 
 // SubscriptionSpec is one named vrooli-events subscription delivered to the
@@ -306,6 +348,12 @@ func EnsureEventSubscription(ctx context.Context, baseURL, target, pattern strin
 // *.decision_requested.v1 event into an ask.
 func EnsureDecisionSubscription(ctx context.Context, baseURL, target string) error {
 	return EnsureEventSubscriptions(ctx, baseURL, target, []SubscriptionSpec{{Name: decisionSubscriptionName, Pattern: DecisionRequestPattern}})
+}
+
+// EnsureNotificationSubscription reconciles the subscription that turns every
+// *.notification.v1 event into a domain-neutral FYI notification.
+func EnsureNotificationSubscription(ctx context.Context, baseURL, target string) error {
+	return EnsureEventSubscriptions(ctx, baseURL, target, []SubscriptionSpec{{Name: notificationSubscriptionName, Pattern: NotificationRequestPattern}})
 }
 
 // EnsureEventSubscriptions reconciles each named subscription to the hub's

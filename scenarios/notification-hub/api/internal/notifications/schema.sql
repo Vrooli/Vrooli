@@ -11,6 +11,9 @@ CREATE TABLE IF NOT EXISTS notifications (
   scheduled_at TEXT NOT NULL DEFAULT '',
   digest_key TEXT NOT NULL DEFAULT '',
   digest_window_seconds INTEGER NOT NULL DEFAULT 0,
+  source_scenario TEXT NOT NULL DEFAULT '',
+  category TEXT NOT NULL DEFAULT '',
+  context_url TEXT NOT NULL DEFAULT '',
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
   UNIQUE(requested_by, idempotency_key)

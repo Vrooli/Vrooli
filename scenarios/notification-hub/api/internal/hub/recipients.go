@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -92,12 +93,33 @@ func (s *Service) UpsertDevice(ctx context.Context, recipient string, device Dev
 	if device.Name == "" {
 		return Device{}, fmt.Errorf("device name is required")
 	}
-	if device.ID == "" {
-		device.ID = uuid.NewString()
-	}
 	now := s.clock.Now().UTC().Format("2006-01-02T15:04:05.999999999Z07:00")
-	_, err := s.db.ExecContext(ctx, `INSERT INTO devices (id, recipient_id, name, machine_id, created_at) VALUES (?, (SELECT id FROM recipients WHERE subject=?), ?, ?, ?) ON CONFLICT(id) DO UPDATE SET name=excluded.name, machine_id=excluded.machine_id`, device.ID, recipient, device.Name, device.MachineID, now)
-	if err != nil {
+
+	// A device is identified by its natural key (recipient, name), not its
+	// client id: re-enabling notifications — re-adding the PWA to the home
+	// screen, a new browser profile, a fresh service worker — mints a new id
+	// for the same device. Reuse the existing row so the enable flow is
+	// idempotent. Keying the upsert only on the primary id made every enable
+	// after the first trip UNIQUE(recipient_id, name) and abort before the push
+	// subscription was stored, silently stranding the new subscription.
+	var existingID string
+	err := s.db.QueryRowContext(ctx,
+		`SELECT id FROM devices WHERE recipient_id=(SELECT id FROM recipients WHERE subject=?) AND name=?`,
+		recipient, device.Name).Scan(&existingID)
+	switch {
+	case err == nil:
+		device.ID = existingID
+		if _, err := s.db.ExecContext(ctx, `UPDATE devices SET machine_id=? WHERE id=?`, device.MachineID, device.ID); err != nil {
+			return Device{}, err
+		}
+	case errors.Is(err, sql.ErrNoRows):
+		if device.ID == "" {
+			device.ID = uuid.NewString()
+		}
+		if _, err := s.db.ExecContext(ctx, `INSERT INTO devices (id, recipient_id, name, machine_id, created_at) VALUES (?, (SELECT id FROM recipients WHERE subject=?), ?, ?, ?) ON CONFLICT(id) DO UPDATE SET name=excluded.name, machine_id=excluded.machine_id`, device.ID, recipient, device.Name, device.MachineID, now); err != nil {
+			return Device{}, err
+		}
+	default:
 		return Device{}, err
 	}
 	return s.deviceByID(ctx, device.ID)

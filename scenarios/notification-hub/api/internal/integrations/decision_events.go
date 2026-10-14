@@ -13,7 +13,11 @@ import (
 // scenario raises through Vrooli Events, for example
 // agent_manager.effort.decision_requested.v1.
 const (
-	DecisionRequestPattern       = "**.decision_requested.v1"
+	DecisionRequestPattern = "**.decision_requested.v1"
+	// NotificationRequestPattern subscribes the hub to every domain-neutral
+	// FYI notification any scenario raises through Vrooli Events, for example
+	// personal_planner.reminder.notification.v1.
+	NotificationRequestPattern   = "**.notification.v1"
 	decisionRequestSuffix        = ".decision_requested.v1"
 	decisionDefaultDeadline      = 24 * time.Hour
 	decisionSensitivityLabel     = "private"
@@ -48,6 +52,20 @@ type decisionFacts struct {
 // the idempotency key, so a redelivered or re-published event returns the
 // same ask and sends nothing new.
 func DecisionAskSpec(recipient, sourceScenario, eventType, eventID string, raw json.RawMessage, now time.Time) (hub.AskSpec, error) {
+	return DecisionAskSpecWithDefaults(recipient, sourceScenario, eventType, eventID, raw, now, decisionSensitivityLabel, decisionDefaultDeadline)
+}
+
+// DecisionAskSpecWithDefaults is DecisionAskSpec with the operator-configured
+// sensitivity label and default deadline threaded in. An empty sensitivity or a
+// non-positive deadline falls back to the package defaults, so the configured
+// behavior is a superset of the hardcoded one.
+func DecisionAskSpecWithDefaults(recipient, sourceScenario, eventType, eventID string, raw json.RawMessage, now time.Time, sensitivityLabel string, defaultDeadline time.Duration) (hub.AskSpec, error) {
+	if strings.TrimSpace(sensitivityLabel) == "" {
+		sensitivityLabel = decisionSensitivityLabel
+	}
+	if defaultDeadline <= 0 {
+		defaultDeadline = decisionDefaultDeadline
+	}
 	var facts decisionFacts
 	if err := json.Unmarshal(raw, &facts); err != nil {
 		return hub.AskSpec{}, fmt.Errorf("%w: decision payload is not valid JSON", hub.ErrInvalidArgument)
@@ -65,7 +83,7 @@ func DecisionAskSpec(recipient, sourceScenario, eventType, eventID string, raw j
 	if len(facts.RecommendationReason) > maxDecisionRecommendationLen {
 		return hub.AskSpec{}, fmt.Errorf("%w: recommendation_reason exceeds %d characters", hub.ErrInvalidArgument, maxDecisionRecommendationLen)
 	}
-	deadline := now.Add(decisionDefaultDeadline)
+	deadline := now.Add(defaultDeadline)
 	if value := strings.TrimSpace(facts.Deadline); value != "" {
 		parsed, err := time.Parse(time.RFC3339, value)
 		if err != nil {
@@ -93,7 +111,7 @@ func DecisionAskSpec(recipient, sourceScenario, eventType, eventID string, raw j
 		Urgency:              facts.Urgency,
 		ContextURL:           strings.TrimSpace(facts.ContextURL),
 		Deadline:             deadline,
-		SensitivityLabel:     decisionSensitivityLabel,
+		SensitivityLabel:     sensitivityLabel,
 		IdempotencyKey:       eventID,
 		Source:               sourceScenario,
 		SourceEventType:      eventType,

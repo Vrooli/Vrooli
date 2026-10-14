@@ -17,6 +17,7 @@ import (
 	internalidentity "notification-hub/internal/identity"
 	"notification-hub/internal/integrations"
 	"notification-hub/internal/modules"
+	"notification-hub/internal/preferences"
 	"notification-hub/internal/push"
 	"notification-hub/internal/server"
 
@@ -40,14 +41,54 @@ import (
 	healthH "notification-hub/handlers/health"
 	identityH "notification-hub/handlers/identity"
 	notificationH "notification-hub/handlers/notifications"
+	preferencesH "notification-hub/handlers/preferences"
 	recipientsH "notification-hub/handlers/recipients"
 	routingH "notification-hub/handlers/routing"
 )
 
+// preferenceSeam adapts *preferences.Storage to hub.Preferences, bridging the
+// preferences.Effective result into hub.PreferenceDecision so the hub's
+// delivery seam carries no import of the preferences type set.
+type preferenceSeam struct {
+	store    *preferences.Storage
+	repoRoot string
+}
+
+func (s preferenceSeam) ObserveCatalog(ctx context.Context, source, category, now string) error {
+	return s.store.ObserveCatalog(ctx, source, category, now)
+}
+
+// InferObservedBranding resolves display branding for a newly-observed source
+// from its service.json, when the repo root was resolvable at startup.
+func (s preferenceSeam) InferObservedBranding(ctx context.Context, source, now string) {
+	if s.repoRoot == "" {
+		return
+	}
+	s.store.InferObservedBranding(ctx, s.repoRoot, source, now)
+}
+
+// ResolveBrand exposes the source's declared icon/deep-link branding to the
+// hub's icon resolver, satisfying hub.BrandResolver.
+func (s preferenceSeam) ResolveBrand(ctx context.Context, source string) (displayName, icon, deepLinkBase string, ok bool) {
+	return s.store.ResolveBrand(ctx, source)
+}
+
+func (s preferenceSeam) GetPreference(ctx context.Context, recipientKey, source, category, scopeKey string) (hub.PreferenceDecision, error) {
+	effective, err := s.store.GetPreference(ctx, recipientKey, source, category, scopeKey)
+	if err != nil {
+		return hub.PreferenceDecision{}, err
+	}
+	return hub.PreferenceDecision{Enabled: effective.Enabled, MinUrgency: effective.MinUrgency}, nil
+}
+
+func (s preferenceSeam) UrgencyAtLeast(have, min string) bool {
+	return preferences.UrgencyAtLeast(have, min)
+}
+
 type pushAdapter struct{ sender *push.Sender }
 
 func (a pushAdapter) Send(ctx context.Context, subscription hub.PushSubscription, message hub.PushMessage) (string, error) {
-	return a.sender.SendMessage(ctx, push.Subscription{Endpoint: subscription.Endpoint, P256DH: subscription.P256DH, Auth: subscription.Auth, Origin: subscription.Origin}, push.Message{Title: message.Title, Body: message.Body, ID: message.Tag, URL: message.URL})
+	return a.sender.SendMessage(ctx, push.Subscription{Endpoint: subscription.Endpoint, P256DH: subscription.P256DH, Auth: subscription.Auth, Origin: subscription.Origin}, push.Message{Title: message.Title, Body: message.Body, ID: message.Tag, URL: message.URL, Icon: message.Icon})
 }
 
 // scenarioStorageRoots resolves all filesystem storage classes once at
@@ -105,6 +146,17 @@ func main() {
 	}
 	fileRoots := filerouting.New(primaryFileRoots)
 	service := hub.New(db, schedule.System(), log.Default())
+	preferenceStore := preferences.New(db)
+	// Resolve the repo root once for catalog ingestion and observed-branding
+	// inference. A missing root is non-fatal: declared manifests are skipped and
+	// branding falls back to the observed path.
+	repoRoot, repoRootErr := preferences.ResolveRepoRoot()
+	if repoRootErr != nil {
+		slog.Warn("notification catalog: repo root unresolved; declared-manifest ingestion and branding inference disabled", "error", repoRootErr)
+	} else if err := preferenceStore.IngestDeclaredManifests(context.Background(), repoRoot, time.Now().UTC().Format(time.RFC3339Nano)); err != nil {
+		slog.Warn("notification catalog: declared-manifest ingestion failed", "error", err)
+	}
+	service.SetPreferences(preferenceSeam{store: preferenceStore, repoRoot: repoRoot})
 	service.SetDefaultRecipient(strings.TrimSpace(os.Getenv("VROOLI_NOTIFICATION_RECIPIENT")))
 	service.SetRecipientResolver(integrations.OperatorStateRecipient())
 	service.SetOwnerFallback(hub.OperatorSubject)
@@ -159,6 +211,11 @@ func main() {
 	} else {
 		slog.Info("vrooli-events decision subscription reconciled", "pattern", integrations.DecisionRequestPattern)
 	}
+	if err := integrations.EnsureNotificationSubscription(context.Background(), eventConfig.Get().EventsAPIBase, eventConfig.Get().WebhookURL); err != nil {
+		slog.Error("vrooli-events notification subscription reconciliation failed", "error", err)
+	} else {
+		slog.Info("vrooli-events notification subscription reconciled", "pattern", integrations.NotificationRequestPattern)
+	}
 	// The webhook verifies with the publisher's own signing secret: the
 	// environment override, then the credential authority. The value is
 	// never logged.
@@ -177,6 +234,7 @@ func main() {
 		capsH.Module(capabilities.NewRegistry()),
 		notificationH.ModuleWithVerifier(service, ownerVerifier),
 		recipientsH.ModuleWithVerifier(service, ownerVerifier),
+		preferencesH.ModuleWithVerifier(preferenceStore, ownerVerifier),
 		routingH.ModuleWithVerifier(service, ownerVerifier),
 		deliveryH.ModuleWithVerifier(service, ownerVerifier),
 		conversationH.ModuleWithVerifier(service, ownerVerifier),
@@ -188,9 +246,12 @@ func main() {
 	// runtime test DB pool without restarting this scenario.
 	rootMux := http.NewServeMux()
 	devrouting.RegisterWithFileRoots(rootMux, db, fileRoots)
-	rootMux.Handle("/api/v1/integrations/events", integrations.EventWebhookFromSecretSource(service, webhookSecret, func() map[string]integrations.EventTemplate {
+	rootMux.Handle("/api/v1/integrations/events", integrations.EventWebhookFromSecretSourceWithDecisionDefaults(service, webhookSecret, func() map[string]integrations.EventTemplate {
 		return eventConfig.Get().Templates
-	}, func() map[string]string { return eventConfig.Get().SensitivityBySeverity }))
+	}, func() map[string]string { return eventConfig.Get().SensitivityBySeverity }, func() integrations.DecisionDefaults {
+		config := eventConfig.Get()
+		return integrations.DecisionDefaults{Sensitivity: config.DecisionSensitivity, DefaultDeadline: time.Duration(config.DecisionDeadlineSecond) * time.Second}
+	}))
 	rootMux.Handle("/api/v1/integrations/deliveries", integrations.DeliveryProjectionHandler(service))
 	rootMux.Handle("/api/v1/config/event-integration", integrations.Handler(eventConfig, func(config integrations.LiveConfig) error {
 		return integrations.EnsureEventSubscription(context.Background(), config.EventsAPIBase, config.WebhookURL, config.Pattern)

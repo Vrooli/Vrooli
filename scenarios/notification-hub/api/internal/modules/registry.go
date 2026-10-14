@@ -36,6 +36,7 @@ import (
 	deliverySchema "notification-hub/internal/delivery"
 	integrationSchema "notification-hub/internal/integrationconfig"
 	notificationSchema "notification-hub/internal/notifications"
+	preferenceSchema "notification-hub/internal/preferences"
 	recipientSchema "notification-hub/internal/recipients"
 	routingSchema "notification-hub/internal/routing"
 
@@ -110,6 +111,7 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(integrationSchema.Schema),
 		apidb.SchemaProviderFunc(recipientSchema.Schema),
 		apidb.SchemaProviderFunc(notificationSchema.Schema),
+		apidb.SchemaProviderFunc(preferenceSchema.Schema),
 		apidb.SchemaProviderFunc(routingSchema.Schema),
 		apidb.SchemaProviderFunc(deliverySchema.Schema),
 		apidb.SchemaProviderFunc(conversationSchema.Schema),

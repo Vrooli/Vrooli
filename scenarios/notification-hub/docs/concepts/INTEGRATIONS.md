@@ -92,15 +92,21 @@ them, so no import-graph edge should be expected as evidence.
 
 ## Event Subscription Reconciliation
 
-At startup the API reconciles two named subscriptions in `vrooli-events`,
-both delivered to `POST /api/v1/integrations/events`:
+At startup the API reconciles three named subscriptions in `vrooli-events`,
+all delivered to `POST /api/v1/integrations/events`:
 
 | Name | Pattern | Purpose |
 |---|---|---|
-| `notification-hub-events` | operator-configured (default `incident.**`, `PUT /api/v1/config/event-integration`) | Incident notifications and autoheal remediation approvals |
+| `notification-hub-events` | operator-configured (default `incident.**`, `PUT /api/v1/config/event-integration`) | Fallback-only ingress for events that carry no neutral `notificationFacts`. The incident renderer (check_id/severity/message/…) stays the translator for this pattern and for autoheal remediation approvals |
 | `notification-hub-decisions` | `**.decision_requested.v1` | Operator decisions from any scenario (Agent Manager first) |
+| `notification-hub-notifications` | `**.notification.v1` | First-class FYI notifications from any scenario, carrying neutral `notificationFacts` (the hub owns the copy) |
 
-Reconciliation is idempotent. The events scenario owns matching, durable
+The `**.notification.v1` and `**.decision_requested.v1` subscriptions are
+**structural**: they are reconciled unconditionally from the event-type suffix,
+never operator-configured, exactly parallel to one another. The operator-configured
+`incident.**` pattern and its incident renderer remain only as the **fallback** for
+events that do not carry neutral facts, so existing incident producers keep working
+unchanged. Reconciliation is idempotent. The events scenario owns matching, durable
 queueing, retries, signing, and subscription health; this scenario owns only
 the receiver and the translation into a durable notification or ask. If
 reconciliation or the upstream scenario is unavailable, direct Connect-RPC
@@ -141,6 +147,35 @@ publishes `agent_manager.run.decision_requested.v1` when a run enters
 review page, and `correlation.run_id`; the resolution's `answer` then drives the
 run's approve/reject back in Agent Manager. This is the general mechanism, not a
 hub-side special case.
+
+### Notifications (`*.notification.v1`)
+
+The producer sends facts; the hub owns the copy. Any scenario raises a
+first-class FYI notification by publishing an event whose type ends with the
+structural suffix `.notification.v1` — no code changes here, exactly like
+`*.decision_requested.v1`. The event id is the idempotency key, and
+`dedupe_key` collapses repeats from the same producer. These neutral fields
+are the `notificationFacts` contract, parallel to `decisionFacts`.
+
+| Field | Required | Meaning |
+|---|---|---|
+| `title` (or `subject`) | no | Short headline; the hub supplies one from source branding + category when absent |
+| `body` | yes | The message shown to the recipient |
+| `urgency` | no | `low`, `normal` (default), `high` or `critical`; only `critical` can pass a quiet window, and only when that window allows it |
+| `sensitivity` | no | `public`, `private` (default), `sensitive` or `critical`. **Producer-declared**: this replaces the old incident-only derivation of sensitivity from `severity`, so the producer states privacy directly |
+| `category` | no | Per-event-type key used for recipient preferences and the settings catalog; defaults to the event type when absent |
+| `context_url` | no | Deep link into the source scenario |
+| `dedupe_key` | no | Producer-supplied dedupe key; collapses repeats. Replaces the old hardcoded `incident_id` extractor |
+| `correlation` | no | String map (at most 1 KB) echoed downstream |
+
+Every inbound notification also carries its **source scenario** and a resolved
+display identity `{name, icon, deep_link}`, resolved declared manifest → observed
+source → generic, rendered in the UI timeline and the push payload. Incidents
+become one producer of this contract; the legacy incident renderer
+(check_id/severity/message/…) is demoted to a fallback used only for events that
+do not carry neutral facts, so nothing breaks. The full specification — the
+branding manifest, the observed+declared catalog, the preference model, and the
+centralized-delivery principle — lives in [`NOTIFICATIONS.md`](NOTIFICATIONS.md).
 
 ### Ask resolution (`notification_hub.ask.resolved.v1`)
 

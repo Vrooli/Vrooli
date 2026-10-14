@@ -17,6 +17,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/discovery"
 )
 
 const (
@@ -43,9 +44,11 @@ type PushSubscription struct {
 
 // PushMessage is the payload a browser receives. Tag collapses repeats of
 // one notification; URL is the page the notification opens, relative to the
-// UI's service-worker scope ("" opens the app root).
+// UI's service-worker scope ("" opens the app root). Icon is an absolute,
+// browser-loadable URL to the SOURCE scenario's app icon ("" lets the browser
+// fall back to its own default rather than notification-hub's own icon).
 type PushMessage struct {
-	Title, Body, Tag, URL string
+	Title, Body, Tag, URL, Icon string
 }
 
 // PushSender is intentionally narrow. Production wires the RFC 8291 sender;
@@ -76,6 +79,23 @@ type ChannelDelivery interface {
 	Send(context.Context, string, string, string, string) (string, error)
 }
 
+// Preferences is the delivery-time seam into the per-recipient notification
+// preferences and the observed source/category catalog. *preferences.Storage
+// satisfies it. The hub keeps it as an interface so tests can inject a stub and
+// so a nil value leaves behavior unchanged (no catalog write, no suppression).
+type Preferences interface {
+	ObserveCatalog(ctx context.Context, source, category, now string) error
+	GetPreference(ctx context.Context, recipientKey, source, category, scopeKey string) (PreferenceDecision, error)
+	UrgencyAtLeast(have, min string) bool
+}
+
+// PreferenceDecision is the resolved per-recipient decision for one
+// source/category.
+type PreferenceDecision struct {
+	Enabled    bool
+	MinUrgency string
+}
+
 type unavailablePush struct{}
 
 func (unavailablePush) Send(context.Context, PushSubscription, PushMessage) (string, error) {
@@ -100,6 +120,147 @@ type Service struct {
 	askDefaultFloor   time.Duration
 	resolutions       askResolutions
 	processLocks      [processLockStripes]sync.Mutex
+	preferences       Preferences
+	// iconURL resolves a browser-loadable URL to the source scenario's app
+	// icon for a push notification. Production sets a default in New; tests may
+	// stub it. A nil resolver (or a "" return) leaves the icon off the payload.
+	iconURL      func(ctx context.Context, sourceScenario string) string
+	iconBaseMu   sync.Mutex
+	iconBaseByID map[string]string
+}
+
+// BrandResolver is the optional capability the preferences seam exposes to
+// read a source's declared icon/deep-link branding at delivery time. It is
+// split from Preferences so a nil or minimal seam (tests) carries no branding
+// dependency, mirroring ObservedBrander.
+type BrandResolver interface {
+	ResolveBrand(ctx context.Context, source string) (displayName, icon, deepLinkBase string, ok bool)
+}
+
+// SetPreferences wires the per-recipient preference and catalog seam. A nil
+// argument clears it and restores the unpreferenced behavior.
+func (s *Service) SetPreferences(p Preferences) {
+	s.mu.Lock()
+	s.preferences = p
+	s.mu.Unlock()
+}
+
+func (s *Service) prefs() Preferences {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.preferences
+}
+
+// SetIconResolver replaces the per-source icon-URL resolver. A nil argument
+// restores the production default. Tests inject a deterministic stub so no
+// discovery or branding lookup happens.
+func (s *Service) SetIconResolver(resolve func(ctx context.Context, sourceScenario string) string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if resolve == nil {
+		resolve = s.defaultIconURL
+	}
+	s.iconURL = resolve
+}
+
+func (s *Service) resolveIconURL(ctx context.Context, sourceScenario string) string {
+	s.mu.RLock()
+	resolve := s.iconURL
+	s.mu.RUnlock()
+	if resolve == nil {
+		return ""
+	}
+	return resolve(ctx, sourceScenario)
+}
+
+// defaultIconURL resolves the source scenario's PWA app icon to an absolute,
+// browser-loadable URL. The icon PATH comes from the source's declared icon
+// field: an http(s) value is a full per-source override returned verbatim; a
+// "/"-prefixed value is a path on the source's base; a bare slug or empty
+// value defaults to the canonical PWA icon. The BASE is the operator-facing
+// external URL (tunnel-preferring), falling back to the declared deep-link
+// base. An unresolvable base yields "" so the browser shows its own default
+// rather than a dead localhost URL. Resolved bases are cached per source to
+// avoid a discovery call per delivery.
+func (s *Service) defaultIconURL(ctx context.Context, sourceScenario string) string {
+	sourceScenario = strings.TrimSpace(sourceScenario)
+	if sourceScenario == "" {
+		return ""
+	}
+	var iconField, deepLinkBase string
+	if p := s.prefs(); p != nil {
+		if resolver, ok := p.(BrandResolver); ok {
+			if _, icon, base, found := resolver.ResolveBrand(ctx, sourceScenario); found {
+				iconField = strings.TrimSpace(icon)
+				deepLinkBase = strings.TrimSpace(base)
+			}
+		}
+	}
+	// A full per-source override short-circuits base resolution.
+	if strings.HasPrefix(iconField, "http://") || strings.HasPrefix(iconField, "https://") {
+		return iconField
+	}
+	path := "/public/icon-192.png"
+	if strings.HasPrefix(iconField, "/") {
+		path = iconField
+	}
+	base := s.iconBaseFor(ctx, sourceScenario)
+	if base == "" {
+		base = deepLinkBase
+	}
+	if base == "" {
+		return ""
+	}
+	return strings.TrimRight(base, "/") + path
+}
+
+// iconBaseFor resolves and caches the external base URL for a source. A cached
+// value (including a cached empty string after a failed resolution within this
+// process) avoids a discovery round trip per delivery.
+func (s *Service) iconBaseFor(ctx context.Context, sourceScenario string) string {
+	s.iconBaseMu.Lock()
+	defer s.iconBaseMu.Unlock()
+	if s.iconBaseByID == nil {
+		s.iconBaseByID = map[string]string{}
+	}
+	if base, ok := s.iconBaseByID[sourceScenario]; ok {
+		return base
+	}
+	base, err := discovery.ResolveExternalURLForNotice(ctx, sourceScenario)
+	if err != nil {
+		base = ""
+	}
+	base = strings.TrimSpace(base)
+	s.iconBaseByID[sourceScenario] = base
+	return base
+}
+
+// observeCatalog records a notification's source/category in the catalog
+// best-effort. A nil seam or any catalog error is swallowed: the notification
+// is already durable and must not fail because the catalog write did.
+func (s *Service) observeCatalog(ctx context.Context, n Notification, now string) {
+	p := s.prefs()
+	if p == nil || strings.TrimSpace(n.SourceScenario) == "" {
+		return
+	}
+	if err := p.ObserveCatalog(ctx, n.SourceScenario, n.Category, now); err != nil {
+		s.log.Printf("observe notification catalog for %s/%s: %v", n.SourceScenario, n.Category, err)
+		return
+	}
+	// Best-effort: infer branding for a newly-observed source from its
+	// service.json. A seam that does not implement the inference hook (or a
+	// source that does not resolve to a real scenario) leaves branding empty,
+	// which the catalog read filters out.
+	if brander, ok := p.(ObservedBrander); ok {
+		brander.InferObservedBranding(ctx, n.SourceScenario, now)
+	}
+}
+
+// ObservedBrander is the optional capability the preferences seam exposes to
+// resolve display branding for an observed source. It is split from Preferences
+// so a nil or minimal seam (tests) carries no branding dependency.
+type ObservedBrander interface {
+	InferObservedBranding(ctx context.Context, source, now string)
 }
 
 func New(db *database.RoutedDB, clock Clock, logger *log.Logger) *Service {
@@ -109,9 +270,28 @@ func New(db *database.RoutedDB, clock Clock, logger *log.Logger) *Service {
 	if logger == nil {
 		logger = log.Default()
 	}
-	s := &Service{db: db, clock: newSwappableClock(clock), log: logger, push: unavailablePush{}, email: unavailableEmail{}, desktop: unavailableDesktop{}, worker: make(chan string, 128)}
+	s := &Service{db: db, clock: newSwappableClock(clock), log: logger, push: unavailablePush{}, email: unavailableEmail{}, desktop: unavailableDesktop{}, worker: make(chan string, 128), iconBaseByID: map[string]string{}}
+	s.iconURL = s.defaultIconURL
+	s.ensureAdditiveColumns(context.Background())
 	go s.runWorker()
 	return s
+}
+
+// ensureAdditiveColumns applies guarded ALTER TABLE migrations that are safe on
+// an already-populated database. SQLite has no "ADD COLUMN IF NOT EXISTS", so a
+// re-run surfaces a "duplicate column" error that is ignored; any other error
+// is logged and does not abort boot, mirroring the live-config migration seam.
+func (s *Service) ensureAdditiveColumns(ctx context.Context) {
+	for _, stmt := range []string{
+		`ALTER TABLE notifications ADD COLUMN source_scenario TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE notifications ADD COLUMN category TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE notifications ADD COLUMN context_url TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE notifications ADD COLUMN scope_key TEXT NOT NULL DEFAULT ''`,
+	} {
+		if _, err := s.db.ExecContext(ctx, stmt); err != nil && !strings.Contains(strings.ToLower(err.Error()), "duplicate column") {
+			s.log.Printf("ensure notification column: %v", err)
+		}
+	}
 }
 
 func (s *Service) SetPushSender(sender PushSender) {
@@ -259,6 +439,7 @@ func (systemClock) Now() time.Time { return time.Now().UTC() }
 
 type SendInput struct {
 	RequestedBy, Title, Body, Urgency, SensitivityLabel, IdempotencyKey, DedupeKey string
+	SourceScenario, Category, ContextURL, ScopeKey                                 string
 	DedupeWindow                                                                   time.Duration
 	ScheduledAt                                                                    time.Time
 	DigestWindow                                                                   time.Duration
@@ -266,6 +447,7 @@ type SendInput struct {
 
 type Notification struct {
 	ID, RequestedBy, Title, Body, Urgency, SensitivityLabel, IdempotencyKey, DedupeKey string
+	SourceScenario, Category, ContextURL, ScopeKey                                     string
 	ScheduledAt, DigestKey                                                             string
 	DigestWindowSeconds                                                                int
 	State, Reason, CreatedAt, UpdatedAt                                                string
@@ -330,8 +512,8 @@ func (s *Service) persistNotification(ctx context.Context, in SendInput) (Notifi
 	if in.DigestWindow > 0 && in.Urgency == "low" {
 		digestKey = in.DedupeKey
 	}
-	n := Notification{ID: uuid.NewString(), RequestedBy: in.RequestedBy, Title: in.Title, Body: in.Body, Urgency: in.Urgency, SensitivityLabel: in.SensitivityLabel, IdempotencyKey: in.IdempotencyKey, DedupeKey: in.DedupeKey, ScheduledAt: scheduledAt, DigestKey: digestKey, DigestWindowSeconds: int(in.DigestWindow.Seconds()), State: "pending", CreatedAt: now, UpdatedAt: now}
-	_, err := s.db.ExecContext(ctx, `INSERT INTO notifications (id, requested_by, title, body, urgency, sensitivity_label, idempotency_key, dedupe_key, dedupe_window_seconds, scheduled_at, digest_key, digest_window_seconds, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, n.ID, n.RequestedBy, n.Title, n.Body, n.Urgency, n.SensitivityLabel, n.IdempotencyKey, n.DedupeKey, int(in.DedupeWindow.Seconds()), n.ScheduledAt, n.DigestKey, n.DigestWindowSeconds, now, now)
+	n := Notification{ID: uuid.NewString(), RequestedBy: in.RequestedBy, Title: in.Title, Body: in.Body, Urgency: in.Urgency, SensitivityLabel: in.SensitivityLabel, IdempotencyKey: in.IdempotencyKey, DedupeKey: in.DedupeKey, SourceScenario: in.SourceScenario, Category: in.Category, ContextURL: in.ContextURL, ScopeKey: in.ScopeKey, ScheduledAt: scheduledAt, DigestKey: digestKey, DigestWindowSeconds: int(in.DigestWindow.Seconds()), State: "pending", CreatedAt: now, UpdatedAt: now}
+	_, err := s.db.ExecContext(ctx, `INSERT INTO notifications (id, requested_by, title, body, urgency, sensitivity_label, idempotency_key, dedupe_key, dedupe_window_seconds, scheduled_at, digest_key, digest_window_seconds, source_scenario, category, context_url, scope_key, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, n.ID, n.RequestedBy, n.Title, n.Body, n.Urgency, n.SensitivityLabel, n.IdempotencyKey, n.DedupeKey, int(in.DedupeWindow.Seconds()), n.ScheduledAt, n.DigestKey, n.DigestWindowSeconds, n.SourceScenario, n.Category, n.ContextURL, n.ScopeKey, now, now)
 	if err != nil {
 		if existing, lookupErr := s.findByIdempotency(ctx, in.RequestedBy, in.IdempotencyKey); lookupErr == nil {
 			return existing, false, nil
@@ -341,6 +523,9 @@ func (s *Service) persistNotification(ctx context.Context, in SendInput) (Notifi
 	if err := s.appendEvent(ctx, n.ID, "pending", "accepted before routing", now); err != nil {
 		return Notification{}, false, err
 	}
+	// Observe the source/category catalog best-effort: a catalog failure must
+	// never fail an otherwise-durable Send.
+	s.observeCatalog(ctx, n, now)
 	return n, true, nil
 }
 
@@ -356,11 +541,11 @@ func (s *Service) dispatch(id string) {
 }
 
 func (s *Service) findByIdempotency(ctx context.Context, requestedBy, key string) (Notification, error) {
-	return s.scanNotification(s.db.QueryRowContext(ctx, `SELECT id, requested_by, title, body, urgency, sensitivity_label, idempotency_key, dedupe_key, scheduled_at, digest_key, digest_window_seconds, created_at, updated_at FROM notifications WHERE requested_by = ? AND idempotency_key = ?`, requestedBy, key))
+	return s.scanNotification(s.db.QueryRowContext(ctx, `SELECT id, requested_by, title, body, urgency, sensitivity_label, idempotency_key, dedupe_key, scheduled_at, digest_key, digest_window_seconds, source_scenario, category, context_url, scope_key, created_at, updated_at FROM notifications WHERE requested_by = ? AND idempotency_key = ?`, requestedBy, key))
 }
 
 func (s *Service) Get(ctx context.Context, id string) (Notification, []Receipt, error) {
-	n, err := s.scanNotification(s.db.QueryRowContext(ctx, `SELECT id, requested_by, title, body, urgency, sensitivity_label, idempotency_key, dedupe_key, scheduled_at, digest_key, digest_window_seconds, created_at, updated_at FROM notifications WHERE id = ?`, id))
+	n, err := s.scanNotification(s.db.QueryRowContext(ctx, `SELECT id, requested_by, title, body, urgency, sensitivity_label, idempotency_key, dedupe_key, scheduled_at, digest_key, digest_window_seconds, source_scenario, category, context_url, scope_key, created_at, updated_at FROM notifications WHERE id = ?`, id))
 	if errors.Is(err, sql.ErrNoRows) {
 		return Notification{}, nil, ErrNotFound
 	}
@@ -380,7 +565,7 @@ func (s *Service) List(ctx context.Context, limit int) ([]Notification, error) {
 	if limit <= 0 || limit > 200 {
 		limit = 50
 	}
-	rows, err := s.db.QueryContext(ctx, `SELECT id, requested_by, title, body, urgency, sensitivity_label, idempotency_key, dedupe_key, scheduled_at, digest_key, digest_window_seconds, created_at, updated_at FROM notifications ORDER BY created_at DESC LIMIT ?`, limit)
+	rows, err := s.db.QueryContext(ctx, `SELECT id, requested_by, title, body, urgency, sensitivity_label, idempotency_key, dedupe_key, scheduled_at, digest_key, digest_window_seconds, source_scenario, category, context_url, scope_key, created_at, updated_at FROM notifications ORDER BY created_at DESC LIMIT ?`, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -544,6 +729,9 @@ func (s *Service) Process(ctx context.Context, id string) error {
 	if quiet {
 		return s.appendEvent(ctx, n.ID, "held", "quiet window active; critical override did not apply", s.clock.Now().UTC().Format(time.RFC3339Nano))
 	}
+	if suppressed, reason := s.preferenceSuppression(ctx, n); suppressed {
+		return s.appendEvent(ctx, n.ID, "suppressed", reason, s.clock.Now().UTC().Format(time.RFC3339Nano))
+	}
 	targets, err := s.channelTargets(ctx, n.RequestedBy)
 	if err != nil {
 		return err
@@ -632,6 +820,33 @@ func (s *Service) Process(ctx context.Context, id string) error {
 	return s.appendEvent(ctx, n.ID, "failed", fmt.Sprintf("retry budget exhausted: %s", safeReason(lastErr)), s.clock.Now().UTC().Format(time.RFC3339Nano))
 }
 
+// preferenceSuppression consults the per-recipient preference for a
+// notification's source/category. It returns a terminal "suppressed" reason
+// when the recipient has muted the source/category or when the notification's
+// urgency is below the effective minimum. A nil preference seam, a
+// source-less notification, or any lookup error leaves the notification to
+// route normally — a preference failure must never silently drop a
+// notification. The recipient key is the subject string, matching how quiet
+// windows and channel targets key the recipient.
+func (s *Service) preferenceSuppression(ctx context.Context, n Notification) (bool, string) {
+	p := s.prefs()
+	if p == nil || strings.TrimSpace(n.SourceScenario) == "" || strings.TrimSpace(n.Category) == "" {
+		return false, ""
+	}
+	decision, err := p.GetPreference(ctx, n.RequestedBy, n.SourceScenario, n.Category, n.ScopeKey)
+	if err != nil {
+		s.log.Printf("resolve preference for %s %s/%s: %v", n.RequestedBy, n.SourceScenario, n.Category, err)
+		return false, ""
+	}
+	if !decision.Enabled {
+		return true, fmt.Sprintf("muted by recipient preference for %s/%s", n.SourceScenario, n.Category)
+	}
+	if !p.UrgencyAtLeast(n.Urgency, decision.MinUrgency) {
+		return true, fmt.Sprintf("urgency %q below recipient minimum %q for %s/%s", n.Urgency, decision.MinUrgency, n.SourceScenario, n.Category)
+	}
+	return false, ""
+}
+
 func (s *Service) recordSuppression(ctx context.Context, n Notification, collapsedInto, reason string) error {
 	now := s.clock.Now().UTC().Format(time.RFC3339Nano)
 	if _, err := s.db.ExecContext(ctx, `INSERT INTO suppressions (id, notification_id, collapsed_into, dedupe_key, created_at) VALUES (?, ?, ?, ?, ?)`, uuid.NewString(), n.ID, collapsedInto, n.DedupeKey, now); err != nil {
@@ -653,7 +868,15 @@ func (s *Service) deliverTarget(ctx context.Context, target channelTarget, n Not
 		if err != nil {
 			return "", err
 		}
-		return push.Send(ctx, sub, PushMessage{Title: n.Title, Body: body, Tag: n.ID, URL: s.askPath(ctx, n.ID)})
+		url := s.askPath(ctx, n.ID)
+		if strings.TrimSpace(n.ContextURL) != "" {
+			url = n.ContextURL
+		}
+		msg := PushMessage{Title: n.Title, Body: body, Tag: n.ID, URL: url}
+		if s.iconURL != nil {
+			msg.Icon = s.resolveIconURL(ctx, n.SourceScenario)
+		}
+		return push.Send(ctx, sub, msg)
 	case "email":
 		return email.Send(ctx, target.Address, n.Title, body)
 	case "macos_notification", "imessage", "linux_notification":
@@ -1003,7 +1226,7 @@ type rowScanner interface{ Scan(...any) error }
 
 func (s *Service) scanNotification(row rowScanner) (Notification, error) {
 	var n Notification
-	err := row.Scan(&n.ID, &n.RequestedBy, &n.Title, &n.Body, &n.Urgency, &n.SensitivityLabel, &n.IdempotencyKey, &n.DedupeKey, &n.ScheduledAt, &n.DigestKey, &n.DigestWindowSeconds, &n.CreatedAt, &n.UpdatedAt)
+	err := row.Scan(&n.ID, &n.RequestedBy, &n.Title, &n.Body, &n.Urgency, &n.SensitivityLabel, &n.IdempotencyKey, &n.DedupeKey, &n.ScheduledAt, &n.DigestKey, &n.DigestWindowSeconds, &n.SourceScenario, &n.Category, &n.ContextURL, &n.ScopeKey, &n.CreatedAt, &n.UpdatedAt)
 	return n, err
 }
 
