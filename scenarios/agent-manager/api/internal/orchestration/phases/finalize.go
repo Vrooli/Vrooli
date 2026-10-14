@@ -332,6 +332,12 @@ func ApplyAtRunEnd(ctx context.Context, in ApplyAtRunEndInput) bool {
 		domain.MarkFinalizationSkipped(in.Run, "manualReview=true", now)
 		EmitSystemEvent(ctx, in.Deps, in.Run.ID, "info",
 			"apply deferred: manualReview=true (operator approval required)")
+		// Alert the operator out-of-band (best-effort; never blocks the
+		// terminal transition). The single run-end seam is the one place the
+		// needs_review transition happens, so every caller path notifies here.
+		if in.Deps.ApprovalNotifier != nil {
+			in.Deps.ApprovalNotifier.NotifyRunNeedsReview(ctx, in.Run)
+		}
 		return false
 	}
 

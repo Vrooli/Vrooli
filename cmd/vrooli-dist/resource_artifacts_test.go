@@ -8,6 +8,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -18,6 +19,21 @@ import (
 	"github.com/vrooli/binaryfetch"
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )
+
+func TestFinalizeReleaseArtifactStagingReportsStageCauseBeforeChecksumError(t *testing.T) {
+	out := filepath.Join(t.TempDir(), "empty")
+	if err := os.MkdirAll(out, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	stageFailure := fmt.Errorf("stage Kokoro Linux artifact: wheel-only resolver failed")
+	err := finalizeReleaseArtifactStaging(out, []error{stageFailure})
+	if !errors.Is(err, stageFailure) || !strings.Contains(err.Error(), "wheel-only resolver failed") {
+		t.Fatalf("stage cause was hidden: %v", err)
+	}
+	if _, statErr := os.Stat(filepath.Join(out, "SHA256SUMS")); !os.IsNotExist(statErr) {
+		t.Fatalf("failed staging wrote a checksum manifest: %v", statErr)
+	}
+}
 
 func TestComposedAcquisitionIsDeterministicAndNamesUnavailableStep(t *testing.T) {
 	// Use a real tar.gz fixture so this test covers the same extraction path as
@@ -92,6 +108,9 @@ func TestWriteReleaseChecksumManifestIsDeterministicAndUnsigned(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "service_linux_amd64"), []byte("server"), 0o755); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.WriteFile(filepath.Join(dir, "deferred-resource-targets-v1.json"), []byte("[]\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	if err := updateReleaseArtifactMetadata(dir, "controller_linux_amd64", releaseArtifactMetadata{Role: "resource-controller", Provenance: "controller-build"}); err != nil {
 		t.Fatal(err)
 	}
@@ -107,6 +126,9 @@ func TestWriteReleaseChecksumManifestIsDeterministicAndUnsigned(t *testing.T) {
 	}
 	if len(manifest) == 0 || !strings.Contains(string(manifest), "controller_linux_amd64") || !strings.Contains(string(manifest), "service_linux_amd64") {
 		t.Fatalf("unexpected checksum manifest: %s", manifest)
+	}
+	if strings.Contains(string(manifest), "deferred-resource-targets-v1.json") {
+		t.Fatalf("metadata sidecar must not be signed as an artifact: %s", manifest)
 	}
 	if _, err := os.Stat(filepath.Join(dir, "SHA256SUMS.sig")); !os.IsNotExist(err) {
 		t.Fatalf("source staging must not create a release signature, stat error: %v", err)
@@ -128,6 +150,15 @@ func TestWriteReleaseChecksumManifestIsDeterministicAndUnsigned(t *testing.T) {
 	second, err := os.ReadFile(filepath.Join(dir, "release-manifest.json"))
 	if err != nil || string(first) != string(second) {
 		t.Fatalf("release manifest must be deterministic: %v", err)
+	}
+}
+
+func TestReleaseArtifactPlatformRecognizesControllerSidecars(t *testing.T) {
+	for _, name := range []string{"resource-postgres_linux_amd64", "resource-postgres_linux_amd64.build.json", "resource-postgres_linux_amd64.manifest.json"} {
+		osName, arch := releaseArtifactPlatform(name)
+		if osName != "linux" || arch != "amd64" {
+			t.Errorf("releaseArtifactPlatform(%q) = (%q, %q), want linux/amd64", name, osName, arch)
+		}
 	}
 }
 
@@ -312,6 +343,81 @@ func TestResourceArtifactBuildTargetsRejectIncompleteBundledContract(t *testing.
 	}
 	if _, err := resourceArtifactBuildTargets(manifest); err == nil {
 		t.Fatal("expected incomplete bundled contract to be rejected")
+	}
+}
+
+func TestStageResourceTargetCachedReusesVerifiedSourcePlatformStep(t *testing.T) {
+	root := t.TempDir()
+	resourceDir := filepath.Join(root, "fixture")
+	moduleDir := filepath.Join(resourceDir, "cli")
+	if err := os.MkdirAll(moduleDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(resourceDir, "resource.json"), []byte(`{"name":"fixture"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	moduleSource := filepath.Join(moduleDir, "main.go")
+	if err := os.WriteFile(moduleSource, []byte("package main\nfunc main() {}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(moduleDir, "go.mod"), []byte("module fixture\n\ngo 1.24\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	target := resourceBuildTarget{Resource: "fixture", Platform: resourcedeployment.Platform{OS: "linux", Arch: "amd64"}, Artifact: "resource-fixture_linux_amd64", Module: "cli", Manifest: resourceArtifactManifest{Name: "fixture"}}
+	cacheRoot, outputRoot := filepath.Join(root, "cache"), filepath.Join(root, "release")
+	builds := 0
+	builder := func(_ context.Context, _, staging string, target resourceBuildTarget) error {
+		builds++
+		for name, contents := range map[string]string{
+			target.Artifact:                    "controller",
+			target.Artifact + ".manifest.json": "manifest",
+			target.Artifact + ".build.json":    "build metadata",
+		} {
+			if err := os.WriteFile(filepath.Join(staging, name), []byte(contents), 0o644); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	stage := func() error {
+		_, err := stageResourceTargetCachedWithBuilder(context.Background(), resourceDir, outputRoot, cacheRoot, target, builder)
+		return err
+	}
+	if err := stage(); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(filepath.Join(outputRoot, target.Artifact)); err != nil {
+		t.Fatal(err)
+	}
+	if err := stage(); err != nil {
+		t.Fatal(err)
+	}
+	if builds != 1 {
+		t.Fatalf("build count after cache hit = %d, want one", builds)
+	}
+	if _, err := os.Stat(filepath.Join(outputRoot, target.Artifact)); err != nil {
+		t.Fatalf("cache hit did not restage artifact: %v", err)
+	}
+	if err := os.WriteFile(moduleSource, []byte("package main\n// changed source identity\nfunc main() {}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := stage(); err != nil {
+		t.Fatal(err)
+	}
+	if builds != 2 {
+		t.Fatalf("build count after source change = %d, want a new source-keyed build", builds)
+	}
+}
+
+func TestSplitArtifactSelectionRejectsEmptyAndDuplicateEntries(t *testing.T) {
+	got, err := splitArtifactSelection("postgres, vault")
+	if err != nil || len(got) != 2 || got[0] != "postgres" || got[1] != "vault" {
+		t.Fatalf("selection = %#v, err=%v", got, err)
+	}
+	for _, input := range []string{"postgres,,vault", "postgres,postgres"} {
+		if _, err := splitArtifactSelection(input); err == nil {
+			t.Errorf("splitArtifactSelection(%q) unexpectedly succeeded", input)
+		}
 	}
 }
 

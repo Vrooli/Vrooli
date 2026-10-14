@@ -14,8 +14,11 @@ import (
 )
 
 type AssetSelector struct {
-	CasePaths []string
-	FlowPaths []string
+	// CasesProvided distinguishes an explicitly empty browser selection from
+	// the omitted/default catalog. Desktop flow selectors remain separate.
+	CasesProvided bool
+	CasePaths     []string
+	FlowPaths     []string
 }
 
 type Options struct {

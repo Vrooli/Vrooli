@@ -33,6 +33,7 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/apihttp"
+	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
 	"github.com/vrooli/api-core/discovery"
@@ -1133,9 +1134,14 @@ func main() {
 	srv := NewServer(db)
 	stopContinuityPublisher := srv.startContinuityPublisher()
 
+	authConfig, err := authn.FromEnvironment(os.Getenv)
+	if err != nil {
+		log.Fatalf("authentication configuration failed: %v", err)
+	}
 	if err := server.Run(server.Config{
-		Handler:      srv.Handler(),
-		WriteTimeout: httpWriteTimeout,
+		Authentication: pointerToManagedAuthentication(authConfig),
+		Handler:        srv.Handler(),
+		WriteTimeout:   httpWriteTimeout,
 		Cleanup: func(ctx context.Context) error {
 			stopContinuityPublisher()
 			srv.sweeper.Stop()
@@ -1163,4 +1169,9 @@ func main() {
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
+}
+
+func pointerToManagedAuthentication(config authn.Config) *authn.Config {
+	config = config.WithManagedCloudflare("web-console")
+	return &config
 }

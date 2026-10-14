@@ -1,5 +1,9 @@
 # CLI Commands — Workflow Health
 
+## Selected browser cases on a named instance
+
+`workflow-health validate start-selected personal-planner@shadow --path <scenario-root> --case-paths <registered-case-paths> --idempotency-key <stable-key>` binds both the provider-owned routed lease and target scenario navigation to that exact instance. The registered source files and assertions remain unchanged. Navigation to the target's canonical name or `@scenario/self` is bound before BAS validation and execution; other scenario destinations remain explicit. A target name that disagrees with the catalog is refused before execution. Use a new request key when the target instance changes; reattach with `validate get` or `validate wait` after admission. A terminal provider operation can contain a failed validation result; inspect both states.
+
 The scenario CLI is a thin Go wrapper over the API. Every command
 calls a single API endpoint and renders the result; there is no
 business logic in the CLI. If a command needs to make a decision the

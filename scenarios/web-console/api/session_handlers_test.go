@@ -156,10 +156,13 @@ func TestHandleGetSession_NotFound_ReturnsNotFound(t *testing.T) {
 	}
 }
 
-func TestHandleDeleteSession_NotFound_Idempotent(t *testing.T) {
+func TestHandleDeleteSession_UnknownDoesNotReportRemoval(t *testing.T) {
 	srv := newFakeTestServer()
-	if err := callDelete(t, srv, "nonexistent"); err != nil {
-		t.Errorf("delete unknown session should be idempotent (no error), got %v", err)
+	if err := callDelete(t, srv, "nonexistent"); connectCode(err) != connect.CodeNotFound {
+		t.Fatalf("delete unknown session must report not found, got %v", err)
+	}
+	if srv.metrics.SessionsDeleted.Load() != 0 || srv.events.Count() != 0 {
+		t.Fatal("unknown session reported a deletion effect")
 	}
 }
 
@@ -737,7 +740,7 @@ func TestListArchivedMarksCrashOrphans(t *testing.T) {
 // --- Replay / Idempotency Tests ---
 
 // Deleting the same session 3 times: only one real delete; metrics + events fire once.
-func TestDeleteSession_Replay_MetricsOnce(t *testing.T) {
+func TestDeleteSession_AlreadyAbsentDoesNotRepeatEffects(t *testing.T) {
 	srv := newFakeTestServer()
 
 	sess, err := srv.sessions.Create(context.Background(), "", 80, 24, "", nil)
@@ -749,8 +752,15 @@ func TestDeleteSession_Replay_MetricsOnce(t *testing.T) {
 	eventsBefore := srv.events.Count()
 
 	for i := 0; i < 3; i++ {
-		if err := callDelete(t, srv, sess.ID); err != nil {
+		err := callDelete(t, srv, sess.ID)
+		if i == 0 && err != nil {
 			t.Fatalf("attempt %d: %v", i+1, err)
+		}
+		// This fixture has no durable lifecycle ledger. Later calls observe
+		// absence; successful replay requires the production receipt owner,
+		// covered by the adapter's SQLite lifecycle tests.
+		if i > 0 && connectCode(err) != connect.CodeNotFound {
+			t.Fatalf("attempt %d must report absence, got %v", i+1, err)
 		}
 	}
 

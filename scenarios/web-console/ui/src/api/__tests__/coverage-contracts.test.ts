@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { FleetState } from "@vrooli/proto-types/web-console/v1/machines/machines_pb";
+import { OperatorInputKind } from "@vrooli/proto-types/setup/v1/operator_input_pb";
 import * as continuity from "../continuity";
 import * as templates from "../grouptemplates";
 import * as machines from "../machines";
@@ -48,6 +49,133 @@ describe("small API domain wrappers", () => {
     expect(issue).toHaveBeenCalledWith({ label: "" });
     expect(decide).toHaveBeenCalled();
     expect(forget).toHaveBeenCalledWith({ machineId: "m" });
+  });
+
+  it("applies onboarding defaults and delegates to the onboarding client", async () => {
+    const client = machines.machineClient as unknown as Record<string, ReturnType<typeof vi.fn>>;
+    const preflight = (client.preflightOnboarding = vi.fn().mockResolvedValue({ reachable: true } as never));
+    const start = (client.startOnboarding = vi.fn().mockResolvedValue({ onboardingOpId: "op-1" } as never));
+    const get = (client.getOnboarding = vi.fn().mockResolvedValue({ status: "running" } as never));
+    const wait = (client.waitOnboarding = vi.fn().mockResolvedValue({ status: "done" } as never));
+
+    await expect(machines.preflightOnboarding({ host: "h", user: "u" })).resolves.toEqual({ reachable: true });
+    expect(preflight).toHaveBeenCalledWith({ host: "h", port: 22, user: "u", machineId: "" });
+
+    await expect(machines.startOnboarding({ machineId: "m", host: "h", user: "u", sshPassword: "pw" })).resolves.toEqual({ onboardingOpId: "op-1" });
+    expect(start).toHaveBeenCalledWith(expect.objectContaining({ port: 22, nodeName: "", setupPreset: "minimal" }));
+
+    await expect(machines.getOnboarding("op-1")).resolves.toEqual({ status: "running" });
+    expect(get).toHaveBeenCalledWith({ onboardingOpId: "op-1" });
+
+    await expect(machines.waitOnboarding("op-1")).resolves.toEqual({ status: "done" });
+    expect(wait).toHaveBeenCalledWith({ onboardingOpId: "op-1", timeoutSeconds: 30 });
+  });
+
+  it("projects configuration questions, maps every operator input kind, and trims the expected revision", async () => {
+    const client = machines.machineClient as unknown as Record<string, ReturnType<typeof vi.fn>>;
+    const kinds = [
+      OperatorInputKind.SECRET,
+      OperatorInputKind.CHOICE,
+      OperatorInputKind.CONFIRM,
+      OperatorInputKind.PATH,
+      OperatorInputKind.ENUM,
+      OperatorInputKind.BOOLEAN,
+      OperatorInputKind.DURATION,
+      OperatorInputKind.CONFIRMATION,
+      OperatorInputKind.UNSPECIFIED,
+    ];
+    const requests = kinds.map((kind, i) => ({
+      id: `q${i}`,
+      kind,
+      title: `Q${i}`,
+      description: "",
+      defaultValue: "",
+      options: [],
+      required: i === 0,
+      validation: "",
+      owner: "",
+      inputId: `in${i}`,
+      candidates: i === 0 ? [{ id: "c", label: "Candidate", status: "ok", risk: "low", remediation: "" }] : [],
+    }));
+    client.getConfiguration = vi.fn().mockResolvedValue({
+      targetId: "t",
+      questions: { requests },
+      readiness: { ready: true },
+      machineDetail: { id: "m" },
+    } as never);
+
+    const config = await machines.getConfiguration("m");
+    expect(config.targetId).toBe("t");
+    expect(config.readiness).toEqual({ ready: true });
+    expect(config.detail).toEqual({ id: "m" });
+    expect(config.questions.map((q) => q.kind)).toEqual([
+      "secret", "choice", "confirm", "path", "enum", "boolean", "duration", "confirmation", "choice",
+    ]);
+    expect(config.questions[0]!.candidates).toEqual([{ id: "c", label: "Candidate", status: "ok", risk: "low", remediation: "" }]);
+
+    const resolve = (client.resolveConfiguration = vi.fn().mockResolvedValue({ targetId: "t", result: { applied: true } } as never));
+    await expect(machines.resolveConfiguration("m", [{ request_id: "r", value: "v" }], "  rev-9  ")).resolves.toEqual({ targetId: "t", result: { applied: true } });
+    expect(resolve).toHaveBeenCalledWith(expect.objectContaining({ machineId: "m", expectedRevision: "rev-9" }));
+    expect(resolve.mock.calls[0]![0].answers[0]).toMatchObject({ requestId: "r", value: "v" });
+
+    // A blank expected revision must be omitted, not sent as empty.
+    await machines.resolveConfiguration("m", [], "   ");
+    expect(resolve.mock.calls[1]![0]).not.toHaveProperty("expectedRevision");
+
+    client.getConfiguration = vi.fn().mockResolvedValue({ targetId: "t2" } as never);
+    await expect(machines.getConfiguration("m")).resolves.toMatchObject({ questions: [], readiness: null, detail: null });
+  });
+
+  it("delegates credential-grant lifecycle, reapply, and apply status", async () => {
+    const client = machines.machineClient as unknown as Record<string, ReturnType<typeof vi.fn>>;
+    const list = (client.listCredentialGrants = vi.fn().mockResolvedValue({ grants: [{ id: "g" }] } as never));
+    const create = (client.createCredentialGrant = vi.fn().mockResolvedValue({ id: "g" } as never));
+    const revoke = (client.revokeCredentialGrant = vi.fn().mockResolvedValue({ id: "g" } as never));
+    const answer = (client.answerSecret = vi.fn().mockResolvedValue({ id: "g" } as never));
+    const reapply = (client.reapplyConfiguration = vi.fn().mockResolvedValue({ targetId: "t", result: { runId: "run-1" } } as never));
+    const status = (client.getConfigurationApplyStatus = vi.fn().mockResolvedValue({ runId: "run-1", state: "done" } as never));
+
+    await expect(machines.listCredentialGrants("m")).resolves.toMatchObject({ grants: [{ id: "g" }] });
+    expect(list).toHaveBeenCalledWith({ machineId: "m" });
+
+    await machines.createCredentialGrant({ nodeId: "n", logicalId: "l", field: "f", class: "user_prompt", retention: "durable" });
+    expect(create.mock.calls[0]![0]).toMatchObject({ nodeId: "n", logicalId: "l", field: "f", generation: 1n });
+
+    await machines.revokeCredentialGrant("g");
+    expect(revoke.mock.calls[0]![0]).toMatchObject({ id: "g" });
+
+    await machines.answerSecret({ nodeId: "n", logicalId: "l", field: "f", value: "s" });
+    expect(answer.mock.calls[0]![0]).toMatchObject({ value: "s", class: "user_prompt", retention: "durable" });
+
+    await expect(machines.reapplyConfiguration("m")).resolves.toEqual({ targetId: "t", result: { runId: "run-1" } });
+    expect(reapply).toHaveBeenCalledWith({ machineId: "m" });
+
+    await expect(machines.getConfigurationApplyStatus("m", "run-1")).resolves.toMatchObject({ state: "done" });
+    expect(status).toHaveBeenCalledWith({ machineId: "m", runId: "run-1" });
+  });
+
+  it("decodes join requests, presets, and setMachineGrant projections through listFleet", async () => {
+    const machine = { target: undefined, grant: { summary: "s", effects: ["read", "write"], appCount: 2, coversAllApps: false, scopes: ["x"], preset: "safe" }, drift: [], heartbeatAgeSeconds: 5n, manageable: false };
+    vi.spyOn(machines.machineClient, "list").mockResolvedValue({
+      state: FleetState.READY,
+      machines: [machine],
+      joinRequests: [{ id: "j", name: "laptop", os: "linux", arch: "amd64", endpoint: "e", confirmationWords: ["alpha", "beta"], keyFingerprint: "fp", requestedAgeSeconds: 9n }],
+      presets: [{ name: "safe", title: "", description: "d", scopes: ["x"], withholds: ["y"], summary: "sum", effects: ["read"], appCount: 1 }],
+      message: "",
+      recoveryAction: "",
+      controlPlane: { reachable: true, endpoint: "http://api", detail: "d", consoleUrl: "http://console" },
+    } as never);
+    const fleet = await machines.listFleet();
+    expect(fleet.status).toBe("ready");
+    expect(fleet.joinRequests[0]).toMatchObject({ id: "j", confirmationWords: ["alpha", "beta"], requestedAgeSeconds: 9 });
+    expect(fleet.presets[0]).toMatchObject({ name: "safe", title: "safe", effects: ["read"] });
+    expect(fleet.machines[0]!.grant.effects).toEqual(["read", "write"]);
+    expect(fleet.controlPlane).toMatchObject({ reachable: true, consoleUrl: "http://console" });
+
+    vi.spyOn(machines.machineClient, "setGrant").mockResolvedValueOnce({ machine } as never);
+    await expect(machines.setMachineGrant("m", "safe")).resolves.toMatchObject({ manageable: false });
+    vi.spyOn(machines.machineClient, "setGrant").mockResolvedValueOnce({ machine: undefined } as never);
+    await expect(machines.setMachineGrant("m", "safe")).resolves.toBeNull();
   });
 
   it("returns screen text and fails closed when the screen endpoint errors", async () => {

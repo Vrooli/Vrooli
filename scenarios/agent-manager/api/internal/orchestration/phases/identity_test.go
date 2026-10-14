@@ -106,7 +106,7 @@ func TestGenerateIdentityToken_SignsWorkflowMetadata(t *testing.T) {
 }
 
 func TestGenerateIdentityTokenCarriesExplicitAttenuatedIdentity(t *testing.T) {
-	run := &domain.Run{ID: uuid.New(), TaskID: uuid.New(), Subject: []string{"owner@example"}}
+	run := &domain.Run{ID: uuid.New(), TaskID: uuid.New(), OwnerSubject: "owner@example"}
 	token := GenerateIdentityToken(context.Background(), GenerateIdentityTokenInput{
 		Run: run, Secret: []byte("test-secret"),
 		AccountScopes:   []string{"vrooli-bridge:read", "vrooli-bridge:dispatch"},
@@ -156,7 +156,7 @@ func TestGenerateIdentityTokenPrefersPersistedOwnerIdentity(t *testing.T) {
 }
 
 func TestGenerateIdentityTokenMaterializesCatalogWildcardAndOmitsHumanOnly(t *testing.T) {
-	run := &domain.Run{ID: uuid.New(), TaskID: uuid.New(), Subject: []string{"owner@example"}}
+	run := &domain.Run{ID: uuid.New(), TaskID: uuid.New(), OwnerSubject: "owner@example"}
 	token := GenerateIdentityToken(context.Background(), GenerateIdentityTokenInput{
 		Run: run, Secret: []byte("test-secret"), AccountScopes: []string{"vrooli-bridge:*"},
 		ConcreteScopes: []scopecatalog.Scope{
@@ -170,5 +170,21 @@ func TestGenerateIdentityTokenMaterializesCatalogWildcardAndOmitsHumanOnly(t *te
 	}
 	if len(claims.Scopes) != 1 || claims.Scopes[0] != "vrooli-bridge:read" {
 		t.Fatalf("scopes = %#v", claims.Scopes)
+	}
+}
+
+func TestGenerateIdentityTokenDoesNotTreatWorkSubjectsAsOwnerIdentity(t *testing.T) {
+	for _, owner := range []string{"", "retained-owner"} {
+		t.Run(owner, func(t *testing.T) {
+			run := &domain.Run{ID: uuid.New(), TaskID: uuid.New(), OwnerSubject: owner, Subject: []string{"path:docs/AUDITABILITY_CONTRACT.md", "scenario:personal-planner"}}
+			secret := []byte("work-subject-regression-fixture")
+			claims, err := identity.VerifyToken(GenerateIdentityToken(t.Context(), GenerateIdentityTokenInput{Run: run, Secret: secret}), secret)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if claims.Subject != owner || len(claims.Scopes) != 0 {
+				t.Fatalf("work references became identity or authority: subject=%q scopes=%v", claims.Subject, claims.Scopes)
+			}
+		})
 	}
 }

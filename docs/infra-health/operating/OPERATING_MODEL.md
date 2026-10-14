@@ -2,7 +2,7 @@
 
 **Status:** initial contract canon. This document defines how `infra-health` turns runtime signals, platform-code audits, and contrarian review into operator-routed reliability work.
 
-**Loop status:** paused — recorded in the heartbeat control plane as `paused-manual` on 2026-07-24 (`prompt-manager team heartbeat-control infra-health pause`); the scheduler holds all member heartbeats until `… resume`. Current-state values and honesty flags across this PoR reflect the pause, not loop failure. On resume, the first heartbeat follows the resume protocol in `runtime-health-scanner/HEARTBEAT.md`.
+**Loop status:** disabled — `team.json` `enabled: false` since 2026-09-14, after daily heartbeats from 2026-09-02, because no consumer drains the team's Swarm items (they wait on operator decision). As of 2026-10-07 the instrument (`infrastructure-manager`) is stopped. Re-enabling is an operator decision that sets `enabled: true` after the instrument is restored and a drain route exists. On re-enable, the first heartbeat follows the resume protocol in `runtime-health-scanner/HEARTBEAT.md`.
 
 The current document adopts the generic team operating-model shape from `path:docs/agent-system/OPERATING_GRAPHS.md`.
 

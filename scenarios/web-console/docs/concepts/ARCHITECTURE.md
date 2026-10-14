@@ -427,3 +427,15 @@ capture/input semantics.
 |--------|-------------|----------------|------|
 | OT-P2-001 | Collaborative Session Modes | Not yet implemented — requires multi-subscriber session model and auth | [DOC: docs/internal/PROBLEMS.md] |
 | OT-P2-002 | Persisted Workspace Presets | Not yet implemented — requires workspace state serialization | [DOC: docs/internal/PROBLEMS.md] |
+
+## Browser desktop pane
+
+The Web Console desktop pane is a presentation adapter over the generated
+Device Control contract. It distinguishes offline, no-session, permission,
+ready, connecting, disconnected, viewer, controller, revoked, and failed states. It attaches
+the authorized media stream to a browser video element and disables pointer,
+keyboard, wheel, and clipboard controls unless the current controller lease and
+epoch are present. Controller input is translated into bounded typed pointer,
+wheel, and key actions against the selected display; clipboard sends enforce the
+64 KiB UTF-8 bound before transport. It does not construct node URLs or retain
+desktop credentials.

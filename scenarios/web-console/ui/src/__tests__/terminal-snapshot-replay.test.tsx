@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { renderHook, act } from "@testing-library/react";
+import { renderHook, act, waitFor } from "@testing-library/react";
 import { useTerminalSession } from "../hooks/terminal/useTerminalSession";
 
 // FakeWebSocket: drives the transport hook deterministically. Only
@@ -111,8 +111,9 @@ describe("useTerminalSession snapshot replay", () => {
       socket.triggerMessage({ type: "stdout", data: "scrollback line 1\r\n" });
       socket.triggerMessage({ type: "stdout", data: "screen content" });
     });
-    expect(term.written).toContain("scrollback line 1\r\n");
-    expect(term.written).toContain("screen content");
+    // Rendering coalesces frames; assert the ordered bytes at xterm's
+    // boundary after the scheduled flush, independent of batch count.
+    await waitFor(() => expect(term.written.join("")).toBe("scrollback line 1\r\nscreen content"));
 
     // history_end terminates snapshot mode.
     await act(async () => {
@@ -123,7 +124,7 @@ describe("useTerminalSession snapshot replay", () => {
     await act(async () => {
       getLastSocket().triggerMessage({ type: "stdout", data: "live byte" });
     });
-    expect(term.written).toContain("live byte");
+    await waitFor(() => expect(term.written.join("")).toBe("scrollback line 1\r\nscreen contentlive byte"));
   });
 
   it("reset()s xterm on every reconnect (no stale-cache state)", async () => {

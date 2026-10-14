@@ -7,7 +7,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
+	"workflow-health/internal/execution"
 
 	core "github.com/vrooli/api-core/validationrun"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
@@ -21,6 +23,8 @@ type DB interface {
 }
 
 type Record struct {
+	// nil is the compatible omitted/default selection; non-nil is explicit.
+	BrowserCasePaths []string
 	Run              core.Run
 	ETA              time.Duration
 	Preliminary      *scenariovalidationv1.ValidateScenarioResponse
@@ -65,6 +69,17 @@ func (r Repository) Create(ctx context.Context, record Record) error {
 	if err := record.Run.Validate(); err != nil {
 		return err
 	}
+	var selection []byte
+	if record.BrowserCasePaths != nil {
+		paths, err := execution.NormalizeCasePaths(record.BrowserCasePaths)
+		if err != nil {
+			return err
+		}
+		selection, err = json.Marshal(paths)
+		if err != nil {
+			return err
+		}
+	}
 	preliminary, err := marshal(record.Preliminary)
 	if err != nil {
 		return fmt.Errorf("marshal preliminary result: %w", err)
@@ -73,11 +88,18 @@ func (r Repository) Create(ctx context.Context, record Record) error {
 	if err != nil {
 		return fmt.Errorf("marshal execution binding: %w", err)
 	}
-	_, err = r.DB.ExecContext(ctx, `INSERT INTO validation_runs (id, scenario, target_path, idempotency_key, parent_run_id, state, created_at, eta_seconds, preliminary_result, artifact_refs, execution_binding, cancellation_requested, version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, record.Run.ID, record.Run.Target.Scenario, record.Run.Target.Path, record.Run.IdempotencyKey, record.Run.ParentRunID, string(record.Run.State), stamp(record.Run.CreatedAt), int64(record.ETA.Seconds()), preliminary, []byte("[]"), binding, boolInt(record.Run.CancellationRequested), record.Run.Version)
+	_, err = r.DB.ExecContext(ctx, `INSERT INTO validation_runs (id, scenario, target_path, idempotency_key, parent_run_id, state, created_at, eta_seconds, preliminary_result, artifact_refs, execution_binding, browser_case_paths, cancellation_requested, version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, record.Run.ID, record.Run.Target.Scenario, record.Run.Target.Path, record.Run.IdempotencyKey, record.Run.ParentRunID, string(record.Run.State), stamp(record.Run.CreatedAt), int64(record.ETA.Seconds()), preliminary, []byte("[]"), binding, selection, boolInt(record.Run.CancellationRequested), record.Run.Version)
 	return err
 }
 
 func (r Repository) Update(ctx context.Context, record Record, expectedVersion int64) error {
+	current, err := r.Get(ctx, record.Run.ID)
+	if err != nil {
+		return err
+	}
+	if (current.BrowserCasePaths == nil) != (record.BrowserCasePaths == nil) || !slices.Equal(current.BrowserCasePaths, record.BrowserCasePaths) {
+		return errors.New("validation-run selection is immutable")
+	}
 	terminal, err := marshal(record.Terminal)
 	if err != nil {
 		return fmt.Errorf("marshal terminal result: %w", err)
@@ -100,15 +122,15 @@ func (r Repository) Update(ctx context.Context, record Record, expectedVersion i
 	return nil
 }
 
-const selectRun = `SELECT id, scenario, target_path, idempotency_key, parent_run_id, state, created_at, started_at, completed_at, eta_seconds, preliminary_result, terminal_result, error_code, error_message, artifact_refs, execution_binding, cancellation_requested, version FROM validation_runs`
+const selectRun = `SELECT id, scenario, target_path, idempotency_key, parent_run_id, state, created_at, started_at, completed_at, eta_seconds, preliminary_result, terminal_result, error_code, error_message, artifact_refs, execution_binding, browser_case_paths, cancellation_requested, version FROM validation_runs`
 
 func (r Repository) scan(row *sql.Row) (Record, error) {
 	var out Record
 	var state, created, started, completed string
 	var preliminary, terminal, artifacts []byte
 	var cancelled int
-	var binding []byte
-	err := row.Scan(&out.Run.ID, &out.Run.Target.Scenario, &out.Run.Target.Path, &out.Run.IdempotencyKey, &out.Run.ParentRunID, &state, &created, &started, &completed, &out.ETA, &preliminary, &terminal, &out.ErrorCode, &out.Error, &artifacts, &binding, &cancelled, &out.Run.Version)
+	var binding, selection []byte
+	err := row.Scan(&out.Run.ID, &out.Run.Target.Scenario, &out.Run.Target.Path, &out.Run.IdempotencyKey, &out.Run.ParentRunID, &state, &created, &started, &completed, &out.ETA, &preliminary, &terminal, &out.ErrorCode, &out.Error, &artifacts, &binding, &selection, &cancelled, &out.Run.Version)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Record{}, &core.LifecycleError{Code: core.ErrorNotFound, Operation: "get", Cause: err}
 	}
@@ -132,6 +154,14 @@ func (r Repository) scan(row *sql.Row) (Record, error) {
 	if err := unmarshalBinding(binding, &out.ExecutionBinding); err != nil {
 		return Record{}, err
 	}
+	if len(selection) > 0 {
+		if err := json.Unmarshal(selection, &out.BrowserCasePaths); err != nil {
+			return Record{}, fmt.Errorf("decode browser case selection: %w", err)
+		}
+		if _, err := execution.NormalizeCasePaths(out.BrowserCasePaths); err != nil {
+			return Record{}, err
+		}
+	}
 	return out, nil
 }
 
@@ -140,8 +170,8 @@ func (r Repository) scanRows(rows *sql.Rows) (Record, error) {
 	var state, created, started, completed string
 	var preliminary, terminal, artifacts []byte
 	var cancelled int
-	var binding []byte
-	err := rows.Scan(&out.Run.ID, &out.Run.Target.Scenario, &out.Run.Target.Path, &out.Run.IdempotencyKey, &out.Run.ParentRunID, &state, &created, &started, &completed, &out.ETA, &preliminary, &terminal, &out.ErrorCode, &out.Error, &artifacts, &binding, &cancelled, &out.Run.Version)
+	var binding, selection []byte
+	err := rows.Scan(&out.Run.ID, &out.Run.Target.Scenario, &out.Run.Target.Path, &out.Run.IdempotencyKey, &out.Run.ParentRunID, &state, &created, &started, &completed, &out.ETA, &preliminary, &terminal, &out.ErrorCode, &out.Error, &artifacts, &binding, &selection, &cancelled, &out.Run.Version)
 	if err != nil {
 		return Record{}, err
 	}
@@ -161,6 +191,14 @@ func (r Repository) scanRows(rows *sql.Rows) (Record, error) {
 	_ = json.Unmarshal(artifacts, &out.Artifacts)
 	if err := unmarshalBinding(binding, &out.ExecutionBinding); err != nil {
 		return Record{}, err
+	}
+	if len(selection) > 0 {
+		if err := json.Unmarshal(selection, &out.BrowserCasePaths); err != nil {
+			return Record{}, fmt.Errorf("decode browser case selection: %w", err)
+		}
+		if _, err := execution.NormalizeCasePaths(out.BrowserCasePaths); err != nil {
+			return Record{}, err
+		}
 	}
 	return out, nil
 }

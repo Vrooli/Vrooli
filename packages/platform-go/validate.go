@@ -94,7 +94,19 @@ func ValidateSystemd(artifact RenderedArtifact, scope Scope) Verdict {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), validatorTimeout)
 	defer cancel()
-	output, runErr := exec.CommandContext(ctx, analyze, append([]string{scopeFlag, "verify"}, paths...)...).CombinedOutput()
+	cmd := exec.CommandContext(ctx, analyze, append([]string{scopeFlag, "verify"}, paths...)...)
+	if scope == ScopeUser && !ownRuntimeDir(os.Getenv("XDG_RUNTIME_DIR")) {
+		// `systemd-analyze --user` needs a user runtime directory to start its
+		// manager. Root under `sudo vrooli setup` has none, so it fails with
+		// "Failed to lookup RuntimeDirectory path" before reading any unit.
+		// Verification only parses the files, so a private directory serves.
+		runtimeDir := filepath.Join(dir, "runtime")
+		if err := os.Mkdir(runtimeDir, 0o700); err != nil {
+			return Verdict{State: VerdictUnavailable, Validator: validator, Output: "runtime dir: " + err.Error()}
+		}
+		cmd.Env = append(os.Environ(), "XDG_RUNTIME_DIR="+runtimeDir)
+	}
+	output, runErr := cmd.CombinedOutput()
 	findings := systemdFindings(string(output), paths)
 	if runErr != nil && len(findings) == 0 {
 		if ctx.Err() != nil {

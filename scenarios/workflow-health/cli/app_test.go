@@ -1,7 +1,13 @@
 package main
 
 import (
+	"connectrpc.com/connect"
+	"github.com/stretchr/testify/require"
+	validationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
+	"net/http"
+	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 )
 
@@ -57,4 +63,31 @@ func TestMetadata(t *testing.T) {
 	if strings.TrimSpace(appVersion) == "" {
 		t.Fatal("appVersion must not be empty")
 	}
+}
+
+func TestSelectedCLIRefusesOldProviderWithoutFullSuiteFallback(t *testing.T) {
+	var selectedCalls, ordinaryCalls atomic.Int32
+	selectedPath, selectedHandler := validationconnect.NewSelectedValidationRunServiceHandler(validationconnect.UnimplementedSelectedValidationRunServiceHandler{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Logf("request: %s", r.URL.Path)
+		if strings.HasPrefix(r.URL.Path, selectedPath) {
+			selectedCalls.Add(1)
+			selectedHandler.ServeHTTP(w, r)
+			return
+		}
+		if r.URL.Path == validationconnect.DurableValidationRunServiceStartValidationRunProcedure {
+			ordinaryCalls.Add(1)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"status":"healthy","readiness":true}`))
+	}))
+	defer server.Close()
+	app, err := NewApp()
+	require.NoError(t, err)
+	err = app.Run([]string{"--api-base", server.URL, "validate", "start-selected", "personal-planner", "--case-paths", "bas/cases/calendar/duplicate-submit-once.json", "--idempotency-key", "old-provider", "--json"})
+	require.Error(t, err)
+	t.Logf("refusal: %v", err)
+	require.Contains(t, err.Error(), connect.CodeUnimplemented.String())
+	require.Equal(t, int32(1), selectedCalls.Load())
+	require.Zero(t, ordinaryCalls.Load())
 }

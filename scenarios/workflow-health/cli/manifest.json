@@ -67,11 +67,53 @@
             "method": "StartValidationRun"
           },
           "governance": {
-            "effect": "read",
+            "effect": "write",
             "run_eligible": true,
             "permissions": [
               "network:internal",
-              "filesystem:read"
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "start-selected",
+          "description": "Start a durable run of an explicit registered browser-case set",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario id to validate"
+            }
+          ],
+          "flags": [
+            {
+              "name": "path",
+              "description": "Explicit scenario directory path"
+            },
+            {
+              "name": "idempotency-key",
+              "description": "Stable key for replay-safe start"
+            },
+            {
+              "name": "parent-run-id",
+              "description": "Optional Test Genie parent run identity"
+            },
+            {
+              "name": "case-paths",
+              "description": "Comma-separated nonempty registered bas/cases paths"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SelectedValidationRunService",
+            "method": "StartSelectedValidationRun"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
             ]
           }
         },
@@ -186,10 +228,10 @@
               }
             },
             {
-      "name": "apply",
-      "bool": true,
-      "description": "Apply the previewed fixes instead of reporting only",
-      "local_only": true
+              "name": "apply",
+              "bool": true,
+              "description": "Apply the previewed fixes instead of reporting only",
+              "local_only": true
             }
           ],
           "binding": {
@@ -306,5 +348,16 @@
   "measures": {
     "domains": []
   },
-  "omitted": []
+  "omitted": [
+    {
+      "service": "ScenarioValidationService",
+      "method": "DescribeProvider",
+      "reason": "Provider identity/readiness is consumed by Test Genie through the shared provider RPC; there is no standalone operator CLI command."
+    },
+    {
+      "service": "ScenarioValidationService",
+      "method": "ValidateTarget",
+      "reason": "The shared provider adapter maps supported scenario targets to ValidateScenario; operators use validate scenario for this scenario-only provider."
+    }
+  ]
 }

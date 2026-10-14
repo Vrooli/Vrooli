@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -38,6 +39,8 @@ func run(args []string) int {
 		"permit building darwin from a non-darwin host, producing a CLI with no macOS credential backend; never use for a release")
 	matrixJSON := flags.Bool("matrix-json", false, "print the supported target matrix as JSON")
 	resourceArtifacts := flags.Bool("resource-artifacts", false, "build and stage release-signable resource controller and service artifacts")
+	resourceSelection := flags.String("resource", "", "comma-separated resource names to stage (defaults to every supported resource)")
+	platformSelection := flags.String("platform", "", "comma-separated resource platforms to stage (for example linux-amd64)")
 	toolArtifacts := flags.Bool("tool-artifacts", false, "stage release-signable vendored tool artifacts")
 	verifyReleaseManifest := flags.Bool("verify-release-manifest", false, "verify a staged generic release manifest before it is bundled")
 	trustMode := flags.String("trust-mode", "", "artifact trust mode for manifest verification: development-local or production")
@@ -87,19 +90,28 @@ func run(args []string) int {
 			fmt.Fprintln(os.Stderr, "--resource-artifacts/--tool-artifacts require --root and --out-dir")
 			return invalidInvocationExitCode
 		}
+		var stageErrors []error
 		if *resourceArtifacts {
-			if err := stageResourceArtifacts(context.Background(), *root, *outDir); err != nil {
+			resources, err := splitArtifactSelection(*resourceSelection)
+			if err != nil {
 				fmt.Fprintln(os.Stderr, err)
-				return 1
+				return invalidInvocationExitCode
+			}
+			platforms, err := splitArtifactSelection(*platformSelection)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				return invalidInvocationExitCode
+			}
+			if err := stageResourceArtifactsSelected(context.Background(), *root, *outDir, resources, platforms); err != nil {
+				stageErrors = append(stageErrors, err)
 			}
 		}
 		if *toolArtifacts {
 			if err := stageToolArtifacts(context.Background(), *root, *outDir); err != nil {
-				fmt.Fprintln(os.Stderr, err)
-				return 1
+				stageErrors = append(stageErrors, err)
 			}
 		}
-		if err := writeReleaseChecksumManifest(*outDir); err != nil {
+		if err := finalizeReleaseArtifactStaging(*outDir, stageErrors); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return 1
 		}
@@ -133,6 +145,34 @@ func run(args []string) int {
 		return invalidInvocationExitCode
 	}
 	return buildOne(*root, *output, *version, buildinfo.DistributionTarget{OS: *goos, Arch: *goarch}, *allowMissingDarwinKeychain)
+}
+
+func finalizeReleaseArtifactStaging(outDir string, stageErrors []error) error {
+	if len(stageErrors) > 0 {
+		return errors.Join(stageErrors...)
+	}
+	return writeReleaseChecksumManifest(outDir)
+}
+
+func splitArtifactSelection(value string) ([]string, error) {
+	if strings.TrimSpace(value) == "" {
+		return nil, nil
+	}
+	parts := strings.Split(value, ",")
+	seen := make(map[string]bool, len(parts))
+	selection := make([]string, 0, len(parts))
+	for _, part := range parts {
+		item := strings.TrimSpace(part)
+		if item == "" {
+			return nil, fmt.Errorf("artifact selection contains an empty value")
+		}
+		if seen[item] {
+			return nil, fmt.Errorf("artifact selection contains duplicate %q", item)
+		}
+		seen[item] = true
+		selection = append(selection, item)
+	}
+	return selection, nil
 }
 
 // selectTargets resolves an explicit os/arch subset, or the full matrix when the

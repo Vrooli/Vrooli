@@ -41,7 +41,7 @@ func (o *Orchestrator) recoverFinalization(ctx context.Context, run *domain.Run)
 	if run.Summary != nil {
 		cost = run.Summary.CostEstimate
 	}
-	deps := phases.Deps{Runs: o.runs, Events: o.events, Broadcaster: o.broadcaster, Levers: levers, WorkspaceSandbox: o.workspaceSandbox, Clock: o.now}
+	deps := phases.Deps{Runs: o.runs, Events: o.events, Broadcaster: o.broadcaster, Levers: levers, WorkspaceSandbox: o.workspaceSandbox, ApprovalNotifier: o, Clock: o.now}
 	phases.ApplyAtRunEnd(recoveryCtx, phases.ApplyAtRunEndInput{Deps: deps, Run: run, SandboxID: run.SandboxID, Sandbox: o.sandbox, Outcome: outcome, Cost: cost})
 	if err := o.runs.Update(ctx, run); err != nil {
 		return nil, fmt.Errorf("persist recovered finalization: %w", err)

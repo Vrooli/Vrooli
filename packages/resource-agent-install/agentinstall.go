@@ -26,6 +26,12 @@ var (
 
 func Install(ctx context.Context, spec Spec) error { return internal.Install(ctx, spec) }
 
+func Update(ctx context.Context, spec Spec) error { return internal.Update(ctx, spec) }
+
 func DirectInstallCommand(spec Spec) cliapp.Command {
 	return internal.DirectInstallCommand(spec)
+}
+
+func UpdateCommand(spec Spec) cliapp.Command {
+	return internal.UpdateCommand(spec)
 }

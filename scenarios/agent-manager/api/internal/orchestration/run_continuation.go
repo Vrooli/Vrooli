@@ -1096,7 +1096,7 @@ func (o *Orchestrator) checkpointContinuationTurn(ctx context.Context, run *doma
 		cost = result.Metrics.CostEstimateUSD
 	}
 	phases.ApplyAtRunEnd(ctx, phases.ApplyAtRunEndInput{
-		Deps:      phases.Deps{Runs: o.runs, Events: o.events, Broadcaster: o.broadcaster, Levers: o.runLevers(), WorkspaceSandbox: o.workspaceSandbox},
+		Deps:      phases.Deps{Runs: o.runs, Events: o.events, Broadcaster: o.broadcaster, Levers: o.runLevers(), WorkspaceSandbox: o.workspaceSandbox, ApprovalNotifier: o},
 		Run:       run,
 		SandboxID: run.SandboxID,
 		Sandbox:   o.sandbox,

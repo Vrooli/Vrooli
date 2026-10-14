@@ -1,5 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { _resetCommercialContextCache, getCommercialContext, isCommercialContentVisible, safeCommercialDestination } from "../monetization";
+import {
+  _resetCommercialContextCache,
+  deleteSubscriptionSession,
+  getCommercialContext,
+  getConnections,
+  getSubscriptionSession,
+  getSubscriptionSummary,
+  isCommercialContentVisible,
+  provisionOpenRouterKey,
+  provisionSubscriptionSession,
+  removeOpenRouterKey,
+  safeCommercialDestination,
+  testOpenRouterKey,
+} from "../monetization";
 
 const context = {
   account: { subscription_status: "active", plan_tier: "free", credit_balance: 4, entitlement_ids: [], evaluated_at: "now" },
@@ -87,5 +100,92 @@ describe("commercial context client", () => {
     expect(safeCommercialDestination("https://vrooli.com/account")).toBe("https://vrooli.com/account");
     expect(safeCommercialDestination("https://evil.example/phish")).toBeNull();
     expect(safeCommercialDestination("javascript:alert(1)")).toBeNull();
+  });
+});
+
+describe("subscription and credential REST wrappers", () => {
+  beforeEach(() => {
+    sessionStorage.clear();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  function stubFetch(responder: (path: string, init?: RequestInit) => Response): ReturnType<typeof vi.fn> {
+    const mock = vi.fn((path: string, init?: RequestInit) => Promise.resolve(responder(path, init)));
+    vi.stubGlobal("fetch", mock);
+    return mock;
+  }
+
+  it("fetches subscription session status with an auth header when signed in", async () => {
+    sessionStorage.setItem(
+      "vrooli.web.access-token",
+      JSON.stringify({ accessToken: "tok", expiresAt: "2099-01-01T00:00:00Z" }),
+    );
+    const mock = stubFetch(() => new Response(JSON.stringify({ configured: true, provider_state: "ok" }), { status: 200 }));
+    await expect(getSubscriptionSession()).resolves.toEqual({ configured: true, provider_state: "ok" });
+    expect(mock).toHaveBeenCalledWith("/api/v1/auth/subscription/session", expect.anything());
+    const headers = mock.mock.calls[0]![1]!.headers as Headers;
+    expect(headers.get("Authorization")).toBe("Bearer tok");
+    expect(headers.get("Content-Type")).toBe("application/json");
+  });
+
+  it("normalizes a 401 summary into a truthful signed-out shape", async () => {
+    stubFetch(() => new Response("unauthorized", { status: 401 }));
+    await expect(getSubscriptionSummary()).resolves.toEqual({
+      configured: false,
+      status: "signed_out",
+      plan_tier: "free",
+      pending_sync: 0,
+    });
+  });
+
+  it("returns the server summary when authorized", async () => {
+    stubFetch(() => new Response(JSON.stringify({ configured: true, status: "active", plan_tier: "pro" }), { status: 200 }));
+    await expect(getSubscriptionSummary()).resolves.toMatchObject({ status: "active", plan_tier: "pro" });
+  });
+
+  it("surfaces non-401 summary failures to the caller", async () => {
+    stubFetch(() => new Response("boom", { status: 500 }));
+    await expect(getSubscriptionSummary()).rejects.toThrow("Request failed (500)");
+  });
+
+  it("provisions and deletes the subscription session with correct verbs and body", async () => {
+    const mock = stubFetch(() => new Response(null, { status: 204 }));
+    await expect(provisionSubscriptionSession("refresh-1")).resolves.toEqual({});
+    expect(mock).toHaveBeenLastCalledWith(
+      "/api/v1/auth/subscription/session",
+      expect.objectContaining({ method: "POST", body: JSON.stringify({ refresh_token: "refresh-1" }) }),
+    );
+    await expect(deleteSubscriptionSession()).resolves.toEqual({});
+    expect(mock).toHaveBeenLastCalledWith(
+      "/api/v1/auth/subscription/session",
+      expect.objectContaining({ method: "DELETE" }),
+    );
+  });
+
+  it("provisions, removes, and tests the OpenRouter key", async () => {
+    const mock = stubFetch((path) =>
+      path === "/api/v1/credentials/test"
+        ? new Response(JSON.stringify({ valid: true, source: "live", checked_at: "now" }), { status: 200 })
+        : new Response(null, { status: 204 }),
+    );
+    await provisionOpenRouterKey("sk-abc");
+    expect(mock).toHaveBeenLastCalledWith(
+      "/api/v1/credentials/provision",
+      expect.objectContaining({ method: "POST", body: JSON.stringify({ identity: "vrooli/openrouter", field: "api-key", value: "sk-abc" }) }),
+    );
+    await removeOpenRouterKey();
+    expect(mock).toHaveBeenLastCalledWith(
+      "/api/v1/credentials/provision",
+      expect.objectContaining({ method: "DELETE", body: JSON.stringify({ identity: "vrooli/openrouter", field: "api-key" }) }),
+    );
+    await expect(testOpenRouterKey()).resolves.toEqual({ valid: true, source: "live", checked_at: "now" });
+  });
+
+  it("lists managed integration connections", async () => {
+    stubFetch(() => new Response(JSON.stringify({ connections: [{ id: "c1", provider: "google", connection_name: "Gmail", status: "connected" }] }), { status: 200 }));
+    await expect(getConnections()).resolves.toMatchObject({ connections: [{ id: "c1", status: "connected" }] });
   });
 });

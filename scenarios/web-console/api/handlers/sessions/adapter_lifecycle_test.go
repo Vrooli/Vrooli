@@ -4,8 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
+
+	"connectrpc.com/connect"
+	"github.com/google/uuid"
+	"github.com/vrooli/api-core/identity"
+	sessionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/sessions"
 
 	_ "modernc.org/sqlite"
 	"web-console/internal/backend"
@@ -733,5 +739,143 @@ func TestAdapterRecoverableListingAndDismissal(t *testing.T) {
 	}
 	if err := a.DismissRecoverable(ctx, "recoverable"); err == nil {
 		t.Fatal("dismissed session was dismissed twice")
+	}
+}
+
+func TestAdapterCreateUsesCanonicalOwnerAndRejectsInvalidProofBeforeEffects(t *testing.T) {
+	mgr := session.NewManagerWithFactory(ptyfake.NewFactory())
+	store := sessionstore.NewInMemory()
+	a := &Adapter{Manager: mgr, Store: store, Events: events.NewLogger(20), Metrics: metrics.New()}
+	p := identity.Principal{Kind: identity.ActorHuman, Subject: "verified-owner", Verified: true, Source: identity.SourceCloudflareAccess}
+	ctx := identity.WithPrincipal(context.Background(), p)
+	created, err := a.Create(ctx, CreateInput{Shell: "/bin/sh", Backend: "standard", Origin: "ui", Owner: "forged-owner"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer mgr.Delete(context.Background(), created.ID)
+	if created.Owner != p.Subject {
+		t.Fatalf("owner = %q", created.Owner)
+	}
+	invalid := identity.WithStatus(context.Background(), identity.Status{FailureClass: identity.FailureInvalid})
+	if _, err := a.Create(invalid, CreateInput{Shell: "/bin/sh", Backend: "standard", Origin: "ui", Owner: "forged-owner"}); err == nil {
+		t.Fatal("invalid proof created a session")
+	}
+	if len(mgr.List()) != 1 {
+		t.Fatal("rejected request performed a creation effect")
+	}
+}
+
+func TestAdapterReservedCreateUsesDurableIdentityAndLiveRuntime(t *testing.T) {
+	ctx := t.Context()
+	store := sessionstore.NewInMemory()
+	mgr := session.NewManagerWithFactory(ptyfake.NewFactory())
+	mgr.SetStore(store)
+	a := &Adapter{Manager: mgr, Store: store, Events: events.NewLogger(20), Metrics: metrics.New()}
+	id := uuid.NewString()
+	in := CreateInput{RequestedSessionID: id, Shell: "/bin/sh", Backend: "standard", Owner: "agent-manager", Origin: "programmatic", LaunchCommand: "bounded", DisplayLabel: "same run"}
+	first, err := a.Create(ctx, in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer mgr.Delete(context.Background(), id)
+	row, err := store.Get(ctx, id)
+	if err != nil || row.CreateFingerprint == "" || row.Owner != "agent-manager" || first.ID != id {
+		t.Fatalf("durable=%+v first=%+v err=%v", row, first, err)
+	}
+	// A second adapter uses the same production manager/store; no second spawn.
+	other := &Adapter{Manager: mgr, Store: store}
+	retry, err := other.Create(ctx, in)
+	if err != nil || retry.ID != id || len(mgr.List()) != 1 {
+		t.Fatalf("retry=%+v err=%v runtimes=%d", retry, err, len(mgr.List()))
+	}
+	changed := in
+	changed.LaunchCommand = "changed"
+	if _, err := other.Create(ctx, changed); err == nil {
+		t.Fatal("changed request adopted identity")
+	}
+	if len(mgr.List()) != 1 {
+		t.Fatal("collision launched another runtime")
+	}
+	// A restarted owner with metadata alone must not report a live launch.
+	restarted := session.NewManagerWithFactory(ptyfake.NewFactory())
+	restarted.SetStore(store)
+	afterRestart := &Adapter{Manager: restarted, Store: store}
+	if _, err := afterRestart.Create(ctx, in); err == nil {
+		t.Fatal("metadata without recovered runtime was adopted")
+	}
+	if len(restarted.List()) != 0 {
+		t.Fatal("restart recreated ambiguous identity")
+	}
+	if err := store.MarkDismissed(ctx, id, ""); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := other.Create(ctx, in); err == nil {
+		t.Fatal("archived identity was adopted")
+	}
+	if _, err := other.Get(ctx, id); err == nil {
+		t.Fatal("archived metadata and surviving runtime exposed recovery proof")
+	}
+}
+
+type refusedReservedSave struct{ sessionstore.Store }
+
+func (s refusedReservedSave) Save(context.Context, sessionstore.Metadata) error {
+	return errors.New("reserved owner save refused")
+}
+func TestAdapterReservedPersistenceFailureAndCancellation(t *testing.T) {
+	for _, cancelled := range []bool{false, true} {
+		t.Run(fmt.Sprint(cancelled), func(t *testing.T) {
+			base := sessionstore.NewInMemory()
+			var store sessionstore.Store = refusedReservedSave{base}
+			if cancelled {
+				store = base
+			}
+			mgr := session.NewManagerWithFactory(ptyfake.NewFactory())
+			mgr.SetStore(store)
+			a := &Adapter{Manager: mgr, Store: store, Events: events.NewLogger(20), Metrics: metrics.New()}
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			if cancelled {
+				cancel()
+			}
+			id := uuid.NewString()
+			_, err := a.Create(ctx, CreateInput{RequestedSessionID: id, Shell: "/bin/sh", Backend: "standard", Owner: "agent-manager", Origin: "programmatic"})
+			if err == nil || len(mgr.List()) != 0 {
+				t.Fatalf("create err=%v runtime=%d", err, len(mgr.List()))
+			}
+			rows, err := base.List(t.Context())
+			if err != nil || len(rows) != 0 {
+				t.Fatalf("rows=%+v err=%v", rows, err)
+			}
+		})
+	}
+}
+
+func TestStableCreateCapabilityPinsCanonicalVerifiedOwner(t *testing.T) {
+	store := sessionstore.NewInMemory()
+	mgr := session.NewManagerWithFactory(ptyfake.NewFactory())
+	mgr.SetStore(store)
+	a := &Adapter{Manager: mgr, Store: store, Events: events.NewLogger(20), Metrics: metrics.New()}
+	h := NewConnectHandler(Deps{Service: a})
+	principal := identity.Principal{Kind: identity.ActorService, Subject: "lawful-service-owner", Verified: true, Source: identity.SourceCloudflareAccess}
+	ctx := identity.WithPrincipal(t.Context(), principal)
+	caps, err := h.List(ctx, connect.NewRequest(&sessionsv1.ListRequest{}))
+	if err != nil || !caps.Msg.SupportsStableCreateIdentity || caps.Msg.StableCreateOwner != principal.OwnerSubject() {
+		t.Fatalf("capabilities=%+v err=%v", caps, err)
+	}
+	id := uuid.NewString()
+	req := connect.NewRequest(&sessionsv1.CreateRequest{RequestedSessionId: id, Shell: "/bin/sh", Backend: "standard", Owner: "forged", Origin: sessionsv1.SessionOrigin_SESSION_ORIGIN_PROGRAMMATIC})
+	created, err := h.Create(ctx, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer mgr.Delete(context.Background(), id)
+	got, err := h.Get(ctx, connect.NewRequest(&sessionsv1.GetRequest{Id: id}))
+	if err != nil || got.Msg.Session.Owner != caps.Msg.StableCreateOwner || created.Msg.Session.Owner != caps.Msg.StableCreateOwner || got.Msg.Session.CreateFingerprint == "" || got.Msg.Session.CreateFingerprint != created.Msg.Session.CreateFingerprint {
+		t.Fatalf("created=%+v got=%+v err=%v", created, got, err)
+	}
+	anonymous, err := h.List(t.Context(), connect.NewRequest(&sessionsv1.ListRequest{}))
+	if err != nil || anonymous.Msg.StableCreateOwner != "" {
+		t.Fatalf("anonymous capability=%+v err=%v", anonymous, err)
 	}
 }

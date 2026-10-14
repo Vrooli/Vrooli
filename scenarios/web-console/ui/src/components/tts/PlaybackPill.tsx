@@ -106,6 +106,7 @@ export function PlaybackPill(props: PlaybackPillProps) {
   return (
     <div
       data-testid="playback-pill"
+      data-audio-state="player"
       data-state={expanded ? "expanded" : "collapsed"}
       role="region"
       aria-label={t(strings.playbackPill.regionLabel)}

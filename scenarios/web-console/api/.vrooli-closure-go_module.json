@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "key": "386ff132bb49a245386a863c184b5c3b25e09952d6fe8e91fc75b95ebe1f8880",
+  "key": "f9f24830b82f0baad6a8509b710d8ecb2d16da94fffd00a7ef3d3a0064537b5d",
   "inputs": [
     "go.mod",
     "go.sum",
@@ -47,6 +47,7 @@
     "internal/scenarioruntime",
     "internal/securestore",
     "internal/shell",
+    "internal/storageactivity",
     "internal/storagetime",
     "internal/tools",
     "internal/tuning",
@@ -143,6 +144,8 @@
     "packages/proto/gen/go/scenario-authenticator/v1/accounts",
     "packages/proto/gen/go/scenario-authenticator/v1/accounts/accounts_v1connect",
     "packages/proto/gen/go/setup/v1",
+    "packages/proto/gen/go/tunnel-manager/v1/config",
+    "packages/proto/gen/go/tunnel-manager/v1/config/config_v1connect",
     "packages/proto/gen/go/vrooli-bridge/v1/credentialgrant",
     "packages/proto/gen/go/vrooli-bridge/v1/credentialgrant/credentialgrant_v1connect",
     "packages/proto/gen/go/vrooli-bridge/v1/dispatch",
@@ -283,5 +286,5 @@
     "scenarios/web-console/api/session",
     "scenarios/web-console/api/terminal"
   ],
-  "toolchain": "go version go1.25.12 linux/amd64"
+  "toolchain": "go version go1.26.0 linux/amd64"
 }

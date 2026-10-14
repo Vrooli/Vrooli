@@ -84,6 +84,43 @@ func TestTreeDigestChangesWhenOneFileChanges(t *testing.T) {
 	}
 }
 
+func TestRemoveDanglingOCISymlinksPrunesDanglingAndEmptyDirectoryLinks(t *testing.T) {
+	root := t.TempDir()
+	emptyDir := filepath.Join(root, "usr", "local", "share", "man")
+	populatedDir := filepath.Join(root, "usr", "share", "doc")
+	if err := os.MkdirAll(emptyDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(populatedDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(populatedDir, "README"), []byte("keep"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	links := map[string]string{
+		filepath.Join(root, "usr", "local", "man"):           "share/man",
+		filepath.Join(root, "usr", "share", "documentation"): "doc",
+		filepath.Join(root, "dangling"):                      "missing",
+	}
+	for path, target := range links {
+		if err := os.Symlink(target, path); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := removeDanglingOCISymlinks(root); err != nil {
+		t.Fatalf("removeDanglingOCISymlinks: %v", err)
+	}
+	for _, path := range []string{filepath.Join(root, "usr", "local", "man"), filepath.Join(root, "dangling")} {
+		if _, err := os.Lstat(path); !os.IsNotExist(err) {
+			t.Errorf("pruned path %q still exists (err %v)", path, err)
+		}
+	}
+	if target, err := os.Readlink(filepath.Join(root, "usr", "share", "documentation")); err != nil || target != "doc" {
+		t.Errorf("populated directory symlink = %q, %v; want doc", target, err)
+	}
+}
+
 func TestFetchOCIExtractsDigestPinnedLayer(t *testing.T) {
 	layer := tarBytes(t, map[string][]byte{"bin/server": bigBinary()})
 	sum := sha256.Sum256(layer)

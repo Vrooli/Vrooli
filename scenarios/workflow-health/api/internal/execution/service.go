@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -14,6 +15,7 @@ import (
 	"workflow-health/internal/validation"
 	"workflow-health/internal/workflows"
 
+	"github.com/vrooli/cli-core/cliutil"
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 )
 
@@ -93,6 +95,21 @@ func (s *Service) RunScenario(ctx context.Context, scenario, path string, opts O
 		Static:    static,
 		Catalog:   static.Catalog,
 		Findings:  append([]validation.Finding(nil), static.Findings...),
+	}
+	if strings.TrimSpace(scenario) != "" {
+		if _, target, variant, parseErr := cliutil.SplitAddress(scenario); parseErr != nil {
+			return report, parseErr
+		} else if variant != "" && target != static.Scenario {
+			return report, fmt.Errorf("runtime instance %q does not match catalog scenario %q", scenario, static.Scenario)
+		}
+	}
+	if opts.Selector.CasesProvided || (opts.Selector.CasePaths != nil && opts.Selector.FlowPaths == nil) {
+		paths, err := ValidateCaseSelection(static.Catalog, opts.Selector.CasePaths)
+		if err != nil {
+			return report, err
+		}
+		opts.Selector.CasesProvided = true
+		opts.Selector.CasePaths = paths
 	}
 	selected := selectAssets(static.Catalog, opts)
 	report.Summary.Selected = len(selected)
@@ -184,7 +201,7 @@ func (s *Service) RunScenario(ctx context.Context, scenario, path string, opts O
 	}
 	writer := artifacts.NewWriter(targetDir, firstNonEmpty(opts.RunID, fmt.Sprintf("workflow-health-%d", s.now().Unix())))
 	for _, asset := range selected {
-		run := s.runAsset(executionCtx, writer, asset, targetDir, opts, isolationInstalled, isolationLease)
+		run := s.runAsset(executionCtx, writer, asset, targetDir, opts, isolationInstalled, isolationLease, scenario)
 		report.Runs = append(report.Runs, run)
 		switch {
 		case run.Refused:
@@ -239,7 +256,7 @@ func isolationHealthError(lease IsolationLease) error {
 	return nil
 }
 
-func (s *Service) runAsset(ctx context.Context, writer *artifacts.Writer, asset workflows.WorkflowAsset, targetDir string, opts Options, isolationInstalled bool, lease IsolationLease) (run WorkflowRun) {
+func (s *Service) runAsset(ctx context.Context, writer *artifacts.Writer, asset workflows.WorkflowAsset, targetDir string, opts Options, isolationInstalled bool, lease IsolationLease, runtimeScenario string) (run WorkflowRun) {
 	started := s.now()
 	run = WorkflowRun{Asset: asset, StartedAt: started}
 	defer func() {
@@ -296,6 +313,7 @@ func (s *Service) runAsset(ctx context.Context, writer *artifacts.Writer, asset 
 		run.Error = err.Error()
 		return run
 	}
+	bindInstanceNavigation(definition, runtimeScenario)
 	if opts.DryRun {
 		run.DryRun = true
 		run.Success = true
@@ -407,6 +425,58 @@ func bindElectronValidation(asset workflows.WorkflowAsset, opts Options, isolati
 	return &target, &validation, ""
 }
 
+// NormalizeCasePaths freezes a canonical set without consulting or changing
+// any runtime. A present empty selection must never fall back to the suite.
+func NormalizeCasePaths(values []string) ([]string, error) {
+	if len(values) == 0 {
+		return nil, fmt.Errorf("browser case selection must not be empty")
+	}
+	set := make(map[string]struct{}, len(values))
+	for _, raw := range values {
+		value := strings.TrimSpace(raw)
+		if value == "" || strings.ContainsAny(value, "\\:\x00") || path.IsAbs(value) {
+			return nil, fmt.Errorf("invalid browser case path %q", raw)
+		}
+		for _, part := range strings.Split(value, "/") {
+			if part == ".." {
+				return nil, fmt.Errorf("unsafe browser case path %q", raw)
+			}
+		}
+		value = path.Clean(value)
+		if value == "." || !strings.HasPrefix(value, "bas/cases/") || !strings.HasSuffix(value, ".json") {
+			return nil, fmt.Errorf("invalid browser case path %q", raw)
+		}
+		set[value] = struct{}{}
+	}
+	out := make([]string, 0, len(set))
+	for value := range set {
+		out = append(out, value)
+	}
+	sort.Strings(out)
+	return out, nil
+}
+
+// ValidateCaseSelection checks the entire request before BAS, artifact or lease
+// effects. A mixed known/unknown request never partially executes.
+func ValidateCaseSelection(catalog *workflows.ScenarioWorkflowCatalog, values []string) ([]string, error) {
+	paths, err := NormalizeCasePaths(values)
+	if err != nil {
+		return nil, err
+	}
+	known := map[string]bool{}
+	if catalog != nil {
+		for _, asset := range catalog.Cases {
+			known[asset.Path] = true
+		}
+	}
+	for _, value := range paths {
+		if !known[value] {
+			return nil, fmt.Errorf("browser case %q is not in the registered catalog", value)
+		}
+	}
+	return paths, nil
+}
+
 func selectAssets(catalog *workflows.ScenarioWorkflowCatalog, opts Options) []workflows.WorkflowAsset {
 	if catalog == nil {
 		return nil
@@ -422,7 +492,7 @@ func selectAssets(catalog *workflows.ScenarioWorkflowCatalog, opts Options) []wo
 		}
 		out = append(out, c.WorkflowAsset)
 	}
-	if opts.AllowFlowExecution || len(flowSet) > 0 {
+	if !opts.Selector.CasesProvided && (opts.AllowFlowExecution || len(flowSet) > 0) {
 		for _, f := range catalog.Flows {
 			if len(flowSet) > 0 {
 				if _, ok := flowSet[f.Path]; !ok {
@@ -471,6 +541,27 @@ func readWorkflowDefinition(path string) (map[string]any, error) {
 		return nil, fmt.Errorf("resolve BAS workflow %s: %w", filepath.ToSlash(path), err)
 	}
 	return resolved.Definition, nil
+}
+
+// Bind only routes authored for this catalog to the same explicit instance
+// that owns the routed lease. The loaded definition is request-local; no case
+// source, assertion, cross-scenario route or explicit URL is rewritten.
+func bindInstanceNavigation(definition map[string]any, runtimeScenario string) {
+	_, scenario, variant, err := cliutil.SplitAddress(runtimeScenario)
+	if err != nil || variant == "" {
+		return
+	}
+	nodes, _ := definition["nodes"].([]any)
+	for _, value := range nodes {
+		node, _ := value.(map[string]any)
+		action, _ := node["action"].(map[string]any)
+		navigate, _ := action["navigate"].(map[string]any)
+		name, _ := navigate["scenario"].(string)
+		url, _ := navigate["url"].(string)
+		if strings.TrimSpace(url) == "" && (name == scenario || name == "@scenario/self") {
+			navigate["scenario"] = strings.TrimSpace(runtimeScenario)
+		}
+	}
 }
 
 func summarizeValidationIssues(issues []ValidationIssue) string {

@@ -243,7 +243,15 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 		orchestration.WithTokenCapPolicy(orchestration.TokenCapPolicyFromEnv()),
 	}
 	if interactiveSessions != nil {
-		opts = append(opts, orchestration.WithInteractiveSessions(interactiveSessions), orchestration.WithWebConsoleUIBase(webconsole.ResolveUIBaseURL()))
+		opts = append(opts, orchestration.WithInteractiveSessions(interactiveSessions))
+	}
+	// Resolve the web-console UI base for review deep links on any manualReview
+	// run, not only interactive ones (the needs_review notification links here).
+	opts = append(opts, orchestration.WithWebConsoleUIBase(webconsole.ResolveUIBaseURL()))
+	if receiptsClient.Enabled() {
+		// Run approvals (needs_review) publish *.decision_requested.v1 here so
+		// notification-hub alerts the operator with an Approve/Reject ask.
+		opts = append(opts, orchestration.WithApprovalEventPublisher(receiptsClient))
 	}
 	orch := orchestration.New(repos.Profiles, repos.Tasks, repos.Runs, opts...)
 	actionAuthorizer.orchestrator = orch

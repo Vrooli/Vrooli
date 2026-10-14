@@ -2,7 +2,6 @@ package main
 
 import (
 	"path/filepath"
-	"runtime"
 	"testing"
 
 	aisearch "github.com/vrooli/ai-go/search"
@@ -11,11 +10,9 @@ import (
 
 func searchJSONForTest(t *testing.T) string {
 	t.Helper()
-	_, here, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller failed")
-	}
-	return filepath.Join(filepath.Dir(here), "..", ".vrooli", "search.json")
+	// Go tests execute in the owning package directory. Compiler -trimpath
+	// rewrites runtime source filenames, so they are not filesystem locators.
+	return filepath.Join("..", ".vrooli", "search.json")
 }
 
 func TestSearchJSONMapsWorkflowProviders(t *testing.T) {

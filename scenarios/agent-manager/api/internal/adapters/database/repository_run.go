@@ -1277,6 +1277,15 @@ func (r *runRepository) CountByStatus(ctx context.Context, status domain.RunStat
 	return count, nil
 }
 
+func (r *runRepository) CountCapacityByStatus(ctx context.Context, status domain.RunStatus) (int, error) {
+	query := `SELECT COUNT(*) FROM runs WHERE status = ? AND COALESCE(execution_mode, '') != ?`
+	var count int
+	if err := r.db.GetContext(ctx, &count, query, string(status), string(domain.ExecutionModeAttached)); err != nil {
+		return 0, wrapDBError("count_capacity_by_status", "Run", string(status), err)
+	}
+	return count, nil
+}
+
 // ============================================================================
 // EventRepository Implementation
 // ============================================================================

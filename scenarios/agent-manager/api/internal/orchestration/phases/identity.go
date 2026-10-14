@@ -65,9 +65,9 @@ func GenerateIdentityToken(ctx context.Context, in GenerateIdentityTokenInput) s
 	if subject == "" && in.Run != nil {
 		subject = strings.TrimSpace(in.Run.OwnerSubject)
 	}
-	if subject == "" && len(in.Run.Subject) > 0 {
-		subject = strings.TrimSpace(in.Run.Subject[0])
-	}
+	// Run.Subject contains work references, not authenticated owner identity.
+	// Historical runs without OwnerSubject retain an empty owner and authority
+	// ceiling; assigning a work path here also breaks exact-parent admission.
 	accountScopes := in.AccountScopes
 	if accountScopes == nil && in.Run != nil {
 		accountScopes = in.Run.OwnerScopes

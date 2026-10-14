@@ -204,6 +204,11 @@ type RunRepository interface {
 	// CountByStatus returns the count of runs by status.
 	CountByStatus(ctx context.Context, status domain.RunStatus) (int, error)
 
+	// CountCapacityByStatus counts runs in status that hold a dispatch slot.
+	// Attached runs are excluded: they record sessions Agent Manager did not
+	// launch, whose resources the agent session slice already bounds.
+	CountCapacityByStatus(ctx context.Context, status domain.RunStatus) (int, error)
+
 	// GetByTokenHash retrieves a run by its identity token hash.
 	// Returns nil, nil if no matching run is found.
 	GetByTokenHash(ctx context.Context, tokenHash string) (*domain.Run, error)

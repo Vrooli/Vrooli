@@ -82,15 +82,16 @@ type RecoveryStatus struct {
 
 // Session mirrors the legacy SessionResponse JSON shape.
 type Session struct {
-	ID              string
-	Shell           string
-	CreatedAt       string
-	Cols            int
-	Rows            int
-	Backend         string
-	SurvivesRestart bool
-	Policy          Policy
-	Recovered       bool
+	CreateFingerprint string
+	ID                string
+	Shell             string
+	CreatedAt         string
+	Cols              int
+	Rows              int
+	Backend           string
+	SurvivesRestart   bool
+	Policy            Policy
+	Recovered         bool
 	// Provenance. Origin is the closed-set vocabulary
 	// "ui" | "programmatic" | "remote".
 	Origin                  string
@@ -183,13 +184,15 @@ type ArchivedSession struct {
 // HasPolicy distinguishes "client explicitly set the policy" from
 // "client omitted policy → use defaults".
 type CreateInput struct {
-	Shell         string
-	Cols          int
-	Rows          int
-	Backend       string
-	Policy        Policy
-	HasPolicy     bool
-	LaunchCommand string
+	RequestedSessionID string
+	RequestFingerprint string
+	Shell              string
+	Cols               int
+	Rows               int
+	Backend            string
+	Policy             Policy
+	HasPolicy          bool
+	LaunchCommand      string
 	// ExecuteLaunchCommand, when true, pastes LaunchCommand into the new
 	// pane's PTY server-side so the command runs exactly once without the
 	// client typing it after the WebSocket connects.

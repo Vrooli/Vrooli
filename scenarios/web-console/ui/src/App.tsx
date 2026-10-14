@@ -1,5 +1,5 @@
 // DOC: docs/concepts/ARCHITECTURE.md#system-layers
-import { lazy, Profiler, Suspense, useState } from "react";
+import { lazy, Profiler, Suspense, useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { fetchHealth } from "./api/health";
@@ -41,6 +41,9 @@ export default function App() {
     // Keep polling so banner auto-clears when connection recovers
 	refetchInterval: (query) => query.state.status === "error" ? 10 * 1000 : false,
   });
+  useEffect(() => {
+    if (healthQuery.isSuccess && !performance.getEntriesByName("app-interactive").length) performance.mark("app-interactive");
+  }, [healthQuery.isSuccess]);
   const capabilitiesQuery = useCapabilities();
   const { isLoading, error, isFetching } = healthQuery;
 

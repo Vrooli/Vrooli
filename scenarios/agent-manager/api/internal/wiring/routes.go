@@ -219,7 +219,7 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 	}
 	if secret != "" {
 		router.Handle(handlers.ProgramEventWebhookPath, handlers.ProgramEventWebhook(deps.DB, secret)).Methods(http.MethodPost)
-		router.Handle(handlers.DecisionEventWebhookPath, handlers.DecisionResolvedWebhook(deps.SupervisionService, secret)).Methods(http.MethodPost)
+		router.Handle(handlers.DecisionEventWebhookPath, handlers.DecisionResolvedWebhook(deps.SupervisionService, deps.Orchestrator, secret)).Methods(http.MethodPost)
 		if port := strings.TrimSpace(os.Getenv("API_PORT")); port != "" {
 			go func() {
 				ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)

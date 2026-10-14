@@ -74,14 +74,15 @@ const (
 
 // Metadata holds persisted session state for restart recovery.
 type Metadata struct {
-	ID       string
-	Backend  backend.ID
-	Shell    string
-	Cols     uint16
-	Rows     uint16
-	Policy   policy.Policy
-	Created  time.Time
-	Detached bool
+	CreateFingerprint string
+	ID                string
+	Backend           backend.ID
+	Shell             string
+	Cols              uint16
+	Rows              uint16
+	Policy            policy.Policy
+	Created           time.Time
+	Detached          bool
 
 	Status Status
 
@@ -198,11 +199,11 @@ func (s *SQLStore) Save(ctx context.Context, meta Metadata) error {
 			status, agent_type, launch_command, agent_session_id, cwd, last_rollout_path,
 			last_activity_at, orphaned_at, recovered_into, archived_at, origin, owner, display_label,
 			launch_mode, control_mode, native_owner, native_transport, provider_version, native_thread_id,
-			last_verified_turn_id, forked_from_native_session, launch_descriptor_json
+			last_verified_turn_id, forked_from_native_session, launch_descriptor_json, create_fingerprint
 		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
 			?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
 			?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-			?)
+			?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			backend=excluded.backend, shell=excluded.shell, cols=excluded.cols, rows=excluded.rows,
 			policy_mode=excluded.policy_mode, policy_duration=excluded.policy_duration,
@@ -216,7 +217,7 @@ func (s *SQLStore) Save(ctx context.Context, meta Metadata) error {
 			provider_version=excluded.provider_version, native_thread_id=excluded.native_thread_id,
 			last_verified_turn_id=excluded.last_verified_turn_id,
 			forked_from_native_session=excluded.forked_from_native_session,
-			launch_descriptor_json=excluded.launch_descriptor_json`,
+			launch_descriptor_json=excluded.launch_descriptor_json, create_fingerprint=CASE WHEN excluded.create_fingerprint='' THEN sessions.create_fingerprint ELSE excluded.create_fingerprint END`,
 		meta.ID,
 		string(meta.Backend),
 		meta.Shell,
@@ -241,7 +242,7 @@ func (s *SQLStore) Save(ctx context.Context, meta Metadata) error {
 		meta.DisplayLabel,
 		string(meta.LaunchMode), string(meta.ControlMode), meta.NativeOwner,
 		meta.NativeTransport, meta.ProviderVersion, meta.NativeThreadID,
-		meta.LastVerifiedTurnID, meta.ForkedFromNativeSession, meta.LaunchDescriptorJSON,
+		meta.LastVerifiedTurnID, meta.ForkedFromNativeSession, meta.LaunchDescriptorJSON, meta.CreateFingerprint,
 	)
 	return err
 }
@@ -251,7 +252,7 @@ const selectColumns = `
 	status, agent_type, launch_command, agent_session_id, cwd, last_rollout_path,
 	last_activity_at, orphaned_at, recovered_into, archived_at, origin, owner, display_label,
 	launch_mode, control_mode, native_owner, native_transport, provider_version, native_thread_id,
-	last_verified_turn_id, forked_from_native_session, launch_descriptor_json`
+	last_verified_turn_id, forked_from_native_session, launch_descriptor_json, create_fingerprint`
 
 func (s *SQLStore) Get(ctx context.Context, id string) (Metadata, error) {
 	row := s.db.QueryRowContext(ctx, `SELECT `+selectColumns+` FROM sessions WHERE id = ?`, id)
@@ -523,7 +524,7 @@ func scanMetadata(row scannable) (Metadata, error) {
 		&origin, &meta.Owner, &meta.DisplayLabel,
 		&launchMode, &controlMode, &meta.NativeOwner, &meta.NativeTransport,
 		&meta.ProviderVersion, &meta.NativeThreadID, &meta.LastVerifiedTurnID,
-		&meta.ForkedFromNativeSession, &meta.LaunchDescriptorJSON,
+		&meta.ForkedFromNativeSession, &meta.LaunchDescriptorJSON, &meta.CreateFingerprint,
 	)
 	if err != nil {
 		return meta, fmt.Errorf("scan session metadata: %w", err)
@@ -597,6 +598,9 @@ func (s *InMemoryStore) Save(_ context.Context, meta Metadata) error {
 	if previous, exists := s.sessions[meta.ID]; exists {
 		// Lifecycle columns are owned by explicit transition methods. A late
 		// runtime save must not resurrect an archived or recovered row.
+		if meta.CreateFingerprint == "" {
+			meta.CreateFingerprint = previous.CreateFingerprint
+		}
 		meta.Status = previous.Status
 		meta.OrphanedAt = previous.OrphanedAt
 		meta.RecoveredInto = previous.RecoveredInto
@@ -611,7 +615,7 @@ func (s *InMemoryStore) Get(_ context.Context, id string) (Metadata, error) {
 	defer s.mu.Unlock()
 	meta, ok := s.sessions[id]
 	if !ok {
-		return Metadata{}, fmt.Errorf("session %s not found", id)
+		return Metadata{}, fmt.Errorf("session %s not found: %w", id, sql.ErrNoRows)
 	}
 	return meta, nil
 }

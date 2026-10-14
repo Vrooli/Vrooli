@@ -2,8 +2,12 @@ package sessions
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/vrooli/api-core/identity"
+	"google.golang.org/protobuf/proto"
 	"log"
 	"strings"
 	"time"
@@ -75,7 +79,14 @@ var (
 const idempotencyHeader = "X-Idempotency-Key"
 
 func (h *connectHandler) Create(ctx context.Context, req *connect.Request[sessionsv1.CreateRequest]) (*connect.Response[sessionsv1.CreateResponse], error) {
+	raw, err := proto.MarshalOptions{Deterministic: true}.Marshal(req.Msg)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	digest := sha256.Sum256(raw)
 	in := CreateInput{
+		RequestedSessionID:   req.Msg.GetRequestedSessionId(),
+		RequestFingerprint:   hex.EncodeToString(digest[:]),
 		Shell:                req.Msg.GetShell(),
 		Cols:                 int(req.Msg.GetCols()),
 		Rows:                 int(req.Msg.GetRows()),
@@ -113,8 +124,18 @@ func (h *connectHandler) List(ctx context.Context, _ *connect.Request[sessionsv1
 		return nil, h.classify(err, "sessions.List")
 	}
 	rs := h.deps.Service.RecoveryStatus(ctx)
+	stable := false
+	creatorOwner := ""
+	if principal, ok := identity.PrincipalFromContext(ctx); ok {
+		creatorOwner = principal.OwnerSubject()
+	}
+	if owner, ok := h.deps.Service.(interface{ SupportsStableCreateIdentity() bool }); ok {
+		stable = owner.SupportsStableCreateIdentity()
+	}
 	return connect.NewResponse(&sessionsv1.ListResponse{
-		Sessions: sessionsToProto(out),
+		Sessions:                     sessionsToProto(out),
+		SupportsStableCreateIdentity: stable,
+		StableCreateOwner:            creatorOwner,
 		Recovery: &sessionsv1.RecoveryStatus{
 			InProgress:        rs.InProgress,
 			Total:             int32(rs.Total),
@@ -387,6 +408,7 @@ func sessionToProto(s Session) *sessionsv1.Session {
 		Origin:                  originToEnum(s.Origin),
 		Owner:                   s.Owner,
 		DisplayLabel:            s.DisplayLabel,
+		CreateFingerprint:       s.CreateFingerprint,
 		TrackingDegraded:        s.TrackingDegraded,
 		Target:                  s.Target,
 		Activity:                s.Activity,

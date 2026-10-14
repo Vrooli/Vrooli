@@ -39,12 +39,16 @@ func TestDecodeBASDefinitionAcceptsCanonicalWorkflow(t *testing.T) {
 }
 
 func TestDecodeBASDefinitionAcceptsTypedSubflowFixtureArguments(t *testing.T) {
-	data, err := os.ReadFile("../../../../browser-automation-studio/bas/actions/open-demo-project.json")
+	// This contract is argument type preservation, independent of the node count
+	// of a consumer workflow. The real BAS catalog is decoded separately above.
+	definition, err := DecodeBASDefinitionJSON([]byte(`{"nodes":[{"id":"fixture-seed-state","action":{"type":"ACTION_TYPE_SUBFLOW","subflow":{"workflow_path":"actions/load-seed-state.json","args":{"projectId":"${@params/projectId}","enabled":true,"attempt":2}}}}]}`))
 	require.NoError(t, err)
-
-	definition, err := DecodeBASDefinitionJSON(data)
-	require.NoError(t, err)
-	require.Len(t, definition.GetNodes(), 9)
+	require.Len(t, definition.GetNodes(), 1)
+	subflow := definition.GetNodes()[0].GetAction().GetSubflow()
+	require.Equal(t, "actions/load-seed-state.json", subflow.GetWorkflowPath())
+	require.Equal(t, "${@params/projectId}", subflow.GetArgs()["projectId"].GetStringValue())
+	require.True(t, subflow.GetArgs()["enabled"].GetBoolValue())
+	require.Equal(t, int64(2), subflow.GetArgs()["attempt"].GetIntValue())
 }
 
 func TestDecodeBASDefinitionRejectsUnknownMetadataField(t *testing.T) {

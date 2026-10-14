@@ -58,26 +58,55 @@ func TestHelperMappingsAndRecoveryCommands(t *testing.T) {
 }
 
 func TestFromSessionProjectsCachedResponse(t *testing.T) {
-	created := time.Date(2026, time.August, 25, 12, 34, 56, 0, time.UTC)
 	sess := &session.Session{
-		ID:        "sess-1",
-		Shell:     "/bin/bash",
-		CreatedAt: created,
-		Cols:      120,
-		Rows:      40,
-		Backend:   backend.Persistent,
+		ID:      "sess-1",
+		Shell:   "/bin/bash",
+		Cols:    120,
+		Rows:    40,
+		Backend: backend.Persistent,
 	}
 	sess.SetPolicy(policy.Policy{Mode: policy.Preset, Duration: "8h"})
 
-	got := FromSession(sess)
-	if got.ID != sess.ID || got.Shell != sess.Shell || got.CreatedAt != "2026-08-25T12:34:56Z" {
-		t.Fatalf("basic projection = %+v", got)
+	cases := []struct {
+		name    string
+		created time.Time
+		want    string
+	}{
+		{
+			name:    "UTC whole second",
+			created: time.Date(2026, time.August, 25, 12, 34, 56, 0, time.UTC),
+			want:    "2026-08-25T12:34:56Z",
+		},
+		{
+			name:    "UTC nanoseconds",
+			created: time.Date(2026, time.August, 25, 12, 34, 56, 123456789, time.UTC),
+			want:    "2026-08-25T12:34:56.123456789Z",
+		},
+		{
+			name:    "positive offset crosses previous UTC day",
+			created: time.Date(2026, time.August, 25, 0, 4, 5, 120000000, time.FixedZone("UTC+0530", 5*60*60+30*60)),
+			want:    "2026-08-24T18:34:05.12Z",
+		},
+		{
+			name:    "negative offset crosses next UTC day",
+			created: time.Date(2026, time.August, 25, 23, 34, 56, 7, time.FixedZone("UTC-0700", -7*60*60)),
+			want:    "2026-08-26T06:34:56.000000007Z",
+		},
 	}
-	if got.Cols != 120 || got.Rows != 40 || got.Backend != backend.Persistent {
-		t.Fatalf("size/backend projection = %+v", got)
-	}
-	if !got.SurvivesRestart || got.Policy != (policy.Policy{Mode: policy.Preset, Duration: "8h"}) || got.Recovered {
-		t.Fatalf("lifecycle projection = %+v", got)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			sess.CreatedAt = tc.created
+			got := FromSession(sess)
+			if got.ID != sess.ID || got.Shell != sess.Shell || got.CreatedAt != tc.want {
+				t.Fatalf("basic projection = %+v, want created_at %q", got, tc.want)
+			}
+			if got.Cols != 120 || got.Rows != 40 || got.Backend != backend.Persistent {
+				t.Fatalf("size/backend projection = %+v", got)
+			}
+			if !got.SurvivesRestart || got.Policy != (policy.Policy{Mode: policy.Preset, Duration: "8h"}) || got.Recovered {
+				t.Fatalf("lifecycle projection = %+v", got)
+			}
+		})
 	}
 
 	sess.Backend = backend.Standard

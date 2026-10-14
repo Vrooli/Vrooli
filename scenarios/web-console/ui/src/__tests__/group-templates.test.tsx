@@ -268,6 +268,32 @@ describe("GroupTemplatesPanel", () => {
     expect(saved.roles).toHaveLength(3);
   });
 
+  it("edits every field of a draft role and the template color before saving", async () => {
+    render(<GroupTemplatesPanel />);
+    await waitFor(() => { expect(mockList).toHaveBeenCalled(); });
+
+    fireEvent.click(screen.getByTestId("group-templates-create"));
+    fireEvent.change(screen.getByTestId("group-template-name"), { target: { value: "Edited roles" } });
+    // The create seed starts with one empty role: edit it in place.
+    fireEvent.change(screen.getByTestId("group-template-role-label-0"), { target: { value: "Reviewer" } });
+    fireEvent.change(screen.getByTestId("group-template-role-command-0"), { target: { value: "claude review" } });
+    fireEvent.change(screen.getByTestId("group-template-role-mode-0"), { target: { value: "waiting" } });
+    fireEvent.change(screen.getByTestId("group-template-role-prompt-0"), { target: { value: "Review {{payload}}" } });
+    // Picking a non-default header color exercises the color onClick.
+    const colorSwatch = screen.getAllByTestId(/^group-template-color-/)[1]!;
+    fireEvent.click(colorSwatch);
+    fireEvent.click(screen.getByTestId("group-template-save"));
+
+    await waitFor(() => { expect(mockUpsert).toHaveBeenCalled(); });
+    const saved = mockUpsert.mock.calls[0]?.[0] as { name: string; roles: { label: string; command: string; start_mode: string; incoming_prompt: string }[] };
+    expect(saved.roles[0]).toMatchObject({
+      label: "Reviewer",
+      command: "claude review",
+      start_mode: "waiting",
+      incoming_prompt: "Review {{payload}}",
+    });
+  });
+
   // Editing content must not reset how often a template has been used.
   it("omits use_count when saving a content edit", async () => {
     render(<GroupTemplatesPanel />);

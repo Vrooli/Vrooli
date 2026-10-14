@@ -132,6 +132,60 @@ func TestRunScenarioInstallsIsolationForEveryCaseAndClosesLease(t *testing.T) {
 	require.Equal(t, int64(1), report.Isolation.TestRootWrites)
 }
 
+func TestRunScenarioBindsBrowserRoutesToTheLeasedInstance(t *testing.T) {
+	t.Setenv("VROOLI_STORAGE_ROOT", t.TempDir())
+	root := makeExecutionFixture(t, true)
+	file := filepath.Join(root, "bas", "cases", "dashboard.json")
+	raw, err := os.ReadFile(file)
+	require.NoError(t, err)
+	var doc map[string]any
+	require.NoError(t, json.Unmarshal(raw, &doc))
+	doc["nodes"] = []any{
+		map[string]any{"id": "canonical", "action": map[string]any{"type": "ACTION_TYPE_NAVIGATE", "navigate": map[string]any{"scenario": "sample", "scenario_path": "/plan"}}},
+		map[string]any{"id": "self", "action": map[string]any{"type": "ACTION_TYPE_NAVIGATE", "navigate": map[string]any{"scenario": "@scenario/self", "scenario_path": "/plan"}}},
+		map[string]any{"id": "other", "action": map[string]any{"type": "ACTION_TYPE_NAVIGATE", "navigate": map[string]any{"scenario": "other", "scenario_path": "/status"}}},
+		map[string]any{"id": "url", "action": map[string]any{"type": "ACTION_TYPE_NAVIGATE", "navigate": map[string]any{"scenario": "sample", "url": "https://example.test"}}},
+	}
+	writeFixtureJSON(t, file, doc)
+	before, err := os.ReadFile(file)
+	require.NoError(t, err)
+	client := &fakeBASClient{result: &ExecuteResult{ExecutionID: "instance-execution", Status: basbase.ExecutionStatus_EXECUTION_STATUS_COMPLETED}}
+	isolation := &fakeIsolation{evidence: IsolationEvidence{Installed: true, LeaseID: "instance-lease"}}
+	report, err := NewService(client).RunScenario(context.Background(), "sample@shadow", root, Options{IncludeExecution: true, Isolation: isolation})
+	require.NoError(t, err)
+	require.Equal(t, 1, report.Summary.Passed)
+	require.Equal(t, "sample@shadow", isolation.scenario)
+	nodes := client.lastRequest.Definition["nodes"].([]any)
+	for i, want := range []string{"sample@shadow", "sample@shadow", "other", "sample"} {
+		navigate := nodes[i].(map[string]any)["action"].(map[string]any)["navigate"].(map[string]any)
+		require.Equal(t, want, navigate["scenario"])
+	}
+	require.Equal(t, client.validated, client.lastRequest.Definition, "validation and execution must use the same bound definition")
+	after, err := os.ReadFile(file)
+	require.NoError(t, err)
+	require.Equal(t, before, after, "original registered cases must remain unchanged")
+	require.True(t, isolation.closed)
+}
+
+func TestRunScenarioRefusesAnInstanceFromAnotherCatalogBeforeEffects(t *testing.T) {
+	root := makeExecutionFixture(t, true)
+	client := &fakeBASClient{}
+	isolation := &fakeIsolation{}
+	_, err := NewService(client).RunScenario(context.Background(), "other@shadow", root, Options{IncludeExecution: true, Isolation: isolation})
+	require.ErrorContains(t, err, "does not match catalog")
+	require.False(t, isolation.acquired)
+	require.Zero(t, client.validateCalls)
+	require.Zero(t, client.executeCalls)
+}
+
+func TestRunScenarioRetainsPathOnlyStaticValidation(t *testing.T) {
+	root := makeExecutionFixture(t, false)
+	report, err := NewService(nil).RunScenario(context.Background(), "", root, Options{})
+	require.NoError(t, err)
+	require.Equal(t, "sample", report.Scenario)
+	require.Equal(t, 1, report.Summary.Selected)
+}
+
 func TestRunScenarioRefusesMutatingCaseWhenIsolationInstallFails(t *testing.T) {
 	root := makeExecutionFixture(t, true)
 	client := &fakeBASClient{}
@@ -402,6 +456,7 @@ func writeFixtureJSON(t *testing.T, path string, value any) {
 }
 
 type fakeBASClient struct {
+	validated      map[string]any
 	validateCalls  int
 	executeCalls   int
 	timelineCalls  int
@@ -416,6 +471,7 @@ type fakeBASClient struct {
 }
 
 type fakeIsolation struct {
+	scenario   string
 	evidence   IsolationEvidence
 	acquireErr error
 	acquired   bool
@@ -426,7 +482,8 @@ type fakeIsolation struct {
 	healthOnce sync.Once
 }
 
-func (f *fakeIsolation) Acquire(context.Context, string, string) (IsolationLease, error) {
+func (f *fakeIsolation) Acquire(_ context.Context, scenario, _ string) (IsolationLease, error) {
+	f.scenario = scenario
 	f.acquired = true
 	if f.acquireErr != nil {
 		return nil, f.acquireErr
@@ -456,7 +513,8 @@ func (f *fakeIsolation) failHealth(err error) {
 	f.healthOnce.Do(func() { close(f.healthDone) })
 }
 
-func (f *fakeBASClient) ValidateResolved(context.Context, map[string]any) (*ValidationResult, error) {
+func (f *fakeBASClient) ValidateResolved(_ context.Context, definition map[string]any) (*ValidationResult, error) {
+	f.validated = definition
 	f.validateCalls++
 	if f.validate != nil {
 		return f.validate, nil
@@ -508,4 +566,70 @@ func requireFindingCode(t *testing.T, findings []validation.Finding, code string
 	}
 	require.Failf(t, "finding not found", "code %s in %+v", code, findings)
 	return validation.Finding{}
+}
+
+func TestBrowserSelectionRefusesWholeRequestBeforeEffects(t *testing.T) {
+	for _, paths := range [][]string{nil, {}, {""}, {"../bas/cases/dashboard.json"}, {"/bas/cases/dashboard.json"}, {"bas/cases/unknown.json"}, {"bas/cases/dashboard.json", "bas/cases/unknown.json"}} {
+		t.Run(fmt.Sprintf("%q", paths), func(t *testing.T) {
+			storage := t.TempDir()
+			t.Setenv("VROOLI_STORAGE_ROOT", storage)
+			root := makeExecutionFixture(t, true)
+			client := &fakeBASClient{}
+			isolation := &fakeIsolation{}
+			_, err := NewService(client).RunScenario(context.Background(), "sample", root, Options{IncludeExecution: true, Isolation: isolation, Selector: AssetSelector{CasesProvided: true, CasePaths: paths}})
+			require.Error(t, err)
+			require.Zero(t, client.validateCalls)
+			require.Zero(t, client.executeCalls)
+			require.False(t, isolation.acquired)
+			require.False(t, isolation.closed)
+			entries, err := os.ReadDir(storage)
+			require.NoError(t, err)
+			require.Empty(t, entries, "refusal must not publish artifacts")
+		})
+	}
+}
+
+func TestBrowserSelectionExecutesExactCalendarCasesWithOneOwnedLease(t *testing.T) {
+	t.Setenv("VROOLI_STORAGE_ROOT", t.TempDir())
+	root := makeExecutionFixture(t, true)
+	raw, err := os.ReadFile(filepath.Join(root, "bas", "cases", "dashboard.json"))
+	require.NoError(t, err)
+	names := []string{"duplicate-submit-once", "stale-revision-conflict", "uncertain-save-recovery"}
+	paths := make([]string, 0, 3)
+	for _, name := range names {
+		p := "bas/cases/calendar/" + name + ".json"
+		require.NoError(t, os.MkdirAll(filepath.Dir(filepath.Join(root, p)), 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(root, p), raw, 0o644))
+		paths = append(paths, p)
+	}
+	client := &fakeBASClient{}
+	isolation := &fakeIsolation{evidence: IsolationEvidence{Installed: true, LeaseID: "provider-lease", TestPoolRequests: 3}}
+	selected := append([]string{" ./" + paths[2] + " "}, paths...)
+	report, err := NewService(client).RunScenario(context.Background(), "sample", root, Options{IncludeExecution: true, Isolation: isolation, Selector: AssetSelector{CasesProvided: true, CasePaths: selected}})
+	require.NoError(t, err)
+	require.Equal(t, 3, report.Summary.Selected)
+	require.Equal(t, 3, client.executeCalls)
+	require.True(t, isolation.acquired)
+	require.True(t, isolation.closed)
+	got := make([]string, 0, 3)
+	for _, run := range report.Runs {
+		got = append(got, run.Asset.Path)
+	}
+	require.Equal(t, paths, got)
+	require.Equal(t, int64(3), report.Isolation.TestPoolRequests)
+}
+
+func TestBrowserSelectionStillRefusesMutatingCasesWithoutLease(t *testing.T) {
+	root := makeExecutionFixture(t, true)
+	client := &fakeBASClient{}
+	report, err := NewService(client).RunScenario(context.Background(), "sample", root, Options{IncludeExecution: true, Selector: AssetSelector{CasesProvided: true, CasePaths: []string{"bas/cases/dashboard.json"}}})
+	require.NoError(t, err)
+	require.Equal(t, 1, report.Summary.Refused)
+	require.Zero(t, client.executeCalls)
+}
+
+func TestBrowserSelectionPresentEmptySliceDoesNotDefault(t *testing.T) {
+	root := makeExecutionFixture(t, false)
+	_, err := NewService(&fakeBASClient{}).RunScenario(context.Background(), "sample", root, Options{Selector: AssetSelector{CasePaths: []string{}}})
+	require.Error(t, err)
 }

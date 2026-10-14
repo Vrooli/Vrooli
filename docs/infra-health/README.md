@@ -10,7 +10,7 @@ This folder is the plan of record for the platform's own health: Vrooli's intern
 > This folder holds what an instrument cannot compute: how the team operates, what it may
 > not do, and which portability debts are tracked. See [§ The instrument](#the-instrument).
 
-> **Loop status:** paused since ~2026-06; recorded in the heartbeat control plane as `paused-manual` on 2026-07-24 (resume via `prompt-manager team heartbeat-control infra-health resume`). Honesty flags reflect the pause. First heartbeat after resume follows the resume protocol in the scanner's `HEARTBEAT.md`.
+> **Loop status:** disabled. The heartbeats ran daily from 2026-09-02 to 2026-09-14, and the team was then disabled through `team.json` `enabled: false` because no consumer drains its Swarm items. As of 2026-10-07 the instrument (`infrastructure-manager`) is stopped. Re-enabling is an operator decision that sets `enabled: true` after the instrument is restored and a drain route exists. The first heartbeat after re-enable follows the resume protocol in the scanner's `HEARTBEAT.md`.
 
 The local contract is [`manifest.json`](manifest.json), which instantiates the shared plan-of-record shape from [`docs/agent-system/team-plan-of-record.manifest.json`](../agent-system/team-plan-of-record.manifest.json).
 

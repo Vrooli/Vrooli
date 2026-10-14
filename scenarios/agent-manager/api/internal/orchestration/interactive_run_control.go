@@ -183,7 +183,7 @@ func (o *Orchestrator) finalizeSandboxForTerminalRun(ctx context.Context, run *d
 	case domain.RunStatusCancelled:
 		outcome = domain.ContractRunOutcomeCancelled
 	}
-	deps := phases.Deps{Runs: o.runs, Events: o.events, Broadcaster: o.broadcaster, Levers: o.runLevers(), WorkspaceSandbox: o.workspaceSandbox}
+	deps := phases.Deps{Runs: o.runs, Events: o.events, Broadcaster: o.broadcaster, Levers: o.runLevers(), WorkspaceSandbox: o.workspaceSandbox, ApprovalNotifier: o}
 	phases.ApplyAtRunEnd(ctx, phases.ApplyAtRunEndInput{Deps: deps, Run: run, SandboxID: run.SandboxID, Sandbox: o.sandbox, Outcome: outcome})
 	if o.runs != nil {
 		if err := o.runs.Update(ctx, run); err != nil {

@@ -10,6 +10,7 @@ import (
 
 	"agent-manager/internal/domain"
 	"agent-manager/internal/identity"
+	"agent-manager/internal/orchestration/phases"
 	"agent-manager/internal/repository"
 	"github.com/google/uuid"
 	coreidentity "github.com/vrooli/api-core/identity"
@@ -434,4 +435,29 @@ func TestAuth01SwitchOffAdmitsUnattendedAndKeepsOfferedProofChecks(t *testing.T)
 		t.Fatal("invalid offered owner proof admitted while off")
 	}
 	assertAuth01NoEffects(t, effects)
+}
+
+func TestCreateRunCallerAcceptsRetainedLegacyIdentityWithoutInventingOwner(t *testing.T) {
+	o, runs, effects, req, _, _ := auth01CallerFixture(t)
+	runs.parent.OwnerSubject = ""
+	runs.parent.Subject = []string{"path:docs/AUDITABILITY_CONTRACT.md"}
+	token := phases.GenerateIdentityToken(t.Context(), phases.GenerateIdentityTokenInput{Run: runs.parent, Secret: o.identitySecret})
+	runs.tokenHash = identity.HashToken(token)
+	req.OwnerToken = ""
+	req.ParentRunID = &runs.parent.ID
+	req.RunIdentityToken = token
+	if err := o.authenticateCreateRunCaller(t.Context(), &req); err != nil {
+		t.Fatal(err)
+	}
+	if req.caller == nil || req.caller.RunID != runs.parent.ID || req.OwnerSubject != "" || len(req.OwnerScopes) != 0 {
+		t.Fatal("legacy identity acquired an owner or authority")
+	}
+	if effects.taskWrites != 0 || effects.runWrites != 0 || effects.reservations != 0 {
+		t.Fatal("caller qualification caused admission effects")
+	}
+	// An identity-consistent historical parent still cannot narrow to a capability it never held.
+	req.RequestedScopes = []string{"agent-manager:write"}
+	if err := o.authenticateCreateRunCaller(t.Context(), &req); err == nil {
+		t.Fatal("work subjects or profile became a new grant")
+	}
 }

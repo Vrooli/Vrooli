@@ -8,10 +8,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/google/uuid"
+	"github.com/vrooli/api-core/identity"
 	"log"
 	"os"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/vrooli/api-core/nodereach"
@@ -71,6 +74,8 @@ type CodexCheckpoints interface {
 // Adapter is the production Service implementation. It is constructed in
 // api/main.go with typed deps — no *Server import — and passed to Module.
 type Adapter struct {
+	createMu            sync.Mutex
+	creating            map[string]bool
 	Manager             SessionManager
 	ManagedCodex        ManagedCodexService
 	Store               sessionstore.Store
@@ -287,7 +292,50 @@ func lifecycleStateForMetadata(meta sessionstore.Metadata) continuity.State {
 // -----------------------------------------------------------------------------
 
 func (a *Adapter) Create(ctx context.Context, in CreateInput) (Session, error) {
+	if principal, ok := identity.PrincipalFromContext(ctx); ok {
+		in.Owner = principal.OwnerSubject()
+	} else if status, ok := identity.StatusFromContext(ctx); ok {
+		in.Owner = ""
+		if status.FailureClass != "" && status.FailureClass != identity.FailureMissing {
+			return Session{}, fmt.Errorf("verified session owner required: %s: %w", status.FailureClass, ErrFailedPrecondition)
+		}
+	}
 	fingerprint := createFingerprint(in)
+	if in.RequestFingerprint != "" {
+		fingerprint = in.RequestFingerprint
+	}
+	if in.RequestedSessionID != "" {
+		if _, err := uuid.Parse(in.RequestedSessionID); err != nil {
+			return Session{}, fmt.Errorf("%w: requested session id must be a UUID", ErrInvalidArgument)
+		}
+		if a.Store == nil || in.TargetID != "" && in.TargetID != "local" || in.LaunchMode != "" || in.ExecuteLaunchCommand {
+			return Session{}, fmt.Errorf("%w: reserved creation requires local durable terminal and client launch", ErrFailedPrecondition)
+		}
+		a.createMu.Lock()
+		if a.creating == nil {
+			a.creating = map[string]bool{}
+		}
+		if a.creating[in.RequestedSessionID] {
+			a.createMu.Unlock()
+			return Session{}, fmt.Errorf("%w: reserved creation is in progress", ErrFailedPrecondition)
+		}
+		a.creating[in.RequestedSessionID] = true
+		a.createMu.Unlock()
+		defer func() { a.createMu.Lock(); delete(a.creating, in.RequestedSessionID); a.createMu.Unlock() }()
+		existing, err := a.Store.Get(ctx, in.RequestedSessionID)
+		if err == nil {
+			if existing.CreateFingerprint != fingerprint || existing.Owner != in.Owner {
+				return Session{}, fmt.Errorf("%w: reserved identity belongs to different request or owner", ErrIdempotencyConflict)
+			}
+			if existing.Status != sessionstore.StatusLive {
+				return Session{}, fmt.Errorf("%w: reserved session is not live; recover the existing identity", ErrFailedPrecondition)
+			}
+			return a.Get(ctx, in.RequestedSessionID)
+		}
+		if !errors.Is(err, sql.ErrNoRows) {
+			return Session{}, fmt.Errorf("%w: read reserved session: %v", ErrInternal, err)
+		}
+	}
 	descriptorJSON := strings.TrimSpace(in.LaunchDescriptorJSON)
 	if descriptorJSON == "" && in.LaunchMode != "" {
 		raw, _ := json.Marshal(map[string]string{"agent": in.AgentType, "launchMode": in.LaunchMode})
@@ -369,7 +417,17 @@ func (a *Adapter) Create(ctx context.Context, in CreateInput) (Session, error) {
 
 	var sess *session.Session
 	var err error
-	sess, err = a.Manager.CreateWithOptions(ctx, in.Shell, uint16(in.Cols), uint16(in.Rows), bid, policyPtr, in.WorkingDir, in.TmuxMouseMode)
+	if in.RequestedSessionID != "" {
+		manager, ok := a.Manager.(interface {
+			CreateWithIdentity(context.Context, string, uint16, uint16, backend.ID, *policy.Policy, string, bool, sessionstore.Metadata) (*session.Session, error)
+		})
+		if !ok {
+			return Session{}, fmt.Errorf("%w: reserved session creation unsupported", ErrFailedPrecondition)
+		}
+		sess, err = manager.CreateWithIdentity(ctx, in.Shell, uint16(in.Cols), uint16(in.Rows), bid, policyPtr, in.WorkingDir, in.TmuxMouseMode, sessionstore.Metadata{ID: in.RequestedSessionID, CreateFingerprint: fingerprint, Origin: intsessions.NormalizeOrigin(in.Origin), Owner: in.Owner, DisplayLabel: in.DisplayLabel})
+	} else {
+		sess, err = a.Manager.CreateWithOptions(ctx, in.Shell, uint16(in.Cols), uint16(in.Rows), bid, policyPtr, in.WorkingDir, in.TmuxMouseMode)
+	}
 	if err != nil {
 		return Session{}, mapCreateError(err)
 	}
@@ -380,15 +438,17 @@ func (a *Adapter) Create(ctx context.Context, in CreateInput) (Session, error) {
 	// enrichment must remain attributable even when the runtime handle is gone.
 	if a.Store != nil {
 		if err := a.Store.Save(ctx, sessionstore.Metadata{
-			ID:       sess.ID,
-			Backend:  sess.Backend,
-			Shell:    sess.Shell,
-			Cols:     sess.Cols,
-			Rows:     sess.Rows,
-			Policy:   sess.GetPolicy(),
-			Created:  sess.CreatedAt,
-			Detached: sess.Backend == backend.Persistent,
-			CWD:      in.WorkingDir,
+			ID:                sess.ID,
+			Backend:           sess.Backend,
+			Shell:             sess.Shell,
+			Cols:              sess.Cols,
+			Rows:              sess.Rows,
+			Policy:            sess.GetPolicy(),
+			Created:           sess.CreatedAt,
+			Detached:          sess.Backend == backend.Persistent,
+			CWD:               in.WorkingDir,
+			CreateFingerprint: fingerprint,
+			Origin:            intsessions.NormalizeOrigin(in.Origin), Owner: in.Owner, DisplayLabel: in.DisplayLabel,
 		}); err != nil {
 			return a.failCreateAfterPersistenceError(ctx, sess.ID, err)
 		}
@@ -458,7 +518,9 @@ func (a *Adapter) Create(ctx context.Context, in CreateInput) (Session, error) {
 		resp.Fingerprint = fingerprint
 		a.Idempotency.Set(in.IdempotencyKey, resp)
 	}
-	return responseToHandlerSession(resp), nil
+	created := responseToHandlerSession(resp)
+	created.CreateFingerprint = fingerprint
+	return created, nil
 }
 
 // failCreateAfterPersistenceError makes a partially persisted create
@@ -928,6 +990,10 @@ func (a *Adapter) Get(ctx context.Context, id string) (Session, error) {
 	}
 	if a.Store != nil {
 		if m, err := a.Store.Get(ctx, id); err == nil {
+			if m.CreateFingerprint != "" && (m.Status != sessionstore.StatusLive || !m.ArchivedAt.IsZero()) {
+				return Session{}, fmt.Errorf("session %q: %w", sanitizeID(id), ErrNotFound)
+			}
+			s.CreateFingerprint = m.CreateFingerprint
 			s.Origin, s.Owner, s.DisplayLabel = string(m.Origin), m.Owner, m.DisplayLabel
 			s.LaunchMode, s.ControlMode = string(m.LaunchMode), string(m.ControlMode)
 			s.NativeOwner, s.NativeTransport, s.ProviderVersion = m.NativeOwner, m.NativeTransport, m.ProviderVersion
@@ -1643,4 +1709,12 @@ func sanitizeID(id string) string {
 		clean = clean[:40] + "..."
 	}
 	return clean
+}
+
+// SupportsStableCreateIdentity advertises the actual durable runtime owner seam.
+func (a *Adapter) SupportsStableCreateIdentity() bool {
+	_, ok := a.Manager.(interface {
+		CreateWithIdentity(context.Context, string, uint16, uint16, backend.ID, *policy.Policy, string, bool, sessionstore.Metadata) (*session.Session, error)
+	})
+	return ok && a.Store != nil
 }

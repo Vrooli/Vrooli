@@ -26,6 +26,7 @@ function openSession(terminal: ReturnType<typeof createTerminalStub>) {
     socket.readyState = ScrollSocket.OPEN;
     socket.onopen?.();
     socket.onmessage?.({ data: JSON.stringify({ type: "session_ready", accepted_through: 0 }) } as MessageEvent<string>);
+    socket.onmessage?.({ data: JSON.stringify({ type: "history_end" }) } as MessageEvent<string>);
   });
   const frames = () => socket.sent.map((entry) => JSON.parse(entry) as { type: string; lines?: number; data?: string });
   return { socket, view, frames };

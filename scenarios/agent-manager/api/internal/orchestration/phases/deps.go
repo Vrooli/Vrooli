@@ -50,6 +50,15 @@ type StructuredResultResolver interface {
 	Resolve(context.Context, *domain.ResultSpec, *domain.RunResult) *domain.StructuredResult
 }
 
+// ApprovalNotifier is told when a run enters needs_review so the operator can
+// be alerted out-of-band (the orchestration service publishes a decision event
+// that notification-hub turns into an Approve/Reject Ask). It is best-effort
+// and must never block the run's terminal transition. Nil disables it — the
+// run still reaches needs_review, it just sends no notification.
+type ApprovalNotifier interface {
+	NotifyRunNeedsReview(ctx context.Context, run *domain.Run)
+}
+
 // Deps bundles the common dependencies every phase shares. Each phase's
 // input struct carries a Deps so the call site is explicit about what the
 // phase touches without each phase repeating the same handful of fields.
@@ -66,6 +75,9 @@ type Deps struct {
 	Levers            config.Levers
 	WorkspaceSandbox  WorkspaceSandboxEnsurer
 	StructuredResults StructuredResultResolver
+	// ApprovalNotifier is invoked once when a run enters needs_review under
+	// manualReview. Nil-safe: an unset notifier simply sends no operator alert.
+	ApprovalNotifier ApprovalNotifier
 	// Clock supplies timestamps for phase-owned durable state. Nil defaults to
 	// the system clock, preserving direct phase use in focused tests.
 	Clock func() time.Time

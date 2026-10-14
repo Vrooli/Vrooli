@@ -17,6 +17,7 @@ import (
 	"github.com/vrooli/envkit-go"
 	_ "github.com/vrooli/vrooli/internal/artifactcodecs" // register the caller-owned tar.zst archive decoder
 	"github.com/vrooli/vrooli/internal/hostreqkit"
+	resourceacquisition "github.com/vrooli/vrooli/internal/resources"
 	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/tools"
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
@@ -84,6 +85,8 @@ type releaseArtifactMetadata struct {
 }
 
 const releaseArtifactMetadataFile = "release-artifact-metadata-v1.json"
+
+const ociTreeNormalizationCacheRevision = "oci-empty-directory-links-v1"
 
 // stageToolArtifacts uses the same acquisition contract as managed services.
 // A release stager has only the target platform facts, so any target requiring
@@ -160,7 +163,7 @@ func stageAcquisitionTarget(ctx context.Context, declaredKind string, target bin
 	layout := strings.ToLower(strings.TrimSpace(target.Layout))
 	if kind == "oci-image" {
 		if layout == literalResourceArtifactsDir {
-			_, err := binaryfetch.FetchOCI(ctx, target, path, nil)
+			_, err := binaryfetch.FetchOCIForPlatform(ctx, target, path, artifactOS(platform.OS), platform.Arch, nil)
 			return err
 		}
 		_, err := binaryfetch.FetchOCIFileForPlatform(ctx, target, path, artifactOS(platform.OS), platform.Arch, nil)
@@ -175,11 +178,10 @@ func stageAcquisitionTarget(ctx context.Context, declaredKind string, target bin
 	return err
 }
 
-// stageResourceArtifacts builds each controller that a non-unsupported bundled
-// profile declares, writes its immutable companion metadata, and stages the
-// separately pinned server artifact for managed services. It deliberately uses
-// direct exec argv rather than a resource-local shell script.
-func stageResourceArtifacts(ctx context.Context, root, outDir string) error {
+// stageResourceArtifactsSelected composes a release from independently cached
+// resource/platform steps. Empty filters retain full-release behavior; desktop
+// callers pass only the resources and platforms in their deployment plan.
+func stageResourceArtifactsSelected(ctx context.Context, root, outDir string, selectedResources, selectedPlatforms []string) error {
 	root, err := filepath.Abs(root)
 	if err != nil {
 		return fmt.Errorf("resolve repository root: %w", err)
@@ -190,6 +192,24 @@ func stageResourceArtifacts(ctx context.Context, root, outDir string) error {
 	}
 	sort.Strings(manifests)
 	var targets []resourceBuildTarget
+	resourceSeen := make(map[string]bool)
+	resourceTargetSeen := make(map[string]bool)
+	platforms := make(map[string]bool, len(selectedPlatforms))
+	for _, platform := range selectedPlatforms {
+		parsed, err := resourcedeployment.ParsePlatform(platform)
+		if err != nil {
+			return err
+		}
+		platforms[parsed.String()] = true
+	}
+	resources := make(map[string]bool, len(selectedResources))
+	for _, resource := range selectedResources {
+		resource = strings.TrimSpace(resource)
+		if resource == "" {
+			return fmt.Errorf("resource filter contains an empty name")
+		}
+		resources[resource] = true
+	}
 	for _, path := range manifests {
 		manifest, err := readResourceArtifactManifest(path)
 		if err != nil {
@@ -199,57 +219,207 @@ func stageResourceArtifacts(ctx context.Context, root, outDir string) error {
 		if err != nil {
 			return fmt.Errorf("resource %s: %w", manifest.Name, err)
 		}
-		targets = append(targets, resourceTargets...)
+		if len(resources) > 0 && !resources[manifest.Name] {
+			continue
+		}
+		resourceSeen[manifest.Name] = true
+		for _, target := range resourceTargets {
+			if len(platforms) > 0 && !platforms[target.Platform.String()] {
+				continue
+			}
+			resourceTargetSeen[manifest.Name] = true
+			targets = append(targets, target)
+		}
+	}
+	for resource := range resources {
+		if !resourceSeen[resource] {
+			return fmt.Errorf("selected resource %q has no manifest", resource)
+		}
+		if !resourceTargetSeen[resource] && resource != "doc-parse" {
+			return fmt.Errorf("selected resource %q has no bundled artifact for requested platform set", resource)
+		}
 	}
 	if err := os.MkdirAll(outDir, mndResourceArtifactsNumberOctal755); err != nil {
 		return fmt.Errorf("create resource artifact output: %w", err)
 	}
-	index := make([]string, 0)
-	deferredTargets := make([]deferredResourceTargetRecord, 0)
-	docParseStaged := false
+	index, err := readExistingArtifactIndex(outDir)
+	if err != nil {
+		return err
+	}
+	deferredTargets, err := readExistingDeferredTargets(outDir)
+	if err != nil {
+		return err
+	}
+	var stageErrors []error
+	cacheRoot, err := resourceArtifactCacheRoot()
+	if err != nil {
+		return err
+	}
 	for _, target := range targets {
 		resourceDir := filepath.Join(root, "resources", target.Resource)
-		if err := buildResourceController(ctx, resourceDir, target, outDir); err != nil {
-			return err
-		}
-		if target.Driver != literalResourceArtifactsManagedService {
-			if target.Resource == "doc-parse" && !docParseStaged {
-				if err := stageDocParseWASI(root, outDir); err != nil {
-					return err
-				}
-				docParseStaged = true
-			}
+		staged, err := stageResourceTargetCached(ctx, resourceDir, outDir, cacheRoot, target)
+		if err != nil {
+			stageErrors = append(stageErrors, err)
 			continue
 		}
-		staged, err := stageManagedServiceArtifact(ctx, target.Manifest, resourceDir, outDir, target.Platform)
-		if err != nil {
-			return fmt.Errorf("stage managed-service %s for %s: %w", target.Resource, target.Platform, err)
+		if target.Driver != literalResourceArtifactsManagedService {
+			continue
 		}
 		index = append(index, strings.Join([]string{target.Resource, staged.Version, artifactOS(target.Platform.OS), target.Platform.Arch, staged.File}, "\t"))
 		deferredTargets = append(deferredTargets, staged.Deferred...)
-		if err := updateReleaseArtifactMetadata(outDir, staged.File, releaseArtifactMetadata{Role: target.Manifest.ManagedService.ArtifactRole, Provenance: target.Manifest.ManagedService.ProvenanceClass}); err != nil {
-			return err
-		}
 	}
-	if !docParseStaged {
+	docParseSelected := len(resources) == 0 || resources["doc-parse"]
+	docParseStaged := false
+	if docParseSelected {
 		if _, err := os.Stat(filepath.Join(root, "resources", "doc-parse", "resource.json")); err == nil {
 			if err := stageDocParseWASI(root, outDir); err != nil {
-				return err
+				stageErrors = append(stageErrors, fmt.Errorf("stage doc-parse WASI artifact: %w", err))
+			} else {
+				docParseStaged = true
 			}
-			docParseStaged = true
 		}
 	}
 	sort.Strings(index)
+	index = uniqueStrings(index)
 	if docParseStaged {
 		index = append(index, "doc-parse\tdeclared\tall\tall\tdoc-parse.wasm")
 		sort.Strings(index)
 	}
 	if data, err := json.MarshalIndent(deferredTargets, "", "  "); err != nil {
-		return err
+		stageErrors = append(stageErrors, fmt.Errorf("encode deferred resource targets: %w", err))
 	} else if err := os.WriteFile(filepath.Join(outDir, "deferred-resource-targets-v1.json"), append(data, '\n'), mndResourceArtifactsNumberOctal644); err != nil {
-		return err
+		stageErrors = append(stageErrors, fmt.Errorf("write deferred resource targets: %w", err))
 	}
-	return os.WriteFile(filepath.Join(outDir, "resource-artifacts-v1.txt"), []byte(strings.Join(index, "\n")+"\n"), mndResourceArtifactsNumberOctal644)
+	if err := os.WriteFile(filepath.Join(outDir, "resource-artifacts-v1.txt"), []byte(strings.Join(index, "\n")+"\n"), mndResourceArtifactsNumberOctal644); err != nil {
+		stageErrors = append(stageErrors, fmt.Errorf("write resource artifact index: %w", err))
+	}
+	return errors.Join(stageErrors...)
+}
+
+func readExistingArtifactIndex(outDir string) ([]string, error) {
+	data, err := os.ReadFile(filepath.Join(outDir, "resource-artifacts-v1.txt"))
+	if os.IsNotExist(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("read prior resource artifact index: %w", err)
+	}
+	var entries []string
+	for _, line := range strings.Split(string(data), "\n") {
+		if strings.TrimSpace(line) != "" {
+			entries = append(entries, line)
+		}
+	}
+	return entries, nil
+}
+
+func readExistingDeferredTargets(outDir string) ([]deferredResourceTargetRecord, error) {
+	data, err := os.ReadFile(filepath.Join(outDir, "deferred-resource-targets-v1.json"))
+	if os.IsNotExist(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("read prior deferred resource targets: %w", err)
+	}
+	var entries []deferredResourceTargetRecord
+	if err := json.Unmarshal(data, &entries); err != nil {
+		return nil, fmt.Errorf("parse prior deferred resource targets: %w", err)
+	}
+	return entries, nil
+}
+
+func uniqueStrings(values []string) []string {
+	if len(values) < 2 {
+		return values
+	}
+	result := values[:1]
+	for _, value := range values[1:] {
+		if value != result[len(result)-1] {
+			result = append(result, value)
+		}
+	}
+	return result
+}
+
+func resourceArtifactCacheRoot() (string, error) {
+	cacheDir, err := os.UserCacheDir()
+	if err != nil {
+		return "", fmt.Errorf("resolve user cache directory: %w", err)
+	}
+	return filepath.Join(cacheDir, "vrooli", "resource-artifacts-v1"), nil
+}
+
+func stageResourceTargetCached(ctx context.Context, resourceDir, outDir, cacheRoot string, target resourceBuildTarget) (stagedManagedServiceArtifact, error) {
+	return stageResourceTargetCachedWithBuilder(ctx, resourceDir, outDir, cacheRoot, target, func(ctx context.Context, resourceRoot, staging string, target resourceBuildTarget) error {
+		if err := buildResourceController(ctx, resourceRoot, target, staging); err != nil {
+			return err
+		}
+		if target.Driver != literalResourceArtifactsManagedService {
+			return nil
+		}
+		_, err := stageManagedServiceArtifact(ctx, target.Manifest, resourceRoot, staging, target.Platform)
+		return err
+	})
+}
+
+func stageResourceTargetCachedWithBuilder(ctx context.Context, resourceDir, outDir, cacheRoot string, target resourceBuildTarget, builder func(context.Context, string, string, resourceBuildTarget) error) (stagedManagedServiceArtifact, error) {
+	manifestBytes, err := os.ReadFile(filepath.Join(resourceDir, "resource.json"))
+	if err != nil {
+		return stagedManagedServiceArtifact{}, err
+	}
+	moduleDir := filepath.Join(resourceDir, filepath.FromSlash(target.Module))
+	moduleDigest, err := binaryfetch.TreeDigest(moduleDir)
+	if err != nil {
+		return stagedManagedServiceArtifact{}, fmt.Errorf("hash %s build inputs: %w", target.Resource, err)
+	}
+	manifestDigest := sha256.Sum256(manifestBytes)
+	sourceIdentityParts := []string{fmt.Sprintf("manifest=%x", manifestDigest), "module=" + moduleDigest}
+	if target.Manifest.ManagedService != nil && target.Manifest.ManagedService.Acquisition != nil {
+		if strings.EqualFold(strings.TrimSpace(target.Manifest.ManagedService.Acquisition.Kind), "oci-image") {
+			// Invalidate OCI directory artifacts staged before empty-directory
+			// aliases were pruned from filesystem trees.
+			sourceIdentityParts = append(sourceIdentityParts, "tree-normalization="+ociTreeNormalizationCacheRevision)
+		}
+		facts := binaryfetch.Facts{"os": target.Platform.OS, "arch": target.Platform.Arch}
+		acquisitionTarget, resolveErr := target.Manifest.ManagedService.Acquisition.Resolve(facts)
+		if resolveErr != nil {
+			return stagedManagedServiceArtifact{}, fmt.Errorf("resolve cache inputs for %s/%s: %w", target.Resource, target.Platform, resolveErr)
+		}
+		for _, step := range acquisitionTarget.Compose {
+			if strings.TrimSpace(step.Lockfile) == "" {
+				continue
+			}
+			lockDigest, hashErr := fileSHA256(filepath.Join(resourceDir, filepath.FromSlash(step.Lockfile)))
+			if hashErr != nil {
+				return stagedManagedServiceArtifact{}, fmt.Errorf("hash %s lockfile %s: %w", target.Resource, step.Lockfile, hashErr)
+			}
+			sourceIdentityParts = append(sourceIdentityParts, "lockfile="+step.Lockfile+":"+lockDigest)
+		}
+	}
+	sourceDigest := strings.Join(sourceIdentityParts, "|")
+	version := "source-" + moduleDigest[:16]
+	if target.Manifest.ManagedService != nil && strings.TrimSpace(target.Manifest.ManagedService.Artifact.Version) != "" {
+		version = target.Manifest.ManagedService.Artifact.Version
+	}
+	key := resourcedeployment.ArtifactCacheKey{Resource: target.Resource, Version: version, Platform: target.Platform, SourceIdentity: sourceDigest}
+	_, err = resourcedeployment.StageCachedArtifacts(ctx, cacheRoot, outDir, key, func(ctx context.Context, staging string) error {
+		return builder(ctx, resourceDir, staging, target)
+	})
+	if err != nil {
+		return stagedManagedServiceArtifact{}, fmt.Errorf("stage resource %s for %s: %w", target.Resource, target.Platform, err)
+	}
+	var staged stagedManagedServiceArtifact
+	if target.Driver == literalResourceArtifactsManagedService {
+		artifactName, artifactErr := target.Manifest.ManagedService.Artifact.BundleArtifactForPlatform(target.Platform.OS, target.Platform.Arch)
+		if artifactErr != nil {
+			return stagedManagedServiceArtifact{}, artifactErr
+		}
+		staged = stagedManagedServiceArtifact{Version: target.Manifest.ManagedService.Artifact.Version, File: artifactName, Deferred: deferredResourceTargets(target.Manifest, target.Platform)}
+		if err := updateReleaseArtifactMetadata(outDir, staged.File, releaseArtifactMetadata{Role: target.Manifest.ManagedService.ArtifactRole, Provenance: target.Manifest.ManagedService.ProvenanceClass}); err != nil {
+			return stagedManagedServiceArtifact{}, err
+		}
+	}
+	return staged, nil
 }
 
 func stageDocParseWASI(root, outDir string) error {
@@ -298,7 +468,7 @@ func writeReleaseChecksumManifest(outDir string) error {
 	}
 	lines := make([]string, 0, len(entries))
 	for _, entry := range entries {
-		if entry.Name() == "SHA256SUMS" || entry.Name() == "SHA256SUMS.sig" || entry.Name() == "release-manifest.json" || entry.Name() == "release-manifest.sig.json" || entry.Name() == releaseArtifactMetadataFile || entry.Name() == "resource-artifacts-v1.txt" || entry.Name() == "tool-artifacts-v1.txt" {
+		if entry.Name() == "SHA256SUMS" || entry.Name() == "SHA256SUMS.sig" || entry.Name() == "release-manifest.json" || entry.Name() == "release-manifest.sig.json" || entry.Name() == releaseArtifactMetadataFile || entry.Name() == "resource-artifacts-v1.txt" || entry.Name() == "tool-artifacts-v1.txt" || entry.Name() == "deferred-resource-targets-v1.json" {
 			continue
 		}
 		if (!entry.Type().IsRegular() && !entry.IsDir()) || !resourcedeployment.IsSafeArtifactName(entry.Name()) {
@@ -357,7 +527,10 @@ func writeReleaseChecksumManifest(outDir string) error {
 }
 
 func releaseArtifactPlatform(name string) (string, string) {
-	stem := strings.TrimSuffix(name, ".exe")
+	stem := name
+	for _, suffix := range []string{".manifest.json", ".build.json", ".sha256", ".exe"} {
+		stem = strings.TrimSuffix(stem, suffix)
+	}
 	parts := strings.Split(stem, "_")
 	if len(parts) < resourceCoordinatePartCount {
 		return "", ""
@@ -459,7 +632,6 @@ func stageManagedServiceArtifact(ctx context.Context, manifest resourceArtifactM
 		return stagedManagedServiceArtifact{}, fmt.Errorf("managed-service %s must declare acquisition", manifest.Name)
 	}
 	facts := binaryfetch.Facts{"os": platform.OS, "arch": platform.Arch}
-	deferred := deferredResourceTargets(manifest, platform)
 	target, err := manifest.ManagedService.Acquisition.Resolve(facts)
 	if err != nil {
 		return stagedManagedServiceArtifact{}, err
@@ -502,30 +674,13 @@ func stageManagedServiceArtifact(ctx context.Context, manifest resourceArtifactM
 		if err := composeAcquisitionTarget(ctx, target, resourceRoot, path, platform); err != nil {
 			return stagedManagedServiceArtifact{}, fmt.Errorf("compose managed service %s: %w", manifest.Name, err)
 		}
-	} else if strings.EqualFold(strings.TrimSpace(manifest.ManagedService.Acquisition.Kind), "oci-image") {
-		if layout == literalResourceArtifactsDir {
-			if _, err := binaryfetch.FetchOCIForPlatform(ctx, target, path, artifactOS(platform.OS), platform.Arch, nil); err != nil {
-				return stagedManagedServiceArtifact{}, err
-			}
-		} else {
-			if _, err := binaryfetch.FetchOCIFile(ctx, target, path, nil); err != nil {
-				return stagedManagedServiceArtifact{}, err
-			}
-		}
-	} else {
-		spec := binaryfetch.Target{Name: name, URL: target.URL, SHA256: target.SHA256, Archive: target.Archive, Layout: layout, BinPath: target.BinPath, Mode: target.Mode}
-		if layout == literalResourceArtifactsDir {
-			if _, err := binaryfetch.FetchDir(ctx, spec, path, nil); err != nil {
-				return stagedManagedServiceArtifact{}, err
-			}
-		} else if _, err := binaryfetch.Fetch(ctx, spec, outDir, nil); err != nil {
-			return stagedManagedServiceArtifact{}, err
-		}
+	} else if err := stageAcquisitionTarget(ctx, manifest.ManagedService.Acquisition.Kind, target, platform, name, path, outDir); err != nil {
+		return stagedManagedServiceArtifact{}, err
 	}
 	if err := artifact.VerifyFile(path); err != nil {
 		return stagedManagedServiceArtifact{}, fmt.Errorf("verify staged %s: %w", manifest.Name, err)
 	}
-	return stagedManagedServiceArtifact{Version: artifact.Version, File: name, Deferred: deferred}, nil
+	return stagedManagedServiceArtifact{Version: artifact.Version, File: name}, nil
 }
 
 func deferredResourceTargets(manifest resourceArtifactManifest, platform resourcedeployment.Platform) []deferredResourceTargetRecord {
@@ -654,20 +809,14 @@ func runComposeStep(ctx context.Context, step binaryfetch.ComposeStep, resourceR
 			return err
 		}
 		pythonPlatform := uvPlatform(platform)
-		// Wheel-only resolution is part of the reproducibility contract: a
-		// missing target wheel must fail acquisition instead of silently
-		// compiling a package with whatever compiler/network state happens to
-		// exist on the release host.
-		args := []string{"pip", "install", "--only-binary", ":all:", "--target", dest, "--requirement", lockfile, "--python-version", "3.12", "--python-platform", pythonPlatform}
-		command := shell.Command(shell.Spec{
-			Context: ctx,
-			Name:    "uv",
-			Args:    args,
-			Env:     envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{"UV_NO_PROGRESS=1"}),
-		})
+		command, err := resourceacquisition.PythonWheelsCommand(ctx, step, dest, lockfile, pythonPlatform)
+		if err != nil {
+			return err
+		}
+		command.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{"UV_NO_PROGRESS=1"})
 		output, err := command.CombinedOutput()
 		if err != nil {
-			return fmt.Errorf("uv wheel resolution failed: %w: %s", err, strings.TrimSpace(string(output)))
+			return fmt.Errorf("uv wheel resolution failed: %w: %s (command: %s)", err, strings.TrimSpace(string(output)), strings.Join(command.Args, " "))
 		}
 		return nil
 	default:

@@ -3,55 +3,13 @@ package sessionstore
 import (
 	"context"
 	"database/sql"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
 	_ "modernc.org/sqlite"
 )
-
-// sessionsTable mirrors the current sessions schema closely enough to exercise
-// the store's read/write paths,
-// including the provenance columns.
-const sessionsTable = `
-CREATE TABLE sessions (
-    id TEXT PRIMARY KEY,
-    backend TEXT NOT NULL DEFAULT 'standard',
-    shell TEXT NOT NULL DEFAULT '/bin/bash',
-    cols INTEGER NOT NULL DEFAULT 80,
-    rows INTEGER NOT NULL DEFAULT 24,
-    policy_mode TEXT NOT NULL DEFAULT 'never',
-    policy_duration TEXT,
-    created_at TEXT NOT NULL DEFAULT '',
-    detached INTEGER NOT NULL DEFAULT 0,
-    status TEXT NOT NULL DEFAULT 'live',
-    agent_type TEXT NOT NULL DEFAULT 'none',
-    launch_command TEXT NOT NULL DEFAULT '',
-    agent_session_id TEXT NOT NULL DEFAULT '',
-    cwd TEXT NOT NULL DEFAULT '',
-    last_rollout_path TEXT NOT NULL DEFAULT '',
-    last_activity_at TEXT NOT NULL DEFAULT '',
-    orphaned_at TEXT NOT NULL DEFAULT '',
-    recovered_into TEXT NOT NULL DEFAULT '',
-    archived_at TEXT NOT NULL DEFAULT '',
-    origin TEXT NOT NULL DEFAULT 'ui',
-    owner TEXT NOT NULL DEFAULT '',
-    display_label TEXT NOT NULL DEFAULT '',
-    launch_mode TEXT NOT NULL DEFAULT 'unknown',
-    control_mode TEXT NOT NULL DEFAULT 'unknown',
-    native_owner TEXT NOT NULL DEFAULT '',
-    native_transport TEXT NOT NULL DEFAULT '',
-    provider_version TEXT NOT NULL DEFAULT '',
-    native_thread_id TEXT NOT NULL DEFAULT '',
-    last_verified_turn_id TEXT NOT NULL DEFAULT '',
-    forked_from_native_session TEXT NOT NULL DEFAULT '',
-    launch_descriptor_json TEXT NOT NULL DEFAULT ''
-);
-CREATE TABLE conversation_events (
-    id TEXT PRIMARY KEY,
-    session_id TEXT NOT NULL,
-    text TEXT NOT NULL DEFAULT ''
-);`
 
 func newSQLStore(t *testing.T) *SQLStore {
 	t.Helper()
@@ -62,7 +20,11 @@ func newSQLStore(t *testing.T) *SQLStore {
 	}
 	db.SetMaxOpenConns(1)
 	t.Cleanup(func() { db.Close() })
-	if _, err := db.Exec(sessionsTable); err != nil {
+	schema, err := os.ReadFile("../sessions/schema.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(string(schema)); err != nil {
 		t.Fatalf("create sessions table: %v", err)
 	}
 	return NewSQL(db)
@@ -266,5 +228,31 @@ func TestSQLStore_RetentionCandidatesRequireExplicitArchiveTimestamp(t *testing.
 	}
 	if len(got) != 1 || got[0].ID != "explicitly-archived" {
 		t.Fatalf("retention candidates = %+v, want only explicitly-archived", got)
+	}
+}
+
+func TestSQLStore_ReservedFingerprintSurvivesRuntimeAdoption(t *testing.T) {
+	s := newSQLStore(t)
+	ctx := t.Context()
+	id := "reserved"
+	fingerprint := "immutable-request-hash"
+	if err := s.Save(ctx, Metadata{ID: id, CreateFingerprint: fingerprint, Owner: "agent-manager", Origin: OriginProgrammatic}); err != nil {
+		t.Fatal(err)
+	}
+	adopted, err := s.Get(ctx, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	adopted.Shell = "/bin/sh"
+	if err := s.Save(ctx, adopted); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.Get(ctx, id)
+	if err != nil || got.CreateFingerprint != fingerprint || got.Owner != "agent-manager" {
+		t.Fatalf("row=%+v err=%v", got, err)
+	}
+	rows, err := s.List(ctx)
+	if err != nil || len(rows) != 1 || rows[0].CreateFingerprint != fingerprint {
+		t.Fatalf("rows=%+v err=%v", rows, err)
 	}
 }

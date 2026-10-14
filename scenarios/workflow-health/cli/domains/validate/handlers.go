@@ -16,8 +16,9 @@ import (
 )
 
 type handlers struct {
-	client  scenariovalidationconnect.ScenarioValidationServiceClient
-	durable scenariovalidationconnect.DurableValidationRunServiceClient
+	client   scenariovalidationconnect.ScenarioValidationServiceClient
+	durable  scenariovalidationconnect.DurableValidationRunServiceClient
+	selected scenariovalidationconnect.SelectedValidationRunServiceClient
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
@@ -28,8 +29,9 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	// the server can honor that contract.
 	durableHTTPClient, durableBaseURL := cliapp.NewConnectHTTPClientWithTimeout(core, 0)
 	return &handlers{
-		client:  scenariovalidationconnect.NewScenarioValidationServiceClient(httpClient, baseURL),
-		durable: scenariovalidationconnect.NewDurableValidationRunServiceClient(durableHTTPClient, durableBaseURL),
+		client:   scenariovalidationconnect.NewScenarioValidationServiceClient(httpClient, baseURL),
+		durable:  scenariovalidationconnect.NewDurableValidationRunServiceClient(durableHTTPClient, durableBaseURL),
+		selected: scenariovalidationconnect.NewSelectedValidationRunServiceClient(durableHTTPClient, durableBaseURL),
 	}
 }
 
@@ -100,6 +102,26 @@ func (h *handlers) start(ctx cliapp.RunContext) error {
 		JSON:  func(run *scenariovalidationv1.ValidationRun) error { return h.renderRun(ctx, run) },
 		JSONL: func(run *scenariovalidationv1.ValidationRun) error { return h.renderRun(ctx, run) },
 	})
+}
+
+// startSelected never falls back to an ordinary start: older providers must
+// refuse the dedicated RPC rather than silently execute the default catalog.
+func (h *handlers) startSelected(ctx cliapp.RunContext) error {
+	paths := strings.Split(ctx.Flag("case-paths"), ",")
+	for i := range paths {
+		paths[i] = strings.TrimSpace(paths[i])
+		if paths[i] == "" {
+			return fmt.Errorf("case-paths requires nonempty registered case paths")
+		}
+	}
+	resp, err := h.selected.StartSelectedValidationRun(context.Background(), connect.NewRequest(&scenariovalidationv1.StartValidationRunRequest{Scenario: ctx.Positional("scenario"), Path: ctx.Flag("path"), IdempotencyKey: ctx.Flag("idempotency-key"), ParentRunId: ctx.Flag("parent-run-id"), BrowserCaseSelector: &scenariovalidationv1.BrowserCaseSelector{CasePaths: paths}}))
+	if err != nil {
+		return cliapp.WrapAPIError("start selected workflow validation run", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no validation run")
+	}
+	return h.renderRun(ctx, resp.Msg.GetRun())
 }
 
 func (h *handlers) get(ctx cliapp.RunContext) error {

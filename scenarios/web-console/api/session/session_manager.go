@@ -2,6 +2,7 @@ package session
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"log"
@@ -44,12 +45,13 @@ var (
 // Manager tracks all active terminal sessions.
 // [REQ:P0-002a] PTY Session Backend
 type Manager struct {
-	mu         sync.RWMutex
-	sessions   map[string]*Session
-	ptyFactory pty.Factory
-	cfgMu      sync.RWMutex // protects cfg from concurrent read/write (session-defaults handler vs Create)
-	cfg        config.Config
-	registry   *backend.Registry
+	mu          sync.RWMutex
+	sessions    map[string]*Session
+	creatingIDs map[string]bool
+	ptyFactory  pty.Factory
+	cfgMu       sync.RWMutex // protects cfg from concurrent read/write (session-defaults handler vs Create)
+	cfg         config.Config
+	registry    *backend.Registry
 	// activityFactory builds each session's activity detector (nil: none).
 	activityFactory func(*Session) *ActivityDetector
 	store           sessionstore.Store
@@ -367,6 +369,15 @@ func (sm *Manager) CreateWithOptions(ctx context.Context, shell string, cols, ro
 	return sm.createWithOptions(ctx, shell, cols, rows, bid, pol, workingDir, tmuxMouseMode)
 }
 
+// CreateWithIdentity honors an owner-reserved session UUID. The initial
+// metadata already carries its request fingerprint before it is observable.
+func (sm *Manager) CreateWithIdentity(ctx context.Context, shell string, cols, rows uint16, bid backend.ID, pol *policy.Policy, workingDir string, mouse bool, identity sessionstore.Metadata) (*Session, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return sm.createWithRemote(ctx, shell, cols, rows, bid, pol, workingDir, mouse, nil, identity)
+}
+
 // RemoteLaunch carries server-side Bridge credentials into the typed backend
 // factory. It is never serialized into a browser response.
 type RemoteLaunch struct {
@@ -392,7 +403,7 @@ func (sm *Manager) createWithOptions(ctx context.Context, shell string, cols, ro
 	return sm.createWithRemote(ctx, shell, cols, rows, bid, pol, workingDir, tmuxMouseMode, nil)
 }
 
-func (sm *Manager) createWithRemote(ctx context.Context, shell string, cols, rows uint16, bid backend.ID, pol *policy.Policy, workingDir string, tmuxMouseMode bool, remote *RemoteLaunch) (*Session, error) {
+func (sm *Manager) createWithRemote(ctx context.Context, shell string, cols, rows uint16, bid backend.ID, pol *policy.Policy, workingDir string, tmuxMouseMode bool, remote *RemoteLaunch, creation ...sessionstore.Metadata) (*Session, error) {
 	shell, cols, rows = sm.applySessionDefaults(shell, cols, rows)
 	if remote != nil {
 		// The local host's shell and working directory are not portable launch
@@ -436,6 +447,33 @@ func (sm *Manager) createWithRemote(ctx context.Context, shell string, cols, row
 	}
 
 	sessionID := uuid.New().String()
+	var ownerIdentity sessionstore.Metadata
+	if len(creation) > 0 {
+		ownerIdentity = creation[0]
+		sessionID = ownerIdentity.ID
+		if _, err := uuid.Parse(sessionID); err != nil {
+			return nil, fmt.Errorf("invalid reserved session id: %w", err)
+		}
+		sm.mu.Lock()
+		if sm.creatingIDs == nil {
+			sm.creatingIDs = map[string]bool{}
+		}
+		if sm.creatingIDs[sessionID] || sm.sessions[sessionID] != nil {
+			sm.mu.Unlock()
+			return nil, fmt.Errorf("session identity already live or being created")
+		}
+		sm.creatingIDs[sessionID] = true
+		sm.mu.Unlock()
+		defer func() { sm.mu.Lock(); delete(sm.creatingIDs, sessionID); sm.mu.Unlock() }()
+		if sm.store == nil {
+			return nil, fmt.Errorf("durable session owner store required for reserved creation")
+		}
+		if _, err := sm.store.Get(ctx, sessionID); err == nil {
+			return nil, fmt.Errorf("reserved session identity already persisted")
+		} else if !errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("read reserved session owner: %w", err)
+		}
+	}
 	// Resolve the launch directory here rather than leaving it empty for the
 	// PTY layer to default. The directory is not just a spawn argument: it is
 	// half of the key that locates an agent's transcript on disk, and a session
@@ -525,15 +563,17 @@ func (sm *Manager) createWithRemote(ctx context.Context, shell string, cols, row
 	if sm.store != nil {
 		detached := bid == backend.Persistent
 		if err := sm.store.Save(ctx, sessionstore.Metadata{
-			ID:       sess.ID,
-			Backend:  bid,
-			Shell:    shell,
-			Cols:     cols,
-			Rows:     rows,
-			Policy:   sessionPolicy,
-			Created:  sess.CreatedAt,
-			Detached: detached,
-			CWD:      launchDir,
+			ID:                sess.ID,
+			Backend:           bid,
+			Shell:             shell,
+			Cols:              cols,
+			Rows:              rows,
+			Policy:            sessionPolicy,
+			Created:           sess.CreatedAt,
+			Detached:          detached,
+			CWD:               launchDir,
+			CreateFingerprint: ownerIdentity.CreateFingerprint,
+			Origin:            ownerIdentity.Origin, Owner: ownerIdentity.Owner, DisplayLabel: ownerIdentity.DisplayLabel,
 		}); err != nil {
 			// A live process without durable metadata cannot participate in
 			// restart recovery and is not a successful session creation. Tear

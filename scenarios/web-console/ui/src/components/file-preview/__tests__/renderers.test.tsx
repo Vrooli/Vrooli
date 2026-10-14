@@ -83,6 +83,29 @@ describe("image renderer", () => {
   });
 });
 
+describe("media load failures", () => {
+  it("replaces a broken image with a load-error notice", () => {
+    const Renderer = renderers.image;
+    render(<Renderer model={model({ basename: "logo.png", kind: "image", mimeType: "image/png" })} text={null} onError={() => {}} {...navProps} />);
+    fireEvent.error(screen.getByRole("img", { name: "logo.png" }));
+    expect(screen.getByText(strings.messagesFileViewer.mediaLoadError)).toBeInTheDocument();
+  });
+
+  it("shows a codec hint when audio fails to load", () => {
+    const Renderer = renderers.audio;
+    const { container } = render(<Renderer model={model({ kind: "audio", mimeType: "audio/mpeg" })} text={null} onError={() => {}} {...navProps} />);
+    fireEvent.error(container.querySelector("audio")!);
+    expect(screen.getByText(strings.messagesFileViewer.codecHint)).toBeInTheDocument();
+  });
+
+  it("shows a codec hint when video fails to load", () => {
+    const Renderer = renderers.video;
+    const { container } = render(<Renderer model={model({ kind: "video", mimeType: "video/mp4" })} text={null} onError={() => {}} {...navProps} />);
+    fireEvent.error(container.querySelector("video")!);
+    expect(screen.getByText(strings.messagesFileViewer.codecHint)).toBeInTheDocument();
+  });
+});
+
 describe("audio renderer", () => {
   it("renders an audio element with blob src", () => {
     const Renderer = renderers.audio;
@@ -217,5 +240,56 @@ describe("HTML text preview", () => {
     render(<Renderer model={model({ kind: "code", resolvedPath: "/tmp/a.ts" })} text={text("const markup = '<h1>Hello</h1>';", "code")} onError={() => {}} {...navProps} />);
     expect(screen.getByTestId("file-preview-code")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: strings.messagesFileViewer.htmlRendered })).not.toBeInTheDocument();
+  });
+});
+
+describe("markdown text renderer", () => {
+  it("renders markdown content through the shared renderer", () => {
+    const Renderer = renderers.markdown;
+    render(
+      <Renderer
+        model={model({ kind: "markdown", resolvedPath: "/tmp/a.md", textContentAvailable: true })}
+        text={text("# Heading", "markdown")}
+        onError={() => {}}
+        {...navProps}
+      />,
+    );
+    expect(screen.getByTestId("file-preview-markdown")).toBeInTheDocument();
+    expect(screen.getByTestId("mock-md")).toHaveTextContent("# Heading");
+  });
+
+  it("shows the empty-file state for whitespace-only markdown", () => {
+    const Renderer = renderers.markdown;
+    render(
+      <Renderer
+        model={model({ kind: "markdown", resolvedPath: "/tmp/a.md", textContentAvailable: true })}
+        text={text("   \n  ", "markdown")}
+        onError={() => {}}
+        {...navProps}
+      />,
+    );
+    expect(screen.getByTestId("file-preview-empty")).toBeInTheDocument();
+  });
+});
+
+describe("code line preview font controls", () => {
+  it("increases and decreases the font size within bounds", () => {
+    const Renderer = renderers.code;
+    render(<Renderer model={model({ kind: "code", resolvedPath: "/tmp/a.ts" })} text={text("line one\nline two", "code")} onError={() => {}} {...navProps} />);
+    expect(screen.getByText("13px")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: strings.messagesFileViewer.increaseFontSize }));
+    expect(screen.getByText("14px")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: strings.messagesFileViewer.decreaseFontSize }));
+    fireEvent.click(screen.getByRole("button", { name: strings.messagesFileViewer.decreaseFontSize }));
+    expect(screen.getByText("12px")).toBeInTheDocument();
+  });
+
+  it("toggles word wrap on the code viewer", () => {
+    const Renderer = renderers.code;
+    render(<Renderer model={model({ kind: "code", resolvedPath: "/tmp/a.ts" })} text={text("a very long line", "code")} onError={() => {}} {...navProps} />);
+    const wrapButton = screen.getByRole("button", { name: strings.messagesFileViewer.enableWordWrap });
+    expect(wrapButton).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(wrapButton);
+    expect(screen.getByRole("button", { name: strings.messagesFileViewer.disableWordWrap })).toHaveAttribute("aria-pressed", "true");
   });
 });

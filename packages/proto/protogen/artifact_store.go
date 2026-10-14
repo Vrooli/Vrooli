@@ -667,6 +667,15 @@ func (s *Store) MaterializeCompatibilityView(ctx context.Context, snapshot *Snap
 	}); err != nil {
 		return fmt.Errorf("write Proto compatibility stamp: %w", err)
 	}
+	// os.MkdirTemp creates tmp as 0700, so without this the published gen root
+	// would be traversable only by its owner. The generated tree is a committed,
+	// world-readable compatibility view (copyTree writes 0755 dirs / 0644 files);
+	// if materialization ever runs as a different user (e.g. a root-run provision),
+	// a 0700 root-owned gen locks every unprivileged build out of the whole proto
+	// tree. Normalizing to 0755 keeps the view readable regardless of who wrote it.
+	if err := os.Chmod(tmp, 0o755); err != nil {
+		return fmt.Errorf("normalize compatibility view permissions: %w", err)
+	}
 	backup := target + ".previous"
 	_ = os.RemoveAll(backup)
 	if _, err := os.Stat(target); err == nil {

@@ -92,6 +92,7 @@ describe("PlaybackPill", () => {
   it("[REQ:P0-017h] collapsed: play/pause, equalizer, speaker · time, elapsed / total, close, progress hairline", () => {
     render(<PlaybackPill {...props()} />);
     expect(screen.getByTestId("playback-pill")).toHaveAttribute("data-state", "collapsed");
+    expect(screen.getByTestId("playback-pill")).toHaveAttribute("data-audio-state", "player");
     expect(screen.getByTestId("pill-play-pause")).toHaveAccessibleName("Pause");
     expect(screen.getByTestId("pill-equalizer")).toBeInTheDocument();
     expect(screen.getByTestId("pill-label")).toHaveTextContent("Claude · 2:43 PM");

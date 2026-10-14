@@ -50,7 +50,7 @@ func main() {
 	sessioncontain.Register()
 	sessionlease.Register()
 	// This internal-only service entry point is reached by the root-owned
-	// systemd unit installed by `sudo vrooli setup`. It is intentionally
+	// systemd unit installed by project setup. It is intentionally
 	// handled before normal CLI initialization and accepts no general command.
 	if len(os.Args) > 1 && os.Args[1] == "__privilege-broker" {
 		os.Exit(privilegebroker.RunServiceCommand(os.Args[2:], os.Stdout, os.Stderr))

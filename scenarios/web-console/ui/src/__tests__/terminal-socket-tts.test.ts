@@ -100,6 +100,14 @@ describe("useTerminalSession — conversation acks", () => {
       }),
     );
 
+    // Snapshot replay must complete before local scrolling is available.
+    act(() => result.current.scrollBy(2, "wheel"));
+    expect(terminal.scrollLines).not.toHaveBeenCalled();
+    act(() => {
+      fakeWs.triggerOpen();
+      fakeWs.triggerMessage({ type: "session_ready", accepted_through: 0 });
+      fakeWs.triggerMessage({ type: "history_end" });
+    });
     act(() => result.current.scrollBy(2, "wheel"));
 
     expect(terminal.scrollLines).toHaveBeenCalledWith(2);

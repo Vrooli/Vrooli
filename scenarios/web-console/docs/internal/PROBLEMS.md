@@ -975,3 +975,8 @@ should add meaningful coverage for the largest uncovered production branches,
 then re-run the canonical command.
 
 - Measured: 2026-09-16
+
+
+## 2026-10-14T03:10:31.675440+00:00 — Interactive stable-create has no authenticated creator owner
+
+Original Nooch E30 and Desktop E3 native admissions failed before worker prompt/session Create with `web-console stable-create identity unsupported; no Create submitted`. Read-only SessionsService/List on live WC reports supportsStableCreateIdentity=true and stableCreateOwner empty, matching AM wiring NewClient(baseURL,nil). WC List derives creator owner from verified PrincipalFromContext; the transport supplies none. No session-store capability absence is established. Preserve stable UUID/owner/fingerprint checks and do not substitute an execution mode, invent a principal, drop an offered credential or restart as proof. Required owner boundary: carry a verified authorized session-creator principal through the registered native route; qualify stable create, uncertain-result get-by-ID owner/fingerprint readback, conflict refusal, original interactive prompt delivery and existing-session preservation. Existing reports: Desktop knw-1791945836169396257, Nooch knw-1791946783491615210. Evidence: docs/internal/delivery-operations/2026-10-12/sources/execution-evidence/2026-10-13/web-console-stable-create-capability.json. Shared AM identity correction is source/serving/consumer-qualified and final unit 20261014-024937-9072cd54 PASS; this is a separate remaining boundary.

@@ -204,6 +204,12 @@ type Orchestrator struct {
 	// fall back to the session id.
 	webConsoleUIBase string
 
+	// approvalPublisher raises a *.decision_requested.v1 event when a run enters
+	// needs_review so notification-hub can alert the operator with an
+	// Approve/Reject ask. Nil leaves runs in needs_review without a notification
+	// (no regression). Wired via WithApprovalEventPublisher.
+	approvalPublisher ApprovalEventPublisher
+
 	// interactiveDrivers tracks the live interactive coordinators agent-manager
 	// owns (the initial Execute turn and any Continue-driven follow-up turn) so
 	// StopRun can cancel the coordinator deterministically and wait for it to

@@ -13,6 +13,7 @@ import { machineTestID } from "../machines/testids";
 import PermissionsTab from "../machines/PermissionsTab";
 import { ConfigurationTab } from "./ConfigurationTab";
 import { MachineActivityTab } from "./MachineActivityTab";
+import { DesktopMachineTab } from "../../features/desktop/DesktopMachineTab";
 
 /**
  * One machine, four tabs.
@@ -29,9 +30,9 @@ import { MachineActivityTab } from "./MachineActivityTab";
  * that answers the questions the card no longer has room for.
  */
 
-export type MachineTab = "overview" | "permissions" | "configuration" | "activity";
+export type MachineTab = "overview" | "permissions" | "configuration" | "activity" | "desktop";
 
-const TAB_ORDER: MachineTab[] = ["overview", "permissions", "configuration", "activity"];
+const TAB_ORDER: MachineTab[] = ["overview", "desktop", "permissions", "configuration", "activity"];
 
 export function MachineDetail({
   machine,
@@ -63,6 +64,7 @@ export function MachineDetail({
     permissions: t(strings.machines.tabPermissions),
     configuration: t(strings.machines.tabConfiguration),
     activity: t(strings.machines.tabActivity),
+    desktop: "Desktop",
   };
 
   return (
@@ -155,6 +157,8 @@ export function MachineDetail({
           {tab === "configuration" && <ConfigurationTab machine={machine} onInstallCapability={onInstallCapability} />}
 
           {tab === "activity" && <MachineActivityTab machine={machine} />}
+
+          {tab === "desktop" && <DesktopMachineTab nodeId={machine.target.node_id} />}
         </div>
       </div>
     </section>

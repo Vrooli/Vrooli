@@ -64,11 +64,15 @@ func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Requ
 }
 
 func (h *connectHandler) staticResponse(ctx context.Context, scenario, path string) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error) {
+	return h.staticResponseWithSelector(ctx, scenario, path, execution.AssetSelector{})
+}
+
+func (h *connectHandler) staticResponseWithSelector(ctx context.Context, scenario, path string, selector execution.AssetSelector) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error) {
 	if strings.TrimSpace(scenario) == "" && strings.TrimSpace(path) == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("scenario or path is required"))
 	}
 	collector := metrics.Start(metrics.WithEnvironment(h.deps.Environment))
-	report, err := h.run(ctx, scenario, path, execution.Options{})
+	report, err := h.run(ctx, scenario, path, execution.Options{Selector: selector})
 	if err != nil {
 		collector.Stop()
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
@@ -161,6 +165,11 @@ func (h *connectHandler) run(ctx context.Context, scenario, path string, opts ex
 		report, err := h.deps.Engine.ValidateScenario(ctx, scenario, path)
 		if err != nil {
 			return providerReport{}, err
+		}
+		if opts.Selector.CasesProvided {
+			if _, err := execution.ValidateCaseSelection(report.Catalog, opts.Selector.CasePaths); err != nil {
+				return providerReport{}, err
+			}
 		}
 		return providerReport{Scenario: report.Scenario, Findings: report.Findings, Catalog: report.Catalog}, nil
 	}

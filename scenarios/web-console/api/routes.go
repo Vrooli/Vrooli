@@ -29,6 +29,7 @@ import (
 
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/nodereach"
 	capreg "github.com/vrooli/vrooli/packages/capability-registry-go"
 	monetization "github.com/vrooli/vrooli/packages/monetization-go"
 )
@@ -139,6 +140,23 @@ func (s *Server) setupRoutes() {
 	s.mountTargetCatalog()
 	s.mountMachines()
 	s.mountDevices()
+	s.router.PathPrefix("/vrooli.device_control.v1.desktop.DesktopSessionService/").Handler(newDesktopProxy(func(ctx context.Context) (string, error) {
+		return discovery.ResolveScenarioURLDefault(ctx, "device-control")
+	}))
+	s.router.PathPrefix("/api/v1/desktop/{nodeID}/").Handler(newDesktopTargetProxy(func(ctx context.Context) (*nodereach.Client, error) {
+		client, base := bridgeNodeClient(ctx)
+		if client == nil || !base.Available {
+			return nil, fmt.Errorf("Bridge credentials or endpoint unavailable")
+		}
+		return client, nil
+	}))
+	s.router.PathPrefix("/api/v1/desktop-bridge/").Handler(newBridgeControlProxy(func(ctx context.Context) (*nodereach.Client, error) {
+		client, base := bridgeNodeClient(ctx)
+		if client == nil || !base.Available {
+			return nil, fmt.Errorf("Bridge credentials or endpoint unavailable")
+		}
+		return client, nil
+	}))
 
 	terminalH.Module(&terminalH.Adapter{Manager: s.sessions, Replier: opencodeReplier{server: s}}, terminalH.LegacyDeps{
 		Upload: s.handleUpload,

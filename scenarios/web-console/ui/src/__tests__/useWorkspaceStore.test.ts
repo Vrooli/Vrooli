@@ -39,7 +39,8 @@ describe("useWorkspaceStore", () => {
         fontSize: 14,
         groupId: null,
         supportsMessagesView: false,
-  manuallyUnread: false,
+        manuallyUnread: false,
+        ephemeral: false,
       });
     });
 

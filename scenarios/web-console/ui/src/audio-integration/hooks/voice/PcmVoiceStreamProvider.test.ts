@@ -187,7 +187,11 @@ describe("PcmVoiceStreamProvider", () => {
     await settle();
     ws.onmessage?.({ data: JSON.stringify({ type: "status", code: "processed_acknowledgement", processedSequence: 0 }) });
     provider.stop();
+    // Stop drains persisted PCM before sending done; the final frame is
+    // consumed asynchronously on that same write chain.
+    await settle();
     ws.onmessage?.({ data: JSON.stringify({ type: "final", text: "private transcript" }) });
+    await settle();
 
     expect(provider.getDiagnostic()).toMatchObject({ capturedSequence: 0, processedSequence: 0, state: "completed" });
     expect(provider.exportDiagnostic()).not.toContain("private transcript");

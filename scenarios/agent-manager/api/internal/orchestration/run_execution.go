@@ -65,6 +65,7 @@ func (o *Orchestrator) executeRun(ctx context.Context, run *domain.Run, task *do
 	}
 	executor.WithRunStateWriteObserver(func() { o.recordRunStateWrite(ctx) })
 	executor.WithStructuredResultResolver(o.structuredResults)
+	executor.WithApprovalNotifier(o)
 	// Apply orchestration-settings overrides to executor levers when a store
 	// is wired. Defaults come from config.DefaultLevers().
 	if levers, ok := o.executorLevers(); ok {
@@ -535,6 +536,7 @@ func (o *Orchestrator) resumeRun(ctx context.Context, run *domain.Run, task *dom
 	executor.WithRunStateRoot(runStateRoot)
 	executor.WithRunStateWriteObserver(func() { o.recordRunStateWrite(ctx) })
 	executor.WithStructuredResultResolver(o.structuredResults)
+	executor.WithApprovalNotifier(o)
 	executor.WithCurrentModelExclusions(currentExclusions)
 	executor.WithCurrentModelAdmission(func(admissionCtx context.Context, candidate domain.ExecutionCandidate, model string) (bool, error) {
 		return o.currentCandidateAllowed(admissionCtx, run.ResolvedConfig, candidate, model)

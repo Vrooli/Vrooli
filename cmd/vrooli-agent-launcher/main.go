@@ -138,11 +138,22 @@ func run(args []string) error {
 	fs := flag.NewFlagSet("vrooli-agent-launcher", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	agent := fs.String("agent", "", "coding-agent runner")
+	command := fs.Bool("command", false, "protected command session; no coding model")
 	task := fs.String("task", "", "optional task UUID to associate")
+	requireIdentity := fs.Bool("require-native-identity", false, "protected startup; broker refusal is terminal")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 	remaining := fs.Args()
+	if *command {
+		if *agent != "" {
+			return errors.New("--command and --agent are exclusive")
+		}
+		_, err := cliutil.LaunchCommandSessionResult(context.Background(), cliutil.AgentLaunchRequest{
+			TaskID: *task, Args: remaining, Stdin: os.Stdin, Stdout: os.Stdout, Stderr: os.Stderr,
+		})
+		return err
+	}
 	if strings.TrimSpace(*agent) == "" {
 		if len(remaining) == 0 {
 			return errors.New("usage: vrooli-agent-launcher --agent <runner> [--task <uuid>] -- [agent args]")
@@ -156,12 +167,13 @@ func run(args []string) error {
 	// installed on PATH and execs through it, adding a pointless hop.
 	self := shimSelfPath()
 	return cliutil.LaunchCodingAgent(context.Background(), cliutil.AgentLaunchRequest{
-		Agent:  *agent,
-		TaskID: *task,
-		Args:   remaining,
-		Stdin:  os.Stdin,
-		Stdout: os.Stdout,
-		Stderr: os.Stderr,
+		Agent:                 *agent,
+		TaskID:                *task,
+		RequireNativeIdentity: *requireIdentity,
+		Args:                  remaining,
+		Stdin:                 os.Stdin,
+		Stdout:                os.Stdout,
+		Stderr:                os.Stderr,
 		LookPathInEnvironment: func(binary string, environment []string) (string, error) {
 			return cliutil.ResolveAgentBinaryExcludingInEnvironment(binary, self, environment)
 		},

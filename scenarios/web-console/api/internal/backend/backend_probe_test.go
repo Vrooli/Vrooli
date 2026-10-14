@@ -2,6 +2,7 @@ package backend
 
 import (
 	"errors"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -29,7 +30,14 @@ func TestDefaultTmuxProbeUsesDedicatedSocketAndCleansBuffer(t *testing.T) {
 		t.Skip("tmux is not installed")
 	}
 
-	socket := filepath.Join(t.TempDir(), "tmux", "wc.sock")
+	// t.TempDir embeds the full test name. Under the managed Go work root
+	// that exceeds the Unix socket address limit before tmux can start.
+	root, err := os.MkdirTemp("", "wc-probe-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(root) })
+	socket := filepath.Join(root, "wc.sock")
 	t.Setenv("WC_TMUX_SOCKET", socket)
 	tmuxProbeMu.Lock()
 	tmuxProbeCache = make(map[string]struct {

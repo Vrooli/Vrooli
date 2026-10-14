@@ -421,10 +421,23 @@ func removeDanglingOCISymlinks(root string) error {
 		if entry.Type()&os.ModeSymlink == 0 {
 			return nil
 		}
-		if _, err := os.Stat(path); os.IsNotExist(err) {
+		target, err := os.Stat(path)
+		if os.IsNotExist(err) {
 			return os.Remove(path)
 		} else if err != nil {
 			return fmt.Errorf("binaryfetch: inspect OCI symlink %q: %w", path, err)
+		}
+		if target.IsDir() {
+			children, err := os.ReadDir(path)
+			if err != nil {
+				return fmt.Errorf("binaryfetch: inspect OCI symlink directory %q: %w", path, err)
+			}
+			// Directory-only links to empty directories do not survive artifact
+			// packagers that copy files from globs. The alias has no contents to
+			// preserve, so remove it before hashing the self-contained tree.
+			if len(children) == 0 {
+				return os.Remove(path)
+			}
 		}
 		return nil
 	})

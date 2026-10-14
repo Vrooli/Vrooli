@@ -1,6 +1,8 @@
 package sessions
 
 import (
+	"time"
+
 	"web-console/internal/backend"
 	"web-console/internal/sessionstore"
 	"web-console/session"
@@ -33,7 +35,7 @@ func FromSession(s *session.Session) Response {
 	return Response{
 		ID:              s.ID,
 		Shell:           s.Shell,
-		CreatedAt:       s.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		CreatedAt:       s.CreatedAt.UTC().Format(time.RFC3339Nano),
 		Cols:            int(s.Cols),
 		Rows:            int(s.Rows),
 		Backend:         s.Backend,

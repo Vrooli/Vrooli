@@ -3,6 +3,7 @@ package validation
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -24,35 +25,73 @@ import (
 )
 
 func (h *connectHandler) StartValidationRun(ctx context.Context, req *connect.Request[scenariovalidationv1.StartValidationRunRequest]) (*connect.Response[scenariovalidationv1.StartValidationRunResponse], error) {
+	if req.Msg.BrowserCaseSelector != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("browser_case_selector requires StartSelectedValidationRun"))
+	}
+	return h.startValidationRun(ctx, req.Msg, nil)
+}
+
+func (h *connectHandler) StartSelectedValidationRun(ctx context.Context, req *connect.Request[scenariovalidationv1.StartValidationRunRequest]) (*connect.Response[scenariovalidationv1.StartValidationRunResponse], error) {
+	if req.Msg.BrowserCaseSelector == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("browser_case_selector is required"))
+	}
+	paths, err := execution.NormalizeCasePaths(req.Msg.BrowserCaseSelector.CasePaths)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	if strings.TrimSpace(req.Msg.GetDesktopBinding().GetWorkflowPath()) != "" || len(req.Msg.CapabilitySubset) > 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("selected browser cases do not support workflow-path bindings or capability_subset"))
+	}
+	if binding := req.Msg.DesktopBinding; binding != nil && (electronTarget(binding) == nil || strings.TrimSpace(binding.GetProfileId()) == "") {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("selected desktop binding requires complete target and validation-cell identity"))
+	}
+	return h.startValidationRun(ctx, req.Msg, paths)
+}
+
+// Both public operations share one durable owner. Reattachment checks persisted
+// identity before catalog validation so drift never admits another execution.
+func (h *connectHandler) startValidationRun(ctx context.Context, req *scenariovalidationv1.StartValidationRunRequest, paths []string) (*connect.Response[scenariovalidationv1.StartValidationRunResponse], error) {
 	if h.deps.Ledger.DB == nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("validation-run ledger is unavailable"))
 	}
-	key := strings.TrimSpace(req.Msg.GetIdempotencyKey())
+	key := strings.TrimSpace(req.GetIdempotencyKey())
 	if key == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("idempotency_key is required"))
 	}
-	target := core.Target{Scenario: req.Msg.GetScenario(), Path: req.Msg.GetPath()}
+	target := core.Target{Scenario: req.GetScenario(), Path: req.GetPath()}
 	if err := target.Validate(); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	if existing, err := h.deps.Ledger.FindByIdempotency(ctx, key); err == nil {
-		if !existing.Run.Target.Equal(target) {
-			return nil, connect.NewError(connect.CodeAlreadyExists, fmt.Errorf("idempotency_key belongs to a different target"))
+		if !matchesRequest(existing, target, paths) {
+			return nil, connect.NewError(connect.CodeAlreadyExists, fmt.Errorf("idempotency_key belongs to a different target or browser case selection"))
 		}
 		return connect.NewResponse(&scenariovalidationv1.StartValidationRunResponse{Run: runProto(existing)}), nil
 	} else if !core.IsCode(err, core.ErrorNotFound) {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	static, err := h.staticResponse(ctx, target.Scenario, target.Path)
+	static, err := h.staticResponseWithSelector(ctx, target.Scenario, target.Path, execution.AssetSelector{CasesProvided: paths != nil, CasePaths: paths})
 	if err != nil {
 		return nil, err
 	}
-	record := workflowrun.Record{Run: core.Run{ID: uuid.NewString(), Target: target, IdempotencyKey: key, ParentRunID: req.Msg.GetParentRunId(), State: core.StateQueued, CreatedAt: time.Now().UTC(), Version: 1}, ETA: 2 * time.Minute, Preliminary: static.Msg, ExecutionBinding: req.Msg.GetDesktopBinding()}
+	record := workflowrun.Record{Run: core.Run{ID: uuid.NewString(), Target: target, IdempotencyKey: key, ParentRunID: req.GetParentRunId(), State: core.StateQueued, CreatedAt: time.Now().UTC(), Version: 1}, ETA: 2 * time.Minute, Preliminary: static.Msg, ExecutionBinding: req.GetDesktopBinding(), BrowserCasePaths: paths}
 	if err := h.deps.Ledger.Create(ctx, record); err != nil {
+		// Another handler or process may have won the unique-key insert. Only
+		// its durable identity can permit replay; never launch the losing record.
+		if existing, readErr := h.deps.Ledger.FindByIdempotency(ctx, key); readErr == nil {
+			if !matchesRequest(existing, target, paths) {
+				return nil, connect.NewError(connect.CodeAlreadyExists, fmt.Errorf("idempotency_key belongs to a different target or browser case selection"))
+			}
+			return connect.NewResponse(&scenariovalidationv1.StartValidationRunResponse{Run: runProto(existing)}), nil
+		}
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("persist validation run: %w", err))
 	}
 	h.launch(record.Run.ID)
 	return connect.NewResponse(&scenariovalidationv1.StartValidationRunResponse{Run: runProto(record)}), nil
+}
+
+func matchesRequest(record workflowrun.Record, target core.Target, paths []string) bool {
+	return record.Run.Target.Equal(target) && (record.BrowserCasePaths == nil) == (paths == nil) && slices.Equal(record.BrowserCasePaths, paths)
 }
 
 func (h *connectHandler) GetValidationRun(ctx context.Context, req *connect.Request[scenariovalidationv1.GetValidationRunRequest]) (*connect.Response[scenariovalidationv1.GetValidationRunResponse], error) {
@@ -70,6 +109,9 @@ func (h *connectHandler) WaitValidationRun(ctx context.Context, req *connect.Req
 		defer cancel()
 	}
 	for {
+		// Subscribe before reading so a terminal transition between the read and
+		// subscription cannot strand a waiter on the next notification channel.
+		notice := h.notice(req.Msg.GetRunId())
 		record, err := h.deps.Ledger.Get(ctx, req.Msg.GetRunId())
 		if err != nil {
 			return nil, runError(err)
@@ -77,7 +119,6 @@ func (h *connectHandler) WaitValidationRun(ctx context.Context, req *connect.Req
 		if record.Run.State.Terminal() {
 			return connect.NewResponse(&scenariovalidationv1.WaitValidationRunResponse{Run: runProto(record)}), nil
 		}
-		notice := h.notice(record.Run.ID)
 		select {
 		case <-notice:
 		case <-ctx.Done():
@@ -128,16 +169,12 @@ func (h *connectHandler) launch(id string) {
 			return
 		}
 		h.signal(id)
-		opts := execution.Options{IncludeExecution: true, RunID: id, Isolation: execution.NewRoutingIsolation(), ElectronTarget: electronTarget(record.ExecutionBinding), ValidationContext: electronValidationContext(record.ExecutionBinding, id)}
-		if workflowPath := strings.TrimSpace(record.ExecutionBinding.GetWorkflowPath()); workflowPath != "" {
-			opts.Selector.CasePaths = []string{workflowPath}
-			// Desktop bindings may point at a BAS flow as well as a validation
-			// case. Keep both selectors narrow and enable flow execution only for
-			// this explicit governed binding; the default catalog remains
-			// case-only and therefore fail-closed for agent flows.
-			opts.Selector.FlowPaths = []string{workflowPath}
-			opts.AllowFlowExecution = true
+		opts, err := executionOptions(record)
+		if err != nil {
+			h.finish(record, core.EventFail, nil, nil, err)
+			return
 		}
+
 		// Measure the durable run. This path is the one that produces the
 		// workflow phase records Test Genie costs, and it used to report an
 		// empty &commonv1.ExecutionMetrics{} — non-nil, so the metrics_present
@@ -157,6 +194,24 @@ func (h *connectHandler) launch(id string) {
 		}
 		h.finish(record, core.EventSucceed, terminal, artifactReferences(report), nil)
 	}()
+}
+
+// executionOptions keeps the saved selector separate from renderer binding.
+func executionOptions(record workflowrun.Record) (execution.Options, error) {
+	if record.BrowserCasePaths != nil && strings.TrimSpace(record.ExecutionBinding.GetWorkflowPath()) != "" {
+		return execution.Options{}, fmt.Errorf("saved browser case selection conflicts with workflow-path binding")
+	}
+	if record.BrowserCasePaths != nil && record.ExecutionBinding != nil && (electronTarget(record.ExecutionBinding) == nil || strings.TrimSpace(record.ExecutionBinding.GetProfileId()) == "") {
+		return execution.Options{}, fmt.Errorf("saved selected desktop binding requires complete target and validation-cell identity")
+	}
+	opts := execution.Options{IncludeExecution: true, Selector: execution.AssetSelector{CasesProvided: record.BrowserCasePaths != nil, CasePaths: record.BrowserCasePaths}, RunID: record.Run.ID, Isolation: execution.NewRoutingIsolation(), ElectronTarget: electronTarget(record.ExecutionBinding), ValidationContext: electronValidationContext(record.ExecutionBinding, record.Run.ID)}
+	if workflowPath := strings.TrimSpace(record.ExecutionBinding.GetWorkflowPath()); workflowPath != "" {
+		// Default desktop flow bindings preserve their existing narrow flow behavior.
+		opts.Selector.CasePaths = []string{workflowPath}
+		opts.Selector.FlowPaths = []string{workflowPath}
+		opts.AllowFlowExecution = true
+	}
+	return opts, nil
 }
 
 func electronTarget(binding *scenariovalidationv1.DesktopValidationBinding) *execution.ElectronTarget {
@@ -262,6 +317,9 @@ func runError(err error) error {
 
 func runProto(record workflowrun.Record) *scenariovalidationv1.ValidationRun {
 	run := &scenariovalidationv1.ValidationRun{RunId: record.Run.ID, Scenario: record.Run.Target.Scenario, Path: record.Run.Target.Path, IdempotencyKey: record.Run.IdempotencyKey, ParentRunId: record.Run.ParentRunID, State: stateProto(record.Run.State), CreatedAt: timestamppb.New(record.Run.CreatedAt), StartedAt: timestamppb.New(record.Run.StartedAt), CompletedAt: timestamppb.New(record.Run.CompletedAt), EstimatedRemaining: durationpb.New(record.ETA), PreliminaryStaticResult: record.Preliminary, TerminalResult: record.Terminal, CancellationRequested: record.Run.CancellationRequested}
+	if record.BrowserCasePaths != nil {
+		run.BrowserCaseSelector = &scenariovalidationv1.BrowserCaseSelector{CasePaths: slices.Clone(record.BrowserCasePaths)}
+	}
 	if record.Error != "" {
 		run.Error = &scenariovalidationv1.ValidationRunError{Code: errorCodeProto(record.ErrorCode), Message: record.Error}
 	}

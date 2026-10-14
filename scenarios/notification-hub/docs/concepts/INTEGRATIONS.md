@@ -134,6 +134,14 @@ sends nothing new.
 | `context_url` | no | Link for more detail |
 | `correlation` | no | String map (at most 1 KB) echoed verbatim in the resolution event |
 
+Any scenario opts into operator asks by publishing a `*.decision_requested.v1`
+event with this payload — no code changes here. For example, Agent Manager
+publishes `agent_manager.run.decision_requested.v1` when a run enters
+`needs_review`, with `options` `approve`/`reject`, a `context_url` to the run's
+review page, and `correlation.run_id`; the resolution's `answer` then drives the
+run's approve/reject back in Agent Manager. This is the general mechanism, not a
+hub-side special case.
+
 ### Ask resolution (`notification_hub.ask.resolved.v1`)
 
 Every terminal transition of an ask (answered, defaulted, expired, and a late

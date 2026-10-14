@@ -30,5 +30,6 @@ CREATE TABLE IF NOT EXISTS sessions (
 			,native_thread_id TEXT NOT NULL DEFAULT ''
 			,last_verified_turn_id TEXT NOT NULL DEFAULT ''
 			,forked_from_native_session TEXT NOT NULL DEFAULT ''
-			,launch_descriptor_json TEXT NOT NULL DEFAULT ''
+			,launch_descriptor_json TEXT NOT NULL DEFAULT '',
+    create_fingerprint TEXT NOT NULL DEFAULT ''
 		);

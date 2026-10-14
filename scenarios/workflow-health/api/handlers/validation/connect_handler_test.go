@@ -2,8 +2,12 @@ package validation
 
 import (
 	"context"
+	"github.com/gorilla/mux"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -18,11 +22,13 @@ import (
 
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
+	core "github.com/vrooli/api-core/validationrun"
 	"github.com/vrooli/maturity-go/assessment"
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
+	validationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
 
@@ -215,4 +221,217 @@ func requireAssessmentFindingCode(t *testing.T, findings []*commonv1.AssessmentF
 	}
 	require.Failf(t, "finding not found", "code %s in %+v", code, findings)
 	return nil
+}
+
+func TestOrdinaryDurableStartRejectsExplicitSelectorBeforeReplay(t *testing.T) {
+	h := testHandler(t)
+	for _, paths := range [][]string{nil, {"bas/cases/smoke.json"}} {
+		_, err := h.StartValidationRun(context.Background(), connect.NewRequest(&scenariovalidationv1.StartValidationRunRequest{BrowserCaseSelector: &scenariovalidationv1.BrowserCaseSelector{CasePaths: paths}}))
+		require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+		require.Contains(t, err.Error(), "StartSelectedValidationRun")
+	}
+}
+
+func selectedFixture(t *testing.T) (*connectHandler, string) {
+	t.Helper()
+	database := db.NewSQLite(t)
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), database, apidb.SchemaProviderFunc(workflowrun.Schema)))
+	h := testHandlerWithBAS(t, &validationFakeBASClient{})
+	h.deps.Ledger = workflowrun.Repository{DB: database}
+	target := filepath.Join(t.TempDir(), "selected")
+	for _, name := range []string{"a", "b"} {
+		writeWorkflowJSON(t, filepath.Join(target, "bas", "cases", name+".json"), `{"metadata":{"name":"`+name+`","execution_mode":"observer","labels":{"reset":"none"}},"nodes":[]}`)
+	}
+	return h, target
+}
+
+func TestSelectedDurableRouteIdentityTerminalReadbackAndCatalogDrift(t *testing.T) {
+	h, target := selectedFixture(t)
+	path, handler := validationconnect.NewSelectedValidationRunServiceHandler(h)
+	router := http.NewServeMux()
+	router.Handle(path, handler)
+	ordinaryPath, ordinaryHandler := validationconnect.NewDurableValidationRunServiceHandler(h)
+	router.Handle(ordinaryPath, ordinaryHandler)
+	server := httptest.NewServer(router)
+	defer server.Close()
+	selected := validationconnect.NewSelectedValidationRunServiceClient(server.Client(), server.URL)
+	durable := validationconnect.NewDurableValidationRunServiceClient(server.Client(), server.URL)
+	request := &scenariovalidationv1.StartValidationRunRequest{Scenario: "selected", Path: target, IdempotencyKey: "identity", BrowserCaseSelector: &scenariovalidationv1.BrowserCaseSelector{CasePaths: []string{" ./bas/cases/b.json ", "bas/cases/a.json", "bas/cases/a.json"}}}
+	started, err := selected.StartSelectedValidationRun(context.Background(), connect.NewRequest(request))
+	require.NoError(t, err)
+	require.Equal(t, []string{"bas/cases/a.json", "bas/cases/b.json"}, started.Msg.Run.BrowserCaseSelector.CasePaths)
+	request.BrowserCaseSelector.CasePaths = []string{"bas/cases/b.json", "bas/cases/a.json"}
+	replay, err := selected.StartSelectedValidationRun(context.Background(), connect.NewRequest(request))
+	require.NoError(t, err)
+	require.Equal(t, started.Msg.Run.RunId, replay.Msg.Run.RunId)
+	terminal, err := durable.WaitValidationRun(context.Background(), connect.NewRequest(&scenariovalidationv1.WaitValidationRunRequest{RunId: started.Msg.Run.RunId, Timeout: durationpb.New(5 * time.Second)}))
+	require.NoError(t, err)
+	require.Equal(t, started.Msg.Run.BrowserCaseSelector, terminal.Msg.Run.BrowserCaseSelector)
+	reopened := testHandler(t)
+	reopened.deps.Ledger = h.deps.Ledger
+	readback, err := reopened.GetValidationRun(context.Background(), connect.NewRequest(&scenariovalidationv1.GetValidationRunRequest{RunId: started.Msg.Run.RunId}))
+	require.NoError(t, err)
+	require.Equal(t, terminal.Msg.Run.BrowserCaseSelector, readback.Msg.Run.BrowserCaseSelector)
+	require.NoError(t, os.RemoveAll(filepath.Join(target, "bas")))
+	replay, err = selected.StartSelectedValidationRun(context.Background(), connect.NewRequest(request))
+	require.NoError(t, err)
+	require.Equal(t, started.Msg.Run.RunId, replay.Msg.Run.RunId)
+	request.BrowserCaseSelector.CasePaths = []string{"bas/cases/a.json"}
+	_, err = selected.StartSelectedValidationRun(context.Background(), connect.NewRequest(request))
+	require.Equal(t, connect.CodeAlreadyExists, connect.CodeOf(err))
+	request.BrowserCaseSelector = nil
+	_, err = durable.StartValidationRun(context.Background(), connect.NewRequest(request))
+	require.Equal(t, connect.CodeAlreadyExists, connect.CodeOf(err))
+}
+
+func TestSelectedDurableRefusesInvalidAndConflictingBindingsBeforeEffects(t *testing.T) {
+	h, target := selectedFixture(t)
+	for name, request := range map[string]*scenariovalidationv1.StartValidationRunRequest{
+		"missing": {}, "empty": {BrowserCaseSelector: &scenariovalidationv1.BrowserCaseSelector{}},
+		"mixed":      {BrowserCaseSelector: &scenariovalidationv1.BrowserCaseSelector{CasePaths: []string{"bas/cases/a.json", "bas/cases/unknown.json"}}},
+		"unsafe":     {BrowserCaseSelector: &scenariovalidationv1.BrowserCaseSelector{CasePaths: []string{"bas/cases/../a.json"}}},
+		"desktop":    {BrowserCaseSelector: &scenariovalidationv1.BrowserCaseSelector{CasePaths: []string{"bas/cases/a.json"}}, DesktopBinding: &scenariovalidationv1.DesktopValidationBinding{WorkflowPath: "bas/cases/b.json"}},
+		"capability": {BrowserCaseSelector: &scenariovalidationv1.BrowserCaseSelector{CasePaths: []string{"bas/cases/a.json"}}, CapabilitySubset: []string{"unknown"}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			request.Scenario = "selected"
+			request.Path = target
+			request.IdempotencyKey = name
+			_, err := h.StartSelectedValidationRun(context.Background(), connect.NewRequest(request))
+			require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+			_, err = h.deps.Ledger.FindByIdempotency(context.Background(), name)
+			require.True(t, core.IsCode(err, core.ErrorNotFound))
+		})
+	}
+}
+
+func TestSelectedDurableConcurrentStartsReplayOneRun(t *testing.T) {
+	h, target := selectedFixture(t)
+	second := testHandlerWithBAS(t, &validationFakeBASClient{})
+	second.deps.Ledger = h.deps.Ledger
+	var wg sync.WaitGroup
+	ids := make(chan string, 8)
+	errs := make(chan error, 8)
+	for i := 0; i < 8; i++ {
+		worker := h
+		if i%2 == 1 {
+			worker = second
+		}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			resp, err := worker.StartSelectedValidationRun(context.Background(), connect.NewRequest(&scenariovalidationv1.StartValidationRunRequest{Scenario: "selected", Path: target, IdempotencyKey: "concurrent", BrowserCaseSelector: &scenariovalidationv1.BrowserCaseSelector{CasePaths: []string{"bas/cases/a.json"}}}))
+			if err != nil {
+				errs <- err
+				return
+			}
+			ids <- resp.Msg.Run.RunId
+		}()
+	}
+	wg.Wait()
+	close(ids)
+	close(errs)
+	for err := range errs {
+		require.NoError(t, err)
+	}
+	var first string
+	for id := range ids {
+		if first == "" {
+			first = id
+		}
+		require.Equal(t, first, id)
+	}
+	require.NotEmpty(t, first)
+	h.mu.Lock()
+	_, active := h.cancels[first]
+	h.mu.Unlock()
+	owner := second
+	if active {
+		owner = h
+	}
+	_, err := owner.WaitValidationRun(context.Background(), connect.NewRequest(&scenariovalidationv1.WaitValidationRunRequest{RunId: first, Timeout: durationpb.New(5 * time.Second)}))
+	require.NoError(t, err)
+}
+
+func TestValidationModuleMountsSelectedServiceAndRecoveryPreservesSelection(t *testing.T) {
+	database := db.NewSQLite(t)
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), database, apidb.SchemaProviderFunc(workflowrun.Schema)))
+	routed := apidb.NewFromPrimary(database)
+	repository := workflowrun.Repository{DB: routed}
+	record := workflowrun.Record{Run: core.Run{ID: "interrupted", Target: core.Target{Scenario: "sample"}, IdempotencyKey: "restart", State: core.StateRunning, CreatedAt: time.Now().UTC(), Version: 1}, BrowserCasePaths: []string{"bas/cases/a.json"}}
+	require.NoError(t, repository.Create(context.Background(), record))
+	require.NoError(t, RecoverInterrupted(context.Background(), routed))
+	require.NoError(t, RecoverInterrupted(context.Background(), routed))
+	router := mux.NewRouter()
+	Module(nil, repoRootFromTest(t), routed).Mount(router)
+	server := httptest.NewServer(router)
+	defer server.Close()
+	selected := validationconnect.NewSelectedValidationRunServiceClient(server.Client(), server.URL)
+	resp, err := selected.StartSelectedValidationRun(context.Background(), connect.NewRequest(&scenariovalidationv1.StartValidationRunRequest{Scenario: "sample", IdempotencyKey: "restart", BrowserCaseSelector: &scenariovalidationv1.BrowserCaseSelector{CasePaths: []string{"bas/cases/a.json"}}}))
+	require.NoError(t, err)
+	require.Equal(t, scenariovalidationv1.ValidationRunState_VALIDATION_RUN_STATE_RECOVERY_FAILED, resp.Msg.Run.State)
+	require.Equal(t, []string{"bas/cases/a.json"}, resp.Msg.Run.BrowserCaseSelector.CasePaths)
+	durable := validationconnect.NewDurableValidationRunServiceClient(server.Client(), server.URL)
+	waited, err := durable.WaitValidationRun(context.Background(), connect.NewRequest(&scenariovalidationv1.WaitValidationRunRequest{RunId: record.Run.ID}))
+	require.NoError(t, err)
+	require.Equal(t, resp.Msg.Run.BrowserCaseSelector, waited.Msg.Run.BrowserCaseSelector)
+}
+
+func TestSelectedDurableExecutesOnlySavedCases(t *testing.T) {
+	h, target := selectedFixture(t)
+	recorder := &selectedRecordingBAS{}
+	h.deps.BASClient = recorder
+	resp, err := h.StartSelectedValidationRun(context.Background(), connect.NewRequest(&scenariovalidationv1.StartValidationRunRequest{Scenario: "selected", Path: target, IdempotencyKey: "context-only", BrowserCaseSelector: &scenariovalidationv1.BrowserCaseSelector{CasePaths: []string{"bas/cases/a.json"}}}))
+	require.NoError(t, err)
+	finished, err := h.WaitValidationRun(context.Background(), connect.NewRequest(&scenariovalidationv1.WaitValidationRunRequest{RunId: resp.Msg.Run.RunId, Timeout: durationpb.New(5 * time.Second)}))
+	require.NoError(t, err)
+	require.Equal(t, []string{"bas/cases/a.json"}, finished.Msg.Run.BrowserCaseSelector.CasePaths)
+	recorder.mu.Lock()
+	defer recorder.mu.Unlock()
+	require.Equal(t, []string{"a"}, recorder.names)
+}
+
+func TestLaunchRefusesSavedSelectionWithWorkflowBindingBeforeExecution(t *testing.T) {
+	h, target := selectedFixture(t)
+	record := workflowrun.Record{Run: core.Run{ID: "mixed-saved", Target: core.Target{Scenario: "selected", Path: target}, IdempotencyKey: "mixed-saved-key", State: core.StateQueued, CreatedAt: time.Now().UTC(), Version: 1}, BrowserCasePaths: []string{"bas/cases/a.json"}, ExecutionBinding: &scenariovalidationv1.DesktopValidationBinding{WorkflowPath: "bas/cases/b.json"}}
+	require.NoError(t, h.deps.Ledger.Create(context.Background(), record))
+	h.launch(record.Run.ID)
+	finished, err := h.WaitValidationRun(context.Background(), connect.NewRequest(&scenariovalidationv1.WaitValidationRunRequest{RunId: record.Run.ID, Timeout: durationpb.New(5 * time.Second)}))
+	require.NoError(t, err)
+	require.Equal(t, scenariovalidationv1.ValidationRunState_VALIDATION_RUN_STATE_FAILED, finished.Msg.Run.State)
+	require.Contains(t, finished.Msg.Run.Error.Message, "conflicts with workflow-path binding")
+	require.Nil(t, finished.Msg.Run.TerminalResult)
+	require.Empty(t, finished.Msg.Run.ArtifactReferences)
+}
+
+type selectedRecordingBAS struct {
+	validationFakeBASClient
+	mu    sync.Mutex
+	names []string
+}
+
+func (f *selectedRecordingBAS) ExecuteAdhoc(ctx context.Context, req execution.ExecuteRequest) (*execution.ExecuteResult, error) {
+	f.mu.Lock()
+	f.names = append(f.names, req.Name)
+	f.mu.Unlock()
+	return f.validationFakeBASClient.ExecuteAdhoc(ctx, req)
+}
+
+func TestCompleteSelectedTargetContextBindingPreservesExecutionSelector(t *testing.T) {
+	binding := &scenariovalidationv1.DesktopValidationBinding{TargetId: "target", CdpEndpoint: "http://127.0.0.1:9222", RendererId: "renderer", RendererUrl: "app://planner", ScenarioName: "personal-planner", ArtifactDigest: "sha256:artifact", ContextId: "context", CdpTransport: "http", ProfileId: "profile"}
+	record := workflowrun.Record{Run: core.Run{ID: "provider-run"}, BrowserCasePaths: []string{"bas/cases/calendar/duplicate-submit-once.json"}, ExecutionBinding: binding}
+	opts, err := executionOptions(record)
+	require.NoError(t, err)
+	require.True(t, opts.Selector.CasesProvided)
+	require.Equal(t, []string{"bas/cases/calendar/duplicate-submit-once.json"}, opts.Selector.CasePaths)
+	require.Empty(t, opts.Selector.FlowPaths)
+	require.False(t, opts.AllowFlowExecution)
+	require.Equal(t, "target", opts.ElectronTarget.TargetID)
+	require.Equal(t, "renderer", opts.ElectronTarget.RendererID)
+	require.Equal(t, "context", opts.ValidationContext.ContextID)
+	require.Equal(t, "provider-run", opts.ValidationContext.IsolationLeaseID)
+	h, _ := selectedFixture(t)
+	_, err = h.StartSelectedValidationRun(context.Background(), connect.NewRequest(&scenariovalidationv1.StartValidationRunRequest{BrowserCaseSelector: &scenariovalidationv1.BrowserCaseSelector{CasePaths: record.BrowserCasePaths}, DesktopBinding: &scenariovalidationv1.DesktopValidationBinding{TargetId: "target", ContextId: "context"}}))
+	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+	require.Contains(t, err.Error(), "complete target")
 }

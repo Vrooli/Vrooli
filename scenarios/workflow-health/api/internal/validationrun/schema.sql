@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS validation_runs (
   error_message TEXT NOT NULL DEFAULT '',
   artifact_refs BLOB NOT NULL DEFAULT '[]',
   execution_binding BLOB,
+  browser_case_paths BLOB,
   cancellation_requested INTEGER NOT NULL DEFAULT 0,
   version INTEGER NOT NULL DEFAULT 1
 );

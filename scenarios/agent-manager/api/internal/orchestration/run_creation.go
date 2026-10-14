@@ -143,13 +143,14 @@ func (o *Orchestrator) createRun(ctx context.Context, req CreateRunRequest, reco
 
 	// SLOT ENFORCEMENT: Check capacity unless Force is set
 	if !req.Force && o.config.MaxConcurrentRuns > 0 && o.runs != nil {
-		// Count active runs (both Running and Starting count against the limit)
-		runningCount, err := o.runs.CountByStatus(ctx, domain.RunStatusRunning)
+		// Count active dispatched runs (Running and Starting); attached
+		// interactive sessions never hold a dispatch slot.
+		runningCount, err := o.runs.CountCapacityByStatus(ctx, domain.RunStatusRunning)
 		if err != nil {
 			failCreation()
 			return nil, err
 		}
-		startingCount, err := o.runs.CountByStatus(ctx, domain.RunStatusStarting)
+		startingCount, err := o.runs.CountCapacityByStatus(ctx, domain.RunStatusStarting)
 		if err != nil {
 			failCreation()
 			return nil, err

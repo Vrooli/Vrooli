@@ -41,10 +41,11 @@ func Module(logger *log.Logger, repoRoot string, db *database.RoutedDB) module.M
 	describer, _ := assessment.LoadDescriber(filepath.Join(repoRoot, "scenarios", "workflow-health"))
 	connectPath, connectHandler := scenariovalidationconnect.NewScenarioValidationServiceHandler(assessment.Serve(handler, describer))
 	durablePath, durableHandler := scenariovalidationconnect.NewDurableValidationRunServiceHandler(handler)
+	selectedPath, selectedHandler := scenariovalidationconnect.NewSelectedValidationRunServiceHandler(handler)
 	return module.Module{
 		Name: "validation",
 		Mount: func(r *mux.Router) {
-			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: connectHandler}, connectx.ServiceMount{Path: durablePath, Handler: durableHandler})
+			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: connectHandler}, connectx.ServiceMount{Path: durablePath, Handler: durableHandler}, connectx.ServiceMount{Path: selectedPath, Handler: selectedHandler})
 			r.HandleFunc("/api/v1/validation/catalog", handler.CatalogHTTP).Methods("GET")
 		},
 		Endpoints: Endpoints,
@@ -78,6 +79,7 @@ func RecoverInterrupted(ctx context.Context, db *database.RoutedDB) error {
 }
 
 var Endpoints = []module.EndpointDescriptor{
+	{ID: "validation_start_selected_run", Path: scenariovalidationconnect.SelectedValidationRunServiceStartSelectedValidationRunProcedure, Method: "POST", Summary: "Start a durable selected browser-case validation run", Category: "validation"},
 	{ID: "validation_validate_target", Path: scenariovalidationconnect.ScenarioValidationServiceValidateTargetProcedure, Method: "POST", Summary: "Validate a first-class repository target", Category: "validation"},
 	{
 		ID:          "validation_validate_scenario",

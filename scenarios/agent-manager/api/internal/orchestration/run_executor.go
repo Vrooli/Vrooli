@@ -73,6 +73,7 @@ type RunExecutor struct {
 	workspaceSandbox       phases.WorkspaceSandboxEnsurer
 	modelHealth            ModelHealthReporter
 	structuredResults      phases.StructuredResultResolver
+	approvalNotifier       phases.ApprovalNotifier
 	currentModelExclusions map[domain.RunnerType][]string
 	currentModelAdmission  func(context.Context, domain.ExecutionCandidate, string) (bool, error)
 	clock                  func() time.Time
@@ -216,6 +217,13 @@ func (e *RunExecutor) WithModelHealthReporter(reporter ModelHealthReporter) *Run
 
 func (e *RunExecutor) WithStructuredResultResolver(resolver phases.StructuredResultResolver) *RunExecutor {
 	e.structuredResults = resolver
+	return e
+}
+
+// WithApprovalNotifier installs the best-effort notifier invoked when a run
+// enters needs_review under manualReview. Nil is safe (no operator alert).
+func (e *RunExecutor) WithApprovalNotifier(notifier phases.ApprovalNotifier) *RunExecutor {
+	e.approvalNotifier = notifier
 	return e
 }
 
@@ -565,6 +573,7 @@ func (e *RunExecutor) deps() phases.Deps {
 		Levers:            e.levers,
 		WorkspaceSandbox:  e.workspaceSandbox,
 		StructuredResults: e.structuredResults,
+		ApprovalNotifier:  e.approvalNotifier,
 		Clock:             e.clock,
 	}
 }

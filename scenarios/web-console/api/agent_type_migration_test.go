@@ -87,6 +87,10 @@ func TestMigrateSessionsAgentTypeConstraint_RelaxesOldCheck(t *testing.T) {
 	if agent != "codex" || sid != "cid" {
 		t.Fatalf("row corrupted: agent=%q sid=%q", agent, sid)
 	}
+	var fingerprint string
+	if err := db.QueryRow(`SELECT create_fingerprint FROM sessions WHERE id='keep'`).Scan(&fingerprint); err != nil || fingerprint != "" {
+		t.Fatalf("legacy fingerprint=%q err=%v", fingerprint, err)
+	}
 	// New agent types now accepted.
 	for _, a := range []string{"opencode", "grok"} {
 		if _, err := db.Exec(`INSERT INTO sessions (id, agent_type) VALUES (?, ?)`, "new-"+a, a); err != nil {
@@ -118,5 +122,31 @@ func TestMigrateSessionsAgentTypeConstraint_NoTableIsNoop(t *testing.T) {
 	db := openMigrationDB(t)
 	if err := migrateSessionsAgentTypeConstraint(context.Background(), db); err != nil {
 		t.Fatalf("missing-table migration should be a no-op, got %v", err)
+	}
+}
+
+func TestMigrateSessionsAgentTypeConstraintPreservesExistingCreateIdentity(t *testing.T) {
+	db := openMigrationDB(t)
+	ctx := t.Context()
+	if _, err := db.Exec(oldSessionsTable); err != nil {
+		t.Fatal(err)
+	}
+	for _, statement := range []string{`ALTER TABLE sessions ADD COLUMN origin TEXT NOT NULL DEFAULT 'ui'`, `ALTER TABLE sessions ADD COLUMN owner TEXT NOT NULL DEFAULT ''`, `ALTER TABLE sessions ADD COLUMN display_label TEXT NOT NULL DEFAULT ''`, `ALTER TABLE sessions ADD COLUMN create_fingerprint TEXT NOT NULL DEFAULT ''`} {
+		if _, err := db.Exec(statement); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := db.Exec(`INSERT INTO sessions(id,agent_type,owner,create_fingerprint) VALUES('reserved','codex','canonical-creator','exact-request')`); err != nil {
+		t.Fatal(err)
+	}
+	if err := migrateSessionsAgentTypeConstraint(ctx, db); err != nil {
+		t.Fatal(err)
+	}
+	var owner, fingerprint string
+	if err := db.QueryRow(`SELECT owner,create_fingerprint FROM sessions WHERE id='reserved'`).Scan(&owner, &fingerprint); err != nil || owner != "canonical-creator" || fingerprint != "exact-request" {
+		t.Fatalf("owner=%q fingerprint=%q err=%v", owner, fingerprint, err)
+	}
+	if err := migrateSessionsAgentTypeConstraint(ctx, db); err != nil {
+		t.Fatal(err)
 	}
 }

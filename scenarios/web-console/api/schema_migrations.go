@@ -245,6 +245,7 @@ func applyColumnMigrations(ctx context.Context, db dbx.Handle) error {
 		`ALTER TABLE sessions ADD COLUMN last_verified_turn_id TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE sessions ADD COLUMN forked_from_native_session TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE sessions ADD COLUMN launch_descriptor_json TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE sessions ADD COLUMN create_fingerprint TEXT NOT NULL DEFAULT ''`,
 		`CREATE INDEX IF NOT EXISTS idx_sessions_status ON sessions(status)`,
 		`CREATE INDEX IF NOT EXISTS idx_sessions_agent ON sessions(agent_type, agent_session_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_sessions_origin ON sessions(origin)`,
@@ -340,10 +341,16 @@ func migrateSessionsAgentTypeConstraint(ctx context.Context, db dbx.Handle) erro
 		return nil
 	}
 
+	// This owner can be called against a legacy table before the additive
+	// migration runner. Ensure the new identity column locally without erasing
+	// its existing value when already present.
+	if _, err := db.ExecContext(ctx, `ALTER TABLE sessions ADD COLUMN create_fingerprint TEXT NOT NULL DEFAULT ''`); err != nil && !isDuplicateColumnError(err) {
+		return fmt.Errorf("add session create fingerprint before rebuild: %w", err)
+	}
 	const cols = `id, backend, shell, cols, rows, policy_mode, policy_duration,
 		created_at, detached, status, agent_type, launch_command, agent_session_id,
 		cwd, last_rollout_path, last_activity_at, orphaned_at, recovered_into,
-		origin, owner, display_label`
+		origin, owner, display_label, create_fingerprint`
 	stmts := []string{
 		`PRAGMA foreign_keys=off`,
 		`ALTER TABLE sessions RENAME TO sessions_legacy_agentcheck`,

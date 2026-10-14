@@ -480,6 +480,27 @@ func TestValidateSystemdRejectsUnknownDirective(t *testing.T) {
 	}
 }
 
+// Root under `sudo vrooli setup` has no user runtime directory; user-scope
+// verification must still judge the unit rather than the missing session.
+func TestValidateSystemdUserScopeWithoutRuntimeDir(t *testing.T) {
+	if _, err := exec.LookPath("systemd-analyze"); err != nil {
+		t.Skip("systemd-analyze is unavailable")
+	}
+	t.Setenv("XDG_RUNTIME_DIR", "")
+	t.Setenv("DBUS_SESSION_BUS_ADDRESS", "")
+	slice, err := RenderSystemd(agentSliceDefinition())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if verdict := ValidateSystemd(slice, ScopeUser); verdict.State != VerdictAccepted {
+		t.Fatalf("ValidateSystemd(vrooli-agents.slice) without a runtime dir = %+v, want accepted", verdict)
+	}
+	bad := RenderedArtifact{Target: "linux", Files: []RenderedFile{{Name: "vrooli-servicedef-probe.service", Content: "[Unit]\nDescription=probe\n\n[Service]\nBogusDirective=1\nExecStart=/bin/true\n"}}}
+	if verdict := ValidateSystemd(bad, ScopeUser); !verdict.Rejected() || !strings.Contains(verdict.Output, "Bogus") {
+		t.Fatalf("unknown directive must still be rejected without a runtime dir: %+v", verdict)
+	}
+}
+
 func TestVerdictIsJSONEvidence(t *testing.T) {
 	raw, err := json.Marshal(Verdict{State: VerdictRejected, Validator: "systemd-analyze verify", Output: "x.service:3: Unknown key"})
 	if err != nil {
