@@ -1,6 +1,9 @@
 package cliutil
 
 import (
+	"context"
+	"errors"
+	"net/http"
 	"net/url"
 	"time"
 )
@@ -39,11 +42,71 @@ func (c *APIClient) WithToken(token string) *APIClient {
 	return &clone
 }
 
+// WithoutRedirects returns a request-local transport that refuses every redirect.
+// Authentication, attribution, transport, cookies and timeout are preserved;
+// the receiver and ordinary clients keep their original redirect policy.
+func (c *APIClient) WithoutRedirects() *APIClient {
+	if c == nil {
+		return nil
+	}
+	clone := *c
+	base := c.client
+	if base == nil {
+		base = NewHTTPClient(HTTPClientOptions{})
+	}
+	client := *base
+	client.rejectRedirectResponses = true
+	raw := base.client
+	if raw == nil {
+		raw = &http.Client{}
+	}
+	protected := *raw
+	protected.CheckRedirect = func(*http.Request, []*http.Request) error {
+		return errors.New("protected request redirect refused")
+	}
+	client.client = &protected
+	clone.client = &client
+	return &clone
+}
+
 // WithTimeout returns a copy of this client whose requests use timeout instead
 // of the CLI default. Base resolution, token wiring, and provenance headers are
 // preserved, so an operator-initiated maintenance call that legitimately runs
 // for minutes does not have to choose between timing out and losing its
 // attribution. The receiver is unchanged.
+// WithHeaders returns an isolated transport with additional request headers.
+// Existing application and invocation provenance sources are preserved.
+func (c *APIClient) WithHeaders(headers map[string]string) *APIClient {
+	if c == nil {
+		return nil
+	}
+	clone := *c
+	client := c.client
+	if client == nil {
+		client = NewHTTPClient(HTTPClientOptions{})
+	}
+	copyClient := *client
+	previous := copyClient.headerSource
+	pinned := make(map[string]string, len(headers))
+	for k, v := range headers {
+		pinned[k] = v
+	}
+	copyClient.headerSource = func() map[string]string {
+		merged := make(map[string]string)
+		if previous != nil {
+			for k, v := range previous() {
+				merged[k] = v
+			}
+		}
+		for k, v := range pinned {
+			merged[k] = v
+		}
+		return merged
+	}
+	clone.client = &copyClient
+	return &clone
+}
+
 func (c *APIClient) WithTimeout(timeout time.Duration) *APIClient {
 	if c == nil || timeout <= 0 {
 		return c
@@ -106,4 +169,39 @@ func (c *APIClient) AuthHeaders() map[string]string {
 		}
 	}
 	return headers
+}
+
+// WithPinnedAgentCredential carries one protected existing credential through
+// a paused exact-action signing flow. Each wire request rechecks its authority;
+// refusals and any credential change are terminal. No attach or token creation.
+func (c *APIClient) WithPinnedAgentCredential(token string, resolve func(context.Context) (string, error)) *APIClient {
+	if c == nil || token == "" || resolve == nil {
+		return nil
+	}
+	clone := *c
+	base := c.client
+	if base == nil {
+		base = NewHTTPClient(HTTPClientOptions{})
+	}
+	client := *base
+	client.identityPin = &agentCredentialPin{token: token, resolve: resolve}
+	// Keep redirect and wire custody policy private to this pinned flow. Ordinary
+	// clients retain their exact transport, cookie jar, timeout and redirect policy.
+	raw := base.client
+	if raw == nil {
+		raw = &http.Client{}
+	}
+	protected := *raw
+	protected.CheckRedirect = func(*http.Request, []*http.Request) error {
+		return errors.New("pinned exact request redirect refused")
+	}
+	next := raw.Transport
+	if next == nil {
+		next = http.DefaultTransport
+	}
+	protected.Transport = identityForwardingTransport{next: next}
+	client.client = &protected
+	clone.client = &client
+	clone.tokenSource = func() string { return "" }
+	return &clone
 }

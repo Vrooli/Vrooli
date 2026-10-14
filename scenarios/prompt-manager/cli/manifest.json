@@ -3141,7 +3141,7 @@
     {
       "command": "team heartbeat-disable",
       "class": "passthrough",
-      "reason": "Disable is a convenience mutation over UpdateHeartbeat and remains outside the one-binding-per-operation registry."
+      "reason": "Disable updates an existing heartbeat; explicit on-demand creation uses CreateHeartbeat with disabled scheduling and no timer. It remains outside the one-binding-per-operation registry."
     },
     {
       "command": "team heartbeat-bind-effort",

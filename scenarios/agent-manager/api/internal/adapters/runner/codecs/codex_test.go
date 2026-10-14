@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -1011,5 +1013,153 @@ func TestCodexExtractCommandFromJavaScriptExecCommandWrapper(t *testing.T) {
 	})
 	if got.Command != `sed -n '1,20p' README.md` {
 		t.Fatalf("command=%q reason=%q", got.Command, got.Reason)
+	}
+}
+
+func TestCodexRolloutToolOutputContract(t *testing.T) {
+	for _, tc := range []struct {
+		name, output string
+		blocks       int
+		known        bool
+		success      bool
+		exit         *int
+		warning      bool
+	}{
+		{"scalar unknown", `"returned"`, 0, false, false, nil, false},
+		{"ordered text", `[{"type":"input_text","text":"one"},{"type":"input_text","text":"two"}]`, 2, false, false, nil, false},
+		{"mixed content", `[{"type":"input_text","text":"one"},{"type":"image","image_url":"retained"}]`, 2, false, false, nil, true},
+		{"unknown scalar", `7`, 0, false, false, nil, true},
+		{"wrong exit type", `"{\"metadata\":{\"exit_code\":\"bogus\"}}"`, 0, false, false, nil, true},
+		{"oversized exit", `"{\"metadata\":{\"exit_code\":4294967296}}"`, 0, false, false, nil, true},
+		{"null content", `null`, 0, false, false, nil, true},
+		{"conflicting metadata", `[{"type":"input_text","text":"{\"metadata\":{\"exit_code\":0}}"},{"type":"input_text","text":"{\"metadata\":{\"exit_code\":9}}"}]`, 2, false, false, nil, true},
+		{"explicit zero", `"{\"metadata\":{\"exit_code\":0,\"duration_seconds\":0.125}}"`, 0, true, true, codexExit(0), false},
+		{"explicit failure", `[{"type":"input_text","text":"{\"metadata\":{\"exit_code\":9}}"}]`, 1, true, false, codexExit(9), false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			p := NewCodexForTest().NewTranscriptParser()
+			line := `{"type":"response_item","payload":{"type":"custom_tool_call_output","call_id":"original","output":` + tc.output + `}}`
+			got := p.ParseTranscriptLine(uuid.New(), line)
+			if got.Err != nil || got.Terminal != nil || len(got.Events) == 0 {
+				t.Fatalf("parse=%+v", got)
+			}
+			data, ok := got.Events[0].Data.(*domain.ToolResultEventData)
+			if !ok || data.ToolCallID != "original" || len(data.OutputBlocks) != tc.blocks || data.OutcomeKnown == nil || *data.OutcomeKnown != tc.known || data.Success != tc.success || string(data.RawOutputJSON) != tc.output {
+				t.Fatalf("tool=%+v", data)
+			}
+			if (data.ExitCode == nil) != (tc.exit == nil) || tc.exit != nil && *data.ExitCode != *tc.exit {
+				t.Fatalf("exit=%v", data.ExitCode)
+			}
+			if tc.name == "explicit zero" && (data.DurationMS == nil || *data.DurationMS != 125) {
+				t.Fatalf("duration=%v", data.DurationMS)
+			}
+			if tc.blocks > 0 && string(data.OutputBlocks[0].RawJSON) == "" {
+				t.Fatal("raw block lost")
+			}
+			if (len(got.Events) > 1) != tc.warning {
+				t.Fatalf("diagnostics=%+v", got.Events)
+			}
+			// A warning must not stop a later user boundary or valid terminal.
+			user := p.ParseTranscriptLine(uuid.New(), `{"type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"next"}]}}`)
+			if !user.UserTurnStarted || user.Err != nil {
+				t.Fatalf("user=%+v", user)
+			}
+			terminal := p.ParseTranscriptLine(uuid.New(), `{"type":"event_msg","payload":{"type":"task_complete","turn_id":"later"}}`)
+			if terminal.Terminal == nil || !terminal.Terminal.Success {
+				t.Fatalf("terminal=%+v", terminal)
+			}
+		})
+	}
+}
+
+func codexExit(n int) *int { return &n }
+
+func TestCodexE30FourteenOrderedReturnsReplay(t *testing.T) {
+	content, err := os.ReadFile("testdata/codex_tool_returns_e30.jsonl")
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := NewCodexForTest().NewTranscriptParser()
+	runID := uuid.New()
+	calls := map[string]bool{}
+	results := 0
+	for _, line := range strings.Split(strings.TrimSpace(string(content)), "\n") {
+		got := p.ParseTranscriptLine(runID, line)
+		if got.Err != nil {
+			t.Fatal(got.Err)
+		}
+		for _, event := range got.Events {
+			switch data := event.Data.(type) {
+			case *domain.ToolCallEventData:
+				calls[data.ToolCallID] = true
+			case *domain.ToolResultEventData:
+				results++
+				if !calls[data.ToolCallID] || len(data.OutputBlocks) != 2 || data.OutputBlocks[0].Type != "input_text" || data.OutputBlocks[1].Type != "input_text" || data.ExitCode != nil || data.OutcomeKnown == nil || *data.OutcomeKnown || data.Success {
+					t.Fatalf("return %d=%+v", results, data)
+				}
+			}
+		}
+	}
+	if len(calls) != 14 || results != 14 {
+		t.Fatalf("calls=%d returns=%d", len(calls), results)
+	}
+}
+
+func TestCodexToolDurationRefusesInvalidMetadataIndependently(t *testing.T) {
+	for _, tc := range []struct {
+		name, seconds string
+		want          *int64
+		warning       bool
+	}{
+		{"zero", "0", codexMS(0), false}, {"fractional", "0.125", codexMS(125), false},
+		{"negative", "-0.001", nil, true}, {"overflow", "1e308", nil, true},
+		{"wrong type", `"bogus"`, nil, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			output := `{"metadata":{"exit_code":0,"duration_seconds":` + tc.seconds + `}}`
+			raw, _ := json.Marshal(output)
+			got := codexRolloutToolResult(uuid.New(), codexRolloutPayload{CallID: "duration", Output: raw})
+			d := got[0].Data.(*domain.ToolResultEventData)
+			if d.ExitCode == nil || *d.ExitCode != 0 || !d.Success || d.OutcomeKnown == nil || !*d.OutcomeKnown {
+				t.Fatalf("independent exit lost: %+v", d)
+			}
+			if (d.DurationMS == nil) != (tc.want == nil) || tc.want != nil && *d.DurationMS != *tc.want || (len(got) > 1) != tc.warning {
+				t.Fatalf("duration/warning=%+v events=%d", d, len(got))
+			}
+			if d.RawOutputJSON != string(raw) {
+				t.Fatal("raw duration evidence lost")
+			}
+		})
+	}
+}
+func codexMS(n int64) *int64 { return &n }
+
+func TestCodexFlatTypedMetadataRetainsIndependentFacts(t *testing.T) {
+	for _, tc := range []struct {
+		name, output   string
+		known, success bool
+		warning        bool
+	}{
+		{"invalid exit", `{"metadata":{"exit_code":"bad"}}`, false, false, true},
+		{"oversized exit", `{"metadata":{"exit_code":4294967296}}`, false, false, true},
+		{"valid exit invalid duration", `{"metadata":{"exit_code":0,"duration_seconds":"bad"}}`, true, true, true},
+		{"nonzero", `{"metadata":{"exit_code":9}}`, true, false, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			events := parseCodexItemEvents(nil, uuid.New(), &CodexItem{Type: "tool_result", Name: "exec", ID: "native", Output: tc.output})
+			var d *domain.ToolResultEventData
+			warnings := 0
+			for _, event := range events {
+				if got, ok := event.Data.(*domain.ToolResultEventData); ok {
+					d = got
+				}
+				if _, ok := event.Data.(*domain.LogEventData); ok {
+					warnings++
+				}
+			}
+			if d == nil || d.OutcomeKnown == nil || *d.OutcomeKnown != tc.known || d.Success != tc.success || (warnings > 0) != tc.warning || d.Output != tc.output {
+				t.Fatalf("data=%+v warnings=%d", d, warnings)
+			}
+		})
 	}
 }

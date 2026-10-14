@@ -276,6 +276,37 @@ message DeleteBacklogItemResponse {
   bool deleted = 1;
 }
 
+// TerminalArchiveTarget pins the record reviewed by a bookkeeping caller.
+message TerminalArchiveTarget {
+  string kind = 1 [(buf.validate.field).string.min_len = 1];
+  string name = 2 [(buf.validate.field).string.min_len = 1];
+  string expected_status = 3 [(buf.validate.field).string = {in: ["completed", "dropped"]}];
+  string expected_updated = 4 [(buf.validate.field).string.min_len = 1];
+}
+
+// ArchiveTerminalItemsRequest never selects targets implicitly. Preview is
+// the default; execution rechecks identity, activity, and the pinned record.
+message ArchiveTerminalItemsRequest {
+  repeated TerminalArchiveTarget items = 1 [(buf.validate.field).repeated = {min_items: 1, max_items: 50}];
+  bool execute = 2;
+}
+
+message TerminalArchiveResult {
+  string ref = 1;
+  // eligible, archived, already_archived, changed, refused, missing, unavailable.
+  string code = 2;
+  string reason = 3;
+  string archived_at = 4;
+}
+
+message ArchiveTerminalItemsResponse {
+  repeated TerminalArchiveResult results = 1;
+  int32 eligible_count = 2;
+  int32 archived_count = 3;
+  int32 skipped_count = 4;
+  bool executed = 5;
+}
+
 // ReviewFollowUp is the typed recovery instruction required by a followup
 // decision. It mirrors the durable backlog follow-up record without exposing a
 // free-form JSON envelope.
@@ -395,6 +426,10 @@ service BacklogService {
 
   // DeleteItem removes an item and cleans dependent references. It is idempotent.
   rpc DeleteItem(DeleteBacklogItemRequest) returns (DeleteBacklogItemResponse);
+
+  // ArchiveTerminalItems preserves existing terminal verdicts and returns a
+  // per-item receipt. Partial results are explicit; this is not a transaction.
+  rpc ArchiveTerminalItems(ArchiveTerminalItemsRequest) returns (ArchiveTerminalItemsResponse);
 
   // DecideAttempt applies an auditable decision to a durable attempt. The
   // subject-specific domain validates allowed decisions and proposals.

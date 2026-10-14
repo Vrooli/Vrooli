@@ -58,18 +58,20 @@ Heartbeat configuration is retained when a team is turned off so that the
 operator can restore the prior schedule. Therefore `enabled: true` on a
 heartbeat configuration is not an execution claim. The API and CLI also expose
 the derived fields `teamEnabled`, `effectiveState`, `effectiveReason`,
-`controlState`, and `scheduled`.
+`controlState`, `scheduled`, `schedulerRegistered`, and `schedulerState`.
 
 Treat `effectiveState` as the execution authority:
 
 | State | Meaning |
 |---|---|
-| `scheduled` | The team and heartbeat are enabled, heartbeat control allows starts, and a scheduler entry exists. |
+| `scheduled` | The team and heartbeat are enabled, heartbeat control allows starts, cron is running, and a scheduler entry exists. |
 | `team-archived` | The team is retained for historical recovery, but all execution is refused until it is restored. |
 | `team-disabled` | The heartbeat configuration is retained, but the team is turned off. |
 | `paused` | Heartbeat control is blocking new starts. |
 | `disabled` | The member heartbeat configuration is off. |
 | `not-scheduled` | Configuration is enabled, but no live scheduler entry exists. |
+| `scheduler-stopped` | Enabled configuration has no running cron, even if an entry was registered. |
+| `scheduler-failed` | Startup failed; the response retains the startup reason. |
 | `unavailable` | Prompt Manager could not establish a trustworthy state; do not infer that execution is active. |
 
 All scheduled, manual, retry, and finite-leader dispatch paths re-check the
@@ -375,14 +377,45 @@ The schedule uses standard cron expression format with optional seconds:
 
 Heartbeats execute via Agent Manager using Prompt Manager's declared profiles:
 
-1. **Profile Reconciliation**: Scheduler startup reconciles the registered
-   role-only files under `.vrooli/agent-profiles/`.
-2. **Task Creation**: Creates a task with the built prompt.
-3. **Run Execution**: Starts a run with the reconciled profile key; Agent
-   Manager owns role resolution and concrete runner/model selection.
-4. **Completion Tracking**: Polls for completion and updates config.
+1. AM's existing declaration installer applies the role-only files under
+   `.vrooli/agent-manager/`; installation owns updates and override policy.
+2. Ordinary scheduler startup resolves the installed profiles using one current
+   unpaginated `GET /api/v1/profiles` per exact key. Startup requires matching
+   owner, source path/hash, last-applied hash, and declared execution controls,
+   including budgets and sandbox defaults. Local overrides or drift hold startup
+   for installer disposition. It never invokes ensure/reconciliation or retries
+   anonymously to install a profile.
+3. Historical profile-filtered run reads require exact key/UUID identity only;
+   retired roles, drift or local overrides do not invalidate historical reads.
+   Missing/ambiguous/malformed or unsupported owner responses return unavailable
+   evidence; a conflicting UUID/key pair is refused rather than weakening a filter.
+4. AM starts the run using the declared profile reference. Task creation submits
+   once with local redirect refusal. Definitive 4xx/pre-send failures are typed
+   refusals; lost responses, 5xx, malformed success and invalid returned UUIDs
+   retain uncertain effects for owner recovery. CreateRun proof remains specific
+   to CreateRun; it is never copied to the task or other endpoints.
 
-See [CODE: api/heartbeat/client.go] for the client implementation.
+Scheduler registration, running cron, future next fire and an observed callback
+are separate observations. `Scheduler.State` retains startup failure and the
+last same-instance cron callback; health or a registered entry does not prove
+cron is running. A failed startup stops initial schedule loading.
+
+A bounded reviewer may have an explicitly disabled configuration (`enabled:false`)
+with an empty schedule. The native creation command is
+`prompt-manager team heartbeat-disable <team> <member> --on-demand --profile=<key>`.
+It requires an explicit profile and verifies the disabled, schedule-free owner
+readback. Create/update accepts that configuration without a dummy
+timer, and enabling it requires a real schedule before persistence. The finite
+orchestrator assigns independent review as a bounded child operation through the
+existing lawful owner route; roster membership or disabled configuration supplies
+no task/run authority and starts no reviewer loop.
+
+Matching terminal finite health can repair a stale finite lifecycle projection
+under the existing store lock. The repair revalidates the retained state and the
+config captured after the owner read, changes only status, and never replays
+completion, registry, queue, dispatch or attempt effects. Concurrent predecessor
+changes and local admission/backoff holds retain their owning meaning. Failure
+of the existing save returns its error and restores the in-memory status.
 
 ## Safety Considerations
 

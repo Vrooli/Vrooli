@@ -120,6 +120,20 @@ class SetPolicyProfileResponse(_message.Message):
     policy: Policy
     def __init__(self, policy: _Optional[_Union[Policy, _Mapping]] = ...) -> None: ...
 
+class ConfigureTemporaryRetentionRequest(_message.Message):
+    __slots__ = ("automatic", "min_age_seconds")
+    AUTOMATIC_FIELD_NUMBER: _ClassVar[int]
+    MIN_AGE_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    automatic: bool
+    min_age_seconds: int
+    def __init__(self, automatic: _Optional[bool] = ..., min_age_seconds: _Optional[int] = ...) -> None: ...
+
+class ConfigureTemporaryRetentionResponse(_message.Message):
+    __slots__ = ("policy",)
+    POLICY_FIELD_NUMBER: _ClassVar[int]
+    policy: Policy
+    def __init__(self, policy: _Optional[_Union[Policy, _Mapping]] = ...) -> None: ...
+
 class Policy(_message.Message):
     __slots__ = ("version", "profile", "created_at", "providers")
     VERSION_FIELD_NUMBER: _ClassVar[int]

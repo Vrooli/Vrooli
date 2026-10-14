@@ -341,6 +341,7 @@ type Session struct {
 	NativeThreadId          string           `protobuf:"bytes,26,opt,name=native_thread_id,json=nativeThreadId,proto3" json:"native_thread_id,omitempty"`
 	LastVerifiedTurnId      string           `protobuf:"bytes,27,opt,name=last_verified_turn_id,json=lastVerifiedTurnId,proto3" json:"last_verified_turn_id,omitempty"`
 	ForkedFromNativeSession string           `protobuf:"bytes,28,opt,name=forked_from_native_session,json=forkedFromNativeSession,proto3" json:"forked_from_native_session,omitempty"`
+	CreateFingerprint       string           `protobuf:"bytes,29,opt,name=create_fingerprint,json=createFingerprint,proto3" json:"create_fingerprint,omitempty"` // persisted creation request identity for exact recovery
 	unknownFields           protoimpl.UnknownFields
 	sizeCache               protoimpl.SizeCache
 }
@@ -532,6 +533,13 @@ func (x *Session) GetLastVerifiedTurnId() string {
 func (x *Session) GetForkedFromNativeSession() string {
 	if x != nil {
 		return x.ForkedFromNativeSession
+	}
+	return ""
+}
+
+func (x *Session) GetCreateFingerprint() string {
+	if x != nil {
+		return x.CreateFingerprint
 	}
 	return ""
 }
@@ -1073,6 +1081,7 @@ type CreateRequest struct {
 	// exposes native capability after a session-specific handshake verifies it.
 	LaunchMode           string `protobuf:"bytes,16,opt,name=launch_mode,json=launchMode,proto3" json:"launch_mode,omitempty"`
 	LaunchDescriptorJson string `protobuf:"bytes,17,opt,name=launch_descriptor_json,json=launchDescriptorJson,proto3" json:"launch_descriptor_json,omitempty"`
+	RequestedSessionId   string `protobuf:"bytes,18,opt,name=requested_session_id,json=requestedSessionId,proto3" json:"requested_session_id,omitempty"` // optional preallocated UUID; replay requires identical request
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -1226,6 +1235,13 @@ func (x *CreateRequest) GetLaunchDescriptorJson() string {
 	return ""
 }
 
+func (x *CreateRequest) GetRequestedSessionId() string {
+	if x != nil {
+		return x.RequestedSessionId
+	}
+	return ""
+}
+
 type CreateResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Session       *Session               `protobuf:"bytes,1,opt,name=session,proto3" json:"session,omitempty"`
@@ -1309,6 +1325,10 @@ func (*ListRequest) Descriptor() ([]byte, []int) {
 type ListResponse struct {
 	state    protoimpl.MessageState `protogen:"open.v1"`
 	Sessions []*Session             `protobuf:"bytes,1,rep,name=sessions,proto3" json:"sessions,omitempty"`
+	// Explicit server support; absent on old peers, so clients refuse stable Create before writes.
+	SupportsStableCreateIdentity bool `protobuf:"varint,3,opt,name=supports_stable_create_identity,json=supportsStableCreateIdentity,proto3" json:"supports_stable_create_identity,omitempty"`
+	// Canonical verified caller who would own a stable Create; empty refuses qualification.
+	StableCreateOwner string `protobuf:"bytes,4,opt,name=stable_create_owner,json=stableCreateOwner,proto3" json:"stable_create_owner,omitempty"`
 	// recovery reports startup session-recovery progress. Reattaching surviving
 	// tmux sessions runs asynchronously so the API can serve immediately, so a
 	// client that lists during recovery may see fewer sessions than will exist
@@ -1355,6 +1375,20 @@ func (x *ListResponse) GetSessions() []*Session {
 		return x.Sessions
 	}
 	return nil
+}
+
+func (x *ListResponse) GetSupportsStableCreateIdentity() bool {
+	if x != nil {
+		return x.SupportsStableCreateIdentity
+	}
+	return false
+}
+
+func (x *ListResponse) GetStableCreateOwner() string {
+	if x != nil {
+		return x.StableCreateOwner
+	}
+	return ""
 }
 
 func (x *ListResponse) GetRecovery() *RecoveryStatus {
@@ -3133,7 +3167,7 @@ const file_web_console_v1_sessions_sessions_proto_rawDesc = "" +
 	"&web-console/v1/sessions/sessions.proto\x12\x1evrooli.web_console.v1.sessions\x1a\"web-console/v1/shared/target.proto\"B\n" +
 	"\x10ExpirationPolicy\x12\x12\n" +
 	"\x04mode\x18\x01 \x01(\tR\x04mode\x12\x1a\n" +
-	"\bduration\x18\x02 \x01(\tR\bduration\"\xb4\a\n" +
+	"\bduration\x18\x02 \x01(\tR\bduration\"\xe3\a\n" +
 	"\aSession\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05shell\x18\x02 \x01(\tR\x05shell\x12\x1d\n" +
@@ -3160,7 +3194,8 @@ const file_web_console_v1_sessions_sessions_proto_rawDesc = "" +
 	"\x10provider_version\x18\x19 \x01(\tR\x0fproviderVersion\x12(\n" +
 	"\x10native_thread_id\x18\x1a \x01(\tR\x0enativeThreadId\x121\n" +
 	"\x15last_verified_turn_id\x18\x1b \x01(\tR\x12lastVerifiedTurnId\x12;\n" +
-	"\x1aforked_from_native_session\x18\x1c \x01(\tR\x17forkedFromNativeSession\"R\n" +
+	"\x1aforked_from_native_session\x18\x1c \x01(\tR\x17forkedFromNativeSession\x12-\n" +
+	"\x12create_fingerprint\x18\x1d \x01(\tR\x11createFingerprint\"R\n" +
 	"\fPromptOption\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05label\x18\x02 \x01(\tR\x05label\x12\x1a\n" +
@@ -3220,7 +3255,7 @@ const file_web_console_v1_sessions_sessions_proto_rawDesc = "" +
 	"\x10provider_version\x18\x17 \x01(\tR\x0fproviderVersion\x12(\n" +
 	"\x10native_thread_id\x18\x18 \x01(\tR\x0enativeThreadId\x121\n" +
 	"\x15last_verified_turn_id\x18\x19 \x01(\tR\x12lastVerifiedTurnId\x12;\n" +
-	"\x1aforked_from_native_session\x18\x1a \x01(\tR\x17forkedFromNativeSession\"\x8b\x05\n" +
+	"\x1aforked_from_native_session\x18\x1a \x01(\tR\x17forkedFromNativeSession\"\xbd\x05\n" +
 	"\rCreateRequest\x12\x14\n" +
 	"\x05shell\x18\x01 \x01(\tR\x05shell\x12\x12\n" +
 	"\x04cols\x18\x02 \x01(\x05R\x04cols\x12\x12\n" +
@@ -3243,12 +3278,15 @@ const file_web_console_v1_sessions_sessions_proto_rawDesc = "" +
 	"\x0ftmux_mouse_mode\x18\x0f \x01(\bR\rtmuxMouseMode\x12\x1f\n" +
 	"\vlaunch_mode\x18\x10 \x01(\tR\n" +
 	"launchMode\x124\n" +
-	"\x16launch_descriptor_json\x18\x11 \x01(\tR\x14launchDescriptorJson\"S\n" +
+	"\x16launch_descriptor_json\x18\x11 \x01(\tR\x14launchDescriptorJson\x120\n" +
+	"\x14requested_session_id\x18\x12 \x01(\tR\x12requestedSessionId\"S\n" +
 	"\x0eCreateResponse\x12A\n" +
 	"\asession\x18\x01 \x01(\v2'.vrooli.web_console.v1.sessions.SessionR\asession\"\r\n" +
-	"\vListRequest\"\x9f\x01\n" +
+	"\vListRequest\"\x96\x02\n" +
 	"\fListResponse\x12C\n" +
-	"\bsessions\x18\x01 \x03(\v2'.vrooli.web_console.v1.sessions.SessionR\bsessions\x12J\n" +
+	"\bsessions\x18\x01 \x03(\v2'.vrooli.web_console.v1.sessions.SessionR\bsessions\x12E\n" +
+	"\x1fsupports_stable_create_identity\x18\x03 \x01(\bR\x1csupportsStableCreateIdentity\x12.\n" +
+	"\x13stable_create_owner\x18\x04 \x01(\tR\x11stableCreateOwner\x12J\n" +
 	"\brecovery\x18\x02 \x01(\v2..vrooli.web_console.v1.sessions.RecoveryStatusR\brecovery\"\xf9\x03\n" +
 	"\x0fArchivedSession\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +

@@ -152,9 +152,20 @@ func TestFiniteJoinedNativeHTTPFixture(t *testing.T) {
 	for time.Now().Before(deadline) {
 		b, e := os.ReadFile(filepath.Join(root, "owner.json"))
 		if e == nil {
-			var owner struct{ URL, Pin string }
+			var owner struct {
+				URL, Pin string
+				Policy   effortauthority.Policy
+			}
 			if json.Unmarshal(b, &owner) != nil {
 				t.Fatal("owner metadata")
+			}
+			// Install the full finite-native composition (admission-only factory +
+			// terminal settle), mirroring the production invariant that authority
+			// implies a qualifying factory. The binding is derived from the
+			// owner-finalized policy so CheckBinding honors policy/profile/repo/
+			// deadline exactly; no host, service or agent is launched.
+			if e := orchestration.InstallFixtureFiniteNativeForTest(orch, owner.Policy, profile); e != nil {
+				t.Fatal(e)
 			}
 			cert, e := tls.LoadX509KeyPair(filepath.Join(root, "peer.crt"), filepath.Join(root, "peer.key"))
 			if e != nil {

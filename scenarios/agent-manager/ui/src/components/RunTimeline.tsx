@@ -38,6 +38,7 @@ import {
   getTimelineCategoryLabel,
   getTimelineEventLabel,
   getTimelineEventSummary,
+  getToolResultOutcome,
   getTimelineModeLabel,
   groupTimelineEntries,
   TIMELINE_CATEGORY_ORDER,
@@ -936,12 +937,12 @@ function ToolGroupRow({ group }: { group: TimelineToolGroup }) {
   const allSucceeded = group.pairs.every((p) => {
     if (!p.result) return false;
     const payload = p.result.event.data.value as Record<string, unknown>;
-    return payload.success === true;
+    return getToolResultOutcome(payload) === "success";
   });
   const anyFailed = group.pairs.some((p) => {
     if (!p.result) return false;
     const payload = p.result.event.data.value as Record<string, unknown>;
-    return payload.success === false;
+    return getToolResultOutcome(payload) === "failure";
   });
   const anyPending = group.pairs.some((p) => !p.result);
 
@@ -1055,8 +1056,10 @@ function ToolPairRow({ pair }: { pair: import("../lib/runTimeline").ToolCallPair
           {pair.toolName}
         </div>
         {resultPayload ? (
-          resultPayload.success ? (
+          getToolResultOutcome(resultPayload) === "success" ? (
             <Check className="h-3 w-3 shrink-0 text-green-600 dark:text-green-400" />
+          ) : getToolResultOutcome(resultPayload) === "unknown" ? (
+            <Activity aria-label="Outcome unknown" className="h-3 w-3 shrink-0 text-muted-foreground" />
           ) : (
             <AlertCircle className="h-3 w-3 shrink-0 text-destructive" />
           )
@@ -1080,12 +1083,19 @@ function ToolPairRow({ pair }: { pair: import("../lib/runTimeline").ToolCallPair
           {resultPayload ? (
             <>
               <div className="mt-2 mb-1 text-[10px] font-medium text-muted-foreground">
-                {resultPayload.success ? "Output" : "Error"}
+                {getToolResultOutcome(resultPayload) === "failure" ? "Error" : getToolResultOutcome(resultPayload) === "unknown" ? "Output (outcome unknown)" : "Output"}
               </div>
-              <CodeBlock
-                code={String(resultPayload.success ? resultPayload.output : resultPayload.error) || "(empty)"}
-                language="text"
-              />
+              {Array.isArray(resultPayload.outputBlocks) && resultPayload.outputBlocks.length > 0 ? (
+                resultPayload.outputBlocks.map((block: { type?: string; text?: string; rawJson?: string }, index: number) => (
+                  <div key={index}>
+                    <div className="text-[10px] text-muted-foreground">{block.type || "Unsupported content"}</div>
+                    <CodeBlock code={block.text || block.rawJson || "(empty)"} language={block.text ? "text" : "json"} />
+                  </div>
+                ))
+              ) : (
+                <CodeBlock code={String(resultPayload.output || resultPayload.rawOutputJson || resultPayload.error) || "(empty)"} language="text" />
+              )}
+              {resultPayload.error ? <CodeBlock code={String(resultPayload.error)} language="text" /> : null}
             </>
           ) : null}
         </div>

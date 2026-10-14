@@ -65,11 +65,11 @@ func TestBreakGlassIssuersConform(t *testing.T) {
 }
 
 func TestParseResourceAudiences(t *testing.T) {
-	got := parseResourceAudiences("bridge=scenario-authenticator:bridge, device-sync-hub=scenario-authenticator:devices,broken,=missing,bad=aud|pipe")
-	if got["bridge"] != "scenario-authenticator:bridge" || got["device-sync-hub"] != "scenario-authenticator:devices" {
+	got := parseResourceAudiences("bridge=scenario-authenticator:bridge, device-sync-hub=scenario-authenticator:devices, deployment-manager=scenario-authenticator:deployment-manager,broken,=missing,bad=aud|pipe")
+	if got["bridge"] != "scenario-authenticator:bridge" || got["device-sync-hub"] != "scenario-authenticator:devices" || got["deployment-manager"] != "scenario-authenticator:deployment-manager" {
 		t.Fatalf("parsed resources = %#v", got)
 	}
-	if len(got) != 2 {
+	if len(got) != 3 {
 		t.Fatalf("parsed malformed resource entries: %#v", got)
 	}
 }

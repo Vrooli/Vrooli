@@ -70,12 +70,15 @@ const (
 // passed as typed argv tokens; this package never accepts or constructs a
 // shell command string.
 type AgentLaunchRequest struct {
-	Agent       string
-	TaskID      string
-	Args        []string
-	Environment []string
-	APIBase     string
-	WorkingDir  string
+	Agent string
+	// RequireNativeIdentity opts into protected startup: live broker refusal or
+	// unavailable custody stops before attachment, lease and child execution.
+	RequireNativeIdentity bool
+	TaskID                string
+	Args                  []string
+	Environment           []string
+	APIBase               string
+	WorkingDir            string
 	// Claims are advisory paths this session says it will edit; a live
 	// session holding an overlapping claim is named at launch and the
 	// launch continues (D8: advisory in this release).
@@ -175,7 +178,32 @@ func LaunchCodingAgent(ctx context.Context, request AgentLaunchRequest) error {
 // LaunchCodingAgentResult is LaunchCodingAgent with an observability result.
 // Attribution remains fail-open so a missing Agent Manager never prevents the
 // underlying coding agent from starting.
+// LaunchCommandSessionResult runs typed command argv under a protected, zero-scope
+// external-session identity. It starts no coding agent and makes no assertion about
+// privileged identity of its surrounding executor. The wrapper waits and detaches.
+// Args includes the executable as its first element; Agent is ignored.
+func LaunchCommandSessionResult(ctx context.Context, request AgentLaunchRequest) (LaunchResult, error) {
+	if len(request.Args) == 0 || strings.TrimSpace(request.Args[0]) == "" {
+		return LaunchResult{}, errors.New("command argv required")
+	}
+	if task := request.TaskID; task != "" {
+		raw, err := hex.DecodeString(strings.ReplaceAll(task, "-", ""))
+		if len(task) != 36 || task[8] != '-' || task[13] != '-' || task[18] != '-' || task[23] != '-' || err != nil || len(raw) != 16 || strings.Trim(strings.ReplaceAll(task, "-", ""), "0") == "" {
+			return LaunchResult{}, errors.New("existing task UUID required")
+		}
+	}
+	binary := request.Args[0]
+	request.Args = append([]string(nil), request.Args[1:]...)
+	request.Agent = "command-session"
+	request.RequireNativeIdentity = true
+	return launchNativeSession(ctx, request, binary)
+}
+
 func LaunchCodingAgentResult(ctx context.Context, request AgentLaunchRequest) (LaunchResult, error) {
+	return launchNativeSession(ctx, request, "")
+}
+
+func launchNativeSession(ctx context.Context, request AgentLaunchRequest, command string) (LaunchResult, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -188,13 +216,24 @@ func LaunchCodingAgentResult(ctx context.Context, request AgentLaunchRequest) (L
 	}
 	request.WorkingDir = launchContext.WorkingDir
 	request.Environment = PrepareLaunchEnvironment(request.Environment, launchContext)
-	harnessKind, binary, err := codingAgentSpec(request.Agent)
-	if err != nil {
-		return LaunchResult{}, &AgentLaunchError{Agent: request.Agent, Err: err}
+	harnessKind, binary := "command-session", command
+	if command == "" {
+		harnessKind, binary, err = codingAgentSpec(request.Agent)
+		if err != nil {
+			return LaunchResult{}, &AgentLaunchError{Agent: request.Agent, Err: err}
+		}
 	}
 
 	var path string
-	if request.LookPathInEnvironment != nil {
+	if command != "" && strings.ContainsRune(binary, '/') {
+		path = binary
+		if !filepath.IsAbs(path) {
+			path = filepath.Join(request.WorkingDir, path)
+		}
+		if !isExecutableFile(path) {
+			err = fmt.Errorf("command is not executable")
+		}
+	} else if request.LookPathInEnvironment != nil {
 		path, err = request.LookPathInEnvironment(binary, request.Environment)
 	} else if request.LookPath != nil {
 		path, err = request.LookPath(binary)
@@ -226,6 +265,22 @@ func LaunchCodingAgentResult(ctx context.Context, request AgentLaunchRequest) (L
 		environment = withEnvironmentValue(environment, AgentSessionEnv, inherited)
 	}
 
+	// Protected startup consults exactly the ordinary authority/socket first.
+	// Never turn a responding refusal into inherited or attachment fallback.
+	protectedToken := ""
+	if request.RequireNativeIdentity {
+		protectedToken, err = ResolveAgentCredential(ctx)
+		if err != nil {
+			return LaunchResult{}, &AgentLaunchError{Agent: request.Agent, Err: err}
+		}
+		if protectedToken != "" {
+			environment = withEnvironmentValue(environment, AgentManagerIdentityTokenEnv, protectedToken)
+		}
+		if environmentValue(environment, AgentSessionEnv) != "" && protectedToken == "" {
+			return LaunchResult{}, &AgentLaunchError{Agent: request.Agent, Err: errors.New("existing session has no native identity")}
+		}
+	}
+
 	// A question asked of the binary is not a session. Answering it needs no
 	// run row, no lease and no scope, and creating them costs a D-Bus round
 	// trip and a cgroup each time. On 2026-09-05 a probe loop asking all five
@@ -233,7 +288,10 @@ func LaunchCodingAgentResult(ctx context.Context, request AgentLaunchRequest) (L
 	// and 29,000 lease rows a day, which filled `vrooli agent list` with
 	// sessions that never existed and made the agent slice's occupancy
 	// unreadable.
-	if informationalInvocation(request.Args) {
+	if command == "" && informationalInvocation(request.Args) {
+		if request.RequireNativeIdentity && protectedToken == "" {
+			return LaunchResult{}, &AgentLaunchError{Agent: request.Agent, Err: errors.New("existing native credential required for protected informational invocation")}
+		}
 		return runUngovernedProbe(ctx, request, path, binary, environment)
 	}
 
@@ -241,6 +299,19 @@ func LaunchCodingAgentResult(ctx context.Context, request AgentLaunchRequest) (L
 	// must not open a second: one session is one lease, one scope and one run
 	// row, whichever stage of the chain the operator's command entered at.
 	if inherited := environmentValue(environment, AgentSessionEnv); inherited != "" {
+		if request.RequireNativeIdentity {
+			current, custodyErr := resolveAgentCredential(ctx, AgentCredentialSocket(), protectedToken)
+			if custodyErr != nil {
+				return LaunchResult{}, &AgentLaunchError{Agent: request.Agent, Err: custodyErr}
+			}
+			if current != protectedToken {
+				return LaunchResult{}, &AgentLaunchError{Agent: request.Agent, Err: errors.New("native credential changed during launch")}
+			}
+		}
+		if command != "" && request.RunChild == nil {
+			// An in-task command wrapper waits even when it adopts an existing session.
+			request.RunChild = runNativeChild(request, binary)
+		}
 		return runInheritedSession(ctx, request, path, binary, environment, inherited)
 	}
 
@@ -249,12 +320,39 @@ func LaunchCodingAgentResult(ctx context.Context, request AgentLaunchRequest) (L
 	// attach time instead. Because exec keeps the pid, the pid reported here is
 	// the agent's pid, and agent-manager's reconciler closes the run by
 	// process liveness (see attachedRunProcessAlive).
-	willExec := request.RunChild == nil && execReplaceSupported && stdioIsInherited(request)
+	willExec := command == "" && request.RunChild == nil && execReplaceSupported && stdioIsInherited(request)
 
 	// The scope is named from the harness session id before attachment, so the
 	// lease and cgroup use a stable name whether or not a run id is minted.
 	scope := agentScopeName("", harnessSessionID(harnessKind))
-	attach := attachCodingAgent(ctx, request, harnessKind, willExec)
+	var attach codingAgentAttachment
+	if request.RequireNativeIdentity && protectedToken != "" {
+		attach = codingAgentAttachment{token: protectedToken}
+	} else {
+		attach = attachCodingAgent(ctx, request, harnessKind, willExec || command != "")
+	}
+	if request.RequireNativeIdentity {
+		if attach.token == "" {
+			if attach.err != nil {
+				return LaunchResult{}, &AgentLaunchError{Agent: request.Agent, Err: attach.err}
+			}
+			return LaunchResult{}, &AgentLaunchError{Agent: request.Agent, Err: errors.New("native identity attachment unavailable: " + attach.failure)}
+		}
+		// Reconsult the same live authority with the privately held candidate. This
+		// cannot use another namespace or inherited leaf to evade a broker denial.
+		current, custodyErr := resolveAgentCredential(ctx, AgentCredentialSocket(), attach.token)
+		if custodyErr != nil || current != attach.token {
+			if custodyErr == nil {
+				custodyErr = errors.New("native credential changed during launch")
+			}
+			if attach.runID != "" {
+				if cleanupErr := detachCodingAgent(context.Background(), request, attach.runID, attach.token); cleanupErr != nil {
+					custodyErr = fmt.Errorf("%w; owned attachment %s cleanup unconfirmed: %v", custodyErr, attach.runID, cleanupErr)
+				}
+			}
+			return LaunchResult{}, &AgentLaunchError{Agent: request.Agent, Err: custodyErr}
+		}
+	}
 	launchResult := LaunchResult{Tier: "tier-4"}
 	containment, containmentSource := agentContainmentFn()
 	var report containmentReport
@@ -298,20 +396,16 @@ func LaunchCodingAgentResult(ctx context.Context, request AgentLaunchRequest) (L
 		_ = execReplace(path, append([]string{binary}, request.Args...), environment, request.WorkingDir)
 	}
 
-	if attach.runID != "" {
-		defer func() {
-			// Detach is cleanup only. It never signals or kills the child and
-			// its failure must not mask the child result. Only the
-			// spawn-and-wait path ever reaches this.
-			_ = detachCodingAgent(context.Background(), request, attach.runID)
-		}()
-	}
-
 	runChild := request.RunChild
 	if runChild == nil {
 		runChild = runContainedChild(request, binary, scope, containment, containmentSource, &report)
 	}
 	err = runChild(ctx, path, append([]string(nil), request.Args...), environment, request.Stdin, request.Stdout, request.Stderr)
+	if attach.runID != "" {
+		if cleanupErr := detachCodingAgent(context.Background(), request, attach.runID, attach.token); cleanupErr != nil && request.RequireNativeIdentity {
+			err = errors.Join(err, fmt.Errorf("owned attachment %s cleanup unconfirmed: %w", attach.runID, cleanupErr))
+		}
+	}
 	launchResult.Scope, launchResult.ContainmentMethod = report.Scope, report.Method
 	launchResult.ContainmentSource, launchResult.ContainmentFailure = report.Source, report.Failure
 	launchResult.ContainmentUnsupported = report.Unsupported
@@ -387,6 +481,9 @@ func environmentValue(environment []string, key string) string {
 // The ceiling is already on this process, and exec keeps it.
 func runInheritedSession(ctx context.Context, request AgentLaunchRequest, path, binary string, environment []string, scope string) (LaunchResult, error) {
 	result := LaunchResult{Tier: "tier-4", Scope: scope, AttachFailure: "inherited an open session from an earlier launcher stage"}
+	if request.RequireNativeIdentity {
+		result.Tier, result.AttachFailure = "tier-1", ""
+	}
 	if request.RunChild == nil && execReplaceSupported && stdioIsInherited(request) {
 		_ = execReplace(path, append([]string{binary}, request.Args...), environment, request.WorkingDir)
 	}
@@ -439,6 +536,7 @@ type codingAgentAttachment struct {
 	runID   string
 	token   string
 	failure string
+	err     error
 }
 
 func codingAgentSpec(agent string) (harnessKind, binary string, err error) {
@@ -517,9 +615,9 @@ func attachCodingAgent(parent context.Context, request AgentLaunchRequest, harne
 	response, err := client.Do(req)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) || errors.Is(ctx.Err(), context.DeadlineExceeded) {
-			return codingAgentAttachment{failure: "timeout"}
+			return codingAgentAttachment{failure: "timeout", err: err}
 		}
-		return codingAgentAttachment{failure: "agent-manager unreachable"}
+		return codingAgentAttachment{failure: "agent-manager unreachable", err: err}
 	}
 	defer response.Body.Close()
 	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
@@ -541,7 +639,7 @@ func attachCodingAgent(parent context.Context, request AgentLaunchRequest, harne
 	return attachment
 }
 
-func detachCodingAgent(parent context.Context, request AgentLaunchRequest, runID string) error {
+func detachCodingAgent(parent context.Context, request AgentLaunchRequest, runID, token string) error {
 	base := agentManagerLauncherBase(request)
 	parsed, err := url.Parse(base)
 	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
@@ -559,9 +657,34 @@ func detachCodingAgent(parent context.Context, request AgentLaunchRequest, runID
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	if request.RequireNativeIdentity {
+		if token == "" {
+			return errors.New("held native credential required for owned cleanup")
+		}
+		pin := &agentCredentialPin{token: token, resolve: func(ctx context.Context) (string, error) {
+			return resolveAgentCredential(ctx, AgentCredentialSocket(), token)
+		}}
+		req = req.WithContext(context.WithValue(req.Context(), agentCredentialPinKey{}, pin))
+		req.Header.Set(HeaderAgentIdentityToken, token)
+		if err := ApplyAgentIdentity(req); err != nil {
+			return err
+		}
+	}
 	client := request.HTTPClient
 	if client == nil {
 		client = &http.Client{}
+	}
+	if request.RequireNativeIdentity {
+		copyClient := *client
+		copyClient.CheckRedirect = func(*http.Request, []*http.Request) error { return errors.New("protected cleanup redirect refused") }
+		next := client.Transport
+		if next == nil {
+			next = http.DefaultTransport
+		}
+		// Every wire hop retains the pin, including redirect attempts. No alternate
+		// transport is selected after denial.
+		copyClient.Transport = identityForwardingTransport{next: next}
+		client = &copyClient
 	}
 	response, err := client.Do(req)
 	if err != nil {
@@ -576,7 +699,11 @@ func detachCodingAgent(parent context.Context, request AgentLaunchRequest, runID
 }
 
 func harnessSessionID(harnessKind string) string {
-	for _, env := range harnessSessionEnvironments(harnessKind) {
+	var environments []string
+	if harnessKind != "command-session" {
+		environments = harnessSessionEnvironments(harnessKind)
+	}
+	for _, env := range environments {
 		if value := strings.TrimSpace(os.Getenv(env)); value != "" {
 			return value
 		}

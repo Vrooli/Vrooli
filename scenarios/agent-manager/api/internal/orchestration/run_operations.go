@@ -399,7 +399,9 @@ func appendAndBroadcastEvents(ctx context.Context, store event.Store, broadcaste
 	}
 	if broadcaster != nil {
 		for _, evt := range persistable {
-			broadcaster.BroadcastEvent(evt)
+			if !evt.PersistenceReplay {
+				broadcaster.BroadcastEvent(evt)
+			}
 		}
 	}
 	return nil
@@ -410,7 +412,7 @@ func (o *Orchestrator) appendAndBroadcastEvents(ctx context.Context, runID uuid.
 		return err
 	}
 	for _, evt := range events {
-		if evt == nil {
+		if evt == nil || evt.PersistenceReplay {
 			continue
 		}
 		o.nudgeWorkflowUsage(runID, evt)
@@ -444,7 +446,7 @@ func (e *eventStoreAdapter) Emit(evt *domain.RunEvent) error {
 		return err
 	}
 	e.lastSequence = evt.Sequence
-	if e.afterPersist != nil {
+	if e.afterPersist != nil && !evt.PersistenceReplay {
 		e.afterPersist(evt)
 	}
 	return nil
@@ -481,11 +483,11 @@ func (b *broadcastingEventSink) Emit(evt *domain.RunEvent) error {
 		return err
 	}
 	b.lastSequence = evt.Sequence
-	if b.afterPersist != nil {
+	if b.afterPersist != nil && !evt.PersistenceReplay {
 		b.afterPersist(evt)
 	}
 
-	if b.broadcaster != nil {
+	if b.broadcaster != nil && !evt.PersistenceReplay {
 		// Also emit progress events for status changes
 		if data, ok := evt.Data.(*domain.StatusEventData); ok {
 			b.broadcaster.BroadcastProgress(b.runID, domain.RunPhase(data.NewStatus), 0, data.Reason)

@@ -90,18 +90,40 @@ class Actor(_message.Message):
     def __init__(self, subject: _Optional[str] = ..., kind: _Optional[str] = ..., verified: _Optional[bool] = ..., run_id: _Optional[str] = ...) -> None: ...
 
 class ProposalWork(_message.Message):
-    __slots__ = ("effort_ref", "effort_revision", "epoch", "run_ids", "plans")
+    __slots__ = ("effort_ref", "effort_revision", "epoch", "run_ids", "plans", "folded_epochs")
     EFFORT_REF_FIELD_NUMBER: _ClassVar[int]
     EFFORT_REVISION_FIELD_NUMBER: _ClassVar[int]
     EPOCH_FIELD_NUMBER: _ClassVar[int]
     RUN_IDS_FIELD_NUMBER: _ClassVar[int]
     PLANS_FIELD_NUMBER: _ClassVar[int]
+    FOLDED_EPOCHS_FIELD_NUMBER: _ClassVar[int]
     effort_ref: str
     effort_revision: str
     epoch: str
     run_ids: _containers.RepeatedScalarFieldContainer[str]
     plans: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, effort_ref: _Optional[str] = ..., effort_revision: _Optional[str] = ..., epoch: _Optional[str] = ..., run_ids: _Optional[_Iterable[str]] = ..., plans: _Optional[_Iterable[str]] = ...) -> None: ...
+    folded_epochs: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, effort_ref: _Optional[str] = ..., effort_revision: _Optional[str] = ..., epoch: _Optional[str] = ..., run_ids: _Optional[_Iterable[str]] = ..., plans: _Optional[_Iterable[str]] = ..., folded_epochs: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class ProposalFold(_message.Message):
+    __slots__ = ("id", "epoch", "subject", "reason", "paths", "revision", "effort_ref", "evidence")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    EPOCH_FIELD_NUMBER: _ClassVar[int]
+    SUBJECT_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    PATHS_FIELD_NUMBER: _ClassVar[int]
+    REVISION_FIELD_NUMBER: _ClassVar[int]
+    EFFORT_REF_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    epoch: str
+    subject: str
+    reason: str
+    paths: _containers.RepeatedScalarFieldContainer[str]
+    revision: int
+    effort_ref: str
+    evidence: ProposalEvidence
+    def __init__(self, id: _Optional[str] = ..., epoch: _Optional[str] = ..., subject: _Optional[str] = ..., reason: _Optional[str] = ..., paths: _Optional[_Iterable[str]] = ..., revision: _Optional[int] = ..., effort_ref: _Optional[str] = ..., evidence: _Optional[_Union[ProposalEvidence, _Mapping]] = ...) -> None: ...
 
 class ProposalTrailer(_message.Message):
     __slots__ = ("key", "value", "kind", "resolution", "detail", "known")
@@ -156,7 +178,7 @@ class ProposalFlag(_message.Message):
     def __init__(self, code: _Optional[str] = ..., detail: _Optional[str] = ...) -> None: ...
 
 class ProposalFile(_message.Message):
-    __slots__ = ("path", "kind", "sha256", "blob_id", "deleted", "source", "flags", "current_blob_id", "drifted")
+    __slots__ = ("path", "kind", "sha256", "blob_id", "deleted", "source", "flags", "current_blob_id", "drifted", "mode", "base_mode", "base_blob_id")
     PATH_FIELD_NUMBER: _ClassVar[int]
     KIND_FIELD_NUMBER: _ClassVar[int]
     SHA256_FIELD_NUMBER: _ClassVar[int]
@@ -166,6 +188,9 @@ class ProposalFile(_message.Message):
     FLAGS_FIELD_NUMBER: _ClassVar[int]
     CURRENT_BLOB_ID_FIELD_NUMBER: _ClassVar[int]
     DRIFTED_FIELD_NUMBER: _ClassVar[int]
+    MODE_FIELD_NUMBER: _ClassVar[int]
+    BASE_MODE_FIELD_NUMBER: _ClassVar[int]
+    BASE_BLOB_ID_FIELD_NUMBER: _ClassVar[int]
     path: str
     kind: FileChangeKind
     sha256: str
@@ -175,7 +200,10 @@ class ProposalFile(_message.Message):
     flags: _containers.RepeatedCompositeFieldContainer[ProposalFlag]
     current_blob_id: str
     drifted: bool
-    def __init__(self, path: _Optional[str] = ..., kind: _Optional[_Union[FileChangeKind, str]] = ..., sha256: _Optional[str] = ..., blob_id: _Optional[str] = ..., deleted: _Optional[bool] = ..., source: _Optional[str] = ..., flags: _Optional[_Iterable[_Union[ProposalFlag, _Mapping]]] = ..., current_blob_id: _Optional[str] = ..., drifted: _Optional[bool] = ...) -> None: ...
+    mode: str
+    base_mode: str
+    base_blob_id: str
+    def __init__(self, path: _Optional[str] = ..., kind: _Optional[_Union[FileChangeKind, str]] = ..., sha256: _Optional[str] = ..., blob_id: _Optional[str] = ..., deleted: _Optional[bool] = ..., source: _Optional[str] = ..., flags: _Optional[_Iterable[_Union[ProposalFlag, _Mapping]]] = ..., current_blob_id: _Optional[str] = ..., drifted: _Optional[bool] = ..., mode: _Optional[str] = ..., base_mode: _Optional[str] = ..., base_blob_id: _Optional[str] = ...) -> None: ...
 
 class ProposalExclusion(_message.Message):
     __slots__ = ("path", "reason", "detail")
@@ -236,7 +264,7 @@ class ProposalEvent(_message.Message):
     def __init__(self, action: _Optional[str] = ..., actor: _Optional[_Union[Actor, _Mapping]] = ..., revision: _Optional[int] = ..., detail: _Optional[str] = ..., timestamp: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class Proposal(_message.Message):
-    __slots__ = ("id", "repository_id", "state", "revision", "created_by", "base_head", "branch", "work", "message", "files", "excluded", "evidence", "proposal_digest", "commit_oid", "superseded_by", "freshness", "events", "issues", "created_at", "updated_at", "committed_at")
+    __slots__ = ("id", "repository_id", "state", "revision", "created_by", "base_head", "branch", "work", "message", "files", "excluded", "evidence", "proposal_digest", "commit_oid", "superseded_by", "freshness", "events", "issues", "created_at", "updated_at", "committed_at", "folds", "captured", "retained_revisions", "repository_name", "repository_path")
     ID_FIELD_NUMBER: _ClassVar[int]
     REPOSITORY_ID_FIELD_NUMBER: _ClassVar[int]
     STATE_FIELD_NUMBER: _ClassVar[int]
@@ -258,6 +286,11 @@ class Proposal(_message.Message):
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
     COMMITTED_AT_FIELD_NUMBER: _ClassVar[int]
+    FOLDS_FIELD_NUMBER: _ClassVar[int]
+    CAPTURED_FIELD_NUMBER: _ClassVar[int]
+    RETAINED_REVISIONS_FIELD_NUMBER: _ClassVar[int]
+    REPOSITORY_NAME_FIELD_NUMBER: _ClassVar[int]
+    REPOSITORY_PATH_FIELD_NUMBER: _ClassVar[int]
     id: str
     repository_id: str
     state: ProposalState
@@ -279,19 +312,26 @@ class Proposal(_message.Message):
     created_at: _timestamp_pb2.Timestamp
     updated_at: _timestamp_pb2.Timestamp
     committed_at: _timestamp_pb2.Timestamp
-    def __init__(self, id: _Optional[str] = ..., repository_id: _Optional[str] = ..., state: _Optional[_Union[ProposalState, str]] = ..., revision: _Optional[int] = ..., created_by: _Optional[_Union[Actor, _Mapping]] = ..., base_head: _Optional[str] = ..., branch: _Optional[str] = ..., work: _Optional[_Union[ProposalWork, _Mapping]] = ..., message: _Optional[_Union[ProposalMessage, _Mapping]] = ..., files: _Optional[_Iterable[_Union[ProposalFile, _Mapping]]] = ..., excluded: _Optional[_Iterable[_Union[ProposalExclusion, _Mapping]]] = ..., evidence: _Optional[_Union[ProposalEvidence, _Mapping]] = ..., proposal_digest: _Optional[str] = ..., commit_oid: _Optional[str] = ..., superseded_by: _Optional[str] = ..., freshness: _Optional[_Union[ProposalFreshness, _Mapping]] = ..., events: _Optional[_Iterable[_Union[ProposalEvent, _Mapping]]] = ..., issues: _Optional[_Iterable[_Union[TrailerIssue, _Mapping]]] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., committed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    folds: _containers.RepeatedCompositeFieldContainer[ProposalFold]
+    captured: bool
+    retained_revisions: _containers.RepeatedScalarFieldContainer[int]
+    repository_name: str
+    repository_path: str
+    def __init__(self, id: _Optional[str] = ..., repository_id: _Optional[str] = ..., state: _Optional[_Union[ProposalState, str]] = ..., revision: _Optional[int] = ..., created_by: _Optional[_Union[Actor, _Mapping]] = ..., base_head: _Optional[str] = ..., branch: _Optional[str] = ..., work: _Optional[_Union[ProposalWork, _Mapping]] = ..., message: _Optional[_Union[ProposalMessage, _Mapping]] = ..., files: _Optional[_Iterable[_Union[ProposalFile, _Mapping]]] = ..., excluded: _Optional[_Iterable[_Union[ProposalExclusion, _Mapping]]] = ..., evidence: _Optional[_Union[ProposalEvidence, _Mapping]] = ..., proposal_digest: _Optional[str] = ..., commit_oid: _Optional[str] = ..., superseded_by: _Optional[str] = ..., freshness: _Optional[_Union[ProposalFreshness, _Mapping]] = ..., events: _Optional[_Iterable[_Union[ProposalEvent, _Mapping]]] = ..., issues: _Optional[_Iterable[_Union[TrailerIssue, _Mapping]]] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., committed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., folds: _Optional[_Iterable[_Union[ProposalFold, _Mapping]]] = ..., captured: _Optional[bool] = ..., retained_revisions: _Optional[_Iterable[int]] = ..., repository_name: _Optional[str] = ..., repository_path: _Optional[str] = ...) -> None: ...
 
 class AnchorFile(_message.Message):
-    __slots__ = ("path", "sha256", "blob_id", "deleted")
+    __slots__ = ("path", "sha256", "blob_id", "deleted", "mode")
     PATH_FIELD_NUMBER: _ClassVar[int]
     SHA256_FIELD_NUMBER: _ClassVar[int]
     BLOB_ID_FIELD_NUMBER: _ClassVar[int]
     DELETED_FIELD_NUMBER: _ClassVar[int]
+    MODE_FIELD_NUMBER: _ClassVar[int]
     path: str
     sha256: str
     blob_id: str
     deleted: bool
-    def __init__(self, path: _Optional[str] = ..., sha256: _Optional[str] = ..., blob_id: _Optional[str] = ..., deleted: _Optional[bool] = ...) -> None: ...
+    mode: str
+    def __init__(self, path: _Optional[str] = ..., sha256: _Optional[str] = ..., blob_id: _Optional[str] = ..., deleted: _Optional[bool] = ..., mode: _Optional[str] = ...) -> None: ...
 
 class Anchor(_message.Message):
     __slots__ = ("id", "repository_id", "effort_ref", "epoch", "scopes", "head", "files", "created_by", "created_at")
@@ -360,16 +400,14 @@ class CreateProposalRequest(_message.Message):
     def __init__(self, repository_id: _Optional[str] = ..., anchor_id: _Optional[str] = ..., work: _Optional[_Union[ProposalWork, _Mapping]] = ..., subject: _Optional[str] = ..., body: _Optional[str] = ..., trailers: _Optional[_Iterable[_Union[ProposalTrailer, _Mapping]]] = ..., paths: _Optional[_Iterable[str]] = ..., evidence: _Optional[_Union[ProposalEvidence, _Mapping]] = ..., creator_run_id: _Optional[str] = ..., validate_only: _Optional[bool] = ...) -> None: ...
 
 class CreateProposalResponse(_message.Message):
-    __slots__ = ("proposal", "issues", "stored", "superseded_id")
+    __slots__ = ("proposal", "issues", "stored")
     PROPOSAL_FIELD_NUMBER: _ClassVar[int]
     ISSUES_FIELD_NUMBER: _ClassVar[int]
     STORED_FIELD_NUMBER: _ClassVar[int]
-    SUPERSEDED_ID_FIELD_NUMBER: _ClassVar[int]
     proposal: Proposal
     issues: _containers.RepeatedCompositeFieldContainer[TrailerIssue]
     stored: bool
-    superseded_id: str
-    def __init__(self, proposal: _Optional[_Union[Proposal, _Mapping]] = ..., issues: _Optional[_Iterable[_Union[TrailerIssue, _Mapping]]] = ..., stored: _Optional[bool] = ..., superseded_id: _Optional[str] = ...) -> None: ...
+    def __init__(self, proposal: _Optional[_Union[Proposal, _Mapping]] = ..., issues: _Optional[_Iterable[_Union[TrailerIssue, _Mapping]]] = ..., stored: _Optional[bool] = ...) -> None: ...
 
 class ListProposalsRequest(_message.Message):
     __slots__ = ("repository_id", "states", "effort_ref", "limit")
@@ -392,10 +430,30 @@ class ListProposalsResponse(_message.Message):
     def __init__(self, proposals: _Optional[_Iterable[_Union[Proposal, _Mapping]]] = ..., open_count: _Optional[int] = ...) -> None: ...
 
 class GetProposalRequest(_message.Message):
-    __slots__ = ("id",)
+    __slots__ = ("id", "revision")
     ID_FIELD_NUMBER: _ClassVar[int]
+    REVISION_FIELD_NUMBER: _ClassVar[int]
     id: str
-    def __init__(self, id: _Optional[str] = ...) -> None: ...
+    revision: int
+    def __init__(self, id: _Optional[str] = ..., revision: _Optional[int] = ...) -> None: ...
+
+class ProposalRevisionReference(_message.Message):
+    __slots__ = ("id", "revision")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    REVISION_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    revision: int
+    def __init__(self, id: _Optional[str] = ..., revision: _Optional[int] = ...) -> None: ...
+
+class CombineProposalsRequest(_message.Message):
+    __slots__ = ("sources", "subject", "body")
+    SOURCES_FIELD_NUMBER: _ClassVar[int]
+    SUBJECT_FIELD_NUMBER: _ClassVar[int]
+    BODY_FIELD_NUMBER: _ClassVar[int]
+    sources: _containers.RepeatedCompositeFieldContainer[ProposalRevisionReference]
+    subject: str
+    body: str
+    def __init__(self, sources: _Optional[_Iterable[_Union[ProposalRevisionReference, _Mapping]]] = ..., subject: _Optional[str] = ..., body: _Optional[str] = ...) -> None: ...
 
 class GetProposalResponse(_message.Message):
     __slots__ = ("proposal",)
@@ -430,12 +488,16 @@ class EditProposalResponse(_message.Message):
     def __init__(self, proposal: _Optional[_Union[Proposal, _Mapping]] = ..., issues: _Optional[_Iterable[_Union[TrailerIssue, _Mapping]]] = ...) -> None: ...
 
 class WithdrawProposalRequest(_message.Message):
-    __slots__ = ("id", "reason")
+    __slots__ = ("id", "reason", "expected_revision", "replacement_id")
     ID_FIELD_NUMBER: _ClassVar[int]
     REASON_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_REVISION_FIELD_NUMBER: _ClassVar[int]
+    REPLACEMENT_ID_FIELD_NUMBER: _ClassVar[int]
     id: str
     reason: str
-    def __init__(self, id: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...
+    expected_revision: int
+    replacement_id: str
+    def __init__(self, id: _Optional[str] = ..., reason: _Optional[str] = ..., expected_revision: _Optional[int] = ..., replacement_id: _Optional[str] = ...) -> None: ...
 
 class WithdrawProposalResponse(_message.Message):
     __slots__ = ("proposal",)
@@ -460,18 +522,22 @@ class RefreshProposalResponse(_message.Message):
     def __init__(self, proposal: _Optional[_Union[Proposal, _Mapping]] = ..., dropped_paths: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ApplyProposalRequest(_message.Message):
-    __slots__ = ("repository_id", "intent_id", "id", "revision", "skip_precommit_once")
+    __slots__ = ("repository_id", "intent_id", "id", "revision", "skip_precommit_once", "acknowledge_prior_work", "keep_later_changes")
     REPOSITORY_ID_FIELD_NUMBER: _ClassVar[int]
     INTENT_ID_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     REVISION_FIELD_NUMBER: _ClassVar[int]
     SKIP_PRECOMMIT_ONCE_FIELD_NUMBER: _ClassVar[int]
+    ACKNOWLEDGE_PRIOR_WORK_FIELD_NUMBER: _ClassVar[int]
+    KEEP_LATER_CHANGES_FIELD_NUMBER: _ClassVar[int]
     repository_id: str
     intent_id: str
     id: str
     revision: int
     skip_precommit_once: bool
-    def __init__(self, repository_id: _Optional[str] = ..., intent_id: _Optional[str] = ..., id: _Optional[str] = ..., revision: _Optional[int] = ..., skip_precommit_once: _Optional[bool] = ...) -> None: ...
+    acknowledge_prior_work: bool
+    keep_later_changes: bool
+    def __init__(self, repository_id: _Optional[str] = ..., intent_id: _Optional[str] = ..., id: _Optional[str] = ..., revision: _Optional[int] = ..., skip_precommit_once: _Optional[bool] = ..., acknowledge_prior_work: _Optional[bool] = ..., keep_later_changes: _Optional[bool] = ...) -> None: ...
 
 class ApplyRefusal(_message.Message):
     __slots__ = ("code", "paths", "detail")

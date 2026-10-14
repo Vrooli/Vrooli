@@ -1,4 +1,5 @@
 from buf.validate import validate_pb2 as _validate_pb2
+from git_control_tower.v1.proposals import proposals_pb2 as _proposals_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -88,20 +89,28 @@ class CommitCheckRun(_message.Message):
     def __init__(self, kind: _Optional[str] = ..., status: _Optional[str] = ..., command: _Optional[str] = ..., exit_code: _Optional[int] = ..., summary: _Optional[str] = ..., stdout: _Optional[str] = ..., stderr: _Optional[str] = ..., duration_ms: _Optional[int] = ..., timestamp: _Optional[str] = ...) -> None: ...
 
 class RepoHistoryEntry(_message.Message):
-    __slots__ = ("hash", "author", "date", "subject", "files", "checks")
+    __slots__ = ("hash", "author", "date", "subject", "files", "checks", "full_message", "body", "trailers", "continuation_message")
     HASH_FIELD_NUMBER: _ClassVar[int]
     AUTHOR_FIELD_NUMBER: _ClassVar[int]
     DATE_FIELD_NUMBER: _ClassVar[int]
     SUBJECT_FIELD_NUMBER: _ClassVar[int]
     FILES_FIELD_NUMBER: _ClassVar[int]
     CHECKS_FIELD_NUMBER: _ClassVar[int]
+    FULL_MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    BODY_FIELD_NUMBER: _ClassVar[int]
+    TRAILERS_FIELD_NUMBER: _ClassVar[int]
+    CONTINUATION_MESSAGE_FIELD_NUMBER: _ClassVar[int]
     hash: str
     author: str
     date: str
     subject: str
     files: _containers.RepeatedScalarFieldContainer[str]
     checks: _containers.RepeatedCompositeFieldContainer[CommitCheckRun]
-    def __init__(self, hash: _Optional[str] = ..., author: _Optional[str] = ..., date: _Optional[str] = ..., subject: _Optional[str] = ..., files: _Optional[_Iterable[str]] = ..., checks: _Optional[_Iterable[_Union[CommitCheckRun, _Mapping]]] = ...) -> None: ...
+    full_message: str
+    body: str
+    trailers: _containers.RepeatedCompositeFieldContainer[_proposals_pb2.ProposalTrailer]
+    continuation_message: str
+    def __init__(self, hash: _Optional[str] = ..., author: _Optional[str] = ..., date: _Optional[str] = ..., subject: _Optional[str] = ..., files: _Optional[_Iterable[str]] = ..., checks: _Optional[_Iterable[_Union[CommitCheckRun, _Mapping]]] = ..., full_message: _Optional[str] = ..., body: _Optional[str] = ..., trailers: _Optional[_Iterable[_Union[_proposals_pb2.ProposalTrailer, _Mapping]]] = ..., continuation_message: _Optional[str] = ...) -> None: ...
 
 class GetRepoHistoryResponse(_message.Message):
     __slots__ = ("repo_dir", "lines", "entries", "limit", "grep_pattern", "timestamp")
@@ -637,7 +646,7 @@ class AuthorStatus(_message.Message):
     def __init__(self, name: _Optional[str] = ..., email: _Optional[str] = ...) -> None: ...
 
 class GetRepoDiffRequest(_message.Message):
-    __slots__ = ("repository_id", "repo_path", "path", "staged", "untracked", "base", "commit", "mode", "any")
+    __slots__ = ("repository_id", "repo_path", "path", "staged", "untracked", "base", "commit", "mode", "any", "proposal_id", "proposal_revision", "compare_current")
     REPOSITORY_ID_FIELD_NUMBER: _ClassVar[int]
     REPO_PATH_FIELD_NUMBER: _ClassVar[int]
     PATH_FIELD_NUMBER: _ClassVar[int]
@@ -647,6 +656,9 @@ class GetRepoDiffRequest(_message.Message):
     COMMIT_FIELD_NUMBER: _ClassVar[int]
     MODE_FIELD_NUMBER: _ClassVar[int]
     ANY_FIELD_NUMBER: _ClassVar[int]
+    PROPOSAL_ID_FIELD_NUMBER: _ClassVar[int]
+    PROPOSAL_REVISION_FIELD_NUMBER: _ClassVar[int]
+    COMPARE_CURRENT_FIELD_NUMBER: _ClassVar[int]
     repository_id: str
     repo_path: str
     path: str
@@ -656,7 +668,10 @@ class GetRepoDiffRequest(_message.Message):
     commit: str
     mode: str
     any: bool
-    def __init__(self, repository_id: _Optional[str] = ..., repo_path: _Optional[str] = ..., path: _Optional[str] = ..., staged: _Optional[bool] = ..., untracked: _Optional[bool] = ..., base: _Optional[str] = ..., commit: _Optional[str] = ..., mode: _Optional[str] = ..., any: _Optional[bool] = ...) -> None: ...
+    proposal_id: str
+    proposal_revision: int
+    compare_current: bool
+    def __init__(self, repository_id: _Optional[str] = ..., repo_path: _Optional[str] = ..., path: _Optional[str] = ..., staged: _Optional[bool] = ..., untracked: _Optional[bool] = ..., base: _Optional[str] = ..., commit: _Optional[str] = ..., mode: _Optional[str] = ..., any: _Optional[bool] = ..., proposal_id: _Optional[str] = ..., proposal_revision: _Optional[int] = ..., compare_current: _Optional[bool] = ...) -> None: ...
 
 class GetRepoDiffResponse(_message.Message):
     __slots__ = ("repo_dir", "path", "staged", "untracked", "base", "has_diff", "hunks", "stats", "raw", "full_content", "content_hash", "annotated_lines", "mode", "timestamp")
@@ -1811,7 +1826,7 @@ class PushSafetyFile(_message.Message):
     def __init__(self, oid: _Optional[str] = ..., bytes: _Optional[int] = ..., paths: _Optional[_Iterable[str]] = ..., commits: _Optional[_Iterable[str]] = ..., blocked: _Optional[bool] = ...) -> None: ...
 
 class PushSafetyReport(_message.Message):
-    __slots__ = ("complete", "state", "reason", "head", "base", "remote", "branch", "limit", "commits", "files", "fingerprint", "can_prepare", "recovery_reason", "staged_complete", "staged_reason", "staged_files")
+    __slots__ = ("complete", "state", "reason", "head", "base", "remote", "branch", "limit", "commits", "files", "fingerprint", "can_prepare", "recovery_reason", "staged_complete", "staged_reason", "staged_files", "outgoing_bytes", "largest_blob_bytes")
     COMPLETE_FIELD_NUMBER: _ClassVar[int]
     STATE_FIELD_NUMBER: _ClassVar[int]
     REASON_FIELD_NUMBER: _ClassVar[int]
@@ -1828,6 +1843,8 @@ class PushSafetyReport(_message.Message):
     STAGED_COMPLETE_FIELD_NUMBER: _ClassVar[int]
     STAGED_REASON_FIELD_NUMBER: _ClassVar[int]
     STAGED_FILES_FIELD_NUMBER: _ClassVar[int]
+    OUTGOING_BYTES_FIELD_NUMBER: _ClassVar[int]
+    LARGEST_BLOB_BYTES_FIELD_NUMBER: _ClassVar[int]
     complete: bool
     state: str
     reason: str
@@ -1844,7 +1861,9 @@ class PushSafetyReport(_message.Message):
     staged_complete: bool
     staged_reason: str
     staged_files: _containers.RepeatedCompositeFieldContainer[PushSafetyFile]
-    def __init__(self, complete: _Optional[bool] = ..., state: _Optional[str] = ..., reason: _Optional[str] = ..., head: _Optional[str] = ..., base: _Optional[str] = ..., remote: _Optional[str] = ..., branch: _Optional[str] = ..., limit: _Optional[int] = ..., commits: _Optional[_Iterable[str]] = ..., files: _Optional[_Iterable[_Union[PushSafetyFile, _Mapping]]] = ..., fingerprint: _Optional[str] = ..., can_prepare: _Optional[bool] = ..., recovery_reason: _Optional[str] = ..., staged_complete: _Optional[bool] = ..., staged_reason: _Optional[str] = ..., staged_files: _Optional[_Iterable[_Union[PushSafetyFile, _Mapping]]] = ...) -> None: ...
+    outgoing_bytes: int
+    largest_blob_bytes: int
+    def __init__(self, complete: _Optional[bool] = ..., state: _Optional[str] = ..., reason: _Optional[str] = ..., head: _Optional[str] = ..., base: _Optional[str] = ..., remote: _Optional[str] = ..., branch: _Optional[str] = ..., limit: _Optional[int] = ..., commits: _Optional[_Iterable[str]] = ..., files: _Optional[_Iterable[_Union[PushSafetyFile, _Mapping]]] = ..., fingerprint: _Optional[str] = ..., can_prepare: _Optional[bool] = ..., recovery_reason: _Optional[str] = ..., staged_complete: _Optional[bool] = ..., staged_reason: _Optional[str] = ..., staged_files: _Optional[_Iterable[_Union[PushSafetyFile, _Mapping]]] = ..., outgoing_bytes: _Optional[int] = ..., largest_blob_bytes: _Optional[int] = ...) -> None: ...
 
 class PreparePushRecoveryRequest(_message.Message):
     __slots__ = ("repository_id", "intent_id", "remote", "branch", "fingerprint")

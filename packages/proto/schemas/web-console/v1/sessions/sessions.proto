@@ -117,6 +117,7 @@ message Session {
   string native_thread_id = 26;
   string last_verified_turn_id = 27;
   string forked_from_native_session = 28;
+  string create_fingerprint = 29; // persisted creation request identity for exact recovery
 }
 
 // SessionActivityState is the projection of an agent session between messages.
@@ -238,6 +239,7 @@ message CreateRequest {
   // exposes native capability after a session-specific handshake verifies it.
   string launch_mode = 16;
   string launch_descriptor_json = 17;
+  string requested_session_id = 18; // optional preallocated UUID; replay requires identical request
 }
 
 message CreateResponse {
@@ -252,6 +254,10 @@ message ListRequest {}
 
 message ListResponse {
   repeated Session sessions = 1;
+  // Explicit server support; absent on old peers, so clients refuse stable Create before writes.
+  bool supports_stable_create_identity = 3;
+  // Canonical verified caller who would own a stable Create; empty refuses qualification.
+  string stable_create_owner = 4;
   // recovery reports startup session-recovery progress. Reattaching surviving
   // tmux sessions runs asynchronously so the API can serve immediately, so a
   // client that lists during recovery may see fewer sessions than will exist

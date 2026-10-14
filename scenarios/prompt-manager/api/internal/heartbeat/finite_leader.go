@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"time"
 
 	"prompt-manager/internal/store"
@@ -392,12 +393,8 @@ func (f *FiniteLeaderRuntime) ReconcileKnownRun(ctx context.Context, teamID, age
 	if err != nil {
 		return state, err
 	}
-	if config != nil && config.LastExecution != nil &&
-		config.LastExecution.RunID == run.ID &&
-		config.LastExecution.StartedAt == run.StartedAt &&
-		config.LastExecution.EndedAt == run.EndedAt &&
-		config.LastExecution.Error == run.Error {
-		return state, nil
+	if config != nil && matchesFiniteOwnerHealth(config.LastExecution, finiteOwnerHealth(run, state.CreatedAt)) {
+		return f.reconcileMatchingKnownProjection(ctx, state, config, run)
 	}
 	if config == nil || config.LastExecution == nil || run.Status != state.Status || run.EndedAt != "" {
 		if err := f.record(ctx, state, run); err != nil {
@@ -406,6 +403,55 @@ func (f *FiniteLeaderRuntime) ReconcileKnownRun(ctx context.Context, teamID, age
 		return f.Executor.teamStore.ReadFiniteLeader(ctx, teamID, agentID)
 	}
 	return state, nil
+}
+
+// reconcileMatchingKnownProjection repairs only a stale terminal lifecycle
+// projection when ordinary heartbeat health already matches the exact owner
+// observation. It must never replay completion accounting or admission.
+func (f *FiniteLeaderRuntime) reconcileMatchingKnownProjection(ctx context.Context, expected *store.FiniteLeaderState, config *store.HeartbeatConfig, run *Run) (*store.FiniteLeaderState, error) {
+	out := expected
+	err := f.Executor.teamStore.WithFiniteLeader(ctx, expected.TeamID, expected.AgentID, func(cfg *store.HeartbeatConfig, current *store.FiniteLeaderState, save func() error) error {
+		out = current
+		return applyMatchingKnownProjection(expected, config, run, cfg, current, save)
+	})
+	return out, err
+}
+
+// applyMatchingKnownProjection runs only within WithFiniteLeader's control lock.
+// Keeping its save callback explicit makes persistence-failure handling testable
+// without introducing a store-wide hook or a second persistence owner.
+func applyMatchingKnownProjection(expected *store.FiniteLeaderState, config *store.HeartbeatConfig, run *Run, cfg *store.HeartbeatConfig, current *store.FiniteLeaderState, save func() error) error {
+	// Revalidate the entire predecessor snapshot, including attempt, task,
+	// run, clock, accepted binding/revision, holds and completion history.
+	// A concurrent successor or local control change makes this read stale.
+	if !reflect.DeepEqual(current, expected) ||
+		cfg.ProfileKey != config.ProfileKey || cfg.Enabled != config.Enabled ||
+		!reflect.DeepEqual(cfg.FiniteLeader, config.FiniteLeader) ||
+		!reflect.DeepEqual(cfg.LastExecution, config.LastExecution) {
+		return nil
+	}
+	if !current.DispatchStarted || current.ID == "" || current.TaskID != run.TaskID || current.RunID != run.ID ||
+		!IsTerminalStatus(run.Status) || run.EndedAt == "" || current.Error != "" {
+		return nil
+	}
+	// Only known owner lifecycle projections qualify. Admission uncertainty,
+	// capped/relaunch states and every locally held error remain unchanged.
+	switch current.Status {
+	case "parked", "running", "pending", "queued", "RUN_STATUS_PARKED", "RUN_STATUS_RUNNING", "RUN_STATUS_PENDING", "RUN_STATUS_QUEUED":
+	default:
+		return nil
+	}
+	if !matchesFiniteOwnerHealth(cfg.LastExecution, finiteOwnerHealth(run, current.CreatedAt)) {
+		return nil
+	}
+
+	previous := current.Status
+	current.Status = run.Status
+	if err := save(); err != nil {
+		current.Status = previous
+		return err
+	}
+	return nil
 }
 
 // Dispatch is also the final guard for manual/team triggers and recovered queue
@@ -560,11 +606,9 @@ func (f *FiniteLeaderRuntime) record(ctx context.Context, state *store.FiniteLea
 	return f.recordLocked(ctx, state, run)
 }
 
-// recordLocked fences the exact predecessor through all completion callbacks.
-// Every finite record caller shares the relaunch mutex; the store first checks
-// exact attempt/run identity before queue or run-registry effects.
-func (f *FiniteLeaderRuntime) recordLocked(ctx context.Context, state *store.FiniteLeaderState, run *Run) error {
-	e := f.Executor
+// finiteOwnerHealth is the mapped observation; log path belongs to local
+// heartbeat history and is deliberately outside this owner comparison.
+func finiteOwnerHealth(run *Run, createdAt string) *store.HeartbeatExecResult {
 	status := store.HeartbeatStatusRunning
 	if IsTerminalStatus(run.Status) {
 		status = store.HeartbeatStatusCompleted
@@ -574,15 +618,28 @@ func (f *FiniteLeaderRuntime) recordLocked(ctx context.Context, state *store.Fin
 			status = store.HeartbeatStatusCancelled
 		}
 	}
+	started := run.StartedAt
+	if started == "" {
+		started = createdAt
+	}
+	return &store.HeartbeatExecResult{RunID: run.ID, StartedAt: started, EndedAt: run.EndedAt, Status: status, Error: run.Error}
+}
+func matchesFiniteOwnerHealth(actual, expected *store.HeartbeatExecResult) bool {
+	return actual != nil && actual.RunID == expected.RunID && actual.StartedAt == expected.StartedAt && actual.EndedAt == expected.EndedAt && actual.Status == expected.Status && actual.Error == expected.Error
+}
+
+// recordLocked fences the exact predecessor through all completion callbacks.
+// Every finite record caller shares the relaunch mutex; the store first checks
+// exact attempt/run identity before queue or run-registry effects.
+func (f *FiniteLeaderRuntime) recordLocked(ctx context.Context, state *store.FiniteLeaderState, run *Run) error {
+	e := f.Executor
+
 	// An old attempt's end timestamp cannot become this attempt's completion.
 	if !IsTerminalStatus(run.Status) && run.EndedAt != "" {
 		return fmt.Errorf("finite leader owner lifecycle inconsistent; retain original run %s", run.ID)
 	}
-	startedAt := run.StartedAt
-	if startedAt == "" {
-		startedAt = state.CreatedAt
-	}
-	result := &store.HeartbeatExecResult{RunID: run.ID, StartedAt: startedAt, EndedAt: run.EndedAt, Status: status, Error: run.Error}
+	result := finiteOwnerHealth(run, state.CreatedAt)
+	status, startedAt := result.Status, result.StartedAt
 	changed, err := e.teamStore.RecordFiniteLeaderExecution(ctx, state.TeamID, state.AgentID, state.ID, result)
 	if err != nil {
 		return err

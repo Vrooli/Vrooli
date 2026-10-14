@@ -58,13 +58,13 @@ func validateToolResultEvent(evt *RunEvent) {
 		return
 	}
 
-	if data.ToolName == "" {
+	if data.ToolName == "" && data.ToolCallID == "" {
 		log.Printf("[WARN] tool_result event has empty toolName (runID=%s)", evt.RunID)
 	}
 
 	// Output can legitimately be empty for some tool results (e.g., file write)
 	// Only warn if both output and error are empty on a failed result
-	if !data.Success && data.Output == "" && data.Error == "" {
+	if (data.OutcomeKnown == nil || *data.OutcomeKnown) && !data.Success && data.Output == "" && data.Error == "" {
 		log.Printf("[WARN] failed tool_result event has no error details (runID=%s, tool=%s)", evt.RunID, data.ToolName)
 	}
 }

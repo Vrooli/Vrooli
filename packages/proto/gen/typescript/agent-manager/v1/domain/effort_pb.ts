@@ -15,7 +15,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file agent-manager/v1/domain/effort.proto.
  */
 export const file_agent_manager_v1_domain_effort: GenFile = /*@__PURE__*/
-  fileDesc("CiRhZ2VudC1tYW5hZ2VyL3YxL2RvbWFpbi9lZmZvcnQucHJvdG8SEGFnZW50X21hbmFnZXIudjEicQoNRWZmb3J0U3ViamVjdBINCgVvd25lchgBIAEoCRIMCgRraW5kGAIgASgJEhEKCXJlZmVyZW5jZRgDIAEoCRIOCgZydW5faWQYBCABKAkSDAoEcm9sZRgFIAEoCRISCgphc3NpZ25tZW50GAYgASgJIqMFChBFZmZvcnRFbnJvbGxtZW50Eh4KCmVmZm9ydF9yZWYYASABKAlCCrpIB3IFEAEYgAQSFAoMZGlzcGxheV9uYW1lGAIgASgJEhcKD2Rlc3RpbmF0aW9uX3JlZhgDIAEoCRIXCg90YXJnZXRfcmV2aXNpb24YBCABKAkSFwoPc291cmNlX3JldmlzaW9uGAUgASgJEhUKDWF1dGhvcml0eV9yZWYYBiABKAkSGQoRc3VwZXJ2aXNvcl9ydW5faWQYByABKAkSMQoIc3ViamVjdHMYCCADKAsyHy5hZ2VudF9tYW5hZ2VyLnYxLkVmZm9ydFN1YmplY3QSEAoIcmV2aXNpb24YCiABKAQSEQoJd2l0aGRyYXduGAsgASgIEhEKCXdvcmtzcGFjZRgMIAEoCRISCgp3b3JrX3NoYXBlGA0gASgJEi4KCnVwZGF0ZWRfYXQYDiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhUKDWF1dGhvcml6ZWRfYnkYDyABKAkSGQoRd2l0aGRyYXdhbF9yZWFzb24YEyABKAlKBAgJEApKBAgQEBFKBAgREBJKBAgSEBNKBAgUEBVKBAgVEBZKBAgWEBdKBAgXEBhKBAgYEBlKBAgZEBpSEXBlcm1pdHRlZF9hY3Rpb25zUhRhdXRob3JpdHlfZXhwaXJlc19hdFISbWF4aW11bV9kaXJlY3RpdmVzUhBjb29sZG93bl9zZWNvbmRzUhhzdXBlcnZpc29yX293bmVyX3N1YmplY3RSEHN1cGVydmlzb3Jfc2NvcGVSFmRpc3BhdGNoX2F1dGhvcml6YXRpb25SFmF1dG9ub21vdXNfc3VwZXJ2aXNpb25SFHN1cGVydmlzaW9uX3ByaW9yaXR5IkYKFkVmZm9ydERpc2NvdmVyeUZpbmRpbmcSDgoGc291cmNlGAEgASgJEgwKBGNvZGUYAiABKAkSDgoGcmVhc29uGAMgASgJIswDCg9FZmZvcnREaXNjb3ZlcnkSEgoKZ2VuZXJhdGlvbhgBIAEoBBIXCg9jaGFuZ2VfaWRlbnRpdHkYAiABKAkSMAoMbGFzdF9zY2FuX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBI7ChdsYXN0X3N1Y2Nlc3NmdWxfc2Nhbl9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEgoKc2Nhbl9saW1pdBgFIAEoDRIVCg1zY2FubmVkX2NvdW50GAYgASgNEg8KB3BhcnRpYWwYByABKAgSOgoIZmluZGluZ3MYCCADKAsyKC5hZ2VudF9tYW5hZ2VyLnYxLkVmZm9ydERpc2NvdmVyeUZpbmRpbmcSEgoKYnl0ZV9saW1pdBgJIAEoBBIMCgRyb290GAogASgJEhMKC3NjYW5fY3Vyc29yGAsgASgJEhcKD2RpcmVjdG9yeV9saW1pdBgMIAEoDRIeChZzdGFuZGluZ19hbGxvd2FuY2VfcmVmGA0gASgJEjUKDnN0YW5kaW5nX3VzYWdlGA4gASgLMh0uYWdlbnRfbWFuYWdlci52MS5FZmZvcnRVc2FnZSL1AQoLRWZmb3J0VXNhZ2USEwoGdG9rZW5zGAEgASgDSACIAQESHgoRcmVwb3J0ZWRfY29zdF91c2QYAiABKAFIAYgBARIaCg1hZ2VudF9zZWNvbmRzGAMgASgBSAKIAQESFQoNb2JzZXJ2ZWRfcnVucxgEIAEoDRIVCg1kZWNsYXJlZF9ydW5zGAUgASgNEg8KB3BhcnRpYWwYBiABKAgSEwoLbGltaXRhdGlvbnMYByADKAkSDgoGc291cmNlGAggASgJQgkKB190b2tlbnNCFAoSX3JlcG9ydGVkX2Nvc3RfdXNkQhAKDl9hZ2VudF9zZWNvbmRzIv4CChZFZmZvcnRRdW90YU9ic2VydmF0aW9uEhAKCHByb3ZpZGVyGAEgASgJEgwKBHBvb2wYAiABKAkSDgoGd2luZG93GAMgASgJEi8KC29ic2VydmVkX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIQCghzdGFuZGluZxgFIAEoCRIZCgx1c2VkX3BlcmNlbnQYBiABKAFIAIgBARIbCg53aW5kb3dfbWludXRlcxgHIAEoA0gBiAEBEiwKCHJlc2V0X2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIVCg1zb3VyY2VfcnVuX2lkGAkgASgJEhEKCWZyZXNobmVzcxgKIAEoCRISCgpwcm92ZW5hbmNlGAsgASgJEhMKC3VuY2VydGFpbnR5GAwgASgJEhQKDGV2aWRlbmNlX3JlZhgNIAEoCUIPCg1fdXNlZF9wZXJjZW50QhEKD193aW5kb3dfbWludXRlcyKSAwoQRWZmb3J0QXNzaWdubWVudBIwCgdzdWJqZWN0GAEgASgLMh8uYWdlbnRfbWFuYWdlci52MS5FZmZvcnRTdWJqZWN0EhUKDXJ1bnRpbWVfc3RhdGUYAiABKAkSFwoPcmVxdWVzdGVkX21vZGVsGAMgASgJEhcKD2VmZmVjdGl2ZV9tb2RlbBgEIAEoCRIYChByZXF1ZXN0ZWRfcnVubmVyGAUgASgJEhgKEGVmZmVjdGl2ZV9ydW5uZXIYBiABKAkSGwoTcmVxdWVzdGVkX3JlYXNvbmluZxgHIAEoCRIbChNlZmZlY3RpdmVfcmVhc29uaW5nGAggASgJEiwKBXVzYWdlGAkgASgLMh0uYWdlbnRfbWFuYWdlci52MS5FZmZvcnRVc2FnZRIvCgtvYnNlcnZlZF9hdBgKIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASGgoSdW5hdmFpbGFibGVfcmVhc29uGAsgASgJEhoKEmV4ZWN1dGlvbl9pZGVudGl0eRgMIAEoCSK9AQoVRWZmb3J0T3V0Y29tZVN0YW5kaW5nEg0KBXN0YXRlGAEgASgJEhMKC2F0dHJpYnV0aW9uGAIgASgJEhUKDWV2aWRlbmNlX3JlZnMYAyADKAkSFgoJbWV0X2NvdW50GAQgASgNSACIAQESGwoOcmVxdWlyZWRfY291bnQYBSABKA1IAYgBARITCgtsaW1pdGF0aW9ucxgGIAMoCUIMCgpfbWV0X2NvdW50QhEKD19yZXF1aXJlZF9jb3VudCKeBQoORWZmb3J0Qm9hcmRSb3cSNgoKZW5yb2xsbWVudBgBIAEoCzIiLmFnZW50X21hbmFnZXIudjEuRWZmb3J0RW5yb2xsbWVudBIvCgtvYnNlcnZlZF9hdBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASNAoJZnJlc2huZXNzGAMgASgOMiEuYWdlbnRfbWFuYWdlci52MS5FZmZvcnRGcmVzaG5lc3MSFQoNcnVudGltZV9zdGF0ZRgEIAEoCRJBChBvdXRjb21lX3N0YW5kaW5nGAUgASgLMicuYWdlbnRfbWFuYWdlci52MS5FZmZvcnRPdXRjb21lU3RhbmRpbmcSNwoLYXNzaWdubWVudHMYBiADKAsyIi5hZ2VudF9tYW5hZ2VyLnYxLkVmZm9ydEFzc2lnbm1lbnQSGgoScGVuZGluZ19vcGVyYXRpb25zGAcgAygJEhAKCGJsb2NrZXJzGAggAygJEhMKC25leHRfYWN0aW9uGAkgASgJEhEKCXJhdGlvbmFsZRgKIAEoCRIsCgV1c2FnZRgLIAEoCzIdLmFnZW50X21hbmFnZXIudjEuRWZmb3J0VXNhZ2USEwoLbGltaXRhdGlvbnMYDSADKAkSFQoNZXZpZGVuY2VfcmVmcxgOIAMoCRIXCg9jaGFuZ2VfaWRlbnRpdHkYDyABKAkSIgoadmlzaWJpbGl0eV9jaGFuZ2VfaWRlbnRpdHkYESABKAkSRAoScXVvdGFfb2JzZXJ2YXRpb25zGBIgAygLMiguYWdlbnRfbWFuYWdlci52MS5FZmZvcnRRdW90YU9ic2VydmF0aW9uSgQIDBANSgQIEBARUgpkaXJlY3RpdmVzUg9sYXN0X2Fzc2Vzc21lbnQi2AIKC0VmZm9ydEJvYXJkEi4KBHJvd3MYASADKAsyIC5hZ2VudF9tYW5hZ2VyLnYxLkVmZm9ydEJvYXJkUm93EjQKCWRpc2NvdmVyeRgCIAEoCzIhLmFnZW50X21hbmFnZXIudjEuRWZmb3J0RGlzY292ZXJ5Ei8KC29ic2VydmVkX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIUCgxhY3RpdmVfY291bnQYBCABKA0SDwoHcGFydGlhbBgFIAEoCBITCgtsaW1pdGF0aW9ucxgGIAMoCRIXCg9uZXh0X3BhZ2VfdG9rZW4YByABKAkSFwoPY2hhbmdlX2lkZW50aXR5GAggASgJEkQKEnF1b3RhX29ic2VydmF0aW9ucxgJIAMoCzIoLmFnZW50X21hbmFnZXIudjEuRWZmb3J0UXVvdGFPYnNlcnZhdGlvbiJbChVHZXRFZmZvcnRCb2FyZFJlcXVlc3QSEgoKZWZmb3J0X3JlZhgBIAEoCRIaCglwYWdlX3NpemUYAiABKA1CB7pIBCoCGGQSEgoKcGFnZV90b2tlbhgDIAEoCSJEChJMaXN0RWZmb3J0c1JlcXVlc3QSGgoJcGFnZV9zaXplGAEgASgNQge6SAQqAhhkEhIKCnBhZ2VfdG9rZW4YAiABKAkieQoTTGlzdEVmZm9ydHNSZXNwb25zZRIzCgdlZmZvcnRzGAEgAygLMiIuYWdlbnRfbWFuYWdlci52MS5FZmZvcnRFbnJvbGxtZW50EhcKD25leHRfcGFnZV90b2tlbhgCIAEoCRIUCgxhY3RpdmVfY291bnQYAyABKA0igQEKE0Vucm9sbEVmZm9ydFJlcXVlc3QSNgoKZW5yb2xsbWVudBgBIAEoCzIiLmFnZW50X21hbmFnZXIudjEuRWZmb3J0RW5yb2xsbWVudBIZChFleHBlY3RlZF9yZXZpc2lvbhgCIAEoBBIXCg9pZGVtcG90ZW5jeV9rZXkYAyABKAkiwQEKHlJlY29uY2lsZUVmZm9ydE1ldGFkYXRhUmVxdWVzdBI2CgplbnJvbGxtZW50GAEgASgLMiIuYWdlbnRfbWFuYWdlci52MS5FZmZvcnRFbnJvbGxtZW50EhkKEWV4cGVjdGVkX3JldmlzaW9uGAIgASgEEhcKD2lkZW1wb3RlbmN5X2tleRgDIAEoCRIzCglhdXRob3JpdHkYBCABKA4yIC5hZ2VudF9tYW5hZ2VyLnYxLldhdGNoQXV0aG9yaXR5Im8KFVdpdGhkcmF3RWZmb3J0UmVxdWVzdBISCgplZmZvcnRfcmVmGAEgASgJEhkKEWV4cGVjdGVkX3JldmlzaW9uGAIgASgEEg4KBnJlYXNvbhgDIAEoCRIXCg9pZGVtcG90ZW5jeV9rZXkYBCABKAkiIQofUmVjb25jaWxlRWZmb3J0RGlzY292ZXJ5UmVxdWVzdCqNAQoPRWZmb3J0RnJlc2huZXNzEiAKHEVGRk9SVF9GUkVTSE5FU1NfVU5TUEVDSUZJRUQQABIaChZFRkZPUlRfRlJFU0hORVNTX0ZSRVNIEAESGgoWRUZGT1JUX0ZSRVNITkVTU19TVEFMRRACEiAKHEVGRk9SVF9GUkVTSE5FU1NfVU5BVkFJTEFCTEUQA0JPWk1naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2FnZW50LW1hbmFnZXIvdjEvZG9tYWluO2RvbWFpbmIGcHJvdG8z", [file_agent_manager_v1_domain_watch, file_buf_validate_validate, file_google_protobuf_timestamp]);
+  fileDesc("CiRhZ2VudC1tYW5hZ2VyL3YxL2RvbWFpbi9lZmZvcnQucHJvdG8SEGFnZW50X21hbmFnZXIudjEicQoNRWZmb3J0U3ViamVjdBINCgVvd25lchgBIAEoCRIMCgRraW5kGAIgASgJEhEKCXJlZmVyZW5jZRgDIAEoCRIOCgZydW5faWQYBCABKAkSDAoEcm9sZRgFIAEoCRISCgphc3NpZ25tZW50GAYgASgJIqMFChBFZmZvcnRFbnJvbGxtZW50Eh4KCmVmZm9ydF9yZWYYASABKAlCCrpIB3IFEAEYgAQSFAoMZGlzcGxheV9uYW1lGAIgASgJEhcKD2Rlc3RpbmF0aW9uX3JlZhgDIAEoCRIXCg90YXJnZXRfcmV2aXNpb24YBCABKAkSFwoPc291cmNlX3JldmlzaW9uGAUgASgJEhUKDWF1dGhvcml0eV9yZWYYBiABKAkSGQoRc3VwZXJ2aXNvcl9ydW5faWQYByABKAkSMQoIc3ViamVjdHMYCCADKAsyHy5hZ2VudF9tYW5hZ2VyLnYxLkVmZm9ydFN1YmplY3QSEAoIcmV2aXNpb24YCiABKAQSEQoJd2l0aGRyYXduGAsgASgIEhEKCXdvcmtzcGFjZRgMIAEoCRISCgp3b3JrX3NoYXBlGA0gASgJEi4KCnVwZGF0ZWRfYXQYDiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhUKDWF1dGhvcml6ZWRfYnkYDyABKAkSGQoRd2l0aGRyYXdhbF9yZWFzb24YEyABKAlKBAgJEApKBAgQEBFKBAgREBJKBAgSEBNKBAgUEBVKBAgVEBZKBAgWEBdKBAgXEBhKBAgYEBlKBAgZEBpSEXBlcm1pdHRlZF9hY3Rpb25zUhRhdXRob3JpdHlfZXhwaXJlc19hdFISbWF4aW11bV9kaXJlY3RpdmVzUhBjb29sZG93bl9zZWNvbmRzUhhzdXBlcnZpc29yX293bmVyX3N1YmplY3RSEHN1cGVydmlzb3Jfc2NvcGVSFmRpc3BhdGNoX2F1dGhvcml6YXRpb25SFmF1dG9ub21vdXNfc3VwZXJ2aXNpb25SFHN1cGVydmlzaW9uX3ByaW9yaXR5IkYKFkVmZm9ydERpc2NvdmVyeUZpbmRpbmcSDgoGc291cmNlGAEgASgJEgwKBGNvZGUYAiABKAkSDgoGcmVhc29uGAMgASgJIswDCg9FZmZvcnREaXNjb3ZlcnkSEgoKZ2VuZXJhdGlvbhgBIAEoBBIXCg9jaGFuZ2VfaWRlbnRpdHkYAiABKAkSMAoMbGFzdF9zY2FuX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBI7ChdsYXN0X3N1Y2Nlc3NmdWxfc2Nhbl9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEgoKc2Nhbl9saW1pdBgFIAEoDRIVCg1zY2FubmVkX2NvdW50GAYgASgNEg8KB3BhcnRpYWwYByABKAgSOgoIZmluZGluZ3MYCCADKAsyKC5hZ2VudF9tYW5hZ2VyLnYxLkVmZm9ydERpc2NvdmVyeUZpbmRpbmcSEgoKYnl0ZV9saW1pdBgJIAEoBBIMCgRyb290GAogASgJEhMKC3NjYW5fY3Vyc29yGAsgASgJEhcKD2RpcmVjdG9yeV9saW1pdBgMIAEoDRIeChZzdGFuZGluZ19hbGxvd2FuY2VfcmVmGA0gASgJEjUKDnN0YW5kaW5nX3VzYWdlGA4gASgLMh0uYWdlbnRfbWFuYWdlci52MS5FZmZvcnRVc2FnZSL1AQoLRWZmb3J0VXNhZ2USEwoGdG9rZW5zGAEgASgDSACIAQESHgoRcmVwb3J0ZWRfY29zdF91c2QYAiABKAFIAYgBARIaCg1hZ2VudF9zZWNvbmRzGAMgASgBSAKIAQESFQoNb2JzZXJ2ZWRfcnVucxgEIAEoDRIVCg1kZWNsYXJlZF9ydW5zGAUgASgNEg8KB3BhcnRpYWwYBiABKAgSEwoLbGltaXRhdGlvbnMYByADKAkSDgoGc291cmNlGAggASgJQgkKB190b2tlbnNCFAoSX3JlcG9ydGVkX2Nvc3RfdXNkQhAKDl9hZ2VudF9zZWNvbmRzIv4CChZFZmZvcnRRdW90YU9ic2VydmF0aW9uEhAKCHByb3ZpZGVyGAEgASgJEgwKBHBvb2wYAiABKAkSDgoGd2luZG93GAMgASgJEi8KC29ic2VydmVkX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIQCghzdGFuZGluZxgFIAEoCRIZCgx1c2VkX3BlcmNlbnQYBiABKAFIAIgBARIbCg53aW5kb3dfbWludXRlcxgHIAEoA0gBiAEBEiwKCHJlc2V0X2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIVCg1zb3VyY2VfcnVuX2lkGAkgASgJEhEKCWZyZXNobmVzcxgKIAEoCRISCgpwcm92ZW5hbmNlGAsgASgJEhMKC3VuY2VydGFpbnR5GAwgASgJEhQKDGV2aWRlbmNlX3JlZhgNIAEoCUIPCg1fdXNlZF9wZXJjZW50QhEKD193aW5kb3dfbWludXRlcyKSAwoQRWZmb3J0QXNzaWdubWVudBIwCgdzdWJqZWN0GAEgASgLMh8uYWdlbnRfbWFuYWdlci52MS5FZmZvcnRTdWJqZWN0EhUKDXJ1bnRpbWVfc3RhdGUYAiABKAkSFwoPcmVxdWVzdGVkX21vZGVsGAMgASgJEhcKD2VmZmVjdGl2ZV9tb2RlbBgEIAEoCRIYChByZXF1ZXN0ZWRfcnVubmVyGAUgASgJEhgKEGVmZmVjdGl2ZV9ydW5uZXIYBiABKAkSGwoTcmVxdWVzdGVkX3JlYXNvbmluZxgHIAEoCRIbChNlZmZlY3RpdmVfcmVhc29uaW5nGAggASgJEiwKBXVzYWdlGAkgASgLMh0uYWdlbnRfbWFuYWdlci52MS5FZmZvcnRVc2FnZRIvCgtvYnNlcnZlZF9hdBgKIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASGgoSdW5hdmFpbGFibGVfcmVhc29uGAsgASgJEhoKEmV4ZWN1dGlvbl9pZGVudGl0eRgMIAEoCSK9AQoVRWZmb3J0T3V0Y29tZVN0YW5kaW5nEg0KBXN0YXRlGAEgASgJEhMKC2F0dHJpYnV0aW9uGAIgASgJEhUKDWV2aWRlbmNlX3JlZnMYAyADKAkSFgoJbWV0X2NvdW50GAQgASgNSACIAQESGwoOcmVxdWlyZWRfY291bnQYBSABKA1IAYgBARITCgtsaW1pdGF0aW9ucxgGIAMoCUIMCgpfbWV0X2NvdW50QhEKD19yZXF1aXJlZF9jb3VudCLTBQoORWZmb3J0Qm9hcmRSb3cSNgoKZW5yb2xsbWVudBgBIAEoCzIiLmFnZW50X21hbmFnZXIudjEuRWZmb3J0RW5yb2xsbWVudBIvCgtvYnNlcnZlZF9hdBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASNAoJZnJlc2huZXNzGAMgASgOMiEuYWdlbnRfbWFuYWdlci52MS5FZmZvcnRGcmVzaG5lc3MSFQoNcnVudGltZV9zdGF0ZRgEIAEoCRJBChBvdXRjb21lX3N0YW5kaW5nGAUgASgLMicuYWdlbnRfbWFuYWdlci52MS5FZmZvcnRPdXRjb21lU3RhbmRpbmcSNwoLYXNzaWdubWVudHMYBiADKAsyIi5hZ2VudF9tYW5hZ2VyLnYxLkVmZm9ydEFzc2lnbm1lbnQSGgoScGVuZGluZ19vcGVyYXRpb25zGAcgAygJEhAKCGJsb2NrZXJzGAggAygJEhMKC25leHRfYWN0aW9uGAkgASgJEhEKCXJhdGlvbmFsZRgKIAEoCRIsCgV1c2FnZRgLIAEoCzIdLmFnZW50X21hbmFnZXIudjEuRWZmb3J0VXNhZ2USEwoLbGltaXRhdGlvbnMYDSADKAkSFQoNZXZpZGVuY2VfcmVmcxgOIAMoCRIXCg9jaGFuZ2VfaWRlbnRpdHkYDyABKAkSIgoadmlzaWJpbGl0eV9jaGFuZ2VfaWRlbnRpdHkYESABKAkSRAoScXVvdGFfb2JzZXJ2YXRpb25zGBIgAygLMiguYWdlbnRfbWFuYWdlci52MS5FZmZvcnRRdW90YU9ic2VydmF0aW9uEjMKCWdvYWxfaG9tZRgTIAEoCzIgLmFnZW50X21hbmFnZXIudjEuRWZmb3J0R29hbEhvbWVKBAgMEA1KBAgQEBFSCmRpcmVjdGl2ZXNSD2xhc3RfYXNzZXNzbWVudCLYAgoLRWZmb3J0Qm9hcmQSLgoEcm93cxgBIAMoCzIgLmFnZW50X21hbmFnZXIudjEuRWZmb3J0Qm9hcmRSb3cSNAoJZGlzY292ZXJ5GAIgASgLMiEuYWdlbnRfbWFuYWdlci52MS5FZmZvcnREaXNjb3ZlcnkSLwoLb2JzZXJ2ZWRfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhQKDGFjdGl2ZV9jb3VudBgEIAEoDRIPCgdwYXJ0aWFsGAUgASgIEhMKC2xpbWl0YXRpb25zGAYgAygJEhcKD25leHRfcGFnZV90b2tlbhgHIAEoCRIXCg9jaGFuZ2VfaWRlbnRpdHkYCCABKAkSRAoScXVvdGFfb2JzZXJ2YXRpb25zGAkgAygLMiguYWdlbnRfbWFuYWdlci52MS5FZmZvcnRRdW90YU9ic2VydmF0aW9uIlsKFUdldEVmZm9ydEJvYXJkUmVxdWVzdBISCgplZmZvcnRfcmVmGAEgASgJEhoKCXBhZ2Vfc2l6ZRgCIAEoDUIHukgEKgIYZBISCgpwYWdlX3Rva2VuGAMgASgJIkQKEkxpc3RFZmZvcnRzUmVxdWVzdBIaCglwYWdlX3NpemUYASABKA1CB7pIBCoCGGQSEgoKcGFnZV90b2tlbhgCIAEoCSJ5ChNMaXN0RWZmb3J0c1Jlc3BvbnNlEjMKB2VmZm9ydHMYASADKAsyIi5hZ2VudF9tYW5hZ2VyLnYxLkVmZm9ydEVucm9sbG1lbnQSFwoPbmV4dF9wYWdlX3Rva2VuGAIgASgJEhQKDGFjdGl2ZV9jb3VudBgDIAEoDSKBAQoTRW5yb2xsRWZmb3J0UmVxdWVzdBI2CgplbnJvbGxtZW50GAEgASgLMiIuYWdlbnRfbWFuYWdlci52MS5FZmZvcnRFbnJvbGxtZW50EhkKEWV4cGVjdGVkX3JldmlzaW9uGAIgASgEEhcKD2lkZW1wb3RlbmN5X2tleRgDIAEoCSLBAQoeUmVjb25jaWxlRWZmb3J0TWV0YWRhdGFSZXF1ZXN0EjYKCmVucm9sbG1lbnQYASABKAsyIi5hZ2VudF9tYW5hZ2VyLnYxLkVmZm9ydEVucm9sbG1lbnQSGQoRZXhwZWN0ZWRfcmV2aXNpb24YAiABKAQSFwoPaWRlbXBvdGVuY3lfa2V5GAMgASgJEjMKCWF1dGhvcml0eRgEIAEoDjIgLmFnZW50X21hbmFnZXIudjEuV2F0Y2hBdXRob3JpdHkibwoVV2l0aGRyYXdFZmZvcnRSZXF1ZXN0EhIKCmVmZm9ydF9yZWYYASABKAkSGQoRZXhwZWN0ZWRfcmV2aXNpb24YAiABKAQSDgoGcmVhc29uGAMgASgJEhcKD2lkZW1wb3RlbmN5X2tleRgEIAEoCSIhCh9SZWNvbmNpbGVFZmZvcnREaXNjb3ZlcnlSZXF1ZXN0IogBCg5FZmZvcnRDYXBVc2FnZRIOCgZydW5faWQYASABKAkSDAoEcm9sZRgCIAEoCRIcCg93ZWlnaHRlZF90b2tlbnMYAyABKAFIAIgBARIQCgNjYXAYBCABKANIAYgBARIMCgRtb2RlGAUgASgJQhIKEF93ZWlnaHRlZF90b2tlbnNCBgoEX2NhcCLmBgoORWZmb3J0R29hbEhvbWUSDAoEcGF0aBgBIAEoCRINCgVzdGF0ZRgCIAEoCRITCgtsaW1pdGF0aW9ucxgDIAMoCRIaChJkZXN0aW5hdGlvbl9tZXRyaWMYBCABKAkSFgoOZGVzdGluYXRpb25fb3AYBSABKAkSHwoSZGVzdGluYXRpb25fdGFyZ2V0GAYgASgBSACIAQESGgoNY3VycmVudF92YWx1ZRgHIAEoAUgBiAEBEjEKDWN1cnJlbnRfYXNfb2YYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhQKDGFjdGl2ZV9lcG9jaBgJIAEoCRIVCg1hY3RpdmVfc3RhdHVzGAogASgJEhYKDmFjdGl2ZV93b3JrZXJzGAsgAygJEhsKE2xhc3RfYWNjZXB0ZWRfZXBvY2gYDCABKAkSNAoQbGFzdF9hY2NlcHRlZF9hdBgNIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEgoKbGFzdF95aWVsZBgOIAEoCRIWCg5uZWVkc19vcGVyYXRvchgPIAMoCRIdChBvcGVuX3dvcmthcm91bmRzGBAgASgNSAKIAQESGQoRb3Blbl9mZWVkYmFja19pZHMYESADKAkSOAoOb3Blbl9kZWNpc2lvbnMYEiADKAsyIC5hZ2VudF9tYW5hZ2VyLnYxLkVmZm9ydERlY2lzaW9uEi8KIndlaWdodGVkX3Rva2Vuc19wZXJfYWNjZXB0ZWRfZXBvY2gYEyABKAFIA4gBARIgChhhY2NlcHRlZF9lcG9jaHNfbWVhc3VyZWQYFCABKA0SMwoJY2FwX3VzYWdlGBUgAygLMiAuYWdlbnRfbWFuYWdlci52MS5FZmZvcnRDYXBVc2FnZRIVCg1jYW5hcnlfc3RhdHVzGBYgASgJEhUKDWxpbnRfZmluZGluZ3MYFyADKAkSKwoHcmVhZF9hdBgYIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBCFQoTX2Rlc3RpbmF0aW9uX3RhcmdldEIQCg5fY3VycmVudF92YWx1ZUITChFfb3Blbl93b3JrYXJvdW5kc0IlCiNfd2VpZ2h0ZWRfdG9rZW5zX3Blcl9hY2NlcHRlZF9lcG9jaCKNAQoMRWZmb3J0U2lnbmFsEgsKA3NlcRgBIAEoAxISCgplZmZvcnRfcmVmGAIgASgJEgwKBGtpbmQYAyABKAkSDgoGcnVuX2lkGAQgASgJEg4KBmRldGFpbBgFIAEoCRIuCgpjcmVhdGVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJxChhMaXN0RWZmb3J0U2lnbmFsc1JlcXVlc3QSHgoKZWZmb3J0X3JlZhgBIAEoCUIKukgHcgUQARiABBIaCglhZnRlcl9zZXEYAiABKANCB7pIBCICKAASGQoFbGltaXQYAyABKAVCCrpIBxoFGPQDKAAiYAoZTGlzdEVmZm9ydFNpZ25hbHNSZXNwb25zZRIvCgdzaWduYWxzGAEgAygLMh4uYWdlbnRfbWFuYWdlci52MS5FZmZvcnRTaWduYWwSEgoKbGF0ZXN0X3NlcRgCIAEoAyKlAQoZUmVjb3JkRWZmb3J0U2lnbmFsUmVxdWVzdBIeCgplZmZvcnRfcmVmGAEgASgJQgq6SAdyBRABGIAEEhcKBGtpbmQYAiABKAlCCbpIBnIEEAEYQBIXCgZydW5faWQYAyABKAlCB7pIBHICGEASGAoGZGV0YWlsGAQgASgJQgi6SAVyAxiAEBIcCgpkZWR1cGVfa2V5GAUgASgJQgi6SAVyAxiABCIyChRFZmZvcnREZWNpc2lvbk9wdGlvbhILCgNrZXkYASABKAkSDQoFbGFiZWwYAiABKAki+QUKDkVmZm9ydERlY2lzaW9uEhIKCmVmZm9ydF9yZWYYASABKAkSEQoJZ29hbF9ob21lGAIgASgJEhMKC2RlY2lzaW9uX2lkGAMgASgJEhAKCHF1ZXN0aW9uGAQgASgJEjcKB29wdGlvbnMYBSADKAsyJi5hZ2VudF9tYW5hZ2VyLnYxLkVmZm9ydERlY2lzaW9uT3B0aW9uEhMKC3JlY29tbWVuZGVkGAYgASgJEh0KFXJlY29tbWVuZGF0aW9uX3JlYXNvbhgHIAEoCRIWCg5kZWZhdWx0X2Fuc3dlchgIIAEoCRISCgpyZXZlcnNpYmxlGAkgASgIEg8KB3VyZ2VuY3kYCiABKAkSDAoEbm90ZRgLIAEoCRITCgtjb250ZXh0X3VybBgMIAEoCRIsCghkZWFkbGluZRgNIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDQoFc3RhdGUYDiABKAkSDgoGYW5zd2VyGA8gASgJEhQKDGFuc3dlcl9sYWJlbBgQIAEoCRITCgthbnN3ZXJfbm90ZRgRIAEoCRIUCgxhbnN3ZXJlZF92aWEYEiABKAkSDAoEbGF0ZRgTIAEoCBIvCgthbnN3ZXJlZF9hdBgUIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASGQoRcmVzb2x1dGlvbl9yZWFzb24YFSABKAkSEAoIZXZlbnRfaWQYFiABKAkSDgoGYXNrX2lkGBcgASgJEhgKEHJhaXNlZF9ieV9ydW5faWQYGCABKAkSLgoKY3JlYXRlZF9hdBgZIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMAoMcHVibGlzaGVkX2F0GBogASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIVCg1wdWJsaXNoX2Vycm9yGBsgASgJEi8KC3JlY29yZGVkX2F0GBwgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJQChpSYWlzZUVmZm9ydERlY2lzaW9uUmVxdWVzdBIyCghkZWNpc2lvbhgBIAEoCzIgLmFnZW50X21hbmFnZXIudjEuRWZmb3J0RGVjaXNpb24idQobUmFpc2VFZmZvcnREZWNpc2lvblJlc3BvbnNlEjIKCGRlY2lzaW9uGAEgASgLMiAuYWdlbnRfbWFuYWdlci52MS5FZmZvcnREZWNpc2lvbhIPCgdjcmVhdGVkGAIgASgIEhEKCXB1Ymxpc2hlZBgDIAEoCCKLAQoaTGlzdEVmZm9ydERlY2lzaW9uc1JlcXVlc3QSGwoJZ29hbF9ob21lGAEgASgJQgi6SAVyAxiACBIcCgplZmZvcnRfcmVmGAIgASgJQgi6SAVyAxiABBIXCg91bnJlY29yZGVkX29ubHkYAyABKAgSGQoFbGltaXQYBCABKAVCCrpIBxoFGMgBKAAiUgobTGlzdEVmZm9ydERlY2lzaW9uc1Jlc3BvbnNlEjMKCWRlY2lzaW9ucxgBIAMoCzIgLmFnZW50X21hbmFnZXIudjEuRWZmb3J0RGVjaXNpb24ikAEKG0Fuc3dlckVmZm9ydERlY2lzaW9uUmVxdWVzdBIdCglnb2FsX2hvbWUYASABKAlCCrpIB3IFEAEYgAgSHwoLZGVjaXNpb25faWQYAiABKAlCCrpIB3IFEAEYgAESGQoGYW5zd2VyGAMgASgJQgm6SAZyBBABGEASFgoEbm90ZRgEIAEoCUIIukgFcgMYgCAilAEKIU1hcmtFZmZvcnREZWNpc2lvblJlY29yZGVkUmVxdWVzdBIdCglnb2FsX2hvbWUYASABKAlCCrpIB3IFEAEYgAgSHwoLZGVjaXNpb25faWQYAiABKAlCCrpIB3IFEAEYgAESLwoLYW5zd2VyZWRfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wKo0BCg9FZmZvcnRGcmVzaG5lc3MSIAocRUZGT1JUX0ZSRVNITkVTU19VTlNQRUNJRklFRBAAEhoKFkVGRk9SVF9GUkVTSE5FU1NfRlJFU0gQARIaChZFRkZPUlRfRlJFU0hORVNTX1NUQUxFEAISIAocRUZGT1JUX0ZSRVNITkVTU19VTkFWQUlMQUJMRRADQk9aTWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYWdlbnQtbWFuYWdlci92MS9kb21haW47ZG9tYWluYgZwcm90bzM", [file_agent_manager_v1_domain_watch, file_buf_validate_validate, file_google_protobuf_timestamp]);
 
 /**
  * An exact subject reference. Ordering is the enrollment's declared order.
@@ -621,6 +621,14 @@ export type EffortBoardRow = Message<"agent_manager.v1.EffortBoardRow"> & {
    * @generated from field: repeated agent_manager.v1.EffortQuotaObservation quota_observations = 18;
    */
   quotaObservations: EffortQuotaObservation[];
+
+  /**
+   * Goal-home facts read on the scan cycle when the enrollment's
+   * destination_ref is "path:<goal home>/GOAL.md" (DL-9). Absent otherwise.
+   *
+   * @generated from field: agent_manager.v1.EffortGoalHome goal_home = 19;
+   */
+  goalHome?: EffortGoalHome | undefined;
 };
 
 /**
@@ -874,6 +882,700 @@ export type ReconcileEffortDiscoveryRequest = Message<"agent_manager.v1.Reconcil
  */
 export const ReconcileEffortDiscoveryRequestSchema: GenMessage<ReconcileEffortDiscoveryRequest> = /*@__PURE__*/
   messageDesc(file_agent_manager_v1_domain_effort, 16);
+
+/**
+ * One weighted-token cap reading for an active run of a goal-home effort.
+ * Absent weighted_tokens or cap means unknown, never zero.
+ *
+ * @generated from message agent_manager.v1.EffortCapUsage
+ */
+export type EffortCapUsage = Message<"agent_manager.v1.EffortCapUsage"> & {
+  /**
+   * @generated from field: string run_id = 1;
+   */
+  runId: string;
+
+  /**
+   * @generated from field: string role = 2;
+   */
+  role: string;
+
+  /**
+   * @generated from field: optional double weighted_tokens = 3;
+   */
+  weightedTokens?: number | undefined;
+
+  /**
+   * @generated from field: optional int64 cap = 4;
+   */
+  cap?: bigint | undefined;
+
+  /**
+   * off, report or enforce.
+   *
+   * @generated from field: string mode = 5;
+   */
+  mode: string;
+};
+
+/**
+ * Describes the message agent_manager.v1.EffortCapUsage.
+ * Use `create(EffortCapUsageSchema)` to create a new message.
+ */
+export const EffortCapUsageSchema: GenMessage<EffortCapUsage> = /*@__PURE__*/
+  messageDesc(file_agent_manager_v1_domain_effort, 17);
+
+/**
+ * Facts read from a registered goal home (large-effort-orchestration §3).
+ * Every optional or empty field is unknown, never zero.
+ *
+ * @generated from message agent_manager.v1.EffortGoalHome
+ */
+export type EffortGoalHome = Message<"agent_manager.v1.EffortGoalHome"> & {
+  /**
+   * Repository-relative goal-home directory.
+   *
+   * @generated from field: string path = 1;
+   */
+  path: string;
+
+  /**
+   * available or unavailable; limitations name why.
+   *
+   * @generated from field: string state = 2;
+   */
+  state: string;
+
+  /**
+   * @generated from field: repeated string limitations = 3;
+   */
+  limitations: string[];
+
+  /**
+   * @generated from field: string destination_metric = 4;
+   */
+  destinationMetric: string;
+
+  /**
+   * @generated from field: string destination_op = 5;
+   */
+  destinationOp: string;
+
+  /**
+   * @generated from field: optional double destination_target = 6;
+   */
+  destinationTarget?: number | undefined;
+
+  /**
+   * @generated from field: optional double current_value = 7;
+   */
+  currentValue?: number | undefined;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp current_as_of = 8;
+   */
+  currentAsOf?: Timestamp | undefined;
+
+  /**
+   * Highest-numbered epoch without an ACCEPTED line, e.g. "E27".
+   *
+   * @generated from field: string active_epoch = 9;
+   */
+  activeEpoch: string;
+
+  /**
+   * @generated from field: string active_status = 10;
+   */
+  activeStatus: string;
+
+  /**
+   * @generated from field: repeated string active_workers = 11;
+   */
+  activeWorkers: string[];
+
+  /**
+   * @generated from field: string last_accepted_epoch = 12;
+   */
+  lastAcceptedEpoch: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp last_accepted_at = 13;
+   */
+  lastAcceptedAt?: Timestamp | undefined;
+
+  /**
+   * "+3 journeys"; empty when the acceptance line records no yield.
+   *
+   * @generated from field: string last_yield = 14;
+   */
+  lastYield: string;
+
+  /**
+   * First lines of ## Needs operator items, at most 8.
+   *
+   * @generated from field: repeated string needs_operator = 15;
+   */
+  needsOperator: string[];
+
+  /**
+   * @generated from field: optional uint32 open_workarounds = 16;
+   */
+  openWorkarounds?: number | undefined;
+
+  /**
+   * @generated from field: repeated string open_feedback_ids = 17;
+   */
+  openFeedbackIds: string[];
+
+  /**
+   * Operator decisions not yet recorded in FEEDBACK.md.
+   *
+   * @generated from field: repeated agent_manager.v1.EffortDecision open_decisions = 18;
+   */
+  openDecisions: EffortDecision[];
+
+  /**
+   * Mean weighted tokens of the measured accepted epochs' Workers runs.
+   *
+   * @generated from field: optional double weighted_tokens_per_accepted_epoch = 19;
+   */
+  weightedTokensPerAcceptedEpoch?: number | undefined;
+
+  /**
+   * @generated from field: uint32 accepted_epochs_measured = 20;
+   */
+  acceptedEpochsMeasured: number;
+
+  /**
+   * @generated from field: repeated agent_manager.v1.EffortCapUsage cap_usage = 21;
+   */
+  capUsage: EffortCapUsage[];
+
+  /**
+   * "unknown" until the delivery canary reports (DL-6).
+   *
+   * @generated from field: string canary_status = 22;
+   */
+  canaryStatus: string;
+
+  /**
+   * Blocking lint finding codes, e.g. "handoff-count".
+   *
+   * @generated from field: repeated string lint_findings = 23;
+   */
+  lintFindings: string[];
+
+  /**
+   * @generated from field: google.protobuf.Timestamp read_at = 24;
+   */
+  readAt?: Timestamp | undefined;
+};
+
+/**
+ * Describes the message agent_manager.v1.EffortGoalHome.
+ * Use `create(EffortGoalHomeSchema)` to create a new message.
+ */
+export const EffortGoalHomeSchema: GenMessage<EffortGoalHome> = /*@__PURE__*/
+  messageDesc(file_agent_manager_v1_domain_effort, 18);
+
+/**
+ * One durable effort signal (DL-2). seq increases monotonically per effort;
+ * one fact is one signal.
+ *
+ * @generated from message agent_manager.v1.EffortSignal
+ */
+export type EffortSignal = Message<"agent_manager.v1.EffortSignal"> & {
+  /**
+   * @generated from field: int64 seq = 1;
+   */
+  seq: bigint;
+
+  /**
+   * @generated from field: string effort_ref = 2;
+   */
+  effortRef: string;
+
+  /**
+   * child_run_ended, step_back, feedback, operator_answer or cap_stop.
+   *
+   * @generated from field: string kind = 3;
+   */
+  kind: string;
+
+  /**
+   * @generated from field: string run_id = 4;
+   */
+  runId: string;
+
+  /**
+   * @generated from field: string detail = 5;
+   */
+  detail: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp created_at = 6;
+   */
+  createdAt?: Timestamp | undefined;
+};
+
+/**
+ * Describes the message agent_manager.v1.EffortSignal.
+ * Use `create(EffortSignalSchema)` to create a new message.
+ */
+export const EffortSignalSchema: GenMessage<EffortSignal> = /*@__PURE__*/
+  messageDesc(file_agent_manager_v1_domain_effort, 19);
+
+/**
+ * @generated from message agent_manager.v1.ListEffortSignalsRequest
+ */
+export type ListEffortSignalsRequest = Message<"agent_manager.v1.ListEffortSignalsRequest"> & {
+  /**
+   * @generated from field: string effort_ref = 1;
+   */
+  effortRef: string;
+
+  /**
+   * Return signals with seq greater than after_seq.
+   *
+   * @generated from field: int64 after_seq = 2;
+   */
+  afterSeq: bigint;
+
+  /**
+   * 0 means 100; at most 500.
+   *
+   * @generated from field: int32 limit = 3;
+   */
+  limit: number;
+};
+
+/**
+ * Describes the message agent_manager.v1.ListEffortSignalsRequest.
+ * Use `create(ListEffortSignalsRequestSchema)` to create a new message.
+ */
+export const ListEffortSignalsRequestSchema: GenMessage<ListEffortSignalsRequest> = /*@__PURE__*/
+  messageDesc(file_agent_manager_v1_domain_effort, 20);
+
+/**
+ * @generated from message agent_manager.v1.ListEffortSignalsResponse
+ */
+export type ListEffortSignalsResponse = Message<"agent_manager.v1.ListEffortSignalsResponse"> & {
+  /**
+   * @generated from field: repeated agent_manager.v1.EffortSignal signals = 1;
+   */
+  signals: EffortSignal[];
+
+  /**
+   * Highest seq recorded for the effort, also when signals is empty.
+   *
+   * @generated from field: int64 latest_seq = 2;
+   */
+  latestSeq: bigint;
+};
+
+/**
+ * Describes the message agent_manager.v1.ListEffortSignalsResponse.
+ * Use `create(ListEffortSignalsResponseSchema)` to create a new message.
+ */
+export const ListEffortSignalsResponseSchema: GenMessage<ListEffortSignalsResponse> = /*@__PURE__*/
+  messageDesc(file_agent_manager_v1_domain_effort, 21);
+
+/**
+ * Records a caller-owned signal: step_back (a worker's epoch-check) or
+ * feedback (whoever writes an operator or supervisor FEEDBACK.md entry).
+ * The other kinds are written by Agent Manager itself.
+ *
+ * @generated from message agent_manager.v1.RecordEffortSignalRequest
+ */
+export type RecordEffortSignalRequest = Message<"agent_manager.v1.RecordEffortSignalRequest"> & {
+  /**
+   * @generated from field: string effort_ref = 1;
+   */
+  effortRef: string;
+
+  /**
+   * @generated from field: string kind = 2;
+   */
+  kind: string;
+
+  /**
+   * @generated from field: string run_id = 3;
+   */
+  runId: string;
+
+  /**
+   * @generated from field: string detail = 4;
+   */
+  detail: string;
+
+  /**
+   * Same key, same signal. Empty derives kind:run_id:detail.
+   *
+   * @generated from field: string dedupe_key = 5;
+   */
+  dedupeKey: string;
+};
+
+/**
+ * Describes the message agent_manager.v1.RecordEffortSignalRequest.
+ * Use `create(RecordEffortSignalRequestSchema)` to create a new message.
+ */
+export const RecordEffortSignalRequestSchema: GenMessage<RecordEffortSignalRequest> = /*@__PURE__*/
+  messageDesc(file_agent_manager_v1_domain_effort, 22);
+
+/**
+ * @generated from message agent_manager.v1.EffortDecisionOption
+ */
+export type EffortDecisionOption = Message<"agent_manager.v1.EffortDecisionOption"> & {
+  /**
+   * @generated from field: string key = 1;
+   */
+  key: string;
+
+  /**
+   * @generated from field: string label = 2;
+   */
+  label: string;
+};
+
+/**
+ * Describes the message agent_manager.v1.EffortDecisionOption.
+ * Use `create(EffortDecisionOptionSchema)` to create a new message.
+ */
+export const EffortDecisionOptionSchema: GenMessage<EffortDecisionOption> = /*@__PURE__*/
+  messageDesc(file_agent_manager_v1_domain_effort, 23);
+
+/**
+ * An operator decision for one goal home (DL-5). The notification-hub ask is
+ * the delivery channel; this record is the effort's copy.
+ *
+ * @generated from message agent_manager.v1.EffortDecision
+ */
+export type EffortDecision = Message<"agent_manager.v1.EffortDecision"> & {
+  /**
+   * @generated from field: string effort_ref = 1;
+   */
+  effortRef: string;
+
+  /**
+   * Repository-relative goal-home directory.
+   *
+   * @generated from field: string goal_home = 2;
+   */
+  goalHome: string;
+
+  /**
+   * @generated from field: string decision_id = 3;
+   */
+  decisionId: string;
+
+  /**
+   * @generated from field: string question = 4;
+   */
+  question: string;
+
+  /**
+   * Recommended option first.
+   *
+   * @generated from field: repeated agent_manager.v1.EffortDecisionOption options = 5;
+   */
+  options: EffortDecisionOption[];
+
+  /**
+   * @generated from field: string recommended = 6;
+   */
+  recommended: string;
+
+  /**
+   * @generated from field: string recommendation_reason = 7;
+   */
+  recommendationReason: string;
+
+  /**
+   * @generated from field: string default_answer = 8;
+   */
+  defaultAnswer: string;
+
+  /**
+   * @generated from field: bool reversible = 9;
+   */
+  reversible: boolean;
+
+  /**
+   * @generated from field: string urgency = 10;
+   */
+  urgency: string;
+
+  /**
+   * @generated from field: string note = 11;
+   */
+  note: string;
+
+  /**
+   * @generated from field: string context_url = 12;
+   */
+  contextUrl: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp deadline = 13;
+   */
+  deadline?: Timestamp | undefined;
+
+  /**
+   * pending, answered, defaulted or expired.
+   *
+   * @generated from field: string state = 14;
+   */
+  state: string;
+
+  /**
+   * @generated from field: string answer = 15;
+   */
+  answer: string;
+
+  /**
+   * @generated from field: string answer_label = 16;
+   */
+  answerLabel: string;
+
+  /**
+   * Operator note, verbatim.
+   *
+   * @generated from field: string answer_note = 17;
+   */
+  answerNote: string;
+
+  /**
+   * phone, desktop or default.
+   *
+   * @generated from field: string answered_via = 18;
+   */
+  answeredVia: string;
+
+  /**
+   * @generated from field: bool late = 19;
+   */
+  late: boolean;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp answered_at = 20;
+   */
+  answeredAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: string resolution_reason = 21;
+   */
+  resolutionReason: string;
+
+  /**
+   * Deterministic Vrooli Events id of the decision_requested event.
+   *
+   * @generated from field: string event_id = 22;
+   */
+  eventId: string;
+
+  /**
+   * @generated from field: string ask_id = 23;
+   */
+  askId: string;
+
+  /**
+   * @generated from field: string raised_by_run_id = 24;
+   */
+  raisedByRunId: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp created_at = 25;
+   */
+  createdAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp published_at = 26;
+   */
+  publishedAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: string publish_error = 27;
+   */
+  publishError: string;
+
+  /**
+   * Set by effort decision sync after it writes FEEDBACK.md; cleared when a
+   * later answer supersedes the recorded one.
+   *
+   * @generated from field: google.protobuf.Timestamp recorded_at = 28;
+   */
+  recordedAt?: Timestamp | undefined;
+};
+
+/**
+ * Describes the message agent_manager.v1.EffortDecision.
+ * Use `create(EffortDecisionSchema)` to create a new message.
+ */
+export const EffortDecisionSchema: GenMessage<EffortDecision> = /*@__PURE__*/
+  messageDesc(file_agent_manager_v1_domain_effort, 24);
+
+/**
+ * @generated from message agent_manager.v1.RaiseEffortDecisionRequest
+ */
+export type RaiseEffortDecisionRequest = Message<"agent_manager.v1.RaiseEffortDecisionRequest"> & {
+  /**
+   * @generated from field: agent_manager.v1.EffortDecision decision = 1;
+   */
+  decision?: EffortDecision | undefined;
+};
+
+/**
+ * Describes the message agent_manager.v1.RaiseEffortDecisionRequest.
+ * Use `create(RaiseEffortDecisionRequestSchema)` to create a new message.
+ */
+export const RaiseEffortDecisionRequestSchema: GenMessage<RaiseEffortDecisionRequest> = /*@__PURE__*/
+  messageDesc(file_agent_manager_v1_domain_effort, 25);
+
+/**
+ * @generated from message agent_manager.v1.RaiseEffortDecisionResponse
+ */
+export type RaiseEffortDecisionResponse = Message<"agent_manager.v1.RaiseEffortDecisionResponse"> & {
+  /**
+   * @generated from field: agent_manager.v1.EffortDecision decision = 1;
+   */
+  decision?: EffortDecision | undefined;
+
+  /**
+   * False when the same decision was already stored (idempotent re-raise).
+   *
+   * @generated from field: bool created = 2;
+   */
+  created: boolean;
+
+  /**
+   * True when this call published the event.
+   *
+   * @generated from field: bool published = 3;
+   */
+  published: boolean;
+};
+
+/**
+ * Describes the message agent_manager.v1.RaiseEffortDecisionResponse.
+ * Use `create(RaiseEffortDecisionResponseSchema)` to create a new message.
+ */
+export const RaiseEffortDecisionResponseSchema: GenMessage<RaiseEffortDecisionResponse> = /*@__PURE__*/
+  messageDesc(file_agent_manager_v1_domain_effort, 26);
+
+/**
+ * @generated from message agent_manager.v1.ListEffortDecisionsRequest
+ */
+export type ListEffortDecisionsRequest = Message<"agent_manager.v1.ListEffortDecisionsRequest"> & {
+  /**
+   * @generated from field: string goal_home = 1;
+   */
+  goalHome: string;
+
+  /**
+   * @generated from field: string effort_ref = 2;
+   */
+  effortRef: string;
+
+  /**
+   * Only decisions not yet recorded in FEEDBACK.md.
+   *
+   * @generated from field: bool unrecorded_only = 3;
+   */
+  unrecordedOnly: boolean;
+
+  /**
+   * @generated from field: int32 limit = 4;
+   */
+  limit: number;
+};
+
+/**
+ * Describes the message agent_manager.v1.ListEffortDecisionsRequest.
+ * Use `create(ListEffortDecisionsRequestSchema)` to create a new message.
+ */
+export const ListEffortDecisionsRequestSchema: GenMessage<ListEffortDecisionsRequest> = /*@__PURE__*/
+  messageDesc(file_agent_manager_v1_domain_effort, 27);
+
+/**
+ * @generated from message agent_manager.v1.ListEffortDecisionsResponse
+ */
+export type ListEffortDecisionsResponse = Message<"agent_manager.v1.ListEffortDecisionsResponse"> & {
+  /**
+   * @generated from field: repeated agent_manager.v1.EffortDecision decisions = 1;
+   */
+  decisions: EffortDecision[];
+};
+
+/**
+ * Describes the message agent_manager.v1.ListEffortDecisionsResponse.
+ * Use `create(ListEffortDecisionsResponseSchema)` to create a new message.
+ */
+export const ListEffortDecisionsResponseSchema: GenMessage<ListEffortDecisionsResponse> = /*@__PURE__*/
+  messageDesc(file_agent_manager_v1_domain_effort, 28);
+
+/**
+ * A desktop answer. Requires operator authority.
+ *
+ * @generated from message agent_manager.v1.AnswerEffortDecisionRequest
+ */
+export type AnswerEffortDecisionRequest = Message<"agent_manager.v1.AnswerEffortDecisionRequest"> & {
+  /**
+   * @generated from field: string goal_home = 1;
+   */
+  goalHome: string;
+
+  /**
+   * @generated from field: string decision_id = 2;
+   */
+  decisionId: string;
+
+  /**
+   * @generated from field: string answer = 3;
+   */
+  answer: string;
+
+  /**
+   * @generated from field: string note = 4;
+   */
+  note: string;
+};
+
+/**
+ * Describes the message agent_manager.v1.AnswerEffortDecisionRequest.
+ * Use `create(AnswerEffortDecisionRequestSchema)` to create a new message.
+ */
+export const AnswerEffortDecisionRequestSchema: GenMessage<AnswerEffortDecisionRequest> = /*@__PURE__*/
+  messageDesc(file_agent_manager_v1_domain_effort, 29);
+
+/**
+ * Fenced on answered_at so a later answer is never marked recorded.
+ *
+ * @generated from message agent_manager.v1.MarkEffortDecisionRecordedRequest
+ */
+export type MarkEffortDecisionRecordedRequest = Message<"agent_manager.v1.MarkEffortDecisionRecordedRequest"> & {
+  /**
+   * @generated from field: string goal_home = 1;
+   */
+  goalHome: string;
+
+  /**
+   * @generated from field: string decision_id = 2;
+   */
+  decisionId: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp answered_at = 3;
+   */
+  answeredAt?: Timestamp | undefined;
+};
+
+/**
+ * Describes the message agent_manager.v1.MarkEffortDecisionRecordedRequest.
+ * Use `create(MarkEffortDecisionRecordedRequestSchema)` to create a new message.
+ */
+export const MarkEffortDecisionRecordedRequestSchema: GenMessage<MarkEffortDecisionRecordedRequest> = /*@__PURE__*/
+  messageDesc(file_agent_manager_v1_domain_effort, 30);
 
 /**
  * Freshness of evidence, independently of runtime or outcome state.

@@ -97,6 +97,21 @@ describe("FileList", () => {
     expect(screen.queryByRole("menuitem", { name: /Stage all changed files named go.mod.bak/ })).not.toBeInTheDocument();
   });
 
+  it("keeps stage/unstage controls responsive while a stage is in flight", async () => {
+    // Regression guard for the serialization complaint: staging is optimistic and the
+    // batcher coalesces follow-up clicks, so an in-flight stage must not disable the
+    // stage/unstage controls — the user can keep queueing groups.
+    const { props, user } = renderFileList({ isStaging: true });
+
+    const stageAll = screen.getByTestId("stage-all-button");
+    const unstageAll = screen.getByTestId("unstage-all-button");
+    expect(stageAll).toBeEnabled();
+    expect(unstageAll).toBeEnabled();
+
+    await user.click(stageAll);
+    expect(props.onStageAll).toHaveBeenCalledTimes(1);
+  });
+
   it("renders change sections and routes file actions to their callbacks", async () => {
     const { props, user } = renderFileList();
 

@@ -178,6 +178,13 @@ func localOwnerAPI(api *cliutil.APIClient) (*cliutil.APIClient, error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+	credential, err := cliutil.ResolveAgentCredential(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("local owner caller authority unavailable: %w", err)
+	}
+	if credential != "" {
+		return nil, fmt.Errorf("--local-owner is unavailable inside an identified agent run; use the granted credential")
+	}
 	login, err := authn.ExchangeLocalMachinePrincipal(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("local owner exchange unavailable: %w", err)

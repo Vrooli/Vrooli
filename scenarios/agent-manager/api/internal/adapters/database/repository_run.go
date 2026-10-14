@@ -1298,7 +1298,7 @@ type eventRow struct {
 	Data      []byte     `db:"data"`
 }
 
-func (e *eventRow) toDomain() *domain.RunEvent {
+func (e *eventRow) toDomain() (*domain.RunEvent, error) {
 	evt := &domain.RunEvent{
 		ID:        e.ID,
 		RunID:     e.RunID,
@@ -1307,10 +1307,12 @@ func (e *eventRow) toDomain() *domain.RunEvent {
 		Timestamp: e.Timestamp.Time(),
 	}
 
-	if payload, err := domain.DecodeEventPayload(evt.EventType, e.Data); err == nil {
-		evt.Data = payload
+	payload, err := domain.DecodeEventPayload(evt.EventType, e.Data)
+	if err != nil {
+		return nil, &domain.DatabaseError{Operation: "decode_event", EntityType: "RunEvent", EntityID: e.ID.String(), Cause: err}
 	}
-	return evt
+	evt.Data = payload
+	return evt, nil
 }
 
 const eventColumns = `id, run_id, sequence, event_type, timestamp, data`
@@ -1394,7 +1396,11 @@ func (r *eventRepository) Get(ctx context.Context, runID uuid.UUID, afterSequenc
 
 	result := make([]*domain.RunEvent, len(rows))
 	for i, row := range rows {
-		result[i] = row.toDomain()
+		evt, err := row.toDomain()
+		if err != nil {
+			return nil, err
+		}
+		result[i] = evt
 	}
 	return result, nil
 }
@@ -1428,7 +1434,11 @@ func (r *eventRepository) GetByType(ctx context.Context, runID uuid.UUID, types 
 
 	result := make([]*domain.RunEvent, len(rows))
 	for i, row := range rows {
-		result[i] = row.toDomain()
+		evt, err := row.toDomain()
+		if err != nil {
+			return nil, err
+		}
+		result[i] = evt
 	}
 	return result, nil
 }

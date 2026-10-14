@@ -75,7 +75,8 @@
         "model-policy.json",
         "docs/**",
         "README.md",
-        "resource.json"
+        "resource.json",
+        "../../packages/agentharness"
       ]
     },
     "source_build": {
@@ -110,10 +111,10 @@
   "acquisition": {
     "kind": "npm",
     "targets": [
-      {"when": {"os": "linux", "arch": "amd64"}, "package": "@openai/codex", "version": "0.141.0", "sha256": "9ad570849477d217386d740e2e342de38f6d64ef0bcab98911b1437c30fc09cf"},
-      {"when": {"os": "linux", "arch": "arm64"}, "package": "@openai/codex", "version": "0.141.0", "sha256": "9ad570849477d217386d740e2e342de38f6d64ef0bcab98911b1437c30fc09cf"},
-      {"when": {"os": "darwin", "arch": "amd64"}, "package": "@openai/codex", "version": "0.141.0", "sha256": "9ad570849477d217386d740e2e342de38f6d64ef0bcab98911b1437c30fc09cf"},
-      {"when": {"os": "darwin", "arch": "arm64"}, "package": "@openai/codex", "version": "0.141.0", "sha256": "9ad570849477d217386d740e2e342de38f6d64ef0bcab98911b1437c30fc09cf"}
+      {"when": {"os": "linux", "arch": "amd64"}, "package": "@openai/codex", "version": "0.161.0", "sha256": "4e472c1098f1162e1b46d4935e5f2264f7076182949b95bb47d839b35108c5f0"},
+      {"when": {"os": "linux", "arch": "arm64"}, "package": "@openai/codex", "version": "0.161.0", "sha256": "4e472c1098f1162e1b46d4935e5f2264f7076182949b95bb47d839b35108c5f0"},
+      {"when": {"os": "darwin", "arch": "amd64"}, "package": "@openai/codex", "version": "0.161.0", "sha256": "4e472c1098f1162e1b46d4935e5f2264f7076182949b95bb47d839b35108c5f0"},
+      {"when": {"os": "darwin", "arch": "arm64"}, "package": "@openai/codex", "version": "0.161.0", "sha256": "4e472c1098f1162e1b46d4935e5f2264f7076182949b95bb47d839b35108c5f0"}
     ]
   },
   "provider_policy": {
@@ -330,7 +331,7 @@
       "codex",
       "--version"
     ],
-    "version_pinned": "0.141.0",
+    "version_pinned": "0.161.0",
     "upstream_release_source": "https://registry.npmjs.org/@openai/codex/latest",
     "docs_source": "https://developers.openai.com/codex/permissions",
     "docs_pinned_at": "2026-05-28",

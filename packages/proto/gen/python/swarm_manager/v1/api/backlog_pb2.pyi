@@ -200,6 +200,52 @@ class DeleteBacklogItemResponse(_message.Message):
     deleted: bool
     def __init__(self, deleted: _Optional[bool] = ...) -> None: ...
 
+class TerminalArchiveTarget(_message.Message):
+    __slots__ = ("kind", "name", "expected_status", "expected_updated")
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_STATUS_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_UPDATED_FIELD_NUMBER: _ClassVar[int]
+    kind: str
+    name: str
+    expected_status: str
+    expected_updated: str
+    def __init__(self, kind: _Optional[str] = ..., name: _Optional[str] = ..., expected_status: _Optional[str] = ..., expected_updated: _Optional[str] = ...) -> None: ...
+
+class ArchiveTerminalItemsRequest(_message.Message):
+    __slots__ = ("items", "execute")
+    ITEMS_FIELD_NUMBER: _ClassVar[int]
+    EXECUTE_FIELD_NUMBER: _ClassVar[int]
+    items: _containers.RepeatedCompositeFieldContainer[TerminalArchiveTarget]
+    execute: bool
+    def __init__(self, items: _Optional[_Iterable[_Union[TerminalArchiveTarget, _Mapping]]] = ..., execute: _Optional[bool] = ...) -> None: ...
+
+class TerminalArchiveResult(_message.Message):
+    __slots__ = ("ref", "code", "reason", "archived_at")
+    REF_FIELD_NUMBER: _ClassVar[int]
+    CODE_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    ARCHIVED_AT_FIELD_NUMBER: _ClassVar[int]
+    ref: str
+    code: str
+    reason: str
+    archived_at: str
+    def __init__(self, ref: _Optional[str] = ..., code: _Optional[str] = ..., reason: _Optional[str] = ..., archived_at: _Optional[str] = ...) -> None: ...
+
+class ArchiveTerminalItemsResponse(_message.Message):
+    __slots__ = ("results", "eligible_count", "archived_count", "skipped_count", "executed")
+    RESULTS_FIELD_NUMBER: _ClassVar[int]
+    ELIGIBLE_COUNT_FIELD_NUMBER: _ClassVar[int]
+    ARCHIVED_COUNT_FIELD_NUMBER: _ClassVar[int]
+    SKIPPED_COUNT_FIELD_NUMBER: _ClassVar[int]
+    EXECUTED_FIELD_NUMBER: _ClassVar[int]
+    results: _containers.RepeatedCompositeFieldContainer[TerminalArchiveResult]
+    eligible_count: int
+    archived_count: int
+    skipped_count: int
+    executed: bool
+    def __init__(self, results: _Optional[_Iterable[_Union[TerminalArchiveResult, _Mapping]]] = ..., eligible_count: _Optional[int] = ..., archived_count: _Optional[int] = ..., skipped_count: _Optional[int] = ..., executed: _Optional[bool] = ...) -> None: ...
+
 class ReviewFollowUp(_message.Message):
     __slots__ = ("steering", "disposition", "items")
     STEERING_FIELD_NUMBER: _ClassVar[int]

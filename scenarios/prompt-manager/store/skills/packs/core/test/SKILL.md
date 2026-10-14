@@ -11,9 +11,9 @@ metadata:
   status: "active"
   targetDimensions: ["tests","coverage"]
   programmaticHome: "unit-health:unit"
-  revision: 49
+  revision: 50
   createdAt: "2025-01-15T00:00:00Z"
-  updatedAt: "2026-09-07T00:00:00Z"
+  updatedAt: "2026-10-12T00:26:09Z"
   requires:
     scenarios: ["prompt-manager", "vrooli"]
     commands: ["prompt-manager skill", "prompt-manager skill read", "vrooli"]
@@ -143,15 +143,17 @@ are noise that hardens into obstruction. Avoid these shapes:
   exists"). Absences are unenumerable, meaningful only to someone holding the
   removal diff, and can block a legitimate future feature that reuses the
   surface. The removal protocol is: delete the old feature's tests, update the
-  requirements registry (delete the requirement or mark it `not_implemented`),
-  and **positively test the replacement behavior**. Removal coverage = the
-  suite passes without the feature.
+  requirements registry when the owning requirement is retired or amended,
+  and test replacement behavior when a replacement exists. A justified deletion
+  needs no replacement test. Use the affected checks and evidence scope in
+  `path:docs/testing/UNIT-TEST-AUTHORING.md#mature-a-suite-instead-of-growing-it`.
 * **"Shall not" done as absence.** A genuine ongoing prohibition (auth
   rejection, input validation, rate limiting) is a *positive* claim about an
   observable response — "if an unauthenticated request arrives, the API
-  returns 401" — and deserves a permanent test asserting that response. If it
-  matters enough to test forever, it belongs in `requirements/` as an
-  unwanted-behaviour requirement; that is a judgment call, not a mandate to
+  returns 401" — and deserves a permanent test of the specified response and
+  prohibited effects. Zero writes, bounded retries, and resource release can be
+  meaningful ongoing claims. If it matters enough to test forever, it belongs
+  in `requirements/` as an unwanted-behaviour requirement; that is a judgment call, not a mandate to
   tag every test.
 * **Change-detector tests.** Assertions that pin incidental implementation
   detail (exact private call order, snapshot-everything) fail on harmless
@@ -171,7 +173,13 @@ Use the `visited-tracker-tools` skill for tracking visited files, with LOCATION 
 
 ### **8. Output Expectations**
 
-You may update or add:
+Actively delete obsolete tests and inert support. Consolidate, rewrite, or
+migrate valuable checks when that makes their protection and intent clearer.
+Use existing runners and harnesses under
+`path:docs/testing/UNIT-TEST-AUTHORING.md#mature-a-suite-instead-of-growing-it`.
+Preserve unique protective value; a justified deletion needs no replacement test.
+
+You may also update or add:
 
 * unit, integration, and end-to-end tests (e2e tests handled by the bas/ workflows)
 * test utilities, fixtures, and helpers

@@ -3,11 +3,18 @@ package teams
 import (
 	"context"
 	"encoding/json"
+	repocontract "github.com/vrooli/repo-contract-go"
+	heartbeatv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/heartbeat"
+	heartbeatconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/heartbeat/heartbeat_v1connect"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
+	heartbeatmount "prompt-manager/handlers/heartbeat"
+	heartbeatdomain "prompt-manager/internal/heartbeat"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	teamsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/teams"
@@ -143,5 +150,86 @@ func TestTeamMetadataConnectCRUDPreservesRecordsAndExplicitClears(t *testing.T) 
 	_, err = client.GetTeam(ctx, connect.NewRequest(&teamsv1.GetTeamRequest{Id: "aquila"}))
 	if connect.CodeOf(err) != connect.CodeNotFound {
 		t.Fatalf("deleted team still readable: %v", err)
+	}
+}
+
+// The compiled native CLI crosses its actual Connect bridge and metadata store
+// in an isolated runtime. It does not qualify production middleware authority,
+// adopted live builds or a reviewer task/run admission.
+func TestNativeCLIConfiguresDisabledOnDemandReviewerThroughConnect(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	root := t.TempDir()
+	relations := store.NewFileRelationStore(root)
+	teams := store.NewFileTeamStore(root, root, relations)
+	agents := store.NewFileAgentStore(root)
+	if err := teams.Create(ctx, fixtures.IndependentTeam("delivery", "Delivery", fixtures.WithEnabled(false))); err != nil {
+		t.Fatal(err)
+	}
+	if err := agents.Create(ctx, &store.Agent{ID: "reviewer", DisplayName: "Reviewer"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := relations.SetTeamMember(ctx, &store.TeamMemberRelation{TeamID: "delivery", AgentID: "reviewer", Status: store.MemberStatusActive}); err != nil {
+		t.Fatal(err)
+	}
+	scheduler := heartbeatdomain.NewScheduler(nil, nil, teams, nil)
+	domainHandler := heartbeatdomain.NewHandlers(heartbeatdomain.HandlersDeps{TeamStore: teams, AgentStore: agents, RelationStore: relations, Scheduler: scheduler})
+	path, mount := heartbeatmount.NewConnectMount(domainHandler)
+	mux := http.NewServeMux()
+	mux.Handle(path, mount)
+	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"status":"healthy"}`))
+	})
+	server := httptest.NewServer(mux)
+	defer server.Close()
+	repo, err := repocontract.FindRepoRootFromEnvOrCWD()
+	if err != nil {
+		t.Fatal(err)
+	}
+	binary := filepath.Join(t.TempDir(), "prompt-manager")
+	build := exec.CommandContext(ctx, "go", "build", "-o", binary, ".")
+	build.Dir = filepath.Join(repo, "scenarios", "prompt-manager", "cli")
+	if output, err := build.CombinedOutput(); err != nil {
+		t.Fatalf("build CLI: %v %s", err, output)
+	}
+	command := exec.CommandContext(ctx, binary, "--api-base", server.URL, "team", "heartbeat-disable", "delivery", "reviewer", "--on-demand", "--profile=prompt-manager/heartbeat-inspection", "--json")
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("native CLI: %v %s", err, output)
+	}
+	var response heartbeatdomain.HeartbeatConfigResponse
+	if err := json.Unmarshal(output, &response); err != nil {
+		t.Fatalf("CLI readback: %v %s", err, output)
+	}
+	if response.Enabled || response.Schedule != "" || response.Scheduled || response.SchedulerRegistered || response.ProfileKey != "prompt-manager/heartbeat-inspection" {
+		t.Fatalf("reviewer timer appeared: %+v", response)
+	}
+	cfg, err := teams.GetHeartbeatConfig(ctx, "delivery", "reviewer")
+	if err != nil || cfg == nil || cfg.Enabled || cfg.Schedule != "" {
+		t.Fatalf("owner runtime: %+v %v", cfg, err)
+	}
+	if err := teams.ValidateHeartbeatRoster(ctx, "delivery"); err != nil {
+		t.Fatal(err)
+	}
+	client := heartbeatconnect.NewHeartbeatServiceClient(server.Client(), server.URL)
+	readback, err := client.GetHeartbeat(ctx, connect.NewRequest(&heartbeatv1.MemberRequest{TeamId: "delivery", AgentId: "reviewer"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := readback.Msg.GetData().GetStructValue().AsMap()
+	if got["enabled"] != false || got["schedule"] != "" || got["profileKey"] != "prompt-manager/heartbeat-inspection" {
+		t.Fatalf("Connect owner readback changed: %v", got)
+	}
+	stateJSON, ok := got["schedulerState"].(map[string]any)
+	if !ok || stateJSON["running"] != false || stateJSON["registered"] != float64(0) {
+		t.Fatalf("scheduler evidence absent: %v", got)
+	}
+	if _, present := stateJSON["last_callback"]; present {
+		t.Fatalf("unobserved callback acquired a timestamp: %v", stateJSON)
+	}
+
+	if scheduler.State().Registered != 0 || scheduler.State().Running || scheduler.State().LastCallback != nil {
+		t.Fatalf("on-demand role started scheduler: %+v", scheduler.State())
 	}
 }

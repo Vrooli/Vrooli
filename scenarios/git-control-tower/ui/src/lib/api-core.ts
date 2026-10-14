@@ -692,8 +692,35 @@ export async function publishBranch(
 	};
 }
 
+// Authority rarely changes within a burst of index edits, but staging issues an
+// intent per click so an uncached getAuthorityStatus adds a server round-trip to
+// every stage. Cache the positive result briefly; the server still enforces
+// authorization when the intent is consumed, so a stale "can mutate" only costs a
+// rejected stage, never an unauthorized write. Negative results are not cached so
+// a just-authenticated user is not blocked.
+let authorityCache: { value: Awaited<ReturnType<typeof humanControlClient.getAuthorityStatus>>; expiresAt: number } | null = null;
+const AUTHORITY_CACHE_MS = 3000;
+
+export function invalidateAuthorityCache(): void {
+	authorityCache = null;
+}
+
+async function cachedAuthorityStatus() {
+	const now = Date.now();
+	if (authorityCache && now < authorityCache.expiresAt) {
+		return authorityCache.value;
+	}
+	const value = await humanControlClient.getAuthorityStatus(create(GetAuthorityStatusRequestSchema, {}));
+	if (value.canMutate) {
+		authorityCache = { value, expiresAt: now + AUTHORITY_CACHE_MS };
+	} else {
+		authorityCache = null;
+	}
+	return value;
+}
+
 export async function issueMutationIntentForOperation(operation: string, repoId?: string, subjectContext = ""): Promise<{ repositoryId: string; intentId: string; expectedRevision: string; subjectDigest: string }> {
-	const authority = await humanControlClient.getAuthorityStatus(create(GetAuthorityStatusRequestSchema, {}));
+	const authority = await cachedAuthorityStatus();
 	if (!authority.canMutate) {
 		throw new Error(authority.reason || "mutation unavailable: authenticate through the configured provider");
 	}

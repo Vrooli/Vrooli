@@ -93,6 +93,11 @@ func TestInspectHistoryAndLimits(t *testing.T) {
 			if !r.Complete || r.State != tc.state || len(r.Files) != tc.files {
 				t.Fatalf("unexpected report: %+v", r)
 			}
+			// Every outgoing blob counts toward usage, including ones below the warning
+			// threshold, so the UI can show actual size against the per-file limit.
+			if r.OutgoingBytes != tc.size || r.LargestBlobBytes != tc.size {
+				t.Fatalf("outgoing size not accumulated: outgoing=%d largest=%d want=%d", r.OutgoingBytes, r.LargestBlobBytes, tc.size)
+			}
 			if tc.files > 0 && (len(r.Files[0].Commits) != 1 || r.Files[0].Paths[0] != "bundle/a\t[1]\n.bin") {
 				t.Fatalf("lost historical or literal path: %+v", r.Files)
 			}

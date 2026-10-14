@@ -160,6 +160,11 @@ message AgentProfile {
   // per-run runtime scope. Paths are never accepted here.
   repeated string skill_pack = 36;
   string skill_experiment_id = 37;
+
+  // Weighted non-cache token cap per run (DL-8): non-cache tokens times the
+  // model tier weight (sol=10, luna=1). 0 means no profile cap; the
+  // AGENT_MANAGER_TOKEN_CAPS environment map stays the fallback.
+  int64 max_weighted_tokens = 39 [(buf.validate.field).int64.gte = 0];
 }
 
 // =============================================================================
@@ -285,6 +290,9 @@ message RunConfig {
   // from. Output-only; create surfaces accept RunConfigOverrides, so callers
   // never author this directly.
   RunAdmission admission = 29;
+  // Effective weighted-token cap: the profile cap, narrowed by the run
+  // override. 0 means none.
+  int64 max_weighted_tokens = 30;
 }
 
 // RunAdmission is the immutable required/effective configuration record written
@@ -508,6 +516,9 @@ message RunConfigOverrides {
 
   // Engine-owned completion test for this run.
   optional string until = 30;
+
+  // Weighted-token cap for this run. It may only lower the profile cap.
+  optional int64 max_weighted_tokens = 31 [(buf.validate.field).int64.gt = 0];
 
   // Reserved to prevent accidental reuse of wire IDs/names from earlier
   // schema iterations. SandboxConfig.mode is the single source of truth

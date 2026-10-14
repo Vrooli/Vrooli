@@ -2,6 +2,7 @@ package cliapp
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -128,11 +129,88 @@ func TestConnectHTTPClientResolvesRelativeURLAtCallTime(t *testing.T) {
 	}
 }
 
+func TestConstructedConnectClientUsesInvocationAPIOverride(t *testing.T) {
+	var staleCalls, selectedCalls int
+	stale := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		staleCalls++
+		http.Error(w, "wrong instance", http.StatusServiceUnavailable)
+	}))
+	defer stale.Close()
+	handler := connect.NewUnaryHandlerSimple("/test.v1.Echo/Echo", func(ctx context.Context, req *wrapperspb.StringValue) (*wrapperspb.StringValue, error) {
+		selectedCalls++
+		return wrapperspb.String(req.Value + "-selected"), nil
+	})
+	selected := httptest.NewServer(handler)
+	defer selected.Close()
+	t.Setenv("CONNECT_INVOCATION_CONFIG", t.TempDir())
+	app, err := NewScenarioApp(ScenarioOptions{Name: "connect-invocation", DefaultAPIBase: stale.URL, ConfigDirEnvVars: []string{"CONNECT_INVOCATION_CONFIG"}, AllowAnonymous: true})
+	if err != nil {
+		t.Fatalf("NewScenarioApp: %v", err)
+	}
+	httpClient, baseURL := NewConnectHTTPClient(app)
+	client := connect.NewClient[wrapperspb.StringValue, wrapperspb.StringValue](httpClient, baseURL+"/test.v1.Echo/Echo")
+	app.SetCommands([]CommandGroup{{Title: "Test", Commands: []Command{{Name: "echo", Run: func([]string) error {
+		resp, err := client.CallUnary(context.Background(), connect.NewRequest(wrapperspb.String("request")))
+		if err == nil && resp.Msg.Value != "request-selected" {
+			return fmt.Errorf("unexpected selected response %q", resp.Msg.Value)
+		}
+		return err
+	}}}}})
+	if err := app.CLI.Run([]string{"--api-base", selected.URL, "echo"}); err != nil {
+		t.Fatalf("invocation-selected RPC: %v", err)
+	}
+	if staleCalls != 0 || selectedCalls != 1 {
+		t.Fatalf("stale instance calls=%d, selected instance calls=%d", staleCalls, selectedCalls)
+	}
+}
+
 func TestConnectWrapAPIError(t *testing.T) {
 	err := connect.NewError(connect.CodeInvalidArgument, io.ErrUnexpectedEOF)
 	wrapped := WrapAPIError("create note", err, nil)
 	if !strings.Contains(wrapped.Error(), "create note: invalid_argument: unexpected EOF") {
 		t.Fatalf("wrapped = %v", wrapped)
+	}
+}
+
+func TestConnectInvocationSelectionPreservesPathQueryAndExplicitTarget(t *testing.T) {
+	var selectedPath, selectedQuery string
+	selected := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		selectedPath, selectedQuery = r.URL.Path, r.URL.RawQuery
+		_, _ = io.WriteString(w, "selected")
+	}))
+	defer selected.Close()
+	explicit := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.WriteString(w, "explicit")
+	}))
+	defer explicit.Close()
+	app := callTestApp(t, selected)
+	app.baseOptions = func() cliutil.APIBaseOptions { return cliutil.APIBaseOptions{Override: "http://old.invalid/original"} }
+	client, initial := NewConnectHTTPClient(app)
+	app.baseOptions = func() cliutil.APIBaseOptions { return cliutil.APIBaseOptions{Override: selected.URL + "/chosen"} }
+	req, err := http.NewRequest(http.MethodPost, initial+"/test.v1.Echo/Echo?cursor=a%2Fb", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = resp.Body.Close()
+	if selectedPath != "/chosen/test.v1.Echo/Echo" || selectedQuery != "cursor=a%2Fb" {
+		t.Fatalf("selected request path=%q query=%q", selectedPath, selectedQuery)
+	}
+	req, err = http.NewRequest(http.MethodGet, explicit.URL+"/explicit", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err = client.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil || string(body) != "explicit" {
+		t.Fatalf("explicit target response=%q err=%v", body, err)
 	}
 }
 

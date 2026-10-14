@@ -12,8 +12,10 @@ import (
 
 	"agent-manager/internal/adapters/database"
 	"agent-manager/internal/adapters/event"
+	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/adapters/webconsole"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/orchestration/interactive"
 	"agent-manager/internal/orchestration/testutil"
 
 	"github.com/google/uuid"
@@ -148,6 +150,8 @@ func TestReconcilerReleasesInteractiveSessionsOnlyAfterRetention(t *testing.T) {
 	f.interactiveRun(t, "ended-recently", domain.RunStatusFailed, ago(30*time.Minute))
 	f.interactiveRun(t, "still-running", domain.RunStatusRunning, nil)
 	f.interactiveRun(t, "parked", domain.RunStatusParked, nil)
+	f.interactiveRun(t, "review", domain.RunStatusNeedsReview, nil)
+	f.interactiveRun(t, "terminal-without-end", domain.RunStatusComplete, nil)
 	// A session shared by an expired run and a later, still-running run is in use.
 	f.interactiveRun(t, "shared", domain.RunStatusCancelled, ago(5*time.Hour))
 	f.interactiveRun(t, "shared", domain.RunStatusRunning, nil)
@@ -156,9 +160,13 @@ func TestReconcilerReleasesInteractiveSessionsOnlyAfterRetention(t *testing.T) {
 		agentManagerSession("ended-recently", old),
 		agentManagerSession("still-running", old),
 		agentManagerSession("parked", old),
+		agentManagerSession("review", old),
+		agentManagerSession("terminal-without-end", old),
 		agentManagerSession("shared", old),
 		agentManagerSession("unreferenced-old", old),
 		agentManagerSession("unreferenced-young", young),
+		agentManagerSession("unreferenced-future", retentionNow.Add(time.Hour)),
+		agentManagerSession("nanosecond-inside-window", retentionNow.Add(-2*time.Hour+time.Nanosecond)),
 		agentManagerSession("unreferenced-unknown-age", time.Time{}),
 		{ID: "operator-shell", Owner: "", Origin: "SESSION_ORIGIN_UI", CreatedAt: old},
 		{ID: "other-owner", Owner: "swarm-manager", Origin: webconsole.OriginProgrammatic, CreatedAt: old},
@@ -269,5 +277,97 @@ func TestReconcilerInteractiveSessionRetentionZeroDisablesSweep(t *testing.T) {
 
 	if f.sessions.listCalls != 0 || len(f.sessions.archivedIDs()) != 0 {
 		t.Fatalf("disabled sweep made web-console calls: list=%d delete=%v", f.sessions.listCalls, f.sessions.archivedIDs())
+	}
+}
+
+type delayedLaunchSessions struct {
+	*inventorySessions
+	createdAt   time.Time
+	submitted   chan struct{}
+	blockCreate bool
+}
+
+func (s *delayedLaunchSessions) CreateSession(ctx context.Context, params webconsole.CreateSessionParams) (string, error) {
+	s.mu.Lock()
+	s.listed = append(s.listed, agentManagerSession(params.RequestedSessionID, s.createdAt))
+	s.mu.Unlock()
+	if s.blockCreate {
+		close(s.submitted)
+		<-ctx.Done()
+		return "", ctx.Err()
+	}
+	return params.RequestedSessionID, nil
+}
+func (s *delayedLaunchSessions) SendText(ctx context.Context, sessionID, text, source string) error {
+	close(s.submitted)
+	<-ctx.Done()
+	return ctx.Err()
+}
+
+type retentionLaunchInfo struct{}
+
+func (retentionLaunchInfo) Type() domain.RunnerType                         { return domain.RunnerTypeCodex }
+func (retentionLaunchInfo) TagEnvKey() string                               { return "CODEX_AGENT_TAG" }
+func (retentionLaunchInfo) BinaryPath() string                              { return "/fixture/codex" }
+func (retentionLaunchInfo) ControlArgs(*domain.RunConfig) ([]string, error) { return nil, nil }
+
+func TestReconcilerKeepsUnpublishedSessionDuringLongLaunch(t *testing.T) {
+	for _, delay := range []string{"Create", "SendText"} {
+		t.Run(delay, func(t *testing.T) {
+			f := newRetentionFixture(t, time.Hour)
+			run := f.interactiveRun(t, "", domain.RunStatusStarting, nil)
+			createdAt := retentionNow.Add(-2 * time.Hour)
+			sessions := &delayedLaunchSessions{inventorySessions: f.sessions, createdAt: createdAt, submitted: make(chan struct{}), blockCreate: delay == "Create"}
+			f.reconciler.sessions = sessions
+			_, driver := f.reconciler.interactiveLiveDrivers.register(context.Background(), run.ID)
+			t.Cleanup(func() { f.reconciler.interactiveLiveDrivers.finish(run.ID, driver) })
+			sub := interactive.NewSubstrate(sessions, func(domain.RunnerType) (runner.AgentLaunchInfo, error) { return retentionLaunchInfo{}, nil }, interactive.WithPromptBootDelay(0), interactive.WithClock(func() time.Time { return createdAt }))
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			workingDir, runDir := t.TempDir(), t.TempDir()
+			coordinator := interactive.NewCoordinator(interactive.CoordinatorDeps{Substrate: sub, Runs: f.repos.Runs, Sessions: sessions})
+			done := make(chan error, 1)
+			go func() {
+				err := coordinator.Execute(ctx, run, interactive.LaunchParams{RunID: run.ID, RunnerType: domain.RunnerTypeCodex, Tag: "long-launch", WorkingDir: workingDir, RunDir: runDir, Config: domain.DefaultRunConfig()}, nil)
+				done <- err
+			}()
+			select {
+			case <-sessions.submitted:
+			case err := <-done:
+				t.Fatalf("launch ended before delay: %v", err)
+			}
+			// The clock advanced beyond retention while the real substrate is still
+			// in launch; the reserved relation must already be durable.
+			stats := f.reconciler.RunOnce(t.Context())
+			got := f.sessions.archivedIDs() // before cancellation intentionally stops its own session
+			cancel()
+			<-done
+			stored, err := f.repos.Runs.Get(t.Context(), run.ID)
+			if err != nil || stored.WebConsoleSessionID == "" {
+				t.Fatalf("cancel lost durable identity: %+v err=%v", stored, err)
+			}
+			if delay == "Create" && len(f.sessions.archivedIDs()) != 0 {
+				t.Fatal("ambiguous canceled Create cleaned up an unacknowledged session")
+			}
+			if len(got) != 0 || stats.InteractiveSessionsReleased != 0 {
+				t.Fatalf("legitimate unpublished launch archived beyond retention: sessions=%v stats=%+v", got, stats)
+			}
+		})
+	}
+}
+
+func TestReconcilerCanonicalVerifiedOwnerRemainsConservativeWithoutAMProvenance(t *testing.T) {
+	f := newRetentionFixture(t, time.Hour)
+	old := retentionNow.Add(-48 * time.Hour)
+	f.interactiveRun(t, "active-canonical", domain.RunStatusRunning, nil)
+	f.interactiveRun(t, "terminal-canonical", domain.RunStatusComplete, ago(24*time.Hour))
+	for _, id := range []string{"active-canonical", "terminal-canonical", "unreferenced-canonical"} {
+		row := agentManagerSession(id, old)
+		row.Owner = "canonical-verified-subject"
+		f.sessions.listed = append(f.sessions.listed, row)
+	}
+	stats := f.reconciler.RunOnce(t.Context())
+	if len(f.sessions.archivedIDs()) != 0 || stats.InteractiveSessionsReleased != 0 {
+		t.Fatalf("canonical owner cleanup broadened without AM provenance: %+v", stats)
 	}
 }

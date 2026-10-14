@@ -414,7 +414,7 @@ func (a *App) runEvents(args []string) error {
 	fmt.Printf("%-6s  %-12s  %-24s  %s\n", "SEQ", "TYPE", "TIMESTAMP", "DATA")
 	fmt.Printf("%-6s  %-12s  %-24s  %s\n", strings.Repeat("-", 6), strings.Repeat("-", 12), strings.Repeat("-", 24), strings.Repeat("-", 40))
 	for _, e := range events {
-		if *failed && (e.GetToolResult() == nil || e.GetToolResult().GetSuccess()) {
+		if *failed && toolResultOutcome(e.GetToolResult()) != "failure" {
 			continue
 		}
 		dataStr := runEventDataString(e)

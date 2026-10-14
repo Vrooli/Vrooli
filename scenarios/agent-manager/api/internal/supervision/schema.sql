@@ -299,3 +299,9 @@ CREATE TABLE IF NOT EXISTS supervision_effort_decisions (
 );
 CREATE INDEX IF NOT EXISTS idx_supervision_effort_decisions_event ON supervision_effort_decisions(event_id);
 CREATE INDEX IF NOT EXISTS idx_supervision_effort_decisions_effort ON supervision_effort_decisions(effort_ref);
+
+-- Protected exact-action setup is inert until independent owner approval and
+-- pinned-key activation. Schema installation creates no keys/grants/identities.
+CREATE TABLE IF NOT EXISTS keyring_exact_authority(id TEXT PRIMARY KEY, policy_json TEXT NOT NULL, revoked INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE IF NOT EXISTS keyring_exact_installation(slot INTEGER PRIMARY KEY CHECK(slot=1), instance TEXT NOT NULL, owner TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS keyring_exact_policy_setup(grant_id TEXT PRIMARY KEY, policy_digest TEXT NOT NULL, state TEXT NOT NULL CHECK(state IN ('staged','active','revoked')), approved_by TEXT NOT NULL, approved_at INTEGER NOT NULL);

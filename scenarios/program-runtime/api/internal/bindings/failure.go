@@ -40,7 +40,7 @@ type failureRule struct {
 // call to an unreachable scenario is still unreachable; deadline last because
 // several needles above it are substrings of ordinary deadline messages.
 var failureRules = []failureRule{
-	{[]string{"is unreachable", "bridge unavailable", "bridge is unavailable", "scenario_not_running", "no running runtime ports", "connection refused", "dial tcp", "no such host"}, "unavailable", "scenario_unreachable"},
+	{[]string{"is unreachable", "bridge unavailable", "bridge is unavailable", "scenario_not_running", "no running runtime ports", "connection refused", "dial tcp", "no such host", "invalid_port", "invalid vrooli_api_port", "vrooli_not_found"}, "unavailable", "scenario_unreachable"},
 	{[]string{"requires an explicit grant", "requires explicit confirmation"}, "refused", "no_grant"},
 	{[]string{"not run eligible", "run_eligible"}, "refused", "not_run_eligible"},
 	{[]string{"inference_spend_exceeded", "inference spend"}, "refused", "inference_spend_exceeded"},

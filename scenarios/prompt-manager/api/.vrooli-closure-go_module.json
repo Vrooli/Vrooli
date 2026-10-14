@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "key": "23953baaa2be7f00420b61ecad2f0e6c1810024cc607a4945f120392cbe505f2",
+  "key": "f053a8d13af8c44f5254d78d6d103527690b82978041d5d5a5faf2a4f70a7895",
   "inputs": [
     "go.mod",
     "go.sum",
@@ -26,6 +26,7 @@
     "internal/scenarioruntime",
     "internal/securestore",
     "internal/shell",
+    "internal/storageactivity",
     "internal/storagetime",
     "internal/tuning",
     "internal/values",

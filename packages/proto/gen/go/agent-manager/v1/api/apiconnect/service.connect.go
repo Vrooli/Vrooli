@@ -52,6 +52,24 @@ const (
 	// AgentManagerServiceReconcileEffortDiscoveryProcedure is the fully-qualified name of the
 	// AgentManagerService's ReconcileEffortDiscovery RPC.
 	AgentManagerServiceReconcileEffortDiscoveryProcedure = "/agent_manager.v1.AgentManagerService/ReconcileEffortDiscovery"
+	// AgentManagerServiceListEffortSignalsProcedure is the fully-qualified name of the
+	// AgentManagerService's ListEffortSignals RPC.
+	AgentManagerServiceListEffortSignalsProcedure = "/agent_manager.v1.AgentManagerService/ListEffortSignals"
+	// AgentManagerServiceRecordEffortSignalProcedure is the fully-qualified name of the
+	// AgentManagerService's RecordEffortSignal RPC.
+	AgentManagerServiceRecordEffortSignalProcedure = "/agent_manager.v1.AgentManagerService/RecordEffortSignal"
+	// AgentManagerServiceRaiseEffortDecisionProcedure is the fully-qualified name of the
+	// AgentManagerService's RaiseEffortDecision RPC.
+	AgentManagerServiceRaiseEffortDecisionProcedure = "/agent_manager.v1.AgentManagerService/RaiseEffortDecision"
+	// AgentManagerServiceListEffortDecisionsProcedure is the fully-qualified name of the
+	// AgentManagerService's ListEffortDecisions RPC.
+	AgentManagerServiceListEffortDecisionsProcedure = "/agent_manager.v1.AgentManagerService/ListEffortDecisions"
+	// AgentManagerServiceAnswerEffortDecisionProcedure is the fully-qualified name of the
+	// AgentManagerService's AnswerEffortDecision RPC.
+	AgentManagerServiceAnswerEffortDecisionProcedure = "/agent_manager.v1.AgentManagerService/AnswerEffortDecision"
+	// AgentManagerServiceMarkEffortDecisionRecordedProcedure is the fully-qualified name of the
+	// AgentManagerService's MarkEffortDecisionRecorded RPC.
+	AgentManagerServiceMarkEffortDecisionRecordedProcedure = "/agent_manager.v1.AgentManagerService/MarkEffortDecisionRecorded"
 	// AgentManagerServiceHealthProcedure is the fully-qualified name of the AgentManagerService's
 	// Health RPC.
 	AgentManagerServiceHealthProcedure = "/agent_manager.v1.AgentManagerService/Health"
@@ -339,6 +357,17 @@ type AgentManagerServiceClient interface {
 	ReconcileEffortMetadata(context.Context, *connect.Request[domain.ReconcileEffortMetadataRequest]) (*connect.Response[domain.EffortEnrollment], error)
 	WithdrawEffort(context.Context, *connect.Request[domain.WithdrawEffortRequest]) (*connect.Response[domain.EffortEnrollment], error)
 	ReconcileEffortDiscovery(context.Context, *connect.Request[domain.ReconcileEffortDiscoveryRequest]) (*connect.Response[domain.EffortDiscovery], error)
+	// Durable per-effort signal log (DL-2). Check-in dispatchers read it after
+	// their cursor; RecordEffortSignal accepts only caller-owned kinds
+	// (step_back, feedback).
+	ListEffortSignals(context.Context, *connect.Request[domain.ListEffortSignalsRequest]) (*connect.Response[domain.ListEffortSignalsResponse], error)
+	RecordEffortSignal(context.Context, *connect.Request[domain.RecordEffortSignalRequest]) (*connect.Response[domain.EffortSignal], error)
+	// Operator decisions (DL-5). One record per (goal home, decision id); the
+	// first raise publishes one decision_requested event to Vrooli Events.
+	RaiseEffortDecision(context.Context, *connect.Request[domain.RaiseEffortDecisionRequest]) (*connect.Response[domain.RaiseEffortDecisionResponse], error)
+	ListEffortDecisions(context.Context, *connect.Request[domain.ListEffortDecisionsRequest]) (*connect.Response[domain.ListEffortDecisionsResponse], error)
+	AnswerEffortDecision(context.Context, *connect.Request[domain.AnswerEffortDecisionRequest]) (*connect.Response[domain.EffortDecision], error)
+	MarkEffortDecisionRecorded(context.Context, *connect.Request[domain.MarkEffortDecisionRecordedRequest]) (*connect.Response[domain.EffortDecision], error)
 	// Health returns the service health status.
 	Health(context.Context, *connect.Request[api.HealthRequest]) (*connect.Response[api.HealthResponse], error)
 	ListExecutionOptions(context.Context, *connect.Request[api.ListExecutionOptionsRequest]) (*connect.Response[api.ListExecutionOptionsResponse], error)
@@ -552,6 +581,42 @@ func NewAgentManagerServiceClient(httpClient connect.HTTPClient, baseURL string,
 			httpClient,
 			baseURL+AgentManagerServiceReconcileEffortDiscoveryProcedure,
 			connect.WithSchema(agentManagerServiceMethods.ByName("ReconcileEffortDiscovery")),
+			connect.WithClientOptions(opts...),
+		),
+		listEffortSignals: connect.NewClient[domain.ListEffortSignalsRequest, domain.ListEffortSignalsResponse](
+			httpClient,
+			baseURL+AgentManagerServiceListEffortSignalsProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("ListEffortSignals")),
+			connect.WithClientOptions(opts...),
+		),
+		recordEffortSignal: connect.NewClient[domain.RecordEffortSignalRequest, domain.EffortSignal](
+			httpClient,
+			baseURL+AgentManagerServiceRecordEffortSignalProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("RecordEffortSignal")),
+			connect.WithClientOptions(opts...),
+		),
+		raiseEffortDecision: connect.NewClient[domain.RaiseEffortDecisionRequest, domain.RaiseEffortDecisionResponse](
+			httpClient,
+			baseURL+AgentManagerServiceRaiseEffortDecisionProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("RaiseEffortDecision")),
+			connect.WithClientOptions(opts...),
+		),
+		listEffortDecisions: connect.NewClient[domain.ListEffortDecisionsRequest, domain.ListEffortDecisionsResponse](
+			httpClient,
+			baseURL+AgentManagerServiceListEffortDecisionsProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("ListEffortDecisions")),
+			connect.WithClientOptions(opts...),
+		),
+		answerEffortDecision: connect.NewClient[domain.AnswerEffortDecisionRequest, domain.EffortDecision](
+			httpClient,
+			baseURL+AgentManagerServiceAnswerEffortDecisionProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("AnswerEffortDecision")),
+			connect.WithClientOptions(opts...),
+		),
+		markEffortDecisionRecorded: connect.NewClient[domain.MarkEffortDecisionRecordedRequest, domain.EffortDecision](
+			httpClient,
+			baseURL+AgentManagerServiceMarkEffortDecisionRecordedProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("MarkEffortDecisionRecorded")),
 			connect.WithClientOptions(opts...),
 		),
 		health: connect.NewClient[api.HealthRequest, api.HealthResponse](
@@ -1117,6 +1182,12 @@ type agentManagerServiceClient struct {
 	reconcileEffortMetadata          *connect.Client[domain.ReconcileEffortMetadataRequest, domain.EffortEnrollment]
 	withdrawEffort                   *connect.Client[domain.WithdrawEffortRequest, domain.EffortEnrollment]
 	reconcileEffortDiscovery         *connect.Client[domain.ReconcileEffortDiscoveryRequest, domain.EffortDiscovery]
+	listEffortSignals                *connect.Client[domain.ListEffortSignalsRequest, domain.ListEffortSignalsResponse]
+	recordEffortSignal               *connect.Client[domain.RecordEffortSignalRequest, domain.EffortSignal]
+	raiseEffortDecision              *connect.Client[domain.RaiseEffortDecisionRequest, domain.RaiseEffortDecisionResponse]
+	listEffortDecisions              *connect.Client[domain.ListEffortDecisionsRequest, domain.ListEffortDecisionsResponse]
+	answerEffortDecision             *connect.Client[domain.AnswerEffortDecisionRequest, domain.EffortDecision]
+	markEffortDecisionRecorded       *connect.Client[domain.MarkEffortDecisionRecordedRequest, domain.EffortDecision]
 	health                           *connect.Client[api.HealthRequest, api.HealthResponse]
 	listExecutionOptions             *connect.Client[api.ListExecutionOptionsRequest, api.ListExecutionOptionsResponse]
 	startInvestigation               *connect.Client[api.StartInvestigationRequest, api.StartInvestigationResponse]
@@ -1239,6 +1310,36 @@ func (c *agentManagerServiceClient) WithdrawEffort(ctx context.Context, req *con
 // ReconcileEffortDiscovery calls agent_manager.v1.AgentManagerService.ReconcileEffortDiscovery.
 func (c *agentManagerServiceClient) ReconcileEffortDiscovery(ctx context.Context, req *connect.Request[domain.ReconcileEffortDiscoveryRequest]) (*connect.Response[domain.EffortDiscovery], error) {
 	return c.reconcileEffortDiscovery.CallUnary(ctx, req)
+}
+
+// ListEffortSignals calls agent_manager.v1.AgentManagerService.ListEffortSignals.
+func (c *agentManagerServiceClient) ListEffortSignals(ctx context.Context, req *connect.Request[domain.ListEffortSignalsRequest]) (*connect.Response[domain.ListEffortSignalsResponse], error) {
+	return c.listEffortSignals.CallUnary(ctx, req)
+}
+
+// RecordEffortSignal calls agent_manager.v1.AgentManagerService.RecordEffortSignal.
+func (c *agentManagerServiceClient) RecordEffortSignal(ctx context.Context, req *connect.Request[domain.RecordEffortSignalRequest]) (*connect.Response[domain.EffortSignal], error) {
+	return c.recordEffortSignal.CallUnary(ctx, req)
+}
+
+// RaiseEffortDecision calls agent_manager.v1.AgentManagerService.RaiseEffortDecision.
+func (c *agentManagerServiceClient) RaiseEffortDecision(ctx context.Context, req *connect.Request[domain.RaiseEffortDecisionRequest]) (*connect.Response[domain.RaiseEffortDecisionResponse], error) {
+	return c.raiseEffortDecision.CallUnary(ctx, req)
+}
+
+// ListEffortDecisions calls agent_manager.v1.AgentManagerService.ListEffortDecisions.
+func (c *agentManagerServiceClient) ListEffortDecisions(ctx context.Context, req *connect.Request[domain.ListEffortDecisionsRequest]) (*connect.Response[domain.ListEffortDecisionsResponse], error) {
+	return c.listEffortDecisions.CallUnary(ctx, req)
+}
+
+// AnswerEffortDecision calls agent_manager.v1.AgentManagerService.AnswerEffortDecision.
+func (c *agentManagerServiceClient) AnswerEffortDecision(ctx context.Context, req *connect.Request[domain.AnswerEffortDecisionRequest]) (*connect.Response[domain.EffortDecision], error) {
+	return c.answerEffortDecision.CallUnary(ctx, req)
+}
+
+// MarkEffortDecisionRecorded calls agent_manager.v1.AgentManagerService.MarkEffortDecisionRecorded.
+func (c *agentManagerServiceClient) MarkEffortDecisionRecorded(ctx context.Context, req *connect.Request[domain.MarkEffortDecisionRecordedRequest]) (*connect.Response[domain.EffortDecision], error) {
+	return c.markEffortDecisionRecorded.CallUnary(ctx, req)
 }
 
 // Health calls agent_manager.v1.AgentManagerService.Health.
@@ -1716,6 +1817,17 @@ type AgentManagerServiceHandler interface {
 	ReconcileEffortMetadata(context.Context, *connect.Request[domain.ReconcileEffortMetadataRequest]) (*connect.Response[domain.EffortEnrollment], error)
 	WithdrawEffort(context.Context, *connect.Request[domain.WithdrawEffortRequest]) (*connect.Response[domain.EffortEnrollment], error)
 	ReconcileEffortDiscovery(context.Context, *connect.Request[domain.ReconcileEffortDiscoveryRequest]) (*connect.Response[domain.EffortDiscovery], error)
+	// Durable per-effort signal log (DL-2). Check-in dispatchers read it after
+	// their cursor; RecordEffortSignal accepts only caller-owned kinds
+	// (step_back, feedback).
+	ListEffortSignals(context.Context, *connect.Request[domain.ListEffortSignalsRequest]) (*connect.Response[domain.ListEffortSignalsResponse], error)
+	RecordEffortSignal(context.Context, *connect.Request[domain.RecordEffortSignalRequest]) (*connect.Response[domain.EffortSignal], error)
+	// Operator decisions (DL-5). One record per (goal home, decision id); the
+	// first raise publishes one decision_requested event to Vrooli Events.
+	RaiseEffortDecision(context.Context, *connect.Request[domain.RaiseEffortDecisionRequest]) (*connect.Response[domain.RaiseEffortDecisionResponse], error)
+	ListEffortDecisions(context.Context, *connect.Request[domain.ListEffortDecisionsRequest]) (*connect.Response[domain.ListEffortDecisionsResponse], error)
+	AnswerEffortDecision(context.Context, *connect.Request[domain.AnswerEffortDecisionRequest]) (*connect.Response[domain.EffortDecision], error)
+	MarkEffortDecisionRecorded(context.Context, *connect.Request[domain.MarkEffortDecisionRecordedRequest]) (*connect.Response[domain.EffortDecision], error)
 	// Health returns the service health status.
 	Health(context.Context, *connect.Request[api.HealthRequest]) (*connect.Response[api.HealthResponse], error)
 	ListExecutionOptions(context.Context, *connect.Request[api.ListExecutionOptionsRequest]) (*connect.Response[api.ListExecutionOptionsResponse], error)
@@ -1925,6 +2037,42 @@ func NewAgentManagerServiceHandler(svc AgentManagerServiceHandler, opts ...conne
 		AgentManagerServiceReconcileEffortDiscoveryProcedure,
 		svc.ReconcileEffortDiscovery,
 		connect.WithSchema(agentManagerServiceMethods.ByName("ReconcileEffortDiscovery")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceListEffortSignalsHandler := connect.NewUnaryHandler(
+		AgentManagerServiceListEffortSignalsProcedure,
+		svc.ListEffortSignals,
+		connect.WithSchema(agentManagerServiceMethods.ByName("ListEffortSignals")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceRecordEffortSignalHandler := connect.NewUnaryHandler(
+		AgentManagerServiceRecordEffortSignalProcedure,
+		svc.RecordEffortSignal,
+		connect.WithSchema(agentManagerServiceMethods.ByName("RecordEffortSignal")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceRaiseEffortDecisionHandler := connect.NewUnaryHandler(
+		AgentManagerServiceRaiseEffortDecisionProcedure,
+		svc.RaiseEffortDecision,
+		connect.WithSchema(agentManagerServiceMethods.ByName("RaiseEffortDecision")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceListEffortDecisionsHandler := connect.NewUnaryHandler(
+		AgentManagerServiceListEffortDecisionsProcedure,
+		svc.ListEffortDecisions,
+		connect.WithSchema(agentManagerServiceMethods.ByName("ListEffortDecisions")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceAnswerEffortDecisionHandler := connect.NewUnaryHandler(
+		AgentManagerServiceAnswerEffortDecisionProcedure,
+		svc.AnswerEffortDecision,
+		connect.WithSchema(agentManagerServiceMethods.ByName("AnswerEffortDecision")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceMarkEffortDecisionRecordedHandler := connect.NewUnaryHandler(
+		AgentManagerServiceMarkEffortDecisionRecordedProcedure,
+		svc.MarkEffortDecisionRecorded,
+		connect.WithSchema(agentManagerServiceMethods.ByName("MarkEffortDecisionRecorded")),
 		connect.WithHandlerOptions(opts...),
 	)
 	agentManagerServiceHealthHandler := connect.NewUnaryHandler(
@@ -2493,6 +2641,18 @@ func NewAgentManagerServiceHandler(svc AgentManagerServiceHandler, opts ...conne
 			agentManagerServiceWithdrawEffortHandler.ServeHTTP(w, r)
 		case AgentManagerServiceReconcileEffortDiscoveryProcedure:
 			agentManagerServiceReconcileEffortDiscoveryHandler.ServeHTTP(w, r)
+		case AgentManagerServiceListEffortSignalsProcedure:
+			agentManagerServiceListEffortSignalsHandler.ServeHTTP(w, r)
+		case AgentManagerServiceRecordEffortSignalProcedure:
+			agentManagerServiceRecordEffortSignalHandler.ServeHTTP(w, r)
+		case AgentManagerServiceRaiseEffortDecisionProcedure:
+			agentManagerServiceRaiseEffortDecisionHandler.ServeHTTP(w, r)
+		case AgentManagerServiceListEffortDecisionsProcedure:
+			agentManagerServiceListEffortDecisionsHandler.ServeHTTP(w, r)
+		case AgentManagerServiceAnswerEffortDecisionProcedure:
+			agentManagerServiceAnswerEffortDecisionHandler.ServeHTTP(w, r)
+		case AgentManagerServiceMarkEffortDecisionRecordedProcedure:
+			agentManagerServiceMarkEffortDecisionRecordedHandler.ServeHTTP(w, r)
 		case AgentManagerServiceHealthProcedure:
 			agentManagerServiceHealthHandler.ServeHTTP(w, r)
 		case AgentManagerServiceListExecutionOptionsProcedure:
@@ -2708,6 +2868,30 @@ func (UnimplementedAgentManagerServiceHandler) WithdrawEffort(context.Context, *
 
 func (UnimplementedAgentManagerServiceHandler) ReconcileEffortDiscovery(context.Context, *connect.Request[domain.ReconcileEffortDiscoveryRequest]) (*connect.Response[domain.EffortDiscovery], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.ReconcileEffortDiscovery is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) ListEffortSignals(context.Context, *connect.Request[domain.ListEffortSignalsRequest]) (*connect.Response[domain.ListEffortSignalsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.ListEffortSignals is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) RecordEffortSignal(context.Context, *connect.Request[domain.RecordEffortSignalRequest]) (*connect.Response[domain.EffortSignal], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.RecordEffortSignal is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) RaiseEffortDecision(context.Context, *connect.Request[domain.RaiseEffortDecisionRequest]) (*connect.Response[domain.RaiseEffortDecisionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.RaiseEffortDecision is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) ListEffortDecisions(context.Context, *connect.Request[domain.ListEffortDecisionsRequest]) (*connect.Response[domain.ListEffortDecisionsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.ListEffortDecisions is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) AnswerEffortDecision(context.Context, *connect.Request[domain.AnswerEffortDecisionRequest]) (*connect.Response[domain.EffortDecision], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.AnswerEffortDecision is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) MarkEffortDecisionRecorded(context.Context, *connect.Request[domain.MarkEffortDecisionRecordedRequest]) (*connect.Response[domain.EffortDecision], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.MarkEffortDecisionRecorded is not implemented"))
 }
 
 func (UnimplementedAgentManagerServiceHandler) Health(context.Context, *connect.Request[api.HealthRequest]) (*connect.Response[api.HealthResponse], error) {

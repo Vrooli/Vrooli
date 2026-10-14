@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"encoding/json"
 	"errors"
 	"testing"
 	"time"
@@ -1135,4 +1136,88 @@ func TestCompactionEventData_EventType(t *testing.T) {
 
 func timePtr(t time.Time) *time.Time {
 	return &t
+}
+
+func TestDecodeDurableQuotaPreservesNativeAndLegacyFacts(t *testing.T) {
+	cases := []struct {
+		name     string
+		raw      string
+		quota    bool
+		percent  *float64
+		provider string
+		limit    int
+		wantErr  bool
+	}{
+		{"tagged native zero", `{"payloadKind":"quota","limitType":"weekly","message":"native quota","provider":"openai","pool":"primary","usedPercent":0,"windowMinutes":10080,"provenance":"native"}`, true, quotaPercent(0), "openai", 0, false},
+		{"legacy native zero", `{"limitType":"weekly","message":"native quota","provider":"openai","usedPercent":0,"windowMinutes":10080}`, true, quotaPercent(0), "openai", 0, false},
+		{"legacy limit only", `{"limitType":"token","message":"limit","currentUsed":25,"limit":100}`, true, nil, "", 100, false},
+		{"native unknown percentage", `{"payloadKind":"quota","limitType":"weekly","message":"unknown","usedPercent":null}`, true, nil, "", 0, false},
+		{"generic error", `{"code":"RATE_LIMIT","message":"failed","retryable":true,"details":{"limitType":"weekly"}}`, false, nil, "", 0, false},
+		{"generic conflicting shape", `{"code":"FAIL","message":"failed","limitType":"weekly"}`, false, nil, "", 0, false},
+		{"empty legacy limit remains generic", `{"limitType":"","message":"unknown"}`, false, nil, "", 0, false},
+		{"invalid native percentage", `{"payloadKind":"quota","limitType":"weekly","usedPercent":"0"}`, false, nil, "", 0, true},
+		{"explicit empty discriminator", `{"payloadKind":"","limitType":"weekly","message":"invalid tag"}`, false, nil, "", 0, true},
+		{"explicit blank discriminator", `{"payloadKind":" ","limitType":"weekly","message":"invalid tag"}`, false, nil, "", 0, true},
+		{"explicit null discriminator", `{"payloadKind":null,"limitType":"weekly","message":"invalid tag"}`, false, nil, "", 0, true},
+		{"explicit non-string discriminator", `{"payloadKind":7,"limitType":"weekly","message":"invalid tag"}`, false, nil, "", 0, true},
+		{"tagged quota with generic code", `{"payloadKind":"quota","limitType":"weekly","code":"FAIL"}`, false, nil, "", 0, true},
+		{"tagged quota with false retryable", `{"payloadKind":"quota","limitType":"weekly","retryable":false}`, false, nil, "", 0, true},
+		{"tagged quota with generic recovery", `{"payloadKind":"quota","limitType":"weekly","recovery":"retry_backoff"}`, false, nil, "", 0, true},
+		{"tagged quota with generic stack trace", `{"payloadKind":"quota","limitType":"weekly","stackTrace":""}`, false, nil, "", 0, true},
+		{"tagged quota with generic details", `{"payloadKind":"quota","limitType":"weekly","details":{}}`, false, nil, "", 0, true},
+		{"untagged false retryable keeps generic precedence", `{"limitType":"weekly","retryable":false}`, false, nil, "", 0, false},
+		{"untagged recovery keeps generic precedence", `{"limitType":"weekly","recovery":"retry_backoff"}`, false, nil, "", 0, false},
+		{"untagged stack trace keeps generic precedence", `{"limitType":"weekly","stackTrace":""}`, false, nil, "", 0, false},
+		{"untagged details keep generic precedence", `{"limitType":"weekly","details":{}}`, false, nil, "", 0, false},
+		{"tagged quota tolerates unrelated future fields", `{"payloadKind":"quota","limitType":"weekly","provider":"openai","usedPercent":0,"futureField":{"enabled":true}}`, true, quotaPercent(0), "openai", 0, false},
+		{"untagged quota tolerates unrelated future fields", `{"limitType":"weekly","provider":"openai","usedPercent":0,"futureField":{"enabled":true}}`, true, quotaPercent(0), "openai", 0, false},
+		{"generic error tolerates unrelated future fields", `{"code":"FAIL","message":"failed","futureField":{"enabled":true}}`, false, nil, "", 0, false},
+		{"tagged native absent percentage", `{"payloadKind":"quota","limitType":"weekly","provider":"openai"}`, true, nil, "openai", 0, false},
+		{"unknown discriminator", `{"payloadKind":"future","limitType":"weekly","message":"unknown"}`, false, nil, "", 0, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			payload, err := DecodeEventPayload(EventTypeError, []byte(tc.raw))
+			if tc.wantErr {
+				if err == nil {
+					t.Fatalf("payload=%#v, want explicit decode error", payload)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if tc.quota {
+				got, ok := payload.(*RateLimitEventData)
+				if !ok {
+					t.Fatalf("payload=%T, want quota facts", payload)
+				}
+				if got.Provider != tc.provider || got.Limit != tc.limit || (got.UsedPercent == nil) != (tc.percent == nil) {
+					t.Fatalf("quota facts=%+v", got)
+				}
+				if tc.percent != nil && *got.UsedPercent != *tc.percent {
+					t.Fatalf("used percentage=%v", got.UsedPercent)
+				}
+			} else if _, ok := payload.(*ErrorEventData); !ok {
+				t.Fatalf("payload=%T, want generic error", payload)
+			}
+		})
+	}
+}
+
+func quotaPercent(value float64) *float64 { return &value }
+
+// Writer-stage behavior: reader compatibility alone does not establish tag emission.
+func TestNewRateLimitEventEmitsQuotaDiscriminator(t *testing.T) {
+	data, err := json.Marshal(NewRateLimitEvent(uuid.New(), "weekly", "native", nil, 0).Data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got map[string]json.RawMessage
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatal(err)
+	}
+	if string(got["payloadKind"]) != `"quota"` {
+		t.Fatalf("quota JSON=%s, want explicit durable discriminator", data)
+	}
 }

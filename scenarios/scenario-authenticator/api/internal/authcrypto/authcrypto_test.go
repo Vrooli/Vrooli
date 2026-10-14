@@ -199,3 +199,21 @@ func TestNewKeysFromPair(t *testing.T) {
 		t.Fatalf("validate: %v", err)
 	}
 }
+
+func TestHumanAccessDefaultOverrideCompatibility(t *testing.T) {
+	for _, tc := range []struct {
+		env  string
+		want time.Duration
+	}{
+		{"", 4 * time.Hour}, {"15", 15 * time.Minute}, {"240", 4 * time.Hour},
+		{"1", time.Minute}, {"1440", 24 * time.Hour},
+		{"0", 4 * time.Hour}, {"1441", 4 * time.Hour}, {"invalid", 4 * time.Hour},
+	} {
+		t.Run(tc.env, func(t *testing.T) {
+			t.Setenv("JWT_EXPIRY_MINUTES", tc.env)
+			if got := ResolveExpiry(4 * time.Hour); got != tc.want {
+				t.Fatalf("expiry = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}

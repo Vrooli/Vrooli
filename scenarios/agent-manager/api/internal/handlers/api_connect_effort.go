@@ -120,6 +120,16 @@ func (h *AgentManagerConnectHandler) ReconcileEffortMetadata(ctx context.Context
 	if req == nil || req.Msg == nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("request required"))
 	}
+	if len(req.Header().Values(supervision.ExactProofHeader)) > 0 || len(req.Header().Values(supervision.ExactSignatureHeader)) > 0 {
+		if len(req.Header().Values(supervision.ExactProofHeader)) != 1 || len(req.Header().Values(supervision.ExactSignatureHeader)) != 1 {
+			return nil, connect.NewError(connect.CodePermissionDenied, supervision.ErrExactAuthority)
+		}
+		var err error
+		ctx, err = h.exactVerifier.Verify(ctx, req.Msg, req.Header().Get(supervision.ExactProofHeader), req.Header().Get(supervision.ExactSignatureHeader))
+		if err != nil {
+			return nil, connect.NewError(connect.CodePermissionDenied, supervision.ErrExactAuthority)
+		}
+	}
 	authority := req.Msg.GetAuthority()
 	if authority == pb.WatchAuthority_WATCH_AUTHORITY_UNSPECIFIED {
 		authority = pb.WatchAuthority_WATCH_AUTHORITY_OPERATOR
@@ -156,6 +166,12 @@ func EffortGrantTarget(effortRef string) string {
 // owner and orchestrator paths. The service still refuses any change beyond
 // owner-facing metadata, so the grant cannot touch authority or subjects.
 func effortGrantActor(ctx context.Context, effortRef string, authority pb.WatchAuthority) (supervision.EffortActor, bool, error) {
+	if actor, present, err := supervision.ExactEffortActor(ctx, effortRef); present {
+		if err != nil || authority != pb.WatchAuthority_WATCH_AUTHORITY_OPERATOR {
+			return supervision.EffortActor{}, true, connect.NewError(connect.CodePermissionDenied, supervision.ErrExactAuthority)
+		}
+		return actor, true, nil
+	}
 	p, ok := requestidentity.PrincipalFromContext(ctx)
 	if !ok || p.Kind != requestidentity.ActorAgent || p.Grant == nil {
 		return supervision.EffortActor{}, false, nil

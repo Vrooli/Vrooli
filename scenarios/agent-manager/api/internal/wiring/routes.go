@@ -74,6 +74,7 @@ type RouteDependencies struct {
 	EventRepository          eventlog.Repository
 	SupervisionService       *supervision.Service
 	WatchActionAuthorizer    handlers.WatchActionAuthorizer
+	ExactVerifier            *supervision.ExactVerifier
 	InvocationReadModel      invocationreadmodel.Store
 	ModelPolicyDrift         *modelpolicydrift.Scheduler
 	TranscriptImporter       *orchestration.TranscriptImportScheduler
@@ -123,7 +124,8 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 		}), health.Critical).
 		Check(RolePolicyHealthChecker(deps.RolePolicyState), health.Critical).
 		Check(PermissionPolicyHealthChecker(deps.PermissionPolicyState, deps.PermissionPolicy), health.Critical).
-		Check(workspaceSandboxHealthChecker(deps.WorkspaceSandbox), health.Optional), handlers.LifecycleRefusalFunctionalStatus).
+		Check(workspaceSandboxHealthChecker(deps.WorkspaceSandbox), health.Optional).
+		Check(supervisionLivenessHealthChecker(deps.DB), health.Optional), handlers.LifecycleRefusalFunctionalStatus).
 		Metric("startup_recovery", func(time.Time) any {
 			if deps.Recovery == nil {
 				return nil
@@ -163,6 +165,12 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 	)
 	handler.SetWebSocketHub(deps.WebSocketHub)
 	connectHandler := handlers.NewAgentManagerConnectHandler(handler, deps.SupervisionService)
+	exactVerifier := deps.ExactVerifier
+	if exactVerifier == nil && deps.SupervisionService != nil {
+		exactVerifier = deps.SupervisionService.Efforts.InstalledExactVerifier()
+	}
+	connectHandler.SetExactVerifier(exactVerifier)
+	connectHandler.RegisterExactRoutes(router)
 	connectHandler.SetWatchActionAuthorizer(deps.WatchActionAuthorizer)
 	apiPath, apiHandler := apiconnect.NewAgentManagerServiceHandler(connectHandler)
 	router.Handle(apiconnect.AgentManagerServiceWaitWorkflowExecutionProcedure, handlers.WorkflowWaitResponse(apiHandler)).Methods(http.MethodPost)

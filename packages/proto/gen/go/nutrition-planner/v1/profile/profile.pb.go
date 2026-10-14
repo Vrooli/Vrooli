@@ -21,6 +21,82 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type KitchenDevice struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Type          string                 `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
+	Count         int32                  `protobuf:"varint,3,opt,name=count,proto3" json:"count,omitempty"`
+	Capacity      string                 `protobuf:"bytes,4,opt,name=capacity,proto3" json:"capacity,omitempty"`
+	Capabilities  []string               `protobuf:"bytes,5,rep,name=capabilities,proto3" json:"capabilities,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *KitchenDevice) Reset() {
+	*x = KitchenDevice{}
+	mi := &file_nutrition_planner_v1_profile_profile_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *KitchenDevice) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*KitchenDevice) ProtoMessage() {}
+
+func (x *KitchenDevice) ProtoReflect() protoreflect.Message {
+	mi := &file_nutrition_planner_v1_profile_profile_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use KitchenDevice.ProtoReflect.Descriptor instead.
+func (*KitchenDevice) Descriptor() ([]byte, []int) {
+	return file_nutrition_planner_v1_profile_profile_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *KitchenDevice) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *KitchenDevice) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *KitchenDevice) GetCount() int32 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
+}
+
+func (x *KitchenDevice) GetCapacity() string {
+	if x != nil {
+		return x.Capacity
+	}
+	return ""
+}
+
+func (x *KitchenDevice) GetCapabilities() []string {
+	if x != nil {
+		return x.Capabilities
+	}
+	return nil
+}
+
 type Profile struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	WorkspaceId    string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
@@ -35,13 +111,16 @@ type Profile struct {
 	EffortWeight   float64                `protobuf:"fixed64,10,opt,name=effort_weight,json=effortWeight,proto3" json:"effort_weight,omitempty"`
 	VarietyWeight  float64                `protobuf:"fixed64,11,opt,name=variety_weight,json=varietyWeight,proto3" json:"variety_weight,omitempty"`
 	DraftJson      string                 `protobuf:"bytes,12,opt,name=draft_json,json=draftJson,proto3" json:"draft_json,omitempty"`
+	Cookware       []string               `protobuf:"bytes,13,rep,name=cookware,proto3" json:"cookware,omitempty"`
+	Tools          []string               `protobuf:"bytes,14,rep,name=tools,proto3" json:"tools,omitempty"`
+	KitchenDevices []*KitchenDevice       `protobuf:"bytes,15,rep,name=kitchen_devices,json=kitchenDevices,proto3" json:"kitchen_devices,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
 
 func (x *Profile) Reset() {
 	*x = Profile{}
-	mi := &file_nutrition_planner_v1_profile_profile_proto_msgTypes[0]
+	mi := &file_nutrition_planner_v1_profile_profile_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -53,7 +132,7 @@ func (x *Profile) String() string {
 func (*Profile) ProtoMessage() {}
 
 func (x *Profile) ProtoReflect() protoreflect.Message {
-	mi := &file_nutrition_planner_v1_profile_profile_proto_msgTypes[0]
+	mi := &file_nutrition_planner_v1_profile_profile_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -66,7 +145,7 @@ func (x *Profile) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Profile.ProtoReflect.Descriptor instead.
 func (*Profile) Descriptor() ([]byte, []int) {
-	return file_nutrition_planner_v1_profile_profile_proto_rawDescGZIP(), []int{0}
+	return file_nutrition_planner_v1_profile_profile_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *Profile) GetWorkspaceId() string {
@@ -153,6 +232,27 @@ func (x *Profile) GetDraftJson() string {
 	return ""
 }
 
+func (x *Profile) GetCookware() []string {
+	if x != nil {
+		return x.Cookware
+	}
+	return nil
+}
+
+func (x *Profile) GetTools() []string {
+	if x != nil {
+		return x.Tools
+	}
+	return nil
+}
+
+func (x *Profile) GetKitchenDevices() []*KitchenDevice {
+	if x != nil {
+		return x.KitchenDevices
+	}
+	return nil
+}
+
 type GetProfileRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
@@ -162,7 +262,7 @@ type GetProfileRequest struct {
 
 func (x *GetProfileRequest) Reset() {
 	*x = GetProfileRequest{}
-	mi := &file_nutrition_planner_v1_profile_profile_proto_msgTypes[1]
+	mi := &file_nutrition_planner_v1_profile_profile_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -174,7 +274,7 @@ func (x *GetProfileRequest) String() string {
 func (*GetProfileRequest) ProtoMessage() {}
 
 func (x *GetProfileRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_nutrition_planner_v1_profile_profile_proto_msgTypes[1]
+	mi := &file_nutrition_planner_v1_profile_profile_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -187,7 +287,7 @@ func (x *GetProfileRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetProfileRequest.ProtoReflect.Descriptor instead.
 func (*GetProfileRequest) Descriptor() ([]byte, []int) {
-	return file_nutrition_planner_v1_profile_profile_proto_rawDescGZIP(), []int{1}
+	return file_nutrition_planner_v1_profile_profile_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *GetProfileRequest) GetWorkspaceId() string {
@@ -206,7 +306,7 @@ type GetProfileResponse struct {
 
 func (x *GetProfileResponse) Reset() {
 	*x = GetProfileResponse{}
-	mi := &file_nutrition_planner_v1_profile_profile_proto_msgTypes[2]
+	mi := &file_nutrition_planner_v1_profile_profile_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -218,7 +318,7 @@ func (x *GetProfileResponse) String() string {
 func (*GetProfileResponse) ProtoMessage() {}
 
 func (x *GetProfileResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_nutrition_planner_v1_profile_profile_proto_msgTypes[2]
+	mi := &file_nutrition_planner_v1_profile_profile_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -231,7 +331,7 @@ func (x *GetProfileResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetProfileResponse.ProtoReflect.Descriptor instead.
 func (*GetProfileResponse) Descriptor() ([]byte, []int) {
-	return file_nutrition_planner_v1_profile_profile_proto_rawDescGZIP(), []int{2}
+	return file_nutrition_planner_v1_profile_profile_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *GetProfileResponse) GetProfile() *Profile {
@@ -251,7 +351,7 @@ type SaveProfileDraftRequest struct {
 
 func (x *SaveProfileDraftRequest) Reset() {
 	*x = SaveProfileDraftRequest{}
-	mi := &file_nutrition_planner_v1_profile_profile_proto_msgTypes[3]
+	mi := &file_nutrition_planner_v1_profile_profile_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -263,7 +363,7 @@ func (x *SaveProfileDraftRequest) String() string {
 func (*SaveProfileDraftRequest) ProtoMessage() {}
 
 func (x *SaveProfileDraftRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_nutrition_planner_v1_profile_profile_proto_msgTypes[3]
+	mi := &file_nutrition_planner_v1_profile_profile_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -276,7 +376,7 @@ func (x *SaveProfileDraftRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SaveProfileDraftRequest.ProtoReflect.Descriptor instead.
 func (*SaveProfileDraftRequest) Descriptor() ([]byte, []int) {
-	return file_nutrition_planner_v1_profile_profile_proto_rawDescGZIP(), []int{3}
+	return file_nutrition_planner_v1_profile_profile_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *SaveProfileDraftRequest) GetWorkspaceId() string {
@@ -302,7 +402,7 @@ type SaveProfileDraftResponse struct {
 
 func (x *SaveProfileDraftResponse) Reset() {
 	*x = SaveProfileDraftResponse{}
-	mi := &file_nutrition_planner_v1_profile_profile_proto_msgTypes[4]
+	mi := &file_nutrition_planner_v1_profile_profile_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -314,7 +414,7 @@ func (x *SaveProfileDraftResponse) String() string {
 func (*SaveProfileDraftResponse) ProtoMessage() {}
 
 func (x *SaveProfileDraftResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_nutrition_planner_v1_profile_profile_proto_msgTypes[4]
+	mi := &file_nutrition_planner_v1_profile_profile_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -327,7 +427,7 @@ func (x *SaveProfileDraftResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SaveProfileDraftResponse.ProtoReflect.Descriptor instead.
 func (*SaveProfileDraftResponse) Descriptor() ([]byte, []int) {
-	return file_nutrition_planner_v1_profile_profile_proto_rawDescGZIP(), []int{4}
+	return file_nutrition_planner_v1_profile_profile_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *SaveProfileDraftResponse) GetProfile() *Profile {
@@ -338,22 +438,26 @@ func (x *SaveProfileDraftResponse) GetProfile() *Profile {
 }
 
 type ApplyProfileRequest struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	WorkspaceId    string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
-	Preset         string                 `protobuf:"bytes,2,opt,name=preset,proto3" json:"preset,omitempty"`
-	ExcludedGroups []string               `protobuf:"bytes,3,rep,name=excluded_groups,json=excludedGroups,proto3" json:"excluded_groups,omitempty"`
-	Allergies      []string               `protobuf:"bytes,4,rep,name=allergies,proto3" json:"allergies,omitempty"`
-	Appliances     []string               `protobuf:"bytes,5,rep,name=appliances,proto3" json:"appliances,omitempty"`
-	CostWeight     float64                `protobuf:"fixed64,6,opt,name=cost_weight,json=costWeight,proto3" json:"cost_weight,omitempty"`
-	EffortWeight   float64                `protobuf:"fixed64,7,opt,name=effort_weight,json=effortWeight,proto3" json:"effort_weight,omitempty"`
-	VarietyWeight  float64                `protobuf:"fixed64,8,opt,name=variety_weight,json=varietyWeight,proto3" json:"variety_weight,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId           string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	Preset                string                 `protobuf:"bytes,2,opt,name=preset,proto3" json:"preset,omitempty"`
+	ExcludedGroups        []string               `protobuf:"bytes,3,rep,name=excluded_groups,json=excludedGroups,proto3" json:"excluded_groups,omitempty"`
+	Allergies             []string               `protobuf:"bytes,4,rep,name=allergies,proto3" json:"allergies,omitempty"`
+	Appliances            []string               `protobuf:"bytes,5,rep,name=appliances,proto3" json:"appliances,omitempty"`
+	CostWeight            float64                `protobuf:"fixed64,6,opt,name=cost_weight,json=costWeight,proto3" json:"cost_weight,omitempty"`
+	EffortWeight          float64                `protobuf:"fixed64,7,opt,name=effort_weight,json=effortWeight,proto3" json:"effort_weight,omitempty"`
+	VarietyWeight         float64                `protobuf:"fixed64,8,opt,name=variety_weight,json=varietyWeight,proto3" json:"variety_weight,omitempty"`
+	Cookware              []string               `protobuf:"bytes,9,rep,name=cookware,proto3" json:"cookware,omitempty"`
+	Tools                 []string               `protobuf:"bytes,10,rep,name=tools,proto3" json:"tools,omitempty"`
+	KitchenDevices        []*KitchenDevice       `protobuf:"bytes,11,rep,name=kitchen_devices,json=kitchenDevices,proto3" json:"kitchen_devices,omitempty"`
+	ReplaceKitchenDevices bool                   `protobuf:"varint,12,opt,name=replace_kitchen_devices,json=replaceKitchenDevices,proto3" json:"replace_kitchen_devices,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *ApplyProfileRequest) Reset() {
 	*x = ApplyProfileRequest{}
-	mi := &file_nutrition_planner_v1_profile_profile_proto_msgTypes[5]
+	mi := &file_nutrition_planner_v1_profile_profile_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -365,7 +469,7 @@ func (x *ApplyProfileRequest) String() string {
 func (*ApplyProfileRequest) ProtoMessage() {}
 
 func (x *ApplyProfileRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_nutrition_planner_v1_profile_profile_proto_msgTypes[5]
+	mi := &file_nutrition_planner_v1_profile_profile_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -378,7 +482,7 @@ func (x *ApplyProfileRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApplyProfileRequest.ProtoReflect.Descriptor instead.
 func (*ApplyProfileRequest) Descriptor() ([]byte, []int) {
-	return file_nutrition_planner_v1_profile_profile_proto_rawDescGZIP(), []int{5}
+	return file_nutrition_planner_v1_profile_profile_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ApplyProfileRequest) GetWorkspaceId() string {
@@ -437,6 +541,34 @@ func (x *ApplyProfileRequest) GetVarietyWeight() float64 {
 	return 0
 }
 
+func (x *ApplyProfileRequest) GetCookware() []string {
+	if x != nil {
+		return x.Cookware
+	}
+	return nil
+}
+
+func (x *ApplyProfileRequest) GetTools() []string {
+	if x != nil {
+		return x.Tools
+	}
+	return nil
+}
+
+func (x *ApplyProfileRequest) GetKitchenDevices() []*KitchenDevice {
+	if x != nil {
+		return x.KitchenDevices
+	}
+	return nil
+}
+
+func (x *ApplyProfileRequest) GetReplaceKitchenDevices() bool {
+	if x != nil {
+		return x.ReplaceKitchenDevices
+	}
+	return false
+}
+
 type ApplyProfileResponse struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	Profile          *Profile               `protobuf:"bytes,1,opt,name=profile,proto3" json:"profile,omitempty"`
@@ -450,7 +582,7 @@ type ApplyProfileResponse struct {
 
 func (x *ApplyProfileResponse) Reset() {
 	*x = ApplyProfileResponse{}
-	mi := &file_nutrition_planner_v1_profile_profile_proto_msgTypes[6]
+	mi := &file_nutrition_planner_v1_profile_profile_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -462,7 +594,7 @@ func (x *ApplyProfileResponse) String() string {
 func (*ApplyProfileResponse) ProtoMessage() {}
 
 func (x *ApplyProfileResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_nutrition_planner_v1_profile_profile_proto_msgTypes[6]
+	mi := &file_nutrition_planner_v1_profile_profile_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -475,7 +607,7 @@ func (x *ApplyProfileResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApplyProfileResponse.ProtoReflect.Descriptor instead.
 func (*ApplyProfileResponse) Descriptor() ([]byte, []int) {
-	return file_nutrition_planner_v1_profile_profile_proto_rawDescGZIP(), []int{6}
+	return file_nutrition_planner_v1_profile_profile_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ApplyProfileResponse) GetProfile() *Profile {
@@ -517,7 +649,13 @@ var File_nutrition_planner_v1_profile_profile_proto protoreflect.FileDescriptor
 
 const file_nutrition_planner_v1_profile_profile_proto_rawDesc = "" +
 	"\n" +
-	"*nutrition-planner/v1/profile/profile.proto\x12#vrooli.nutrition_planner.v1.profile\"\x9d\x03\n" +
+	"*nutrition-planner/v1/profile/profile.proto\x12#vrooli.nutrition_planner.v1.profile\"\x89\x01\n" +
+	"\rKitchenDevice\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04type\x18\x02 \x01(\tR\x04type\x12\x14\n" +
+	"\x05count\x18\x03 \x01(\x05R\x05count\x12\x1a\n" +
+	"\bcapacity\x18\x04 \x01(\tR\bcapacity\x12\"\n" +
+	"\fcapabilities\x18\x05 \x03(\tR\fcapabilities\"\xac\x04\n" +
 	"\aProfile\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x1a\n" +
 	"\brevision\x18\x02 \x01(\x03R\brevision\x12\x16\n" +
@@ -535,7 +673,10 @@ const file_nutrition_planner_v1_profile_profile_proto_rawDesc = "" +
 	" \x01(\x01R\feffortWeight\x12%\n" +
 	"\x0evariety_weight\x18\v \x01(\x01R\rvarietyWeight\x12\x1d\n" +
 	"\n" +
-	"draft_json\x18\f \x01(\tR\tdraftJson\"6\n" +
+	"draft_json\x18\f \x01(\tR\tdraftJson\x12\x1a\n" +
+	"\bcookware\x18\r \x03(\tR\bcookware\x12\x14\n" +
+	"\x05tools\x18\x0e \x03(\tR\x05tools\x12[\n" +
+	"\x0fkitchen_devices\x18\x0f \x03(\v22.vrooli.nutrition_planner.v1.profile.KitchenDeviceR\x0ekitchenDevices\"6\n" +
 	"\x11GetProfileRequest\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\"\\\n" +
 	"\x12GetProfileResponse\x12F\n" +
@@ -545,7 +686,7 @@ const file_nutrition_planner_v1_profile_profile_proto_rawDesc = "" +
 	"\n" +
 	"draft_json\x18\x02 \x01(\tR\tdraftJson\"b\n" +
 	"\x18SaveProfileDraftResponse\x12F\n" +
-	"\aprofile\x18\x01 \x01(\v2,.vrooli.nutrition_planner.v1.profile.ProfileR\aprofile\"\xa4\x02\n" +
+	"\aprofile\x18\x01 \x01(\v2,.vrooli.nutrition_planner.v1.profile.ProfileR\aprofile\"\xeb\x03\n" +
 	"\x13ApplyProfileRequest\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x16\n" +
 	"\x06preset\x18\x02 \x01(\tR\x06preset\x12'\n" +
@@ -557,7 +698,12 @@ const file_nutrition_planner_v1_profile_profile_proto_rawDesc = "" +
 	"\vcost_weight\x18\x06 \x01(\x01R\n" +
 	"costWeight\x12#\n" +
 	"\reffort_weight\x18\a \x01(\x01R\feffortWeight\x12%\n" +
-	"\x0evariety_weight\x18\b \x01(\x01R\rvarietyWeight\"\xf8\x01\n" +
+	"\x0evariety_weight\x18\b \x01(\x01R\rvarietyWeight\x12\x1a\n" +
+	"\bcookware\x18\t \x03(\tR\bcookware\x12\x14\n" +
+	"\x05tools\x18\n" +
+	" \x03(\tR\x05tools\x12[\n" +
+	"\x0fkitchen_devices\x18\v \x03(\v22.vrooli.nutrition_planner.v1.profile.KitchenDeviceR\x0ekitchenDevices\x126\n" +
+	"\x17replace_kitchen_devices\x18\f \x01(\bR\x15replaceKitchenDevices\"\xf8\x01\n" +
 	"\x14ApplyProfileResponse\x12F\n" +
 	"\aprofile\x18\x01 \x01(\v2,.vrooli.nutrition_planner.v1.profile.ProfileR\aprofile\x12\x1c\n" +
 	"\tconflicts\x18\x02 \x03(\tR\tconflicts\x12%\n" +
@@ -582,31 +728,34 @@ func file_nutrition_planner_v1_profile_profile_proto_rawDescGZIP() []byte {
 	return file_nutrition_planner_v1_profile_profile_proto_rawDescData
 }
 
-var file_nutrition_planner_v1_profile_profile_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_nutrition_planner_v1_profile_profile_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_nutrition_planner_v1_profile_profile_proto_goTypes = []any{
-	(*Profile)(nil),                  // 0: vrooli.nutrition_planner.v1.profile.Profile
-	(*GetProfileRequest)(nil),        // 1: vrooli.nutrition_planner.v1.profile.GetProfileRequest
-	(*GetProfileResponse)(nil),       // 2: vrooli.nutrition_planner.v1.profile.GetProfileResponse
-	(*SaveProfileDraftRequest)(nil),  // 3: vrooli.nutrition_planner.v1.profile.SaveProfileDraftRequest
-	(*SaveProfileDraftResponse)(nil), // 4: vrooli.nutrition_planner.v1.profile.SaveProfileDraftResponse
-	(*ApplyProfileRequest)(nil),      // 5: vrooli.nutrition_planner.v1.profile.ApplyProfileRequest
-	(*ApplyProfileResponse)(nil),     // 6: vrooli.nutrition_planner.v1.profile.ApplyProfileResponse
+	(*KitchenDevice)(nil),            // 0: vrooli.nutrition_planner.v1.profile.KitchenDevice
+	(*Profile)(nil),                  // 1: vrooli.nutrition_planner.v1.profile.Profile
+	(*GetProfileRequest)(nil),        // 2: vrooli.nutrition_planner.v1.profile.GetProfileRequest
+	(*GetProfileResponse)(nil),       // 3: vrooli.nutrition_planner.v1.profile.GetProfileResponse
+	(*SaveProfileDraftRequest)(nil),  // 4: vrooli.nutrition_planner.v1.profile.SaveProfileDraftRequest
+	(*SaveProfileDraftResponse)(nil), // 5: vrooli.nutrition_planner.v1.profile.SaveProfileDraftResponse
+	(*ApplyProfileRequest)(nil),      // 6: vrooli.nutrition_planner.v1.profile.ApplyProfileRequest
+	(*ApplyProfileResponse)(nil),     // 7: vrooli.nutrition_planner.v1.profile.ApplyProfileResponse
 }
 var file_nutrition_planner_v1_profile_profile_proto_depIdxs = []int32{
-	0, // 0: vrooli.nutrition_planner.v1.profile.GetProfileResponse.profile:type_name -> vrooli.nutrition_planner.v1.profile.Profile
-	0, // 1: vrooli.nutrition_planner.v1.profile.SaveProfileDraftResponse.profile:type_name -> vrooli.nutrition_planner.v1.profile.Profile
-	0, // 2: vrooli.nutrition_planner.v1.profile.ApplyProfileResponse.profile:type_name -> vrooli.nutrition_planner.v1.profile.Profile
-	1, // 3: vrooli.nutrition_planner.v1.profile.ProfileService.GetProfile:input_type -> vrooli.nutrition_planner.v1.profile.GetProfileRequest
-	3, // 4: vrooli.nutrition_planner.v1.profile.ProfileService.SaveProfileDraft:input_type -> vrooli.nutrition_planner.v1.profile.SaveProfileDraftRequest
-	5, // 5: vrooli.nutrition_planner.v1.profile.ProfileService.ApplyProfile:input_type -> vrooli.nutrition_planner.v1.profile.ApplyProfileRequest
-	2, // 6: vrooli.nutrition_planner.v1.profile.ProfileService.GetProfile:output_type -> vrooli.nutrition_planner.v1.profile.GetProfileResponse
-	4, // 7: vrooli.nutrition_planner.v1.profile.ProfileService.SaveProfileDraft:output_type -> vrooli.nutrition_planner.v1.profile.SaveProfileDraftResponse
-	6, // 8: vrooli.nutrition_planner.v1.profile.ProfileService.ApplyProfile:output_type -> vrooli.nutrition_planner.v1.profile.ApplyProfileResponse
-	6, // [6:9] is the sub-list for method output_type
-	3, // [3:6] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	0, // 0: vrooli.nutrition_planner.v1.profile.Profile.kitchen_devices:type_name -> vrooli.nutrition_planner.v1.profile.KitchenDevice
+	1, // 1: vrooli.nutrition_planner.v1.profile.GetProfileResponse.profile:type_name -> vrooli.nutrition_planner.v1.profile.Profile
+	1, // 2: vrooli.nutrition_planner.v1.profile.SaveProfileDraftResponse.profile:type_name -> vrooli.nutrition_planner.v1.profile.Profile
+	0, // 3: vrooli.nutrition_planner.v1.profile.ApplyProfileRequest.kitchen_devices:type_name -> vrooli.nutrition_planner.v1.profile.KitchenDevice
+	1, // 4: vrooli.nutrition_planner.v1.profile.ApplyProfileResponse.profile:type_name -> vrooli.nutrition_planner.v1.profile.Profile
+	2, // 5: vrooli.nutrition_planner.v1.profile.ProfileService.GetProfile:input_type -> vrooli.nutrition_planner.v1.profile.GetProfileRequest
+	4, // 6: vrooli.nutrition_planner.v1.profile.ProfileService.SaveProfileDraft:input_type -> vrooli.nutrition_planner.v1.profile.SaveProfileDraftRequest
+	6, // 7: vrooli.nutrition_planner.v1.profile.ProfileService.ApplyProfile:input_type -> vrooli.nutrition_planner.v1.profile.ApplyProfileRequest
+	3, // 8: vrooli.nutrition_planner.v1.profile.ProfileService.GetProfile:output_type -> vrooli.nutrition_planner.v1.profile.GetProfileResponse
+	5, // 9: vrooli.nutrition_planner.v1.profile.ProfileService.SaveProfileDraft:output_type -> vrooli.nutrition_planner.v1.profile.SaveProfileDraftResponse
+	7, // 10: vrooli.nutrition_planner.v1.profile.ProfileService.ApplyProfile:output_type -> vrooli.nutrition_planner.v1.profile.ApplyProfileResponse
+	8, // [8:11] is the sub-list for method output_type
+	5, // [5:8] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_nutrition_planner_v1_profile_profile_proto_init() }
@@ -620,7 +769,7 @@ func file_nutrition_planner_v1_profile_profile_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_nutrition_planner_v1_profile_profile_proto_rawDesc), len(file_nutrition_planner_v1_profile_profile_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   7,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

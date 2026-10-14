@@ -4,11 +4,13 @@ package database
 import (
 	"agent-manager/internal/domain"
 	"context"
+	"errors"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	_ "modernc.org/sqlite"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestEventRepository(t *testing.T) {
@@ -144,3 +146,36 @@ func TestEventRepositoryReadsLegacyTypedPayloadRow(t *testing.T) {
 // ============================================================================
 // Checkpoint Repository Tests
 // ============================================================================
+
+func TestEventRepositoryMalformedPayloadFailsGetAndGetByType(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+	task := &domain.Task{ID: uuid.New(), Title: "event decode", ScopePath: "/test", Status: domain.TaskStatusQueued}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatal(err)
+	}
+	run := &domain.Run{ID: uuid.New(), TaskID: task.ID, Status: domain.RunStatusRunning, Phase: domain.RunPhaseExecuting, ApprovalState: domain.ApprovalStateNone}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+	id := uuid.New()
+	raw := `{"payloadKind":null,"limitType":"weekly"}`
+	if _, err := db.ExecContext(ctx, `INSERT INTO run_events(id,run_id,sequence,event_type,timestamp,data) VALUES(?,?,?,?,?,?)`, id, run.ID, 0, "error", time.Now().UTC().Format(time.RFC3339Nano), raw); err != nil {
+		t.Fatal(err)
+	}
+	for _, read := range []func() ([]*domain.RunEvent, error){func() ([]*domain.RunEvent, error) { return repos.Events.Get(ctx, run.ID, -1, 100) }, func() ([]*domain.RunEvent, error) {
+		return repos.Events.GetByType(ctx, run.ID, []domain.RunEventType{domain.EventTypeError}, 100)
+	}} {
+		got, err := read()
+		var databaseError *domain.DatabaseError
+		if got != nil || !errors.As(err, &databaseError) || databaseError.EntityID != id.String() || databaseError.Operation != "decode_event" {
+			t.Fatalf("events=%+v error=%v", got, err)
+		}
+	}
+	var persisted string
+	if err := db.GetContext(ctx, &persisted, `SELECT data FROM run_events WHERE id=?`, id); err != nil || persisted != raw {
+		t.Fatalf("persisted=%q error=%v", persisted, err)
+	}
+}

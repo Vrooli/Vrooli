@@ -221,6 +221,10 @@ type AgentProfile struct {
 	// per-run runtime scope. Paths are never accepted here.
 	SkillPack         []string `protobuf:"bytes,36,rep,name=skill_pack,json=skillPack,proto3" json:"skill_pack,omitempty"`
 	SkillExperimentId string   `protobuf:"bytes,37,opt,name=skill_experiment_id,json=skillExperimentId,proto3" json:"skill_experiment_id,omitempty"`
+	// Weighted non-cache token cap per run (DL-8): non-cache tokens times the
+	// model tier weight (sol=10, luna=1). 0 means no profile cap; the
+	// AGENT_MANAGER_TOKEN_CAPS environment map stays the fallback.
+	MaxWeightedTokens int64 `protobuf:"varint,39,opt,name=max_weighted_tokens,json=maxWeightedTokens,proto3" json:"max_weighted_tokens,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -465,6 +469,13 @@ func (x *AgentProfile) GetSkillExperimentId() string {
 	return ""
 }
 
+func (x *AgentProfile) GetMaxWeightedTokens() int64 {
+	if x != nil {
+		return x.MaxWeightedTokens
+	}
+	return 0
+}
+
 // ResultSpec is normalized before persistence. schema contains canonical JSON
 // bytes and schema_digest identifies those exact bytes. classification_values
 // is a create convenience compiled into schema and omitted after resolution.
@@ -619,9 +630,12 @@ type RunConfig struct {
 	// the owner-resolved effective settings and the policy source they came
 	// from. Output-only; create surfaces accept RunConfigOverrides, so callers
 	// never author this directly.
-	Admission     *RunAdmission `protobuf:"bytes,29,opt,name=admission,proto3" json:"admission,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Admission *RunAdmission `protobuf:"bytes,29,opt,name=admission,proto3" json:"admission,omitempty"`
+	// Effective weighted-token cap: the profile cap, narrowed by the run
+	// override. 0 means none.
+	MaxWeightedTokens int64 `protobuf:"varint,30,opt,name=max_weighted_tokens,json=maxWeightedTokens,proto3" json:"max_weighted_tokens,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *RunConfig) Reset() {
@@ -813,6 +827,13 @@ func (x *RunConfig) GetAdmission() *RunAdmission {
 		return x.Admission
 	}
 	return nil
+}
+
+func (x *RunConfig) GetMaxWeightedTokens() int64 {
+	if x != nil {
+		return x.MaxWeightedTokens
+	}
+	return 0
 }
 
 // RunAdmission is the immutable required/effective configuration record written
@@ -1933,6 +1954,8 @@ type RunConfigOverrides struct {
 	Model *string `protobuf:"bytes,29,opt,name=model,proto3,oneof" json:"model,omitempty"`
 	// Engine-owned completion test for this run.
 	Until *string `protobuf:"bytes,30,opt,name=until,proto3,oneof" json:"until,omitempty"`
+	// Weighted-token cap for this run. It may only lower the profile cap.
+	MaxWeightedTokens *int64 `protobuf:"varint,31,opt,name=max_weighted_tokens,json=maxWeightedTokens,proto3,oneof" json:"max_weighted_tokens,omitempty"`
 	// Sandbox lifecycle + acceptance configuration.
 	SandboxConfig *SandboxConfig `protobuf:"bytes,17,opt,name=sandbox_config,json=sandboxConfig,proto3" json:"sandbox_config,omitempty"`
 	// Paths the agent is allowed to access.
@@ -2079,6 +2102,13 @@ func (x *RunConfigOverrides) GetUntil() string {
 	return ""
 }
 
+func (x *RunConfigOverrides) GetMaxWeightedTokens() int64 {
+	if x != nil && x.MaxWeightedTokens != nil {
+		return *x.MaxWeightedTokens
+	}
+	return 0
+}
+
 func (x *RunConfigOverrides) GetSandboxConfig() *SandboxConfig {
 	if x != nil {
 		return x.SandboxConfig
@@ -2203,7 +2233,7 @@ var File_agent_manager_v1_domain_profile_proto protoreflect.FileDescriptor
 
 const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\n" +
-	"%agent-manager/v1/domain/profile.proto\x12\x10agent_manager.v1\x1a#agent-manager/v1/domain/types.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xca\f\n" +
+	"%agent-manager/v1/domain/profile.proto\x12\x10agent_manager.v1\x1a#agent-manager/v1/domain/types.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x83\r\n" +
 	"\fAgentProfile\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1e\n" +
 	"\x04name\x18\x02 \x01(\tB\n" +
@@ -2247,7 +2277,8 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\x06effort\x18# \x01(\tR\x06effort\x12\x1d\n" +
 	"\n" +
 	"skill_pack\x18$ \x03(\tR\tskillPack\x12.\n" +
-	"\x13skill_experiment_id\x18% \x01(\tR\x11skillExperimentId\x1a^\n" +
+	"\x13skill_experiment_id\x18% \x01(\tR\x11skillExperimentId\x127\n" +
+	"\x13max_weighted_tokens\x18' \x01(\x03B\a\xbaH\x04\"\x02(\x00R\x11maxWeightedTokens\x1a^\n" +
 	"\x0fExtraFlagsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x125\n" +
 	"\x05value\x18\x02 \x01(\v2\x1f.agent_manager.v1.ExtraFlagListR\x05value:\x028\x01J\x04\b\x04\x10\x05J\x04\b\x05\x10\x06J\x04\b\v\x10\fJ\x04\b\f\x10\rJ\x04\b\x13\x10\x14J\x04\b\x16\x10\x17J\x04\b \x10!R\vrunner_typeR\x05modelR\n" +
@@ -2262,8 +2293,7 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\x0fextraction_mode\x18\x06 \x01(\x0e2*.agent_manager.v1.StructuredExtractionModeR\x0eextractionMode\x12'\n" +
 	"\x0fextraction_role\x18\a \x01(\tR\x0eextractionRole\x129\n" +
 	"\x16schema_repair_attempts\x18\b \x01(\x05H\x00R\x14schemaRepairAttempts\x88\x01\x01B\x19\n" +
-	"\x17_schema_repair_attempts\"\xd1\n" +
-	"\n" +
+	"\x17_schema_repair_attempts\"\x81\v\n" +
 	"\tRunConfig\x12=\n" +
 	"\vrunner_type\x18\x01 \x01(\x0e2\x1c.agent_manager.v1.RunnerTypeR\n" +
 	"runnerType\x12\x14\n" +
@@ -2291,7 +2321,8 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\x10transcript_codec\x18\x1a \x01(\tR\x0ftranscriptCodec\x124\n" +
 	"\x16transcript_codec_score\x18\x1b \x01(\x01R\x14transcriptCodecScore\x12\x14\n" +
 	"\x05until\x18\x1c \x01(\tR\x05until\x12<\n" +
-	"\tadmission\x18\x1d \x01(\v2\x1e.agent_manager.v1.RunAdmissionR\tadmission\x1a^\n" +
+	"\tadmission\x18\x1d \x01(\v2\x1e.agent_manager.v1.RunAdmissionR\tadmission\x12.\n" +
+	"\x13max_weighted_tokens\x18\x1e \x01(\x03R\x11maxWeightedTokens\x1a^\n" +
 	"\x0fExtraFlagsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x125\n" +
 	"\x05value\x18\x02 \x01(\v2\x1f.agent_manager.v1.ExtraFlagListR\x05value:\x028\x01J\x04\b\b\x10\tJ\x04\b\t\x10\n" +
@@ -2404,7 +2435,7 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\x14ExecutionPreferences\x12)\n" +
 	"\x10preferred_runner\x18\x01 \x01(\tR\x0fpreferredRunner\x12\x14\n" +
 	"\x05model\x18\x02 \x01(\tR\x05model\x12\x16\n" +
-	"\x06effort\x18\x03 \x01(\tR\x06effort\"\x93\v\n" +
+	"\x06effort\x18\x03 \x01(\tR\x06effort\"\xe9\v\n" +
 	"\x12RunConfigOverrides\x12\x1e\n" +
 	"\brole_ref\x18\x1a \x01(\tH\x00R\aroleRef\x88\x01\x01\x12=\n" +
 	"\vresult_spec\x18\x1b \x01(\v2\x1c.agent_manager.v1.ResultSpecR\n" +
@@ -2421,7 +2452,8 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\x0enetwork_access\x18\x18 \x01(\x0e2\x1f.agent_manager.v1.NetworkAccessH\x05R\rnetworkAccess\x88\x01\x01\x12\x1b\n" +
 	"\x06effort\x18\x1c \x01(\tH\x06R\x06effort\x88\x01\x01\x12\x19\n" +
 	"\x05model\x18\x1d \x01(\tH\aR\x05model\x88\x01\x01\x12\x19\n" +
-	"\x05until\x18\x1e \x01(\tH\bR\x05until\x88\x01\x01\x12F\n" +
+	"\x05until\x18\x1e \x01(\tH\bR\x05until\x88\x01\x01\x12<\n" +
+	"\x13max_weighted_tokens\x18\x1f \x01(\x03B\a\xbaH\x04\"\x02 \x00H\tR\x11maxWeightedTokens\x88\x01\x01\x12F\n" +
 	"\x0esandbox_config\x18\x11 \x01(\v2\x1f.agent_manager.v1.SandboxConfigR\rsandboxConfig\x12#\n" +
 	"\rallowed_paths\x18\n" +
 	" \x03(\tR\fallowedPaths\x12!\n" +
@@ -2443,7 +2475,8 @@ const file_agent_manager_v1_domain_profile_proto_rawDesc = "" +
 	"\x0f_network_accessB\t\n" +
 	"\a_effortB\b\n" +
 	"\x06_modelB\b\n" +
-	"\x06_untilJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03J\x04\b\b\x10\tJ\x04\b\t\x10\n" +
+	"\x06_untilB\x16\n" +
+	"\x14_max_weighted_tokensJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03J\x04\b\b\x10\tJ\x04\b\t\x10\n" +
 	"J\x04\b\x10\x10\x11J\x04\b\x13\x10\x14J\x04\b\x14\x10\x15J\x04\b\x19\x10\x1aR\vrunner_typeR\n" +
 	"policy_refR\x10requires_sandboxR\x11requires_approvalR\fmodel_presetR\x15fallback_runner_typesR\x1bclear_fallback_runner_types\"\xa7\x01\n" +
 	"\x0fHeartbeatConfig\x125\n" +

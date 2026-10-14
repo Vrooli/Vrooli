@@ -901,7 +901,7 @@ function FileListImpl({
             {!mobileSelectionMode && hasUnstaged && (
               <IconButton
                 onClick={onStageAll}
-                disabled={isStaging}
+                disabled={false}
                 size="xs"
                 surface="ghost"
                 denseTapTarget
@@ -916,7 +916,7 @@ function FileListImpl({
             {!mobileSelectionMode && hasStaged && (
               <IconButton
                 onClick={onUnstageAll}
-                disabled={isStaging}
+                disabled={false}
                 size="xs"
                 surface="ghost"
                 denseTapTarget
@@ -987,7 +987,7 @@ function FileListImpl({
                         const unstaged = selectedFiles?.filter((e) => !e.staged).map((e) => e.path) ?? [];
                         if (unstaged.length > 0) onStagePaths?.(unstaged);
                       }}
-                      disabled={isStaging}
+                      disabled={false}
                     >
                       Stage
                     </Button>
@@ -1001,7 +1001,7 @@ function FileListImpl({
                         const staged = selectedFiles?.filter((e) => e.staged).map((e) => e.path) ?? [];
                         staged.forEach((p) => onUnstageFile(p));
                       }}
-                      disabled={isStaging}
+                      disabled={false}
                     >
                       Unstage
                     </Button>
@@ -1151,7 +1151,7 @@ function FileListImpl({
                                   surface="ghost"
                                   denseTapTarget
                                   onClick={() => onStagePaths(stageable)}
-                                  disabled={isStaging}
+                                  disabled={false}
                                   className="!h-8 !w-8 !min-h-0 !min-w-0 !border-0 !shadow-none !text-emerald-300"
                                   aria-label="Stage all files in group"
                                   title="Stage All"
@@ -1159,7 +1159,7 @@ function FileListImpl({
                                   variant="outline"
                                   size="sm"
                                   onClick={() => onStagePaths(stageable)}
-                                  disabled={isStaging}
+                                  disabled={false}
                                   className="h-7 px-2"
                                   title="Stage All"
                                 >Stage All</Button>

@@ -1,5 +1,13 @@
 # Operations
 
+## Streaming transcription CPU tuning
+
+The managed medium-model server uses 12 inference threads on the current
+32-thread desktop host. This is the measured baseline setting for the
+interactive audio-tools cell; the historical 12-thread benchmark in the
+managed-service assessment remains unchanged. If the host has materially
+fewer CPUs, qualify a separate setting rather than assuming this value.
+
 `whisper` is organized as a checksum-verified `managed-service` resource.
 
 ## Architecture Boundary

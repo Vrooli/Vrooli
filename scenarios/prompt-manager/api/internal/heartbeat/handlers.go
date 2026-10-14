@@ -349,8 +349,8 @@ func (h *Handlers) CreateHeartbeat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Schedule == "" {
-		http.Error(w, "schedule is required", http.StatusBadRequest)
+	if req.Schedule == "" && (req.Enabled == nil || *req.Enabled) {
+		http.Error(w, "schedule is required unless explicitly disabled", http.StatusBadRequest)
 		return
 	}
 	if err := req.FiniteLeader.Validate(req.ProfileKey); err != nil {
@@ -527,6 +527,11 @@ func (h *Handlers) UpdateHeartbeat(w http.ResponseWriter, r *http.Request) {
 	wasEnabled := config.Enabled
 	if req.Enabled != nil {
 		config.Enabled = *req.Enabled
+	}
+
+	if config.Enabled && strings.TrimSpace(config.Schedule) == "" {
+		http.Error(w, "enabled heartbeat requires a schedule", http.StatusBadRequest)
+		return
 	}
 
 	engagementEvent, err := h.operatorEngagementEventFromRequest(r, teamID, "heartbeat-config-updated")
@@ -2079,18 +2084,20 @@ func (h *Handlers) ListRuns(w http.ResponseWriter, r *http.Request) {
 	// agent-manager list-runs filters by agent_profile_id (UUID), not profile_key.
 	// Resolve profile_key to ID before forwarding so UI profile scoping works.
 	if opts.ProfileKey != "" {
-		resolved, err := h.agentClient.EnsureProfile(r.Context(), &EnsureProfileRequest{
-			ProfileKey: opts.ProfileKey,
-		})
+		resolved, err := h.agentClient.ResolveProfile(r.Context(), opts.ProfileKey)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadGateway)
 			return
 		}
-		if resolved == nil || resolved.Profile == nil || resolved.Profile.ID == "" {
+		if resolved == nil || resolved.Id == "" {
 			http.Error(w, "failed to resolve profile_key to profile id", http.StatusBadGateway)
 			return
 		}
-		opts.AgentProfileID = resolved.Profile.ID
+		if opts.AgentProfileID != "" && opts.AgentProfileID != resolved.Id {
+			http.Error(w, "agent_id conflicts with profile_key", http.StatusBadRequest)
+			return
+		}
+		opts.AgentProfileID = resolved.Id
 	}
 
 	result, err := h.agentClient.ListRuns(r.Context(), opts)
@@ -2521,6 +2528,12 @@ func (h *Handlers) toResponse(config *store.HeartbeatConfig) HeartbeatConfigResp
 		UpdatedAt:           config.UpdatedAt,
 	}
 
+	if h.scheduler != nil {
+		state := h.scheduler.State()
+		resp.SchedulerState = &state
+		resp.SchedulerRegistered = h.scheduler.IsScheduled(config.TeamID, config.AgentID)
+	}
+
 	resp.WakeAdmission = config.WakeAdmission
 	resp.FiniteLeader = config.FiniteLeader
 	if config.FiniteLeader != nil && h.teamStore != nil {
@@ -2618,7 +2631,17 @@ func (h *Handlers) effectiveExecutionState(ctx context.Context, config *store.He
 	if !config.Enabled {
 		return true, "disabled", "heartbeat configuration is disabled", controlState, false
 	}
-	scheduled := h.scheduler != nil && h.scheduler.IsScheduled(config.TeamID, config.AgentID)
+	if h.scheduler == nil {
+		return true, "not-scheduled", "heartbeat scheduler unavailable", controlState, false
+	}
+	lifecycle := h.scheduler.State()
+	if !lifecycle.Running {
+		if lifecycle.StartError != "" {
+			return true, "scheduler-failed", lifecycle.StartError, controlState, false
+		}
+		return true, "scheduler-stopped", "heartbeat scheduler is stopped", controlState, false
+	}
+	scheduled := h.scheduler.IsScheduled(config.TeamID, config.AgentID)
 	if !scheduled {
 		return true, "not-scheduled", "heartbeat is enabled but has no active scheduler entry", controlState, false
 	}

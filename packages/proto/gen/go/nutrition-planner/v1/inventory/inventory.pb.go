@@ -22,18 +22,24 @@ const (
 )
 
 type InventoryEvent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	WorkspaceId   string                 `protobuf:"bytes,2,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
-	Kind          string                 `protobuf:"bytes,3,opt,name=kind,proto3" json:"kind,omitempty"`
-	ItemId        string                 `protobuf:"bytes,4,opt,name=item_id,json=itemId,proto3" json:"item_id,omitempty"`
-	BatchId       string                 `protobuf:"bytes,5,opt,name=batch_id,json=batchId,proto3" json:"batch_id,omitempty"`
-	Amount        string                 `protobuf:"bytes,6,opt,name=amount,proto3" json:"amount,omitempty"`
-	Unit          string                 `protobuf:"bytes,7,opt,name=unit,proto3" json:"unit,omitempty"`
-	RecipeId      string                 `protobuf:"bytes,8,opt,name=recipe_id,json=recipeId,proto3" json:"recipe_id,omitempty"`
-	CreatedAt     string                 `protobuf:"bytes,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Id             string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	WorkspaceId    string                 `protobuf:"bytes,2,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	Kind           string                 `protobuf:"bytes,3,opt,name=kind,proto3" json:"kind,omitempty"`
+	ItemId         string                 `protobuf:"bytes,4,opt,name=item_id,json=itemId,proto3" json:"item_id,omitempty"`
+	BatchId        string                 `protobuf:"bytes,5,opt,name=batch_id,json=batchId,proto3" json:"batch_id,omitempty"`
+	Amount         string                 `protobuf:"bytes,6,opt,name=amount,proto3" json:"amount,omitempty"`
+	Unit           string                 `protobuf:"bytes,7,opt,name=unit,proto3" json:"unit,omitempty"`
+	RecipeId       string                 `protobuf:"bytes,8,opt,name=recipe_id,json=recipeId,proto3" json:"recipe_id,omitempty"`
+	CreatedAt      string                 `protobuf:"bytes,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	AmountMode     string                 `protobuf:"bytes,10,opt,name=amount_mode,json=amountMode,proto3" json:"amount_mode,omitempty"`
+	Expression     string                 `protobuf:"bytes,11,opt,name=expression,proto3" json:"expression,omitempty"`
+	Storage        string                 `protobuf:"bytes,12,opt,name=storage,proto3" json:"storage,omitempty"`
+	BestBeforeDate string                 `protobuf:"bytes,13,opt,name=best_before_date,json=bestBeforeDate,proto3" json:"best_before_date,omitempty"`
+	UseSoon        bool                   `protobuf:"varint,14,opt,name=use_soon,json=useSoon,proto3" json:"use_soon,omitempty"`
+	LotId          string                 `protobuf:"bytes,15,opt,name=lot_id,json=lotId,proto3" json:"lot_id,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *InventoryEvent) Reset() {
@@ -129,6 +135,48 @@ func (x *InventoryEvent) GetCreatedAt() string {
 	return ""
 }
 
+func (x *InventoryEvent) GetAmountMode() string {
+	if x != nil {
+		return x.AmountMode
+	}
+	return ""
+}
+
+func (x *InventoryEvent) GetExpression() string {
+	if x != nil {
+		return x.Expression
+	}
+	return ""
+}
+
+func (x *InventoryEvent) GetStorage() string {
+	if x != nil {
+		return x.Storage
+	}
+	return ""
+}
+
+func (x *InventoryEvent) GetBestBeforeDate() string {
+	if x != nil {
+		return x.BestBeforeDate
+	}
+	return ""
+}
+
+func (x *InventoryEvent) GetUseSoon() bool {
+	if x != nil {
+		return x.UseSoon
+	}
+	return false
+}
+
+func (x *InventoryEvent) GetLotId() string {
+	if x != nil {
+		return x.LotId
+	}
+	return ""
+}
+
 type ListEventsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
@@ -218,18 +266,24 @@ func (x *ListEventsResponse) GetEvents() []*InventoryEvent {
 }
 
 type RecordEventRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
-	Id            string                 `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
-	Kind          string                 `protobuf:"bytes,3,opt,name=kind,proto3" json:"kind,omitempty"`
-	ItemId        string                 `protobuf:"bytes,4,opt,name=item_id,json=itemId,proto3" json:"item_id,omitempty"`
-	BatchId       string                 `protobuf:"bytes,5,opt,name=batch_id,json=batchId,proto3" json:"batch_id,omitempty"`
-	Amount        string                 `protobuf:"bytes,6,opt,name=amount,proto3" json:"amount,omitempty"`
-	Unit          string                 `protobuf:"bytes,7,opt,name=unit,proto3" json:"unit,omitempty"`
-	RecipeId      string                 `protobuf:"bytes,8,opt,name=recipe_id,json=recipeId,proto3" json:"recipe_id,omitempty"`
-	CreatedAt     string                 `protobuf:"bytes,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId    string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	Id             string                 `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
+	Kind           string                 `protobuf:"bytes,3,opt,name=kind,proto3" json:"kind,omitempty"`
+	ItemId         string                 `protobuf:"bytes,4,opt,name=item_id,json=itemId,proto3" json:"item_id,omitempty"`
+	BatchId        string                 `protobuf:"bytes,5,opt,name=batch_id,json=batchId,proto3" json:"batch_id,omitempty"`
+	Amount         string                 `protobuf:"bytes,6,opt,name=amount,proto3" json:"amount,omitempty"`
+	Unit           string                 `protobuf:"bytes,7,opt,name=unit,proto3" json:"unit,omitempty"`
+	RecipeId       string                 `protobuf:"bytes,8,opt,name=recipe_id,json=recipeId,proto3" json:"recipe_id,omitempty"`
+	CreatedAt      string                 `protobuf:"bytes,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	AmountMode     string                 `protobuf:"bytes,10,opt,name=amount_mode,json=amountMode,proto3" json:"amount_mode,omitempty"`
+	Expression     string                 `protobuf:"bytes,11,opt,name=expression,proto3" json:"expression,omitempty"`
+	Storage        string                 `protobuf:"bytes,12,opt,name=storage,proto3" json:"storage,omitempty"`
+	BestBeforeDate string                 `protobuf:"bytes,13,opt,name=best_before_date,json=bestBeforeDate,proto3" json:"best_before_date,omitempty"`
+	UseSoon        bool                   `protobuf:"varint,14,opt,name=use_soon,json=useSoon,proto3" json:"use_soon,omitempty"`
+	LotId          string                 `protobuf:"bytes,15,opt,name=lot_id,json=lotId,proto3" json:"lot_id,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *RecordEventRequest) Reset() {
@@ -321,6 +375,48 @@ func (x *RecordEventRequest) GetRecipeId() string {
 func (x *RecordEventRequest) GetCreatedAt() string {
 	if x != nil {
 		return x.CreatedAt
+	}
+	return ""
+}
+
+func (x *RecordEventRequest) GetAmountMode() string {
+	if x != nil {
+		return x.AmountMode
+	}
+	return ""
+}
+
+func (x *RecordEventRequest) GetExpression() string {
+	if x != nil {
+		return x.Expression
+	}
+	return ""
+}
+
+func (x *RecordEventRequest) GetStorage() string {
+	if x != nil {
+		return x.Storage
+	}
+	return ""
+}
+
+func (x *RecordEventRequest) GetBestBeforeDate() string {
+	if x != nil {
+		return x.BestBeforeDate
+	}
+	return ""
+}
+
+func (x *RecordEventRequest) GetUseSoon() bool {
+	if x != nil {
+		return x.UseSoon
+	}
+	return false
+}
+
+func (x *RecordEventRequest) GetLotId() string {
+	if x != nil {
+		return x.LotId
 	}
 	return ""
 }
@@ -1349,7 +1445,7 @@ var File_nutrition_planner_v1_inventory_inventory_proto protoreflect.FileDescrip
 
 const file_nutrition_planner_v1_inventory_inventory_proto_rawDesc = "" +
 	"\n" +
-	".nutrition-planner/v1/inventory/inventory.proto\x12%vrooli.nutrition_planner.v1.inventory\"\xf3\x01\n" +
+	".nutrition-planner/v1/inventory/inventory.proto\x12%vrooli.nutrition_planner.v1.inventory\"\xaa\x03\n" +
 	"\x0eInventoryEvent\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\fworkspace_id\x18\x02 \x01(\tR\vworkspaceId\x12\x12\n" +
@@ -1360,11 +1456,21 @@ const file_nutrition_planner_v1_inventory_inventory_proto_rawDesc = "" +
 	"\x04unit\x18\a \x01(\tR\x04unit\x12\x1b\n" +
 	"\trecipe_id\x18\b \x01(\tR\brecipeId\x12\x1d\n" +
 	"\n" +
-	"created_at\x18\t \x01(\tR\tcreatedAt\"6\n" +
+	"created_at\x18\t \x01(\tR\tcreatedAt\x12\x1f\n" +
+	"\vamount_mode\x18\n" +
+	" \x01(\tR\n" +
+	"amountMode\x12\x1e\n" +
+	"\n" +
+	"expression\x18\v \x01(\tR\n" +
+	"expression\x12\x18\n" +
+	"\astorage\x18\f \x01(\tR\astorage\x12(\n" +
+	"\x10best_before_date\x18\r \x01(\tR\x0ebestBeforeDate\x12\x19\n" +
+	"\buse_soon\x18\x0e \x01(\bR\auseSoon\x12\x15\n" +
+	"\x06lot_id\x18\x0f \x01(\tR\x05lotId\"6\n" +
 	"\x11ListEventsRequest\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\"c\n" +
 	"\x12ListEventsResponse\x12M\n" +
-	"\x06events\x18\x01 \x03(\v25.vrooli.nutrition_planner.v1.inventory.InventoryEventR\x06events\"\xf7\x01\n" +
+	"\x06events\x18\x01 \x03(\v25.vrooli.nutrition_planner.v1.inventory.InventoryEventR\x06events\"\xae\x03\n" +
 	"\x12RecordEventRequest\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\tR\x02id\x12\x12\n" +
@@ -1375,7 +1481,17 @@ const file_nutrition_planner_v1_inventory_inventory_proto_rawDesc = "" +
 	"\x04unit\x18\a \x01(\tR\x04unit\x12\x1b\n" +
 	"\trecipe_id\x18\b \x01(\tR\brecipeId\x12\x1d\n" +
 	"\n" +
-	"created_at\x18\t \x01(\tR\tcreatedAt\"b\n" +
+	"created_at\x18\t \x01(\tR\tcreatedAt\x12\x1f\n" +
+	"\vamount_mode\x18\n" +
+	" \x01(\tR\n" +
+	"amountMode\x12\x1e\n" +
+	"\n" +
+	"expression\x18\v \x01(\tR\n" +
+	"expression\x12\x18\n" +
+	"\astorage\x18\f \x01(\tR\astorage\x12(\n" +
+	"\x10best_before_date\x18\r \x01(\tR\x0ebestBeforeDate\x12\x19\n" +
+	"\buse_soon\x18\x0e \x01(\bR\auseSoon\x12\x15\n" +
+	"\x06lot_id\x18\x0f \x01(\tR\x05lotId\"b\n" +
 	"\x13RecordEventResponse\x12K\n" +
 	"\x05event\x18\x01 \x01(\v25.vrooli.nutrition_planner.v1.inventory.InventoryEventR\x05event\"\xbf\x01\n" +
 	"\x05Batch\x12\x0e\n" +

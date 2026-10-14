@@ -2,7 +2,10 @@ package webconsole
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
+	"google.golang.org/protobuf/proto"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -21,23 +24,45 @@ import (
 
 type sessionTestServer struct {
 	sessionsv1connect.UnimplementedSessionsServiceHandler
-	created     *sessionsv1.CreateRequest
-	archived    string
-	deleteCalls int
-	missing     bool
-	listed      []*sessionsv1.Session
-	listErr     error
+	created          *sessionsv1.CreateRequest
+	archived         string
+	deleteCalls      int
+	missing          bool
+	listed           []*sessionsv1.Session
+	listErr          error
+	getCreatedAt     string
+	stable           bool
+	creatorOwner     string
+	createCalls      int
+	createErr        error
+	fingerprint      string
+	wrongFingerprint bool
+	wrongOwner       bool
 }
 
 func (s *sessionTestServer) List(_ context.Context, _ *connect.Request[sessionsv1.ListRequest]) (*connect.Response[sessionsv1.ListResponse], error) {
 	if s.listErr != nil {
 		return nil, s.listErr
 	}
-	return connect.NewResponse(&sessionsv1.ListResponse{Sessions: s.listed}), nil
+	return connect.NewResponse(&sessionsv1.ListResponse{Sessions: s.listed, SupportsStableCreateIdentity: s.stable, StableCreateOwner: s.creatorOwner}), nil
 }
 
 func (s *sessionTestServer) Create(_ context.Context, req *connect.Request[sessionsv1.CreateRequest]) (*connect.Response[sessionsv1.CreateResponse], error) {
 	s.created = req.Msg
+	s.createCalls++
+	if req.Msg.RequestedSessionId != "" {
+		raw, _ := proto.MarshalOptions{Deterministic: true}.Marshal(req.Msg)
+		digest := sha256.Sum256(raw)
+		s.fingerprint = hex.EncodeToString(digest[:])
+		if s.createErr != nil {
+			return nil, s.createErr
+		}
+		owner := s.creatorOwner
+		if s.wrongOwner {
+			owner = "unrelated"
+		}
+		return connect.NewResponse(&sessionsv1.CreateResponse{Session: &sessionsv1.Session{Id: req.Msg.RequestedSessionId, Owner: owner, CreateFingerprint: s.fingerprint}}), nil
+	}
 	return connect.NewResponse(&sessionsv1.CreateResponse{Session: &sessionsv1.Session{Id: "session-1", Owner: OwnerAgentManager, Backend: req.Msg.Backend, Origin: sessionsv1.SessionOrigin_SESSION_ORIGIN_PROGRAMMATIC, DisplayLabel: req.Msg.DisplayLabel}}), nil
 }
 
@@ -45,7 +70,17 @@ func (s *sessionTestServer) Get(_ context.Context, req *connect.Request[sessions
 	if s.missing {
 		return nil, connect.NewError(connect.CodeNotFound, nil)
 	}
-	return connect.NewResponse(&sessionsv1.GetResponse{Session: &sessionsv1.Session{Id: req.Msg.Id, Owner: OwnerAgentManager, Backend: "persistent", Origin: sessionsv1.SessionOrigin_SESSION_ORIGIN_PROGRAMMATIC, DisplayLabel: "drill"}}), nil
+	fingerprint, owner := s.fingerprint, s.creatorOwner
+	if owner == "" {
+		owner = OwnerAgentManager
+	}
+	if s.wrongFingerprint {
+		fingerprint = "different"
+	}
+	if s.wrongOwner {
+		owner = "unrelated"
+	}
+	return connect.NewResponse(&sessionsv1.GetResponse{Session: &sessionsv1.Session{Id: req.Msg.Id, Owner: owner, CreateFingerprint: fingerprint, Backend: "persistent", Origin: sessionsv1.SessionOrigin_SESSION_ORIGIN_PROGRAMMATIC, DisplayLabel: "drill", CreatedAt: s.getCreatedAt}}), nil
 }
 
 // Delete mirrors web-console's permanent-deletion guard. agent-manager must
@@ -302,33 +337,65 @@ func TestSendPromptEnterTransportFailureIsNotNotSubmitted(t *testing.T) {
 	}
 }
 
-func TestListSessionsProjectsOwnershipAndCreationTime(t *testing.T) {
-	sessions := &sessionTestServer{listed: []*sessionsv1.Session{
-		{Id: "am-1", Owner: OwnerAgentManager, Origin: sessionsv1.SessionOrigin_SESSION_ORIGIN_PROGRAMMATIC, DisplayLabel: "nooch/E7", CreatedAt: "2026-10-01T08:30:00Z"},
-		{Id: "operator-1", Origin: sessionsv1.SessionOrigin_SESSION_ORIGIN_UI, CreatedAt: "not-a-time"},
-		{Id: ""},
-	}}
-	client := newWebConsoleTestClient(t, sessions, &terminalTestServer{})
+func TestSessionReadsProjectOwnershipAndCreationTime(t *testing.T) {
+	cases := []struct {
+		name string
+		wire string
+		want time.Time
+	}{
+		{"whole-second UTC", "2026-10-01T08:30:00Z", time.Date(2026, 10, 1, 8, 30, 0, 0, time.UTC)},
+		{"nanosecond UTC", "2026-08-25T12:34:56.000000007Z", time.Date(2026, 8, 25, 12, 34, 56, 7, time.UTC)},
+		{"positive offset previous day", "2026-08-25T00:04:05.12+05:30", time.Date(2026, 8, 24, 18, 34, 5, 120000000, time.UTC)},
+		{"negative offset next day", "2026-08-25T23:34:56.000000007-07:00", time.Date(2026, 8, 26, 6, 34, 56, 7, time.UTC)},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			sessions := &sessionTestServer{getCreatedAt: tc.wire, listed: []*sessionsv1.Session{
+				{Id: "am-1", Owner: OwnerAgentManager, Origin: sessionsv1.SessionOrigin_SESSION_ORIGIN_PROGRAMMATIC, DisplayLabel: "nooch/E7", CreatedAt: tc.wire},
+			}}
+			client := newWebConsoleTestClient(t, sessions, &terminalTestServer{})
+			got, err := client.GetSession(context.Background(), "am-1")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got.ID != "am-1" || got.Owner != OwnerAgentManager || got.Backend != "persistent" || got.Origin != OriginProgrammatic || got.DisplayLabel != "drill" || !got.CreatedAt.Equal(tc.want) {
+				t.Fatalf("GetSession=%+v, want creation instant %s", got, tc.want)
+			}
+			listed, err := client.ListSessions(context.Background())
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(listed) != 1 {
+				t.Fatalf("ListSessions=%+v, want one identified session", listed)
+			}
+			if listed[0].ID != "am-1" || listed[0].Owner != OwnerAgentManager || listed[0].Origin != OriginProgrammatic || listed[0].DisplayLabel != "nooch/E7" || !listed[0].CreatedAt.Equal(tc.want) {
+				t.Fatalf("ListSessions=%+v, want creation instant %s", listed[0], tc.want)
+			}
+		})
+	}
 
-	got, err := client.ListSessions(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(got) != 2 {
-		t.Fatalf("sessions=%+v, want the two identified sessions", got)
-	}
-	wantCreated := time.Date(2026, 10, 1, 8, 30, 0, 0, time.UTC)
-	if got[0].ID != "am-1" || got[0].Owner != OwnerAgentManager || got[0].Origin != OriginProgrammatic || got[0].DisplayLabel != "nooch/E7" || !got[0].CreatedAt.Equal(wantCreated) {
-		t.Fatalf("agent-manager session=%+v", got[0])
-	}
-	if got[1].ID != "operator-1" || got[1].Origin == OriginProgrammatic || !got[1].CreatedAt.IsZero() {
-		t.Fatalf("operator session=%+v, want non-programmatic origin and unknown creation time", got[1])
-	}
-
-	sessions.listErr = connect.NewError(connect.CodeUnavailable, nil)
-	if _, err := client.ListSessions(context.Background()); err == nil {
-		t.Fatal("list outage was not reported")
-	}
+	t.Run("unknown time and list outage", func(t *testing.T) {
+		sessions := &sessionTestServer{getCreatedAt: "not-a-time", listed: []*sessionsv1.Session{
+			{Id: "operator-1", Origin: sessionsv1.SessionOrigin_SESSION_ORIGIN_UI, CreatedAt: "not-a-time"},
+			{Id: ""},
+		}}
+		client := newWebConsoleTestClient(t, sessions, &terminalTestServer{})
+		got, err := client.GetSession(context.Background(), "am-1")
+		if err != nil || !got.CreatedAt.IsZero() {
+			t.Fatalf("GetSession=%+v err=%v, want unknown creation time", got, err)
+		}
+		listed, err := client.ListSessions(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(listed) != 1 || listed[0].ID != "operator-1" || listed[0].Origin == OriginProgrammatic || !listed[0].CreatedAt.IsZero() {
+			t.Fatalf("ListSessions=%+v, want one non-programmatic session with unknown creation time", listed)
+		}
+		sessions.listErr = connect.NewError(connect.CodeUnavailable, nil)
+		if _, err := client.ListSessions(context.Background()); err == nil {
+			t.Fatal("list outage was not reported")
+		}
+	})
 }
 
 // agent-manager must never permanently delete a web-console session: release
@@ -339,5 +406,37 @@ func TestSessionSeamHasNoPermanentDelete(t *testing.T) {
 		if _, ok := typ.MethodByName("DeleteSession"); ok {
 			t.Fatalf("%s exposes DeleteSession; agent-manager must archive sessions instead", typ)
 		}
+	}
+}
+
+func TestReservedCreateOldPeerAndUncertainResponse(t *testing.T) {
+	for _, tc := range []struct {
+		name                                                     string
+		stable, missing, wrongFingerprint, wrongOwner, noCreator bool
+		createErr                                                error
+		want                                                     bool
+		writes                                                   int
+	}{
+		{name: "old peer zero writes", writes: 0},
+		{name: "missing verified creator zero writes", stable: true, noCreator: true, writes: 0},
+		{name: "acknowledged changed creator refuses", stable: true, wrongOwner: true, writes: 1},
+		{name: "acknowledged", stable: true, want: true, writes: 1},
+		{name: "lost response exact live identity", stable: true, createErr: connect.NewError(connect.CodeUnavailable, errors.New("lost acknowledgement")), want: true, writes: 1},
+		{name: "lost response missing runtime", stable: true, missing: true, createErr: connect.NewError(connect.CodeUnavailable, errors.New("lost acknowledgement")), writes: 1},
+		{name: "lost response changed fingerprint", stable: true, wrongFingerprint: true, createErr: connect.NewError(connect.CodeUnavailable, errors.New("lost acknowledgement")), writes: 1},
+		{name: "lost response changed owner", stable: true, wrongOwner: true, createErr: connect.NewError(connect.CodeUnavailable, errors.New("lost acknowledgement")), writes: 1},
+		{name: "definite collision", stable: true, createErr: connect.NewError(connect.CodeAlreadyExists, errors.New("collision")), writes: 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			owner := &sessionTestServer{stable: tc.stable, creatorOwner: "verified-service-subject", missing: tc.missing, wrongFingerprint: tc.wrongFingerprint, wrongOwner: tc.wrongOwner, createErr: tc.createErr}
+			if tc.noCreator {
+				owner.creatorOwner = ""
+			}
+			c := newWebConsoleTestClient(t, owner, &terminalTestServer{})
+			id, err := c.CreateSession(t.Context(), CreateSessionParams{RequestedSessionID: "c06dce6e-c663-4898-bf98-d66f13013197", LaunchCommand: "bounded"})
+			if (err == nil) != tc.want || tc.want && id != "c06dce6e-c663-4898-bf98-d66f13013197" || owner.createCalls != tc.writes {
+				t.Fatalf("id=%q err=%v writes=%d", id, err, owner.createCalls)
+			}
+		})
 	}
 }

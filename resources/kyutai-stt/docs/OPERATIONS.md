@@ -100,7 +100,14 @@ lock.
 | `KYUTAI_STT_LOCK_TIMEOUT_S` | `10` | Bounded wait to acquire the single-session model lock before a new connection inspects the holder. |
 | `KYUTAI_STT_ACTIVITY_WEDGE_S` | `5` | If the current holder decoded a frame within this many seconds, it is active and the newcomer receives `{"type":"error","code":"stt_busy",...}` instead of cancelling it. Only holders idle beyond this threshold are reaped as wedged. |
 | `KYUTAI_STT_TORCH_COMPILE` | `0` | Enables moshi's experimental lazy `torch.compile` path when set to `1`. It is disabled by default because its first inference can spend many minutes compiling on a local GPU after health is already ready; CUDA graphing remains enabled. Enable only with measured cold and warm throughput evidence. |
-| `KYUTAI_STT_WARMUP_FRAMES` | `8` | Silent model-rate frames evaluated before `/ready` so lazy CUDA/Mimi/LM initialization is paid during startup rather than the first user turn. Set to `0` only when startup latency is more important than first-partial latency. |
+| `KYUTAI_STT_WARMUP_FRAMES` | `64` (managed owner) | Silent model-rate frames evaluated before `/ready` so lazy CUDA/Mimi/LM initialization is paid during startup rather than the first user turn. The managed owner uses 64 after a fresh five-turn probe showed a 2.5 s cold first-stream outlier despite a healthy 32-frame-ready resource; the source default remains 32 for portability. Set to `0` only when startup latency is more important than first-partial latency. |
+| `KYUTAI_STT_WARMUP_SIGNAL_FRAMES` | `8` | Deterministic low-amplitude non-silent model-rate frames evaluated and discarded before `/ready`, exercising text-producing kernels that silence-only warmup can leave cold. The stream state is reset afterward; no warmup hypothesis is user-visible. Set to `0` only with a measured reason. |
+| `KYUTAI_STT_AUDIO_DELAY_SECONDS` | unset (checkpoint `0.5`) | Optional bounded 0–2 second owner override for delayed-stream text emission. Any non-default value must be paired with clean-corpus WER, terminal-tail, and recovery evidence. |
+
+Managed deployments also pin `KYUTAI_STT_MAX_SEGMENT_FRAMES=48` (about 3.8
+seconds at the model frame rate). This bounds a continuous-speech segment so
+long passthrough turns emit durable transcript segments instead of retaining
+only a rolling partial until end-of-stream.
 
 Every stream logs a close summary with reason, frames consumed, segments
 emitted, and duration. Reap warnings include holder age and idle time so active

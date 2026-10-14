@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"agent-manager/internal/supervision"
 	"net/http"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/authn"
@@ -16,6 +18,10 @@ import (
 // exact-target, profile, lineage and budget checks in the domain handlers.
 func AgentOperationMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if (len(r.Header.Values(supervision.ExactProofHeader)) > 0 || len(r.Header.Values(supervision.ExactSignatureHeader)) > 0) && (r.Method != http.MethodPost || (r.URL.Path != apiconnect.AgentManagerServiceReconcileEffortMetadataProcedure && r.URL.Path != ExactReceiptPath)) {
+			http.Error(w, "exact proof offered on wrong operation channel", http.StatusForbidden)
+			return
+		}
 		if r.URL.Path == "/api/v1/runs/attach" && r.Method == http.MethodPost {
 			// Local attachment establishes a zero-scope identity, never consent
 			// or delegated authority. Launcher attachment must remain usable
@@ -67,6 +73,16 @@ func AgentOperationMiddleware(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
+		// Self cleanup is intrinsic only to this current verified identity. Domain
+		// re-verifies the retained leaf and refuses non-attached targets before effects.
+		if r.Method == http.MethodPost && r.URL.Path == "/api/v1/runs/"+p.Subject+"/detach" {
+			if !p.IsVerified() || p.Subject == "" || strings.Contains(p.Subject, "/") {
+				http.Error(w, "current verified self identity required", http.StatusForbidden)
+				return
+			}
+			next.ServeHTTP(w, r)
+			return
+		}
 		if agentOperationRoute(r, p.Grant != nil) {
 			next.ServeHTTP(w, r)
 			return
@@ -80,7 +96,7 @@ func agentOperationRoute(r *http.Request, interactive bool) bool {
 		return false
 	}
 	switch r.URL.Path {
-	case "/api/v1/runs", "/api/v1/investigations", "/api/v1/runs/episode-cohort/compare":
+	case ExactChallengePath, ExactReadChallengePath, ExactReceiptPath, "/api/v1/runs", "/api/v1/investigations", "/api/v1/runs/episode-cohort/compare":
 		return true
 	case "/api/v1/runs/wake-by-key":
 		// The handler applies the single-run wake lineage rule to every

@@ -2,6 +2,8 @@ package heartbeat
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -19,6 +21,9 @@ import (
 
 	"github.com/robfig/cron/v3"
 	repocontract "github.com/vrooli/repo-contract-go"
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 // HeartbeatExecutor defines the execution behavior used by the scheduler.
@@ -48,10 +53,13 @@ type ScheduledHeartbeat struct {
 // Scheduler manages cron-based heartbeat execution
 type Scheduler struct {
 	mu             sync.RWMutex
+	lifecycleMu    sync.Mutex
 	cron           *cron.Cron
 	scheduled      map[string]*ScheduledHeartbeat // key: teamID/agentID
 	executor       HeartbeatExecutor
 	running        bool
+	startError     string
+	lastCallback   time.Time
 	profileKey     string
 	agentClient    AgentClient
 	configStore    HeartbeatConfigStore
@@ -106,24 +114,25 @@ func (s *Scheduler) SetControlStore(controlStore *HeartbeatControlStore) {
 
 // Start begins the scheduler
 func (s *Scheduler) Start(ctx context.Context) error {
+	s.lifecycleMu.Lock()
+	defer s.lifecycleMu.Unlock()
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if s.running {
 		return nil
 	}
-	if _, err := LoadDeclaredProfileKeys(); err != nil {
-		return fmt.Errorf("load heartbeat profile declarations: %w", err)
-	}
 
-	// Reconcile and resolve both declared profiles before scheduling work. A
+	// Resolve installed profiles without invoking the installer. A
 	// scheduler that cannot prove its profile keys is not safe to start.
-	if err := s.ensureProfile(ctx); err != nil {
-		return fmt.Errorf("ensure heartbeat profiles: %w", err)
+	if err := s.resolveStartupProfiles(ctx); err != nil {
+		s.startError = err.Error()
+		return fmt.Errorf("resolve heartbeat profiles: %w", err)
 	}
 
 	s.cron.Start()
 	s.running = true
+	s.startError = ""
 	log.Println("Heartbeat scheduler started")
 
 	return nil
@@ -131,10 +140,12 @@ func (s *Scheduler) Start(ctx context.Context) error {
 
 // Stop halts the scheduler
 func (s *Scheduler) Stop() {
+	s.lifecycleMu.Lock()
+	defer s.lifecycleMu.Unlock()
 	s.mu.Lock()
-	defer s.mu.Unlock()
 
 	if !s.running {
+		s.mu.Unlock()
 		return
 	}
 
@@ -148,8 +159,9 @@ func (s *Scheduler) Stop() {
 	}
 
 	ctx := s.cron.Stop()
-	<-ctx.Done()
 	s.running = false
+	s.mu.Unlock()
+	<-ctx.Done()
 	log.Println("Heartbeat scheduler stopped")
 }
 
@@ -191,6 +203,9 @@ func (s *Scheduler) Schedule(teamID, agentID, schedule string) error {
 
 	// Add to cron
 	entryID, err := s.cron.AddFunc(schedule, func() {
+		s.mu.Lock()
+		s.lastCallback = time.Now().UTC()
+		s.mu.Unlock()
 		s.executeHeartbeat(ctx, teamID, agentID)
 	})
 	if err != nil {
@@ -473,28 +488,102 @@ func (s *Scheduler) runOrdinaryWake(ctx context.Context, teamID, agentID string,
 	}
 }
 
-// ensureProfile reconciles the heartbeat profiles declared in service.json.
-func (s *Scheduler) ensureProfile(ctx context.Context) error {
+// resolveStartupProfiles qualifies the existing declaration/installation pair.
+// Local overrides and source drift remain with AM's installer; startup refuses
+// to overwrite them. Historical run filtering only requires exact identity.
+func (s *Scheduler) resolveStartupProfiles(ctx context.Context) error {
 	if s.agentClient == nil {
-		return nil
+		return fmt.Errorf("agent profile reader unavailable")
 	}
-	keys, err := LoadDeclaredProfileKeys()
+	root, err := repocontract.FindRepoRootFromEnvOrCWD()
 	if err != nil {
 		return err
 	}
-	if err := s.agentClient.ReconcileScenarioProfiles(ctx, "prompt-manager"); err != nil {
-		return fmt.Errorf("reconcile scenario profiles: %w", err)
-	}
-	for _, key := range []string{keys.MultiProcess, keys.SingleProcess} {
-		resolved, err := s.agentClient.EnsureProfile(ctx, &EnsureProfileRequest{ProfileKey: key})
+	for _, filename := range []string{"heartbeat.json", "heartbeat-single-process.json"} {
+		source := filepath.Join(".vrooli", "agent-manager", filename)
+		body, err := os.ReadFile(filepath.Join(root, "scenarios", "prompt-manager", source))
 		if err != nil {
-			return fmt.Errorf("resolve declared profile %q: %w", key, err)
+			return err
 		}
-		if resolved == nil || resolved.Profile == nil || resolved.Profile.ProfileKey != key {
-			return fmt.Errorf("resolve declared profile %q: catalog returned no matching profile", key)
+		var raw map[string]json.RawMessage
+		if err := json.Unmarshal(body, &raw); err != nil {
+			return err
+		}
+		var version string
+		if err := json.Unmarshal(raw["schemaVersion"], &version); err != nil || version != "agent-profile/v1" {
+			return fmt.Errorf("unsupported profile source version: %s", source)
+		}
+		delete(raw, "schemaVersion")
+		encoded, err := json.Marshal(raw)
+		if err != nil {
+			return err
+		}
+		expected := &AgentProfile{}
+		if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(encoded, expected); err != nil {
+			return err
+		}
+		installed, err := s.agentClient.ResolveProfile(ctx, expected.ProfileKey)
+		if err != nil {
+			return err
+		}
+		sum := sha256.Sum256(body)
+		hash := hex.EncodeToString(sum[:])
+		if installed == nil || installed.OwnerScenario != "prompt-manager" || installed.SourcePath != filepath.ToSlash(source) || installed.SourceHash != hash || installed.LastAppliedHash != hash || installed.LocalOverride {
+			return fmt.Errorf("profile %q installation provenance or override unavailable", expected.ProfileKey)
+		}
+		// AM normalizes absent network policy to localhost, tool enforcement to
+		// enforced, and sandbox lifecycle/acceptance to empty typed messages.
+		if expected.NetworkAccess == domainpb.NetworkAccess_NETWORK_ACCESS_UNSPECIFIED {
+			expected.NetworkAccess = domainpb.NetworkAccess_NETWORK_ACCESS_LOCALHOST
+		}
+		if expected.ToolRestrictionPolicy == "" {
+			expected.ToolRestrictionPolicy = "enforced"
+		}
+		if expected.SandboxConfig != nil {
+			if expected.SandboxConfig.NetworkMode == domainpb.NetworkAccess_NETWORK_ACCESS_UNSPECIFIED {
+				expected.SandboxConfig.NetworkMode = domainpb.NetworkAccess_NETWORK_ACCESS_LOCALHOST
+			}
+			if expected.SandboxConfig.Lifecycle == nil {
+				expected.SandboxConfig.Lifecycle = &domainpb.SandboxLifecycleConfig{}
+			}
+			if expected.SandboxConfig.Acceptance == nil {
+				expected.SandboxConfig.Acceptance = &domainpb.SandboxAcceptanceConfig{}
+			}
+		}
+		actual := proto.Clone(installed).(*AgentProfile)
+		actual.Id = ""
+		actual.OwnerScenario = ""
+		actual.SourcePath = ""
+		actual.SourceHash = ""
+		actual.LastAppliedHash = ""
+		actual.SourceUpdatedAt = nil
+		actual.CreatedAt = nil
+		actual.UpdatedAt = nil
+		actual.LocalOverride = false
+		if !proto.Equal(actual, expected) {
+			return fmt.Errorf("profile %q installed execution contract differs from declaration", expected.ProfileKey)
 		}
 	}
 	return nil
+}
+
+// SchedulerState separates registration, running cron and observed callback.
+type SchedulerState struct {
+	Running      bool       `json:"running"`
+	StartError   string     `json:"start_error,omitempty"`
+	Registered   int        `json:"registered"`
+	LastCallback *time.Time `json:"last_callback,omitempty"`
+}
+
+func (s *Scheduler) State() SchedulerState {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	state := SchedulerState{Running: s.running, StartError: s.startError, Registered: len(s.scheduled)}
+	if !s.lastCallback.IsZero() {
+		last := s.lastCallback
+		state.LastCallback = &last
+	}
+	return state
 }
 
 type declaredProfile struct {

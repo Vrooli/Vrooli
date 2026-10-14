@@ -45,6 +45,9 @@ const (
 	// ProposalServiceGetProposalProcedure is the fully-qualified name of the ProposalService's
 	// GetProposal RPC.
 	ProposalServiceGetProposalProcedure = "/vrooli.git_control_tower.v1.proposals.ProposalService/GetProposal"
+	// ProposalServiceCombineProposalsProcedure is the fully-qualified name of the ProposalService's
+	// CombineProposals RPC.
+	ProposalServiceCombineProposalsProcedure = "/vrooli.git_control_tower.v1.proposals.ProposalService/CombineProposals"
 	// ProposalServiceEditProposalProcedure is the fully-qualified name of the ProposalService's
 	// EditProposal RPC.
 	ProposalServiceEditProposalProcedure = "/vrooli.git_control_tower.v1.proposals.ProposalService/EditProposal"
@@ -70,6 +73,9 @@ type ProposalServiceClient interface {
 	ListProposals(context.Context, *connect.Request[proposals.ListProposalsRequest]) (*connect.Response[proposals.ListProposalsResponse], error)
 	// Reads one proposal with live freshness.
 	GetProposal(context.Context, *connect.Request[proposals.GetProposalRequest]) (*connect.Response[proposals.GetProposalResponse], error)
+	// Reads the immutable captured diff, independent of working-tree drift.
+	// Explicitly combines reviewed source revisions without adopting live bytes.
+	CombineProposals(context.Context, *connect.Request[proposals.CombineProposalsRequest]) (*connect.Response[proposals.GetProposalResponse], error)
 	// Changes the message or drops files, creating a new revision.
 	EditProposal(context.Context, *connect.Request[proposals.EditProposalRequest]) (*connect.Response[proposals.EditProposalResponse], error)
 	// Withdraws an open proposal. History is kept.
@@ -117,6 +123,12 @@ func NewProposalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(proposalServiceMethods.ByName("GetProposal")),
 			connect.WithClientOptions(opts...),
 		),
+		combineProposals: connect.NewClient[proposals.CombineProposalsRequest, proposals.GetProposalResponse](
+			httpClient,
+			baseURL+ProposalServiceCombineProposalsProcedure,
+			connect.WithSchema(proposalServiceMethods.ByName("CombineProposals")),
+			connect.WithClientOptions(opts...),
+		),
 		editProposal: connect.NewClient[proposals.EditProposalRequest, proposals.EditProposalResponse](
 			httpClient,
 			baseURL+ProposalServiceEditProposalProcedure,
@@ -150,6 +162,7 @@ type proposalServiceClient struct {
 	createProposal   *connect.Client[proposals.CreateProposalRequest, proposals.CreateProposalResponse]
 	listProposals    *connect.Client[proposals.ListProposalsRequest, proposals.ListProposalsResponse]
 	getProposal      *connect.Client[proposals.GetProposalRequest, proposals.GetProposalResponse]
+	combineProposals *connect.Client[proposals.CombineProposalsRequest, proposals.GetProposalResponse]
 	editProposal     *connect.Client[proposals.EditProposalRequest, proposals.EditProposalResponse]
 	withdrawProposal *connect.Client[proposals.WithdrawProposalRequest, proposals.WithdrawProposalResponse]
 	refreshProposal  *connect.Client[proposals.RefreshProposalRequest, proposals.RefreshProposalResponse]
@@ -174,6 +187,11 @@ func (c *proposalServiceClient) ListProposals(ctx context.Context, req *connect.
 // GetProposal calls vrooli.git_control_tower.v1.proposals.ProposalService.GetProposal.
 func (c *proposalServiceClient) GetProposal(ctx context.Context, req *connect.Request[proposals.GetProposalRequest]) (*connect.Response[proposals.GetProposalResponse], error) {
 	return c.getProposal.CallUnary(ctx, req)
+}
+
+// CombineProposals calls vrooli.git_control_tower.v1.proposals.ProposalService.CombineProposals.
+func (c *proposalServiceClient) CombineProposals(ctx context.Context, req *connect.Request[proposals.CombineProposalsRequest]) (*connect.Response[proposals.GetProposalResponse], error) {
+	return c.combineProposals.CallUnary(ctx, req)
 }
 
 // EditProposal calls vrooli.git_control_tower.v1.proposals.ProposalService.EditProposal.
@@ -207,6 +225,9 @@ type ProposalServiceHandler interface {
 	ListProposals(context.Context, *connect.Request[proposals.ListProposalsRequest]) (*connect.Response[proposals.ListProposalsResponse], error)
 	// Reads one proposal with live freshness.
 	GetProposal(context.Context, *connect.Request[proposals.GetProposalRequest]) (*connect.Response[proposals.GetProposalResponse], error)
+	// Reads the immutable captured diff, independent of working-tree drift.
+	// Explicitly combines reviewed source revisions without adopting live bytes.
+	CombineProposals(context.Context, *connect.Request[proposals.CombineProposalsRequest]) (*connect.Response[proposals.GetProposalResponse], error)
 	// Changes the message or drops files, creating a new revision.
 	EditProposal(context.Context, *connect.Request[proposals.EditProposalRequest]) (*connect.Response[proposals.EditProposalResponse], error)
 	// Withdraws an open proposal. History is kept.
@@ -249,6 +270,12 @@ func NewProposalServiceHandler(svc ProposalServiceHandler, opts ...connect.Handl
 		connect.WithSchema(proposalServiceMethods.ByName("GetProposal")),
 		connect.WithHandlerOptions(opts...),
 	)
+	proposalServiceCombineProposalsHandler := connect.NewUnaryHandler(
+		ProposalServiceCombineProposalsProcedure,
+		svc.CombineProposals,
+		connect.WithSchema(proposalServiceMethods.ByName("CombineProposals")),
+		connect.WithHandlerOptions(opts...),
+	)
 	proposalServiceEditProposalHandler := connect.NewUnaryHandler(
 		ProposalServiceEditProposalProcedure,
 		svc.EditProposal,
@@ -283,6 +310,8 @@ func NewProposalServiceHandler(svc ProposalServiceHandler, opts ...connect.Handl
 			proposalServiceListProposalsHandler.ServeHTTP(w, r)
 		case ProposalServiceGetProposalProcedure:
 			proposalServiceGetProposalHandler.ServeHTTP(w, r)
+		case ProposalServiceCombineProposalsProcedure:
+			proposalServiceCombineProposalsHandler.ServeHTTP(w, r)
 		case ProposalServiceEditProposalProcedure:
 			proposalServiceEditProposalHandler.ServeHTTP(w, r)
 		case ProposalServiceWithdrawProposalProcedure:
@@ -314,6 +343,10 @@ func (UnimplementedProposalServiceHandler) ListProposals(context.Context, *conne
 
 func (UnimplementedProposalServiceHandler) GetProposal(context.Context, *connect.Request[proposals.GetProposalRequest]) (*connect.Response[proposals.GetProposalResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.proposals.ProposalService.GetProposal is not implemented"))
+}
+
+func (UnimplementedProposalServiceHandler) CombineProposals(context.Context, *connect.Request[proposals.CombineProposalsRequest]) (*connect.Response[proposals.GetProposalResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.proposals.ProposalService.CombineProposals is not implemented"))
 }
 
 func (UnimplementedProposalServiceHandler) EditProposal(context.Context, *connect.Request[proposals.EditProposalRequest]) (*connect.Response[proposals.EditProposalResponse], error) {

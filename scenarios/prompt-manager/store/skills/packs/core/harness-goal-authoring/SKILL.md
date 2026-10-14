@@ -9,9 +9,9 @@ metadata:
   tags: [goal, harness, until, delegation, sub-agent, orchestration, prompt]
   icon: target
   status: active
-  revision: 13
+  revision: 14
   createdAt: "2026-09-11T00:00:00Z"
-  updatedAt: "2026-09-30T12:00:00Z"
+  updatedAt: "2026-10-12T00:26:09Z"
   requires:
     scenarios: [prompt-manager]
     commands: [prompt-manager skill read]
@@ -88,7 +88,7 @@ predicate is not a report of current state.
 | **blocked** | "Blocked means a decision, credential, or approval you lack. Name it. Friction you can diagnose is not blocked." | Include this sentence verbatim or by skill reference. Agents define "blocked" for themselves when the goal does not. |
 | **budget** | A turn, time, or token clause, and the wrap-up action when it hits. | Claude Code has no turn cap of its own. Codex needs the wrap-up instruction to make `budget_limited` useful. State that an involuntary interruption (usage window, timeout, crash, session lost) is resumed by Swarm under `continuation: until-allowance`, and that a verdict (`complete`, `blocked`, `abstained`) is final. |
 | **handoff** | Where to checkpoint (Plan Manager log for plan-backed work, the epoch file in an orchestrated effort, otherwise the scenario's tracking doc) and the final report shape: changed, verified, remaining, unverified. | A report shape turns completion prose into checkable fields. |
-| **non-goals** | What not to do: widen scope, loosen or delete tests, rerun unchanged validation for a greener result. | Cite `improvement-do-and-dont` for the anti-gaming rules. |
+| **non-goals** | What not to do: widen scope, weaken required behavior, remove uniquely protective checks merely for a greener result, or rerun unchanged validation for that result. | Cite `improvement-do-and-dont` for anti-gaming and `test` §5/§8 for justified simplification. |
 
 Test the whole message with two questions: is the first sentence clearly an
 instruction to reach a future state rather than a claim that the state already

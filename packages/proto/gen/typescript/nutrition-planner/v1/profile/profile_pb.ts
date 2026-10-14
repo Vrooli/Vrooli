@@ -10,7 +10,44 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file nutrition-planner/v1/profile/profile.proto.
  */
 export const file_nutrition_planner_v1_profile_profile: GenFile = /*@__PURE__*/
-  fileDesc("CipudXRyaXRpb24tcGxhbm5lci92MS9wcm9maWxlL3Byb2ZpbGUucHJvdG8SI3Zyb29saS5udXRyaXRpb25fcGxhbm5lci52MS5wcm9maWxlIocCCgdQcm9maWxlEhQKDHdvcmtzcGFjZV9pZBgBIAEoCRIQCghyZXZpc2lvbhgCIAEoAxIOCgZwcmVzZXQYAyABKAkSFgoOcHJlc2V0X3ZlcnNpb24YBCABKAMSFAoMYWN0aXZlX3J1bGVzGAUgAygJEhcKD2V4Y2x1ZGVkX2dyb3VwcxgGIAMoCRIRCglhbGxlcmdpZXMYByADKAkSEgoKYXBwbGlhbmNlcxgIIAMoCRITCgtjb3N0X3dlaWdodBgJIAEoARIVCg1lZmZvcnRfd2VpZ2h0GAogASgBEhYKDnZhcmlldHlfd2VpZ2h0GAsgASgBEhIKCmRyYWZ0X2pzb24YDCABKAkiKQoRR2V0UHJvZmlsZVJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgJIlMKEkdldFByb2ZpbGVSZXNwb25zZRI9Cgdwcm9maWxlGAEgASgLMiwudnJvb2xpLm51dHJpdGlvbl9wbGFubmVyLnYxLnByb2ZpbGUuUHJvZmlsZSJDChdTYXZlUHJvZmlsZURyYWZ0UmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAkSEgoKZHJhZnRfanNvbhgCIAEoCSJZChhTYXZlUHJvZmlsZURyYWZ0UmVzcG9uc2USPQoHcHJvZmlsZRgBIAEoCzIsLnZyb29saS5udXRyaXRpb25fcGxhbm5lci52MS5wcm9maWxlLlByb2ZpbGUivwEKE0FwcGx5UHJvZmlsZVJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgJEg4KBnByZXNldBgCIAEoCRIXCg9leGNsdWRlZF9ncm91cHMYAyADKAkSEQoJYWxsZXJnaWVzGAQgAygJEhIKCmFwcGxpYW5jZXMYBSADKAkSEwoLY29zdF93ZWlnaHQYBiABKAESFQoNZWZmb3J0X3dlaWdodBgHIAEoARIWCg52YXJpZXR5X3dlaWdodBgIIAEoASK0AQoUQXBwbHlQcm9maWxlUmVzcG9uc2USPQoHcHJvZmlsZRgBIAEoCzIsLnZyb29saS5udXRyaXRpb25fcGxhbm5lci52MS5wcm9maWxlLlByb2ZpbGUSEQoJY29uZmxpY3RzGAIgAygJEhYKDm1hdGNoaW5nX21lYWxzGAMgASgDEhoKEm5lZWRzX3Jldmlld19tZWFscxgEIAEoAxIWCg5leGNsdWRlZF9tZWFscxgFIAEoAzKnAwoOUHJvZmlsZVNlcnZpY2USfQoKR2V0UHJvZmlsZRI2LnZyb29saS5udXRyaXRpb25fcGxhbm5lci52MS5wcm9maWxlLkdldFByb2ZpbGVSZXF1ZXN0GjcudnJvb2xpLm51dHJpdGlvbl9wbGFubmVyLnYxLnByb2ZpbGUuR2V0UHJvZmlsZVJlc3BvbnNlEo8BChBTYXZlUHJvZmlsZURyYWZ0EjwudnJvb2xpLm51dHJpdGlvbl9wbGFubmVyLnYxLnByb2ZpbGUuU2F2ZVByb2ZpbGVEcmFmdFJlcXVlc3QaPS52cm9vbGkubnV0cml0aW9uX3BsYW5uZXIudjEucHJvZmlsZS5TYXZlUHJvZmlsZURyYWZ0UmVzcG9uc2USgwEKDEFwcGx5UHJvZmlsZRI4LnZyb29saS5udXRyaXRpb25fcGxhbm5lci52MS5wcm9maWxlLkFwcGx5UHJvZmlsZVJlcXVlc3QaOS52cm9vbGkubnV0cml0aW9uX3BsYW5uZXIudjEucHJvZmlsZS5BcHBseVByb2ZpbGVSZXNwb25zZUJYWlZnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL251dHJpdGlvbi1wbGFubmVyL3YxL3Byb2ZpbGU7cHJvZmlsZV92MWIGcHJvdG8z");
+  fileDesc("CipudXRyaXRpb24tcGxhbm5lci92MS9wcm9maWxlL3Byb2ZpbGUucHJvdG8SI3Zyb29saS5udXRyaXRpb25fcGxhbm5lci52MS5wcm9maWxlImAKDUtpdGNoZW5EZXZpY2USCgoCaWQYASABKAkSDAoEdHlwZRgCIAEoCRINCgVjb3VudBgDIAEoBRIQCghjYXBhY2l0eRgEIAEoCRIUCgxjYXBhYmlsaXRpZXMYBSADKAki9QIKB1Byb2ZpbGUSFAoMd29ya3NwYWNlX2lkGAEgASgJEhAKCHJldmlzaW9uGAIgASgDEg4KBnByZXNldBgDIAEoCRIWCg5wcmVzZXRfdmVyc2lvbhgEIAEoAxIUCgxhY3RpdmVfcnVsZXMYBSADKAkSFwoPZXhjbHVkZWRfZ3JvdXBzGAYgAygJEhEKCWFsbGVyZ2llcxgHIAMoCRISCgphcHBsaWFuY2VzGAggAygJEhMKC2Nvc3Rfd2VpZ2h0GAkgASgBEhUKDWVmZm9ydF93ZWlnaHQYCiABKAESFgoOdmFyaWV0eV93ZWlnaHQYCyABKAESEgoKZHJhZnRfanNvbhgMIAEoCRIQCghjb29rd2FyZRgNIAMoCRINCgV0b29scxgOIAMoCRJLCg9raXRjaGVuX2RldmljZXMYDyADKAsyMi52cm9vbGkubnV0cml0aW9uX3BsYW5uZXIudjEucHJvZmlsZS5LaXRjaGVuRGV2aWNlIikKEUdldFByb2ZpbGVSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoCSJTChJHZXRQcm9maWxlUmVzcG9uc2USPQoHcHJvZmlsZRgBIAEoCzIsLnZyb29saS5udXRyaXRpb25fcGxhbm5lci52MS5wcm9maWxlLlByb2ZpbGUiQwoXU2F2ZVByb2ZpbGVEcmFmdFJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgJEhIKCmRyYWZ0X2pzb24YAiABKAkiWQoYU2F2ZVByb2ZpbGVEcmFmdFJlc3BvbnNlEj0KB3Byb2ZpbGUYASABKAsyLC52cm9vbGkubnV0cml0aW9uX3BsYW5uZXIudjEucHJvZmlsZS5Qcm9maWxlIs4CChNBcHBseVByb2ZpbGVSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoCRIOCgZwcmVzZXQYAiABKAkSFwoPZXhjbHVkZWRfZ3JvdXBzGAMgAygJEhEKCWFsbGVyZ2llcxgEIAMoCRISCgphcHBsaWFuY2VzGAUgAygJEhMKC2Nvc3Rfd2VpZ2h0GAYgASgBEhUKDWVmZm9ydF93ZWlnaHQYByABKAESFgoOdmFyaWV0eV93ZWlnaHQYCCABKAESEAoIY29va3dhcmUYCSADKAkSDQoFdG9vbHMYCiADKAkSSwoPa2l0Y2hlbl9kZXZpY2VzGAsgAygLMjIudnJvb2xpLm51dHJpdGlvbl9wbGFubmVyLnYxLnByb2ZpbGUuS2l0Y2hlbkRldmljZRIfChdyZXBsYWNlX2tpdGNoZW5fZGV2aWNlcxgMIAEoCCK0AQoUQXBwbHlQcm9maWxlUmVzcG9uc2USPQoHcHJvZmlsZRgBIAEoCzIsLnZyb29saS5udXRyaXRpb25fcGxhbm5lci52MS5wcm9maWxlLlByb2ZpbGUSEQoJY29uZmxpY3RzGAIgAygJEhYKDm1hdGNoaW5nX21lYWxzGAMgASgDEhoKEm5lZWRzX3Jldmlld19tZWFscxgEIAEoAxIWCg5leGNsdWRlZF9tZWFscxgFIAEoAzKnAwoOUHJvZmlsZVNlcnZpY2USfQoKR2V0UHJvZmlsZRI2LnZyb29saS5udXRyaXRpb25fcGxhbm5lci52MS5wcm9maWxlLkdldFByb2ZpbGVSZXF1ZXN0GjcudnJvb2xpLm51dHJpdGlvbl9wbGFubmVyLnYxLnByb2ZpbGUuR2V0UHJvZmlsZVJlc3BvbnNlEo8BChBTYXZlUHJvZmlsZURyYWZ0EjwudnJvb2xpLm51dHJpdGlvbl9wbGFubmVyLnYxLnByb2ZpbGUuU2F2ZVByb2ZpbGVEcmFmdFJlcXVlc3QaPS52cm9vbGkubnV0cml0aW9uX3BsYW5uZXIudjEucHJvZmlsZS5TYXZlUHJvZmlsZURyYWZ0UmVzcG9uc2USgwEKDEFwcGx5UHJvZmlsZRI4LnZyb29saS5udXRyaXRpb25fcGxhbm5lci52MS5wcm9maWxlLkFwcGx5UHJvZmlsZVJlcXVlc3QaOS52cm9vbGkubnV0cml0aW9uX3BsYW5uZXIudjEucHJvZmlsZS5BcHBseVByb2ZpbGVSZXNwb25zZUJYWlZnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL251dHJpdGlvbi1wbGFubmVyL3YxL3Byb2ZpbGU7cHJvZmlsZV92MWIGcHJvdG8z");
+
+/**
+ * @generated from message vrooli.nutrition_planner.v1.profile.KitchenDevice
+ */
+export type KitchenDevice = Message<"vrooli.nutrition_planner.v1.profile.KitchenDevice"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string type = 2;
+   */
+  type: string;
+
+  /**
+   * @generated from field: int32 count = 3;
+   */
+  count: number;
+
+  /**
+   * @generated from field: string capacity = 4;
+   */
+  capacity: string;
+
+  /**
+   * @generated from field: repeated string capabilities = 5;
+   */
+  capabilities: string[];
+};
+
+/**
+ * Describes the message vrooli.nutrition_planner.v1.profile.KitchenDevice.
+ * Use `create(KitchenDeviceSchema)` to create a new message.
+ */
+export const KitchenDeviceSchema: GenMessage<KitchenDevice> = /*@__PURE__*/
+  messageDesc(file_nutrition_planner_v1_profile_profile, 0);
 
 /**
  * @generated from message vrooli.nutrition_planner.v1.profile.Profile
@@ -75,6 +112,21 @@ export type Profile = Message<"vrooli.nutrition_planner.v1.profile.Profile"> & {
    * @generated from field: string draft_json = 12;
    */
   draftJson: string;
+
+  /**
+   * @generated from field: repeated string cookware = 13;
+   */
+  cookware: string[];
+
+  /**
+   * @generated from field: repeated string tools = 14;
+   */
+  tools: string[];
+
+  /**
+   * @generated from field: repeated vrooli.nutrition_planner.v1.profile.KitchenDevice kitchen_devices = 15;
+   */
+  kitchenDevices: KitchenDevice[];
 };
 
 /**
@@ -82,7 +134,7 @@ export type Profile = Message<"vrooli.nutrition_planner.v1.profile.Profile"> & {
  * Use `create(ProfileSchema)` to create a new message.
  */
 export const ProfileSchema: GenMessage<Profile> = /*@__PURE__*/
-  messageDesc(file_nutrition_planner_v1_profile_profile, 0);
+  messageDesc(file_nutrition_planner_v1_profile_profile, 1);
 
 /**
  * @generated from message vrooli.nutrition_planner.v1.profile.GetProfileRequest
@@ -99,7 +151,7 @@ export type GetProfileRequest = Message<"vrooli.nutrition_planner.v1.profile.Get
  * Use `create(GetProfileRequestSchema)` to create a new message.
  */
 export const GetProfileRequestSchema: GenMessage<GetProfileRequest> = /*@__PURE__*/
-  messageDesc(file_nutrition_planner_v1_profile_profile, 1);
+  messageDesc(file_nutrition_planner_v1_profile_profile, 2);
 
 /**
  * @generated from message vrooli.nutrition_planner.v1.profile.GetProfileResponse
@@ -116,7 +168,7 @@ export type GetProfileResponse = Message<"vrooli.nutrition_planner.v1.profile.Ge
  * Use `create(GetProfileResponseSchema)` to create a new message.
  */
 export const GetProfileResponseSchema: GenMessage<GetProfileResponse> = /*@__PURE__*/
-  messageDesc(file_nutrition_planner_v1_profile_profile, 2);
+  messageDesc(file_nutrition_planner_v1_profile_profile, 3);
 
 /**
  * @generated from message vrooli.nutrition_planner.v1.profile.SaveProfileDraftRequest
@@ -138,7 +190,7 @@ export type SaveProfileDraftRequest = Message<"vrooli.nutrition_planner.v1.profi
  * Use `create(SaveProfileDraftRequestSchema)` to create a new message.
  */
 export const SaveProfileDraftRequestSchema: GenMessage<SaveProfileDraftRequest> = /*@__PURE__*/
-  messageDesc(file_nutrition_planner_v1_profile_profile, 3);
+  messageDesc(file_nutrition_planner_v1_profile_profile, 4);
 
 /**
  * @generated from message vrooli.nutrition_planner.v1.profile.SaveProfileDraftResponse
@@ -155,7 +207,7 @@ export type SaveProfileDraftResponse = Message<"vrooli.nutrition_planner.v1.prof
  * Use `create(SaveProfileDraftResponseSchema)` to create a new message.
  */
 export const SaveProfileDraftResponseSchema: GenMessage<SaveProfileDraftResponse> = /*@__PURE__*/
-  messageDesc(file_nutrition_planner_v1_profile_profile, 4);
+  messageDesc(file_nutrition_planner_v1_profile_profile, 5);
 
 /**
  * @generated from message vrooli.nutrition_planner.v1.profile.ApplyProfileRequest
@@ -200,6 +252,26 @@ export type ApplyProfileRequest = Message<"vrooli.nutrition_planner.v1.profile.A
    * @generated from field: double variety_weight = 8;
    */
   varietyWeight: number;
+
+  /**
+   * @generated from field: repeated string cookware = 9;
+   */
+  cookware: string[];
+
+  /**
+   * @generated from field: repeated string tools = 10;
+   */
+  tools: string[];
+
+  /**
+   * @generated from field: repeated vrooli.nutrition_planner.v1.profile.KitchenDevice kitchen_devices = 11;
+   */
+  kitchenDevices: KitchenDevice[];
+
+  /**
+   * @generated from field: bool replace_kitchen_devices = 12;
+   */
+  replaceKitchenDevices: boolean;
 };
 
 /**
@@ -207,7 +279,7 @@ export type ApplyProfileRequest = Message<"vrooli.nutrition_planner.v1.profile.A
  * Use `create(ApplyProfileRequestSchema)` to create a new message.
  */
 export const ApplyProfileRequestSchema: GenMessage<ApplyProfileRequest> = /*@__PURE__*/
-  messageDesc(file_nutrition_planner_v1_profile_profile, 5);
+  messageDesc(file_nutrition_planner_v1_profile_profile, 6);
 
 /**
  * @generated from message vrooli.nutrition_planner.v1.profile.ApplyProfileResponse
@@ -244,7 +316,7 @@ export type ApplyProfileResponse = Message<"vrooli.nutrition_planner.v1.profile.
  * Use `create(ApplyProfileResponseSchema)` to create a new message.
  */
 export const ApplyProfileResponseSchema: GenMessage<ApplyProfileResponse> = /*@__PURE__*/
-  messageDesc(file_nutrition_planner_v1_profile_profile, 6);
+  messageDesc(file_nutrition_planner_v1_profile_profile, 7);
 
 /**
  * @generated from service vrooli.nutrition_planner.v1.profile.ProfileService

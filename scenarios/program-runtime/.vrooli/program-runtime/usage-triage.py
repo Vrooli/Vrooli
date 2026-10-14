@@ -30,44 +30,17 @@ def err(kind, detail, where):
     return {"class": kind, "detail": str(detail)[:240], "where": where}
 
 
-def transport_failure(exc):
-    text = str(exc)
-    for needle, status, kind in (
-        ("requires an explicit grant", "refused", "no_grant"),
-        ("not run eligible", "refused", "not_run_eligible"),
-        ("inference spend", "refused", "inference_spend_exceeded"),
-        ("is unreachable", "unavailable", "scenario_unreachable"),
-        ("bridge unavailable", "unavailable", "scenario_unreachable"),
-        ("scenario_not_running", "unavailable", "scenario_unreachable"),
-        ("connection refused", "unavailable", "scenario_unreachable"),
-        ("invalid_port", "unavailable", "scenario_unreachable"),
-        ("no running runtime ports", "unavailable", "scenario_unreachable"),
-    ):
-        if needle in text:
-            return status, kind
-    return "failed", "kernel_runtime" if isinstance(exc, (NameError, AttributeError)) else "binding_error"
+# De-duplicated: the kernel's program.classify is a superset of this table
+# (same needles plus invalid_port/vrooli_not_found) and re-raises NameError/
+# AttributeError so a missing kernel name surfaces as kernel_runtime.
+transport_failure = program.classify
 
 
-def value(row, *names, default=None):
-    for name in names:
-        candidate = row.get(name)
-        if candidate is not None and candidate != "":
-            return candidate
-    return default
-
-
-def as_int(raw, default=0):
-    try:
-        return int(raw or 0)
-    except (TypeError, ValueError):
-        return default
-
-
-def as_float(raw, default=0.0):
-    try:
-        return float(raw or 0.0)
-    except (TypeError, ValueError):
-        return default
+# De-duplicated: delegate to the kernel-injected helpers (program.*), which
+# replaced the verbatim local copies that had drifted across the corpus.
+value = program.select_field
+as_int = program.coerce_int
+as_float = program.coerce_float
 
 
 def program_name(row):

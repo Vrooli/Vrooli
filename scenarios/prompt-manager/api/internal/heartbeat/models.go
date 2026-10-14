@@ -22,6 +22,8 @@ type HeartbeatConfigResponse struct {
 	EffectiveState          string                    `json:"effectiveState"`
 	EffectiveReason         string                    `json:"effectiveReason,omitempty"`
 	ControlState            string                    `json:"controlState,omitempty"`
+	SchedulerState          *SchedulerState           `json:"schedulerState,omitempty"`
+	SchedulerRegistered     bool                      `json:"schedulerRegistered"`
 	Scheduled               bool                      `json:"scheduled"`
 	Schedule                string                    `json:"schedule"`
 	ProfileKey              string                    `json:"profileKey,omitempty"`
@@ -50,7 +52,7 @@ type HeartbeatExecResultDTO struct {
 type CreateHeartbeatRequest struct {
 	FiniteLeader   *teamconfig.FiniteLeader  `json:"finiteLeader,omitempty"`
 	WakeAdmission  *teamconfig.WakeAdmission `json:"wakeAdmission,omitempty"`
-	Schedule       string                    `json:"schedule"`                 // Cron expression (required)
+	Schedule       string                    `json:"schedule"`                 // Cron expression; may be empty for explicitly disabled on-demand members
 	ProfileKey     string                    `json:"profileKey,omitempty"`     // Optional profile key override
 	Enabled        *bool                     `json:"enabled,omitempty"`        // Defaults to false
 	TimeoutSeconds int                       `json:"timeoutSeconds,omitempty"` // 0 = use default (45 min)

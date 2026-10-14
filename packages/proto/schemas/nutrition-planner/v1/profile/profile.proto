@@ -6,10 +6,11 @@ service ProfileService {
   rpc SaveProfileDraft(SaveProfileDraftRequest) returns (SaveProfileDraftResponse);
   rpc ApplyProfile(ApplyProfileRequest) returns (ApplyProfileResponse);
 }
-message Profile { string workspace_id=1; int64 revision=2; string preset=3; int64 preset_version=4; repeated string active_rules=5; repeated string excluded_groups=6; repeated string allergies=7; repeated string appliances=8; double cost_weight=9; double effort_weight=10; double variety_weight=11; string draft_json=12; }
+message KitchenDevice { string id=1; string type=2; int32 count=3; string capacity=4; repeated string capabilities=5; }
+message Profile { string workspace_id=1; int64 revision=2; string preset=3; int64 preset_version=4; repeated string active_rules=5; repeated string excluded_groups=6; repeated string allergies=7; repeated string appliances=8; double cost_weight=9; double effort_weight=10; double variety_weight=11; string draft_json=12; repeated string cookware=13; repeated string tools=14; repeated KitchenDevice kitchen_devices=15; }
 message GetProfileRequest { string workspace_id=1; }
 message GetProfileResponse { Profile profile=1; }
 message SaveProfileDraftRequest { string workspace_id=1; string draft_json=2; }
 message SaveProfileDraftResponse { Profile profile=1; }
-message ApplyProfileRequest { string workspace_id=1; string preset=2; repeated string excluded_groups=3; repeated string allergies=4; repeated string appliances=5; double cost_weight=6; double effort_weight=7; double variety_weight=8; }
+message ApplyProfileRequest { string workspace_id=1; string preset=2; repeated string excluded_groups=3; repeated string allergies=4; repeated string appliances=5; double cost_weight=6; double effort_weight=7; double variety_weight=8; repeated string cookware=9; repeated string tools=10; repeated KitchenDevice kitchen_devices=11; bool replace_kitchen_devices=12; }
 message ApplyProfileResponse { Profile profile=1; repeated string conflicts=2; int64 matching_meals=3; int64 needs_review_meals=4; int64 excluded_meals=5; }

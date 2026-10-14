@@ -8,4 +8,6 @@ Independent acceptance owner: personal-planner-acceptance-reviewer, separate tas
 
 Initial action: measure Q1 boundary and write E1 outcome/estimate/growth/targets/gate; qualify isolated storage and disposable backup/restore before product-data writes; read exact approved contract and source fixtures. Preserve recorded PP-UX and domain failures. Necessary testing/runtime operations follow native owners, not investigation restrictions. No separate parent-release/accounting gate.
 
+## Run Decision
+
 End check-in parked, accepted, step-back or closed; park via children producer, never poll. If all remaining work waits on specific external decision, park12h. Continue until approved destination verified; terminal run alone is not completion.

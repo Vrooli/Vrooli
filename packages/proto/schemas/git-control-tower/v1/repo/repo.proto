@@ -3,6 +3,7 @@ syntax = "proto3";
 package vrooli.git_control_tower.v1.repo;
 
 import "buf/validate/validate.proto";
+import "git-control-tower/v1/proposals/proposals.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/repo;repo_v1";
 
@@ -130,6 +131,10 @@ message RepoHistoryEntry {
   string subject = 4;
   repeated string files = 5;
   repeated CommitCheckRun checks = 6;
+  string full_message = 7;
+  string body = 8;
+  repeated vrooli.git_control_tower.v1.proposals.ProposalTrailer trailers = 9;
+  string continuation_message = 10;
 }
 
 message GetRepoHistoryResponse {
@@ -442,6 +447,12 @@ message GetRepoDiffRequest {
   string commit = 7;
   string mode = 8;
   bool any = 9;
+  // Retained proposal bytes; mutually exclusive with working/history selectors.
+  string proposal_id = 10;
+  int32 proposal_revision = 11;
+  // Explicit comparison of retained proposal bytes with current workspace bytes.
+  // Read only; does not refresh the proposal or certify current content.
+  bool compare_current = 12;
 }
 
 message GetRepoDiffResponse {
@@ -1100,6 +1111,10 @@ message PushSafetyReport {
  string fingerprint = 11; bool can_prepare = 12; string recovery_reason = 13;
  // Advisory index snapshot, separate from immutable recovery approval.
  bool staged_complete = 14; string staged_reason = 15; repeated PushSafetyFile staged_files = 16;
+ // Total outgoing blob bytes and the largest single outgoing blob, so the UI can show
+ // actual usage against the per-file limit rather than only the cap. Uncompressed upper
+ // bound; the packed transfer is smaller.
+ int64 outgoing_bytes = 17; int64 largest_blob_bytes = 18;
 }
 // Writes only owner-managed isolated artifacts. Never activates or publishes.
 message PreparePushRecoveryRequest {

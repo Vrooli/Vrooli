@@ -2,5 +2,11 @@
   "kind": "team-roles",
   "schemaVersion": 1,
   "teamId": "aquila-marketing-and-capability-maturity",
-  "roles": []
+  "roles": [
+    {
+      "id": "aquila-launch-coordinator",
+      "name": "Aquila Launch Coordinator",
+      "description": "Coordinate the finite marketing and capability-maturity effort; commission owner workflows, preserve asset provenance and stop at approval gates, blockers or accepted closure."
+    }
+  ]
 }

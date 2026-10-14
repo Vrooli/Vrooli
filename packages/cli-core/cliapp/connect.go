@@ -13,8 +13,9 @@ import (
 )
 
 type scenarioConnectHTTPClient struct {
-	app    *ScenarioApp
-	client *http.Client
+	app     *ScenarioApp
+	client  *http.Client
+	baseURL string
 }
 
 // NewConnectHTTPClient returns an HTTP client and root base URL for generated
@@ -47,7 +48,7 @@ func NewConnectHTTPClientWithTimeout(app *ScenarioApp, timeout time.Duration) (c
 		baseURL = app.APIRootBase()
 	}
 	httpClient := &http.Client{Timeout: timeout}
-	return &scenarioConnectHTTPClient{app: app, client: httpClient}, baseURL
+	return &scenarioConnectHTTPClient{app: app, client: httpClient, baseURL: baseURL}, baseURL
 }
 
 func (c *scenarioConnectHTTPClient) Do(req *http.Request) (*http.Response, error) {
@@ -56,6 +57,19 @@ func (c *scenarioConnectHTTPClient) Do(req *http.Request) (*http.Response, error
 	}
 	if req == nil {
 		return nil, fmt.Errorf("connect request is nil")
+	}
+	// Generated clients are often constructed before CLI flags are parsed.
+	// Resolve requests rooted at that construction base through the invocation's
+	// current selection, retaining explicit unrelated absolute request URLs.
+	if initial, err := url.Parse(c.baseURL); err == nil && initial.Scheme != "" && req.URL != nil {
+		prefix := strings.TrimRight(initial.Path, "/") + "/"
+		if req.URL.Scheme == initial.Scheme && req.URL.Host == initial.Host && strings.HasPrefix(req.URL.Path, prefix) {
+			req = req.Clone(req.Context())
+			req.URL.Scheme, req.URL.Host, req.URL.User = "", "", nil
+			req.URL.Path = "/" + strings.TrimPrefix(req.URL.Path, prefix)
+			req.URL.RawPath = ""
+			req.Host = ""
+		}
 	}
 	if c.app.HTTPClient != nil {
 		c.app.HTTPClient.SetToken(strings.TrimSpace(c.app.tokenSource()))

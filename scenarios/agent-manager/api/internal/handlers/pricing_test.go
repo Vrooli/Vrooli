@@ -1,8 +1,13 @@
 package handlers
 
 import (
+	"agent-manager/internal/adapters/database"
+	"agent-manager/internal/orchestration/testutil"
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"github.com/sirupsen/logrus"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -227,5 +232,39 @@ func TestPricingHandlerReadSideEndpointsProjectOperationalData(t *testing.T) {
 	}
 	if !fake.refreshed {
 		t.Fatal("refresh was not invoked")
+	}
+}
+
+func TestPricingQuotaRouteProjectsDurableNativeAndUnknownUsage(t *testing.T) {
+	db, cleanup := testutil.SetupTestDB(t)
+	t.Cleanup(cleanup)
+	repo := database.NewPricingRepository(db, logrus.New()).(pricing.QuotaObservationRepository)
+	percent := 20.0
+	minutes := int64(10080)
+	reset := time.Date(2026, 10, 14, 3, 29, 20, 0, time.UTC)
+	for index, usage := range []*float64{&percent, nil} {
+		row := &pricing.QuotaObservation{ID: fmt.Sprintf("native-%d", index), Provider: "openai", Pool: "primary", Window: "10080m", ObservedAt: time.Date(2026, 10, 9, 7, 34, index, 0, time.UTC), UsedPercent: usage, WindowMinutes: &minutes, ResetAt: &reset, Standing: pricing.QuotaStandingUnknown, Provenance: "native", EvidenceRef: fmt.Sprintf("event:%d", index), SourceRunID: "original-run"}
+		if err := repo.RecordQuotaObservation(t.Context(), row); err != nil {
+			t.Fatal(err)
+		}
+	}
+	h := NewPricingHandlerWithQuota(&pricingHandlerFake{}, mocks.NewFakeStatsRepository(), nil, repo)
+	router := mux.NewRouter()
+	h.RegisterRoutes(router)
+	rw := httptest.NewRecorder()
+	router.ServeHTTP(rw, httptest.NewRequest(http.MethodGet, "/api/v1/pricing/quota-observations?provider=openai&pool=primary&window=10080m&limit=2", nil))
+	if rw.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", rw.Code, rw.Body.String())
+	}
+	var body []pricing.QuotaObservation
+	if err := json.Unmarshal(rw.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if len(body) != 2 {
+		t.Fatalf("body=%s", rw.Body.String())
+	}
+	unknown, native := body[0], body[1]
+	if unknown.ID != "native-1" || unknown.UsedPercent != nil || native.ID != "native-0" || native.UsedPercent == nil || *native.UsedPercent != 20 || native.ResetAt == nil || !native.ResetAt.Equal(reset) || native.WindowMinutes == nil || *native.WindowMinutes != 10080 || native.SourceRunID != "original-run" || native.EvidenceRef != "event:0" || native.Limit != nil || native.Used != nil || native.Remaining != nil {
+		t.Fatalf("rows=%+v", body)
 	}
 }

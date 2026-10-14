@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -683,7 +684,7 @@ func TestExecute_EndToEndWithHTTPServer(t *testing.T) {
 			w.WriteHeader(http.StatusCreated)
 			_ = json.NewEncoder(w).Encode(CreateTaskResponse{
 				Task: &Task{
-					ID:          "task-srv-1",
+					ID:          "6a89415d-9f95-4ee0-a534-00619ce6fd5a",
 					Title:       req.Task.Title,
 					Description: req.Task.Description,
 					ScopePath:   req.Task.ScopePath,
@@ -797,25 +798,18 @@ func TestSchedulerStartRejectsUnresolvedDeclaredProfile(t *testing.T) {
 	teamStore, _, _ := setupExecutorTestEnv(t)
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case r.URL.Path == "/api/v1/profiles/reconcile-scenario":
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte(`{}`))
-		case r.URL.Path == "/api/v1/profiles/ensure":
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusBadRequest)
-			_, _ = w.Write([]byte(`{"message":"profile not found"}`))
-		default:
-			http.Error(w, "not found", http.StatusNotFound)
+		if r.Method != http.MethodGet || r.URL.Path != "/api/v1/profiles" {
+			t.Errorf("unexpected profile write or route: %s %s", r.Method, r.URL.Path)
 		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"profiles":[],"total":0}`)
 	}))
 	defer srv.Close()
 
 	client := newTestClient(t, srv)
 
 	scheduler := NewScheduler(nil, client, teamStore, nil)
-	if err := scheduler.Start(context.Background()); err == nil || !strings.Contains(err.Error(), "profile not found") {
+	if err := scheduler.Start(context.Background()); err == nil || !strings.Contains(err.Error(), "is not installed") {
 		t.Fatalf("Start error = %v, want catalog resolution failure", err)
 	}
 }
@@ -866,7 +860,7 @@ func TestExecute_AgentManagerReturnsProfileNotFound(t *testing.T) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusCreated)
 			_ = json.NewEncoder(w).Encode(CreateTaskResponse{
-				Task: &Task{ID: "task-1", Title: "test"},
+				Task: &Task{ID: "6a89415d-9f95-4ee0-a534-00619ce6fd5a", Title: "test"},
 			})
 
 		case r.URL.Path == "/api/v1/runs":

@@ -37,8 +37,9 @@ export function MobileNav({ activePanel, onPanelChange, stagedCount = 0, unstage
       items={items}
       label="Mobile application navigation"
       testId="mobile-nav"
+      className="gct-mobile-tabbar"
       presentation="flow"
-      safeArea="floor"
+      safeArea="inset"
       activeIndicator="slide"
       onItemSelect={(item) => onPanelChange(item.id as LayoutSection)}
     />

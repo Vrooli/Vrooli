@@ -145,7 +145,16 @@ func (r *Repository) SaveEffort(ctx context.Context, e *pb.EffortEnrollment, o *
 		return err
 	}
 	defer tx.Rollback()
+	if err = r.saveEffortTx(ctx, tx, e, expected, key, digest, b, ob); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// saveEffortTx is the shared domain revision/effect/receipt boundary.
+func (r *Repository) saveEffortTx(ctx context.Context, tx *sql.Tx, e *pb.EffortEnrollment, expected uint64, key, digest string, b, ob []byte) error {
 	var result sql.Result
+	var err error
 	if expected == 0 {
 		result, err = tx.ExecContext(ctx, `INSERT INTO supervision_efforts(effort_ref,revision,enrollment_json,observation_json) VALUES(?,?,?,?) ON CONFLICT(effort_ref) DO NOTHING`, e.GetEffortRef(), e.GetRevision(), string(b), string(ob))
 	} else {
@@ -161,7 +170,7 @@ func (r *Repository) SaveEffort(ctx context.Context, e *pb.EffortEnrollment, o *
 	if err = r.recordEffortTransition(ctx, tx, key, digest, b); err != nil {
 		return err
 	}
-	return tx.Commit()
+	return nil
 }
 func (r *Repository) recordEffortTransition(ctx context.Context, tx *sql.Tx, key, digest string, b []byte) error {
 	_, err := tx.ExecContext(ctx, `INSERT INTO supervision_effort_transitions(operation_key,request_digest,result_json,occurred_at) VALUES(?,?,?,?)`, key, digest, string(b), formatTime(r.now().UTC()))

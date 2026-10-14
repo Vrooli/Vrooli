@@ -626,3 +626,40 @@ func TestTeamMetadataPersistsWithoutChangingAuthorityOrLosingOwnedRecords(t *tes
 		t.Fatal("explicit clears did not persist")
 	}
 }
+
+func TestValidateHeartbeatRosterAcceptsDisabledOnDemandReviewer(t *testing.T) {
+	s := setupStateTestStore(t)
+	relations := NewFileRelationStore(s.configRoot)
+	s.relationStore = relations
+	ctx := context.Background()
+	for _, agent := range []string{"leader", "reviewer"} {
+		if err := relations.SetTeamMember(ctx, &TeamMemberRelation{TeamID: "team-1", AgentID: agent}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := s.SetHeartbeatConfig(ctx, "team-1", "leader", &HeartbeatConfig{Enabled: true, Schedule: "0 * * * *"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SetHeartbeatConfig(ctx, "team-1", "reviewer", &HeartbeatConfig{Enabled: false, ProfileKey: "prompt-manager/heartbeat-inspection"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.ValidateHeartbeatRoster(ctx, "team-1"); err != nil {
+		t.Fatal(err)
+	}
+	configs, err := s.ListHeartbeatConfigs(ctx, "team-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	active := []string{}
+	for _, cfg := range configs {
+		if cfg.Enabled {
+			active = append(active, cfg.AgentID)
+		}
+		if cfg.AgentID == "reviewer" && cfg.Schedule != "" {
+			t.Fatal("on-demand reviewer acquired a timer")
+		}
+	}
+	if len(active) != 1 || active[0] != "leader" {
+		t.Fatalf("wrong scheduled roster: %v", active)
+	}
+}

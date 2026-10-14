@@ -67,7 +67,7 @@ func runReportToProto(report *runreport.RunReport) *apipb.RunReport {
 		out.EventCounts[eventType] = int32(count)
 	}
 	for _, tool := range report.Tools {
-		out.Tools = append(out.Tools, &apipb.RunReportTool{Name: tool.Name, Calls: int32(tool.Calls), Successes: int32(tool.Successes), Failures: int32(tool.Failures), Unresolved: int32(tool.Unresolved)})
+		out.Tools = append(out.Tools, &apipb.RunReportTool{Name: tool.Name, Calls: int32(tool.Calls), Successes: int32(tool.Successes), Failures: int32(tool.Failures), Unresolved: int32(tool.Unresolved), Returned: int32(tool.Returned), UnknownOutcome: int32(tool.UnknownOutcome)})
 	}
 	return out
 }

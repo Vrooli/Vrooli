@@ -33,7 +33,7 @@ test("blocked push explains historical scope and requires explicit preparation c
   expect(await screen.findByText("bundle/vault")).toBeVisible();
   expect(screen.queryByRole("button", { name: "Continue to push" })).not.toBeInTheDocument();
   expect(screen.getByText(/Deleting the file in a new commit/)).toBeVisible();
-  const prepare = screen.getByRole("button", { name: "Prepare isolated recovery" });
+  const prepare = screen.getByRole("button", { name: "Prepare recovery" });
   expect(prepare).toBeDisabled(); expect(preparePushRecovery).not.toHaveBeenCalled();
   vi.mocked(preparePushRecovery).mockResolvedValue(create(PushRecoveryArtifactSchema, {
     state: "prepared", fingerprint: "preview-1", message: "Active branch unchanged. Committed history only.", originalBundle: "/backup/original.bundle",
@@ -51,7 +51,7 @@ test("incomplete scan offers refresh without a push bypass", async () => {
   renderWithProviders(<PushSafetyDialog onClose={vi.fn()} onPush={vi.fn()} />);
   expect(await screen.findByText("Remote authentication unavailable.")).toBeVisible();
   expect(screen.queryByRole("button", { name: "Continue to push" })).not.toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: "Prepare isolated recovery" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Prepare recovery" })).not.toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Refresh inspection" })).toBeEnabled();
 });
 
@@ -59,7 +59,7 @@ test("stale preview failure clears consent and never claims recovery succeeded",
   vi.mocked(preparePushRecovery).mockRejectedValue(new Error("Recovery preview is stale. Refresh."));
   renderWithProviders(<PushSafetyDialog onClose={vi.fn()} onPush={vi.fn()} />);
   await screen.findByText("bundle/vault"); fireEvent.click(screen.getByRole("checkbox"));
-  fireEvent.click(screen.getByRole("button", { name: "Prepare isolated recovery" }));
+  fireEvent.click(screen.getByRole("button", { name: "Prepare recovery" }));
   expect(await screen.findByRole("alert")).toHaveTextContent("stale");
   expect(screen.getByRole("checkbox")).not.toBeChecked();
   expect(screen.queryByText("Prepared artifacts checked — not applied")).not.toBeInTheDocument();
@@ -127,7 +127,7 @@ test("repository change discards old consent and late responses", async () => {
   vi.mocked(preparePushRecovery).mockImplementation(()=>new Promise(()=>{}));
   const view=renderWithProviders(<PushSafetyDialog repoId="one" onClose={vi.fn()} onPush={vi.fn()} />);
   await screen.findByText("bundle/vault");fireEvent.click(screen.getByRole("checkbox"));
-  fireEvent.click(screen.getByRole("button",{name:"Prepare isolated recovery"}));
+  fireEvent.click(screen.getByRole("button",{name:"Prepare recovery"}));
   expect(await screen.findByText(/Closing this screen does not cancel/)).toBeVisible();
   view.unmount();
   vi.mocked(inspectPushSafety).mockResolvedValue(create(PushSafetyReportSchema,{...blocked(),head:"new-head",fingerprint:"preview-2"}));

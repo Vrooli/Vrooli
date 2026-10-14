@@ -5,6 +5,8 @@ import indexHTML from "../index.html?raw";
 import app from "./App.tsx?raw";
 import diffViewer from "./components/DiffViewer.tsx?raw";
 import fileList from "./components/FileList.tsx?raw";
+import mobileNav from "./components/MobileNav.tsx?raw";
+import branchSelector from "./components/BranchSelector.tsx?raw";
 
 describe("GCT-MOBILE embedded shell regression contract", () => {
   it("GCT-MOBILE-001/002/006: declares a viewport-filling safe-area shell and chrome contract", () => {
@@ -28,6 +30,24 @@ describe("GCT-MOBILE embedded shell regression contract", () => {
     expect(diffViewer).toContain('<ScrollArea className="flex-1 min-h-0"');
     expect(diffViewer).toContain('className="flex-none p-3 bg-slate-900/95 backdrop-blur-sm border-t border-slate-800" data-testid="diff-mobile-actions"');
     expect(diffViewer).not.toContain("Mobile spacer to account for fixed action bar");
+  });
+
+  it("GCT-MOBILE-006: bottom nav reserves the real inset once and paints on the app canvas", () => {
+    // Source-level guard pending a computed-layout gate (jsdom has no layout engine):
+    // the tab bar uses the device safe-area inset, not the oversized `floor` minimum,
+    // so the band is not doubled; and it carries a class that repaints it on the app
+    // canvas so the band blends with the content instead of reading as a lighter block.
+    expect(mobileNav).toContain('safeArea="inset"');
+    expect(mobileNav).not.toContain('safeArea="floor"');
+    expect(mobileNav).toContain('className="gct-mobile-tabbar"');
+  });
+
+  it("GCT-MOBILE-003: the nav commit hash is a short atomic token that cannot wrap", () => {
+    // The hash is shortened and must not shrink/wrap into the branch name; the branch
+    // name truncates first. Applies to both the mobile and desktop header triggers.
+    expect(branchSelector).toContain("commitOid.substring(0, 7)");
+    const hashGuards = branchSelector.match(/text-slate-500 flex-shrink-0 whitespace-nowrap/g) ?? [];
+    expect(hashGuards.length).toBeGreaterThanOrEqual(2);
   });
 
   it("GCT-MOBILE-004: keeps the selection toolbar inside the owned Changes scroller", () => {

@@ -2,5 +2,11 @@
   "kind": "team-roles",
   "schemaVersion": 1,
   "teamId": "aquila-commercial-release",
-  "roles": []
+  "roles": [
+    {
+      "id": "aquila-launch-coordinator",
+      "name": "Aquila Launch Coordinator",
+      "description": "Coordinate the finite commercial release from its protected workspace across desktop lifecycle, LPBS deployment, commercial reconciliation and independent acceptance; reconcile owner state, delegate bounded work, retain evidence and stop at approval gates, blockers or accepted closure."
+    }
+  ]
 }

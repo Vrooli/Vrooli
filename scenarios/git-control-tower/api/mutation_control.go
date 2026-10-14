@@ -185,6 +185,22 @@ func (s *Server) prepareMutation(ctx context.Context, repositoryID, operation st
 	return s.prepareMutationWithContext(ctx, repositoryID, operation, "")
 }
 
+// cachedStatusSnapshot serves the lightweight index/branch snapshot used to
+// build mutation previews through the shared RepoStatusCache. A single stage
+// gesture prepares three times (preview, confirm, consume) with no index
+// change in between, and git status over a large worktree dominates that cost;
+// the cache collapses them to one read. Every index mutation calls
+// InvalidateStatus (see staging_connect.go), and the TTL bounds staleness, so
+// successive stages still recompute against fresh state.
+func (s *Server) cachedStatusSnapshot(ctx context.Context, repoPath string) (*RepoStatus, error) {
+	if s.statusCache == nil {
+		return readRepoStatusSnapshot(ctx, s.git, repoPath)
+	}
+	return s.statusCache.Get(ctx, repoPath+"\x00snapshot", func(ctx context.Context) (*RepoStatus, error) {
+		return readRepoStatusSnapshot(ctx, s.git, repoPath)
+	})
+}
+
 func (s *Server) prepareMutationWithContext(ctx context.Context, repositoryID, operation, subjectContext string) (MutationPreviewResponse, error) {
 	if operation == "" {
 		operation = mutationOperationCommit
@@ -193,7 +209,7 @@ func (s *Server) prepareMutationWithContext(ctx context.Context, repositoryID, o
 	if err != nil {
 		return MutationPreviewResponse{}, err
 	}
-	status, err := readRepoStatusSnapshot(ctx, s.git, repo.Path)
+	status, err := s.cachedStatusSnapshot(ctx, repo.Path)
 	if err != nil {
 		return MutationPreviewResponse{}, err
 	}

@@ -2,10 +2,23 @@ package heartbeat
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
 
+	repocontract "github.com/vrooli/repo-contract-go"
 	"prompt-manager/internal/store"
 )
 
@@ -405,4 +418,190 @@ func TestSchedulerConcurrentDuplicateTicksAdmitOne(t *testing.T) {
 		t.Fatalf("expected no catch-up queue, got %+v", status.Queue)
 	}
 	close(exec.release)
+}
+
+// Profiles use AM's documented projection defaults; declared values stay owned
+// by their source. Explicit owner metadata and IDs exercise installation proof.
+func installedHeartbeatProfiles(t *testing.T) []*AgentProfile {
+	t.Helper()
+	root, err := repocontract.FindRepoRootFromEnvOrCWD()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var profiles []*AgentProfile
+	for index, name := range []string{"heartbeat.json", "heartbeat-single-process.json"} {
+		path := filepath.Join(".vrooli", "agent-manager", name)
+		body, err := os.ReadFile(filepath.Join(root, "scenarios", "prompt-manager", path))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var raw map[string]json.RawMessage
+		if err := json.Unmarshal(body, &raw); err != nil {
+			t.Fatal(err)
+		}
+		delete(raw, "schemaVersion")
+		data, err := json.Marshal(raw)
+		if err != nil {
+			t.Fatal(err)
+		}
+		profile := &AgentProfile{}
+		if err := protojson.Unmarshal(data, profile); err != nil {
+			t.Fatal(err)
+		}
+		hash := sha256.Sum256(body)
+		profile.Id = fmt.Sprintf("6a89415d-9f95-4ee0-a534-00619ce6fd5%d", index)
+		profile.OwnerScenario = "prompt-manager"
+		profile.SourcePath = filepath.ToSlash(path)
+		profile.SourceHash = hex.EncodeToString(hash[:])
+		profile.LastAppliedHash = profile.SourceHash
+		profile.NetworkAccess = domainpb.NetworkAccess_NETWORK_ACCESS_LOCALHOST
+		profile.SandboxConfig.NetworkMode = domainpb.NetworkAccess_NETWORK_ACCESS_LOCALHOST
+		profile.SandboxConfig.Acceptance = &domainpb.SandboxAcceptanceConfig{}
+		profile.SandboxConfig.Lifecycle = &domainpb.SandboxLifecycleConfig{}
+		if index == 1 {
+			profile.ToolRestrictionPolicy = "enforced"
+		}
+		profiles = append(profiles, profile)
+	}
+	return profiles
+}
+
+func TestSchedulerReadOnlyStartupRecoveryAndActualCallback(t *testing.T) {
+	profiles := installedHeartbeatProfiles(t)
+	unavailable := true
+	var writes, reads int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet || r.URL.Path != "/api/v1/profiles" {
+			writes++
+			http.Error(w, "writes forbidden", 403)
+			return
+		}
+		reads++
+		response := &apipb.ListProfilesResponse{}
+		if !unavailable {
+			response.Profiles = profiles
+			response.Total = 2
+		}
+		body, err := protojson.Marshal(response)
+		if err != nil {
+			t.Error(err)
+		}
+		w.Write(body)
+	}))
+	defer server.Close()
+	exec := &captureExecutor{}
+	scheduler := NewScheduler(exec, newTestClient(t, server), &stubConfigStore{config: &store.HeartbeatConfig{Enabled: true}}, nil)
+	if err := scheduler.Schedule("team", "member", "@every 1s"); err != nil {
+		t.Fatal(err)
+	}
+	if err := scheduler.Start(context.Background()); err == nil {
+		t.Fatal("missing profiles started cron")
+	}
+	failed := scheduler.State()
+	if failed.Running || failed.StartError == "" || failed.Registered != 1 || failed.LastCallback != nil {
+		t.Fatalf("false scheduler liveness: %+v", failed)
+	}
+	unavailable = false
+	if err := scheduler.Start(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	defer scheduler.Stop()
+	if err := scheduler.Start(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if reads != 3 || writes != 0 {
+		t.Fatalf("profile reads=%d writes=%d", reads, writes)
+	}
+	next := scheduler.GetNextRun("team", "member")
+	if next == nil || next.IsZero() {
+		t.Fatal("running cron has no next fire")
+	}
+	waitFor(t, 3*time.Second, func() bool { return exec.callCount() > 0 }, "same scheduler instance callback")
+	live := scheduler.State()
+	if !live.Running || live.StartError != "" || live.LastCallback == nil || live.Registered != 1 {
+		t.Fatalf("callback not represented: %+v", live)
+	}
+	scheduler.Stop()
+	if scheduler.State().Running || scheduler.State().Registered != 0 {
+		t.Fatalf("stop not represented: %+v", scheduler.State())
+	}
+	if err := scheduler.Start(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if scheduler.State().Registered != 0 {
+		t.Fatal("restart reintroduced obsolete callbacks")
+	}
+}
+
+func TestSchedulerStartupRejectsInstallationDriftAndOverride(t *testing.T) {
+	cases := []struct {
+		name   string
+		change func(*AgentProfile)
+	}{
+		{"owner", func(p *AgentProfile) { p.OwnerScenario = "other" }},
+		{"source", func(p *AgentProfile) { p.SourcePath = "other.json" }},
+		{"hash", func(p *AgentProfile) { p.SourceHash = "drift" }},
+		{"applied hash", func(p *AgentProfile) { p.LastAppliedHash = "drift" }},
+		{"local override", func(p *AgentProfile) { p.LocalOverride = true }},
+		{"budget", func(p *AgentProfile) { p.MaxTurns++ }},
+		{"weighted budget", func(p *AgentProfile) { p.MaxWeightedTokens = 1000 }},
+		{"sandbox", func(p *AgentProfile) { p.SandboxConfig.Mode = domainpb.SandboxMode_SANDBOX_MODE_OFF }},
+		{"permissions", func(p *AgentProfile) { p.SkipPermissionPrompt = !p.SkipPermissionPrompt }},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			profiles := installedHeartbeatProfiles(t)
+			tc.change(profiles[0])
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method != http.MethodGet {
+					t.Errorf("write: %s", r.Method)
+				}
+				body, err := protojson.Marshal(&apipb.ListProfilesResponse{Profiles: profiles, Total: 2})
+				if err != nil {
+					t.Fatal(err)
+				}
+				w.Write(body)
+			}))
+			defer server.Close()
+			scheduler := NewScheduler(nil, newTestClient(t, server), nil, nil)
+			if err := scheduler.Start(context.Background()); err == nil || scheduler.State().Running {
+				t.Fatalf("drift starts cron: %v", err)
+			}
+		})
+	}
+}
+
+func TestHistoricalProfileReadsIgnoreNewSchedulingEligibility(t *testing.T) {
+	profiles := installedHeartbeatProfiles(t)
+	profiles[0] = proto.Clone(profiles[0]).(*AgentProfile)
+	profiles[0].LocalOverride = true
+	profiles[0].SourceHash = "old-source"
+	profiles[0].RoleRef = "retired-role"
+	var writes int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			writes++
+			http.Error(w, "write forbidden", 403)
+			return
+		}
+		switch r.URL.Path {
+		case "/api/v1/profiles":
+			body, _ := protojson.Marshal(&apipb.ListProfilesResponse{Profiles: profiles})
+			w.Write(body)
+		case "/api/v1/runs":
+			if r.URL.Query().Get("agent_profile_id") != profiles[0].Id {
+				t.Errorf("historical identity filter lost: %s", r.URL)
+			}
+			fmt.Fprint(w, `{"runs":[{"id":"historic-run"}],"total":1}`)
+		default:
+			t.Errorf("unexpected route: %s", r.URL)
+		}
+	}))
+	defer server.Close()
+	handlers := NewHandlers(HandlersDeps{AgentClient: newTestClient(t, server)})
+	response := httptest.NewRecorder()
+	handlers.ListRuns(response, httptest.NewRequest(http.MethodGet, "/runs?profile_key="+profiles[0].ProfileKey, nil))
+	if response.Code != http.StatusOK || writes != 0 {
+		t.Fatalf("historical read refused or wrote: %d writes=%d %s", response.Code, writes, response.Body)
+	}
 }

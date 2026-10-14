@@ -2,6 +2,9 @@ package cliutil
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -548,5 +551,116 @@ func TestReadFileString(t *testing.T) {
 	}
 	if got != content {
 		t.Fatalf("expected %q, got %q", content, got)
+	}
+}
+
+type pinnedExactRecordingTransport struct {
+	next  http.RoundTripper
+	calls *int
+}
+
+func (t *pinnedExactRecordingTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	*t.calls++
+	return t.next.RoundTrip(r)
+}
+func TestPinnedExactCarrierRefusesRedirectsWithoutChangingOrdinaryClient(t *testing.T) {
+	namespace, err := os.MkdirTemp("", "exact-pin-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(namespace)
+	t.Setenv("TMPDIR", namespace)
+	t.Setenv(EnvIdentityToken, "")
+	phases := []struct {
+		name, path string
+		proof      bool
+	}{
+		{"challenge", "/api/v1/keyring/exact-challenge", false},
+		{"mutation", "/agent_manager.v1.AgentManagerService/ReconcileEffortMetadata", true},
+		{"receipt", "/api/v1/keyring/exact-receipt", true},
+	}
+	for _, custom := range []bool{false, true} {
+		for _, status := range []int{307, 308} {
+			for _, phase := range phases {
+				for _, changedHost := range []bool{false, true} {
+					t.Run(fmt.Sprintf("%s/%d/custom=%t/changed-host=%t", phase.name, status, custom, changedHost), func(t *testing.T) {
+						destinationCalls := 0
+						destination := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { destinationCalls++; io.WriteString(w, `{"ok":true}`) }))
+						defer destination.Close()
+						destinationURL := destination.URL
+						if changedHost {
+							destinationURL = strings.Replace(destinationURL, "127.0.0.1", "localhost", 1)
+						}
+						firstCalls, originalEffects := 0, 0
+						first := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+							firstCalls++
+							if r.URL.Path == phase.path && phase.name == "mutation" {
+								originalEffects++
+							}
+							if r.URL.Path == phase.path {
+								if r.Header.Get(HeaderAgentIdentityToken) != "synthetic-pinned-leaf" || r.Header.Get("Authorization") != "" {
+									t.Error("pin/owner carrier changed")
+								}
+								if phase.proof && (r.Header.Get("X-Keyring-Exact-Proof") != "synthetic-proof" || r.Header.Get("X-Keyring-Exact-Signature") != "synthetic-signature") {
+									t.Error("missing protected proof")
+								}
+							}
+							w.Header().Set("Location", destinationURL+"/leak")
+							w.WriteHeader(status)
+						}))
+						defer first.Close()
+						wires := 0
+						raw := &http.Client{Timeout: time.Second}
+						if custom {
+							raw.Transport = &pinnedExactRecordingTransport{next: &http.Transport{}, calls: &wires}
+						}
+						original := NewAPIClient(NewHTTPClient(HTTPClientOptions{Client: raw}), func() APIBaseOptions { return APIBaseOptions{Override: first.URL} }, func() string { return "ordinary-synthetic-owner" })
+						flow := original
+						if phase.proof {
+							flow = flow.WithHeaders(map[string]string{"X-Keyring-Exact-Proof": "synthetic-proof", "X-Keyring-Exact-Signature": "synthetic-signature"})
+						}
+						resolutions := 0
+						pinned := flow.WithPinnedAgentCredential("synthetic-pinned-leaf", func(context.Context) (string, error) { resolutions++; return "synthetic-pinned-leaf", nil })
+						body, err := pinned.Request("POST", phase.path, nil, []byte(`{"public":"synthetic-body"}`))
+						if body != nil || err == nil || !strings.Contains(err.Error(), "pinned exact request redirect refused") || firstCalls != 1 || destinationCalls != 0 || resolutions < 2 {
+							t.Fatal("protected redirect/pin", err, firstCalls, destinationCalls, resolutions)
+						}
+						// Refusing a redirect proves no destination request, not no original
+						// mutation effect. Preserve unknown-outcome reconciliation at the caller.
+						if phase.name == "mutation" && originalEffects != 1 {
+							t.Fatal("original mutation outcome lost", originalEffects)
+						}
+						if custom && wires != 1 {
+							t.Fatal("custom transport not retained", wires)
+						}
+						if raw.CheckRedirect != nil || original.client.client != raw {
+							t.Fatal("ordinary client mutated")
+						}
+						_, err = original.Request("POST", "/ordinary", nil, []byte(`{"ordinary":true}`))
+						if err != nil || destinationCalls != 1 || firstCalls != 2 {
+							t.Fatal("ordinary redirect compatibility", err, firstCalls, destinationCalls)
+						}
+					})
+				}
+			}
+		}
+	}
+}
+func TestPinnedExactCustomTransportRechecksCustodyBeforeWire(t *testing.T) {
+	wires := 0
+	raw := &http.Client{Transport: &pinnedExactRecordingTransport{next: &http.Transport{}, calls: &wires}}
+	api := NewAPIClient(NewHTTPClient(HTTPClientOptions{Client: raw}), func() APIBaseOptions { return APIBaseOptions{Override: "http://127.0.0.1:1"} }, nil)
+	resolutions := 0
+	pinned := api.WithPinnedAgentCredential("synthetic-held-leaf", func(context.Context) (string, error) {
+		resolutions++
+		if resolutions > 1 {
+			return "", &AgentAuthorizationError{Code: "revoked"}
+		}
+		return "synthetic-held-leaf", nil
+	})
+	_, err := pinned.Request("POST", "/api/v1/keyring/exact-challenge", nil, []byte(`{}`))
+	var denied *AgentAuthorizationError
+	if !errors.As(err, &denied) || denied.Code != "revoked" || wires != 0 {
+		t.Fatal("custom custody refusal reached wire", err, wires)
 	}
 }

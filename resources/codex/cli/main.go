@@ -21,7 +21,7 @@ const (
 	// upstreamPinnedVersion mirrors resource.json upstream_cli.version_pinned.
 	// `permissions doctor` warns when the installed codex CLI version
 	// diverges from this string.
-	upstreamPinnedVersion = "0.141.0"
+	upstreamPinnedVersion = "0.161.0"
 )
 
 var (
@@ -57,8 +57,16 @@ func newApp() (*cliapp.ResourceApp, error) {
 	if err != nil {
 		return nil, err
 	}
+	installSpec := agentinstall.Spec{
+		ResourceName:       appName,
+		Binary:             "codex",
+		BinDir:             filepath.Join(os.Getenv("HOME"), ".local", "bin"),
+		DataDir:            filepath.Join(os.Getenv("HOME"), ".codex"),
+		UpstreamSourceKind: "npm",
+		UpstreamSourceID:   "@openai/codex",
+	}
 	app.SetCommandsWithSubgroups(
-		append(app.StandardLifecycleCommands(), cliapp.CommandGroup{Title: "Installation", Commands: []cliapp.Command{agentinstall.DirectInstallCommand(agentinstall.Spec{ResourceName: appName, Binary: "codex", BinDir: filepath.Join(os.Getenv("HOME"), ".local", "bin"), DataDir: filepath.Join(os.Getenv("HOME"), ".codex")})}}),
+		append(app.StandardLifecycleCommands(), cliapp.CommandGroup{Title: "Installation", Commands: []cliapp.Command{agentinstall.DirectInstallCommand(installSpec), agentinstall.UpdateCommand(installSpec)}}),
 		[]cliapp.SubcommandGroup{
 			agentharness.ModelDiscoveryCommands(agentharness.ModelDiscoveryConfig{Runner: appName, CatalogPath: agentharness.ResourceCatalogPath(appName)}),
 			agentharness.CodingPolicyCommands(agentharness.CodingPolicyConfig{Runner: appName, CatalogPath: agentharness.ResourceCatalogPath(appName), Posture: agentharness.EnforcementPosture{Permissions: "hook_unverified", Caveats: []string{"Codex's native permission settings remain intent-only; Vrooli projects a PreToolUse hook, but hook firing requires a live canary on the installed Codex version."}}}),

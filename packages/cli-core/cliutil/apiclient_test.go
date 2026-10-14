@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -55,6 +56,97 @@ func TestWithTokenIsRequestLocalAndPreservesProvenance(t *testing.T) {
 	}
 	if strings.Join(auth, "|") != "Bearer operator-fixture|Bearer ordinary-fixture|" {
 		t.Fatal("request override leaked into receiver or empty credential fell back")
+	}
+}
+
+func TestWithoutRedirectsPreservesOwnerTransportAndOrdinaryDefault(t *testing.T) {
+	for _, changedHost := range []bool{false, true} {
+		t.Run(fmt.Sprintf("changed-host=%t", changedHost), func(t *testing.T) {
+			var destinations atomic.Int32
+			dest := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				destinations.Add(1)
+				fmt.Fprint(w, "{}")
+			}))
+			defer dest.Close()
+			location := dest.URL
+			if changedHost {
+				location = strings.Replace(location, "127.0.0.1", "localhost", 1)
+			}
+			var originals atomic.Int32
+			origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				originals.Add(1)
+				if r.Header.Get("Authorization") != "Bearer synthetic-owner" || r.Header.Get(HeaderInvocationCommand) != "effort exact-setup" {
+					t.Error("owner authentication or invocation provenance lost")
+				}
+				w.Header().Set("Location", location)
+				w.WriteHeader(http.StatusTemporaryRedirect)
+				fmt.Fprint(w, "{\"mustNotConfirm\":true}")
+			}))
+			defer origin.Close()
+			transport := &http.Transport{}
+			defer transport.CloseIdleConnections()
+			raw := &http.Client{Transport: transport, Timeout: time.Second}
+			base := NewHTTPClient(HTTPClientOptions{Client: raw})
+			base.SetInvocationHeaderSource(func() map[string]string { return map[string]string{HeaderInvocationCommand: "effort exact-setup"} })
+			client := NewAPIClient(base, func() APIBaseOptions { return APIBaseOptions{Override: origin.URL} }, func() string { return "synthetic-owner" })
+			protected := client.WithoutRedirects()
+			if protected.client.client.Transport != raw.Transport || protected.client.client.Jar != raw.Jar || protected.client.client.Timeout != raw.Timeout || raw.CheckRedirect != nil || protected.tokenSource() != client.tokenSource() {
+				t.Fatal("redirect copy changed transport, cookies, timeout, authentication or receiver")
+			}
+			if body, err := protected.Get("/setup", nil); err == nil || len(body) != 0 || destinations.Load() != 0 || originals.Load() != 1 {
+				t.Fatal("protected request followed or confirmed redirect")
+			}
+			if _, err := client.Get("/ordinary", nil); err != nil || destinations.Load() != 1 || originals.Load() != 2 {
+				t.Fatal("ordinary client redirect behavior changed", err)
+			}
+		})
+	}
+}
+
+type redirectResponseFixture func(*http.Request) (*http.Response, error)
+
+func (f redirectResponseFixture) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+type redirectResponseBody struct {
+	io.Reader
+	reads, closes *atomic.Int32
+}
+
+func (b redirectResponseBody) Read(p []byte) (int, error) {
+	b.reads.Add(1)
+	return b.Reader.Read(p)
+}
+func (b redirectResponseBody) Close() error { b.closes.Add(1); return nil }
+
+func TestWithoutRedirectsRejectsEvery3xxResponse(t *testing.T) {
+	for code := 300; code < 400; code++ {
+		for _, emptyLocation := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%d/empty-location=%t", code, emptyLocation), func(t *testing.T) {
+				var requests, reads, closes atomic.Int32
+				transport := redirectResponseFixture(func(r *http.Request) (*http.Response, error) {
+					requests.Add(1)
+					header := http.Header{}
+					if emptyLocation {
+						header.Set("Location", "")
+					}
+					return &http.Response{
+						StatusCode: code, Header: header, Request: r,
+						Body: redirectResponseBody{Reader: strings.NewReader("{\"confirmed\":true}"), reads: &reads, closes: &closes},
+					}, nil
+				})
+				client := NewAPIClient(NewHTTPClient(HTTPClientOptions{Client: &http.Client{Transport: transport}}),
+					func() APIBaseOptions { return APIBaseOptions{Override: "http://fixture.invalid"} }, nil)
+				body, err := client.WithoutRedirects().Get("/protected", nil)
+				var apiErr *APIError
+				if !errors.As(err, &apiErr) || apiErr.StatusCode != code || len(body) != 0 || len(apiErr.RawResponse) != 0 || reads.Load() != 0 || closes.Load() != 1 || requests.Load() != 1 {
+					t.Fatal("3xx became a confirmed/body-bearing result, was read, retried or left open")
+				}
+				body, err = client.Get("/ordinary", nil)
+				if err != nil || string(body) != "{\"confirmed\":true}" || reads.Load() == 0 || closes.Load() != 2 || requests.Load() != 2 {
+					t.Fatal("ordinary response classification changed", err)
+				}
+			})
+		}
 	}
 }
 

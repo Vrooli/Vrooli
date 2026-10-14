@@ -198,7 +198,7 @@ func DeriveInvocationFactsWithResolver(events []*domain.RunEvent, resolver Capab
 				fact.ResultEventID = result.ID.String()
 				if data, ok := result.Data.(*domain.ToolResultEventData); ok {
 					fact.ExitCode, fact.DurationMS = data.ExitCode, data.DurationMS
-					fact.Outcome = toolResultOutcome(data)
+					fact.Outcome = ToolResultOutcome(data)
 					if fact.Outcome == "failure" {
 						fact.FailureSignature, fact.SignatureTruncated = failureSignature(data)
 					}
@@ -374,15 +374,21 @@ func allDigits(value string) bool {
 	return true
 }
 
-func toolResultOutcome(data *domain.ToolResultEventData) string {
+func ToolResultOutcome(data *domain.ToolResultEventData) string {
 	if data == nil {
 		return "unknown"
 	}
 	if data.ExitCode != nil {
+		if !domain.SupportedToolExitCode(data.ExitCode) {
+			return "unknown"
+		}
 		if *data.ExitCode != 0 {
 			return "failure"
 		}
 		return "success"
+	}
+	if data.OutcomeKnown != nil && !*data.OutcomeKnown {
+		return "unknown"
 	}
 	// Historical payloads can have an inconsistent Success boolean, but error
 	// strings retain decisive evidence (including Codex non-zero exit codes).

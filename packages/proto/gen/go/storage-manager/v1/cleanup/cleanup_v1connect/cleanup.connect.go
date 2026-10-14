@@ -42,6 +42,9 @@ const (
 	// CleanupServiceSetPolicyProfileProcedure is the fully-qualified name of the CleanupService's
 	// SetPolicyProfile RPC.
 	CleanupServiceSetPolicyProfileProcedure = "/vrooli.cleanup_manager.v1.cleanup.CleanupService/SetPolicyProfile"
+	// CleanupServiceConfigureTemporaryRetentionProcedure is the fully-qualified name of the
+	// CleanupService's ConfigureTemporaryRetention RPC.
+	CleanupServiceConfigureTemporaryRetentionProcedure = "/vrooli.cleanup_manager.v1.cleanup.CleanupService/ConfigureTemporaryRetention"
 	// CleanupServiceCreatePlanProcedure is the fully-qualified name of the CleanupService's CreatePlan
 	// RPC.
 	CleanupServiceCreatePlanProcedure = "/vrooli.cleanup_manager.v1.cleanup.CleanupService/CreatePlan"
@@ -71,6 +74,8 @@ type CleanupServiceClient interface {
 	ListProviders(context.Context, *connect.Request[cleanup.ListProvidersRequest]) (*connect.Response[cleanup.ListProvidersResponse], error)
 	GetPolicy(context.Context, *connect.Request[cleanup.GetPolicyRequest]) (*connect.Response[cleanup.GetPolicyResponse], error)
 	SetPolicyProfile(context.Context, *connect.Request[cleanup.SetPolicyProfileRequest]) (*connect.Response[cleanup.SetPolicyProfileResponse], error)
+	// Explicit standing authority for aged temporary entries only.
+	ConfigureTemporaryRetention(context.Context, *connect.Request[cleanup.ConfigureTemporaryRetentionRequest]) (*connect.Response[cleanup.ConfigureTemporaryRetentionResponse], error)
 	CreatePlan(context.Context, *connect.Request[cleanup.CreatePlanRequest]) (*connect.Response[cleanup.CreatePlanResponse], error)
 	ApplyPlan(context.Context, *connect.Request[cleanup.ApplyPlanRequest]) (*connect.Response[cleanup.ApplyPlanResponse], error)
 	ListAudit(context.Context, *connect.Request[cleanup.ListAuditRequest]) (*connect.Response[cleanup.ListAuditResponse], error)
@@ -120,6 +125,12 @@ func NewCleanupServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(cleanupServiceMethods.ByName("SetPolicyProfile")),
 			connect.WithClientOptions(opts...),
 		),
+		configureTemporaryRetention: connect.NewClient[cleanup.ConfigureTemporaryRetentionRequest, cleanup.ConfigureTemporaryRetentionResponse](
+			httpClient,
+			baseURL+CleanupServiceConfigureTemporaryRetentionProcedure,
+			connect.WithSchema(cleanupServiceMethods.ByName("ConfigureTemporaryRetention")),
+			connect.WithClientOptions(opts...),
+		),
 		createPlan: connect.NewClient[cleanup.CreatePlanRequest, cleanup.CreatePlanResponse](
 			httpClient,
 			baseURL+CleanupServiceCreatePlanProcedure,
@@ -167,16 +178,17 @@ func NewCleanupServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 
 // cleanupServiceClient implements CleanupServiceClient.
 type cleanupServiceClient struct {
-	listProviders    *connect.Client[cleanup.ListProvidersRequest, cleanup.ListProvidersResponse]
-	getPolicy        *connect.Client[cleanup.GetPolicyRequest, cleanup.GetPolicyResponse]
-	setPolicyProfile *connect.Client[cleanup.SetPolicyProfileRequest, cleanup.SetPolicyProfileResponse]
-	createPlan       *connect.Client[cleanup.CreatePlanRequest, cleanup.CreatePlanResponse]
-	applyPlan        *connect.Client[cleanup.ApplyPlanRequest, cleanup.ApplyPlanResponse]
-	listAudit        *connect.Client[cleanup.ListAuditRequest, cleanup.ListAuditResponse]
-	reportPressure   *connect.Client[cleanup.ReportPressureRequest, cleanup.ReportPressureResponse]
-	startRecovery    *connect.Client[cleanup.RecoveryRunRequest, cleanup.RecoveryRunResponse]
-	waitRecovery     *connect.Client[cleanup.RecoveryWaitRequest, cleanup.RecoveryRunResponse]
-	listRecovery     *connect.Client[cleanup.RecoveryHistoryRequest, cleanup.RecoveryHistoryResponse]
+	listProviders               *connect.Client[cleanup.ListProvidersRequest, cleanup.ListProvidersResponse]
+	getPolicy                   *connect.Client[cleanup.GetPolicyRequest, cleanup.GetPolicyResponse]
+	setPolicyProfile            *connect.Client[cleanup.SetPolicyProfileRequest, cleanup.SetPolicyProfileResponse]
+	configureTemporaryRetention *connect.Client[cleanup.ConfigureTemporaryRetentionRequest, cleanup.ConfigureTemporaryRetentionResponse]
+	createPlan                  *connect.Client[cleanup.CreatePlanRequest, cleanup.CreatePlanResponse]
+	applyPlan                   *connect.Client[cleanup.ApplyPlanRequest, cleanup.ApplyPlanResponse]
+	listAudit                   *connect.Client[cleanup.ListAuditRequest, cleanup.ListAuditResponse]
+	reportPressure              *connect.Client[cleanup.ReportPressureRequest, cleanup.ReportPressureResponse]
+	startRecovery               *connect.Client[cleanup.RecoveryRunRequest, cleanup.RecoveryRunResponse]
+	waitRecovery                *connect.Client[cleanup.RecoveryWaitRequest, cleanup.RecoveryRunResponse]
+	listRecovery                *connect.Client[cleanup.RecoveryHistoryRequest, cleanup.RecoveryHistoryResponse]
 }
 
 // ListProviders calls vrooli.cleanup_manager.v1.cleanup.CleanupService.ListProviders.
@@ -192,6 +204,12 @@ func (c *cleanupServiceClient) GetPolicy(ctx context.Context, req *connect.Reque
 // SetPolicyProfile calls vrooli.cleanup_manager.v1.cleanup.CleanupService.SetPolicyProfile.
 func (c *cleanupServiceClient) SetPolicyProfile(ctx context.Context, req *connect.Request[cleanup.SetPolicyProfileRequest]) (*connect.Response[cleanup.SetPolicyProfileResponse], error) {
 	return c.setPolicyProfile.CallUnary(ctx, req)
+}
+
+// ConfigureTemporaryRetention calls
+// vrooli.cleanup_manager.v1.cleanup.CleanupService.ConfigureTemporaryRetention.
+func (c *cleanupServiceClient) ConfigureTemporaryRetention(ctx context.Context, req *connect.Request[cleanup.ConfigureTemporaryRetentionRequest]) (*connect.Response[cleanup.ConfigureTemporaryRetentionResponse], error) {
+	return c.configureTemporaryRetention.CallUnary(ctx, req)
 }
 
 // CreatePlan calls vrooli.cleanup_manager.v1.cleanup.CleanupService.CreatePlan.
@@ -235,6 +253,8 @@ type CleanupServiceHandler interface {
 	ListProviders(context.Context, *connect.Request[cleanup.ListProvidersRequest]) (*connect.Response[cleanup.ListProvidersResponse], error)
 	GetPolicy(context.Context, *connect.Request[cleanup.GetPolicyRequest]) (*connect.Response[cleanup.GetPolicyResponse], error)
 	SetPolicyProfile(context.Context, *connect.Request[cleanup.SetPolicyProfileRequest]) (*connect.Response[cleanup.SetPolicyProfileResponse], error)
+	// Explicit standing authority for aged temporary entries only.
+	ConfigureTemporaryRetention(context.Context, *connect.Request[cleanup.ConfigureTemporaryRetentionRequest]) (*connect.Response[cleanup.ConfigureTemporaryRetentionResponse], error)
 	CreatePlan(context.Context, *connect.Request[cleanup.CreatePlanRequest]) (*connect.Response[cleanup.CreatePlanResponse], error)
 	ApplyPlan(context.Context, *connect.Request[cleanup.ApplyPlanRequest]) (*connect.Response[cleanup.ApplyPlanResponse], error)
 	ListAudit(context.Context, *connect.Request[cleanup.ListAuditRequest]) (*connect.Response[cleanup.ListAuditResponse], error)
@@ -277,6 +297,12 @@ func NewCleanupServiceHandler(svc CleanupServiceHandler, opts ...connect.Handler
 		CleanupServiceSetPolicyProfileProcedure,
 		svc.SetPolicyProfile,
 		connect.WithSchema(cleanupServiceMethods.ByName("SetPolicyProfile")),
+		connect.WithHandlerOptions(opts...),
+	)
+	cleanupServiceConfigureTemporaryRetentionHandler := connect.NewUnaryHandler(
+		CleanupServiceConfigureTemporaryRetentionProcedure,
+		svc.ConfigureTemporaryRetention,
+		connect.WithSchema(cleanupServiceMethods.ByName("ConfigureTemporaryRetention")),
 		connect.WithHandlerOptions(opts...),
 	)
 	cleanupServiceCreatePlanHandler := connect.NewUnaryHandler(
@@ -329,6 +355,8 @@ func NewCleanupServiceHandler(svc CleanupServiceHandler, opts ...connect.Handler
 			cleanupServiceGetPolicyHandler.ServeHTTP(w, r)
 		case CleanupServiceSetPolicyProfileProcedure:
 			cleanupServiceSetPolicyProfileHandler.ServeHTTP(w, r)
+		case CleanupServiceConfigureTemporaryRetentionProcedure:
+			cleanupServiceConfigureTemporaryRetentionHandler.ServeHTTP(w, r)
 		case CleanupServiceCreatePlanProcedure:
 			cleanupServiceCreatePlanHandler.ServeHTTP(w, r)
 		case CleanupServiceApplyPlanProcedure:
@@ -362,6 +390,10 @@ func (UnimplementedCleanupServiceHandler) GetPolicy(context.Context, *connect.Re
 
 func (UnimplementedCleanupServiceHandler) SetPolicyProfile(context.Context, *connect.Request[cleanup.SetPolicyProfileRequest]) (*connect.Response[cleanup.SetPolicyProfileResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.cleanup_manager.v1.cleanup.CleanupService.SetPolicyProfile is not implemented"))
+}
+
+func (UnimplementedCleanupServiceHandler) ConfigureTemporaryRetention(context.Context, *connect.Request[cleanup.ConfigureTemporaryRetentionRequest]) (*connect.Response[cleanup.ConfigureTemporaryRetentionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.cleanup_manager.v1.cleanup.CleanupService.ConfigureTemporaryRetention is not implemented"))
 }
 
 func (UnimplementedCleanupServiceHandler) CreatePlan(context.Context, *connect.Request[cleanup.CreatePlanRequest]) (*connect.Response[cleanup.CreatePlanResponse], error) {

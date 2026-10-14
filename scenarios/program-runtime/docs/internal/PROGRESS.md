@@ -23,6 +23,88 @@ with the owning plan.
 
 ## Progress Log
 
+### 2026-10-13 — Maturation plan authored; reachability misclassification fixed (WS-B #1)
+
+- Authored `docs/internal/MATURATION_PLAN.md` (6 workstreams A–F; DoD tied to
+  `portfolio-audit` score 0.69→0.85; executed via the control agent's own tooling, not Plan
+  Manager / Swarm / finite-delivery). Live re-measure: score 0.69, `exercised` 38%,
+  `typed_output` 1.7%, `binding_resilience` 26%; 19/118 programs ever agent-run; the dominant
+  consumer `agent-manager.supervision-evaluate` broke 2026-09-07 (contract/digest drift), not
+  09-15.
+- WS-B #1: discovery `invalid_port` / `vrooli_not_found` kinds and the vrooli-target
+  `invalid VROOLI_API_PORT` message now classify as `scenario_unreachable` / `unavailable`
+  instead of falling through to `binding_error` (`api/internal/bindings/failure.go:42`,
+  mirrored in `kernel/host/program_helper.py:155`). Tests added in `failure_test.go` and
+  `kernel/tests/test_program_helper.py`; both green. Not live until redeploy.
+- WS-D (kernel helpers + de-dup): added `program.select_field`, `program.coerce_int`,
+  `program.coerce_float` to the bound helper (`kernel/host/program_helper.py`), synced to
+  `api/internal/programs/surface.go` (drift-guard `TestProgramHelperMembersMatchKernel` green),
+  with unit tests. Migrated `usage-triage.py` as the exemplar (local `value`/`as_int`/`as_float`
+  → `program.*`; `transport_failure` → `program.classify`, a superset); smoke-run SUCCEEDED and
+  degrades to `partial` on a 403 read exactly as designed. The 3 remaining copies
+  (`mutation-pilot`, `attention-triage`, `classify-batch`) have DIVERGENT semantics (dict.get
+  fallback keeps None/empty; `int(v)` not `int(v or 0)`; return-not-reraise on NameError) and are
+  intentionally left — forcing convergence would be a silent behavior change for a 1-copy gain.
+  New programs use `program.*` by example + scaffold template.
+- WS-A1 (consumer reconciliation): confirmed the current-source `programInput()`
+  (`agent-manager/api/internal/supervision/program_evaluator.go:281`) emits exactly the contract's
+  declared input keys and correctly omits the optional `watch_id` the OLD running binary was
+  sending with a bad type (the cause of the 2026-09-07 break). Redeployed agent-manager from
+  source; the request is now contract-valid. The 4 probe watches re-evaluate at their next
+  scheduled wake (~18:29) and should resolve/self-close then — verification pending that wake.
+- WS-C `scaffold` DONE: `program-runtime programs scaffold --name <s>.<p> --purpose "..."
+  [--binding <s>/<g>/<c>] [--out-dir <dir>] [--force]` generates a schema-valid contract + a
+  `program.run` state-machine skeleton that uses the kernel helpers. Implemented as a local
+  `cliapp.Action` (no proto regen needed — the framework's `Action[Resp any]` renders non-proto
+  results), `cli/domains/programs/scaffold.go`, registered in `register.go`, manifest entry added.
+  Verified: builds, both binding/no-binding variants validate against
+  `schemas/program-contract.schema.json` and the generated `.py` compiles; the `$schema` path is
+  owner-aware (own-scenario vs cross-scenario). Unit tests in `scaffold_test.go` (3) + full
+  programs-domain suite green. NOTE: live in a freshly built CLI; the installed
+  `~/.vrooli/bin/program-runtime` needs a CLI rebuild/reinstall to expose the command. During
+  authoring the schema check caught a real generator bug (empty `errors.classes`, schema requires
+  minItems:1) — exactly the class of error the planned `validate` command will catch for authors.
+- WS-C `validate` DONE: `program-runtime programs validate <contract.json> [program.py]` runs the
+  offline authoring checks authors otherwise hit only at submit: authoritative JSON-schema
+  validation (schema resolved drift-free from the contract's own `$schema`, compiled with the
+  already-present `santhosh-tekuri/jsonschema/v5`, violations reported with JSON-pointer locations),
+  name↔file-stem match, and a `python3 -m py_compile` syntax check (skipped-with-warning if no
+  interpreter). Exits non-zero on any problem (CI-usable) via `cliapp.ActionWithExit`.
+  `cli/domains/programs/validate.go` + `validate_test.go`, manifest entry, registered. Verified
+  against a real corpus contract (all 4 checks pass, exit 0) and a deliberately-broken in-repo
+  contract (caught missing `version`, empty `errors.classes` with location, name/stem mismatch,
+  exit 1). Honest boundary: deep binding-call resolution stays owned by the server preflight
+  (`analyze.py`) at submit; validate does not reimplement it. Needs CLI reinstall to be live in
+  `~/.vrooli/bin`.
+- WS-C `scaffold`/`validate` made live: the installed `~/.vrooli/bin/program-runtime` auto-rebuilds
+  from current source on a stale invocation, so both commands are now usable. Dogfooded: `validate`
+  passes all 22 of program-runtime's own contracts (0 false positives), including the migrated
+  `usage-triage`.
+- WS-F liveness canary DONE (in agent-manager): a new Optional `/health` check
+  `supervision_liveness` (`scenarios/agent-manager/api/internal/wiring/supervision_health.go` +
+  `_test.go`, wired at `routes.go:127`) reads the existing `cohort_watch_evaluation_failures` ⋈
+  `cohort_watches` and degrades the scenario (never fails it) when any ACTIVE watch exceeds
+  `supervisionStuckFailureThreshold` (24 ≈ a day of hourly retries), naming the watch + the
+  `watch get` inspect command. Unit tests (5 cases) green; agent-manager rebuilt. LIVE PROOF: with
+  startup-functional cleared and readiness=true, agent-manager's `/health` is **degraded** solely
+  from this Optional check — i.e. the canary immediately caught the 4 real stuck zombie watches that
+  had been silent since 2026-09-09. This is the signal that would have caught the 2026-09-07 break
+  within a day instead of a month.
+- A1 HONEST UPDATE: the zombie self-close did NOT happen. Past their 18:29 wake and after both
+  redeploys, the 4 probe watches remain ACTIVE at their old revisions (~5145) with lastDecision
+  still 2026-09-09 — the scheduler is not re-evaluating them (separate issue: likely the
+  `due_family_rank` CTE / next_wake handling). So the clean contract (confirmed) did not by itself
+  revive them. Resolution now: the canary makes them VISIBLE (agent-manager degraded), and clearing
+  them still needs the operator `watch cancel` (human-gated) OR a follow-up scheduler investigation.
+  Once cleared, the canary returns agent-manager to healthy.
+- Still staged: WS-C `dry-run`, WS-E output_schema, WS-B#2 `--explain` binding-arg validation.
+- Operator-gated fallback (likely unnecessary after A1): `watch cancel` on the 4 zombies requires
+  a verified operator (`agent-manager:write`); reused the existing watches as the A1 verification
+  vehicle instead of force-cancelling, so no human op is needed unless they survive a clean wake.
+
+- Scenarios redeployed this pass: program-runtime (x3), agent-manager (x1). Score steady 0.696
+  (no regression); `go build` of touched packages clean.
+
 ### 2026-09-09 — Memory-not-installed degradation contract pinned
 
 - Corrected task checkpoint admission so a missing `vrooli-memory.finish-attempt`

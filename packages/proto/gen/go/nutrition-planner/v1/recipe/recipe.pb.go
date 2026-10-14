@@ -345,6 +345,8 @@ type RecipeStep struct {
 	DependsOn     []string               `protobuf:"bytes,3,rep,name=depends_on,json=dependsOn,proto3" json:"depends_on,omitempty"`
 	Inputs        []string               `protobuf:"bytes,4,rep,name=inputs,proto3" json:"inputs,omitempty"`
 	Outputs       []string               `protobuf:"bytes,5,rep,name=outputs,proto3" json:"outputs,omitempty"`
+	Equipment     []string               `protobuf:"bytes,6,rep,name=equipment,proto3" json:"equipment,omitempty"`
+	Settings      []string               `protobuf:"bytes,7,rep,name=settings,proto3" json:"settings,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -410,6 +412,20 @@ func (x *RecipeStep) GetInputs() []string {
 func (x *RecipeStep) GetOutputs() []string {
 	if x != nil {
 		return x.Outputs
+	}
+	return nil
+}
+
+func (x *RecipeStep) GetEquipment() []string {
+	if x != nil {
+		return x.Equipment
+	}
+	return nil
+}
+
+func (x *RecipeStep) GetSettings() []string {
+	if x != nil {
+		return x.Settings
 	}
 	return nil
 }
@@ -1143,7 +1159,7 @@ const file_nutrition_planner_v1_recipe_recipe_proto_rawDesc = "" +
 	"\fRecipeMethod\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12D\n" +
-	"\x05steps\x18\x03 \x03(\v2..vrooli.nutrition_planner.v1.recipe.RecipeStepR\x05steps\"\x8f\x01\n" +
+	"\x05steps\x18\x03 \x03(\v2..vrooli.nutrition_planner.v1.recipe.RecipeStepR\x05steps\"\xc9\x01\n" +
 	"\n" +
 	"RecipeStep\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12 \n" +
@@ -1151,7 +1167,9 @@ const file_nutrition_planner_v1_recipe_recipe_proto_rawDesc = "" +
 	"\n" +
 	"depends_on\x18\x03 \x03(\tR\tdependsOn\x12\x16\n" +
 	"\x06inputs\x18\x04 \x03(\tR\x06inputs\x12\x18\n" +
-	"\aoutputs\x18\x05 \x03(\tR\aoutputs\"7\n" +
+	"\aoutputs\x18\x05 \x03(\tR\aoutputs\x12\x1c\n" +
+	"\tequipment\x18\x06 \x03(\tR\tequipment\x12\x1a\n" +
+	"\bsettings\x18\a \x03(\tR\bsettings\"7\n" +
 	"\x12ListRecipesRequest\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\"[\n" +
 	"\x13ListRecipesResponse\x12D\n" +

@@ -2,5 +2,11 @@
   "kind": "team-roles",
   "schemaVersion": 1,
   "teamId": "nooch-delivery",
-  "roles": []
+  "roles": [
+    {
+      "id": "nooch-delivery-orchestrator",
+      "name": "Nooch Delivery Orchestrator",
+      "description": "Orchestrate the owner-approved Nooch finite delivery through native epochs; own goal home and independent acceptance; never implement product work."
+    }
+  ]
 }

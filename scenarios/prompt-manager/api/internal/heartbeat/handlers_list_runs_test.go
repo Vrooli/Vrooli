@@ -320,11 +320,9 @@ func TestListRunsPreservesOwnerAccountingEvidence(t *testing.T) {
 
 func TestListRuns_ResolvesProfileKeyToAgentProfileID(t *testing.T) {
 	mockClient := newMockAgentClient().
-		WithEnsureProfileResponse(&EnsureProfileResponse{
-			Profile: &AgentProfile{
-				ID:         "6a89415d-9f95-4ee0-a534-00619ce6fd5a",
-				ProfileKey: "prompt-manager-heartbeat",
-			},
+		WithResolvedProfile(&AgentProfile{
+			Id:         "6a89415d-9f95-4ee0-a534-00619ce6fd5a",
+			ProfileKey: "prompt-manager-heartbeat",
 		}).
 		WithListRunsResponse(&ListRunsResponse{
 			Runs:  []*Run{{ID: "run-1", Status: "RUN_STATUS_COMPLETE"}},
@@ -346,11 +344,11 @@ func TestListRuns_ResolvesProfileKeyToAgentProfileID(t *testing.T) {
 	mockClient.mu.Lock()
 	defer mockClient.mu.Unlock()
 
-	if len(mockClient.ensureProfileCalls) != 1 {
-		t.Fatalf("expected 1 EnsureProfile call, got %d", len(mockClient.ensureProfileCalls))
+	if len(mockClient.resolveProfileCalls) != 1 {
+		t.Fatalf("expected 1 ResolveProfile call, got %d", len(mockClient.resolveProfileCalls))
 	}
-	if got := mockClient.ensureProfileCalls[0]; got == nil || got.ProfileKey != "prompt-manager-heartbeat" {
-		t.Fatalf("expected EnsureProfile(profile_key=prompt-manager-heartbeat), got %+v", got)
+	if got := mockClient.resolveProfileCalls[0]; got != "prompt-manager-heartbeat" {
+		t.Fatalf("expected ResolveProfile(profile_key=prompt-manager-heartbeat), got %+v", got)
 	}
 	if len(mockClient.listRunsCalls) != 1 {
 		t.Fatalf("expected 1 ListRuns call, got %d", len(mockClient.listRunsCalls))
@@ -361,7 +359,7 @@ func TestListRuns_ResolvesProfileKeyToAgentProfileID(t *testing.T) {
 }
 
 func TestListRuns_ProfileKeyResolutionFailureReturnsBadGateway(t *testing.T) {
-	mockClient := newMockAgentClient().WithEnsureProfileResponse(&EnsureProfileResponse{})
+	mockClient := newMockAgentClient().WithResolvedProfile(&AgentProfile{})
 	handlers := NewHandlers(HandlersDeps{
 		AgentClient: mockClient,
 	})
@@ -395,5 +393,20 @@ func TestListRuns_ForwardsAgentIDAsOwnerProfileID(t *testing.T) {
 	}
 	if got := mockClient.listRunsCalls[0].AgentProfileID; got != "agent-profile-1" {
 		t.Fatalf("expected exact agent profile ID, got %q", got)
+	}
+}
+
+func TestListRunsMixedIdentityRefusesConflictingFilter(t *testing.T) {
+	client := newMockAgentClient().WithResolvedProfile(&AgentProfile{Id: "6a89415d-9f95-4ee0-a534-00619ce6fd5a", ProfileKey: "prompt-manager/heartbeat-judgment"})
+	handlers := NewHandlers(HandlersDeps{AgentClient: client})
+	for _, id := range []string{"6a89415d-9f95-4ee0-a534-00619ce6fd5a", "different-uuid"} {
+		recorder := httptest.NewRecorder()
+		handlers.ListRuns(recorder, httptest.NewRequest(http.MethodGet, "/runs?profile_key=prompt-manager/heartbeat-judgment&agent_id="+id, nil))
+		if id == "different-uuid" && recorder.Code != http.StatusBadRequest {
+			t.Fatalf("conflicting identities accepted: %d", recorder.Code)
+		}
+	}
+	if len(client.listRunsCalls) != 1 {
+		t.Fatalf("conflict forwarded owner read: %v", client.listRunsCalls)
 	}
 }

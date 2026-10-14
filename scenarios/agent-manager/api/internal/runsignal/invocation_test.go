@@ -118,7 +118,7 @@ func TestDeriveInvocationFactsUnwrapsLiteralShellArgvAndKeepsWrapper(t *testing.
 func TestToolResultOutcomePrefersReportedExitCode(t *testing.T) {
 	code := 2
 	data := &domain.ToolResultEventData{Success: true, ExitCode: &code}
-	if got := toolResultOutcome(data); got != "failure" {
+	if got := ToolResultOutcome(data); got != "failure" {
 		t.Fatalf("outcome=%q", got)
 	}
 	signature, truncated := failureSignature(data)
@@ -210,5 +210,26 @@ func TestDeriveInvocationFactsClassifiesBoundedRedactedFailureSignatures(t *test
 				t.Fatalf("signature leaked %q: %q", forbidden, facts[i].FailureSignature)
 			}
 		}
+	}
+}
+
+func TestToolResultOutcomePreservesUnknownAndHistoricalCompatibility(t *testing.T) {
+	unknown := false
+	oversized := int(4294967296)
+	for _, tc := range []struct {
+		name string
+		data *domain.ToolResultEventData
+		want string
+	}{
+		{"returned without receipt", &domain.ToolResultEventData{Success: false, OutcomeKnown: &unknown}, "unknown"},
+		{"historical oversized exit", &domain.ToolResultEventData{Success: true, ExitCode: &oversized}, "unknown"},
+		{"historical success", &domain.ToolResultEventData{Success: true}, "success"},
+		{"historical failure", &domain.ToolResultEventData{Error: "failed"}, "failure"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := ToolResultOutcome(tc.data); got != tc.want {
+				t.Fatalf("outcome=%s want=%s", got, tc.want)
+			}
+		})
 	}
 }

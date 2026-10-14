@@ -13,6 +13,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/authn"
+	coreidentity "github.com/vrooli/api-core/identity"
+	"github.com/vrooli/api-core/provenance"
 )
 
 const attachedRunLivenessGracePeriod = time.Minute
@@ -125,6 +127,13 @@ func (o *Orchestrator) AttachRun(ctx context.Context, req AttachRunRequest) (*At
 // DetachRun closes an attached run without sending a signal to the harness
 // process. The token is revoked before the terminal state is returned.
 func (o *Orchestrator) DetachRun(ctx context.Context, id uuid.UUID, reason string) (*domain.Run, error) {
+	if caller, ok := coreidentity.PrincipalFromContext(ctx); ok && caller.Kind == coreidentity.ActorAgent {
+		verified, err := o.VerifyIdentityToken(ctx, provenance.ForwardedIdentityToken(ctx))
+		if !caller.IsVerified() || caller.Subject != id.String() || (!caller.ExpiresAt.IsZero() && !caller.ExpiresAt.After(o.now())) || err != nil || verified == nil || !verified.Valid || verified.Claims == nil || verified.Claims.RunID != id || !time.Unix(verified.Claims.ExpiresAt, 0).After(o.now()) {
+			return nil, domain.NewValidationErrorWithCode("authorization", "current attached self identity required", domain.ErrCodePolicyScope)
+		}
+	}
+
 	if o.runs == nil {
 		return nil, domain.NewConfigMissingError("runs", "run repository is not configured", nil)
 	}
@@ -136,6 +145,9 @@ func (o *Orchestrator) DetachRun(ctx context.Context, id uuid.UUID, reason strin
 		return nil, domain.NewNotFoundError("Run", id)
 	}
 	if run.ExecutionMode.Normalized() != domain.ExecutionModeAttached {
+		if caller, ok := coreidentity.PrincipalFromContext(ctx); ok && caller.Kind == coreidentity.ActorAgent {
+			return nil, domain.NewValidationErrorWithCode("authorization", "self cleanup requires an attached run", domain.ErrCodePolicyScope)
+		}
 		return nil, domain.NewStateError("Run", string(run.ExecutionMode), "detach", "only attached runs can be detached")
 	}
 	if run.Status.IsTerminal() {

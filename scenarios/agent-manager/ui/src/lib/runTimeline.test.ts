@@ -9,6 +9,7 @@ import {
   getTimelineModeLabel,
   getTimelineCategory,
   getTimelineEventSummary,
+  getToolResultOutcome,
   isReasoningEvent,
   getTimelineCategoryLabel,
   getTimelineEventLabel,
@@ -254,4 +255,14 @@ test("timeline summaries retain runner fallbacks when telemetry fields are absen
   assert.equal(getTimelineEventSummary(byId.get("progress")!), "Progress 0%");
   assert.equal(getTimelineEventSummary(byId.get("artifact")!), "diff");
   assert.equal(getTimelineEventSummary(byId.get("message-deleted")!), "Message  redacted");
+});
+
+test("tool result receipt distinguishes unknown outcome from historical and explicit results", () => {
+  assert.equal(getToolResultOutcome({ success: false, outcomeKnown: false }), "unknown");
+  assert.equal(getToolResultOutcome({ success: true }), "success");
+  assert.equal(getToolResultOutcome({ success: false }), "failure");
+  assert.equal(getToolResultOutcome({ success: true, exitCode: 4 }), "failure");
+  assert.equal(getToolResultOutcome({ success: false, exitCode: 0 }), "success");
+  const event = makeRunEvent({ data: { case: "toolResult", value: { toolName: "exec", outcomeKnown: false, success: false } } });
+  assert.equal(getTimelineEventSummary({ kind: "event", event, category: "tools" } as TimelineEventEntry), "Returned (outcome unknown) exec");
 });

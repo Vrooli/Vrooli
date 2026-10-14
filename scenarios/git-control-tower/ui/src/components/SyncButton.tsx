@@ -44,18 +44,9 @@ export function SyncButton({
     return () => window.removeEventListener("mousedown", handler);
   }, [open]);
 
-  // Keep the menu open while an operation runs: a push can take minutes, and the popover
-  // is where its phase and elapsed time are legible. Close it again once it finishes so
-  // the result is read from the toast rather than a stale menu.
-  const wasActive = useRef(false);
-  useEffect(() => {
-    if (isActive) {
-      setOpen(true);
-    } else if (wasActive.current) {
-      setOpen(false);
-    }
-    wasActive.current = isActive;
-  }, [isActive]);
+  // Progress for a running push/pull is surfaced by the sticky sync snackbar (notifySync),
+  // which stays legible from anywhere. The popover no longer force-opens during an operation
+  // so the two indicators don't duplicate each other; the trigger spinner still signals activity.
 
   if (ahead === 0 && behind === 0 && !isActive) return null;
 
@@ -130,11 +121,6 @@ export function SyncButton({
                 )}
                 {pullLabel}
               </Button>
-            )}
-            {isActive && (
-              <p className="text-[11px] text-slate-400 px-2 py-1" data-testid="sync-progress-note">
-                Large transfers can take several minutes. Leaving this panel does not cancel it.
-              </p>
             )}
             {!isActive && !canPush && ahead > 0 && (
               <p className="text-[11px] text-amber-400 px-2 py-1">Pull required before push</p>

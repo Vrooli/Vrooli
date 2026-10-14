@@ -112,9 +112,10 @@
               "lockfile": "requirements-gpu.lock",
               "index_url": "https://download.pytorch.org/whl/cu126",
               "extra_index_url": [
-                "https://pypi.org/simple"
+                "https://pypi.org/simple",
+                "https://www.piwheels.org/simple"
               ],
-              "allow_sdists": true
+              "allow_sdists": false
             },
             {
               "role": "application",
@@ -133,7 +134,7 @@
             "arch": "amd64"
           },
           "layout": "dir",
-          "artifact_sha256": "deb0268971cae48f88c089f90bf0937c9c321d17f56a1277ed54b1730a241ab8",
+          "artifact_sha256": "a5c816fb99745fd373124fbafe3182d9184f19af67bec40bd64cf0258f7a68be",
           "runtime_env": {
             "USE_GPU": "false",
             "DEVICE": "cpu"
@@ -155,9 +156,10 @@
               "lockfile": "requirements.lock",
               "index_url": "https://download.pytorch.org/whl/cpu",
               "extra_index_url": [
-                "https://pypi.org/simple"
+                "https://pypi.org/simple",
+                "https://www.piwheels.org/simple"
               ],
-              "allow_sdists": true
+              "allow_sdists": false
             },
             {
               "role": "application",
@@ -293,17 +295,17 @@
     "cpu": {},
     "claim": {
       "resource_kind": "vram",
-      "default_preferred_bytes": 2147483648,
+      "default_preferred_bytes": 4294967296,
       "floor_bytes": 0,
       "default_priority": "service",
-      "confidence": "estimated",
+      "confidence": "measured",
       "yield_when_idle": true,
       "idle_grace_seconds": 900,
       "profile": {
         "steps": [
           {
             "label": "gpu",
-            "default_amount_bytes": 2147483648
+            "default_amount_bytes": 4294967296
           },
           {
             "label": "cpu",

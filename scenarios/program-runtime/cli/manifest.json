@@ -870,6 +870,76 @@
       "description": "Submit bounded programs and query their provenance-bearing corpus.",
       "commands": [
         {
+          "name": "scaffold",
+          "description": "Generate a minimal, schema-valid contract and program skeleton for a new program.",
+          "flags": [
+            {
+              "name": "name",
+              "required": true,
+              "description": "Program name as <scenario>.<program> in kebab-case."
+            },
+            {
+              "name": "purpose",
+              "required": true,
+              "description": "Purpose statement, 20-240 characters."
+            },
+            {
+              "name": "binding",
+              "description": "Optional governed binding to pre-declare, as <scenario>/<group>/<command>."
+            },
+            {
+              "name": "out-dir",
+              "description": "Directory to write <program>.json and <program>.py; prints to stdout when omitted."
+            },
+            {
+              "name": "force",
+              "bool": true,
+              "description": "Overwrite existing files in --out-dir."
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        },
+        {
+          "name": "validate",
+          "description": "Offline-check a program contract against the schema, name/stem, and source syntax before submitting.",
+          "positionals": [
+            {
+              "name": "contract",
+              "required": true,
+              "description": "Path to the contract .json file."
+            },
+            {
+              "name": "program",
+              "description": "Path to the program .py (defaults to the contract path with a .py extension)."
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        },
+        {
           "name": "submit",
           "description": "Submit a program, optionally returning before it finishes.",
           "flags": [

@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file git-control-tower/v1/proposals/proposals.proto.
  */
 export const file_git_control_tower_v1_proposals_proposals: GenFile = /*@__PURE__*/
-  fileDesc("Ci5naXQtY29udHJvbC10b3dlci92MS9wcm9wb3NhbHMvcHJvcG9zYWxzLnByb3RvEiV2cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEucHJvcG9zYWxzIkgKBUFjdG9yEg8KB3N1YmplY3QYASABKAkSDAoEa2luZBgCIAEoCRIQCgh2ZXJpZmllZBgDIAEoCBIOCgZydW5faWQYBCABKAkiagoMUHJvcG9zYWxXb3JrEhIKCmVmZm9ydF9yZWYYASABKAkSFwoPZWZmb3J0X3JldmlzaW9uGAIgASgJEg0KBWVwb2NoGAMgASgJEg8KB3J1bl9pZHMYBCADKAkSDQoFcGxhbnMYBSADKAkiqAEKD1Byb3Bvc2FsVHJhaWxlchILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAkSDAoEa2luZBgDIAEoCRJMCgpyZXNvbHV0aW9uGAQgASgOMjgudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLnByb3Bvc2Fscy5UcmFpbGVyUmVzb2x1dGlvbhIOCgZkZXRhaWwYBSABKAkSDQoFa25vd24YBiABKAgikQEKDFRyYWlsZXJJc3N1ZRINCgVpbmRleBgBIAEoBRILCgNrZXkYAiABKAkSDAoEY29kZRgDIAEoCRIPCgdtZXNzYWdlGAQgASgJEkYKCHNldmVyaXR5GAUgASgOMjQudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLnByb3Bvc2Fscy5Jc3N1ZVNldmVyaXR5IqUBCg9Qcm9wb3NhbE1lc3NhZ2USDwoHc3ViamVjdBgBIAEoCRIMCgRib2R5GAIgASgJEkgKCHRyYWlsZXJzGAMgAygLMjYudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLnByb3Bvc2Fscy5Qcm9wb3NhbFRyYWlsZXISEAoIcmVuZGVyZWQYBCABKAkSFwoPb3BlcmF0b3JfZWRpdGVkGAUgASgIIiwKDFByb3Bvc2FsRmxhZxIMCgRjb2RlGAEgASgJEg4KBmRldGFpbBgCIAEoCSKRAgoMUHJvcG9zYWxGaWxlEgwKBHBhdGgYASABKAkSQwoEa2luZBgCIAEoDjI1LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5wcm9wb3NhbHMuRmlsZUNoYW5nZUtpbmQSDgoGc2hhMjU2GAMgASgJEg8KB2Jsb2JfaWQYBCABKAkSDwoHZGVsZXRlZBgFIAEoCBIOCgZzb3VyY2UYBiABKAkSQgoFZmxhZ3MYByADKAsyMy52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEucHJvcG9zYWxzLlByb3Bvc2FsRmxhZxIXCg9jdXJyZW50X2Jsb2JfaWQYCCABKAkSDwoHZHJpZnRlZBgJIAEoCCJBChFQcm9wb3NhbEV4Y2x1c2lvbhIMCgRwYXRoGAEgASgJEg4KBnJlYXNvbhgCIAEoCRIOCgZkZXRhaWwYAyABKAkimwEKEFByb3Bvc2FsRXZpZGVuY2USEQoJYW5jaG9yX2lkGAEgASgJEhIKCmVwb2NoX2ZpbGUYAiABKAkSHAoUYWNjZXB0ZWRfbGluZV9zaGEyNTYYAyABKAkSFQoNZ2F0ZV9yZWNlaXB0cxgEIAMoCRIVCg1tZXRyaWNfYmVmb3JlGAUgASgJEhQKDG1ldHJpY19hZnRlchgGIAEoCSKAAgoRUHJvcG9zYWxGcmVzaG5lc3MSRAoFc3RhdGUYASABKA4yNS52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEucHJvcG9zYWxzLkZyZXNobmVzc1N0YXRlEhUKDWRyaWZ0ZWRfcGF0aHMYAiADKAkSGgoSYmFzZV9jaGFuZ2VkX3BhdGhzGAMgAygJEhwKFGZvcmVpZ25fc3RhZ2VkX3BhdGhzGAQgAygJEhQKDGN1cnJlbnRfaGVhZBgFIAEoCRIOCgZkZXRhaWwYBiABKAkSLgoKY2hlY2tlZF9hdBgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAirQEKDVByb3Bvc2FsRXZlbnQSDgoGYWN0aW9uGAEgASgJEjsKBWFjdG9yGAIgASgLMiwudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLnByb3Bvc2Fscy5BY3RvchIQCghyZXZpc2lvbhgDIAEoBRIOCgZkZXRhaWwYBCABKAkSLQoJdGltZXN0YW1wGAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCL+BwoIUHJvcG9zYWwSCgoCaWQYASABKAkSFQoNcmVwb3NpdG9yeV9pZBgCIAEoCRJDCgVzdGF0ZRgDIAEoDjI0LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5wcm9wb3NhbHMuUHJvcG9zYWxTdGF0ZRIQCghyZXZpc2lvbhgEIAEoBRJACgpjcmVhdGVkX2J5GAUgASgLMiwudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLnByb3Bvc2Fscy5BY3RvchIRCgliYXNlX2hlYWQYBiABKAkSDgoGYnJhbmNoGAcgASgJEkEKBHdvcmsYCCABKAsyMy52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEucHJvcG9zYWxzLlByb3Bvc2FsV29yaxJHCgdtZXNzYWdlGAkgASgLMjYudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLnByb3Bvc2Fscy5Qcm9wb3NhbE1lc3NhZ2USQgoFZmlsZXMYCiADKAsyMy52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEucHJvcG9zYWxzLlByb3Bvc2FsRmlsZRJKCghleGNsdWRlZBgLIAMoCzI4LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5wcm9wb3NhbHMuUHJvcG9zYWxFeGNsdXNpb24SSQoIZXZpZGVuY2UYDCABKAsyNy52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEucHJvcG9zYWxzLlByb3Bvc2FsRXZpZGVuY2USFwoPcHJvcG9zYWxfZGlnZXN0GA0gASgJEhIKCmNvbW1pdF9vaWQYDiABKAkSFQoNc3VwZXJzZWRlZF9ieRgPIAEoCRJLCglmcmVzaG5lc3MYECABKAsyOC52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEucHJvcG9zYWxzLlByb3Bvc2FsRnJlc2huZXNzEkQKBmV2ZW50cxgRIAMoCzI0LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5wcm9wb3NhbHMuUHJvcG9zYWxFdmVudBJDCgZpc3N1ZXMYEiADKAsyMy52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEucHJvcG9zYWxzLlRyYWlsZXJJc3N1ZRIuCgpjcmVhdGVkX2F0GBMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GBQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIwCgxjb21taXR0ZWRfYXQYFSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIkwKCkFuY2hvckZpbGUSDAoEcGF0aBgBIAEoCRIOCgZzaGEyNTYYAiABKAkSDwoHYmxvYl9pZBgDIAEoCRIPCgdkZWxldGVkGAQgASgIIqACCgZBbmNob3ISCgoCaWQYASABKAkSFQoNcmVwb3NpdG9yeV9pZBgCIAEoCRISCgplZmZvcnRfcmVmGAMgASgJEg0KBWVwb2NoGAQgASgJEg4KBnNjb3BlcxgFIAMoCRIMCgRoZWFkGAYgASgJEkAKBWZpbGVzGAcgAygLMjEudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLnByb3Bvc2Fscy5BbmNob3JGaWxlEkAKCmNyZWF0ZWRfYnkYCCABKAsyLC52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEucHJvcG9zYWxzLkFjdG9yEi4KCmNyZWF0ZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wInYKEkFuY2hvclNjb3BlUmVxdWVzdBIVCg1yZXBvc2l0b3J5X2lkGAEgASgJEhIKCmVmZm9ydF9yZWYYAiABKAkSDQoFZXBvY2gYAyABKAkSDgoGc2NvcGVzGAQgAygJEhYKDmNyZWF0b3JfcnVuX2lkGAUgASgJIlQKE0FuY2hvclNjb3BlUmVzcG9uc2USPQoGYW5jaG9yGAEgASgLMi0udnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLnByb3Bvc2Fscy5BbmNob3Ii9gIKFUNyZWF0ZVByb3Bvc2FsUmVxdWVzdBIVCg1yZXBvc2l0b3J5X2lkGAEgASgJEhEKCWFuY2hvcl9pZBgCIAEoCRJBCgR3b3JrGAMgASgLMjMudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLnByb3Bvc2Fscy5Qcm9wb3NhbFdvcmsSDwoHc3ViamVjdBgEIAEoCRIMCgRib2R5GAUgASgJEkgKCHRyYWlsZXJzGAYgAygLMjYudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLnByb3Bvc2Fscy5Qcm9wb3NhbFRyYWlsZXISDQoFcGF0aHMYByADKAkSSQoIZXZpZGVuY2UYCCABKAsyNy52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEucHJvcG9zYWxzLlByb3Bvc2FsRXZpZGVuY2USFgoOY3JlYXRvcl9ydW5faWQYCSABKAkSFQoNdmFsaWRhdGVfb25seRgKIAEoCCLHAQoWQ3JlYXRlUHJvcG9zYWxSZXNwb25zZRJBCghwcm9wb3NhbBgBIAEoCzIvLnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5wcm9wb3NhbHMuUHJvcG9zYWwSQwoGaXNzdWVzGAIgAygLMjMudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLnByb3Bvc2Fscy5UcmFpbGVySXNzdWUSDgoGc3RvcmVkGAMgASgIEhUKDXN1cGVyc2VkZWRfaWQYBCABKAkilgEKFExpc3RQcm9wb3NhbHNSZXF1ZXN0EhUKDXJlcG9zaXRvcnlfaWQYASABKAkSRAoGc3RhdGVzGAIgAygOMjQudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLnByb3Bvc2Fscy5Qcm9wb3NhbFN0YXRlEhIKCmVmZm9ydF9yZWYYAyABKAkSDQoFbGltaXQYBCABKAUibwoVTGlzdFByb3Bvc2Fsc1Jlc3BvbnNlEkIKCXByb3Bvc2FscxgBIAMoCzIvLnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5wcm9wb3NhbHMuUHJvcG9zYWwSEgoKb3Blbl9jb3VudBgCIAEoBSIgChJHZXRQcm9wb3NhbFJlcXVlc3QSCgoCaWQYASABKAkiWAoTR2V0UHJvcG9zYWxSZXNwb25zZRJBCghwcm9wb3NhbBgBIAEoCzIvLnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5wcm9wb3NhbHMuUHJvcG9zYWwi9AEKE0VkaXRQcm9wb3NhbFJlcXVlc3QSCgoCaWQYASABKAkSGQoRZXhwZWN0ZWRfcmV2aXNpb24YAiABKAUSFAoHc3ViamVjdBgDIAEoCUgAiAEBEhEKBGJvZHkYBCABKAlIAYgBARJICgh0cmFpbGVycxgFIAMoCzI2LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5wcm9wb3NhbHMuUHJvcG9zYWxUcmFpbGVyEhgKEHJlcGxhY2VfdHJhaWxlcnMYBiABKAgSFAoMcmVtb3ZlX3BhdGhzGAcgAygJQgoKCF9zdWJqZWN0QgcKBV9ib2R5Ip4BChRFZGl0UHJvcG9zYWxSZXNwb25zZRJBCghwcm9wb3NhbBgBIAEoCzIvLnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5wcm9wb3NhbHMuUHJvcG9zYWwSQwoGaXNzdWVzGAIgAygLMjMudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLnByb3Bvc2Fscy5UcmFpbGVySXNzdWUiNQoXV2l0aGRyYXdQcm9wb3NhbFJlcXVlc3QSCgoCaWQYASABKAkSDgoGcmVhc29uGAIgASgJIl0KGFdpdGhkcmF3UHJvcG9zYWxSZXNwb25zZRJBCghwcm9wb3NhbBgBIAEoCzIvLnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5wcm9wb3NhbHMuUHJvcG9zYWwiPwoWUmVmcmVzaFByb3Bvc2FsUmVxdWVzdBIKCgJpZBgBIAEoCRIZChFleHBlY3RlZF9yZXZpc2lvbhgCIAEoBSJzChdSZWZyZXNoUHJvcG9zYWxSZXNwb25zZRJBCghwcm9wb3NhbBgBIAEoCzIvLnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5wcm9wb3NhbHMuUHJvcG9zYWwSFQoNZHJvcHBlZF9wYXRocxgCIAMoCSJ7ChRBcHBseVByb3Bvc2FsUmVxdWVzdBIVCg1yZXBvc2l0b3J5X2lkGAEgASgJEhEKCWludGVudF9pZBgCIAEoCRIKCgJpZBgDIAEoCRIQCghyZXZpc2lvbhgEIAEoBRIbChNza2lwX3ByZWNvbW1pdF9vbmNlGAUgASgIIjsKDEFwcGx5UmVmdXNhbBIMCgRjb2RlGAEgASgJEg0KBXBhdGhzGAIgAygJEg4KBmRldGFpbBgDIAEoCSKKAQoOQXBwbHlQcmVjb21taXQSDgoGc3RhdHVzGAEgASgJEg8KB2NvbW1hbmQYAiABKAkSEQoJZXhpdF9jb2RlGAMgASgFEg8KB3N1bW1hcnkYBCABKAkSDgoGc3Rkb3V0GAUgASgJEg4KBnN0ZGVychgGIAEoCRITCgtkdXJhdGlvbl9tcxgHIAEoAyLTAgoVQXBwbHlQcm9wb3NhbFJlc3BvbnNlEg8KB3N1Y2Nlc3MYASABKAgSEgoKY29tbWl0X29pZBgCIAEoCRJBCghwcm9wb3NhbBgDIAEoCzIvLnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5wcm9wb3NhbHMuUHJvcG9zYWwSRAoHcmVmdXNhbBgEIAEoCzIzLnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5wcm9wb3NhbHMuQXBwbHlSZWZ1c2FsEg0KBWVycm9yGAUgASgJEkgKCXByZWNvbW1pdBgGIAEoCzI1LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5wcm9wb3NhbHMuQXBwbHlQcmVjb21taXQSFwoPY29tbWl0X3ZlcmlmaWVkGAcgASgIEhoKEnZlcmlmaWNhdGlvbl9ub3RlcxgIIAMoCSqjAQoNUHJvcG9zYWxTdGF0ZRIeChpQUk9QT1NBTF9TVEFURV9VTlNQRUNJRklFRBAAEhcKE1BST1BPU0FMX1NUQVRFX09QRU4QARIcChhQUk9QT1NBTF9TVEFURV9DT01NSVRURUQQAhIcChhQUk9QT1NBTF9TVEFURV9XSVRIRFJBV04QAxIdChlQUk9QT1NBTF9TVEFURV9TVVBFUlNFREVEEAQqiwEKDkZpbGVDaGFuZ2VLaW5kEiAKHEZJTEVfQ0hBTkdFX0tJTkRfVU5TUEVDSUZJRUQQABIaChZGSUxFX0NIQU5HRV9LSU5EX0FEREVEEAESHQoZRklMRV9DSEFOR0VfS0lORF9NT0RJRklFRBACEhwKGEZJTEVfQ0hBTkdFX0tJTkRfREVMRVRFRBADKsoBCg5GcmVzaG5lc3NTdGF0ZRIfChtGUkVTSE5FU1NfU1RBVEVfVU5TUEVDSUZJRUQQABIZChVGUkVTSE5FU1NfU1RBVEVfRlJFU0gQARIbChdGUkVTSE5FU1NfU1RBVEVfRFJJRlRFRBACEh4KGkZSRVNITkVTU19TVEFURV9CQVNFX01PVkVEEAMSGwoXRlJFU0hORVNTX1NUQVRFX1VOS05PV04QBBIiCh5GUkVTSE5FU1NfU1RBVEVfTk9UX0FQUExJQ0FCTEUQBSqoAgoRVHJhaWxlclJlc29sdXRpb24SIgoeVFJBSUxFUl9SRVNPTFVUSU9OX1VOU1BFQ0lGSUVEEAASHwobVFJBSUxFUl9SRVNPTFVUSU9OX1JFU09MVkVEEAESIQodVFJBSUxFUl9SRVNPTFVUSU9OX1VOUkVTT0xWRUQQAhIgChxUUkFJTEVSX1JFU09MVVRJT05fQU1CSUdVT1VTEAMSIwofVFJBSUxFUl9SRVNPTFVUSU9OX0lOQUNDRVNTSUJMRRAEEh4KGlRSQUlMRVJfUkVTT0xVVElPTl9ERUxFVEVEEAUSHQoZVFJBSUxFUl9SRVNPTFVUSU9OX0xFR0FDWRAGEiUKIVRSQUlMRVJfUkVTT0xVVElPTl9OT1RfQVBQTElDQUJMRRAHKmUKDUlzc3VlU2V2ZXJpdHkSHgoaSVNTVUVfU0VWRVJJVFlfVU5TUEVDSUZJRUQQABIYChRJU1NVRV9TRVZFUklUWV9FUlJPUhABEhoKFklTU1VFX1NFVkVSSVRZX1dBUk5JTkcQAjL8CAoPUHJvcG9zYWxTZXJ2aWNlEoQBCgtBbmNob3JTY29wZRI5LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5wcm9wb3NhbHMuQW5jaG9yU2NvcGVSZXF1ZXN0GjoudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLnByb3Bvc2Fscy5BbmNob3JTY29wZVJlc3BvbnNlEo0BCg5DcmVhdGVQcm9wb3NhbBI8LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5wcm9wb3NhbHMuQ3JlYXRlUHJvcG9zYWxSZXF1ZXN0Gj0udnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLnByb3Bvc2Fscy5DcmVhdGVQcm9wb3NhbFJlc3BvbnNlEooBCg1MaXN0UHJvcG9zYWxzEjsudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLnByb3Bvc2Fscy5MaXN0UHJvcG9zYWxzUmVxdWVzdBo8LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5wcm9wb3NhbHMuTGlzdFByb3Bvc2Fsc1Jlc3BvbnNlEoQBCgtHZXRQcm9wb3NhbBI5LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5wcm9wb3NhbHMuR2V0UHJvcG9zYWxSZXF1ZXN0GjoudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLnByb3Bvc2Fscy5HZXRQcm9wb3NhbFJlc3BvbnNlEocBCgxFZGl0UHJvcG9zYWwSOi52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEucHJvcG9zYWxzLkVkaXRQcm9wb3NhbFJlcXVlc3QaOy52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEucHJvcG9zYWxzLkVkaXRQcm9wb3NhbFJlc3BvbnNlEpMBChBXaXRoZHJhd1Byb3Bvc2FsEj4udnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLnByb3Bvc2Fscy5XaXRoZHJhd1Byb3Bvc2FsUmVxdWVzdBo/LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5wcm9wb3NhbHMuV2l0aGRyYXdQcm9wb3NhbFJlc3BvbnNlEpABCg9SZWZyZXNoUHJvcG9zYWwSPS52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEucHJvcG9zYWxzLlJlZnJlc2hQcm9wb3NhbFJlcXVlc3QaPi52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEucHJvcG9zYWxzLlJlZnJlc2hQcm9wb3NhbFJlc3BvbnNlEooBCg1BcHBseVByb3Bvc2FsEjsudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLnByb3Bvc2Fscy5BcHBseVByb3Bvc2FsUmVxdWVzdBo8LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5wcm9wb3NhbHMuQXBwbHlQcm9wb3NhbFJlc3BvbnNlQlxaWmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vZ2l0LWNvbnRyb2wtdG93ZXIvdjEvcHJvcG9zYWxzO3Byb3Bvc2Fsc192MWIGcHJvdG8z", [file_google_protobuf_timestamp]);
+  fileDesc("Ci5naXQtY29udHJvbC10b3dlci92MS9wcm9wb3NhbHMvcHJvcG9zYWxzLnByb3RvEiV2cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEucHJvcG9zYWxzIkgKBUFjdG9yEg8KB3N1YmplY3QYASABKAkSDAoEa2luZBgCIAEoCRIQCgh2ZXJpZmllZBgDIAEoCBIOCgZydW5faWQYBCABKAkigQEKDFByb3Bvc2FsV29yaxISCgplZmZvcnRfcmVmGAEgASgJEhcKD2VmZm9ydF9yZXZpc2lvbhgCIAEoCRINCgVlcG9jaBgDIAEoCRIPCgdydW5faWRzGAQgAygJEg0KBXBsYW5zGAUgAygJEhUKDWZvbGRlZF9lcG9jaHMYBiADKAkiygEKDFByb3Bvc2FsRm9sZBIKCgJpZBgBIAEoCRINCgVlcG9jaBgCIAEoCRIPCgdzdWJqZWN0GAMgASgJEg4KBnJlYXNvbhgEIAEoCRINCgVwYXRocxgFIAMoCRIQCghyZXZpc2lvbhgGIAEoBRISCgplZmZvcnRfcmVmGAcgASgJEkkKCGV2aWRlbmNlGAggASgLMjcudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLnByb3Bvc2Fscy5Qcm9wb3NhbEV2aWRlbmNlIqgBCg9Qcm9wb3NhbFRyYWlsZXISCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJEgwKBGtpbmQYAyABKAkSTAoKcmVzb2x1dGlvbhgEIAEoDjI4LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5wcm9wb3NhbHMuVHJhaWxlclJlc29sdXRpb24SDgoGZGV0YWlsGAUgASgJEg0KBWtub3duGAYgASgIIpEBCgxUcmFpbGVySXNzdWUSDQoFaW5kZXgYASABKAUSCwoDa2V5GAIgASgJEgwKBGNvZGUYAyABKAkSDwoHbWVzc2FnZRgEIAEoCRJGCghzZXZlcml0eRgFIAEoDjI0LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5wcm9wb3NhbHMuSXNzdWVTZXZlcml0eSKlAQoPUHJvcG9zYWxNZXNzYWdlEg8KB3N1YmplY3QYASABKAkSDAoEYm9keRgCIAEoCRJICgh0cmFpbGVycxgDIAMoCzI2LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5wcm9wb3NhbHMuUHJvcG9zYWxUcmFpbGVyEhAKCHJlbmRlcmVkGAQgASgJEhcKD29wZXJhdG9yX2VkaXRlZBgFIAEoCCIsCgxQcm9wb3NhbEZsYWcSDAoEY29kZRgBIAEoCRIOCgZkZXRhaWwYAiABKAkiyAIKDFByb3Bvc2FsRmlsZRIMCgRwYXRoGAEgASgJEkMKBGtpbmQYAiABKA4yNS52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEucHJvcG9zYWxzLkZpbGVDaGFuZ2VLaW5kEg4KBnNoYTI1NhgDIAEoCRIPCgdibG9iX2lkGAQgASgJEg8KB2RlbGV0ZWQYBSABKAgSDgoGc291cmNlGAYgASgJEkIKBWZsYWdzGAcgAygLMjMudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLnByb3Bvc2Fscy5Qcm9wb3NhbEZsYWcSFwoPY3VycmVudF9ibG9iX2lkGAggASgJEg8KB2RyaWZ0ZWQYCSABKAgSDAoEbW9kZRgKIAEoCRIRCgliYXNlX21vZGUYCyABKAkSFAoMYmFzZV9ibG9iX2lkGAwgASgJIkEKEVByb3Bvc2FsRXhjbHVzaW9uEgwKBHBhdGgYASABKAkSDgoGcmVhc29uGAIgASgJEg4KBmRldGFpbBgDIAEoCSKbAQoQUHJvcG9zYWxFdmlkZW5jZRIRCglhbmNob3JfaWQYASABKAkSEgoKZXBvY2hfZmlsZRgCIAEoCRIcChRhY2NlcHRlZF9saW5lX3NoYTI1NhgDIAEoCRIVCg1nYXRlX3JlY2VpcHRzGAQgAygJEhUKDW1ldHJpY19iZWZvcmUYBSABKAkSFAoMbWV0cmljX2FmdGVyGAYgASgJIoACChFQcm9wb3NhbEZyZXNobmVzcxJECgVzdGF0ZRgBIAEoDjI1LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5wcm9wb3NhbHMuRnJlc2huZXNzU3RhdGUSFQoNZHJpZnRlZF9wYXRocxgCIAMoCRIaChJiYXNlX2NoYW5nZWRfcGF0aHMYAyADKAkSHAoUZm9yZWlnbl9zdGFnZWRfcGF0aHMYBCADKAkSFAoMY3VycmVudF9oZWFkGAUgASgJEg4KBmRldGFpbBgGIAEoCRIuCgpjaGVja2VkX2F0GAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCKtAQoNUHJvcG9zYWxFdmVudBIOCgZhY3Rpb24YASABKAkSOwoFYWN0b3IYAiABKAsyLC52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEucHJvcG9zYWxzLkFjdG9yEhAKCHJldmlzaW9uGAMgASgFEg4KBmRldGFpbBgEIAEoCRItCgl0aW1lc3RhbXAYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIqIJCghQcm9wb3NhbBIKCgJpZBgBIAEoCRIVCg1yZXBvc2l0b3J5X2lkGAIgASgJEkMKBXN0YXRlGAMgASgOMjQudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLnByb3Bvc2Fscy5Qcm9wb3NhbFN0YXRlEhAKCHJldmlzaW9uGAQgASgFEkAKCmNyZWF0ZWRfYnkYBSABKAsyLC52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEucHJvcG9zYWxzLkFjdG9yEhEKCWJhc2VfaGVhZBgGIAEoCRIOCgZicmFuY2gYByABKAkSQQoEd29yaxgIIAEoCzIzLnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5wcm9wb3NhbHMuUHJvcG9zYWxXb3JrEkcKB21lc3NhZ2UYCSABKAsyNi52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEucHJvcG9zYWxzLlByb3Bvc2FsTWVzc2FnZRJCCgVmaWxlcxgKIAMoCzIzLnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5wcm9wb3NhbHMuUHJvcG9zYWxGaWxlEkoKCGV4Y2x1ZGVkGAsgAygLMjgudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLnByb3Bvc2Fscy5Qcm9wb3NhbEV4Y2x1c2lvbhJJCghldmlkZW5jZRgMIAEoCzI3LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5wcm9wb3NhbHMuUHJvcG9zYWxFdmlkZW5jZRIXCg9wcm9wb3NhbF9kaWdlc3QYDSABKAkSEgoKY29tbWl0X29pZBgOIAEoCRIVCg1zdXBlcnNlZGVkX2J5GA8gASgJEksKCWZyZXNobmVzcxgQIAEoCzI4LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5wcm9wb3NhbHMuUHJvcG9zYWxGcmVzaG5lc3MSRAoGZXZlbnRzGBEgAygLMjQudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLnByb3Bvc2Fscy5Qcm9wb3NhbEV2ZW50EkMKBmlzc3VlcxgSIAMoCzIzLnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5wcm9wb3NhbHMuVHJhaWxlcklzc3VlEi4KCmNyZWF0ZWRfYXQYEyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYFCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjAKDGNvbW1pdHRlZF9hdBgVIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASQgoFZm9sZHMYFiADKAsyMy52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEucHJvcG9zYWxzLlByb3Bvc2FsRm9sZBIQCghjYXB0dXJlZBgXIAEoCBIaChJyZXRhaW5lZF9yZXZpc2lvbnMYGCADKAUSFwoPcmVwb3NpdG9yeV9uYW1lGBkgASgJEhcKD3JlcG9zaXRvcnlfcGF0aBgaIAEoCSJaCgpBbmNob3JGaWxlEgwKBHBhdGgYASABKAkSDgoGc2hhMjU2GAIgASgJEg8KB2Jsb2JfaWQYAyABKAkSDwoHZGVsZXRlZBgEIAEoCBIMCgRtb2RlGAUgASgJIqACCgZBbmNob3ISCgoCaWQYASABKAkSFQoNcmVwb3NpdG9yeV9pZBgCIAEoCRISCgplZmZvcnRfcmVmGAMgASgJEg0KBWVwb2NoGAQgASgJEg4KBnNjb3BlcxgFIAMoCRIMCgRoZWFkGAYgASgJEkAKBWZpbGVzGAcgAygLMjEudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLnByb3Bvc2Fscy5BbmNob3JGaWxlEkAKCmNyZWF0ZWRfYnkYCCABKAsyLC52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEucHJvcG9zYWxzLkFjdG9yEi4KCmNyZWF0ZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wInYKEkFuY2hvclNjb3BlUmVxdWVzdBIVCg1yZXBvc2l0b3J5X2lkGAEgASgJEhIKCmVmZm9ydF9yZWYYAiABKAkSDQoFZXBvY2gYAyABKAkSDgoGc2NvcGVzGAQgAygJEhYKDmNyZWF0b3JfcnVuX2lkGAUgASgJIlQKE0FuY2hvclNjb3BlUmVzcG9uc2USPQoGYW5jaG9yGAEgASgLMi0udnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLnByb3Bvc2Fscy5BbmNob3Ii9gIKFUNyZWF0ZVByb3Bvc2FsUmVxdWVzdBIVCg1yZXBvc2l0b3J5X2lkGAEgASgJEhEKCWFuY2hvcl9pZBgCIAEoCRJBCgR3b3JrGAMgASgLMjMudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLnByb3Bvc2Fscy5Qcm9wb3NhbFdvcmsSDwoHc3ViamVjdBgEIAEoCRIMCgRib2R5GAUgASgJEkgKCHRyYWlsZXJzGAYgAygLMjYudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLnByb3Bvc2Fscy5Qcm9wb3NhbFRyYWlsZXISDQoFcGF0aHMYByADKAkSSQoIZXZpZGVuY2UYCCABKAsyNy52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEucHJvcG9zYWxzLlByb3Bvc2FsRXZpZGVuY2USFgoOY3JlYXRvcl9ydW5faWQYCSABKAkSFQoNdmFsaWRhdGVfb25seRgKIAEoCCLbAQoWQ3JlYXRlUHJvcG9zYWxSZXNwb25zZRJBCghwcm9wb3NhbBgBIAEoCzIvLnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5wcm9wb3NhbHMuUHJvcG9zYWwSQwoGaXNzdWVzGAIgAygLMjMudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLnByb3Bvc2Fscy5UcmFpbGVySXNzdWUSDgoGc3RvcmVkGAMgASgISgQIBBAFSgQIBRAGUg1zdXBlcnNlZGVkX2lkUg5zdXBlcnNlZGVkX2lkcyKWAQoUTGlzdFByb3Bvc2Fsc1JlcXVlc3QSFQoNcmVwb3NpdG9yeV9pZBgBIAEoCRJECgZzdGF0ZXMYAiADKA4yNC52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEucHJvcG9zYWxzLlByb3Bvc2FsU3RhdGUSEgoKZWZmb3J0X3JlZhgDIAEoCRINCgVsaW1pdBgEIAEoBSJvChVMaXN0UHJvcG9zYWxzUmVzcG9uc2USQgoJcHJvcG9zYWxzGAEgAygLMi8udnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLnByb3Bvc2Fscy5Qcm9wb3NhbBISCgpvcGVuX2NvdW50GAIgASgFIjIKEkdldFByb3Bvc2FsUmVxdWVzdBIKCgJpZBgBIAEoCRIQCghyZXZpc2lvbhgCIAEoBSI5ChlQcm9wb3NhbFJldmlzaW9uUmVmZXJlbmNlEgoKAmlkGAEgASgJEhAKCHJldmlzaW9uGAIgASgFIosBChdDb21iaW5lUHJvcG9zYWxzUmVxdWVzdBJRCgdzb3VyY2VzGAEgAygLMkAudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLnByb3Bvc2Fscy5Qcm9wb3NhbFJldmlzaW9uUmVmZXJlbmNlEg8KB3N1YmplY3QYAiABKAkSDAoEYm9keRgDIAEoCSJYChNHZXRQcm9wb3NhbFJlc3BvbnNlEkEKCHByb3Bvc2FsGAEgASgLMi8udnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLnByb3Bvc2Fscy5Qcm9wb3NhbCL0AQoTRWRpdFByb3Bvc2FsUmVxdWVzdBIKCgJpZBgBIAEoCRIZChFleHBlY3RlZF9yZXZpc2lvbhgCIAEoBRIUCgdzdWJqZWN0GAMgASgJSACIAQESEQoEYm9keRgEIAEoCUgBiAEBEkgKCHRyYWlsZXJzGAUgAygLMjYudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLnByb3Bvc2Fscy5Qcm9wb3NhbFRyYWlsZXISGAoQcmVwbGFjZV90cmFpbGVycxgGIAEoCBIUCgxyZW1vdmVfcGF0aHMYByADKAlCCgoIX3N1YmplY3RCBwoFX2JvZHkingEKFEVkaXRQcm9wb3NhbFJlc3BvbnNlEkEKCHByb3Bvc2FsGAEgASgLMi8udnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLnByb3Bvc2Fscy5Qcm9wb3NhbBJDCgZpc3N1ZXMYAiADKAsyMy52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEucHJvcG9zYWxzLlRyYWlsZXJJc3N1ZSJoChdXaXRoZHJhd1Byb3Bvc2FsUmVxdWVzdBIKCgJpZBgBIAEoCRIOCgZyZWFzb24YAiABKAkSGQoRZXhwZWN0ZWRfcmV2aXNpb24YAyABKAUSFgoOcmVwbGFjZW1lbnRfaWQYBCABKAkiXQoYV2l0aGRyYXdQcm9wb3NhbFJlc3BvbnNlEkEKCHByb3Bvc2FsGAEgASgLMi8udnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLnByb3Bvc2Fscy5Qcm9wb3NhbCI/ChZSZWZyZXNoUHJvcG9zYWxSZXF1ZXN0EgoKAmlkGAEgASgJEhkKEWV4cGVjdGVkX3JldmlzaW9uGAIgASgFInMKF1JlZnJlc2hQcm9wb3NhbFJlc3BvbnNlEkEKCHByb3Bvc2FsGAEgASgLMi8udnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLnByb3Bvc2Fscy5Qcm9wb3NhbBIVCg1kcm9wcGVkX3BhdGhzGAIgAygJIrcBChRBcHBseVByb3Bvc2FsUmVxdWVzdBIVCg1yZXBvc2l0b3J5X2lkGAEgASgJEhEKCWludGVudF9pZBgCIAEoCRIKCgJpZBgDIAEoCRIQCghyZXZpc2lvbhgEIAEoBRIbChNza2lwX3ByZWNvbW1pdF9vbmNlGAUgASgIEh4KFmFja25vd2xlZGdlX3ByaW9yX3dvcmsYBiABKAgSGgoSa2VlcF9sYXRlcl9jaGFuZ2VzGAcgASgIIjsKDEFwcGx5UmVmdXNhbBIMCgRjb2RlGAEgASgJEg0KBXBhdGhzGAIgAygJEg4KBmRldGFpbBgDIAEoCSKKAQoOQXBwbHlQcmVjb21taXQSDgoGc3RhdHVzGAEgASgJEg8KB2NvbW1hbmQYAiABKAkSEQoJZXhpdF9jb2RlGAMgASgFEg8KB3N1bW1hcnkYBCABKAkSDgoGc3Rkb3V0GAUgASgJEg4KBnN0ZGVychgGIAEoCRITCgtkdXJhdGlvbl9tcxgHIAEoAyLTAgoVQXBwbHlQcm9wb3NhbFJlc3BvbnNlEg8KB3N1Y2Nlc3MYASABKAgSEgoKY29tbWl0X29pZBgCIAEoCRJBCghwcm9wb3NhbBgDIAEoCzIvLnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5wcm9wb3NhbHMuUHJvcG9zYWwSRAoHcmVmdXNhbBgEIAEoCzIzLnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5wcm9wb3NhbHMuQXBwbHlSZWZ1c2FsEg0KBWVycm9yGAUgASgJEkgKCXByZWNvbW1pdBgGIAEoCzI1LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5wcm9wb3NhbHMuQXBwbHlQcmVjb21taXQSFwoPY29tbWl0X3ZlcmlmaWVkGAcgASgIEhoKEnZlcmlmaWNhdGlvbl9ub3RlcxgIIAMoCSqjAQoNUHJvcG9zYWxTdGF0ZRIeChpQUk9QT1NBTF9TVEFURV9VTlNQRUNJRklFRBAAEhcKE1BST1BPU0FMX1NUQVRFX09QRU4QARIcChhQUk9QT1NBTF9TVEFURV9DT01NSVRURUQQAhIcChhQUk9QT1NBTF9TVEFURV9XSVRIRFJBV04QAxIdChlQUk9QT1NBTF9TVEFURV9TVVBFUlNFREVEEAQqiwEKDkZpbGVDaGFuZ2VLaW5kEiAKHEZJTEVfQ0hBTkdFX0tJTkRfVU5TUEVDSUZJRUQQABIaChZGSUxFX0NIQU5HRV9LSU5EX0FEREVEEAESHQoZRklMRV9DSEFOR0VfS0lORF9NT0RJRklFRBACEhwKGEZJTEVfQ0hBTkdFX0tJTkRfREVMRVRFRBADKsoBCg5GcmVzaG5lc3NTdGF0ZRIfChtGUkVTSE5FU1NfU1RBVEVfVU5TUEVDSUZJRUQQABIZChVGUkVTSE5FU1NfU1RBVEVfRlJFU0gQARIbChdGUkVTSE5FU1NfU1RBVEVfRFJJRlRFRBACEh4KGkZSRVNITkVTU19TVEFURV9CQVNFX01PVkVEEAMSGwoXRlJFU0hORVNTX1NUQVRFX1VOS05PV04QBBIiCh5GUkVTSE5FU1NfU1RBVEVfTk9UX0FQUExJQ0FCTEUQBSqoAgoRVHJhaWxlclJlc29sdXRpb24SIgoeVFJBSUxFUl9SRVNPTFVUSU9OX1VOU1BFQ0lGSUVEEAASHwobVFJBSUxFUl9SRVNPTFVUSU9OX1JFU09MVkVEEAESIQodVFJBSUxFUl9SRVNPTFVUSU9OX1VOUkVTT0xWRUQQAhIgChxUUkFJTEVSX1JFU09MVVRJT05fQU1CSUdVT1VTEAMSIwofVFJBSUxFUl9SRVNPTFVUSU9OX0lOQUNDRVNTSUJMRRAEEh4KGlRSQUlMRVJfUkVTT0xVVElPTl9ERUxFVEVEEAUSHQoZVFJBSUxFUl9SRVNPTFVUSU9OX0xFR0FDWRAGEiUKIVRSQUlMRVJfUkVTT0xVVElPTl9OT1RfQVBQTElDQUJMRRAHKmUKDUlzc3VlU2V2ZXJpdHkSHgoaSVNTVUVfU0VWRVJJVFlfVU5TUEVDSUZJRUQQABIYChRJU1NVRV9TRVZFUklUWV9FUlJPUhABEhoKFklTU1VFX1NFVkVSSVRZX1dBUk5JTkcQAjKNCgoPUHJvcG9zYWxTZXJ2aWNlEoQBCgtBbmNob3JTY29wZRI5LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5wcm9wb3NhbHMuQW5jaG9yU2NvcGVSZXF1ZXN0GjoudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLnByb3Bvc2Fscy5BbmNob3JTY29wZVJlc3BvbnNlEo0BCg5DcmVhdGVQcm9wb3NhbBI8LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5wcm9wb3NhbHMuQ3JlYXRlUHJvcG9zYWxSZXF1ZXN0Gj0udnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLnByb3Bvc2Fscy5DcmVhdGVQcm9wb3NhbFJlc3BvbnNlEooBCg1MaXN0UHJvcG9zYWxzEjsudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLnByb3Bvc2Fscy5MaXN0UHJvcG9zYWxzUmVxdWVzdBo8LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5wcm9wb3NhbHMuTGlzdFByb3Bvc2Fsc1Jlc3BvbnNlEoQBCgtHZXRQcm9wb3NhbBI5LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5wcm9wb3NhbHMuR2V0UHJvcG9zYWxSZXF1ZXN0GjoudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLnByb3Bvc2Fscy5HZXRQcm9wb3NhbFJlc3BvbnNlEo4BChBDb21iaW5lUHJvcG9zYWxzEj4udnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLnByb3Bvc2Fscy5Db21iaW5lUHJvcG9zYWxzUmVxdWVzdBo6LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5wcm9wb3NhbHMuR2V0UHJvcG9zYWxSZXNwb25zZRKHAQoMRWRpdFByb3Bvc2FsEjoudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLnByb3Bvc2Fscy5FZGl0UHJvcG9zYWxSZXF1ZXN0GjsudnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLnByb3Bvc2Fscy5FZGl0UHJvcG9zYWxSZXNwb25zZRKTAQoQV2l0aGRyYXdQcm9wb3NhbBI+LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5wcm9wb3NhbHMuV2l0aGRyYXdQcm9wb3NhbFJlcXVlc3QaPy52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEucHJvcG9zYWxzLldpdGhkcmF3UHJvcG9zYWxSZXNwb25zZRKQAQoPUmVmcmVzaFByb3Bvc2FsEj0udnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLnByb3Bvc2Fscy5SZWZyZXNoUHJvcG9zYWxSZXF1ZXN0Gj4udnJvb2xpLmdpdF9jb250cm9sX3Rvd2VyLnYxLnByb3Bvc2Fscy5SZWZyZXNoUHJvcG9zYWxSZXNwb25zZRKKAQoNQXBwbHlQcm9wb3NhbBI7LnZyb29saS5naXRfY29udHJvbF90b3dlci52MS5wcm9wb3NhbHMuQXBwbHlQcm9wb3NhbFJlcXVlc3QaPC52cm9vbGkuZ2l0X2NvbnRyb2xfdG93ZXIudjEucHJvcG9zYWxzLkFwcGx5UHJvcG9zYWxSZXNwb25zZUJcWlpnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2dpdC1jb250cm9sLXRvd2VyL3YxL3Byb3Bvc2Fscztwcm9wb3NhbHNfdjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
 
 /**
  * Who created or changed a record.
@@ -102,6 +102,13 @@ export type ProposalWork = Message<"vrooli.git_control_tower.v1.proposals.Propos
    * @generated from field: repeated string plans = 5;
    */
   plans: string[];
+
+  /**
+   * Earlier epochs whose open proposals this one folded, oldest first.
+   *
+   * @generated from field: repeated string folded_epochs = 6;
+   */
+  foldedEpochs: string[];
 };
 
 /**
@@ -110,6 +117,73 @@ export type ProposalWork = Message<"vrooli.git_control_tower.v1.proposals.Propos
  */
 export const ProposalWorkSchema: GenMessage<ProposalWork> = /*@__PURE__*/
   messageDesc(file_git_control_tower_v1_proposals_proposals, 1);
+
+/**
+ * An earlier open proposal of the same effort that a newer proposal folded
+ * in. The folded proposal stays in history as superseded.
+ *
+ * @generated from message vrooli.git_control_tower.v1.proposals.ProposalFold
+ */
+export type ProposalFold = Message<"vrooli.git_control_tower.v1.proposals.ProposalFold"> & {
+  /**
+   * Folded proposal ID.
+   * @example "gctp-3f9a1c2b7d4e"
+   *
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * Epoch label of the folded proposal.
+   * @example "E28"
+   *
+   * @generated from field: string epoch = 2;
+   */
+  epoch: string;
+
+  /**
+   * Commit subject of the folded proposal.
+   *
+   * @generated from field: string subject = 3;
+   */
+  subject: string;
+
+  /**
+   * Why it was folded, for example shared paths or drift.
+   *
+   * @generated from field: string reason = 4;
+   */
+  reason: string;
+
+  /**
+   * The folded proposal's file paths.
+   *
+   * @generated from field: repeated string paths = 5;
+   */
+  paths: string[];
+
+  /**
+   * @generated from field: int32 revision = 6;
+   */
+  revision: number;
+
+  /**
+   * @generated from field: string effort_ref = 7;
+   */
+  effortRef: string;
+
+  /**
+   * @generated from field: vrooli.git_control_tower.v1.proposals.ProposalEvidence evidence = 8;
+   */
+  evidence?: ProposalEvidence | undefined;
+};
+
+/**
+ * Describes the message vrooli.git_control_tower.v1.proposals.ProposalFold.
+ * Use `create(ProposalFoldSchema)` to create a new message.
+ */
+export const ProposalFoldSchema: GenMessage<ProposalFold> = /*@__PURE__*/
+  messageDesc(file_git_control_tower_v1_proposals_proposals, 2);
 
 /**
  * One commit-message trailer.
@@ -167,7 +241,7 @@ export type ProposalTrailer = Message<"vrooli.git_control_tower.v1.proposals.Pro
  * Use `create(ProposalTrailerSchema)` to create a new message.
  */
 export const ProposalTrailerSchema: GenMessage<ProposalTrailer> = /*@__PURE__*/
-  messageDesc(file_git_control_tower_v1_proposals_proposals, 2);
+  messageDesc(file_git_control_tower_v1_proposals_proposals, 3);
 
 /**
  * A message validation finding.
@@ -218,7 +292,7 @@ export type TrailerIssue = Message<"vrooli.git_control_tower.v1.proposals.Traile
  * Use `create(TrailerIssueSchema)` to create a new message.
  */
 export const TrailerIssueSchema: GenMessage<TrailerIssue> = /*@__PURE__*/
-  messageDesc(file_git_control_tower_v1_proposals_proposals, 3);
+  messageDesc(file_git_control_tower_v1_proposals_proposals, 4);
 
 /**
  * The commit message of a proposal.
@@ -268,7 +342,7 @@ export type ProposalMessage = Message<"vrooli.git_control_tower.v1.proposals.Pro
  * Use `create(ProposalMessageSchema)` to create a new message.
  */
 export const ProposalMessageSchema: GenMessage<ProposalMessage> = /*@__PURE__*/
-  messageDesc(file_git_control_tower_v1_proposals_proposals, 4);
+  messageDesc(file_git_control_tower_v1_proposals_proposals, 5);
 
 /**
  * A flag on one proposal file.
@@ -297,7 +371,7 @@ export type ProposalFlag = Message<"vrooli.git_control_tower.v1.proposals.Propos
  * Use `create(ProposalFlagSchema)` to create a new message.
  */
 export const ProposalFlagSchema: GenMessage<ProposalFlag> = /*@__PURE__*/
-  messageDesc(file_git_control_tower_v1_proposals_proposals, 5);
+  messageDesc(file_git_control_tower_v1_proposals_proposals, 6);
 
 /**
  * One file in a proposal.
@@ -368,6 +442,23 @@ export type ProposalFile = Message<"vrooli.git_control_tower.v1.proposals.Propos
    * @generated from field: bool drifted = 9;
    */
   drifted: boolean;
+
+  /**
+   * Effective Git file modes; empty means absent (deletion or new-file base).
+   *
+   * @generated from field: string mode = 10;
+   */
+  mode: string;
+
+  /**
+   * @generated from field: string base_mode = 11;
+   */
+  baseMode: string;
+
+  /**
+   * @generated from field: string base_blob_id = 12;
+   */
+  baseBlobId: string;
 };
 
 /**
@@ -375,7 +466,7 @@ export type ProposalFile = Message<"vrooli.git_control_tower.v1.proposals.Propos
  * Use `create(ProposalFileSchema)` to create a new message.
  */
 export const ProposalFileSchema: GenMessage<ProposalFile> = /*@__PURE__*/
-  messageDesc(file_git_control_tower_v1_proposals_proposals, 6);
+  messageDesc(file_git_control_tower_v1_proposals_proposals, 7);
 
 /**
  * A changed path in the anchor scope that the proposal does not include.
@@ -410,7 +501,7 @@ export type ProposalExclusion = Message<"vrooli.git_control_tower.v1.proposals.P
  * Use `create(ProposalExclusionSchema)` to create a new message.
  */
 export const ProposalExclusionSchema: GenMessage<ProposalExclusion> = /*@__PURE__*/
-  messageDesc(file_git_control_tower_v1_proposals_proposals, 7);
+  messageDesc(file_git_control_tower_v1_proposals_proposals, 8);
 
 /**
  * Evidence the creator attached. GCT stores it as supplied.
@@ -466,7 +557,7 @@ export type ProposalEvidence = Message<"vrooli.git_control_tower.v1.proposals.Pr
  * Use `create(ProposalEvidenceSchema)` to create a new message.
  */
 export const ProposalEvidenceSchema: GenMessage<ProposalEvidence> = /*@__PURE__*/
-  messageDesc(file_git_control_tower_v1_proposals_proposals, 8);
+  messageDesc(file_git_control_tower_v1_proposals_proposals, 9);
 
 /**
  * Live freshness of an open proposal.
@@ -529,7 +620,7 @@ export type ProposalFreshness = Message<"vrooli.git_control_tower.v1.proposals.P
  * Use `create(ProposalFreshnessSchema)` to create a new message.
  */
 export const ProposalFreshnessSchema: GenMessage<ProposalFreshness> = /*@__PURE__*/
-  messageDesc(file_git_control_tower_v1_proposals_proposals, 9);
+  messageDesc(file_git_control_tower_v1_proposals_proposals, 10);
 
 /**
  * One entry in a proposal's history.
@@ -579,7 +670,7 @@ export type ProposalEvent = Message<"vrooli.git_control_tower.v1.proposals.Propo
  * Use `create(ProposalEventSchema)` to create a new message.
  */
 export const ProposalEventSchema: GenMessage<ProposalEvent> = /*@__PURE__*/
-  messageDesc(file_git_control_tower_v1_proposals_proposals, 10);
+  messageDesc(file_git_control_tower_v1_proposals_proposals, 11);
 
 /**
  * A commit proposal.
@@ -734,6 +825,39 @@ export type Proposal = Message<"vrooli.git_control_tower.v1.proposals.Proposal">
    * @generated from field: google.protobuf.Timestamp committed_at = 21;
    */
   committedAt?: Timestamp | undefined;
+
+  /**
+   * Explicit source manifests. Legacy automatically folded records remain readable.
+   *
+   * @generated from field: repeated vrooli.git_control_tower.v1.proposals.ProposalFold folds = 22;
+   */
+  folds: ProposalFold[];
+
+  /**
+   * True only when every file has retained candidate and base content.
+   *
+   * @generated from field: bool captured = 23;
+   */
+  captured: boolean;
+
+  /**
+   * Available retained payloads, including the current revision; never inferred.
+   *
+   * @generated from field: repeated int32 retained_revisions = 24;
+   */
+  retainedRevisions: number[];
+
+  /**
+   * Live registry identity of the destination repository.
+   *
+   * @generated from field: string repository_name = 25;
+   */
+  repositoryName: string;
+
+  /**
+   * @generated from field: string repository_path = 26;
+   */
+  repositoryPath: string;
 };
 
 /**
@@ -741,7 +865,7 @@ export type Proposal = Message<"vrooli.git_control_tower.v1.proposals.Proposal">
  * Use `create(ProposalSchema)` to create a new message.
  */
 export const ProposalSchema: GenMessage<Proposal> = /*@__PURE__*/
-  messageDesc(file_git_control_tower_v1_proposals_proposals, 11);
+  messageDesc(file_git_control_tower_v1_proposals_proposals, 12);
 
 /**
  * A file recorded by an anchor.
@@ -776,6 +900,13 @@ export type AnchorFile = Message<"vrooli.git_control_tower.v1.proposals.AnchorFi
    * @generated from field: bool deleted = 4;
    */
   deleted: boolean;
+
+  /**
+   * Effective Git mode at admission; empty on older anchors.
+   *
+   * @generated from field: string mode = 5;
+   */
+  mode: string;
 };
 
 /**
@@ -783,7 +914,7 @@ export type AnchorFile = Message<"vrooli.git_control_tower.v1.proposals.AnchorFi
  * Use `create(AnchorFileSchema)` to create a new message.
  */
 export const AnchorFileSchema: GenMessage<AnchorFile> = /*@__PURE__*/
-  messageDesc(file_git_control_tower_v1_proposals_proposals, 12);
+  messageDesc(file_git_control_tower_v1_proposals_proposals, 13);
 
 /**
  * Dirty files in a scope at epoch admission.
@@ -861,7 +992,7 @@ export type Anchor = Message<"vrooli.git_control_tower.v1.proposals.Anchor"> & {
  * Use `create(AnchorSchema)` to create a new message.
  */
 export const AnchorSchema: GenMessage<Anchor> = /*@__PURE__*/
-  messageDesc(file_git_control_tower_v1_proposals_proposals, 13);
+  messageDesc(file_git_control_tower_v1_proposals_proposals, 14);
 
 /**
  * Request to anchor a scope.
@@ -911,7 +1042,7 @@ export type AnchorScopeRequest = Message<"vrooli.git_control_tower.v1.proposals.
  * Use `create(AnchorScopeRequestSchema)` to create a new message.
  */
 export const AnchorScopeRequestSchema: GenMessage<AnchorScopeRequest> = /*@__PURE__*/
-  messageDesc(file_git_control_tower_v1_proposals_proposals, 14);
+  messageDesc(file_git_control_tower_v1_proposals_proposals, 15);
 
 /**
  * Result of anchoring a scope.
@@ -932,7 +1063,7 @@ export type AnchorScopeResponse = Message<"vrooli.git_control_tower.v1.proposals
  * Use `create(AnchorScopeResponseSchema)` to create a new message.
  */
 export const AnchorScopeResponseSchema: GenMessage<AnchorScopeResponse> = /*@__PURE__*/
-  messageDesc(file_git_control_tower_v1_proposals_proposals, 15);
+  messageDesc(file_git_control_tower_v1_proposals_proposals, 16);
 
 /**
  * Request to create a proposal.
@@ -1018,7 +1149,7 @@ export type CreateProposalRequest = Message<"vrooli.git_control_tower.v1.proposa
  * Use `create(CreateProposalRequestSchema)` to create a new message.
  */
 export const CreateProposalRequestSchema: GenMessage<CreateProposalRequest> = /*@__PURE__*/
-  messageDesc(file_git_control_tower_v1_proposals_proposals, 16);
+  messageDesc(file_git_control_tower_v1_proposals_proposals, 17);
 
 /**
  * Result of creating a proposal.
@@ -1046,13 +1177,6 @@ export type CreateProposalResponse = Message<"vrooli.git_control_tower.v1.propos
    * @generated from field: bool stored = 3;
    */
   stored: boolean;
-
-  /**
-   * Open proposal this one superseded, if any.
-   *
-   * @generated from field: string superseded_id = 4;
-   */
-  supersededId: string;
 };
 
 /**
@@ -1060,7 +1184,7 @@ export type CreateProposalResponse = Message<"vrooli.git_control_tower.v1.propos
  * Use `create(CreateProposalResponseSchema)` to create a new message.
  */
 export const CreateProposalResponseSchema: GenMessage<CreateProposalResponse> = /*@__PURE__*/
-  messageDesc(file_git_control_tower_v1_proposals_proposals, 17);
+  messageDesc(file_git_control_tower_v1_proposals_proposals, 18);
 
 /**
  * Request to list proposals.
@@ -1102,7 +1226,7 @@ export type ListProposalsRequest = Message<"vrooli.git_control_tower.v1.proposal
  * Use `create(ListProposalsRequestSchema)` to create a new message.
  */
 export const ListProposalsRequestSchema: GenMessage<ListProposalsRequest> = /*@__PURE__*/
-  messageDesc(file_git_control_tower_v1_proposals_proposals, 18);
+  messageDesc(file_git_control_tower_v1_proposals_proposals, 19);
 
 /**
  * Proposals in queue order: oldest open first.
@@ -1130,7 +1254,7 @@ export type ListProposalsResponse = Message<"vrooli.git_control_tower.v1.proposa
  * Use `create(ListProposalsResponseSchema)` to create a new message.
  */
 export const ListProposalsResponseSchema: GenMessage<ListProposalsResponse> = /*@__PURE__*/
-  messageDesc(file_git_control_tower_v1_proposals_proposals, 19);
+  messageDesc(file_git_control_tower_v1_proposals_proposals, 20);
 
 /**
  * Request to read one proposal.
@@ -1144,6 +1268,13 @@ export type GetProposalRequest = Message<"vrooli.git_control_tower.v1.proposals.
    * @generated from field: string id = 1;
    */
   id: string;
+
+  /**
+   * Zero selects the current revision; nonzero reads an immutable revision.
+   *
+   * @generated from field: int32 revision = 2;
+   */
+  revision: number;
 };
 
 /**
@@ -1151,7 +1282,56 @@ export type GetProposalRequest = Message<"vrooli.git_control_tower.v1.proposals.
  * Use `create(GetProposalRequestSchema)` to create a new message.
  */
 export const GetProposalRequestSchema: GenMessage<GetProposalRequest> = /*@__PURE__*/
-  messageDesc(file_git_control_tower_v1_proposals_proposals, 20);
+  messageDesc(file_git_control_tower_v1_proposals_proposals, 21);
+
+/**
+ * @generated from message vrooli.git_control_tower.v1.proposals.ProposalRevisionReference
+ */
+export type ProposalRevisionReference = Message<"vrooli.git_control_tower.v1.proposals.ProposalRevisionReference"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: int32 revision = 2;
+   */
+  revision: number;
+};
+
+/**
+ * Describes the message vrooli.git_control_tower.v1.proposals.ProposalRevisionReference.
+ * Use `create(ProposalRevisionReferenceSchema)` to create a new message.
+ */
+export const ProposalRevisionReferenceSchema: GenMessage<ProposalRevisionReference> = /*@__PURE__*/
+  messageDesc(file_git_control_tower_v1_proposals_proposals, 22);
+
+/**
+ * @generated from message vrooli.git_control_tower.v1.proposals.CombineProposalsRequest
+ */
+export type CombineProposalsRequest = Message<"vrooli.git_control_tower.v1.proposals.CombineProposalsRequest"> & {
+  /**
+   * @generated from field: repeated vrooli.git_control_tower.v1.proposals.ProposalRevisionReference sources = 1;
+   */
+  sources: ProposalRevisionReference[];
+
+  /**
+   * @generated from field: string subject = 2;
+   */
+  subject: string;
+
+  /**
+   * @generated from field: string body = 3;
+   */
+  body: string;
+};
+
+/**
+ * Describes the message vrooli.git_control_tower.v1.proposals.CombineProposalsRequest.
+ * Use `create(CombineProposalsRequestSchema)` to create a new message.
+ */
+export const CombineProposalsRequestSchema: GenMessage<CombineProposalsRequest> = /*@__PURE__*/
+  messageDesc(file_git_control_tower_v1_proposals_proposals, 23);
 
 /**
  * One proposal.
@@ -1172,7 +1352,7 @@ export type GetProposalResponse = Message<"vrooli.git_control_tower.v1.proposals
  * Use `create(GetProposalResponseSchema)` to create a new message.
  */
 export const GetProposalResponseSchema: GenMessage<GetProposalResponse> = /*@__PURE__*/
-  messageDesc(file_git_control_tower_v1_proposals_proposals, 21);
+  messageDesc(file_git_control_tower_v1_proposals_proposals, 24);
 
 /**
  * Request to edit a proposal.
@@ -1235,7 +1415,7 @@ export type EditProposalRequest = Message<"vrooli.git_control_tower.v1.proposals
  * Use `create(EditProposalRequestSchema)` to create a new message.
  */
 export const EditProposalRequestSchema: GenMessage<EditProposalRequest> = /*@__PURE__*/
-  messageDesc(file_git_control_tower_v1_proposals_proposals, 22);
+  messageDesc(file_git_control_tower_v1_proposals_proposals, 25);
 
 /**
  * Result of an edit.
@@ -1263,7 +1443,7 @@ export type EditProposalResponse = Message<"vrooli.git_control_tower.v1.proposal
  * Use `create(EditProposalResponseSchema)` to create a new message.
  */
 export const EditProposalResponseSchema: GenMessage<EditProposalResponse> = /*@__PURE__*/
-  messageDesc(file_git_control_tower_v1_proposals_proposals, 23);
+  messageDesc(file_git_control_tower_v1_proposals_proposals, 26);
 
 /**
  * Request to withdraw a proposal.
@@ -1284,6 +1464,18 @@ export type WithdrawProposalRequest = Message<"vrooli.git_control_tower.v1.propo
    * @generated from field: string reason = 2;
    */
   reason: string;
+
+  /**
+   * @generated from field: int32 expected_revision = 3;
+   */
+  expectedRevision: number;
+
+  /**
+   * Optional existing proposal that explicitly replaces this one.
+   *
+   * @generated from field: string replacement_id = 4;
+   */
+  replacementId: string;
 };
 
 /**
@@ -1291,7 +1483,7 @@ export type WithdrawProposalRequest = Message<"vrooli.git_control_tower.v1.propo
  * Use `create(WithdrawProposalRequestSchema)` to create a new message.
  */
 export const WithdrawProposalRequestSchema: GenMessage<WithdrawProposalRequest> = /*@__PURE__*/
-  messageDesc(file_git_control_tower_v1_proposals_proposals, 24);
+  messageDesc(file_git_control_tower_v1_proposals_proposals, 27);
 
 /**
  * Result of a withdrawal.
@@ -1312,7 +1504,7 @@ export type WithdrawProposalResponse = Message<"vrooli.git_control_tower.v1.prop
  * Use `create(WithdrawProposalResponseSchema)` to create a new message.
  */
 export const WithdrawProposalResponseSchema: GenMessage<WithdrawProposalResponse> = /*@__PURE__*/
-  messageDesc(file_git_control_tower_v1_proposals_proposals, 25);
+  messageDesc(file_git_control_tower_v1_proposals_proposals, 28);
 
 /**
  * Request to refresh a proposal.
@@ -1340,7 +1532,7 @@ export type RefreshProposalRequest = Message<"vrooli.git_control_tower.v1.propos
  * Use `create(RefreshProposalRequestSchema)` to create a new message.
  */
 export const RefreshProposalRequestSchema: GenMessage<RefreshProposalRequest> = /*@__PURE__*/
-  messageDesc(file_git_control_tower_v1_proposals_proposals, 26);
+  messageDesc(file_git_control_tower_v1_proposals_proposals, 29);
 
 /**
  * Result of a refresh.
@@ -1368,7 +1560,7 @@ export type RefreshProposalResponse = Message<"vrooli.git_control_tower.v1.propo
  * Use `create(RefreshProposalResponseSchema)` to create a new message.
  */
 export const RefreshProposalResponseSchema: GenMessage<RefreshProposalResponse> = /*@__PURE__*/
-  messageDesc(file_git_control_tower_v1_proposals_proposals, 27);
+  messageDesc(file_git_control_tower_v1_proposals_proposals, 30);
 
 /**
  * Request to apply a proposal.
@@ -1411,6 +1603,21 @@ export type ApplyProposalRequest = Message<"vrooli.git_control_tower.v1.proposal
    * @generated from field: bool skip_precommit_once = 5;
    */
   skipPrecommitOnce: boolean;
+
+  /**
+   * Explicit inclusion of uncertain prior work in the reviewed revision.
+   *
+   * @generated from field: bool acknowledge_prior_work = 6;
+   */
+  acknowledgePriorWork: boolean;
+
+  /**
+   * Commit retained proposal bytes while preserving later working edits.
+   * Bound to the approval intent; different staged versions still refuse.
+   *
+   * @generated from field: bool keep_later_changes = 7;
+   */
+  keepLaterChanges: boolean;
 };
 
 /**
@@ -1418,7 +1625,7 @@ export type ApplyProposalRequest = Message<"vrooli.git_control_tower.v1.proposal
  * Use `create(ApplyProposalRequestSchema)` to create a new message.
  */
 export const ApplyProposalRequestSchema: GenMessage<ApplyProposalRequest> = /*@__PURE__*/
-  messageDesc(file_git_control_tower_v1_proposals_proposals, 28);
+  messageDesc(file_git_control_tower_v1_proposals_proposals, 31);
 
 /**
  * Why apply refused. Nothing was staged or committed.
@@ -1454,7 +1661,7 @@ export type ApplyRefusal = Message<"vrooli.git_control_tower.v1.proposals.ApplyR
  * Use `create(ApplyRefusalSchema)` to create a new message.
  */
 export const ApplyRefusalSchema: GenMessage<ApplyRefusal> = /*@__PURE__*/
-  messageDesc(file_git_control_tower_v1_proposals_proposals, 29);
+  messageDesc(file_git_control_tower_v1_proposals_proposals, 32);
 
 /**
  * Pre-commit result recorded during apply.
@@ -1518,7 +1725,7 @@ export type ApplyPrecommit = Message<"vrooli.git_control_tower.v1.proposals.Appl
  * Use `create(ApplyPrecommitSchema)` to create a new message.
  */
 export const ApplyPrecommitSchema: GenMessage<ApplyPrecommit> = /*@__PURE__*/
-  messageDesc(file_git_control_tower_v1_proposals_proposals, 30);
+  messageDesc(file_git_control_tower_v1_proposals_proposals, 33);
 
 /**
  * Result of applying a proposal.
@@ -1590,7 +1797,7 @@ export type ApplyProposalResponse = Message<"vrooli.git_control_tower.v1.proposa
  * Use `create(ApplyProposalResponseSchema)` to create a new message.
  */
 export const ApplyProposalResponseSchema: GenMessage<ApplyProposalResponse> = /*@__PURE__*/
-  messageDesc(file_git_control_tower_v1_proposals_proposals, 31);
+  messageDesc(file_git_control_tower_v1_proposals_proposals, 34);
 
 /**
  * Lifecycle state of a proposal. Freshness is computed on read and is not a
@@ -1884,6 +2091,17 @@ export const ProposalService: GenService<{
   getProposal: {
     methodKind: "unary";
     input: typeof GetProposalRequestSchema;
+    output: typeof GetProposalResponseSchema;
+  },
+  /**
+   * Reads the immutable captured diff, independent of working-tree drift.
+   * Explicitly combines reviewed source revisions without adopting live bytes.
+   *
+   * @generated from rpc vrooli.git_control_tower.v1.proposals.ProposalService.CombineProposals
+   */
+  combineProposals: {
+    methodKind: "unary";
+    input: typeof CombineProposalsRequestSchema;
     output: typeof GetProposalResponseSchema;
   },
   /**

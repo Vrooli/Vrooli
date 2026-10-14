@@ -10,8 +10,7 @@ import (
 // interface.
 type AgentClient interface {
 	Health(ctx context.Context) (bool, error)
-	EnsureProfile(ctx context.Context, req *EnsureProfileRequest) (*EnsureProfileResponse, error)
-	ReconcileScenarioProfiles(ctx context.Context, scenario string) error
+	ResolveProfile(ctx context.Context, key string) (*AgentProfile, error)
 	CreateTask(ctx context.Context, task *Task) (*Task, error)
 	GetTask(ctx context.Context, taskID string) (*Task, error)
 	CancelTask(ctx context.Context, taskID string) error

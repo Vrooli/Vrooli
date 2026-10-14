@@ -40,3 +40,15 @@ Fixture maintenance rules:
    passwords, tokens, API keys, and absolute home paths. Use
    `go run ./cmd/harvest-replay` for sourced corpus candidates, then inspect
    the redacted result before commit.
+
+`codex_tool_returns_e30.jsonl` replays the fourteen paired custom returns from
+Nooch E30 run `650c0416-6afd-416a-be82-5b1838ecf90d`, observed October 10,
+2026 06:10:52 UTC. Original rollout SHA-256:
+`cb7e3273eb0d056b8909f0f82e11426c4bd57e53960fc64d8cc6280b9ed7acc2`.
+Retained semantic receipt SHA-256:
+`4f0ef92d8886e50e55338c20d17a59c14f51bd4d669caa8a171318aa5aee884e`.
+This sanitized fixture preserves timestamps, call identities, block order/type,
+first-block completion headers, absent exit metadata and the observed
+`Unknown command: read`. Invocation and remaining output text are redacted;
+quota/private content is excluded. It proves the incident return shape, not
+byte-identical history or command success.

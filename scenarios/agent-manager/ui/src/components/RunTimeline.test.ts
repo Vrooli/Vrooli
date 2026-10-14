@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { fromJson } from "@bufbuild/protobuf";
+import { RunEventSchema } from "@vrooli/proto-types/agent-manager/v1/domain/events_pb.js";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createElement } from "react";
@@ -578,4 +580,27 @@ test("RunTimeline shows successful grouped activity and exposes every completed 
   await user.click(queryButtons[queryButtons.length - 1]!);
   await user.click(sandboxButtons[sandboxButtons.length - 1]!);
   assert.equal(screen.getAllByText("Output").length, 2);
+});
+
+test("RunTimeline renders ordered native blocks and an unknown result without failure", async () => {
+  const user = userEvent.setup();
+  window.localStorage.removeItem(FILTER_STORAGE_KEY);
+  renderTimeline([
+    makeToolCallEvent("native-call", 1n, "exec", "native"),
+    fromJson(RunEventSchema, { id: "native-result", sequence: "2", toolResult: {
+      toolCallId: "native", outcomeKnown: false,
+      outputBlocks: [{ type: "input_text", text: "first native text" }, { type: "image", rawJson: '{"type":"image","future":true}' }],
+    } }),
+    makeToolCallEvent("second-call", 3n, "Read", "second"),
+    makeToolResultEvent("second-result", 4n, "Read", "second"),
+  ]);
+  await user.click(screen.getByRole("button", { name: /Activity/ }));
+  const matches=screen.getAllByRole("button", { name: /exec/ });
+  await user.click(matches[matches.length - 1]!);
+  assert.ok(screen.getByText("Output (outcome unknown)"));
+  assert.ok(screen.getByText("first native text"));
+  assert.ok(screen.getByText("image"));
+  assert.ok(screen.getByText((_, node) => node?.tagName === "CODE" && node.textContent === '{"type":"image","future":true}'));
+  assert.ok(screen.getByLabelText("Outcome unknown"));
+  assert.equal(screen.queryByText("Error"), null);
 });

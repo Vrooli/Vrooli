@@ -2,5 +2,11 @@
   "kind": "team-roles",
   "schemaVersion": 1,
   "teamId": "unattended-self-improvement",
-  "roles": []
+  "roles": [
+    {
+      "id": "unattended-self-improvement-coordinator",
+      "name": "Unattended Self-Improvement Coordinator",
+      "description": "Coordinate the finite effort; reconcile owner state, perform only qualified bounded coordinator work, retain evidence, and stop at blockers or terminal evidence."
+    }
+  ]
 }

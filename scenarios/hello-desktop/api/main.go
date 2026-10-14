@@ -1,11 +1,16 @@
 package main
 
 import (
-	"encoding/json"
+	"context"
+	"errors"
 	"log"
 	"net/http"
 	"os"
-	"sync"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"hello-desktop-api/desktop"
 )
 
 func main() {
@@ -13,45 +18,43 @@ func main() {
 	if port == "" {
 		port = "23100"
 	}
-	mux := http.NewServeMux()
-	var lastGreeting struct {
-		sync.RWMutex
-		name    string
-		message string
+	handler, lifecycle, err := desktop.New()
+	if err != nil {
+		log.Fatal(err)
 	}
-	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		// The desktop runtime's /health contract accepts "healthy" or "degraded".
-		_ = json.NewEncoder(w).Encode(map[string]string{"status": "healthy"})
-	})
-	mux.HandleFunc("/api/greet", func(w http.ResponseWriter, r *http.Request) {
-		name := r.URL.Query().Get("name")
-		if name == "" {
-			name = "Desktop User"
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	if err := serve(ctx, "127.0.0.1:"+port, handler, lifecycle); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func serve(ctx context.Context, address string, handler http.Handler, lifecycle desktop.Lifecycle) error {
+	if err := lifecycle.Start(ctx); err != nil {
+		return err
+	}
+	server := &http.Server{Addr: address, Handler: handler}
+	serveResult := make(chan error, 1)
+	go func() { serveResult <- server.ListenAndServe() }()
+	select {
+	case err := <-serveResult:
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			_ = lifecycle.Stop(context.Background())
+			return err
 		}
-		message := "Hello, " + name + "!"
-		lastGreeting.Lock()
-		lastGreeting.name, lastGreeting.message = name, message
-		lastGreeting.Unlock()
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]string{"message": message})
-	})
-	// Test-only bridge for the canonical fixture journey. The journey supplies
-	// a run-specific name, so a stale response cannot satisfy the assertion.
-	mux.HandleFunc("/api/test/last-greeting", func(w http.ResponseWriter, r *http.Request) {
-		expected := r.URL.Query().Get("name")
-		lastGreeting.RLock()
-		name, message := lastGreeting.name, lastGreeting.message
-		lastGreeting.RUnlock()
-		if expected != "" && expected != name {
-			http.Error(w, "greeting not observed", http.StatusNotFound)
-			return
+	case <-ctx.Done():
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		shutdownErr := server.Shutdown(shutdownCtx)
+		cancel()
+		serveErr := <-serveResult
+		lifecycleErr := lifecycle.Stop(context.Background())
+		if shutdownErr != nil {
+			return shutdownErr
 		}
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]string{"name": name, "message": message})
-	})
-	log.Printf("hello-desktop API listening on 127.0.0.1:%s", port)
-	log.Fatal(http.ListenAndServe("127.0.0.1:"+port, mux))
+		if serveErr != nil && !errors.Is(serveErr, http.ErrServerClosed) {
+			return serveErr
+		}
+		return lifecycleErr
+	}
+	return lifecycle.Stop(context.Background())
 }

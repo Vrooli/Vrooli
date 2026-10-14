@@ -80,13 +80,34 @@ func RunEventToProto(e *domain.RunEvent) *pb.RunEvent {
 			},
 		}
 	case *domain.ToolResultEventData:
+		blocks := make([]*pb.ToolOutputBlock, 0, len(data.OutputBlocks))
+		for _, block := range data.OutputBlocks {
+			blocks = append(blocks, &pb.ToolOutputBlock{Type: block.Type, Text: block.Text, RawJson: string(block.RawJSON)})
+		}
+		var exitCode *int32
+		outcomeKnown, success := data.OutcomeKnown, data.Success
+		if data.ExitCode != nil {
+			if !domain.SupportedToolExitCode(data.ExitCode) {
+				unknown := false
+				outcomeKnown = &unknown
+				success = false
+			} else {
+				value := int32(*data.ExitCode)
+				exitCode = &value
+			}
+		}
 		event.Data = &pb.RunEvent_ToolResult{
 			ToolResult: &pb.ToolResultEventData{
-				ToolName:   data.ToolName,
-				ToolCallId: data.ToolCallID,
-				Output:     data.Output,
-				Error:      data.Error,
-				Success:    data.Success,
+				ToolName:      data.ToolName,
+				ToolCallId:    data.ToolCallID,
+				Output:        data.Output,
+				Error:         data.Error,
+				Success:       success,
+				ExitCode:      exitCode,
+				DurationMs:    data.DurationMS,
+				OutcomeKnown:  outcomeKnown,
+				OutputBlocks:  blocks,
+				RawOutputJson: string(data.RawOutputJSON),
 			},
 		}
 	case *domain.StatusEventData:

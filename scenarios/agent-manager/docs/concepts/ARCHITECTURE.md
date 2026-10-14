@@ -720,6 +720,71 @@ update. `Run.summary` remains backward readable but is generated only by
 Run detail and CLI JSON expose the full result. WebSocket run-status messages
 carry only selection status and rule, not transcript or candidate bodies.
 
+Tool-return evidence is decoded once at the codec boundary. Codex rollout
+wrappers are recognized before variable output decoding: scalar strings remain
+scalar, and typed content arrays retain their native order, text and original
+JSON blocks. Unsupported content is retained with a nonterminal warning event;
+it does not become a parser error or fall into the flat stdout dialect. Ordinary
+tool output does not inherit the goal receipt extractor's limits or acceptance
+rules. A returned payload alone has `outcomeKnown=false`; explicit nested process
+metadata may establish an exit code and duration. Absent metadata stays unknown.
+The durable payload and public protobuf retain blocks, raw output and optional
+process facts. Unsupported exit ranges and durations remain unavailable with a
+warning; independent valid metadata remains usable. There is no invented provider
+source-offset reference. Legacy rows without
+`outcomeKnown` keep their historical bool interpretation.
+
+Invocation facts and reports correlate results by call ID. Reports distinguish
+returned evidence with unknown outcome from a missing return; only known results
+increase success/failure totals. Timeline inspection renders ordered native
+blocks and labels unknown outcomes without assigning failure. Unsupported raw
+JSON is evidence rather than recursively extracted display text.
+
+New quota payloads use `payloadKind=quota` within the existing error event type.
+Compatible readers also recognize untagged historical quota shapes with a
+nonempty typed limit field, while generic error fields take precedence. Explicit
+invalid/unknown tags and tagged quota/error hybrids are decode errors; harmless
+future fields remain supported. Both SQLite event readers return a DatabaseError
+with the event identity for malformed known payloads, making evidence unavailable
+instead of returning an apparently complete event with nil data. Native percent,
+reset, window, provider, pool and provenance survive durable/public conversion;
+zero percent and absent percent remain distinct, and token/dollar ceilings are
+not inferred. Observation replay uses the existing immutable quota repository;
+the SQLite append owner accepts an identical immutable event identity as replay
+and rejects changed evidence with a DatabaseError.
+
+Warning events must persist before the durable transcript cursor advances. Sink
+failure prevents advancement; cursor failure after a successful append reports
+the existing cursor error and leaves retained evidence. Restart priming rebuilds
+parser correlation without a persistence sink before consuming from the committed
+cursor. Changed tool-return/warning records use a stable occurrence identity from
+the actual transcript path, run, byte offset and event ordinal. Replaying an
+accepted occurrence preserves its sequence and suppresses duplicate store and
+production broadcasts; identical records at different offsets remain distinct.
+This does not retroactively identify historical random events or guarantee
+exactly-once ingestion for every event type. Rollback after
+new quota writes must retain the compatible tagged/legacy reader. Source and
+fixture checks do not qualify the installed binary or the original E30 product
+outcome; those remain separate owner receipts.
+
+Interactive launch reserves a deterministic per-run session ID in the existing
+Run store before Create. Web Console advertises stable-create support on List;
+absent support or missing verified creator refuses Create before submission.
+The capability response pins the canonical verified creator for both Create
+acknowledgement and uncertain Get recovery; conflicting creator refuses adoption. Its current runtime owner
+persists the request fingerprint/provenance with the requested UUID. Reusing that
+identity requires an unchanged request and owner plus a live runtime and live
+metadata. Archived/missing runtime and conflicting identities refuse adoption.
+An uncertain Create response permits one exact-ID Get, never another Create;
+canceled submission retains the Run relation and does not clean unrelated
+sessions. Restart uses existing reconciliation rather than creating a new
+identity. This requires the current single Web Console Manager lifecycle owner;
+a second independent manager sharing the database is outside that owner model.
+Retention still requires explicit legacy AM owner provenance; canonical verified
+creator rows remain conservatively preserved until the native owner can safely
+distinguish AM sessions from unrelated programmatic sessions. Native serving
+adoption and lawful authenticated-caller qualification remain separate receipts.
+
 Profile reconciliation remains the pattern for workflow desired-state
 reconciliation, not a contract to overload: bounded scenario-local sources are
 validated and atomically projected while the authored files stay authoritative.

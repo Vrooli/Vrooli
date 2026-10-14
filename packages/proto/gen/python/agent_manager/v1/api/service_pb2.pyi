@@ -729,7 +729,7 @@ class ProfileRef(_message.Message):
     def __init__(self, profile_key: _Optional[str] = ..., defaults: _Optional[_Union[_profile_pb2.AgentProfile, _Mapping]] = ..., update_existing: _Optional[bool] = ...) -> None: ...
 
 class CreateRunRequest(_message.Message):
-    __slots__ = ("task_id", "agent_profile_id", "tag", "run_mode", "inline_config", "force", "idempotency_key", "profile_ref", "prompt", "existing_sandbox_id", "environment", "conversation_id", "parent_run_id", "execution_mode", "work_references", "requested_scopes", "execution_preferences")
+    __slots__ = ("task_id", "agent_profile_id", "tag", "run_mode", "inline_config", "force", "idempotency_key", "profile_ref", "prompt", "existing_sandbox_id", "environment", "conversation_id", "parent_run_id", "execution_mode", "work_references", "requested_scopes", "execution_preferences", "target_instances")
     class EnvironmentEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -754,6 +754,7 @@ class CreateRunRequest(_message.Message):
     WORK_REFERENCES_FIELD_NUMBER: _ClassVar[int]
     REQUESTED_SCOPES_FIELD_NUMBER: _ClassVar[int]
     EXECUTION_PREFERENCES_FIELD_NUMBER: _ClassVar[int]
+    TARGET_INSTANCES_FIELD_NUMBER: _ClassVar[int]
     task_id: str
     agent_profile_id: str
     tag: str
@@ -771,7 +772,8 @@ class CreateRunRequest(_message.Message):
     work_references: _containers.RepeatedCompositeFieldContainer[_envelope_pb2.WorkReference]
     requested_scopes: RunIdentityScopeRequest
     execution_preferences: _profile_pb2.ExecutionPreferences
-    def __init__(self, task_id: _Optional[str] = ..., agent_profile_id: _Optional[str] = ..., tag: _Optional[str] = ..., run_mode: _Optional[_Union[_types_pb2.RunMode, str]] = ..., inline_config: _Optional[_Union[_profile_pb2.RunConfigOverrides, _Mapping]] = ..., force: _Optional[bool] = ..., idempotency_key: _Optional[str] = ..., profile_ref: _Optional[_Union[ProfileRef, _Mapping]] = ..., prompt: _Optional[str] = ..., existing_sandbox_id: _Optional[str] = ..., environment: _Optional[_Mapping[str, str]] = ..., conversation_id: _Optional[str] = ..., parent_run_id: _Optional[str] = ..., execution_mode: _Optional[_Union[_types_pb2.ExecutionMode, str]] = ..., work_references: _Optional[_Iterable[_Union[_envelope_pb2.WorkReference, _Mapping]]] = ..., requested_scopes: _Optional[_Union[RunIdentityScopeRequest, _Mapping]] = ..., execution_preferences: _Optional[_Union[_profile_pb2.ExecutionPreferences, _Mapping]] = ...) -> None: ...
+    target_instances: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, task_id: _Optional[str] = ..., agent_profile_id: _Optional[str] = ..., tag: _Optional[str] = ..., run_mode: _Optional[_Union[_types_pb2.RunMode, str]] = ..., inline_config: _Optional[_Union[_profile_pb2.RunConfigOverrides, _Mapping]] = ..., force: _Optional[bool] = ..., idempotency_key: _Optional[str] = ..., profile_ref: _Optional[_Union[ProfileRef, _Mapping]] = ..., prompt: _Optional[str] = ..., existing_sandbox_id: _Optional[str] = ..., environment: _Optional[_Mapping[str, str]] = ..., conversation_id: _Optional[str] = ..., parent_run_id: _Optional[str] = ..., execution_mode: _Optional[_Union[_types_pb2.ExecutionMode, str]] = ..., work_references: _Optional[_Iterable[_Union[_envelope_pb2.WorkReference, _Mapping]]] = ..., requested_scopes: _Optional[_Union[RunIdentityScopeRequest, _Mapping]] = ..., execution_preferences: _Optional[_Union[_profile_pb2.ExecutionPreferences, _Mapping]] = ..., target_instances: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class RunIdentityScopeRequest(_message.Message):
     __slots__ = ("scopes", "expected_owner_subject")
@@ -1013,18 +1015,22 @@ class RunReportResult(_message.Message):
     def __init__(self, selection_status: _Optional[str] = ..., selection_rule: _Optional[str] = ..., candidate_count: _Optional[int] = ..., structured_status: _Optional[str] = ..., structured_method: _Optional[str] = ..., diagnostic_codes: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class RunReportTool(_message.Message):
-    __slots__ = ("name", "calls", "successes", "failures", "unresolved")
+    __slots__ = ("name", "calls", "successes", "failures", "unresolved", "returned", "unknown_outcome")
     NAME_FIELD_NUMBER: _ClassVar[int]
     CALLS_FIELD_NUMBER: _ClassVar[int]
     SUCCESSES_FIELD_NUMBER: _ClassVar[int]
     FAILURES_FIELD_NUMBER: _ClassVar[int]
     UNRESOLVED_FIELD_NUMBER: _ClassVar[int]
+    RETURNED_FIELD_NUMBER: _ClassVar[int]
+    UNKNOWN_OUTCOME_FIELD_NUMBER: _ClassVar[int]
     name: str
     calls: int
     successes: int
     failures: int
     unresolved: int
-    def __init__(self, name: _Optional[str] = ..., calls: _Optional[int] = ..., successes: _Optional[int] = ..., failures: _Optional[int] = ..., unresolved: _Optional[int] = ...) -> None: ...
+    returned: int
+    unknown_outcome: int
+    def __init__(self, name: _Optional[str] = ..., calls: _Optional[int] = ..., successes: _Optional[int] = ..., failures: _Optional[int] = ..., unresolved: _Optional[int] = ..., returned: _Optional[int] = ..., unknown_outcome: _Optional[int] = ...) -> None: ...
 
 class RunReportDiff(_message.Message):
     __slots__ = ("files", "bytes", "available")
@@ -1127,20 +1133,24 @@ class StopAllRunsResponse(_message.Message):
     def __init__(self, result: _Optional[_Union[_run_pb2.StopAllResult, _Mapping]] = ...) -> None: ...
 
 class QuiesceScenarioRequest(_message.Message):
-    __slots__ = ("scenario", "scope_prefix", "tag_prefix", "exclude_run_id", "timeout", "force")
+    __slots__ = ("scenario", "scope_prefix", "tag_prefix", "exclude_run_id", "timeout", "force", "instance", "exclude_run_ids")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     SCOPE_PREFIX_FIELD_NUMBER: _ClassVar[int]
     TAG_PREFIX_FIELD_NUMBER: _ClassVar[int]
     EXCLUDE_RUN_ID_FIELD_NUMBER: _ClassVar[int]
     TIMEOUT_FIELD_NUMBER: _ClassVar[int]
     FORCE_FIELD_NUMBER: _ClassVar[int]
+    INSTANCE_FIELD_NUMBER: _ClassVar[int]
+    EXCLUDE_RUN_IDS_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     scope_prefix: str
     tag_prefix: str
     exclude_run_id: str
     timeout: str
     force: bool
-    def __init__(self, scenario: _Optional[str] = ..., scope_prefix: _Optional[str] = ..., tag_prefix: _Optional[str] = ..., exclude_run_id: _Optional[str] = ..., timeout: _Optional[str] = ..., force: _Optional[bool] = ...) -> None: ...
+    instance: str
+    exclude_run_ids: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, scenario: _Optional[str] = ..., scope_prefix: _Optional[str] = ..., tag_prefix: _Optional[str] = ..., exclude_run_id: _Optional[str] = ..., timeout: _Optional[str] = ..., force: _Optional[bool] = ..., instance: _Optional[str] = ..., exclude_run_ids: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class QuiesceScenarioResponse(_message.Message):
     __slots__ = ("result",)
@@ -1149,7 +1159,7 @@ class QuiesceScenarioResponse(_message.Message):
     def __init__(self, result: _Optional[_Union[QuiesceResult, _Mapping]] = ...) -> None: ...
 
 class QuiesceResult(_message.Message):
-    __slots__ = ("scenario", "drained", "aborted", "initial", "in_flight", "cancelled", "waited_ms", "reason")
+    __slots__ = ("scenario", "drained", "aborted", "initial", "in_flight", "cancelled", "waited_ms", "reason", "excluded", "not_drained")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     DRAINED_FIELD_NUMBER: _ClassVar[int]
     ABORTED_FIELD_NUMBER: _ClassVar[int]
@@ -1158,6 +1168,8 @@ class QuiesceResult(_message.Message):
     CANCELLED_FIELD_NUMBER: _ClassVar[int]
     WAITED_MS_FIELD_NUMBER: _ClassVar[int]
     REASON_FIELD_NUMBER: _ClassVar[int]
+    EXCLUDED_FIELD_NUMBER: _ClassVar[int]
+    NOT_DRAINED_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     drained: bool
     aborted: bool
@@ -1166,19 +1178,23 @@ class QuiesceResult(_message.Message):
     cancelled: _containers.RepeatedCompositeFieldContainer[QuiesceRunRef]
     waited_ms: int
     reason: str
-    def __init__(self, scenario: _Optional[str] = ..., drained: _Optional[bool] = ..., aborted: _Optional[bool] = ..., initial: _Optional[int] = ..., in_flight: _Optional[_Iterable[_Union[QuiesceRunRef, _Mapping]]] = ..., cancelled: _Optional[_Iterable[_Union[QuiesceRunRef, _Mapping]]] = ..., waited_ms: _Optional[int] = ..., reason: _Optional[str] = ...) -> None: ...
+    excluded: _containers.RepeatedCompositeFieldContainer[QuiesceRunRef]
+    not_drained: _containers.RepeatedCompositeFieldContainer[QuiesceRunRef]
+    def __init__(self, scenario: _Optional[str] = ..., drained: _Optional[bool] = ..., aborted: _Optional[bool] = ..., initial: _Optional[int] = ..., in_flight: _Optional[_Iterable[_Union[QuiesceRunRef, _Mapping]]] = ..., cancelled: _Optional[_Iterable[_Union[QuiesceRunRef, _Mapping]]] = ..., waited_ms: _Optional[int] = ..., reason: _Optional[str] = ..., excluded: _Optional[_Iterable[_Union[QuiesceRunRef, _Mapping]]] = ..., not_drained: _Optional[_Iterable[_Union[QuiesceRunRef, _Mapping]]] = ...) -> None: ...
 
 class QuiesceRunRef(_message.Message):
-    __slots__ = ("id", "tag", "status", "scope_path")
+    __slots__ = ("id", "tag", "status", "scope_path", "instances")
     ID_FIELD_NUMBER: _ClassVar[int]
     TAG_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     SCOPE_PATH_FIELD_NUMBER: _ClassVar[int]
+    INSTANCES_FIELD_NUMBER: _ClassVar[int]
     id: str
     tag: str
     status: str
     scope_path: str
-    def __init__(self, id: _Optional[str] = ..., tag: _Optional[str] = ..., status: _Optional[str] = ..., scope_path: _Optional[str] = ...) -> None: ...
+    instances: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, id: _Optional[str] = ..., tag: _Optional[str] = ..., status: _Optional[str] = ..., scope_path: _Optional[str] = ..., instances: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class RecoverRunRequest(_message.Message):
     __slots__ = ("run_id",)

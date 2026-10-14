@@ -425,7 +425,9 @@ type ProposalWork struct {
 	// At most 20.
 	RunIds []string `protobuf:"bytes,4,rep,name=run_ids,json=runIds,proto3" json:"run_ids,omitempty"`
 	// Plan Manager plan IDs or slugs, optionally with "#phase-<n>".
-	Plans         []string `protobuf:"bytes,5,rep,name=plans,proto3" json:"plans,omitempty"`
+	Plans []string `protobuf:"bytes,5,rep,name=plans,proto3" json:"plans,omitempty"`
+	// Earlier epochs whose open proposals this one folded, oldest first.
+	FoldedEpochs  []string `protobuf:"bytes,6,rep,name=folded_epochs,json=foldedEpochs,proto3" json:"folded_epochs,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -495,6 +497,122 @@ func (x *ProposalWork) GetPlans() []string {
 	return nil
 }
 
+func (x *ProposalWork) GetFoldedEpochs() []string {
+	if x != nil {
+		return x.FoldedEpochs
+	}
+	return nil
+}
+
+// An earlier open proposal of the same effort that a newer proposal folded
+// in. The folded proposal stays in history as superseded.
+type ProposalFold struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Folded proposal ID.
+	// @example "gctp-3f9a1c2b7d4e"
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Epoch label of the folded proposal.
+	// @example "E28"
+	Epoch string `protobuf:"bytes,2,opt,name=epoch,proto3" json:"epoch,omitempty"`
+	// Commit subject of the folded proposal.
+	Subject string `protobuf:"bytes,3,opt,name=subject,proto3" json:"subject,omitempty"`
+	// Why it was folded, for example shared paths or drift.
+	Reason string `protobuf:"bytes,4,opt,name=reason,proto3" json:"reason,omitempty"`
+	// The folded proposal's file paths.
+	Paths         []string          `protobuf:"bytes,5,rep,name=paths,proto3" json:"paths,omitempty"`
+	Revision      int32             `protobuf:"varint,6,opt,name=revision,proto3" json:"revision,omitempty"`
+	EffortRef     string            `protobuf:"bytes,7,opt,name=effort_ref,json=effortRef,proto3" json:"effort_ref,omitempty"`
+	Evidence      *ProposalEvidence `protobuf:"bytes,8,opt,name=evidence,proto3" json:"evidence,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProposalFold) Reset() {
+	*x = ProposalFold{}
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProposalFold) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProposalFold) ProtoMessage() {}
+
+func (x *ProposalFold) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProposalFold.ProtoReflect.Descriptor instead.
+func (*ProposalFold) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *ProposalFold) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ProposalFold) GetEpoch() string {
+	if x != nil {
+		return x.Epoch
+	}
+	return ""
+}
+
+func (x *ProposalFold) GetSubject() string {
+	if x != nil {
+		return x.Subject
+	}
+	return ""
+}
+
+func (x *ProposalFold) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *ProposalFold) GetPaths() []string {
+	if x != nil {
+		return x.Paths
+	}
+	return nil
+}
+
+func (x *ProposalFold) GetRevision() int32 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+func (x *ProposalFold) GetEffortRef() string {
+	if x != nil {
+		return x.EffortRef
+	}
+	return ""
+}
+
+func (x *ProposalFold) GetEvidence() *ProposalEvidence {
+	if x != nil {
+		return x.Evidence
+	}
+	return nil
+}
+
 // One commit-message trailer.
 type ProposalTrailer struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -518,7 +636,7 @@ type ProposalTrailer struct {
 
 func (x *ProposalTrailer) Reset() {
 	*x = ProposalTrailer{}
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[2]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -530,7 +648,7 @@ func (x *ProposalTrailer) String() string {
 func (*ProposalTrailer) ProtoMessage() {}
 
 func (x *ProposalTrailer) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[2]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -543,7 +661,7 @@ func (x *ProposalTrailer) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProposalTrailer.ProtoReflect.Descriptor instead.
 func (*ProposalTrailer) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{2}
+	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *ProposalTrailer) GetKey() string {
@@ -609,7 +727,7 @@ type TrailerIssue struct {
 
 func (x *TrailerIssue) Reset() {
 	*x = TrailerIssue{}
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[3]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -621,7 +739,7 @@ func (x *TrailerIssue) String() string {
 func (*TrailerIssue) ProtoMessage() {}
 
 func (x *TrailerIssue) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[3]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -634,7 +752,7 @@ func (x *TrailerIssue) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TrailerIssue.ProtoReflect.Descriptor instead.
 func (*TrailerIssue) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{3}
+	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *TrailerIssue) GetIndex() int32 {
@@ -692,7 +810,7 @@ type ProposalMessage struct {
 
 func (x *ProposalMessage) Reset() {
 	*x = ProposalMessage{}
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[4]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -704,7 +822,7 @@ func (x *ProposalMessage) String() string {
 func (*ProposalMessage) ProtoMessage() {}
 
 func (x *ProposalMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[4]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -717,7 +835,7 @@ func (x *ProposalMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProposalMessage.ProtoReflect.Descriptor instead.
 func (*ProposalMessage) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{4}
+	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ProposalMessage) GetSubject() string {
@@ -769,7 +887,7 @@ type ProposalFlag struct {
 
 func (x *ProposalFlag) Reset() {
 	*x = ProposalFlag{}
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[5]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -781,7 +899,7 @@ func (x *ProposalFlag) String() string {
 func (*ProposalFlag) ProtoMessage() {}
 
 func (x *ProposalFlag) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[5]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -794,7 +912,7 @@ func (x *ProposalFlag) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProposalFlag.ProtoReflect.Descriptor instead.
 func (*ProposalFlag) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{5}
+	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ProposalFlag) GetCode() string {
@@ -832,14 +950,18 @@ type ProposalFile struct {
 	// on read for open proposals.
 	CurrentBlobId string `protobuf:"bytes,8,opt,name=current_blob_id,json=currentBlobId,proto3" json:"current_blob_id,omitempty"`
 	// True when the current content differs from blob_id.
-	Drifted       bool `protobuf:"varint,9,opt,name=drifted,proto3" json:"drifted,omitempty"`
+	Drifted bool `protobuf:"varint,9,opt,name=drifted,proto3" json:"drifted,omitempty"`
+	// Effective Git file modes; empty means absent (deletion or new-file base).
+	Mode          string `protobuf:"bytes,10,opt,name=mode,proto3" json:"mode,omitempty"`
+	BaseMode      string `protobuf:"bytes,11,opt,name=base_mode,json=baseMode,proto3" json:"base_mode,omitempty"`
+	BaseBlobId    string `protobuf:"bytes,12,opt,name=base_blob_id,json=baseBlobId,proto3" json:"base_blob_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ProposalFile) Reset() {
 	*x = ProposalFile{}
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[6]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -851,7 +973,7 @@ func (x *ProposalFile) String() string {
 func (*ProposalFile) ProtoMessage() {}
 
 func (x *ProposalFile) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[6]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -864,7 +986,7 @@ func (x *ProposalFile) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProposalFile.ProtoReflect.Descriptor instead.
 func (*ProposalFile) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{6}
+	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ProposalFile) GetPath() string {
@@ -930,6 +1052,27 @@ func (x *ProposalFile) GetDrifted() bool {
 	return false
 }
 
+func (x *ProposalFile) GetMode() string {
+	if x != nil {
+		return x.Mode
+	}
+	return ""
+}
+
+func (x *ProposalFile) GetBaseMode() string {
+	if x != nil {
+		return x.BaseMode
+	}
+	return ""
+}
+
+func (x *ProposalFile) GetBaseBlobId() string {
+	if x != nil {
+		return x.BaseBlobId
+	}
+	return ""
+}
+
 // A changed path in the anchor scope that the proposal does not include.
 type ProposalExclusion struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -945,7 +1088,7 @@ type ProposalExclusion struct {
 
 func (x *ProposalExclusion) Reset() {
 	*x = ProposalExclusion{}
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[7]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -957,7 +1100,7 @@ func (x *ProposalExclusion) String() string {
 func (*ProposalExclusion) ProtoMessage() {}
 
 func (x *ProposalExclusion) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[7]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -970,7 +1113,7 @@ func (x *ProposalExclusion) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProposalExclusion.ProtoReflect.Descriptor instead.
 func (*ProposalExclusion) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{7}
+	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ProposalExclusion) GetPath() string {
@@ -1015,7 +1158,7 @@ type ProposalEvidence struct {
 
 func (x *ProposalEvidence) Reset() {
 	*x = ProposalEvidence{}
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[8]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1027,7 +1170,7 @@ func (x *ProposalEvidence) String() string {
 func (*ProposalEvidence) ProtoMessage() {}
 
 func (x *ProposalEvidence) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[8]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1040,7 +1183,7 @@ func (x *ProposalEvidence) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProposalEvidence.ProtoReflect.Descriptor instead.
 func (*ProposalEvidence) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{8}
+	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ProposalEvidence) GetAnchorId() string {
@@ -1108,7 +1251,7 @@ type ProposalFreshness struct {
 
 func (x *ProposalFreshness) Reset() {
 	*x = ProposalFreshness{}
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[9]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1120,7 +1263,7 @@ func (x *ProposalFreshness) String() string {
 func (*ProposalFreshness) ProtoMessage() {}
 
 func (x *ProposalFreshness) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[9]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1133,7 +1276,7 @@ func (x *ProposalFreshness) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProposalFreshness.ProtoReflect.Descriptor instead.
 func (*ProposalFreshness) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{9}
+	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ProposalFreshness) GetState() FreshnessState {
@@ -1205,7 +1348,7 @@ type ProposalEvent struct {
 
 func (x *ProposalEvent) Reset() {
 	*x = ProposalEvent{}
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[10]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1217,7 +1360,7 @@ func (x *ProposalEvent) String() string {
 func (*ProposalEvent) ProtoMessage() {}
 
 func (x *ProposalEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[10]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1230,7 +1373,7 @@ func (x *ProposalEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProposalEvent.ProtoReflect.Descriptor instead.
 func (*ProposalEvent) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{10}
+	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ProposalEvent) GetAction() string {
@@ -1313,14 +1456,23 @@ type Proposal struct {
 	// Last change time.
 	UpdatedAt *timestamppb.Timestamp `protobuf:"bytes,20,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	// Commit time when committed.
-	CommittedAt   *timestamppb.Timestamp `protobuf:"bytes,21,opt,name=committed_at,json=committedAt,proto3" json:"committed_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	CommittedAt *timestamppb.Timestamp `protobuf:"bytes,21,opt,name=committed_at,json=committedAt,proto3" json:"committed_at,omitempty"`
+	// Explicit source manifests. Legacy automatically folded records remain readable.
+	Folds []*ProposalFold `protobuf:"bytes,22,rep,name=folds,proto3" json:"folds,omitempty"`
+	// True only when every file has retained candidate and base content.
+	Captured bool `protobuf:"varint,23,opt,name=captured,proto3" json:"captured,omitempty"`
+	// Available retained payloads, including the current revision; never inferred.
+	RetainedRevisions []int32 `protobuf:"varint,24,rep,packed,name=retained_revisions,json=retainedRevisions,proto3" json:"retained_revisions,omitempty"`
+	// Live registry identity of the destination repository.
+	RepositoryName string `protobuf:"bytes,25,opt,name=repository_name,json=repositoryName,proto3" json:"repository_name,omitempty"`
+	RepositoryPath string `protobuf:"bytes,26,opt,name=repository_path,json=repositoryPath,proto3" json:"repository_path,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *Proposal) Reset() {
 	*x = Proposal{}
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[11]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1332,7 +1484,7 @@ func (x *Proposal) String() string {
 func (*Proposal) ProtoMessage() {}
 
 func (x *Proposal) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[11]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1345,7 +1497,7 @@ func (x *Proposal) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Proposal.ProtoReflect.Descriptor instead.
 func (*Proposal) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{11}
+	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *Proposal) GetId() string {
@@ -1495,6 +1647,41 @@ func (x *Proposal) GetCommittedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *Proposal) GetFolds() []*ProposalFold {
+	if x != nil {
+		return x.Folds
+	}
+	return nil
+}
+
+func (x *Proposal) GetCaptured() bool {
+	if x != nil {
+		return x.Captured
+	}
+	return false
+}
+
+func (x *Proposal) GetRetainedRevisions() []int32 {
+	if x != nil {
+		return x.RetainedRevisions
+	}
+	return nil
+}
+
+func (x *Proposal) GetRepositoryName() string {
+	if x != nil {
+		return x.RepositoryName
+	}
+	return ""
+}
+
+func (x *Proposal) GetRepositoryPath() string {
+	if x != nil {
+		return x.RepositoryPath
+	}
+	return ""
+}
+
 // A file recorded by an anchor.
 type AnchorFile struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -1505,14 +1692,16 @@ type AnchorFile struct {
 	// Git blob ID git would store. Empty when deleted.
 	BlobId string `protobuf:"bytes,3,opt,name=blob_id,json=blobId,proto3" json:"blob_id,omitempty"`
 	// True when the path was deleted in the working tree.
-	Deleted       bool `protobuf:"varint,4,opt,name=deleted,proto3" json:"deleted,omitempty"`
+	Deleted bool `protobuf:"varint,4,opt,name=deleted,proto3" json:"deleted,omitempty"`
+	// Effective Git mode at admission; empty on older anchors.
+	Mode          string `protobuf:"bytes,5,opt,name=mode,proto3" json:"mode,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *AnchorFile) Reset() {
 	*x = AnchorFile{}
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[12]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1524,7 +1713,7 @@ func (x *AnchorFile) String() string {
 func (*AnchorFile) ProtoMessage() {}
 
 func (x *AnchorFile) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[12]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1537,7 +1726,7 @@ func (x *AnchorFile) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AnchorFile.ProtoReflect.Descriptor instead.
 func (*AnchorFile) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{12}
+	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *AnchorFile) GetPath() string {
@@ -1568,6 +1757,13 @@ func (x *AnchorFile) GetDeleted() bool {
 	return false
 }
 
+func (x *AnchorFile) GetMode() string {
+	if x != nil {
+		return x.Mode
+	}
+	return ""
+}
+
 // Dirty files in a scope at epoch admission.
 type Anchor struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -1596,7 +1792,7 @@ type Anchor struct {
 
 func (x *Anchor) Reset() {
 	*x = Anchor{}
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[13]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1608,7 +1804,7 @@ func (x *Anchor) String() string {
 func (*Anchor) ProtoMessage() {}
 
 func (x *Anchor) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[13]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1621,7 +1817,7 @@ func (x *Anchor) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Anchor.ProtoReflect.Descriptor instead.
 func (*Anchor) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{13}
+	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *Anchor) GetId() string {
@@ -1707,7 +1903,7 @@ type AnchorScopeRequest struct {
 
 func (x *AnchorScopeRequest) Reset() {
 	*x = AnchorScopeRequest{}
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[14]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1719,7 +1915,7 @@ func (x *AnchorScopeRequest) String() string {
 func (*AnchorScopeRequest) ProtoMessage() {}
 
 func (x *AnchorScopeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[14]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1732,7 +1928,7 @@ func (x *AnchorScopeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AnchorScopeRequest.ProtoReflect.Descriptor instead.
 func (*AnchorScopeRequest) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{14}
+	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *AnchorScopeRequest) GetRepositoryId() string {
@@ -1781,7 +1977,7 @@ type AnchorScopeResponse struct {
 
 func (x *AnchorScopeResponse) Reset() {
 	*x = AnchorScopeResponse{}
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[15]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1793,7 +1989,7 @@ func (x *AnchorScopeResponse) String() string {
 func (*AnchorScopeResponse) ProtoMessage() {}
 
 func (x *AnchorScopeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[15]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1806,7 +2002,7 @@ func (x *AnchorScopeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AnchorScopeResponse.ProtoReflect.Descriptor instead.
 func (*AnchorScopeResponse) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{15}
+	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *AnchorScopeResponse) GetAnchor() *Anchor {
@@ -1847,7 +2043,7 @@ type CreateProposalRequest struct {
 
 func (x *CreateProposalRequest) Reset() {
 	*x = CreateProposalRequest{}
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[16]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1859,7 +2055,7 @@ func (x *CreateProposalRequest) String() string {
 func (*CreateProposalRequest) ProtoMessage() {}
 
 func (x *CreateProposalRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[16]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1872,7 +2068,7 @@ func (x *CreateProposalRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateProposalRequest.ProtoReflect.Descriptor instead.
 func (*CreateProposalRequest) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{16}
+	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *CreateProposalRequest) GetRepositoryId() string {
@@ -1953,16 +2149,14 @@ type CreateProposalResponse struct {
 	// Validation issues of the message.
 	Issues []*TrailerIssue `protobuf:"bytes,2,rep,name=issues,proto3" json:"issues,omitempty"`
 	// True when the proposal was stored.
-	Stored bool `protobuf:"varint,3,opt,name=stored,proto3" json:"stored,omitempty"`
-	// Open proposal this one superseded, if any.
-	SupersededId  string `protobuf:"bytes,4,opt,name=superseded_id,json=supersededId,proto3" json:"superseded_id,omitempty"`
+	Stored        bool `protobuf:"varint,3,opt,name=stored,proto3" json:"stored,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CreateProposalResponse) Reset() {
 	*x = CreateProposalResponse{}
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[17]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1974,7 +2168,7 @@ func (x *CreateProposalResponse) String() string {
 func (*CreateProposalResponse) ProtoMessage() {}
 
 func (x *CreateProposalResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[17]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1987,7 +2181,7 @@ func (x *CreateProposalResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateProposalResponse.ProtoReflect.Descriptor instead.
 func (*CreateProposalResponse) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{17}
+	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *CreateProposalResponse) GetProposal() *Proposal {
@@ -2011,13 +2205,6 @@ func (x *CreateProposalResponse) GetStored() bool {
 	return false
 }
 
-func (x *CreateProposalResponse) GetSupersededId() string {
-	if x != nil {
-		return x.SupersededId
-	}
-	return ""
-}
-
 // Request to list proposals.
 type ListProposalsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -2035,7 +2222,7 @@ type ListProposalsRequest struct {
 
 func (x *ListProposalsRequest) Reset() {
 	*x = ListProposalsRequest{}
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[18]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2047,7 +2234,7 @@ func (x *ListProposalsRequest) String() string {
 func (*ListProposalsRequest) ProtoMessage() {}
 
 func (x *ListProposalsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[18]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2060,7 +2247,7 @@ func (x *ListProposalsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListProposalsRequest.ProtoReflect.Descriptor instead.
 func (*ListProposalsRequest) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{18}
+	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *ListProposalsRequest) GetRepositoryId() string {
@@ -2104,7 +2291,7 @@ type ListProposalsResponse struct {
 
 func (x *ListProposalsResponse) Reset() {
 	*x = ListProposalsResponse{}
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[19]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2116,7 +2303,7 @@ func (x *ListProposalsResponse) String() string {
 func (*ListProposalsResponse) ProtoMessage() {}
 
 func (x *ListProposalsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[19]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2129,7 +2316,7 @@ func (x *ListProposalsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListProposalsResponse.ProtoReflect.Descriptor instead.
 func (*ListProposalsResponse) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{19}
+	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *ListProposalsResponse) GetProposals() []*Proposal {
@@ -2150,14 +2337,16 @@ func (x *ListProposalsResponse) GetOpenCount() int32 {
 type GetProposalRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Proposal ID.
-	Id            string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Zero selects the current revision; nonzero reads an immutable revision.
+	Revision      int32 `protobuf:"varint,2,opt,name=revision,proto3" json:"revision,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetProposalRequest) Reset() {
 	*x = GetProposalRequest{}
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[20]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2169,7 +2358,7 @@ func (x *GetProposalRequest) String() string {
 func (*GetProposalRequest) ProtoMessage() {}
 
 func (x *GetProposalRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[20]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2182,12 +2371,131 @@ func (x *GetProposalRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetProposalRequest.ProtoReflect.Descriptor instead.
 func (*GetProposalRequest) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{20}
+	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *GetProposalRequest) GetId() string {
 	if x != nil {
 		return x.Id
+	}
+	return ""
+}
+
+func (x *GetProposalRequest) GetRevision() int32 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+type ProposalRevisionReference struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Revision      int32                  `protobuf:"varint,2,opt,name=revision,proto3" json:"revision,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProposalRevisionReference) Reset() {
+	*x = ProposalRevisionReference{}
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProposalRevisionReference) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProposalRevisionReference) ProtoMessage() {}
+
+func (x *ProposalRevisionReference) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProposalRevisionReference.ProtoReflect.Descriptor instead.
+func (*ProposalRevisionReference) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *ProposalRevisionReference) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ProposalRevisionReference) GetRevision() int32 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+type CombineProposalsRequest struct {
+	state         protoimpl.MessageState       `protogen:"open.v1"`
+	Sources       []*ProposalRevisionReference `protobuf:"bytes,1,rep,name=sources,proto3" json:"sources,omitempty"`
+	Subject       string                       `protobuf:"bytes,2,opt,name=subject,proto3" json:"subject,omitempty"`
+	Body          string                       `protobuf:"bytes,3,opt,name=body,proto3" json:"body,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CombineProposalsRequest) Reset() {
+	*x = CombineProposalsRequest{}
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CombineProposalsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CombineProposalsRequest) ProtoMessage() {}
+
+func (x *CombineProposalsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CombineProposalsRequest.ProtoReflect.Descriptor instead.
+func (*CombineProposalsRequest) Descriptor() ([]byte, []int) {
+	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *CombineProposalsRequest) GetSources() []*ProposalRevisionReference {
+	if x != nil {
+		return x.Sources
+	}
+	return nil
+}
+
+func (x *CombineProposalsRequest) GetSubject() string {
+	if x != nil {
+		return x.Subject
+	}
+	return ""
+}
+
+func (x *CombineProposalsRequest) GetBody() string {
+	if x != nil {
+		return x.Body
 	}
 	return ""
 }
@@ -2203,7 +2511,7 @@ type GetProposalResponse struct {
 
 func (x *GetProposalResponse) Reset() {
 	*x = GetProposalResponse{}
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[21]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2215,7 +2523,7 @@ func (x *GetProposalResponse) String() string {
 func (*GetProposalResponse) ProtoMessage() {}
 
 func (x *GetProposalResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[21]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2228,7 +2536,7 @@ func (x *GetProposalResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetProposalResponse.ProtoReflect.Descriptor instead.
 func (*GetProposalResponse) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{21}
+	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *GetProposalResponse) GetProposal() *Proposal {
@@ -2261,7 +2569,7 @@ type EditProposalRequest struct {
 
 func (x *EditProposalRequest) Reset() {
 	*x = EditProposalRequest{}
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[22]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2273,7 +2581,7 @@ func (x *EditProposalRequest) String() string {
 func (*EditProposalRequest) ProtoMessage() {}
 
 func (x *EditProposalRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[22]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2286,7 +2594,7 @@ func (x *EditProposalRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EditProposalRequest.ProtoReflect.Descriptor instead.
 func (*EditProposalRequest) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{22}
+	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *EditProposalRequest) GetId() string {
@@ -2351,7 +2659,7 @@ type EditProposalResponse struct {
 
 func (x *EditProposalResponse) Reset() {
 	*x = EditProposalResponse{}
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[23]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2363,7 +2671,7 @@ func (x *EditProposalResponse) String() string {
 func (*EditProposalResponse) ProtoMessage() {}
 
 func (x *EditProposalResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[23]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2376,7 +2684,7 @@ func (x *EditProposalResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EditProposalResponse.ProtoReflect.Descriptor instead.
 func (*EditProposalResponse) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{23}
+	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *EditProposalResponse) GetProposal() *Proposal {
@@ -2399,14 +2707,17 @@ type WithdrawProposalRequest struct {
 	// Proposal ID.
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	// Reason recorded in history.
-	Reason        string `protobuf:"bytes,2,opt,name=reason,proto3" json:"reason,omitempty"`
+	Reason           string `protobuf:"bytes,2,opt,name=reason,proto3" json:"reason,omitempty"`
+	ExpectedRevision int32  `protobuf:"varint,3,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	// Optional existing proposal that explicitly replaces this one.
+	ReplacementId string `protobuf:"bytes,4,opt,name=replacement_id,json=replacementId,proto3" json:"replacement_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *WithdrawProposalRequest) Reset() {
 	*x = WithdrawProposalRequest{}
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[24]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2418,7 +2729,7 @@ func (x *WithdrawProposalRequest) String() string {
 func (*WithdrawProposalRequest) ProtoMessage() {}
 
 func (x *WithdrawProposalRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[24]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2431,7 +2742,7 @@ func (x *WithdrawProposalRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WithdrawProposalRequest.ProtoReflect.Descriptor instead.
 func (*WithdrawProposalRequest) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{24}
+	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *WithdrawProposalRequest) GetId() string {
@@ -2448,6 +2759,20 @@ func (x *WithdrawProposalRequest) GetReason() string {
 	return ""
 }
 
+func (x *WithdrawProposalRequest) GetExpectedRevision() int32 {
+	if x != nil {
+		return x.ExpectedRevision
+	}
+	return 0
+}
+
+func (x *WithdrawProposalRequest) GetReplacementId() string {
+	if x != nil {
+		return x.ReplacementId
+	}
+	return ""
+}
+
 // Result of a withdrawal.
 type WithdrawProposalResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -2459,7 +2784,7 @@ type WithdrawProposalResponse struct {
 
 func (x *WithdrawProposalResponse) Reset() {
 	*x = WithdrawProposalResponse{}
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[25]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2471,7 +2796,7 @@ func (x *WithdrawProposalResponse) String() string {
 func (*WithdrawProposalResponse) ProtoMessage() {}
 
 func (x *WithdrawProposalResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[25]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2484,7 +2809,7 @@ func (x *WithdrawProposalResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WithdrawProposalResponse.ProtoReflect.Descriptor instead.
 func (*WithdrawProposalResponse) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{25}
+	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *WithdrawProposalResponse) GetProposal() *Proposal {
@@ -2507,7 +2832,7 @@ type RefreshProposalRequest struct {
 
 func (x *RefreshProposalRequest) Reset() {
 	*x = RefreshProposalRequest{}
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[26]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2519,7 +2844,7 @@ func (x *RefreshProposalRequest) String() string {
 func (*RefreshProposalRequest) ProtoMessage() {}
 
 func (x *RefreshProposalRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[26]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2532,7 +2857,7 @@ func (x *RefreshProposalRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RefreshProposalRequest.ProtoReflect.Descriptor instead.
 func (*RefreshProposalRequest) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{26}
+	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *RefreshProposalRequest) GetId() string {
@@ -2562,7 +2887,7 @@ type RefreshProposalResponse struct {
 
 func (x *RefreshProposalResponse) Reset() {
 	*x = RefreshProposalResponse{}
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[27]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2574,7 +2899,7 @@ func (x *RefreshProposalResponse) String() string {
 func (*RefreshProposalResponse) ProtoMessage() {}
 
 func (x *RefreshProposalResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[27]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2587,7 +2912,7 @@ func (x *RefreshProposalResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RefreshProposalResponse.ProtoReflect.Descriptor instead.
 func (*RefreshProposalResponse) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{27}
+	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *RefreshProposalResponse) GetProposal() *Proposal {
@@ -2618,13 +2943,18 @@ type ApplyProposalRequest struct {
 	Revision int32 `protobuf:"varint,4,opt,name=revision,proto3" json:"revision,omitempty"`
 	// Skip the configured pre-commit check for this commit only.
 	SkipPrecommitOnce bool `protobuf:"varint,5,opt,name=skip_precommit_once,json=skipPrecommitOnce,proto3" json:"skip_precommit_once,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Explicit inclusion of uncertain prior work in the reviewed revision.
+	AcknowledgePriorWork bool `protobuf:"varint,6,opt,name=acknowledge_prior_work,json=acknowledgePriorWork,proto3" json:"acknowledge_prior_work,omitempty"`
+	// Commit retained proposal bytes while preserving later working edits.
+	// Bound to the approval intent; different staged versions still refuse.
+	KeepLaterChanges bool `protobuf:"varint,7,opt,name=keep_later_changes,json=keepLaterChanges,proto3" json:"keep_later_changes,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *ApplyProposalRequest) Reset() {
 	*x = ApplyProposalRequest{}
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[28]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2636,7 +2966,7 @@ func (x *ApplyProposalRequest) String() string {
 func (*ApplyProposalRequest) ProtoMessage() {}
 
 func (x *ApplyProposalRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[28]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2649,7 +2979,7 @@ func (x *ApplyProposalRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApplyProposalRequest.ProtoReflect.Descriptor instead.
 func (*ApplyProposalRequest) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{28}
+	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *ApplyProposalRequest) GetRepositoryId() string {
@@ -2687,6 +3017,20 @@ func (x *ApplyProposalRequest) GetSkipPrecommitOnce() bool {
 	return false
 }
 
+func (x *ApplyProposalRequest) GetAcknowledgePriorWork() bool {
+	if x != nil {
+		return x.AcknowledgePriorWork
+	}
+	return false
+}
+
+func (x *ApplyProposalRequest) GetKeepLaterChanges() bool {
+	if x != nil {
+		return x.KeepLaterChanges
+	}
+	return false
+}
+
 // Why apply refused. Nothing was staged or committed.
 type ApplyRefusal struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -2703,7 +3047,7 @@ type ApplyRefusal struct {
 
 func (x *ApplyRefusal) Reset() {
 	*x = ApplyRefusal{}
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[29]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2715,7 +3059,7 @@ func (x *ApplyRefusal) String() string {
 func (*ApplyRefusal) ProtoMessage() {}
 
 func (x *ApplyRefusal) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[29]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2728,7 +3072,7 @@ func (x *ApplyRefusal) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApplyRefusal.ProtoReflect.Descriptor instead.
 func (*ApplyRefusal) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{29}
+	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *ApplyRefusal) GetCode() string {
@@ -2776,7 +3120,7 @@ type ApplyPrecommit struct {
 
 func (x *ApplyPrecommit) Reset() {
 	*x = ApplyPrecommit{}
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[30]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2788,7 +3132,7 @@ func (x *ApplyPrecommit) String() string {
 func (*ApplyPrecommit) ProtoMessage() {}
 
 func (x *ApplyPrecommit) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[30]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2801,7 +3145,7 @@ func (x *ApplyPrecommit) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApplyPrecommit.ProtoReflect.Descriptor instead.
 func (*ApplyPrecommit) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{30}
+	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *ApplyPrecommit) GetStatus() string {
@@ -2880,7 +3224,7 @@ type ApplyProposalResponse struct {
 
 func (x *ApplyProposalResponse) Reset() {
 	*x = ApplyProposalResponse{}
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[31]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2892,7 +3236,7 @@ func (x *ApplyProposalResponse) String() string {
 func (*ApplyProposalResponse) ProtoMessage() {}
 
 func (x *ApplyProposalResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[31]
+	mi := &file_git_control_tower_v1_proposals_proposals_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2905,7 +3249,7 @@ func (x *ApplyProposalResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApplyProposalResponse.ProtoReflect.Descriptor instead.
 func (*ApplyProposalResponse) Descriptor() ([]byte, []int) {
-	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{31}
+	return file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *ApplyProposalResponse) GetSuccess() bool {
@@ -2973,14 +3317,25 @@ const file_git_control_tower_v1_proposals_proposals_proto_rawDesc = "" +
 	"\asubject\x18\x01 \x01(\tR\asubject\x12\x12\n" +
 	"\x04kind\x18\x02 \x01(\tR\x04kind\x12\x1a\n" +
 	"\bverified\x18\x03 \x01(\bR\bverified\x12\x15\n" +
-	"\x06run_id\x18\x04 \x01(\tR\x05runId\"\x9b\x01\n" +
+	"\x06run_id\x18\x04 \x01(\tR\x05runId\"\xc0\x01\n" +
 	"\fProposalWork\x12\x1d\n" +
 	"\n" +
 	"effort_ref\x18\x01 \x01(\tR\teffortRef\x12'\n" +
 	"\x0feffort_revision\x18\x02 \x01(\tR\x0eeffortRevision\x12\x14\n" +
 	"\x05epoch\x18\x03 \x01(\tR\x05epoch\x12\x17\n" +
 	"\arun_ids\x18\x04 \x03(\tR\x06runIds\x12\x14\n" +
-	"\x05plans\x18\x05 \x03(\tR\x05plans\"\xd5\x01\n" +
+	"\x05plans\x18\x05 \x03(\tR\x05plans\x12#\n" +
+	"\rfolded_epochs\x18\x06 \x03(\tR\ffoldedEpochs\"\x8c\x02\n" +
+	"\fProposalFold\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
+	"\x05epoch\x18\x02 \x01(\tR\x05epoch\x12\x18\n" +
+	"\asubject\x18\x03 \x01(\tR\asubject\x12\x16\n" +
+	"\x06reason\x18\x04 \x01(\tR\x06reason\x12\x14\n" +
+	"\x05paths\x18\x05 \x03(\tR\x05paths\x12\x1a\n" +
+	"\brevision\x18\x06 \x01(\x05R\brevision\x12\x1d\n" +
+	"\n" +
+	"effort_ref\x18\a \x01(\tR\teffortRef\x12S\n" +
+	"\bevidence\x18\b \x01(\v27.vrooli.git_control_tower.v1.proposals.ProposalEvidenceR\bevidence\"\xd5\x01\n" +
 	"\x0fProposalTrailer\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value\x12\x12\n" +
@@ -3004,7 +3359,7 @@ const file_git_control_tower_v1_proposals_proposals_proto_rawDesc = "" +
 	"\x0foperator_edited\x18\x05 \x01(\bR\x0eoperatorEdited\":\n" +
 	"\fProposalFlag\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12\x16\n" +
-	"\x06detail\x18\x02 \x01(\tR\x06detail\"\xdd\x02\n" +
+	"\x06detail\x18\x02 \x01(\tR\x06detail\"\xb0\x03\n" +
 	"\fProposalFile\x12\x12\n" +
 	"\x04path\x18\x01 \x01(\tR\x04path\x12I\n" +
 	"\x04kind\x18\x02 \x01(\x0e25.vrooli.git_control_tower.v1.proposals.FileChangeKindR\x04kind\x12\x16\n" +
@@ -3014,7 +3369,12 @@ const file_git_control_tower_v1_proposals_proposals_proto_rawDesc = "" +
 	"\x06source\x18\x06 \x01(\tR\x06source\x12I\n" +
 	"\x05flags\x18\a \x03(\v23.vrooli.git_control_tower.v1.proposals.ProposalFlagR\x05flags\x12&\n" +
 	"\x0fcurrent_blob_id\x18\b \x01(\tR\rcurrentBlobId\x12\x18\n" +
-	"\adrifted\x18\t \x01(\bR\adrifted\"W\n" +
+	"\adrifted\x18\t \x01(\bR\adrifted\x12\x12\n" +
+	"\x04mode\x18\n" +
+	" \x01(\tR\x04mode\x12\x1b\n" +
+	"\tbase_mode\x18\v \x01(\tR\bbaseMode\x12 \n" +
+	"\fbase_blob_id\x18\f \x01(\tR\n" +
+	"baseBlobId\"W\n" +
 	"\x11ProposalExclusion\x12\x12\n" +
 	"\x04path\x18\x01 \x01(\tR\x04path\x12\x16\n" +
 	"\x06reason\x18\x02 \x01(\tR\x06reason\x12\x16\n" +
@@ -3041,7 +3401,7 @@ const file_git_control_tower_v1_proposals_proposals_proto_rawDesc = "" +
 	"\x05actor\x18\x02 \x01(\v2,.vrooli.git_control_tower.v1.proposals.ActorR\x05actor\x12\x1a\n" +
 	"\brevision\x18\x03 \x01(\x05R\brevision\x12\x16\n" +
 	"\x06detail\x18\x04 \x01(\tR\x06detail\x128\n" +
-	"\ttimestamp\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\"\xcf\t\n" +
+	"\ttimestamp\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\"\xb7\v\n" +
 	"\bProposal\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12#\n" +
 	"\rrepository_id\x18\x02 \x01(\tR\frepositoryId\x12J\n" +
@@ -3068,13 +3428,19 @@ const file_git_control_tower_v1_proposals_proposals_proto_rawDesc = "" +
 	"created_at\x18\x13 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
 	"updated_at\x18\x14 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12=\n" +
-	"\fcommitted_at\x18\x15 \x01(\v2\x1a.google.protobuf.TimestampR\vcommittedAt\"k\n" +
+	"\fcommitted_at\x18\x15 \x01(\v2\x1a.google.protobuf.TimestampR\vcommittedAt\x12I\n" +
+	"\x05folds\x18\x16 \x03(\v23.vrooli.git_control_tower.v1.proposals.ProposalFoldR\x05folds\x12\x1a\n" +
+	"\bcaptured\x18\x17 \x01(\bR\bcaptured\x12-\n" +
+	"\x12retained_revisions\x18\x18 \x03(\x05R\x11retainedRevisions\x12'\n" +
+	"\x0frepository_name\x18\x19 \x01(\tR\x0erepositoryName\x12'\n" +
+	"\x0frepository_path\x18\x1a \x01(\tR\x0erepositoryPath\"\x7f\n" +
 	"\n" +
 	"AnchorFile\x12\x12\n" +
 	"\x04path\x18\x01 \x01(\tR\x04path\x12\x16\n" +
 	"\x06sha256\x18\x02 \x01(\tR\x06sha256\x12\x17\n" +
 	"\ablob_id\x18\x03 \x01(\tR\x06blobId\x12\x18\n" +
-	"\adeleted\x18\x04 \x01(\bR\adeleted\"\xef\x02\n" +
+	"\adeleted\x18\x04 \x01(\bR\adeleted\x12\x12\n" +
+	"\x04mode\x18\x05 \x01(\tR\x04mode\"\xef\x02\n" +
 	"\x06Anchor\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12#\n" +
 	"\rrepository_id\x18\x02 \x01(\tR\frepositoryId\x12\x1d\n" +
@@ -3108,12 +3474,11 @@ const file_git_control_tower_v1_proposals_proposals_proto_rawDesc = "" +
 	"\bevidence\x18\b \x01(\v27.vrooli.git_control_tower.v1.proposals.ProposalEvidenceR\bevidence\x12$\n" +
 	"\x0ecreator_run_id\x18\t \x01(\tR\fcreatorRunId\x12#\n" +
 	"\rvalidate_only\x18\n" +
-	" \x01(\bR\fvalidateOnly\"\xef\x01\n" +
+	" \x01(\bR\fvalidateOnly\"\xf5\x01\n" +
 	"\x16CreateProposalResponse\x12K\n" +
 	"\bproposal\x18\x01 \x01(\v2/.vrooli.git_control_tower.v1.proposals.ProposalR\bproposal\x12K\n" +
 	"\x06issues\x18\x02 \x03(\v23.vrooli.git_control_tower.v1.proposals.TrailerIssueR\x06issues\x12\x16\n" +
-	"\x06stored\x18\x03 \x01(\bR\x06stored\x12#\n" +
-	"\rsuperseded_id\x18\x04 \x01(\tR\fsupersededId\"\xbe\x01\n" +
+	"\x06stored\x18\x03 \x01(\bR\x06storedJ\x04\b\x04\x10\x05J\x04\b\x05\x10\x06R\rsuperseded_idR\x0esuperseded_ids\"\xbe\x01\n" +
 	"\x14ListProposalsRequest\x12#\n" +
 	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12L\n" +
 	"\x06states\x18\x02 \x03(\x0e24.vrooli.git_control_tower.v1.proposals.ProposalStateR\x06states\x12\x1d\n" +
@@ -3123,9 +3488,17 @@ const file_git_control_tower_v1_proposals_proposals_proto_rawDesc = "" +
 	"\x15ListProposalsResponse\x12M\n" +
 	"\tproposals\x18\x01 \x03(\v2/.vrooli.git_control_tower.v1.proposals.ProposalR\tproposals\x12\x1d\n" +
 	"\n" +
-	"open_count\x18\x02 \x01(\x05R\topenCount\"$\n" +
+	"open_count\x18\x02 \x01(\x05R\topenCount\"@\n" +
 	"\x12GetProposalRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"b\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
+	"\brevision\x18\x02 \x01(\x05R\brevision\"G\n" +
+	"\x19ProposalRevisionReference\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
+	"\brevision\x18\x02 \x01(\x05R\brevision\"\xa3\x01\n" +
+	"\x17CombineProposalsRequest\x12Z\n" +
+	"\asources\x18\x01 \x03(\v2@.vrooli.git_control_tower.v1.proposals.ProposalRevisionReferenceR\asources\x12\x18\n" +
+	"\asubject\x18\x02 \x01(\tR\asubject\x12\x12\n" +
+	"\x04body\x18\x03 \x01(\tR\x04body\"b\n" +
 	"\x13GetProposalResponse\x12K\n" +
 	"\bproposal\x18\x01 \x01(\v2/.vrooli.git_control_tower.v1.proposals.ProposalR\bproposal\"\xc1\x02\n" +
 	"\x13EditProposalRequest\x12\x0e\n" +
@@ -3141,10 +3514,12 @@ const file_git_control_tower_v1_proposals_proposals_proto_rawDesc = "" +
 	"\x05_body\"\xb0\x01\n" +
 	"\x14EditProposalResponse\x12K\n" +
 	"\bproposal\x18\x01 \x01(\v2/.vrooli.git_control_tower.v1.proposals.ProposalR\bproposal\x12K\n" +
-	"\x06issues\x18\x02 \x03(\v23.vrooli.git_control_tower.v1.proposals.TrailerIssueR\x06issues\"A\n" +
+	"\x06issues\x18\x02 \x03(\v23.vrooli.git_control_tower.v1.proposals.TrailerIssueR\x06issues\"\x95\x01\n" +
 	"\x17WithdrawProposalRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
-	"\x06reason\x18\x02 \x01(\tR\x06reason\"g\n" +
+	"\x06reason\x18\x02 \x01(\tR\x06reason\x12+\n" +
+	"\x11expected_revision\x18\x03 \x01(\x05R\x10expectedRevision\x12%\n" +
+	"\x0ereplacement_id\x18\x04 \x01(\tR\rreplacementId\"g\n" +
 	"\x18WithdrawProposalResponse\x12K\n" +
 	"\bproposal\x18\x01 \x01(\v2/.vrooli.git_control_tower.v1.proposals.ProposalR\bproposal\"U\n" +
 	"\x16RefreshProposalRequest\x12\x0e\n" +
@@ -3152,13 +3527,15 @@ const file_git_control_tower_v1_proposals_proposals_proto_rawDesc = "" +
 	"\x11expected_revision\x18\x02 \x01(\x05R\x10expectedRevision\"\x8b\x01\n" +
 	"\x17RefreshProposalResponse\x12K\n" +
 	"\bproposal\x18\x01 \x01(\v2/.vrooli.git_control_tower.v1.proposals.ProposalR\bproposal\x12#\n" +
-	"\rdropped_paths\x18\x02 \x03(\tR\fdroppedPaths\"\xb4\x01\n" +
+	"\rdropped_paths\x18\x02 \x03(\tR\fdroppedPaths\"\x98\x02\n" +
 	"\x14ApplyProposalRequest\x12#\n" +
 	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12\x1b\n" +
 	"\tintent_id\x18\x02 \x01(\tR\bintentId\x12\x0e\n" +
 	"\x02id\x18\x03 \x01(\tR\x02id\x12\x1a\n" +
 	"\brevision\x18\x04 \x01(\x05R\brevision\x12.\n" +
-	"\x13skip_precommit_once\x18\x05 \x01(\bR\x11skipPrecommitOnce\"P\n" +
+	"\x13skip_precommit_once\x18\x05 \x01(\bR\x11skipPrecommitOnce\x124\n" +
+	"\x16acknowledge_prior_work\x18\x06 \x01(\bR\x14acknowledgePriorWork\x12,\n" +
+	"\x12keep_later_changes\x18\a \x01(\bR\x10keepLaterChanges\"P\n" +
 	"\fApplyRefusal\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12\x14\n" +
 	"\x05paths\x18\x02 \x03(\tR\x05paths\x12\x16\n" +
@@ -3212,12 +3589,14 @@ const file_git_control_tower_v1_proposals_proposals_proto_rawDesc = "" +
 	"\rIssueSeverity\x12\x1e\n" +
 	"\x1aISSUE_SEVERITY_UNSPECIFIED\x10\x00\x12\x18\n" +
 	"\x14ISSUE_SEVERITY_ERROR\x10\x01\x12\x1a\n" +
-	"\x16ISSUE_SEVERITY_WARNING\x10\x022\xfc\b\n" +
+	"\x16ISSUE_SEVERITY_WARNING\x10\x022\x8d\n" +
+	"\n" +
 	"\x0fProposalService\x12\x84\x01\n" +
 	"\vAnchorScope\x129.vrooli.git_control_tower.v1.proposals.AnchorScopeRequest\x1a:.vrooli.git_control_tower.v1.proposals.AnchorScopeResponse\x12\x8d\x01\n" +
 	"\x0eCreateProposal\x12<.vrooli.git_control_tower.v1.proposals.CreateProposalRequest\x1a=.vrooli.git_control_tower.v1.proposals.CreateProposalResponse\x12\x8a\x01\n" +
 	"\rListProposals\x12;.vrooli.git_control_tower.v1.proposals.ListProposalsRequest\x1a<.vrooli.git_control_tower.v1.proposals.ListProposalsResponse\x12\x84\x01\n" +
-	"\vGetProposal\x129.vrooli.git_control_tower.v1.proposals.GetProposalRequest\x1a:.vrooli.git_control_tower.v1.proposals.GetProposalResponse\x12\x87\x01\n" +
+	"\vGetProposal\x129.vrooli.git_control_tower.v1.proposals.GetProposalRequest\x1a:.vrooli.git_control_tower.v1.proposals.GetProposalResponse\x12\x8e\x01\n" +
+	"\x10CombineProposals\x12>.vrooli.git_control_tower.v1.proposals.CombineProposalsRequest\x1a:.vrooli.git_control_tower.v1.proposals.GetProposalResponse\x12\x87\x01\n" +
 	"\fEditProposal\x12:.vrooli.git_control_tower.v1.proposals.EditProposalRequest\x1a;.vrooli.git_control_tower.v1.proposals.EditProposalResponse\x12\x93\x01\n" +
 	"\x10WithdrawProposal\x12>.vrooli.git_control_tower.v1.proposals.WithdrawProposalRequest\x1a?.vrooli.git_control_tower.v1.proposals.WithdrawProposalResponse\x12\x90\x01\n" +
 	"\x0fRefreshProposal\x12=.vrooli.git_control_tower.v1.proposals.RefreshProposalRequest\x1a>.vrooli.git_control_tower.v1.proposals.RefreshProposalResponse\x12\x8a\x01\n" +
@@ -3236,111 +3615,119 @@ func file_git_control_tower_v1_proposals_proposals_proto_rawDescGZIP() []byte {
 }
 
 var file_git_control_tower_v1_proposals_proposals_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
-var file_git_control_tower_v1_proposals_proposals_proto_msgTypes = make([]protoimpl.MessageInfo, 32)
+var file_git_control_tower_v1_proposals_proposals_proto_msgTypes = make([]protoimpl.MessageInfo, 35)
 var file_git_control_tower_v1_proposals_proposals_proto_goTypes = []any{
-	(ProposalState)(0),               // 0: vrooli.git_control_tower.v1.proposals.ProposalState
-	(FileChangeKind)(0),              // 1: vrooli.git_control_tower.v1.proposals.FileChangeKind
-	(FreshnessState)(0),              // 2: vrooli.git_control_tower.v1.proposals.FreshnessState
-	(TrailerResolution)(0),           // 3: vrooli.git_control_tower.v1.proposals.TrailerResolution
-	(IssueSeverity)(0),               // 4: vrooli.git_control_tower.v1.proposals.IssueSeverity
-	(*Actor)(nil),                    // 5: vrooli.git_control_tower.v1.proposals.Actor
-	(*ProposalWork)(nil),             // 6: vrooli.git_control_tower.v1.proposals.ProposalWork
-	(*ProposalTrailer)(nil),          // 7: vrooli.git_control_tower.v1.proposals.ProposalTrailer
-	(*TrailerIssue)(nil),             // 8: vrooli.git_control_tower.v1.proposals.TrailerIssue
-	(*ProposalMessage)(nil),          // 9: vrooli.git_control_tower.v1.proposals.ProposalMessage
-	(*ProposalFlag)(nil),             // 10: vrooli.git_control_tower.v1.proposals.ProposalFlag
-	(*ProposalFile)(nil),             // 11: vrooli.git_control_tower.v1.proposals.ProposalFile
-	(*ProposalExclusion)(nil),        // 12: vrooli.git_control_tower.v1.proposals.ProposalExclusion
-	(*ProposalEvidence)(nil),         // 13: vrooli.git_control_tower.v1.proposals.ProposalEvidence
-	(*ProposalFreshness)(nil),        // 14: vrooli.git_control_tower.v1.proposals.ProposalFreshness
-	(*ProposalEvent)(nil),            // 15: vrooli.git_control_tower.v1.proposals.ProposalEvent
-	(*Proposal)(nil),                 // 16: vrooli.git_control_tower.v1.proposals.Proposal
-	(*AnchorFile)(nil),               // 17: vrooli.git_control_tower.v1.proposals.AnchorFile
-	(*Anchor)(nil),                   // 18: vrooli.git_control_tower.v1.proposals.Anchor
-	(*AnchorScopeRequest)(nil),       // 19: vrooli.git_control_tower.v1.proposals.AnchorScopeRequest
-	(*AnchorScopeResponse)(nil),      // 20: vrooli.git_control_tower.v1.proposals.AnchorScopeResponse
-	(*CreateProposalRequest)(nil),    // 21: vrooli.git_control_tower.v1.proposals.CreateProposalRequest
-	(*CreateProposalResponse)(nil),   // 22: vrooli.git_control_tower.v1.proposals.CreateProposalResponse
-	(*ListProposalsRequest)(nil),     // 23: vrooli.git_control_tower.v1.proposals.ListProposalsRequest
-	(*ListProposalsResponse)(nil),    // 24: vrooli.git_control_tower.v1.proposals.ListProposalsResponse
-	(*GetProposalRequest)(nil),       // 25: vrooli.git_control_tower.v1.proposals.GetProposalRequest
-	(*GetProposalResponse)(nil),      // 26: vrooli.git_control_tower.v1.proposals.GetProposalResponse
-	(*EditProposalRequest)(nil),      // 27: vrooli.git_control_tower.v1.proposals.EditProposalRequest
-	(*EditProposalResponse)(nil),     // 28: vrooli.git_control_tower.v1.proposals.EditProposalResponse
-	(*WithdrawProposalRequest)(nil),  // 29: vrooli.git_control_tower.v1.proposals.WithdrawProposalRequest
-	(*WithdrawProposalResponse)(nil), // 30: vrooli.git_control_tower.v1.proposals.WithdrawProposalResponse
-	(*RefreshProposalRequest)(nil),   // 31: vrooli.git_control_tower.v1.proposals.RefreshProposalRequest
-	(*RefreshProposalResponse)(nil),  // 32: vrooli.git_control_tower.v1.proposals.RefreshProposalResponse
-	(*ApplyProposalRequest)(nil),     // 33: vrooli.git_control_tower.v1.proposals.ApplyProposalRequest
-	(*ApplyRefusal)(nil),             // 34: vrooli.git_control_tower.v1.proposals.ApplyRefusal
-	(*ApplyPrecommit)(nil),           // 35: vrooli.git_control_tower.v1.proposals.ApplyPrecommit
-	(*ApplyProposalResponse)(nil),    // 36: vrooli.git_control_tower.v1.proposals.ApplyProposalResponse
-	(*timestamppb.Timestamp)(nil),    // 37: google.protobuf.Timestamp
+	(ProposalState)(0),                // 0: vrooli.git_control_tower.v1.proposals.ProposalState
+	(FileChangeKind)(0),               // 1: vrooli.git_control_tower.v1.proposals.FileChangeKind
+	(FreshnessState)(0),               // 2: vrooli.git_control_tower.v1.proposals.FreshnessState
+	(TrailerResolution)(0),            // 3: vrooli.git_control_tower.v1.proposals.TrailerResolution
+	(IssueSeverity)(0),                // 4: vrooli.git_control_tower.v1.proposals.IssueSeverity
+	(*Actor)(nil),                     // 5: vrooli.git_control_tower.v1.proposals.Actor
+	(*ProposalWork)(nil),              // 6: vrooli.git_control_tower.v1.proposals.ProposalWork
+	(*ProposalFold)(nil),              // 7: vrooli.git_control_tower.v1.proposals.ProposalFold
+	(*ProposalTrailer)(nil),           // 8: vrooli.git_control_tower.v1.proposals.ProposalTrailer
+	(*TrailerIssue)(nil),              // 9: vrooli.git_control_tower.v1.proposals.TrailerIssue
+	(*ProposalMessage)(nil),           // 10: vrooli.git_control_tower.v1.proposals.ProposalMessage
+	(*ProposalFlag)(nil),              // 11: vrooli.git_control_tower.v1.proposals.ProposalFlag
+	(*ProposalFile)(nil),              // 12: vrooli.git_control_tower.v1.proposals.ProposalFile
+	(*ProposalExclusion)(nil),         // 13: vrooli.git_control_tower.v1.proposals.ProposalExclusion
+	(*ProposalEvidence)(nil),          // 14: vrooli.git_control_tower.v1.proposals.ProposalEvidence
+	(*ProposalFreshness)(nil),         // 15: vrooli.git_control_tower.v1.proposals.ProposalFreshness
+	(*ProposalEvent)(nil),             // 16: vrooli.git_control_tower.v1.proposals.ProposalEvent
+	(*Proposal)(nil),                  // 17: vrooli.git_control_tower.v1.proposals.Proposal
+	(*AnchorFile)(nil),                // 18: vrooli.git_control_tower.v1.proposals.AnchorFile
+	(*Anchor)(nil),                    // 19: vrooli.git_control_tower.v1.proposals.Anchor
+	(*AnchorScopeRequest)(nil),        // 20: vrooli.git_control_tower.v1.proposals.AnchorScopeRequest
+	(*AnchorScopeResponse)(nil),       // 21: vrooli.git_control_tower.v1.proposals.AnchorScopeResponse
+	(*CreateProposalRequest)(nil),     // 22: vrooli.git_control_tower.v1.proposals.CreateProposalRequest
+	(*CreateProposalResponse)(nil),    // 23: vrooli.git_control_tower.v1.proposals.CreateProposalResponse
+	(*ListProposalsRequest)(nil),      // 24: vrooli.git_control_tower.v1.proposals.ListProposalsRequest
+	(*ListProposalsResponse)(nil),     // 25: vrooli.git_control_tower.v1.proposals.ListProposalsResponse
+	(*GetProposalRequest)(nil),        // 26: vrooli.git_control_tower.v1.proposals.GetProposalRequest
+	(*ProposalRevisionReference)(nil), // 27: vrooli.git_control_tower.v1.proposals.ProposalRevisionReference
+	(*CombineProposalsRequest)(nil),   // 28: vrooli.git_control_tower.v1.proposals.CombineProposalsRequest
+	(*GetProposalResponse)(nil),       // 29: vrooli.git_control_tower.v1.proposals.GetProposalResponse
+	(*EditProposalRequest)(nil),       // 30: vrooli.git_control_tower.v1.proposals.EditProposalRequest
+	(*EditProposalResponse)(nil),      // 31: vrooli.git_control_tower.v1.proposals.EditProposalResponse
+	(*WithdrawProposalRequest)(nil),   // 32: vrooli.git_control_tower.v1.proposals.WithdrawProposalRequest
+	(*WithdrawProposalResponse)(nil),  // 33: vrooli.git_control_tower.v1.proposals.WithdrawProposalResponse
+	(*RefreshProposalRequest)(nil),    // 34: vrooli.git_control_tower.v1.proposals.RefreshProposalRequest
+	(*RefreshProposalResponse)(nil),   // 35: vrooli.git_control_tower.v1.proposals.RefreshProposalResponse
+	(*ApplyProposalRequest)(nil),      // 36: vrooli.git_control_tower.v1.proposals.ApplyProposalRequest
+	(*ApplyRefusal)(nil),              // 37: vrooli.git_control_tower.v1.proposals.ApplyRefusal
+	(*ApplyPrecommit)(nil),            // 38: vrooli.git_control_tower.v1.proposals.ApplyPrecommit
+	(*ApplyProposalResponse)(nil),     // 39: vrooli.git_control_tower.v1.proposals.ApplyProposalResponse
+	(*timestamppb.Timestamp)(nil),     // 40: google.protobuf.Timestamp
 }
 var file_git_control_tower_v1_proposals_proposals_proto_depIdxs = []int32{
-	3,  // 0: vrooli.git_control_tower.v1.proposals.ProposalTrailer.resolution:type_name -> vrooli.git_control_tower.v1.proposals.TrailerResolution
-	4,  // 1: vrooli.git_control_tower.v1.proposals.TrailerIssue.severity:type_name -> vrooli.git_control_tower.v1.proposals.IssueSeverity
-	7,  // 2: vrooli.git_control_tower.v1.proposals.ProposalMessage.trailers:type_name -> vrooli.git_control_tower.v1.proposals.ProposalTrailer
-	1,  // 3: vrooli.git_control_tower.v1.proposals.ProposalFile.kind:type_name -> vrooli.git_control_tower.v1.proposals.FileChangeKind
-	10, // 4: vrooli.git_control_tower.v1.proposals.ProposalFile.flags:type_name -> vrooli.git_control_tower.v1.proposals.ProposalFlag
-	2,  // 5: vrooli.git_control_tower.v1.proposals.ProposalFreshness.state:type_name -> vrooli.git_control_tower.v1.proposals.FreshnessState
-	37, // 6: vrooli.git_control_tower.v1.proposals.ProposalFreshness.checked_at:type_name -> google.protobuf.Timestamp
-	5,  // 7: vrooli.git_control_tower.v1.proposals.ProposalEvent.actor:type_name -> vrooli.git_control_tower.v1.proposals.Actor
-	37, // 8: vrooli.git_control_tower.v1.proposals.ProposalEvent.timestamp:type_name -> google.protobuf.Timestamp
-	0,  // 9: vrooli.git_control_tower.v1.proposals.Proposal.state:type_name -> vrooli.git_control_tower.v1.proposals.ProposalState
-	5,  // 10: vrooli.git_control_tower.v1.proposals.Proposal.created_by:type_name -> vrooli.git_control_tower.v1.proposals.Actor
-	6,  // 11: vrooli.git_control_tower.v1.proposals.Proposal.work:type_name -> vrooli.git_control_tower.v1.proposals.ProposalWork
-	9,  // 12: vrooli.git_control_tower.v1.proposals.Proposal.message:type_name -> vrooli.git_control_tower.v1.proposals.ProposalMessage
-	11, // 13: vrooli.git_control_tower.v1.proposals.Proposal.files:type_name -> vrooli.git_control_tower.v1.proposals.ProposalFile
-	12, // 14: vrooli.git_control_tower.v1.proposals.Proposal.excluded:type_name -> vrooli.git_control_tower.v1.proposals.ProposalExclusion
-	13, // 15: vrooli.git_control_tower.v1.proposals.Proposal.evidence:type_name -> vrooli.git_control_tower.v1.proposals.ProposalEvidence
-	14, // 16: vrooli.git_control_tower.v1.proposals.Proposal.freshness:type_name -> vrooli.git_control_tower.v1.proposals.ProposalFreshness
-	15, // 17: vrooli.git_control_tower.v1.proposals.Proposal.events:type_name -> vrooli.git_control_tower.v1.proposals.ProposalEvent
-	8,  // 18: vrooli.git_control_tower.v1.proposals.Proposal.issues:type_name -> vrooli.git_control_tower.v1.proposals.TrailerIssue
-	37, // 19: vrooli.git_control_tower.v1.proposals.Proposal.created_at:type_name -> google.protobuf.Timestamp
-	37, // 20: vrooli.git_control_tower.v1.proposals.Proposal.updated_at:type_name -> google.protobuf.Timestamp
-	37, // 21: vrooli.git_control_tower.v1.proposals.Proposal.committed_at:type_name -> google.protobuf.Timestamp
-	17, // 22: vrooli.git_control_tower.v1.proposals.Anchor.files:type_name -> vrooli.git_control_tower.v1.proposals.AnchorFile
-	5,  // 23: vrooli.git_control_tower.v1.proposals.Anchor.created_by:type_name -> vrooli.git_control_tower.v1.proposals.Actor
-	37, // 24: vrooli.git_control_tower.v1.proposals.Anchor.created_at:type_name -> google.protobuf.Timestamp
-	18, // 25: vrooli.git_control_tower.v1.proposals.AnchorScopeResponse.anchor:type_name -> vrooli.git_control_tower.v1.proposals.Anchor
-	6,  // 26: vrooli.git_control_tower.v1.proposals.CreateProposalRequest.work:type_name -> vrooli.git_control_tower.v1.proposals.ProposalWork
-	7,  // 27: vrooli.git_control_tower.v1.proposals.CreateProposalRequest.trailers:type_name -> vrooli.git_control_tower.v1.proposals.ProposalTrailer
-	13, // 28: vrooli.git_control_tower.v1.proposals.CreateProposalRequest.evidence:type_name -> vrooli.git_control_tower.v1.proposals.ProposalEvidence
-	16, // 29: vrooli.git_control_tower.v1.proposals.CreateProposalResponse.proposal:type_name -> vrooli.git_control_tower.v1.proposals.Proposal
-	8,  // 30: vrooli.git_control_tower.v1.proposals.CreateProposalResponse.issues:type_name -> vrooli.git_control_tower.v1.proposals.TrailerIssue
-	0,  // 31: vrooli.git_control_tower.v1.proposals.ListProposalsRequest.states:type_name -> vrooli.git_control_tower.v1.proposals.ProposalState
-	16, // 32: vrooli.git_control_tower.v1.proposals.ListProposalsResponse.proposals:type_name -> vrooli.git_control_tower.v1.proposals.Proposal
-	16, // 33: vrooli.git_control_tower.v1.proposals.GetProposalResponse.proposal:type_name -> vrooli.git_control_tower.v1.proposals.Proposal
-	7,  // 34: vrooli.git_control_tower.v1.proposals.EditProposalRequest.trailers:type_name -> vrooli.git_control_tower.v1.proposals.ProposalTrailer
-	16, // 35: vrooli.git_control_tower.v1.proposals.EditProposalResponse.proposal:type_name -> vrooli.git_control_tower.v1.proposals.Proposal
-	8,  // 36: vrooli.git_control_tower.v1.proposals.EditProposalResponse.issues:type_name -> vrooli.git_control_tower.v1.proposals.TrailerIssue
-	16, // 37: vrooli.git_control_tower.v1.proposals.WithdrawProposalResponse.proposal:type_name -> vrooli.git_control_tower.v1.proposals.Proposal
-	16, // 38: vrooli.git_control_tower.v1.proposals.RefreshProposalResponse.proposal:type_name -> vrooli.git_control_tower.v1.proposals.Proposal
-	16, // 39: vrooli.git_control_tower.v1.proposals.ApplyProposalResponse.proposal:type_name -> vrooli.git_control_tower.v1.proposals.Proposal
-	34, // 40: vrooli.git_control_tower.v1.proposals.ApplyProposalResponse.refusal:type_name -> vrooli.git_control_tower.v1.proposals.ApplyRefusal
-	35, // 41: vrooli.git_control_tower.v1.proposals.ApplyProposalResponse.precommit:type_name -> vrooli.git_control_tower.v1.proposals.ApplyPrecommit
-	19, // 42: vrooli.git_control_tower.v1.proposals.ProposalService.AnchorScope:input_type -> vrooli.git_control_tower.v1.proposals.AnchorScopeRequest
-	21, // 43: vrooli.git_control_tower.v1.proposals.ProposalService.CreateProposal:input_type -> vrooli.git_control_tower.v1.proposals.CreateProposalRequest
-	23, // 44: vrooli.git_control_tower.v1.proposals.ProposalService.ListProposals:input_type -> vrooli.git_control_tower.v1.proposals.ListProposalsRequest
-	25, // 45: vrooli.git_control_tower.v1.proposals.ProposalService.GetProposal:input_type -> vrooli.git_control_tower.v1.proposals.GetProposalRequest
-	27, // 46: vrooli.git_control_tower.v1.proposals.ProposalService.EditProposal:input_type -> vrooli.git_control_tower.v1.proposals.EditProposalRequest
-	29, // 47: vrooli.git_control_tower.v1.proposals.ProposalService.WithdrawProposal:input_type -> vrooli.git_control_tower.v1.proposals.WithdrawProposalRequest
-	31, // 48: vrooli.git_control_tower.v1.proposals.ProposalService.RefreshProposal:input_type -> vrooli.git_control_tower.v1.proposals.RefreshProposalRequest
-	33, // 49: vrooli.git_control_tower.v1.proposals.ProposalService.ApplyProposal:input_type -> vrooli.git_control_tower.v1.proposals.ApplyProposalRequest
-	20, // 50: vrooli.git_control_tower.v1.proposals.ProposalService.AnchorScope:output_type -> vrooli.git_control_tower.v1.proposals.AnchorScopeResponse
-	22, // 51: vrooli.git_control_tower.v1.proposals.ProposalService.CreateProposal:output_type -> vrooli.git_control_tower.v1.proposals.CreateProposalResponse
-	24, // 52: vrooli.git_control_tower.v1.proposals.ProposalService.ListProposals:output_type -> vrooli.git_control_tower.v1.proposals.ListProposalsResponse
-	26, // 53: vrooli.git_control_tower.v1.proposals.ProposalService.GetProposal:output_type -> vrooli.git_control_tower.v1.proposals.GetProposalResponse
-	28, // 54: vrooli.git_control_tower.v1.proposals.ProposalService.EditProposal:output_type -> vrooli.git_control_tower.v1.proposals.EditProposalResponse
-	30, // 55: vrooli.git_control_tower.v1.proposals.ProposalService.WithdrawProposal:output_type -> vrooli.git_control_tower.v1.proposals.WithdrawProposalResponse
-	32, // 56: vrooli.git_control_tower.v1.proposals.ProposalService.RefreshProposal:output_type -> vrooli.git_control_tower.v1.proposals.RefreshProposalResponse
-	36, // 57: vrooli.git_control_tower.v1.proposals.ProposalService.ApplyProposal:output_type -> vrooli.git_control_tower.v1.proposals.ApplyProposalResponse
-	50, // [50:58] is the sub-list for method output_type
-	42, // [42:50] is the sub-list for method input_type
-	42, // [42:42] is the sub-list for extension type_name
-	42, // [42:42] is the sub-list for extension extendee
-	0,  // [0:42] is the sub-list for field type_name
+	14, // 0: vrooli.git_control_tower.v1.proposals.ProposalFold.evidence:type_name -> vrooli.git_control_tower.v1.proposals.ProposalEvidence
+	3,  // 1: vrooli.git_control_tower.v1.proposals.ProposalTrailer.resolution:type_name -> vrooli.git_control_tower.v1.proposals.TrailerResolution
+	4,  // 2: vrooli.git_control_tower.v1.proposals.TrailerIssue.severity:type_name -> vrooli.git_control_tower.v1.proposals.IssueSeverity
+	8,  // 3: vrooli.git_control_tower.v1.proposals.ProposalMessage.trailers:type_name -> vrooli.git_control_tower.v1.proposals.ProposalTrailer
+	1,  // 4: vrooli.git_control_tower.v1.proposals.ProposalFile.kind:type_name -> vrooli.git_control_tower.v1.proposals.FileChangeKind
+	11, // 5: vrooli.git_control_tower.v1.proposals.ProposalFile.flags:type_name -> vrooli.git_control_tower.v1.proposals.ProposalFlag
+	2,  // 6: vrooli.git_control_tower.v1.proposals.ProposalFreshness.state:type_name -> vrooli.git_control_tower.v1.proposals.FreshnessState
+	40, // 7: vrooli.git_control_tower.v1.proposals.ProposalFreshness.checked_at:type_name -> google.protobuf.Timestamp
+	5,  // 8: vrooli.git_control_tower.v1.proposals.ProposalEvent.actor:type_name -> vrooli.git_control_tower.v1.proposals.Actor
+	40, // 9: vrooli.git_control_tower.v1.proposals.ProposalEvent.timestamp:type_name -> google.protobuf.Timestamp
+	0,  // 10: vrooli.git_control_tower.v1.proposals.Proposal.state:type_name -> vrooli.git_control_tower.v1.proposals.ProposalState
+	5,  // 11: vrooli.git_control_tower.v1.proposals.Proposal.created_by:type_name -> vrooli.git_control_tower.v1.proposals.Actor
+	6,  // 12: vrooli.git_control_tower.v1.proposals.Proposal.work:type_name -> vrooli.git_control_tower.v1.proposals.ProposalWork
+	10, // 13: vrooli.git_control_tower.v1.proposals.Proposal.message:type_name -> vrooli.git_control_tower.v1.proposals.ProposalMessage
+	12, // 14: vrooli.git_control_tower.v1.proposals.Proposal.files:type_name -> vrooli.git_control_tower.v1.proposals.ProposalFile
+	13, // 15: vrooli.git_control_tower.v1.proposals.Proposal.excluded:type_name -> vrooli.git_control_tower.v1.proposals.ProposalExclusion
+	14, // 16: vrooli.git_control_tower.v1.proposals.Proposal.evidence:type_name -> vrooli.git_control_tower.v1.proposals.ProposalEvidence
+	15, // 17: vrooli.git_control_tower.v1.proposals.Proposal.freshness:type_name -> vrooli.git_control_tower.v1.proposals.ProposalFreshness
+	16, // 18: vrooli.git_control_tower.v1.proposals.Proposal.events:type_name -> vrooli.git_control_tower.v1.proposals.ProposalEvent
+	9,  // 19: vrooli.git_control_tower.v1.proposals.Proposal.issues:type_name -> vrooli.git_control_tower.v1.proposals.TrailerIssue
+	40, // 20: vrooli.git_control_tower.v1.proposals.Proposal.created_at:type_name -> google.protobuf.Timestamp
+	40, // 21: vrooli.git_control_tower.v1.proposals.Proposal.updated_at:type_name -> google.protobuf.Timestamp
+	40, // 22: vrooli.git_control_tower.v1.proposals.Proposal.committed_at:type_name -> google.protobuf.Timestamp
+	7,  // 23: vrooli.git_control_tower.v1.proposals.Proposal.folds:type_name -> vrooli.git_control_tower.v1.proposals.ProposalFold
+	18, // 24: vrooli.git_control_tower.v1.proposals.Anchor.files:type_name -> vrooli.git_control_tower.v1.proposals.AnchorFile
+	5,  // 25: vrooli.git_control_tower.v1.proposals.Anchor.created_by:type_name -> vrooli.git_control_tower.v1.proposals.Actor
+	40, // 26: vrooli.git_control_tower.v1.proposals.Anchor.created_at:type_name -> google.protobuf.Timestamp
+	19, // 27: vrooli.git_control_tower.v1.proposals.AnchorScopeResponse.anchor:type_name -> vrooli.git_control_tower.v1.proposals.Anchor
+	6,  // 28: vrooli.git_control_tower.v1.proposals.CreateProposalRequest.work:type_name -> vrooli.git_control_tower.v1.proposals.ProposalWork
+	8,  // 29: vrooli.git_control_tower.v1.proposals.CreateProposalRequest.trailers:type_name -> vrooli.git_control_tower.v1.proposals.ProposalTrailer
+	14, // 30: vrooli.git_control_tower.v1.proposals.CreateProposalRequest.evidence:type_name -> vrooli.git_control_tower.v1.proposals.ProposalEvidence
+	17, // 31: vrooli.git_control_tower.v1.proposals.CreateProposalResponse.proposal:type_name -> vrooli.git_control_tower.v1.proposals.Proposal
+	9,  // 32: vrooli.git_control_tower.v1.proposals.CreateProposalResponse.issues:type_name -> vrooli.git_control_tower.v1.proposals.TrailerIssue
+	0,  // 33: vrooli.git_control_tower.v1.proposals.ListProposalsRequest.states:type_name -> vrooli.git_control_tower.v1.proposals.ProposalState
+	17, // 34: vrooli.git_control_tower.v1.proposals.ListProposalsResponse.proposals:type_name -> vrooli.git_control_tower.v1.proposals.Proposal
+	27, // 35: vrooli.git_control_tower.v1.proposals.CombineProposalsRequest.sources:type_name -> vrooli.git_control_tower.v1.proposals.ProposalRevisionReference
+	17, // 36: vrooli.git_control_tower.v1.proposals.GetProposalResponse.proposal:type_name -> vrooli.git_control_tower.v1.proposals.Proposal
+	8,  // 37: vrooli.git_control_tower.v1.proposals.EditProposalRequest.trailers:type_name -> vrooli.git_control_tower.v1.proposals.ProposalTrailer
+	17, // 38: vrooli.git_control_tower.v1.proposals.EditProposalResponse.proposal:type_name -> vrooli.git_control_tower.v1.proposals.Proposal
+	9,  // 39: vrooli.git_control_tower.v1.proposals.EditProposalResponse.issues:type_name -> vrooli.git_control_tower.v1.proposals.TrailerIssue
+	17, // 40: vrooli.git_control_tower.v1.proposals.WithdrawProposalResponse.proposal:type_name -> vrooli.git_control_tower.v1.proposals.Proposal
+	17, // 41: vrooli.git_control_tower.v1.proposals.RefreshProposalResponse.proposal:type_name -> vrooli.git_control_tower.v1.proposals.Proposal
+	17, // 42: vrooli.git_control_tower.v1.proposals.ApplyProposalResponse.proposal:type_name -> vrooli.git_control_tower.v1.proposals.Proposal
+	37, // 43: vrooli.git_control_tower.v1.proposals.ApplyProposalResponse.refusal:type_name -> vrooli.git_control_tower.v1.proposals.ApplyRefusal
+	38, // 44: vrooli.git_control_tower.v1.proposals.ApplyProposalResponse.precommit:type_name -> vrooli.git_control_tower.v1.proposals.ApplyPrecommit
+	20, // 45: vrooli.git_control_tower.v1.proposals.ProposalService.AnchorScope:input_type -> vrooli.git_control_tower.v1.proposals.AnchorScopeRequest
+	22, // 46: vrooli.git_control_tower.v1.proposals.ProposalService.CreateProposal:input_type -> vrooli.git_control_tower.v1.proposals.CreateProposalRequest
+	24, // 47: vrooli.git_control_tower.v1.proposals.ProposalService.ListProposals:input_type -> vrooli.git_control_tower.v1.proposals.ListProposalsRequest
+	26, // 48: vrooli.git_control_tower.v1.proposals.ProposalService.GetProposal:input_type -> vrooli.git_control_tower.v1.proposals.GetProposalRequest
+	28, // 49: vrooli.git_control_tower.v1.proposals.ProposalService.CombineProposals:input_type -> vrooli.git_control_tower.v1.proposals.CombineProposalsRequest
+	30, // 50: vrooli.git_control_tower.v1.proposals.ProposalService.EditProposal:input_type -> vrooli.git_control_tower.v1.proposals.EditProposalRequest
+	32, // 51: vrooli.git_control_tower.v1.proposals.ProposalService.WithdrawProposal:input_type -> vrooli.git_control_tower.v1.proposals.WithdrawProposalRequest
+	34, // 52: vrooli.git_control_tower.v1.proposals.ProposalService.RefreshProposal:input_type -> vrooli.git_control_tower.v1.proposals.RefreshProposalRequest
+	36, // 53: vrooli.git_control_tower.v1.proposals.ProposalService.ApplyProposal:input_type -> vrooli.git_control_tower.v1.proposals.ApplyProposalRequest
+	21, // 54: vrooli.git_control_tower.v1.proposals.ProposalService.AnchorScope:output_type -> vrooli.git_control_tower.v1.proposals.AnchorScopeResponse
+	23, // 55: vrooli.git_control_tower.v1.proposals.ProposalService.CreateProposal:output_type -> vrooli.git_control_tower.v1.proposals.CreateProposalResponse
+	25, // 56: vrooli.git_control_tower.v1.proposals.ProposalService.ListProposals:output_type -> vrooli.git_control_tower.v1.proposals.ListProposalsResponse
+	29, // 57: vrooli.git_control_tower.v1.proposals.ProposalService.GetProposal:output_type -> vrooli.git_control_tower.v1.proposals.GetProposalResponse
+	29, // 58: vrooli.git_control_tower.v1.proposals.ProposalService.CombineProposals:output_type -> vrooli.git_control_tower.v1.proposals.GetProposalResponse
+	31, // 59: vrooli.git_control_tower.v1.proposals.ProposalService.EditProposal:output_type -> vrooli.git_control_tower.v1.proposals.EditProposalResponse
+	33, // 60: vrooli.git_control_tower.v1.proposals.ProposalService.WithdrawProposal:output_type -> vrooli.git_control_tower.v1.proposals.WithdrawProposalResponse
+	35, // 61: vrooli.git_control_tower.v1.proposals.ProposalService.RefreshProposal:output_type -> vrooli.git_control_tower.v1.proposals.RefreshProposalResponse
+	39, // 62: vrooli.git_control_tower.v1.proposals.ProposalService.ApplyProposal:output_type -> vrooli.git_control_tower.v1.proposals.ApplyProposalResponse
+	54, // [54:63] is the sub-list for method output_type
+	45, // [45:54] is the sub-list for method input_type
+	45, // [45:45] is the sub-list for extension type_name
+	45, // [45:45] is the sub-list for extension extendee
+	0,  // [0:45] is the sub-list for field type_name
 }
 
 func init() { file_git_control_tower_v1_proposals_proposals_proto_init() }
@@ -3348,14 +3735,14 @@ func file_git_control_tower_v1_proposals_proposals_proto_init() {
 	if File_git_control_tower_v1_proposals_proposals_proto != nil {
 		return
 	}
-	file_git_control_tower_v1_proposals_proposals_proto_msgTypes[22].OneofWrappers = []any{}
+	file_git_control_tower_v1_proposals_proposals_proto_msgTypes[25].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_git_control_tower_v1_proposals_proposals_proto_rawDesc), len(file_git_control_tower_v1_proposals_proposals_proto_rawDesc)),
 			NumEnums:      5,
-			NumMessages:   32,
+			NumMessages:   35,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -6,7 +6,7 @@ WITHOUT loading torch or the real moshi model: the heavy model is stubbed so we
 can drive the token stream directly and assert when durable ``segment`` events
 are emitted.
 
-Run: ``python -m pytest resources/kyutai-stt/tests/test_server.py``
+Run: ``python -m pytest resources/kyutai-stt/test/test_server.py``
 
 Covers:
   * continuous-speech force-commit fires (a long unbroken utterance commits a
@@ -26,9 +26,11 @@ import json
 import os
 import sys
 
+import numpy as np
+
 # Import the server module without its torch/moshi deps (they are imported
 # lazily inside Model.load(), which we never call here).
-sys.path.insert(0, os.path.dirname(__file__))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "server"))
 import server  # noqa: E402
 
 
@@ -61,6 +63,50 @@ def test_readiness_distinguishes_live_process_from_loaded_model():
         }
     finally:
         server.MODEL.loaded = old_loaded
+
+
+def test_streaming_resampler_preserves_half_sample_phase_across_chunks():
+    """100 ms chunks must equal one continuous align_corners=False resample."""
+
+    class FakeTensor:
+        def __init__(self, value):
+            self.value = np.asarray(value)
+
+        def to(self, _device):
+            return self
+
+        def unsqueeze(self, axis):
+            return FakeTensor(np.expand_dims(self.value, axis))
+
+    class FakeTorch:
+        @staticmethod
+        def from_numpy(value):
+            return FakeTensor(value)
+
+    old_torch = server.MODEL._torch
+    old_rate = server.MODEL._model_sample_rate
+    old_device = server.MODEL.device
+    try:
+        server.MODEL._torch = FakeTorch()
+        server.MODEL._model_sample_rate = 24_000
+        server.MODEL.device = "cpu"
+        session = server.StreamSession(FakeWS())
+        source = np.sin(np.arange(3_200, dtype=np.float64) / 17.0).astype(np.float32)
+
+        chunks = [session._resample_chunk(source[:1_600]), session._resample_chunk(source[1_600:])]
+        final = session._resample_chunk(np.empty(0, dtype=np.float32), final=True)
+        actual = np.concatenate(
+            [chunk.value.reshape(-1) for chunk in (*chunks, final) if chunk is not None]
+        )
+
+        target_count = round(source.size * 24_000 / 16_000)
+        positions = (np.arange(target_count, dtype=np.float64) + 0.5) * (16_000 / 24_000) - 0.5
+        expected = np.interp(positions, np.arange(source.size), source).astype(np.float32)
+        np.testing.assert_allclose(actual, expected, rtol=0, atol=1e-6)
+    finally:
+        server.MODEL._torch = old_torch
+        server.MODEL._model_sample_rate = old_rate
+        server.MODEL.device = old_device
 
 
 def test_durable_event_queue_fails_closed_at_memory_budget():

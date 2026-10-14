@@ -337,3 +337,20 @@ func TestServicesUseDocumentedConfigurationAndReadSideContracts(t *testing.T) {
 }
 
 func ptr[T any](value T) *T { return &value }
+
+func TestQuotaObservationServicePreservesNativeUnknownAndScope(t *testing.T) {
+	expected := `[{"id":"native","provider":"openai","pool":"primary","window":"10080m","usedPercent":20,"windowMinutes":10080,"resetAt":"2026-10-14T03:29:20Z","sourceRunId":"original","evidenceRef":"event:original"},{"id":"unknown","provider":"openai","pool":"primary","window":"10080m"}]`
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "GET" || r.URL.Path != "/api/v1/pricing/quota-observations" || r.URL.Query().Get("provider") != "openai" || r.URL.Query().Get("pool") != "primary" || r.URL.Query().Get("window") != "10080m" || r.URL.Query().Get("limit") != "2" {
+			t.Errorf("request=%s %s", r.Method, r.URL.String())
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(expected))
+	}))
+	defer server.Close()
+	api := cliutil.NewAPIClient(cliutil.NewHTTPClient(cliutil.HTTPClientOptions{}), func() cliutil.APIBaseOptions { return cliutil.APIBaseOptions{DefaultBase: server.URL} }, nil)
+	got, err := NewServices(api).Subscriptions.QuotaObservations("openai", "primary", "10080m", 2)
+	if err != nil || string(got) != expected {
+		t.Fatalf("response=%s err=%v", got, err)
+	}
+}

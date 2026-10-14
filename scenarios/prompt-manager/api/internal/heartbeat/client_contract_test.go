@@ -224,13 +224,3 @@ func TestGetRunResponse_TerminalStatusMapping(t *testing.T) {
 		}
 	}
 }
-
-func TestEnsureProfileRequest_IsKeyOnly(t *testing.T) {
-	data, err := json.Marshal(EnsureProfileRequest{ProfileKey: "prompt-manager/heartbeat"})
-	if err != nil {
-		t.Fatalf("marshal: %v", err)
-	}
-	if string(data) != `{"profile_key":"prompt-manager/heartbeat"}` {
-		t.Fatalf("EnsureProfileRequest JSON = %s", data)
-	}
-}

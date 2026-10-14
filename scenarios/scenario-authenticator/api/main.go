@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/vrooli/api-core/effortauthority"
 	"log"
 	"net/http"
 	"os"
@@ -70,6 +71,19 @@ func (p breakGlassProvisioner) Issue(_ context.Context, accountID, realmID strin
 }
 
 func main() {
+	owner, err := loadProtectedFiniteOwnerStartup(context.Background())
+	if err != nil {
+		log.Fatalf("protected finite startup refused: %v", err)
+	}
+	if owner != nil && owner.CheckStartup() != nil {
+		log.Fatal("protected finite startup expired or outside original window")
+	}
+	runMainWithFiniteOwner(owner)
+}
+func runMainWithFiniteOwner(owner *accounts.FiniteOwnerStartup) {
+	if err := effortauthority.MainInstallationGate(os.Getenv("VROOLI_FINITE_ENABLED"), owner != nil); err != nil {
+		log.Fatal(err)
+	}
 	// Preflight checks must run first so the binary can re-exec itself
 	// after a stale-source rebuild before any listeners are opened.
 	if preflight.Run(preflight.Config{ScenarioName: "scenario-authenticator"}) {
@@ -102,7 +116,15 @@ func main() {
 	if err != nil {
 		log.Fatalf("resolve signing key directory: %v", err)
 	}
-	keys, err := authcrypto.LoadOrGenerate(keyDir)
+	var keys *authcrypto.Keys
+	if owner == nil {
+		keys, err = authcrypto.LoadOrGenerate(keyDir)
+	} else {
+		keys, err = authcrypto.LoadExisting(keyDir)
+		if err == nil && keys.KID() != owner.ExistingJWTKID() {
+			err = fmt.Errorf("finite owner existing JWT key differs")
+		}
+	}
 	if err != nil {
 		log.Fatalf("load/generate signing key: %v", err)
 	}
@@ -236,6 +258,19 @@ func main() {
 	rootMux := http.NewServeMux()
 	devrouting.Register(rootMux, db)
 
+	var privatePublication *effortauthority.ProtectedPublication
+	if owner != nil {
+		ledger := &effortauthority.SQLStore{DB: db.Primary()}
+		if err = ledger.Ensure(context.Background()); err != nil {
+			log.Fatalf("finite canonical ledger: %v", err)
+		}
+		var consent http.Handler
+		consent, privatePublication, err = owner.Compose(context.Background(), authService, ledger)
+		if err != nil {
+			log.Fatalf("finite owner exact issuer graph: %v", err)
+		}
+		rootMux.Handle(effortauthority.ConsentEndpoint, consent)
+	}
 	rootMux.Handle("/", srv.Handler())
 
 	// Backend-authoritative fixed-window rate limit on the brute-force surface
@@ -255,7 +290,11 @@ func main() {
 	// installed test pool. Self-disables in production mode.
 	handler := apihttp.TestModeMiddleware(limiter.Middleware(rootMux))
 
-	if err := apiserver.Run(apiserver.Config{
+	runPublic := apiserver.Run
+	if privatePublication != nil {
+		runPublic = privatePublication.RunPublic
+	}
+	if err := runPublic(apiserver.Config{
 		Handler: handler,
 		Cleanup: func(ctx context.Context) error {
 			localStop()

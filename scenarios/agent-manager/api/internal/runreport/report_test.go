@@ -191,3 +191,50 @@ func TestBuildRendersDurableEvidenceAfterRawEventsAreSwept(t *testing.T) {
 type assertErr struct{}
 
 func (assertErr) Error() string { return "failed" }
+
+func TestBuildCorrelatesUnnamedReturnsAndDistinguishesUnknownFromMissing(t *testing.T) {
+	runID := uuid.New()
+	unknown := false
+	zero := 0
+	nonzero := 7
+	calls := []*domain.RunEvent{
+		domain.NewToolCallEvent(runID, "exec", "unknown", nil), domain.NewToolCallEvent(runID, "exec", "zero", nil), domain.NewToolCallEvent(runID, "exec", "failure", nil),
+	}
+	for _, tc := range []struct {
+		id   string
+		exit *int
+	}{{"unknown", nil}, {"zero", &zero}, {"failure", &nonzero}} {
+		evt := domain.NewToolResultEvent(runID, "", tc.id, "", nil)
+		data := evt.Data.(*domain.ToolResultEventData)
+		data.ExitCode = tc.exit
+		if tc.exit == nil {
+			data.OutcomeKnown = &unknown
+		}
+		calls = append(calls, evt)
+	}
+	report, err := Build(context.Background(), reportSource{run: &domain.Run{ID: runID}, events: calls}, runID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(report.Tools) != 1 || report.Tools[0].Name != "exec" || report.Tools[0].Calls != 3 || report.Tools[0].Successes != 1 || report.Tools[0].Failures != 1 || report.Tools[0].Unresolved != 0 || report.Tools[0].Returned != 3 || report.Tools[0].UnknownOutcome != 1 {
+		t.Fatalf("tools=%+v", report.Tools)
+	}
+	if !strings.Contains(Text(report), "calls=3 returned=3 success=1 failed=1 unknown=1 unresolved=0") {
+		t.Fatalf("text lost independent counts: %s", Text(report))
+	}
+}
+
+func TestBuildOversizedHistoricalExitCountsReturnedUnknown(t *testing.T) {
+	id := uuid.New()
+	code := int(4294967296)
+	call := domain.NewToolCallEvent(id, "exec", "original", nil)
+	result := &domain.RunEvent{ID: uuid.New(), RunID: id, EventType: domain.EventTypeToolResult, Data: &domain.ToolResultEventData{ToolCallID: "original", ExitCode: &code, Success: true}}
+	report, err := Build(t.Context(), reportSource{run: &domain.Run{ID: id}, events: []*domain.RunEvent{call, result}}, id)
+	if err != nil || len(report.Tools) != 1 {
+		t.Fatalf("report=%+v err=%v", report, err)
+	}
+	tool := report.Tools[0]
+	if tool.Returned != 1 || tool.UnknownOutcome != 1 || tool.Unresolved != 0 || tool.Successes != 0 || tool.Failures != 0 {
+		t.Fatalf("tool=%+v", tool)
+	}
+}

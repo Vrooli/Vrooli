@@ -1167,6 +1167,7 @@ func runMainWithFiniteOwner(finiteOwner *heartbeat.FiniteOwnerStartup) {
 		go func() {
 			if err := heartbeatScheduler.Start(context.Background()); err != nil {
 				log.Printf("Warning: Failed to start heartbeat scheduler: %v", err)
+				return
 			}
 
 			// Load enabled heartbeats from all teams

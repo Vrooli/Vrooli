@@ -6,8 +6,10 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -355,4 +357,200 @@ func TestRunNativeChildPreservesRequestedArgv0(t *testing.T) {
 func jsonDecode(r *http.Request, target *map[string]string) error {
 	defer r.Body.Close()
 	return json.NewDecoder(r.Body).Decode(target)
+}
+
+func TestProtectedLaunchBrokerRefusalBeforeAnyBootstrapOrChild(t *testing.T) {
+	testProtectedSessionBroker(t, LaunchCodingAgentResult)
+}
+func TestProtectedCommandSessionBrokerRefusalBeforeAnyBootstrapOrChild(t *testing.T) {
+	testProtectedSessionBroker(t, func(ctx context.Context, r AgentLaunchRequest) (LaunchResult, error) {
+		r.Args = append([]string{"fixture-command"}, r.Args...)
+		return LaunchCommandSessionResult(ctx, r)
+	})
+}
+func testProtectedSessionBroker(t *testing.T, launch func(context.Context, AgentLaunchRequest) (LaunchResult, error)) {
+	for _, mode := range []string{"refused", "unavailable", "changed", "same", "postattach refused", "postattach forwarding refusal"} {
+		t.Run(mode, func(t *testing.T) {
+			// Namespace fixed before the first lookup; never changed to evade refusal.
+			namespace, nsErr := os.MkdirTemp("", "protected-launch-")
+			if nsErr != nil {
+				t.Fatal(nsErr)
+			}
+			defer os.RemoveAll(namespace)
+			t.Setenv("TMPDIR", namespace)
+			t.Setenv(AgentSessionEnv, "")
+			t.Setenv(EnvIdentityToken, "old-private-fixture-leaf")
+			if strings.HasPrefix(mode, "postattach") {
+				t.Setenv(EnvIdentityToken, "")
+			}
+			socket := AgentCredentialSocket()
+			if os.MkdirAll(filepath.Dir(socket), 0700) != nil {
+				t.Fatal("broker directory")
+			}
+			calls, attach, detach, child := 0, 0, 0, 0
+			if mode != "unavailable" {
+				listener, err := net.Listen("unix", socket)
+				if err != nil {
+					t.Fatal(err)
+				}
+				broker := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					calls++
+					if mode == "refused" || (mode == "postattach refused" && calls > 1) || (mode == "postattach forwarding refusal" && calls > 2) {
+						w.WriteHeader(403)
+						_, _ = io.WriteString(w, `{"code":"revoked"}`)
+						return
+					}
+					if strings.HasPrefix(mode, "postattach") {
+						w.WriteHeader(204)
+						return
+					}
+					leaf := "old-private-fixture-leaf"
+					if mode == "changed" && calls > 1 {
+						leaf = "changed-private-fixture-leaf"
+					}
+					_ = json.NewEncoder(w).Encode(map[string]string{"token": leaf})
+				})}
+				go broker.Serve(listener)
+				defer broker.Close()
+			}
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if strings.HasSuffix(r.URL.Path, "/attach") {
+					attach++
+					w.WriteHeader(201)
+					_, _ = io.WriteString(w, `{"run":{"id":"owned-disposable-attempt"},"identity_token":"new-private-fixture-leaf"}`)
+					return
+				}
+				if strings.HasSuffix(r.URL.Path, "/detach") {
+					detach++
+					w.WriteHeader(200)
+					return
+				}
+				t.Error("unexpected wire")
+			}))
+			defer server.Close()
+			transport := http.RoundTripper(&http.Transport{})
+			if mode == "postattach forwarding refusal" {
+				transport = identityForwardingTransport{next: transport}
+			}
+			_, err := launch(context.Background(), AgentLaunchRequest{Agent: "codex", RequireNativeIdentity: true, APIBase: server.URL, HTTPClient: &http.Client{Transport: transport},
+				LookPath: func(string) (string, error) { return "/disposable/codex", nil },
+				RunChild: func(_ context.Context, _ string, _ []string, env []string, _ io.Reader, _, _ io.Writer) error {
+					child++
+					if environmentValue(env, EnvIdentityToken) != "old-private-fixture-leaf" {
+						t.Error("custody changed")
+					}
+					return nil
+				},
+			})
+			if mode == "same" {
+				if err != nil || child != 1 || attach != 0 || detach != 0 {
+					t.Fatal("existing protected custody", err, attach, detach, child)
+				}
+				return
+			}
+			if err == nil || child != 0 {
+				t.Fatal("protected refusal launched child", err, child)
+			}
+			if mode == "postattach refused" {
+				if attach != 1 || detach != 0 || !strings.Contains(err.Error(), "cleanup unconfirmed") {
+					t.Fatal("denied owned cleanup not reported", err, attach, detach)
+				}
+			} else if mode == "postattach forwarding refusal" {
+				if attach != 1 || detach != 0 || !strings.Contains(err.Error(), "owned attachment owned-disposable-attempt cleanup unconfirmed") {
+					t.Fatal("protected cleanup refusal hidden", err, attach, detach)
+				}
+			} else if attach != 0 || detach != 0 {
+				t.Fatal("denial bootstrap effects", attach, detach)
+			}
+			if mode == "refused" || strings.HasPrefix(mode, "postattach") {
+				var denied *AgentAuthorizationError
+				if !errors.As(err, &denied) || denied.Code != "revoked" {
+					t.Fatal("exact broker refusal lost", err)
+				}
+			}
+		})
+	}
+}
+
+func TestProtectedLaunchNoAnonymousFallback(t *testing.T) {
+	t.Setenv("TMPDIR", t.TempDir())
+	t.Setenv(AgentSessionEnv, "")
+	t.Setenv(EnvIdentityToken, "")
+	child := false
+	_, err := LaunchCodingAgentResult(context.Background(), AgentLaunchRequest{Agent: "codex", RequireNativeIdentity: true, APIBase: "http://127.0.0.1:1", LookPath: func(string) (string, error) { return "/disposable/codex", nil }, RunChild: func(context.Context, string, []string, []string, io.Reader, io.Writer, io.Writer) error {
+		child = true
+		return nil
+	}})
+	if err == nil || child {
+		t.Fatal("protected startup fell back", err, child)
+	}
+}
+
+func TestProtectedInformationalInvocationRequiresExistingCustody(t *testing.T) {
+	t.Setenv("TMPDIR", t.TempDir())
+	t.Setenv(AgentSessionEnv, "")
+	t.Setenv(EnvIdentityToken, "")
+	ran := false
+	_, err := LaunchCodingAgentResult(context.Background(), AgentLaunchRequest{Agent: "codex", RequireNativeIdentity: true, Args: []string{"--version"}, LookPath: func(string) (string, error) { return "/disposable/codex", nil }, RunChild: func(context.Context, string, []string, []string, io.Reader, io.Writer, io.Writer) error {
+		ran = true
+		return nil
+	}})
+	if err == nil || ran {
+		t.Fatal("protected informational invocation escaped custody", err, ran)
+	}
+}
+
+func TestProtectedCommandSessionAdoptsInheritedCustody(t *testing.T) {
+	namespace, err := os.MkdirTemp("", "cmd-fixture-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(namespace)
+	t.Setenv("TMPDIR", namespace)
+	t.Setenv(EnvIdentityToken, "synthetic-inherited-leaf")
+	t.Setenv(AgentSessionEnv, "existing-session")
+	calls := 0
+	result, err := LaunchCommandSessionResult(context.Background(), AgentLaunchRequest{
+		Args: []string{"fixture-command", "--help"}, APIBase: "http://127.0.0.1:1",
+		LookPath: func(string) (string, error) { return "/synthetic/command", nil },
+		RunChild: func(_ context.Context, _ string, args, environment []string, _ io.Reader, _, _ io.Writer) error {
+			calls++
+			if len(args) != 1 || args[0] != "--help" || environmentValue(environment, EnvIdentityToken) != "synthetic-inherited-leaf" {
+				t.Error("inherited command custody/argv")
+			}
+			return nil
+		},
+	})
+	if err != nil || calls != 1 || result.Tier != "tier-1" || result.AttachFailure != "" || result.Scope != "existing-session" {
+		t.Fatal("protected inherited classification", result, err, calls)
+	}
+}
+
+func TestProtectedCommandSessionCleanupRefusesRedirect(t *testing.T) {
+	namespace, err := os.MkdirTemp("", "cleanup-fixture-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(namespace)
+	t.Setenv("TMPDIR", namespace)
+	t.Setenv(EnvIdentityToken, "")
+	secondRequests := 0
+	second := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { secondRequests++; w.WriteHeader(200) }))
+	defer second.Close()
+	for _, status := range []int{307, 308} {
+		firstRequests := 0
+		first := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			firstRequests++
+			if r.Header.Get(HeaderAgentIdentityToken) != "synthetic-cleanup-leaf" {
+				t.Error("missing held cleanup identity")
+			}
+			w.Header().Set("Location", second.URL+"/unexpected")
+			w.WriteHeader(status)
+		}))
+		err := detachCodingAgent(context.Background(), AgentLaunchRequest{RequireNativeIdentity: true, APIBase: first.URL}, "synthetic-owned-id", "synthetic-cleanup-leaf")
+		first.Close()
+		if err == nil || !strings.Contains(err.Error(), "protected cleanup redirect refused") || firstRequests != 1 || secondRequests != 0 {
+			t.Fatal("redirect leaked cleanup", err, firstRequests, secondRequests)
+		}
+	}
 }

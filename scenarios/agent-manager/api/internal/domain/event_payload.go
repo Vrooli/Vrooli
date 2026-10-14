@@ -3,6 +3,8 @@ package domain
 import (
 	"encoding/json"
 	"fmt"
+	"math"
+	"strings"
 )
 
 // DecodeEventPayload decodes persisted event JSON using its durable event type.
@@ -63,7 +65,7 @@ func DecodeEventPayload(eventType RunEventType, raw []byte) (EventPayload, error
 	case EventTypeArtifact:
 		return decodePayload[ArtifactEventData](data)
 	case EventTypeError:
-		return decodePayload[ErrorEventData](data)
+		return decodeErrorPayload(data)
 	case EventTypeLifecycle:
 		return decodePayload[LifecycleEventData](data)
 	case EventTypeGoalStatusChanged:
@@ -71,6 +73,49 @@ func DecodeEventPayload(eventType RunEventType, raw []byte) (EventPayload, error
 	default:
 		return nil, fmt.Errorf("unsupported run event type %q", eventType)
 	}
+}
+
+// decodeErrorPayload recognizes only explicit quota tags or unambiguous legacy
+// quota shapes. Generic error fields retain precedence for untagged history.
+func decodeErrorPayload(data []byte) (EventPayload, error) {
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(data, &fields); err != nil {
+		return nil, err
+	}
+	if fields == nil {
+		return nil, fmt.Errorf("error payload must be an object")
+	}
+	rawKind, tagged := fields["payloadKind"]
+	if tagged {
+		var kind string
+		if err := json.Unmarshal(rawKind, &kind); err != nil {
+			return nil, err
+		}
+		if kind != PayloadKindQuota {
+			return nil, fmt.Errorf("unsupported error payload kind %q", kind)
+		}
+	}
+	for _, key := range []string{"code", "retryable", "recovery", "stackTrace", "details"} {
+		if _, present := fields[key]; present {
+			if tagged {
+				return nil, fmt.Errorf("quota payload contains generic error field %q", key)
+			}
+			return decodePayload[ErrorEventData](data)
+		}
+	}
+	var limitType string
+	if raw, present := fields["limitType"]; present {
+		if err := json.Unmarshal(raw, &limitType); err != nil {
+			return nil, err
+		}
+	}
+	if strings.TrimSpace(limitType) != "" {
+		return decodePayload[RateLimitEventData](data)
+	}
+	if tagged {
+		return nil, fmt.Errorf("quota payload requires a nonempty limitType")
+	}
+	return decodePayload[ErrorEventData](data)
 }
 
 func decodePayload[T any](raw []byte) (EventPayload, error) {
@@ -162,4 +207,9 @@ func NormalizeEventPayloadJSON(eventType RunEventType, raw []byte) ([]byte, erro
 		return append([]byte(nil), raw...), nil
 	}
 	return json.Marshal(fields)
+}
+
+// SupportedToolExitCode limits process facts to the public owner representation.
+func SupportedToolExitCode(code *int) bool {
+	return code == nil || (int64(*code) >= math.MinInt32 && int64(*code) <= math.MaxInt32)
 }

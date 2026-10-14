@@ -12,8 +12,11 @@ package webconsole
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"google.golang.org/protobuf/proto"
 	"net/http"
 	"time"
 
@@ -38,6 +41,7 @@ const OriginProgrammatic = "SESSION_ORIGIN_PROGRAMMATIC"
 // web-console to open. LaunchCommand is pasted+executed by the server when
 // Execute is true (the foundation recovery-paste seam, no readiness gate).
 type CreateSessionParams struct {
+	RequestedSessionID string
 	// LaunchCommand is the full shell command line the server pastes into the
 	// fresh session's stdin. For interactive runs this is the env-prefixed
 	// interactive agent CLI invocation.
@@ -57,11 +61,12 @@ type CreateSessionParams struct {
 // SessionInfo is the proto-free projection of a web-console session that the
 // substrate needs. It deliberately omits fields no caller here consumes.
 type SessionInfo struct {
-	ID           string
-	Owner        string
-	Backend      string
-	Origin       string
-	DisplayLabel string
+	CreateFingerprint string
+	ID                string
+	Owner             string
+	Backend           string
+	Origin            string
+	DisplayLabel      string
 	// CreatedAt is zero when web-console reports no parseable creation time.
 	CreatedAt time.Time
 }
@@ -146,6 +151,7 @@ func (c *Client) CreateSession(ctx context.Context, params CreateSessionParams) 
 		rows = 40
 	}
 	req := connect.NewRequest(&sessionsv1.CreateRequest{
+		RequestedSessionId:   params.RequestedSessionID,
 		Cols:                 cols,
 		Rows:                 rows,
 		Backend:              backend,
@@ -155,14 +161,43 @@ func (c *Client) CreateSession(ctx context.Context, params CreateSessionParams) 
 		DisplayLabel:         params.DisplayLabel,
 		ExecuteLaunchCommand: params.Execute,
 	})
+	raw, marshalErr := proto.MarshalOptions{Deterministic: true}.Marshal(req.Msg)
+	if marshalErr != nil {
+		return "", marshalErr
+	}
+	digest := sha256.Sum256(raw)
+	expectedFingerprint := hex.EncodeToString(digest[:])
+	expectedOwner := ""
+	if params.RequestedSessionID != "" {
+		capabilities, err := c.sessions.List(ctx, connect.NewRequest(&sessionsv1.ListRequest{}))
+		if err != nil {
+			return "", fmt.Errorf("web-console stable-create capability: %w", err)
+		}
+		expectedOwner = capabilities.Msg.GetStableCreateOwner()
+		if !capabilities.Msg.GetSupportsStableCreateIdentity() || expectedOwner == "" {
+			return "", fmt.Errorf("web-console stable-create identity unsupported; no Create submitted")
+		}
+	}
 	resp, err := c.sessions.Create(ctx, req)
 	if err != nil {
+		// Recover only from possibly submitted transport failures. Never
+		// resubmit Create, or convert a definitive owner refusal into success.
+		if params.RequestedSessionID != "" && ctx.Err() == nil && (connect.CodeOf(err) == connect.CodeUnknown || connect.CodeOf(err) == connect.CodeUnavailable || connect.CodeOf(err) == connect.CodeDeadlineExceeded || connect.CodeOf(err) == connect.CodeInternal) {
+			info, getErr := c.GetSession(ctx, params.RequestedSessionID)
+			if getErr == nil && info.ID == params.RequestedSessionID && info.Owner == expectedOwner && info.CreateFingerprint == expectedFingerprint {
+				return info.ID, nil
+			}
+		}
 		return "", fmt.Errorf("web-console create session: %w", err)
 	}
 	id := resp.Msg.GetSession().GetId()
 	if id == "" {
 		return "", fmt.Errorf("web-console create session: empty session id in response")
 	}
+	if params.RequestedSessionID != "" && (id != params.RequestedSessionID || resp.Msg.GetSession().GetOwner() != expectedOwner || resp.Msg.GetSession().GetCreateFingerprint() != expectedFingerprint) {
+		return "", fmt.Errorf("web-console reserved session identity unsupported or mismatched")
+	}
+
 	return id, nil
 }
 
@@ -196,11 +231,12 @@ func (c *Client) ListSessions(ctx context.Context) ([]SessionInfo, error) {
 
 func sessionInfoFromProto(s *sessionsv1.Session) SessionInfo {
 	info := SessionInfo{
-		ID:           s.GetId(),
-		Owner:        s.GetOwner(),
-		Backend:      s.GetBackend(),
-		Origin:       s.GetOrigin().String(),
-		DisplayLabel: s.GetDisplayLabel(),
+		ID:                s.GetId(),
+		Owner:             s.GetOwner(),
+		Backend:           s.GetBackend(),
+		Origin:            s.GetOrigin().String(),
+		DisplayLabel:      s.GetDisplayLabel(),
+		CreateFingerprint: s.GetCreateFingerprint(),
 	}
 	// web-console stamps created_at as RFC3339 UTC; RFC3339Nano parses both.
 	if created, err := time.Parse(time.RFC3339Nano, s.GetCreatedAt()); err == nil {

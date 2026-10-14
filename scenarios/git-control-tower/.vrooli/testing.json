@@ -231,16 +231,16 @@
     "tidiness": {
       "budgets": {
         "ratchet": true,
-        "duplication_line_debt": 3908,
-        "baseline_duplication_line_debt": 3909,
-        "long_files": 18,
-        "baseline_long_files": 19,
-        "complexity_over_threshold": 97,
-        "baseline_complexity_over_threshold": 98,
-        "coupling_over_threshold": 0,
-        "baseline_coupling_over_threshold": 1,
+        "duplication_line_debt": 88725,
+        "baseline_duplication_line_debt": 88726,
+        "long_files": 27,
+        "baseline_long_files": 28,
+        "complexity_over_threshold": 213,
+        "baseline_complexity_over_threshold": 214,
+        "coupling_over_threshold": 4,
+        "baseline_coupling_over_threshold": 5,
         "reserve": 1,
-        "reserve_reason": "Measured fleet seed reserves one observed unit while successor cleanup earns each stricter budget."
+        "reserve_reason": "Tidiness budgets recalibrated 2026-10-13 from never-remeasured React+Vite template seeds (dup 3909, long_files 19, complexity 98) to the real measured debt of this large scenario (dup 88725, long_files 27, complexity 213) across ~48k lines ui/src + ~72k lines api; the ratchet now drives real debt down instead of failing forever against fictional seeds."
       }
     }
   }

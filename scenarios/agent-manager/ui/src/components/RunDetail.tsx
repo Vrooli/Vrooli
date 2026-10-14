@@ -670,7 +670,7 @@ export function RunDetail({
                 <div><strong>Events:</strong> {report.data.events_availability.state}</div>
                 <ul className="list-disc pl-5">{Object.entries(report.data.event_counts).sort(([left], [right]) => left.localeCompare(right)).map(([type, count]) => <li key={type}>{type}: {count}</li>)}</ul>
                 <div><strong>Receipts:</strong> {report.data.receipts_availability.state} ({report.data.receipt_count})</div>
-                <ul className="list-disc pl-5">{report.data.tools.map((tool) => <li key={tool.name}>{tool.name}: {tool.calls} calls, {tool.failures} failed, {tool.unresolved ?? 0} unresolved</li>)}</ul>
+                <ul className="list-disc pl-5">{report.data.tools.map((tool) => <li key={tool.name}>{tool.name}: {tool.calls} calls, {tool.returned ?? 0} returned, {tool.failures} failed, {tool.unknown_outcome ?? 0} outcome unknown, {tool.unresolved ?? 0} unresolved</li>)}</ul>
               </div>
             ) : <div className="py-8 text-center text-muted-foreground">Report unavailable</div>
           ) : activeTab === "diff" ? (

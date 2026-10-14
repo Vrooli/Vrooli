@@ -28,7 +28,7 @@ func (s *Server) inspectPushSafetyConnect(ctx context.Context, req *repov1.Inspe
 }
 
 func pushSafetyProto(r pushsafety.Report) *repov1.PushSafetyReport {
-	out := &repov1.PushSafetyReport{Complete: r.Complete, State: r.State, Reason: r.Reason, Head: r.Head, Base: r.Base, Remote: r.Remote, Branch: r.Branch, Limit: r.Limit, Commits: r.Commits, Fingerprint: r.Fingerprint, CanPrepare: r.CanPrepare, RecoveryReason: r.RecoveryReason}
+	out := &repov1.PushSafetyReport{Complete: r.Complete, State: r.State, Reason: r.Reason, Head: r.Head, Base: r.Base, Remote: r.Remote, Branch: r.Branch, Limit: r.Limit, Commits: r.Commits, Fingerprint: r.Fingerprint, CanPrepare: r.CanPrepare, RecoveryReason: r.RecoveryReason, OutgoingBytes: r.OutgoingBytes, LargestBlobBytes: r.LargestBlobBytes}
 	out.StagedComplete, out.StagedReason = r.StagedComplete, r.StagedReason
 	for _, f := range r.StagedFiles {
 		out.StagedFiles = append(out.StagedFiles, &repov1.PushSafetyFile{Oid: f.OID, Bytes: f.Bytes, Paths: f.Paths, Blocked: f.Blocked})

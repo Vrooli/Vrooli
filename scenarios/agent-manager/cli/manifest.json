@@ -4406,6 +4406,94 @@
               "network:internal"
             ]
           }
+        },
+        {
+          "name": "exact-setup",
+          "description": "Protected operator stage/status/activate/revoke; activation requires Site key possession",
+          "flags": [
+            {
+              "name": "request-file",
+              "description": "Bounded typed public request",
+              "required": false
+            },
+            {
+              "name": "grant",
+              "description": "Original standing grant ID; setup status only",
+              "required": false
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          },
+          "positionals": [
+            {
+              "name": "action",
+              "required": true,
+              "description": "stage, activate, revoke or status"
+            }
+          ]
+        },
+        {
+          "name": "exact-reconcile",
+          "description": "Pinned native identity and Site proof for one exact metadata action",
+          "flags": [
+            {
+              "name": "request-file",
+              "description": "Bounded typed public request",
+              "required": true
+            },
+            {
+              "name": "grant",
+              "description": "Original standing grant ID; setup status only",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "exact-receipt",
+          "description": "Fresh verified reader and Site proof under original standing receipt grant",
+          "flags": [
+            {
+              "name": "request-file",
+              "description": "Bounded typed public request",
+              "required": true
+            },
+            {
+              "name": "grant",
+              "description": "Original standing grant ID; setup status only",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          }
         }
       ]
     },

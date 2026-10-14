@@ -74,7 +74,7 @@ func (p *PreparedFiniteInstallation) Apply(r *FiniteLeaderRuntime) error {
 }
 
 // The concrete owner-computed private reader satisfies the existing scope
-// interface; portable EnsureProfile identity remains outside qualification.
+// interface; portable read-only profile identity remains outside qualification.
 var _ NativeProfileReader = (*effortauthority.ProfileContractClient)(nil)
 
 // Frozen read composition is built before any scheduler/finite run authority.

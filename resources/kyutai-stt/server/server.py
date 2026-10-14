@@ -135,7 +135,28 @@ STREAM_RESET_REPLAY_FRAMES = max(
 # service startup, before /ready admits a user stream, so the first dictated
 # words do not inherit model initialization latency.  This is silent model
 # input only; no browser audio is involved.
-WARMUP_FRAMES = max(0, int(os.environ.get("KYUTAI_STT_WARMUP_FRAMES", "8")))
+WARMUP_FRAMES = max(0, int(os.environ.get("KYUTAI_STT_WARMUP_FRAMES", "32")))
+
+# Silence warms the acoustic path but can leave the first text-producing CUDA
+# kernels cold. Exercise a small deterministic non-silent path before
+# readiness, then reset both streaming components so no warmup hypothesis can
+# enter a user session. This is intentionally bounded; it is startup work,
+# not a hidden background stream.
+WARMUP_SIGNAL_FRAMES = max(
+    0, int(os.environ.get("KYUTAI_STT_WARMUP_SIGNAL_FRAMES", "8"))
+)
+
+# The checkpoint's delayed-stream configuration is normally 500 ms. Keep that
+# safe default, but allow the managed owner to test a smaller bounded delay
+# without editing the pinned checkpoint. Any non-default value requires paired
+# quality and terminal-tail evidence.
+_audio_delay_override = os.environ.get("KYUTAI_STT_AUDIO_DELAY_SECONDS", "").strip()
+if _audio_delay_override:
+    AUDIO_DELAY_SECONDS_OVERRIDE = float(_audio_delay_override)
+    if not 0.0 <= AUDIO_DELAY_SECONDS_OVERRIDE <= 2.0:
+        raise ValueError("KYUTAI_STT_AUDIO_DELAY_SECONDS must be between 0 and 2 seconds")
+else:
+    AUDIO_DELAY_SECONDS_OVERRIDE = None
 
 # Bounded wait (seconds) to acquire the single-session MODEL.lock before a new
 # connection reaps an abandoned/wedged prior session. A stuck stream (e.g. a
@@ -234,14 +255,21 @@ class FIFOAdmission:
             self._waiters.append(future)
             position = len(self._waiters)
             self._promote_locked()
-        if position > 1 and on_queued is not None:
-            await on_queued(position)
         try:
+            # The queue owns the ticket from append through completion. A
+            # browser can disappear while the queued notification is being
+            # sent; keep that callback inside the cancellation guard so a
+            # failed notification cannot strand a FIFO slot.
+            if position > 1 and on_queued is not None:
+                await on_queued(position)
             await asyncio.wait_for(asyncio.shield(future), timeout=self.max_wait_s)
         except asyncio.TimeoutError as exc:
             await self.cancel(future)
             raise AdmissionTimedOut("kyutai admission wait timed out") from exc
         except asyncio.CancelledError:
+            await self.cancel(future)
+            raise
+        except Exception:
             await self.cancel(future)
             raise
         return future, position
@@ -347,6 +375,8 @@ class Model:
         self._frame_size = int(mimi.frame_size)
         self.text_padding_id = int(raw.get("existing_text_padding_id", 3))
         self.audio_delay_seconds = float(stt_cfg.get("audio_delay_seconds", 0.5))
+        if AUDIO_DELAY_SECONDS_OVERRIDE is not None:
+            self.audio_delay_seconds = AUDIO_DELAY_SECONDS_OVERRIDE
         self.audio_silence_prefix_seconds = float(
             stt_cfg.get("audio_silence_prefix_seconds", 0.0)
         )
@@ -359,6 +389,14 @@ class Model:
                 for _ in range(WARMUP_FRAMES):
                     audio_tokens = mimi.encode(silent)
                     lm_gen.step(audio_tokens)
+                if WARMUP_SIGNAL_FRAMES > 0:
+                    phase = torch.arange(
+                        self._frame_size, device=self.device, dtype=torch.float32
+                    )
+                    signal = (torch.sin(phase * 0.037) * 0.01).reshape(1, 1, -1)
+                    for _ in range(WARMUP_SIGNAL_FRAMES):
+                        audio_tokens = mimi.encode(signal)
+                        lm_gen.step(audio_tokens)
                 # The moshi reset API intentionally requires an active
                 # streaming context; reset before leaving both contexts so
                 # the first user stream starts from a clean decoder state.
@@ -484,6 +522,13 @@ class StreamSession:
         self.ws = ws
         self.pcm_tail = b""  # leftover odd byte across binary frames
         self.remainder = None  # torch tensor of un-framed model-rate samples
+        # Stateful 16 kHz -> model-rate resampling. Resampling each inbound
+        # browser chunk independently resets the interpolation phase at every
+        # 100 ms boundary and can corrupt Kyutai's streaming decoder. Keep the
+        # input cursor and the next model-output cursor per connection.
+        self.resample_input_samples = 0
+        self.resample_output_index = 0
+        self.resample_last_sample: Optional[float] = None
         self.frames_consumed = 0  # number of model frames stepped
         # Tokens accumulated for the current (uncommitted) segment, in frame
         # order. Includes control ids; decoding filters them out.
@@ -773,7 +818,10 @@ class StreamSession:
         if usable == 0:
             return
         pcm_f32 = _pcm16_to_float32(data[:usable])
-        wav = MODEL.resample_to_model(pcm_f32)  # [1, T] on device
+        wav = self._resample_chunk(pcm_f32)  # [1, T] on device
+
+        if wav is None:
+            return
 
         if self.remainder is not None:
             wav = torch.cat([self.remainder, wav], dim=-1)
@@ -792,6 +840,16 @@ class StreamSession:
     async def flush(self) -> None:
         torch = MODEL._torch
         fs = MODEL.frame_size
+        # Emit the final input endpoint that was intentionally held back by
+        # the streaming resampler so interpolation never reads beyond live
+        # input. This adds no audio duration; it only closes the resampling
+        # phase cleanly before the decoder's delayed-text silence drain.
+        final_wav = self._resample_chunk(np.empty(0, dtype=np.float32), final=True)
+        if final_wav is not None:
+            if self.remainder is not None:
+                self.remainder = torch.cat([self.remainder, final_wav], dim=-1)
+            else:
+                self.remainder = final_wav
         # Decode any buffered remainder (zero-padded to a full frame).
         if self.remainder is not None and self.remainder.shape[-1] > 0:
             rem = self.remainder.shape[-1] % fs
@@ -809,6 +867,68 @@ class StreamSession:
             await self._run_frames(silence, delay_frames)
         if self.seg_start_frame is not None:
             await self._commit_segment()
+
+    def _resample_chunk(self, pcm_f32: "np.ndarray", final: bool = False):
+        """Resample one input chunk without resetting the sample phase.
+
+        The browser contract is 16 kHz while Mimi commonly runs at 24 kHz.
+        ``torch.interpolate`` is suitable for a complete buffer, but applying
+        it independently to each live chunk makes each chunk's first sample
+        use a new fractional origin. A small linear phase accumulator keeps
+        the same interpolation grid across the whole connection and bounds
+        state to one input sample plus two integer cursors.
+        """
+        torch = MODEL._torch
+        if INPUT_SAMPLE_RATE == MODEL._model_sample_rate:
+            if pcm_f32.size == 0:
+                return None
+            return torch.from_numpy(pcm_f32).to(MODEL.device).unsqueeze(0)
+
+        input_count = self.resample_input_samples
+        sample_count = int(pcm_f32.size)
+        if sample_count:
+            source_start = input_count - (1 if self.resample_last_sample is not None else 0)
+            if self.resample_last_sample is not None:
+                source = np.concatenate((np.asarray([self.resample_last_sample], dtype=np.float32), pcm_f32))
+            else:
+                source = pcm_f32
+            self.resample_last_sample = float(pcm_f32[-1])
+            self.resample_input_samples += sample_count
+        elif not final or self.resample_last_sample is None:
+            return None
+        else:
+            source_start = input_count - 1
+            source = np.asarray([self.resample_last_sample], dtype=np.float32)
+
+        source_end = source_start + len(source) - 1
+        ratio = INPUT_SAMPLE_RATE / MODEL._model_sample_rate
+        # torch.interpolate(mode="linear", align_corners=False) uses the
+        # half-sample mapping (j + .5) * input/output - .5.  Preserve that
+        # phase globally; using j * input/output shifts every live chunk and
+        # is enough to make the Kyutai decoder settle on the wrong language.
+        # The final half-sample may clamp to the last input sample, but a live
+        # chunk must not synthesize it before that sample arrives.
+        limit = float(source_end) + (ratio / 2.0 if final else 0.0)
+        positions = []
+        while True:
+            position = (self.resample_output_index + 0.5) * ratio - 0.5
+            if position > limit:
+                break
+            if position >= source_start:
+                positions.append(position)
+            elif source_start == 0:
+                # align_corners=False clamps the first negative coordinate to
+                # the first sample of a complete input buffer.
+                positions.append(float(source_start))
+            self.resample_output_index += 1
+        if not positions:
+            return None
+        values = np.interp(
+            np.asarray(positions, dtype=np.float64),
+            np.arange(source_start, source_end + 1, dtype=np.float64),
+            source.astype(np.float64),
+        ).astype(np.float32)
+        return torch.from_numpy(values).to(MODEL.device).unsqueeze(0)
 
 
 class ModelBusyError(Exception):
@@ -958,6 +1078,19 @@ async def stream(ws: WebSocket) -> None:
         )
         await ws.close()
         return
+    except asyncio.CancelledError:
+        # Admission has completed, but the request can still be cancelled
+        # before the decode loop starts. Release the ticket here because the
+        # normal streaming finally block has not been entered yet.
+        if admission_ticket is not None:
+            await MODEL.admission.release(admission_ticket)
+        raise
+    except Exception:
+        # Do not strand a FIFO slot when lock acquisition fails for an
+        # unexpected reason before the normal session cleanup owns it.
+        if admission_ticket is not None:
+            await MODEL.admission.release(admission_ticket)
+        raise
     # Start the send worker so decode can enqueue events without ever blocking
     # on the consumer (event-durability contract).
     session.start_sender()

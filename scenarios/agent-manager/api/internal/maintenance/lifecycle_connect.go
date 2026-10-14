@@ -166,15 +166,34 @@ func (s *LifecycleService) standing(ctx context.Context, operation string, revis
 	if err != nil {
 		return nil, err
 	}
+	// A read-only status request may omit a revision to discover the current
+	// fence. Explicit revisions still must match the durable observation.
+	if revision == 0 {
+		revision = v.Revision
+	}
 	return s.standingFrom(ctx, v, operation, revision)
 }
 
 func (s *LifecycleService) standingFrom(ctx context.Context, v Standing, operation string, revision int64) (*commonv1.LifecycleStanding, error) {
+	// The supplied revision identifies the durable fence, never a caller-selected
+	// proof label. Bracket inventory with the shared gate just as HTTP status does.
+	if revision != v.Revision {
+		return nil, connect.NewError(connect.CodeAborted, ErrConflict)
+	}
 	inv, err := s.observe(ctx)
 	if err != nil {
 		return nil, err
 	}
-	complete := inv.Remaining != nil && len(inv.Unknown) == 0
+	after, err := s.gate.Status(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if after.Revision != v.Revision || after.Closed != v.Closed {
+		return nil, connect.NewError(connect.CodeAborted, ErrConflict)
+	}
+	admissionsSettled := v.Admitting == 0 && after.Admitting == 0
+	v = after
+	complete := inv.Remaining != nil && *inv.Remaining >= 0 && len(inv.Unknown) == 0
 	remaining := int32(-1)
 	if inv.Remaining != nil {
 		remaining = int32(*inv.Remaining)
@@ -183,7 +202,7 @@ func (s *LifecycleService) standingFrom(ctx context.Context, v Standing, operati
 	if v.Closed {
 		phase = commonv1.LifecycleMaintenancePhase_LIFECYCLE_MAINTENANCE_PHASE_CLOSING
 	}
-	if v.Closed && complete && remaining == 0 && len(inv.Work) == 0 && len(inv.Executors) == 0 {
+	if v.Closed && admissionsSettled && complete && remaining == 0 && len(inv.Work) == 0 && len(inv.Executors) == 0 {
 		phase = commonv1.LifecycleMaintenancePhase_LIFECYCLE_MAINTENANCE_PHASE_DRAINED
 	}
 	standing := &commonv1.LifecycleStanding{Provider: s.provider, ProviderInstanceId: s.instance, Scenario: s.scenario, InstanceId: s.instance, OperationId: operation, FenceToken: fmt.Sprintf("%d", revision), Revision: revision, Phase: phase, AdmissionClosed: v.Closed, Admitting: int32(v.Admitting), Remaining: remaining, InventoryComplete: complete, Drained: phase == commonv1.LifecycleMaintenancePhase_LIFECYCLE_MAINTENANCE_PHASE_DRAINED, ObservedAt: timestamppb.Now(), Interlock: ScenarioLockV1}

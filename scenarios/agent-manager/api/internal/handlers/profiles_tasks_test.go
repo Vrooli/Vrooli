@@ -1,10 +1,17 @@
 package handlers
 
 import (
+	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/domain"
+	"agent-manager/internal/repository"
 	"bytes"
+	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -531,3 +538,66 @@ func TestCancelTask_Success(t *testing.T) {
 
 // TestHealth_Success tests the health endpoint.
 // [REQ:REQ-P0-011] Verify health endpoint returns proper format
+
+// This qualifies the real REST router, SQLite query and protobuf projection.
+// Setup writes precede the request; an owner repository read verifies no GET
+// mutation. More than the usual first page proves omitted pagination is unbounded.
+func TestListProfilesUnpaginatedReadPreservesOwnerExecutionContract(t *testing.T) {
+	_, router, repos, _ := setupTestHandlerWithRunnerAndRepos(t, runner.NewMockRunner(domain.RunnerTypeClaudeCode))
+	ctx := context.Background()
+	var target *domain.AgentProfile
+	for i := 0; i < 40; i++ {
+		profile := &domain.AgentProfile{ID: uuid.New(), Name: fmt.Sprintf("profile-%02d", i), ProfileKey: fmt.Sprintf("owner/profile-%02d", i), RoleRef: "code.default", CreatedAt: time.Date(2026, 10, 10, 0, 0, 0, 0, time.UTC), UpdatedAt: time.Date(2026, 10, 10, 0, 0, i, 0, time.UTC)}
+		if i == 0 {
+			profile.OwnerScenario = "prompt-manager"
+			profile.SourcePath = ".vrooli/agent-manager/heartbeat.json"
+			profile.SourceHash = "original-hash"
+			profile.LastAppliedHash = "original-hash"
+			profile.MaxTurns = 50
+			profile.Timeout = 600 * time.Second
+			profile.MaxWeightedTokens = 12345
+			profile.LocalOverride = true
+			profile.SandboxConfig = &domain.SandboxConfig{Mode: domain.SandboxModeProtected}
+			target = profile
+		}
+		if err := repos.Profiles.Create(ctx, profile); err != nil {
+			t.Fatal(err)
+		}
+	}
+	before, err := repos.Profiles.List(ctx, repository.ListFilter{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/profiles", nil))
+	if response.Code != http.StatusOK {
+		t.Fatalf("read=%d %s", response.Code, response.Body)
+	}
+	var result apipb.ListProfilesResponse
+	decodeProtoJSON(t, response.Body.Bytes(), &result)
+	if len(result.Profiles) != 40 || result.Total != 40 {
+		t.Fatalf("implicit page truncation: len=%d total=%d", len(result.Profiles), result.Total)
+	}
+	var found *pb.AgentProfile
+	for _, profile := range result.Profiles {
+		if profile.ProfileKey == target.ProfileKey {
+			if found != nil {
+				t.Fatal("duplicate exact key")
+			}
+			found = profile
+		}
+	}
+	if found == nil || found.Id != target.ID.String() || found.OwnerScenario != "prompt-manager" || found.SourceHash != "original-hash" || found.LastAppliedHash != "original-hash" || !found.LocalOverride || found.Timeout.AsDuration() != 600*time.Second || found.MaxTurns != 50 || found.MaxWeightedTokens != 12345 || found.SandboxConfig.GetMode() != pb.SandboxMode_SANDBOX_MODE_PROTECTED {
+		t.Fatalf("owner data lost: %v", found)
+	}
+	after, err := repos.Profiles.List(ctx, repository.ListFilter{})
+	if err != nil || !reflect.DeepEqual(before, after) {
+		t.Fatalf("profile GET changed owner store: %v", err)
+	}
+	duplicate := *target
+	duplicate.ID = uuid.New()
+	duplicate.Name = "new-name"
+	if err := repos.Profiles.Create(ctx, &duplicate); err == nil {
+		t.Fatal("owner schema permits duplicate profile key")
+	}
+}

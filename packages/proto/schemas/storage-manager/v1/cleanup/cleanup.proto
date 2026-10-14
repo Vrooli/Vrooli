@@ -11,6 +11,8 @@ service CleanupService {
   rpc ListProviders(ListProvidersRequest) returns (ListProvidersResponse);
   rpc GetPolicy(GetPolicyRequest) returns (GetPolicyResponse);
   rpc SetPolicyProfile(SetPolicyProfileRequest) returns (SetPolicyProfileResponse);
+  // Explicit standing authority for aged temporary entries only.
+  rpc ConfigureTemporaryRetention(ConfigureTemporaryRetentionRequest) returns (ConfigureTemporaryRetentionResponse);
   rpc CreatePlan(CreatePlanRequest) returns (CreatePlanResponse);
   rpc ApplyPlan(ApplyPlanRequest) returns (ApplyPlanResponse);
   rpc ListAudit(ListAuditRequest) returns (ListAuditResponse);
@@ -76,6 +78,16 @@ message SetPolicyProfileRequest {
 }
 
 message SetPolicyProfileResponse {
+  Policy policy = 1;
+}
+
+message ConfigureTemporaryRetentionRequest {
+  bool automatic = 1;
+  // At least one day when enabling. Zero preserves the current age when disabling.
+  int64 min_age_seconds = 2;
+}
+
+message ConfigureTemporaryRetentionResponse {
   Policy policy = 1;
 }
 

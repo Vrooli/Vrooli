@@ -136,3 +136,24 @@ func TestTransitionRequiresOperatorAndProducesTypedEvent(t *testing.T) {
 		t.Fatal("unchanged posture transition accepted")
 	}
 }
+
+// Shared operator account access lasts four hours; unrelated posture and
+// break-glass defaults retain their independently selected limits.
+func TestHumanAccessPostureDefaults(t *testing.T) {
+	for _, tc := range []struct {
+		posture           Posture
+		access, emergency time.Duration
+	}{
+		{Personal, time.Hour, 15 * time.Minute},
+		{Shared, 4 * time.Hour, 10 * time.Minute},
+		{Hosted, 10 * time.Minute, 0},
+	} {
+		d, err := DefaultsFor(tc.posture)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if d.AccessTokenTTL != tc.access || d.BreakGlassTTL != tc.emergency {
+			t.Fatalf("%s lifetime defaults changed outside human access policy", tc.posture)
+		}
+	}
+}

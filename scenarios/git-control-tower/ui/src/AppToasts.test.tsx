@@ -1,11 +1,12 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+import { renderWithProviders } from "./test-utils/renderWithProviders";
 import { PushToast } from "./AppToasts";
 
 describe("PushToast", () => {
   it("shows the git output behind a failure, not just a status word", async () => {
-    render(
+    renderWithProviders(
       <PushToast
         notice={{
           tone: "error",
@@ -27,7 +28,7 @@ describe("PushToast", () => {
 
   it("only offers dismissal for notices that must be acknowledged", async () => {
     const onDismiss = vi.fn();
-    const { rerender } = render(
+    const { rerender } = renderWithProviders(
       <PushToast
         notice={{ tone: "success", message: "Pushed to origin/agi" }}
         positionClass="fixed bottom-4 right-4"

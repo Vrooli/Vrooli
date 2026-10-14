@@ -54,6 +54,15 @@ body {
   background: var(--gct-app-color);
 }
 
+/* The bottom tab bar sits on the app canvas, not a raised surface. Match its
+   background to the content so the safe-area band below the tabs blends with
+   the shell instead of reading as a lighter blue block. The RCL top hairline
+   still separates it from the content above. (Attribute+class beats the RCL
+   [data-rcl-bottom-nav] background rule.) */
+[data-rcl-bottom-nav].gct-mobile-tabbar {
+  background: var(--gct-app-color);
+}
+
 @media (max-width: 767px) {
   /* The Changes panel owns the mobile frame edge. Do not let the generic Card
      recipe create a rounded, inset island with the shell showing through. */

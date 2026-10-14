@@ -81,18 +81,22 @@ class RecipeMethod(_message.Message):
     def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., steps: _Optional[_Iterable[_Union[RecipeStep, _Mapping]]] = ...) -> None: ...
 
 class RecipeStep(_message.Message):
-    __slots__ = ("id", "instruction", "depends_on", "inputs", "outputs")
+    __slots__ = ("id", "instruction", "depends_on", "inputs", "outputs", "equipment", "settings")
     ID_FIELD_NUMBER: _ClassVar[int]
     INSTRUCTION_FIELD_NUMBER: _ClassVar[int]
     DEPENDS_ON_FIELD_NUMBER: _ClassVar[int]
     INPUTS_FIELD_NUMBER: _ClassVar[int]
     OUTPUTS_FIELD_NUMBER: _ClassVar[int]
+    EQUIPMENT_FIELD_NUMBER: _ClassVar[int]
+    SETTINGS_FIELD_NUMBER: _ClassVar[int]
     id: str
     instruction: str
     depends_on: _containers.RepeatedScalarFieldContainer[str]
     inputs: _containers.RepeatedScalarFieldContainer[str]
     outputs: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, id: _Optional[str] = ..., instruction: _Optional[str] = ..., depends_on: _Optional[_Iterable[str]] = ..., inputs: _Optional[_Iterable[str]] = ..., outputs: _Optional[_Iterable[str]] = ...) -> None: ...
+    equipment: _containers.RepeatedScalarFieldContainer[str]
+    settings: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, id: _Optional[str] = ..., instruction: _Optional[str] = ..., depends_on: _Optional[_Iterable[str]] = ..., inputs: _Optional[_Iterable[str]] = ..., outputs: _Optional[_Iterable[str]] = ..., equipment: _Optional[_Iterable[str]] = ..., settings: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ListRecipesRequest(_message.Message):
     __slots__ = ("workspace_id",)

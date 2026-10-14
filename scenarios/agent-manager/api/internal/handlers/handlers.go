@@ -44,6 +44,7 @@ import (
 	"buf.build/go/protovalidate"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/effortauthority"
 	"github.com/vrooli/api-core/eventbus"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
@@ -637,6 +638,13 @@ func writeError(w http.ResponseWriter, r *http.Request, err error) {
 
 	// Map to HTTP status code
 	status := mapErrorCodeToStatus(errResp.Code)
+
+	// A finite-authority refusal (including orchestration refusals that wrap it
+	// via fmt.Errorf("%w: ...")) is an authorization denial, not an internal
+	// error. Surface it as 403 rather than letting a bare error map to 500.
+	if errors.Is(err, effortauthority.ErrRefused) {
+		status = http.StatusForbidden
+	}
 
 	// Add retry hint header for retryable errors
 	if errResp.Retryable {

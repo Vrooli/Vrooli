@@ -277,18 +277,38 @@ class ToolCallEventData(_message.Message):
     def __init__(self, tool_name: _Optional[str] = ..., input: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., tool_call_id: _Optional[str] = ...) -> None: ...
 
 class ToolResultEventData(_message.Message):
-    __slots__ = ("tool_name", "tool_call_id", "output", "error", "success")
+    __slots__ = ("tool_name", "tool_call_id", "output", "error", "success", "exit_code", "duration_ms", "outcome_known", "output_blocks", "raw_output_json")
     TOOL_NAME_FIELD_NUMBER: _ClassVar[int]
     TOOL_CALL_ID_FIELD_NUMBER: _ClassVar[int]
     OUTPUT_FIELD_NUMBER: _ClassVar[int]
     ERROR_FIELD_NUMBER: _ClassVar[int]
     SUCCESS_FIELD_NUMBER: _ClassVar[int]
+    EXIT_CODE_FIELD_NUMBER: _ClassVar[int]
+    DURATION_MS_FIELD_NUMBER: _ClassVar[int]
+    OUTCOME_KNOWN_FIELD_NUMBER: _ClassVar[int]
+    OUTPUT_BLOCKS_FIELD_NUMBER: _ClassVar[int]
+    RAW_OUTPUT_JSON_FIELD_NUMBER: _ClassVar[int]
     tool_name: str
     tool_call_id: str
     output: str
     error: str
     success: bool
-    def __init__(self, tool_name: _Optional[str] = ..., tool_call_id: _Optional[str] = ..., output: _Optional[str] = ..., error: _Optional[str] = ..., success: _Optional[bool] = ...) -> None: ...
+    exit_code: int
+    duration_ms: int
+    outcome_known: bool
+    output_blocks: _containers.RepeatedCompositeFieldContainer[ToolOutputBlock]
+    raw_output_json: str
+    def __init__(self, tool_name: _Optional[str] = ..., tool_call_id: _Optional[str] = ..., output: _Optional[str] = ..., error: _Optional[str] = ..., success: _Optional[bool] = ..., exit_code: _Optional[int] = ..., duration_ms: _Optional[int] = ..., outcome_known: _Optional[bool] = ..., output_blocks: _Optional[_Iterable[_Union[ToolOutputBlock, _Mapping]]] = ..., raw_output_json: _Optional[str] = ...) -> None: ...
+
+class ToolOutputBlock(_message.Message):
+    __slots__ = ("type", "text", "raw_json")
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    TEXT_FIELD_NUMBER: _ClassVar[int]
+    RAW_JSON_FIELD_NUMBER: _ClassVar[int]
+    type: str
+    text: str
+    raw_json: str
+    def __init__(self, type: _Optional[str] = ..., text: _Optional[str] = ..., raw_json: _Optional[str] = ...) -> None: ...
 
 class StatusEventData(_message.Message):
     __slots__ = ("old_status", "new_status", "reason")

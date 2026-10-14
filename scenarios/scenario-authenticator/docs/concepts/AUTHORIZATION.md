@@ -37,13 +37,19 @@ independent from every relying-party release cycle.
 
 The shared typed posture reader consumes `~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json` and
 defaults a missing `trust_posture` to `personal`. The posture never disables
-verification. Its defaults are:
+verification. Its human-account access-token defaults are:
 
 | Posture | Access-token TTL | Break-glass | Default node execution scopes | JWKS cache grace |
 |---|---:|---|---|---:|
 | `personal` | 60 minutes | available, 15-minute credential | `vrooli-bridge:read`, `vrooli-bridge:write` | 24 hours |
-| `shared` | 15 minutes | available, 10-minute credential | none | 4 hours |
+| `shared` | 4 hours | available, 10-minute credential | none | 4 hours |
 | `hosted` | 10 minutes | unavailable | none | 1 hour |
+
+The access-token TTL governs account login, the existing OS/account-bound local
+exchange, and refresh. `JWT_EXPIRY_MINUTES` remains an explicit deployment override
+from 1 to 1440 minutes. Refresh and session lifetimes remain seven days. This
+account-token default does not change native agent/delegation leaves, exact-action
+proofs, operator-session limits, or grant deadlines.
 
 An operator transition is separate from agent-readable state and is recorded
 as a typed `trust_posture.transition` event. No posture is a fail-open mode.

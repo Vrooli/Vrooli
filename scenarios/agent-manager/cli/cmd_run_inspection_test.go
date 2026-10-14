@@ -104,3 +104,68 @@ func captureStdout(t *testing.T, run func() error) string {
 	}
 	return string(<-done)
 }
+
+func TestNativeToolConsumersKeepUnknownOutOfFailureFilters(t *testing.T) {
+	unknown := false
+	zero := int32(0)
+	failure := int32(9)
+	rows := []*domainpb.RunEvent{}
+	for index, d := range []*domainpb.ToolResultEventData{
+		{ToolName: "unknown-entry", OutcomeKnown: &unknown}, {ToolName: "zero-entry", ExitCode: &zero},
+		{ToolName: "failure-entry", ExitCode: &failure, Success: true}, {ToolName: "legacy-success-entry", Success: true}, {ToolName: "legacy-failure-entry", Success: false, Error: "failed"},
+	} {
+		rows = append(rows, &domainpb.RunEvent{Sequence: int64(index + 1), EventType: domainpb.RunEventType_RUN_EVENT_TYPE_TOOL_RESULT, Data: &domainpb.RunEvent_ToolResult{ToolResult: d}})
+	}
+	events, err := protojson.MarshalOptions{UseProtoNames: true}.Marshal(&apipb.GetRunEventsResponse{Events: rows})
+	if err != nil {
+		t.Fatal(err)
+	}
+	report, err := protojson.MarshalOptions{UseProtoNames: true}.Marshal(&apipb.RunReport{RunId: "run-1", Tools: []*apipb.RunReportTool{{Name: "exec", Calls: 5, Returned: 5, Successes: 2, Failures: 2, UnknownOutcome: 1}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := clitest.NewRecordingServerForRequests(t, func(req clitest.Request) string {
+		if strings.HasSuffix(req.Path, "/report") {
+			return string(report)
+		}
+		return string(events)
+	})
+	api := cliutil.NewAPIClient(cliutil.NewHTTPClient(cliutil.HTTPClientOptions{}), func() cliutil.APIBaseOptions { return cliutil.APIBaseOptions{DefaultBase: server.URL()} }, nil)
+	a := &App{services: NewServices(api)}
+	for _, command := range []struct {
+		name string
+		run  func() error
+	}{
+		{"report", func() error { return a.runReport([]string{"run-1"}) }}, {"tools", func() error { return a.runTools([]string{"run-1"}) }},
+	} {
+		t.Run(command.name, func(t *testing.T) {
+			output := captureStdout(t, command.run)
+			if !strings.Contains(output, "calls=5 returned=5 success=2 failed=2 unknown=1 unresolved=0") {
+				t.Fatalf("summary=%s", output)
+			}
+			if command.name == "tools" && !strings.Contains(output, "unknown-entry outcome=unknown") {
+				t.Fatalf("unknown display=%s", output)
+			}
+		})
+	}
+	for _, command := range []struct {
+		name string
+		run  func() error
+	}{
+		{"tools failed", func() error { return a.runTools([]string{"run-1", "--failed"}) }}, {"events failed", func() error { return a.runEvents([]string{"run-1", "--failed"}) }},
+	} {
+		t.Run(command.name, func(t *testing.T) {
+			output := captureStdout(t, command.run)
+			for _, absent := range []string{"unknown-entry", "zero-entry", "legacy-success-entry"} {
+				if strings.Contains(output, absent) {
+					t.Fatalf("nonfailure %q in failed output: %s", absent, output)
+				}
+			}
+			for _, present := range []string{"failure-entry", "legacy-failure-entry"} {
+				if !strings.Contains(output, present) {
+					t.Fatalf("failure %q absent: %s", present, output)
+				}
+			}
+		})
+	}
+}

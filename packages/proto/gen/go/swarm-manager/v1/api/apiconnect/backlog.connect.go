@@ -49,6 +49,9 @@ const (
 	// BacklogServiceDeleteItemProcedure is the fully-qualified name of the BacklogService's DeleteItem
 	// RPC.
 	BacklogServiceDeleteItemProcedure = "/vrooli.swarm_manager.v1.api.BacklogService/DeleteItem"
+	// BacklogServiceArchiveTerminalItemsProcedure is the fully-qualified name of the BacklogService's
+	// ArchiveTerminalItems RPC.
+	BacklogServiceArchiveTerminalItemsProcedure = "/vrooli.swarm_manager.v1.api.BacklogService/ArchiveTerminalItems"
 	// BacklogServiceDecideAttemptProcedure is the fully-qualified name of the BacklogService's
 	// DecideAttempt RPC.
 	BacklogServiceDecideAttemptProcedure = "/vrooli.swarm_manager.v1.api.BacklogService/DecideAttempt"
@@ -80,6 +83,9 @@ type BacklogServiceClient interface {
 	UpdateItem(context.Context, *connect.Request[api.UpdateItemRequest]) (*connect.Response[api.BacklogItemResponse], error)
 	// DeleteItem removes an item and cleans dependent references. It is idempotent.
 	DeleteItem(context.Context, *connect.Request[api.DeleteBacklogItemRequest]) (*connect.Response[api.DeleteBacklogItemResponse], error)
+	// ArchiveTerminalItems preserves existing terminal verdicts and returns a
+	// per-item receipt. Partial results are explicit; this is not a transaction.
+	ArchiveTerminalItems(context.Context, *connect.Request[api.ArchiveTerminalItemsRequest]) (*connect.Response[api.ArchiveTerminalItemsResponse], error)
 	// DecideAttempt applies an auditable decision to a durable attempt. The
 	// subject-specific domain validates allowed decisions and proposals.
 	DecideAttempt(context.Context, *connect.Request[api.DecideAttemptRequest]) (*connect.Response[api.DecideAttemptResponse], error)
@@ -129,6 +135,12 @@ func NewBacklogServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(backlogServiceMethods.ByName("DeleteItem")),
 			connect.WithClientOptions(opts...),
 		),
+		archiveTerminalItems: connect.NewClient[api.ArchiveTerminalItemsRequest, api.ArchiveTerminalItemsResponse](
+			httpClient,
+			baseURL+BacklogServiceArchiveTerminalItemsProcedure,
+			connect.WithSchema(backlogServiceMethods.ByName("ArchiveTerminalItems")),
+			connect.WithClientOptions(opts...),
+		),
 		decideAttempt: connect.NewClient[api.DecideAttemptRequest, api.DecideAttemptResponse](
 			httpClient,
 			baseURL+BacklogServiceDecideAttemptProcedure,
@@ -151,6 +163,7 @@ type backlogServiceClient struct {
 	getItem               *connect.Client[api.GetBacklogItemRequest, api.BacklogItemResponse]
 	updateItem            *connect.Client[api.UpdateItemRequest, api.BacklogItemResponse]
 	deleteItem            *connect.Client[api.DeleteBacklogItemRequest, api.DeleteBacklogItemResponse]
+	archiveTerminalItems  *connect.Client[api.ArchiveTerminalItemsRequest, api.ArchiveTerminalItemsResponse]
 	decideAttempt         *connect.Client[api.DecideAttemptRequest, api.DecideAttemptResponse]
 	verifyAttemptEvidence *connect.Client[api.VerifyAttemptEvidenceRequest, api.VerifyAttemptEvidenceResponse]
 }
@@ -180,6 +193,11 @@ func (c *backlogServiceClient) DeleteItem(ctx context.Context, req *connect.Requ
 	return c.deleteItem.CallUnary(ctx, req)
 }
 
+// ArchiveTerminalItems calls vrooli.swarm_manager.v1.api.BacklogService.ArchiveTerminalItems.
+func (c *backlogServiceClient) ArchiveTerminalItems(ctx context.Context, req *connect.Request[api.ArchiveTerminalItemsRequest]) (*connect.Response[api.ArchiveTerminalItemsResponse], error) {
+	return c.archiveTerminalItems.CallUnary(ctx, req)
+}
+
 // DecideAttempt calls vrooli.swarm_manager.v1.api.BacklogService.DecideAttempt.
 func (c *backlogServiceClient) DecideAttempt(ctx context.Context, req *connect.Request[api.DecideAttemptRequest]) (*connect.Response[api.DecideAttemptResponse], error) {
 	return c.decideAttempt.CallUnary(ctx, req)
@@ -206,6 +224,9 @@ type BacklogServiceHandler interface {
 	UpdateItem(context.Context, *connect.Request[api.UpdateItemRequest]) (*connect.Response[api.BacklogItemResponse], error)
 	// DeleteItem removes an item and cleans dependent references. It is idempotent.
 	DeleteItem(context.Context, *connect.Request[api.DeleteBacklogItemRequest]) (*connect.Response[api.DeleteBacklogItemResponse], error)
+	// ArchiveTerminalItems preserves existing terminal verdicts and returns a
+	// per-item receipt. Partial results are explicit; this is not a transaction.
+	ArchiveTerminalItems(context.Context, *connect.Request[api.ArchiveTerminalItemsRequest]) (*connect.Response[api.ArchiveTerminalItemsResponse], error)
 	// DecideAttempt applies an auditable decision to a durable attempt. The
 	// subject-specific domain validates allowed decisions and proposals.
 	DecideAttempt(context.Context, *connect.Request[api.DecideAttemptRequest]) (*connect.Response[api.DecideAttemptResponse], error)
@@ -251,6 +272,12 @@ func NewBacklogServiceHandler(svc BacklogServiceHandler, opts ...connect.Handler
 		connect.WithSchema(backlogServiceMethods.ByName("DeleteItem")),
 		connect.WithHandlerOptions(opts...),
 	)
+	backlogServiceArchiveTerminalItemsHandler := connect.NewUnaryHandler(
+		BacklogServiceArchiveTerminalItemsProcedure,
+		svc.ArchiveTerminalItems,
+		connect.WithSchema(backlogServiceMethods.ByName("ArchiveTerminalItems")),
+		connect.WithHandlerOptions(opts...),
+	)
 	backlogServiceDecideAttemptHandler := connect.NewUnaryHandler(
 		BacklogServiceDecideAttemptProcedure,
 		svc.DecideAttempt,
@@ -275,6 +302,8 @@ func NewBacklogServiceHandler(svc BacklogServiceHandler, opts ...connect.Handler
 			backlogServiceUpdateItemHandler.ServeHTTP(w, r)
 		case BacklogServiceDeleteItemProcedure:
 			backlogServiceDeleteItemHandler.ServeHTTP(w, r)
+		case BacklogServiceArchiveTerminalItemsProcedure:
+			backlogServiceArchiveTerminalItemsHandler.ServeHTTP(w, r)
 		case BacklogServiceDecideAttemptProcedure:
 			backlogServiceDecideAttemptHandler.ServeHTTP(w, r)
 		case BacklogServiceVerifyAttemptEvidenceProcedure:
@@ -306,6 +335,10 @@ func (UnimplementedBacklogServiceHandler) UpdateItem(context.Context, *connect.R
 
 func (UnimplementedBacklogServiceHandler) DeleteItem(context.Context, *connect.Request[api.DeleteBacklogItemRequest]) (*connect.Response[api.DeleteBacklogItemResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.api.BacklogService.DeleteItem is not implemented"))
+}
+
+func (UnimplementedBacklogServiceHandler) ArchiveTerminalItems(context.Context, *connect.Request[api.ArchiveTerminalItemsRequest]) (*connect.Response[api.ArchiveTerminalItemsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.api.BacklogService.ArchiveTerminalItems is not implemented"))
 }
 
 func (UnimplementedBacklogServiceHandler) DecideAttempt(context.Context, *connect.Request[api.DecideAttemptRequest]) (*connect.Response[api.DecideAttemptResponse], error) {

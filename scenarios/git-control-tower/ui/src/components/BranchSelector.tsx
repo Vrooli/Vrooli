@@ -589,11 +589,11 @@ export function BranchSelector({
             {currentBranch || "Detached"}
           </span>
           {commitOid && (
-            <span className="font-mono text-xs text-slate-500">
+            <span className="font-mono text-xs text-slate-500 flex-shrink-0 whitespace-nowrap">
               · {commitOid.substring(0, 7)}
             </span>
           )}
-          <ChevronDown className="h-3.5 w-3.5 text-slate-500" />
+          <ChevronDown className="h-3.5 w-3.5 text-slate-500 flex-shrink-0" />
         </button>
         <BottomSheet
           isOpen={open}
@@ -609,20 +609,20 @@ export function BranchSelector({
   return (
     <div className="relative" ref={dropdownRef} data-testid="branch-selector">
       <button
-        className="flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-slate-800 transition-colors"
+        className="flex min-w-0 items-center gap-1.5 px-2 py-1 rounded-md hover:bg-slate-800 transition-colors"
         onClick={() => setOpen((prev) => !prev)}
         data-testid="branch-selector-trigger"
       >
         <GitBranch className="h-4 w-4 text-slate-400" />
-        <span className="font-mono text-sm text-slate-200">
+        <span className="font-mono text-sm text-slate-200 truncate">
           {currentBranch || "Detached"}
         </span>
         {commitOid && (
-          <span className="font-mono text-xs text-slate-500">
+          <span className="font-mono text-xs text-slate-500 flex-shrink-0 whitespace-nowrap">
             · {commitOid.substring(0, 7)}
           </span>
         )}
-        <ChevronDown className="h-3.5 w-3.5 text-slate-500" />
+        <ChevronDown className="h-3.5 w-3.5 text-slate-500 flex-shrink-0" />
       </button>
 
       {open && (

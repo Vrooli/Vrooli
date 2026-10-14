@@ -265,7 +265,7 @@
       "layout": "dir",
       "entry_path": "usr/lib/postgresql/16/bin/postgres",
       "sha256_by_platform": {
-        "linux-amd64": "8c18753fd1965bb4eaf099ad88412be883b25396b6a5e3b97ad610ddfa3855f2",
+        "linux-amd64": "47435624b2447556bdc76e2b1110ae869a5bac4057aeed336d1832132220496a",
         "linux-arm64": "e495022187d70554a26e83311146b847ee3477e972a97ae4224658e52ab299ef",
         "macos-arm64": "95c628f192ae0466c58351b2e7c79a1c6eda86bc72a9db3c26740aaf1b75eaa3",
         "macos-amd64": "67cdcb759433cfeb7e282804fa505c2c9fe514f407846604b3237066505802b1",
@@ -358,7 +358,7 @@
       "-h",
       "127.0.0.1",
       "-k",
-      "${RESOURCE_DATA_DIR}/instances/main"
+      ""
     ],
     "environment": {
       "POSTGRES_DB": "vrooli",

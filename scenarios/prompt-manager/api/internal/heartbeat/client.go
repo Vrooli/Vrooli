@@ -15,8 +15,12 @@ import (
 	"github.com/vrooli/api-core/effortauthority"
 	"github.com/vrooli/api-core/owneridentity"
 
+	"github.com/google/uuid"
 	"github.com/vrooli/api-core/discovery"
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	eventpb "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // AgentManagerClient provides HTTP client for agent-manager API
@@ -54,13 +58,8 @@ type ProfileRef struct {
 	ProfileKey string `json:"profile_key"`
 }
 
-// AgentProfile is the portable profile identity returned by Agent Manager.
-// JSON tags use snake_case to match agent-manager's protojson schema.
-type AgentProfile struct {
-	ID         string `json:"id,omitempty"`
-	ProfileKey string `json:"profile_key"`
-	RoleRef    string `json:"role_ref,omitempty"`
-}
+// AgentProfile retains the complete owner schema, including execution controls and provenance.
+type AgentProfile = domainpb.AgentProfile
 
 // Task represents a task for agent execution.
 // Field names and JSON tags must match the agent-manager proto schema
@@ -219,18 +218,6 @@ type GetRunResponse struct {
 	Run *Run `json:"run"`
 }
 
-// EnsureProfileRequest resolves a reconciled profile by key.
-type EnsureProfileRequest struct {
-	ProfileKey string `json:"profile_key"`
-}
-
-// EnsureProfileResponse is the response from ensure profile
-type EnsureProfileResponse struct {
-	Profile *AgentProfile `json:"profile"`
-	Created bool          `json:"created"`
-	Updated bool          `json:"updated"`
-}
-
 // Health checks the agent-manager service health
 func (c *AgentManagerClient) Health(ctx context.Context) (bool, error) {
 	resp, err := c.doRequestWithRetry(ctx, "GET", "/health", nil)
@@ -242,66 +229,84 @@ func (c *AgentManagerClient) Health(ctx context.Context) (bool, error) {
 	return resp.StatusCode == http.StatusOK, nil
 }
 
-// EnsureProfile resolves an existing named profile for read paths that need its
-// ID. Scenario-owned profiles are created only by reconciliation.
-func (c *AgentManagerClient) EnsureProfile(ctx context.Context, req *EnsureProfileRequest) (*EnsureProfileResponse, error) {
-	body, err := json.Marshal(req)
-	if err != nil {
-		return nil, fmt.Errorf("marshal request: %w", err)
+// ResolveProfile reads the current unpaginated owner list. A positive exact
+// identity does not require catalog completeness; absence or ambiguity refuses
+// the affected consumer instead of silently dropping its filter or installing.
+func (c *AgentManagerClient) ResolveProfile(ctx context.Context, key string) (*AgentProfile, error) {
+	if key == "" || strings.TrimSpace(key) != key {
+		return nil, fmt.Errorf("profile key must be exact and nonempty")
 	}
-	resp, err := c.doRequestWithRetry(ctx, "POST", "/api/v1/profiles/ensure", body)
+	resp, err := c.doRequestWithRetry(ctx, http.MethodGet, "/api/v1/profiles", nil)
 	if err != nil {
 		return nil, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return nil, c.parseError(resp)
-	}
-	var result EnsureProfileResponse
-	if err := c.parseResponse(resp, &result); err != nil {
-		return nil, err
-	}
-	return &result, nil
-}
-
-// ReconcileScenarioProfiles applies a scenario's manifest-declared profile sources.
-func (c *AgentManagerClient) ReconcileScenarioProfiles(ctx context.Context, scenario string) error {
-	body, err := json.Marshal(map[string]string{"scenario": scenario})
-	if err != nil {
-		return fmt.Errorf("marshal reconcile request: %w", err)
-	}
-	resp, err := c.doRequestWithRetry(ctx, "POST", "/api/v1/profiles/reconcile-scenario", body)
-	if err != nil {
-		return err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return c.parseError(resp)
-	}
-	return nil
-}
-
-// CreateTask creates a new task
-func (c *AgentManagerClient) CreateTask(ctx context.Context, task *Task) (*Task, error) {
-	req := CreateTaskRequest{Task: task}
-	body, err := json.Marshal(req)
-	if err != nil {
-		return nil, fmt.Errorf("marshal request: %w", err)
-	}
-
-	resp, err := c.doRequestWithRetry(ctx, "POST", "/api/v1/tasks", body)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		return nil, c.parseError(resp)
 	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read profile list: %w", err)
+	}
+	var result apipb.ListProfilesResponse
+	if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(body, &result); err != nil {
+		return nil, fmt.Errorf("unsupported profile list: %w", err)
+	}
+	var match *AgentProfile
+	for _, profile := range result.Profiles {
+		if profile.GetProfileKey() != key {
+			continue
+		}
+		if match != nil {
+			return nil, fmt.Errorf("profile key %q is ambiguous", key)
+		}
+		id, err := uuid.Parse(profile.Id)
+		if err != nil || id == uuid.Nil {
+			return nil, fmt.Errorf("profile key %q has invalid owner identity", key)
+		}
+		match = profile
+	}
+	if match == nil {
+		return nil, fmt.Errorf("profile key %q is not installed", key)
+	}
+	return match, nil
+}
 
+// CreateTask submits once. Possible owner effects survive a lost response;
+// only provably unsent requests and definitive refusals release the obligation.
+func (c *AgentManagerClient) CreateTask(ctx context.Context, task *Task) (*Task, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, NewDispatchRejectedError(err)
+	}
+	body, err := json.Marshal(CreateTaskRequest{Task: task})
+	if err != nil {
+		return nil, NewDispatchRejectedError(fmt.Errorf("marshal request: %w", err))
+	}
+	resp, err := c.doRequest(ctx, http.MethodPost, "/api/v1/tasks", body)
+	if err != nil {
+		if IsDispatchRejected(err) {
+			return nil, err
+		}
+		return nil, NewDispatchUncertainError(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		cause := c.parseError(resp)
+		if resp.StatusCode >= http.StatusBadRequest && resp.StatusCode < http.StatusInternalServerError {
+			return nil, NewDispatchRejectedError(cause)
+		}
+		return nil, NewDispatchUncertainError(cause)
+	}
 	var result CreateTaskResponse
 	if err := c.parseResponse(resp, &result); err != nil {
-		return nil, err
+		return nil, NewDispatchUncertainError(err)
+	}
+	if result.Task == nil {
+		return nil, NewDispatchUncertainError(fmt.Errorf("task creation returned no task identity"))
+	}
+	id, identityErr := uuid.Parse(result.Task.ID)
+	if identityErr != nil || id == uuid.Nil || strings.TrimSpace(result.Task.ID) != result.Task.ID || (task != nil && task.ID != "" && result.Task.ID != task.ID) {
+		return nil, NewDispatchUncertainError(fmt.Errorf("task creation returned invalid or mismatched task identity"))
 	}
 	return result.Task, nil
 }
@@ -358,7 +363,7 @@ func (c *AgentManagerClient) DeleteTask(ctx context.Context, taskID string) erro
 
 // CreateRun starts a new run for a task.
 //
-// Run creation is the only heartbeat owner call that can leave a durable
+// Run creation can leave a durable
 // effect without returning an identity. The outcome is therefore classified so
 // the caller can retain an uncertain obligation instead of releasing the
 // member's slot on a response that may simply have been lost:
@@ -738,18 +743,27 @@ func (c *AgentManagerClient) doRequest(ctx context.Context, method, path string,
 
 	baseURL, err := c.resolveBaseURL(ctx)
 	if err != nil {
-		return nil, err
+		return nil, NewDispatchRejectedError(err)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, method, baseURL+path, bodyReader)
 	if err != nil {
-		return nil, fmt.Errorf("create request: %w", err)
+		return nil, NewDispatchRejectedError(fmt.Errorf("create request: %w", err))
 	}
 
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
 	req.Header.Set("Accept", "application/json")
+
+	if method == http.MethodPost && path == "/api/v1/tasks" {
+		if err := ctx.Err(); err != nil {
+			return nil, NewDispatchRejectedError(err)
+		}
+		client := *c.httpClient
+		client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+		return client.Do(req)
+	}
 
 	if method == http.MethodPost && path == "/api/v1/runs" {
 		if admission, ok := effortCaller(ctx); ok {

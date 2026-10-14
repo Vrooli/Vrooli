@@ -58,6 +58,13 @@ export default defineConfig(({ mode }): UserConfig => {
         provider: "v8",
         reporter: ["json-summary", "json", "text"],
         reportOnFailure: true,
+        include: ["src/**/*.{ts,tsx}"],
+        exclude: [
+          "src/**/*.test.{ts,tsx}",
+          "src/**/*.d.ts",
+          "src/test-utils/**",
+          "src/test-setup.ts"
+        ],
         thresholds: {
           lines: 0,
           functions: 0,

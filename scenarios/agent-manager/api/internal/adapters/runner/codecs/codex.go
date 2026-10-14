@@ -542,9 +542,10 @@ func (p *codexTranscriptParser) ParseTranscriptLine(runID uuid.UUID, line string
 	events := p.codec.parseCodexEvents(p.state, runID, streamEvent)
 
 	result := runner.TranscriptParseResult{
-		Events:    events,
-		SessionID: streamEvent.ThreadID,
-		Timestamp: transcriptLineTimestamp(line),
+		Events:           events,
+		ReplaySafeEvents: streamEvent.Item != nil && streamEvent.Item.Type == "tool_result",
+		SessionID:        streamEvent.ThreadID,
+		Timestamp:        transcriptLineTimestamp(line),
 	}
 
 	switch streamEvent.Type {
@@ -593,7 +594,7 @@ type codexRolloutPayload struct {
 	Input     string `json:"input"`     // custom_tool_call: raw tool input
 	CallID    string `json:"call_id"`
 	// function_call_output / custom_tool_call_output
-	Output string `json:"output"`
+	Output json.RawMessage `json:"output"`
 	// turn_aborted
 	Reason string               `json:"reason"`
 	Info   *codexTokenCountInfo `json:"info"`
@@ -672,12 +673,18 @@ func (p *codexTranscriptParser) parseRolloutLine(runID uuid.UUID, line string) (
 	if trimmed == "" || trimmed[0] != '{' {
 		return runner.TranscriptParseResult{}, false
 	}
-	var rl codexRolloutLine
-	if err := json.Unmarshal([]byte(trimmed), &rl); err != nil {
+	// Recognize the dialect before decoding variable payload content. A known
+	// wrapper with unsupported content must never fall into flat stdout parsing.
+	var envelope struct {
+		Type string `json:"type"`
+	}
+	if json.Unmarshal([]byte(trimmed), &envelope) != nil || !rolloutWrapperTypes[envelope.Type] {
 		return runner.TranscriptParseResult{}, false
 	}
-	if !rolloutWrapperTypes[rl.Type] {
-		return runner.TranscriptParseResult{}, false
+	var rl codexRolloutLine
+	if err := json.Unmarshal([]byte(trimmed), &rl); err != nil {
+		warning := domain.NewLogEvent(runID, "warning", "Unsupported Codex rollout payload: "+err.Error())
+		return runner.TranscriptParseResult{Events: []*domain.RunEvent{warning}, Timestamp: transcriptLineTimestamp(line), ReplaySafeEvents: true}, true
 	}
 
 	result := runner.TranscriptParseResult{Timestamp: transcriptLineTimestamp(line)}
@@ -704,6 +711,7 @@ func (p *codexTranscriptParser) parseRolloutLine(runID uuid.UUID, line string) (
 			result.UserTurnStarted = role == "user" || role == "operator"
 		}
 		result.Events = parseCodexRolloutItem(runID, pl, p.state)
+		result.ReplaySafeEvents = pl.Type == "function_call_output" || pl.Type == "custom_tool_call_output"
 		return result, true
 
 	case "event_msg":
@@ -904,13 +912,91 @@ func parseCodexRolloutItem(runID uuid.UUID, pl codexRolloutPayload, state *codex
 		}
 		return []*domain.RunEvent{domain.NewToolCallEvent(runID, pl.Name, pl.CallID, input)}
 	case "function_call_output", "custom_tool_call_output":
-		return []*domain.RunEvent{domain.NewToolResultEvent(
-			runID, "", pl.CallID, runner.StripANSI(pl.Output), nil,
-		)}
+		return codexRolloutToolResult(runID, pl)
 	}
 	// message / reasoning and other response items carry no distinct
 	// domain event here (assistant text arrives via event_msg.agent_message).
 	return nil
+}
+
+// codexRolloutToolResult preserves native strings and ordered typed text blocks.
+// A returned tool payload establishes evidence, not a successful process exit.
+func codexRolloutToolResult(runID uuid.UUID, pl codexRolloutPayload) []*domain.RunEvent {
+	data := &domain.ToolResultEventData{ToolCallID: pl.CallID, RawOutputJSON: string(pl.Output)}
+	known := false
+	data.OutcomeKnown = &known
+	unsupported := false
+	conflictingMetadata := false
+	conflictingDuration := false
+	var text string
+	if json.Unmarshal(pl.Output, &text) == nil && len(pl.Output) > 0 && string(bytes.TrimSpace(pl.Output)) != "null" {
+		data.Output = runner.StripANSI(text)
+		data.ExitCode, data.DurationMS, unsupported = codexNestedResultMetadata(text)
+	} else {
+		var blocks []json.RawMessage
+		if json.Unmarshal(pl.Output, &blocks) != nil || string(bytes.TrimSpace(pl.Output)) == "null" {
+			unsupported = true
+		} else {
+			for _, raw := range blocks {
+				var block struct {
+					Type string  `json:"type"`
+					Text *string `json:"text"`
+				}
+				output := domain.ToolOutputBlock{RawJSON: string(raw)}
+				if json.Unmarshal(raw, &block) == nil {
+					output.Type = block.Type
+					if (block.Type == "input_text" || block.Type == "output_text" || block.Type == "text") && block.Text != nil {
+						output.Text = runner.StripANSI(*block.Text)
+						// Typed metadata is parsed only from a complete text block, never
+						// recursively extracted or synthesized from concatenated fragments.
+						exit, duration, invalid := codexNestedResultMetadata(*block.Text)
+						unsupported = unsupported || invalid
+						if exit != nil {
+							if data.ExitCode != nil && *data.ExitCode != *exit {
+								conflictingMetadata = true
+							}
+							data.ExitCode = exit
+						}
+						if duration != nil {
+							if data.DurationMS != nil && *data.DurationMS != *duration {
+								conflictingDuration = true
+							}
+							data.DurationMS = duration
+						}
+					} else {
+						unsupported = true
+					}
+				} else {
+					unsupported = true
+				}
+				data.OutputBlocks = append(data.OutputBlocks, output)
+			}
+		}
+	}
+	if !domain.SupportedToolExitCode(data.ExitCode) {
+		conflictingMetadata = true
+	}
+	if conflictingMetadata {
+		data.ExitCode = nil
+		unsupported = true
+	}
+	if conflictingDuration {
+		data.DurationMS = nil
+		unsupported = true
+	}
+	if data.ExitCode != nil {
+		known = true
+		data.Success = *data.ExitCode == 0
+		if !data.Success {
+			data.Error = fmt.Sprintf("command exited with code %d", *data.ExitCode)
+		}
+	}
+	event := &domain.RunEvent{ID: uuid.New(), RunID: runID, EventType: domain.EventTypeToolResult, Timestamp: time.Now(), Data: data}
+	events := []*domain.RunEvent{event}
+	if unsupported {
+		events = append(events, domain.NewLogEvent(runID, "warning", "Unsupported Codex tool output content retained for call "+pl.CallID))
+	}
+	return events
 }
 
 // codexRolloutMessageText extracts the text-bearing content items used by
@@ -1106,10 +1192,34 @@ func parseCodexItemEvents(state *codexState, runID uuid.UUID, item *CodexItem) [
 			runID, item.Name, item.ID,
 			runner.StripANSI(item.Output), nil,
 		)
+		var diagnostic *domain.RunEvent
 		if data, ok := result.Data.(*domain.ToolResultEventData); ok {
-			data.ExitCode, data.DurationMS = codexNestedResultMetadata(item.Output)
+			var invalid bool
+			data.ExitCode, data.DurationMS, invalid = codexNestedResultMetadata(item.Output)
+			if !domain.SupportedToolExitCode(data.ExitCode) {
+				data.ExitCode = nil
+				invalid = true
+			}
+			if data.ExitCode != nil {
+				known := true
+				data.OutcomeKnown = &known
+				data.Success = *data.ExitCode == 0
+				if !data.Success {
+					data.Error = fmt.Sprintf("command exited with code %d", *data.ExitCode)
+				}
+			} else if invalid {
+				known := false
+				data.OutcomeKnown = &known
+				data.Success = false
+			}
+			if invalid {
+				diagnostic = domain.NewLogEvent(runID, "warning", "Unsupported Codex tool result metadata retained for call "+item.ID)
+			}
 		}
 		events = append(events, result)
+		if diagnostic != nil {
+			events = append(events, diagnostic)
+		}
 		return events
 	case "command_execution":
 		return parseCodexCommandExecution(runID, item)
@@ -1200,22 +1310,45 @@ func parseCodexCommandExecution(runID uuid.UUID, item *CodexItem) []*domain.RunE
 // codexNestedResultMetadata handles the interactive tool-result envelope. It
 // intentionally extracts only typed process facts; output text remains in the
 // event log and is never copied into the analytical read model.
-func codexNestedResultMetadata(output string) (*int, *int64) {
-	var envelope struct {
-		Metadata struct {
-			ExitCode        *int     `json:"exit_code"`
-			DurationSeconds *float64 `json:"duration_seconds"`
-		} `json:"metadata"`
+func codexNestedResultMetadata(output string) (*int, *int64, bool) {
+	var envelope map[string]json.RawMessage
+	if json.Unmarshal([]byte(output), &envelope) != nil {
+		return nil, nil, false
 	}
-	if err := json.Unmarshal([]byte(output), &envelope); err != nil || (envelope.Metadata.ExitCode == nil && envelope.Metadata.DurationSeconds == nil) {
-		return nil, nil
+	raw, present := envelope["metadata"]
+	if !present {
+		return nil, nil, false
 	}
+	var metadata map[string]json.RawMessage
+	if json.Unmarshal(raw, &metadata) != nil || metadata == nil {
+		return nil, nil, true
+	}
+	var exit *int
 	var duration *int64
-	if envelope.Metadata.DurationSeconds != nil {
-		value := int64(math.Round(*envelope.Metadata.DurationSeconds * 1000))
-		duration = &value
+	invalid := false
+	if raw, ok := metadata["exit_code"]; ok && string(bytes.TrimSpace(raw)) != "null" {
+		var value int
+		if json.Unmarshal(raw, &value) != nil {
+			invalid = true
+		} else {
+			exit = &value
+		}
 	}
-	return envelope.Metadata.ExitCode, duration
+	if raw, ok := metadata["duration_seconds"]; ok && string(bytes.TrimSpace(raw)) != "null" {
+		var seconds float64
+		if json.Unmarshal(raw, &seconds) != nil {
+			invalid = true
+		} else {
+			rounded := math.Round(seconds * 1000)
+			if seconds < 0 || math.IsNaN(rounded) || math.IsInf(rounded, 0) || rounded >= float64(math.MaxInt64) {
+				invalid = true
+			} else {
+				value := int64(rounded)
+				duration = &value
+			}
+		}
+	}
+	return exit, duration, invalid
 }
 
 // Compile-time interface checks.

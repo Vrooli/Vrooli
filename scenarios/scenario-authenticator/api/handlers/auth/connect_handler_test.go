@@ -36,6 +36,12 @@ type harness struct {
 }
 
 func newHarness(t *testing.T) *harness {
+	return newHarnessWithAudiences(t, map[string]string{
+		"bridge": "scenario-authenticator:bridge",
+	})
+}
+
+func newHarnessWithAudiences(t *testing.T, resourceAudiences map[string]string) *harness {
 	t.Helper()
 	d := dbtest.NewSQLite(t)
 	if err := apidb.EnsureSchemas(context.Background(), d,
@@ -62,7 +68,7 @@ func newHarness(t *testing.T) *harness {
 		Authorization:     authorization.NewService(repo.(authorization.ScopeStore), auditLogger),
 		MachineBindings:   repo.(accounts.MachineBindingStore),
 		Clock:             clk,
-		ResourceAudiences: map[string]string{"bridge": "scenario-authenticator:bridge"},
+		ResourceAudiences: resourceAudiences,
 	})
 	return &harness{h: NewConnectHandler(Deps{Service: svc}), svc: svc, signer: signer, audit: auditLogger}
 }

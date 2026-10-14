@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -24,6 +25,13 @@ func richResponse(t *testing.T, message proto.Message) string {
 		t.Fatal(err)
 	}
 	return string(encoded)
+}
+
+// Operator presentation fixtures must not inherit the invoking harness identity.
+// Run-identity refusal behavior has separate explicit-token coverage.
+func operatorFixture(t *testing.T) {
+	t.Helper()
+	t.Setenv("VROOLI_AGENT_IDENTITY_TOKEN", "")
 }
 
 func newRichReadApp(t *testing.T) *App {
@@ -196,6 +204,7 @@ func TestOperatorMutationSurfacesRenderNeutralResponses(t *testing.T) {
 }
 
 func TestRunControlsRenderNeutralResponses(t *testing.T) {
+	operatorFixture(t)
 	services, _ := newContractServices(t)
 	app := &App{services: services}
 	for _, args := range [][]string{{"get-by-tag", "drill"}, {"stop", "run-1"}, {"stop-by-tag", "drill"}, {"stop-all", "--force"}, {"quiesce", "--scenario=agent-manager", "--timeout=1s"}, {"approve", "run-1", "--actor=operator"}, {"reject", "run-1", "--reason=drill"}, {"await-result", "run-1"}, {"recover", "run-1"}, {"apply-investigation", "run-1"}, {"sandbox-sync", "run-1", "--status=stopped"}} {
@@ -444,13 +453,21 @@ func TestWorkflowCommandsValidateFilesAndUseServiceContracts(t *testing.T) {
 }
 
 func TestRunCommandsValidateAndUseServiceContracts(t *testing.T) {
-	services, _ := newContractServices(t)
+	operatorFixture(t)
+	server := clitest.NewRecordingServerForRequests(t, func(request clitest.Request) string {
+		if request.Method == "POST" && request.Path == "/api/v1/runs" {
+			return richResponse(t, &apipb.CreateRunResponse{Run: &domainpb.Run{Id: "33333333-3333-4333-8333-333333333333", TaskId: "11111111-1111-4111-8111-111111111111"}})
+		}
+		return `{}`
+	})
+	api := cliutil.NewAPIClient(cliutil.NewHTTPClient(cliutil.HTTPClientOptions{}), func() cliutil.APIBaseOptions { return cliutil.APIBaseOptions{DefaultBase: server.URL()} }, nil)
+	services := NewServices(api)
 	app := &App{services: services}
 	for _, args := range [][]string{
 		{"list", "--status=running", "--json"},
 		{"get", "run-1", "--json"},
 		{"get-by-tag", "drill", "--json"},
-		{"create", "--task-id=task-1", "--profile-id=profile-1", "--run-mode=in_place", "--execution-mode=interactive", "--classify=pass,fail", "--json"},
+		{"create", "--task-id=11111111-1111-4111-8111-111111111111", "--profile-id=22222222-2222-4222-8222-222222222222", "--run-mode=in_place", "--execution-mode=interactive", "--classify=pass,fail", "--json"},
 		{"delete", "run-1", "--force"},
 		{"stop", "run-1", "--json"},
 		{"stop-by-tag", "drill", "--json"},
@@ -469,8 +486,9 @@ func TestRunCommandsValidateAndUseServiceContracts(t *testing.T) {
 		{"apply-investigation", "run-1", "--json"},
 		{"sandbox-sync", "run-1", "--status=stopped", "--json"},
 	} {
-		if err := app.cmdRun(args); err != nil {
-			t.Fatalf("run %v: %v", args, err)
+		output := captureStdout(t, func() error { return app.cmdRun(args) })
+		if args[0] == "create" && !strings.Contains(output, "33333333-3333-4333-8333-333333333333") {
+			t.Fatalf("create lost owner response: %s", output)
 		}
 	}
 	for _, args := range [][]string{{"get"}, {"create", "--task-id=task-1"}, {"quiesce"}, {"continue", "run-1"}, {"park", "run-1"}, {"investigate"}, {"sandbox-sync", "run-1"}, {"unknown"}} {
@@ -481,6 +499,7 @@ func TestRunCommandsValidateAndUseServiceContracts(t *testing.T) {
 }
 
 func TestRunCommandsRenderEmptySuccessfulOperationResponses(t *testing.T) {
+	operatorFixture(t)
 	services, _ := newContractServices(t)
 	app := &App{services: services}
 	for _, args := range [][]string{
@@ -510,6 +529,7 @@ func TestRunEventsRendersTypedEventRows(t *testing.T) {
 }
 
 func TestRunStopAllRendersFailuresAndFailedIDs(t *testing.T) {
+	operatorFixture(t)
 	server := clitest.NewRecordingServer(t, richResponse(t, &apipb.StopAllRunsResponse{Result: &domainpb.StopAllResult{
 		StoppedCount: 2,
 		Failures:     []*domainpb.StopFailure{{RunId: "failed-run", Error: "process did not stop"}},
@@ -517,8 +537,17 @@ func TestRunStopAllRendersFailuresAndFailedIDs(t *testing.T) {
 	api := cliutil.NewAPIClient(cliutil.NewHTTPClient(cliutil.HTTPClientOptions{}), func() cliutil.APIBaseOptions {
 		return cliutil.APIBaseOptions{DefaultBase: server.URL()}
 	}, nil)
-	if err := (&App{services: NewServices(api)}).cmdRun([]string{"stop-all", "--tag-prefix=swarm"}); err != nil {
-		t.Fatal(err)
+	output := captureStdout(t, func() error {
+		return (&App{services: NewServices(api)}).cmdRun([]string{"stop-all", "--tag-prefix=swarm"})
+	})
+	for _, want := range []string{"Stopped:  2", "Failed:   1", "failed-run"} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("missing %q from stop-all result: %s", want, output)
+		}
+	}
+	requests := server.Requests()
+	if len(requests) != 1 || requests[0].Method != "POST" || requests[0].Path != "/api/v1/runs/stop-all" {
+		t.Fatalf("requests = %v", requests)
 	}
 }
 
@@ -550,14 +579,24 @@ func TestRunQuiesceRendersAbortAndInFlightGuidance(t *testing.T) {
 }
 
 func TestRunApproveRendersAppliedFilesAndCommit(t *testing.T) {
+	operatorFixture(t)
 	server := clitest.NewRecordingServer(t, richResponse(t, &apipb.ApproveRunResponse{Result: &domainpb.ApproveResult{
 		Success: true, FilesApplied: 3, CommitHash: "abc123",
 	}}))
 	api := cliutil.NewAPIClient(cliutil.NewHTTPClient(cliutil.HTTPClientOptions{}), func() cliutil.APIBaseOptions {
 		return cliutil.APIBaseOptions{DefaultBase: server.URL()}
 	}, nil)
-	if err := (&App{services: NewServices(api)}).cmdRun([]string{"approve", "run-1", "--actor=operator", "--commit-msg=apply"}); err != nil {
-		t.Fatal(err)
+	output := captureStdout(t, func() error {
+		return (&App{services: NewServices(api)}).cmdRun([]string{"approve", "run-1", "--actor=operator", "--commit-msg=apply"})
+	})
+	for _, want := range []string{"Applied: 3 files", "Commit: abc123"} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("missing %q from approval result: %s", want, output)
+		}
+	}
+	requests := server.Requests()
+	if len(requests) != 1 || requests[0].Method != "POST" || requests[0].Path != "/api/v1/runs/run-1/approve" {
+		t.Fatalf("requests = %v", requests)
 	}
 }
 
@@ -574,6 +613,7 @@ func TestRunDiffRendersUnifiedDiffContent(t *testing.T) {
 }
 
 func TestRunReliabilityOperationsRenderSuccessfulStateTransitions(t *testing.T) {
+	operatorFixture(t)
 	server := clitest.NewRecordingServerForRequests(t, func(request clitest.Request) string {
 		switch request.Path {
 		case "/api/v1/runs/run-1/continue":

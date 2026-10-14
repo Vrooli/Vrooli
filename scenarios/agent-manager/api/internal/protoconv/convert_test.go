@@ -1348,3 +1348,16 @@ func TestLookupPatch(t *testing.T) {
 		})
 	}
 }
+
+func TestRunEventToProtoOversizedExitRemainsUnknown(t *testing.T) {
+	code := int(4294967296)
+	raw := `{"metadata":{"exit_code":4294967296}}`
+	data := &domain.ToolResultEventData{ExitCode: &code, Success: true, RawOutputJSON: raw}
+	got := RunEventToProto(&domain.RunEvent{ID: uuid.New(), RunID: uuid.New(), EventType: domain.EventTypeToolResult, Data: data}).GetToolResult()
+	if got.ExitCode != nil || got.OutcomeKnown == nil || got.GetOutcomeKnown() || got.Success || got.RawOutputJson != raw {
+		t.Fatalf("public=%+v", got)
+	}
+	if data.ExitCode != &code || !data.Success {
+		t.Fatal("conversion rewrote durable evidence")
+	}
+}

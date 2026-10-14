@@ -55,8 +55,14 @@ func installTemplate(ctx context.Context, r Resolution, installer PackageInstall
 			return "", e
 		}
 	}
-	if r.PackageManager != "pnpm" {
-		return "", fmt.Errorf("template lock generation currently requires pnpm")
+	lockfile := ""
+	switch r.PackageManager {
+	case "pnpm":
+		lockfile = "pnpm-lock.yaml"
+	case "npm":
+		lockfile = "package-lock.json"
+	default:
+		return "", fmt.Errorf("template lock generation does not support package manager %q", r.PackageManager)
 	}
 	staged := r
 	staged.TemplateVersion = ""
@@ -84,7 +90,7 @@ func installTemplate(ctx context.Context, r Resolution, installer PackageInstall
 	if err != nil {
 		return out, err
 	}
-	lock, err := os.ReadFile(filepath.Join(ui, "pnpm-lock.yaml"))
+	lock, err := os.ReadFile(filepath.Join(ui, lockfile))
 	if err != nil {
 		return out, err
 	}
@@ -92,7 +98,7 @@ func installTemplate(ctx context.Context, r Resolution, installer PackageInstall
 	if strings.Contains(string(lock), stage) {
 		return out, fmt.Errorf("template lock contains staging path")
 	}
-	if err = os.WriteFile(filepath.Join(r.SurfaceRoot, "pnpm-lock.yaml"), lock, 0o644); err != nil {
+	if err = os.WriteFile(filepath.Join(r.SurfaceRoot, lockfile), lock, 0o644); err != nil {
 		return out, err
 	}
 	if err = os.WriteFile(r.ManifestPath, append(raw, '\n'), 0o644); err != nil {

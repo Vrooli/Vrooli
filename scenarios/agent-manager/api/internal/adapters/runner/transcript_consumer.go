@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -113,8 +114,22 @@ func Consume(ctx context.Context, args ConsumeArgs) (int64, *TranscriptTerminal,
 			return cursor, terminal, err
 		}
 
+		occurrenceOffset := cursor
 		cursor += int64(len(line))
 		result := args.ParseFn(args.RunID, line)
+		if result.ReplaySafeEvents {
+			// Occurrence identity includes the real source location; identical
+			// records at distinct offsets must remain distinct evidence.
+			source, err := filepath.Abs(args.Transcript)
+			if err != nil {
+				return cursor, terminal, err
+			}
+			for index, event := range result.Events {
+				if event != nil {
+					event.ID = uuid.NewSHA1(args.RunID, []byte(fmt.Sprintf("transcript:%s:offset:%d:event:%d", source, occurrenceOffset, index)))
+				}
+			}
+		}
 		if result.Err != nil {
 			return cursor, terminal, result.Err
 		}

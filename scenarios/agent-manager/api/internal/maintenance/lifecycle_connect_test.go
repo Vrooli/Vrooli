@@ -165,3 +165,95 @@ func TestLifecycleConnectResumeKeepsSuccessfulOpenWhenObservationFails(t *testin
 		t.Fatal("resume observation failure left admission closed")
 	}
 }
+
+func TestLifecycleStandingRequiresSettledAdmission(t *testing.T) {
+	gate, _ := openGate(t, t.TempDir()+"/standing-admission.db")
+	release, err := gate.Admit(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer release()
+	zero := 0
+	service, err := NewLifecycleService(gate, func(context.Context) (Inventory, error) { return Inventory{Remaining: &zero}, nil }, "agent-manager", "agent-manager", "fixture")
+	if err != nil {
+		t.Fatal(err)
+	}
+	prepared, err := service.Prepare(t.Context(), connect.NewRequest(&commonv1.LifecyclePrepareRequest{OperationId: "fixture-op", Reason: "fixture"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := prepared.Msg.GetStanding()
+	if s.GetDrained() || s.GetAdmitting() != 1 {
+		t.Fatalf("unsettled admission reported safe: %+v", s)
+	}
+	release()
+	settled, err := service.Status(t.Context(), connect.NewRequest(&commonv1.LifecycleStatusRequest{OperationId: "fixture-op", Revision: s.GetRevision()}))
+	if err != nil || !settled.Msg.GetStanding().GetDrained() {
+		t.Fatalf("settled admission not drained: %+v %v", settled, err)
+	}
+}
+
+func TestLifecycleStandingRefusesRevisionChangeDuringObservation(t *testing.T) {
+	gate, _ := openGate(t, t.TempDir()+"/standing-race.db")
+	state, err := gate.Enter(t.Context(), "fixture-owner", "fixture")
+	if err != nil {
+		t.Fatal(err)
+	}
+	zero := 0
+	service, err := NewLifecycleService(gate, func(ctx context.Context) (Inventory, error) {
+		if _, err := gate.Resume(ctx, "fixture-owner", state.Revision); err != nil {
+			t.Fatal(err)
+		}
+		return Inventory{Remaining: &zero}, nil
+	}, "agent-manager", "agent-manager", "fixture")
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := service.Status(t.Context(), connect.NewRequest(&commonv1.LifecycleStatusRequest{OperationId: "fixture-op", Revision: state.Revision}))
+	if connect.CodeOf(err) != connect.CodeAborted || result != nil {
+		t.Fatalf("changed revision reported as old proof: %+v %v", result, err)
+	}
+}
+
+func TestLifecycleStandingRefusesCallerRevision(t *testing.T) {
+	gate, _ := openGate(t, t.TempDir()+"/standing-revision.db")
+	state, err := gate.Enter(t.Context(), "fixture-owner", "fixture")
+	if err != nil {
+		t.Fatal(err)
+	}
+	observed := false
+	service, err := NewLifecycleService(gate, func(context.Context) (Inventory, error) {
+		observed = true
+		zero := 0
+		return Inventory{Remaining: &zero}, nil
+	}, "agent-manager", "agent-manager", "fixture")
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := service.Status(t.Context(), connect.NewRequest(&commonv1.LifecycleStatusRequest{OperationId: "fixture-op", Revision: state.Revision + 1}))
+	if connect.CodeOf(err) != connect.CodeAborted || result != nil || observed {
+		t.Fatalf("caller-selected revision accepted: %+v %v observed=%t", result, err, observed)
+	}
+}
+
+func TestLifecycleStandingStatusDiscoversDurableRevision(t *testing.T) {
+	gate, _ := openGate(t, t.TempDir()+"/standing-discovery.db")
+	state, err := gate.Enter(t.Context(), "fixture-owner", "fixture")
+	if err != nil {
+		t.Fatal(err)
+	}
+	zero := 0
+	service, err := NewLifecycleService(gate, func(context.Context) (Inventory, error) { return Inventory{Remaining: &zero}, nil }, "agent-manager", "agent-manager", "fixture")
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := service.Status(t.Context(), connect.NewRequest(&commonv1.LifecycleStatusRequest{}))
+	if err != nil || result.Msg.GetStanding().GetRevision() != state.Revision || !result.Msg.GetStanding().GetDrained() {
+		t.Fatalf("current revision discovery failed: %+v %v", result, err)
+	}
+	zero = -1
+	result, err = service.Status(t.Context(), connect.NewRequest(&commonv1.LifecycleStatusRequest{}))
+	if err != nil || result.Msg.GetStanding().GetInventoryComplete() || result.Msg.GetStanding().GetDrained() {
+		t.Fatalf("negative count became complete: %+v %v", result, err)
+	}
+}

@@ -14,10 +14,18 @@
     </main>
     <script>
       const api = window.API_BASE_URL || 'http://127.0.0.1:23100';
-      document.getElementById('greetButton').addEventListener('click', async () => {
-        const name = document.getElementById('nameInput').value;
+      const input = document.getElementById('nameInput');
+      const result = document.getElementById('result');
+      async function showGreeting(name, markInteractive = false) {
         const response = await fetch(`${api}/api/greet?name=${encodeURIComponent(name)}`);
-        document.getElementById('result').textContent = (await response.json()).message;
+        result.textContent = (await response.json()).message;
+        if (markInteractive && performance.mark) performance.mark('app-interactive');
+      }
+      document.getElementById('greetButton').addEventListener('click', async () => {
+        await showGreeting(input.value);
+      });
+      showGreeting(input.value, true).catch((error) => {
+        result.textContent = `Unable to load greeting: ${error.message}`;
       });
     </script>
   </body>

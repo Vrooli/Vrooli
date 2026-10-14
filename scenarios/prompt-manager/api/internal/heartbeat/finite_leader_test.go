@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -716,12 +717,12 @@ func TestFiniteLeaderScheduledTickRelaunchesWithEnforcementOff(t *testing.T) {
 		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/runs/leader-1":
 			_ = json.NewEncoder(w).Encode(GetRunResponse{Run: &Run{ID: "leader-1", TaskID: "task-1", Status: "failed", StartedAt: "2026-09-29T10:00:00Z", EndedAt: "2026-09-29T11:00:00Z"}})
 		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/runs/leader-2":
-			_ = json.NewEncoder(w).Encode(GetRunResponse{Run: &Run{ID: "leader-2", TaskID: "task-2", Status: "running"}})
+			_ = json.NewEncoder(w).Encode(GetRunResponse{Run: &Run{ID: "leader-2", TaskID: "6a89415d-9f95-4ee0-a534-00619ce6fd5a", Status: "running"}})
 		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/tasks":
-			_ = json.NewEncoder(w).Encode(CreateTaskResponse{Task: &Task{ID: "task-2"}})
+			_ = json.NewEncoder(w).Encode(CreateTaskResponse{Task: &Task{ID: "6a89415d-9f95-4ee0-a534-00619ce6fd5a"}})
 		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/runs":
 			createAuth = append(createAuth, r.Header.Get("Authorization")+r.Header.Get("X-Agent-Identity-Token"))
-			_ = json.NewEncoder(w).Encode(CreateRunResponse{Run: &Run{ID: "leader-2", TaskID: "task-2", Status: "running"}})
+			_ = json.NewEncoder(w).Encode(CreateRunResponse{Run: &Run{ID: "leader-2", TaskID: "6a89415d-9f95-4ee0-a534-00619ce6fd5a", Status: "running"}})
 		default:
 			t.Errorf("unexpected owner call %s %s", r.Method, r.URL.Path)
 			http.NotFound(w, r)
@@ -767,5 +768,246 @@ func TestFiniteLeaderScheduledTickWithoutCallerReportsTheHold(t *testing.T) {
 	}
 	if !strings.Contains(state.Error, "finite leader held") || !strings.Contains(state.Error, "verified human caller") {
 		t.Fatalf("hold not reported in leader state: %q", state.Error)
+	}
+}
+
+// matchingProjectionQueue observes effects without changing the existing queue
+// fixture or widening the production queue interface.
+type matchingProjectionQueue struct {
+	*finiteQueueFake
+	completed int
+}
+
+func (q *matchingProjectionQueue) OnComplete(teamID, agentID string) {
+	q.completed++
+	q.finiteQueueFake.OnComplete(teamID, agentID)
+}
+
+type matchingProjectionRegistrar struct {
+	calls int
+}
+
+func (r *matchingProjectionRegistrar) BeginDispatch(string, string, DispatchIntent) { r.calls++ }
+func (r *matchingProjectionRegistrar) SetRunningRunID(string, string, string)       { r.calls++ }
+func (r *matchingProjectionRegistrar) MarkDispatchUncertain(string, string, string) { r.calls++ }
+
+func TestFiniteLeaderMatchingProjectionTerminalHealth(t *testing.T) {
+	f := newFiniteFixture(t)
+	state := f.dispatch(t)
+	ctx := context.Background()
+	run := &Run{ID: state.RunID, TaskID: state.TaskID, Status: "RUN_STATUS_COMPLETE", StartedAt: "2026-10-09T07:00:00Z", EndedAt: "2026-10-09T08:00:00Z"}
+	f.agent.getRuns[state.RunID] = run
+	if err := f.teams.WithFiniteLeader(ctx, "committee", "lead", func(_ *store.HeartbeatConfig, current *store.FiniteLeaderState, save func() error) error {
+		current.Status = "RUN_STATUS_PARKED"
+		return save()
+	}); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := f.teams.GetHeartbeatConfig(ctx, "committee", "lead")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.LastExecution = &store.HeartbeatExecResult{RunID: run.ID, StartedAt: run.StartedAt, EndedAt: run.EndedAt, Status: store.HeartbeatStatusCompleted, LogPath: "retained-owner-log"}
+	if err := f.teams.SetHeartbeatConfig(ctx, "committee", "lead", cfg); err != nil {
+		t.Fatal(err)
+	}
+	beforeState, _ := f.teams.ReadFiniteLeader(ctx, "committee", "lead")
+	beforeHealth, _ := f.teams.GetHeartbeatConfig(ctx, "committee", "lead")
+	beforeAttempts, beforeTotal, err := f.teams.ListHeartbeatAttempts(ctx, "committee", "lead", "", "", 100, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	queue := &matchingProjectionQueue{finiteQueueFake: f.queue}
+	registrar := &matchingProjectionRegistrar{}
+	f.runtime.Queue = queue
+	f.runtime.Executor.teamExecStore = registrar
+	registry := NewRunRegistry(t.TempDir())
+	registry.Register("committee", "lead", run.ID, time.Now(), nil)
+	f.runtime.Executor.runRegistry = registry
+	beforeQueue := queue.Status("committee")
+	beforeCreates := len(f.agent.createRunCalls)
+	for i := 0; i < 2; i++ {
+		observed, err := f.runtime.ReconcileKnownRun(ctx, "committee", "lead")
+		if err != nil {
+			t.Fatal(err)
+		}
+		persisted, err := f.teams.ReadFiniteLeader(ctx, "committee", "lead")
+		if err != nil || observed.Status != run.Status || persisted.Status != run.Status {
+			t.Fatalf("matching terminal health must repair only stale finite lifecycle: observed=%+v persisted=%+v err=%v", observed, persisted, err)
+		}
+		want := *beforeState
+		want.Status = run.Status
+		if !reflect.DeepEqual(persisted, &want) {
+			t.Fatalf("projection repair changed retained identity, binding or controls: got=%+v want=%+v", persisted, &want)
+		}
+		cfg, _ := f.teams.GetHeartbeatConfig(ctx, "committee", "lead")
+		attempts, total, err := f.teams.ListHeartbeatAttempts(ctx, "committee", "lead", "", "", 100, 0)
+		if err != nil || total != beforeTotal || !reflect.DeepEqual(attempts, beforeAttempts) || !reflect.DeepEqual(cfg, beforeHealth) {
+			t.Fatalf("projection repair changed health or attempt accounting: cfg=%+v total=%d err=%v", cfg, total, err)
+		}
+		if queue.completed != 0 || registrar.calls != 0 || registry.Count() != 1 || !reflect.DeepEqual(queue.Status("committee"), beforeQueue) || len(f.agent.createRunCalls) != beforeCreates {
+			t.Fatal("projection repair replayed completion, registry, queue or admission effects")
+		}
+	}
+}
+
+func TestFiniteLeaderMatchingProjectionFencesAndSaveFailure(t *testing.T) {
+	cases := []struct {
+		name        string
+		change      func(*store.FiniteLeaderState, *store.HeartbeatConfig)
+		saveFailure bool
+		wantSave    bool
+	}{
+		{"accepted predecessor", func(*store.FiniteLeaderState, *store.HeartbeatConfig) {}, false, true},
+		{"repeat terminal", func(s *store.FiniteLeaderState, _ *store.HeartbeatConfig) { s.Status = "RUN_STATUS_COMPLETE" }, false, false},
+		{"stale attempt", func(s *store.FiniteLeaderState, _ *store.HeartbeatConfig) { s.ID = "successor-attempt" }, false, false},
+		{"stale task", func(s *store.FiniteLeaderState, _ *store.HeartbeatConfig) { s.TaskID = "successor-task" }, false, false},
+		{"stale run", func(s *store.FiniteLeaderState, _ *store.HeartbeatConfig) { s.RunID = "successor-run" }, false, false},
+		{"stale accepted revision", func(s *store.FiniteLeaderState, _ *store.HeartbeatConfig) {
+			s.Binding.AcceptedRevision = "new-acceptance"
+		}, false, false},
+		{"stale completion", func(s *store.FiniteLeaderState, _ *store.HeartbeatConfig) {
+			s.Completed = &store.FiniteLeaderCompletion{ReceiptID: "accepted"}
+		}, false, false},
+		{"stale hold", func(s *store.FiniteLeaderState, _ *store.HeartbeatConfig) { s.Error = "task admission uncertainty" }, false, false},
+		{"stale enable control", func(_ *store.FiniteLeaderState, c *store.HeartbeatConfig) { c.Enabled = !c.Enabled }, false, false},
+		{"stale retirement", func(_ *store.FiniteLeaderState, c *store.HeartbeatConfig) { c.FiniteLeader.Retired = true }, false, false},
+		{"mismatched health", func(_ *store.FiniteLeaderState, c *store.HeartbeatConfig) {
+			c.LastExecution.Status = store.HeartbeatStatusRunning
+		}, false, false},
+		{"save failure", func(*store.FiniteLeaderState, *store.HeartbeatConfig) {}, true, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			state := &store.FiniteLeaderState{ID: "attempt", TaskID: "task", RunID: "run", DispatchStarted: true, TaskStarted: true, Status: "RUN_STATUS_PARKED", CreatedAt: "2026-10-10T12:00:00Z"}
+			config := &store.HeartbeatConfig{Enabled: true, ProfileKey: "profile", FiniteLeader: &teamconfig.FiniteLeader{AcceptedRevision: "accepted"}, LastExecution: &store.HeartbeatExecResult{RunID: "run", StartedAt: state.CreatedAt, EndedAt: "2026-10-10T13:00:00Z", Status: store.HeartbeatStatusCompleted}}
+			clone := func(in, out any) {
+				data, _ := json.Marshal(in)
+				if err := json.Unmarshal(data, out); err != nil {
+					t.Fatal(err)
+				}
+			}
+			current := &store.FiniteLeaderState{}
+			clone(state, current)
+			cfg := &store.HeartbeatConfig{}
+			clone(config, cfg)
+			tc.change(current, cfg)
+			before := &store.FiniteLeaderState{}
+			clone(current, before)
+			beforeConfig := &store.HeartbeatConfig{}
+			clone(cfg, beforeConfig)
+			run := &Run{ID: "run", TaskID: "task", StartedAt: state.CreatedAt, EndedAt: "2026-10-10T13:00:00Z", Status: "RUN_STATUS_COMPLETE"}
+			saves := 0
+			failed := errors.New("atomic save refused")
+			err := applyMatchingKnownProjection(state, config, run, cfg, current, func() error {
+				saves++
+				if tc.saveFailure {
+					return failed
+				}
+				return nil
+			})
+			wantSaves := 0
+			if tc.wantSave {
+				wantSaves = 1
+			}
+			if saves != wantSaves || (tc.saveFailure && !errors.Is(err, failed)) || (!tc.saveFailure && err != nil) {
+				t.Fatalf("saves=%d err=%v", saves, err)
+			}
+			if tc.wantSave && !tc.saveFailure {
+				before.Status = run.Status
+			}
+			if !reflect.DeepEqual(current, before) || !reflect.DeepEqual(cfg, beforeConfig) {
+				t.Fatalf("changed controls or failed state: state=%+v config=%+v", current, cfg)
+			}
+		})
+	}
+}
+
+// The control snapshot is captured after GetRun. This fixture distinguishes a
+// pre-capture control change (retained) from a predecessor state change (stale).
+type finiteProjectionOwnerReadHook struct {
+	AgentClient
+	hook func()
+}
+
+func (h finiteProjectionOwnerReadHook) GetRun(ctx context.Context, id string) (*Run, error) {
+	run, err := h.AgentClient.GetRun(ctx, id)
+	h.hook()
+	return run, err
+}
+func TestFiniteLeaderMatchingProjectionOwnerReadFences(t *testing.T) {
+	for _, mode := range []string{"controls before config capture", "stale finite hold"} {
+		t.Run(mode, func(t *testing.T) {
+			fixture := newFiniteFixture(t)
+			fixture.dispatch(t)
+			ctx := context.Background()
+			if err := fixture.teams.WithFiniteLeader(ctx, "committee", "lead", func(_ *store.HeartbeatConfig, s *store.FiniteLeaderState, save func() error) error {
+				s.Status = "RUN_STATUS_PARKED"
+				return save()
+			}); err != nil {
+				t.Fatal(err)
+			}
+			before, err := fixture.teams.ReadFiniteLeader(ctx, "committee", "lead")
+			if err != nil {
+				t.Fatal(err)
+			}
+			// Missing owner StartedAt uses the retained original attempt time.
+			run := &Run{ID: before.RunID, TaskID: before.TaskID, Status: "RUN_STATUS_COMPLETE", EndedAt: "2026-10-10T13:00:00Z"}
+			fixture.agent.getRuns[run.ID] = run
+			cfg, err := fixture.teams.GetHeartbeatConfig(ctx, "committee", "lead")
+			if err != nil {
+				t.Fatal(err)
+			}
+			cfg.LastExecution = &store.HeartbeatExecResult{RunID: run.ID, StartedAt: before.CreatedAt, EndedAt: run.EndedAt, Status: store.HeartbeatStatusCompleted}
+			if err := fixture.teams.SetHeartbeatConfig(ctx, "committee", "lead", cfg); err != nil {
+				t.Fatal(err)
+			}
+			effects := &matchingProjectionQueue{finiteQueueFake: fixture.queue}
+			fixture.runtime.Queue = effects
+			fixture.runtime.Executor.agentClient = finiteProjectionOwnerReadHook{AgentClient: fixture.agent, hook: func() {
+				if mode == "stale finite hold" {
+					if err := fixture.teams.WithFiniteLeader(ctx, "committee", "lead", func(_ *store.HeartbeatConfig, s *store.FiniteLeaderState, save func() error) error {
+						s.Error = "owner disposition hold"
+						return save()
+					}); err != nil {
+						t.Fatal(err)
+					}
+				} else {
+					captured, err := fixture.teams.GetHeartbeatConfig(ctx, "committee", "lead")
+					if err != nil {
+						t.Fatal(err)
+					}
+					captured.Enabled = false
+					captured.FiniteLeader.Retired = true
+					if err := fixture.teams.SetHeartbeatConfig(ctx, "committee", "lead", captured); err != nil {
+						t.Fatal(err)
+					}
+				}
+			}}
+			observed, err := fixture.runtime.ReconcileKnownRun(ctx, "committee", "lead")
+			if err != nil {
+				t.Fatal(err)
+			}
+			after, err := fixture.teams.ReadFiniteLeader(ctx, "committee", "lead")
+			if err != nil {
+				t.Fatal(err)
+			}
+			expected := *before
+			if mode == "stale finite hold" {
+				expected.Error = "owner disposition hold"
+			} else {
+				expected.Status = run.Status
+			}
+			if !reflect.DeepEqual(after, &expected) || !reflect.DeepEqual(observed, after) || effects.completed != 0 {
+				t.Fatalf("stale read or effects: observed=%+v stored=%+v completed=%d", observed, after, effects.completed)
+			}
+			controls, err := fixture.teams.GetHeartbeatConfig(ctx, "committee", "lead")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if mode == "controls before config capture" && (controls.Enabled || !controls.FiniteLeader.Retired) {
+				t.Fatal("pre-capture controls lost")
+			}
+		})
 	}
 }

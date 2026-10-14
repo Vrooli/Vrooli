@@ -141,11 +141,13 @@ const (
 )
 
 type ToolSummary struct {
-	Name       string `json:"name"`
-	Calls      int    `json:"calls"`
-	Successes  int    `json:"successes"`
-	Failures   int    `json:"failures"`
-	Unresolved int    `json:"unresolved"`
+	Name           string `json:"name"`
+	Calls          int    `json:"calls"`
+	Successes      int    `json:"successes"`
+	Failures       int    `json:"failures"`
+	Unresolved     int    `json:"unresolved"`
+	Returned       int    `json:"returned"`
+	UnknownOutcome int    `json:"unknownOutcome"`
 }
 type ResultSummary struct {
 	SelectionStatus  domain.FinalOutputSelectionStatus `json:"selectionStatus"`
@@ -581,6 +583,7 @@ func (r *RunReport) foldEvents(events []*domain.RunEvent) {
 	tools := map[string]*ToolSummary{}
 	toolCalls := map[string]int{}
 	fileReads := map[string]int{}
+	callNames := map[string]string{}
 	costSeen := false
 	var previous time.Time
 	for _, event := range events {
@@ -592,6 +595,9 @@ func (r *RunReport) foldEvents(events []*domain.RunEvent) {
 				previous = event.Timestamp
 			}
 			if call, ok := event.Data.(*domain.ToolCallEventData); ok {
+				if call.ToolCallID != "" {
+					callNames[call.ToolCallID] = call.ToolName
+				}
 				toolCalls[call.ToolName]++
 				if toolCalls[call.ToolName] > 1 {
 					r.RepeatedToolCalls++
@@ -603,11 +609,18 @@ func (r *RunReport) foldEvents(events []*domain.RunEvent) {
 					}
 				}
 			}
+			// Historical output rows may omit the name; bind by the existing call ID.
+			if result, ok := event.Data.(*domain.ToolResultEventData); ok && result.ToolName == "" && result.ToolCallID != "" {
+				copyEvent, copyData := *event, *result
+				copyData.ToolName = callNames[result.ToolCallID]
+				copyEvent.Data = &copyData
+				event = &copyEvent
+			}
 			costSeen = r.foldEvent(event, tools, costSeen)
 		}
 	}
 	for _, v := range tools {
-		v.Unresolved = max(0, v.Calls-v.Successes-v.Failures)
+		v.Unresolved = max(0, v.Calls-v.Returned)
 		r.Tools = append(r.Tools, *v)
 	}
 	sort.Slice(r.Tools, func(i, j int) bool { return r.Tools[i].Name < r.Tools[j].Name })
@@ -653,11 +666,15 @@ func (r *RunReport) foldToolCall(data *domain.ToolCallEventData, summary *ToolSu
 }
 
 func (r *RunReport) foldToolResult(data *domain.ToolResultEventData, summary *ToolSummary) {
-	if data.Success {
+	summary.Returned++
+	switch runsignal.ToolResultOutcome(data) {
+	case "success":
 		summary.Successes++
-		return
+	case "failure":
+		summary.Failures++
+	case "unknown":
+		summary.UnknownOutcome++
 	}
-	summary.Failures++
 }
 
 func toolSummary(tools map[string]*ToolSummary, name string) *ToolSummary {
@@ -702,7 +719,7 @@ func Text(r *RunReport) string {
 	fmt.Fprintf(&b, "Tools: project-owned=%d external=%d\n", r.ProjectOwnedToolCalls, r.ExternalToolCalls)
 	fmt.Fprintf(&b, "Efficiency: repeated tool calls=%d files reread=%d longest event gap=%s\n", r.RepeatedToolCalls, r.FilesReadMoreThanOnce, r.LongestEventGap.Round(0))
 	for _, tool := range r.Tools {
-		fmt.Fprintf(&b, "  %s: calls=%d success=%d failed=%d\n", tool.Name, tool.Calls, tool.Successes, tool.Failures)
+		fmt.Fprintf(&b, "  %s: calls=%d returned=%d success=%d failed=%d unknown=%d unresolved=%d\n", tool.Name, tool.Calls, tool.Returned, tool.Successes, tool.Failures, tool.UnknownOutcome, tool.Unresolved)
 	}
 	keys := make([]string, 0, len(r.Events))
 	for key := range r.Events {

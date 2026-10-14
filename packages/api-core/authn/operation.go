@@ -24,6 +24,16 @@ var ErrOperation = errors.New("operation or target is outside the approved agent
 // RequireOperation admits a capable human, or an agent with an explicitly
 // approved live operation grant. Domain owners retain their object rules.
 func RequireOperation(ctx context.Context, capability, operation, target string) (identity.Principal, error) {
+	if a, present := RequestOperationAuthorityFromContext(ctx); present {
+		p, ok := identity.PrincipalFromContext(ctx)
+		if !ok || p.Kind != identity.ActorAgent {
+			return identity.Principal{}, ErrOperation
+		}
+		if err := a.AuthorizeOperation(ctx, p, capability, operation, target); err != nil {
+			return identity.Principal{}, err
+		}
+		return p, nil
+	}
 	p, err := RequireCapability(ctx, capability)
 	if err != nil {
 		return identity.Principal{}, err

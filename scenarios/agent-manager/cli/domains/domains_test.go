@@ -1,11 +1,10 @@
 package domains
 
 import (
+	"agent-manager/cli/internal/support"
 	"io"
 	"slices"
 	"testing"
-
-	"agent-manager/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -28,6 +27,14 @@ func TestCommandGroupsRegistersEveryTopLevelCommand(t *testing.T) {
 func TestEffortDispatcherCommandsReachTheirRegisteredHandler(t *testing.T) {
 	for _, args := range [][]string{
 		{"compact", "--json"},
+		{"exact-setup", "stage", "--request-file", "public.json"},
+		{"exact-setup", "status", "--grant", "original"},
+		{"exact-setup", "stage", "--request-file", "public.json", "--local-owner"},
+		{"exact-setup", "activate", "--request-file", "public.json", "--local-owner"},
+		{"exact-setup", "revoke", "--request-file", "public.json", "--local-owner"},
+		{"exact-setup", "status", "--grant", "original", "--local-owner"},
+		{"exact-reconcile", "--request-file", "request.json", "--grant", "original"},
+		{"exact-receipt", "--request-file", "request.json", "--grant", "original"},
 		{"enroll", "--json", "--request-file", "request.json", "--local-owner"},
 		{"withdraw", "--json", "--request-file", "request.json", "--local-owner"},
 		{"epoch-check", "goal/epochs/E27.md", "--acceptance", "--json"},
@@ -59,6 +66,17 @@ func TestEffortGoalHomeFileCommandsRunWithoutTheAPI(t *testing.T) {
 		offline := command.NeedsAPIOverride != nil && !*command.NeedsAPIOverride
 		if want := command.Name == "lint" || command.Name == "handoff"; offline != want {
 			t.Fatalf("%s: runs without the API = %t, want %t", command.Name, offline, want)
+		}
+	}
+}
+
+func TestExactTopLevelCatalogRequiresTypedArguments(t *testing.T) {
+	for _, args := range [][]string{{"exact-reconcile", "--request-file", "public.json"}, {"exact-receipt", "--grant", "original"}, {"exact-setup", "--grant", "original"}} {
+		called := false
+		group := effortGroup(support.Dependencies{Effort: func([]string) error { called = true; return nil }})
+		app := cliapp.NewApp(cliapp.AppOptions{Name: "agent-manager", SubcommandGroups: []cliapp.SubcommandGroup{group}})
+		if err := app.RunWithWriters(append([]string{"effort"}, args...), io.Discard, io.Discard); err == nil || called {
+			t.Fatal("missing required metadata reached handler", args, err, called)
 		}
 	}
 }

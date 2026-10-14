@@ -11,7 +11,8 @@
  * The fix: only set `groupingLoadedKey` inside the branches that actually
  * process data (data available, or done loading with no data).
  */
-import { renderHook, waitFor } from "@testing-library/react";
+import { waitFor } from "@testing-library/react";
+import { renderHookWithQueryClient } from "../test-utils/render";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
@@ -119,7 +120,7 @@ describe("grouping loader race condition (regression)", () => {
     };
 
     // Phase 1: repoDir available, grouping query still loading
-    const { result, rerender } = renderHook(
+    const { result, rerender } = renderHookWithQueryClient(
       ({ repoDir, query }: HookProps) =>
         useGroupingLoaderLogic(repoDir, query),
       {
@@ -156,7 +157,7 @@ describe("grouping loader race condition (regression)", () => {
       ],
     };
 
-    const { result } = renderHook(() =>
+    const { result } = renderHookWithQueryClient(() =>
       useGroupingLoaderLogic("/home/user/repo", {
         data: savedRules,
         isLoading: false,
@@ -177,7 +178,7 @@ describe("grouping loader race condition (regression)", () => {
     };
 
     // Phase 1: loading
-    const { result, rerender } = renderHook(
+    const { result, rerender } = renderHookWithQueryClient(
       ({ repoDir, query }: HookProps) =>
         useGroupingLoaderLogic(repoDir, query),
       {
@@ -207,7 +208,7 @@ describe("grouping loader race condition (regression)", () => {
   });
 
   it("keeps manual rules empty when API returns no stored rules", () => {
-    const { result } = renderHook(() =>
+    const { result } = renderHookWithQueryClient(() =>
       useGroupingLoaderLogic("/home/user/repo", {
         data: undefined,
         isLoading: false,
@@ -220,7 +221,7 @@ describe("grouping loader race condition (regression)", () => {
   });
 
   it("does not load when repoDir is undefined", () => {
-    const { result } = renderHook(() =>
+    const { result } = renderHookWithQueryClient(() =>
       useGroupingLoaderLogic(undefined, {
         data: { enabled: true, rules: [{ id: "g1", label: "X", prefixes: ["x/"], mode: "prefix" }] },
         isLoading: false,
@@ -241,7 +242,7 @@ describe("grouping loader race condition (regression)", () => {
     };
 
     // Phase 1: no repoDir yet, but API data is ready
-    const { result, rerender } = renderHook(
+    const { result, rerender } = renderHookWithQueryClient(
       ({ repoDir, query }: HookProps) =>
         useGroupingLoaderLogic(repoDir, query),
       {

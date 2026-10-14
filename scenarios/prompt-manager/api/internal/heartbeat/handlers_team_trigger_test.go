@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -438,5 +439,44 @@ func TestWithinManualTriggerWindow_ControlledTime(t *testing.T) {
 				t.Fatalf("withinManualTriggerWindow(%s) = %v, want %v", tc.name, got, tc.expected)
 			}
 		})
+	}
+}
+
+func TestDisabledOnDemandReviewerConfigurationHasNoTimer(t *testing.T) {
+	h, teams, agents, relations := setupTeamTriggerTestHandlers(t)
+	ctx := context.Background()
+	if err := teams.Create(ctx, newIndependentTestTeam("delivery", "Delivery")); err != nil {
+		t.Fatal(err)
+	}
+	if err := agents.Create(ctx, &store.Agent{ID: "reviewer", DisplayName: "Reviewer"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := relations.SetTeamMember(ctx, &store.TeamMemberRelation{TeamID: "delivery", AgentID: "reviewer", Status: store.MemberStatusActive}); err != nil {
+		t.Fatal(err)
+	}
+	h.scheduler = NewScheduler(&captureExecutor{}, nil, teams, nil)
+	router := mux.NewRouter()
+	router.HandleFunc("/teams/{id}/heartbeats/{agentId}", h.CreateHeartbeat).Methods(http.MethodPost)
+	router.HandleFunc("/teams/{id}/heartbeats/{agentId}", h.UpdateHeartbeat).Methods(http.MethodPut)
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/teams/delivery/heartbeats/reviewer", strings.NewReader(`{"enabled":false,"profileKey":"prompt-manager/heartbeat-inspection"}`)))
+	if response.Code != http.StatusCreated {
+		t.Fatalf("disabled on-demand configuration=%d %s", response.Code, response.Body)
+	}
+	cfg, err := teams.GetHeartbeatConfig(ctx, "delivery", "reviewer")
+	if err != nil || cfg.Enabled || cfg.Schedule != "" || h.scheduler.IsScheduled("delivery", "reviewer") {
+		t.Fatalf("on-demand reviewer acquired timer: %+v err=%v", cfg, err)
+	}
+	if err := teams.ValidateHeartbeatRoster(ctx, "delivery"); err != nil {
+		t.Fatal(err)
+	}
+	response = httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodPut, "/teams/delivery/heartbeats/reviewer", strings.NewReader(`{"enabled":true}`)))
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("schedule-free activation=%d %s", response.Code, response.Body)
+	}
+	after, err := teams.GetHeartbeatConfig(ctx, "delivery", "reviewer")
+	if err != nil || after.Enabled || h.scheduler.IsScheduled("delivery", "reviewer") {
+		t.Fatalf("refused activation changed reviewer: %+v %v", after, err)
 	}
 }

@@ -529,3 +529,28 @@ func waitFor(t *testing.T, timeout time.Duration, cond func() bool) {
 	}
 	t.Fatalf("condition not met within %v", timeout)
 }
+
+func TestCoordinatorReservedBindingRefusesPreSubmitPersistenceAndRepeat(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		existing   string
+		persistErr error
+	}{
+		{"write failure", "", errors.New("owner write refused")}, {"existing identity", uuid.NewString(), nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			sessions := newFakeSessions("unrelated")
+			sub := NewSubstrate(sessions, func(domain.RunnerType) (runner.AgentLaunchInfo, error) { return fakeLaunchInfo{}, nil })
+			store := &fakeRunStore{err: tc.persistErr}
+			c := NewCoordinator(CoordinatorDeps{Substrate: sub, Runs: store})
+			run := newInteractiveRun(domain.RunnerTypeCodex, "")
+			run.WebConsoleSessionID = tc.existing
+			if err := c.Execute(t.Context(), run, LaunchParams{RunID: run.ID, RunnerType: domain.RunnerTypeCodex}, nil); err == nil {
+				t.Fatal("launch admitted without owner persistence")
+			}
+			if len(sessions.calls) != 0 || run.WebConsoleSessionID != tc.existing {
+				t.Fatalf("effects=%v binding=%s", sessions.calls, run.WebConsoleSessionID)
+			}
+		})
+	}
+}

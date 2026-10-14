@@ -15,9 +15,8 @@ type mockAgentClient struct {
 	healthOK  bool
 	healthErr error
 
-	ensureProfileResp *EnsureProfileResponse
-	ensureProfileErr  error
-	reconcileErr      error
+	resolvedProfile   *AgentProfile
+	resolveProfileErr error
 
 	listRunsResp *ListRunsResponse
 	listRunsErr  error
@@ -50,15 +49,15 @@ type mockAgentClient struct {
 	getRunEventsErr  error
 
 	// Call tracking
-	createTaskCalls    []*Task
-	cancelTaskCalls    []string
-	deleteTaskCalls    []string
-	createRunCalls     []*CreateRunRequest
-	getRunCalls        []string
-	stopRunCalls       []string
-	continueRunCalls   []continueRunCall
-	ensureProfileCalls []*EnsureProfileRequest
-	listRunsCalls      []ListRunsOptions
+	createTaskCalls     []*Task
+	cancelTaskCalls     []string
+	deleteTaskCalls     []string
+	createRunCalls      []*CreateRunRequest
+	getRunCalls         []string
+	stopRunCalls        []string
+	continueRunCalls    []continueRunCall
+	resolveProfileCalls []string
+	listRunsCalls       []ListRunsOptions
 }
 
 func newMockAgentClient() *mockAgentClient {
@@ -93,13 +92,12 @@ func (m *mockAgentClient) WithCreateRunError(err error) *mockAgentClient {
 	return m
 }
 
-func (m *mockAgentClient) WithEnsureProfileResponse(resp *EnsureProfileResponse) *mockAgentClient {
-	m.ensureProfileResp = resp
+func (m *mockAgentClient) WithResolvedProfile(profile *AgentProfile) *mockAgentClient {
+	m.resolvedProfile = profile
 	return m
 }
-
-func (m *mockAgentClient) WithEnsureProfileError(err error) *mockAgentClient {
-	m.ensureProfileErr = err
+func (m *mockAgentClient) WithResolveProfileError(err error) *mockAgentClient {
+	m.resolveProfileErr = err
 	return m
 }
 
@@ -157,31 +155,17 @@ func (m *mockAgentClient) Health(_ context.Context) (bool, error) {
 	return m.healthOK, m.healthErr
 }
 
-func (m *mockAgentClient) EnsureProfile(_ context.Context, req *EnsureProfileRequest) (*EnsureProfileResponse, error) {
+func (m *mockAgentClient) ResolveProfile(_ context.Context, key string) (*AgentProfile, error) {
 	m.mu.Lock()
-	if req != nil {
-		reqCopy := *req
-		m.ensureProfileCalls = append(m.ensureProfileCalls, &reqCopy)
-	} else {
-		m.ensureProfileCalls = append(m.ensureProfileCalls, nil)
+	defer m.mu.Unlock()
+	m.resolveProfileCalls = append(m.resolveProfileCalls, key)
+	if m.resolveProfileErr != nil {
+		return nil, m.resolveProfileErr
 	}
-	m.mu.Unlock()
-
-	if m.ensureProfileErr != nil {
-		return nil, m.ensureProfileErr
+	if m.resolvedProfile != nil {
+		return m.resolvedProfile, nil
 	}
-	if m.ensureProfileResp != nil {
-		return m.ensureProfileResp, nil
-	}
-	profile := &AgentProfile{}
-	if req != nil {
-		profile.ProfileKey = req.ProfileKey
-	}
-	return &EnsureProfileResponse{Profile: profile, Created: false}, nil
-}
-
-func (m *mockAgentClient) ReconcileScenarioProfiles(_ context.Context, _ string) error {
-	return m.reconcileErr
+	return &AgentProfile{ProfileKey: key}, nil
 }
 
 func (m *mockAgentClient) CreateTask(_ context.Context, task *Task) (*Task, error) {

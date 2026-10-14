@@ -49,10 +49,11 @@ type executionPlanner interface {
 // index surface, it owns the durable run lifecycle (StartRun/FollowRun/WaitRun/
 // AbortRun/GetRunStatus) by delegating to the run manager.
 type Service struct {
-	scenariosRoot string
-	artifactRoot  func(string) (string, error)
-	runManager    *runmanager.Manager
-	planner       executionPlanner
+	strictInputBindings map[strictInputKey]StrictInputReadBinding
+	scenariosRoot       string
+	artifactRoot        func(string) (string, error)
+	runManager          *runmanager.Manager
+	planner             executionPlanner
 	// ledgerSource feeds the GetSelfHealth reliability ledger (compute-on-read
 	// aggregation over persisted runs). Satisfied by *execution.SuiteExecutionRepository.
 	ledgerSource   ledgerSource
@@ -672,9 +673,14 @@ func (s *Service) GetRunArtifact(ctx context.Context, req *connect.Request[runsp
 	if _, err := sharedruns.NewIndex(dir).Find(runID); err != nil {
 		return nil, mapRunError(err)
 	}
-	artifact, _, err := sharedartifacts.ResolveCatalogArtifact(dir, runID, artifactID, artifactPhaseDeclarations(dir, runID))
+	artifact, artifactPath, err := sharedartifacts.ResolveCatalogArtifact(dir, runID, artifactID, artifactPhaseDeclarations(dir, runID))
 	if err != nil {
 		return nil, mapArtifactError(err)
+	}
+	if s.requiresStrictInputValidationInDirectory(dir, runID, artifactID, artifact.Kind) {
+		if _, err := s.validateStrictInputArtifact(ctx, req.Msg.GetTarget(), dir, runID, artifactID, artifact, artifactPath); err != nil {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+		}
 	}
 	return connect.NewResponse(&runspb.GetRunArtifactResponse{
 		Artifact:         toArtifactRef(req.Msg.GetTarget(), runID, artifact),

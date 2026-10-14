@@ -30,6 +30,8 @@ type Resolution struct {
 	ManifestPath    string
 	PackageName     string
 	TemplateVersion string
+	PythonLockfiles []string
+	PythonIndexSets map[string]pythonIndexSet
 	Argv            []string
 	Profile         InstallProfile
 }
@@ -68,6 +70,9 @@ func (r Resolution) Command() string {
 	if r.TemplateVersion != "" {
 		return "declare " + r.PackageName + "@" + r.TemplateVersion + " and regenerate the template lockfile in a temporary scenario surface"
 	}
+	if len(r.PythonLockfiles) > 0 {
+		return "uv pip compile --only-binary :all: --generate-hashes " + r.PackageName + " into " + strings.Join(baseNames(r.PythonLockfiles), ", ")
+	}
 	parts := make([]string, 0, len(r.Argv))
 	for _, arg := range r.Argv {
 		parts = append(parts, displayArg(arg))
@@ -91,6 +96,9 @@ func (ExecInstaller) Install(ctx context.Context, r Resolution) (string, error) 
 	}
 	if r.TemplateVersion != "" {
 		return installTemplate(ctx, r, ExecInstaller{})
+	}
+	if len(r.PythonLockfiles) > 0 {
+		return updatePythonLocks(ctx, r)
 	}
 
 	if r.PackageManager == "pnpm" {
@@ -179,6 +187,8 @@ func Resolve(repoRoot, scenario, surface, ecosystem, packageName, version string
 	}
 	return Resolution{
 		TemplateVersion: templateVersion,
+		PythonLockfiles: pythonLockfilesFor(surfaceRoot, manager),
+		PythonIndexSets: pythonIndexSetsFor(surfaceRoot, manager),
 		RepositoryRoot:  repoRoot,
 		SurfaceRoot:     surfaceRoot,
 		PackageManager:  manager,
@@ -200,7 +210,7 @@ func SafeProfileFor(manager string, argv []string) InstallProfile {
 		}
 	}
 	joined := strings.Join(argv, " ")
-	if strings.Contains(joined, "go mod download") || strings.Contains(joined, "cargo fetch --locked") || strings.Contains(joined, "poetry install --sync") || strings.Contains(joined, "pip install --require-hashes") {
+	if strings.Contains(joined, "go mod download") || strings.Contains(joined, "cargo fetch --locked") || strings.Contains(joined, "poetry install --sync") || strings.Contains(joined, "pip install --require-hashes") || manager == "uv-lock" {
 		profile.FrozenLockfile = true
 	}
 	if manager == "pnpm" || manager == "npm" || manager == "yarn" || manager == "bun" {
@@ -274,6 +284,15 @@ func ResolveNpmOverride(repoRoot, scenario, surface string) (Resolution, error) 
 // shared packages without pretending they are scenarios.
 func resolveSurfaceRoot(repoRoot, scenario, surface string) string {
 	if strings.HasPrefix(surface, "template/") {
+		// A scenario-owned canonical template (for example
+		// scenario-to-desktop/templates/vanilla) is an install surface in its
+		// own right. Resolve it before the legacy template-manager registry so
+		// dependency governance edits the source template that generates the
+		// scenario's desktop shell.
+		canonical := filepath.Join(repoRoot, "scenarios", scenario, "templates", strings.TrimPrefix(surface, "template/"))
+		if info, err := os.Stat(canonical); err == nil && info.IsDir() {
+			return canonical
+		}
 		root := filepath.Join(repoRoot, "templates", "scenarios", strings.TrimPrefix(surface, "template/"), "ui")
 		if info, err := os.Stat(root); err == nil && info.IsDir() {
 			return root
@@ -446,6 +465,13 @@ func planForEcosystem(surfaceRoot, ecosystem, packageName, version string) (mana
 			manager = "pip"
 			manifest = filepath.Join(surfaceRoot, "requirements.txt")
 			argv = []string{"pip", "install", spec}
+		} else if fileExists(filepath.Join(surfaceRoot, "requirements.lock")) {
+			manager = "uv-lock"
+			manifest = filepath.Join(surfaceRoot, "requirements.lock")
+			if strings.TrimSpace(version) == "" {
+				return "", "", nil, fmt.Errorf("resource Python lock updates require an explicit package version")
+			}
+			argv = []string{"uv", "pip", "compile", "--generate-hashes", "--only-binary", ":all:", packageName + "==" + strings.TrimSpace(version)}
 		} else {
 			return "", "", nil, fmt.Errorf("python package-manager evidence is missing: requirements.txt, pyproject.toml, or poetry.lock")
 		}

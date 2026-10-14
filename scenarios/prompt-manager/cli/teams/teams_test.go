@@ -3,6 +3,7 @@ package teams
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"flag"
 	"io"
 	"os"
@@ -480,5 +481,36 @@ func TestHeartbeatEnableCanReapplyDefaultScheduleOnExistingConfig(t *testing.T) 
 	}
 	if req.Schedule == nil || *req.Schedule != "0 */6 * * *" {
 		t.Fatalf("explicit default schedule was not persisted: %+v", req.Schedule)
+	}
+}
+
+func TestHeartbeatDisableCreatesExplicitOnDemandConfiguration(t *testing.T) {
+	ctx := &fakeContext{response: HeartbeatConfig{TeamID: "delivery", AgentID: "reviewer", Enabled: false, ProfileKey: "owner/inspection"}}
+	if err := cmdHeartbeatDisable(ctx, []string{"delivery", "reviewer", "--on-demand", "--profile=owner/inspection", "--json"}); err != nil {
+		t.Fatal(err)
+	}
+	ctx.assertMethodPath(t, "POST", "/teams/delivery/heartbeats/reviewer")
+	var request map[string]any
+	if err := json.Unmarshal(ctx.gotPayload, &request); err != nil {
+		t.Fatal(err)
+	}
+	if request["enabled"] != false || request["schedule"] != "" || request["profileKey"] != "owner/inspection" {
+		t.Fatalf("reviewer got a timer or wrong profile: %s", ctx.gotPayload)
+	}
+	refusal := errors.New("permission denied")
+	ctx = &fakeContext{err: refusal}
+	if err := cmdHeartbeatDisable(ctx, []string{"delivery", "reviewer", "--on-demand", "--profile=owner/inspection"}); !errors.Is(err, refusal) {
+		t.Fatalf("owner refusal lost: %v", err)
+	}
+	ctx.assertMethodPath(t, "POST", "/teams/delivery/heartbeats/reviewer")
+}
+func TestHeartbeatDisableOnDemandRequiresExplicitProfileAndOwnerReadback(t *testing.T) {
+	ctx := &fakeContext{}
+	if err := cmdHeartbeatDisable(ctx, []string{"delivery", "reviewer", "--on-demand"}); err == nil || ctx.gotMethod != "" {
+		t.Fatal("missing profile reached owner")
+	}
+	ctx = &fakeContext{response: HeartbeatConfig{TeamID: "delivery", AgentID: "reviewer", Enabled: true, ProfileKey: "owner/inspection"}}
+	if err := cmdHeartbeatDisable(ctx, []string{"delivery", "reviewer", "--on-demand", "--profile=owner/inspection"}); err == nil {
+		t.Fatal("enabled owner response accepted as on-demand")
 	}
 }

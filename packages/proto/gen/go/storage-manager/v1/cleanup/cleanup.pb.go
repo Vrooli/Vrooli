@@ -628,6 +628,103 @@ func (x *SetPolicyProfileResponse) GetPolicy() *Policy {
 	return nil
 }
 
+type ConfigureTemporaryRetentionRequest struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Automatic bool                   `protobuf:"varint,1,opt,name=automatic,proto3" json:"automatic,omitempty"`
+	// At least one day when enabling. Zero preserves the current age when disabling.
+	MinAgeSeconds int64 `protobuf:"varint,2,opt,name=min_age_seconds,json=minAgeSeconds,proto3" json:"min_age_seconds,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConfigureTemporaryRetentionRequest) Reset() {
+	*x = ConfigureTemporaryRetentionRequest{}
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfigureTemporaryRetentionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfigureTemporaryRetentionRequest) ProtoMessage() {}
+
+func (x *ConfigureTemporaryRetentionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfigureTemporaryRetentionRequest.ProtoReflect.Descriptor instead.
+func (*ConfigureTemporaryRetentionRequest) Descriptor() ([]byte, []int) {
+	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *ConfigureTemporaryRetentionRequest) GetAutomatic() bool {
+	if x != nil {
+		return x.Automatic
+	}
+	return false
+}
+
+func (x *ConfigureTemporaryRetentionRequest) GetMinAgeSeconds() int64 {
+	if x != nil {
+		return x.MinAgeSeconds
+	}
+	return 0
+}
+
+type ConfigureTemporaryRetentionResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Policy        *Policy                `protobuf:"bytes,1,opt,name=policy,proto3" json:"policy,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConfigureTemporaryRetentionResponse) Reset() {
+	*x = ConfigureTemporaryRetentionResponse{}
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfigureTemporaryRetentionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfigureTemporaryRetentionResponse) ProtoMessage() {}
+
+func (x *ConfigureTemporaryRetentionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfigureTemporaryRetentionResponse.ProtoReflect.Descriptor instead.
+func (*ConfigureTemporaryRetentionResponse) Descriptor() ([]byte, []int) {
+	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *ConfigureTemporaryRetentionResponse) GetPolicy() *Policy {
+	if x != nil {
+		return x.Policy
+	}
+	return nil
+}
+
 type Policy struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Version       string                 `protobuf:"bytes,1,opt,name=version,proto3" json:"version,omitempty"`
@@ -640,7 +737,7 @@ type Policy struct {
 
 func (x *Policy) Reset() {
 	*x = Policy{}
-	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[7]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -652,7 +749,7 @@ func (x *Policy) String() string {
 func (*Policy) ProtoMessage() {}
 
 func (x *Policy) ProtoReflect() protoreflect.Message {
-	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[7]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -665,7 +762,7 @@ func (x *Policy) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Policy.ProtoReflect.Descriptor instead.
 func (*Policy) Descriptor() ([]byte, []int) {
-	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{7}
+	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *Policy) GetVersion() string {
@@ -709,7 +806,7 @@ type ProviderPolicy struct {
 
 func (x *ProviderPolicy) Reset() {
 	*x = ProviderPolicy{}
-	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[8]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -721,7 +818,7 @@ func (x *ProviderPolicy) String() string {
 func (*ProviderPolicy) ProtoMessage() {}
 
 func (x *ProviderPolicy) ProtoReflect() protoreflect.Message {
-	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[8]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -734,7 +831,7 @@ func (x *ProviderPolicy) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProviderPolicy.ProtoReflect.Descriptor instead.
 func (*ProviderPolicy) Descriptor() ([]byte, []int) {
-	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{8}
+	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ProviderPolicy) GetProviderId() string {
@@ -780,7 +877,7 @@ type CreatePlanRequest struct {
 
 func (x *CreatePlanRequest) Reset() {
 	*x = CreatePlanRequest{}
-	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[9]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -792,7 +889,7 @@ func (x *CreatePlanRequest) String() string {
 func (*CreatePlanRequest) ProtoMessage() {}
 
 func (x *CreatePlanRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[9]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -805,7 +902,7 @@ func (x *CreatePlanRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreatePlanRequest.ProtoReflect.Descriptor instead.
 func (*CreatePlanRequest) Descriptor() ([]byte, []int) {
-	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{9}
+	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{11}
 }
 
 type CreatePlanResponse struct {
@@ -817,7 +914,7 @@ type CreatePlanResponse struct {
 
 func (x *CreatePlanResponse) Reset() {
 	*x = CreatePlanResponse{}
-	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[10]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -829,7 +926,7 @@ func (x *CreatePlanResponse) String() string {
 func (*CreatePlanResponse) ProtoMessage() {}
 
 func (x *CreatePlanResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[10]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -842,7 +939,7 @@ func (x *CreatePlanResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreatePlanResponse.ProtoReflect.Descriptor instead.
 func (*CreatePlanResponse) Descriptor() ([]byte, []int) {
-	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{10}
+	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *CreatePlanResponse) GetPlan() *Plan {
@@ -870,7 +967,7 @@ type Plan struct {
 
 func (x *Plan) Reset() {
 	*x = Plan{}
-	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[11]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -882,7 +979,7 @@ func (x *Plan) String() string {
 func (*Plan) ProtoMessage() {}
 
 func (x *Plan) ProtoReflect() protoreflect.Message {
-	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[11]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -895,7 +992,7 @@ func (x *Plan) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Plan.ProtoReflect.Descriptor instead.
 func (*Plan) Descriptor() ([]byte, []int) {
-	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{11}
+	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *Plan) GetId() string {
@@ -984,7 +1081,7 @@ type ProviderPlan struct {
 
 func (x *ProviderPlan) Reset() {
 	*x = ProviderPlan{}
-	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[12]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -996,7 +1093,7 @@ func (x *ProviderPlan) String() string {
 func (*ProviderPlan) ProtoMessage() {}
 
 func (x *ProviderPlan) ProtoReflect() protoreflect.Message {
-	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[12]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1009,7 +1106,7 @@ func (x *ProviderPlan) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProviderPlan.ProtoReflect.Descriptor instead.
 func (*ProviderPlan) Descriptor() ([]byte, []int) {
-	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{12}
+	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ProviderPlan) GetProviderId() string {
@@ -1082,7 +1179,7 @@ type PreviewItem struct {
 
 func (x *PreviewItem) Reset() {
 	*x = PreviewItem{}
-	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[13]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1094,7 +1191,7 @@ func (x *PreviewItem) String() string {
 func (*PreviewItem) ProtoMessage() {}
 
 func (x *PreviewItem) ProtoReflect() protoreflect.Message {
-	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[13]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1107,7 +1204,7 @@ func (x *PreviewItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PreviewItem.ProtoReflect.Descriptor instead.
 func (*PreviewItem) Descriptor() ([]byte, []int) {
-	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{13}
+	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *PreviewItem) GetId() string {
@@ -1165,7 +1262,7 @@ type ApplyPlanRequest struct {
 
 func (x *ApplyPlanRequest) Reset() {
 	*x = ApplyPlanRequest{}
-	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[14]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1177,7 +1274,7 @@ func (x *ApplyPlanRequest) String() string {
 func (*ApplyPlanRequest) ProtoMessage() {}
 
 func (x *ApplyPlanRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[14]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1190,7 +1287,7 @@ func (x *ApplyPlanRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApplyPlanRequest.ProtoReflect.Descriptor instead.
 func (*ApplyPlanRequest) Descriptor() ([]byte, []int) {
-	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{14}
+	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ApplyPlanRequest) GetPlanId() string {
@@ -1241,7 +1338,7 @@ type ApplyPlanResponse struct {
 
 func (x *ApplyPlanResponse) Reset() {
 	*x = ApplyPlanResponse{}
-	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[15]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1253,7 +1350,7 @@ func (x *ApplyPlanResponse) String() string {
 func (*ApplyPlanResponse) ProtoMessage() {}
 
 func (x *ApplyPlanResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[15]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1266,7 +1363,7 @@ func (x *ApplyPlanResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApplyPlanResponse.ProtoReflect.Descriptor instead.
 func (*ApplyPlanResponse) Descriptor() ([]byte, []int) {
-	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{15}
+	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *ApplyPlanResponse) GetPlanId() string {
@@ -1318,7 +1415,7 @@ type ApplyResult struct {
 
 func (x *ApplyResult) Reset() {
 	*x = ApplyResult{}
-	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[16]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1330,7 +1427,7 @@ func (x *ApplyResult) String() string {
 func (*ApplyResult) ProtoMessage() {}
 
 func (x *ApplyResult) ProtoReflect() protoreflect.Message {
-	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[16]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1343,7 +1440,7 @@ func (x *ApplyResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApplyResult.ProtoReflect.Descriptor instead.
 func (*ApplyResult) Descriptor() ([]byte, []int) {
-	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{16}
+	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *ApplyResult) GetProviderId() string {
@@ -1396,7 +1493,7 @@ type ListAuditRequest struct {
 
 func (x *ListAuditRequest) Reset() {
 	*x = ListAuditRequest{}
-	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[17]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1408,7 +1505,7 @@ func (x *ListAuditRequest) String() string {
 func (*ListAuditRequest) ProtoMessage() {}
 
 func (x *ListAuditRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[17]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1421,7 +1518,7 @@ func (x *ListAuditRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAuditRequest.ProtoReflect.Descriptor instead.
 func (*ListAuditRequest) Descriptor() ([]byte, []int) {
-	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{17}
+	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{19}
 }
 
 type ListAuditResponse struct {
@@ -1433,7 +1530,7 @@ type ListAuditResponse struct {
 
 func (x *ListAuditResponse) Reset() {
 	*x = ListAuditResponse{}
-	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[18]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1445,7 +1542,7 @@ func (x *ListAuditResponse) String() string {
 func (*ListAuditResponse) ProtoMessage() {}
 
 func (x *ListAuditResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[18]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1458,7 +1555,7 @@ func (x *ListAuditResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAuditResponse.ProtoReflect.Descriptor instead.
 func (*ListAuditResponse) Descriptor() ([]byte, []int) {
-	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{18}
+	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *ListAuditResponse) GetEvents() []*AuditEvent {
@@ -1484,7 +1581,7 @@ type AuditEvent struct {
 
 func (x *AuditEvent) Reset() {
 	*x = AuditEvent{}
-	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[19]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1496,7 +1593,7 @@ func (x *AuditEvent) String() string {
 func (*AuditEvent) ProtoMessage() {}
 
 func (x *AuditEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[19]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1509,7 +1606,7 @@ func (x *AuditEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AuditEvent.ProtoReflect.Descriptor instead.
 func (*AuditEvent) Descriptor() ([]byte, []int) {
-	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{19}
+	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *AuditEvent) GetId() string {
@@ -1580,7 +1677,7 @@ type HotWriter struct {
 
 func (x *HotWriter) Reset() {
 	*x = HotWriter{}
-	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[20]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1592,7 +1689,7 @@ func (x *HotWriter) String() string {
 func (*HotWriter) ProtoMessage() {}
 
 func (x *HotWriter) ProtoReflect() protoreflect.Message {
-	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[20]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1605,7 +1702,7 @@ func (x *HotWriter) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HotWriter.ProtoReflect.Descriptor instead.
 func (*HotWriter) Descriptor() ([]byte, []int) {
-	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{20}
+	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *HotWriter) GetRoot() string {
@@ -1656,7 +1753,7 @@ type ReportPressureRequest struct {
 
 func (x *ReportPressureRequest) Reset() {
 	*x = ReportPressureRequest{}
-	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[21]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1668,7 +1765,7 @@ func (x *ReportPressureRequest) String() string {
 func (*ReportPressureRequest) ProtoMessage() {}
 
 func (x *ReportPressureRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[21]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1681,7 +1778,7 @@ func (x *ReportPressureRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReportPressureRequest.ProtoReflect.Descriptor instead.
 func (*ReportPressureRequest) Descriptor() ([]byte, []int) {
-	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{21}
+	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *ReportPressureRequest) GetSourceScenario() string {
@@ -1767,7 +1864,7 @@ type ReportPressureResponse struct {
 
 func (x *ReportPressureResponse) Reset() {
 	*x = ReportPressureResponse{}
-	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[22]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1779,7 +1876,7 @@ func (x *ReportPressureResponse) String() string {
 func (*ReportPressureResponse) ProtoMessage() {}
 
 func (x *ReportPressureResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[22]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1792,7 +1889,7 @@ func (x *ReportPressureResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReportPressureResponse.ProtoReflect.Descriptor instead.
 func (*ReportPressureResponse) Descriptor() ([]byte, []int) {
-	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{22}
+	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *ReportPressureResponse) GetBand() PressureBand {
@@ -1887,7 +1984,7 @@ type RecoveryRunRequest struct {
 
 func (x *RecoveryRunRequest) Reset() {
 	*x = RecoveryRunRequest{}
-	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[23]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1899,7 +1996,7 @@ func (x *RecoveryRunRequest) String() string {
 func (*RecoveryRunRequest) ProtoMessage() {}
 
 func (x *RecoveryRunRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[23]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1912,7 +2009,7 @@ func (x *RecoveryRunRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecoveryRunRequest.ProtoReflect.Descriptor instead.
 func (*RecoveryRunRequest) Descriptor() ([]byte, []int) {
-	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{23}
+	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *RecoveryRunRequest) GetTrigger() PressureTrigger {
@@ -1966,7 +2063,7 @@ type RecoveryWaitRequest struct {
 
 func (x *RecoveryWaitRequest) Reset() {
 	*x = RecoveryWaitRequest{}
-	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[24]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1978,7 +2075,7 @@ func (x *RecoveryWaitRequest) String() string {
 func (*RecoveryWaitRequest) ProtoMessage() {}
 
 func (x *RecoveryWaitRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[24]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1991,7 +2088,7 @@ func (x *RecoveryWaitRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecoveryWaitRequest.ProtoReflect.Descriptor instead.
 func (*RecoveryWaitRequest) Descriptor() ([]byte, []int) {
-	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{24}
+	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *RecoveryWaitRequest) GetRunId() string {
@@ -2010,7 +2107,7 @@ type RecoveryHistoryRequest struct {
 
 func (x *RecoveryHistoryRequest) Reset() {
 	*x = RecoveryHistoryRequest{}
-	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[25]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2022,7 +2119,7 @@ func (x *RecoveryHistoryRequest) String() string {
 func (*RecoveryHistoryRequest) ProtoMessage() {}
 
 func (x *RecoveryHistoryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[25]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2035,7 +2132,7 @@ func (x *RecoveryHistoryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecoveryHistoryRequest.ProtoReflect.Descriptor instead.
 func (*RecoveryHistoryRequest) Descriptor() ([]byte, []int) {
-	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{25}
+	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *RecoveryHistoryRequest) GetLimit() int32 {
@@ -2066,7 +2163,7 @@ type RecoveryRunResponse struct {
 
 func (x *RecoveryRunResponse) Reset() {
 	*x = RecoveryRunResponse{}
-	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[26]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2078,7 +2175,7 @@ func (x *RecoveryRunResponse) String() string {
 func (*RecoveryRunResponse) ProtoMessage() {}
 
 func (x *RecoveryRunResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[26]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2091,7 +2188,7 @@ func (x *RecoveryRunResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecoveryRunResponse.ProtoReflect.Descriptor instead.
 func (*RecoveryRunResponse) Descriptor() ([]byte, []int) {
-	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{26}
+	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *RecoveryRunResponse) GetRunId() string {
@@ -2194,7 +2291,7 @@ type RecoveryHistoryResponse struct {
 
 func (x *RecoveryHistoryResponse) Reset() {
 	*x = RecoveryHistoryResponse{}
-	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[27]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2206,7 +2303,7 @@ func (x *RecoveryHistoryResponse) String() string {
 func (*RecoveryHistoryResponse) ProtoMessage() {}
 
 func (x *RecoveryHistoryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[27]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2219,7 +2316,7 @@ func (x *RecoveryHistoryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecoveryHistoryResponse.ProtoReflect.Descriptor instead.
 func (*RecoveryHistoryResponse) Descriptor() ([]byte, []int) {
-	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{27}
+	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *RecoveryHistoryResponse) GetRuns() []*RecoveryRunResponse {
@@ -2256,6 +2353,11 @@ const file_storage_manager_v1_cleanup_cleanup_proto_rawDesc = "" +
 	"\x17SetPolicyProfileRequest\x12\x18\n" +
 	"\aprofile\x18\x01 \x01(\tR\aprofile\"]\n" +
 	"\x18SetPolicyProfileResponse\x12A\n" +
+	"\x06policy\x18\x01 \x01(\v2).vrooli.cleanup_manager.v1.cleanup.PolicyR\x06policy\"j\n" +
+	"\"ConfigureTemporaryRetentionRequest\x12\x1c\n" +
+	"\tautomatic\x18\x01 \x01(\bR\tautomatic\x12&\n" +
+	"\x0fmin_age_seconds\x18\x02 \x01(\x03R\rminAgeSeconds\"h\n" +
+	"#ConfigureTemporaryRetentionResponse\x12A\n" +
 	"\x06policy\x18\x01 \x01(\v2).vrooli.cleanup_manager.v1.cleanup.PolicyR\x06policy\"\xc8\x01\n" +
 	"\x06Policy\x12\x18\n" +
 	"\aversion\x18\x01 \x01(\tR\aversion\x12\x18\n" +
@@ -2423,12 +2525,12 @@ const file_storage_manager_v1_cleanup_cleanup_proto_rawDesc = "" +
 	"\x19PRESSURE_ACTION_PREVIEWED\x10\x02\x12\x1b\n" +
 	"\x17PRESSURE_ACTION_APPLIED\x10\x03\x12 \n" +
 	"\x1cPRESSURE_ACTION_DEDUPLICATED\x10\x04\x12\x1e\n" +
-	"\x1aPRESSURE_ACTION_SUPPRESSED\x10\x052\x96\n" +
-	"\n" +
+	"\x1aPRESSURE_ACTION_SUPPRESSED\x10\x052\xc5\v\n" +
 	"\x0eCleanupService\x12\x82\x01\n" +
 	"\rListProviders\x127.vrooli.cleanup_manager.v1.cleanup.ListProvidersRequest\x1a8.vrooli.cleanup_manager.v1.cleanup.ListProvidersResponse\x12v\n" +
 	"\tGetPolicy\x123.vrooli.cleanup_manager.v1.cleanup.GetPolicyRequest\x1a4.vrooli.cleanup_manager.v1.cleanup.GetPolicyResponse\x12\x8b\x01\n" +
-	"\x10SetPolicyProfile\x12:.vrooli.cleanup_manager.v1.cleanup.SetPolicyProfileRequest\x1a;.vrooli.cleanup_manager.v1.cleanup.SetPolicyProfileResponse\x12y\n" +
+	"\x10SetPolicyProfile\x12:.vrooli.cleanup_manager.v1.cleanup.SetPolicyProfileRequest\x1a;.vrooli.cleanup_manager.v1.cleanup.SetPolicyProfileResponse\x12\xac\x01\n" +
+	"\x1bConfigureTemporaryRetention\x12E.vrooli.cleanup_manager.v1.cleanup.ConfigureTemporaryRetentionRequest\x1aF.vrooli.cleanup_manager.v1.cleanup.ConfigureTemporaryRetentionResponse\x12y\n" +
 	"\n" +
 	"CreatePlan\x124.vrooli.cleanup_manager.v1.cleanup.CreatePlanRequest\x1a5.vrooli.cleanup_manager.v1.cleanup.CreatePlanResponse\x12v\n" +
 	"\tApplyPlan\x123.vrooli.cleanup_manager.v1.cleanup.ApplyPlanRequest\x1a4.vrooli.cleanup_manager.v1.cleanup.ApplyPlanResponse\x12v\n" +
@@ -2451,91 +2553,96 @@ func file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP() []byte {
 }
 
 var file_storage_manager_v1_cleanup_cleanup_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_storage_manager_v1_cleanup_cleanup_proto_msgTypes = make([]protoimpl.MessageInfo, 28)
+var file_storage_manager_v1_cleanup_cleanup_proto_msgTypes = make([]protoimpl.MessageInfo, 30)
 var file_storage_manager_v1_cleanup_cleanup_proto_goTypes = []any{
-	(SafetyTier)(0),                  // 0: vrooli.cleanup_manager.v1.cleanup.SafetyTier
-	(PressureBand)(0),                // 1: vrooli.cleanup_manager.v1.cleanup.PressureBand
-	(PressureTrigger)(0),             // 2: vrooli.cleanup_manager.v1.cleanup.PressureTrigger
-	(PressureAction)(0),              // 3: vrooli.cleanup_manager.v1.cleanup.PressureAction
-	(*ListProvidersRequest)(nil),     // 4: vrooli.cleanup_manager.v1.cleanup.ListProvidersRequest
-	(*ListProvidersResponse)(nil),    // 5: vrooli.cleanup_manager.v1.cleanup.ListProvidersResponse
-	(*Provider)(nil),                 // 6: vrooli.cleanup_manager.v1.cleanup.Provider
-	(*GetPolicyRequest)(nil),         // 7: vrooli.cleanup_manager.v1.cleanup.GetPolicyRequest
-	(*GetPolicyResponse)(nil),        // 8: vrooli.cleanup_manager.v1.cleanup.GetPolicyResponse
-	(*SetPolicyProfileRequest)(nil),  // 9: vrooli.cleanup_manager.v1.cleanup.SetPolicyProfileRequest
-	(*SetPolicyProfileResponse)(nil), // 10: vrooli.cleanup_manager.v1.cleanup.SetPolicyProfileResponse
-	(*Policy)(nil),                   // 11: vrooli.cleanup_manager.v1.cleanup.Policy
-	(*ProviderPolicy)(nil),           // 12: vrooli.cleanup_manager.v1.cleanup.ProviderPolicy
-	(*CreatePlanRequest)(nil),        // 13: vrooli.cleanup_manager.v1.cleanup.CreatePlanRequest
-	(*CreatePlanResponse)(nil),       // 14: vrooli.cleanup_manager.v1.cleanup.CreatePlanResponse
-	(*Plan)(nil),                     // 15: vrooli.cleanup_manager.v1.cleanup.Plan
-	(*ProviderPlan)(nil),             // 16: vrooli.cleanup_manager.v1.cleanup.ProviderPlan
-	(*PreviewItem)(nil),              // 17: vrooli.cleanup_manager.v1.cleanup.PreviewItem
-	(*ApplyPlanRequest)(nil),         // 18: vrooli.cleanup_manager.v1.cleanup.ApplyPlanRequest
-	(*ApplyPlanResponse)(nil),        // 19: vrooli.cleanup_manager.v1.cleanup.ApplyPlanResponse
-	(*ApplyResult)(nil),              // 20: vrooli.cleanup_manager.v1.cleanup.ApplyResult
-	(*ListAuditRequest)(nil),         // 21: vrooli.cleanup_manager.v1.cleanup.ListAuditRequest
-	(*ListAuditResponse)(nil),        // 22: vrooli.cleanup_manager.v1.cleanup.ListAuditResponse
-	(*AuditEvent)(nil),               // 23: vrooli.cleanup_manager.v1.cleanup.AuditEvent
-	(*HotWriter)(nil),                // 24: vrooli.cleanup_manager.v1.cleanup.HotWriter
-	(*ReportPressureRequest)(nil),    // 25: vrooli.cleanup_manager.v1.cleanup.ReportPressureRequest
-	(*ReportPressureResponse)(nil),   // 26: vrooli.cleanup_manager.v1.cleanup.ReportPressureResponse
-	(*RecoveryRunRequest)(nil),       // 27: vrooli.cleanup_manager.v1.cleanup.RecoveryRunRequest
-	(*RecoveryWaitRequest)(nil),      // 28: vrooli.cleanup_manager.v1.cleanup.RecoveryWaitRequest
-	(*RecoveryHistoryRequest)(nil),   // 29: vrooli.cleanup_manager.v1.cleanup.RecoveryHistoryRequest
-	(*RecoveryRunResponse)(nil),      // 30: vrooli.cleanup_manager.v1.cleanup.RecoveryRunResponse
-	(*RecoveryHistoryResponse)(nil),  // 31: vrooli.cleanup_manager.v1.cleanup.RecoveryHistoryResponse
-	(*timestamppb.Timestamp)(nil),    // 32: google.protobuf.Timestamp
+	(SafetyTier)(0),                             // 0: vrooli.cleanup_manager.v1.cleanup.SafetyTier
+	(PressureBand)(0),                           // 1: vrooli.cleanup_manager.v1.cleanup.PressureBand
+	(PressureTrigger)(0),                        // 2: vrooli.cleanup_manager.v1.cleanup.PressureTrigger
+	(PressureAction)(0),                         // 3: vrooli.cleanup_manager.v1.cleanup.PressureAction
+	(*ListProvidersRequest)(nil),                // 4: vrooli.cleanup_manager.v1.cleanup.ListProvidersRequest
+	(*ListProvidersResponse)(nil),               // 5: vrooli.cleanup_manager.v1.cleanup.ListProvidersResponse
+	(*Provider)(nil),                            // 6: vrooli.cleanup_manager.v1.cleanup.Provider
+	(*GetPolicyRequest)(nil),                    // 7: vrooli.cleanup_manager.v1.cleanup.GetPolicyRequest
+	(*GetPolicyResponse)(nil),                   // 8: vrooli.cleanup_manager.v1.cleanup.GetPolicyResponse
+	(*SetPolicyProfileRequest)(nil),             // 9: vrooli.cleanup_manager.v1.cleanup.SetPolicyProfileRequest
+	(*SetPolicyProfileResponse)(nil),            // 10: vrooli.cleanup_manager.v1.cleanup.SetPolicyProfileResponse
+	(*ConfigureTemporaryRetentionRequest)(nil),  // 11: vrooli.cleanup_manager.v1.cleanup.ConfigureTemporaryRetentionRequest
+	(*ConfigureTemporaryRetentionResponse)(nil), // 12: vrooli.cleanup_manager.v1.cleanup.ConfigureTemporaryRetentionResponse
+	(*Policy)(nil),                              // 13: vrooli.cleanup_manager.v1.cleanup.Policy
+	(*ProviderPolicy)(nil),                      // 14: vrooli.cleanup_manager.v1.cleanup.ProviderPolicy
+	(*CreatePlanRequest)(nil),                   // 15: vrooli.cleanup_manager.v1.cleanup.CreatePlanRequest
+	(*CreatePlanResponse)(nil),                  // 16: vrooli.cleanup_manager.v1.cleanup.CreatePlanResponse
+	(*Plan)(nil),                                // 17: vrooli.cleanup_manager.v1.cleanup.Plan
+	(*ProviderPlan)(nil),                        // 18: vrooli.cleanup_manager.v1.cleanup.ProviderPlan
+	(*PreviewItem)(nil),                         // 19: vrooli.cleanup_manager.v1.cleanup.PreviewItem
+	(*ApplyPlanRequest)(nil),                    // 20: vrooli.cleanup_manager.v1.cleanup.ApplyPlanRequest
+	(*ApplyPlanResponse)(nil),                   // 21: vrooli.cleanup_manager.v1.cleanup.ApplyPlanResponse
+	(*ApplyResult)(nil),                         // 22: vrooli.cleanup_manager.v1.cleanup.ApplyResult
+	(*ListAuditRequest)(nil),                    // 23: vrooli.cleanup_manager.v1.cleanup.ListAuditRequest
+	(*ListAuditResponse)(nil),                   // 24: vrooli.cleanup_manager.v1.cleanup.ListAuditResponse
+	(*AuditEvent)(nil),                          // 25: vrooli.cleanup_manager.v1.cleanup.AuditEvent
+	(*HotWriter)(nil),                           // 26: vrooli.cleanup_manager.v1.cleanup.HotWriter
+	(*ReportPressureRequest)(nil),               // 27: vrooli.cleanup_manager.v1.cleanup.ReportPressureRequest
+	(*ReportPressureResponse)(nil),              // 28: vrooli.cleanup_manager.v1.cleanup.ReportPressureResponse
+	(*RecoveryRunRequest)(nil),                  // 29: vrooli.cleanup_manager.v1.cleanup.RecoveryRunRequest
+	(*RecoveryWaitRequest)(nil),                 // 30: vrooli.cleanup_manager.v1.cleanup.RecoveryWaitRequest
+	(*RecoveryHistoryRequest)(nil),              // 31: vrooli.cleanup_manager.v1.cleanup.RecoveryHistoryRequest
+	(*RecoveryRunResponse)(nil),                 // 32: vrooli.cleanup_manager.v1.cleanup.RecoveryRunResponse
+	(*RecoveryHistoryResponse)(nil),             // 33: vrooli.cleanup_manager.v1.cleanup.RecoveryHistoryResponse
+	(*timestamppb.Timestamp)(nil),               // 34: google.protobuf.Timestamp
 }
 var file_storage_manager_v1_cleanup_cleanup_proto_depIdxs = []int32{
 	6,  // 0: vrooli.cleanup_manager.v1.cleanup.ListProvidersResponse.providers:type_name -> vrooli.cleanup_manager.v1.cleanup.Provider
-	11, // 1: vrooli.cleanup_manager.v1.cleanup.GetPolicyResponse.policy:type_name -> vrooli.cleanup_manager.v1.cleanup.Policy
-	11, // 2: vrooli.cleanup_manager.v1.cleanup.SetPolicyProfileResponse.policy:type_name -> vrooli.cleanup_manager.v1.cleanup.Policy
-	32, // 3: vrooli.cleanup_manager.v1.cleanup.Policy.created_at:type_name -> google.protobuf.Timestamp
-	12, // 4: vrooli.cleanup_manager.v1.cleanup.Policy.providers:type_name -> vrooli.cleanup_manager.v1.cleanup.ProviderPolicy
-	15, // 5: vrooli.cleanup_manager.v1.cleanup.CreatePlanResponse.plan:type_name -> vrooli.cleanup_manager.v1.cleanup.Plan
-	32, // 6: vrooli.cleanup_manager.v1.cleanup.Plan.created_at:type_name -> google.protobuf.Timestamp
-	16, // 7: vrooli.cleanup_manager.v1.cleanup.Plan.providers:type_name -> vrooli.cleanup_manager.v1.cleanup.ProviderPlan
-	32, // 8: vrooli.cleanup_manager.v1.cleanup.Plan.census_started_at:type_name -> google.protobuf.Timestamp
-	32, // 9: vrooli.cleanup_manager.v1.cleanup.Plan.census_completed_at:type_name -> google.protobuf.Timestamp
-	17, // 10: vrooli.cleanup_manager.v1.cleanup.ProviderPlan.items:type_name -> vrooli.cleanup_manager.v1.cleanup.PreviewItem
-	20, // 11: vrooli.cleanup_manager.v1.cleanup.ApplyPlanResponse.results:type_name -> vrooli.cleanup_manager.v1.cleanup.ApplyResult
-	23, // 12: vrooli.cleanup_manager.v1.cleanup.ListAuditResponse.events:type_name -> vrooli.cleanup_manager.v1.cleanup.AuditEvent
-	32, // 13: vrooli.cleanup_manager.v1.cleanup.AuditEvent.time:type_name -> google.protobuf.Timestamp
-	1,  // 14: vrooli.cleanup_manager.v1.cleanup.ReportPressureRequest.band:type_name -> vrooli.cleanup_manager.v1.cleanup.PressureBand
-	24, // 15: vrooli.cleanup_manager.v1.cleanup.ReportPressureRequest.hot_writers:type_name -> vrooli.cleanup_manager.v1.cleanup.HotWriter
-	2,  // 16: vrooli.cleanup_manager.v1.cleanup.ReportPressureRequest.trigger:type_name -> vrooli.cleanup_manager.v1.cleanup.PressureTrigger
-	1,  // 17: vrooli.cleanup_manager.v1.cleanup.ReportPressureResponse.band:type_name -> vrooli.cleanup_manager.v1.cleanup.PressureBand
-	3,  // 18: vrooli.cleanup_manager.v1.cleanup.ReportPressureResponse.action:type_name -> vrooli.cleanup_manager.v1.cleanup.PressureAction
-	2,  // 19: vrooli.cleanup_manager.v1.cleanup.RecoveryRunRequest.trigger:type_name -> vrooli.cleanup_manager.v1.cleanup.PressureTrigger
-	32, // 20: vrooli.cleanup_manager.v1.cleanup.RecoveryRunResponse.started_at:type_name -> google.protobuf.Timestamp
-	32, // 21: vrooli.cleanup_manager.v1.cleanup.RecoveryRunResponse.completed_at:type_name -> google.protobuf.Timestamp
-	30, // 22: vrooli.cleanup_manager.v1.cleanup.RecoveryHistoryResponse.runs:type_name -> vrooli.cleanup_manager.v1.cleanup.RecoveryRunResponse
-	4,  // 23: vrooli.cleanup_manager.v1.cleanup.CleanupService.ListProviders:input_type -> vrooli.cleanup_manager.v1.cleanup.ListProvidersRequest
-	7,  // 24: vrooli.cleanup_manager.v1.cleanup.CleanupService.GetPolicy:input_type -> vrooli.cleanup_manager.v1.cleanup.GetPolicyRequest
-	9,  // 25: vrooli.cleanup_manager.v1.cleanup.CleanupService.SetPolicyProfile:input_type -> vrooli.cleanup_manager.v1.cleanup.SetPolicyProfileRequest
-	13, // 26: vrooli.cleanup_manager.v1.cleanup.CleanupService.CreatePlan:input_type -> vrooli.cleanup_manager.v1.cleanup.CreatePlanRequest
-	18, // 27: vrooli.cleanup_manager.v1.cleanup.CleanupService.ApplyPlan:input_type -> vrooli.cleanup_manager.v1.cleanup.ApplyPlanRequest
-	21, // 28: vrooli.cleanup_manager.v1.cleanup.CleanupService.ListAudit:input_type -> vrooli.cleanup_manager.v1.cleanup.ListAuditRequest
-	25, // 29: vrooli.cleanup_manager.v1.cleanup.CleanupService.ReportPressure:input_type -> vrooli.cleanup_manager.v1.cleanup.ReportPressureRequest
-	27, // 30: vrooli.cleanup_manager.v1.cleanup.CleanupService.StartRecovery:input_type -> vrooli.cleanup_manager.v1.cleanup.RecoveryRunRequest
-	28, // 31: vrooli.cleanup_manager.v1.cleanup.CleanupService.WaitRecovery:input_type -> vrooli.cleanup_manager.v1.cleanup.RecoveryWaitRequest
-	29, // 32: vrooli.cleanup_manager.v1.cleanup.CleanupService.ListRecovery:input_type -> vrooli.cleanup_manager.v1.cleanup.RecoveryHistoryRequest
-	5,  // 33: vrooli.cleanup_manager.v1.cleanup.CleanupService.ListProviders:output_type -> vrooli.cleanup_manager.v1.cleanup.ListProvidersResponse
-	8,  // 34: vrooli.cleanup_manager.v1.cleanup.CleanupService.GetPolicy:output_type -> vrooli.cleanup_manager.v1.cleanup.GetPolicyResponse
-	10, // 35: vrooli.cleanup_manager.v1.cleanup.CleanupService.SetPolicyProfile:output_type -> vrooli.cleanup_manager.v1.cleanup.SetPolicyProfileResponse
-	14, // 36: vrooli.cleanup_manager.v1.cleanup.CleanupService.CreatePlan:output_type -> vrooli.cleanup_manager.v1.cleanup.CreatePlanResponse
-	19, // 37: vrooli.cleanup_manager.v1.cleanup.CleanupService.ApplyPlan:output_type -> vrooli.cleanup_manager.v1.cleanup.ApplyPlanResponse
-	22, // 38: vrooli.cleanup_manager.v1.cleanup.CleanupService.ListAudit:output_type -> vrooli.cleanup_manager.v1.cleanup.ListAuditResponse
-	26, // 39: vrooli.cleanup_manager.v1.cleanup.CleanupService.ReportPressure:output_type -> vrooli.cleanup_manager.v1.cleanup.ReportPressureResponse
-	30, // 40: vrooli.cleanup_manager.v1.cleanup.CleanupService.StartRecovery:output_type -> vrooli.cleanup_manager.v1.cleanup.RecoveryRunResponse
-	30, // 41: vrooli.cleanup_manager.v1.cleanup.CleanupService.WaitRecovery:output_type -> vrooli.cleanup_manager.v1.cleanup.RecoveryRunResponse
-	31, // 42: vrooli.cleanup_manager.v1.cleanup.CleanupService.ListRecovery:output_type -> vrooli.cleanup_manager.v1.cleanup.RecoveryHistoryResponse
-	33, // [33:43] is the sub-list for method output_type
-	23, // [23:33] is the sub-list for method input_type
-	23, // [23:23] is the sub-list for extension type_name
-	23, // [23:23] is the sub-list for extension extendee
-	0,  // [0:23] is the sub-list for field type_name
+	13, // 1: vrooli.cleanup_manager.v1.cleanup.GetPolicyResponse.policy:type_name -> vrooli.cleanup_manager.v1.cleanup.Policy
+	13, // 2: vrooli.cleanup_manager.v1.cleanup.SetPolicyProfileResponse.policy:type_name -> vrooli.cleanup_manager.v1.cleanup.Policy
+	13, // 3: vrooli.cleanup_manager.v1.cleanup.ConfigureTemporaryRetentionResponse.policy:type_name -> vrooli.cleanup_manager.v1.cleanup.Policy
+	34, // 4: vrooli.cleanup_manager.v1.cleanup.Policy.created_at:type_name -> google.protobuf.Timestamp
+	14, // 5: vrooli.cleanup_manager.v1.cleanup.Policy.providers:type_name -> vrooli.cleanup_manager.v1.cleanup.ProviderPolicy
+	17, // 6: vrooli.cleanup_manager.v1.cleanup.CreatePlanResponse.plan:type_name -> vrooli.cleanup_manager.v1.cleanup.Plan
+	34, // 7: vrooli.cleanup_manager.v1.cleanup.Plan.created_at:type_name -> google.protobuf.Timestamp
+	18, // 8: vrooli.cleanup_manager.v1.cleanup.Plan.providers:type_name -> vrooli.cleanup_manager.v1.cleanup.ProviderPlan
+	34, // 9: vrooli.cleanup_manager.v1.cleanup.Plan.census_started_at:type_name -> google.protobuf.Timestamp
+	34, // 10: vrooli.cleanup_manager.v1.cleanup.Plan.census_completed_at:type_name -> google.protobuf.Timestamp
+	19, // 11: vrooli.cleanup_manager.v1.cleanup.ProviderPlan.items:type_name -> vrooli.cleanup_manager.v1.cleanup.PreviewItem
+	22, // 12: vrooli.cleanup_manager.v1.cleanup.ApplyPlanResponse.results:type_name -> vrooli.cleanup_manager.v1.cleanup.ApplyResult
+	25, // 13: vrooli.cleanup_manager.v1.cleanup.ListAuditResponse.events:type_name -> vrooli.cleanup_manager.v1.cleanup.AuditEvent
+	34, // 14: vrooli.cleanup_manager.v1.cleanup.AuditEvent.time:type_name -> google.protobuf.Timestamp
+	1,  // 15: vrooli.cleanup_manager.v1.cleanup.ReportPressureRequest.band:type_name -> vrooli.cleanup_manager.v1.cleanup.PressureBand
+	26, // 16: vrooli.cleanup_manager.v1.cleanup.ReportPressureRequest.hot_writers:type_name -> vrooli.cleanup_manager.v1.cleanup.HotWriter
+	2,  // 17: vrooli.cleanup_manager.v1.cleanup.ReportPressureRequest.trigger:type_name -> vrooli.cleanup_manager.v1.cleanup.PressureTrigger
+	1,  // 18: vrooli.cleanup_manager.v1.cleanup.ReportPressureResponse.band:type_name -> vrooli.cleanup_manager.v1.cleanup.PressureBand
+	3,  // 19: vrooli.cleanup_manager.v1.cleanup.ReportPressureResponse.action:type_name -> vrooli.cleanup_manager.v1.cleanup.PressureAction
+	2,  // 20: vrooli.cleanup_manager.v1.cleanup.RecoveryRunRequest.trigger:type_name -> vrooli.cleanup_manager.v1.cleanup.PressureTrigger
+	34, // 21: vrooli.cleanup_manager.v1.cleanup.RecoveryRunResponse.started_at:type_name -> google.protobuf.Timestamp
+	34, // 22: vrooli.cleanup_manager.v1.cleanup.RecoveryRunResponse.completed_at:type_name -> google.protobuf.Timestamp
+	32, // 23: vrooli.cleanup_manager.v1.cleanup.RecoveryHistoryResponse.runs:type_name -> vrooli.cleanup_manager.v1.cleanup.RecoveryRunResponse
+	4,  // 24: vrooli.cleanup_manager.v1.cleanup.CleanupService.ListProviders:input_type -> vrooli.cleanup_manager.v1.cleanup.ListProvidersRequest
+	7,  // 25: vrooli.cleanup_manager.v1.cleanup.CleanupService.GetPolicy:input_type -> vrooli.cleanup_manager.v1.cleanup.GetPolicyRequest
+	9,  // 26: vrooli.cleanup_manager.v1.cleanup.CleanupService.SetPolicyProfile:input_type -> vrooli.cleanup_manager.v1.cleanup.SetPolicyProfileRequest
+	11, // 27: vrooli.cleanup_manager.v1.cleanup.CleanupService.ConfigureTemporaryRetention:input_type -> vrooli.cleanup_manager.v1.cleanup.ConfigureTemporaryRetentionRequest
+	15, // 28: vrooli.cleanup_manager.v1.cleanup.CleanupService.CreatePlan:input_type -> vrooli.cleanup_manager.v1.cleanup.CreatePlanRequest
+	20, // 29: vrooli.cleanup_manager.v1.cleanup.CleanupService.ApplyPlan:input_type -> vrooli.cleanup_manager.v1.cleanup.ApplyPlanRequest
+	23, // 30: vrooli.cleanup_manager.v1.cleanup.CleanupService.ListAudit:input_type -> vrooli.cleanup_manager.v1.cleanup.ListAuditRequest
+	27, // 31: vrooli.cleanup_manager.v1.cleanup.CleanupService.ReportPressure:input_type -> vrooli.cleanup_manager.v1.cleanup.ReportPressureRequest
+	29, // 32: vrooli.cleanup_manager.v1.cleanup.CleanupService.StartRecovery:input_type -> vrooli.cleanup_manager.v1.cleanup.RecoveryRunRequest
+	30, // 33: vrooli.cleanup_manager.v1.cleanup.CleanupService.WaitRecovery:input_type -> vrooli.cleanup_manager.v1.cleanup.RecoveryWaitRequest
+	31, // 34: vrooli.cleanup_manager.v1.cleanup.CleanupService.ListRecovery:input_type -> vrooli.cleanup_manager.v1.cleanup.RecoveryHistoryRequest
+	5,  // 35: vrooli.cleanup_manager.v1.cleanup.CleanupService.ListProviders:output_type -> vrooli.cleanup_manager.v1.cleanup.ListProvidersResponse
+	8,  // 36: vrooli.cleanup_manager.v1.cleanup.CleanupService.GetPolicy:output_type -> vrooli.cleanup_manager.v1.cleanup.GetPolicyResponse
+	10, // 37: vrooli.cleanup_manager.v1.cleanup.CleanupService.SetPolicyProfile:output_type -> vrooli.cleanup_manager.v1.cleanup.SetPolicyProfileResponse
+	12, // 38: vrooli.cleanup_manager.v1.cleanup.CleanupService.ConfigureTemporaryRetention:output_type -> vrooli.cleanup_manager.v1.cleanup.ConfigureTemporaryRetentionResponse
+	16, // 39: vrooli.cleanup_manager.v1.cleanup.CleanupService.CreatePlan:output_type -> vrooli.cleanup_manager.v1.cleanup.CreatePlanResponse
+	21, // 40: vrooli.cleanup_manager.v1.cleanup.CleanupService.ApplyPlan:output_type -> vrooli.cleanup_manager.v1.cleanup.ApplyPlanResponse
+	24, // 41: vrooli.cleanup_manager.v1.cleanup.CleanupService.ListAudit:output_type -> vrooli.cleanup_manager.v1.cleanup.ListAuditResponse
+	28, // 42: vrooli.cleanup_manager.v1.cleanup.CleanupService.ReportPressure:output_type -> vrooli.cleanup_manager.v1.cleanup.ReportPressureResponse
+	32, // 43: vrooli.cleanup_manager.v1.cleanup.CleanupService.StartRecovery:output_type -> vrooli.cleanup_manager.v1.cleanup.RecoveryRunResponse
+	32, // 44: vrooli.cleanup_manager.v1.cleanup.CleanupService.WaitRecovery:output_type -> vrooli.cleanup_manager.v1.cleanup.RecoveryRunResponse
+	33, // 45: vrooli.cleanup_manager.v1.cleanup.CleanupService.ListRecovery:output_type -> vrooli.cleanup_manager.v1.cleanup.RecoveryHistoryResponse
+	35, // [35:46] is the sub-list for method output_type
+	24, // [24:35] is the sub-list for method input_type
+	24, // [24:24] is the sub-list for extension type_name
+	24, // [24:24] is the sub-list for extension extendee
+	0,  // [0:24] is the sub-list for field type_name
 }
 
 func init() { file_storage_manager_v1_cleanup_cleanup_proto_init() }
@@ -2549,7 +2656,7 @@ func file_storage_manager_v1_cleanup_cleanup_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_storage_manager_v1_cleanup_cleanup_proto_rawDesc), len(file_storage_manager_v1_cleanup_cleanup_proto_rawDesc)),
 			NumEnums:      4,
-			NumMessages:   28,
+			NumMessages:   30,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

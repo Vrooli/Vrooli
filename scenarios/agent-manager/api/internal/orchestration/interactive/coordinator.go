@@ -242,6 +242,24 @@ func (c *Coordinator) Execute(ctx context.Context, run *domain.Run, p LaunchPara
 		return fmt.Errorf("interactive coordinator: substrate is not configured")
 	}
 
+	// Reserve the exact session relation durably before any Create submission.
+	// Retention can then join the starting run even before a response arrives.
+	expectedSessionID := uuid.NewSHA1(run.ID, []byte("agent-manager:interactive-session:v1")).String()
+	if run.WebConsoleSessionID != "" {
+		return fmt.Errorf("interactive launch already has a different session binding; recover that owner instead")
+	}
+	previous := run.WebConsoleSessionID
+	run.WebConsoleSessionID = expectedSessionID
+	if c.deps.Runs == nil {
+		run.WebConsoleSessionID = previous
+		return fmt.Errorf("interactive launch requires durable run owner")
+	}
+	if err := c.deps.Runs.Update(ctx, run); err != nil {
+		run.WebConsoleSessionID = previous
+		return fmt.Errorf("persist reserved interactive session: %w", err)
+	}
+	p.RequestedSessionID = expectedSessionID
+
 	res, err := c.deps.Substrate.Launch(ctx, p)
 	// Persist whatever the launch produced (session id at minimum) before acting
 	// on an error, so a discovery failure still leaves the session id durable.

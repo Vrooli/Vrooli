@@ -48,7 +48,12 @@ type Keys struct {
 // Ported from the old LoadJWTKeys/GenerateJWTKeys with the §8 corrections:
 // persistence failure is fatal (never silently regenerate), and the kid is
 // computed up front so it can ride the JWT header.
-func LoadOrGenerate(keyDir string) (*Keys, error) {
+func LoadOrGenerate(keyDir string) (*Keys, error) { return loadPersistedKeys(keyDir, true) }
+
+// LoadExisting preserves the auth owner's parser and never generates a key.
+// Finite owner startup requires its existing governed identity, not fallback.
+func LoadExisting(keyDir string) (*Keys, error) { return loadPersistedKeys(keyDir, false) }
+func loadPersistedKeys(keyDir string, allowGenerate bool) (*Keys, error) {
 	privateKeyPath := filepath.Join(keyDir, "private.pem")
 	publicKeyPath := filepath.Join(keyDir, "public.pem")
 
@@ -56,6 +61,9 @@ func LoadOrGenerate(keyDir string) (*Keys, error) {
 	if err != nil {
 		if !os.IsNotExist(err) {
 			return nil, fmt.Errorf("read private key %s: %w", privateKeyPath, err)
+		}
+		if !allowGenerate {
+			return nil, fmt.Errorf("existing signing key unavailable: %w", err)
 		}
 		return generateAndPersist(keyDir, privateKeyPath, publicKeyPath)
 	}

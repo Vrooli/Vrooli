@@ -1,6 +1,6 @@
 {
   "createdAt": "2026-09-18T20:00:00Z",
-  "description": "Retired pointer to the governed music-tools composition capability.",
+  "description": "Pointer to the governed music-tools composition capability.",
   "entry": "SKILL.md",
   "icon": "music",
   "id": "music-generation",

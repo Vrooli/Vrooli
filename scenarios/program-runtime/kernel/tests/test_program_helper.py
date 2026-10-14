@@ -127,6 +127,9 @@ def test_classify_message_covers_the_canon_table():
         "binding x is unreachable: y": ("unavailable", "scenario_unreachable"),
         "binding bridge unavailable: <urlopen error>": ("unavailable", "scenario_unreachable"),
         "dial tcp 127.0.0.1:1: connection refused": ("unavailable", "scenario_unreachable"),
+        'api-core discovery invalid_port scenario="notes" output="not a number"': ("unavailable", "scenario_unreachable"),
+        'invalid VROOLI_API_PORT "nope"': ("unavailable", "scenario_unreachable"),
+        'api-core discovery vrooli_not_found scenario="vrooli"': ("unavailable", "scenario_unreachable"),
         'destructive binding "x" requires an explicit grant': ("refused", "no_grant"),
         "manifest governance declares run_eligible=false": ("refused", "not_run_eligible"),
         "inference_spend_exceeded: ceiling=1": ("refused", "inference_spend_exceeded"),
@@ -208,6 +211,26 @@ def test_classify_never_relabels_a_missing_kernel_name():
         helper.classify(AttributeError("x"))
     assert helper.classify(RuntimeError("binding x is unreachable")) == ("unavailable", "scenario_unreachable")
     assert helper.classify(KeyError("rate")) == ("failed", "binding_error")
+
+
+def test_select_field_prefers_first_present_nonempty_across_name_variants():
+    helper = ProgramHelper()
+    row = {"programName": "x.y", "program_name": "", "count": 3}
+    assert helper.select_field(row, "program_name", "programName", default="") == "x.y"
+    assert helper.select_field(row, "missing", default="fallback") == "fallback"
+    assert helper.select_field({"k": ""}, "k", default="d") == "d"
+    assert helper.select_field(None, "k", default="d") == "d"
+    assert helper.select_field(["not", "a", "dict"], "k", default="d") == "d"
+
+
+def test_coerce_int_and_float_fall_back_on_bad_values():
+    helper = ProgramHelper()
+    assert helper.coerce_int("7") == 7
+    assert helper.coerce_int(None) == 0
+    assert helper.coerce_int("nope", default=-1) == -1
+    assert helper.coerce_float("1.5") == 1.5
+    assert helper.coerce_float(None) == 0.0
+    assert helper.coerce_float("x", default=2.0) == 2.0
 
 
 def test_inputs_reads_the_injected_value_or_an_empty_dict():

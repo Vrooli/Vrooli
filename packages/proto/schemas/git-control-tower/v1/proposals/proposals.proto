@@ -36,6 +36,9 @@ service ProposalService {
   rpc ListProposals(ListProposalsRequest) returns (ListProposalsResponse);
   // Reads one proposal with live freshness.
   rpc GetProposal(GetProposalRequest) returns (GetProposalResponse);
+  // Reads the immutable captured diff, independent of working-tree drift.
+  // Explicitly combines reviewed source revisions without adopting live bytes.
+  rpc CombineProposals(CombineProposalsRequest) returns (GetProposalResponse);
   // Changes the message or drops files, creating a new revision.
   rpc EditProposal(EditProposalRequest) returns (EditProposalResponse);
   // Withdraws an open proposal. History is kept.
@@ -152,6 +155,28 @@ message ProposalWork {
   repeated string run_ids = 4;
   // Plan Manager plan IDs or slugs, optionally with "#phase-<n>".
   repeated string plans = 5;
+  // Earlier epochs whose open proposals this one folded, oldest first.
+  repeated string folded_epochs = 6;
+}
+
+// An earlier open proposal of the same effort that a newer proposal folded
+// in. The folded proposal stays in history as superseded.
+message ProposalFold {
+  // Folded proposal ID.
+  // @example "gctp-3f9a1c2b7d4e"
+  string id = 1;
+  // Epoch label of the folded proposal.
+  // @example "E28"
+  string epoch = 2;
+  // Commit subject of the folded proposal.
+  string subject = 3;
+  // Why it was folded, for example shared paths or drift.
+  string reason = 4;
+  // The folded proposal's file paths.
+  repeated string paths = 5;
+  int32 revision = 6;
+  string effort_ref = 7;
+  ProposalEvidence evidence = 8;
 }
 
 // One commit-message trailer.
@@ -233,6 +258,10 @@ message ProposalFile {
   string current_blob_id = 8;
   // True when the current content differs from blob_id.
   bool drifted = 9;
+  // Effective Git file modes; empty means absent (deletion or new-file base).
+  string mode = 10;
+  string base_mode = 11;
+  string base_blob_id = 12;
 }
 
 // A changed path in the anchor scope that the proposal does not include.
@@ -339,6 +368,15 @@ message Proposal {
   google.protobuf.Timestamp updated_at = 20;
   // Commit time when committed.
   google.protobuf.Timestamp committed_at = 21;
+  // Explicit source manifests. Legacy automatically folded records remain readable.
+  repeated ProposalFold folds = 22;
+  // True only when every file has retained candidate and base content.
+  bool captured = 23;
+  // Available retained payloads, including the current revision; never inferred.
+  repeated int32 retained_revisions = 24;
+  // Live registry identity of the destination repository.
+  string repository_name = 25;
+  string repository_path = 26;
 }
 
 // A file recorded by an anchor.
@@ -351,6 +389,8 @@ message AnchorFile {
   string blob_id = 3;
   // True when the path was deleted in the working tree.
   bool deleted = 4;
+  // Effective Git mode at admission; empty on older anchors.
+  string mode = 5;
 }
 
 // Dirty files in a scope at epoch admission.
@@ -431,8 +471,9 @@ message CreateProposalResponse {
   repeated TrailerIssue issues = 2;
   // True when the proposal was stored.
   bool stored = 3;
-  // Open proposal this one superseded, if any.
-  string superseded_id = 4;
+  // Automatic folding was retired. Source disposition is explicit in Combine.
+  reserved 4, 5;
+  reserved "superseded_id", "superseded_ids";
 }
 
 // Request to list proposals.
@@ -459,6 +500,19 @@ message ListProposalsResponse {
 message GetProposalRequest {
   // Proposal ID.
   string id = 1;
+  // Zero selects the current revision; nonzero reads an immutable revision.
+  int32 revision = 2;
+}
+
+message ProposalRevisionReference {
+  string id = 1;
+  int32 revision = 2;
+}
+
+message CombineProposalsRequest {
+  repeated ProposalRevisionReference sources = 1;
+  string subject = 2;
+  string body = 3;
 }
 
 // One proposal.
@@ -499,6 +553,9 @@ message WithdrawProposalRequest {
   string id = 1;
   // Reason recorded in history.
   string reason = 2;
+  int32 expected_revision = 3;
+  // Optional existing proposal that explicitly replaces this one.
+  string replacement_id = 4;
 }
 
 // Result of a withdrawal.
@@ -536,6 +593,11 @@ message ApplyProposalRequest {
   int32 revision = 4;
   // Skip the configured pre-commit check for this commit only.
   bool skip_precommit_once = 5;
+  // Explicit inclusion of uncertain prior work in the reviewed revision.
+  bool acknowledge_prior_work = 6;
+  // Commit retained proposal bytes while preserving later working edits.
+  // Bound to the approval intent; different staged versions still refuse.
+  bool keep_later_changes = 7;
 }
 
 // Why apply refused. Nothing was staged or committed.

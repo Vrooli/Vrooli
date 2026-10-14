@@ -62,10 +62,13 @@ func (r *recordingSessions) callLog() []string {
 	return out
 }
 
-func (r *recordingSessions) CreateSession(context.Context, webconsole.CreateSessionParams) (string, error) {
+func (r *recordingSessions) CreateSession(_ context.Context, params webconsole.CreateSessionParams) (string, error) {
 	r.record("create")
 	if r.onCreate != nil {
 		r.onCreate()
+	}
+	if params.RequestedSessionID != "" {
+		return params.RequestedSessionID, nil
 	}
 	return "created", nil
 }

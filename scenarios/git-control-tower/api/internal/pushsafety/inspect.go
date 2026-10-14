@@ -49,6 +49,10 @@ type Report struct {
 	Fingerprint    string   `json:"fingerprint"`
 	CanPrepare     bool     `json:"can_prepare"`
 	RecoveryReason string   `json:"recovery_reason"`
+	// Total outgoing blob bytes and the largest single blob. Uncompressed upper bound,
+	// used to show usage against the per-file limit; the packed transfer is smaller.
+	OutgoingBytes   int64 `json:"outgoing_bytes"`
+	LargestBlobBytes int64 `json:"largest_blob_bytes"`
 }
 
 func gitString(ctx context.Context, c Commands, repo string, args ...string) (string, error) {
@@ -154,9 +158,15 @@ func Inspect(ctx context.Context, c Commands, repo, remote, branch string) Repor
 		if e != nil || n < 0 {
 			return fail("Outgoing object size is invalid.")
 		}
-		if f[1] == "blob" && n > WarningBytes {
-			large[f[0]] = len(r.Files)
-			r.Files = append(r.Files, File{OID: f[0], Bytes: n, Blocked: r.Limit > 0 && n > r.Limit})
+		if f[1] == "blob" {
+			r.OutgoingBytes += n
+			if n > r.LargestBlobBytes {
+				r.LargestBlobBytes = n
+			}
+			if n > WarningBytes {
+				large[f[0]] = len(r.Files)
+				r.Files = append(r.Files, File{OID: f[0], Bytes: n, Blocked: r.Limit > 0 && n > r.Limit})
+			}
 		}
 	}
 	if len(expected) > 0 {

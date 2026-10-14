@@ -9,9 +9,9 @@ metadata:
   tags: [orchestration, multi-agent, effort, epochs, continuity, recovery]
   icon: network
   status: active
-  revision: 28
+  revision: 29
   createdAt: "2026-09-10T00:00:00Z"
-  updatedAt: "2026-10-07T19:20:00Z"
+  updatedAt: "2026-10-12T00:26:09Z"
   requires:
     scenarios: [prompt-manager, agent-manager]
     commands: [prompt-manager skill read, agent-manager]
@@ -152,6 +152,16 @@ change writes nothing and parks again.
 line. `agent-manager run continue <worker run ID> --message "..."` also types the
 text into a running session; the Directives section stays the record.
 
+Apply an amendment to the next authorized dispatch or continuation it affects.
+Before claiming the amended outcome delivered, verify that the brief, directive
+acknowledgment, and installed completion predicate agree about its requirements
+and source pointers. A continuation message does not prove the predicate changed.
+Use the existing native amendment route. If it cannot synchronize the affected
+continuation, record the exact constraint and carry the requirement into the next
+properly admitted assignment. Do not rewrite historical accepted goals or restart
+a run merely to manufacture agreement. Missing source-load receipts establish
+uncertainty, not noncompliance.
+
 **Operator and supervisor feedback.** Record it verbatim in `FEEDBACK.md` (open
 items at the top), then translate it into directives or brief amendments. Workers
 see only those. This is the only feedback path. Whoever adds an entry while the
@@ -240,13 +250,23 @@ Accept an epoch only when all of these hold:
 - the growth budget is met and every deletion-list item has reached its stated
   end state, checked item by item (file absent, symbol gone, size), with no
   remaining callers or matches (`improvement-do-and-dont` D7);
-- test changes follow the test rules the worker card links: no new duplicate fakes,
-  sleeps for state, or tests of private helpers, and any net test growth is
-  explained by behavior newly covered;
+- test changes follow the authoring rules the worker card links: retire obsolete
+  checks and inert support, preserve unique protection and valid helper/lifecycle
+  and special-kind oracles, keep domain-local builders/fakes local, and share
+  suitable mechanics. Avoid unexplained duplicate setup and sleeps used as
+  evidence of completion. Explain net test growth by a concrete gain in
+  protection, qualification, isolation, or readability. Scale evidence to the
+  effect under `path:docs/TESTING.md`; counts and lines alone prove no improvement;
 - validation targets marked `required` pass;
 - selected source/material versions remain accessible and mapped for the epoch;
   any required visual gate uses the actual-build comparison evidence in §6.1;
 - `epoch-check` reports no unacknowledged directive.
+
+Record justified retention as assessment complete, not simplification delivered.
+Record an implemented change with proportionate evidence as delivered, not yet
+independently accepted. Acceptance closes the scoped outcome; it does not prove
+fleet adoption or completion of the whole goal. Preserve material gaps beside the
+affected claim.
 
 Rerun the gate yourself; a worker's report is not evidence. The `QUEUE.md` slice
 is done only when its whole deletion list is done. If you accept an epoch with

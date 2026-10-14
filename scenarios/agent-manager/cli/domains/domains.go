@@ -121,12 +121,47 @@ func effortGroup(deps support.Dependencies) cliapp.SubcommandGroup {
 		[2]string{"park", "Park the orchestrator for as long as goal state allows (exit 4 when refused)"},
 		[2]string{"signals", "Read an effort's signal log after a cursor (check-in dispatch input)"},
 		[2]string{"signal", "Record a feedback or step_back signal for an effort"},
-		[2]string{"decision", "Raise, answer, list or sync operator decisions of a goal home"})
+		[2]string{"decision", "Raise, answer, list or sync operator decisions of a goal home"},
+		[2]string{"exact-setup", "Stage, inspect, activate or revoke protected native exact authority"},
+		[2]string{"exact-reconcile", "Submit one exact metadata mutation with existing native identity"},
+		[2]string{"exact-receipt", "Read an immutable receipt under its original standing grant"})
 	group.DefaultSubcommand = "board"
 	types := map[string]string{"enroll": "EnrollEffortRequest", "reconcile-metadata": "ReconcileEffortMetadataRequest", "withdraw": "WithdrawEffortRequest"}
 	offline := false
 	for i := range group.Subcommands {
 		command := &group.Subcommands[i]
+		if command.Name == "exact-setup" || command.Name == "exact-reconcile" || command.Name == "exact-receipt" {
+			name := command.Name
+			command.Run = nil
+			command.RunCtx = func(ctx cliapp.RunContext) error {
+				args := []string{name}
+				if name == "exact-setup" {
+					args = append(args, ctx.Positional("action"))
+				}
+				for _, flag := range []string{"request-file", "grant"} {
+					if value := ctx.Flag(flag); value != "" {
+						args = append(args, "--"+flag, value)
+					}
+				}
+				if name == "exact-setup" && ctx.BoolFlag("local-owner") {
+					args = append(args, "--local-owner")
+				}
+				return deps.Effort(args)
+			}
+		}
+		if command.Name == "exact-setup" {
+			command.Usage = "agent-manager effort exact-setup <stage|activate|revoke|status> [--request-file public.json | --grant id] [--local-owner]"
+			command.Args.Positionals = []cliapp.Positional{{Name: "action", Required: true, Description: "stage, activate, revoke or status"}}
+			command.Args.Flags = []cliapp.Flag{{Name: "request-file", LocalOnly: true, Description: "Typed public request for stage, activate or revoke"}, {Name: "grant", LocalOnly: true, Description: "Original grant ID for status"}, {Name: "local-owner", Bool: true, LocalOnly: true, Description: "Explicit local human exchange; unavailable inside identified agent runs"}}
+			command.HelpText = "Requires independently verified operator authority. Stage is inactive; activate additionally requires the Site key-possession proof. Status recovers the original approval without changing identity. Optional --local-owner exchanges the existing local binding for this request only, after input validation; refusal is terminal. Setup requests refuse redirects, which leave the original mutation outcome unconfirmed."
+			continue
+		}
+		if command.Name == "exact-reconcile" || command.Name == "exact-receipt" {
+			command.Usage = "agent-manager effort " + command.Name + " --request-file request.json --grant id"
+			command.Args.Flags = []cliapp.Flag{{Name: "request-file", Required: true, LocalOnly: true, Description: "Bounded typed request; receipt reads retain original executor and payload"}, {Name: "grant", Required: true, LocalOnly: true, Description: "Original owner-installed standing grant ID"}}
+			command.HelpText = "Keeps this process alive between public challenge output and bounded signed proof on stdin. Existing native identity is pinned and rechecked; a broker refusal or credential change prevents submission."
+			continue
+		}
 		command.Args.Flags = []cliapp.Flag{{Name: "json", Bool: true, LocalOnly: true, Description: "Print the typed RPC response as JSON"}}
 		command.Usage = "agent-manager effort " + command.Name + " [--json]"
 		if command.Name == "compact" {

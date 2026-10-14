@@ -238,7 +238,7 @@ export default function App() {
   // preflight fetch, which runs before the mutation starts, is also visibly in progress.
   const [syncActivity, setSyncActivity] = useState<SyncActivity | null>(null);
   const [syncElapsedMs, setSyncElapsedMs] = useState(0);
-  const { notify, notifySync } = useNotifications();
+  const { notify, notifySync, updateSync } = useNotifications();
   const [isUpstreamInfoOpen, setIsUpstreamInfoOpen] = useState(false);
   // File search state
   const [isFileSearchOpen, setIsFileSearchOpen] = useState(false);
@@ -496,6 +496,9 @@ export default function App() {
 
   // Queries
   const healthQuery = useHealth();
+  useEffect(() => {
+    if (healthQuery.isSuccess && !performance.getEntriesByName("app-interactive").length) performance.mark("app-interactive");
+  }, [healthQuery.isSuccess]);
   const authorityQuery = useQuery<AuthorityStatus>({
     queryKey: ["authority-status"],
     queryFn: fetchAuthorityStatus,
@@ -615,17 +618,29 @@ export default function App() {
   }, [syncActivity, syncElapsedMs]);
 
   // The sync toast carries progress too, so the transfer stays legible from anywhere in
-  // the app — not only from the button that started it. It re-pushes under one id, so
-  // progress and result are the same notice changing rather than a pile of them.
+  // the app — not only from the button that started it. One notice per activity+phase is
+  // pushed; the per-second elapsed changes only `update` it. That way dismissing the toast
+  // sticks (update is a no-op once it's gone) instead of it reopening on every tick, while
+  // a genuine phase change or result still surfaces a fresh notice.
+  const syncToastKeyRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!syncActivity || !syncProgressLabel) return;
+    if (!syncActivity || !syncProgressLabel) {
+      syncToastKeyRef.current = null;
+      return;
+    }
+    const key = `${syncActivity.kind}:${syncActivity.phase}:${syncActivity.startedAt}`;
+    if (syncToastKeyRef.current === key) {
+      updateSync({ message: syncProgressLabel });
+      return;
+    }
+    syncToastKeyRef.current = key;
     notifySync({
       tone: "info",
       title: syncActivity.kind === "push" ? "Pushing to remote" : "Pulling from remote",
       message: syncProgressLabel,
       durationMs: STICKY
     });
-  }, [notifySync, syncActivity, syncProgressLabel]);
+  }, [notifySync, updateSync, syncActivity, syncProgressLabel]);
 
   useMutationErrorToasts([
     { label: "Stage files", error: stageMutation.error, reset: stageMutation.reset },

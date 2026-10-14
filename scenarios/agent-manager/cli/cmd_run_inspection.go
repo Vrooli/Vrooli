@@ -57,11 +57,13 @@ func (a *App) runReport(args []string) error {
 			Diagnostics []string `json:"diagnostic_codes"`
 		} `json:"result"`
 		Tools []struct {
-			Name       string `json:"name"`
-			Calls      int    `json:"calls"`
-			Successes  int    `json:"successes"`
-			Failures   int    `json:"failures"`
-			Unresolved int    `json:"unresolved"`
+			Name           string `json:"name"`
+			Calls          int    `json:"calls"`
+			Successes      int    `json:"successes"`
+			Failures       int    `json:"failures"`
+			Unresolved     int    `json:"unresolved"`
+			Returned       int    `json:"returned"`
+			UnknownOutcome int    `json:"unknown_outcome"`
 		} `json:"tools"`
 		Events       map[string]int `json:"event_counts"`
 		ReceiptCount int            `json:"receipt_count"`
@@ -93,7 +95,7 @@ func (a *App) runReport(args []string) error {
 	fmt.Printf("Tools: project-owned=%d external=%d | model: requested=%s actual=%s fallbacks=%d\n", r.Project, r.External, r.Requested, r.Actual, r.Fallbacks)
 	fmt.Printf("Efficiency: repeated tool calls=%d files reread=%d longest event gap=%s\n", r.Repeated, r.Rereads, (time.Duration(r.Longest) * time.Millisecond).Round(time.Millisecond))
 	for _, tool := range r.Tools {
-		fmt.Printf("  %s: calls=%d success=%d failed=%d unresolved=%d\n", tool.Name, tool.Calls, tool.Successes, tool.Failures, tool.Unresolved)
+		fmt.Printf("  %s: calls=%d returned=%d success=%d failed=%d unknown=%d unresolved=%d\n", tool.Name, tool.Calls, tool.Returned, tool.Successes, tool.Failures, tool.UnknownOutcome, tool.Unresolved)
 	}
 	keys := make([]string, 0, len(r.Events))
 	for key := range r.Events {
@@ -340,11 +342,13 @@ func (a *App) runTools(args []string) error {
 		Project  int `json:"project_owned_tool_calls"`
 		External int `json:"external_tool_calls"`
 		Tools    []struct {
-			Name       string `json:"name"`
-			Calls      int    `json:"calls"`
-			Successes  int    `json:"successes"`
-			Failures   int    `json:"failures"`
-			Unresolved int    `json:"unresolved"`
+			Name           string `json:"name"`
+			Calls          int    `json:"calls"`
+			Successes      int    `json:"successes"`
+			Failures       int    `json:"failures"`
+			Unresolved     int    `json:"unresolved"`
+			Returned       int    `json:"returned"`
+			UnknownOutcome int    `json:"unknown_outcome"`
 		} `json:"tools"`
 	}
 	if err := json.Unmarshal(reportBody, &report); err != nil {
@@ -352,7 +356,7 @@ func (a *App) runTools(args []string) error {
 	}
 	fmt.Printf("Tool calls: project-owned=%d external=%d\n", report.Project, report.External)
 	for _, tool := range report.Tools {
-		fmt.Printf("%s: calls=%d success=%d failed=%d unresolved=%d\n", tool.Name, tool.Calls, tool.Successes, tool.Failures, tool.Unresolved)
+		fmt.Printf("%s: calls=%d returned=%d success=%d failed=%d unknown=%d unresolved=%d\n", tool.Name, tool.Calls, tool.Returned, tool.Successes, tool.Failures, tool.UnknownOutcome, tool.Unresolved)
 	}
 	body, events, err := a.services.Runs.GetEvents(id, 0, nil)
 	if err != nil {
@@ -364,11 +368,11 @@ func (a *App) runTools(args []string) error {
 			continue
 		}
 		result := event.GetToolResult()
-		if *failed && (result == nil || result.GetSuccess()) {
+		if *failed && toolResultOutcome(result) != "failure" {
 			continue
 		}
 		if result != nil {
-			fmt.Printf("%d result %s success=%t error=%s\n", event.GetSequence(), result.GetToolName(), result.GetSuccess(), result.GetError())
+			fmt.Printf("%d result %s outcome=%s error=%s\n", event.GetSequence(), result.GetToolName(), toolResultOutcome(result), result.GetError())
 		} else if call := event.GetToolCall(); call != nil {
 			fmt.Printf("%d call %s\n", event.GetSequence(), call.GetToolName())
 		}
@@ -489,4 +493,25 @@ func (a *App) runReceipts(args []string) error {
 	}
 	support.NextSteps(fmt.Sprintf("agent-manager run report %s", id), fmt.Sprintf("agent-manager run events %s", id))
 	return nil
+}
+
+// toolResultOutcome projects the public wire facts without treating an observed
+// return with explicitly unknown outcome as a failed invocation.
+func toolResultOutcome(result *domainpb.ToolResultEventData) string {
+	if result == nil {
+		return "unknown"
+	}
+	if result.ExitCode != nil {
+		if *result.ExitCode == 0 {
+			return "success"
+		}
+		return "failure"
+	}
+	if result.OutcomeKnown != nil && !*result.OutcomeKnown {
+		return "unknown"
+	}
+	if result.Success && strings.TrimSpace(result.Error) == "" {
+		return "success"
+	}
+	return "failure"
 }

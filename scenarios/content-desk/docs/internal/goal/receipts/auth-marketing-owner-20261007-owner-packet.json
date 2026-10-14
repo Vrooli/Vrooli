@@ -1,0 +1,212 @@
+{
+  "observedUTC": "2026-10-07T17:04:19.801871+00:00",
+  "scope": "Read-only Marketing owner coordination; no source/runtime/credential/grant/admission changes",
+  "productApprovalPreserved": "Sentinel_7062584135208191865fc82f43a4ded8; complete approved Marketing outcome, no design reapproval",
+  "answers": [
+    {
+      "number": 1,
+      "topic": "Authoritative effort",
+      "declaredID": "effort:marketing-I16",
+      "state": "ABSENT_AT_EXACT_DOCUMENTED_NATIVE_READ",
+      "freshRead": "exact-effort.json",
+      "response": "404 effort control revision not found\n",
+      "primaryFileObservation": {
+        "root": "/home/matthalloran8/.vrooli/data/vrooli/swarm-manager/effort-control",
+        "jsonRecords": 0,
+        "exactFileAbsent": true,
+        "limit": "Primary directory observation; not proof that no other namespace or record exists."
+      },
+      "alternativeObserved": {
+        "ref": "effort:1bd13306-f16d-4545-a974-06d74af4389b",
+        "source": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/aquila-marketing-capability-maturity-2026-09-17/effort.json",
+        "stage": "workshop",
+        "execution": "not-approved",
+        "approval_ref": null,
+        "decision": "Different older outcome; not authoritative accepted I16 record. Do not rename or reuse."
+      },
+      "nativeRevision": null,
+      "authorityDigest": null,
+      "acceptanceGeneration": null,
+      "nextOwnerAction": "Existing native effort owner must confirm canonical ID and recover an existing reviewed EffortControl or prepare exact owner-reviewed first admission through POST /api/v1/efforts/{effortID}; no create/accept performed or authorized by this read-only request."
+    },
+    {
+      "number": 2,
+      "topic": "Target and DevelopmentOwner setup",
+      "availableSourceSeams": [
+        "backlog.NewFiniteCommissionOwner(handler, immutable targets)",
+        "backlog.NewDevelopmentOwner(finiteOwner, immutable DevelopmentContract table, concrete evidence owner)",
+        "NewServerWithDevelopmentOwner(scenarioRoot, owner)"
+      ],
+      "privateReadStartup": "VROOLI_FINITE_OWNER_PHASE=commission selects /etc/vrooli/finite-startup/acceptance.json, via finiteinstallation.Load(acceptance) and PrepareFiniteReadPublication; binds actual backlog owner and publishes ONLY protected finite acceptance read. It does not install DevelopmentOwner or create/approve an effort. No selector set here.",
+      "actualPublicSetupIngress": "NO DevelopmentOwner provisioning endpoint or ordinary main composition identified. Ordinary NewServer supplies nil DevelopmentOwner; acceptance loader does not change that. Typed constructor is a source seam, not a deployed operator action.",
+      "supportedReadWhenInstalled": "POST /vrooli.swarm_manager.v1.api.DevelopmentService/GetDevelopment with effortId through already verified swarm-manager:read owner/enrolled reader channel; no probe attempted without proof.",
+      "ownerBindingRequired": [
+        "verified human subject/source/issuer/realm matching installed exact owner; write also needs swarm-manager:write",
+        "CommissionSubject: owner,effort,revision,contentDigest,repository,team,members,teamDigest,bindingDigest,complete profile digests",
+        "workShape bounded-authority uses retained EffortControl authorityDigest; plan-backed also needs exact backlog kind/name and actual accepted plan/content frontier",
+        "absolute clean SourceRoot/RetainedRoot, entire approved criterion denominator, <=64 direct artifact records <=512KiB each: ID/path/SHA/bytes/media/capture/snapshotDigest",
+        "concrete product/evidence owner exclusion for positive Accept; generic hashes are not custody"
+      ],
+      "verifiedOwnerData": "UNKNOWN; transcript approval and display names are not verified native security principal",
+      "targetKindName": "UNRESOLVED; bounded-authority is supported but only proposed; no actual accepted plan found",
+      "revisionGenerationArtifactSnapshotBindings": "UNRESOLVED; retain nulls. Candidate hashes are not native snapshot digests.",
+      "nextOwnerAction": "Native AUTH/setup owner must identify an existing supported non-dispatch composition for the full DevelopmentContract or name the missing bounded source integration; prepare current verified owner/target/artifact records before human native commission consent."
+    },
+    {
+      "number": 3,
+      "topic": "Complete read contracts and effective policy",
+      "publicMetadataReads": [
+        "GET /api/v1/profiles/01ed3efc-aff6-44c7-b77c-0c548d56d1c9",
+        "GET /api/v1/profiles/4c19aef1-36a2-4cc5-8961-42648692883b",
+        "POST /vrooli.prompt_manager.v1.teams.TeamsService/GetTeam {id:marketing-i16-delivery}",
+        "POST /vrooli.prompt_manager.v1.heartbeat.HeartbeatService/ListHeartbeats {teamId:marketing-i16-delivery}",
+        "GET /api/v1/role-policy/status",
+        "GET /api/v1/role-policy/catalog"
+      ],
+      "protectedNonDispatchReads": {
+        "profile": "AM POST /internal/finite-effort/v1/profile/check {binding,key}; actual owner hashes complete persisted profile, returns ID/key/digest",
+        "commission": "PM POST /internal/finite-effort/v1/scope/commission/check {binding}; validates disabled authored team + finite heartbeat + membership + native profiles + acceptance, returns policyDigest",
+        "acceptance": "Swarm POST /internal/finite-effort/v1/acceptance/check {binding}; exact currently accepted subject and generation",
+        "liveScope": "PM POST /internal/finite-effort/v1/scope/check {binding}; additionally requires enabled team/heartbeat, not commissioning readiness"
+      },
+      "privateReadRequirements": "Exact previously enrolled mTLS peer + installed immutable policy/binding/grant/pins, protected publication; human/run/finite-proof headers refused. No ad hoc local digest of REST projections is a replacement.",
+      "digestDefinitions": {
+        "profile": "AM EffortProfileDigest complete persisted object",
+        "team": "Digest(team.Contract()) at actual PM owner",
+        "binding": "Digest(actual heartbeat.FiniteLeader) at actual PM owner",
+        "policy": "Digest(full exact installed policy), after current owner checks"
+      },
+      "currentProfileDigestState": "UNKNOWN protected native values; REST source/applied hashes do not supply them",
+      "heartbeatBindingState": "ABSENT in preserved native read; no valid bindingDigest until an actual disabled heartbeat exists",
+      "freshActiveRoleCatalog": {
+        "digest": "sha256:a34cb8ef50dfb3a9540ed0c5997e3563e32dc216c8cda152a7cf8c30fb94f6cb",
+        "role": {
+          "role_ref": "code.economy.delivery",
+          "intent": "economical sustained delivery",
+          "description": "Economical delivery coordination and implementation on the Codex subscription; campaign profiles require medium effort.",
+          "candidates": [
+            {
+              "runner_type": "RUNNER_TYPE_CODEX",
+              "resource_role": "code.delivery"
+            }
+          ]
+        }
+      },
+      "resourceSourcePolicy": {
+        "path": "resources/codex/model-policy.json",
+        "sha256": "17c984eca6d24caf23fc1d15d8a428735aaaa9bac75d074ecd5ae78f85605181",
+        "selection": {
+          "model": "gpt-6-luna",
+          "canonical_model": "codex/gpt-6-luna",
+          "models": [
+            {
+              "model": "gpt-6-luna",
+              "source": "codex-subscription",
+              "effort": "medium"
+            }
+          ],
+          "fallbacks": [],
+          "description": "Economical GPT-6 Luna medium delivery using the installed Codex runner. No premium, metered or provider fallback. Campaign activation still requires the accepted pilot.",
+          "capabilities": [
+            "code",
+            "tools",
+            "reasoning"
+          ]
+        },
+        "limit": "File-backed declared resource policy, not a fresh native resolved-run/effective-policy qualification. Canonical orchestrator high differs from delivery medium; resolve under existing native owner, no role/policy expansion."
+      },
+      "finiteCeilings": {
+        "perRunSeconds": 3600,
+        "windowSeconds": 28800,
+        "maxStarts": 8,
+        "maxConcurrent": 1,
+        "perRunTurns": 32,
+        "perRunToolCalls": 100,
+        "aggregateTurns": 256,
+        "aggregateToolCalls": 800
+      },
+      "compatibilityFindings": [
+        "Existing profiles have43200s timeout; finite narrowEffortConfig takes min(profile/resolved timeout, policy maxRunSeconds, remaining deadline). No profile widening required; 12h must not be promised for finite run.",
+        "Current live PrepareFiniteInstallationWithUnitOwner requires exactly ONE manifest binding and ONE policy profile. Requested orchestrator+epoch-worker two-profile live topology is not qualified by the current owner. Do not drop a required profile or split identities/policies to bypass the refusal.",
+        "Public checkEffortContinuation refuses when the finite native factory is enabled; the full large-effort park/wake/continue topology is not qualified. This source predicate is not a newly attempted admission or proof about every private lifecycle seam.",
+        "Generic worker no-per-turn/tool-caps language cannot override existing finite ceilings. No complete Marketing execution policy has been chosen or qualified."
+      ],
+      "compatibilityEvidenceKind": "Source-observed constraints, not attempted native admission denials"
+    },
+    {
+      "number": 4,
+      "topic": "Existing identities and confirmation-required setup",
+      "reusableVerifiedMetadata": {
+        "team": "marketing-i16-delivery disabled, one coordinator, no heartbeat; reuse rather than duplicate",
+        "profiles": {
+          "prompt-manager/delivery-orchestrator": "01ed3efc-aff6-44c7-b77c-0c548d56d1c9",
+          "prompt-manager/delivery-epoch-worker": "4c19aef1-36a2-4cc5-8961-42648692883b"
+        }
+      },
+      "humanProof": "UNKNOWN existing verified native human channel/source/subject/issuer/realm; cannot infer from approval transcript",
+      "tlsAndPurposeReuse": "UNKNOWN actual existing handles. Source supports ca.Default Resolve of exact existing role server/client identities in finite-startup-tls-v1; usage/role/policyDigest/certificate chain+pin+expiry must match. Issuer uses existing eligible finite-specific purpose identity/handle/client public key and ExistingJWTKID; no raw signing key, generic JWT signer or receipt signer substitution. Missing handles or peer grants are a precise setup gap, not permission to create.",
+      "confirmationRequiredOnceConcrete": [
+        "Install four non-secret root-owned role bundles /etc/vrooli/finite-startup/{am,pm,issuer,acceptance}.json (regular,one link,0444/0644; no symlink; protected root ancestors), with exact current build hashes, policies/endpoints/peer mappings and references to already authorized existing handles.",
+        "Publish protected AM profile, Swarm acceptance and PM commissioning reads through scoped existing lifecycle owners; this changes listeners/runtime even with team disabled. Ordinary constructors do not authorize startup.",
+        "Verified human native ApproveDevelopment RPC consent for exact current reference/expectedGeneration after DevelopmentOwner setup; AcceptFiniteCommission is a typed internal owner method, not an identified public setup endpoint. Product design approval is retained, not repeated; native consent is a separate security consequence.",
+        "Live phase deploy/restart, issuer purpose acquisition/publication, exact physical isolation/bootstrap/continuing witness and fixed-unit operation evidence; then separately finite team/heartbeat enablement and admission.",
+        "Any genuinely missing identity, credential, purpose eligibility, peer grant or access addition remains separately confirmation-required and outside this request."
+      ],
+      "currentRootMetadata": "/etc/vrooli/finite-startup absent; no bundles or credential contents acquired",
+      "actionsPerformed": "NONE of the protected setup, consent, enablement or execution actions"
+    },
+    {
+      "number": 5,
+      "topic": "379-path source versus runtime",
+      "sourceReceipt": "../strict-artifact-current-source-consumer-pins.json",
+      "sourceQualification": "Historical cumulative379, not a unified deployed build. Latest Test Genie readstage focused20 top-level/66 passrecords/3packages; prior UI3142/309, unchanged85% floors. No source/runtime test performed in this coordination task.",
+      "currentSourceReconciliation": [
+        {
+          "path": "packages/proto/gen/descriptor/image.binpb",
+          "qualifiedSHA256": "80439dc2c137d33f7cce62d8e531d56d1e44bc614ea59dbfb37b5c6f8fb4c943",
+          "currentSHA256": "d7df1a397ddb582a925efb1d4b43e157738d0353a5ed3cd662c645a77cf852c1"
+        }
+      ],
+      "original79ArtifactPinsUnchanged": true,
+      "protectedLoaderSource": "Four API loaders and packages/finiteinstallation are currently present; old379 receipt does not establish their build/test/installation qualification. Return their owning current qualification receipt before any adoption.",
+      "freshHealthBuildIDs": {
+        "am": "sha256:4ec4d5a106f7f6e04fcfc389f747e0916224c00867d93a93072083a727034eac",
+        "pm": "sha256:6cc59ba0b2da9837ada7dd024ed957530e49c59a4e54385babe2c5e2a8c31d8f",
+        "swarm": "sha256:13f108a3131c71bc6b549153e5b80d5bf1f9351e0e89aae23516d0a28c4989ba",
+        "issuer": "sha256:c092ef1b54b5f27a5a6056227edb4b2c1b389f57b19bc3bbacff29185c399477"
+      },
+      "runtimeMeaning": "Health-self-reported build identities only; does not prove installed protected routes, peer grants, acceptance, continuing isolation, live migration or provenance from the379 source epoch.",
+      "heldGates": [
+        "Exact native effort/accepted owner subject and generation",
+        "Actual DevelopmentOwner startup composition/current source+artifact/native snapshot bindings",
+        "Complete native profile/team/disabled-heartbeat/binding/policy digests and two-profile/continuation/ceiling compatibility",
+        "Current four-role immutable builds and loader qualification; current generated descriptor owner parity",
+        "Existing eligible human/TLS/purpose handles and already authorized exact peer mappings",
+        "Explicit scoped protected runtime publication/deployment and physical isolation qualification",
+        "Live supported caller migration, later enabled finite team/heartbeat and exact admitted run evidence"
+      ],
+      "denialDisposition": "Prior AUTH protobuf verifier retry denial remains STOPPED; shared descriptor change by other work is not permission to retry, regenerate or requalify dependent consumers. Exact prior response preserved."
+    }
+  ],
+  "protocol25to26": {
+    "basis": "Canonical repository SKILL.md revision26 versus git HEAD exact revision25; full diff retained in orchestration-25-to-26.diff",
+    "changes": [
+      "Redesign slices when no large dead/duplicate code remains; only operator retires live features.",
+      "Outside-owner remainders explicitly under Waiting on others with return condition; preserve whole-effort obligation.",
+      "Supervisor wake also every third acceptance and new Needs operator, at most one event wake per schedule window.",
+      "If nothing admissible, plan first; all-blocked path writes Needs operator options/recommendation, wakes supervisor once, parks72h rather than12h.",
+      "One replaced Handoff section, timer-no-change writes nothing; resume files under30KiB with archival provenance."
+    ],
+    "requiredBeforeDigest": "Marketing native owner updates revision25 pins/brief/operatingContract and coherent queue semantics to reviewed26. Preserve complete product scope. No product reapproval, external time/spend allowance or automatic wake/enablement.",
+    "compatibility": "72h park exceeds current8h finite window; finite continuation refusal and single-profile constraint remain actual owner issues. Generic protocol cannot renew deadline or broaden authority."
+  },
+  "nextEligibleWork": "Marketing owner may reconcile protocol/source contract and prepare non-secret exact target inputs while disabled. AUTH/native setup owner must resolve missing effort+DevelopmentOwner+two-profile/continuation compatibility and return concrete existing-identity/build/install evidence before any protected confirmation request.",
+  "unknownNotAbsent": [
+    "Verified native human identity",
+    "Existing TLS/purpose handles and exact eligibility",
+    "Complete profile digests and actual immutable target/artifact bindings",
+    "Another differently keyed authoritative accepted record",
+    "Installed private route publication outside inspected fixed root; not asserted absent from network"
+  ],
+  "effects": "Workspace evidence files only; no repository edits, native metadata mutation, startup flags, credentials, grants, installs, tests, generation, deployment, admission or dispatch."
+}

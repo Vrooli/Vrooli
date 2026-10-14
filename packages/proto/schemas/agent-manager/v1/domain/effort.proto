@@ -162,6 +162,9 @@ message EffortBoardRow {
   string visibility_change_identity = 17;
   // Provider observations are joined by source run when attribution exists.
   repeated EffortQuotaObservation quota_observations = 18;
+  // Goal-home facts read on the scan cycle when the enrollment's
+  // destination_ref is "path:<goal home>/GOAL.md" (DL-9). Absent otherwise.
+  EffortGoalHome goal_home = 19;
   // Retired directive and assessment projections.
   reserved 12, 16;
   reserved "directives", "last_assessment";
@@ -216,3 +219,175 @@ message WithdrawEffortRequest {
   string idempotency_key = 4;
 }
 message ReconcileEffortDiscoveryRequest {}
+
+// One weighted-token cap reading for an active run of a goal-home effort.
+// Absent weighted_tokens or cap means unknown, never zero.
+message EffortCapUsage {
+  string run_id = 1;
+  string role = 2;
+  optional double weighted_tokens = 3;
+  optional int64 cap = 4;
+  // off, report or enforce.
+  string mode = 5;
+}
+
+// Facts read from a registered goal home (large-effort-orchestration §3).
+// Every optional or empty field is unknown, never zero.
+message EffortGoalHome {
+  // Repository-relative goal-home directory.
+  string path = 1;
+  // available or unavailable; limitations name why.
+  string state = 2;
+  repeated string limitations = 3;
+  string destination_metric = 4;
+  string destination_op = 5;
+  optional double destination_target = 6;
+  optional double current_value = 7;
+  google.protobuf.Timestamp current_as_of = 8;
+  // Highest-numbered epoch without an ACCEPTED line, e.g. "E27".
+  string active_epoch = 9;
+  string active_status = 10;
+  repeated string active_workers = 11;
+  string last_accepted_epoch = 12;
+  google.protobuf.Timestamp last_accepted_at = 13;
+  // "+3 journeys"; empty when the acceptance line records no yield.
+  string last_yield = 14;
+  // First lines of ## Needs operator items, at most 8.
+  repeated string needs_operator = 15;
+  optional uint32 open_workarounds = 16;
+  repeated string open_feedback_ids = 17;
+  // Operator decisions not yet recorded in FEEDBACK.md.
+  repeated EffortDecision open_decisions = 18;
+  // Mean weighted tokens of the measured accepted epochs' Workers runs.
+  optional double weighted_tokens_per_accepted_epoch = 19;
+  uint32 accepted_epochs_measured = 20;
+  repeated EffortCapUsage cap_usage = 21;
+  // "unknown" until the delivery canary reports (DL-6).
+  string canary_status = 22;
+  // Blocking lint finding codes, e.g. "handoff-count".
+  repeated string lint_findings = 23;
+  google.protobuf.Timestamp read_at = 24;
+}
+
+// One durable effort signal (DL-2). seq increases monotonically per effort;
+// one fact is one signal.
+message EffortSignal {
+  int64 seq = 1;
+  string effort_ref = 2;
+  // child_run_ended, step_back, feedback, operator_answer or cap_stop.
+  string kind = 3;
+  string run_id = 4;
+  string detail = 5;
+  google.protobuf.Timestamp created_at = 6;
+}
+
+message ListEffortSignalsRequest {
+  string effort_ref = 1 [(buf.validate.field).string = {min_len: 1, max_len: 512}];
+  // Return signals with seq greater than after_seq.
+  int64 after_seq = 2 [(buf.validate.field).int64.gte = 0];
+  // 0 means 100; at most 500.
+  int32 limit = 3 [(buf.validate.field).int32 = {gte: 0, lte: 500}];
+}
+
+message ListEffortSignalsResponse {
+  repeated EffortSignal signals = 1;
+  // Highest seq recorded for the effort, also when signals is empty.
+  int64 latest_seq = 2;
+}
+
+// Records a caller-owned signal: step_back (a worker's epoch-check) or
+// feedback (whoever writes an operator or supervisor FEEDBACK.md entry).
+// The other kinds are written by Agent Manager itself.
+message RecordEffortSignalRequest {
+  string effort_ref = 1 [(buf.validate.field).string = {min_len: 1, max_len: 512}];
+  string kind = 2 [(buf.validate.field).string = {min_len: 1, max_len: 64}];
+  string run_id = 3 [(buf.validate.field).string.max_len = 64];
+  string detail = 4 [(buf.validate.field).string.max_len = 2048];
+  // Same key, same signal. Empty derives kind:run_id:detail.
+  string dedupe_key = 5 [(buf.validate.field).string.max_len = 512];
+}
+
+message EffortDecisionOption {
+  string key = 1;
+  string label = 2;
+}
+
+// An operator decision for one goal home (DL-5). The notification-hub ask is
+// the delivery channel; this record is the effort's copy.
+message EffortDecision {
+  string effort_ref = 1;
+  // Repository-relative goal-home directory.
+  string goal_home = 2;
+  string decision_id = 3;
+  string question = 4;
+  // Recommended option first.
+  repeated EffortDecisionOption options = 5;
+  string recommended = 6;
+  string recommendation_reason = 7;
+  string default_answer = 8;
+  bool reversible = 9;
+  string urgency = 10;
+  string note = 11;
+  string context_url = 12;
+  google.protobuf.Timestamp deadline = 13;
+  // pending, answered, defaulted or expired.
+  string state = 14;
+  string answer = 15;
+  string answer_label = 16;
+  // Operator note, verbatim.
+  string answer_note = 17;
+  // phone, desktop or default.
+  string answered_via = 18;
+  bool late = 19;
+  google.protobuf.Timestamp answered_at = 20;
+  string resolution_reason = 21;
+  // Deterministic Vrooli Events id of the decision_requested event.
+  string event_id = 22;
+  string ask_id = 23;
+  string raised_by_run_id = 24;
+  google.protobuf.Timestamp created_at = 25;
+  google.protobuf.Timestamp published_at = 26;
+  string publish_error = 27;
+  // Set by effort decision sync after it writes FEEDBACK.md; cleared when a
+  // later answer supersedes the recorded one.
+  google.protobuf.Timestamp recorded_at = 28;
+}
+
+message RaiseEffortDecisionRequest {
+  EffortDecision decision = 1;
+}
+
+message RaiseEffortDecisionResponse {
+  EffortDecision decision = 1;
+  // False when the same decision was already stored (idempotent re-raise).
+  bool created = 2;
+  // True when this call published the event.
+  bool published = 3;
+}
+
+message ListEffortDecisionsRequest {
+  string goal_home = 1 [(buf.validate.field).string.max_len = 1024];
+  string effort_ref = 2 [(buf.validate.field).string.max_len = 512];
+  // Only decisions not yet recorded in FEEDBACK.md.
+  bool unrecorded_only = 3;
+  int32 limit = 4 [(buf.validate.field).int32 = {gte: 0, lte: 200}];
+}
+
+message ListEffortDecisionsResponse {
+  repeated EffortDecision decisions = 1;
+}
+
+// A desktop answer. Requires operator authority.
+message AnswerEffortDecisionRequest {
+  string goal_home = 1 [(buf.validate.field).string = {min_len: 1, max_len: 1024}];
+  string decision_id = 2 [(buf.validate.field).string = {min_len: 1, max_len: 128}];
+  string answer = 3 [(buf.validate.field).string = {min_len: 1, max_len: 64}];
+  string note = 4 [(buf.validate.field).string.max_len = 4096];
+}
+
+// Fenced on answered_at so a later answer is never marked recorded.
+message MarkEffortDecisionRecordedRequest {
+  string goal_home = 1 [(buf.validate.field).string = {min_len: 1, max_len: 1024}];
+  string decision_id = 2 [(buf.validate.field).string = {min_len: 1, max_len: 128}];
+  google.protobuf.Timestamp answered_at = 3;
+}

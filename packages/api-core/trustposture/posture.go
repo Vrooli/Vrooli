@@ -49,7 +49,7 @@ var postureDefaults = map[Posture]Defaults{
 		JWKSCacheGrace:      24 * time.Hour,
 	},
 	Shared: {
-		AccessTokenTTL:      15 * time.Minute,
+		AccessTokenTTL:      4 * time.Hour,
 		BreakGlassAvailable: true,
 		BreakGlassTTL:       10 * time.Minute,
 		NodeExecutionScopes: []string{},

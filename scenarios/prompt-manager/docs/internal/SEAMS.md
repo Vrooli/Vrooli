@@ -222,7 +222,7 @@ Heartbeat execution uses three explicit seams:
   `RunRegistry` depend on the `AgentClient` interface instead of the concrete `*AgentManagerClient`.
   Tests substitute `mockAgentClient` (in `mock_agent_client_test.go`) with configurable responses
   and error injection for all agent-manager API calls (CreateTask, CreateRun, GetRun, WaitForRun,
-  StopRun, EnsureProfile, ReconcileScenarioProfiles, Health). The concrete `*AgentManagerClient` satisfies this interface
+  StopRun, ResolveProfile, Health). The concrete `*AgentManagerClient` satisfies this interface
   and has a `testBaseURL` field for httptest-based integration tests.
 - **Scheduler → Executor**: `heartbeat.Scheduler` depends on the `HeartbeatExecutor` interface, allowing
   tests to substitute fake executors to validate scheduling behavior without running agent-manager.
@@ -236,18 +236,23 @@ Heartbeat execution uses three explicit seams:
   `X-Vrooli-Attribution` and record engagement only for `kind=operator-direct`. Agent-member and
   writer-skill activity never resets the idle clock.
 
-### Scenario-owned Profile Reconciliation
+### Scenario-owned profiles and read-only consumers
 
-Prompt Manager declares its heartbeat profiles in `.vrooli/agent-profiles/`
-and registers both files in its Agent Manager dependency configuration.
-`Scheduler.Start()` calls `ReconcileScenarioProfiles("prompt-manager")`; the
-consumer never sends inline profile defaults, runner types, models, or policy
-references.
+Prompt Manager declares heartbeat profiles in `.vrooli/agent-manager/`.
+Agent Manager's installer owns declaration application and local override policy.
+`Scheduler.Start()` resolves current installed rows with unpaginated ListProfiles
+reads; it qualifies exact identity, provenance and declared execution controls
+before starting cron. A failed start stops initial schedule loading. No startup
+or run-list read invokes ensure/reconciliation.
 
-`CreateRun` sends only the reconciled `profile_key`. `EnsureProfile` remains a
-read-only key-to-ID lookup for run-list filtering, so a missing profile is a
-clear startup/reconciliation failure rather than an opportunity for a consumer
-to create one. `client_contract_test.go` pins both request shapes as key-only.
+Historical `profile_key` run-list filtering requires exact key/UUID identity,
+without current scheduling eligibility. Unsupported or missing owner evidence
+holds that read; a conflicting explicit UUID is refused. Full protobuf-aware
+profile decoding preserves budgets, sandbox controls and provenance.
+`CreateRun` still references the declaration key. Request-local caller proof stays
+specific to CreateRun, and CreateTask submits once with redirect refusal and typed
+refusal/uncertainty. [HEARTBEATS](../concepts/HEARTBEATS.md) describes the lifecycle,
+bounded reviewer and matching finite projection contracts.
 
 Member cleanup is centralized in the team handlers:
 

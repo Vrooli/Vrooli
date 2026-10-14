@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n*nutrition-planner/v1/profile/profile.proto\x12#vrooli.nutrition_planner.v1.profile\"\x9d\x03\n\x07Profile\x12!\n\x0cworkspace_id\x18\x01 \x01(\tR\x0bworkspaceId\x12\x1a\n\x08revision\x18\x02 \x01(\x03R\x08revision\x12\x16\n\x06preset\x18\x03 \x01(\tR\x06preset\x12%\n\x0epreset_version\x18\x04 \x01(\x03R\rpresetVersion\x12!\n\x0c\x61\x63tive_rules\x18\x05 \x03(\tR\x0b\x61\x63tiveRules\x12\'\n\x0f\x65xcluded_groups\x18\x06 \x03(\tR\x0e\x65xcludedGroups\x12\x1c\n\tallergies\x18\x07 \x03(\tR\tallergies\x12\x1e\n\nappliances\x18\x08 \x03(\tR\nappliances\x12\x1f\n\x0b\x63ost_weight\x18\t \x01(\x01R\ncostWeight\x12#\n\reffort_weight\x18\n \x01(\x01R\x0c\x65\x66\x66ortWeight\x12%\n\x0evariety_weight\x18\x0b \x01(\x01R\rvarietyWeight\x12\x1d\n\ndraft_json\x18\x0c \x01(\tR\tdraftJson\"6\n\x11GetProfileRequest\x12!\n\x0cworkspace_id\x18\x01 \x01(\tR\x0bworkspaceId\"\\\n\x12GetProfileResponse\x12\x46\n\x07profile\x18\x01 \x01(\x0b\x32,.vrooli.nutrition_planner.v1.profile.ProfileR\x07profile\"[\n\x17SaveProfileDraftRequest\x12!\n\x0cworkspace_id\x18\x01 \x01(\tR\x0bworkspaceId\x12\x1d\n\ndraft_json\x18\x02 \x01(\tR\tdraftJson\"b\n\x18SaveProfileDraftResponse\x12\x46\n\x07profile\x18\x01 \x01(\x0b\x32,.vrooli.nutrition_planner.v1.profile.ProfileR\x07profile\"\xa4\x02\n\x13\x41pplyProfileRequest\x12!\n\x0cworkspace_id\x18\x01 \x01(\tR\x0bworkspaceId\x12\x16\n\x06preset\x18\x02 \x01(\tR\x06preset\x12\'\n\x0f\x65xcluded_groups\x18\x03 \x03(\tR\x0e\x65xcludedGroups\x12\x1c\n\tallergies\x18\x04 \x03(\tR\tallergies\x12\x1e\n\nappliances\x18\x05 \x03(\tR\nappliances\x12\x1f\n\x0b\x63ost_weight\x18\x06 \x01(\x01R\ncostWeight\x12#\n\reffort_weight\x18\x07 \x01(\x01R\x0c\x65\x66\x66ortWeight\x12%\n\x0evariety_weight\x18\x08 \x01(\x01R\rvarietyWeight\"\xf8\x01\n\x14\x41pplyProfileResponse\x12\x46\n\x07profile\x18\x01 \x01(\x0b\x32,.vrooli.nutrition_planner.v1.profile.ProfileR\x07profile\x12\x1c\n\tconflicts\x18\x02 \x03(\tR\tconflicts\x12%\n\x0ematching_meals\x18\x03 \x01(\x03R\rmatchingMeals\x12,\n\x12needs_review_meals\x18\x04 \x01(\x03R\x10needsReviewMeals\x12%\n\x0e\x65xcluded_meals\x18\x05 \x01(\x03R\rexcludedMeals2\xa7\x03\n\x0eProfileService\x12}\n\nGetProfile\x12\x36.vrooli.nutrition_planner.v1.profile.GetProfileRequest\x1a\x37.vrooli.nutrition_planner.v1.profile.GetProfileResponse\x12\x8f\x01\n\x10SaveProfileDraft\x12<.vrooli.nutrition_planner.v1.profile.SaveProfileDraftRequest\x1a=.vrooli.nutrition_planner.v1.profile.SaveProfileDraftResponse\x12\x83\x01\n\x0c\x41pplyProfile\x12\x38.vrooli.nutrition_planner.v1.profile.ApplyProfileRequest\x1a\x39.vrooli.nutrition_planner.v1.profile.ApplyProfileResponseBXZVgithub.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/profile;profile_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n*nutrition-planner/v1/profile/profile.proto\x12#vrooli.nutrition_planner.v1.profile\"\x89\x01\n\rKitchenDevice\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n\x04type\x18\x02 \x01(\tR\x04type\x12\x14\n\x05\x63ount\x18\x03 \x01(\x05R\x05\x63ount\x12\x1a\n\x08\x63\x61pacity\x18\x04 \x01(\tR\x08\x63\x61pacity\x12\"\n\x0c\x63\x61pabilities\x18\x05 \x03(\tR\x0c\x63\x61pabilities\"\xac\x04\n\x07Profile\x12!\n\x0cworkspace_id\x18\x01 \x01(\tR\x0bworkspaceId\x12\x1a\n\x08revision\x18\x02 \x01(\x03R\x08revision\x12\x16\n\x06preset\x18\x03 \x01(\tR\x06preset\x12%\n\x0epreset_version\x18\x04 \x01(\x03R\rpresetVersion\x12!\n\x0c\x61\x63tive_rules\x18\x05 \x03(\tR\x0b\x61\x63tiveRules\x12\'\n\x0f\x65xcluded_groups\x18\x06 \x03(\tR\x0e\x65xcludedGroups\x12\x1c\n\tallergies\x18\x07 \x03(\tR\tallergies\x12\x1e\n\nappliances\x18\x08 \x03(\tR\nappliances\x12\x1f\n\x0b\x63ost_weight\x18\t \x01(\x01R\ncostWeight\x12#\n\reffort_weight\x18\n \x01(\x01R\x0c\x65\x66\x66ortWeight\x12%\n\x0evariety_weight\x18\x0b \x01(\x01R\rvarietyWeight\x12\x1d\n\ndraft_json\x18\x0c \x01(\tR\tdraftJson\x12\x1a\n\x08\x63ookware\x18\r \x03(\tR\x08\x63ookware\x12\x14\n\x05tools\x18\x0e \x03(\tR\x05tools\x12[\n\x0fkitchen_devices\x18\x0f \x03(\x0b\x32\x32.vrooli.nutrition_planner.v1.profile.KitchenDeviceR\x0ekitchenDevices\"6\n\x11GetProfileRequest\x12!\n\x0cworkspace_id\x18\x01 \x01(\tR\x0bworkspaceId\"\\\n\x12GetProfileResponse\x12\x46\n\x07profile\x18\x01 \x01(\x0b\x32,.vrooli.nutrition_planner.v1.profile.ProfileR\x07profile\"[\n\x17SaveProfileDraftRequest\x12!\n\x0cworkspace_id\x18\x01 \x01(\tR\x0bworkspaceId\x12\x1d\n\ndraft_json\x18\x02 \x01(\tR\tdraftJson\"b\n\x18SaveProfileDraftResponse\x12\x46\n\x07profile\x18\x01 \x01(\x0b\x32,.vrooli.nutrition_planner.v1.profile.ProfileR\x07profile\"\xeb\x03\n\x13\x41pplyProfileRequest\x12!\n\x0cworkspace_id\x18\x01 \x01(\tR\x0bworkspaceId\x12\x16\n\x06preset\x18\x02 \x01(\tR\x06preset\x12\'\n\x0f\x65xcluded_groups\x18\x03 \x03(\tR\x0e\x65xcludedGroups\x12\x1c\n\tallergies\x18\x04 \x03(\tR\tallergies\x12\x1e\n\nappliances\x18\x05 \x03(\tR\nappliances\x12\x1f\n\x0b\x63ost_weight\x18\x06 \x01(\x01R\ncostWeight\x12#\n\reffort_weight\x18\x07 \x01(\x01R\x0c\x65\x66\x66ortWeight\x12%\n\x0evariety_weight\x18\x08 \x01(\x01R\rvarietyWeight\x12\x1a\n\x08\x63ookware\x18\t \x03(\tR\x08\x63ookware\x12\x14\n\x05tools\x18\n \x03(\tR\x05tools\x12[\n\x0fkitchen_devices\x18\x0b \x03(\x0b\x32\x32.vrooli.nutrition_planner.v1.profile.KitchenDeviceR\x0ekitchenDevices\x12\x36\n\x17replace_kitchen_devices\x18\x0c \x01(\x08R\x15replaceKitchenDevices\"\xf8\x01\n\x14\x41pplyProfileResponse\x12\x46\n\x07profile\x18\x01 \x01(\x0b\x32,.vrooli.nutrition_planner.v1.profile.ProfileR\x07profile\x12\x1c\n\tconflicts\x18\x02 \x03(\tR\tconflicts\x12%\n\x0ematching_meals\x18\x03 \x01(\x03R\rmatchingMeals\x12,\n\x12needs_review_meals\x18\x04 \x01(\x03R\x10needsReviewMeals\x12%\n\x0e\x65xcluded_meals\x18\x05 \x01(\x03R\rexcludedMeals2\xa7\x03\n\x0eProfileService\x12}\n\nGetProfile\x12\x36.vrooli.nutrition_planner.v1.profile.GetProfileRequest\x1a\x37.vrooli.nutrition_planner.v1.profile.GetProfileResponse\x12\x8f\x01\n\x10SaveProfileDraft\x12<.vrooli.nutrition_planner.v1.profile.SaveProfileDraftRequest\x1a=.vrooli.nutrition_planner.v1.profile.SaveProfileDraftResponse\x12\x83\x01\n\x0c\x41pplyProfile\x12\x38.vrooli.nutrition_planner.v1.profile.ApplyProfileRequest\x1a\x39.vrooli.nutrition_planner.v1.profile.ApplyProfileResponseBXZVgithub.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/profile;profile_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -32,20 +32,22 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'nutrition_planner.v1.profil
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZVgithub.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/profile;profile_v1'
-  _globals['_PROFILE']._serialized_start=84
-  _globals['_PROFILE']._serialized_end=497
-  _globals['_GETPROFILEREQUEST']._serialized_start=499
-  _globals['_GETPROFILEREQUEST']._serialized_end=553
-  _globals['_GETPROFILERESPONSE']._serialized_start=555
-  _globals['_GETPROFILERESPONSE']._serialized_end=647
-  _globals['_SAVEPROFILEDRAFTREQUEST']._serialized_start=649
-  _globals['_SAVEPROFILEDRAFTREQUEST']._serialized_end=740
-  _globals['_SAVEPROFILEDRAFTRESPONSE']._serialized_start=742
-  _globals['_SAVEPROFILEDRAFTRESPONSE']._serialized_end=840
-  _globals['_APPLYPROFILEREQUEST']._serialized_start=843
-  _globals['_APPLYPROFILEREQUEST']._serialized_end=1135
-  _globals['_APPLYPROFILERESPONSE']._serialized_start=1138
-  _globals['_APPLYPROFILERESPONSE']._serialized_end=1386
-  _globals['_PROFILESERVICE']._serialized_start=1389
-  _globals['_PROFILESERVICE']._serialized_end=1812
+  _globals['_KITCHENDEVICE']._serialized_start=84
+  _globals['_KITCHENDEVICE']._serialized_end=221
+  _globals['_PROFILE']._serialized_start=224
+  _globals['_PROFILE']._serialized_end=780
+  _globals['_GETPROFILEREQUEST']._serialized_start=782
+  _globals['_GETPROFILEREQUEST']._serialized_end=836
+  _globals['_GETPROFILERESPONSE']._serialized_start=838
+  _globals['_GETPROFILERESPONSE']._serialized_end=930
+  _globals['_SAVEPROFILEDRAFTREQUEST']._serialized_start=932
+  _globals['_SAVEPROFILEDRAFTREQUEST']._serialized_end=1023
+  _globals['_SAVEPROFILEDRAFTRESPONSE']._serialized_start=1025
+  _globals['_SAVEPROFILEDRAFTRESPONSE']._serialized_end=1123
+  _globals['_APPLYPROFILEREQUEST']._serialized_start=1126
+  _globals['_APPLYPROFILEREQUEST']._serialized_end=1617
+  _globals['_APPLYPROFILERESPONSE']._serialized_start=1620
+  _globals['_APPLYPROFILERESPONSE']._serialized_end=1868
+  _globals['_PROFILESERVICE']._serialized_start=1871
+  _globals['_PROFILESERVICE']._serialized_end=2294
 # @@protoc_insertion_point(module_scope)

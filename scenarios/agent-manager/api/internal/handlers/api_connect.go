@@ -26,6 +26,7 @@ type AgentManagerConnectHandler struct {
 	h               *Handler
 	supervision     *supervision.Service
 	watchActionAuth WatchActionAuthorizer
+	exactVerifier   *supervision.ExactVerifier
 }
 
 type WatchActionAuthorizer interface {
@@ -331,6 +332,12 @@ func (h *AgentManagerConnectHandler) authorizePolicyOperator(ctx context.Context
 }
 
 func watchConnectError(err error) error {
+	if errors.Is(err, supervision.ErrExactRetryable) {
+		return connect.NewError(connect.CodeUnavailable, err)
+	}
+	if errors.Is(err, supervision.ErrExactAuthority) {
+		return connect.NewError(connect.CodePermissionDenied, err)
+	}
 	if errors.Is(err, supervision.ErrNotFound) || errors.Is(err, supervision.ErrPolicyNotFound) {
 		return connect.NewError(connect.CodeNotFound, err)
 	}

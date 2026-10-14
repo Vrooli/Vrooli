@@ -174,10 +174,8 @@ func TestAvailabilityVocabularyRejectsAdHocStateLiterals(t *testing.T) {
 }
 
 func TestTokenEstimationHasOneAuthority(t *testing.T) {
-	// Payload-to-token conversion belongs to internal/tokenaccounting. Keep
-	// this check intentionally narrow so unrelated integer arithmetic does not
-	// become a false positive while a new conversion site remains visible.
-	conversion := regexp.MustCompile(`(?i)(token|payload|content|body|text|bytes).{0,100}(len\([^)]*\)|runeCountInString\([^)]*\)).{0,100}/\s*[0-9]+|(?:len\([^)]*\)|runeCountInString\([^)]*\)).{0,100}(token|payload|content|body|text|bytes).{0,100}/\s*[0-9]+`)
+	// Inspect the dividend itself. A nearby length comparison against an
+	// encoded-size bound is not payload-to-token conversion.
 	root := filepath.Join(scenarioRoot(t), "api/internal")
 	for _, path := range goFiles(t, root) {
 		if strings.Contains(filepath.ToSlash(path), "/tokenaccounting/") {
@@ -187,10 +185,129 @@ func TestTokenEstimationHasOneAuthority(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if match := conversion.FindString(string(source)); match != "" {
+		if match := lengthDivisions(t, source); len(match) != 0 {
 			rel, _ := filepath.Rel(scenarioRoot(t), path)
-			t.Fatalf("%s performs byte-to-token arithmetic outside internal/tokenaccounting: %q", filepath.ToSlash(rel), match)
+			t.Fatalf("%s performs length conversion outside internal/tokenaccounting at %v", filepath.ToSlash(rel), match)
 		}
+	}
+}
+
+func lengthDivisions(t *testing.T, source []byte) []token.Position {
+	t.Helper()
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "source.go", source, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var matches []token.Position
+	payloadName := regexp.MustCompile(`(?i)token|payload|content|body|text|bytes`)
+	tokenName := regexp.MustCompile(`(?i)token`)
+	var ancestors []ast.Node
+	ast.Inspect(file, func(node ast.Node) bool {
+		if node == nil {
+			ancestors = ancestors[:len(ancestors)-1]
+			return true
+		}
+		ancestors = append(ancestors, node)
+		division, ok := node.(*ast.BinaryExpr)
+		if !ok || division.Op != token.QUO {
+			return true
+		}
+		// Generic parameters still carry token-estimation intent from their
+		// enclosing helper or result binding. Keep that context lexical: a
+		// token helper elsewhere in the file must not taint list partitioning.
+		tokenContext := false
+		for _, ancestor := range ancestors {
+			switch context := ancestor.(type) {
+			case *ast.FuncDecl:
+				tokenContext = tokenContext || tokenName.MatchString(context.Name.Name)
+			case *ast.AssignStmt:
+				for _, target := range context.Lhs {
+					if id, ok := target.(*ast.Ident); ok && tokenName.MatchString(id.Name) {
+						tokenContext = true
+					}
+				}
+			case *ast.ValueSpec:
+				for _, name := range context.Names {
+					tokenContext = tokenContext || tokenName.MatchString(name.Name)
+				}
+			}
+		}
+		ast.Inspect(division.X, func(node ast.Node) bool {
+			// Index bounds choose an existing observation; their length does
+			// not supply the numeric dividend (for example costs[len(costs)-1]).
+			if _, ok := node.(*ast.IndexExpr); ok {
+				return false
+			}
+			call, ok := node.(*ast.CallExpr)
+			if !ok {
+				return true
+			}
+			name := ""
+			switch fun := call.Fun.(type) {
+			case *ast.Ident:
+				name = fun.Name
+			case *ast.SelectorExpr:
+				name = fun.Sel.Name
+			}
+			if name == "len" || name == "RuneCountInString" {
+				isPayload := tokenContext
+				ast.Inspect(call, func(node ast.Node) bool {
+					if id, ok := node.(*ast.Ident); ok && payloadName.MatchString(id.Name) {
+						isPayload = true
+					}
+					return true
+				})
+				if isPayload {
+					matches = append(matches, fset.Position(division.Pos()))
+				}
+			}
+			return true
+		})
+		return true
+	})
+	return matches
+}
+
+func TestTokenEstimationScanDistinguishesConversionsFromEncodedBounds(t *testing.T) {
+	for _, tc := range []struct {
+		name, expression string
+		converts         bool
+	}{
+		{"direct", "len(text)/4", true},
+		{"rounded", "(len(payload)+3)/4", true},
+		{"runes", "utf8.RuneCountInString(content)/ratio", true},
+		{"encoded bound", "len(signed) > ((ExactMaxBytes+2)/3)*4", false},
+		{"unrelated arithmetic", "tokenLimit/4", false},
+		{"observed last value", "float64(costs[len(costs)-1])/1e6", false},
+		{"line partition", "len(segment)/2", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := len(lengthDivisions(t, []byte("package fixture\nfunc f(){ _ = "+tc.expression+" }"))) != 0; got != tc.converts {
+				t.Fatalf("conversion = %v, want %v", got, tc.converts)
+			}
+		})
+	}
+}
+
+func TestTokenEstimationScanRetainsGenericInputHelperContext(t *testing.T) {
+	for _, tc := range []struct {
+		name, declaration string
+		converts          bool
+	}{
+		{"generic input", "func estimateTokens(input []byte) int { return len(input)/4 }", true},
+		{"generic rune input", "func estimateTokens(input string) int { return utf8.RuneCountInString(input)/4 }", true},
+		{"generic input assigned token count", "func f(input []byte) int { tokens := len(input)/4; return tokens }", true},
+		{"generic input declared token count", "func f(input []byte) int { var tokens = len(input)/4; return tokens }", true},
+		{"encoded bound in token helper", "func estimateTokens(signed string) bool { return len(signed) > ((ExactMaxBytes+2)/3)*4 }", false},
+		{"index selection in token helper", "func estimateTokens(costs []int) float64 { return float64(costs[len(costs)-1])/1e6 }", false},
+		{"context stays in its function", "func estimateTokens() int { return observedTokens }; func partition(input []byte) int { return len(input)/2 }", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := len(lengthDivisions(t, []byte("package fixture\n"+tc.declaration))) != 0; got != tc.converts {
+				t.Fatalf("conversion = %v, want %v", got, tc.converts)
+			}
+		})
 	}
 }
 

@@ -1019,8 +1019,11 @@ type EffortBoardRow struct {
 	VisibilityChangeIdentity string `protobuf:"bytes,17,opt,name=visibility_change_identity,json=visibilityChangeIdentity,proto3" json:"visibility_change_identity,omitempty"`
 	// Provider observations are joined by source run when attribution exists.
 	QuotaObservations []*EffortQuotaObservation `protobuf:"bytes,18,rep,name=quota_observations,json=quotaObservations,proto3" json:"quota_observations,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Goal-home facts read on the scan cycle when the enrollment's
+	// destination_ref is "path:<goal home>/GOAL.md" (DL-9). Absent otherwise.
+	GoalHome      *EffortGoalHome `protobuf:"bytes,19,opt,name=goal_home,json=goalHome,proto3" json:"goal_home,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *EffortBoardRow) Reset() {
@@ -1161,6 +1164,13 @@ func (x *EffortBoardRow) GetVisibilityChangeIdentity() string {
 func (x *EffortBoardRow) GetQuotaObservations() []*EffortQuotaObservation {
 	if x != nil {
 		return x.QuotaObservations
+	}
+	return nil
+}
+
+func (x *EffortBoardRow) GetGoalHome() *EffortGoalHome {
+	if x != nil {
+		return x.GoalHome
 	}
 	return nil
 }
@@ -1682,6 +1692,1277 @@ func (*ReconcileEffortDiscoveryRequest) Descriptor() ([]byte, []int) {
 	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{16}
 }
 
+// One weighted-token cap reading for an active run of a goal-home effort.
+// Absent weighted_tokens or cap means unknown, never zero.
+type EffortCapUsage struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	RunId          string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	Role           string                 `protobuf:"bytes,2,opt,name=role,proto3" json:"role,omitempty"`
+	WeightedTokens *float64               `protobuf:"fixed64,3,opt,name=weighted_tokens,json=weightedTokens,proto3,oneof" json:"weighted_tokens,omitempty"`
+	Cap            *int64                 `protobuf:"varint,4,opt,name=cap,proto3,oneof" json:"cap,omitempty"`
+	// off, report or enforce.
+	Mode          string `protobuf:"bytes,5,opt,name=mode,proto3" json:"mode,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EffortCapUsage) Reset() {
+	*x = EffortCapUsage{}
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EffortCapUsage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EffortCapUsage) ProtoMessage() {}
+
+func (x *EffortCapUsage) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EffortCapUsage.ProtoReflect.Descriptor instead.
+func (*EffortCapUsage) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *EffortCapUsage) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *EffortCapUsage) GetRole() string {
+	if x != nil {
+		return x.Role
+	}
+	return ""
+}
+
+func (x *EffortCapUsage) GetWeightedTokens() float64 {
+	if x != nil && x.WeightedTokens != nil {
+		return *x.WeightedTokens
+	}
+	return 0
+}
+
+func (x *EffortCapUsage) GetCap() int64 {
+	if x != nil && x.Cap != nil {
+		return *x.Cap
+	}
+	return 0
+}
+
+func (x *EffortCapUsage) GetMode() string {
+	if x != nil {
+		return x.Mode
+	}
+	return ""
+}
+
+// Facts read from a registered goal home (large-effort-orchestration §3).
+// Every optional or empty field is unknown, never zero.
+type EffortGoalHome struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Repository-relative goal-home directory.
+	Path string `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	// available or unavailable; limitations name why.
+	State             string                 `protobuf:"bytes,2,opt,name=state,proto3" json:"state,omitempty"`
+	Limitations       []string               `protobuf:"bytes,3,rep,name=limitations,proto3" json:"limitations,omitempty"`
+	DestinationMetric string                 `protobuf:"bytes,4,opt,name=destination_metric,json=destinationMetric,proto3" json:"destination_metric,omitempty"`
+	DestinationOp     string                 `protobuf:"bytes,5,opt,name=destination_op,json=destinationOp,proto3" json:"destination_op,omitempty"`
+	DestinationTarget *float64               `protobuf:"fixed64,6,opt,name=destination_target,json=destinationTarget,proto3,oneof" json:"destination_target,omitempty"`
+	CurrentValue      *float64               `protobuf:"fixed64,7,opt,name=current_value,json=currentValue,proto3,oneof" json:"current_value,omitempty"`
+	CurrentAsOf       *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=current_as_of,json=currentAsOf,proto3" json:"current_as_of,omitempty"`
+	// Highest-numbered epoch without an ACCEPTED line, e.g. "E27".
+	ActiveEpoch       string                 `protobuf:"bytes,9,opt,name=active_epoch,json=activeEpoch,proto3" json:"active_epoch,omitempty"`
+	ActiveStatus      string                 `protobuf:"bytes,10,opt,name=active_status,json=activeStatus,proto3" json:"active_status,omitempty"`
+	ActiveWorkers     []string               `protobuf:"bytes,11,rep,name=active_workers,json=activeWorkers,proto3" json:"active_workers,omitempty"`
+	LastAcceptedEpoch string                 `protobuf:"bytes,12,opt,name=last_accepted_epoch,json=lastAcceptedEpoch,proto3" json:"last_accepted_epoch,omitempty"`
+	LastAcceptedAt    *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=last_accepted_at,json=lastAcceptedAt,proto3" json:"last_accepted_at,omitempty"`
+	// "+3 journeys"; empty when the acceptance line records no yield.
+	LastYield string `protobuf:"bytes,14,opt,name=last_yield,json=lastYield,proto3" json:"last_yield,omitempty"`
+	// First lines of ## Needs operator items, at most 8.
+	NeedsOperator   []string `protobuf:"bytes,15,rep,name=needs_operator,json=needsOperator,proto3" json:"needs_operator,omitempty"`
+	OpenWorkarounds *uint32  `protobuf:"varint,16,opt,name=open_workarounds,json=openWorkarounds,proto3,oneof" json:"open_workarounds,omitempty"`
+	OpenFeedbackIds []string `protobuf:"bytes,17,rep,name=open_feedback_ids,json=openFeedbackIds,proto3" json:"open_feedback_ids,omitempty"`
+	// Operator decisions not yet recorded in FEEDBACK.md.
+	OpenDecisions []*EffortDecision `protobuf:"bytes,18,rep,name=open_decisions,json=openDecisions,proto3" json:"open_decisions,omitempty"`
+	// Mean weighted tokens of the measured accepted epochs' Workers runs.
+	WeightedTokensPerAcceptedEpoch *float64          `protobuf:"fixed64,19,opt,name=weighted_tokens_per_accepted_epoch,json=weightedTokensPerAcceptedEpoch,proto3,oneof" json:"weighted_tokens_per_accepted_epoch,omitempty"`
+	AcceptedEpochsMeasured         uint32            `protobuf:"varint,20,opt,name=accepted_epochs_measured,json=acceptedEpochsMeasured,proto3" json:"accepted_epochs_measured,omitempty"`
+	CapUsage                       []*EffortCapUsage `protobuf:"bytes,21,rep,name=cap_usage,json=capUsage,proto3" json:"cap_usage,omitempty"`
+	// "unknown" until the delivery canary reports (DL-6).
+	CanaryStatus string `protobuf:"bytes,22,opt,name=canary_status,json=canaryStatus,proto3" json:"canary_status,omitempty"`
+	// Blocking lint finding codes, e.g. "handoff-count".
+	LintFindings  []string               `protobuf:"bytes,23,rep,name=lint_findings,json=lintFindings,proto3" json:"lint_findings,omitempty"`
+	ReadAt        *timestamppb.Timestamp `protobuf:"bytes,24,opt,name=read_at,json=readAt,proto3" json:"read_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EffortGoalHome) Reset() {
+	*x = EffortGoalHome{}
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EffortGoalHome) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EffortGoalHome) ProtoMessage() {}
+
+func (x *EffortGoalHome) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EffortGoalHome.ProtoReflect.Descriptor instead.
+func (*EffortGoalHome) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *EffortGoalHome) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *EffortGoalHome) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+func (x *EffortGoalHome) GetLimitations() []string {
+	if x != nil {
+		return x.Limitations
+	}
+	return nil
+}
+
+func (x *EffortGoalHome) GetDestinationMetric() string {
+	if x != nil {
+		return x.DestinationMetric
+	}
+	return ""
+}
+
+func (x *EffortGoalHome) GetDestinationOp() string {
+	if x != nil {
+		return x.DestinationOp
+	}
+	return ""
+}
+
+func (x *EffortGoalHome) GetDestinationTarget() float64 {
+	if x != nil && x.DestinationTarget != nil {
+		return *x.DestinationTarget
+	}
+	return 0
+}
+
+func (x *EffortGoalHome) GetCurrentValue() float64 {
+	if x != nil && x.CurrentValue != nil {
+		return *x.CurrentValue
+	}
+	return 0
+}
+
+func (x *EffortGoalHome) GetCurrentAsOf() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CurrentAsOf
+	}
+	return nil
+}
+
+func (x *EffortGoalHome) GetActiveEpoch() string {
+	if x != nil {
+		return x.ActiveEpoch
+	}
+	return ""
+}
+
+func (x *EffortGoalHome) GetActiveStatus() string {
+	if x != nil {
+		return x.ActiveStatus
+	}
+	return ""
+}
+
+func (x *EffortGoalHome) GetActiveWorkers() []string {
+	if x != nil {
+		return x.ActiveWorkers
+	}
+	return nil
+}
+
+func (x *EffortGoalHome) GetLastAcceptedEpoch() string {
+	if x != nil {
+		return x.LastAcceptedEpoch
+	}
+	return ""
+}
+
+func (x *EffortGoalHome) GetLastAcceptedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.LastAcceptedAt
+	}
+	return nil
+}
+
+func (x *EffortGoalHome) GetLastYield() string {
+	if x != nil {
+		return x.LastYield
+	}
+	return ""
+}
+
+func (x *EffortGoalHome) GetNeedsOperator() []string {
+	if x != nil {
+		return x.NeedsOperator
+	}
+	return nil
+}
+
+func (x *EffortGoalHome) GetOpenWorkarounds() uint32 {
+	if x != nil && x.OpenWorkarounds != nil {
+		return *x.OpenWorkarounds
+	}
+	return 0
+}
+
+func (x *EffortGoalHome) GetOpenFeedbackIds() []string {
+	if x != nil {
+		return x.OpenFeedbackIds
+	}
+	return nil
+}
+
+func (x *EffortGoalHome) GetOpenDecisions() []*EffortDecision {
+	if x != nil {
+		return x.OpenDecisions
+	}
+	return nil
+}
+
+func (x *EffortGoalHome) GetWeightedTokensPerAcceptedEpoch() float64 {
+	if x != nil && x.WeightedTokensPerAcceptedEpoch != nil {
+		return *x.WeightedTokensPerAcceptedEpoch
+	}
+	return 0
+}
+
+func (x *EffortGoalHome) GetAcceptedEpochsMeasured() uint32 {
+	if x != nil {
+		return x.AcceptedEpochsMeasured
+	}
+	return 0
+}
+
+func (x *EffortGoalHome) GetCapUsage() []*EffortCapUsage {
+	if x != nil {
+		return x.CapUsage
+	}
+	return nil
+}
+
+func (x *EffortGoalHome) GetCanaryStatus() string {
+	if x != nil {
+		return x.CanaryStatus
+	}
+	return ""
+}
+
+func (x *EffortGoalHome) GetLintFindings() []string {
+	if x != nil {
+		return x.LintFindings
+	}
+	return nil
+}
+
+func (x *EffortGoalHome) GetReadAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ReadAt
+	}
+	return nil
+}
+
+// One durable effort signal (DL-2). seq increases monotonically per effort;
+// one fact is one signal.
+type EffortSignal struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Seq       int64                  `protobuf:"varint,1,opt,name=seq,proto3" json:"seq,omitempty"`
+	EffortRef string                 `protobuf:"bytes,2,opt,name=effort_ref,json=effortRef,proto3" json:"effort_ref,omitempty"`
+	// child_run_ended, step_back, feedback, operator_answer or cap_stop.
+	Kind          string                 `protobuf:"bytes,3,opt,name=kind,proto3" json:"kind,omitempty"`
+	RunId         string                 `protobuf:"bytes,4,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	Detail        string                 `protobuf:"bytes,5,opt,name=detail,proto3" json:"detail,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EffortSignal) Reset() {
+	*x = EffortSignal{}
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EffortSignal) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EffortSignal) ProtoMessage() {}
+
+func (x *EffortSignal) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EffortSignal.ProtoReflect.Descriptor instead.
+func (*EffortSignal) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *EffortSignal) GetSeq() int64 {
+	if x != nil {
+		return x.Seq
+	}
+	return 0
+}
+
+func (x *EffortSignal) GetEffortRef() string {
+	if x != nil {
+		return x.EffortRef
+	}
+	return ""
+}
+
+func (x *EffortSignal) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *EffortSignal) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *EffortSignal) GetDetail() string {
+	if x != nil {
+		return x.Detail
+	}
+	return ""
+}
+
+func (x *EffortSignal) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+type ListEffortSignalsRequest struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	EffortRef string                 `protobuf:"bytes,1,opt,name=effort_ref,json=effortRef,proto3" json:"effort_ref,omitempty"`
+	// Return signals with seq greater than after_seq.
+	AfterSeq int64 `protobuf:"varint,2,opt,name=after_seq,json=afterSeq,proto3" json:"after_seq,omitempty"`
+	// 0 means 100; at most 500.
+	Limit         int32 `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListEffortSignalsRequest) Reset() {
+	*x = ListEffortSignalsRequest{}
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListEffortSignalsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListEffortSignalsRequest) ProtoMessage() {}
+
+func (x *ListEffortSignalsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListEffortSignalsRequest.ProtoReflect.Descriptor instead.
+func (*ListEffortSignalsRequest) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *ListEffortSignalsRequest) GetEffortRef() string {
+	if x != nil {
+		return x.EffortRef
+	}
+	return ""
+}
+
+func (x *ListEffortSignalsRequest) GetAfterSeq() int64 {
+	if x != nil {
+		return x.AfterSeq
+	}
+	return 0
+}
+
+func (x *ListEffortSignalsRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+type ListEffortSignalsResponse struct {
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Signals []*EffortSignal        `protobuf:"bytes,1,rep,name=signals,proto3" json:"signals,omitempty"`
+	// Highest seq recorded for the effort, also when signals is empty.
+	LatestSeq     int64 `protobuf:"varint,2,opt,name=latest_seq,json=latestSeq,proto3" json:"latest_seq,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListEffortSignalsResponse) Reset() {
+	*x = ListEffortSignalsResponse{}
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListEffortSignalsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListEffortSignalsResponse) ProtoMessage() {}
+
+func (x *ListEffortSignalsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListEffortSignalsResponse.ProtoReflect.Descriptor instead.
+func (*ListEffortSignalsResponse) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *ListEffortSignalsResponse) GetSignals() []*EffortSignal {
+	if x != nil {
+		return x.Signals
+	}
+	return nil
+}
+
+func (x *ListEffortSignalsResponse) GetLatestSeq() int64 {
+	if x != nil {
+		return x.LatestSeq
+	}
+	return 0
+}
+
+// Records a caller-owned signal: step_back (a worker's epoch-check) or
+// feedback (whoever writes an operator or supervisor FEEDBACK.md entry).
+// The other kinds are written by Agent Manager itself.
+type RecordEffortSignalRequest struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	EffortRef string                 `protobuf:"bytes,1,opt,name=effort_ref,json=effortRef,proto3" json:"effort_ref,omitempty"`
+	Kind      string                 `protobuf:"bytes,2,opt,name=kind,proto3" json:"kind,omitempty"`
+	RunId     string                 `protobuf:"bytes,3,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	Detail    string                 `protobuf:"bytes,4,opt,name=detail,proto3" json:"detail,omitempty"`
+	// Same key, same signal. Empty derives kind:run_id:detail.
+	DedupeKey     string `protobuf:"bytes,5,opt,name=dedupe_key,json=dedupeKey,proto3" json:"dedupe_key,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RecordEffortSignalRequest) Reset() {
+	*x = RecordEffortSignalRequest{}
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecordEffortSignalRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecordEffortSignalRequest) ProtoMessage() {}
+
+func (x *RecordEffortSignalRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecordEffortSignalRequest.ProtoReflect.Descriptor instead.
+func (*RecordEffortSignalRequest) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *RecordEffortSignalRequest) GetEffortRef() string {
+	if x != nil {
+		return x.EffortRef
+	}
+	return ""
+}
+
+func (x *RecordEffortSignalRequest) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *RecordEffortSignalRequest) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *RecordEffortSignalRequest) GetDetail() string {
+	if x != nil {
+		return x.Detail
+	}
+	return ""
+}
+
+func (x *RecordEffortSignalRequest) GetDedupeKey() string {
+	if x != nil {
+		return x.DedupeKey
+	}
+	return ""
+}
+
+type EffortDecisionOption struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Key           string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	Label         string                 `protobuf:"bytes,2,opt,name=label,proto3" json:"label,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EffortDecisionOption) Reset() {
+	*x = EffortDecisionOption{}
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EffortDecisionOption) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EffortDecisionOption) ProtoMessage() {}
+
+func (x *EffortDecisionOption) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EffortDecisionOption.ProtoReflect.Descriptor instead.
+func (*EffortDecisionOption) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *EffortDecisionOption) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *EffortDecisionOption) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
+}
+
+// An operator decision for one goal home (DL-5). The notification-hub ask is
+// the delivery channel; this record is the effort's copy.
+type EffortDecision struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	EffortRef string                 `protobuf:"bytes,1,opt,name=effort_ref,json=effortRef,proto3" json:"effort_ref,omitempty"`
+	// Repository-relative goal-home directory.
+	GoalHome   string `protobuf:"bytes,2,opt,name=goal_home,json=goalHome,proto3" json:"goal_home,omitempty"`
+	DecisionId string `protobuf:"bytes,3,opt,name=decision_id,json=decisionId,proto3" json:"decision_id,omitempty"`
+	Question   string `protobuf:"bytes,4,opt,name=question,proto3" json:"question,omitempty"`
+	// Recommended option first.
+	Options              []*EffortDecisionOption `protobuf:"bytes,5,rep,name=options,proto3" json:"options,omitempty"`
+	Recommended          string                  `protobuf:"bytes,6,opt,name=recommended,proto3" json:"recommended,omitempty"`
+	RecommendationReason string                  `protobuf:"bytes,7,opt,name=recommendation_reason,json=recommendationReason,proto3" json:"recommendation_reason,omitempty"`
+	DefaultAnswer        string                  `protobuf:"bytes,8,opt,name=default_answer,json=defaultAnswer,proto3" json:"default_answer,omitempty"`
+	Reversible           bool                    `protobuf:"varint,9,opt,name=reversible,proto3" json:"reversible,omitempty"`
+	Urgency              string                  `protobuf:"bytes,10,opt,name=urgency,proto3" json:"urgency,omitempty"`
+	Note                 string                  `protobuf:"bytes,11,opt,name=note,proto3" json:"note,omitempty"`
+	ContextUrl           string                  `protobuf:"bytes,12,opt,name=context_url,json=contextUrl,proto3" json:"context_url,omitempty"`
+	Deadline             *timestamppb.Timestamp  `protobuf:"bytes,13,opt,name=deadline,proto3" json:"deadline,omitempty"`
+	// pending, answered, defaulted or expired.
+	State       string `protobuf:"bytes,14,opt,name=state,proto3" json:"state,omitempty"`
+	Answer      string `protobuf:"bytes,15,opt,name=answer,proto3" json:"answer,omitempty"`
+	AnswerLabel string `protobuf:"bytes,16,opt,name=answer_label,json=answerLabel,proto3" json:"answer_label,omitempty"`
+	// Operator note, verbatim.
+	AnswerNote string `protobuf:"bytes,17,opt,name=answer_note,json=answerNote,proto3" json:"answer_note,omitempty"`
+	// phone, desktop or default.
+	AnsweredVia      string                 `protobuf:"bytes,18,opt,name=answered_via,json=answeredVia,proto3" json:"answered_via,omitempty"`
+	Late             bool                   `protobuf:"varint,19,opt,name=late,proto3" json:"late,omitempty"`
+	AnsweredAt       *timestamppb.Timestamp `protobuf:"bytes,20,opt,name=answered_at,json=answeredAt,proto3" json:"answered_at,omitempty"`
+	ResolutionReason string                 `protobuf:"bytes,21,opt,name=resolution_reason,json=resolutionReason,proto3" json:"resolution_reason,omitempty"`
+	// Deterministic Vrooli Events id of the decision_requested event.
+	EventId       string                 `protobuf:"bytes,22,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	AskId         string                 `protobuf:"bytes,23,opt,name=ask_id,json=askId,proto3" json:"ask_id,omitempty"`
+	RaisedByRunId string                 `protobuf:"bytes,24,opt,name=raised_by_run_id,json=raisedByRunId,proto3" json:"raised_by_run_id,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,25,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	PublishedAt   *timestamppb.Timestamp `protobuf:"bytes,26,opt,name=published_at,json=publishedAt,proto3" json:"published_at,omitempty"`
+	PublishError  string                 `protobuf:"bytes,27,opt,name=publish_error,json=publishError,proto3" json:"publish_error,omitempty"`
+	// Set by effort decision sync after it writes FEEDBACK.md; cleared when a
+	// later answer supersedes the recorded one.
+	RecordedAt    *timestamppb.Timestamp `protobuf:"bytes,28,opt,name=recorded_at,json=recordedAt,proto3" json:"recorded_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EffortDecision) Reset() {
+	*x = EffortDecision{}
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EffortDecision) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EffortDecision) ProtoMessage() {}
+
+func (x *EffortDecision) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EffortDecision.ProtoReflect.Descriptor instead.
+func (*EffortDecision) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *EffortDecision) GetEffortRef() string {
+	if x != nil {
+		return x.EffortRef
+	}
+	return ""
+}
+
+func (x *EffortDecision) GetGoalHome() string {
+	if x != nil {
+		return x.GoalHome
+	}
+	return ""
+}
+
+func (x *EffortDecision) GetDecisionId() string {
+	if x != nil {
+		return x.DecisionId
+	}
+	return ""
+}
+
+func (x *EffortDecision) GetQuestion() string {
+	if x != nil {
+		return x.Question
+	}
+	return ""
+}
+
+func (x *EffortDecision) GetOptions() []*EffortDecisionOption {
+	if x != nil {
+		return x.Options
+	}
+	return nil
+}
+
+func (x *EffortDecision) GetRecommended() string {
+	if x != nil {
+		return x.Recommended
+	}
+	return ""
+}
+
+func (x *EffortDecision) GetRecommendationReason() string {
+	if x != nil {
+		return x.RecommendationReason
+	}
+	return ""
+}
+
+func (x *EffortDecision) GetDefaultAnswer() string {
+	if x != nil {
+		return x.DefaultAnswer
+	}
+	return ""
+}
+
+func (x *EffortDecision) GetReversible() bool {
+	if x != nil {
+		return x.Reversible
+	}
+	return false
+}
+
+func (x *EffortDecision) GetUrgency() string {
+	if x != nil {
+		return x.Urgency
+	}
+	return ""
+}
+
+func (x *EffortDecision) GetNote() string {
+	if x != nil {
+		return x.Note
+	}
+	return ""
+}
+
+func (x *EffortDecision) GetContextUrl() string {
+	if x != nil {
+		return x.ContextUrl
+	}
+	return ""
+}
+
+func (x *EffortDecision) GetDeadline() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Deadline
+	}
+	return nil
+}
+
+func (x *EffortDecision) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+func (x *EffortDecision) GetAnswer() string {
+	if x != nil {
+		return x.Answer
+	}
+	return ""
+}
+
+func (x *EffortDecision) GetAnswerLabel() string {
+	if x != nil {
+		return x.AnswerLabel
+	}
+	return ""
+}
+
+func (x *EffortDecision) GetAnswerNote() string {
+	if x != nil {
+		return x.AnswerNote
+	}
+	return ""
+}
+
+func (x *EffortDecision) GetAnsweredVia() string {
+	if x != nil {
+		return x.AnsweredVia
+	}
+	return ""
+}
+
+func (x *EffortDecision) GetLate() bool {
+	if x != nil {
+		return x.Late
+	}
+	return false
+}
+
+func (x *EffortDecision) GetAnsweredAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.AnsweredAt
+	}
+	return nil
+}
+
+func (x *EffortDecision) GetResolutionReason() string {
+	if x != nil {
+		return x.ResolutionReason
+	}
+	return ""
+}
+
+func (x *EffortDecision) GetEventId() string {
+	if x != nil {
+		return x.EventId
+	}
+	return ""
+}
+
+func (x *EffortDecision) GetAskId() string {
+	if x != nil {
+		return x.AskId
+	}
+	return ""
+}
+
+func (x *EffortDecision) GetRaisedByRunId() string {
+	if x != nil {
+		return x.RaisedByRunId
+	}
+	return ""
+}
+
+func (x *EffortDecision) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *EffortDecision) GetPublishedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.PublishedAt
+	}
+	return nil
+}
+
+func (x *EffortDecision) GetPublishError() string {
+	if x != nil {
+		return x.PublishError
+	}
+	return ""
+}
+
+func (x *EffortDecision) GetRecordedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.RecordedAt
+	}
+	return nil
+}
+
+type RaiseEffortDecisionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Decision      *EffortDecision        `protobuf:"bytes,1,opt,name=decision,proto3" json:"decision,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RaiseEffortDecisionRequest) Reset() {
+	*x = RaiseEffortDecisionRequest{}
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RaiseEffortDecisionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RaiseEffortDecisionRequest) ProtoMessage() {}
+
+func (x *RaiseEffortDecisionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RaiseEffortDecisionRequest.ProtoReflect.Descriptor instead.
+func (*RaiseEffortDecisionRequest) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *RaiseEffortDecisionRequest) GetDecision() *EffortDecision {
+	if x != nil {
+		return x.Decision
+	}
+	return nil
+}
+
+type RaiseEffortDecisionResponse struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Decision *EffortDecision        `protobuf:"bytes,1,opt,name=decision,proto3" json:"decision,omitempty"`
+	// False when the same decision was already stored (idempotent re-raise).
+	Created bool `protobuf:"varint,2,opt,name=created,proto3" json:"created,omitempty"`
+	// True when this call published the event.
+	Published     bool `protobuf:"varint,3,opt,name=published,proto3" json:"published,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RaiseEffortDecisionResponse) Reset() {
+	*x = RaiseEffortDecisionResponse{}
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RaiseEffortDecisionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RaiseEffortDecisionResponse) ProtoMessage() {}
+
+func (x *RaiseEffortDecisionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RaiseEffortDecisionResponse.ProtoReflect.Descriptor instead.
+func (*RaiseEffortDecisionResponse) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *RaiseEffortDecisionResponse) GetDecision() *EffortDecision {
+	if x != nil {
+		return x.Decision
+	}
+	return nil
+}
+
+func (x *RaiseEffortDecisionResponse) GetCreated() bool {
+	if x != nil {
+		return x.Created
+	}
+	return false
+}
+
+func (x *RaiseEffortDecisionResponse) GetPublished() bool {
+	if x != nil {
+		return x.Published
+	}
+	return false
+}
+
+type ListEffortDecisionsRequest struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	GoalHome  string                 `protobuf:"bytes,1,opt,name=goal_home,json=goalHome,proto3" json:"goal_home,omitempty"`
+	EffortRef string                 `protobuf:"bytes,2,opt,name=effort_ref,json=effortRef,proto3" json:"effort_ref,omitempty"`
+	// Only decisions not yet recorded in FEEDBACK.md.
+	UnrecordedOnly bool  `protobuf:"varint,3,opt,name=unrecorded_only,json=unrecordedOnly,proto3" json:"unrecorded_only,omitempty"`
+	Limit          int32 `protobuf:"varint,4,opt,name=limit,proto3" json:"limit,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ListEffortDecisionsRequest) Reset() {
+	*x = ListEffortDecisionsRequest{}
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListEffortDecisionsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListEffortDecisionsRequest) ProtoMessage() {}
+
+func (x *ListEffortDecisionsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListEffortDecisionsRequest.ProtoReflect.Descriptor instead.
+func (*ListEffortDecisionsRequest) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *ListEffortDecisionsRequest) GetGoalHome() string {
+	if x != nil {
+		return x.GoalHome
+	}
+	return ""
+}
+
+func (x *ListEffortDecisionsRequest) GetEffortRef() string {
+	if x != nil {
+		return x.EffortRef
+	}
+	return ""
+}
+
+func (x *ListEffortDecisionsRequest) GetUnrecordedOnly() bool {
+	if x != nil {
+		return x.UnrecordedOnly
+	}
+	return false
+}
+
+func (x *ListEffortDecisionsRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+type ListEffortDecisionsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Decisions     []*EffortDecision      `protobuf:"bytes,1,rep,name=decisions,proto3" json:"decisions,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListEffortDecisionsResponse) Reset() {
+	*x = ListEffortDecisionsResponse{}
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListEffortDecisionsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListEffortDecisionsResponse) ProtoMessage() {}
+
+func (x *ListEffortDecisionsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListEffortDecisionsResponse.ProtoReflect.Descriptor instead.
+func (*ListEffortDecisionsResponse) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *ListEffortDecisionsResponse) GetDecisions() []*EffortDecision {
+	if x != nil {
+		return x.Decisions
+	}
+	return nil
+}
+
+// A desktop answer. Requires operator authority.
+type AnswerEffortDecisionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	GoalHome      string                 `protobuf:"bytes,1,opt,name=goal_home,json=goalHome,proto3" json:"goal_home,omitempty"`
+	DecisionId    string                 `protobuf:"bytes,2,opt,name=decision_id,json=decisionId,proto3" json:"decision_id,omitempty"`
+	Answer        string                 `protobuf:"bytes,3,opt,name=answer,proto3" json:"answer,omitempty"`
+	Note          string                 `protobuf:"bytes,4,opt,name=note,proto3" json:"note,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AnswerEffortDecisionRequest) Reset() {
+	*x = AnswerEffortDecisionRequest{}
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AnswerEffortDecisionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AnswerEffortDecisionRequest) ProtoMessage() {}
+
+func (x *AnswerEffortDecisionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AnswerEffortDecisionRequest.ProtoReflect.Descriptor instead.
+func (*AnswerEffortDecisionRequest) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *AnswerEffortDecisionRequest) GetGoalHome() string {
+	if x != nil {
+		return x.GoalHome
+	}
+	return ""
+}
+
+func (x *AnswerEffortDecisionRequest) GetDecisionId() string {
+	if x != nil {
+		return x.DecisionId
+	}
+	return ""
+}
+
+func (x *AnswerEffortDecisionRequest) GetAnswer() string {
+	if x != nil {
+		return x.Answer
+	}
+	return ""
+}
+
+func (x *AnswerEffortDecisionRequest) GetNote() string {
+	if x != nil {
+		return x.Note
+	}
+	return ""
+}
+
+// Fenced on answered_at so a later answer is never marked recorded.
+type MarkEffortDecisionRecordedRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	GoalHome      string                 `protobuf:"bytes,1,opt,name=goal_home,json=goalHome,proto3" json:"goal_home,omitempty"`
+	DecisionId    string                 `protobuf:"bytes,2,opt,name=decision_id,json=decisionId,proto3" json:"decision_id,omitempty"`
+	AnsweredAt    *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=answered_at,json=answeredAt,proto3" json:"answered_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MarkEffortDecisionRecordedRequest) Reset() {
+	*x = MarkEffortDecisionRecordedRequest{}
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MarkEffortDecisionRecordedRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MarkEffortDecisionRecordedRequest) ProtoMessage() {}
+
+func (x *MarkEffortDecisionRecordedRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_manager_v1_domain_effort_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MarkEffortDecisionRecordedRequest.ProtoReflect.Descriptor instead.
+func (*MarkEffortDecisionRecordedRequest) Descriptor() ([]byte, []int) {
+	return file_agent_manager_v1_domain_effort_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *MarkEffortDecisionRecordedRequest) GetGoalHome() string {
+	if x != nil {
+		return x.GoalHome
+	}
+	return ""
+}
+
+func (x *MarkEffortDecisionRecordedRequest) GetDecisionId() string {
+	if x != nil {
+		return x.DecisionId
+	}
+	return ""
+}
+
+func (x *MarkEffortDecisionRecordedRequest) GetAnsweredAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.AnsweredAt
+	}
+	return nil
+}
+
 var File_agent_manager_v1_domain_effort_proto protoreflect.FileDescriptor
 
 const file_agent_manager_v1_domain_effort_proto_rawDesc = "" +
@@ -1800,7 +3081,7 @@ const file_agent_manager_v1_domain_effort_proto_rawDesc = "" +
 	"\vlimitations\x18\x06 \x03(\tR\vlimitationsB\f\n" +
 	"\n" +
 	"_met_countB\x11\n" +
-	"\x0f_required_count\"\x80\a\n" +
+	"\x0f_required_count\"\xbf\a\n" +
 	"\x0eEffortBoardRow\x12B\n" +
 	"\n" +
 	"enrollment\x18\x01 \x01(\v2\".agent_manager.v1.EffortEnrollmentR\n" +
@@ -1822,7 +3103,8 @@ const file_agent_manager_v1_domain_effort_proto_rawDesc = "" +
 	"\revidence_refs\x18\x0e \x03(\tR\fevidenceRefs\x12'\n" +
 	"\x0fchange_identity\x18\x0f \x01(\tR\x0echangeIdentity\x12<\n" +
 	"\x1avisibility_change_identity\x18\x11 \x01(\tR\x18visibilityChangeIdentity\x12W\n" +
-	"\x12quota_observations\x18\x12 \x03(\v2(.agent_manager.v1.EffortQuotaObservationR\x11quotaObservationsJ\x04\b\f\x10\rJ\x04\b\x10\x10\x11R\n" +
+	"\x12quota_observations\x18\x12 \x03(\v2(.agent_manager.v1.EffortQuotaObservationR\x11quotaObservations\x12=\n" +
+	"\tgoal_home\x18\x13 \x01(\v2 .agent_manager.v1.EffortGoalHomeR\bgoalHomeJ\x04\b\f\x10\rJ\x04\b\x10\x10\x11R\n" +
 	"directivesR\x0flast_assessment\"\xca\x03\n" +
 	"\vEffortBoard\x124\n" +
 	"\x04rows\x18\x01 \x03(\v2 .agent_manager.v1.EffortBoardRowR\x04rows\x12?\n" +
@@ -1868,7 +3150,148 @@ const file_agent_manager_v1_domain_effort_proto_rawDesc = "" +
 	"\x11expected_revision\x18\x02 \x01(\x04R\x10expectedRevision\x12\x16\n" +
 	"\x06reason\x18\x03 \x01(\tR\x06reason\x12'\n" +
 	"\x0fidempotency_key\x18\x04 \x01(\tR\x0eidempotencyKey\"!\n" +
-	"\x1fReconcileEffortDiscoveryRequest*\x8d\x01\n" +
+	"\x1fReconcileEffortDiscoveryRequest\"\xb0\x01\n" +
+	"\x0eEffortCapUsage\x12\x15\n" +
+	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x12\n" +
+	"\x04role\x18\x02 \x01(\tR\x04role\x12,\n" +
+	"\x0fweighted_tokens\x18\x03 \x01(\x01H\x00R\x0eweightedTokens\x88\x01\x01\x12\x15\n" +
+	"\x03cap\x18\x04 \x01(\x03H\x01R\x03cap\x88\x01\x01\x12\x12\n" +
+	"\x04mode\x18\x05 \x01(\tR\x04modeB\x12\n" +
+	"\x10_weighted_tokensB\x06\n" +
+	"\x04_cap\"\xce\t\n" +
+	"\x0eEffortGoalHome\x12\x12\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\x12\x14\n" +
+	"\x05state\x18\x02 \x01(\tR\x05state\x12 \n" +
+	"\vlimitations\x18\x03 \x03(\tR\vlimitations\x12-\n" +
+	"\x12destination_metric\x18\x04 \x01(\tR\x11destinationMetric\x12%\n" +
+	"\x0edestination_op\x18\x05 \x01(\tR\rdestinationOp\x122\n" +
+	"\x12destination_target\x18\x06 \x01(\x01H\x00R\x11destinationTarget\x88\x01\x01\x12(\n" +
+	"\rcurrent_value\x18\a \x01(\x01H\x01R\fcurrentValue\x88\x01\x01\x12>\n" +
+	"\rcurrent_as_of\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\vcurrentAsOf\x12!\n" +
+	"\factive_epoch\x18\t \x01(\tR\vactiveEpoch\x12#\n" +
+	"\ractive_status\x18\n" +
+	" \x01(\tR\factiveStatus\x12%\n" +
+	"\x0eactive_workers\x18\v \x03(\tR\ractiveWorkers\x12.\n" +
+	"\x13last_accepted_epoch\x18\f \x01(\tR\x11lastAcceptedEpoch\x12D\n" +
+	"\x10last_accepted_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\x0elastAcceptedAt\x12\x1d\n" +
+	"\n" +
+	"last_yield\x18\x0e \x01(\tR\tlastYield\x12%\n" +
+	"\x0eneeds_operator\x18\x0f \x03(\tR\rneedsOperator\x12.\n" +
+	"\x10open_workarounds\x18\x10 \x01(\rH\x02R\x0fopenWorkarounds\x88\x01\x01\x12*\n" +
+	"\x11open_feedback_ids\x18\x11 \x03(\tR\x0fopenFeedbackIds\x12G\n" +
+	"\x0eopen_decisions\x18\x12 \x03(\v2 .agent_manager.v1.EffortDecisionR\ropenDecisions\x12O\n" +
+	"\"weighted_tokens_per_accepted_epoch\x18\x13 \x01(\x01H\x03R\x1eweightedTokensPerAcceptedEpoch\x88\x01\x01\x128\n" +
+	"\x18accepted_epochs_measured\x18\x14 \x01(\rR\x16acceptedEpochsMeasured\x12=\n" +
+	"\tcap_usage\x18\x15 \x03(\v2 .agent_manager.v1.EffortCapUsageR\bcapUsage\x12#\n" +
+	"\rcanary_status\x18\x16 \x01(\tR\fcanaryStatus\x12#\n" +
+	"\rlint_findings\x18\x17 \x03(\tR\flintFindings\x123\n" +
+	"\aread_at\x18\x18 \x01(\v2\x1a.google.protobuf.TimestampR\x06readAtB\x15\n" +
+	"\x13_destination_targetB\x10\n" +
+	"\x0e_current_valueB\x13\n" +
+	"\x11_open_workaroundsB%\n" +
+	"#_weighted_tokens_per_accepted_epoch\"\xbd\x01\n" +
+	"\fEffortSignal\x12\x10\n" +
+	"\x03seq\x18\x01 \x01(\x03R\x03seq\x12\x1d\n" +
+	"\n" +
+	"effort_ref\x18\x02 \x01(\tR\teffortRef\x12\x12\n" +
+	"\x04kind\x18\x03 \x01(\tR\x04kind\x12\x15\n" +
+	"\x06run_id\x18\x04 \x01(\tR\x05runId\x12\x16\n" +
+	"\x06detail\x18\x05 \x01(\tR\x06detail\x129\n" +
+	"\n" +
+	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\x8d\x01\n" +
+	"\x18ListEffortSignalsRequest\x12)\n" +
+	"\n" +
+	"effort_ref\x18\x01 \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x80\x04R\teffortRef\x12$\n" +
+	"\tafter_seq\x18\x02 \x01(\x03B\a\xbaH\x04\"\x02(\x00R\bafterSeq\x12 \n" +
+	"\x05limit\x18\x03 \x01(\x05B\n" +
+	"\xbaH\a\x1a\x05\x18\xf4\x03(\x00R\x05limit\"t\n" +
+	"\x19ListEffortSignalsResponse\x128\n" +
+	"\asignals\x18\x01 \x03(\v2\x1e.agent_manager.v1.EffortSignalR\asignals\x12\x1d\n" +
+	"\n" +
+	"latest_seq\x18\x02 \x01(\x03R\tlatestSeq\"\xd0\x01\n" +
+	"\x19RecordEffortSignalRequest\x12)\n" +
+	"\n" +
+	"effort_ref\x18\x01 \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x80\x04R\teffortRef\x12\x1d\n" +
+	"\x04kind\x18\x02 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18@R\x04kind\x12\x1e\n" +
+	"\x06run_id\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x18@R\x05runId\x12 \n" +
+	"\x06detail\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x10R\x06detail\x12'\n" +
+	"\n" +
+	"dedupe_key\x18\x05 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\tdedupeKey\">\n" +
+	"\x14EffortDecisionOption\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05label\x18\x02 \x01(\tR\x05label\"\xba\b\n" +
+	"\x0eEffortDecision\x12\x1d\n" +
+	"\n" +
+	"effort_ref\x18\x01 \x01(\tR\teffortRef\x12\x1b\n" +
+	"\tgoal_home\x18\x02 \x01(\tR\bgoalHome\x12\x1f\n" +
+	"\vdecision_id\x18\x03 \x01(\tR\n" +
+	"decisionId\x12\x1a\n" +
+	"\bquestion\x18\x04 \x01(\tR\bquestion\x12@\n" +
+	"\aoptions\x18\x05 \x03(\v2&.agent_manager.v1.EffortDecisionOptionR\aoptions\x12 \n" +
+	"\vrecommended\x18\x06 \x01(\tR\vrecommended\x123\n" +
+	"\x15recommendation_reason\x18\a \x01(\tR\x14recommendationReason\x12%\n" +
+	"\x0edefault_answer\x18\b \x01(\tR\rdefaultAnswer\x12\x1e\n" +
+	"\n" +
+	"reversible\x18\t \x01(\bR\n" +
+	"reversible\x12\x18\n" +
+	"\aurgency\x18\n" +
+	" \x01(\tR\aurgency\x12\x12\n" +
+	"\x04note\x18\v \x01(\tR\x04note\x12\x1f\n" +
+	"\vcontext_url\x18\f \x01(\tR\n" +
+	"contextUrl\x126\n" +
+	"\bdeadline\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\bdeadline\x12\x14\n" +
+	"\x05state\x18\x0e \x01(\tR\x05state\x12\x16\n" +
+	"\x06answer\x18\x0f \x01(\tR\x06answer\x12!\n" +
+	"\fanswer_label\x18\x10 \x01(\tR\vanswerLabel\x12\x1f\n" +
+	"\vanswer_note\x18\x11 \x01(\tR\n" +
+	"answerNote\x12!\n" +
+	"\fanswered_via\x18\x12 \x01(\tR\vansweredVia\x12\x12\n" +
+	"\x04late\x18\x13 \x01(\bR\x04late\x12;\n" +
+	"\vanswered_at\x18\x14 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"answeredAt\x12+\n" +
+	"\x11resolution_reason\x18\x15 \x01(\tR\x10resolutionReason\x12\x19\n" +
+	"\bevent_id\x18\x16 \x01(\tR\aeventId\x12\x15\n" +
+	"\x06ask_id\x18\x17 \x01(\tR\x05askId\x12'\n" +
+	"\x10raised_by_run_id\x18\x18 \x01(\tR\rraisedByRunId\x129\n" +
+	"\n" +
+	"created_at\x18\x19 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12=\n" +
+	"\fpublished_at\x18\x1a \x01(\v2\x1a.google.protobuf.TimestampR\vpublishedAt\x12#\n" +
+	"\rpublish_error\x18\x1b \x01(\tR\fpublishError\x12;\n" +
+	"\vrecorded_at\x18\x1c \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"recordedAt\"Z\n" +
+	"\x1aRaiseEffortDecisionRequest\x12<\n" +
+	"\bdecision\x18\x01 \x01(\v2 .agent_manager.v1.EffortDecisionR\bdecision\"\x93\x01\n" +
+	"\x1bRaiseEffortDecisionResponse\x12<\n" +
+	"\bdecision\x18\x01 \x01(\v2 .agent_manager.v1.EffortDecisionR\bdecision\x12\x18\n" +
+	"\acreated\x18\x02 \x01(\bR\acreated\x12\x1c\n" +
+	"\tpublished\x18\x03 \x01(\bR\tpublished\"\xb7\x01\n" +
+	"\x1aListEffortDecisionsRequest\x12%\n" +
+	"\tgoal_home\x18\x01 \x01(\tB\b\xbaH\x05r\x03\x18\x80\bR\bgoalHome\x12'\n" +
+	"\n" +
+	"effort_ref\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\teffortRef\x12'\n" +
+	"\x0funrecorded_only\x18\x03 \x01(\bR\x0eunrecordedOnly\x12 \n" +
+	"\x05limit\x18\x04 \x01(\x05B\n" +
+	"\xbaH\a\x1a\x05\x18\xc8\x01(\x00R\x05limit\"]\n" +
+	"\x1bListEffortDecisionsResponse\x12>\n" +
+	"\tdecisions\x18\x01 \x03(\v2 .agent_manager.v1.EffortDecisionR\tdecisions\"\xb4\x01\n" +
+	"\x1bAnswerEffortDecisionRequest\x12'\n" +
+	"\tgoal_home\x18\x01 \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x80\bR\bgoalHome\x12+\n" +
+	"\vdecision_id\x18\x02 \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x80\x01R\n" +
+	"decisionId\x12!\n" +
+	"\x06answer\x18\x03 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18@R\x06answer\x12\x1c\n" +
+	"\x04note\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\x80 R\x04note\"\xb6\x01\n" +
+	"!MarkEffortDecisionRecordedRequest\x12'\n" +
+	"\tgoal_home\x18\x01 \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x80\bR\bgoalHome\x12+\n" +
+	"\vdecision_id\x18\x02 \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x80\x01R\n" +
+	"decisionId\x12;\n" +
+	"\vanswered_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"answeredAt*\x8d\x01\n" +
 	"\x0fEffortFreshness\x12 \n" +
 	"\x1cEFFORT_FRESHNESS_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16EFFORT_FRESHNESS_FRESH\x10\x01\x12\x1a\n" +
@@ -1888,61 +3311,93 @@ func file_agent_manager_v1_domain_effort_proto_rawDescGZIP() []byte {
 }
 
 var file_agent_manager_v1_domain_effort_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_agent_manager_v1_domain_effort_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_agent_manager_v1_domain_effort_proto_msgTypes = make([]protoimpl.MessageInfo, 31)
 var file_agent_manager_v1_domain_effort_proto_goTypes = []any{
-	(EffortFreshness)(0),                    // 0: agent_manager.v1.EffortFreshness
-	(*EffortSubject)(nil),                   // 1: agent_manager.v1.EffortSubject
-	(*EffortEnrollment)(nil),                // 2: agent_manager.v1.EffortEnrollment
-	(*EffortDiscoveryFinding)(nil),          // 3: agent_manager.v1.EffortDiscoveryFinding
-	(*EffortDiscovery)(nil),                 // 4: agent_manager.v1.EffortDiscovery
-	(*EffortUsage)(nil),                     // 5: agent_manager.v1.EffortUsage
-	(*EffortQuotaObservation)(nil),          // 6: agent_manager.v1.EffortQuotaObservation
-	(*EffortAssignment)(nil),                // 7: agent_manager.v1.EffortAssignment
-	(*EffortOutcomeStanding)(nil),           // 8: agent_manager.v1.EffortOutcomeStanding
-	(*EffortBoardRow)(nil),                  // 9: agent_manager.v1.EffortBoardRow
-	(*EffortBoard)(nil),                     // 10: agent_manager.v1.EffortBoard
-	(*GetEffortBoardRequest)(nil),           // 11: agent_manager.v1.GetEffortBoardRequest
-	(*ListEffortsRequest)(nil),              // 12: agent_manager.v1.ListEffortsRequest
-	(*ListEffortsResponse)(nil),             // 13: agent_manager.v1.ListEffortsResponse
-	(*EnrollEffortRequest)(nil),             // 14: agent_manager.v1.EnrollEffortRequest
-	(*ReconcileEffortMetadataRequest)(nil),  // 15: agent_manager.v1.ReconcileEffortMetadataRequest
-	(*WithdrawEffortRequest)(nil),           // 16: agent_manager.v1.WithdrawEffortRequest
-	(*ReconcileEffortDiscoveryRequest)(nil), // 17: agent_manager.v1.ReconcileEffortDiscoveryRequest
-	(*timestamppb.Timestamp)(nil),           // 18: google.protobuf.Timestamp
-	(WatchAuthority)(0),                     // 19: agent_manager.v1.WatchAuthority
+	(EffortFreshness)(0),                      // 0: agent_manager.v1.EffortFreshness
+	(*EffortSubject)(nil),                     // 1: agent_manager.v1.EffortSubject
+	(*EffortEnrollment)(nil),                  // 2: agent_manager.v1.EffortEnrollment
+	(*EffortDiscoveryFinding)(nil),            // 3: agent_manager.v1.EffortDiscoveryFinding
+	(*EffortDiscovery)(nil),                   // 4: agent_manager.v1.EffortDiscovery
+	(*EffortUsage)(nil),                       // 5: agent_manager.v1.EffortUsage
+	(*EffortQuotaObservation)(nil),            // 6: agent_manager.v1.EffortQuotaObservation
+	(*EffortAssignment)(nil),                  // 7: agent_manager.v1.EffortAssignment
+	(*EffortOutcomeStanding)(nil),             // 8: agent_manager.v1.EffortOutcomeStanding
+	(*EffortBoardRow)(nil),                    // 9: agent_manager.v1.EffortBoardRow
+	(*EffortBoard)(nil),                       // 10: agent_manager.v1.EffortBoard
+	(*GetEffortBoardRequest)(nil),             // 11: agent_manager.v1.GetEffortBoardRequest
+	(*ListEffortsRequest)(nil),                // 12: agent_manager.v1.ListEffortsRequest
+	(*ListEffortsResponse)(nil),               // 13: agent_manager.v1.ListEffortsResponse
+	(*EnrollEffortRequest)(nil),               // 14: agent_manager.v1.EnrollEffortRequest
+	(*ReconcileEffortMetadataRequest)(nil),    // 15: agent_manager.v1.ReconcileEffortMetadataRequest
+	(*WithdrawEffortRequest)(nil),             // 16: agent_manager.v1.WithdrawEffortRequest
+	(*ReconcileEffortDiscoveryRequest)(nil),   // 17: agent_manager.v1.ReconcileEffortDiscoveryRequest
+	(*EffortCapUsage)(nil),                    // 18: agent_manager.v1.EffortCapUsage
+	(*EffortGoalHome)(nil),                    // 19: agent_manager.v1.EffortGoalHome
+	(*EffortSignal)(nil),                      // 20: agent_manager.v1.EffortSignal
+	(*ListEffortSignalsRequest)(nil),          // 21: agent_manager.v1.ListEffortSignalsRequest
+	(*ListEffortSignalsResponse)(nil),         // 22: agent_manager.v1.ListEffortSignalsResponse
+	(*RecordEffortSignalRequest)(nil),         // 23: agent_manager.v1.RecordEffortSignalRequest
+	(*EffortDecisionOption)(nil),              // 24: agent_manager.v1.EffortDecisionOption
+	(*EffortDecision)(nil),                    // 25: agent_manager.v1.EffortDecision
+	(*RaiseEffortDecisionRequest)(nil),        // 26: agent_manager.v1.RaiseEffortDecisionRequest
+	(*RaiseEffortDecisionResponse)(nil),       // 27: agent_manager.v1.RaiseEffortDecisionResponse
+	(*ListEffortDecisionsRequest)(nil),        // 28: agent_manager.v1.ListEffortDecisionsRequest
+	(*ListEffortDecisionsResponse)(nil),       // 29: agent_manager.v1.ListEffortDecisionsResponse
+	(*AnswerEffortDecisionRequest)(nil),       // 30: agent_manager.v1.AnswerEffortDecisionRequest
+	(*MarkEffortDecisionRecordedRequest)(nil), // 31: agent_manager.v1.MarkEffortDecisionRecordedRequest
+	(*timestamppb.Timestamp)(nil),             // 32: google.protobuf.Timestamp
+	(WatchAuthority)(0),                       // 33: agent_manager.v1.WatchAuthority
 }
 var file_agent_manager_v1_domain_effort_proto_depIdxs = []int32{
 	1,  // 0: agent_manager.v1.EffortEnrollment.subjects:type_name -> agent_manager.v1.EffortSubject
-	18, // 1: agent_manager.v1.EffortEnrollment.updated_at:type_name -> google.protobuf.Timestamp
-	18, // 2: agent_manager.v1.EffortDiscovery.last_scan_at:type_name -> google.protobuf.Timestamp
-	18, // 3: agent_manager.v1.EffortDiscovery.last_successful_scan_at:type_name -> google.protobuf.Timestamp
+	32, // 1: agent_manager.v1.EffortEnrollment.updated_at:type_name -> google.protobuf.Timestamp
+	32, // 2: agent_manager.v1.EffortDiscovery.last_scan_at:type_name -> google.protobuf.Timestamp
+	32, // 3: agent_manager.v1.EffortDiscovery.last_successful_scan_at:type_name -> google.protobuf.Timestamp
 	3,  // 4: agent_manager.v1.EffortDiscovery.findings:type_name -> agent_manager.v1.EffortDiscoveryFinding
 	5,  // 5: agent_manager.v1.EffortDiscovery.standing_usage:type_name -> agent_manager.v1.EffortUsage
-	18, // 6: agent_manager.v1.EffortQuotaObservation.observed_at:type_name -> google.protobuf.Timestamp
-	18, // 7: agent_manager.v1.EffortQuotaObservation.reset_at:type_name -> google.protobuf.Timestamp
+	32, // 6: agent_manager.v1.EffortQuotaObservation.observed_at:type_name -> google.protobuf.Timestamp
+	32, // 7: agent_manager.v1.EffortQuotaObservation.reset_at:type_name -> google.protobuf.Timestamp
 	1,  // 8: agent_manager.v1.EffortAssignment.subject:type_name -> agent_manager.v1.EffortSubject
 	5,  // 9: agent_manager.v1.EffortAssignment.usage:type_name -> agent_manager.v1.EffortUsage
-	18, // 10: agent_manager.v1.EffortAssignment.observed_at:type_name -> google.protobuf.Timestamp
+	32, // 10: agent_manager.v1.EffortAssignment.observed_at:type_name -> google.protobuf.Timestamp
 	2,  // 11: agent_manager.v1.EffortBoardRow.enrollment:type_name -> agent_manager.v1.EffortEnrollment
-	18, // 12: agent_manager.v1.EffortBoardRow.observed_at:type_name -> google.protobuf.Timestamp
+	32, // 12: agent_manager.v1.EffortBoardRow.observed_at:type_name -> google.protobuf.Timestamp
 	0,  // 13: agent_manager.v1.EffortBoardRow.freshness:type_name -> agent_manager.v1.EffortFreshness
 	8,  // 14: agent_manager.v1.EffortBoardRow.outcome_standing:type_name -> agent_manager.v1.EffortOutcomeStanding
 	7,  // 15: agent_manager.v1.EffortBoardRow.assignments:type_name -> agent_manager.v1.EffortAssignment
 	5,  // 16: agent_manager.v1.EffortBoardRow.usage:type_name -> agent_manager.v1.EffortUsage
 	6,  // 17: agent_manager.v1.EffortBoardRow.quota_observations:type_name -> agent_manager.v1.EffortQuotaObservation
-	9,  // 18: agent_manager.v1.EffortBoard.rows:type_name -> agent_manager.v1.EffortBoardRow
-	4,  // 19: agent_manager.v1.EffortBoard.discovery:type_name -> agent_manager.v1.EffortDiscovery
-	18, // 20: agent_manager.v1.EffortBoard.observed_at:type_name -> google.protobuf.Timestamp
-	6,  // 21: agent_manager.v1.EffortBoard.quota_observations:type_name -> agent_manager.v1.EffortQuotaObservation
-	2,  // 22: agent_manager.v1.ListEffortsResponse.efforts:type_name -> agent_manager.v1.EffortEnrollment
-	2,  // 23: agent_manager.v1.EnrollEffortRequest.enrollment:type_name -> agent_manager.v1.EffortEnrollment
-	2,  // 24: agent_manager.v1.ReconcileEffortMetadataRequest.enrollment:type_name -> agent_manager.v1.EffortEnrollment
-	19, // 25: agent_manager.v1.ReconcileEffortMetadataRequest.authority:type_name -> agent_manager.v1.WatchAuthority
-	26, // [26:26] is the sub-list for method output_type
-	26, // [26:26] is the sub-list for method input_type
-	26, // [26:26] is the sub-list for extension type_name
-	26, // [26:26] is the sub-list for extension extendee
-	0,  // [0:26] is the sub-list for field type_name
+	19, // 18: agent_manager.v1.EffortBoardRow.goal_home:type_name -> agent_manager.v1.EffortGoalHome
+	9,  // 19: agent_manager.v1.EffortBoard.rows:type_name -> agent_manager.v1.EffortBoardRow
+	4,  // 20: agent_manager.v1.EffortBoard.discovery:type_name -> agent_manager.v1.EffortDiscovery
+	32, // 21: agent_manager.v1.EffortBoard.observed_at:type_name -> google.protobuf.Timestamp
+	6,  // 22: agent_manager.v1.EffortBoard.quota_observations:type_name -> agent_manager.v1.EffortQuotaObservation
+	2,  // 23: agent_manager.v1.ListEffortsResponse.efforts:type_name -> agent_manager.v1.EffortEnrollment
+	2,  // 24: agent_manager.v1.EnrollEffortRequest.enrollment:type_name -> agent_manager.v1.EffortEnrollment
+	2,  // 25: agent_manager.v1.ReconcileEffortMetadataRequest.enrollment:type_name -> agent_manager.v1.EffortEnrollment
+	33, // 26: agent_manager.v1.ReconcileEffortMetadataRequest.authority:type_name -> agent_manager.v1.WatchAuthority
+	32, // 27: agent_manager.v1.EffortGoalHome.current_as_of:type_name -> google.protobuf.Timestamp
+	32, // 28: agent_manager.v1.EffortGoalHome.last_accepted_at:type_name -> google.protobuf.Timestamp
+	25, // 29: agent_manager.v1.EffortGoalHome.open_decisions:type_name -> agent_manager.v1.EffortDecision
+	18, // 30: agent_manager.v1.EffortGoalHome.cap_usage:type_name -> agent_manager.v1.EffortCapUsage
+	32, // 31: agent_manager.v1.EffortGoalHome.read_at:type_name -> google.protobuf.Timestamp
+	32, // 32: agent_manager.v1.EffortSignal.created_at:type_name -> google.protobuf.Timestamp
+	20, // 33: agent_manager.v1.ListEffortSignalsResponse.signals:type_name -> agent_manager.v1.EffortSignal
+	24, // 34: agent_manager.v1.EffortDecision.options:type_name -> agent_manager.v1.EffortDecisionOption
+	32, // 35: agent_manager.v1.EffortDecision.deadline:type_name -> google.protobuf.Timestamp
+	32, // 36: agent_manager.v1.EffortDecision.answered_at:type_name -> google.protobuf.Timestamp
+	32, // 37: agent_manager.v1.EffortDecision.created_at:type_name -> google.protobuf.Timestamp
+	32, // 38: agent_manager.v1.EffortDecision.published_at:type_name -> google.protobuf.Timestamp
+	32, // 39: agent_manager.v1.EffortDecision.recorded_at:type_name -> google.protobuf.Timestamp
+	25, // 40: agent_manager.v1.RaiseEffortDecisionRequest.decision:type_name -> agent_manager.v1.EffortDecision
+	25, // 41: agent_manager.v1.RaiseEffortDecisionResponse.decision:type_name -> agent_manager.v1.EffortDecision
+	25, // 42: agent_manager.v1.ListEffortDecisionsResponse.decisions:type_name -> agent_manager.v1.EffortDecision
+	32, // 43: agent_manager.v1.MarkEffortDecisionRecordedRequest.answered_at:type_name -> google.protobuf.Timestamp
+	44, // [44:44] is the sub-list for method output_type
+	44, // [44:44] is the sub-list for method input_type
+	44, // [44:44] is the sub-list for extension type_name
+	44, // [44:44] is the sub-list for extension extendee
+	0,  // [0:44] is the sub-list for field type_name
 }
 
 func init() { file_agent_manager_v1_domain_effort_proto_init() }
@@ -1954,13 +3409,15 @@ func file_agent_manager_v1_domain_effort_proto_init() {
 	file_agent_manager_v1_domain_effort_proto_msgTypes[4].OneofWrappers = []any{}
 	file_agent_manager_v1_domain_effort_proto_msgTypes[5].OneofWrappers = []any{}
 	file_agent_manager_v1_domain_effort_proto_msgTypes[7].OneofWrappers = []any{}
+	file_agent_manager_v1_domain_effort_proto_msgTypes[17].OneofWrappers = []any{}
+	file_agent_manager_v1_domain_effort_proto_msgTypes[18].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_agent_manager_v1_domain_effort_proto_rawDesc), len(file_agent_manager_v1_domain_effort_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   17,
+			NumMessages:   31,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

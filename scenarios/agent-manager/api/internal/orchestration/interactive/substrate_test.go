@@ -46,10 +46,13 @@ func newFakeSessions(id string) *fakeSessions {
 	return &fakeSessions{createID: id, deleted: map[string]bool{}}
 }
 
-func (f *fakeSessions) CreateSession(_ context.Context, _ webconsole.CreateSessionParams) (string, error) {
+func (f *fakeSessions) CreateSession(_ context.Context, params webconsole.CreateSessionParams) (string, error) {
 	f.calls = append(f.calls, "create")
 	if f.createErr != nil {
 		return "", f.createErr
+	}
+	if params.RequestedSessionID != "" {
+		f.createID = params.RequestedSessionID
 	}
 	return f.createID, nil
 }

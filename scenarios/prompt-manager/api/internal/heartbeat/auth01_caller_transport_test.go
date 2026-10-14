@@ -101,7 +101,7 @@ func TestAuth01CreateRunProofDoesNotAuthorizeSiblingRequests(t *testing.T) {
 		if r.Header.Get("Authorization") != "" || r.Header.Get("X-Agent-Identity-Token") != "" {
 			t.Error("CreateRun proof widened to sibling")
 		}
-		_, _ = w.Write([]byte(`{"task":{"id":"fixture-task"}}`))
+		_, _ = w.Write([]byte(`{"task":{"id":"6a89415d-9f95-4ee0-a534-00619ce6fd5a"}}`))
 	}))
 	defer srv.Close()
 	client := newTestClient(t, srv)

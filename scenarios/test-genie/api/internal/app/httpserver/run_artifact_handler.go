@@ -1,10 +1,12 @@
 package httpserver
 
 import (
+	"bytes"
 	"errors"
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/gorilla/mux"
 
@@ -39,6 +41,19 @@ func (s *Server) handleGetRunArtifactByID(w http.ResponseWriter, r *http.Request
 		}
 		return
 	}
+	var strictBytes []byte
+	requiresStrict, err := s.runsService.RequiresStrictInputValidation(vars["name"], vars["runId"], artifactID, artifact.Kind)
+	if err != nil {
+		s.writeError(w, http.StatusConflict, "artifact validation unavailable")
+		return
+	}
+	if requiresStrict {
+		artifact, strictBytes, err = s.runsService.ReadStrictInputArtifact(r.Context(), vars["name"], vars["runId"], artifactID)
+		if err != nil {
+			s.writeError(w, http.StatusConflict, "strict artifact unavailable")
+			return
+		}
+	}
 	if artifact.MediaType != "" {
 		w.Header().Set("Content-Type", artifact.MediaType)
 	}
@@ -47,6 +62,10 @@ func (s *Server) handleGetRunArtifactByID(w http.ResponseWriter, r *http.Request
 	// HTML/DOM evidence remains inert even when opened directly on the API
 	// origin. Media and JSON/text artifacts are unaffected by this sandbox.
 	w.Header().Set("Content-Security-Policy", "sandbox; default-src 'none'")
+	if strictBytes != nil {
+		http.ServeContent(w, r, artifact.Label, time.Time{}, bytes.NewReader(strictBytes))
+		return
+	}
 	http.ServeFile(w, r, abs)
 }
 

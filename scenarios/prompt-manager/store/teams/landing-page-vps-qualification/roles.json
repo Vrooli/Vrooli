@@ -2,5 +2,11 @@
   "kind": "team-roles",
   "schemaVersion": 1,
   "teamId": "landing-page-vps-qualification",
-  "roles": []
+  "roles": [
+    {
+      "id": "landing-page-vps-qualification-coordinator",
+      "name": "Landing Page VPS Qualification Coordinator",
+      "description": "Coordinate the finite effort; reconcile owner state, perform only qualified bounded coordinator work, retain evidence, and stop at blockers or terminal evidence."
+    }
+  ]
 }

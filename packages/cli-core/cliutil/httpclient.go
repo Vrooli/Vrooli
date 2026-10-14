@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -114,18 +115,28 @@ func ParseAPIError(statusCode int, data []byte) *APIError {
 
 // HTTPClient wraps an http.Client with base URL resolution, token injection,
 // and JSON request helpers.
-type HTTPClient struct {
-	client       *http.Client
-	baseOptions  APIBaseOptions
-	token        string
-	dryRun       bool
-	headerSource func() map[string]string
-	// invocationHeaderSource is owned by cliapp's per-command preflight. It
-	// must remain distinct from an application header source: scenarios may
-	// require their own transport contract (for example, runtime attribution)
-	// in addition to common invocation provenance.
-	invocationHeaderSource func() map[string]string
+type agentCredentialPin struct {
+	token   string
+	resolve func(context.Context) (string, error)
 }
+type (
+	agentCredentialPinKey struct{}
+	HTTPClient            struct {
+		// Enabled only on an explicitly protected request-local copy.
+		rejectRedirectResponses bool
+		identityPin             *agentCredentialPin
+		client                  *http.Client
+		baseOptions             APIBaseOptions
+		token                   string
+		dryRun                  bool
+		headerSource            func() map[string]string
+		// invocationHeaderSource is owned by cliapp's per-command preflight. It
+		// must remain distinct from an application header source: scenarios may
+		// require their own transport contract (for example, runtime attribution)
+		// in addition to common invocation provenance.
+		invocationHeaderSource func() map[string]string
+	}
+)
 
 type HTTPClientOptions struct {
 	Client      *http.Client
@@ -178,6 +189,21 @@ func (t identityForwardingTransport) RoundTrip(req *http.Request) (*http.Respons
 // ApplyAgentIdentity resolves current authority for a direct transport, such
 // as a WebSocket upgrade. It also strips inherited identity on remote hops.
 func ApplyAgentIdentity(req *http.Request) error {
+	if req != nil {
+		if pin, ok := req.Context().Value(agentCredentialPinKey{}).(*agentCredentialPin); ok {
+			if !TrustedIdentityDestination(req) {
+				return errors.New("pinned native credential requires trusted destination")
+			}
+			current, err := pin.resolve(req.Context())
+			if err != nil {
+				return err
+			}
+			if current != pin.token || req.Header.Get(HeaderAgentIdentityToken) != pin.token {
+				return errors.New("native credential changed during exact request")
+			}
+			return nil
+		}
+	}
 	if !TrustedIdentityDestination(req) {
 		if req != nil {
 			req.Header.Del(HeaderAgentIdentityToken)
@@ -338,12 +364,26 @@ func (h *HTTPClient) DoWithContext(ctx context.Context, method, path string, que
 		req.Header.Set("Content-Type", "application/json")
 	}
 	h.ApplyRequestHeaders(req)
+	if h.identityPin != nil {
+		// Pin after all application/invocation headers and retain the marker
+		// through the ordinary identity-forwarding transport. Recheck the live
+		// authority; a responding refusal never falls back to the retained leaf.
+		req = req.WithContext(context.WithValue(req.Context(), agentCredentialPinKey{}, h.identityPin))
+		req.Header.Del("Authorization")
+		req.Header.Set(HeaderAgentIdentityToken, h.identityPin.token)
+		if err := ApplyAgentIdentity(req); err != nil {
+			return nil, err
+		}
+	}
 
 	resp, err := h.client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
 	defer resp.Body.Close()
+	if h.rejectRedirectResponses && resp.StatusCode >= http.StatusMultipleChoices && resp.StatusCode < http.StatusBadRequest {
+		return nil, &APIError{StatusCode: resp.StatusCode, Message: "protected request redirect response refused"}
+	}
 
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {

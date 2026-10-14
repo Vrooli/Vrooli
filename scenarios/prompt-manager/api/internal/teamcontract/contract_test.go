@@ -453,10 +453,19 @@ func TestBundledBASDeliveryContractKeepsScenarioDocumentsCanonical(t *testing.T)
 			t.Errorf("missing canonical scenario path %s from contract/render", path)
 		}
 	}
-	// The orchestrator returns owner handoffs; declarations must not grant it
-	// write access to the controls used to accept its own work.
+	// The orchestrator returns owner handoffs and maintains its own goal home —
+	// the established delivery-team pattern (nooch/personal-planner/desktop/rcl
+	// all declare the same goal-home write). Operator decision 2026-10-12
+	// aligned this guard with that pattern. It still must not gain write access
+	// to control surfaces outside its own goal home.
+	goalHome := scenarioDocs + "internal/goal"
 	for _, write := range team.OperatingContract.Members[memberID].AllowedWrites {
-		if write.Base != "" || (write.Kind != "knowledge" && write.Kind != "handoff") {
+		switch {
+		case write.Base == "" && (write.Kind == "knowledge" || write.Kind == "handoff"):
+			// Owner-visible handoff / knowledge return path.
+		case write.Base == BaseRepoRoot && write.Path == goalHome:
+			// The team's own goal home, the single shared ledger it maintains.
+		default:
 			t.Fatalf("orchestrator declaration widens control writes: %+v", write)
 		}
 	}

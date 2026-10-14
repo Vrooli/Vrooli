@@ -37,14 +37,14 @@ test("RunDetail renders the shared report projection including event histogram",
   vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
     run_id: "run-1", status: "failed", exit_code: 1, error: "tool failed", duration_ms: "1250", heartbeat_gap_ms: "500", turns: 2, tokens: 42, cost_usd: 0.25,
     result: { selection_status: "ambiguous", selection_rule: "multiple", candidate_count: 2, structured_status: "invalid", diagnostic_codes: ["schema_invalid"] },
-    event_counts: { tool_result: 1, "model.fallback.attempted": 1 }, tools: [{ name: "bash", calls: 1, successes: 0, failures: 1 }],
+    event_counts: { tool_result: 1, "model.fallback.attempted": 1 }, tools: [{ name: "bash", calls: 3, successes: 0, failures: 1, returned: 2, unknown_outcome: 1, unresolved: 1 }],
     project_owned_tool_calls: 1, external_tool_calls: 0, requested_model: "primary", actual_model: "fallback", fallback_count: 1, repeated_tool_calls: 1, files_read_more_than_once: 1, longest_event_gap_ms: "500",
     diff: { files: 1, bytes: 8, available: { state: "available" } }, events_availability: { state: "available" }, receipts_availability: { state: "unobserved" }, receipt_count: 0,
   }), { status: 200, headers: { "Content-Type": "application/json" } })));
   renderRunDetail("report");
   await waitFor(() => assert.ok(screen.getByTestId("run-report")));
   const report = screen.getByTestId("run-report");
-  assert.match(report.textContent ?? "", /tool_result: 1/); assert.match(report.textContent ?? "", /model\.fallback\.attempted: 1/);
+  assert.match(report.textContent ?? "", /tool_result: 1/); assert.match(report.textContent ?? "", /3 calls, 2 returned, 1 failed, 1 outcome unknown, 1 unresolved/); assert.match(report.textContent ?? "", /model\.fallback\.attempted: 1/);
   assert.match(report.textContent ?? "", /schema_invalid/); assert.match(report.textContent ?? "", /project-owned=1/);
   vi.unstubAllGlobals();
 });

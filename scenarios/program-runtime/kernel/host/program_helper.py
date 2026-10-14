@@ -44,6 +44,9 @@ PUBLIC_MEMBERS = (
     "fail",
     "guarded",
     "classify",
+    "select_field",
+    "coerce_int",
+    "coerce_float",
     "run",
     "report",
     "BindingError",
@@ -154,7 +157,8 @@ _REMOTE_STATUS = re.compile(r"remote status (\d{3})")
 # bodies and this table only covers kernel-local and legacy messages.
 _MESSAGE_TABLE: tuple[tuple[tuple[str, ...], str, str], ...] = (
     (("is unreachable", "bridge unavailable", "bridge is unavailable", "scenario_not_running",
-      "no running runtime ports", "connection refused", "dial tcp", "no such host"),
+      "no running runtime ports", "connection refused", "dial tcp", "no such host",
+      "invalid_port", "invalid vrooli_api_port", "vrooli_not_found"),
      "unavailable", "scenario_unreachable"),
     (("requires an explicit grant", "requires explicit confirmation"), "refused", "no_grant"),
     (("not run eligible", "run_eligible"), "refused", "not_run_eligible"),
@@ -324,6 +328,35 @@ class ProgramHelper:
         if isinstance(exc, BindingError):
             return exc.classification()
         return classify_message(str(exc))
+
+    def select_field(self, row: Any, *names: str, default: Any = None) -> Any:
+        """Return the first present, non-empty value among `names` on a mapping.
+
+        Proto/JSON rows reach a program in camelCase or snake_case depending on
+        the transport; this is the field access the copies wrote out as a local
+        `value()` helper. A non-mapping `row` yields `default`.
+        """
+        if not isinstance(row, dict):
+            return default
+        for name in names:
+            candidate = dict.get(row, name)
+            if candidate is not None and candidate != "":
+                return candidate
+        return default
+
+    def coerce_int(self, raw: Any, default: int = 0) -> int:
+        """Best-effort int, falling back to `default` on None or a bad value."""
+        try:
+            return int(raw or 0)
+        except (TypeError, ValueError):
+            return default
+
+    def coerce_float(self, raw: Any, default: float = 0.0) -> float:
+        """Best-effort float, falling back to `default` on None or a bad value."""
+        try:
+            return float(raw or 0.0)
+        except (TypeError, ValueError):
+            return default
 
     def run(self, states: dict[str, Callable[[], str | None]], start: str = "validate") -> None:
         """Drive the phase state machine with the one catch that guarantees an envelope.

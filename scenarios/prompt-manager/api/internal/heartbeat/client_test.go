@@ -3,6 +3,7 @@ package heartbeat
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -131,7 +132,7 @@ func TestCreateTask_Success(t *testing.T) {
 
 		resp := CreateTaskResponse{
 			Task: &Task{
-				ID:          "task-abc",
+				ID:          "6a89415d-9f95-4ee0-a534-00619ce6fd5a",
 				Title:       req.Task.Title,
 				Description: req.Task.Description,
 				ScopePath:   req.Task.ScopePath,
@@ -152,8 +153,8 @@ func TestCreateTask_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if task.ID != "task-abc" {
-		t.Errorf("expected task ID task-abc, got %s", task.ID)
+	if task.ID != "6a89415d-9f95-4ee0-a534-00619ce6fd5a" {
+		t.Errorf("expected task ID 6a89415d-9f95-4ee0-a534-00619ce6fd5a, got %s", task.ID)
 	}
 }
 
@@ -177,14 +178,14 @@ func TestCreateTask_ServerError(t *testing.T) {
 
 func TestCancelTask_Success(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost || r.URL.Path != "/api/v1/tasks/task-abc/cancel" {
+		if r.Method != http.MethodPost || r.URL.Path != "/api/v1/tasks/6a89415d-9f95-4ee0-a534-00619ce6fd5a/cancel" {
 			t.Fatalf("unexpected cancel request: %s %s", r.Method, r.URL.Path)
 		}
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer srv.Close()
 
-	if err := newTestClient(t, srv).CancelTask(context.Background(), "task-abc"); err != nil {
+	if err := newTestClient(t, srv).CancelTask(context.Background(), "6a89415d-9f95-4ee0-a534-00619ce6fd5a"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
@@ -509,122 +510,206 @@ func TestDoRequestWithRetry_NoRetryOn4xx(t *testing.T) {
 	}
 }
 
-// --- Error Parsing ---
-
-func TestParseError_ErrorField(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		_, _ = w.Write([]byte(`{"error":"validation failed: title required"}`))
-	}))
-	defer srv.Close()
-
-	client := newTestClient(t, srv)
-	_, err := client.CreateTask(context.Background(), &Task{Description: "x", ScopePath: "/tmp"})
-	if err == nil {
-		t.Fatal("expected error")
+// Error envelope parsing is a pure mapping claim; transport refusal typing is
+// protected separately by the task dispatch tests.
+func TestParseErrorOwnerEnvelopes(t *testing.T) {
+	cases := []struct{ body, want string }{
+		{`{"error":"validation failed: title required"}`, "agent-manager error: validation failed: title required"},
+		{`{"message":"invalid JSON request body"}`, "agent-manager error: invalid JSON request body"},
+		{`{"code":"VALIDATION","message":"field 'timeout' has invalid Duration format","details":{}}`, "agent-manager error: field 'timeout' has invalid Duration format"},
+		{`{"status":"INTERNAL","detail":"something broke"}`, `agent-manager error: status 400, body: {"status":"INTERNAL","detail":"something broke"}`},
 	}
-	if got := err.Error(); got != "agent-manager error: validation failed: title required" {
-		t.Errorf("unexpected error message: %s", got)
-	}
-}
-
-func TestParseError_MessageField(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		_, _ = w.Write([]byte(`{"message":"invalid JSON request body"}`))
-	}))
-	defer srv.Close()
-
-	client := newTestClient(t, srv)
-	_, err := client.CreateTask(context.Background(), &Task{Description: "x", ScopePath: "/tmp"})
-	if err == nil {
-		t.Fatal("expected error")
-	}
-	if got := err.Error(); got != "agent-manager error: invalid JSON request body" {
-		t.Errorf("unexpected error message: %s", got)
+	for _, tc := range cases {
+		t.Run(tc.body, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			recorder.WriteHeader(http.StatusBadRequest)
+			recorder.WriteString(tc.body)
+			response := recorder.Result()
+			defer response.Body.Close()
+			if err := (&AgentManagerClient{}).parseError(response); err == nil || err.Error() != tc.want {
+				t.Fatalf("err=%v want=%s", err, tc.want)
+			}
+		})
 	}
 }
 
-// --- Proto Error Response Parsing ---
-
-func TestParseError_ProtoErrorResponse(t *testing.T) {
-	// agent-manager may return proto-style error responses with "code" and "message"
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		_, _ = w.Write([]byte(`{"code":"VALIDATION","message":"field 'timeout' has invalid Duration format","details":{}}`))
-	}))
-	defer srv.Close()
-
-	client := newTestClient(t, srv)
-	_, err := client.CreateTask(context.Background(), &Task{Title: "x", Description: "y", ScopePath: "/tmp"})
-	if err == nil {
-		t.Fatal("expected error")
+func TestCreateTaskSingleAttemptPreservesUncertainOutcome(t *testing.T) {
+	cases := []struct {
+		name         string
+		status       int
+		body         string
+		loseResponse bool
+	}{
+		{"accepted response lost", 0, "", true},
+		{"accepted but server error", http.StatusInternalServerError, `{"error":"owner response lost"}`, false},
+		{"malformed success", http.StatusCreated, `{`, false},
+		{"missing task", http.StatusCreated, `{"task":null}`, false},
+		{"empty identity", http.StatusOK, `{"task":{"id":""}}`, false},
+		{"blank identity", http.StatusCreated, `{"task":{"id":"  "}}`, false},
+		{"malformed identity", http.StatusCreated, `{"task":{"id":"not-uuid"}}`, false},
+		{"nil UUID", http.StatusCreated, `{"task":{"id":"00000000-0000-0000-0000-000000000000"}}`, false},
 	}
-	// parseError should extract the "message" field
-	got := err.Error()
-	if got != "agent-manager error: field 'timeout' has invalid Duration format" {
-		t.Errorf("unexpected error message: %s", got)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var accepted, calls int32
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				atomic.AddInt32(&calls, 1)
+				if r.Method != http.MethodPost || r.URL.Path != "/api/v1/tasks" {
+					t.Errorf("request=%s %s", r.Method, r.URL.Path)
+				}
+				var req CreateTaskRequest
+				if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Task == nil || req.Task.Title != "original task" {
+					t.Errorf("request=%+v err=%v", req, err)
+				}
+				// Acceptance precedes response loss; every repeat would create another task.
+				atomic.AddInt32(&accepted, 1)
+				if tc.loseResponse {
+					conn, _, err := w.(http.Hijacker).Hijack()
+					if err != nil {
+						t.Errorf("hijack: %v", err)
+						return
+					}
+					_ = conn.Close()
+					return
+				}
+				w.WriteHeader(tc.status)
+				_, _ = w.Write([]byte(tc.body))
+			}))
+			defer server.Close()
+			client := newTestClient(t, server)
+			task, err := client.CreateTask(context.Background(), &Task{Title: "original task"})
+			var uncertain *DispatchUncertainError
+			if task != nil || !errors.As(err, &uncertain) || uncertain.Cause == nil {
+				t.Fatalf("task=%+v err=%v, want typed uncertainty with original cause", task, err)
+			}
+			if n := atomic.LoadInt32(&calls); n != 1 {
+				t.Fatalf("task POSTs=%d, want one", n)
+			}
+			if n := atomic.LoadInt32(&accepted); n != 1 {
+				t.Fatalf("accepted tasks=%d, want one", n)
+			}
+		})
 	}
 }
 
-func TestParseError_NoRecognizedFields(t *testing.T) {
-	// agent-manager returns a response with neither "error" nor "message"
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
-		_, _ = w.Write([]byte(`{"status":"INTERNAL","detail":"something broke"}`))
-	}))
-	defer srv.Close()
-
-	client := newTestClient(t, srv)
-	// 500 is retryable, so it will exhaust retries
-	_, err := client.Health(context.Background())
-	if err == nil {
-		t.Fatal("expected error after retries exhausted")
-	}
-	// Should include the status code and body in the fallback message
-	got := err.Error()
-	if got == "" {
-		t.Fatal("expected non-empty error message")
+func TestCreateTaskRefusesBodyResendingRedirectWithoutChangingOtherCalls(t *testing.T) {
+	for _, status := range []int{http.StatusTemporaryRedirect, http.StatusPermanentRedirect} {
+		t.Run(fmt.Sprint(status), func(t *testing.T) {
+			var original, redirected, health int32
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch r.URL.Path {
+				case "/api/v1/tasks":
+					atomic.AddInt32(&original, 1)
+					w.Header().Set("Location", "/redirected-task")
+					w.WriteHeader(status)
+				case "/redirected-task":
+					atomic.AddInt32(&redirected, 1)
+					_, _ = w.Write([]byte(`{"task":{"id":"second-task"}}`))
+				case "/health":
+					http.Redirect(w, r, "/health-target", http.StatusFound)
+				case "/health-target":
+					atomic.AddInt32(&health, 1)
+					w.WriteHeader(http.StatusOK)
+				default:
+					t.Errorf("unexpected request=%s %s", r.Method, r.URL.Path)
+				}
+			}))
+			defer server.Close()
+			client := newTestClient(t, server)
+			task, err := client.CreateTask(context.Background(), &Task{Title: "original task"})
+			if task != nil || !IsDispatchUncertain(err) {
+				t.Fatalf("redirect task=%+v err=%v, want uncertainty without replay", task, err)
+			}
+			if atomic.LoadInt32(&original) != 1 || atomic.LoadInt32(&redirected) != 0 {
+				t.Fatalf("original=%d redirected=%d", original, redirected)
+			}
+			ok, err := client.Health(context.Background())
+			if err != nil || !ok || atomic.LoadInt32(&health) != 1 || client.httpClient.CheckRedirect != nil {
+				t.Fatalf("unrelated client redirect changed: healthy=%v err=%v calls=%d", ok, err, health)
+			}
+		})
 	}
 }
 
-// --- EnsureProfile ---
-
-func TestEnsureProfile_Created(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/v1/profiles/ensure" {
-			t.Errorf("unexpected path: %s", r.URL.Path)
-		}
-		var req EnsureProfileRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			t.Fatalf("decode: %v", err)
-		}
-		if req.ProfileKey != "test-profile" {
-			t.Errorf("expected profile_key test-profile, got %s", req.ProfileKey)
-		}
-
-		resp := EnsureProfileResponse{
-			Profile: &AgentProfile{ProfileKey: "test-profile"},
-			Created: true,
-		}
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusCreated)
-		_ = json.NewEncoder(w).Encode(resp)
-	}))
-	defer srv.Close()
-
-	client := newTestClient(t, srv)
-	resp, err := client.EnsureProfile(context.Background(), &EnsureProfileRequest{
-		ProfileKey: "test-profile",
-	})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+func TestCreateTaskKeepsCanceledContextAndDoesNotSend(t *testing.T) {
+	var calls int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { atomic.AddInt32(&calls, 1) }))
+	defer server.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err := newTestClient(t, server).CreateTask(ctx, &Task{Title: "original task"})
+	if !IsDispatchRejected(err) || IsDispatchUncertain(err) || !errors.Is(err, context.Canceled) || atomic.LoadInt32(&calls) != 0 {
+		t.Fatalf("err=%v calls=%d, want preserved cancellation before sending", err, calls)
 	}
-	if !resp.Created {
-		t.Error("expected created=true")
+}
+
+func TestCreateTaskDefinitiveRefusalNeverBecomesTransportUncertainty(t *testing.T) {
+	for _, status := range []int{400, 401, 403, 409, 422, 429} {
+		t.Run(fmt.Sprint(status), func(t *testing.T) {
+			var calls int
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				calls++
+				w.WriteHeader(status)
+				fmt.Fprint(w, `{"error":"timeout: owner unreachable"}`)
+			}))
+			defer server.Close()
+			_, err := newTestClient(t, server).CreateTask(context.Background(), &Task{Title: "original task"})
+			if !IsDispatchRejected(err) || IsDispatchUncertain(err) || calls != 1 {
+				t.Fatalf("err=%v calls=%d", err, calls)
+			}
+		})
+	}
+}
+func TestCreateTaskUnsentFailuresAreRejected(t *testing.T) {
+	client := NewAgentManagerClient(time.Second)
+	client.testBaseURL = "://bad"
+	for _, task := range []*Task{{Title: "original"}, {ContextAttachments: json.RawMessage(`{`)}} {
+		_, err := client.CreateTask(context.Background(), task)
+		if !IsDispatchRejected(err) || IsDispatchUncertain(err) {
+			t.Fatalf("err=%v", err)
+		}
+	}
+}
+
+func TestResolveProfileExactReadContract(t *testing.T) {
+	key := "prompt-manager/heartbeat-judgment"
+	const identity = "6a89415d-9f95-4ee0-a534-00619ce6fd5a"
+	cases := []struct {
+		name, body string
+		wantErr    bool
+	}{
+		{"owner snake case and preserved budget", `{"profiles":[{"id":"` + identity + `","profile_key":"` + key + `","max_weighted_tokens":"10000","timeout":"600s","max_turns":50,"owner_scenario":"prompt-manager","source_hash":"original","sandbox_config":{"mode":"SANDBOX_MODE_PROTECTED"}}],"total":1}`, false},
+		{"owner camel case", `{"profiles":[{"id":"` + identity + `","profileKey":"` + key + `"}],"total":1}`, false},
+		{"positive partial catalog", `{"profiles":[{"id":"` + identity + `","profile_key":"` + key + `"}],"total":12}`, false},
+		{"missing exact namespace", `{"profiles":[{"id":"` + identity + `","profile_key":"other/heartbeat-judgment"}]}`, true},
+		{"missing", `{"profiles":[]}`, true},
+		{"duplicates", `{"profiles":[{"id":"` + identity + `","profile_key":"` + key + `"},{"id":"` + identity + `","profile_key":"` + key + `"}]}`, true},
+		{"invalid identity", `{"profiles":[{"id":"not-uuid","profile_key":"` + key + `"}]}`, true},
+		{"null identity", `{"profiles":[{"profile_key":"` + key + `"}]}`, true},
+		{"unsupported schema", `{"profiles":[{"id":"` + identity + `","profile_key":"` + key + `","unknown_control":true}]}`, true},
+		{"truncated", `{"profiles":[`, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var calls int
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				calls++
+				if r.Method != http.MethodGet || r.URL.Path != "/api/v1/profiles" || r.URL.RawQuery != "" {
+					t.Errorf("unexpected request: %s %s", r.Method, r.URL)
+				}
+				fmt.Fprint(w, tc.body)
+			}))
+			defer server.Close()
+			profile, err := newTestClient(t, server).ResolveProfile(context.Background(), key)
+			if (err != nil) != tc.wantErr || calls != 1 {
+				t.Fatalf("profile=%v err=%v calls=%d", profile, err, calls)
+			}
+			if !tc.wantErr && (profile.Id != identity || profile.ProfileKey != key) {
+				t.Fatalf("identity lost: %v", profile)
+			}
+			if tc.name == "owner snake case and preserved budget" && (profile.MaxWeightedTokens != 10000 || profile.MaxTurns != 50 || profile.Timeout.AsDuration() != 600*time.Second || profile.OwnerScenario != "prompt-manager" || profile.SandboxConfig == nil) {
+				t.Fatalf("owner controls lost: %v", profile)
+			}
+		})
 	}
 }

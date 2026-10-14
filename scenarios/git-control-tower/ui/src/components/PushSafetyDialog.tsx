@@ -66,11 +66,11 @@ export function PushSafetyDialog({ repoId, onClose, onPush }: Props) {
     testId="push-safety-dialog"
     panelClassName="!border-slate-700/70 !bg-slate-900 !text-slate-200"
     footer={
-      <div className="flex flex-wrap items-center justify-end gap-2">
-        <Button variant="outline" className="mr-auto h-9 gap-2 rounded-xl border-transparent text-xs text-slate-400" disabled={Boolean(busy)} onClick={() => void refresh()}><RefreshCw className="h-3.5 w-3.5" />Refresh inspection</Button>
-        <Button variant="outline" className="h-9 rounded-xl text-xs" onClick={onClose}>Close</Button>
-        {report?.canPrepare && artifact?.fingerprint !== report.fingerprint && <Button className="h-9 gap-2 rounded-xl bg-blue-600 text-xs text-white shadow-lg shadow-blue-950/40 hover:bg-blue-500" disabled={Boolean(busy) || !consent} onClick={() => void prepare()}>Prepare isolated recovery<ArrowRight className="h-3.5 w-3.5" /></Button>}
-        {report?.complete && report.state !== "blocked" && <Button className="h-9 gap-2 rounded-xl bg-blue-600 text-xs text-white shadow-lg shadow-blue-950/40 hover:bg-blue-500" disabled={Boolean(busy)} onClick={onPush}>Continue to push</Button>}
+      <div className="flex flex-nowrap items-center justify-end gap-2">
+        <Button variant="outline" className="mr-auto h-9 gap-2 rounded-xl border-transparent px-2 text-xs text-slate-400" disabled={Boolean(busy)} onClick={() => void refresh()} aria-label="Refresh inspection"><RefreshCw className="h-3.5 w-3.5" /><span className="hidden sm:inline">Refresh inspection</span></Button>
+        <Button variant="outline" className="h-9 shrink-0 rounded-xl text-xs" onClick={onClose}>Close</Button>
+        {report?.canPrepare && artifact?.fingerprint !== report.fingerprint && <Button className="h-9 shrink-0 gap-2 rounded-xl bg-blue-600 text-xs text-white shadow-lg shadow-blue-950/40 hover:bg-blue-500" disabled={Boolean(busy) || !consent} onClick={() => void prepare()}>Prepare recovery<ArrowRight className="h-3.5 w-3.5" /></Button>}
+        {report?.complete && report.state !== "blocked" && <Button className="h-9 shrink-0 gap-2 rounded-xl bg-blue-600 text-xs text-white shadow-lg shadow-blue-950/40 hover:bg-blue-500" disabled={Boolean(busy)} onClick={onPush}>Continue to push</Button>}
       </div>
     }
   >
@@ -84,20 +84,41 @@ export function PushSafetyDialog({ repoId, onClose, onPush }: Props) {
       {error && <p role="alert" className="break-words rounded-xl border border-amber-800/50 bg-amber-950/20 p-3 text-amber-200">{error}</p>}
       {report && <>
         <p role="status" className="text-slate-400">{report.reason}</p>
-        <ol aria-label="Recovery steps" className="grid grid-cols-3 gap-2 text-[11px]">
+        {report.state === "blocked" && <ol aria-label="Recovery steps" className="grid grid-cols-3 gap-2 text-[11px]">
           {["Review snapshot", "Prepare with approval", "Apply · unavailable"].map((step, index) => <li key={step} className={`flex items-center gap-2 rounded-lg px-2 py-2 ${index === 0 ? "bg-blue-500/10 text-blue-200" : "text-slate-500"}`}><span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-current/20 text-[10px]">{index + 1}</span>{step}</li>)}
-        </ol>
+        </ol>}
         <div className="grid gap-2 sm:grid-cols-2">
           <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-3"><p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500"><GitBranch className="h-3.5 w-3.5" />Destination</p><p className="mt-1 break-all font-medium text-slate-100">{report.remote}/{report.branch}</p><p className="mt-0.5 text-slate-500">{report.commits.length} outgoing commits</p></div>
-          <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-3"><p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500"><HardDrive className="h-3.5 w-3.5" />File size limit</p><p className="mt-1 font-medium text-slate-100">{report.limit > 0n ? mib(report.limit) : "Host limit unknown"}</p><p className="mt-0.5 text-slate-500">Includes files in earlier commits</p></div>
+          <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-3">
+            <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500"><HardDrive className="h-3.5 w-3.5" />Largest file</p>
+            {report.limit > 0n ? (() => {
+              const pct = Math.min(100, Math.round((Number(report.largestBlobBytes) / Number(report.limit)) * 100));
+              const over = report.largestBlobBytes > report.limit;
+              const near = pct >= 80;
+              return <>
+                <p className="mt-1 font-medium text-slate-100">{mib(report.largestBlobBytes)} <span className="font-normal text-slate-500">of {mib(report.limit)} limit</span></p>
+                <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-800" role="meter" aria-label="Largest file vs limit" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
+                  <div className={`h-full rounded-full ${over ? "bg-red-500" : near ? "bg-amber-400" : "bg-emerald-500"}`} style={{ width: `${Math.max(pct, 2)}%` }} />
+                </div>
+                <p className="mt-1 text-slate-500">{mib(report.outgoingBytes)} total across {report.commits.length} commits</p>
+              </>;
+            })() : <>
+              <p className="mt-1 font-medium text-slate-100">{mib(report.largestBlobBytes)}</p>
+              <p className="mt-0.5 text-slate-500">{mib(report.outgoingBytes)} total · host limit unknown</p>
+            </>}
+          </div>
         </div>
         <details className="text-[11px] text-slate-500"><summary className="cursor-pointer hover:text-slate-300">Snapshot identifiers</summary><p className="mt-2 break-all font-mono">Source: {report.head || "unavailable"}<br />Remote base: {report.base || "no existing branch confirmed"}</p></details>
-        <h3 className="text-xs font-semibold text-slate-100">Outgoing history</h3>
-        {report.files.map((file) => <div key={file.oid} className="space-y-2 rounded-xl border border-amber-800/40 bg-amber-950/10 p-3">
-          {file.paths.map((path) => <p key={path} className="break-all whitespace-pre-wrap font-mono text-[11px] text-slate-200">{path}</p>)}
-          <p className="inline-flex rounded-md bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-200">{mib(file.bytes)} · {file.blocked ? "exceeds limit" : "large file warning"}</p>
-          <p className="text-[11px] text-slate-500">First observed in outgoing history: {file.commits[0]?.slice(0, 12) ?? "unavailable"}. Present in {file.commits.length} outgoing commits.</p>
-        </div>)}
+        {report.files.length > 0 && <details open={report.state === "blocked"} className="rounded-xl border border-slate-800 bg-slate-950/25 p-3 text-slate-400">
+          <summary className="cursor-pointer font-medium text-slate-300">Large files in outgoing history ({report.files.length})</summary>
+          <div className="mt-2 space-y-2">
+          {report.files.map((file) => <div key={file.oid} className="space-y-2 rounded-xl border border-amber-800/40 bg-amber-950/10 p-3">
+            {file.paths.map((path) => <p key={path} className="break-all whitespace-pre-wrap font-mono text-[11px] text-slate-200">{path}</p>)}
+            <p className="inline-flex rounded-md bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-200">{mib(file.bytes)} · {file.blocked ? "exceeds limit" : "large file warning"}</p>
+            <p className="text-[11px] text-slate-500">First observed in outgoing history: {file.commits[0]?.slice(0, 12) ?? "unavailable"}. Present in {file.commits.length} outgoing commits.</p>
+          </div>)}
+          </div>
+        </details>}
         <details className="rounded-xl border border-slate-800 bg-slate-950/25 p-3 text-slate-400"><summary className="cursor-pointer font-medium text-slate-300">Staged content (not part of recovery preparation)</summary>
           <p>{report.stagedComplete ? report.stagedReason : "Staged file-size check unverified. Check staged content before committing."}</p>
           {report.stagedFiles?.map(file => <p key={file.oid + file.paths.join()} className="break-all text-amber-200">{file.paths.join(", ")} · {mib(file.bytes)} · {file.blocked ? "Would block push if committed" : "Large staged file"}</p>)}
@@ -129,13 +150,16 @@ export function PushSafetyDialog({ repoId, onClose, onPush }: Props) {
         {artifact.signaturesRemoved && <p>Commit signatures were removed from replacement commits. Re-sign and renew evidence tied to old commit IDs before publication.</p>}
         <ul className="font-mono text-xs">{artifact.mappings.map((m) => <li key={m.original}>{m.original.slice(0, 12)} → {m.replacement.slice(0, 12)}</li>)}</ul>
       </section>}
-      <section aria-label="Find retained preparation" className="space-y-2 rounded-xl border border-slate-800 bg-slate-950/25 p-3">
-        <p className="font-medium text-slate-300">Already prepared a recovery?</p><label className="block text-[11px] text-slate-400">Operation ID (optional)
+      <details open={Boolean(artifact)} className="rounded-xl border border-slate-800 bg-slate-950/25 p-3">
+        <summary className="cursor-pointer font-medium text-slate-300">Already prepared a recovery?</summary>
+        <div className="mt-2 space-y-2">
+        <label className="block text-[11px] text-slate-400">Operation ID (optional)
           <input className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2 font-mono text-xs text-slate-200 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={operationId} disabled={Boolean(busy)} onChange={(event) => setOperationId(event.target.value)} />
         </label>
         <p className="text-[11px] text-slate-500">Leave blank to find this repository’s most recently updated preparation, even after new commits. Enter a saved operation ID to check an older one. Checking status does not start or apply recovery.</p>
         <Button variant="outline" className="h-8 rounded-lg text-xs" disabled={Boolean(busy)} onClick={() => void checkPreparation()}>Check preparation status</Button>
-      </section>
+        </div>
+      </details>
       </div>
   </ResponsiveDialog>;
 }

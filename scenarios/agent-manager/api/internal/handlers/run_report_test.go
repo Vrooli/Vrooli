@@ -21,6 +21,7 @@ func TestRunReportProtoProjectionUsesCanonicalProtoFields(t *testing.T) {
 	message := runReportToProto(&runreport.RunReport{
 		RunID: id, Status: "failed", ExitCode: &exitCode, Duration: 1500 * time.Millisecond,
 		Events: map[string]int{"heartbeat.miss": 2}, ReceiptCount: 1,
+		Tools:                []runreport.ToolSummary{{Name: "exec", Calls: 2, Returned: 1, UnknownOutcome: 1, Unresolved: 1}},
 		ReceiptsAvailability: runreport.Availability{State: "available"},
 	})
 	body, err := protoconv.MarshalJSON(message)
@@ -30,6 +31,11 @@ func TestRunReportProtoProjectionUsesCanonicalProtoFields(t *testing.T) {
 	var decoded map[string]any
 	if err := json.Unmarshal(body, &decoded); err != nil {
 		t.Fatalf("decode report JSON: %v", err)
+	}
+	tools := decoded["tools"].([]any)
+	tool := tools[0].(map[string]any)
+	if tool["returned"] != float64(1) || tool["unknown_outcome"] != float64(1) || tool["unresolved"] != float64(1) {
+		t.Fatalf("tool wire=%+v", tool)
 	}
 	if decoded["run_id"] != id.String() || decoded["duration_ms"] != "1500" || decoded["receipt_count"] != float64(1) {
 		t.Fatalf("canonical summary fields = %#v", decoded)

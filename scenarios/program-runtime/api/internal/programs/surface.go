@@ -13,7 +13,8 @@ var runtimeVerbNames = []string{
 // TestProgramHelperMembersMatchKernel keeps the two lists identical.
 var ProgramHelperMembers = []string{
 	"VERSION", "inputs", "envelope", "attach", "current", "fail", "guarded",
-	"classify", "run", "report", "BindingError", "ScenarioUnreachable",
+	"classify", "select_field", "coerce_int", "coerce_float", "run", "report",
+	"BindingError", "ScenarioUnreachable",
 	"Refused", "InvalidInput", "AmbiguousResponse", "DeadlineExceeded",
 	"RemoteError", "NoGovernedBinding",
 }

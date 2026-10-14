@@ -65,7 +65,7 @@ class ExpirationPolicy(_message.Message):
     def __init__(self, mode: _Optional[str] = ..., duration: _Optional[str] = ...) -> None: ...
 
 class Session(_message.Message):
-    __slots__ = ("id", "shell", "created_at", "cols", "rows", "backend", "survives_restart", "policy", "recovered", "origin", "owner", "display_label", "tracking_degraded", "target", "activity", "launch_mode", "control_mode", "native_owner", "native_transport", "provider_version", "native_thread_id", "last_verified_turn_id", "forked_from_native_session")
+    __slots__ = ("id", "shell", "created_at", "cols", "rows", "backend", "survives_restart", "policy", "recovered", "origin", "owner", "display_label", "tracking_degraded", "target", "activity", "launch_mode", "control_mode", "native_owner", "native_transport", "provider_version", "native_thread_id", "last_verified_turn_id", "forked_from_native_session", "create_fingerprint")
     ID_FIELD_NUMBER: _ClassVar[int]
     SHELL_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
@@ -89,6 +89,7 @@ class Session(_message.Message):
     NATIVE_THREAD_ID_FIELD_NUMBER: _ClassVar[int]
     LAST_VERIFIED_TURN_ID_FIELD_NUMBER: _ClassVar[int]
     FORKED_FROM_NATIVE_SESSION_FIELD_NUMBER: _ClassVar[int]
+    CREATE_FINGERPRINT_FIELD_NUMBER: _ClassVar[int]
     id: str
     shell: str
     created_at: str
@@ -112,7 +113,8 @@ class Session(_message.Message):
     native_thread_id: str
     last_verified_turn_id: str
     forked_from_native_session: str
-    def __init__(self, id: _Optional[str] = ..., shell: _Optional[str] = ..., created_at: _Optional[str] = ..., cols: _Optional[int] = ..., rows: _Optional[int] = ..., backend: _Optional[str] = ..., survives_restart: _Optional[bool] = ..., policy: _Optional[_Union[ExpirationPolicy, _Mapping]] = ..., recovered: _Optional[bool] = ..., origin: _Optional[_Union[SessionOrigin, str]] = ..., owner: _Optional[str] = ..., display_label: _Optional[str] = ..., tracking_degraded: _Optional[bool] = ..., target: _Optional[_Union[_target_pb2.Target, _Mapping]] = ..., activity: _Optional[_Union[SessionActivity, _Mapping]] = ..., launch_mode: _Optional[str] = ..., control_mode: _Optional[str] = ..., native_owner: _Optional[str] = ..., native_transport: _Optional[str] = ..., provider_version: _Optional[str] = ..., native_thread_id: _Optional[str] = ..., last_verified_turn_id: _Optional[str] = ..., forked_from_native_session: _Optional[str] = ...) -> None: ...
+    create_fingerprint: str
+    def __init__(self, id: _Optional[str] = ..., shell: _Optional[str] = ..., created_at: _Optional[str] = ..., cols: _Optional[int] = ..., rows: _Optional[int] = ..., backend: _Optional[str] = ..., survives_restart: _Optional[bool] = ..., policy: _Optional[_Union[ExpirationPolicy, _Mapping]] = ..., recovered: _Optional[bool] = ..., origin: _Optional[_Union[SessionOrigin, str]] = ..., owner: _Optional[str] = ..., display_label: _Optional[str] = ..., tracking_degraded: _Optional[bool] = ..., target: _Optional[_Union[_target_pb2.Target, _Mapping]] = ..., activity: _Optional[_Union[SessionActivity, _Mapping]] = ..., launch_mode: _Optional[str] = ..., control_mode: _Optional[str] = ..., native_owner: _Optional[str] = ..., native_transport: _Optional[str] = ..., provider_version: _Optional[str] = ..., native_thread_id: _Optional[str] = ..., last_verified_turn_id: _Optional[str] = ..., forked_from_native_session: _Optional[str] = ..., create_fingerprint: _Optional[str] = ...) -> None: ...
 
 class PromptOption(_message.Message):
     __slots__ = ("key", "label", "selected")
@@ -221,7 +223,7 @@ class RecoverableSession(_message.Message):
     def __init__(self, id: _Optional[str] = ..., backend: _Optional[str] = ..., shell: _Optional[str] = ..., cols: _Optional[int] = ..., rows: _Optional[int] = ..., created_at: _Optional[str] = ..., orphaned_at: _Optional[str] = ..., last_activity_at: _Optional[str] = ..., agent_type: _Optional[str] = ..., agent_session_id: _Optional[str] = ..., launch_command: _Optional[str] = ..., cwd: _Optional[str] = ..., last_rollout_path: _Optional[str] = ..., recoverable: _Optional[bool] = ..., not_recoverable_reason: _Optional[str] = ..., pane_name: _Optional[str] = ..., header_color: _Optional[str] = ..., group_name: _Optional[str] = ..., launch_mode: _Optional[str] = ..., control_mode: _Optional[str] = ..., native_owner: _Optional[str] = ..., native_transport: _Optional[str] = ..., provider_version: _Optional[str] = ..., native_thread_id: _Optional[str] = ..., last_verified_turn_id: _Optional[str] = ..., forked_from_native_session: _Optional[str] = ...) -> None: ...
 
 class CreateRequest(_message.Message):
-    __slots__ = ("shell", "cols", "rows", "backend", "policy", "has_policy", "launch_command", "agent_type", "origin", "owner", "display_label", "execute_launch_command", "target_id", "working_dir", "tmux_mouse_mode", "launch_mode", "launch_descriptor_json")
+    __slots__ = ("shell", "cols", "rows", "backend", "policy", "has_policy", "launch_command", "agent_type", "origin", "owner", "display_label", "execute_launch_command", "target_id", "working_dir", "tmux_mouse_mode", "launch_mode", "launch_descriptor_json", "requested_session_id")
     SHELL_FIELD_NUMBER: _ClassVar[int]
     COLS_FIELD_NUMBER: _ClassVar[int]
     ROWS_FIELD_NUMBER: _ClassVar[int]
@@ -239,6 +241,7 @@ class CreateRequest(_message.Message):
     TMUX_MOUSE_MODE_FIELD_NUMBER: _ClassVar[int]
     LAUNCH_MODE_FIELD_NUMBER: _ClassVar[int]
     LAUNCH_DESCRIPTOR_JSON_FIELD_NUMBER: _ClassVar[int]
+    REQUESTED_SESSION_ID_FIELD_NUMBER: _ClassVar[int]
     shell: str
     cols: int
     rows: int
@@ -256,7 +259,8 @@ class CreateRequest(_message.Message):
     tmux_mouse_mode: bool
     launch_mode: str
     launch_descriptor_json: str
-    def __init__(self, shell: _Optional[str] = ..., cols: _Optional[int] = ..., rows: _Optional[int] = ..., backend: _Optional[str] = ..., policy: _Optional[_Union[ExpirationPolicy, _Mapping]] = ..., has_policy: _Optional[bool] = ..., launch_command: _Optional[str] = ..., agent_type: _Optional[str] = ..., origin: _Optional[_Union[SessionOrigin, str]] = ..., owner: _Optional[str] = ..., display_label: _Optional[str] = ..., execute_launch_command: _Optional[bool] = ..., target_id: _Optional[str] = ..., working_dir: _Optional[str] = ..., tmux_mouse_mode: _Optional[bool] = ..., launch_mode: _Optional[str] = ..., launch_descriptor_json: _Optional[str] = ...) -> None: ...
+    requested_session_id: str
+    def __init__(self, shell: _Optional[str] = ..., cols: _Optional[int] = ..., rows: _Optional[int] = ..., backend: _Optional[str] = ..., policy: _Optional[_Union[ExpirationPolicy, _Mapping]] = ..., has_policy: _Optional[bool] = ..., launch_command: _Optional[str] = ..., agent_type: _Optional[str] = ..., origin: _Optional[_Union[SessionOrigin, str]] = ..., owner: _Optional[str] = ..., display_label: _Optional[str] = ..., execute_launch_command: _Optional[bool] = ..., target_id: _Optional[str] = ..., working_dir: _Optional[str] = ..., tmux_mouse_mode: _Optional[bool] = ..., launch_mode: _Optional[str] = ..., launch_descriptor_json: _Optional[str] = ..., requested_session_id: _Optional[str] = ...) -> None: ...
 
 class CreateResponse(_message.Message):
     __slots__ = ("session",)
@@ -269,12 +273,16 @@ class ListRequest(_message.Message):
     def __init__(self) -> None: ...
 
 class ListResponse(_message.Message):
-    __slots__ = ("sessions", "recovery")
+    __slots__ = ("sessions", "supports_stable_create_identity", "stable_create_owner", "recovery")
     SESSIONS_FIELD_NUMBER: _ClassVar[int]
+    SUPPORTS_STABLE_CREATE_IDENTITY_FIELD_NUMBER: _ClassVar[int]
+    STABLE_CREATE_OWNER_FIELD_NUMBER: _ClassVar[int]
     RECOVERY_FIELD_NUMBER: _ClassVar[int]
     sessions: _containers.RepeatedCompositeFieldContainer[Session]
+    supports_stable_create_identity: bool
+    stable_create_owner: str
     recovery: RecoveryStatus
-    def __init__(self, sessions: _Optional[_Iterable[_Union[Session, _Mapping]]] = ..., recovery: _Optional[_Union[RecoveryStatus, _Mapping]] = ...) -> None: ...
+    def __init__(self, sessions: _Optional[_Iterable[_Union[Session, _Mapping]]] = ..., supports_stable_create_identity: _Optional[bool] = ..., stable_create_owner: _Optional[str] = ..., recovery: _Optional[_Union[RecoveryStatus, _Mapping]] = ...) -> None: ...
 
 class ArchivedSession(_message.Message):
     __slots__ = ("id", "archived_at", "created_at", "agent_type", "agent_session_id", "cwd", "pane_name", "header_color", "group_name", "message_count", "restore_state", "restore_state_reason", "awaiting_recovery")

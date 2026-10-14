@@ -25,6 +25,12 @@ func (a *App) cmdEffort(args []string) error {
 	command := args[0]
 	// Goal-home commands run locally over the goal-home files.
 	switch command {
+	case "exact-setup":
+		return a.effortExactSetup(args[1:])
+	case "exact-receipt":
+		return a.effortExactReceipt(args[1:])
+	case "exact-reconcile":
+		return a.effortExactReconcile(args[1:])
 	case "epoch-check":
 		return a.effortEpochCheck(args[1:])
 	case "lint":

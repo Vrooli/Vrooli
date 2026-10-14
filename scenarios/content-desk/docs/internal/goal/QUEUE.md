@@ -17,3 +17,16 @@ No epoch/run is admitted by this file. The orchestrator must turn each slice int
 ## Retained validation finding
 
 Channel Manager scoped run `20261004-214915-e572031e` passed structure and failed business on existing `business_status_unearned:CHANMGR-P0-019`: declared complete without a requirements-sync snapshot. Preserve that record and earn the owning validation during delivery; no forced sync or hand-flipped status. The implementation item includes per-identity warming gates/progress, baseline-backed signal history, meaningful keyboard-only interaction, populated light/dark contrast/focus and independent partial/loading/error recovery. See receipts/channel-manager-P0-019-acceptance-work-item.json. Existing axe helper disables color-contrast; its shell check cannot earn the full accessibility claim. Full executable commission remains unprovisioned under AUTH qualification; exact Source Ledger scope and actual coordinator membership are independently prepared, team disabled, no heartbeat.
+
+
+## Waiting on others
+
+- AUTH task 01a103d6-6c3c-766c-93be-b8ceee8ff033: return the non-dispatch DevelopmentOwner setup composition and reviewed first EffortControl draft for exact effort:marketing-I16, or evidence of its existing authoritative record. Return condition: actual native revision/authority digest/generation and verified owner binding; no duplicate workshop effort reuse.
+- Agent Manager native finite owner, coordinated through that AUTH task: qualify both retained delivery profiles, worker-parent lifecycle and continuation/re-entry under the existing one-hour/eight-hour ceilings and effective model policy. Return condition: supported source contracts and owning validation evidence, not profile deletion, policy splitting or deadline expansion.
+- Shared protobuf owner: current descriptor parity/authorized verifier evidence must be returned through AUTH. Return condition: a stable owner-qualified generated epoch; the stopped denied verifier/dependent stage is not retried here.
+
+## Handoff
+
+The AUTH owner packet is reconciled into COMMISSION.md and receipts/marketing-commission-repair-setup-v2.json. Goal/coordinator source guidance now uses orchestration revision 26; native team operatingContract and coordinator AGENT.md remain revision 25 pending their supported nonactivating owner amendment. All 22 Content Desk and five specialist requirements, 47 originals and full product approval remain mandatory. Team disabled, no heartbeat or accepted product epochs.
+
+Next action: return the three bounded engineering/setup outcomes in the v2 packet through AUTH task 01a103d6-6c3c-766c-93be-b8ceee8ff033. Complete target composition, two-profile/lifecycle compatibility and current build/generated-artifact qualification before assembling the exact protected installation/consent request. No new product-design choice is required now.

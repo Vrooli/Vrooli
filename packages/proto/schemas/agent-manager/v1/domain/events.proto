@@ -388,8 +388,26 @@ message ToolResultEventData {
   // Error message on failure.
   string error = 4;
 
-  // Whether the tool call succeeded.
+  // Whether a known tool outcome succeeded. Older rows retain their original bool.
   bool success = 5;
+
+  // Provider-reported process facts; absent values remain unknown.
+  optional int32 exit_code = 6;
+  optional int64 duration_ms = 7;
+
+  // Explicit false means a return was observed without an outcome receipt.
+  // Absent preserves historical payload semantics.
+  optional bool outcome_known = 8;
+
+  // Ordered native content, including unsupported blocks retained as JSON.
+  repeated ToolOutputBlock output_blocks = 9;
+  string raw_output_json = 10;
+}
+
+message ToolOutputBlock {
+  string type = 1;
+  string text = 2;
+  string raw_json = 3;
 }
 
 // =============================================================================

@@ -4,9 +4,12 @@
 package event
 
 import (
+	"bytes"
 	"context"
+	"database/sql"
 	"database/sql/driver"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"runtime/debug"
 	"strings"
@@ -102,7 +105,7 @@ type eventRow struct {
 	Data          []byte     `db:"data"`
 }
 
-func (e *eventRow) toDomain() *domain.RunEvent {
+func (e *eventRow) toDomain() (*domain.RunEvent, error) {
 	evt := &domain.RunEvent{
 		ID:            e.ID,
 		RunID:         e.RunID,
@@ -112,10 +115,12 @@ func (e *eventRow) toDomain() *domain.RunEvent {
 		SchemaVersion: e.SchemaVersion,
 	}
 
-	if payload, err := domain.DecodeEventPayload(evt.EventType, e.Data); err == nil {
-		evt.Data = payload
+	payload, err := domain.DecodeEventPayload(evt.EventType, e.Data)
+	if err != nil {
+		return nil, &domain.DatabaseError{Operation: "decode_event", EntityType: "RunEvent", EntityID: e.ID.String(), Cause: err}
 	}
-	return evt
+	evt.Data = payload
+	return evt, nil
 }
 
 const eventColumns = `id, run_id, sequence, event_type, timestamp, schema_version, data`
@@ -154,9 +159,7 @@ func (s *SQLiteStore) Append(ctx context.Context, runID uuid.UUID, events ...*do
 	storedEvents := make([]*domain.RunEvent, 0, len(events))
 
 	for _, evt := range events {
-		maxSeq++
 		evt.RunID = runID
-		evt.Sequence = maxSeq
 		if evt.ID == uuid.Nil {
 			evt.ID = uuid.New()
 		}
@@ -175,7 +178,28 @@ func (s *SQLiteStore) Append(ctx context.Context, runID uuid.UUID, events ...*do
 			schemaVersion = 1
 		}
 		evt.SchemaVersion = schemaVersion
+		evt.PersistenceReplay = false
 
+		var storedRun, storedType string
+		var storedSeq int64
+		var storedSchema int
+		var storedData []byte
+		var storedTime sqliteTime
+		existingErr := conn.QueryRowContext(ctx, `SELECT run_id,sequence,event_type,schema_version,data,timestamp FROM run_events WHERE id=?`, evt.ID).Scan(&storedRun, &storedSeq, &storedType, &storedSchema, &storedData, &storedTime)
+		if existingErr == nil {
+			if storedRun != runID.String() || storedType != string(evt.EventType) || storedSchema != schemaVersion || !bytes.Equal(storedData, data) {
+				return &domain.DatabaseError{Operation: "replay_event_conflict", EntityType: "RunEvent", EntityID: evt.ID.String(), Cause: fmt.Errorf("event identity reused with different immutable evidence")}
+			}
+			evt.PersistenceReplay = true
+			evt.Sequence = storedSeq
+			evt.Timestamp = storedTime.Time()
+			continue // committed replay does not notify subscribers again
+		}
+		if !errors.Is(existingErr, sql.ErrNoRows) {
+			return dbError("read_event_replay", existingErr)
+		}
+		maxSeq++
+		evt.Sequence = maxSeq
 		insertQuery := `INSERT INTO run_events (id, run_id, sequence, event_type, timestamp, schema_version, data)
 			VALUES (?, ?, ?, ?, ?, ?, ?)`
 
@@ -344,7 +368,11 @@ func (s *SQLiteStore) Get(ctx context.Context, runID uuid.UUID, opts GetOptions)
 
 	result := make([]*domain.RunEvent, len(rows))
 	for i, row := range rows {
-		result[i] = row.toDomain()
+		evt, err := row.toDomain()
+		if err != nil {
+			return nil, err
+		}
+		result[i] = evt
 	}
 	return result, nil
 }

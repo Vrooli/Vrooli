@@ -8,6 +8,7 @@ package repo_v1
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	proposals "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/proposals"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -483,15 +484,19 @@ func (x *CommitCheckRun) GetTimestamp() string {
 }
 
 type RepoHistoryEntry struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Hash          string                 `protobuf:"bytes,1,opt,name=hash,proto3" json:"hash,omitempty"`
-	Author        string                 `protobuf:"bytes,2,opt,name=author,proto3" json:"author,omitempty"`
-	Date          string                 `protobuf:"bytes,3,opt,name=date,proto3" json:"date,omitempty"`
-	Subject       string                 `protobuf:"bytes,4,opt,name=subject,proto3" json:"subject,omitempty"`
-	Files         []string               `protobuf:"bytes,5,rep,name=files,proto3" json:"files,omitempty"`
-	Checks        []*CommitCheckRun      `protobuf:"bytes,6,rep,name=checks,proto3" json:"checks,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state               protoimpl.MessageState       `protogen:"open.v1"`
+	Hash                string                       `protobuf:"bytes,1,opt,name=hash,proto3" json:"hash,omitempty"`
+	Author              string                       `protobuf:"bytes,2,opt,name=author,proto3" json:"author,omitempty"`
+	Date                string                       `protobuf:"bytes,3,opt,name=date,proto3" json:"date,omitempty"`
+	Subject             string                       `protobuf:"bytes,4,opt,name=subject,proto3" json:"subject,omitempty"`
+	Files               []string                     `protobuf:"bytes,5,rep,name=files,proto3" json:"files,omitempty"`
+	Checks              []*CommitCheckRun            `protobuf:"bytes,6,rep,name=checks,proto3" json:"checks,omitempty"`
+	FullMessage         string                       `protobuf:"bytes,7,opt,name=full_message,json=fullMessage,proto3" json:"full_message,omitempty"`
+	Body                string                       `protobuf:"bytes,8,opt,name=body,proto3" json:"body,omitempty"`
+	Trailers            []*proposals.ProposalTrailer `protobuf:"bytes,9,rep,name=trailers,proto3" json:"trailers,omitempty"`
+	ContinuationMessage string                       `protobuf:"bytes,10,opt,name=continuation_message,json=continuationMessage,proto3" json:"continuation_message,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *RepoHistoryEntry) Reset() {
@@ -564,6 +569,34 @@ func (x *RepoHistoryEntry) GetChecks() []*CommitCheckRun {
 		return x.Checks
 	}
 	return nil
+}
+
+func (x *RepoHistoryEntry) GetFullMessage() string {
+	if x != nil {
+		return x.FullMessage
+	}
+	return ""
+}
+
+func (x *RepoHistoryEntry) GetBody() string {
+	if x != nil {
+		return x.Body
+	}
+	return ""
+}
+
+func (x *RepoHistoryEntry) GetTrailers() []*proposals.ProposalTrailer {
+	if x != nil {
+		return x.Trailers
+	}
+	return nil
+}
+
+func (x *RepoHistoryEntry) GetContinuationMessage() string {
+	if x != nil {
+		return x.ContinuationMessage
+	}
+	return ""
 }
 
 type GetRepoHistoryResponse struct {
@@ -3198,18 +3231,24 @@ func (x *AuthorStatus) GetEmail() string {
 }
 
 type GetRepoDiffRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	RepositoryId  string                 `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
-	RepoPath      string                 `protobuf:"bytes,2,opt,name=repo_path,json=repoPath,proto3" json:"repo_path,omitempty"`
-	Path          string                 `protobuf:"bytes,3,opt,name=path,proto3" json:"path,omitempty"`
-	Staged        bool                   `protobuf:"varint,4,opt,name=staged,proto3" json:"staged,omitempty"`
-	Untracked     bool                   `protobuf:"varint,5,opt,name=untracked,proto3" json:"untracked,omitempty"`
-	Base          string                 `protobuf:"bytes,6,opt,name=base,proto3" json:"base,omitempty"`
-	Commit        string                 `protobuf:"bytes,7,opt,name=commit,proto3" json:"commit,omitempty"`
-	Mode          string                 `protobuf:"bytes,8,opt,name=mode,proto3" json:"mode,omitempty"`
-	Any           bool                   `protobuf:"varint,9,opt,name=any,proto3" json:"any,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	RepositoryId string                 `protobuf:"bytes,1,opt,name=repository_id,json=repositoryId,proto3" json:"repository_id,omitempty"`
+	RepoPath     string                 `protobuf:"bytes,2,opt,name=repo_path,json=repoPath,proto3" json:"repo_path,omitempty"`
+	Path         string                 `protobuf:"bytes,3,opt,name=path,proto3" json:"path,omitempty"`
+	Staged       bool                   `protobuf:"varint,4,opt,name=staged,proto3" json:"staged,omitempty"`
+	Untracked    bool                   `protobuf:"varint,5,opt,name=untracked,proto3" json:"untracked,omitempty"`
+	Base         string                 `protobuf:"bytes,6,opt,name=base,proto3" json:"base,omitempty"`
+	Commit       string                 `protobuf:"bytes,7,opt,name=commit,proto3" json:"commit,omitempty"`
+	Mode         string                 `protobuf:"bytes,8,opt,name=mode,proto3" json:"mode,omitempty"`
+	Any          bool                   `protobuf:"varint,9,opt,name=any,proto3" json:"any,omitempty"`
+	// Retained proposal bytes; mutually exclusive with working/history selectors.
+	ProposalId       string `protobuf:"bytes,10,opt,name=proposal_id,json=proposalId,proto3" json:"proposal_id,omitempty"`
+	ProposalRevision int32  `protobuf:"varint,11,opt,name=proposal_revision,json=proposalRevision,proto3" json:"proposal_revision,omitempty"`
+	// Explicit comparison of retained proposal bytes with current workspace bytes.
+	// Read only; does not refresh the proposal or certify current content.
+	CompareCurrent bool `protobuf:"varint,12,opt,name=compare_current,json=compareCurrent,proto3" json:"compare_current,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *GetRepoDiffRequest) Reset() {
@@ -3301,6 +3340,27 @@ func (x *GetRepoDiffRequest) GetMode() string {
 func (x *GetRepoDiffRequest) GetAny() bool {
 	if x != nil {
 		return x.Any
+	}
+	return false
+}
+
+func (x *GetRepoDiffRequest) GetProposalId() string {
+	if x != nil {
+		return x.ProposalId
+	}
+	return ""
+}
+
+func (x *GetRepoDiffRequest) GetProposalRevision() int32 {
+	if x != nil {
+		return x.ProposalRevision
+	}
+	return 0
+}
+
+func (x *GetRepoDiffRequest) GetCompareCurrent() bool {
+	if x != nil {
+		return x.CompareCurrent
 	}
 	return false
 }
@@ -9633,8 +9693,13 @@ type PushSafetyReport struct {
 	StagedComplete bool              `protobuf:"varint,14,opt,name=staged_complete,json=stagedComplete,proto3" json:"staged_complete,omitempty"`
 	StagedReason   string            `protobuf:"bytes,15,opt,name=staged_reason,json=stagedReason,proto3" json:"staged_reason,omitempty"`
 	StagedFiles    []*PushSafetyFile `protobuf:"bytes,16,rep,name=staged_files,json=stagedFiles,proto3" json:"staged_files,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Total outgoing blob bytes and the largest single outgoing blob, so the UI can show
+	// actual usage against the per-file limit rather than only the cap. Uncompressed upper
+	// bound; the packed transfer is smaller.
+	OutgoingBytes    int64 `protobuf:"varint,17,opt,name=outgoing_bytes,json=outgoingBytes,proto3" json:"outgoing_bytes,omitempty"`
+	LargestBlobBytes int64 `protobuf:"varint,18,opt,name=largest_blob_bytes,json=largestBlobBytes,proto3" json:"largest_blob_bytes,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *PushSafetyReport) Reset() {
@@ -9777,6 +9842,20 @@ func (x *PushSafetyReport) GetStagedFiles() []*PushSafetyFile {
 		return x.StagedFiles
 	}
 	return nil
+}
+
+func (x *PushSafetyReport) GetOutgoingBytes() int64 {
+	if x != nil {
+		return x.OutgoingBytes
+	}
+	return 0
+}
+
+func (x *PushSafetyReport) GetLargestBlobBytes() int64 {
+	if x != nil {
+		return x.LargestBlobBytes
+	}
+	return 0
 }
 
 // Writes only owner-managed isolated artifacts. Never activates or publishes.
@@ -10088,7 +10167,7 @@ var File_git_control_tower_v1_repo_repo_proto protoreflect.FileDescriptor
 
 const file_git_control_tower_v1_repo_repo_proto_rawDesc = "" +
 	"\n" +
-	"$git-control-tower/v1/repo/repo.proto\x12 vrooli.git_control_tower.v1.repo\x1a\x1bbuf/validate/validate.proto\"\xc0\x01\n" +
+	"$git-control-tower/v1/repo/repo.proto\x12 vrooli.git_control_tower.v1.repo\x1a\x1bbuf/validate/validate.proto\x1a.git-control-tower/v1/proposals/proposals.proto\"\xc0\x01\n" +
 	"\n" +
 	"RepoRecord\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x12\n" +
@@ -10124,14 +10203,19 @@ const file_git_control_tower_v1_repo_repo_proto_rawDesc = "" +
 	"\x06stderr\x18\a \x01(\tR\x06stderr\x12\x1f\n" +
 	"\vduration_ms\x18\b \x01(\x03R\n" +
 	"durationMs\x12\x1c\n" +
-	"\ttimestamp\x18\t \x01(\tR\ttimestamp\"\xcc\x01\n" +
+	"\ttimestamp\x18\t \x01(\tR\ttimestamp\"\x8a\x03\n" +
 	"\x10RepoHistoryEntry\x12\x12\n" +
 	"\x04hash\x18\x01 \x01(\tR\x04hash\x12\x16\n" +
 	"\x06author\x18\x02 \x01(\tR\x06author\x12\x12\n" +
 	"\x04date\x18\x03 \x01(\tR\x04date\x12\x18\n" +
 	"\asubject\x18\x04 \x01(\tR\asubject\x12\x14\n" +
 	"\x05files\x18\x05 \x03(\tR\x05files\x12H\n" +
-	"\x06checks\x18\x06 \x03(\v20.vrooli.git_control_tower.v1.repo.CommitCheckRunR\x06checks\"\xee\x01\n" +
+	"\x06checks\x18\x06 \x03(\v20.vrooli.git_control_tower.v1.repo.CommitCheckRunR\x06checks\x12!\n" +
+	"\ffull_message\x18\a \x01(\tR\vfullMessage\x12\x12\n" +
+	"\x04body\x18\b \x01(\tR\x04body\x12R\n" +
+	"\btrailers\x18\t \x03(\v26.vrooli.git_control_tower.v1.proposals.ProposalTrailerR\btrailers\x121\n" +
+	"\x14continuation_message\x18\n" +
+	" \x01(\tR\x13continuationMessage\"\xee\x01\n" +
 	"\x16GetRepoHistoryResponse\x12\x19\n" +
 	"\brepo_dir\x18\x01 \x01(\tR\arepoDir\x12\x14\n" +
 	"\x05lines\x18\x02 \x03(\tR\x05lines\x12L\n" +
@@ -10385,7 +10469,7 @@ const file_git_control_tower_v1_repo_repo_proto_rawDesc = "" +
 	"\aignored\x18\x05 \x01(\x05R\aignored\"8\n" +
 	"\fAuthorStatus\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
-	"\x05email\x18\x02 \x01(\tR\x05email\"\xf2\x01\n" +
+	"\x05email\x18\x02 \x01(\tR\x05email\"\xe9\x02\n" +
 	"\x12GetRepoDiffRequest\x12#\n" +
 	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12\x1b\n" +
 	"\trepo_path\x18\x02 \x01(\tR\brepoPath\x12\x12\n" +
@@ -10395,7 +10479,12 @@ const file_git_control_tower_v1_repo_repo_proto_rawDesc = "" +
 	"\x04base\x18\x06 \x01(\tR\x04base\x12\x16\n" +
 	"\x06commit\x18\a \x01(\tR\x06commit\x12\x12\n" +
 	"\x04mode\x18\b \x01(\tR\x04mode\x12\x10\n" +
-	"\x03any\x18\t \x01(\bR\x03any\"\x92\x04\n" +
+	"\x03any\x18\t \x01(\bR\x03any\x12\x1f\n" +
+	"\vproposal_id\x18\n" +
+	" \x01(\tR\n" +
+	"proposalId\x12+\n" +
+	"\x11proposal_revision\x18\v \x01(\x05R\x10proposalRevision\x12'\n" +
+	"\x0fcompare_current\x18\f \x01(\bR\x0ecompareCurrent\"\x92\x04\n" +
 	"\x13GetRepoDiffResponse\x12\x19\n" +
 	"\brepo_dir\x18\x01 \x01(\tR\arepoDir\x12\x12\n" +
 	"\x04path\x18\x02 \x01(\tR\x04path\x12\x16\n" +
@@ -10924,7 +11013,7 @@ const file_git_control_tower_v1_repo_repo_proto_rawDesc = "" +
 	"\x05bytes\x18\x02 \x01(\x03R\x05bytes\x12\x14\n" +
 	"\x05paths\x18\x03 \x03(\tR\x05paths\x12\x18\n" +
 	"\acommits\x18\x04 \x03(\tR\acommits\x12\x18\n" +
-	"\ablocked\x18\x05 \x01(\bR\ablocked\"\xbb\x04\n" +
+	"\ablocked\x18\x05 \x01(\bR\ablocked\"\x90\x05\n" +
 	"\x10PushSafetyReport\x12\x1a\n" +
 	"\bcomplete\x18\x01 \x01(\bR\bcomplete\x12\x14\n" +
 	"\x05state\x18\x02 \x01(\tR\x05state\x12\x16\n" +
@@ -10943,7 +11032,9 @@ const file_git_control_tower_v1_repo_repo_proto_rawDesc = "" +
 	"\x0frecovery_reason\x18\r \x01(\tR\x0erecoveryReason\x12'\n" +
 	"\x0fstaged_complete\x18\x0e \x01(\bR\x0estagedComplete\x12#\n" +
 	"\rstaged_reason\x18\x0f \x01(\tR\fstagedReason\x12S\n" +
-	"\fstaged_files\x18\x10 \x03(\v20.vrooli.git_control_tower.v1.repo.PushSafetyFileR\vstagedFiles\"\xb0\x01\n" +
+	"\fstaged_files\x18\x10 \x03(\v20.vrooli.git_control_tower.v1.repo.PushSafetyFileR\vstagedFiles\x12%\n" +
+	"\x0eoutgoing_bytes\x18\x11 \x01(\x03R\routgoingBytes\x12,\n" +
+	"\x12largest_blob_bytes\x18\x12 \x01(\x03R\x10largestBlobBytes\"\xb0\x01\n" +
 	"\x1aPreparePushRecoveryRequest\x12#\n" +
 	"\rrepository_id\x18\x01 \x01(\tR\frepositoryId\x12\x1b\n" +
 	"\tintent_id\x18\x02 \x01(\tR\bintentId\x12\x16\n" +
@@ -11179,170 +11270,172 @@ var file_git_control_tower_v1_repo_repo_proto_goTypes = []any{
 	nil,                                  // 137: vrooli.git_control_tower.v1.repo.FileStats.StagedEntry
 	nil,                                  // 138: vrooli.git_control_tower.v1.repo.FileStats.UnstagedEntry
 	nil,                                  // 139: vrooli.git_control_tower.v1.repo.FileStats.UntrackedEntry
+	(*proposals.ProposalTrailer)(nil),    // 140: vrooli.git_control_tower.v1.proposals.ProposalTrailer
 }
 var file_git_control_tower_v1_repo_repo_proto_depIdxs = []int32{
 	0,   // 0: vrooli.git_control_tower.v1.repo.ListRepositoriesResponse.repos:type_name -> vrooli.git_control_tower.v1.repo.RepoRecord
 	0,   // 1: vrooli.git_control_tower.v1.repo.GetActiveRepositoryResponse.repo:type_name -> vrooli.git_control_tower.v1.repo.RepoRecord
 	6,   // 2: vrooli.git_control_tower.v1.repo.RepoHistoryEntry.checks:type_name -> vrooli.git_control_tower.v1.repo.CommitCheckRun
-	7,   // 3: vrooli.git_control_tower.v1.repo.GetRepoHistoryResponse.entries:type_name -> vrooli.git_control_tower.v1.repo.RepoHistoryEntry
-	10,  // 4: vrooli.git_control_tower.v1.repo.GetApprovedChangesResponse.files:type_name -> vrooli.git_control_tower.v1.repo.ApprovedChangeFile
-	13,  // 5: vrooli.git_control_tower.v1.repo.ProvenanceRunGroup.files:type_name -> vrooli.git_control_tower.v1.repo.ProvenanceFile
-	14,  // 6: vrooli.git_control_tower.v1.repo.GetProvenanceResponse.run_groups:type_name -> vrooli.git_control_tower.v1.repo.ProvenanceRunGroup
-	18,  // 7: vrooli.git_control_tower.v1.repo.BlameEvidence.work_references:type_name -> vrooli.git_control_tower.v1.repo.ProvenanceWorkReference
-	17,  // 8: vrooli.git_control_tower.v1.repo.BlameFile.lines:type_name -> vrooli.git_control_tower.v1.repo.BlameLine
-	19,  // 9: vrooli.git_control_tower.v1.repo.BlameFile.evidence:type_name -> vrooli.git_control_tower.v1.repo.BlameEvidence
-	18,  // 10: vrooli.git_control_tower.v1.repo.ProvenanceChangeBundle.work_references:type_name -> vrooli.git_control_tower.v1.repo.ProvenanceWorkReference
-	20,  // 11: vrooli.git_control_tower.v1.repo.GetBlameResponse.files:type_name -> vrooli.git_control_tower.v1.repo.BlameFile
-	21,  // 12: vrooli.git_control_tower.v1.repo.GetBlameResponse.change_bundles:type_name -> vrooli.git_control_tower.v1.repo.ProvenanceChangeBundle
-	24,  // 13: vrooli.git_control_tower.v1.repo.SearchProvenanceResponse.results:type_name -> vrooli.git_control_tower.v1.repo.ProvenanceSearchHit
-	0,   // 14: vrooli.git_control_tower.v1.repo.RepoMutationResponse.repo:type_name -> vrooli.git_control_tower.v1.repo.RepoRecord
-	33,  // 15: vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.worktree:type_name -> vrooli.git_control_tower.v1.repo.WorktreeIdentity
-	35,  // 16: vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.branch_status:type_name -> vrooli.git_control_tower.v1.repo.BranchStatus
-	36,  // 17: vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.files:type_name -> vrooli.git_control_tower.v1.repo.FilesStatus
-	37,  // 18: vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.file_stats:type_name -> vrooli.git_control_tower.v1.repo.FileStats
-	133, // 19: vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.file_hotspots:type_name -> vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.FileHotspotsEntry
-	134, // 20: vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.scopes:type_name -> vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.ScopesEntry
-	40,  // 21: vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.summary:type_name -> vrooli.git_control_tower.v1.repo.StatusSummary
-	41,  // 22: vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.author:type_name -> vrooli.git_control_tower.v1.repo.AuthorStatus
-	135, // 23: vrooli.git_control_tower.v1.repo.FilesStatus.statuses:type_name -> vrooli.git_control_tower.v1.repo.FilesStatus.StatusesEntry
-	136, // 24: vrooli.git_control_tower.v1.repo.FilesStatus.renames:type_name -> vrooli.git_control_tower.v1.repo.FilesStatus.RenamesEntry
-	137, // 25: vrooli.git_control_tower.v1.repo.FileStats.staged:type_name -> vrooli.git_control_tower.v1.repo.FileStats.StagedEntry
-	138, // 26: vrooli.git_control_tower.v1.repo.FileStats.unstaged:type_name -> vrooli.git_control_tower.v1.repo.FileStats.UnstagedEntry
-	139, // 27: vrooli.git_control_tower.v1.repo.FileStats.untracked:type_name -> vrooli.git_control_tower.v1.repo.FileStats.UntrackedEntry
-	44,  // 28: vrooli.git_control_tower.v1.repo.GetRepoDiffResponse.hunks:type_name -> vrooli.git_control_tower.v1.repo.DiffHunk
-	38,  // 29: vrooli.git_control_tower.v1.repo.GetRepoDiffResponse.stats:type_name -> vrooli.git_control_tower.v1.repo.DiffStats
-	45,  // 30: vrooli.git_control_tower.v1.repo.GetRepoDiffResponse.annotated_lines:type_name -> vrooli.git_control_tower.v1.repo.AnnotatedLine
-	48,  // 31: vrooli.git_control_tower.v1.repo.GetRepoGroupsResponse.groups:type_name -> vrooli.git_control_tower.v1.repo.ChangeGroup
-	52,  // 32: vrooli.git_control_tower.v1.repo.GetFilesResponse.files:type_name -> vrooli.git_control_tower.v1.repo.RepoFileInfo
-	55,  // 33: vrooli.git_control_tower.v1.repo.GetDirectoryContentsResponse.entries:type_name -> vrooli.git_control_tower.v1.repo.DirectoryEntry
-	58,  // 34: vrooli.git_control_tower.v1.repo.GetRelatedFilesResponse.related:type_name -> vrooli.git_control_tower.v1.repo.RelatedFile
-	61,  // 35: vrooli.git_control_tower.v1.repo.SearchContentResponse.matches:type_name -> vrooli.git_control_tower.v1.repo.ContentMatch
-	78,  // 36: vrooli.git_control_tower.v1.repo.GroupingRulesResponse.rules:type_name -> vrooli.git_control_tower.v1.repo.GroupingRule
-	78,  // 37: vrooli.git_control_tower.v1.repo.SaveGroupingRulesRequest.rules:type_name -> vrooli.git_control_tower.v1.repo.GroupingRule
-	82,  // 38: vrooli.git_control_tower.v1.repo.GitignoreHealthResponse.suggestions:type_name -> vrooli.git_control_tower.v1.repo.GitignoreSuggestion
-	87,  // 39: vrooli.git_control_tower.v1.repo.TrackedBinariesResponse.binaries:type_name -> vrooli.git_control_tower.v1.repo.TrackedBinary
-	102, // 40: vrooli.git_control_tower.v1.repo.PrecommitConfigResponse.last_result:type_name -> vrooli.git_control_tower.v1.repo.PrecommitRunResult
-	92,  // 41: vrooli.git_control_tower.v1.repo.PrecommitConfigResponse.hook:type_name -> vrooli.git_control_tower.v1.repo.PrecommitHookState
-	102, // 42: vrooli.git_control_tower.v1.repo.PrecommitRunResponse.result:type_name -> vrooli.git_control_tower.v1.repo.PrecommitRunResult
-	102, // 43: vrooli.git_control_tower.v1.repo.CreateCommitResponse.precommit:type_name -> vrooli.git_control_tower.v1.repo.PrecommitRunResult
-	104, // 44: vrooli.git_control_tower.v1.repo.CredentialsListResponse.credentials:type_name -> vrooli.git_control_tower.v1.repo.Credential
-	104, // 45: vrooli.git_control_tower.v1.repo.CredentialSaveResponse.credential:type_name -> vrooli.git_control_tower.v1.repo.Credential
-	115, // 46: vrooli.git_control_tower.v1.repo.SSHListKeysResponse.keys:type_name -> vrooli.git_control_tower.v1.repo.SSHKeyInfo
-	115, // 47: vrooli.git_control_tower.v1.repo.SSHGenerateKeyResponse.key:type_name -> vrooli.git_control_tower.v1.repo.SSHKeyInfo
-	127, // 48: vrooli.git_control_tower.v1.repo.PushSafetyReport.files:type_name -> vrooli.git_control_tower.v1.repo.PushSafetyFile
-	127, // 49: vrooli.git_control_tower.v1.repo.PushSafetyReport.staged_files:type_name -> vrooli.git_control_tower.v1.repo.PushSafetyFile
-	130, // 50: vrooli.git_control_tower.v1.repo.PushRecoveryArtifact.mappings:type_name -> vrooli.git_control_tower.v1.repo.RecoveryCommitMapping
-	39,  // 51: vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.ScopesEntry.value:type_name -> vrooli.git_control_tower.v1.repo.StringList
-	38,  // 52: vrooli.git_control_tower.v1.repo.FileStats.StagedEntry.value:type_name -> vrooli.git_control_tower.v1.repo.DiffStats
-	38,  // 53: vrooli.git_control_tower.v1.repo.FileStats.UnstagedEntry.value:type_name -> vrooli.git_control_tower.v1.repo.DiffStats
-	38,  // 54: vrooli.git_control_tower.v1.repo.FileStats.UntrackedEntry.value:type_name -> vrooli.git_control_tower.v1.repo.DiffStats
-	1,   // 55: vrooli.git_control_tower.v1.repo.RepoService.ListRepositories:input_type -> vrooli.git_control_tower.v1.repo.ListRepositoriesRequest
-	3,   // 56: vrooli.git_control_tower.v1.repo.RepoService.GetActiveRepository:input_type -> vrooli.git_control_tower.v1.repo.GetActiveRepositoryRequest
-	26,  // 57: vrooli.git_control_tower.v1.repo.RepoService.SetActiveRepository:input_type -> vrooli.git_control_tower.v1.repo.SetActiveRepositoryRequest
-	27,  // 58: vrooli.git_control_tower.v1.repo.RepoService.OpenRepository:input_type -> vrooli.git_control_tower.v1.repo.OpenRepositoryRequest
-	28,  // 59: vrooli.git_control_tower.v1.repo.RepoService.CloneRepository:input_type -> vrooli.git_control_tower.v1.repo.CloneRepositoryRequest
-	30,  // 60: vrooli.git_control_tower.v1.repo.RepoService.RemoveRepository:input_type -> vrooli.git_control_tower.v1.repo.RemoveRepositoryRequest
-	32,  // 61: vrooli.git_control_tower.v1.repo.RepoService.GetRepoStatus:input_type -> vrooli.git_control_tower.v1.repo.GetRepoStatusRequest
-	42,  // 62: vrooli.git_control_tower.v1.repo.RepoService.GetRepoDiff:input_type -> vrooli.git_control_tower.v1.repo.GetRepoDiffRequest
-	46,  // 63: vrooli.git_control_tower.v1.repo.RepoService.GetRepoGroups:input_type -> vrooli.git_control_tower.v1.repo.GetRepoGroupsRequest
-	49,  // 64: vrooli.git_control_tower.v1.repo.RepoService.GetSyncStatus:input_type -> vrooli.git_control_tower.v1.repo.GetSyncStatusRequest
-	5,   // 65: vrooli.git_control_tower.v1.repo.RepoService.GetRepoHistory:input_type -> vrooli.git_control_tower.v1.repo.GetRepoHistoryRequest
-	9,   // 66: vrooli.git_control_tower.v1.repo.RepoService.GetApprovedChanges:input_type -> vrooli.git_control_tower.v1.repo.GetApprovedChangesRequest
-	12,  // 67: vrooli.git_control_tower.v1.repo.RepoService.GetProvenance:input_type -> vrooli.git_control_tower.v1.repo.GetProvenanceRequest
-	16,  // 68: vrooli.git_control_tower.v1.repo.RepoService.GetBlame:input_type -> vrooli.git_control_tower.v1.repo.GetBlameRequest
-	23,  // 69: vrooli.git_control_tower.v1.repo.RepoService.SearchProvenance:input_type -> vrooli.git_control_tower.v1.repo.SearchProvenanceRequest
-	51,  // 70: vrooli.git_control_tower.v1.repo.RepoService.GetFiles:input_type -> vrooli.git_control_tower.v1.repo.GetFilesRequest
-	54,  // 71: vrooli.git_control_tower.v1.repo.RepoService.GetDirectoryContents:input_type -> vrooli.git_control_tower.v1.repo.GetDirectoryContentsRequest
-	57,  // 72: vrooli.git_control_tower.v1.repo.RepoService.GetRelatedFiles:input_type -> vrooli.git_control_tower.v1.repo.GetRelatedFilesRequest
-	60,  // 73: vrooli.git_control_tower.v1.repo.RepoService.SearchContent:input_type -> vrooli.git_control_tower.v1.repo.SearchContentRequest
-	63,  // 74: vrooli.git_control_tower.v1.repo.RepoService.DeletePath:input_type -> vrooli.git_control_tower.v1.repo.DeletePathRequest
-	65,  // 75: vrooli.git_control_tower.v1.repo.RepoService.SaveFileContent:input_type -> vrooli.git_control_tower.v1.repo.SaveFileContentRequest
-	67,  // 76: vrooli.git_control_tower.v1.repo.RepoService.DiscardFiles:input_type -> vrooli.git_control_tower.v1.repo.DiscardFilesRequest
-	69,  // 77: vrooli.git_control_tower.v1.repo.RepoService.IgnorePath:input_type -> vrooli.git_control_tower.v1.repo.IgnorePathRequest
-	126, // 78: vrooli.git_control_tower.v1.repo.RepoService.InspectPushSafety:input_type -> vrooli.git_control_tower.v1.repo.InspectPushSafetyRequest
-	132, // 79: vrooli.git_control_tower.v1.repo.RepoService.GetPushRecovery:input_type -> vrooli.git_control_tower.v1.repo.GetPushRecoveryRequest
-	129, // 80: vrooli.git_control_tower.v1.repo.RepoService.PreparePushRecovery:input_type -> vrooli.git_control_tower.v1.repo.PreparePushRecoveryRequest
-	71,  // 81: vrooli.git_control_tower.v1.repo.RepoService.PushToRemote:input_type -> vrooli.git_control_tower.v1.repo.PushToRemoteRequest
-	73,  // 82: vrooli.git_control_tower.v1.repo.RepoService.PullFromRemote:input_type -> vrooli.git_control_tower.v1.repo.PullFromRemoteRequest
-	75,  // 83: vrooli.git_control_tower.v1.repo.RepoService.RunUpstreamAction:input_type -> vrooli.git_control_tower.v1.repo.RunUpstreamActionRequest
-	77,  // 84: vrooli.git_control_tower.v1.repo.RepoService.GetGroupingRules:input_type -> vrooli.git_control_tower.v1.repo.GetGroupingRulesRequest
-	80,  // 85: vrooli.git_control_tower.v1.repo.RepoService.SaveGroupingRules:input_type -> vrooli.git_control_tower.v1.repo.SaveGroupingRulesRequest
-	81,  // 86: vrooli.git_control_tower.v1.repo.RepoService.GetGitignoreHealth:input_type -> vrooli.git_control_tower.v1.repo.GetGitignoreHealthRequest
-	84,  // 87: vrooli.git_control_tower.v1.repo.RepoService.MoveGitignoreEntry:input_type -> vrooli.git_control_tower.v1.repo.MoveGitignoreEntryRequest
-	86,  // 88: vrooli.git_control_tower.v1.repo.RepoService.GetTrackedBinaries:input_type -> vrooli.git_control_tower.v1.repo.GetTrackedBinariesRequest
-	89,  // 89: vrooli.git_control_tower.v1.repo.RepoService.UntrackBinary:input_type -> vrooli.git_control_tower.v1.repo.UntrackBinaryRequest
-	91,  // 90: vrooli.git_control_tower.v1.repo.RepoService.GetPrecommitConfig:input_type -> vrooli.git_control_tower.v1.repo.GetPrecommitConfigRequest
-	94,  // 91: vrooli.git_control_tower.v1.repo.RepoService.SavePrecommitConfig:input_type -> vrooli.git_control_tower.v1.repo.SavePrecommitConfigRequest
-	95,  // 92: vrooli.git_control_tower.v1.repo.RepoService.RunPrecommit:input_type -> vrooli.git_control_tower.v1.repo.RunPrecommitRequest
-	97,  // 93: vrooli.git_control_tower.v1.repo.RepoService.StageFiles:input_type -> vrooli.git_control_tower.v1.repo.StageFilesRequest
-	99,  // 94: vrooli.git_control_tower.v1.repo.RepoService.UnstageFiles:input_type -> vrooli.git_control_tower.v1.repo.UnstageFilesRequest
-	101, // 95: vrooli.git_control_tower.v1.repo.RepoService.CreateCommit:input_type -> vrooli.git_control_tower.v1.repo.CreateCommitRequest
-	105, // 96: vrooli.git_control_tower.v1.repo.RepoService.ListCredentials:input_type -> vrooli.git_control_tower.v1.repo.ListCredentialsRequest
-	107, // 97: vrooli.git_control_tower.v1.repo.RepoService.SaveCredential:input_type -> vrooli.git_control_tower.v1.repo.SaveCredentialRequest
-	109, // 98: vrooli.git_control_tower.v1.repo.RepoService.DeleteCredential:input_type -> vrooli.git_control_tower.v1.repo.DeleteCredentialRequest
-	111, // 99: vrooli.git_control_tower.v1.repo.RepoService.TestCredential:input_type -> vrooli.git_control_tower.v1.repo.TestCredentialRequest
-	113, // 100: vrooli.git_control_tower.v1.repo.RepoService.UpdateRemoteURL:input_type -> vrooli.git_control_tower.v1.repo.UpdateRemoteURLRequest
-	116, // 101: vrooli.git_control_tower.v1.repo.RepoService.ListSSHKeys:input_type -> vrooli.git_control_tower.v1.repo.ListSSHKeysRequest
-	118, // 102: vrooli.git_control_tower.v1.repo.RepoService.GenerateSSHKey:input_type -> vrooli.git_control_tower.v1.repo.GenerateSSHKeyRequest
-	120, // 103: vrooli.git_control_tower.v1.repo.RepoService.GetSSHPublicKey:input_type -> vrooli.git_control_tower.v1.repo.GetSSHPublicKeyRequest
-	122, // 104: vrooli.git_control_tower.v1.repo.RepoService.TestSSHConnection:input_type -> vrooli.git_control_tower.v1.repo.TestSSHConnectionRequest
-	124, // 105: vrooli.git_control_tower.v1.repo.RepoService.DeleteSSHKey:input_type -> vrooli.git_control_tower.v1.repo.DeleteSSHKeyRequest
-	2,   // 106: vrooli.git_control_tower.v1.repo.RepoService.ListRepositories:output_type -> vrooli.git_control_tower.v1.repo.ListRepositoriesResponse
-	4,   // 107: vrooli.git_control_tower.v1.repo.RepoService.GetActiveRepository:output_type -> vrooli.git_control_tower.v1.repo.GetActiveRepositoryResponse
-	29,  // 108: vrooli.git_control_tower.v1.repo.RepoService.SetActiveRepository:output_type -> vrooli.git_control_tower.v1.repo.RepoMutationResponse
-	29,  // 109: vrooli.git_control_tower.v1.repo.RepoService.OpenRepository:output_type -> vrooli.git_control_tower.v1.repo.RepoMutationResponse
-	29,  // 110: vrooli.git_control_tower.v1.repo.RepoService.CloneRepository:output_type -> vrooli.git_control_tower.v1.repo.RepoMutationResponse
-	31,  // 111: vrooli.git_control_tower.v1.repo.RepoService.RemoveRepository:output_type -> vrooli.git_control_tower.v1.repo.RemoveRepositoryResponse
-	34,  // 112: vrooli.git_control_tower.v1.repo.RepoService.GetRepoStatus:output_type -> vrooli.git_control_tower.v1.repo.GetRepoStatusResponse
-	43,  // 113: vrooli.git_control_tower.v1.repo.RepoService.GetRepoDiff:output_type -> vrooli.git_control_tower.v1.repo.GetRepoDiffResponse
-	47,  // 114: vrooli.git_control_tower.v1.repo.RepoService.GetRepoGroups:output_type -> vrooli.git_control_tower.v1.repo.GetRepoGroupsResponse
-	50,  // 115: vrooli.git_control_tower.v1.repo.RepoService.GetSyncStatus:output_type -> vrooli.git_control_tower.v1.repo.GetSyncStatusResponse
-	8,   // 116: vrooli.git_control_tower.v1.repo.RepoService.GetRepoHistory:output_type -> vrooli.git_control_tower.v1.repo.GetRepoHistoryResponse
-	11,  // 117: vrooli.git_control_tower.v1.repo.RepoService.GetApprovedChanges:output_type -> vrooli.git_control_tower.v1.repo.GetApprovedChangesResponse
-	15,  // 118: vrooli.git_control_tower.v1.repo.RepoService.GetProvenance:output_type -> vrooli.git_control_tower.v1.repo.GetProvenanceResponse
-	22,  // 119: vrooli.git_control_tower.v1.repo.RepoService.GetBlame:output_type -> vrooli.git_control_tower.v1.repo.GetBlameResponse
-	25,  // 120: vrooli.git_control_tower.v1.repo.RepoService.SearchProvenance:output_type -> vrooli.git_control_tower.v1.repo.SearchProvenanceResponse
-	53,  // 121: vrooli.git_control_tower.v1.repo.RepoService.GetFiles:output_type -> vrooli.git_control_tower.v1.repo.GetFilesResponse
-	56,  // 122: vrooli.git_control_tower.v1.repo.RepoService.GetDirectoryContents:output_type -> vrooli.git_control_tower.v1.repo.GetDirectoryContentsResponse
-	59,  // 123: vrooli.git_control_tower.v1.repo.RepoService.GetRelatedFiles:output_type -> vrooli.git_control_tower.v1.repo.GetRelatedFilesResponse
-	62,  // 124: vrooli.git_control_tower.v1.repo.RepoService.SearchContent:output_type -> vrooli.git_control_tower.v1.repo.SearchContentResponse
-	64,  // 125: vrooli.git_control_tower.v1.repo.RepoService.DeletePath:output_type -> vrooli.git_control_tower.v1.repo.DeletePathResponse
-	66,  // 126: vrooli.git_control_tower.v1.repo.RepoService.SaveFileContent:output_type -> vrooli.git_control_tower.v1.repo.SaveFileContentResponse
-	68,  // 127: vrooli.git_control_tower.v1.repo.RepoService.DiscardFiles:output_type -> vrooli.git_control_tower.v1.repo.DiscardFilesResponse
-	70,  // 128: vrooli.git_control_tower.v1.repo.RepoService.IgnorePath:output_type -> vrooli.git_control_tower.v1.repo.IgnorePathResponse
-	128, // 129: vrooli.git_control_tower.v1.repo.RepoService.InspectPushSafety:output_type -> vrooli.git_control_tower.v1.repo.PushSafetyReport
-	131, // 130: vrooli.git_control_tower.v1.repo.RepoService.GetPushRecovery:output_type -> vrooli.git_control_tower.v1.repo.PushRecoveryArtifact
-	131, // 131: vrooli.git_control_tower.v1.repo.RepoService.PreparePushRecovery:output_type -> vrooli.git_control_tower.v1.repo.PushRecoveryArtifact
-	72,  // 132: vrooli.git_control_tower.v1.repo.RepoService.PushToRemote:output_type -> vrooli.git_control_tower.v1.repo.PushToRemoteResponse
-	74,  // 133: vrooli.git_control_tower.v1.repo.RepoService.PullFromRemote:output_type -> vrooli.git_control_tower.v1.repo.PullFromRemoteResponse
-	76,  // 134: vrooli.git_control_tower.v1.repo.RepoService.RunUpstreamAction:output_type -> vrooli.git_control_tower.v1.repo.RunUpstreamActionResponse
-	79,  // 135: vrooli.git_control_tower.v1.repo.RepoService.GetGroupingRules:output_type -> vrooli.git_control_tower.v1.repo.GroupingRulesResponse
-	79,  // 136: vrooli.git_control_tower.v1.repo.RepoService.SaveGroupingRules:output_type -> vrooli.git_control_tower.v1.repo.GroupingRulesResponse
-	83,  // 137: vrooli.git_control_tower.v1.repo.RepoService.GetGitignoreHealth:output_type -> vrooli.git_control_tower.v1.repo.GitignoreHealthResponse
-	85,  // 138: vrooli.git_control_tower.v1.repo.RepoService.MoveGitignoreEntry:output_type -> vrooli.git_control_tower.v1.repo.MoveGitignoreEntryResponse
-	88,  // 139: vrooli.git_control_tower.v1.repo.RepoService.GetTrackedBinaries:output_type -> vrooli.git_control_tower.v1.repo.TrackedBinariesResponse
-	90,  // 140: vrooli.git_control_tower.v1.repo.RepoService.UntrackBinary:output_type -> vrooli.git_control_tower.v1.repo.UntrackBinaryResponse
-	93,  // 141: vrooli.git_control_tower.v1.repo.RepoService.GetPrecommitConfig:output_type -> vrooli.git_control_tower.v1.repo.PrecommitConfigResponse
-	93,  // 142: vrooli.git_control_tower.v1.repo.RepoService.SavePrecommitConfig:output_type -> vrooli.git_control_tower.v1.repo.PrecommitConfigResponse
-	96,  // 143: vrooli.git_control_tower.v1.repo.RepoService.RunPrecommit:output_type -> vrooli.git_control_tower.v1.repo.PrecommitRunResponse
-	98,  // 144: vrooli.git_control_tower.v1.repo.RepoService.StageFiles:output_type -> vrooli.git_control_tower.v1.repo.StageFilesResponse
-	100, // 145: vrooli.git_control_tower.v1.repo.RepoService.UnstageFiles:output_type -> vrooli.git_control_tower.v1.repo.UnstageFilesResponse
-	103, // 146: vrooli.git_control_tower.v1.repo.RepoService.CreateCommit:output_type -> vrooli.git_control_tower.v1.repo.CreateCommitResponse
-	106, // 147: vrooli.git_control_tower.v1.repo.RepoService.ListCredentials:output_type -> vrooli.git_control_tower.v1.repo.CredentialsListResponse
-	108, // 148: vrooli.git_control_tower.v1.repo.RepoService.SaveCredential:output_type -> vrooli.git_control_tower.v1.repo.CredentialSaveResponse
-	110, // 149: vrooli.git_control_tower.v1.repo.RepoService.DeleteCredential:output_type -> vrooli.git_control_tower.v1.repo.CredentialDeleteResponse
-	112, // 150: vrooli.git_control_tower.v1.repo.RepoService.TestCredential:output_type -> vrooli.git_control_tower.v1.repo.CredentialTestResponse
-	114, // 151: vrooli.git_control_tower.v1.repo.RepoService.UpdateRemoteURL:output_type -> vrooli.git_control_tower.v1.repo.RemoteURLUpdateResponse
-	117, // 152: vrooli.git_control_tower.v1.repo.RepoService.ListSSHKeys:output_type -> vrooli.git_control_tower.v1.repo.SSHListKeysResponse
-	119, // 153: vrooli.git_control_tower.v1.repo.RepoService.GenerateSSHKey:output_type -> vrooli.git_control_tower.v1.repo.SSHGenerateKeyResponse
-	121, // 154: vrooli.git_control_tower.v1.repo.RepoService.GetSSHPublicKey:output_type -> vrooli.git_control_tower.v1.repo.SSHGetPublicKeyResponse
-	123, // 155: vrooli.git_control_tower.v1.repo.RepoService.TestSSHConnection:output_type -> vrooli.git_control_tower.v1.repo.SSHTestConnectionResponse
-	125, // 156: vrooli.git_control_tower.v1.repo.RepoService.DeleteSSHKey:output_type -> vrooli.git_control_tower.v1.repo.SSHDeleteKeyResponse
-	106, // [106:157] is the sub-list for method output_type
-	55,  // [55:106] is the sub-list for method input_type
-	55,  // [55:55] is the sub-list for extension type_name
-	55,  // [55:55] is the sub-list for extension extendee
-	0,   // [0:55] is the sub-list for field type_name
+	140, // 3: vrooli.git_control_tower.v1.repo.RepoHistoryEntry.trailers:type_name -> vrooli.git_control_tower.v1.proposals.ProposalTrailer
+	7,   // 4: vrooli.git_control_tower.v1.repo.GetRepoHistoryResponse.entries:type_name -> vrooli.git_control_tower.v1.repo.RepoHistoryEntry
+	10,  // 5: vrooli.git_control_tower.v1.repo.GetApprovedChangesResponse.files:type_name -> vrooli.git_control_tower.v1.repo.ApprovedChangeFile
+	13,  // 6: vrooli.git_control_tower.v1.repo.ProvenanceRunGroup.files:type_name -> vrooli.git_control_tower.v1.repo.ProvenanceFile
+	14,  // 7: vrooli.git_control_tower.v1.repo.GetProvenanceResponse.run_groups:type_name -> vrooli.git_control_tower.v1.repo.ProvenanceRunGroup
+	18,  // 8: vrooli.git_control_tower.v1.repo.BlameEvidence.work_references:type_name -> vrooli.git_control_tower.v1.repo.ProvenanceWorkReference
+	17,  // 9: vrooli.git_control_tower.v1.repo.BlameFile.lines:type_name -> vrooli.git_control_tower.v1.repo.BlameLine
+	19,  // 10: vrooli.git_control_tower.v1.repo.BlameFile.evidence:type_name -> vrooli.git_control_tower.v1.repo.BlameEvidence
+	18,  // 11: vrooli.git_control_tower.v1.repo.ProvenanceChangeBundle.work_references:type_name -> vrooli.git_control_tower.v1.repo.ProvenanceWorkReference
+	20,  // 12: vrooli.git_control_tower.v1.repo.GetBlameResponse.files:type_name -> vrooli.git_control_tower.v1.repo.BlameFile
+	21,  // 13: vrooli.git_control_tower.v1.repo.GetBlameResponse.change_bundles:type_name -> vrooli.git_control_tower.v1.repo.ProvenanceChangeBundle
+	24,  // 14: vrooli.git_control_tower.v1.repo.SearchProvenanceResponse.results:type_name -> vrooli.git_control_tower.v1.repo.ProvenanceSearchHit
+	0,   // 15: vrooli.git_control_tower.v1.repo.RepoMutationResponse.repo:type_name -> vrooli.git_control_tower.v1.repo.RepoRecord
+	33,  // 16: vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.worktree:type_name -> vrooli.git_control_tower.v1.repo.WorktreeIdentity
+	35,  // 17: vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.branch_status:type_name -> vrooli.git_control_tower.v1.repo.BranchStatus
+	36,  // 18: vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.files:type_name -> vrooli.git_control_tower.v1.repo.FilesStatus
+	37,  // 19: vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.file_stats:type_name -> vrooli.git_control_tower.v1.repo.FileStats
+	133, // 20: vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.file_hotspots:type_name -> vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.FileHotspotsEntry
+	134, // 21: vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.scopes:type_name -> vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.ScopesEntry
+	40,  // 22: vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.summary:type_name -> vrooli.git_control_tower.v1.repo.StatusSummary
+	41,  // 23: vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.author:type_name -> vrooli.git_control_tower.v1.repo.AuthorStatus
+	135, // 24: vrooli.git_control_tower.v1.repo.FilesStatus.statuses:type_name -> vrooli.git_control_tower.v1.repo.FilesStatus.StatusesEntry
+	136, // 25: vrooli.git_control_tower.v1.repo.FilesStatus.renames:type_name -> vrooli.git_control_tower.v1.repo.FilesStatus.RenamesEntry
+	137, // 26: vrooli.git_control_tower.v1.repo.FileStats.staged:type_name -> vrooli.git_control_tower.v1.repo.FileStats.StagedEntry
+	138, // 27: vrooli.git_control_tower.v1.repo.FileStats.unstaged:type_name -> vrooli.git_control_tower.v1.repo.FileStats.UnstagedEntry
+	139, // 28: vrooli.git_control_tower.v1.repo.FileStats.untracked:type_name -> vrooli.git_control_tower.v1.repo.FileStats.UntrackedEntry
+	44,  // 29: vrooli.git_control_tower.v1.repo.GetRepoDiffResponse.hunks:type_name -> vrooli.git_control_tower.v1.repo.DiffHunk
+	38,  // 30: vrooli.git_control_tower.v1.repo.GetRepoDiffResponse.stats:type_name -> vrooli.git_control_tower.v1.repo.DiffStats
+	45,  // 31: vrooli.git_control_tower.v1.repo.GetRepoDiffResponse.annotated_lines:type_name -> vrooli.git_control_tower.v1.repo.AnnotatedLine
+	48,  // 32: vrooli.git_control_tower.v1.repo.GetRepoGroupsResponse.groups:type_name -> vrooli.git_control_tower.v1.repo.ChangeGroup
+	52,  // 33: vrooli.git_control_tower.v1.repo.GetFilesResponse.files:type_name -> vrooli.git_control_tower.v1.repo.RepoFileInfo
+	55,  // 34: vrooli.git_control_tower.v1.repo.GetDirectoryContentsResponse.entries:type_name -> vrooli.git_control_tower.v1.repo.DirectoryEntry
+	58,  // 35: vrooli.git_control_tower.v1.repo.GetRelatedFilesResponse.related:type_name -> vrooli.git_control_tower.v1.repo.RelatedFile
+	61,  // 36: vrooli.git_control_tower.v1.repo.SearchContentResponse.matches:type_name -> vrooli.git_control_tower.v1.repo.ContentMatch
+	78,  // 37: vrooli.git_control_tower.v1.repo.GroupingRulesResponse.rules:type_name -> vrooli.git_control_tower.v1.repo.GroupingRule
+	78,  // 38: vrooli.git_control_tower.v1.repo.SaveGroupingRulesRequest.rules:type_name -> vrooli.git_control_tower.v1.repo.GroupingRule
+	82,  // 39: vrooli.git_control_tower.v1.repo.GitignoreHealthResponse.suggestions:type_name -> vrooli.git_control_tower.v1.repo.GitignoreSuggestion
+	87,  // 40: vrooli.git_control_tower.v1.repo.TrackedBinariesResponse.binaries:type_name -> vrooli.git_control_tower.v1.repo.TrackedBinary
+	102, // 41: vrooli.git_control_tower.v1.repo.PrecommitConfigResponse.last_result:type_name -> vrooli.git_control_tower.v1.repo.PrecommitRunResult
+	92,  // 42: vrooli.git_control_tower.v1.repo.PrecommitConfigResponse.hook:type_name -> vrooli.git_control_tower.v1.repo.PrecommitHookState
+	102, // 43: vrooli.git_control_tower.v1.repo.PrecommitRunResponse.result:type_name -> vrooli.git_control_tower.v1.repo.PrecommitRunResult
+	102, // 44: vrooli.git_control_tower.v1.repo.CreateCommitResponse.precommit:type_name -> vrooli.git_control_tower.v1.repo.PrecommitRunResult
+	104, // 45: vrooli.git_control_tower.v1.repo.CredentialsListResponse.credentials:type_name -> vrooli.git_control_tower.v1.repo.Credential
+	104, // 46: vrooli.git_control_tower.v1.repo.CredentialSaveResponse.credential:type_name -> vrooli.git_control_tower.v1.repo.Credential
+	115, // 47: vrooli.git_control_tower.v1.repo.SSHListKeysResponse.keys:type_name -> vrooli.git_control_tower.v1.repo.SSHKeyInfo
+	115, // 48: vrooli.git_control_tower.v1.repo.SSHGenerateKeyResponse.key:type_name -> vrooli.git_control_tower.v1.repo.SSHKeyInfo
+	127, // 49: vrooli.git_control_tower.v1.repo.PushSafetyReport.files:type_name -> vrooli.git_control_tower.v1.repo.PushSafetyFile
+	127, // 50: vrooli.git_control_tower.v1.repo.PushSafetyReport.staged_files:type_name -> vrooli.git_control_tower.v1.repo.PushSafetyFile
+	130, // 51: vrooli.git_control_tower.v1.repo.PushRecoveryArtifact.mappings:type_name -> vrooli.git_control_tower.v1.repo.RecoveryCommitMapping
+	39,  // 52: vrooli.git_control_tower.v1.repo.GetRepoStatusResponse.ScopesEntry.value:type_name -> vrooli.git_control_tower.v1.repo.StringList
+	38,  // 53: vrooli.git_control_tower.v1.repo.FileStats.StagedEntry.value:type_name -> vrooli.git_control_tower.v1.repo.DiffStats
+	38,  // 54: vrooli.git_control_tower.v1.repo.FileStats.UnstagedEntry.value:type_name -> vrooli.git_control_tower.v1.repo.DiffStats
+	38,  // 55: vrooli.git_control_tower.v1.repo.FileStats.UntrackedEntry.value:type_name -> vrooli.git_control_tower.v1.repo.DiffStats
+	1,   // 56: vrooli.git_control_tower.v1.repo.RepoService.ListRepositories:input_type -> vrooli.git_control_tower.v1.repo.ListRepositoriesRequest
+	3,   // 57: vrooli.git_control_tower.v1.repo.RepoService.GetActiveRepository:input_type -> vrooli.git_control_tower.v1.repo.GetActiveRepositoryRequest
+	26,  // 58: vrooli.git_control_tower.v1.repo.RepoService.SetActiveRepository:input_type -> vrooli.git_control_tower.v1.repo.SetActiveRepositoryRequest
+	27,  // 59: vrooli.git_control_tower.v1.repo.RepoService.OpenRepository:input_type -> vrooli.git_control_tower.v1.repo.OpenRepositoryRequest
+	28,  // 60: vrooli.git_control_tower.v1.repo.RepoService.CloneRepository:input_type -> vrooli.git_control_tower.v1.repo.CloneRepositoryRequest
+	30,  // 61: vrooli.git_control_tower.v1.repo.RepoService.RemoveRepository:input_type -> vrooli.git_control_tower.v1.repo.RemoveRepositoryRequest
+	32,  // 62: vrooli.git_control_tower.v1.repo.RepoService.GetRepoStatus:input_type -> vrooli.git_control_tower.v1.repo.GetRepoStatusRequest
+	42,  // 63: vrooli.git_control_tower.v1.repo.RepoService.GetRepoDiff:input_type -> vrooli.git_control_tower.v1.repo.GetRepoDiffRequest
+	46,  // 64: vrooli.git_control_tower.v1.repo.RepoService.GetRepoGroups:input_type -> vrooli.git_control_tower.v1.repo.GetRepoGroupsRequest
+	49,  // 65: vrooli.git_control_tower.v1.repo.RepoService.GetSyncStatus:input_type -> vrooli.git_control_tower.v1.repo.GetSyncStatusRequest
+	5,   // 66: vrooli.git_control_tower.v1.repo.RepoService.GetRepoHistory:input_type -> vrooli.git_control_tower.v1.repo.GetRepoHistoryRequest
+	9,   // 67: vrooli.git_control_tower.v1.repo.RepoService.GetApprovedChanges:input_type -> vrooli.git_control_tower.v1.repo.GetApprovedChangesRequest
+	12,  // 68: vrooli.git_control_tower.v1.repo.RepoService.GetProvenance:input_type -> vrooli.git_control_tower.v1.repo.GetProvenanceRequest
+	16,  // 69: vrooli.git_control_tower.v1.repo.RepoService.GetBlame:input_type -> vrooli.git_control_tower.v1.repo.GetBlameRequest
+	23,  // 70: vrooli.git_control_tower.v1.repo.RepoService.SearchProvenance:input_type -> vrooli.git_control_tower.v1.repo.SearchProvenanceRequest
+	51,  // 71: vrooli.git_control_tower.v1.repo.RepoService.GetFiles:input_type -> vrooli.git_control_tower.v1.repo.GetFilesRequest
+	54,  // 72: vrooli.git_control_tower.v1.repo.RepoService.GetDirectoryContents:input_type -> vrooli.git_control_tower.v1.repo.GetDirectoryContentsRequest
+	57,  // 73: vrooli.git_control_tower.v1.repo.RepoService.GetRelatedFiles:input_type -> vrooli.git_control_tower.v1.repo.GetRelatedFilesRequest
+	60,  // 74: vrooli.git_control_tower.v1.repo.RepoService.SearchContent:input_type -> vrooli.git_control_tower.v1.repo.SearchContentRequest
+	63,  // 75: vrooli.git_control_tower.v1.repo.RepoService.DeletePath:input_type -> vrooli.git_control_tower.v1.repo.DeletePathRequest
+	65,  // 76: vrooli.git_control_tower.v1.repo.RepoService.SaveFileContent:input_type -> vrooli.git_control_tower.v1.repo.SaveFileContentRequest
+	67,  // 77: vrooli.git_control_tower.v1.repo.RepoService.DiscardFiles:input_type -> vrooli.git_control_tower.v1.repo.DiscardFilesRequest
+	69,  // 78: vrooli.git_control_tower.v1.repo.RepoService.IgnorePath:input_type -> vrooli.git_control_tower.v1.repo.IgnorePathRequest
+	126, // 79: vrooli.git_control_tower.v1.repo.RepoService.InspectPushSafety:input_type -> vrooli.git_control_tower.v1.repo.InspectPushSafetyRequest
+	132, // 80: vrooli.git_control_tower.v1.repo.RepoService.GetPushRecovery:input_type -> vrooli.git_control_tower.v1.repo.GetPushRecoveryRequest
+	129, // 81: vrooli.git_control_tower.v1.repo.RepoService.PreparePushRecovery:input_type -> vrooli.git_control_tower.v1.repo.PreparePushRecoveryRequest
+	71,  // 82: vrooli.git_control_tower.v1.repo.RepoService.PushToRemote:input_type -> vrooli.git_control_tower.v1.repo.PushToRemoteRequest
+	73,  // 83: vrooli.git_control_tower.v1.repo.RepoService.PullFromRemote:input_type -> vrooli.git_control_tower.v1.repo.PullFromRemoteRequest
+	75,  // 84: vrooli.git_control_tower.v1.repo.RepoService.RunUpstreamAction:input_type -> vrooli.git_control_tower.v1.repo.RunUpstreamActionRequest
+	77,  // 85: vrooli.git_control_tower.v1.repo.RepoService.GetGroupingRules:input_type -> vrooli.git_control_tower.v1.repo.GetGroupingRulesRequest
+	80,  // 86: vrooli.git_control_tower.v1.repo.RepoService.SaveGroupingRules:input_type -> vrooli.git_control_tower.v1.repo.SaveGroupingRulesRequest
+	81,  // 87: vrooli.git_control_tower.v1.repo.RepoService.GetGitignoreHealth:input_type -> vrooli.git_control_tower.v1.repo.GetGitignoreHealthRequest
+	84,  // 88: vrooli.git_control_tower.v1.repo.RepoService.MoveGitignoreEntry:input_type -> vrooli.git_control_tower.v1.repo.MoveGitignoreEntryRequest
+	86,  // 89: vrooli.git_control_tower.v1.repo.RepoService.GetTrackedBinaries:input_type -> vrooli.git_control_tower.v1.repo.GetTrackedBinariesRequest
+	89,  // 90: vrooli.git_control_tower.v1.repo.RepoService.UntrackBinary:input_type -> vrooli.git_control_tower.v1.repo.UntrackBinaryRequest
+	91,  // 91: vrooli.git_control_tower.v1.repo.RepoService.GetPrecommitConfig:input_type -> vrooli.git_control_tower.v1.repo.GetPrecommitConfigRequest
+	94,  // 92: vrooli.git_control_tower.v1.repo.RepoService.SavePrecommitConfig:input_type -> vrooli.git_control_tower.v1.repo.SavePrecommitConfigRequest
+	95,  // 93: vrooli.git_control_tower.v1.repo.RepoService.RunPrecommit:input_type -> vrooli.git_control_tower.v1.repo.RunPrecommitRequest
+	97,  // 94: vrooli.git_control_tower.v1.repo.RepoService.StageFiles:input_type -> vrooli.git_control_tower.v1.repo.StageFilesRequest
+	99,  // 95: vrooli.git_control_tower.v1.repo.RepoService.UnstageFiles:input_type -> vrooli.git_control_tower.v1.repo.UnstageFilesRequest
+	101, // 96: vrooli.git_control_tower.v1.repo.RepoService.CreateCommit:input_type -> vrooli.git_control_tower.v1.repo.CreateCommitRequest
+	105, // 97: vrooli.git_control_tower.v1.repo.RepoService.ListCredentials:input_type -> vrooli.git_control_tower.v1.repo.ListCredentialsRequest
+	107, // 98: vrooli.git_control_tower.v1.repo.RepoService.SaveCredential:input_type -> vrooli.git_control_tower.v1.repo.SaveCredentialRequest
+	109, // 99: vrooli.git_control_tower.v1.repo.RepoService.DeleteCredential:input_type -> vrooli.git_control_tower.v1.repo.DeleteCredentialRequest
+	111, // 100: vrooli.git_control_tower.v1.repo.RepoService.TestCredential:input_type -> vrooli.git_control_tower.v1.repo.TestCredentialRequest
+	113, // 101: vrooli.git_control_tower.v1.repo.RepoService.UpdateRemoteURL:input_type -> vrooli.git_control_tower.v1.repo.UpdateRemoteURLRequest
+	116, // 102: vrooli.git_control_tower.v1.repo.RepoService.ListSSHKeys:input_type -> vrooli.git_control_tower.v1.repo.ListSSHKeysRequest
+	118, // 103: vrooli.git_control_tower.v1.repo.RepoService.GenerateSSHKey:input_type -> vrooli.git_control_tower.v1.repo.GenerateSSHKeyRequest
+	120, // 104: vrooli.git_control_tower.v1.repo.RepoService.GetSSHPublicKey:input_type -> vrooli.git_control_tower.v1.repo.GetSSHPublicKeyRequest
+	122, // 105: vrooli.git_control_tower.v1.repo.RepoService.TestSSHConnection:input_type -> vrooli.git_control_tower.v1.repo.TestSSHConnectionRequest
+	124, // 106: vrooli.git_control_tower.v1.repo.RepoService.DeleteSSHKey:input_type -> vrooli.git_control_tower.v1.repo.DeleteSSHKeyRequest
+	2,   // 107: vrooli.git_control_tower.v1.repo.RepoService.ListRepositories:output_type -> vrooli.git_control_tower.v1.repo.ListRepositoriesResponse
+	4,   // 108: vrooli.git_control_tower.v1.repo.RepoService.GetActiveRepository:output_type -> vrooli.git_control_tower.v1.repo.GetActiveRepositoryResponse
+	29,  // 109: vrooli.git_control_tower.v1.repo.RepoService.SetActiveRepository:output_type -> vrooli.git_control_tower.v1.repo.RepoMutationResponse
+	29,  // 110: vrooli.git_control_tower.v1.repo.RepoService.OpenRepository:output_type -> vrooli.git_control_tower.v1.repo.RepoMutationResponse
+	29,  // 111: vrooli.git_control_tower.v1.repo.RepoService.CloneRepository:output_type -> vrooli.git_control_tower.v1.repo.RepoMutationResponse
+	31,  // 112: vrooli.git_control_tower.v1.repo.RepoService.RemoveRepository:output_type -> vrooli.git_control_tower.v1.repo.RemoveRepositoryResponse
+	34,  // 113: vrooli.git_control_tower.v1.repo.RepoService.GetRepoStatus:output_type -> vrooli.git_control_tower.v1.repo.GetRepoStatusResponse
+	43,  // 114: vrooli.git_control_tower.v1.repo.RepoService.GetRepoDiff:output_type -> vrooli.git_control_tower.v1.repo.GetRepoDiffResponse
+	47,  // 115: vrooli.git_control_tower.v1.repo.RepoService.GetRepoGroups:output_type -> vrooli.git_control_tower.v1.repo.GetRepoGroupsResponse
+	50,  // 116: vrooli.git_control_tower.v1.repo.RepoService.GetSyncStatus:output_type -> vrooli.git_control_tower.v1.repo.GetSyncStatusResponse
+	8,   // 117: vrooli.git_control_tower.v1.repo.RepoService.GetRepoHistory:output_type -> vrooli.git_control_tower.v1.repo.GetRepoHistoryResponse
+	11,  // 118: vrooli.git_control_tower.v1.repo.RepoService.GetApprovedChanges:output_type -> vrooli.git_control_tower.v1.repo.GetApprovedChangesResponse
+	15,  // 119: vrooli.git_control_tower.v1.repo.RepoService.GetProvenance:output_type -> vrooli.git_control_tower.v1.repo.GetProvenanceResponse
+	22,  // 120: vrooli.git_control_tower.v1.repo.RepoService.GetBlame:output_type -> vrooli.git_control_tower.v1.repo.GetBlameResponse
+	25,  // 121: vrooli.git_control_tower.v1.repo.RepoService.SearchProvenance:output_type -> vrooli.git_control_tower.v1.repo.SearchProvenanceResponse
+	53,  // 122: vrooli.git_control_tower.v1.repo.RepoService.GetFiles:output_type -> vrooli.git_control_tower.v1.repo.GetFilesResponse
+	56,  // 123: vrooli.git_control_tower.v1.repo.RepoService.GetDirectoryContents:output_type -> vrooli.git_control_tower.v1.repo.GetDirectoryContentsResponse
+	59,  // 124: vrooli.git_control_tower.v1.repo.RepoService.GetRelatedFiles:output_type -> vrooli.git_control_tower.v1.repo.GetRelatedFilesResponse
+	62,  // 125: vrooli.git_control_tower.v1.repo.RepoService.SearchContent:output_type -> vrooli.git_control_tower.v1.repo.SearchContentResponse
+	64,  // 126: vrooli.git_control_tower.v1.repo.RepoService.DeletePath:output_type -> vrooli.git_control_tower.v1.repo.DeletePathResponse
+	66,  // 127: vrooli.git_control_tower.v1.repo.RepoService.SaveFileContent:output_type -> vrooli.git_control_tower.v1.repo.SaveFileContentResponse
+	68,  // 128: vrooli.git_control_tower.v1.repo.RepoService.DiscardFiles:output_type -> vrooli.git_control_tower.v1.repo.DiscardFilesResponse
+	70,  // 129: vrooli.git_control_tower.v1.repo.RepoService.IgnorePath:output_type -> vrooli.git_control_tower.v1.repo.IgnorePathResponse
+	128, // 130: vrooli.git_control_tower.v1.repo.RepoService.InspectPushSafety:output_type -> vrooli.git_control_tower.v1.repo.PushSafetyReport
+	131, // 131: vrooli.git_control_tower.v1.repo.RepoService.GetPushRecovery:output_type -> vrooli.git_control_tower.v1.repo.PushRecoveryArtifact
+	131, // 132: vrooli.git_control_tower.v1.repo.RepoService.PreparePushRecovery:output_type -> vrooli.git_control_tower.v1.repo.PushRecoveryArtifact
+	72,  // 133: vrooli.git_control_tower.v1.repo.RepoService.PushToRemote:output_type -> vrooli.git_control_tower.v1.repo.PushToRemoteResponse
+	74,  // 134: vrooli.git_control_tower.v1.repo.RepoService.PullFromRemote:output_type -> vrooli.git_control_tower.v1.repo.PullFromRemoteResponse
+	76,  // 135: vrooli.git_control_tower.v1.repo.RepoService.RunUpstreamAction:output_type -> vrooli.git_control_tower.v1.repo.RunUpstreamActionResponse
+	79,  // 136: vrooli.git_control_tower.v1.repo.RepoService.GetGroupingRules:output_type -> vrooli.git_control_tower.v1.repo.GroupingRulesResponse
+	79,  // 137: vrooli.git_control_tower.v1.repo.RepoService.SaveGroupingRules:output_type -> vrooli.git_control_tower.v1.repo.GroupingRulesResponse
+	83,  // 138: vrooli.git_control_tower.v1.repo.RepoService.GetGitignoreHealth:output_type -> vrooli.git_control_tower.v1.repo.GitignoreHealthResponse
+	85,  // 139: vrooli.git_control_tower.v1.repo.RepoService.MoveGitignoreEntry:output_type -> vrooli.git_control_tower.v1.repo.MoveGitignoreEntryResponse
+	88,  // 140: vrooli.git_control_tower.v1.repo.RepoService.GetTrackedBinaries:output_type -> vrooli.git_control_tower.v1.repo.TrackedBinariesResponse
+	90,  // 141: vrooli.git_control_tower.v1.repo.RepoService.UntrackBinary:output_type -> vrooli.git_control_tower.v1.repo.UntrackBinaryResponse
+	93,  // 142: vrooli.git_control_tower.v1.repo.RepoService.GetPrecommitConfig:output_type -> vrooli.git_control_tower.v1.repo.PrecommitConfigResponse
+	93,  // 143: vrooli.git_control_tower.v1.repo.RepoService.SavePrecommitConfig:output_type -> vrooli.git_control_tower.v1.repo.PrecommitConfigResponse
+	96,  // 144: vrooli.git_control_tower.v1.repo.RepoService.RunPrecommit:output_type -> vrooli.git_control_tower.v1.repo.PrecommitRunResponse
+	98,  // 145: vrooli.git_control_tower.v1.repo.RepoService.StageFiles:output_type -> vrooli.git_control_tower.v1.repo.StageFilesResponse
+	100, // 146: vrooli.git_control_tower.v1.repo.RepoService.UnstageFiles:output_type -> vrooli.git_control_tower.v1.repo.UnstageFilesResponse
+	103, // 147: vrooli.git_control_tower.v1.repo.RepoService.CreateCommit:output_type -> vrooli.git_control_tower.v1.repo.CreateCommitResponse
+	106, // 148: vrooli.git_control_tower.v1.repo.RepoService.ListCredentials:output_type -> vrooli.git_control_tower.v1.repo.CredentialsListResponse
+	108, // 149: vrooli.git_control_tower.v1.repo.RepoService.SaveCredential:output_type -> vrooli.git_control_tower.v1.repo.CredentialSaveResponse
+	110, // 150: vrooli.git_control_tower.v1.repo.RepoService.DeleteCredential:output_type -> vrooli.git_control_tower.v1.repo.CredentialDeleteResponse
+	112, // 151: vrooli.git_control_tower.v1.repo.RepoService.TestCredential:output_type -> vrooli.git_control_tower.v1.repo.CredentialTestResponse
+	114, // 152: vrooli.git_control_tower.v1.repo.RepoService.UpdateRemoteURL:output_type -> vrooli.git_control_tower.v1.repo.RemoteURLUpdateResponse
+	117, // 153: vrooli.git_control_tower.v1.repo.RepoService.ListSSHKeys:output_type -> vrooli.git_control_tower.v1.repo.SSHListKeysResponse
+	119, // 154: vrooli.git_control_tower.v1.repo.RepoService.GenerateSSHKey:output_type -> vrooli.git_control_tower.v1.repo.SSHGenerateKeyResponse
+	121, // 155: vrooli.git_control_tower.v1.repo.RepoService.GetSSHPublicKey:output_type -> vrooli.git_control_tower.v1.repo.SSHGetPublicKeyResponse
+	123, // 156: vrooli.git_control_tower.v1.repo.RepoService.TestSSHConnection:output_type -> vrooli.git_control_tower.v1.repo.SSHTestConnectionResponse
+	125, // 157: vrooli.git_control_tower.v1.repo.RepoService.DeleteSSHKey:output_type -> vrooli.git_control_tower.v1.repo.SSHDeleteKeyResponse
+	107, // [107:158] is the sub-list for method output_type
+	56,  // [56:107] is the sub-list for method input_type
+	56,  // [56:56] is the sub-list for extension type_name
+	56,  // [56:56] is the sub-list for extension extendee
+	0,   // [0:56] is the sub-list for field type_name
 }
 
 func init() { file_git_control_tower_v1_repo_repo_proto_init() }

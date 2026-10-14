@@ -1,11 +1,14 @@
 package main
 
 import (
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"sync"
 	"testing"
+
+	"google.golang.org/protobuf/encoding/protojson"
 
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
@@ -118,21 +121,42 @@ func TestApp_RunEffortCompactUsesPublicDispatcher(t *testing.T) {
 		paths = append(paths, r.Method+" "+r.URL.Path)
 		mu.Unlock()
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"active_count":0,"rows":[]}`))
+		switch r.URL.Path {
+		case "/health":
+			_, _ = w.Write([]byte(`{"status":"healthy"}`))
+		case "/agent_manager.v1.AgentManagerService/GetEffortBoard":
+			var request domainpb.GetEffortBoardRequest
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				t.Error(err)
+			}
+			if err := protojson.Unmarshal(body, &request); err != nil {
+				t.Error(err)
+			}
+			if request.GetEffortRef() != "effort:any" || request.GetPageSize() != 7 {
+				t.Errorf("request = %v", &request)
+			}
+			_, _ = w.Write([]byte(richResponse(t, &domainpb.EffortBoard{ActiveCount: 1, Rows: []*domainpb.EffortBoardRow{{Enrollment: &domainpb.EffortEnrollment{EffortRef: "effort:any"}}}})))
+		default:
+			t.Errorf("unexpected public route: %s", r.URL.Path)
+			http.Error(w, "unexpected route", http.StatusNotFound)
+		}
 	}))
 	defer server.Close()
-	t.Setenv("API_BASE_URL", server.URL)
+	// The fixture base wins over any scenario address inherited from the harness.
+	t.Setenv("AGENT_MANAGER_API_BASE", server.URL)
 	t.Setenv("CLI_CONFIG_DIR_OVERRIDE", t.TempDir())
 	t.Setenv("VROOLI_SUPPRESS_CLI_PATH_WARNING", "1")
-
 	app, err := NewApp()
 	if err != nil {
-		t.Fatalf("NewApp() failed: %v", err)
+		t.Fatal(err)
 	}
-	if err := app.Run([]string{"effort", "compact", "--json", "--effort-ref", "effort:any", "--page-size", "7"}); err != nil {
-		t.Fatalf("public compact command failed: %v", err)
+	output := captureStdout(t, func() error {
+		return app.Run([]string{"effort", "compact", "--json", "--effort-ref", "effort:any", "--page-size", "7"})
+	})
+	if !strings.Contains(output, "effort:any") {
+		t.Fatalf("owner response missing from output: %s", output)
 	}
-
 	mu.Lock()
 	defer mu.Unlock()
 	if len(paths) != 2 || paths[0] != "GET /health" || paths[1] != "POST /agent_manager.v1.AgentManagerService/GetEffortBoard" {

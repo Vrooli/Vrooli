@@ -17,7 +17,7 @@ This oracle drives the real decode state machine with a consumer whose
 code (decode freezes at the first emit) and PASSES once decode is decoupled from
 send.
 
-Run: ``python3 -m pytest resources/kyutai-stt/tests/test_server_backpressure.py``
+Run: ``python3 -m pytest resources/kyutai-stt/test/test_server_backpressure.py``
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ import os
 import sys
 import time
 
-sys.path.insert(0, os.path.dirname(__file__))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "server"))
 import server  # noqa: E402
 
 # Token convention (mirrors test_server.py): 3 = padding, 0 = word boundary,
@@ -316,3 +316,24 @@ def test_fifo_admission_orders_waiters_and_supports_cancellation():
     assert queued_positions == [2, 3]
     assert third_position == 3
     assert second_cancelled
+
+
+def test_fifo_admission_cancels_ticket_when_queued_notification_fails():
+    """A disconnected queued browser must not consume a FIFO slot forever."""
+    async def scenario():
+        admission = server.FIFOAdmission(max_depth=2, max_wait_s=1)
+        first, _ = await admission.acquire()
+
+        async def notify(_position: int) -> None:
+            raise RuntimeError("peer disconnected while notifying queued state")
+
+        try:
+            await admission.acquire(notify)
+        except RuntimeError:
+            pass
+        await admission.release(first)
+        return len(admission._waiters), admission._active
+
+    waiters, active = asyncio.run(scenario())
+    assert waiters == 0
+    assert active is None

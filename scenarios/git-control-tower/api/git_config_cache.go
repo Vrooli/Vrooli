@@ -39,8 +39,8 @@ func NewRepoStatusCache(ttl time.Duration) *RepoStatusCache {
 }
 
 // Invalidate removes all cached views for a repository after a mutation. The
-// hotspot and non-hotspot variants are separate keys because their payloads
-// differ.
+// hotspot, non-hotspot and lightweight-snapshot variants are separate keys
+// because their payloads differ.
 func (c *RepoStatusCache) Invalidate(repoDir string) {
 	if c == nil {
 		return
@@ -49,6 +49,7 @@ func (c *RepoStatusCache) Invalidate(repoDir string) {
 	defer c.mu.Unlock()
 	delete(c.entries, repoDir)
 	delete(c.entries, repoDir+"\x00hotspots")
+	delete(c.entries, repoDir+"\x00snapshot")
 }
 
 func (c *RepoStatusCache) Get(ctx context.Context, key string, load func(context.Context) (*RepoStatus, error)) (*RepoStatus, error) {

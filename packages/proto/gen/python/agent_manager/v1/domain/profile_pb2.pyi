@@ -34,7 +34,7 @@ STRUCTURED_EXTRACTION_MODE_DETERMINISTIC_ONLY: StructuredExtractionMode
 STRUCTURED_EXTRACTION_MODE_CONSTRAINED_FALLBACK: StructuredExtractionMode
 
 class AgentProfile(_message.Message):
-    __slots__ = ("id", "name", "profile_key", "description", "role_ref", "max_turns", "timeout", "allowed_tools", "denied_tools", "tool_restriction_policy", "skip_permission_prompt", "features", "extra_flags", "network_access", "owner_scenario", "source_path", "source_hash", "last_applied_hash", "source_updated_at", "local_override", "sandbox_config", "allowed_paths", "denied_paths", "declared_scopes", "created_by", "created_at", "updated_at", "effort", "skill_pack", "skill_experiment_id")
+    __slots__ = ("id", "name", "profile_key", "description", "role_ref", "max_turns", "timeout", "allowed_tools", "denied_tools", "tool_restriction_policy", "skip_permission_prompt", "features", "extra_flags", "network_access", "owner_scenario", "source_path", "source_hash", "last_applied_hash", "source_updated_at", "local_override", "sandbox_config", "allowed_paths", "denied_paths", "declared_scopes", "created_by", "created_at", "updated_at", "effort", "skill_pack", "skill_experiment_id", "max_weighted_tokens")
     class ExtraFlagsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -72,6 +72,7 @@ class AgentProfile(_message.Message):
     EFFORT_FIELD_NUMBER: _ClassVar[int]
     SKILL_PACK_FIELD_NUMBER: _ClassVar[int]
     SKILL_EXPERIMENT_ID_FIELD_NUMBER: _ClassVar[int]
+    MAX_WEIGHTED_TOKENS_FIELD_NUMBER: _ClassVar[int]
     id: str
     name: str
     profile_key: str
@@ -102,7 +103,8 @@ class AgentProfile(_message.Message):
     effort: str
     skill_pack: _containers.RepeatedScalarFieldContainer[str]
     skill_experiment_id: str
-    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., profile_key: _Optional[str] = ..., description: _Optional[str] = ..., role_ref: _Optional[str] = ..., max_turns: _Optional[int] = ..., timeout: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., allowed_tools: _Optional[_Iterable[str]] = ..., denied_tools: _Optional[_Iterable[str]] = ..., tool_restriction_policy: _Optional[str] = ..., skip_permission_prompt: _Optional[bool] = ..., features: _Optional[_Union[_types_pb2.FeatureFlags, _Mapping]] = ..., extra_flags: _Optional[_Mapping[str, _types_pb2.ExtraFlagList]] = ..., network_access: _Optional[_Union[_types_pb2.NetworkAccess, str]] = ..., owner_scenario: _Optional[str] = ..., source_path: _Optional[str] = ..., source_hash: _Optional[str] = ..., last_applied_hash: _Optional[str] = ..., source_updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., local_override: _Optional[bool] = ..., sandbox_config: _Optional[_Union[_types_pb2.SandboxConfig, _Mapping]] = ..., allowed_paths: _Optional[_Iterable[str]] = ..., denied_paths: _Optional[_Iterable[str]] = ..., declared_scopes: _Optional[_Iterable[str]] = ..., created_by: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., effort: _Optional[str] = ..., skill_pack: _Optional[_Iterable[str]] = ..., skill_experiment_id: _Optional[str] = ...) -> None: ...
+    max_weighted_tokens: int
+    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., profile_key: _Optional[str] = ..., description: _Optional[str] = ..., role_ref: _Optional[str] = ..., max_turns: _Optional[int] = ..., timeout: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., allowed_tools: _Optional[_Iterable[str]] = ..., denied_tools: _Optional[_Iterable[str]] = ..., tool_restriction_policy: _Optional[str] = ..., skip_permission_prompt: _Optional[bool] = ..., features: _Optional[_Union[_types_pb2.FeatureFlags, _Mapping]] = ..., extra_flags: _Optional[_Mapping[str, _types_pb2.ExtraFlagList]] = ..., network_access: _Optional[_Union[_types_pb2.NetworkAccess, str]] = ..., owner_scenario: _Optional[str] = ..., source_path: _Optional[str] = ..., source_hash: _Optional[str] = ..., last_applied_hash: _Optional[str] = ..., source_updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., local_override: _Optional[bool] = ..., sandbox_config: _Optional[_Union[_types_pb2.SandboxConfig, _Mapping]] = ..., allowed_paths: _Optional[_Iterable[str]] = ..., denied_paths: _Optional[_Iterable[str]] = ..., declared_scopes: _Optional[_Iterable[str]] = ..., created_by: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., effort: _Optional[str] = ..., skill_pack: _Optional[_Iterable[str]] = ..., skill_experiment_id: _Optional[str] = ..., max_weighted_tokens: _Optional[int] = ...) -> None: ...
 
 class ResultSpec(_message.Message):
     __slots__ = ("version", "kind", "schema", "schema_digest", "classification_values", "extraction_mode", "extraction_role", "schema_repair_attempts")
@@ -125,7 +127,7 @@ class ResultSpec(_message.Message):
     def __init__(self, version: _Optional[str] = ..., kind: _Optional[_Union[ResultSpecKind, str]] = ..., schema: _Optional[bytes] = ..., schema_digest: _Optional[str] = ..., classification_values: _Optional[_Iterable[str]] = ..., extraction_mode: _Optional[_Union[StructuredExtractionMode, str]] = ..., extraction_role: _Optional[str] = ..., schema_repair_attempts: _Optional[int] = ...) -> None: ...
 
 class RunConfig(_message.Message):
-    __slots__ = ("runner_type", "model", "role_ref", "result_spec", "max_turns", "timeout", "allowed_tools", "denied_tools", "tool_restriction_policy", "effort", "skip_permission_prompt", "features", "extra_flags", "network_access", "policy_snapshot", "sandbox_config", "allowed_paths", "denied_paths", "manifest_index_snapshot", "transcript_codec", "transcript_codec_score", "until", "admission")
+    __slots__ = ("runner_type", "model", "role_ref", "result_spec", "max_turns", "timeout", "allowed_tools", "denied_tools", "tool_restriction_policy", "effort", "skip_permission_prompt", "features", "extra_flags", "network_access", "policy_snapshot", "sandbox_config", "allowed_paths", "denied_paths", "manifest_index_snapshot", "transcript_codec", "transcript_codec_score", "until", "admission", "max_weighted_tokens")
     class ExtraFlagsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -156,6 +158,7 @@ class RunConfig(_message.Message):
     TRANSCRIPT_CODEC_SCORE_FIELD_NUMBER: _ClassVar[int]
     UNTIL_FIELD_NUMBER: _ClassVar[int]
     ADMISSION_FIELD_NUMBER: _ClassVar[int]
+    MAX_WEIGHTED_TOKENS_FIELD_NUMBER: _ClassVar[int]
     runner_type: _types_pb2.RunnerType
     model: str
     role_ref: str
@@ -179,7 +182,8 @@ class RunConfig(_message.Message):
     transcript_codec_score: float
     until: str
     admission: RunAdmission
-    def __init__(self, runner_type: _Optional[_Union[_types_pb2.RunnerType, str]] = ..., model: _Optional[str] = ..., role_ref: _Optional[str] = ..., result_spec: _Optional[_Union[ResultSpec, _Mapping]] = ..., max_turns: _Optional[int] = ..., timeout: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., allowed_tools: _Optional[_Iterable[str]] = ..., denied_tools: _Optional[_Iterable[str]] = ..., tool_restriction_policy: _Optional[str] = ..., effort: _Optional[str] = ..., skip_permission_prompt: _Optional[bool] = ..., features: _Optional[_Union[_types_pb2.FeatureFlags, _Mapping]] = ..., extra_flags: _Optional[_Mapping[str, _types_pb2.ExtraFlagList]] = ..., network_access: _Optional[_Union[_types_pb2.NetworkAccess, str]] = ..., policy_snapshot: _Optional[_Union[ExecutionPolicySnapshot, _Mapping]] = ..., sandbox_config: _Optional[_Union[_types_pb2.SandboxConfig, _Mapping]] = ..., allowed_paths: _Optional[_Iterable[str]] = ..., denied_paths: _Optional[_Iterable[str]] = ..., manifest_index_snapshot: _Optional[str] = ..., transcript_codec: _Optional[str] = ..., transcript_codec_score: _Optional[float] = ..., until: _Optional[str] = ..., admission: _Optional[_Union[RunAdmission, _Mapping]] = ...) -> None: ...
+    max_weighted_tokens: int
+    def __init__(self, runner_type: _Optional[_Union[_types_pb2.RunnerType, str]] = ..., model: _Optional[str] = ..., role_ref: _Optional[str] = ..., result_spec: _Optional[_Union[ResultSpec, _Mapping]] = ..., max_turns: _Optional[int] = ..., timeout: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., allowed_tools: _Optional[_Iterable[str]] = ..., denied_tools: _Optional[_Iterable[str]] = ..., tool_restriction_policy: _Optional[str] = ..., effort: _Optional[str] = ..., skip_permission_prompt: _Optional[bool] = ..., features: _Optional[_Union[_types_pb2.FeatureFlags, _Mapping]] = ..., extra_flags: _Optional[_Mapping[str, _types_pb2.ExtraFlagList]] = ..., network_access: _Optional[_Union[_types_pb2.NetworkAccess, str]] = ..., policy_snapshot: _Optional[_Union[ExecutionPolicySnapshot, _Mapping]] = ..., sandbox_config: _Optional[_Union[_types_pb2.SandboxConfig, _Mapping]] = ..., allowed_paths: _Optional[_Iterable[str]] = ..., denied_paths: _Optional[_Iterable[str]] = ..., manifest_index_snapshot: _Optional[str] = ..., transcript_codec: _Optional[str] = ..., transcript_codec_score: _Optional[float] = ..., until: _Optional[str] = ..., admission: _Optional[_Union[RunAdmission, _Mapping]] = ..., max_weighted_tokens: _Optional[int] = ...) -> None: ...
 
 class RunAdmission(_message.Message):
     __slots__ = ("requested_runner", "requested_model", "requested_role_ref", "requested_effort", "requested_timeout", "requested_max_turns", "requested_goal_mode", "effective_runner", "effective_model", "effective_effort", "effective_timeout", "effective_max_turns", "effective_until", "catalog_digest", "policy_digest", "policy_path", "selection_reason", "passed_control_args", "translation_diagnostics", "runtime_version", "provider_acknowledgment", "receipt")
@@ -390,7 +394,7 @@ class ExecutionPreferences(_message.Message):
     def __init__(self, preferred_runner: _Optional[str] = ..., model: _Optional[str] = ..., effort: _Optional[str] = ...) -> None: ...
 
 class RunConfigOverrides(_message.Message):
-    __slots__ = ("role_ref", "result_spec", "max_turns", "timeout", "allowed_tools", "denied_tools", "skip_permission_prompt", "features", "extra_flags", "clear_extra_flags", "network_access", "effort", "model", "until", "sandbox_config", "allowed_paths", "denied_paths", "clear_allowed_tools", "clear_denied_tools", "clear_allowed_paths", "clear_denied_paths")
+    __slots__ = ("role_ref", "result_spec", "max_turns", "timeout", "allowed_tools", "denied_tools", "skip_permission_prompt", "features", "extra_flags", "clear_extra_flags", "network_access", "effort", "model", "until", "max_weighted_tokens", "sandbox_config", "allowed_paths", "denied_paths", "clear_allowed_tools", "clear_denied_tools", "clear_allowed_paths", "clear_denied_paths")
     class ExtraFlagsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -412,6 +416,7 @@ class RunConfigOverrides(_message.Message):
     EFFORT_FIELD_NUMBER: _ClassVar[int]
     MODEL_FIELD_NUMBER: _ClassVar[int]
     UNTIL_FIELD_NUMBER: _ClassVar[int]
+    MAX_WEIGHTED_TOKENS_FIELD_NUMBER: _ClassVar[int]
     SANDBOX_CONFIG_FIELD_NUMBER: _ClassVar[int]
     ALLOWED_PATHS_FIELD_NUMBER: _ClassVar[int]
     DENIED_PATHS_FIELD_NUMBER: _ClassVar[int]
@@ -433,6 +438,7 @@ class RunConfigOverrides(_message.Message):
     effort: str
     model: str
     until: str
+    max_weighted_tokens: int
     sandbox_config: _types_pb2.SandboxConfig
     allowed_paths: _containers.RepeatedScalarFieldContainer[str]
     denied_paths: _containers.RepeatedScalarFieldContainer[str]
@@ -440,7 +446,7 @@ class RunConfigOverrides(_message.Message):
     clear_denied_tools: bool
     clear_allowed_paths: bool
     clear_denied_paths: bool
-    def __init__(self, role_ref: _Optional[str] = ..., result_spec: _Optional[_Union[ResultSpec, _Mapping]] = ..., max_turns: _Optional[int] = ..., timeout: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., allowed_tools: _Optional[_Iterable[str]] = ..., denied_tools: _Optional[_Iterable[str]] = ..., skip_permission_prompt: _Optional[bool] = ..., features: _Optional[_Union[_types_pb2.FeatureFlags, _Mapping]] = ..., extra_flags: _Optional[_Mapping[str, _types_pb2.ExtraFlagList]] = ..., clear_extra_flags: _Optional[bool] = ..., network_access: _Optional[_Union[_types_pb2.NetworkAccess, str]] = ..., effort: _Optional[str] = ..., model: _Optional[str] = ..., until: _Optional[str] = ..., sandbox_config: _Optional[_Union[_types_pb2.SandboxConfig, _Mapping]] = ..., allowed_paths: _Optional[_Iterable[str]] = ..., denied_paths: _Optional[_Iterable[str]] = ..., clear_allowed_tools: _Optional[bool] = ..., clear_denied_tools: _Optional[bool] = ..., clear_allowed_paths: _Optional[bool] = ..., clear_denied_paths: _Optional[bool] = ...) -> None: ...
+    def __init__(self, role_ref: _Optional[str] = ..., result_spec: _Optional[_Union[ResultSpec, _Mapping]] = ..., max_turns: _Optional[int] = ..., timeout: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., allowed_tools: _Optional[_Iterable[str]] = ..., denied_tools: _Optional[_Iterable[str]] = ..., skip_permission_prompt: _Optional[bool] = ..., features: _Optional[_Union[_types_pb2.FeatureFlags, _Mapping]] = ..., extra_flags: _Optional[_Mapping[str, _types_pb2.ExtraFlagList]] = ..., clear_extra_flags: _Optional[bool] = ..., network_access: _Optional[_Union[_types_pb2.NetworkAccess, str]] = ..., effort: _Optional[str] = ..., model: _Optional[str] = ..., until: _Optional[str] = ..., max_weighted_tokens: _Optional[int] = ..., sandbox_config: _Optional[_Union[_types_pb2.SandboxConfig, _Mapping]] = ..., allowed_paths: _Optional[_Iterable[str]] = ..., denied_paths: _Optional[_Iterable[str]] = ..., clear_allowed_tools: _Optional[bool] = ..., clear_denied_tools: _Optional[bool] = ..., clear_allowed_paths: _Optional[bool] = ..., clear_denied_paths: _Optional[bool] = ...) -> None: ...
 
 class HeartbeatConfig(_message.Message):
     __slots__ = ("interval", "timeout", "max_missed_beats")

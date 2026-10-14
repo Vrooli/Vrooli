@@ -7,7 +7,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class InventoryEvent(_message.Message):
-    __slots__ = ("id", "workspace_id", "kind", "item_id", "batch_id", "amount", "unit", "recipe_id", "created_at")
+    __slots__ = ("id", "workspace_id", "kind", "item_id", "batch_id", "amount", "unit", "recipe_id", "created_at", "amount_mode", "expression", "storage", "best_before_date", "use_soon", "lot_id")
     ID_FIELD_NUMBER: _ClassVar[int]
     WORKSPACE_ID_FIELD_NUMBER: _ClassVar[int]
     KIND_FIELD_NUMBER: _ClassVar[int]
@@ -17,6 +17,12 @@ class InventoryEvent(_message.Message):
     UNIT_FIELD_NUMBER: _ClassVar[int]
     RECIPE_ID_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    AMOUNT_MODE_FIELD_NUMBER: _ClassVar[int]
+    EXPRESSION_FIELD_NUMBER: _ClassVar[int]
+    STORAGE_FIELD_NUMBER: _ClassVar[int]
+    BEST_BEFORE_DATE_FIELD_NUMBER: _ClassVar[int]
+    USE_SOON_FIELD_NUMBER: _ClassVar[int]
+    LOT_ID_FIELD_NUMBER: _ClassVar[int]
     id: str
     workspace_id: str
     kind: str
@@ -26,7 +32,13 @@ class InventoryEvent(_message.Message):
     unit: str
     recipe_id: str
     created_at: str
-    def __init__(self, id: _Optional[str] = ..., workspace_id: _Optional[str] = ..., kind: _Optional[str] = ..., item_id: _Optional[str] = ..., batch_id: _Optional[str] = ..., amount: _Optional[str] = ..., unit: _Optional[str] = ..., recipe_id: _Optional[str] = ..., created_at: _Optional[str] = ...) -> None: ...
+    amount_mode: str
+    expression: str
+    storage: str
+    best_before_date: str
+    use_soon: bool
+    lot_id: str
+    def __init__(self, id: _Optional[str] = ..., workspace_id: _Optional[str] = ..., kind: _Optional[str] = ..., item_id: _Optional[str] = ..., batch_id: _Optional[str] = ..., amount: _Optional[str] = ..., unit: _Optional[str] = ..., recipe_id: _Optional[str] = ..., created_at: _Optional[str] = ..., amount_mode: _Optional[str] = ..., expression: _Optional[str] = ..., storage: _Optional[str] = ..., best_before_date: _Optional[str] = ..., use_soon: _Optional[bool] = ..., lot_id: _Optional[str] = ...) -> None: ...
 
 class ListEventsRequest(_message.Message):
     __slots__ = ("workspace_id",)
@@ -41,7 +53,7 @@ class ListEventsResponse(_message.Message):
     def __init__(self, events: _Optional[_Iterable[_Union[InventoryEvent, _Mapping]]] = ...) -> None: ...
 
 class RecordEventRequest(_message.Message):
-    __slots__ = ("workspace_id", "id", "kind", "item_id", "batch_id", "amount", "unit", "recipe_id", "created_at")
+    __slots__ = ("workspace_id", "id", "kind", "item_id", "batch_id", "amount", "unit", "recipe_id", "created_at", "amount_mode", "expression", "storage", "best_before_date", "use_soon", "lot_id")
     WORKSPACE_ID_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     KIND_FIELD_NUMBER: _ClassVar[int]
@@ -51,6 +63,12 @@ class RecordEventRequest(_message.Message):
     UNIT_FIELD_NUMBER: _ClassVar[int]
     RECIPE_ID_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    AMOUNT_MODE_FIELD_NUMBER: _ClassVar[int]
+    EXPRESSION_FIELD_NUMBER: _ClassVar[int]
+    STORAGE_FIELD_NUMBER: _ClassVar[int]
+    BEST_BEFORE_DATE_FIELD_NUMBER: _ClassVar[int]
+    USE_SOON_FIELD_NUMBER: _ClassVar[int]
+    LOT_ID_FIELD_NUMBER: _ClassVar[int]
     workspace_id: str
     id: str
     kind: str
@@ -60,7 +78,13 @@ class RecordEventRequest(_message.Message):
     unit: str
     recipe_id: str
     created_at: str
-    def __init__(self, workspace_id: _Optional[str] = ..., id: _Optional[str] = ..., kind: _Optional[str] = ..., item_id: _Optional[str] = ..., batch_id: _Optional[str] = ..., amount: _Optional[str] = ..., unit: _Optional[str] = ..., recipe_id: _Optional[str] = ..., created_at: _Optional[str] = ...) -> None: ...
+    amount_mode: str
+    expression: str
+    storage: str
+    best_before_date: str
+    use_soon: bool
+    lot_id: str
+    def __init__(self, workspace_id: _Optional[str] = ..., id: _Optional[str] = ..., kind: _Optional[str] = ..., item_id: _Optional[str] = ..., batch_id: _Optional[str] = ..., amount: _Optional[str] = ..., unit: _Optional[str] = ..., recipe_id: _Optional[str] = ..., created_at: _Optional[str] = ..., amount_mode: _Optional[str] = ..., expression: _Optional[str] = ..., storage: _Optional[str] = ..., best_before_date: _Optional[str] = ..., use_soon: _Optional[bool] = ..., lot_id: _Optional[str] = ...) -> None: ...
 
 class RecordEventResponse(_message.Message):
     __slots__ = ("event",)

@@ -1,13 +1,11 @@
 {
   "metadata": {
     "name": "gct-mobile-embedded-regression",
-    "description": "Stateful evidence capture for GCT-MOBILE-001 through GCT-MOBILE-006. It records mobile chrome and Changes \u2192 Diff \u2192 Changes geometry without mutating repository state.",
-    "execution_mode": "mutating",
+    "description": "Stateful layout gate for GCT-MOBILE-001 through GCT-MOBILE-006. It asserts mobile chrome colour agreement and Changes \u2192 Diff \u2192 Changes geometry (nav within viewport, header not overlapping content, geometry restored) without mutating repository state.",
+    "execution_mode": "observer",
     "requirement": "GCT-MOBILE-001",
     "version": "1",
     "labels": {
-      "requires_confirmation": "true",
-      "routed_isolation": "true",
       "reset": "none"
     }
   },
@@ -51,8 +49,46 @@
         },
         "type": "ACTION_TYPE_EVALUATE",
         "evaluate": {
-          "expression": "(() => { const pick = (id) => { const el = document.querySelector(`[data-testid=${id}]`); if (!el) return null; const r = el.getBoundingClientRect(); return { top:r.top, bottom:r.bottom, height:r.height, scrollTop:el.scrollTop, scrollHeight:el.scrollHeight, clientHeight:el.clientHeight }; }; const scroll = document.querySelector('[data-testid=changes-scroll-region] [data-radix-scroll-area-viewport]') || document.querySelector('[data-testid=changes-scroll-region]'); const scrollRect = scroll?.getBoundingClientRect(); return { viewport:{width:innerWidth,height:innerHeight}, root:pick('git-control-tower'), header:pick('mobile-header'), nav:pick('mobile-nav'), changes:pick('file-list-panel'), changesScroll:scroll ? {top:scrollRect.top,bottom:scrollRect.bottom,scrollTop:scroll.scrollTop,scrollHeight:scroll.scrollHeight,clientHeight:scroll.clientHeight} : null }; })()",
+          "expression": "(() => { const pick = (id) => { const el = document.querySelector(`[data-testid=${id}]`); if (!el) return null; const r = el.getBoundingClientRect(); return { top:r.top, bottom:r.bottom, height:r.height, scrollTop:el.scrollTop, scrollHeight:el.scrollHeight, clientHeight:el.clientHeight }; }; const scroll = document.querySelector('[data-testid=changes-scroll-region] [data-radix-scroll-area-viewport]') || document.querySelector('[data-testid=changes-scroll-region]'); const scrollRect = scroll?.getBoundingClientRect(); const result = { viewport:{width:innerWidth,height:innerHeight}, root:pick('git-control-tower'), header:pick('mobile-header'), nav:pick('mobile-nav'), changes:pick('file-list-panel'), changesScroll:scroll ? {top:scrollRect.top,bottom:scrollRect.bottom,scrollTop:scroll.scrollTop,scrollHeight:scroll.scrollHeight,clientHeight:scroll.clientHeight} : null }; const navInView = Boolean(result.nav && result.nav.top >= 0 && result.nav.bottom <= result.viewport.height + 1); const noOverlap = Boolean(result.header && result.changesScroll && result.header.bottom <= result.changesScroll.top + 1); document.body.dataset.gctNavInViewport = navInView ? 'true' : 'false'; document.body.dataset.gctNoHeaderOverlap = noOverlap ? 'true' : 'false'; return result; })()",
           "store_result": "gct_initial_geometry"
+        }
+      }
+    },
+    {
+      "id": "assert-nav-in-viewport",
+      "action": {
+        "metadata": {
+          "label": "Bottom navigation stays within the viewport"
+        },
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "body",
+          "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+          "timeout_ms": 10000,
+          "failure_message": "GCT-MOBILE-006: bottom navigation must sit fully within the viewport (no safe-area overflow below the fold)",
+          "attribute_name": "data-gct-nav-in-viewport",
+          "expected": {
+            "string_value": "true"
+          }
+        }
+      }
+    },
+    {
+      "id": "assert-no-header-overlap",
+      "action": {
+        "metadata": {
+          "label": "Header does not overlap the Changes scroll region"
+        },
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "body",
+          "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+          "timeout_ms": 10000,
+          "failure_message": "GCT-MOBILE-001: the mobile header must not overlap the owned Changes scroll region",
+          "attribute_name": "data-gct-no-header-overlap",
+          "expected": {
+            "string_value": "true"
+          }
         }
       }
     },
@@ -164,8 +200,27 @@
         },
         "type": "ACTION_TYPE_EVALUATE",
         "evaluate": {
-          "expression": "(() => { const el = document.querySelector('[data-testid=file-list-panel]'); const nav = document.querySelector('[data-testid=mobile-nav]'); const scroll = document.querySelector('[data-testid=changes-scroll-region] [data-radix-scroll-area-viewport]') || document.querySelector('[data-testid=changes-scroll-region]'); if (!el || !nav || !scroll) return { missing:true }; const panel = el.getBoundingClientRect(); const bottomNav = nav.getBoundingClientRect(); return { changes:{top:panel.top,bottom:panel.bottom}, changesScroll:{scrollTop:scroll.scrollTop,scrollHeight:scroll.scrollHeight,clientHeight:scroll.clientHeight}, nav:{top:bottomNav.top,bottom:bottomNav.bottom}, viewport:{width:innerWidth,height:innerHeight} }; })()",
+          "expression": "(() => { const el = document.querySelector('[data-testid=file-list-panel]'); const nav = document.querySelector('[data-testid=mobile-nav]'); const scroll = document.querySelector('[data-testid=changes-scroll-region] [data-radix-scroll-area-viewport]') || document.querySelector('[data-testid=changes-scroll-region]'); if (!el || !nav || !scroll) { document.body.dataset.gctGeometryRestored = 'false'; return { missing:true }; } const panel = el.getBoundingClientRect(); const bottomNav = nav.getBoundingClientRect(); const result = { changes:{top:panel.top,bottom:panel.bottom}, changesScroll:{scrollTop:scroll.scrollTop,scrollHeight:scroll.scrollHeight,clientHeight:scroll.clientHeight}, nav:{top:bottomNav.top,bottom:bottomNav.bottom}, viewport:{width:innerWidth,height:innerHeight} }; const restored = Boolean(result.nav.top >= 0 && result.nav.bottom <= result.viewport.height + 1 && result.changes.top < result.viewport.height && result.changes.bottom > 0); document.body.dataset.gctGeometryRestored = restored ? 'true' : 'false'; return result; })()",
           "store_result": "gct_restored_geometry"
+        }
+      }
+    },
+    {
+      "id": "assert-geometry-restored",
+      "action": {
+        "metadata": {
+          "label": "Changes panel and nav remain within the viewport after the tab round-trip"
+        },
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "body",
+          "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+          "timeout_ms": 10000,
+          "failure_message": "GCT-MOBILE-004: after Changes → Diff → Changes, the Changes panel and bottom nav must remain within the viewport",
+          "attribute_name": "data-gct-geometry-restored",
+          "expected": {
+            "string_value": "true"
+          }
         }
       }
     },
@@ -194,8 +249,18 @@
       "target": "capture-initial-geometry"
     },
     {
-      "id": "geometry-to-chrome",
+      "id": "geometry-to-nav-assert",
       "source": "capture-initial-geometry",
+      "target": "assert-nav-in-viewport"
+    },
+    {
+      "id": "nav-assert-to-overlap-assert",
+      "source": "assert-nav-in-viewport",
+      "target": "assert-no-header-overlap"
+    },
+    {
+      "id": "overlap-assert-to-chrome",
+      "source": "assert-no-header-overlap",
       "target": "capture-chrome-colors"
     },
     {
@@ -234,8 +299,13 @@
       "target": "capture-restored-geometry"
     },
     {
-      "id": "geometry-to-final-shot",
+      "id": "geometry-to-restored-assert",
       "source": "capture-restored-geometry",
+      "target": "assert-geometry-restored"
+    },
+    {
+      "id": "restored-assert-to-final-shot",
+      "source": "assert-geometry-restored",
       "target": "capture-restored-screenshot"
     }
   ],

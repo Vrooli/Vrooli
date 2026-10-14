@@ -192,10 +192,11 @@ func NewSubstrate(sessions webconsole.SessionController, launchInfo LaunchInfoRe
 
 // LaunchParams is the input to Launch.
 type LaunchParams struct {
-	RunID      uuid.UUID
-	RunnerType domain.RunnerType
-	Tag        string
-	WorkingDir string
+	RequestedSessionID string
+	RunID              uuid.UUID
+	RunnerType         domain.RunnerType
+	Tag                string
+	WorkingDir         string
 	// RunDir is the agent-manager-owned per-run directory. codex/grok session
 	// homes are created under it; claude ignores it.
 	RunDir string
@@ -310,7 +311,8 @@ func (s *Substrate) Launch(ctx context.Context, p LaunchParams) (LaunchResult, e
 
 	launchedAt := s.now()
 	sessionID, err := s.sessions.CreateSession(ctx, webconsole.CreateSessionParams{
-		LaunchCommand: launchCmd,
+		RequestedSessionID: p.RequestedSessionID,
+		LaunchCommand:      launchCmd,
 		// Submit explicitly below after the shell boot window. Web Console's
 		// create-time execute path only bracket-pastes this command, which
 		// leaves it pending at a POSIX shell prompt.
@@ -322,6 +324,9 @@ func (s *Substrate) Launch(ctx context.Context, p LaunchParams) (LaunchResult, e
 		return LaunchResult{}, fmt.Errorf("create interactive session for %s: %w", p.RunnerType, err)
 	}
 
+	if p.RequestedSessionID != "" && sessionID != p.RequestedSessionID {
+		return LaunchResult{}, fmt.Errorf("reserved interactive session identity mismatch")
+	}
 	result := LaunchResult{
 		SessionID:     sessionID,
 		LaunchCommand: launchCmd,

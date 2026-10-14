@@ -44,9 +44,19 @@ export function useNotifications() {
     [actions]
   );
 
+  // Per-second elapsed ticks must not resurrect a toast the reader dismissed. `update`
+  // patches an existing record and is a no-op once the toast is gone, so a dismissal
+  // sticks until the next real event (phase change / result) pushes a fresh notice.
+  // Progress notices are STICKY (durationMs 0), so there is no running timer for `update`
+  // to leave stale — the push-only caveat above applies to result toasts, which still push.
+  const updateSync = useCallback(
+    (patch: Partial<ToastInput>) => actions.update(SYNC_TOAST_ID, patch),
+    [actions]
+  );
+
   const dismissSync = useCallback(() => actions.dismiss(SYNC_TOAST_ID), [actions]);
 
-  return { notify, notifySync, dismissSync };
+  return { notify, notifySync, updateSync, dismissSync };
 }
 
 /** A react-query mutation reduced to what a notice needs from it. */

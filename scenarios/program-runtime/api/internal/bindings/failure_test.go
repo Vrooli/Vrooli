@@ -16,6 +16,9 @@ func TestClassifyFailureCoversTheClosedVocabulary(t *testing.T) {
 	}{
 		{"unreachable probe", errors.New("binding device-control/device/list is unreachable: scenario API is unavailable"), "unavailable", "scenario_unreachable", 0},
 		{"dial refused", fmt.Errorf("invoke x: %w", errors.New("dial tcp 127.0.0.1:1: connect: connection refused")), "unavailable", "scenario_unreachable", 0},
+		{"invalid discovery port", errors.New(`api-core discovery invalid_port scenario="notes" port="API_PORT" output="not a number"`), "unavailable", "scenario_unreachable", 0},
+		{"invalid vrooli api port", errors.New(`invalid VROOLI_API_PORT "nope"`), "unavailable", "scenario_unreachable", 0},
+		{"vrooli control plane absent", errors.New(`api-core discovery vrooli_not_found scenario="vrooli" port="API_PORT"`), "unavailable", "scenario_unreachable", 0},
 		{"gateway answer", errors.New("invoke x: remote status 503 Service Unavailable: draining"), "unavailable", "scenario_unreachable", 503},
 		{"remote 500", errors.New("invoke x: remote status 500 Internal Server Error: boom"), "failed", "remote_error", 500},
 		{"remote 404", errors.New("invoke x: remote status 404 Not Found: no such flow"), "failed", "remote_error", 404},

@@ -739,7 +739,7 @@ Heartbeat Commands:
   heartbeat-complete-effort <team-id> <agent-id> Record the revision-checked completion receipt from --request-file
   heartbeat-reopen-effort <team-id> <agent-id> Reopen a completed finite effort with a replacement revision from --request-file
   heartbeat-restart-effort <team-id> <agent-id> Recover a terminal dispatched run from --request-file
-  heartbeat-disable <team-id> <agent-id>      Disable heartbeat
+  heartbeat-disable <team-id> <agent-id>      Disable heartbeat; --on-demand --profile=key creates a disabled reviewer without a timer
   heartbeat-trigger <team-id> <agent-id>      Manually trigger heartbeat
   heartbeat-logs <team-id> <agent-id>         List execution logs
   heartbeat-control <team-id> <action>        Status, pause, resume, or set team auto-pause policy
@@ -2335,24 +2335,39 @@ func cmdHeartbeatEnable(ctx appctx.Context, args []string) error {
 func cmdHeartbeatDisable(ctx appctx.Context, args []string) error {
 	fs := flag.NewFlagSet("heartbeat-disable", flag.ContinueOnError)
 	jsonOut := fs.Bool("json", false, "Output as JSON")
+	onDemand := fs.Bool("on-demand", false, "Create an explicitly disabled member configuration with no schedule")
+	profile := fs.String("profile", "", "Exact installed profile key for a new on-demand configuration")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
 	if fs.NArg() < 2 {
-		return fmt.Errorf("usage: team heartbeat-disable <team-id> <agent-id>")
+		return fmt.Errorf("usage: team heartbeat-disable <team-id> <agent-id> [--on-demand --profile=key]")
 	}
 	teamID := fs.Arg(0)
 	agentID := fs.Arg(1)
 
 	enabled := false
-	req := UpdateHeartbeatRequest{
-		Enabled: &enabled,
-	}
-
 	var config HeartbeatConfig
-	if err := ctx.Put(fmt.Sprintf("/teams/%s/heartbeats/%s", teamID, agentID), req, &config); err != nil {
-		return fmt.Errorf("failed to disable heartbeat: %w", err)
+	endpoint := fmt.Sprintf("/teams/%s/heartbeats/%s", teamID, agentID)
+	if *onDemand {
+		if strings.TrimSpace(*profile) == "" {
+			return fmt.Errorf("on-demand configuration requires an explicit --profile key")
+		}
+		req := CreateHeartbeatRequest{Enabled: &enabled, ProfileKey: *profile}
+		if err := ctx.Post(endpoint, req, &config); err != nil {
+			return fmt.Errorf("create disabled on-demand configuration: %w", err)
+		}
+		if config.Enabled || config.Schedule != "" || config.TeamID != teamID || config.AgentID != agentID || config.ProfileKey != *profile {
+			return fmt.Errorf("owner returned mismatched on-demand configuration; reconcile original member before another write")
+		}
+	} else {
+		if *profile != "" {
+			return fmt.Errorf("--profile applies only to --on-demand creation")
+		}
+		if err := ctx.Put(endpoint, UpdateHeartbeatRequest{Enabled: &enabled}, &config); err != nil {
+			return fmt.Errorf("failed to disable heartbeat: %w", err)
+		}
 	}
 
 	if *jsonOut {

@@ -39,7 +39,7 @@ export interface RunReportView {
   cost_usd: number;
   result: { selection_status: string; selection_rule?: string; candidate_count: number; structured_status?: string; structured_method?: string; diagnostic_codes?: string[] };
   event_counts: Record<string, number>;
-  tools: Array<{ name: string; calls: number; successes: number; failures: number; unresolved?: number }>;
+  tools: Array<{ name: string; calls: number; successes: number; failures: number; returned?: number; unknown_outcome?: number; unresolved?: number }>;
   project_owned_tool_calls: number;
   external_tool_calls: number;
   requested_model?: string;

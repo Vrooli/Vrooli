@@ -13,6 +13,7 @@ import (
 	"agent-manager/internal/pricing"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/api-core/authn"
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -21,6 +22,7 @@ import (
 // EffortActor is populated by the existing authenticated owner/run verifier.
 // Request text and workspace declarations never construct this authority.
 type EffortActor struct {
+	exact              *exactAuthorization
 	ID                 string
 	Operator           bool
 	MetadataReconciler bool
@@ -212,6 +214,17 @@ func (s *EffortService) Enroll(ctx context.Context, req *pb.EnrollEffortRequest,
 // all authority, dispatch, subject and withdrawal fields so routine workspace
 // synchronization cannot renew, revoke or replace a grant.
 func (s *EffortService) ReconcileMetadata(ctx context.Context, req *pb.ReconcileEffortMetadataRequest, actor EffortActor) (*pb.EffortEnrollment, error) {
+	if _, present := authn.RequestOperationAuthorityFromContext(ctx); present || actor.exact != nil {
+		if actor.exact == nil || actor.ID != actor.exact.envelope.Executor || actor.ApprovedBy != actor.exact.envelope.Initiator || actor.Operator || actor.Delegated || actor.MetadataReconciler || actor.exact.validate(ctx, req) != nil {
+			return nil, ErrExactAuthority
+		}
+		repo, ok := s.repo.(*Repository)
+		if !ok || actor.exact.verifier.repo != repo {
+			return nil, ErrExactAuthority
+		}
+		return repo.reconcileExact(ctx, req, actor.exact)
+	}
+
 	if req == nil || req.Enrollment == nil || strings.TrimSpace(req.IdempotencyKey) == "" {
 		return nil, errors.New("enrollment and idempotency key required")
 	}

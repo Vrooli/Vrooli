@@ -252,14 +252,25 @@ func NewToolCallEvent(runID uuid.UUID, toolName, toolCallID string, input map[st
 // =============================================================================
 
 // ToolResultEventData contains data for tool result events.
+// ToolOutputBlock retains native block order and the original JSON value.
+// Unsupported content is evidence, not display text.
+type ToolOutputBlock struct {
+	Type    string `json:"type"`
+	Text    string `json:"text,omitempty"`
+	RawJSON string `json:"rawJson,omitempty"`
+}
+
 type ToolResultEventData struct {
-	ToolName   string `json:"toolName"`             // Display name of the tool (e.g., "Write", "bash")
-	ToolCallID string `json:"toolCallId,omitempty"` // Tool invocation ID (e.g., "toolu_01GXZ...")
-	Output     string `json:"output"`               // Tool output (success)
-	Error      string `json:"error,omitempty"`      // Error message (if failed)
-	Success    bool   `json:"success"`              // Whether the tool call succeeded
-	ExitCode   *int   `json:"exitCode,omitempty"`   // Provider-reported process exit code, when available
-	DurationMS *int64 `json:"durationMs,omitempty"` // Provider-reported tool duration, when available
+	ToolName      string            `json:"toolName"`               // Display name of the tool (e.g., "Write", "bash")
+	ToolCallID    string            `json:"toolCallId,omitempty"`   // Tool invocation ID (e.g., "toolu_01GXZ...")
+	Output        string            `json:"output"`                 // Tool output (success)
+	Error         string            `json:"error,omitempty"`        // Error message (if failed)
+	Success       bool              `json:"success"`                // Whether the tool call succeeded
+	ExitCode      *int              `json:"exitCode,omitempty"`     // Provider-reported process exit code, when available
+	DurationMS    *int64            `json:"durationMs,omitempty"`   // Provider-reported tool duration, when available
+	OutcomeKnown  *bool             `json:"outcomeKnown,omitempty"` // nil retains historical semantics
+	OutputBlocks  []ToolOutputBlock `json:"outputBlocks,omitempty"`
+	RawOutputJSON string            `json:"rawOutputJson,omitempty"`
 }
 
 func (d *ToolResultEventData) EventType() RunEventType { return EventTypeToolResult }
@@ -401,6 +412,7 @@ type ErrorEventData struct {
 
 // RateLimitEventData contains data for rate limit events.
 type RateLimitEventData struct {
+	PayloadKind string     `json:"payloadKind,omitempty"`
 	LimitType   string     `json:"limitType"`             // Type of limit: "5_hour", "daily", "weekly", "token"
 	ResetTime   *time.Time `json:"resetTime,omitempty"`   // When the limit resets
 	RetryAfter  int        `json:"retryAfter,omitempty"`  // Seconds until retry is safe
@@ -428,10 +440,11 @@ func NewRateLimitEvent(runID uuid.UUID, limitType, message string, resetTime *ti
 		EventType: EventTypeError,
 		Timestamp: time.Now(),
 		Data: &RateLimitEventData{
-			LimitType:  limitType,
-			ResetTime:  resetTime,
-			RetryAfter: retryAfter,
-			Message:    message,
+			PayloadKind: PayloadKindQuota,
+			LimitType:   limitType,
+			ResetTime:   resetTime,
+			RetryAfter:  retryAfter,
+			Message:     message,
 		},
 	}
 }
@@ -442,6 +455,7 @@ func NewRateLimitEvent(runID uuid.UUID, limitType, message string, resetTime *ti
 
 // PayloadKind identifies the independent facts carried by metric events.
 const (
+	PayloadKindQuota  = "quota"
 	PayloadKindUsage  = "usage"
 	PayloadKindCharge = "charge"
 )
