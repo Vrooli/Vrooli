@@ -1,4 +1,5 @@
-import { chromium, type Browser, type Page } from 'rebrowser-playwright';
+import { type Page } from 'rebrowser-playwright';
+import { ownBrowser } from './support/browser-fixture';
 import WebSocket = require('ws');
 import { handleRecordInput } from '../../src/routes/record-mode/recording-input';
 import { startFrameStreaming, stopFrameStreaming } from '../../src/frame-streaming';
@@ -6,7 +7,6 @@ import * as driverConfig from '../../src/config';
 import type { SessionManager } from '../../src/session';
 import { createMockHttpRequest, createMockHttpResponse, createTestConfig } from '../helpers';
 import { DriverPageBindings } from '../../src/session/page-bindings';
-
 type ClockSample = { nodeMs: number; offsetMs: number; uncertaintyMs: number };
 type FeedbackProbeEvent = {
   kind: 'recording_input' | 'recording_input_applied';
@@ -72,18 +72,9 @@ function percentile(values: number[], quantile: number): number {
 }
 
 describe('interactive input feedback diagnostic (real Chromium)', () => {
-  let browser: Browser;
-
-  beforeAll(async () => {
-    browser = await chromium.launch({ headless: true });
-  });
-
-  afterAll(async () => {
-    await browser?.close();
-  });
-
+  const browserOwner = ownBrowser({ headless: true });
   it('correlates 1000 driver inputs with the fixture’s affected paint marker', async () => {
-    const context = await browser.newContext({ viewport: { width: 800, height: 600 } });
+    const context = await browserOwner.browser.newContext({ viewport: { width: 800, height: 600 } });
     const page = await context.newPage();
     const pageBindings = new DriverPageBindings(); pageBindings.register(page, 'feedback-page');
     const session = {
@@ -191,7 +182,7 @@ describe('interactive input feedback diagnostic (real Chromium)', () => {
         runtimeVersion: process.version,
         osPlatform: process.platform,
         architecture: process.arch,
-        browserVersion: browser.version(),
+        browserVersion: browserOwner.browser.version(),
         viewport: { width: 800, height: 600, deviceScaleFactor: 1 },
         sampleCount: samples.length,
         correlatedPaintCount: paints.length,
@@ -224,7 +215,7 @@ describe('interactive input feedback diagnostic (real Chromium)', () => {
       frameStreaming: { useScreencast: true, fallbackToPolling: false },
       performance: { enabled: false, includeTimingHeaders: false },
     }));
-    const context = await browser.newContext({ viewport: { width: 800, height: 600 } });
+    const context = await browserOwner.browser.newContext({ viewport: { width: 800, height: 600 } });
     const page = await context.newPage();
     const decoder = await context.newPage();
     const sessionId = 'feedback-frame-session';
@@ -341,7 +332,7 @@ describe('interactive input feedback diagnostic (real Chromium)', () => {
       const report = {
         producer: 'playwright-driver/tests/integration/input-feedback.test.ts',
         scope: 'driver input receipt to matching pixels in a real Chromium CDP-screencast JPEG frame; excludes Go API/WebSocket relay and viewer canvas decode/draw',
-        browserVersion: browser.version(),
+        browserVersion: browserOwner.browser.version(),
         viewport: { width: 800, height: 600, deviceScaleFactor: 1 },
         sampleCount: samples.length,
         correlatedFrameCount: samples.length,
@@ -387,7 +378,7 @@ describe('interactive input feedback diagnostic (real Chromium)', () => {
     ).join('');
     const fixture = `<!doctype html><html><body style="margin:0;background:rgb(119,119,119)"><div style="position:fixed;left:30px;top:30px;display:flex;gap:4px">${cells}</div><script>window.__inputCount=0;addEventListener('pointermove',()=>{const id=++window.__inputCount;document.querySelectorAll('[data-bit]').forEach((cell,index)=>cell.style.backgroundColor=((id>>(9-index))&1)?'white':'black')})</script></body></html>`;
     let sessionId: string | undefined;
-    const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+    const page = await browserOwner.browser.newPage({ viewport: { width: 1440, height: 1000 } });
     let networkSession: NetworkSession | undefined;
     await page.addInitScript(() => {
       const probeWindow = window as FeedbackProbeWindow;
@@ -746,7 +737,7 @@ describe('interactive input feedback diagnostic (real Chromium)', () => {
         network: networkProfile === 'remote'
           ? { emulation: 'Chromium CDP Network.emulateNetworkConditions', rttMs: 50, throughputMbps: 10 }
           : { emulation: 'none', rttMs: 0, throughputMbps: null },
-        browserVersion: browser.version(),
+        browserVersion: browserOwner.browser.version(),
         viewport: dimensions,
         sampleCount: samplesMs.length,
         correlatedReceiptCount: appliedSequences.length,

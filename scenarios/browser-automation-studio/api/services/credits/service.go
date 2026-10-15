@@ -76,20 +76,16 @@ type usageCache struct {
 //
 // # Testing Seams
 //
-// For unit testing credit logic without real dependencies:
-//   - Use EntitlementProvider with MockEntitlementProvider (preferred for new tests)
-//   - Use LPBSReporter with a mock to capture/verify usage reports
+// For unit testing credit logic without real dependencies, inject implementations
+// of EntitlementProvider and LPBSReporter to control entitlement behavior and
+// capture usage reports.
 //
 // # Example Test Setup
 //
 //	svc := credits.NewService(credits.ServiceOptions{
 //	    DB:      sqliteDB,
 //	    Logger:  logrus.New(),
-//	    EntitlementProvider: &credits.MockEntitlementProvider{
-//	        Entitlement: &entitlement.Entitlement{Tier: entitlement.TierPro},
-//	        AICreditsLimit: 500,
-//	        CanUseAI: true,
-//	    },
+//	    EntitlementProvider: testEntitlementProvider,
 //	    LPBSReporter: &mockLPBSReporter{},
 //	})
 type ServiceOptions struct {
@@ -101,7 +97,7 @@ type ServiceOptions struct {
 
 	// EntitlementProvider is the preferred way to inject entitlement dependencies.
 	// If set, this takes precedence over EntitlementSvc.
-	// Use MockEntitlementProvider in tests to control entitlement behavior.
+	// Tests can inject an implementation to control entitlement behavior.
 	EntitlementProvider EntitlementProvider
 
 	// LPBS integration for centralized usage reporting

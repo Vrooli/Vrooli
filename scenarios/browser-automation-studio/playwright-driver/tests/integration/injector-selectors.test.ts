@@ -10,7 +10,8 @@
  * 2. It ensures config serialization works correctly
  * 3. It catches drift between selectors.ts and injector.ts implementations
  */
-import { chromium, type Browser, type Page } from 'rebrowser-playwright';
+import { type Page } from 'rebrowser-playwright';
+import { ownBrowser } from './support/browser-fixture';
 import { generateRecordingInitScript } from '../../src/recording';
 import {
   TEST_ID_ATTRIBUTES,
@@ -28,21 +29,12 @@ interface SelectorSet {
     specificity: number;
   }>;
 }
-
 describe('Injector Selector Generation (Integration)', () => {
-  let browser: Browser;
+  const browserOwner = ownBrowser({ headless: true });
   let page: Page;
 
-  beforeAll(async () => {
-    browser = await chromium.launch({ headless: true });
-  });
-
-  afterAll(async () => {
-    await browser?.close();
-  });
-
   beforeEach(async () => {
-    page = await browser.newPage();
+    page = await browserOwner.browser.newPage();
   });
 
   afterEach(async () => {

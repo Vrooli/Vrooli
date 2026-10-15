@@ -83,12 +83,41 @@ func (f *fakeAnalyzer) Analyze(_ context.Context, _, _ string) ([]aihandlers.Ele
 	return f.suggestions, nil
 }
 
+// serviceAutomationRunner is the small test double this package needs. Keeping
+// it local avoids exposing the AI handler package's full test fake across the
+// production package boundary.
+type serviceAutomationRunner struct {
+	Outcomes []autocontracts.StepOutcome
+	Events   []autocontracts.EventEnvelope
+	Err      error
+	RunCalls []serviceAutomationRunCall
+}
+
+type serviceAutomationRunCall struct {
+	ViewportWidth  int
+	ViewportHeight int
+}
+
+func newServiceAutomationRunner() *serviceAutomationRunner {
+	return &serviceAutomationRunner{Outcomes: []autocontracts.StepOutcome{{
+		Success: true, StepIndex: 0, NodeID: "mock-step", StepType: "navigate",
+	}}}
+}
+
+func (m *serviceAutomationRunner) Run(_ context.Context, viewportWidth, viewportHeight int, _ []autocontracts.CompiledInstruction) ([]autocontracts.StepOutcome, []autocontracts.EventEnvelope, error) {
+	m.RunCalls = append(m.RunCalls, serviceAutomationRunCall{ViewportWidth: viewportWidth, ViewportHeight: viewportHeight})
+	if m.Err != nil {
+		return nil, nil, m.Err
+	}
+	return m.Outcomes, m.Events, nil
+}
+
 // =============================================================================
 // TakePreviewScreenshot
 // =============================================================================
 
 func TestService_TakePreviewScreenshot_Happy(t *testing.T) {
-	runner := aihandlers.NewMockAutomationRunner()
+	runner := newServiceAutomationRunner()
 	runner.Outcomes = []autocontracts.StepOutcome{
 		{Success: true, NodeID: "preview.navigate"},
 		{
@@ -109,7 +138,7 @@ func TestService_TakePreviewScreenshot_Happy(t *testing.T) {
 }
 
 func TestService_TakePreviewScreenshot_Viewport390x844(t *testing.T) {
-	runner := aihandlers.NewMockAutomationRunner()
+	runner := newServiceAutomationRunner()
 	runner.Outcomes = []autocontracts.StepOutcome{
 		{Success: true, NodeID: "preview.navigate"},
 		{Success: true, NodeID: "preview.screenshot", Screenshot: &autocontracts.Screenshot{Data: []byte{1}}, FinalURL: "https://example.com/"},
@@ -127,7 +156,7 @@ func TestService_TakePreviewScreenshot_Viewport390x844(t *testing.T) {
 }
 
 func TestService_TakePreviewScreenshot_RejectsEmptyURL(t *testing.T) {
-	client, _ := newServiceForTest(t, aihandlers.NewMockAutomationRunner())
+	client, _ := newServiceForTest(t, newServiceAutomationRunner())
 
 	_, err := client.TakePreviewScreenshot(context.Background(), connect.NewRequest(&aiv1.TakePreviewScreenshotRequest{Url: ""}))
 	require.Error(t, err)
@@ -139,7 +168,7 @@ func TestService_TakePreviewScreenshot_RejectsEmptyURL(t *testing.T) {
 // =============================================================================
 
 func TestService_GetLinkPreview_Happy(t *testing.T) {
-	client, spy := newServiceForTest(t, aihandlers.NewMockAutomationRunner())
+	client, spy := newServiceForTest(t, newServiceAutomationRunner())
 	spy.data = &LinkPreviewData{Title: "Example", SiteName: "example.com"}
 	spy.found = true
 
@@ -153,7 +182,7 @@ func TestService_GetLinkPreview_Happy(t *testing.T) {
 }
 
 func TestService_GetLinkPreview_RejectsInvalidScheme(t *testing.T) {
-	client, _ := newServiceForTest(t, aihandlers.NewMockAutomationRunner())
+	client, _ := newServiceForTest(t, newServiceAutomationRunner())
 
 	_, err := client.GetLinkPreview(context.Background(), connect.NewRequest(&aiv1.GetLinkPreviewRequest{
 		Url: "ftp://example.com",
@@ -167,14 +196,14 @@ func TestService_GetLinkPreview_RejectsInvalidScheme(t *testing.T) {
 // =============================================================================
 
 func TestService_AnalyzeElements_RejectsEmptyURL(t *testing.T) {
-	client, _ := newServiceForTest(t, aihandlers.NewMockAutomationRunner())
+	client, _ := newServiceForTest(t, newServiceAutomationRunner())
 	_, err := client.AnalyzeElements(context.Background(), connect.NewRequest(&aiv1.AnalyzeElementsRequest{Url: ""}))
 	require.Error(t, err)
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 }
 
 func TestService_AnalyzeElements_HappyPath(t *testing.T) {
-	runner := aihandlers.NewMockAutomationRunner()
+	runner := newServiceAutomationRunner()
 	runner.Outcomes = []autocontracts.StepOutcome{
 		{Success: true, NodeID: "analysis.navigate"},
 		{Success: true, NodeID: "analysis.wait"},
@@ -220,7 +249,7 @@ func TestService_AnalyzeElements_HappyPath(t *testing.T) {
 // =============================================================================
 
 func TestService_GetElementAtCoordinate_RejectsNegative(t *testing.T) {
-	client, _ := newServiceForTest(t, aihandlers.NewMockAutomationRunner())
+	client, _ := newServiceForTest(t, newServiceAutomationRunner())
 	_, err := client.GetElementAtCoordinate(context.Background(), connect.NewRequest(&aiv1.GetElementAtCoordinateRequest{
 		Url: "https://example.com",
 		X:   -1, Y: 0,
@@ -230,7 +259,7 @@ func TestService_GetElementAtCoordinate_RejectsNegative(t *testing.T) {
 }
 
 func TestService_GetElementAtCoordinate_RejectsEmptyURL(t *testing.T) {
-	client, _ := newServiceForTest(t, aihandlers.NewMockAutomationRunner())
+	client, _ := newServiceForTest(t, newServiceAutomationRunner())
 	_, err := client.GetElementAtCoordinate(context.Background(), connect.NewRequest(&aiv1.GetElementAtCoordinateRequest{Url: ""}))
 	require.Error(t, err)
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
@@ -241,7 +270,7 @@ func TestService_GetElementAtCoordinate_RejectsEmptyURL(t *testing.T) {
 // =============================================================================
 
 func TestService_AIAnalyzeElements_Happy(t *testing.T) {
-	client, _ := newServiceForTest(t, aihandlers.NewMockAutomationRunner())
+	client, _ := newServiceForTest(t, newServiceAutomationRunner())
 	resp, err := client.AIAnalyzeElements(context.Background(), connect.NewRequest(&aiv1.AIAnalyzeElementsRequest{
 		Url:    "https://example.com",
 		Intent: "find the search button",
@@ -252,7 +281,7 @@ func TestService_AIAnalyzeElements_Happy(t *testing.T) {
 }
 
 func TestService_AIAnalyzeElements_RejectsEmptyIntent(t *testing.T) {
-	client, _ := newServiceForTest(t, aihandlers.NewMockAutomationRunner())
+	client, _ := newServiceForTest(t, newServiceAutomationRunner())
 	_, err := client.AIAnalyzeElements(context.Background(), connect.NewRequest(&aiv1.AIAnalyzeElementsRequest{
 		Url: "https://example.com", Intent: "",
 	}))
@@ -265,7 +294,7 @@ func TestService_AIAnalyzeElements_RejectsEmptyIntent(t *testing.T) {
 // =============================================================================
 
 func TestService_GetDOMTree_Happy(t *testing.T) {
-	runner := aihandlers.NewMockAutomationRunner()
+	runner := newServiceAutomationRunner()
 	runner.Outcomes = []autocontracts.StepOutcome{
 		{Success: true, NodeID: "dom.navigate"},
 		{Success: true, NodeID: "dom.wait"},
@@ -289,7 +318,7 @@ func TestService_GetDOMTree_Happy(t *testing.T) {
 }
 
 func TestService_GetDOMTree_RejectsEmptyURL(t *testing.T) {
-	client, _ := newServiceForTest(t, aihandlers.NewMockAutomationRunner())
+	client, _ := newServiceForTest(t, newServiceAutomationRunner())
 	_, err := client.GetDOMTree(context.Background(), connect.NewRequest(&aiv1.GetDOMTreeRequest{Url: ""}))
 	require.Error(t, err)
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))

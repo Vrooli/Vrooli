@@ -24,6 +24,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/automation/driver"
 	autosession "github.com/vrooli/browser-automation-studio/automation/session"
 	"github.com/vrooli/browser-automation-studio/domain"
+	"github.com/vrooli/browser-automation-studio/internal/testutil/recordingmocks"
 	livecapture "github.com/vrooli/browser-automation-studio/services/live-capture"
 	"github.com/vrooli/browser-automation-studio/services/recording"
 	"github.com/vrooli/browser-automation-studio/services/recording/persistence"
@@ -240,7 +241,7 @@ func TestReceiveRecordingActionRequiresCommit(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			log := logrus.New()
-			repo := persistence.NewMockRepository()
+			repo := recordingmocks.NewMockRepository()
 			repo.AppendTimelineEntryErr = tc.saveErr
 			svc := recording.NewService(repo, recording.ServiceConfig{})
 			if err := svc.RegisterSession(context.Background(), "session", recording.SessionConfig{}); err != nil {
@@ -277,7 +278,7 @@ func TestReceiveRecordingActionRequiresCommit(t *testing.T) {
 func TestReceiveRecordingActionRedactsBeforePersistenceAndBroadcast(t *testing.T) {
 	const secret = "BAS_SYNTHETIC_HTTP_INGRESS_SECRET_11c4"
 	log := logrus.New()
-	repo := persistence.NewMockRepository()
+	repo := recordingmocks.NewMockRepository()
 	journal := recording.NewService(repo, recording.ServiceConfig{})
 	require.NoError(t, journal.RegisterSession(context.Background(), "session", recording.SessionConfig{}))
 	session := &autosession.Session{}
@@ -324,7 +325,7 @@ func TestReceiveRecordingActionRedactsBeforePersistenceAndBroadcast(t *testing.T
 
 func TestReceiveCanonicalTimelineEntryPersistsAndBroadcastsProto(t *testing.T) {
 	log := logrus.New()
-	repo := persistence.NewMockRepository()
+	repo := recordingmocks.NewMockRepository()
 	journal := recording.NewService(repo, recording.ServiceConfig{})
 	require.NoError(t, journal.RegisterSession(context.Background(), "session", recording.SessionConfig{}))
 	session := &autosession.Session{}
@@ -423,7 +424,7 @@ func TestHistoryNavigationRequiresRecordedOutcome(t *testing.T) {
 		for _, tc := range cases {
 			t.Run(operation.name+"/"+tc.name, func(t *testing.T) {
 				log := logrus.New()
-				repo := persistence.NewMockRepository()
+				repo := recordingmocks.NewMockRepository()
 				repo.AppendTimelineEntryErr = tc.saveErr
 				journal := recording.NewService(repo, recording.ServiceConfig{})
 				require.NoError(t, journal.RegisterSession(context.Background(), "session", recording.SessionConfig{}))
@@ -476,7 +477,7 @@ func TestPullRecordingActionsCommitBeforeAcknowledgement(t *testing.T) {
 	for _, failure := range []string{"none", "commit", "ack", "handoff"} {
 		t.Run(failure, func(t *testing.T) {
 			ctx := context.Background()
-			repo := persistence.NewMockRepository()
+			repo := recordingmocks.NewMockRepository()
 			journal := recording.NewService(repo, recording.ServiceConfig{})
 			require.NoError(t, journal.RegisterSession(ctx, "session", recording.SessionConfig{}))
 			mock := NewMockRecordModeService()
@@ -593,7 +594,7 @@ func TestPullRecordingActionsCommitBeforeAcknowledgement(t *testing.T) {
 
 func TestPullCanonicalEntriesPersistsProtoBeforeAcknowledgement(t *testing.T) {
 	ctx := context.Background()
-	repo := persistence.NewMockRepository()
+	repo := recordingmocks.NewMockRepository()
 	journal := recording.NewService(repo, recording.ServiceConfig{})
 	require.NoError(t, journal.RegisterSession(ctx, "session", recording.SessionConfig{}))
 	id := uuid.NewString()
@@ -682,7 +683,7 @@ func TestNavigationCompletionKeepsOriginalOwnership(t *testing.T) {
 				continue
 			}
 			t.Run(op.name+"/"+change, func(t *testing.T) {
-				repo := persistence.NewMockRepository()
+				repo := recordingmocks.NewMockRepository()
 				journal := recording.NewService(repo, recording.ServiceConfig{})
 				require.NoError(t, journal.RegisterSession(context.Background(), "session", recording.SessionConfig{}))
 				service := &navigationCompletionService{journalIngressService: &journalIngressService{MockRecordModeService: NewMockRecordModeService(), journal: journal}}
@@ -895,7 +896,7 @@ func TestCloseRecordingPageBrowserReceipt(t *testing.T) {
 			owner.InitializePageTracking("https://initial.test")
 			page := owner.Pages().AddPage(&domain.Page{DriverPageID: "target", URL: "https://target.test"})
 			require.NoError(t, owner.Pages().SetActivePage(page.ID))
-			repo := persistence.NewMockRepository()
+			repo := recordingmocks.NewMockRepository()
 			journal := recording.NewService(repo, recording.ServiceConfig{})
 			require.NoError(t, journal.RegisterSession(ctx, "tab-close", recording.SessionConfig{}))
 			if fault == "journal" {
@@ -1057,7 +1058,7 @@ func TestNavigationPagePrecondition(t *testing.T) {
 	for _, op := range operations {
 		for _, change := range []string{"active explicit", "active implicit", "inactive", "unknown", "malformed", "closed", "missing mapping", "driver selection race"} {
 			t.Run(op.name+"/"+change, func(t *testing.T) {
-				repo := persistence.NewMockRepository()
+				repo := recordingmocks.NewMockRepository()
 				journal := recording.NewService(repo, recording.ServiceConfig{})
 				require.NoError(t, journal.RegisterSession(context.Background(), "session", recording.SessionConfig{}))
 				service := &navigationCompletionService{journalIngressService: &journalIngressService{MockRecordModeService: NewMockRecordModeService(), journal: journal}}

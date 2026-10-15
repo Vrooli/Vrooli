@@ -409,3 +409,45 @@ describe('ContextBuilder', () => {
     });
   });
 });
+
+describe('mobile safe-area insets', () => {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { isMobileViewport, applySafeAreaInsets, MOBILE_SAFE_AREA_INSETS } =
+    require('../../../src/session/context-builder');
+
+  it('classifies phone-class viewports by their shorter edge', () => {
+    expect(isMobileViewport({ width: 390, height: 844 })).toBe(true);
+    expect(isMobileViewport({ width: 844, height: 390 })).toBe(true); // landscape phone
+    expect(isMobileViewport({ width: 1280, height: 720 })).toBe(false);
+    expect(isMobileViewport(undefined)).toBe(false);
+  });
+
+  it('overrides safe-area insets via CDP for a mobile viewport', async () => {
+    const send = jest.fn().mockResolvedValue(undefined);
+    const detach = jest.fn().mockResolvedValue(undefined);
+    const page = { context: () => ({ newCDPSession: jest.fn().mockResolvedValue({ send, detach }) }) };
+
+    await applySafeAreaInsets(page as never, { width: 390, height: 844 });
+
+    expect(send).toHaveBeenCalledWith('Emulation.setSafeAreaInsetsOverride', {
+      insets: MOBILE_SAFE_AREA_INSETS,
+    });
+    expect(MOBILE_SAFE_AREA_INSETS.bottom).toBeGreaterThan(0); // home indicator must be non-zero
+  });
+
+  it('is a no-op for a desktop viewport', async () => {
+    const newCDPSession = jest.fn();
+    const page = { context: () => ({ newCDPSession }) };
+
+    await applySafeAreaInsets(page as never, { width: 1280, height: 720 });
+
+    expect(newCDPSession).not.toHaveBeenCalled();
+  });
+
+  it('never fails the capture when the CDP command is unavailable', async () => {
+    const page = {
+      context: () => ({ newCDPSession: jest.fn().mockRejectedValue(new Error('unsupported')) }),
+    };
+    await expect(applySafeAreaInsets(page as never, { width: 390, height: 844 })).resolves.toBeUndefined();
+  });
+});

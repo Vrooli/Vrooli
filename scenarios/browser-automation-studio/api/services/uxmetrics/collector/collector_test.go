@@ -9,8 +9,8 @@ import (
 	"github.com/google/uuid"
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	autoevents "github.com/vrooli/browser-automation-studio/automation/events"
+	"github.com/vrooli/browser-automation-studio/internal/testutil/uxmetricsmocks"
 	"github.com/vrooli/browser-automation-studio/services/uxmetrics/contracts"
-	"github.com/vrooli/browser-automation-studio/services/uxmetrics/repository"
 )
 
 // mockEventSink is a test double for automation/events.Sink
@@ -26,7 +26,7 @@ func (m *mockEventSink) CloseExecution(id uuid.UUID) { m.closed = append(m.close
 // [REQ:BAS-RH-J07] Decorating an event sink must preserve its lifecycle owner.
 func TestCollectorClosePropagatesAndReleasesBuffers(t *testing.T) {
 	delegate := &mockEventSink{}
-	c := NewCollector(delegate, repository.NewMockRepository())
+	c := NewCollector(delegate, uxmetricsmocks.NewMockRepository())
 	id, other := uuid.New(), uuid.New()
 	_ = c.OnCursorUpdate(context.Background(), id, 0, contracts.TimedPoint{X: 1})
 	_ = c.OnCursorUpdate(context.Background(), other, 0, contracts.TimedPoint{X: 2})
@@ -50,7 +50,7 @@ func (m *mockEventSink) Publish(ctx context.Context, event autocontracts.EventEn
 // Rejected events must not create apparently accepted UX evidence.
 func TestCollectorRejectedEventHasNoSideEffects(t *testing.T) {
 	delegate := &mockEventSink{publishErr: autoevents.ErrExecutionClosed}
-	repo := repository.NewMockRepository()
+	repo := uxmetricsmocks.NewMockRepository()
 	c := NewCollector(delegate, repo)
 	err := c.Publish(context.Background(), autocontracts.EventEnvelope{
 		ExecutionID: uuid.New(),
@@ -76,7 +76,7 @@ func TestCollector_Publish_DelegatesToUnderlyingSink(t *testing.T) {
 	mockSink := &mockEventSink{
 		limits: autocontracts.DefaultEventBufferLimits,
 	}
-	repo := repository.NewMockRepository()
+	repo := uxmetricsmocks.NewMockRepository()
 	collector := NewCollector(mockSink, repo)
 
 	event := autocontracts.EventEnvelope{
@@ -97,7 +97,7 @@ func TestCollector_Publish_DelegatesToUnderlyingSink(t *testing.T) {
 func TestCollector_Limits_DelegatesToUnderlyingSink(t *testing.T) {
 	expected := autocontracts.EventBufferLimits{PerExecution: 100, PerAttempt: 25}
 	mockSink := &mockEventSink{limits: expected}
-	repo := repository.NewMockRepository()
+	repo := uxmetricsmocks.NewMockRepository()
 	collector := NewCollector(mockSink, repo)
 
 	limits := collector.Limits()
@@ -111,7 +111,7 @@ func TestCollector_Limits_DelegatesToUnderlyingSink(t *testing.T) {
 
 func TestCollector_OnStepCompleted_SavesInteractionTrace(t *testing.T) {
 	mockSink := &mockEventSink{}
-	repo := repository.NewMockRepository()
+	repo := uxmetricsmocks.NewMockRepository()
 	collector := NewCollector(mockSink, repo)
 
 	execID := uuid.New()
@@ -160,7 +160,7 @@ func TestCollector_OnStepCompleted_SavesInteractionTrace(t *testing.T) {
 
 func TestCollector_OnStepCompleted_SavesCursorPath(t *testing.T) {
 	mockSink := &mockEventSink{}
-	repo := repository.NewMockRepository()
+	repo := uxmetricsmocks.NewMockRepository()
 	collector := NewCollector(mockSink, repo)
 
 	execID := uuid.New()
@@ -215,7 +215,7 @@ func TestCollector_OnStepCompleted_SavesCursorPath(t *testing.T) {
 
 func TestCollector_OnCursorUpdate(t *testing.T) {
 	mockSink := &mockEventSink{}
-	repo := repository.NewMockRepository()
+	repo := uxmetricsmocks.NewMockRepository()
 	collector := NewCollector(mockSink, repo)
 
 	execID := uuid.New()
@@ -236,7 +236,7 @@ func TestCollector_OnCursorUpdate(t *testing.T) {
 
 func TestCollector_FlushExecution(t *testing.T) {
 	mockSink := &mockEventSink{}
-	repo := repository.NewMockRepository()
+	repo := uxmetricsmocks.NewMockRepository()
 	collector := NewCollector(mockSink, repo)
 
 	execID := uuid.New()
@@ -255,7 +255,7 @@ func TestCollector_FlushExecution(t *testing.T) {
 
 func TestCollector_OnExecutionCompleted_FlushesData(t *testing.T) {
 	mockSink := &mockEventSink{}
-	repo := repository.NewMockRepository()
+	repo := uxmetricsmocks.NewMockRepository()
 	collector := NewCollector(mockSink, repo)
 
 	execID := uuid.New()
@@ -280,7 +280,7 @@ func TestCollector_OnExecutionCompleted_FlushesData(t *testing.T) {
 
 func TestBuildCursorPath(t *testing.T) {
 	mockSink := &mockEventSink{}
-	repo := repository.NewMockRepository()
+	repo := uxmetricsmocks.NewMockRepository()
 	collector := NewCollector(mockSink, repo)
 
 	start := time.Now()

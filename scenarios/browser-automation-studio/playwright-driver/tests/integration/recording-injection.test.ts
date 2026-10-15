@@ -15,7 +15,8 @@ import { generateActivationScript } from '../../src/recording/capture/init-scrip
  * - page.setContent() does not trigger route interception
  */
 
-import { chromium, Browser, BrowserContext, Page } from 'rebrowser-playwright';
+import { BrowserContext, Page } from 'rebrowser-playwright';
+import { itWithBrowser, ownBrowser, withBrowser } from './support/browser-fixture';
 import * as http from 'http';
 import {
   createRecordingContextInitializer,
@@ -26,7 +27,6 @@ import {
   generateDeactivationScript,
 } from '../../src/recording';
 import type { RawBrowserEvent } from '../../src/recording/types';
-
 // Increase timeout for browser operations
 jest.setTimeout(30000);
 
@@ -81,17 +81,15 @@ class TestServer {
 }
 
 describe('Recording Script Injection (Integration)', () => {
-  let browser: Browser;
+  const browserOwner = ownBrowser({ headless: true });
   let server: TestServer;
 
   beforeAll(async () => {
-    browser = await chromium.launch({ headless: true });
     server = new TestServer();
     await server.start();
   });
 
   afterAll(async () => {
-    await browser.close();
     await server.stop();
   });
 
@@ -101,7 +99,7 @@ describe('Recording Script Injection (Integration)', () => {
     let initializer: RecordingContextInitializer;
 
     beforeEach(async () => {
-      context = await browser.newContext();
+      context = await browserOwner.browser.newContext();
       initializer = createRecordingContextInitializer({});
       await initializer.initialize(context);
       page = await context.newPage();
@@ -144,9 +142,8 @@ describe('Recording Script Injection (Integration)', () => {
       expect(verification.inMainContext).toBe(true);
     });
 
-    it('should assertScriptInjected throw when script not loaded', async () => {
+    itWithBrowser('should assertScriptInjected throw when script not loaded', { headless: true }, async (isolatedBrowser) => {
       // Use a fresh browser to avoid init-script leakage across contexts
-      const isolatedBrowser = await chromium.launch({ headless: true });
       const rawContext = await isolatedBrowser.newContext();
       const rawPage = await rawContext.newPage();
       try {
@@ -155,7 +152,6 @@ describe('Recording Script Injection (Integration)', () => {
         await expect(assertScriptInjected(rawPage)).rejects.toThrow(/not loaded/i);
       } finally {
         await rawContext.close();
-        await isolatedBrowser.close();
       }
     });
 
@@ -177,7 +173,7 @@ describe('Recording Script Injection (Integration)', () => {
     let capturedEvents: RawBrowserEvent[];
 
     beforeEach(async () => {
-      context = await browser.newContext();
+      context = await browserOwner.browser.newContext();
       initializer = createRecordingContextInitializer({});
       await initializer.initialize(context);
       page = await context.newPage();
@@ -459,7 +455,7 @@ describe('Recording Script Injection (Integration)', () => {
     let capturedEvents: RawBrowserEvent[];
 
     beforeEach(async () => {
-      context = await browser.newContext();
+      context = await browserOwner.browser.newContext();
       initializer = createRecordingContextInitializer({});
       await initializer.initialize(context);
       page = await context.newPage();
@@ -553,7 +549,7 @@ describe('Recording Script Injection (Integration)', () => {
     let initializer: RecordingContextInitializer;
 
     beforeEach(async () => {
-      context = await browser.newContext();
+      context = await browserOwner.browser.newContext();
       initializer = createRecordingContextInitializer({ diagnosticsEnabled: true });
       await initializer.initialize(context);
       page = await context.newPage();

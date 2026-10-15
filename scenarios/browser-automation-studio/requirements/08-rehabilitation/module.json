@@ -118,7 +118,15 @@
       "description": "Given a bundled clean-machine install, when Node/Chromium are absent from developer PATH/cache, then the package runs from its declared inventory or reports a precise missing capability.",
       "status": "planned",
       "prd_ref": "OT-P0-005",
-      "validation": []
+      "validation": [
+        {
+          "type": "test",
+          "ref": "playwright-driver/tests/journeys/J10.test.ts",
+          "phase": "journey",
+          "status": "passed",
+          "notes": "Linux x64; the real browser-ensure script runs with an empty PATH and isolated cache. Success and precise nonzero installer-failure branches are verified with the package installer stubbed to prevent downloads."
+        }
+      ]
     },
     {
       "id": "BAS-RH-J11",
@@ -134,7 +142,15 @@
       "description": "Given ordinary authorized human browsing, when a site presents an authentication or challenge step, then human control and profile continuity remain available and the state is reported honestly.",
       "status": "planned",
       "prd_ref": "OT-P0-005",
-      "validation": []
+      "validation": [
+        {
+          "type": "test",
+          "ref": "playwright-driver/tests/journeys/J12.test.ts",
+          "phase": "journey",
+          "status": "passed",
+          "notes": "Linux x64; local fixture only. The journey observes awaiting_human, accepts BAS pointer input, saves the completed profile and restores the authorized cookie."
+        }
+      ]
     },
     {
       "id": "BAS-RH-J13",
@@ -150,7 +166,43 @@
       "description": "Given a saved encrypted profile, when tab/history/storage saves overlap, a write fails, or its key/protected bytes become unavailable, then the prior committed identity and state remain recoverable and incomplete recovery is visible.",
       "status": "planned",
       "prd_ref": "OT-P0-005",
-      "validation": []
+      "validation": [
+        {
+          "type": "test",
+          "ref": "playwright-driver/tests/journeys/J14.test.ts",
+          "phase": "journey",
+          "status": "passed",
+          "notes": "Linux x64; HttpOnly cookie masking and recovery of cookie, local storage, history and active tab pass through the local fixture and bas-goal shadow."
+        },
+        {
+          "type": "test",
+          "ref": "api/services/session-profile/persistence/credentials_test.go",
+          "phase": "unit",
+          "status": "passed",
+          "notes": "Profile credential rotation and missing-key recovery preserve the acknowledged identity."
+        },
+        {
+          "type": "test",
+          "ref": "api/services/session-profile/persistence/file_repository_test.go",
+          "phase": "unit",
+          "status": "passed",
+          "notes": "Protected state uses one encrypted atomic document; failed and concurrent snapshots preserve committed profile state."
+        },
+        {
+          "type": "test",
+          "ref": "api/services/session-profile/service_test.go",
+          "phase": "unit",
+          "status": "passed",
+          "notes": "Missing, corrupt or wrong key/protected bytes keep recovery errors visible and do not replace the saved identity."
+        },
+        {
+          "type": "test",
+          "ref": "api/services/session-profile/concurrency_test.go",
+          "phase": "unit",
+          "status": "passed",
+          "notes": "Overlapping tab and storage updates preserve a complete committed profile."
+        }
+      ]
     },
     {
       "id": "BAS-RH-J15",
@@ -230,7 +282,15 @@
       "description": "Given typed step outcomes and public assertion-validation flags, when a workflow is validated, executed and read through timeline/replay, then enforcement flags reach the server and structured outcome fields survive projection. Client parsing errors and debug strings cannot count as valid evidence.",
       "status": "planned",
       "prd_ref": "OT-P0-005",
-      "validation": []
+      "validation": [
+        {
+          "type": "test",
+          "ref": "playwright-driver/tests/journeys/J24.test.ts",
+          "phase": "journey",
+          "status": "passed",
+          "notes": "Linux x64; J24 passes 1/1 and the applicable bas-goal journey suite passes 19/19. Public require_assertion validation and structured outcomes are preserved through execution, timeline, and replay."
+        }
+      ]
     },
     {
       "id": "BAS-RH-J25",

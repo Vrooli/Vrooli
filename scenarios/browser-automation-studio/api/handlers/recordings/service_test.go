@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/vrooli/browser-automation-studio/internal/testutil"
+	"github.com/vrooli/browser-automation-studio/internal/testutil/sessionprofilemocks"
 	"net/http"
 	"os"
 	"sync"
@@ -590,7 +591,7 @@ func TestProfileScopedLiveOperationsRejectAmbiguousBindings(t *testing.T) {
 	}
 	for _, operation := range operations {
 		t.Run(operation.name, func(t *testing.T) {
-			repo := sessionprofile.NewService(sessionprofilepersistence.NewMockRepository(), nil)
+			repo := sessionprofile.NewService(sessionprofilemocks.NewMockRepository(), nil)
 			const profileID = "shared"
 			repo.SetActiveSession("browser-a", profileID)
 			repo.SetActiveSession("browser-b", profileID)

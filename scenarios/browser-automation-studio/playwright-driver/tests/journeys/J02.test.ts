@@ -1,4 +1,4 @@
-import { mkdtemp } from 'node:fs/promises';
+import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
@@ -13,7 +13,7 @@ import {
 import type { TimelineEntry } from '@vrooli/proto-types/browser-automation-studio/v1/timeline/entry_pb';
 import type { InputRequest } from '../../src/routes/record-mode/types';
 import {
-  VIEWPORT, apiRoute, env, fixtureAfter, fixtureInput, fixtureState, rest, rpc, runAction, target, withLeases,
+  VIEWPORT, apiRoute, env, fixtureAfter, fixtureInput, fixtureState, rest, rpc, runAction, target, withJourneyResources, withLeases,
 } from './support';
 
 const FINAL = 'final J02 value';
@@ -53,19 +53,12 @@ const inputSnapshots = (entries: TimelineEntry[]) =>
   entries.flatMap(({ action }) => (action?.params.case === 'input' ? [action.params.value.value] : []));
 
 describe('[REQ:BAS-RH-J02] passive capture, fresh replay and saved-workflow execution', () => {
-  const cleanup: Array<() => Promise<unknown>> = [];
-  afterEach(async () => {
-    const failures: unknown[] = [];
-    for (const step of cleanup.splice(0).reverse()) await step().catch((error: unknown) => failures.push(error));
-    if (failures.length > 0) throw new AggregateError(failures, 'J02 did not remove everything it created');
-  });
-
-  it('given passive capture of edited inputs, when replayed fresh and as a saved workflow, then final values and single effects match', async () => {
+  it('given passive capture of edited inputs, when replayed fresh and as a saved workflow, then final values and single effects match', async () => withJourneyResources(async (resources) => {
     const before = (await fixtureState()).effects.length;
     const { sessionId } = await rest(CreateRecordingSessionResponseSchema, '/recordings/live/session', {
       viewport_width: VIEWPORT.width, viewport_height: VIEWPORT.height, initial_url: `${env.fixture}/`, restore_tabs: false,
     });
-    cleanup.push(() => apiRoute(`/recordings/live/session/${sessionId}/close`, {}));
+    resources.add('close recording session', () => apiRoute(`/recordings/live/session/${sessionId}/close`, {}));
     await rest(StartRecordingResponseSchema, '/recordings/live/start', { session_id: sessionId });
     expect((await rest(RecordingStatusResponseSchema, `${live(sessionId)}/status`)).isRecording).toBe(true);
 
@@ -81,13 +74,15 @@ describe('[REQ:BAS-RH-J02] passive capture, fresh replay and saved-workflow exec
     expect(entries.some(({ action }) => action?.params.case === 'navigate' && action.params.value.url === `${env.fixture}/`)).toBe(true);
     expect(inputSnapshots(entries).at(-1)).toBe(FINAL);
 
-    const folder = join(await mkdtemp(join(tmpdir(), 'bas-j02-')), 'project');
+    const tempRoot = await mkdtemp(join(tmpdir(), 'bas-j02-'));
+    resources.add('remove temporary project directory', () => rm(tempRoot, { recursive: true, force: true }));
+    const folder = join(tempRoot, 'project');
     const { project } = await rpc(ProjectsService.method.createProject, { name: `J02 ${randomUUID()}`, folderPath: folder });
     const projectId = project?.id ?? '';
-    cleanup.push(() => rpc(ProjectsService.method.deleteProject, { id: projectId, deleteFiles: true }));
+    resources.add('delete project', () => rpc(ProjectsService.method.deleteProject, { id: projectId, deleteFiles: true }));
     const generated = await rest(GenerateWorkflowResponseSchema, `${live(sessionId)}/generate-workflow`, { name: 'J02 recorded fixture', project_id: projectId });
     expect(generated.nodeCount).toBeGreaterThan(0);
-    cleanup.push(() => rpc(WorkflowsService.method.deleteWorkflow, { workflowId: generated.workflowId }));
+    resources.add('delete workflow', () => rpc(WorkflowsService.method.deleteWorkflow, { workflowId: generated.workflowId }));
     const { workflow } = await rpc(WorkflowsService.method.getWorkflow, { workflowId: generated.workflowId });
     const nodeIds = workflow?.flowDefinition?.nodes.map(({ id }) => id) ?? [];
     expect(nodeIds.length).toBeGreaterThan(0);
@@ -111,7 +106,7 @@ describe('[REQ:BAS-RH-J02] passive capture, fresh replay and saved-workflow exec
     const execution = await rpc(WorkflowsService.method.executeWorkflow, {
       workflowId: generated.workflowId, workflowVersion: workflow?.version, waitForCompletion: true,
     });
-    cleanup.push(() => retainOnly(execution.executionId, generated.workflowId, projectId));
+    resources.add('remove execution artifacts', () => retainOnly(execution.executionId, generated.workflowId, projectId));
     expect(execution.status).toBe(ExecutionStatus.COMPLETED);
     const saved = await fixtureAfter('effect', before + 2);
     expect(saved.effects).toHaveLength(before + 3);
@@ -120,7 +115,7 @@ describe('[REQ:BAS-RH-J02] passive capture, fresh replay and saved-workflow exec
     expect(timeline).toMatchObject({ executionId: execution.executionId, workflowId: generated.workflowId, status: ExecutionStatus.COMPLETED });
     expect(timeline.entries.map(({ nodeId }) => nodeId).sort()).toEqual([...nodeIds].sort());
     expect(timeline.entries.every(({ aggregates, context }) => aggregates?.status === StepStatus.COMPLETED && context?.success === true)).toBe(true);
-  });
+  }));
 });
 
 /** Remove this journey's execution artifacts, refusing if retention would touch anything else. */

@@ -13,6 +13,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/internal/testutil"
 
 	autosession "github.com/vrooli/browser-automation-studio/automation/session"
+	"github.com/vrooli/browser-automation-studio/internal/testutil/recordingmocks"
 	"github.com/vrooli/browser-automation-studio/services/recording"
 	"github.com/vrooli/browser-automation-studio/services/recording/persistence"
 	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
@@ -92,7 +93,7 @@ func TestService_GetTimelineReturnsPersistedProtoWithPageOwnership(t *testing.T)
 	defer func() { require.NoError(t, manager.Close(ctx, owner.ID())) }()
 	owner.InitializePageTracking("https://example.test")
 
-	repository := persistence.NewMockRepository()
+	repository := recordingmocks.NewMockRepository()
 	recordingService := recording.NewService(repository, recording.ServiceConfig{})
 	require.NoError(t, recordingService.RegisterSession(ctx, owner.ID(), recording.SessionConfig{}))
 	service := NewServiceWithManager(manager, logrus.New(), recordingService)
@@ -462,7 +463,7 @@ func TestCreateSessionJournalFailureReleasesBrowser(t *testing.T) {
 			t.Setenv(driver.PlaywrightDriverEnv, server.URL)
 			manager, err := autosession.NewManager()
 			require.NoError(t, err)
-			repo := persistence.NewMockRepository()
+			repo := recordingmocks.NewMockRepository()
 			repo.CreateSessionErr = errors.New("journal storage unavailable")
 			svc := &Service{sessions: manager, log: logrus.New(), unifiedRecordingSvc: recording.NewService(repo, recording.ServiceConfig{})}
 			result, err := svc.CreateSession(context.Background(), &SessionConfig{})
@@ -860,7 +861,7 @@ func TestCreateSessionInitialNavigationReceipt(t *testing.T) {
 			client, err := driver.NewClientWithURL(server.URL, driver.WithoutCircuitBreaker())
 			require.NoError(t, err)
 			manager := autosession.NewManagerWithClient(client)
-			repo := persistence.NewMockRepository()
+			repo := recordingmocks.NewMockRepository()
 			service := NewServiceWithManager(manager, logrus.New(), recording.NewService(repo, recording.ServiceConfig{}))
 			cfg := &SessionConfig{InitialURL: "https://requested.test/redirect"}
 			if fault == "blank" {

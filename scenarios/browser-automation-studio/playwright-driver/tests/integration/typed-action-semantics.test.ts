@@ -7,12 +7,12 @@ import { Script } from 'node:vm';
 import { cleanupSession } from '../../src/session/cleanup-registry';
 import { DriverPageBindings } from '../../src/session/page-bindings';
 import {
-  chromium,
   type Browser,
   type BrowserContext,
   type Page,
   type CDPSession,
 } from 'rebrowser-playwright';
+import { itWithBrowser, ownBrowser, withBrowser } from './support/browser-fixture';
 import { create, toJson } from '@bufbuild/protobuf';
 import {
   ActionDefinitionSchema,
@@ -64,7 +64,6 @@ import { handleSessionRun } from '../../src/routes/session-run';
 import type { SessionState } from '../../src/types';
 import { BEHAVIOR_SETTINGS_KEY } from '../../src/browser-profile';
 import { logger, metrics } from '../../src/utils';
-
 const fixture = `<!doctype html><style>
 #pane {width:180px;height:100px;overflow:scroll} #space {width:1400px;height:1000px}
 body {margin:0} #outside {width:2400px;height:1800px}
@@ -119,7 +118,7 @@ type FixtureEvent = {
 
 // [REQ:BAS-RH-J13] Browser effects are observed independently of handler output.
 describe('typed browser action semantics', () => {
-  let browser: Browser;
+  const browserOwner = ownBrowser({ headless: true });
   let browserContext: BrowserContext;
   let page: Page;
   let context: HandlerContext;
@@ -133,11 +132,8 @@ describe('typed browser action semantics', () => {
   const events = (): Promise<FixtureEvent[]> =>
     page.evaluate(() => (window as Window & { fixtureEvents: FixtureEvent[] }).fixtureEvents);
 
-  beforeAll(async () => {
-    browser = await chromium.launch({ headless: true });
-  });
   beforeEach(async () => {
-    browserContext = await browser.newContext({ viewport: { width: 800, height: 600 } });
+    browserContext = await browserOwner.browser.newContext({ viewport: { width: 800, height: 600 } });
     page = await browserContext.newPage();
     await page.goto(`data:text/html,${encodeURIComponent(fixture)}`);
     context = {
@@ -153,9 +149,6 @@ describe('typed browser action semantics', () => {
   });
   afterEach(async () => {
     await browserContext?.close();
-  });
-  afterAll(async () => {
-    await browser?.close();
   });
 
   it('persists an attachment downloaded directly by URL', async () => {
@@ -505,7 +498,7 @@ describe('typed browser action semantics', () => {
     await page.frameLocator('#right').locator('#button').waitFor();
     const config = createTestConfig({ execution: { defaultTimeoutMs: 1000 } });
     const manager = new SessionManager(config);
-    const session = createTestSessionState(browser, browserContext, page, {
+    const session = createTestSessionState(browserOwner.browser, browserContext, page, {
       id: 'frame-effect-fixture',
       ownerExecutionId: 'owner',
       leaseId: 'lease',
@@ -861,7 +854,7 @@ describe('typed browser action semantics', () => {
         await gate;
       },
     });
-    const session = createTestSessionState(browser, browserContext, page, {
+    const session = createTestSessionState(browserOwner.browser, browserContext, page, {
       id: 'browser-admission-fixture',
       ownerExecutionId: 'fixture-execution',
       leaseId: 'fixture-lease',
@@ -966,7 +959,7 @@ describe('typed browser action semantics', () => {
 
   it('[REQ:BAS-RH-J07] close interrupts a pending browser wait and retains an uncertain receipt', async () => {
     const manager = new SessionManager(createTestConfig());
-    const session = createTestSessionState(browser, browserContext, page, {
+    const session = createTestSessionState(browserOwner.browser, browserContext, page, {
       id: 'browser-close-pending-action',
       ownerExecutionId: 'fixture-execution',
       leaseId: 'fixture-lease',
@@ -1074,7 +1067,7 @@ describe('typed browser action semantics', () => {
   it('only the current unreleased lease can execute or retrieve cached browser effects', async () => {
     const config = createTestConfig();
     const manager = new SessionManager(config);
-    const session = createTestSessionState(browser, browserContext, page, {
+    const session = createTestSessionState(browserOwner.browser, browserContext, page, {
       id: 'lease-effect-fixture',
       ownerExecutionId: 'owner-1',
       leaseId: 'lease-1',
@@ -1136,7 +1129,7 @@ describe('typed browser action semantics', () => {
   it('repeats logical loop effects while retransmissions remain the same operation', async () => {
     const config = createTestConfig();
     const manager = new SessionManager(config);
-    const session = createTestSessionState(browser, browserContext, page, {
+    const session = createTestSessionState(browserOwner.browser, browserContext, page, {
       id: 'operation-effect-fixture',
       ownerExecutionId: 'owner',
       leaseId: 'lease',
@@ -1194,7 +1187,7 @@ describe('typed browser action semantics', () => {
     async (failureSite) => {
       const config = createTestConfig();
       const manager = new SessionManager(config);
-      const session = createTestSessionState(browser, browserContext, page, {
+      const session = createTestSessionState(browserOwner.browser, browserContext, page, {
         id: 'uncertain-effect-fixture',
         ownerExecutionId: 'owner',
         leaseId: 'lease',
@@ -1297,12 +1290,10 @@ describe('typed browser action semantics', () => {
 
 // [REQ:BAS-RH-J03] Evaluate through the installed SDK with its default runtime fix.
 describe.each([false, true])('native frame contexts (site isolation: %s)', (isolated) => {
-  it('preserves document identity through concurrency, nested frames and navigation', async () => {
-    const browser = await chromium.launch({
+  itWithBrowser('preserves document identity through concurrency, nested frames and navigation', {
       headless: true,
       args: isolated ? ['--site-per-process'] : [],
-    });
-    try {
+    }, async (browser) => {
       const context = await browser.newContext();
       await context.route('**/*', (route) => {
         const url = new URL(route.request().url());
@@ -1373,9 +1364,6 @@ describe.each([false, true])('native frame contexts (site isolation: %s)', (isol
           return detected;
         })
       ).toBe(false);
-    } finally {
-      await browser.close();
-    }
   });
 });
 
@@ -1396,9 +1384,8 @@ describe('SDK context acknowledgement', () => {
     });
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
     const { port } = server.address() as { port: number };
-    let browser: Browser | undefined;
     try {
-      browser = await chromium.launch({ headless: true });
+      await withBrowser({ headless: true }, async (browser) => {
       for (let trial = 0; trial < 20; trial++) {
         const context = await browser.newContext();
         try {
@@ -1428,9 +1415,9 @@ describe('SDK context acknowledgement', () => {
           await context.close();
         }
       }
+      });
     } finally {
       await Promise.all([
-        browser?.close(),
         new Promise<void>((resolve, reject) =>
           server.close((error) => (error ? reject(error) : resolve()))
         ),

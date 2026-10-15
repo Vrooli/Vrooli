@@ -21,8 +21,51 @@ import type { CloseSessionRequest, SessionSpec, StartSessionRequest, StartSessio
 export const TIMEOUT_MS = { request: 30000, wait: 10000 } as const;
 export const VIEWPORT = { width: 640, height: 480 } as const;
 
+type JourneyCleanup = { label: string; run: () => Promise<unknown> };
+
+/** Own test-created resources and report every teardown failure after all attempts. */
+export class JourneyResourceScope {
+  private readonly cleanups: JourneyCleanup[] = [];
+
+  add(label: string, cleanup: () => Promise<unknown>): void {
+    this.cleanups.push({ label, run: cleanup });
+  }
+
+  async run<T>(body: (resources: this) => Promise<T>): Promise<T> {
+    let value!: T;
+    let bodyFailed = false;
+    let bodyError: unknown;
+    try {
+      value = await body(this);
+    } catch (error) {
+      bodyFailed = true;
+      bodyError = error;
+    }
+
+    const failures: Error[] = [];
+    for (const cleanup of this.cleanups.splice(0).reverse()) {
+      try {
+        await cleanup.run();
+      } catch (error) {
+        failures.push(new Error(`Could not ${cleanup.label}`, { cause: error }));
+      }
+    }
+
+    if (bodyFailed && failures.length > 0) {
+      throw new AggregateError([bodyError, ...failures], 'Journey body and resource cleanup failed');
+    }
+    if (bodyFailed) throw bodyError;
+    if (failures.length > 0) throw new AggregateError(failures, `Journey resource cleanup failed: ${failures.map(({ message }) => message).join('; ')}`);
+    return value;
+  }
+}
+
+/** Run a journey body and always attempt every registered resource cleanup. */
+export const withJourneyResources = <T>(body: (resources: JourneyResourceScope) => Promise<T>): Promise<T> =>
+  new JourneyResourceScope().run(body);
+
 type Box = { left: number; top: number; width: number; height: number };
-const layout = JSON.parse(readFileSync(join(__dirname, '../../../fixtures/journey-site/layout.json'), 'utf8')) as Record<'counter' | 'input' | 'paste' | 'compose', Box>;
+const layout = JSON.parse(readFileSync(join(__dirname, '../../../fixtures/journey-site/layout.json'), 'utf8')) as Record<'counter' | 'input' | 'paste' | 'compose' | 'challenge', Box>;
 /** Viewport centre of a fixture control, for pointer input. */
 export const target = (name: keyof typeof layout): { x: number; y: number } => {
   const box = layout[name];
@@ -80,19 +123,34 @@ export const action = (type: string, params: Record<string, unknown>): ActionDef
         ? create(ActionDefinitionSchema, { type: 22, params: { case: 'dragDrop', value: create(DragDropParamsSchema, { sourceSelector: String(params.source), targetSelector: String(params.target), steps: 3 }) } })
         : createTypedInstruction(type, params).action ?? create(ActionDefinitionSchema);
 
-export type Lease = { sessionId: string; leaseId: string; executionId: string; sequence: number };
+export type Lease = { sessionId: string; leaseId: string; executionId: string; sequence: number; settled?: boolean };
 export const ownership = (lease: Lease): CloseSessionRequest => ({ execution_id: lease.executionId, lease_id: lease.leaseId });
 
-export async function openLease(options: { storageState?: SessionSpec['storage_state']; reuseMode?: SessionSpec['reuse_mode']; labels?: SessionSpec['labels'] } = {}): Promise<Lease> {
+export async function openLease(options: {
+  storageState?: SessionSpec['storage_state'];
+  reuseMode?: SessionSpec['reuse_mode'];
+  labels?: SessionSpec['labels'];
+  viewport?: SessionSpec['viewport'];
+  sessionProfileVersion?: SessionSpec['session_profile_version'];
+  locale?: SessionSpec['locale'];
+  timezone?: SessionSpec['timezone'];
+  userAgent?: SessionSpec['user_agent'];
+  browserProfile?: SessionSpec['browser_profile'];
+} = {}): Promise<Lease> {
   const request: StartSessionRequest = {
     execution_id: randomUUID(), workflow_id: randomUUID(),
     session_options: {
-      viewport: VIEWPORT,
+      viewport: options.viewport ?? VIEWPORT,
       reuse_mode: options.reuseMode ?? 'fresh',
       frame_scale: 'css',
       base_url: env.fixture,
       storage_state: options.storageState,
       labels: options.labels,
+      session_profile_version: options.sessionProfileVersion,
+      locale: options.locale,
+      timezone: options.timezone,
+      user_agent: options.userAgent,
+      browser_profile: options.browserProfile,
     },
   };
   const started = await driver<StartSessionResponse>('/session/start', request);
@@ -113,17 +171,43 @@ export async function runAction(lease: Lease, definition: ActionDefinition): Pro
   return outcome;
 }
 
-export const closeLease = (lease: Lease): Promise<unknown> => driver(`/session/${lease.sessionId}/close`, ownership(lease));
-export const releaseLease = (lease: Lease): Promise<unknown> => driver(`/session/${lease.sessionId}/release`, ownership(lease));
+export const closeLease = async (lease: Lease): Promise<unknown> => {
+  const result = await driver(`/session/${lease.sessionId}/close`, ownership(lease));
+  lease.settled = true;
+  return result;
+};
+export const releaseLease = async (lease: Lease): Promise<unknown> => {
+  const result = await driver(`/session/${lease.sessionId}/release`, ownership(lease));
+  lease.settled = true;
+  return result;
+};
+
+export function registerLeaseCleanup(resources: JourneyResourceScope, lease: Lease): void {
+  resources.add('close driver lease', async () => {
+    if (!lease.settled) await closeLease(lease);
+  });
+}
+
+export function registerRecordingCleanup(resources: JourneyResourceScope, lease: Lease): void {
+  resources.add('stop and acknowledge recording', () => stopAndAcknowledgeRecording(lease));
+}
+
+/** Stop capture and acknowledge the resulting durable timeline before closing its lease. */
+export async function stopAndAcknowledgeRecording(lease: Lease): Promise<void> {
+  const record = `/session/${lease.sessionId}/record`;
+  await driver(`${record}/stop`, ownership(lease));
+  const { entries } = await driver<{ entries: Array<{ id?: string }> }>(`${record}/actions`);
+  const entry_ids = entries.flatMap(({ id }) => id ? [id] : []);
+  if (entry_ids.length > 0) await driver(`${record}/actions/ack`, { ...ownership(lease), entry_ids });
+}
 
 /** Run `body` with open leases and close every one afterwards, newest first. */
-export async function withLeases<T>(body: (open: typeof openLease) => Promise<T>): Promise<T> {
-  const leases: Lease[] = [];
-  try {
-    return await body(async (options) => { const lease = await openLease(options); leases.push(lease); return lease; });
-  } finally {
-    for (const lease of leases.reverse()) await closeLease(lease).catch(() => undefined);
-  }
+export async function withLeases<T>(body: (open: typeof openLease, resources: JourneyResourceScope) => Promise<T>): Promise<T> {
+  return withJourneyResources(async (resources) => body(async (options) => {
+    const lease = await openLease(options);
+    registerLeaseCleanup(resources, lease);
+    return lease;
+  }, resources));
 }
 
 /** A one-node observer workflow for ExecuteAdhocWorkflow. */
@@ -142,14 +226,14 @@ export function adhoc(name: string, nodeAction: ActionDefinition, waitForComplet
 }
 
 export type FixtureEffect = { sequence: number; context: string; held?: boolean };
-export type FixtureState = { effects: FixtureEffect[]; released: Array<{ sequence: number }>; inputs: Array<{ type: string; value: string; context: string }>; scrolls: Array<{ y: number }>; fingerprints: Array<Record<string, unknown>>; retryAttempts: number };
+export type FixtureState = { effects: FixtureEffect[]; released: Array<{ sequence: number }>; inputs: Array<{ type: string; value: string; context: string }>; scrolls: Array<{ y: number }>; fingerprints: Array<Record<string, unknown>>; challenges: Array<{ context: string; completedBy: string }>; challengeVisits: Array<{ context: string }>; profileObservations: Array<{ context: string; localStorage: string | null }>; retryAttempts: number };
 
 export async function fixtureState(): Promise<FixtureState> {
   return (await fetch(new URL('/journey-state', env.fixture))).json() as Promise<FixtureState>;
 }
 
 /** Long-poll the fixture until more than `after` records of `kind` exist. */
-export async function fixtureAfter(kind: 'effect' | 'release' | 'input' | 'scroll' | 'fingerprint', after: number): Promise<FixtureState> {
+export async function fixtureAfter(kind: 'effect' | 'release' | 'input' | 'scroll' | 'fingerprint' | 'challenge' | 'challenge-visit' | 'profile-observation', after: number): Promise<FixtureState> {
   const url = new URL('/journey-wait', env.fixture);
   url.search = new URLSearchParams({ kind, after: String(after), timeout_ms: String(TIMEOUT_MS.wait) }).toString();
   const response = await fetch(url, { signal: AbortSignal.timeout(TIMEOUT_MS.wait + 1000) });

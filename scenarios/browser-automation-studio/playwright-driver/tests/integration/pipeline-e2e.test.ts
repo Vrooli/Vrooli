@@ -18,7 +18,8 @@ import { dirname } from 'node:path';
 import { setupPageLifecycleListeners } from '../../src/routes/record-mode/page-events';
 import { handleRecordNewPage } from '../../src/routes/record-mode/recording-pages';
 import { createDeferred, createMockHttpRequest, createMockHttpResponse } from '../helpers';
-import { chromium, Browser, BrowserContext, Page } from 'rebrowser-playwright';
+import { BrowserContext, Page } from 'rebrowser-playwright';
+import { itWithBrowser, ownBrowser, withBrowser } from './support/browser-fixture';
 import * as http from 'http';
 import WebSocket = require('ws');
 import { SessionManager } from '../../src/session/manager';
@@ -38,7 +39,6 @@ import {
   acknowledgeTimelineEntries,
 } from '../../src/recording';
 import { ActionType } from '../../src/proto/recording';
-
 type NativeWsSocket = {
   once(event: 'message', listener: (data: Buffer) => void): NativeWsSocket;
   once(event: 'close', listener: () => void): NativeWsSocket;
@@ -261,23 +261,21 @@ async function decodeJpegPixel(page: Page, encoded: string): Promise<DecodedJpeg
 }
 
 describe('Pipeline E2E Tests', () => {
-  let browser: Browser;
+  const browserOwner = ownBrowser({ headless: true });
   let server: PipelineTestServer;
 
   beforeAll(async () => {
-    browser = await chromium.launch({ headless: true });
     server = new PipelineTestServer();
     await server.start();
   });
 
   afterAll(async () => {
-    await browser.close();
     await server.stop();
   });
 
   it.each(['protocol', 'poll'] as const)('ends readiness when its page closes during %s without further protocol attempts', async (stage) => {
     // No injection: the browser remains unready until the fixture closes it.
-    const context = await browser.newContext();
+    const context = await browserOwner.browser.newContext();
     const page = await context.newPage();
     const createSession = context.newCDPSession.bind(context);
     let firstAttached!: () => void;
@@ -319,7 +317,7 @@ describe('Pipeline E2E Tests', () => {
   const captureEntry = (entry: TimelineEntry): void => { capturedEntries.push(entry); };
 
     beforeEach(async () => {
-      context = await browser.newContext();
+      context = await browserOwner.browser.newContext();
       initializer = createRecordingContextInitializer({});
       await initializer.initialize(context);
       page = await context.newPage();
@@ -932,7 +930,7 @@ describe('Pipeline E2E Tests', () => {
       const receipt = {
         producer: 'playwright-driver/tests/integration/pipeline-e2e.test.ts',
         scenario: 'native Playwright mouse input captured through the recording event route and ordered journal callback',
-        browserVersion: browser.version(),
+        browserVersion: browserOwner.browser.version(),
         platform: process.platform,
         architecture: process.arch,
         actions: clickEntries.length,
@@ -964,7 +962,7 @@ describe('Pipeline E2E Tests', () => {
     let pipelineManager: RecordingPipelineManager;
 
     beforeEach(async () => {
-      context = await browser.newContext();
+      context = await browserOwner.browser.newContext();
       initializer = createRecordingContextInitializer({});
       await initializer.initialize(context);
       page = await context.newPage();
@@ -1085,8 +1083,7 @@ describe('session-owned frame transport', () => {
 
 // Native pixels are decoded in an independent page, not classified by the stream.
 describe('native capture page identity', () => {
-  it('reconnects with blue-tab pixels after buffering an old red tab', async () => {
-    const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
+  itWithBrowser('reconnects with blue-tab pixels after buffering an old red tab', { headless: true, args: ['--no-sandbox'] }, async (browser) => {
     let capture: StreamingHandle | undefined;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const bounded = async (event: Promise<void>): Promise<void> => {
@@ -1143,7 +1140,6 @@ describe('native capture page identity', () => {
     } finally {
       if (timer) clearTimeout(timer);
       await capture?.stop();
-      await browser.close();
     }
   });
 });
@@ -1151,7 +1147,7 @@ describe('native capture page identity', () => {
 
 describe('native polling fallback [REQ:BAS-RH-J22]', () => {
   it.each(['css', 'device'] as const)('preserves blue pixels and %s dimensions without a public CDP session', async (scale) => {
-    const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
+    await withBrowser({ headless: true, args: ['--no-sandbox'] }, async (browser) => {
     let capture: StreamingHandle | undefined;
     let deadline: ReturnType<typeof setTimeout> | undefined;
     try {
@@ -1180,15 +1176,14 @@ describe('native polling fallback [REQ:BAS-RH-J22]', () => {
     } finally {
       if (deadline) clearTimeout(deadline);
       await capture?.stop();
-      await browser.close();
     }
+    });
   });
 });
 
 
 describe('native recording tab ownership [REQ:BAS-RH-J03]', () => {
-  it('uses one tab identity across route and callback and releases native page listeners', async () => {
-    const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
+  itWithBrowser('uses one tab identity across route and callback and releases native page listeners', { headless: true, args: ['--no-sandbox'] }, async (browser) => {
     let cleanup: (() => void) | undefined;
     let deadline: ReturnType<typeof setTimeout> | undefined;
     let deliver!: (event: { driverPageId: string }) => void;
@@ -1242,7 +1237,6 @@ describe('native recording tab ownership [REQ:BAS-RH-J03]', () => {
     } finally {
       if (deadline) clearTimeout(deadline);
       cleanup?.();
-      await browser.close();
       fetchMock.mockRestore();
     }
   });
@@ -1258,7 +1252,7 @@ describe('native stream controls [REQ:BAS-RH-J23]', () => {
       frameStreaming: { useScreencast: true, fallbackToPolling: false },
       performance: { enabled: false, includeTimingHeaders: false },
     }));
-    const browser = await chromium.launch({ headless: mode === 'shell', args: ['--no-sandbox', ...(mode === 'regular' ? ['--headless=new'] : [])] });
+    await withBrowser({ headless: mode === 'shell', args: ['--no-sandbox', ...(mode === 'regular' ? ['--headless=new'] : [])] }, async (browser) => {
     const server = new WebSocketServer({ host: '127.0.0.1', port: 0 });
     const sessionId = `native-scale-${dpr}-${scale}`;
     let deadline: ReturnType<typeof setTimeout> | undefined;
@@ -1293,11 +1287,11 @@ describe('native stream controls [REQ:BAS-RH-J23]', () => {
     } finally {
       if (deadline) clearTimeout(deadline);
       await stopFrameStreaming(sessionId);
-      await browser.close();
       for (const socket of server.clients) socket.terminate();
       await new Promise<void>((resolve) => server.close(() => resolve()));
       configuration.mockRestore();
     }
+    });
   });
 
   it.each([true, false])('applies quality, FPS and headers through the settings route (CDP=%s)', async (useScreencast) => {
@@ -1306,7 +1300,7 @@ describe('native stream controls [REQ:BAS-RH-J23]', () => {
       performance: { enabled: false, includeTimingHeaders: false },
     });
     const configuration = jest.spyOn(driverConfig, 'loadConfig').mockReturnValue(config);
-    const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
+    await withBrowser({ headless: true, args: ['--no-sandbox'] }, async (browser) => {
     const server = new WebSocketServer({ host: '127.0.0.1', port: 0 });
     const sessionId = `native-controls-${useScreencast}`;
     let deadline: ReturnType<typeof setTimeout> | undefined;
@@ -1385,10 +1379,10 @@ describe('native stream controls [REQ:BAS-RH-J23]', () => {
     } finally {
       if (deadline) clearTimeout(deadline);
       await stopFrameStreaming(sessionId);
-      await browser.close();
       for (const socket of server.clients) socket.terminate();
       await new Promise<void>((resolve) => server.close(() => resolve()));
       configuration.mockRestore();
     }
+    });
   });
 });

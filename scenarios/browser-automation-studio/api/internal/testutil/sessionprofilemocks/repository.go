@@ -1,12 +1,20 @@
-// Package persistence provides data access for session profile management.
-package persistence
+// Package sessionprofilemocks provides test doubles for session profile services.
+package sessionprofilemocks
 
 import (
 	"encoding/json"
 	"errors"
 	"sort"
 	"sync"
+
+	persistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 )
+
+type ProfileID = persistence.ProfileID
+type SessionProfile = persistence.SessionProfile
+type Repository = persistence.Repository
+
+var ErrProfileNotFound = persistence.ErrProfileNotFound
 
 // MockRepository implements Repository for testing.
 // It stores profiles in memory and is safe for concurrent use.
@@ -171,4 +179,4 @@ func (r *MockRepository) Reset() {
 }
 
 // Ensure MockRepository implements Repository at compile time.
-var _ Repository = (*MockRepository)(nil)
+var _ persistence.Repository = (*MockRepository)(nil)

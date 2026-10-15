@@ -117,62 +117,6 @@ func (c *DefaultScenarioCLI) GetStatus(ctx context.Context, scenarioName string)
 // Compile-time interface enforcement
 var _ ScenarioCLI = (*DefaultScenarioCLI)(nil)
 
-// MockScenarioCLI is a test double for ScenarioCLI.
-type MockScenarioCLI struct {
-	Ports     map[string]map[string]int // scenarioName -> portName -> port
-	Scenarios []ScenarioMetadata
-	Statuses  map[string]string // scenarioName -> status
-	Errors    map[string]error  // method -> error
-}
-
-// NewMockScenarioCLI creates a new mock with empty defaults.
-func NewMockScenarioCLI() *MockScenarioCLI {
-	return &MockScenarioCLI{
-		Ports:    make(map[string]map[string]int),
-		Statuses: make(map[string]string),
-		Errors:   make(map[string]error),
-	}
-}
-
-// LookupPort returns the configured port or error.
-func (m *MockScenarioCLI) LookupPort(_ context.Context, scenarioName, portName string) (int, error) {
-	if err, ok := m.Errors["LookupPort"]; ok && err != nil {
-		return 0, err
-	}
-	if ports, ok := m.Ports[scenarioName]; ok {
-		if port, ok := ports[portName]; ok {
-			return port, nil
-		}
-	}
-	return 0, fmt.Errorf("port %s not found for scenario %s", portName, scenarioName)
-}
-
-func (m *MockScenarioCLI) LookupPortAtPath(ctx context.Context, scenarioName, portName, _ string) (int, error) {
-	return m.LookupPort(ctx, scenarioName, portName)
-}
-
-// ListScenarios returns the configured scenarios or error.
-func (m *MockScenarioCLI) ListScenarios(_ context.Context) ([]ScenarioMetadata, error) {
-	if err, ok := m.Errors["ListScenarios"]; ok && err != nil {
-		return nil, err
-	}
-	return m.Scenarios, nil
-}
-
-// GetStatus returns the configured status or "unknown".
-func (m *MockScenarioCLI) GetStatus(_ context.Context, scenarioName string) (string, error) {
-	if err, ok := m.Errors["GetStatus"]; ok && err != nil {
-		return "", err
-	}
-	if status, ok := m.Statuses[scenarioName]; ok {
-		return status, nil
-	}
-	return "unknown", nil
-}
-
-// Compile-time interface enforcement
-var _ ScenarioCLI = (*MockScenarioCLI)(nil)
-
 // Global CLI instance (allows backward-compatible seam injection)
 var scenarioCLI ScenarioCLI = &DefaultScenarioCLI{}
 

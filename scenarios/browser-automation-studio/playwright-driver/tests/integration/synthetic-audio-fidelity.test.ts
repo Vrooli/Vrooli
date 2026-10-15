@@ -1,8 +1,7 @@
 import { resolve } from 'path';
 import * as http from 'http';
-import { chromium } from 'rebrowser-playwright';
+import { withBrowser } from './support/browser-fixture';
 import { getAudioLaunchArgs, generateSilentSinkPatch } from '../../src/session/audio';
-
 jest.setTimeout(60_000);
 
 const fixture = resolve(__dirname, '../../../../audio-tools/bas/fixtures/dictation-reference.wav');
@@ -12,7 +11,7 @@ let origin = '';
 let server: http.Server;
 
 async function captureFakeMicrophone(): Promise<Sample> {
-  const browser = await chromium.launch({
+  return withBrowser({
     headless: true,
     args: [
       ...getAudioLaunchArgs('synthetic_sink'),
@@ -20,7 +19,7 @@ async function captureFakeMicrophone(): Promise<Sample> {
       '--use-fake-ui-for-media-stream',
       `--use-file-for-fake-audio-capture=${fixture}`,
     ],
-  });
+  }, async (browser) => {
   const context = await browser.newContext();
   await context.addInitScript(generateSilentSinkPatch());
   const page = await context.newPage();
@@ -64,10 +63,9 @@ async function captureFakeMicrophone(): Promise<Sample> {
   } finally {
     await page.close().catch(() => undefined);
     await context.close().catch(() => undefined);
-    await browser.close().catch(() => undefined);
   }
+  });
 }
-
 describe('synthetic silent-sink audio fidelity', () => {
   beforeAll(async (): Promise<void> => {
     server = http.createServer((_req, res) => res.end('audio fixture origin'));

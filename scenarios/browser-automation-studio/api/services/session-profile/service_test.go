@@ -15,13 +15,14 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/api-core/scheduletest"
 	"github.com/vrooli/browser-automation-studio/internal/testutil"
+	"github.com/vrooli/browser-automation-studio/internal/testutil/sessionprofilemocks"
 	"github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 )
 
-func newTestService(t *testing.T) (*Service, *persistence.MockRepository, *scheduletest.FakeClock) {
+func newTestService(t *testing.T) (*Service, *sessionprofilemocks.MockRepository, *scheduletest.FakeClock) {
 	t.Helper()
-	repo := persistence.NewMockRepository()
+	repo := sessionprofilemocks.NewMockRepository()
 	mockClock := scheduletest.New(time.Date(2024, 6, 15, 12, 0, 0, 0, time.UTC))
 	log := logrus.New()
 	log.SetLevel(logrus.PanicLevel)
@@ -471,7 +472,7 @@ func TestService_ProfileCapturesSerializeAndRespectCancellation(t *testing.T) {
 }
 
 type checkpointFaultRepository struct {
-	*persistence.MockRepository
+	*sessionprofilemocks.MockRepository
 	fail atomic.Bool
 }
 
@@ -486,7 +487,7 @@ func (r *checkpointFaultRepository) Update(id persistence.ProfileID, modify func
 // last good state on failure, and finish before their lifecycle owner returns.
 func TestService_PeriodicCheckpointDurability(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		repo := &checkpointFaultRepository{MockRepository: persistence.NewMockRepository()}
+		repo := &checkpointFaultRepository{MockRepository: sessionprofilemocks.NewMockRepository()}
 		svc := NewService(repo, nil)
 		profile, _ := svc.CreateProfile("Periodic")
 		svc.SetActiveSession("session", string(profile.ID))
@@ -531,7 +532,7 @@ func TestService_PeriodicCheckpointDurability(t *testing.T) {
 
 func TestService_PeriodicCheckpointRejectsAmbiguousWriter(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		svc := NewService(persistence.NewMockRepository(), nil)
+		svc := NewService(sessionprofilemocks.NewMockRepository(), nil)
 		profile, _ := svc.CreateProfile("Shared")
 		svc.SetActiveSession("first", string(profile.ID))
 		started, release := make(chan struct{}), make(chan struct{})
@@ -578,7 +579,7 @@ func TestService_PeriodicCheckpointRejectsAmbiguousWriter(t *testing.T) {
 
 func TestService_CheckpointShutdownCancelsCapture(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		svc := NewService(persistence.NewMockRepository(), nil)
+		svc := NewService(sessionprofilemocks.NewMockRepository(), nil)
 		profile, _ := svc.CreateProfile("Shutdown")
 		svc.SetActiveSession("session", string(profile.ID))
 		ctx, cancel := context.WithCancel(context.Background())

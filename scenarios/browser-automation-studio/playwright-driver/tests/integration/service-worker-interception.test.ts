@@ -16,7 +16,8 @@ import { generateActivationScript } from '../../src/recording/capture/init-scrip
  * 3. Verify telemetry can detect event loss
  */
 
-import { chromium, Browser, BrowserContext, Page } from 'rebrowser-playwright';
+import { BrowserContext, Page } from 'rebrowser-playwright';
+import { ownBrowser } from './support/browser-fixture';
 import * as http from 'http';
 import {
   createRecordingContextInitializer,
@@ -24,7 +25,6 @@ import {
 } from '../../src/recording';
 import { waitForScriptReady } from '../../src/recording';
 import type { RawBrowserEvent } from '../../src/recording';
-
 // Increase timeout for browser operations
 jest.setTimeout(60000);
 
@@ -166,19 +166,16 @@ class ServiceWorkerTestServer {
     return `http://localhost:${this.port}${path}`;
   }
 }
-
 describe('Service Worker Interception Detection (Integration)', () => {
-  let browser: Browser;
+  const browserOwner = ownBrowser({ headless: true });
   let server: ServiceWorkerTestServer;
 
   beforeAll(async () => {
-    browser = await chromium.launch({ headless: true });
     server = new ServiceWorkerTestServer();
     await server.start();
   });
 
   afterAll(async () => {
-    await browser.close();
     await server.stop();
   });
 
@@ -189,7 +186,7 @@ describe('Service Worker Interception Detection (Integration)', () => {
     let capturedEvents: RawBrowserEvent[];
 
     beforeEach(async () => {
-      context = await browser.newContext();
+      context = await browserOwner.browser.newContext();
       initializer = createRecordingContextInitializer({});
       await initializer.initialize(context);
       page = await context.newPage();
@@ -270,7 +267,7 @@ describe('Service Worker Interception Detection (Integration)', () => {
     let capturedEvents: RawBrowserEvent[];
 
     beforeEach(async () => {
-      context = await browser.newContext();
+      context = await browserOwner.browser.newContext();
       initializer = createRecordingContextInitializer({});
       await initializer.initialize(context);
       page = await context.newPage();

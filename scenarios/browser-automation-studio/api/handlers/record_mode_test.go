@@ -19,6 +19,7 @@ import (
 	autosession "github.com/vrooli/browser-automation-studio/automation/session"
 	"github.com/vrooli/browser-automation-studio/domain"
 	"github.com/vrooli/browser-automation-studio/internal/testutil"
+	"github.com/vrooli/browser-automation-studio/internal/testutil/sessionprofilemocks"
 	"github.com/vrooli/browser-automation-studio/performance"
 	livecapture "github.com/vrooli/browser-automation-studio/services/live-capture"
 	sessionprofile "github.com/vrooli/browser-automation-studio/services/session-profile"
@@ -838,7 +839,7 @@ func TestPersistRecordingSession_NoActiveProfile(t *testing.T) {
 }
 
 type profileCommitRecorder struct {
-	*persistence.MockRepository
+	*sessionprofilemocks.MockRepository
 	commits int
 }
 
@@ -878,7 +879,7 @@ func (d *profileSnapshotDriver) CloseSession(ctx context.Context, id string) err
 func TestRecordingProfileSnapshotRequiresCurrentBinding(t *testing.T) {
 	for _, change := range []string{"clear", "same-profile-rebind", "other-profile-rebind", "cancel"} {
 		t.Run(change, func(t *testing.T) {
-			repo := persistence.NewMockRepository()
+			repo := sessionprofilemocks.NewMockRepository()
 			log := logrus.New()
 			log.SetLevel(logrus.PanicLevel)
 			svc := sessionprofile.NewService(repo, log)
@@ -930,7 +931,7 @@ func TestRecordingProfileCommit(t *testing.T) {
 				continue
 			}
 			t.Run(operation+"/"+failure, func(t *testing.T) {
-				repo := &profileCommitRecorder{MockRepository: persistence.NewMockRepository()}
+				repo := &profileCommitRecorder{MockRepository: sessionprofilemocks.NewMockRepository()}
 				profile := &persistence.SessionProfile{
 					ID: "profile", Name: "Saved identity",
 					StorageState: json.RawMessage(`{"cookies":[{"name":"identity","value":"old"}],"origins":[]}`),
@@ -1177,7 +1178,7 @@ func (d *rejectedRestorationDriver) CloseSession(ctx context.Context, id string)
 func TestFailedRestorationPreservesProfileAndClosesUncommittedSession(t *testing.T) {
 	for _, fault := range []string{"restore", "cleanup", "cancelled request", "owner handoff"} {
 		t.Run(fault, func(t *testing.T) {
-			repo := &profileCommitRecorder{MockRepository: persistence.NewMockRepository()}
+			repo := &profileCommitRecorder{MockRepository: sessionprofilemocks.NewMockRepository()}
 			profile := &persistence.SessionProfile{ID: "saved", Name: "Saved identity", StorageState: json.RawMessage(`{"cookies":[],"origins":[]}`), OpenTabs: []persistence.TabState{{URL: "https://saved.invalid", IsActive: true}}}
 			if err := repo.Create(profile); err != nil {
 				t.Fatal(err)

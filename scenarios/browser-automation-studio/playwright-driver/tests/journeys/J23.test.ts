@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { WebSocketServer, type WebSocket } from 'ws';
 import type { StartRecordingRequest, StartRecordingResponse, StreamSettingsRequest, StreamSettingsResponse } from '../../src/routes/record-mode/types';
-import { TIMEOUT_MS, action, driver, env, ownership, runAction, withLeases, type Lease } from './support';
+import { TIMEOUT_MS, action, driver, env, ownership, registerRecordingCleanup, runAction, withLeases, type Lease } from './support';
 
 type FrameEnvelope = { source: { stream_kind: 'recording' | 'execution'; session_id: string; execution_id: string; lease_id: string; page_id: string }; timing?: { frame_bytes?: number; frame_id?: string } };
 
@@ -32,14 +32,6 @@ const nextFrame = (socket: WebSocket): Promise<{ envelope: FrameEnvelope; jpeg: 
   return () => socket.off('message', received);
 });
 
-async function stopRecording(lease: Lease): Promise<void> {
-  const record = `/session/${lease.sessionId}/record`;
-  await driver(`${record}/stop`, ownership(lease));
-  const { entries } = await driver<{ entries: Array<{ id?: string }> }>(`${record}/actions`);
-  const entry_ids = entries.flatMap(({ id }) => (id ? [id] : []));
-  if (entry_ids.length > 0) await driver(`${record}/actions/ack`, { ...ownership(lease), entry_ids });
-}
-
 describe('[REQ:BAS-RH-J23] frame stream controls and reconnect', () => {
   let observer: WebSocketServer;
   beforeAll(() => new Promise<void>((resolve) => { observer = new WebSocketServer({ host: '127.0.0.1', port: 0 }, resolve); }));
@@ -48,7 +40,7 @@ describe('[REQ:BAS-RH-J23] frame stream controls and reconnect', () => {
     return new Promise<void>((resolve) => observer.close(() => resolve()));
   });
 
-  it('given an active frame stream, when controls change and the transport reconnects, then receipts match and a valid frame returns', () => withLeases(async (open) => {
+  it('given an active frame stream, when controls change and the transport reconnects, then receipts match and a valid frame returns', () => withLeases(async (open, resources) => {
     const lease = await open();
     const record = `/session/${lease.sessionId}/record`;
     expect((await runAction(lease, action('navigate', { url: `${env.fixture}/` }))).finalUrl).toBe(`${env.fixture}/`);
@@ -61,7 +53,7 @@ describe('[REQ:BAS-RH-J23] frame stream controls and reconnect', () => {
       frame_stream_url: `ws://127.0.0.1:${address.port}/frames`, frame_quality: 65, frame_fps: 15,
     };
     expect((await driver<StartRecordingResponse>(`${record}/start`, start)).recording_id).toBe(start.recording_id);
-    try {
+    registerRecordingCleanup(resources, lease);
       const socket = await firstSocket;
       const first = await nextFrame(socket);
       expect(first.envelope.source).toMatchObject({ session_id: lease.sessionId, ...ownership(lease) });
@@ -80,8 +72,5 @@ describe('[REQ:BAS-RH-J23] frame stream controls and reconnect', () => {
       const afterReconnect = await nextFrame(await reconnected);
       expect(afterReconnect.envelope.source).toEqual(first.envelope.source);
       expect(afterReconnect.envelope.timing).toMatchObject({ frame_bytes: afterReconnect.jpeg.length, frame_id: expect.any(String) });
-    } finally {
-      await stopRecording(lease);
-    }
   }));
 });

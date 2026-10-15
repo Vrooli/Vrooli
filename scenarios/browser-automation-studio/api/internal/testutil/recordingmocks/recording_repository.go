@@ -1,5 +1,5 @@
-// Package persistence provides data access for the unified recording service.
-package persistence
+// Package recordingmocks contains the recording persistence repository fake used by tests.
+package recordingmocks
 
 import (
 	"context"
@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/vrooli/browser-automation-studio/domain"
+	"github.com/vrooli/browser-automation-studio/services/recording/persistence"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 	"google.golang.org/protobuf/proto"
 )
@@ -35,7 +36,7 @@ type CallCounts struct {
 type MockRepository struct {
 	mu       sync.RWMutex
 	sessions map[string]*domain.RecordingSession
-	entries  map[string][]*UnifiedTimelineEntry
+	entries  map[string][]*persistence.UnifiedTimelineEntry
 
 	// Call tracking for test verification
 	callCounts CallCounts
@@ -58,7 +59,7 @@ type MockRepository struct {
 func NewMockRepository() *MockRepository {
 	return &MockRepository{
 		sessions: make(map[string]*domain.RecordingSession),
-		entries:  make(map[string][]*UnifiedTimelineEntry),
+		entries:  make(map[string][]*persistence.UnifiedTimelineEntry),
 	}
 }
 
@@ -74,7 +75,7 @@ func (r *MockRepository) CreateSession(ctx context.Context, session *domain.Reco
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.sessions[session.ID] = session
-	r.entries[session.ID] = []*UnifiedTimelineEntry{}
+	r.entries[session.ID] = []*persistence.UnifiedTimelineEntry{}
 	return nil
 }
 
@@ -155,7 +156,7 @@ func (r *MockRepository) DeleteSession(ctx context.Context, sessionID string) er
 	return nil
 }
 
-func (r *MockRepository) AppendTimelineEntry(ctx context.Context, entry *UnifiedTimelineEntry) (bool, error) {
+func (r *MockRepository) AppendTimelineEntry(ctx context.Context, entry *persistence.UnifiedTimelineEntry) (bool, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.callCounts.AppendTimelineEntry++
@@ -207,7 +208,7 @@ func (r *MockRepository) AppendTimelineEntry(ctx context.Context, entry *Unified
 }
 
 // GetTimelineEntry retrieves a single entry by ID.
-func (r *MockRepository) GetTimelineEntry(ctx context.Context, entryID uuid.UUID) (*UnifiedTimelineEntry, error) {
+func (r *MockRepository) GetTimelineEntry(ctx context.Context, entryID uuid.UUID) (*persistence.UnifiedTimelineEntry, error) {
 	r.mu.Lock()
 	r.callCounts.GetTimelineEntry++
 	r.mu.Unlock()
@@ -228,7 +229,7 @@ func (r *MockRepository) GetTimelineEntry(ctx context.Context, entryID uuid.UUID
 }
 
 // GetTimeline returns timeline entries matching the query.
-func (r *MockRepository) GetTimeline(ctx context.Context, query TimelineQuery) (*TimelineResponse, error) {
+func (r *MockRepository) GetTimeline(ctx context.Context, query persistence.TimelineQuery) (*persistence.TimelineResponse, error) {
 	r.mu.Lock()
 	r.callCounts.GetTimeline++
 	r.mu.Unlock()
@@ -239,7 +240,7 @@ func (r *MockRepository) GetTimeline(ctx context.Context, query TimelineQuery) (
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	entries := r.entries[query.SessionID]
-	result := make([]UnifiedTimelineEntry, 0, len(entries))
+	result := make([]persistence.UnifiedTimelineEntry, 0, len(entries))
 	for _, e := range entries {
 		// Apply filters
 		if query.PageID != nil && e.PageID != *query.PageID {
@@ -264,7 +265,7 @@ func (r *MockRepository) GetTimeline(ctx context.Context, query TimelineQuery) (
 	}
 	query.ApplyDefaults()
 	if query.Offset >= len(result) {
-		result = []UnifiedTimelineEntry{}
+		result = []persistence.UnifiedTimelineEntry{}
 	} else {
 		result = result[query.Offset:]
 	}
@@ -272,7 +273,7 @@ func (r *MockRepository) GetTimeline(ctx context.Context, query TimelineQuery) (
 	if hasMore {
 		result = result[:query.Limit]
 	}
-	return &TimelineResponse{
+	return &persistence.TimelineResponse{
 		Entries:    result,
 		HasMore:    hasMore,
 		TotalCount: len(entries),
@@ -342,7 +343,7 @@ func (r *MockRepository) GetAllSessions() []*domain.RecordingSession {
 }
 
 // GetAllEntries returns all entries for a session (test helper).
-func (r *MockRepository) GetAllEntries(sessionID string) []*UnifiedTimelineEntry {
+func (r *MockRepository) GetAllEntries(sessionID string) []*persistence.UnifiedTimelineEntry {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	return r.entries[sessionID]
@@ -353,7 +354,7 @@ func (r *MockRepository) Clear() {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.sessions = make(map[string]*domain.RecordingSession)
-	r.entries = make(map[string][]*UnifiedTimelineEntry)
+	r.entries = make(map[string][]*persistence.UnifiedTimelineEntry)
 }
 
 // GetCallCounts returns a snapshot of the call counts for all repository methods.
@@ -373,4 +374,35 @@ func (r *MockRepository) ResetCallCounts() {
 }
 
 // Ensure MockRepository implements Repository at compile time.
-var _ Repository = (*MockRepository)(nil)
+var _ persistence.Repository = (*MockRepository)(nil)
+
+// setDurableProtoSequence mirrors persistence's commit metadata helper for the test fake.
+func setDurableProtoSequence(entry *persistence.UnifiedTimelineEntry) {
+	if entry.Entry != nil {
+		entry.Entry.SequenceNum = int32(entry.Sequence)
+	}
+}
+
+// sameObservation compares persisted observation fields while ignoring commit metadata.
+func sameObservation(a, b *persistence.UnifiedTimelineEntry) bool {
+	canonical := func(e *persistence.UnifiedTimelineEntry) []byte {
+		copyEntry := *e
+		copyEntry.Sequence = 0
+		if e.Action != nil {
+			copyAction := *e.Action
+			copyAction.CreatedAt = time.Time{}
+			copyEntry.Action = &copyAction
+		}
+		if e.Entry != nil {
+			copyEntry.Entry = proto.Clone(e.Entry).(*bastimeline.TimelineEntry)
+			copyEntry.Entry.SequenceNum = 0
+		}
+		data, err := json.Marshal(copyEntry)
+		if err != nil {
+			return nil
+		}
+		return data
+	}
+	left, right := canonical(a), canonical(b)
+	return left != nil && string(left) == string(right)
+}

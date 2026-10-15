@@ -3,18 +3,14 @@
  * driver-level check; the BAS-RH-J11 journey (API route with a stubbed model) is pending
  * because the driver reads its model gateway only from AI_GATEWAY_URL at startup.
  */
-import { chromium } from 'rebrowser-playwright';
+import { itWithBrowser } from './support/browser-fixture';
 import { createActionExecutor } from '../../src/ai/action';
 import { createElementAnnotator, createScreenshotCapture } from '../../src/ai/screenshot';
 import { createNoopLogger, createVisionAgent, type VisionAgentDeps, type VisionAnalysisRequestInterface } from '../../src/ai/vision-agent';
-
 const PAGE = '<button id="counter" onclick="document.querySelector(\'#count\').textContent=String(Number(document.querySelector(\'#count\').textContent)+1)">Click fixture</button><span id="count">0</span>';
 const usage = { promptTokens: 1, completionTokens: 1, totalTokens: 2 };
-
 describe('vision agent with a stubbed model on a real browser', () => {
-  it('given an authorized task, when the stub picks the labelled control, then the task reaches the model and the effect happens once', async () => {
-    const browser = await chromium.launch({ headless: true });
-    try {
+  itWithBrowser('given an authorized task, when the stub picks the labelled control, then the task reaches the model and the effect happens once', { headless: true }, async (browser) => {
       const page = await browser.newPage();
       await page.goto(`data:text/html,${encodeURIComponent(PAGE)}`, { waitUntil: 'load' });
       const requests: VisionAnalysisRequestInterface[] = [];
@@ -46,8 +42,5 @@ describe('vision agent with a stubbed model on a real browser', () => {
       expect(requests[0]?.goal).toContain('authorized action');
       expect(requests[0]?.conversationHistory.some(({ content }) => content.includes('Goal:'))).toBe(true);
       expect(await page.locator('#count').textContent()).toBe('1');
-    } finally {
-      await browser.close();
-    }
   }, 30000);
 });

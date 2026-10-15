@@ -1,8 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { dirname, resolve } from 'node:path';
-import { chromium, type Browser } from 'rebrowser-playwright';
-
+import { ownBrowser } from './support/browser-fixture';
 type MotionSample = {
   capturedAt: string;
   frameAgeMs: number;
@@ -94,17 +93,8 @@ function expectBaselineInBand(baseline: ReturnType<typeof summarize>): void {
   expect(baseline.maxFrameBytes).toBeLessThanOrEqual(12 * 1024 * 1024 + 4 * 1024);
   expect(baseline.p95DecodeMs).toBeLessThanOrEqual(100);
 }
-
 describe('managed BAS live motion qualification', () => {
-  let browser: Browser;
-
-  beforeAll(async () => {
-    browser = await chromium.launch({ headless: true });
-  });
-
-  afterAll(async () => {
-    await browser?.close();
-  });
+  const browserOwner = ownBrowser({ headless: true });
 
   it('renders five minutes of changing 30 FPS motion and stays bounded during a slow-reader cohort', async () => {
     const apiBase = process.env.BAS_REHAB_LIVE_API_BASE;
@@ -118,7 +108,7 @@ describe('managed BAS live motion qualification', () => {
       );
     }
 
-    const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+    const page = await browserOwner.browser.newPage({ viewport: { width: 1440, height: 1000 } });
     const fixtureCells = Array.from(
       { length: 16 },
       (_, index) =>

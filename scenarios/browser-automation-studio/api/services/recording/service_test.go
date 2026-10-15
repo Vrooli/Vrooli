@@ -24,13 +24,14 @@ import (
 	"github.com/vrooli/browser-automation-studio/domain"
 	recordingschema "github.com/vrooli/browser-automation-studio/internal/recording"
 	"github.com/vrooli/browser-automation-studio/internal/testutil/fixtures"
+	"github.com/vrooli/browser-automation-studio/internal/testutil/recordingmocks"
 	"github.com/vrooli/browser-automation-studio/services/recording/persistence"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	_ "modernc.org/sqlite"
 )
 
 func TestNewService(t *testing.T) {
-	repo := persistence.NewMockRepository()
+	repo := recordingmocks.NewMockRepository()
 	log := logrus.New()
 	log.SetLevel(logrus.DebugLevel)
 
@@ -42,7 +43,7 @@ func TestNewService(t *testing.T) {
 }
 
 func TestNewService_WithClock(t *testing.T) {
-	repo := persistence.NewMockRepository()
+	repo := recordingmocks.NewMockRepository()
 	log := logrus.New()
 	log.SetLevel(logrus.DebugLevel)
 	mockClock := scheduletest.New(time.Time{})
@@ -71,7 +72,7 @@ func TestNewService_WithClock(t *testing.T) {
 }
 
 func TestService_CreateSession(t *testing.T) {
-	repo := persistence.NewMockRepository()
+	repo := recordingmocks.NewMockRepository()
 	log := logrus.New()
 	log.SetLevel(logrus.DebugLevel)
 
@@ -100,7 +101,7 @@ func TestService_CreateSession(t *testing.T) {
 }
 
 func TestService_RecordAction(t *testing.T) {
-	repo := persistence.NewMockRepository()
+	repo := recordingmocks.NewMockRepository()
 	log := logrus.New()
 	log.SetLevel(logrus.DebugLevel)
 
@@ -166,7 +167,7 @@ func TestService_RecordAction(t *testing.T) {
 
 func TestService_RedactsSensitiveActionsBeforeCommitAndOnLegacyRead(t *testing.T) {
 	const secret = "BAS_SYNTHETIC_JOURNAL_SECRET_9e6a"
-	repo := persistence.NewMockRepository()
+	repo := recordingmocks.NewMockRepository()
 	svc := NewService(repo, ServiceConfig{})
 	ctx := context.Background()
 	session, err := svc.CreateSession(ctx, SessionConfig{})
@@ -229,7 +230,7 @@ func TestService_RedactsSensitiveActionsBeforeCommitAndOnLegacyRead(t *testing.T
 }
 
 func TestService_RecordPageEvent(t *testing.T) {
-	repo := persistence.NewMockRepository()
+	repo := recordingmocks.NewMockRepository()
 	log := logrus.New()
 	log.SetLevel(logrus.DebugLevel)
 
@@ -292,7 +293,7 @@ func TestService_RecordPageEvent(t *testing.T) {
 }
 
 func TestService_CloseSession(t *testing.T) {
-	repo := persistence.NewMockRepository()
+	repo := recordingmocks.NewMockRepository()
 	log := logrus.New()
 	log.SetLevel(logrus.DebugLevel)
 
@@ -357,7 +358,7 @@ func TestActionSource_Values(t *testing.T) {
 // =============================================================================
 
 func TestService_GetTimelineForPage_Success(t *testing.T) {
-	repo := persistence.NewMockRepository()
+	repo := recordingmocks.NewMockRepository()
 	log := logrus.New()
 	log.SetLevel(logrus.DebugLevel)
 
@@ -422,7 +423,7 @@ func TestService_GetTimelineForPage_Success(t *testing.T) {
 }
 
 func TestService_GetTimelineForPage_EmptyResult(t *testing.T) {
-	repo := persistence.NewMockRepository()
+	repo := recordingmocks.NewMockRepository()
 	log := logrus.New()
 	log.SetLevel(logrus.DebugLevel)
 
@@ -451,7 +452,7 @@ func TestService_GetTimelineForPage_EmptyResult(t *testing.T) {
 }
 
 func TestService_GetTimelineForPage_RespectsLimit(t *testing.T) {
-	repo := persistence.NewMockRepository()
+	repo := recordingmocks.NewMockRepository()
 	log := logrus.New()
 	log.SetLevel(logrus.DebugLevel)
 
@@ -497,7 +498,7 @@ func TestService_GetTimelineForPage_RespectsLimit(t *testing.T) {
 // =============================================================================
 
 func TestService_Query_ByPageID(t *testing.T) {
-	repo := persistence.NewMockRepository()
+	repo := recordingmocks.NewMockRepository()
 	log := logrus.New()
 	log.SetLevel(logrus.DebugLevel)
 
@@ -549,7 +550,7 @@ func TestService_Query_ByPageID(t *testing.T) {
 }
 
 func TestService_Query_BySince(t *testing.T) {
-	repo := persistence.NewMockRepository()
+	repo := recordingmocks.NewMockRepository()
 	log := logrus.New()
 	log.SetLevel(logrus.DebugLevel)
 
@@ -602,7 +603,7 @@ func TestService_Query_BySince(t *testing.T) {
 }
 
 func TestService_Query_ByEntryType(t *testing.T) {
-	repo := persistence.NewMockRepository()
+	repo := recordingmocks.NewMockRepository()
 	log := logrus.New()
 	log.SetLevel(logrus.DebugLevel)
 
@@ -662,7 +663,7 @@ func TestService_Query_ByEntryType(t *testing.T) {
 // =============================================================================
 
 func TestService_SetOnAction_InvokesCallback(t *testing.T) {
-	repo := persistence.NewMockRepository()
+	repo := recordingmocks.NewMockRepository()
 	log := logrus.New()
 	log.SetLevel(logrus.DebugLevel)
 

@@ -11,12 +11,12 @@
  * rather than failing (same posture as the rest of the integration suite).
  */
 
-import { chromium, type Browser, type BrowserContext, type Page } from 'rebrowser-playwright';
+import { type BrowserContext, type Page } from 'rebrowser-playwright';
+import { ownBrowser } from './support/browser-fixture';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { PerformanceTracer, injectWebVitalsObserver, PERF_TRACE_FILE } from '../../src/tracing';
-
 interface TraceEvent {
   cat?: string;
   name?: string;
@@ -55,24 +55,9 @@ function emitReactCommitMarks(page: Page): Promise<void> {
 const PLAIN_PAGE = `data:text/html,${encodeURIComponent(`
 <!doctype html><html><head><title>plain</title></head>
 <body><h1>plain page</h1><p>no instrumentation</p></body></html>`)}`;
-
 describe('Performance capture (real browser, Tier 0 + ⚛ pass-through)', () => {
-  let browser: Browser | undefined;
+  const browserOwner = ownBrowser({ headless: true }, true);
   let dir: string;
-
-  beforeAll(async () => {
-    try {
-      browser = await chromium.launch({ headless: true });
-    } catch {
-      browser = undefined; // Environment cannot launch Chromium; tests self-skip.
-    }
-  });
-
-  afterAll(async () => {
-    if (browser) {
-      await browser.close();
-    }
-  });
 
   beforeEach(async () => {
     dir = await mkdtemp(path.join(tmpdir(), 'perf-capture-'));
@@ -98,12 +83,12 @@ describe('Performance capture (real browser, Tier 0 + ⚛ pass-through)', () => 
   }
 
   it('captures a Tier 0 trace with timeline / CPU profile events on a plain page (no ⚛)', async () => {
-    if (!browser) {
+    if (!browserOwner.browser) {
       // eslint-disable-next-line no-console
       console.warn('chromium unavailable — skipping real-browser perf capture test');
       return;
     }
-    const context = await browser.newContext();
+    const context = await browserOwner.browser.newContext();
     const page = await context.newPage();
     try {
       const trace = await capture(context, page, PLAIN_PAGE);
@@ -127,10 +112,10 @@ describe('Performance capture (real browser, Tier 0 + ⚛ pass-through)', () => 
   }, 30000);
 
   it('passes through ⚛ marks when the page emits them (Tier 1 rides along)', async () => {
-    if (!browser) {
+    if (!browserOwner.browser) {
       return;
     }
-    const context = await browser.newContext();
+    const context = await browserOwner.browser.newContext();
     const page = await context.newPage();
     try {
       await injectWebVitalsObserver(context);

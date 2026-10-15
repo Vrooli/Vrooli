@@ -14,7 +14,8 @@
  * catch such issues before they reach production.
  */
 
-import { chromium, Browser, BrowserContext, Page } from 'rebrowser-playwright';
+import { BrowserContext, Page } from 'rebrowser-playwright';
+import { ownBrowser } from './support/browser-fixture';
 import * as http from 'http';
 import {
   createRecordingContextInitializer,
@@ -203,17 +204,15 @@ async function simulateRealScroll(page: Page, deltaY: number = 200): Promise<voi
 }
 
 describe('End-to-End Timeline Validation (Integration)', () => {
-  let browser: Browser;
+  const browserOwner = ownBrowser({ headless: true });
   let server: TimelineTestServer;
 
   beforeAll(async () => {
-    browser = await chromium.launch({ headless: true });
     server = new TimelineTestServer();
     await server.start();
   });
 
   afterAll(async () => {
-    await browser.close();
     await server.stop();
   });
 
@@ -225,7 +224,7 @@ describe('End-to-End Timeline Validation (Integration)', () => {
     let capturedEntries: TimelineEntry[];
 
     beforeEach(async () => {
-      context = await browser.newContext();
+      context = await browserOwner.browser.newContext();
       initializer = createRecordingContextInitializer({});
       await initializer.initialize(context);
       page = await context.newPage();
@@ -803,7 +802,7 @@ describe('End-to-End Timeline Validation (Integration)', () => {
     let capturedEntries: TimelineEntry[];
 
     beforeEach(async () => {
-      context = await browser.newContext();
+      context = await browserOwner.browser.newContext();
       initializer = createRecordingContextInitializer({});
       await initializer.initialize(context);
       page = await context.newPage();

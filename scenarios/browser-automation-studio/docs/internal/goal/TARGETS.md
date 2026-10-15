@@ -17,15 +17,19 @@ Latest target evidence (2026-09-30): Linux x64 passes the 5 journeys
 
 About 10 fleet scenarios call the live BAS (workflow-health behind every Test
 Genie playbook run, ui-health, chart-generator, git-control-tower, and others).
-Use the goal's one shadow engagement (`bas-goal`, started 2026-09-29) to rebuild
-and run changed BAS code (`vrooli scenario ... --instance shadow`):
-`git-control-tower baseline start --scenario browser-automation-studio --mode shadow`
-(`status`, `promote` at a stable point, `abandon`). `promote` ends the
-engagement: right after a promote, run the same `baseline start` command again so
-the goal keeps one shadow. If the shadow is broken, fall back to restarting the
-live BAS in a quiet window: first confirm `agent-manager run list --status running`
-and `test-genie runs list` show no in-flight fleet validation. Record the fallback
-in WORKAROUNDS.md.
+Use the goal's one shadow engagement, `bas-goal`, to rebuild and run changed BAS
+code (`vrooli scenario ... --instance shadow`). Never run `baseline start` while
+`bas-goal` is open; it is refused.
+
+Promotion is operator-run until the delivery-loop canary is green (DL-6 in
+`docs/agent-system/DELIVERY_RELIABILITY.md`). The command is:
+`git-control-tower baseline cycle --scenario browser-automation-studio --name bas-goal`.
+It promotes, probes live, and re-creates `bas-goal`. After a cycle the shadow
+has no anchor run, so gate on journeys, not `baseline check`.
+
+If the shadow is broken, fall back to restarting the live BAS in a quiet window:
+first confirm `agent-manager run list --status running` and `test-genie runs list`
+show no in-flight fleet validation. Record the fallback in WORKAROUNDS.md.
 
 ## Daily qualification
 

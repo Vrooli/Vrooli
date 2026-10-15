@@ -1,5 +1,5 @@
 import { mkdir } from 'fs/promises';
-import type { Browser, BrowserContext, Frame } from 'rebrowser-playwright';
+import type { Browser, BrowserContext, Frame, Page } from 'rebrowser-playwright';
 import type { SessionSpec, BehaviorSettings } from '../types';
 import type { Config } from '../config';
 import { logger } from '../utils';
@@ -27,6 +27,50 @@ import { configureInteractionState } from './interaction-state';
 
 // Re-export for backward compatibility (canonical location is browser-profile)
 export { BEHAVIOR_SETTINGS_KEY } from '../browser-profile';
+
+/**
+ * A phone-class viewport renders nothing of value for layout correctness unless
+ * the display safe-area insets are present. Real devices report a notch/status
+ * bar at the top and a home-indicator at the bottom via env(safe-area-inset-*),
+ * and applications pad their fixed chrome against them. Headless Chromium reports
+ * all insets as 0, so a "mobile" capture silently validates a layout no physical
+ * phone ever shows — the exact blind spot that let GCT ship a bottom-nav safe-area
+ * regression past the mobile-regression gate. Inject representative iPhone insets
+ * (Dynamic Island 59px top, home indicator 34px bottom) for mobile viewports so
+ * captures and geometry assertions see what the device sees.
+ */
+export const MOBILE_SAFE_AREA_INSETS = { top: 59, bottom: 34, left: 0, right: 0 } as const;
+
+/** A viewport is phone-class when its shorter edge is a phone width. */
+export function isMobileViewport(viewport?: { width: number; height: number }): boolean {
+  return !!viewport && Math.min(viewport.width, viewport.height) <= 480;
+}
+
+/**
+ * Apply display safe-area insets to a page for phone-class viewports via the CDP
+ * Emulation domain (Playwright has no first-class API). No-op for larger viewports
+ * and best-effort: a driver without this CDP command must not fail the capture.
+ */
+export async function applySafeAreaInsets(
+  page: Page,
+  viewport?: { width: number; height: number }
+): Promise<void> {
+  if (!isMobileViewport(viewport)) return;
+  try {
+    const cdp = await page.context().newCDPSession(page);
+    // setSafeAreaInsetsOverride is newer than some protocol typings ship, hence the cast.
+    await (cdp as unknown as { send: (m: string, p: unknown) => Promise<unknown> }).send(
+      'Emulation.setSafeAreaInsetsOverride',
+      { insets: MOBILE_SAFE_AREA_INSETS }
+    );
+    await cdp.detach().catch(() => {});
+    logger.debug('Applied mobile safe-area insets', { viewport, insets: MOBILE_SAFE_AREA_INSETS });
+  } catch (error) {
+    logger.warn('Safe-area inset override unavailable; mobile capture will render with zero insets', {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
 
 /**
  * Build BrowserContext from SessionSpec

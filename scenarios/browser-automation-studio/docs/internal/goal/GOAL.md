@@ -1,7 +1,7 @@
 # Goal — Browser Automation Studio rehabilitation
 
 **Destination.** BAS is fast, reliable, polished, maintainable and production
-ready: each concept has one owner; all 24 preservation journeys exist and pass
+ready: each concept has one owner; all 25 preservation journeys exist and pass
 daily on Linux x64; recordings are faithful and reviewable in the intended
 player (E22 R1/R2); BAS builds and runs on macOS. Runtime code stays at or below
 253,452 lines (2026-10-07, `refactor_inventory.py --no-git`) except within a

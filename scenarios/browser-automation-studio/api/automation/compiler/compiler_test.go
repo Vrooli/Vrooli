@@ -2,6 +2,7 @@ package compiler
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -23,6 +24,33 @@ import (
 func assertCompiledStepType(t testing.TB, step ExecutionStep, want StepType) {
 	t.Helper()
 	assert.Equal(t, enums.StringToActionType(string(want)), step.Action.GetType())
+}
+
+type compilerScenarioCLI struct {
+	ports map[string]map[string]int
+}
+
+func (c *compilerScenarioCLI) LookupPort(_ context.Context, scenarioName, portName string) (int, error) {
+	return c.lookupPort(scenarioName, portName)
+}
+
+func (c *compilerScenarioCLI) LookupPortAtPath(_ context.Context, scenarioName, portName, _ string) (int, error) {
+	return c.lookupPort(scenarioName, portName)
+}
+
+func (c *compilerScenarioCLI) ListScenarios(context.Context) ([]scenarioport.ScenarioMetadata, error) {
+	return nil, nil
+}
+
+func (c *compilerScenarioCLI) GetStatus(context.Context, string) (string, error) {
+	return "unknown", nil
+}
+
+func (c *compilerScenarioCLI) lookupPort(scenarioName, portName string) (int, error) {
+	if port, ok := c.ports[scenarioName][portName]; ok {
+		return port, nil
+	}
+	return 0, fmt.Errorf("port %s not found for scenario %s", portName, scenarioName)
 }
 
 // Helper to create a test workflow with proto types
@@ -106,8 +134,7 @@ func TestCompileWorkflowSequential(t *testing.T) {
 }
 
 func TestCompileWorkflowWithScenarioRootResolvesGeneratedScenarioPort(t *testing.T) {
-	cli := scenarioport.NewMockScenarioCLI()
-	cli.Ports["generated"] = map[string]int{"API_PORT": 6123}
+	cli := &compilerScenarioCLI{ports: map[string]map[string]int{"generated": {"API_PORT": 6123}}}
 	restore := scenarioport.SetScenarioCLIForTests(cli)
 	defer restore()
 
@@ -133,8 +160,7 @@ func TestCompileWorkflowWithScenarioRootResolvesGeneratedScenarioPort(t *testing
 }
 
 func TestCompileWorkflowWithScenarioRootResolvesSelfScenarioPort(t *testing.T) {
-	cli := scenarioport.NewMockScenarioCLI()
-	cli.Ports["device-control"] = map[string]int{"API_PORT": 16465}
+	cli := &compilerScenarioCLI{ports: map[string]map[string]int{"device-control": {"API_PORT": 16465}}}
 	restore := scenarioport.SetScenarioCLIForTests(cli)
 	defer restore()
 

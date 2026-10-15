@@ -63,6 +63,17 @@ const FINGERPRINT = html(`<h1>Local browser observations</h1><output id="fingerp
   void fetch('/fingerprint-observation', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(observations)});
 </script>`);
 
+// A local, clearly synthetic challenge lets the journey exercise the human
+// intervention boundary without contacting a sign-in or CAPTCHA provider.
+const CHALLENGE = html(`<h1>Fixture sign-in verification</h1>
+  <p id="challenge-status" role="status">A person must complete this local verification.</p>
+  <div class="g-recaptcha" data-sitekey="fixture-only">Local challenge placeholder</div>
+  <button id="challenge-complete" type="button" style="position:absolute;${box('challenge')}" onclick="document.querySelector('.g-recaptcha').remove(); document.querySelector('#challenge-status').textContent='Verification completed by a person'; fetch('/challenge-complete',{method:'POST'})">Complete local verification</button>`);
+const ENCRYPTED_PROFILE = html(`<h1>Encrypted profile fixture</h1><script>
+  localStorage.setItem('bas_j14_local', 'saved-local-state');
+  void fetch('/profile-observation', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({localStorage:localStorage.getItem('bas_j14_local')})});
+</script>`);
+
 /**
  * Start the BAS journey fixture on an ephemeral loopback port. It owns the
  * independent oracle for journey effects: every effect, held-request release
@@ -74,10 +85,13 @@ export async function startJourneySite() {
   const inputs = [];
   const scrolls = [];
   const fingerprints = [];
+  const challenges = [];
+  const challengeVisits = [];
+  const profileObservations = [];
   let retryAttempts = 0;
-  const counts = { effect: () => effects.length, release: () => released.length, input: () => inputs.length, scroll: () => scrolls.length, fingerprint: () => fingerprints.length };
+  const counts = { effect: () => effects.length, release: () => released.length, input: () => inputs.length, scroll: () => scrolls.length, fingerprint: () => fingerprints.length, challenge: () => challenges.length, 'challenge-visit': () => challengeVisits.length, 'profile-observation': () => profileObservations.length };
   const waiters = new Set();
-  const snapshot = () => ({ effects, released, inputs, scrolls, fingerprints, retryAttempts });
+  const snapshot = () => ({ effects, released, inputs, scrolls, fingerprints, challenges, challengeVisits, profileObservations, retryAttempts });
   const notify = () => { for (const wake of waiters) wake(); };
   const record = (entry) => { effects.push({ sequence: effects.length + 1, ...entry }); notify(); return effects.length; };
   const json = (response, status, body) => response.writeHead(status, { 'Content-Type': 'application/json' }).end(JSON.stringify(body));
@@ -107,6 +121,16 @@ export async function startJourneySite() {
         return;
       case 'POST /fingerprint-observation':
         fingerprints.push(JSON.parse(await readBody(request)));
+        notify();
+        response.writeHead(204).end();
+        return;
+      case 'POST /challenge-complete':
+        challenges.push({ context, completedBy: 'person' });
+        notify();
+        response.writeHead(204, { 'Set-Cookie': 'bas_j12_authorized=local-challenge-complete; Path=/; SameSite=Lax' }).end();
+        return;
+      case 'POST /profile-observation':
+        profileObservations.push({ context, ...JSON.parse(await readBody(request)) });
         notify();
         response.writeHead(204).end();
         return;
@@ -156,6 +180,14 @@ export async function startJourneySite() {
         return;
       case 'GET /fingerprint':
         response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }).end(FINGERPRINT);
+        return;
+      case 'GET /auth-challenge':
+        challengeVisits.push({ context });
+        notify();
+        response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', ...(!/(^|;\s*)fixture_context=/.test(context) ? { 'Set-Cookie': `fixture_context=${randomUUID()}; Path=/; SameSite=Lax` } : {}) }).end(CHALLENGE);
+        return;
+      case 'GET /encrypted-profile':
+        response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Set-Cookie': 'bas_j14_secret=sealed-profile-value; HttpOnly; Path=/; SameSite=Lax' }).end(ENCRYPTED_PROFILE);
         return;
       case 'GET /redirect':
         response.writeHead(302, { Location: '/redirect-target' }).end();

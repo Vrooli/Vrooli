@@ -1,5 +1,5 @@
-import { chromium, type Browser, type Page } from 'rebrowser-playwright';
-
+import { type Page } from 'rebrowser-playwright';
+import { ownBrowser } from './support/browser-fixture';
 jest.setTimeout(30000);
 
 const DELAYED_FIXTURE = `data:text/html,${encodeURIComponent(`
@@ -17,31 +17,17 @@ const DELAYED_FIXTURE = `data:text/html,${encodeURIComponent(`
     </script>
   </body>
 </html>`)};`;
-
 describe('DOM snapshot readiness', () => {
-  let browser: Browser | undefined;
-
-  beforeAll(async () => {
-    try {
-      browser = await chromium.launch({ headless: true });
-    } catch {
-      browser = undefined;
-    }
-  });
-
-  afterAll(async () => {
-    await browser?.close();
-  });
-
+  const browserOwner = ownBrowser({ headless: true }, true);
   async function newPage(): Promise<Page> {
-    if (!browser) {
+    if (!browserOwner.browser) {
       throw new Error('Chromium unavailable');
     }
-    return browser.newPage();
+    return browserOwner.browser.newPage();
   }
 
   it('misses late content without wait_for and captures it with wait_for', async () => {
-    if (!browser) return;
+    if (!browserOwner.browser) return;
 
     const earlyPage = await newPage();
     try {

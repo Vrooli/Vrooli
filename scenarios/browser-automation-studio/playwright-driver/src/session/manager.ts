@@ -12,6 +12,7 @@ import type { Config } from '../config';
 import {
   logger,
   metrics,
+  InvalidInstructionError,
   SessionNotFoundError,
   ResourceLimitError,
   scopedLog,
@@ -57,6 +58,7 @@ import {
   verifyBrowserCaptureDevice,
   buildContext,
 } from './manager-support';
+import { applySafeAreaInsets } from './context-builder';
 import { RecordingPipelineManager, createRecordingContextInitializer } from '../recording';
 import { ServiceWorkerController } from '../service-worker';
 import { resolveInstrumentation, safeInvoke, type Instrumentation } from '../instrumentation';
@@ -105,6 +107,25 @@ function isSafeForLabelReuse(session: SessionState): boolean {
 
 function shouldAttemptReuse(reuseMode: SessionSpec['reuse_mode']): boolean {
   return reuseMode !== 'fresh';
+}
+
+function validateAppTargetAdmission(spec: SessionSpec, target: AppTargetSpec): void {
+  validateAppTargetSpec(target);
+  validateAppTargetCapabilities(spec.required_capabilities);
+  const context = spec.validation_context;
+  if (!context) throw new InvalidInstructionError('Electron validation context is required');
+  if (context.context_id !== target.context_id) {
+    throw new InvalidInstructionError('Electron validation context does not match target context');
+  }
+  if (context.scenario_name !== target.scenario_name || context.artifact_digest !== target.artifact_digest) {
+    throw new InvalidInstructionError('Electron validation context does not match target identity');
+  }
+  if (context.target_id !== target.target_id || !context.workflow_id?.trim()) {
+    throw new InvalidInstructionError('Electron validation context does not match session identity');
+  }
+  if (!context.isolation_lease_id?.trim()) {
+    throw new InvalidInstructionError('Electron validation context requires an isolation lease');
+  }
 }
 
 /**
@@ -334,10 +355,19 @@ export class SessionManager {
     spec: SessionSpec,
     reserveCapacity: () => void
   ): Promise<SessionCreationResult> {
+    if (spec.app_target) validateAppTargetAdmission(spec, spec.app_target);
+
     // Idempotency: Check for existing session with same execution_id
     // The session manager owns reuse eligibility and lease-safe handoff.
     const existingByExecutionId = findByExecutionId(this.sessions.values(), spec.execution_id);
     if (existingByExecutionId) {
+      if (
+        (existingByExecutionId.spec.app_target || spec.app_target) &&
+        (!isDeepStrictEqual(existingByExecutionId.spec.app_target, spec.app_target) ||
+          !isDeepStrictEqual(existingByExecutionId.spec.validation_context, spec.validation_context))
+      ) {
+        throw new InvalidInstructionError('Electron execution ID is already bound to a different target validation context');
+      }
       logger.info(scopedLog(LogContext.SESSION, 'idempotent return of existing session'), {
         sessionId: existingByExecutionId.id,
         executionId: spec.execution_id,
@@ -370,7 +400,9 @@ export class SessionManager {
 
     // Handle reuse mode (match by labels)
     // The session manager owns cleanup eligibility and close retry ownership.
-    if (shouldAttemptReuse(spec.reuse_mode)) {
+    // Revalidate and attach to the requested renderer on every target-backed
+    // admission. A released target session is never a renderer fallback.
+    if (shouldAttemptReuse(spec.reuse_mode) && !spec.app_target) {
       const existingSession = findByLabels(this.sessions.values(), spec);
       if (existingSession) {
         logger.info(scopedLog(LogContext.SESSION, 'reusing existing'), {
@@ -515,6 +547,11 @@ export class SessionManager {
       contextForCleanup = context;
 
       const page = await context.newPage();
+      // Faithful phone rendering: real devices report notch/home-indicator insets
+      // that fixed chrome pads against. Apply them before any navigation so the
+      // very first paint — and every geometry assertion and screenshot — sees the
+      // layout the device actually produces.
+      await applySafeAreaInsets(page, actualViewport);
       let audioDeviceEvidence: BrowserCaptureDeviceEvidence | undefined;
       if (deviceEvidenceEnabled) {
         if (!spec.base_url) {
@@ -791,35 +828,7 @@ export class SessionManager {
     spec: SessionSpec,
     target: AppTargetSpec
   ): Promise<SessionCreationResult> {
-    validateAppTargetSpec(target);
-    validateAppTargetCapabilities(spec.required_capabilities);
-    const validationContext = spec.validation_context;
-    if (!validationContext) {
-      throw new Error('Electron validation context is required');
-    }
-    if (validationContext.context_id !== target.context_id) {
-      throw new Error('Electron validation context does not match target context');
-    }
-    if (
-      validationContext.scenario_name !== target.scenario_name ||
-      validationContext.artifact_digest !== target.artifact_digest
-    ) {
-      throw new Error('Electron validation context does not match target identity');
-    }
-    // The provider workflow identity identifies the selected catalog asset,
-    // while spec.workflow_id identifies BAS's internal execution/index record.
-    // Adhoc executions deliberately use different values for those domains;
-    // the target, scenario, artifact, context, and lease invariants above are
-    // the shared validation-cell identity.
-    if (
-      validationContext.target_id !== target.target_id ||
-      !validationContext.workflow_id?.trim()
-    ) {
-      throw new Error('Electron validation context does not match session identity');
-    }
-    if (!validationContext.isolation_lease_id?.trim()) {
-      throw new Error('Electron validation context requires an isolation lease');
-    }
+    validateAppTargetAdmission(spec, target);
     await verifyAppTargetRenderer(target);
     const browser = await this.browserManager.connectOverCDP(
       target.cdp_endpoint,

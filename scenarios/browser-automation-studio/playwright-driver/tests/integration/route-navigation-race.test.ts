@@ -16,7 +16,8 @@
  * 3. Test rapid navigation sequences
  */
 
-import { chromium, Browser, BrowserContext, Page } from 'rebrowser-playwright';
+import { BrowserContext, Page } from 'rebrowser-playwright';
+import { ownBrowser } from './support/browser-fixture';
 import * as http from 'http';
 import {
   createRecordingContextInitializer,
@@ -27,7 +28,6 @@ import {
 } from '../../src/recording';
 import { waitForScriptReady } from '../../src/recording';
 import { ActionType } from '../../src/proto/recording';
-
 // Helper to get action type from TimelineEntry (protobuf structure)
 // NOTE: The property is `action.type`, not `definition.type`
 function getActionType(entry: TimelineEntry): ActionType | undefined {
@@ -134,19 +134,16 @@ class NavigationTestServer {
     return `http://localhost:${this.port}${path}`;
   }
 }
-
 describe('Route Loss During Navigation (Integration)', () => {
-  let browser: Browser;
+  const browserOwner = ownBrowser({ headless: true });
   let server: NavigationTestServer;
 
   beforeAll(async () => {
-    browser = await chromium.launch({ headless: true });
     server = new NavigationTestServer();
     await server.start();
   });
 
   afterAll(async () => {
-    await browser.close();
     await server.stop();
   });
 
@@ -158,7 +155,7 @@ describe('Route Loss During Navigation (Integration)', () => {
     let capturedEntries: TimelineEntry[];
 
     beforeEach(async () => {
-      context = await browser.newContext();
+      context = await browserOwner.browser.newContext();
       initializer = createRecordingContextInitializer({});
       await initializer.initialize(context);
       page = await context.newPage();
@@ -314,7 +311,7 @@ describe('Route Loss During Navigation (Integration)', () => {
     let pipelineManager: RecordingPipelineManager;
 
     beforeEach(async () => {
-      context = await browser.newContext();
+      context = await browserOwner.browser.newContext();
       initializer = createRecordingContextInitializer({});
       await initializer.initialize(context);
       page = await context.newPage();
@@ -395,7 +392,7 @@ describe('Route Loss During Navigation (Integration)', () => {
     let capturedEntries: TimelineEntry[];
 
     beforeEach(async () => {
-      context = await browser.newContext();
+      context = await browserOwner.browser.newContext();
       initializer = createRecordingContextInitializer({});
       await initializer.initialize(context);
       page = await context.newPage();

@@ -14,6 +14,7 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/vrooli/browser-automation-studio/internal/testutil"
+	"github.com/vrooli/browser-automation-studio/internal/testutil/sessionprofilemocks"
 	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 	sessionprofilesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/session_profiles"
 	sessionprofilesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/session_profiles/session_profilesconnect"
@@ -21,11 +22,11 @@ import (
 
 // fakeRepo implements Repo for handler tests.
 type fakeRepo struct {
-	*sessionprofilepersistence.MockRepository
+	*sessionprofilemocks.MockRepository
 }
 
 func newFakeRepo() *fakeRepo {
-	return &fakeRepo{MockRepository: sessionprofilepersistence.NewMockRepository()}
+	return &fakeRepo{MockRepository: sessionprofilemocks.NewMockRepository()}
 }
 
 func (f *fakeRepo) ListProfiles() ([]sessionprofilepersistence.SessionProfile, error) {
