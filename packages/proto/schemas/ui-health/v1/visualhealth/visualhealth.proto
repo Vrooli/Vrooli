@@ -22,7 +22,38 @@ service VisualHealthService {
   rpc AnalyzeArtifacts(AnalyzeArtifactsRequest) returns (AnalyzeArtifactsResponse);
   rpc CompareArtifacts(CompareArtifactsRequest) returns (CompareArtifactsResponse);
   rpc ListRules(ListRulesRequest) returns (ListRulesResponse);
+  // Client-measured geometry is supporting evidence, never a native screenshot.
+  rpc RecordBrowserObservation(RecordBrowserObservationRequest) returns (RecordBrowserObservationResponse);
+  rpc ListBrowserObservations(ListBrowserObservationsRequest) returns (ListBrowserObservationsResponse);
 }
+
+message BrowserObservation {
+  string scenario = 1;
+  // Random per-tab identity. Contains no account or device identifier.
+  string client_id = 2;
+  string build_id = 3;
+  string user_agent = 4;
+  bool standalone = 5;
+  bool embedded = 6;
+  // Bounded metadata: viewport, insets, edge-owner rectangles/colors; no DOM text.
+  string layout_json = 7;
+  // Assigned by the receiver, not trusted from the browser.
+  string received_at = 8;
+  string id = 9;
+  // Always browser_geometry for these reports. Native pixels require a device transport.
+  string capture_kind = 10;
+  // Receiver-computed geometry/style findings; not native pixel judgments.
+  repeated VisualFinding findings = 11;
+}
+
+message RecordBrowserObservationRequest { BrowserObservation observation = 1; }
+message RecordBrowserObservationResponse { BrowserObservation observation = 1; }
+message ListBrowserObservationsRequest {
+  string scenario = 1;
+  string client_id = 2;
+  int32 limit = 3;
+}
+message ListBrowserObservationsResponse { repeated BrowserObservation observations = 1; }
 
 enum VisualSeverity {
   VISUAL_SEVERITY_UNSPECIFIED = 0;

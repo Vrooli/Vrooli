@@ -4,12 +4,16 @@ package orchestration
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
 	"agent-manager/internal/domain"
 	"agent-manager/internal/identity"
+	"agent-manager/internal/orchestration/obs"
 
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/authn"
@@ -89,7 +93,24 @@ func (o *Orchestrator) AttachRun(ctx context.Context, req AttachRunRequest) (*At
 		RunnerPID:          req.ProcessID,
 	}
 
-	if owner, err := authn.RequireHuman(ctx); err == nil {
+	// Attribution to the operator who spawned this session from the Web Console
+	// UI. The attach request itself is a zero-scope loopback call (LoopbackOnly,
+	// so authn.RequireHuman cannot succeed on it), so the human crosses the
+	// boundary as a VERIFIED, session-scoped delegation minted by
+	// scenario-authenticator and forwarded in the attach. We verify it against the
+	// same scenario-authenticator root the owner path uses and bind it to THIS
+	// session; only then is the run attributed. A missing or unverifiable
+	// delegation leaves the run unattributed (zero-scope), never refused — a
+	// local/agent/loopback attach can therefore never self-assert a human.
+	run.WebConsoleSessionID = req.WebConsoleSessionID
+	if subject, scopes, expiresAt := o.verifiedDelegationOwner(ctx, req.HumanOwnerDelegation, req.WebConsoleSessionID); subject != "" {
+		run.OwnerSubject = subject
+		run.OwnerScopes = scopes
+		if !expiresAt.IsZero() {
+			run.OwnerExpiresAt = &expiresAt
+		}
+	} else if owner, err := authn.RequireHuman(ctx); err == nil {
+		// Retained for a genuine in-context verified human (non-loopback callers).
 		run.OwnerSubject = owner.Subject
 		run.OwnerScopes = append([]string(nil), owner.Scopes...)
 		if !owner.ExpiresAt.IsZero() {
@@ -121,7 +142,68 @@ func (o *Orchestrator) AttachRun(ctx context.Context, req AttachRunRequest) (*At
 		return nil, err
 	}
 	o.appendAttachedLifecycleEvent(ctx, run.ID, "attached", "harness="+kind+" session="+session)
+	// Phase-5 parity with an agent-manager-initiated interactive spawn: a verified
+	// human delegation mints a short-lived, session-scoped standing grant so work
+	// done inside this operator session inherits the operator's authority, bounded
+	// and attributable. Best-effort — a mint failure must not fail the attach.
+	if run.OwnerSubject != "" && strings.TrimSpace(req.HumanOwnerDelegation) != "" && o.standingGrants != nil {
+		if _, err := o.CreateSessionGrant(ctx, run.OwnerSubject, session, MaxSessionGrantLifetime); err != nil {
+			obs.Component("attached").Warn("attached run: session grant mint failed",
+				obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
+		}
+	}
 	return &AttachRunResult{Run: o.attachRunActions(ctx, run), Token: token, ExpiresAt: expiresAt}, nil
+}
+
+// verifiedDelegationOwner verifies a forwarded Web Console human-owner delegation
+// and returns the delegated operator subject, scopes, and expiry — but ONLY when
+// the token cryptographically verifies against the scenario-authenticator root,
+// names a human, and its wc_session_id claim equals the attaching session. Any
+// failure returns an empty subject, so the caller leaves the run unattributed.
+// This is the laundering guard: a bare string, a wrong-key or wrong-audience
+// token, a wrong-session delegation, or an expired one all verify to nothing.
+func (o *Orchestrator) verifiedDelegationOwner(ctx context.Context, delegation, session string) (string, []string, time.Time) {
+	delegation = strings.TrimSpace(delegation)
+	if delegation == "" || o.ownerIdentity == nil {
+		log.Printf("[phase5-diag] verifyDelegation: delegationPresent=%t ownerIdentityNil=%t", delegation != "", o.ownerIdentity == nil)
+		return "", nil, time.Time{}
+	}
+	principal, err := o.ownerIdentity.Verify(ctx, delegation)
+	if err != nil || !principal.IsHuman() {
+		log.Printf("[phase5-diag] verifyDelegation: Verify err=%v isHuman=%t", err, err == nil && principal.IsHuman())
+		return "", nil, time.Time{}
+	}
+	boundSession := delegationWCSessionID(delegation)
+	log.Printf("[phase5-diag] verifyDelegation: verified human subject=%q claimWCSession=%q expectedWCSession=%q match=%t", principal.Subject, boundSession, session, boundSession != "" && boundSession == session)
+	if boundSession == "" || boundSession != session {
+		// The delegation must be bound to THIS web-console session; a session's
+		// delegation cannot be replayed onto another session's attach.
+		return "", nil, time.Time{}
+	}
+	return principal.Subject, append([]string(nil), principal.Scopes...), principal.ExpiresAt
+}
+
+// delegationWCSessionID extracts the wc_session_id claim from an already-verified
+// delegation token. The shared verifier confirms signature/issuer/audience/expiry
+// and does not surface this custom claim, so we read it from the verified
+// payload. Authenticity is already established by verifiedDelegationOwner before
+// this is trusted; a parse failure yields "" (treated as no binding).
+func delegationWCSessionID(token string) string {
+	parts := strings.Split(token, ".")
+	if len(parts) != 3 {
+		return ""
+	}
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return ""
+	}
+	var claims struct {
+		WCSessionID string `json:"wc_session_id"`
+	}
+	if err := json.Unmarshal(payload, &claims); err != nil {
+		return ""
+	}
+	return strings.TrimSpace(claims.WCSessionID)
 }
 
 // DetachRun closes an attached run without sending a signal to the harness

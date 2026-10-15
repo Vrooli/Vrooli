@@ -26,6 +26,17 @@ import (
 // apart from "authority exhausted" in its audit stream and operator messaging.
 var ErrStandingGrantLimit = errors.New("standing grant limit reached")
 
+// ErrNeedsApproval is the "ask, don't block" outcome: a verified, KNOWN caller
+// (a service principal, or a verified agent) presents no covering grant for a
+// costly operation and no live human is present to authorize it synchronously.
+// It is deliberately distinct from ErrOperation (hard refuse for an anonymous,
+// forged, or absent identity) and from a human's missing-capability 403: only a
+// caller the system already trusts-as-identity but not-yet-for-this-operation
+// may trigger an operator approval. The domain translates it to a typed
+// "approval pending" (202) plus a notification-hub decision request, never a
+// hard block. An over-limit grant is still ErrStandingGrantLimit, not approval.
+var ErrNeedsApproval = errors.New("operation requires operator approval")
+
 // StandingGrantLimits are the bounds an operator attaches to a standing grant.
 // They live on the grant record, never in a proto message or a token claim, so
 // tightening a bound is an operator edit to the record with no contract change.

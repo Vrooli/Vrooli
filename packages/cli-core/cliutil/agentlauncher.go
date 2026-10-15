@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -33,6 +34,31 @@ const (
 	// AgentManagerIdentityTokenEnv is the only environment key the launcher
 	// adds to a child process after a successful attach.
 	AgentManagerIdentityTokenEnv = EnvIdentityToken
+
+	// HumanOwnerDelegationEnv carries a short-lived, session-scoped human-owner
+	// delegation that Web Console injects into a verified-human terminal session
+	// (minted by scenario-authenticator). The launcher does not mint or verify
+	// it; it only forwards the inherited value on attach so agent-manager can
+	// verify it and attribute the attached run to the operator. It is generic to
+	// every coding agent and is scrubbed-on-adopt like the identity token so a
+	// nested launch never re-forwards a stale delegation for a different session.
+	HumanOwnerDelegationEnv = "WC_HUMAN_OWNER_DELEGATION"
+
+	// HumanOwnerDelegationHeader carries the delegation on the attach request.
+	// agent-manager reads it, verifies the JWT against the scenario-authenticator
+	// root, and attributes the attached run only on success. Shared so the
+	// launcher (sets) and agent-manager (reads) cannot drift.
+	HumanOwnerDelegationHeader = "X-Human-Owner-Delegation"
+
+	// WebConsoleSessionIDHeader carries the web-console session id on the attach
+	// request. The human-owner delegation's wc_session_id claim is the web-console
+	// session id, NOT the harness/coding-agent session id, so agent-manager binds
+	// the delegation against this value. Not a secret (it is also in the child
+	// env as WC_WEB_CONSOLE_SESSION_ID for attribution); it only correlates the
+	// delegation to the session that minted it so a delegation cannot be replayed
+	// onto a different session's attach. Shared so launcher (sets) and
+	// agent-manager (reads/binds) cannot drift.
+	WebConsoleSessionIDHeader = "X-Wc-Session-Id"
 
 	// AgentSessionEnv marks an environment that is already inside a governed
 	// coding-agent session. A launch reaches the agent through more than one
@@ -325,6 +351,17 @@ func launchNativeSession(ctx context.Context, request AgentLaunchRequest, comman
 	// The scope is named from the harness session id before attachment, so the
 	// lease and cgroup use a stable name whether or not a run id is minted.
 	scope := agentScopeName("", harnessSessionID(harnessKind))
+	containment, containmentSource := agentContainmentFn()
+	var report containmentReport
+	// Process-bound grants are Linux-only. Other platforms retain their child
+	// container path (for example Darwin needs a fresh child process group).
+	commandCallerBoundary := command != "" && runtime.GOOS == "linux"
+	if commandCallerBoundary && protectedToken == "" {
+		// The waiting command wrapper is the approval caller. Establish its final
+		// boundary before attachment and lease registration; its children must
+		// inherit that same boundary for process-bound credential delivery.
+		containSelf(request, scope, containment, containmentSource, &report)
+	}
 	var attach codingAgentAttachment
 	if request.RequireNativeIdentity && protectedToken != "" {
 		attach = codingAgentAttachment{token: protectedToken}
@@ -354,8 +391,6 @@ func launchNativeSession(ctx context.Context, request AgentLaunchRequest, comman
 		}
 	}
 	launchResult := LaunchResult{Tier: "tier-4"}
-	containment, containmentSource := agentContainmentFn()
-	var report containmentReport
 	// The session is visible for as long as it lives: the lease carries the
 	// tree, the scope and the claims; the registry expires it only on proof
 	// of death. The exec branch cannot heartbeat (the launcher becomes the
@@ -368,6 +403,13 @@ func launchNativeSession(ctx context.Context, request AgentLaunchRequest, comman
 	launchResult.LeaseRecorded = recorded
 	defer stopLease("session ended")
 	environment = withEnvironmentValue(environment, AgentSessionEnv, scope)
+	// Single-use: the human-owner delegation was consumed by the attach call
+	// above (forwarded on its header). It is a short-lived operator credential and
+	// must never reach the spawned agent's environment or persist for reuse, so
+	// strip it from what the child inherits regardless of whether the attach
+	// succeeded. The agent is attributed by the run the attach created, not by
+	// holding the delegation.
+	environment = withoutEnvironmentValue(environment, HumanOwnerDelegationEnv)
 	// The ceiling refuses silently; the agent that trips over it reports the
 	// refusal in its own words. Say the real reason before it does.
 	if warning := ceilingWarning(); warning != "" {
@@ -398,7 +440,13 @@ func launchNativeSession(ctx context.Context, request AgentLaunchRequest, comman
 
 	runChild := request.RunChild
 	if runChild == nil {
-		runChild = runContainedChild(request, binary, scope, containment, containmentSource, &report)
+		if commandCallerBoundary {
+			// Command children inherit the wrapper's final boundary, including
+			// when containment is unavailable or existing custody was adopted.
+			runChild = runNativeChild(request, binary)
+		} else {
+			runChild = runContainedChild(request, binary, scope, containment, containmentSource, &report)
+		}
 	}
 	err = runChild(ctx, path, append([]string(nil), request.Args...), environment, request.Stdin, request.Stdout, request.Stderr)
 	if attach.runID != "" {
@@ -608,6 +656,19 @@ func attachCodingAgent(parent context.Context, request AgentLaunchRequest, harne
 		return codingAgentAttachment{failure: "bad base URL"}
 	}
 	req.Header.Set("Content-Type", "application/json")
+	// Forward the inherited human-owner delegation (if any) so agent-manager can
+	// verify it and attribute the attached run to the operator. A label only: a
+	// missing or unverifiable value leaves the run unattributed, never refused.
+	// Generic for every coding agent — this is the one shared launcher path.
+	if delegation := strings.TrimSpace(os.Getenv(HumanOwnerDelegationEnv)); delegation != "" {
+		req.Header.Set(HumanOwnerDelegationHeader, delegation)
+		// The delegation's wc_session_id claim is the web-console session id; forward
+		// it so agent-manager binds the delegation against the right identifier (the
+		// harness session id differs). Not a secret — purely a correlation id.
+		if wcSession := strings.TrimSpace(os.Getenv(webConsoleSessionIDEnv)); wcSession != "" {
+			req.Header.Set(WebConsoleSessionIDHeader, wcSession)
+		}
+	}
 	client := request.HTTPClient
 	if client == nil {
 		client = &http.Client{}
@@ -764,6 +825,21 @@ func withEnvironmentValue(environment []string, key, value string) []string {
 	}
 	if !replaced {
 		result = append(result, key+"="+value)
+	}
+	return result
+}
+
+// withoutEnvironmentValue returns the environment with every entry for key
+// removed. Used to make a single-use credential (the human-owner delegation)
+// non-inheritable by the spawned child after it has been consumed.
+func withoutEnvironmentValue(environment []string, key string) []string {
+	result := make([]string, 0, len(environment))
+	for _, entry := range environment {
+		name, _, hasValue := strings.Cut(entry, "=")
+		if hasValue && environmentKeyEqual(name, key) {
+			continue
+		}
+		result = append(result, entry)
 	}
 	return result
 }

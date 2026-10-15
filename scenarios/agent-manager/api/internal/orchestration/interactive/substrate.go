@@ -215,6 +215,12 @@ type LaunchParams struct {
 	Model           string
 	Effort          domain.Effort
 	Config          *domain.RunConfig
+	// HumanOwnerSubject is the verified human this interactive run is attributed
+	// to, set ONLY when the run was spawned by a verified independent human (a
+	// tunnel-UI spawn). It is forwarded to web-console so the session's
+	// stable-create owner is the operator, not agent-manager's service principal.
+	// Empty for service/agent-spawned runs.
+	HumanOwnerSubject string
 }
 
 // LaunchResult is the durable outcome of a launch.
@@ -316,9 +322,10 @@ func (s *Substrate) Launch(ctx context.Context, p LaunchParams) (LaunchResult, e
 		// Submit explicitly below after the shell boot window. Web Console's
 		// create-time execute path only bracket-pastes this command, which
 		// leaves it pending at a POSIX shell prompt.
-		Execute:      false,
-		DisplayLabel: label,
-		Backend:      "persistent",
+		Execute:           false,
+		DisplayLabel:      label,
+		Backend:           "persistent",
+		HumanOwnerSubject: p.HumanOwnerSubject,
 	})
 	if err != nil {
 		return LaunchResult{}, fmt.Errorf("create interactive session for %s: %w", p.RunnerType, err)

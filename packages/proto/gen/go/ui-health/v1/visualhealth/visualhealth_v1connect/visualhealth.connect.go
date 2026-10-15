@@ -42,6 +42,12 @@ const (
 	// VisualHealthServiceListRulesProcedure is the fully-qualified name of the VisualHealthService's
 	// ListRules RPC.
 	VisualHealthServiceListRulesProcedure = "/vrooli.ui_health.v1.visualhealth.VisualHealthService/ListRules"
+	// VisualHealthServiceRecordBrowserObservationProcedure is the fully-qualified name of the
+	// VisualHealthService's RecordBrowserObservation RPC.
+	VisualHealthServiceRecordBrowserObservationProcedure = "/vrooli.ui_health.v1.visualhealth.VisualHealthService/RecordBrowserObservation"
+	// VisualHealthServiceListBrowserObservationsProcedure is the fully-qualified name of the
+	// VisualHealthService's ListBrowserObservations RPC.
+	VisualHealthServiceListBrowserObservationsProcedure = "/vrooli.ui_health.v1.visualhealth.VisualHealthService/ListBrowserObservations"
 )
 
 // VisualHealthServiceClient is a client for the
@@ -50,6 +56,9 @@ type VisualHealthServiceClient interface {
 	AnalyzeArtifacts(context.Context, *connect.Request[visualhealth.AnalyzeArtifactsRequest]) (*connect.Response[visualhealth.AnalyzeArtifactsResponse], error)
 	CompareArtifacts(context.Context, *connect.Request[visualhealth.CompareArtifactsRequest]) (*connect.Response[visualhealth.CompareArtifactsResponse], error)
 	ListRules(context.Context, *connect.Request[visualhealth.ListRulesRequest]) (*connect.Response[visualhealth.ListRulesResponse], error)
+	// Client-measured geometry is supporting evidence, never a native screenshot.
+	RecordBrowserObservation(context.Context, *connect.Request[visualhealth.RecordBrowserObservationRequest]) (*connect.Response[visualhealth.RecordBrowserObservationResponse], error)
+	ListBrowserObservations(context.Context, *connect.Request[visualhealth.ListBrowserObservationsRequest]) (*connect.Response[visualhealth.ListBrowserObservationsResponse], error)
 }
 
 // NewVisualHealthServiceClient constructs a client for the
@@ -82,14 +91,28 @@ func NewVisualHealthServiceClient(httpClient connect.HTTPClient, baseURL string,
 			connect.WithSchema(visualHealthServiceMethods.ByName("ListRules")),
 			connect.WithClientOptions(opts...),
 		),
+		recordBrowserObservation: connect.NewClient[visualhealth.RecordBrowserObservationRequest, visualhealth.RecordBrowserObservationResponse](
+			httpClient,
+			baseURL+VisualHealthServiceRecordBrowserObservationProcedure,
+			connect.WithSchema(visualHealthServiceMethods.ByName("RecordBrowserObservation")),
+			connect.WithClientOptions(opts...),
+		),
+		listBrowserObservations: connect.NewClient[visualhealth.ListBrowserObservationsRequest, visualhealth.ListBrowserObservationsResponse](
+			httpClient,
+			baseURL+VisualHealthServiceListBrowserObservationsProcedure,
+			connect.WithSchema(visualHealthServiceMethods.ByName("ListBrowserObservations")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // visualHealthServiceClient implements VisualHealthServiceClient.
 type visualHealthServiceClient struct {
-	analyzeArtifacts *connect.Client[visualhealth.AnalyzeArtifactsRequest, visualhealth.AnalyzeArtifactsResponse]
-	compareArtifacts *connect.Client[visualhealth.CompareArtifactsRequest, visualhealth.CompareArtifactsResponse]
-	listRules        *connect.Client[visualhealth.ListRulesRequest, visualhealth.ListRulesResponse]
+	analyzeArtifacts         *connect.Client[visualhealth.AnalyzeArtifactsRequest, visualhealth.AnalyzeArtifactsResponse]
+	compareArtifacts         *connect.Client[visualhealth.CompareArtifactsRequest, visualhealth.CompareArtifactsResponse]
+	listRules                *connect.Client[visualhealth.ListRulesRequest, visualhealth.ListRulesResponse]
+	recordBrowserObservation *connect.Client[visualhealth.RecordBrowserObservationRequest, visualhealth.RecordBrowserObservationResponse]
+	listBrowserObservations  *connect.Client[visualhealth.ListBrowserObservationsRequest, visualhealth.ListBrowserObservationsResponse]
 }
 
 // AnalyzeArtifacts calls vrooli.ui_health.v1.visualhealth.VisualHealthService.AnalyzeArtifacts.
@@ -107,12 +130,27 @@ func (c *visualHealthServiceClient) ListRules(ctx context.Context, req *connect.
 	return c.listRules.CallUnary(ctx, req)
 }
 
+// RecordBrowserObservation calls
+// vrooli.ui_health.v1.visualhealth.VisualHealthService.RecordBrowserObservation.
+func (c *visualHealthServiceClient) RecordBrowserObservation(ctx context.Context, req *connect.Request[visualhealth.RecordBrowserObservationRequest]) (*connect.Response[visualhealth.RecordBrowserObservationResponse], error) {
+	return c.recordBrowserObservation.CallUnary(ctx, req)
+}
+
+// ListBrowserObservations calls
+// vrooli.ui_health.v1.visualhealth.VisualHealthService.ListBrowserObservations.
+func (c *visualHealthServiceClient) ListBrowserObservations(ctx context.Context, req *connect.Request[visualhealth.ListBrowserObservationsRequest]) (*connect.Response[visualhealth.ListBrowserObservationsResponse], error) {
+	return c.listBrowserObservations.CallUnary(ctx, req)
+}
+
 // VisualHealthServiceHandler is an implementation of the
 // vrooli.ui_health.v1.visualhealth.VisualHealthService service.
 type VisualHealthServiceHandler interface {
 	AnalyzeArtifacts(context.Context, *connect.Request[visualhealth.AnalyzeArtifactsRequest]) (*connect.Response[visualhealth.AnalyzeArtifactsResponse], error)
 	CompareArtifacts(context.Context, *connect.Request[visualhealth.CompareArtifactsRequest]) (*connect.Response[visualhealth.CompareArtifactsResponse], error)
 	ListRules(context.Context, *connect.Request[visualhealth.ListRulesRequest]) (*connect.Response[visualhealth.ListRulesResponse], error)
+	// Client-measured geometry is supporting evidence, never a native screenshot.
+	RecordBrowserObservation(context.Context, *connect.Request[visualhealth.RecordBrowserObservationRequest]) (*connect.Response[visualhealth.RecordBrowserObservationResponse], error)
+	ListBrowserObservations(context.Context, *connect.Request[visualhealth.ListBrowserObservationsRequest]) (*connect.Response[visualhealth.ListBrowserObservationsResponse], error)
 }
 
 // NewVisualHealthServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -140,6 +178,18 @@ func NewVisualHealthServiceHandler(svc VisualHealthServiceHandler, opts ...conne
 		connect.WithSchema(visualHealthServiceMethods.ByName("ListRules")),
 		connect.WithHandlerOptions(opts...),
 	)
+	visualHealthServiceRecordBrowserObservationHandler := connect.NewUnaryHandler(
+		VisualHealthServiceRecordBrowserObservationProcedure,
+		svc.RecordBrowserObservation,
+		connect.WithSchema(visualHealthServiceMethods.ByName("RecordBrowserObservation")),
+		connect.WithHandlerOptions(opts...),
+	)
+	visualHealthServiceListBrowserObservationsHandler := connect.NewUnaryHandler(
+		VisualHealthServiceListBrowserObservationsProcedure,
+		svc.ListBrowserObservations,
+		connect.WithSchema(visualHealthServiceMethods.ByName("ListBrowserObservations")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.ui_health.v1.visualhealth.VisualHealthService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case VisualHealthServiceAnalyzeArtifactsProcedure:
@@ -148,6 +198,10 @@ func NewVisualHealthServiceHandler(svc VisualHealthServiceHandler, opts ...conne
 			visualHealthServiceCompareArtifactsHandler.ServeHTTP(w, r)
 		case VisualHealthServiceListRulesProcedure:
 			visualHealthServiceListRulesHandler.ServeHTTP(w, r)
+		case VisualHealthServiceRecordBrowserObservationProcedure:
+			visualHealthServiceRecordBrowserObservationHandler.ServeHTTP(w, r)
+		case VisualHealthServiceListBrowserObservationsProcedure:
+			visualHealthServiceListBrowserObservationsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -167,4 +221,12 @@ func (UnimplementedVisualHealthServiceHandler) CompareArtifacts(context.Context,
 
 func (UnimplementedVisualHealthServiceHandler) ListRules(context.Context, *connect.Request[visualhealth.ListRulesRequest]) (*connect.Response[visualhealth.ListRulesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.ui_health.v1.visualhealth.VisualHealthService.ListRules is not implemented"))
+}
+
+func (UnimplementedVisualHealthServiceHandler) RecordBrowserObservation(context.Context, *connect.Request[visualhealth.RecordBrowserObservationRequest]) (*connect.Response[visualhealth.RecordBrowserObservationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.ui_health.v1.visualhealth.VisualHealthService.RecordBrowserObservation is not implemented"))
+}
+
+func (UnimplementedVisualHealthServiceHandler) ListBrowserObservations(context.Context, *connect.Request[visualhealth.ListBrowserObservationsRequest]) (*connect.Response[visualhealth.ListBrowserObservationsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.ui_health.v1.visualhealth.VisualHealthService.ListBrowserObservations is not implemented"))
 }

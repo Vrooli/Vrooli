@@ -123,6 +123,15 @@ func (o *Orchestrator) stopInteractiveRun(ctx context.Context, run *domain.Run) 
 			obs.Component("interactive").Warn("interactive stop: session teardown failed",
 				obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
 		}
+		// The session is closing, so any human-session delegation grant minted for
+		// it is revoked now — a closed session must confer no further authority
+		// (the TTL cap is the backstop; this is the prompt revocation). Non-fatal.
+		if owner := humanSpawnOwner(run); owner != "" {
+			if err := o.RevokeSessionGrants(ctx, owner, run.WebConsoleSessionID); err != nil {
+				obs.Component("interactive").Warn("interactive stop: session grant revoke failed",
+					obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
+			}
+		}
 		// The session (and its CLI) is now dead, so the run's private copy of the
 		// shared home's credentials can be removed instead of lingering on disk.
 		if run.ResolvedConfig != nil {

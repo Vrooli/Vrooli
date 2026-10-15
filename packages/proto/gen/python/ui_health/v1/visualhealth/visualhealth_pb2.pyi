@@ -33,6 +33,60 @@ VISUAL_CATEGORY_LAYOUT: VisualCategory
 VISUAL_CATEGORY_ASSET: VisualCategory
 VISUAL_CATEGORY_FOCUS: VisualCategory
 
+class BrowserObservation(_message.Message):
+    __slots__ = ("scenario", "client_id", "build_id", "user_agent", "standalone", "embedded", "layout_json", "received_at", "id", "capture_kind", "findings")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    CLIENT_ID_FIELD_NUMBER: _ClassVar[int]
+    BUILD_ID_FIELD_NUMBER: _ClassVar[int]
+    USER_AGENT_FIELD_NUMBER: _ClassVar[int]
+    STANDALONE_FIELD_NUMBER: _ClassVar[int]
+    EMBEDDED_FIELD_NUMBER: _ClassVar[int]
+    LAYOUT_JSON_FIELD_NUMBER: _ClassVar[int]
+    RECEIVED_AT_FIELD_NUMBER: _ClassVar[int]
+    ID_FIELD_NUMBER: _ClassVar[int]
+    CAPTURE_KIND_FIELD_NUMBER: _ClassVar[int]
+    FINDINGS_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    client_id: str
+    build_id: str
+    user_agent: str
+    standalone: bool
+    embedded: bool
+    layout_json: str
+    received_at: str
+    id: str
+    capture_kind: str
+    findings: _containers.RepeatedCompositeFieldContainer[VisualFinding]
+    def __init__(self, scenario: _Optional[str] = ..., client_id: _Optional[str] = ..., build_id: _Optional[str] = ..., user_agent: _Optional[str] = ..., standalone: _Optional[bool] = ..., embedded: _Optional[bool] = ..., layout_json: _Optional[str] = ..., received_at: _Optional[str] = ..., id: _Optional[str] = ..., capture_kind: _Optional[str] = ..., findings: _Optional[_Iterable[_Union[VisualFinding, _Mapping]]] = ...) -> None: ...
+
+class RecordBrowserObservationRequest(_message.Message):
+    __slots__ = ("observation",)
+    OBSERVATION_FIELD_NUMBER: _ClassVar[int]
+    observation: BrowserObservation
+    def __init__(self, observation: _Optional[_Union[BrowserObservation, _Mapping]] = ...) -> None: ...
+
+class RecordBrowserObservationResponse(_message.Message):
+    __slots__ = ("observation",)
+    OBSERVATION_FIELD_NUMBER: _ClassVar[int]
+    observation: BrowserObservation
+    def __init__(self, observation: _Optional[_Union[BrowserObservation, _Mapping]] = ...) -> None: ...
+
+class ListBrowserObservationsRequest(_message.Message):
+    __slots__ = ("scenario", "client_id", "limit")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    CLIENT_ID_FIELD_NUMBER: _ClassVar[int]
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    client_id: str
+    limit: int
+    def __init__(self, scenario: _Optional[str] = ..., client_id: _Optional[str] = ..., limit: _Optional[int] = ...) -> None: ...
+
+class ListBrowserObservationsResponse(_message.Message):
+    __slots__ = ("observations",)
+    OBSERVATIONS_FIELD_NUMBER: _ClassVar[int]
+    observations: _containers.RepeatedCompositeFieldContainer[BrowserObservation]
+    def __init__(self, observations: _Optional[_Iterable[_Union[BrowserObservation, _Mapping]]] = ...) -> None: ...
+
 class ArtifactRef(_message.Message):
     __slots__ = ("scenario", "run_id", "step_id", "rel_path", "uri", "media_type")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]

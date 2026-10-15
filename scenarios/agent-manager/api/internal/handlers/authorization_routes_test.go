@@ -7,9 +7,53 @@ import (
 
 	"github.com/vrooli/api-core/identity"
 	"github.com/vrooli/api-core/lifecycle"
+	"github.com/vrooli/api-core/owneridentity"
 	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
 	commonconnect "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1/commonv1connect"
 )
+
+// Phase 3: the middleware and the CreateRun handler must agree on an anonymous
+// create-run via ONE switch read. These assert the SAME anonymous request is
+// refused by the middleware when VROOLI_AUTH01_ENFORCE is on and admitted to the
+// handler when it is off — the gate no longer silently overrides the switch.
+func TestAnonymousCreateRunHonorsTheEnforcementSwitch(t *testing.T) {
+	for _, path := range []string{"/api/v1/runs", "/api/v1/tasks"} {
+		// Switch OFF: anonymous create-run/task reaches the handler.
+		t.Setenv(owneridentity.CreateRunCallerEnforceEnv, "")
+		reached := false
+		AgentOperationMiddleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { reached = true; w.WriteHeader(http.StatusAccepted) })).
+			ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodPost, path, nil))
+		if !reached {
+			t.Fatalf("switch off: anonymous %s did not reach the handler (middleware overrode the switch)", path)
+		}
+		// Switch ON: the same anonymous request is refused at the middleware.
+		t.Setenv(owneridentity.CreateRunCallerEnforceEnv, "true")
+		w := httptest.NewRecorder()
+		AgentOperationMiddleware(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+			t.Fatalf("switch on: anonymous %s reached the handler", path)
+		})).
+			ServeHTTP(w, httptest.NewRequest(http.MethodPost, path, nil))
+		if w.Code != http.StatusUnauthorized {
+			t.Fatalf("switch on: anonymous %s want 401, got %d", path, w.Code)
+		}
+	}
+}
+
+// A non-create anonymous operation is refused regardless of the switch — the
+// reconciliation is scoped to create-run/task, not a blanket anonymous allow.
+func TestAnonymousNonCreateOpAlwaysRefused(t *testing.T) {
+	for _, enforce := range []string{"", "true"} {
+		t.Setenv(owneridentity.CreateRunCallerEnforceEnv, enforce)
+		w := httptest.NewRecorder()
+		AgentOperationMiddleware(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+			t.Fatalf("anonymous global mutation reached the handler (enforce=%q)", enforce)
+		})).
+			ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/api/v1/runs/stop-all", nil))
+		if w.Code != http.StatusUnauthorized {
+			t.Fatalf("anonymous non-create op want 401 (enforce=%q), got %d", enforce, w.Code)
+		}
+	}
+}
 
 func TestAgentRoutesRetainGlobalManagementBoundary(t *testing.T) {
 	for _, interactive := range []bool{false, true} {

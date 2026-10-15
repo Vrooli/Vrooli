@@ -328,3 +328,21 @@ class ExchangeServiceCredentialResponse(_message.Message):
     subject: str
     scopes: _containers.RepeatedScalarFieldContainer[str]
     def __init__(self, access_token: _Optional[str] = ..., access_token_expires_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., audience: _Optional[str] = ..., subject: _Optional[str] = ..., scopes: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class MintSessionDelegationRequest(_message.Message):
+    __slots__ = ("access_token", "wc_session_id", "resource")
+    ACCESS_TOKEN_FIELD_NUMBER: _ClassVar[int]
+    WC_SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    RESOURCE_FIELD_NUMBER: _ClassVar[int]
+    access_token: str
+    wc_session_id: str
+    resource: str
+    def __init__(self, access_token: _Optional[str] = ..., wc_session_id: _Optional[str] = ..., resource: _Optional[str] = ...) -> None: ...
+
+class MintSessionDelegationResponse(_message.Message):
+    __slots__ = ("delegation_token", "expires_at")
+    DELEGATION_TOKEN_FIELD_NUMBER: _ClassVar[int]
+    EXPIRES_AT_FIELD_NUMBER: _ClassVar[int]
+    delegation_token: str
+    expires_at: _timestamp_pb2.Timestamp
+    def __init__(self, delegation_token: _Optional[str] = ..., expires_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...

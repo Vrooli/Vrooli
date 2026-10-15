@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"agent-manager/internal/domain"
+	"agent-manager/internal/orchestration"
 
 	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/identity"
@@ -64,6 +65,21 @@ func (f fakeUsage) StandingGrantUsage(context.Context, string) (authn.StandingGr
 	return authn.StandingGrantUsage{ConcurrentRuns: f.concurrent}, nil
 }
 
+// fakeRaiser records needs-approval raises so a test can assert the "ask, don't
+// block" path fired. flood simulates the per-subject cap.
+type fakeRaiser struct {
+	raised []orchestration.AuthorizationApprovalRequest
+	flood  bool
+}
+
+func (f *fakeRaiser) RaiseAuthorizationApproval(_ context.Context, req orchestration.AuthorizationApprovalRequest) (bool, error) {
+	if f.flood {
+		return false, orchestration.ErrAuthorizationFlood
+	}
+	f.raised = append(f.raised, req)
+	return true, nil
+}
+
 func standingGrantRecord(subject, owner string, exp time.Time, limits authn.StandingGrantLimits) *domain.StandingGrant {
 	return &domain.StandingGrant{
 		ID:      "sg-" + subject,
@@ -80,98 +96,146 @@ func standingGrantRecord(subject, owner string, exp time.Time, limits authn.Stan
 	}
 }
 
-// serviceChain builds the StandingGrant→AgentOperation middleware chain used in
-// production and drives a POST /api/v1/runs as a verified service principal.
+// serviceChain drives the production middleware chain for a verified service
+// principal against POST /api/v1/runs with a raiser wired (the production shape).
 func serviceChain(t *testing.T, repo domain.StandingGrantRepository, usage StandingGrantUsageReader) int {
-	return serviceChainPath(t, repo, usage, "/api/v1/runs")
+	return serviceChainFull(t, repo, usage, &fakeRaiser{}, "/api/v1/runs")
 }
 
-// serviceChainPath drives the production middleware chain for a verified service
-// principal against an arbitrary path, returning the HTTP status.
+// serviceChainPath is serviceChain against an arbitrary path.
 func serviceChainPath(t *testing.T, repo domain.StandingGrantRepository, usage StandingGrantUsageReader, path string) int {
+	return serviceChainFull(t, repo, usage, &fakeRaiser{}, path)
+}
+
+// admitAdmittedStatus is the status the final (post-middleware) handler writes
+// when the chain ADMITS the request. It is deliberately NOT 202, so an admit is
+// distinguishable from the middleware's 202 "approval pending" short-circuit.
+const admitAdmittedStatus = http.StatusOK
+
+// serviceChainFull drives the chain with an explicit raiser so a test can assert
+// the needs-approval (202) path and inspect what was raised.
+
+func serviceChainFull(t *testing.T, repo domain.StandingGrantRepository, usage StandingGrantUsageReader, raiser ApprovalRaiser, path string) int {
 	t.Helper()
 	authority := NewStandingGrantAuthority(repo, usage, nil)
-	reached := false
-	final := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { reached = true; w.WriteHeader(http.StatusAccepted) })
-	chain := StandingGrantMiddleware(authority)(AgentOperationMiddleware(final))
+	final := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(admitAdmittedStatus) })
+	chain := StandingGrantMiddleware(authority, raiser)(AgentOperationMiddleware(final))
 
 	p := identity.Principal{Kind: identity.ActorService, Subject: "prompt-manager", Verified: true, Scopes: []string{"agent-manager:write"}}
 	r := httptest.NewRequest(http.MethodPost, path, nil)
 	r = r.WithContext(identity.WithPrincipal(r.Context(), p))
 	w := httptest.NewRecorder()
 	chain.ServeHTTP(w, r)
-	if w.Code == http.StatusAccepted && !reached {
-		t.Fatal("202 without reaching the handler")
-	}
 	return w.Code
 }
 
 func TestServiceWithStandingGrantReachesCreateRun(t *testing.T) {
 	repo := &memStandingGrants{}
 	_ = repo.Put(context.Background(), standingGrantRecord("prompt-manager", "operator", time.Now().Add(time.Hour), authn.StandingGrantLimits{MaxConcurrentRuns: 5}))
-	if code := serviceChain(t, repo, fakeUsage{concurrent: 2}); code != http.StatusAccepted {
+	if code := serviceChain(t, repo, fakeUsage{concurrent: 2}); code != admitAdmittedStatus {
 		t.Fatalf("service with valid grant not admitted: %d", code)
 	}
 }
 
-func TestServiceWithoutStandingGrantRefused(t *testing.T) {
-	if code := serviceChain(t, &memStandingGrants{}, fakeUsage{}); code != http.StatusForbidden {
-		t.Fatalf("service with no grant should be 403, got %d", code)
+// BOUNDARY: a verified service with no covering grant is "ask, don't block" —
+// 202 approval-pending with a raise fired, NOT a hard refuse.
+func TestServiceWithoutStandingGrantAsksForApproval(t *testing.T) {
+	raiser := &fakeRaiser{}
+	code := serviceChainFull(t, &memStandingGrants{}, fakeUsage{}, raiser, "/api/v1/runs")
+	if code != http.StatusAccepted {
+		t.Fatalf("service with no grant should get 202 approval-pending, got %d", code)
+	}
+	if len(raiser.raised) != 1 || raiser.raised[0].Subject != "prompt-manager" || raiser.raised[0].Operation != "run.create" {
+		t.Fatalf("expected one raised authorization ask for the subject, got %+v", raiser.raised)
+	}
+}
+
+// BOUNDARY: with NO raiser configured the needs-approval outcome degrades to a
+// hard refuse (no regression / no accidental allow).
+func TestServiceWithoutStandingGrantAndNoRaiserRefused(t *testing.T) {
+	authority := NewStandingGrantAuthority(&memStandingGrants{}, fakeUsage{}, nil)
+	chain := StandingGrantMiddleware(authority, nil)(AgentOperationMiddleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusAccepted) })))
+	p := identity.Principal{Kind: identity.ActorService, Subject: "prompt-manager", Verified: true, Scopes: []string{"agent-manager:write"}}
+	r := httptest.NewRequest(http.MethodPost, "/api/v1/runs", nil).WithContext(identity.WithPrincipal(context.Background(), p))
+	w := httptest.NewRecorder()
+	chain.ServeHTTP(w, r)
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("no raiser should hard-refuse (403), got %d", w.Code)
+	}
+}
+
+// ANTI-FLOOD: over the per-subject outstanding cap → refuse WITHOUT a 202, with
+// 429 (too many requests), and no further raise attempted beyond the cap.
+func TestServiceOverPendingCapRefusedWithoutRaising(t *testing.T) {
+	code := serviceChainFull(t, &memStandingGrants{}, fakeUsage{}, &fakeRaiser{flood: true}, "/api/v1/runs")
+	if code != http.StatusTooManyRequests {
+		t.Fatalf("over the pending-ask cap should be 429, got %d", code)
 	}
 }
 
 // The heartbeat creates its TASK before its run; the standing grant must admit
-// that leg too (one authorized unit), or the task 401s before the run. This is
-// the live defect the run-only wiring missed.
+// that leg too (one authorized unit).
 func TestServiceWithStandingGrantReachesCreateTask(t *testing.T) {
 	repo := &memStandingGrants{}
 	_ = repo.Put(context.Background(), standingGrantRecord("prompt-manager", "operator", time.Now().Add(time.Hour), authn.StandingGrantLimits{MaxConcurrentRuns: 5}))
-	if code := serviceChainPath(t, repo, fakeUsage{concurrent: 2}, "/api/v1/tasks"); code != http.StatusAccepted {
+	if code := serviceChainPath(t, repo, fakeUsage{concurrent: 2}, "/api/v1/tasks"); code != admitAdmittedStatus {
 		t.Fatalf("service with valid grant not admitted for task.create: %d", code)
 	}
 }
 
-func TestServiceWithoutStandingGrantRefusedOnCreateTask(t *testing.T) {
-	if code := serviceChainPath(t, &memStandingGrants{}, fakeUsage{}, "/api/v1/tasks"); code != http.StatusForbidden {
-		t.Fatalf("service with no grant should be 403 on task.create, got %d", code)
+func TestServiceWithoutStandingGrantAsksOnCreateTask(t *testing.T) {
+	if code := serviceChainPath(t, &memStandingGrants{}, fakeUsage{}, "/api/v1/tasks"); code != http.StatusAccepted {
+		t.Fatalf("service with no grant should get 202 approval-pending on task.create, got %d", code)
 	}
 }
 
-func TestServiceOverConcurrencyRefused(t *testing.T) {
+// BOUNDARY: over-limit is a HARD refuse (403), NOT an ask — approval cannot fix
+// a bound the caller has already hit.
+func TestServiceOverConcurrencyHardRefused(t *testing.T) {
 	repo := &memStandingGrants{}
 	_ = repo.Put(context.Background(), standingGrantRecord("prompt-manager", "operator", time.Now().Add(time.Hour), authn.StandingGrantLimits{MaxConcurrentRuns: 2}))
-	if code := serviceChain(t, repo, fakeUsage{concurrent: 2}); code != http.StatusForbidden {
-		t.Fatalf("service at concurrency limit should be 403, got %d", code)
+	raiser := &fakeRaiser{}
+	code := serviceChainFull(t, repo, fakeUsage{concurrent: 2}, raiser, "/api/v1/runs")
+	if code != http.StatusForbidden {
+		t.Fatalf("service at concurrency limit should be hard-refused 403, got %d", code)
+	}
+	if len(raiser.raised) != 0 {
+		t.Fatalf("over-limit must NOT raise an approval ask, got %+v", raiser.raised)
 	}
 }
 
-func TestServiceWithExpiredGrantRefused(t *testing.T) {
+// An expired or revoked grant = a known caller with no ACTIVE grant → ask, not
+// a silent block. (ActiveForSubject filters both out, so the authority sees no
+// covering grant and returns needs-approval.)
+func TestServiceWithExpiredGrantAsksForApproval(t *testing.T) {
 	repo := &memStandingGrants{}
 	_ = repo.Put(context.Background(), standingGrantRecord("prompt-manager", "operator", time.Now().Add(-time.Second), authn.StandingGrantLimits{}))
-	if code := serviceChain(t, repo, fakeUsage{}); code != http.StatusForbidden {
-		t.Fatalf("service with expired grant should be 403, got %d", code)
+	if code := serviceChain(t, repo, fakeUsage{}); code != http.StatusAccepted {
+		t.Fatalf("service with expired grant should ask (202), got %d", code)
 	}
 }
 
-func TestServiceWithRevokedGrantRefused(t *testing.T) {
+func TestServiceWithRevokedGrantAsksForApproval(t *testing.T) {
 	repo := &memStandingGrants{}
 	g := standingGrantRecord("prompt-manager", "operator", time.Now().Add(time.Hour), authn.StandingGrantLimits{})
 	_ = repo.Put(context.Background(), g)
 	if _, err := repo.Revoke(context.Background(), g.ID, time.Now()); err != nil {
 		t.Fatal(err)
 	}
-	if code := serviceChain(t, repo, fakeUsage{}); code != http.StatusForbidden {
-		t.Fatalf("service with revoked grant should be 403, got %d", code)
+	if code := serviceChain(t, repo, fakeUsage{}); code != http.StatusAccepted {
+		t.Fatalf("service with revoked grant should ask (202), got %d", code)
 	}
 }
 
 func TestServiceGrantDoesNotReachGlobalManagement(t *testing.T) {
 	// A standing grant admits run.create only; it must not open other service
-	// writes (e.g. a global mutation RPC).
+	// writes (e.g. a global mutation RPC) — and global mgmt is a hard refuse, not
+	// an approval ask (the ask path is scoped to run.create/task only).
 	repo := &memStandingGrants{}
 	_ = repo.Put(context.Background(), standingGrantRecord("prompt-manager", "operator", time.Now().Add(time.Hour), authn.StandingGrantLimits{MaxConcurrentRuns: 5}))
 	authority := NewStandingGrantAuthority(repo, fakeUsage{}, nil)
-	chain := StandingGrantMiddleware(authority)(AgentOperationMiddleware(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+	raiser := &fakeRaiser{}
+	chain := StandingGrantMiddleware(authority, raiser)(AgentOperationMiddleware(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
 		t.Fatal("service grant reached a non-create operation")
 	})))
 	p := identity.Principal{Kind: identity.ActorService, Subject: "prompt-manager", Verified: true, Scopes: []string{"agent-manager:write"}}
@@ -180,5 +244,8 @@ func TestServiceGrantDoesNotReachGlobalManagement(t *testing.T) {
 	chain.ServeHTTP(w, r)
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("service grant escaped to global management: %d", w.Code)
+	}
+	if len(raiser.raised) != 0 {
+		t.Fatalf("a non-create service op must NOT raise an approval ask, got %+v", raiser.raised)
 	}
 }

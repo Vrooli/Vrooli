@@ -127,7 +127,8 @@
     }
   },
   "environment": {
-    "VROOLI_AUTH_RESOURCE_AUDIENCES": "device-sync-hub=scenario-authenticator:device-sync-hub"
+    "VROOLI_AUTH_RESOURCE_AUDIENCES": "device-sync-hub=scenario-authenticator:device-sync-hub,web-console=scenario-authenticator:web-console,agent-manager=scenario-authenticator:agent-manager",
+    "VROOLI_AUTH_SERVICE_PRINCIPALS": "[{\"name\":\"agent-manager\",\"resource\":\"web-console\",\"scopes\":[\"web-console:write\"],\"issuers\":[\"9022b304-9a76-4e72-829c-1f5bc101359a\"]},{\"name\":\"prompt-manager\",\"resource\":\"agent-manager\",\"scopes\":[\"agent-manager:write\"],\"issuers\":[\"9022b304-9a76-4e72-829c-1f5bc101359a\"]}]"
   },
   "components": {
     "api": {

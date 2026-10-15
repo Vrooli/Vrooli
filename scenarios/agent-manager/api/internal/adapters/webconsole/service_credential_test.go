@@ -123,7 +123,7 @@ func TestUnverifiedClientStillRefusesBeforeCreate(t *testing.T) {
 			sessions := &verifyingSessions{}
 			client := NewClient(newVerifyingServer(t, sessions), NewServicePrincipalHTTPClient(source))
 			_, err := client.CreateSession(context.Background(), CreateSessionParams{RequestedSessionID: "6f2c8e8e-5d0b-4b8a-9f62-6d0e8f1d2a11", LaunchCommand: "true"})
-			if err == nil || !strings.Contains(err.Error(), "stable-create identity unsupported; no Create submitted") {
+			if err == nil || !strings.Contains(err.Error(), "no verified human owner; no Create submitted") {
 				t.Fatalf("err=%v", err)
 			}
 			if sessions.createCalls != 0 {

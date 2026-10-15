@@ -27,7 +27,32 @@ var ErrCreateRunCaller = errors.New("verified human agent-manager:write caller r
 // AuthorizeCreateRunCaller verifies existing human proof, preserves its deadline,
 // and refuses offered run identity until an adapter has an exact-parent route.
 // No proof is minted, persisted, refreshed, or granted additional capabilities.
-func AuthorizeCreateRunCaller(ctx context.Context, headers http.Header, verifier Validator, now time.Time) (context.Context, error) {
+//
+// enforced selects the single AUTH-01 behavior (the Phase-3 switch read is the
+// caller's: pass true to always enforce, or CreateRunCallerEnforced() to honor
+// the operator switch). When enforced is false, absent or unverifiable proof is
+// NOT a refusal: a single verified human Bearer is still attached for
+// attribution, and every other caller (scheduler, agent identity) continues
+// without a qualified caller. No proof is minted, and an offered run identity is
+// not verified here.
+func AuthorizeCreateRunCaller(ctx context.Context, headers http.Header, verifier Validator, now time.Time, enforced bool) (context.Context, error) {
+	if !enforced {
+		// Unenforced attribution-only path (former AdmitCreateRunCaller switch-off
+		// behavior): opportunistically qualify a lone verified human Bearer, never
+		// refuse. Other callers pass through unqualified.
+		if values := headers.Values("Authorization"); len(values) == 1 {
+			if qualified, err := authorizeCreateRunCaller(ctx, http.Header{"Authorization": values}, verifier, now); err == nil {
+				return qualified, nil
+			}
+		}
+		return ctx, nil
+	}
+	return authorizeCreateRunCaller(ctx, headers, verifier, now)
+}
+
+// authorizeCreateRunCaller is the strict verification. It is the single
+// implementation both the enforced and unenforced paths share.
+func authorizeCreateRunCaller(ctx context.Context, headers http.Header, verifier Validator, now time.Time) (context.Context, error) {
 	if principal, ok := identity.PrincipalFromContext(ctx); ok {
 		if !principal.IsHuman() || len(headers.Values("X-Agent-Identity-Token")) != 0 || principal.ExpiresAt.IsZero() || !principal.ExpiresAt.After(now) || !scopecatalog.Resolve(principal.Scopes, "agent-manager:write") {
 			return nil, ErrCreateRunCaller
@@ -86,7 +111,14 @@ func AuthorizeCreateRunCaller(ctx context.Context, headers http.Header, verifier
 	return context.WithValue(ctx, createRunCallerKey{}, createRunCaller{token: token, identity: principal}), nil
 }
 
-func RequireCreateRunCaller(ctx context.Context, now time.Time) error {
+// RequireCreateRunCaller holds work on a qualified caller. When enforced is
+// false, an absent or expired caller does not hold work (former
+// RequireAdmittedCreateRunCaller switch-off behavior); when true, a missing or
+// expired caller is refused.
+func RequireCreateRunCaller(ctx context.Context, now time.Time, enforced bool) error {
+	if !enforced {
+		return nil
+	}
 	p, ok := ctx.Value(createRunCallerKey{}).(createRunCaller)
 	if !ok || (p.token == "" && len(p.headers) == 0) || !p.identity.ExpiresAt.After(now) || ctx.Err() != nil {
 		return ErrCreateRunCaller
@@ -96,7 +128,7 @@ func RequireCreateRunCaller(ctx context.Context, now time.Time) error {
 
 // CreateRunAuthorization is usable only for the exact owner creation endpoint.
 func CreateRunAuthorization(ctx context.Context, now time.Time) (string, error) {
-	if err := RequireCreateRunCaller(ctx, now); err != nil {
+	if err := RequireCreateRunCaller(ctx, now, true); err != nil {
 		return "", err
 	}
 	p, _ := ctx.Value(createRunCallerKey{}).(createRunCaller)
@@ -123,8 +155,20 @@ func RedactCreateRunCaller(ctx context.Context, text string) string {
 // CarryCreateRunCaller transfers an already verified request-local proof to an
 // immediately queued worker context. Its original expiry is retained; it is
 // neither durable admission nor authority for a future scheduled job.
-func CarryCreateRunCaller(from, to context.Context, now time.Time) (context.Context, error) {
-	if err := RequireCreateRunCaller(from, now); err != nil {
+//
+// When enforced is false (former CarryAdmittedCreateRunCaller switch-off
+// behavior), a still-valid caller is carried for attribution and an absent one
+// leaves the target context without a caller (no error); when true, a missing
+// or expired caller is refused.
+func CarryCreateRunCaller(from, to context.Context, now time.Time, enforced bool) (context.Context, error) {
+	if !enforced {
+		if RequireCreateRunCaller(from, now, true) != nil {
+			return to, nil
+		}
+		p, _ := from.Value(createRunCallerKey{}).(createRunCaller)
+		return context.WithValue(to, createRunCallerKey{}, p), nil
+	}
+	if err := RequireCreateRunCaller(from, now, true); err != nil {
 		return nil, err
 	}
 	p, _ := from.Value(createRunCallerKey{}).(createRunCaller)
@@ -147,13 +191,13 @@ func WithCreateRunHeaders(ctx context.Context, headers http.Header) context.Cont
 
 func AuthorizeBoundCreateRunCaller(ctx context.Context, verifier Validator, now time.Time) (context.Context, error) {
 	headers, _ := ctx.Value(createRunHeadersKey{}).(http.Header)
-	return AuthorizeCreateRunCaller(ctx, headers, verifier, now)
+	return AuthorizeCreateRunCaller(ctx, headers, verifier, now, true)
 }
 
 // CreateRunRequestHeaders carries verified request-local provider proof only
 // to the exact internal CreateRun hop. It never changes an agent into a human.
 func CreateRunRequestHeaders(ctx context.Context, now time.Time) (http.Header, error) {
-	if err := RequireCreateRunCaller(ctx, now); err != nil {
+	if err := RequireCreateRunCaller(ctx, now, true); err != nil {
 		return nil, err
 	}
 	p, _ := ctx.Value(createRunCallerKey{}).(createRunCaller)

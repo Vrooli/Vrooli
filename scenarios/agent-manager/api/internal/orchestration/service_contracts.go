@@ -191,6 +191,23 @@ type AttachRunRequest struct {
 	HarnessSession string
 	ProcessID      int
 	HarnessTitle   string
+	// HumanOwnerDelegation is an optional, verifiable, session-scoped human-owner
+	// delegation forwarded from a verified-human Web Console session (minted by
+	// scenario-authenticator, carried in the session env, forwarded by the
+	// launcher on the attach header). AttachRun verifies it against the shared
+	// scenario-authenticator root and attributes the run to the delegated human
+	// ONLY when it verifies AND its wc_session_id claim equals WebConsoleSessionID.
+	// A missing or unverifiable value leaves the run unattributed — never refused
+	// — so a local/agent/loopback attach cannot self-assert a human. It is a
+	// label verified at the root, never authority the caller supplies.
+	HumanOwnerDelegation string
+	// WebConsoleSessionID is the web-console session id the launcher forwards
+	// alongside the delegation. The delegation's wc_session_id claim is the
+	// web-console session id (NOT the harness/coding-agent session id), so the
+	// binding check compares the claim against this value. Empty for non-Web
+	// Console attaches (then no delegation can bind, so the run stays
+	// unattributed exactly as before).
+	WebConsoleSessionID string
 }
 
 // AttachRunResult contains the attached run and the plaintext token that is

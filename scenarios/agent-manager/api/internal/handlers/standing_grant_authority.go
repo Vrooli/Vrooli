@@ -2,10 +2,12 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"time"
 
 	"agent-manager/internal/domain"
+	"agent-manager/internal/orchestration"
 
 	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/identity"
@@ -47,9 +49,15 @@ func NewStandingGrantAuthority(grants domain.StandingGrantRepository, usage Stan
 }
 
 // AuthorizeOperation admits the operation when some currently-authoritative
-// grant for the verified subject covers it within limits. It returns
-// authn.ErrOperation when no grant covers the operation/target and
-// authn.ErrStandingGrantLimit when one covers it but a bound is exceeded.
+// grant for the verified subject covers it within limits. Its three outcomes:
+//   - nil: a grant covers the operation within limits → admit.
+//   - authn.ErrStandingGrantLimit: a grant covers it but a bound is exceeded →
+//     hard refuse (over-limit is never an approval; approving would not help).
+//   - authn.ErrNeedsApproval: the verified caller has NO covering grant at all →
+//     "ask, don't block" (the middleware raises an operator decision and returns
+//     a typed approval-pending). This fires only for a verified KNOWN caller; a
+//     non-service/unverified principal is rejected with authn.ErrOperation up
+//     front and never reaches the ask path.
 func (a *StandingGrantAuthority) AuthorizeOperation(ctx context.Context, p identity.Principal, _, operation, target string) error {
 	if a == nil || a.grants == nil || p.Kind != identity.ActorService || !p.IsVerified() {
 		return authn.ErrOperation
@@ -61,8 +69,10 @@ func (a *StandingGrantAuthority) AuthorizeOperation(ctx context.Context, p ident
 	}
 	// The first grant that covers the operation decides the request. Limits are
 	// measured against the grant's accountable owner, not the service subject, so
-	// concurrency/budget bound the operator's attributed runs.
-	var lastErr error = authn.ErrOperation
+	// concurrency/budget bound the operator's attributed runs. We distinguish "a
+	// grant covered it but a limit was hit" (hard refuse) from "no grant covered
+	// it" (needs approval): only the latter is an "ask, don't block".
+	limited := false
 	for _, g := range candidates {
 		if g.Grant == nil {
 			continue
@@ -74,26 +84,58 @@ func (a *StandingGrantAuthority) AuthorizeOperation(ctx context.Context, p ident
 				return err
 			}
 		}
-		if decideErr := authn.AuthorizeStandingGrant(g.Grant, g.Limits, usage, operation, target, now); decideErr == nil {
+		switch decideErr := authn.AuthorizeStandingGrant(g.Grant, g.Limits, usage, operation, target, now); {
+		case decideErr == nil:
 			return nil
-		} else {
-			lastErr = decideErr
+		case errors.Is(decideErr, authn.ErrStandingGrantLimit):
+			limited = true
 		}
 	}
-	return lastErr
+	if limited {
+		// A grant covers this operation but the caller is over a declared bound.
+		// Approval cannot fix a limit; this is a hard refuse, not an ask.
+		return authn.ErrStandingGrantLimit
+	}
+	// A verified known caller with no covering grant: ask, don't block.
+	return authn.ErrNeedsApproval
+}
+
+// ApprovalRaiser records (idempotently) an operator approval request for a
+// verified caller that lacks a covering grant, and raises the notification-hub
+// decision. It returns raised=true when the ask is outstanding (so the caller
+// is told "approval pending"), and an error (ErrAuthorizationFlood) when the
+// subject is over its outstanding-ask cap (refuse without notifying). It is
+// satisfied by *orchestration.Orchestrator. A nil raiser degrades the
+// needs-approval outcome back to a hard refuse (no regression).
+type ApprovalRaiser interface {
+	RaiseAuthorizationApproval(ctx context.Context, req orchestration.AuthorizationApprovalRequest) (bool, error)
+}
+
+type approvalRaiserKey struct{}
+
+// ApprovalRaiserFromContext returns the raiser installed by
+// StandingGrantMiddleware, if any.
+func ApprovalRaiserFromContext(ctx context.Context) (ApprovalRaiser, bool) {
+	r, ok := ctx.Value(approvalRaiserKey{}).(ApprovalRaiser)
+	return r, ok && r != nil
 }
 
 // StandingGrantMiddleware installs the standing-grant authority into the request
 // context for a verified service principal, before AgentOperationMiddleware and
 // the handlers decide. A non-service caller is untouched, so human and agent
-// authorization are unchanged. The authority is a trusted, immutable ingress
-// object, exactly like a verified principal.
-func StandingGrantMiddleware(authority *StandingGrantAuthority) func(http.Handler) http.Handler {
+// authorization are unchanged. The authority (and the approval raiser used for
+// the "ask, don't block" path) are trusted, immutable ingress objects, exactly
+// like a verified principal.
+func StandingGrantMiddleware(authority *StandingGrantAuthority, raiser ApprovalRaiser) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if authority != nil {
 				if p, ok := identity.PrincipalFromContext(r.Context()); ok && p.Kind == identity.ActorService && p.IsVerified() {
-					next.ServeHTTP(w, r.WithContext(authn.WithRequestOperationAuthority(r.Context(), authority)))
+					ctx := authn.WithRequestOperationAuthority(r.Context(), authority)
+					if raiser != nil {
+						ctx = context.WithValue(ctx, approvalRaiserKey{}, raiser)
+					}
+					next.ServeHTTP(w, r.WithContext(ctx))
 					return
 				}
 			}

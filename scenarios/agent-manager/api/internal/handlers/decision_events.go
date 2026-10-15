@@ -14,10 +14,13 @@ import (
 const DecisionEventWebhookPath = "/api/v1/events/notification-hub"
 
 // RunApprovalResolver applies a notification-hub ask resolution that answers a
-// run-approval decision (needs_review). It reports handled=true when the
-// resolution belongs to a run approval. Satisfied by *orchestration.Orchestrator.
+// run-approval decision (needs_review), or an "ask, don't block" authorization
+// decision (Phase 4). Each resolver reports handled=true when the resolution
+// belongs to it, so the webhook stops routing; false falls through to the next.
+// Satisfied by *orchestration.Orchestrator.
 type RunApprovalResolver interface {
 	ResolveRunApprovalFromHub(ctx context.Context, resolution supervision.DecisionResolution) (bool, error)
+	ResolveAuthorizationFromHub(ctx context.Context, resolution supervision.DecisionResolution) (bool, error)
 }
 
 // DecisionResolvedWebhook receives notification-hub's
@@ -54,13 +57,23 @@ func DecisionResolvedWebhook(service *supervision.Service, resolver RunApprovalR
 		}
 		// Run-approval resolutions (needs_review) drive approve/reject; the
 		// resolver reports handled=false for any other decision, which then
-		// falls through to the effort-decision resolver below.
+		// falls through to the next resolver.
 		if resolver != nil {
 			if handled, rErr := resolver.ResolveRunApprovalFromHub(r.Context(), envelope.Payload); rErr != nil {
 				http.Error(w, "apply run approval resolution: "+rErr.Error(), http.StatusInternalServerError)
 				return
 			} else if handled {
 				_ = json.NewEncoder(w).Encode(map[string]any{"run_approval": true, "ask_id": envelope.Payload.AskID, "state": envelope.Payload.State})
+				return
+			}
+			// "Ask, don't block" authorization resolutions (Phase 4): approve issues
+			// a bounded grant; reject records the refusal; a stale/unknown ask is a
+			// benign no-op. Same fall-through contract as run approval.
+			if handled, rErr := resolver.ResolveAuthorizationFromHub(r.Context(), envelope.Payload); rErr != nil {
+				http.Error(w, "apply authorization resolution: "+rErr.Error(), http.StatusInternalServerError)
+				return
+			} else if handled {
+				_ = json.NewEncoder(w).Encode(map[string]any{"authorization": true, "ask_id": envelope.Payload.AskID, "state": envelope.Payload.State})
 				return
 			}
 		}

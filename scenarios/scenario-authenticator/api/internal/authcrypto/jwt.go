@@ -24,6 +24,14 @@ type Claims struct {
 	Scopes      []string `json:"scope"`
 	SessionID   string   `json:"sid,omitempty"`
 	AuthVersion int64    `json:"auth_version,omitempty"`
+	// ActorKind is empty for human account tokens. Service-principal tokens
+	// carry "service" so relying parties never mistake them for a person.
+	ActorKind string `json:"actor_kind,omitempty"`
+	// WCSessionID binds a Web Console session-delegation token (MintSessionDelegation)
+	// to the exact terminal session it was minted for. Empty on every other token.
+	// A relying party (agent-manager) accepts the delegation only when this equals
+	// the attaching harness session, so a delegation cannot be replayed elsewhere.
+	WCSessionID string `json:"wc_session_id,omitempty"`
 	jwt.RegisteredClaims
 }
 
@@ -36,6 +44,14 @@ type TokenInput struct {
 	Audience    string // realm-qualified aud; empty is rejected by Sign
 	SessionID   string
 	AuthVersion int64
+	// ActorKind is empty for human accounts and "service" for service principals.
+	ActorKind string
+	// WCSessionID, when set, stamps the wc_session_id claim (Web Console session
+	// delegation). Empty leaves the claim absent.
+	WCSessionID string
+	// ExpiresIn, when > 0, overrides the signer's default TTL for this one token
+	// (used by short-lived session delegations). Zero uses the signer's expiry.
+	ExpiresIn time.Duration
 }
 
 // Signer mints and verifies RS256 access tokens over a single keypair.
@@ -100,6 +116,10 @@ func (s *Signer) Sign(in TokenInput) (string, error) {
 		return "", fmt.Errorf("authcrypto: empty audience")
 	}
 	now := s.now()
+	expiry := s.expiry
+	if in.ExpiresIn > 0 {
+		expiry = in.ExpiresIn
+	}
 	claims := &Claims{
 		UserID:      in.UserID,
 		Email:       in.Email,
@@ -107,11 +127,13 @@ func (s *Signer) Sign(in TokenInput) (string, error) {
 		Scopes:      nonNilStrings(in.Scopes),
 		SessionID:   in.SessionID,
 		AuthVersion: in.AuthVersion,
+		ActorKind:   in.ActorKind,
+		WCSessionID: in.WCSessionID,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   in.UserID, // additive mirror of user_id for OIDC friendliness
 			Issuer:    s.issuer,
 			Audience:  jwt.ClaimStrings{in.Audience},
-			ExpiresAt: jwt.NewNumericDate(now.Add(s.expiry)),
+			ExpiresAt: jwt.NewNumericDate(now.Add(expiry)),
 			IssuedAt:  jwt.NewNumericDate(now),
 		},
 	}

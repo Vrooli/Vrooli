@@ -16,9 +16,11 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"google.golang.org/protobuf/proto"
 	"net/http"
+	"strings"
 	"time"
+
+	"google.golang.org/protobuf/proto"
 
 	"connectrpc.com/connect"
 
@@ -32,6 +34,14 @@ import (
 // it creates, so the web-console sidebar and any auditor can attribute the
 // session back to agent-manager.
 const OwnerAgentManager = "agent-manager"
+
+// HumanOwnerSubjectHeader carries the verified human a tunnel-UI spawn is acting
+// for, so web-console attributes the session's stable-create owner to the
+// operator rather than to agent-manager's own service principal. agent-manager
+// sets it ONLY from a verified-independent-human spawn context; it is a
+// creator-identity LABEL web-console derives no authority from. Must match
+// web-console's sessions humanOwnerSubjectHeader.
+const HumanOwnerSubjectHeader = "X-Human-Owner-Subject"
 
 // OriginProgrammatic is [SessionInfo.Origin] for a session created through the
 // API (as every agent-manager session is), as opposed to an operator-opened one.
@@ -56,6 +66,13 @@ type CreateSessionParams struct {
 	// Cols/Rows size the PTY. Zero values fall back to sensible defaults.
 	Cols int32
 	Rows int32
+	// HumanOwnerSubject is the verified human on whose behalf this interactive
+	// session is being opened (a tunnel-UI spawn). When set, it is sent on the
+	// X-Human-Owner-Subject header so web-console attributes the session's
+	// stable-create owner to the operator, not agent-manager's service
+	// principal. It is populated ONLY from a verified-independent-human spawn
+	// context; empty for service/agent spawns (web-console then behaves as before).
+	HumanOwnerSubject string
 }
 
 // SessionInfo is the proto-free projection of a web-console session that the
@@ -161,6 +178,16 @@ func (c *Client) CreateSession(ctx context.Context, params CreateSessionParams) 
 		DisplayLabel:         params.DisplayLabel,
 		ExecuteLaunchCommand: params.Execute,
 	})
+	// A verified-human tunnel-UI spawn carries the operator subject on the
+	// header so web-console attributes the session's stable-create owner to the
+	// human rather than to agent-manager's service principal. It is a label, not
+	// authority; it is set here only when the caller populated it from a verified
+	// independent human. The Create and the List capability probe must carry the
+	// SAME header so the stable-create owner they agree on is the human.
+	human := strings.TrimSpace(params.HumanOwnerSubject)
+	if human != "" {
+		req.Header().Set(HumanOwnerSubjectHeader, human)
+	}
 	raw, marshalErr := proto.MarshalOptions{Deterministic: true}.Marshal(req.Msg)
 	if marshalErr != nil {
 		return "", marshalErr
@@ -169,13 +196,17 @@ func (c *Client) CreateSession(ctx context.Context, params CreateSessionParams) 
 	expectedFingerprint := hex.EncodeToString(digest[:])
 	expectedOwner := ""
 	if params.RequestedSessionID != "" {
-		capabilities, err := c.sessions.List(ctx, connect.NewRequest(&sessionsv1.ListRequest{}))
+		listReq := connect.NewRequest(&sessionsv1.ListRequest{})
+		if human != "" {
+			listReq.Header().Set(HumanOwnerSubjectHeader, human)
+		}
+		capabilities, err := c.sessions.List(ctx, listReq)
 		if err != nil {
 			return "", fmt.Errorf("web-console stable-create capability: %w", err)
 		}
 		expectedOwner = capabilities.Msg.GetStableCreateOwner()
 		if !capabilities.Msg.GetSupportsStableCreateIdentity() || expectedOwner == "" {
-			return "", fmt.Errorf("web-console stable-create identity unsupported; no Create submitted")
+			return "", fmt.Errorf("web-console cannot attribute reserved session %q: stable-create identity unsupported or no verified human owner; no Create submitted", params.RequestedSessionID)
 		}
 	}
 	resp, err := c.sessions.Create(ctx, req)

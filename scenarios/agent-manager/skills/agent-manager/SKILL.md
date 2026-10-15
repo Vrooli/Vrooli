@@ -333,4 +333,4 @@ Supported caller migration, service-level replay binding, positive verified
 operator/exact-parent tests and independent evidence remain deployment gates.
 Other lifecycle endpoints retain their existing contracts.
 
-For current adapter and manual queue migration limits, read [AUTH01_CALLER_MIGRATION.md](../../docs/AUTH01_CALLER_MIGRATION.md) before rollout.
+For the authority model behind these rules — who may create a run and how a bounded caller is granted that authority — read [docs/concepts/AUTHORIZATION.md](../../../../docs/concepts/AUTHORIZATION.md).

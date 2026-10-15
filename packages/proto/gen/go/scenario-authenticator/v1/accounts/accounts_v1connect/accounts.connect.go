@@ -78,6 +78,9 @@ const (
 	// AccountsServiceExchangeServiceCredentialProcedure is the fully-qualified name of the
 	// AccountsService's ExchangeServiceCredential RPC.
 	AccountsServiceExchangeServiceCredentialProcedure = "/vrooli.scenario_authenticator.v1.accounts.AccountsService/ExchangeServiceCredential"
+	// AccountsServiceMintSessionDelegationProcedure is the fully-qualified name of the
+	// AccountsService's MintSessionDelegation RPC.
+	AccountsServiceMintSessionDelegationProcedure = "/vrooli.scenario_authenticator.v1.accounts.AccountsService/MintSessionDelegation"
 )
 
 // AccountsServiceClient is a client for the
@@ -143,6 +146,18 @@ type AccountsServiceClient interface {
 	// short-lived access token (actor_kind "service") bound to the principal's
 	// single configured resource audience. No refresh token is issued.
 	ExchangeServiceCredential(context.Context, *connect.Request[accounts.ExchangeServiceCredentialRequest]) (*connect.Response[accounts.ExchangeServiceCredentialResponse], error)
+	// MintSessionDelegation mints a short-lived, session-scoped human-owner
+	// delegation token for a verified human. Web Console calls this from its
+	// verified Cloudflare-Access human context when it opens a terminal session,
+	// then injects the token into the session environment so a coding agent
+	// launched in that session can forward it on attach and have agent-manager
+	// attribute the attached run to the operator. The token is a pure ATTRIBUTION
+	// credential: actor_kind "human", subject = the verified operator, audience
+	// the named relying resource (agent-manager), a wc_session_id claim binding it
+	// to the exact session, a tight expiry, and NO capability scopes. It is
+	// refused unless the access_token resolves to a verified human (service/agent
+	// callers cannot mint, and a human cannot delegate on behalf of someone else).
+	MintSessionDelegation(context.Context, *connect.Request[accounts.MintSessionDelegationRequest]) (*connect.Response[accounts.MintSessionDelegationResponse], error)
 }
 
 // NewAccountsServiceClient constructs a client for the
@@ -253,6 +268,12 @@ func NewAccountsServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(accountsServiceMethods.ByName("ExchangeServiceCredential")),
 			connect.WithClientOptions(opts...),
 		),
+		mintSessionDelegation: connect.NewClient[accounts.MintSessionDelegationRequest, accounts.MintSessionDelegationResponse](
+			httpClient,
+			baseURL+AccountsServiceMintSessionDelegationProcedure,
+			connect.WithSchema(accountsServiceMethods.ByName("MintSessionDelegation")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -274,6 +295,7 @@ type accountsServiceClient struct {
 	issueBreakGlass           *connect.Client[accounts.IssueBreakGlassRequest, accounts.IssueBreakGlassResponse]
 	issueServicePrincipal     *connect.Client[accounts.IssueServicePrincipalRequest, accounts.IssueServicePrincipalResponse]
 	exchangeServiceCredential *connect.Client[accounts.ExchangeServiceCredentialRequest, accounts.ExchangeServiceCredentialResponse]
+	mintSessionDelegation     *connect.Client[accounts.MintSessionDelegationRequest, accounts.MintSessionDelegationResponse]
 }
 
 // Register calls vrooli.scenario_authenticator.v1.accounts.AccountsService.Register.
@@ -361,6 +383,12 @@ func (c *accountsServiceClient) ExchangeServiceCredential(ctx context.Context, r
 	return c.exchangeServiceCredential.CallUnary(ctx, req)
 }
 
+// MintSessionDelegation calls
+// vrooli.scenario_authenticator.v1.accounts.AccountsService.MintSessionDelegation.
+func (c *accountsServiceClient) MintSessionDelegation(ctx context.Context, req *connect.Request[accounts.MintSessionDelegationRequest]) (*connect.Response[accounts.MintSessionDelegationResponse], error) {
+	return c.mintSessionDelegation.CallUnary(ctx, req)
+}
+
 // AccountsServiceHandler is an implementation of the
 // vrooli.scenario_authenticator.v1.accounts.AccountsService service.
 type AccountsServiceHandler interface {
@@ -424,6 +452,18 @@ type AccountsServiceHandler interface {
 	// short-lived access token (actor_kind "service") bound to the principal's
 	// single configured resource audience. No refresh token is issued.
 	ExchangeServiceCredential(context.Context, *connect.Request[accounts.ExchangeServiceCredentialRequest]) (*connect.Response[accounts.ExchangeServiceCredentialResponse], error)
+	// MintSessionDelegation mints a short-lived, session-scoped human-owner
+	// delegation token for a verified human. Web Console calls this from its
+	// verified Cloudflare-Access human context when it opens a terminal session,
+	// then injects the token into the session environment so a coding agent
+	// launched in that session can forward it on attach and have agent-manager
+	// attribute the attached run to the operator. The token is a pure ATTRIBUTION
+	// credential: actor_kind "human", subject = the verified operator, audience
+	// the named relying resource (agent-manager), a wc_session_id claim binding it
+	// to the exact session, a tight expiry, and NO capability scopes. It is
+	// refused unless the access_token resolves to a verified human (service/agent
+	// callers cannot mint, and a human cannot delegate on behalf of someone else).
+	MintSessionDelegation(context.Context, *connect.Request[accounts.MintSessionDelegationRequest]) (*connect.Response[accounts.MintSessionDelegationResponse], error)
 }
 
 // NewAccountsServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -529,6 +569,12 @@ func NewAccountsServiceHandler(svc AccountsServiceHandler, opts ...connect.Handl
 		connect.WithSchema(accountsServiceMethods.ByName("ExchangeServiceCredential")),
 		connect.WithHandlerOptions(opts...),
 	)
+	accountsServiceMintSessionDelegationHandler := connect.NewUnaryHandler(
+		AccountsServiceMintSessionDelegationProcedure,
+		svc.MintSessionDelegation,
+		connect.WithSchema(accountsServiceMethods.ByName("MintSessionDelegation")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.scenario_authenticator.v1.accounts.AccountsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AccountsServiceRegisterProcedure:
@@ -563,6 +609,8 @@ func NewAccountsServiceHandler(svc AccountsServiceHandler, opts ...connect.Handl
 			accountsServiceIssueServicePrincipalHandler.ServeHTTP(w, r)
 		case AccountsServiceExchangeServiceCredentialProcedure:
 			accountsServiceExchangeServiceCredentialHandler.ServeHTTP(w, r)
+		case AccountsServiceMintSessionDelegationProcedure:
+			accountsServiceMintSessionDelegationHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -634,4 +682,8 @@ func (UnimplementedAccountsServiceHandler) IssueServicePrincipal(context.Context
 
 func (UnimplementedAccountsServiceHandler) ExchangeServiceCredential(context.Context, *connect.Request[accounts.ExchangeServiceCredentialRequest]) (*connect.Response[accounts.ExchangeServiceCredentialResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_authenticator.v1.accounts.AccountsService.ExchangeServiceCredential is not implemented"))
+}
+
+func (UnimplementedAccountsServiceHandler) MintSessionDelegation(context.Context, *connect.Request[accounts.MintSessionDelegationRequest]) (*connect.Response[accounts.MintSessionDelegationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_authenticator.v1.accounts.AccountsService.MintSessionDelegation is not implemented"))
 }

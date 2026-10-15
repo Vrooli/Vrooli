@@ -111,7 +111,9 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 	if deps.DB != nil && deps.Orchestrator != nil {
 		standingGrants := database.NewStandingGrantRepository(deps.DB)
 		standingAuthority := handlers.NewStandingGrantAuthority(standingGrants, standingGrantUsageReader{orch: deps.Orchestrator}, nil)
-		router.Use(handlers.StandingGrantMiddleware(standingAuthority))
+		// The orchestrator is the approval raiser: on a needs-approval outcome the
+		// middleware asks it to raise the operator decision (idempotent, capped).
+		router.Use(handlers.StandingGrantMiddleware(standingAuthority, deps.Orchestrator))
 	}
 	router.Use(handlers.AgentOperationMiddleware)
 	if deps.Orchestrator != nil {

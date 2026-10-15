@@ -115,6 +115,19 @@ service AccountsService {
   // single configured resource audience. No refresh token is issued.
   rpc ExchangeServiceCredential(ExchangeServiceCredentialRequest) returns (ExchangeServiceCredentialResponse);
 
+  // MintSessionDelegation mints a short-lived, session-scoped human-owner
+  // delegation token for a verified human. Web Console calls this from its
+  // verified Cloudflare-Access human context when it opens a terminal session,
+  // then injects the token into the session environment so a coding agent
+  // launched in that session can forward it on attach and have agent-manager
+  // attribute the attached run to the operator. The token is a pure ATTRIBUTION
+  // credential: actor_kind "human", subject = the verified operator, audience
+  // the named relying resource (agent-manager), a wc_session_id claim binding it
+  // to the exact session, a tight expiry, and NO capability scopes. It is
+  // refused unless the access_token resolves to a verified human (service/agent
+  // callers cannot mint, and a human cannot delegate on behalf of someone else).
+  rpc MintSessionDelegation(MintSessionDelegationRequest) returns (MintSessionDelegationResponse);
+
 }
 
 // Account is the wire shape for a single account resource. Never carries a
@@ -347,4 +360,29 @@ message ExchangeServiceCredentialResponse {
   string audience = 3;
   string subject = 4;
   repeated string scopes = 5;
+}
+
+message MintSessionDelegationRequest {
+  // Access token of the verified human the delegation is minted for. The minted
+  // token's subject is taken from this token, never from the request body, so a
+  // caller cannot mint a delegation naming a different operator.
+  string access_token = 1;
+  // The Web Console session the delegation is bound to (wc_session_id claim).
+  // agent-manager accepts the delegation only when this equals the attaching
+  // harness session, so a delegation cannot be replayed onto another session.
+  string wc_session_id = 2;
+  // Optional registered resource id the delegation is audience-scoped to. Empty
+  // resolves to the realm's default audience — what a relying party (e.g.
+  // agent-manager with no explicit audience override) accepts out of the box.
+  // A non-empty value must be a registered resource audience.
+  string resource = 3;
+}
+
+message MintSessionDelegationResponse {
+  // RS256 JWT: actor_kind "human", subject = the verified operator, the
+  // requested resource audience, a wc_session_id claim, a tight expiry, and no
+  // capability scopes.
+  string delegation_token = 1;
+  // Delegation expiry.
+  google.protobuf.Timestamp expires_at = 2;
 }

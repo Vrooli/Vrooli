@@ -286,6 +286,33 @@ func (h *handlers) issueBreakGlass(ctx cliapp.RunContext) error {
 	})
 }
 
+// issueServicePrincipal mints a service-principal credential. Running the
+// command is the explicit operator intent; it is refused inside an identified
+// agent run. The credential goes straight to the credential authority.
+func (h *handlers) issueServicePrincipal(ctx cliapp.RunContext) error {
+	token := strings.TrimSpace(ctx.Flag("access-token"))
+	if token == "" {
+		if strings.TrimSpace(os.Getenv("VROOLI_AGENT_IDENTITY_TOKEN")) != "" {
+			return fmt.Errorf("local owner exchange is unavailable inside an identified agent run; pass an administrator --access-token")
+		}
+		login, err := exchangeLocal(context.Background())
+		if err != nil {
+			return fmt.Errorf("local owner exchange unavailable: %w", err)
+		}
+		token = login.GetTokens().GetAccessToken()
+	}
+	resp, err := h.client.IssueServicePrincipal(context.Background(), connect.NewRequest(&accountsv1.IssueServicePrincipalRequest{
+		AccessToken: token, Name: ctx.Flag("name"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("issue service principal", err, nil)
+	}
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result: []string{fmt.Sprintf("Issued service principal %s for %s %v; credential stored at %s:%s (not printed).",
+			resp.Msg.GetName(), resp.Msg.GetAudience(), resp.Msg.GetScopes(), resp.Msg.GetCredentialIdentity(), resp.Msg.GetCredentialField())},
+	})
+}
+
 func splitScopes(raw string) []string {
 	parts := strings.FieldsFunc(raw, func(r rune) bool { return r == ',' || r == ' ' || r == '\n' || r == '\t' })
 	result := make([]string, 0, len(parts))

@@ -352,3 +352,18 @@ CREATE TABLE IF NOT EXISTS standing_grants (
     revoked_at TEXT
 );
 CREATE INDEX IF NOT EXISTS standing_grants_subject ON standing_grants(subject, state);
+-- Pending authorization requests back the "ask, don't block" path: when a
+-- verified known caller lacks a covering grant for a costly op, agent-manager
+-- raises an operator decision via notification-hub instead of a hard refuse.
+-- The row makes a repeated raise idempotent (the id is a correlation hash of
+-- subject+operation+target), caps outstanding asks per subject, and tells the
+-- resolution what to mint on approval. It holds no authority itself.
+CREATE TABLE IF NOT EXISTS pending_authorization_requests (
+    id TEXT PRIMARY KEY,
+    subject TEXT NOT NULL,
+    state TEXT NOT NULL,
+    body TEXT NOT NULL,
+    raised_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS pending_authorization_subject ON pending_authorization_requests(subject, state);

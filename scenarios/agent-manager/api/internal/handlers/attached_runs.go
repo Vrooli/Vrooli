@@ -3,12 +3,14 @@ package handlers
 import (
 	"io"
 	"net/http"
+	"strings"
 
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/protoconv"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"github.com/vrooli/cli-core/cliutil"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 )
 
@@ -46,11 +48,13 @@ func (h *Handler) AttachRun(w http.ResponseWriter, r *http.Request) {
 		processID = int(protoReq.GetProcessId())
 	}
 	result, err := h.svc.AttachRun(r.Context(), orchestration.AttachRunRequest{
-		TaskID:         taskID,
-		HarnessKind:    protoReq.GetHarnessKind(),
-		HarnessSession: protoReq.GetHarnessSessionId(),
-		ProcessID:      processID,
-		HarnessTitle:   protoReq.GetHarnessTitle(),
+		TaskID:               taskID,
+		HarnessKind:          protoReq.GetHarnessKind(),
+		HarnessSession:       protoReq.GetHarnessSessionId(),
+		ProcessID:            processID,
+		HarnessTitle:         protoReq.GetHarnessTitle(),
+		HumanOwnerDelegation: strings.TrimSpace(r.Header.Get(cliutil.HumanOwnerDelegationHeader)),
+		WebConsoleSessionID:  strings.TrimSpace(r.Header.Get(cliutil.WebConsoleSessionIDHeader)),
 	})
 	if err != nil {
 		writeError(w, r, err)

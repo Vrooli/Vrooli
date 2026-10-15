@@ -273,8 +273,8 @@ func runContainedChild(request AgentLaunchRequest, argv0, scope string, containm
 	}
 }
 
-// containSelf is the exec-replace branch: the launcher moves its own pid
-// into the scope, then the exec that follows keeps the ceiling.
+// containSelf moves the launcher into its session scope. Exec-replace agents
+// retain that ceiling; waiting command wrappers pass it to their children.
 func containSelf(request AgentLaunchRequest, scope string, containment SessionContainment, source string, report *containmentReport) {
 	report.Source = source
 	report.Method = ContainmentMethodNone

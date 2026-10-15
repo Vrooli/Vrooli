@@ -10,7 +10,162 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ui-health/v1/visualhealth/visualhealth.proto.
  */
 export const file_ui_health_v1_visualhealth_visualhealth: GenFile = /*@__PURE__*/
-  fileDesc("Cix1aS1oZWFsdGgvdjEvdmlzdWFsaGVhbHRoL3Zpc3VhbGhlYWx0aC5wcm90bxIgdnJvb2xpLnVpX2hlYWx0aC52MS52aXN1YWxoZWFsdGgicwoLQXJ0aWZhY3RSZWYSEAoIc2NlbmFyaW8YASABKAkSDgoGcnVuX2lkGAIgASgJEg8KB3N0ZXBfaWQYAyABKAkSEAoIcmVsX3BhdGgYBCABKAkSCwoDdXJpGAUgASgJEhIKCm1lZGlhX3R5cGUYBiABKAkiXgoIVmlld3BvcnQSDQoFd2lkdGgYASABKAUSDgoGaGVpZ2h0GAIgASgFEhYKDmRldmljZV9wcm9maWxlGAMgASgJEhsKE2RldmljZV9zY2FsZV9mYWN0b3IYBCABKAEiLgoMQ29uc29sZUVudHJ5Eg0KBWxldmVsGAEgASgJEg8KB21lc3NhZ2UYAiABKAkiZgoMTmV0d29ya0VudHJ5EgsKA3VybBgBIAEoCRIOCgZtZXRob2QYAiABKAkSFQoNcmVzb3VyY2VfdHlwZRgDIAEoCRIOCgZzdGF0dXMYBCABKAUSEgoKZXJyb3JfdGV4dBgFIAEoCSIrCglQYWdlRXJyb3ISDwoHbWVzc2FnZRgBIAEoCRINCgVzdGFjaxgCIAEoCSLMBAoSVmlzdWFsU3RlcEFydGlmYWN0Eg8KB3N0ZXBfaWQYASABKAkSDQoFbGFiZWwYAiABKAkSCwoDdXJsGAMgASgJEjwKCHZpZXdwb3J0GAQgASgLMioudnJvb2xpLnVpX2hlYWx0aC52MS52aXN1YWxoZWFsdGguVmlld3BvcnQSRQoOc2NyZWVuc2hvdF9yZWYYBSABKAsyLS52cm9vbGkudWlfaGVhbHRoLnYxLnZpc3VhbGhlYWx0aC5BcnRpZmFjdFJlZhIWCg5zY3JlZW5zaG90X3BuZxgGIAEoDBI+Cgdkb21fcmVmGAcgASgLMi0udnJvb2xpLnVpX2hlYWx0aC52MS52aXN1YWxoZWFsdGguQXJ0aWZhY3RSZWYSEAoIZG9tX2h0bWwYCCABKAkSQQoKbGF5b3V0X3JlZhgJIAEoCzItLnZyb29saS51aV9oZWFsdGgudjEudmlzdWFsaGVhbHRoLkFydGlmYWN0UmVmEhMKC2xheW91dF9qc29uGAogASgJEj8KB2NvbnNvbGUYCyADKAsyLi52cm9vbGkudWlfaGVhbHRoLnYxLnZpc3VhbGhlYWx0aC5Db25zb2xlRW50cnkSPwoHbmV0d29yaxgMIAMoCzIuLnZyb29saS51aV9oZWFsdGgudjEudmlzdWFsaGVhbHRoLk5ldHdvcmtFbnRyeRJACgtwYWdlX2Vycm9ycxgNIAMoCzIrLnZyb29saS51aV9oZWFsdGgudjEudmlzdWFsaGVhbHRoLlBhZ2VFcnJvciIrCgxWaXN1YWxNZXRyaWMSDAoEbmFtZRgBIAEoCRINCgV2YWx1ZRgCIAEoASLBAgoNVmlzdWFsRmluZGluZxIMCgRjb2RlGAEgASgJEkIKCHNldmVyaXR5GAIgASgOMjAudnJvb2xpLnVpX2hlYWx0aC52MS52aXN1YWxoZWFsdGguVmlzdWFsU2V2ZXJpdHkSQgoIY2F0ZWdvcnkYAyABKA4yMC52cm9vbGkudWlfaGVhbHRoLnYxLnZpc3VhbGhlYWx0aC5WaXN1YWxDYXRlZ29yeRIPCgdtZXNzYWdlGAQgASgJEhAKCGxvY2F0aW9uGAUgASgJEhAKCGV2aWRlbmNlGAYgASgJEhMKC3JlbWVkaWF0aW9uGAcgASgJEg8KB3N0ZXBfaWQYCCABKAkSPwoHbWV0cmljcxgJIAMoCzIuLnZyb29saS51aV9oZWFsdGgudjEudmlzdWFsaGVhbHRoLlZpc3VhbE1ldHJpYyKyAQoLU3RlcFZlcmRpY3QSDwoHc3RlcF9pZBgBIAEoCRIOCgZzdGF0dXMYAiABKAkSQQoIZmluZGluZ3MYAyADKAsyLy52cm9vbGkudWlfaGVhbHRoLnYxLnZpc3VhbGhlYWx0aC5WaXN1YWxGaW5kaW5nEj8KB21ldHJpY3MYBCADKAsyLi52cm9vbGkudWlfaGVhbHRoLnYxLnZpc3VhbGhlYWx0aC5WaXN1YWxNZXRyaWMigAEKF0FuYWx5emVBcnRpZmFjdHNSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEg4KBnJ1bl9pZBgCIAEoCRJDCgVzdGVwcxgDIAMoCzI0LnZyb29saS51aV9oZWFsdGgudjEudmlzdWFsaGVhbHRoLlZpc3VhbFN0ZXBBcnRpZmFjdCLOAQoYQW5hbHl6ZUFydGlmYWN0c1Jlc3BvbnNlEhAKCHNjZW5hcmlvGAEgASgJEg4KBnJ1bl9pZBgCIAEoCRIPCgd2ZXJkaWN0GAMgASgJEjwKBXN0ZXBzGAQgAygLMi0udnJvb2xpLnVpX2hlYWx0aC52MS52aXN1YWxoZWFsdGguU3RlcFZlcmRpY3QSQQoIZmluZGluZ3MYBSADKAsyLy52cm9vbGkudWlfaGVhbHRoLnYxLnZpc3VhbGhlYWx0aC5WaXN1YWxGaW5kaW5nIo0BCg9Db21wYXJlQXJ0aWZhY3QSDAoEcGFnZRgBIAEoCRINCgVsYWJlbBgCIAEoCRJFCg5zY3JlZW5zaG90X3JlZhgDIAEoCzItLnZyb29saS51aV9oZWFsdGgudjEudmlzdWFsaGVhbHRoLkFydGlmYWN0UmVmEhYKDnNjcmVlbnNob3RfcG5nGAQgASgMIt0BChdDb21wYXJlQXJ0aWZhY3RzUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRITCgtiYXNlX3J1bl9pZBgCIAEoCRIWCg5jdXJyZW50X3J1bl9pZBgDIAEoCRI/CgRiYXNlGAQgAygLMjEudnJvb2xpLnVpX2hlYWx0aC52MS52aXN1YWxoZWFsdGguQ29tcGFyZUFydGlmYWN0EkIKB2N1cnJlbnQYBSADKAsyMS52cm9vbGkudWlfaGVhbHRoLnYxLnZpc3VhbGhlYWx0aC5Db21wYXJlQXJ0aWZhY3QiVAoLVmlzdWFsRGVsdGESDAoEcGFnZRgBIAEoCRINCgVsYWJlbBgCIAEoCRIOCgZzdGF0dXMYAyABKAkSGAoQY2hhbmdlZF9mcmFjdGlvbhgEIAEoASJZChhDb21wYXJlQXJ0aWZhY3RzUmVzcG9uc2USPQoGZGVsdGFzGAEgAygLMi0udnJvb2xpLnVpX2hlYWx0aC52MS52aXN1YWxoZWFsdGguVmlzdWFsRGVsdGEiEgoQTGlzdFJ1bGVzUmVxdWVzdCLRAQoKVmlzdWFsUnVsZRIKCgJpZBgBIAEoCRJCCghjYXRlZ29yeRgCIAEoDjIwLnZyb29saS51aV9oZWFsdGgudjEudmlzdWFsaGVhbHRoLlZpc3VhbENhdGVnb3J5EkIKCHNldmVyaXR5GAMgASgOMjAudnJvb2xpLnVpX2hlYWx0aC52MS52aXN1YWxoZWFsdGguVmlzdWFsU2V2ZXJpdHkSGgoScmVxdWlyZWRfYXJ0aWZhY3RzGAQgAygJEhMKC3JlbWVkaWF0aW9uGAUgASgJIlAKEUxpc3RSdWxlc1Jlc3BvbnNlEjsKBXJ1bGVzGAEgAygLMiwudnJvb2xpLnVpX2hlYWx0aC52MS52aXN1YWxoZWFsdGguVmlzdWFsUnVsZSqDAQoOVmlzdWFsU2V2ZXJpdHkSHwobVklTVUFMX1NFVkVSSVRZX1VOU1BFQ0lGSUVEEAASGAoUVklTVUFMX1NFVkVSSVRZX0lORk8QARIbChdWSVNVQUxfU0VWRVJJVFlfV0FSTklORxACEhkKFVZJU1VBTF9TRVZFUklUWV9FUlJPUhADKrcBCg5WaXN1YWxDYXRlZ29yeRIfChtWSVNVQUxfQ0FURUdPUllfVU5TUEVDSUZJRUQQABIZChVWSVNVQUxfQ0FURUdPUllfUElYRUwQARIXChNWSVNVQUxfQ0FURUdPUllfRE9NEAISGgoWVklTVUFMX0NBVEVHT1JZX0xBWU9VVBADEhkKFVZJU1VBTF9DQVRFR09SWV9BU1NFVBAEEhkKFVZJU1VBTF9DQVRFR09SWV9GT0NVUxAFMqMDChNWaXN1YWxIZWFsdGhTZXJ2aWNlEokBChBBbmFseXplQXJ0aWZhY3RzEjkudnJvb2xpLnVpX2hlYWx0aC52MS52aXN1YWxoZWFsdGguQW5hbHl6ZUFydGlmYWN0c1JlcXVlc3QaOi52cm9vbGkudWlfaGVhbHRoLnYxLnZpc3VhbGhlYWx0aC5BbmFseXplQXJ0aWZhY3RzUmVzcG9uc2USiQEKEENvbXBhcmVBcnRpZmFjdHMSOS52cm9vbGkudWlfaGVhbHRoLnYxLnZpc3VhbGhlYWx0aC5Db21wYXJlQXJ0aWZhY3RzUmVxdWVzdBo6LnZyb29saS51aV9oZWFsdGgudjEudmlzdWFsaGVhbHRoLkNvbXBhcmVBcnRpZmFjdHNSZXNwb25zZRJ0CglMaXN0UnVsZXMSMi52cm9vbGkudWlfaGVhbHRoLnYxLnZpc3VhbGhlYWx0aC5MaXN0UnVsZXNSZXF1ZXN0GjMudnJvb2xpLnVpX2hlYWx0aC52MS52aXN1YWxoZWFsdGguTGlzdFJ1bGVzUmVzcG9uc2VCWlpYZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby91aS1oZWFsdGgvdjEvdmlzdWFsaGVhbHRoO3Zpc3VhbGhlYWx0aF92MWIGcHJvdG8z");
+  fileDesc("Cix1aS1oZWFsdGgvdjEvdmlzdWFsaGVhbHRoL3Zpc3VhbGhlYWx0aC5wcm90bxIgdnJvb2xpLnVpX2hlYWx0aC52MS52aXN1YWxoZWFsdGgilAIKEkJyb3dzZXJPYnNlcnZhdGlvbhIQCghzY2VuYXJpbxgBIAEoCRIRCgljbGllbnRfaWQYAiABKAkSEAoIYnVpbGRfaWQYAyABKAkSEgoKdXNlcl9hZ2VudBgEIAEoCRISCgpzdGFuZGFsb25lGAUgASgIEhAKCGVtYmVkZGVkGAYgASgIEhMKC2xheW91dF9qc29uGAcgASgJEhMKC3JlY2VpdmVkX2F0GAggASgJEgoKAmlkGAkgASgJEhQKDGNhcHR1cmVfa2luZBgKIAEoCRJBCghmaW5kaW5ncxgLIAMoCzIvLnZyb29saS51aV9oZWFsdGgudjEudmlzdWFsaGVhbHRoLlZpc3VhbEZpbmRpbmcibAofUmVjb3JkQnJvd3Nlck9ic2VydmF0aW9uUmVxdWVzdBJJCgtvYnNlcnZhdGlvbhgBIAEoCzI0LnZyb29saS51aV9oZWFsdGgudjEudmlzdWFsaGVhbHRoLkJyb3dzZXJPYnNlcnZhdGlvbiJtCiBSZWNvcmRCcm93c2VyT2JzZXJ2YXRpb25SZXNwb25zZRJJCgtvYnNlcnZhdGlvbhgBIAEoCzI0LnZyb29saS51aV9oZWFsdGgudjEudmlzdWFsaGVhbHRoLkJyb3dzZXJPYnNlcnZhdGlvbiJUCh5MaXN0QnJvd3Nlck9ic2VydmF0aW9uc1JlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSEQoJY2xpZW50X2lkGAIgASgJEg0KBWxpbWl0GAMgASgFIm0KH0xpc3RCcm93c2VyT2JzZXJ2YXRpb25zUmVzcG9uc2USSgoMb2JzZXJ2YXRpb25zGAEgAygLMjQudnJvb2xpLnVpX2hlYWx0aC52MS52aXN1YWxoZWFsdGguQnJvd3Nlck9ic2VydmF0aW9uInMKC0FydGlmYWN0UmVmEhAKCHNjZW5hcmlvGAEgASgJEg4KBnJ1bl9pZBgCIAEoCRIPCgdzdGVwX2lkGAMgASgJEhAKCHJlbF9wYXRoGAQgASgJEgsKA3VyaRgFIAEoCRISCgptZWRpYV90eXBlGAYgASgJIl4KCFZpZXdwb3J0Eg0KBXdpZHRoGAEgASgFEg4KBmhlaWdodBgCIAEoBRIWCg5kZXZpY2VfcHJvZmlsZRgDIAEoCRIbChNkZXZpY2Vfc2NhbGVfZmFjdG9yGAQgASgBIi4KDENvbnNvbGVFbnRyeRINCgVsZXZlbBgBIAEoCRIPCgdtZXNzYWdlGAIgASgJImYKDE5ldHdvcmtFbnRyeRILCgN1cmwYASABKAkSDgoGbWV0aG9kGAIgASgJEhUKDXJlc291cmNlX3R5cGUYAyABKAkSDgoGc3RhdHVzGAQgASgFEhIKCmVycm9yX3RleHQYBSABKAkiKwoJUGFnZUVycm9yEg8KB21lc3NhZ2UYASABKAkSDQoFc3RhY2sYAiABKAkizAQKElZpc3VhbFN0ZXBBcnRpZmFjdBIPCgdzdGVwX2lkGAEgASgJEg0KBWxhYmVsGAIgASgJEgsKA3VybBgDIAEoCRI8Cgh2aWV3cG9ydBgEIAEoCzIqLnZyb29saS51aV9oZWFsdGgudjEudmlzdWFsaGVhbHRoLlZpZXdwb3J0EkUKDnNjcmVlbnNob3RfcmVmGAUgASgLMi0udnJvb2xpLnVpX2hlYWx0aC52MS52aXN1YWxoZWFsdGguQXJ0aWZhY3RSZWYSFgoOc2NyZWVuc2hvdF9wbmcYBiABKAwSPgoHZG9tX3JlZhgHIAEoCzItLnZyb29saS51aV9oZWFsdGgudjEudmlzdWFsaGVhbHRoLkFydGlmYWN0UmVmEhAKCGRvbV9odG1sGAggASgJEkEKCmxheW91dF9yZWYYCSABKAsyLS52cm9vbGkudWlfaGVhbHRoLnYxLnZpc3VhbGhlYWx0aC5BcnRpZmFjdFJlZhITCgtsYXlvdXRfanNvbhgKIAEoCRI/Cgdjb25zb2xlGAsgAygLMi4udnJvb2xpLnVpX2hlYWx0aC52MS52aXN1YWxoZWFsdGguQ29uc29sZUVudHJ5Ej8KB25ldHdvcmsYDCADKAsyLi52cm9vbGkudWlfaGVhbHRoLnYxLnZpc3VhbGhlYWx0aC5OZXR3b3JrRW50cnkSQAoLcGFnZV9lcnJvcnMYDSADKAsyKy52cm9vbGkudWlfaGVhbHRoLnYxLnZpc3VhbGhlYWx0aC5QYWdlRXJyb3IiKwoMVmlzdWFsTWV0cmljEgwKBG5hbWUYASABKAkSDQoFdmFsdWUYAiABKAEiwQIKDVZpc3VhbEZpbmRpbmcSDAoEY29kZRgBIAEoCRJCCghzZXZlcml0eRgCIAEoDjIwLnZyb29saS51aV9oZWFsdGgudjEudmlzdWFsaGVhbHRoLlZpc3VhbFNldmVyaXR5EkIKCGNhdGVnb3J5GAMgASgOMjAudnJvb2xpLnVpX2hlYWx0aC52MS52aXN1YWxoZWFsdGguVmlzdWFsQ2F0ZWdvcnkSDwoHbWVzc2FnZRgEIAEoCRIQCghsb2NhdGlvbhgFIAEoCRIQCghldmlkZW5jZRgGIAEoCRITCgtyZW1lZGlhdGlvbhgHIAEoCRIPCgdzdGVwX2lkGAggASgJEj8KB21ldHJpY3MYCSADKAsyLi52cm9vbGkudWlfaGVhbHRoLnYxLnZpc3VhbGhlYWx0aC5WaXN1YWxNZXRyaWMisgEKC1N0ZXBWZXJkaWN0Eg8KB3N0ZXBfaWQYASABKAkSDgoGc3RhdHVzGAIgASgJEkEKCGZpbmRpbmdzGAMgAygLMi8udnJvb2xpLnVpX2hlYWx0aC52MS52aXN1YWxoZWFsdGguVmlzdWFsRmluZGluZxI/CgdtZXRyaWNzGAQgAygLMi4udnJvb2xpLnVpX2hlYWx0aC52MS52aXN1YWxoZWFsdGguVmlzdWFsTWV0cmljIoABChdBbmFseXplQXJ0aWZhY3RzUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRIOCgZydW5faWQYAiABKAkSQwoFc3RlcHMYAyADKAsyNC52cm9vbGkudWlfaGVhbHRoLnYxLnZpc3VhbGhlYWx0aC5WaXN1YWxTdGVwQXJ0aWZhY3QizgEKGEFuYWx5emVBcnRpZmFjdHNSZXNwb25zZRIQCghzY2VuYXJpbxgBIAEoCRIOCgZydW5faWQYAiABKAkSDwoHdmVyZGljdBgDIAEoCRI8CgVzdGVwcxgEIAMoCzItLnZyb29saS51aV9oZWFsdGgudjEudmlzdWFsaGVhbHRoLlN0ZXBWZXJkaWN0EkEKCGZpbmRpbmdzGAUgAygLMi8udnJvb2xpLnVpX2hlYWx0aC52MS52aXN1YWxoZWFsdGguVmlzdWFsRmluZGluZyKNAQoPQ29tcGFyZUFydGlmYWN0EgwKBHBhZ2UYASABKAkSDQoFbGFiZWwYAiABKAkSRQoOc2NyZWVuc2hvdF9yZWYYAyABKAsyLS52cm9vbGkudWlfaGVhbHRoLnYxLnZpc3VhbGhlYWx0aC5BcnRpZmFjdFJlZhIWCg5zY3JlZW5zaG90X3BuZxgEIAEoDCLdAQoXQ29tcGFyZUFydGlmYWN0c1JlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSEwoLYmFzZV9ydW5faWQYAiABKAkSFgoOY3VycmVudF9ydW5faWQYAyABKAkSPwoEYmFzZRgEIAMoCzIxLnZyb29saS51aV9oZWFsdGgudjEudmlzdWFsaGVhbHRoLkNvbXBhcmVBcnRpZmFjdBJCCgdjdXJyZW50GAUgAygLMjEudnJvb2xpLnVpX2hlYWx0aC52MS52aXN1YWxoZWFsdGguQ29tcGFyZUFydGlmYWN0IlQKC1Zpc3VhbERlbHRhEgwKBHBhZ2UYASABKAkSDQoFbGFiZWwYAiABKAkSDgoGc3RhdHVzGAMgASgJEhgKEGNoYW5nZWRfZnJhY3Rpb24YBCABKAEiWQoYQ29tcGFyZUFydGlmYWN0c1Jlc3BvbnNlEj0KBmRlbHRhcxgBIAMoCzItLnZyb29saS51aV9oZWFsdGgudjEudmlzdWFsaGVhbHRoLlZpc3VhbERlbHRhIhIKEExpc3RSdWxlc1JlcXVlc3Qi0QEKClZpc3VhbFJ1bGUSCgoCaWQYASABKAkSQgoIY2F0ZWdvcnkYAiABKA4yMC52cm9vbGkudWlfaGVhbHRoLnYxLnZpc3VhbGhlYWx0aC5WaXN1YWxDYXRlZ29yeRJCCghzZXZlcml0eRgDIAEoDjIwLnZyb29saS51aV9oZWFsdGgudjEudmlzdWFsaGVhbHRoLlZpc3VhbFNldmVyaXR5EhoKEnJlcXVpcmVkX2FydGlmYWN0cxgEIAMoCRITCgtyZW1lZGlhdGlvbhgFIAEoCSJQChFMaXN0UnVsZXNSZXNwb25zZRI7CgVydWxlcxgBIAMoCzIsLnZyb29saS51aV9oZWFsdGgudjEudmlzdWFsaGVhbHRoLlZpc3VhbFJ1bGUqgwEKDlZpc3VhbFNldmVyaXR5Eh8KG1ZJU1VBTF9TRVZFUklUWV9VTlNQRUNJRklFRBAAEhgKFFZJU1VBTF9TRVZFUklUWV9JTkZPEAESGwoXVklTVUFMX1NFVkVSSVRZX1dBUk5JTkcQAhIZChVWSVNVQUxfU0VWRVJJVFlfRVJST1IQAyq3AQoOVmlzdWFsQ2F0ZWdvcnkSHwobVklTVUFMX0NBVEVHT1JZX1VOU1BFQ0lGSUVEEAASGQoVVklTVUFMX0NBVEVHT1JZX1BJWEVMEAESFwoTVklTVUFMX0NBVEVHT1JZX0RPTRACEhoKFlZJU1VBTF9DQVRFR09SWV9MQVlPVVQQAxIZChVWSVNVQUxfQ0FURUdPUllfQVNTRVQQBBIZChVWSVNVQUxfQ0FURUdPUllfRk9DVVMQBTLoBQoTVmlzdWFsSGVhbHRoU2VydmljZRKJAQoQQW5hbHl6ZUFydGlmYWN0cxI5LnZyb29saS51aV9oZWFsdGgudjEudmlzdWFsaGVhbHRoLkFuYWx5emVBcnRpZmFjdHNSZXF1ZXN0GjoudnJvb2xpLnVpX2hlYWx0aC52MS52aXN1YWxoZWFsdGguQW5hbHl6ZUFydGlmYWN0c1Jlc3BvbnNlEokBChBDb21wYXJlQXJ0aWZhY3RzEjkudnJvb2xpLnVpX2hlYWx0aC52MS52aXN1YWxoZWFsdGguQ29tcGFyZUFydGlmYWN0c1JlcXVlc3QaOi52cm9vbGkudWlfaGVhbHRoLnYxLnZpc3VhbGhlYWx0aC5Db21wYXJlQXJ0aWZhY3RzUmVzcG9uc2USdAoJTGlzdFJ1bGVzEjIudnJvb2xpLnVpX2hlYWx0aC52MS52aXN1YWxoZWFsdGguTGlzdFJ1bGVzUmVxdWVzdBozLnZyb29saS51aV9oZWFsdGgudjEudmlzdWFsaGVhbHRoLkxpc3RSdWxlc1Jlc3BvbnNlEqEBChhSZWNvcmRCcm93c2VyT2JzZXJ2YXRpb24SQS52cm9vbGkudWlfaGVhbHRoLnYxLnZpc3VhbGhlYWx0aC5SZWNvcmRCcm93c2VyT2JzZXJ2YXRpb25SZXF1ZXN0GkIudnJvb2xpLnVpX2hlYWx0aC52MS52aXN1YWxoZWFsdGguUmVjb3JkQnJvd3Nlck9ic2VydmF0aW9uUmVzcG9uc2USngEKF0xpc3RCcm93c2VyT2JzZXJ2YXRpb25zEkAudnJvb2xpLnVpX2hlYWx0aC52MS52aXN1YWxoZWFsdGguTGlzdEJyb3dzZXJPYnNlcnZhdGlvbnNSZXF1ZXN0GkEudnJvb2xpLnVpX2hlYWx0aC52MS52aXN1YWxoZWFsdGguTGlzdEJyb3dzZXJPYnNlcnZhdGlvbnNSZXNwb25zZUJaWlhnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3VpLWhlYWx0aC92MS92aXN1YWxoZWFsdGg7dmlzdWFsaGVhbHRoX3YxYgZwcm90bzM");
+
+/**
+ * @generated from message vrooli.ui_health.v1.visualhealth.BrowserObservation
+ */
+export type BrowserObservation = Message<"vrooli.ui_health.v1.visualhealth.BrowserObservation"> & {
+  /**
+   * @generated from field: string scenario = 1;
+   */
+  scenario: string;
+
+  /**
+   * Random per-tab identity. Contains no account or device identifier.
+   *
+   * @generated from field: string client_id = 2;
+   */
+  clientId: string;
+
+  /**
+   * @generated from field: string build_id = 3;
+   */
+  buildId: string;
+
+  /**
+   * @generated from field: string user_agent = 4;
+   */
+  userAgent: string;
+
+  /**
+   * @generated from field: bool standalone = 5;
+   */
+  standalone: boolean;
+
+  /**
+   * @generated from field: bool embedded = 6;
+   */
+  embedded: boolean;
+
+  /**
+   * Bounded metadata: viewport, insets, edge-owner rectangles/colors; no DOM text.
+   *
+   * @generated from field: string layout_json = 7;
+   */
+  layoutJson: string;
+
+  /**
+   * Assigned by the receiver, not trusted from the browser.
+   *
+   * @generated from field: string received_at = 8;
+   */
+  receivedAt: string;
+
+  /**
+   * @generated from field: string id = 9;
+   */
+  id: string;
+
+  /**
+   * Always browser_geometry for these reports. Native pixels require a device transport.
+   *
+   * @generated from field: string capture_kind = 10;
+   */
+  captureKind: string;
+
+  /**
+   * Receiver-computed geometry/style findings; not native pixel judgments.
+   *
+   * @generated from field: repeated vrooli.ui_health.v1.visualhealth.VisualFinding findings = 11;
+   */
+  findings: VisualFinding[];
+};
+
+/**
+ * Describes the message vrooli.ui_health.v1.visualhealth.BrowserObservation.
+ * Use `create(BrowserObservationSchema)` to create a new message.
+ */
+export const BrowserObservationSchema: GenMessage<BrowserObservation> = /*@__PURE__*/
+  messageDesc(file_ui_health_v1_visualhealth_visualhealth, 0);
+
+/**
+ * @generated from message vrooli.ui_health.v1.visualhealth.RecordBrowserObservationRequest
+ */
+export type RecordBrowserObservationRequest = Message<"vrooli.ui_health.v1.visualhealth.RecordBrowserObservationRequest"> & {
+  /**
+   * @generated from field: vrooli.ui_health.v1.visualhealth.BrowserObservation observation = 1;
+   */
+  observation?: BrowserObservation | undefined;
+};
+
+/**
+ * Describes the message vrooli.ui_health.v1.visualhealth.RecordBrowserObservationRequest.
+ * Use `create(RecordBrowserObservationRequestSchema)` to create a new message.
+ */
+export const RecordBrowserObservationRequestSchema: GenMessage<RecordBrowserObservationRequest> = /*@__PURE__*/
+  messageDesc(file_ui_health_v1_visualhealth_visualhealth, 1);
+
+/**
+ * @generated from message vrooli.ui_health.v1.visualhealth.RecordBrowserObservationResponse
+ */
+export type RecordBrowserObservationResponse = Message<"vrooli.ui_health.v1.visualhealth.RecordBrowserObservationResponse"> & {
+  /**
+   * @generated from field: vrooli.ui_health.v1.visualhealth.BrowserObservation observation = 1;
+   */
+  observation?: BrowserObservation | undefined;
+};
+
+/**
+ * Describes the message vrooli.ui_health.v1.visualhealth.RecordBrowserObservationResponse.
+ * Use `create(RecordBrowserObservationResponseSchema)` to create a new message.
+ */
+export const RecordBrowserObservationResponseSchema: GenMessage<RecordBrowserObservationResponse> = /*@__PURE__*/
+  messageDesc(file_ui_health_v1_visualhealth_visualhealth, 2);
+
+/**
+ * @generated from message vrooli.ui_health.v1.visualhealth.ListBrowserObservationsRequest
+ */
+export type ListBrowserObservationsRequest = Message<"vrooli.ui_health.v1.visualhealth.ListBrowserObservationsRequest"> & {
+  /**
+   * @generated from field: string scenario = 1;
+   */
+  scenario: string;
+
+  /**
+   * @generated from field: string client_id = 2;
+   */
+  clientId: string;
+
+  /**
+   * @generated from field: int32 limit = 3;
+   */
+  limit: number;
+};
+
+/**
+ * Describes the message vrooli.ui_health.v1.visualhealth.ListBrowserObservationsRequest.
+ * Use `create(ListBrowserObservationsRequestSchema)` to create a new message.
+ */
+export const ListBrowserObservationsRequestSchema: GenMessage<ListBrowserObservationsRequest> = /*@__PURE__*/
+  messageDesc(file_ui_health_v1_visualhealth_visualhealth, 3);
+
+/**
+ * @generated from message vrooli.ui_health.v1.visualhealth.ListBrowserObservationsResponse
+ */
+export type ListBrowserObservationsResponse = Message<"vrooli.ui_health.v1.visualhealth.ListBrowserObservationsResponse"> & {
+  /**
+   * @generated from field: repeated vrooli.ui_health.v1.visualhealth.BrowserObservation observations = 1;
+   */
+  observations: BrowserObservation[];
+};
+
+/**
+ * Describes the message vrooli.ui_health.v1.visualhealth.ListBrowserObservationsResponse.
+ * Use `create(ListBrowserObservationsResponseSchema)` to create a new message.
+ */
+export const ListBrowserObservationsResponseSchema: GenMessage<ListBrowserObservationsResponse> = /*@__PURE__*/
+  messageDesc(file_ui_health_v1_visualhealth_visualhealth, 4);
 
 /**
  * @generated from message vrooli.ui_health.v1.visualhealth.ArtifactRef
@@ -52,7 +207,7 @@ export type ArtifactRef = Message<"vrooli.ui_health.v1.visualhealth.ArtifactRef"
  * Use `create(ArtifactRefSchema)` to create a new message.
  */
 export const ArtifactRefSchema: GenMessage<ArtifactRef> = /*@__PURE__*/
-  messageDesc(file_ui_health_v1_visualhealth_visualhealth, 0);
+  messageDesc(file_ui_health_v1_visualhealth_visualhealth, 5);
 
 /**
  * @generated from message vrooli.ui_health.v1.visualhealth.Viewport
@@ -84,7 +239,7 @@ export type Viewport = Message<"vrooli.ui_health.v1.visualhealth.Viewport"> & {
  * Use `create(ViewportSchema)` to create a new message.
  */
 export const ViewportSchema: GenMessage<Viewport> = /*@__PURE__*/
-  messageDesc(file_ui_health_v1_visualhealth_visualhealth, 1);
+  messageDesc(file_ui_health_v1_visualhealth_visualhealth, 6);
 
 /**
  * @generated from message vrooli.ui_health.v1.visualhealth.ConsoleEntry
@@ -106,7 +261,7 @@ export type ConsoleEntry = Message<"vrooli.ui_health.v1.visualhealth.ConsoleEntr
  * Use `create(ConsoleEntrySchema)` to create a new message.
  */
 export const ConsoleEntrySchema: GenMessage<ConsoleEntry> = /*@__PURE__*/
-  messageDesc(file_ui_health_v1_visualhealth_visualhealth, 2);
+  messageDesc(file_ui_health_v1_visualhealth_visualhealth, 7);
 
 /**
  * @generated from message vrooli.ui_health.v1.visualhealth.NetworkEntry
@@ -143,7 +298,7 @@ export type NetworkEntry = Message<"vrooli.ui_health.v1.visualhealth.NetworkEntr
  * Use `create(NetworkEntrySchema)` to create a new message.
  */
 export const NetworkEntrySchema: GenMessage<NetworkEntry> = /*@__PURE__*/
-  messageDesc(file_ui_health_v1_visualhealth_visualhealth, 3);
+  messageDesc(file_ui_health_v1_visualhealth_visualhealth, 8);
 
 /**
  * @generated from message vrooli.ui_health.v1.visualhealth.PageError
@@ -165,7 +320,7 @@ export type PageError = Message<"vrooli.ui_health.v1.visualhealth.PageError"> & 
  * Use `create(PageErrorSchema)` to create a new message.
  */
 export const PageErrorSchema: GenMessage<PageError> = /*@__PURE__*/
-  messageDesc(file_ui_health_v1_visualhealth_visualhealth, 4);
+  messageDesc(file_ui_health_v1_visualhealth_visualhealth, 9);
 
 /**
  * @generated from message vrooli.ui_health.v1.visualhealth.VisualStepArtifact
@@ -242,7 +397,7 @@ export type VisualStepArtifact = Message<"vrooli.ui_health.v1.visualhealth.Visua
  * Use `create(VisualStepArtifactSchema)` to create a new message.
  */
 export const VisualStepArtifactSchema: GenMessage<VisualStepArtifact> = /*@__PURE__*/
-  messageDesc(file_ui_health_v1_visualhealth_visualhealth, 5);
+  messageDesc(file_ui_health_v1_visualhealth_visualhealth, 10);
 
 /**
  * @generated from message vrooli.ui_health.v1.visualhealth.VisualMetric
@@ -264,7 +419,7 @@ export type VisualMetric = Message<"vrooli.ui_health.v1.visualhealth.VisualMetri
  * Use `create(VisualMetricSchema)` to create a new message.
  */
 export const VisualMetricSchema: GenMessage<VisualMetric> = /*@__PURE__*/
-  messageDesc(file_ui_health_v1_visualhealth_visualhealth, 6);
+  messageDesc(file_ui_health_v1_visualhealth_visualhealth, 11);
 
 /**
  * @generated from message vrooli.ui_health.v1.visualhealth.VisualFinding
@@ -321,7 +476,7 @@ export type VisualFinding = Message<"vrooli.ui_health.v1.visualhealth.VisualFind
  * Use `create(VisualFindingSchema)` to create a new message.
  */
 export const VisualFindingSchema: GenMessage<VisualFinding> = /*@__PURE__*/
-  messageDesc(file_ui_health_v1_visualhealth_visualhealth, 7);
+  messageDesc(file_ui_health_v1_visualhealth_visualhealth, 12);
 
 /**
  * @generated from message vrooli.ui_health.v1.visualhealth.StepVerdict
@@ -353,7 +508,7 @@ export type StepVerdict = Message<"vrooli.ui_health.v1.visualhealth.StepVerdict"
  * Use `create(StepVerdictSchema)` to create a new message.
  */
 export const StepVerdictSchema: GenMessage<StepVerdict> = /*@__PURE__*/
-  messageDesc(file_ui_health_v1_visualhealth_visualhealth, 8);
+  messageDesc(file_ui_health_v1_visualhealth_visualhealth, 13);
 
 /**
  * @generated from message vrooli.ui_health.v1.visualhealth.AnalyzeArtifactsRequest
@@ -380,7 +535,7 @@ export type AnalyzeArtifactsRequest = Message<"vrooli.ui_health.v1.visualhealth.
  * Use `create(AnalyzeArtifactsRequestSchema)` to create a new message.
  */
 export const AnalyzeArtifactsRequestSchema: GenMessage<AnalyzeArtifactsRequest> = /*@__PURE__*/
-  messageDesc(file_ui_health_v1_visualhealth_visualhealth, 9);
+  messageDesc(file_ui_health_v1_visualhealth_visualhealth, 14);
 
 /**
  * @generated from message vrooli.ui_health.v1.visualhealth.AnalyzeArtifactsResponse
@@ -417,7 +572,7 @@ export type AnalyzeArtifactsResponse = Message<"vrooli.ui_health.v1.visualhealth
  * Use `create(AnalyzeArtifactsResponseSchema)` to create a new message.
  */
 export const AnalyzeArtifactsResponseSchema: GenMessage<AnalyzeArtifactsResponse> = /*@__PURE__*/
-  messageDesc(file_ui_health_v1_visualhealth_visualhealth, 10);
+  messageDesc(file_ui_health_v1_visualhealth_visualhealth, 15);
 
 /**
  * @generated from message vrooli.ui_health.v1.visualhealth.CompareArtifact
@@ -449,7 +604,7 @@ export type CompareArtifact = Message<"vrooli.ui_health.v1.visualhealth.CompareA
  * Use `create(CompareArtifactSchema)` to create a new message.
  */
 export const CompareArtifactSchema: GenMessage<CompareArtifact> = /*@__PURE__*/
-  messageDesc(file_ui_health_v1_visualhealth_visualhealth, 11);
+  messageDesc(file_ui_health_v1_visualhealth_visualhealth, 16);
 
 /**
  * @generated from message vrooli.ui_health.v1.visualhealth.CompareArtifactsRequest
@@ -486,7 +641,7 @@ export type CompareArtifactsRequest = Message<"vrooli.ui_health.v1.visualhealth.
  * Use `create(CompareArtifactsRequestSchema)` to create a new message.
  */
 export const CompareArtifactsRequestSchema: GenMessage<CompareArtifactsRequest> = /*@__PURE__*/
-  messageDesc(file_ui_health_v1_visualhealth_visualhealth, 12);
+  messageDesc(file_ui_health_v1_visualhealth_visualhealth, 17);
 
 /**
  * @generated from message vrooli.ui_health.v1.visualhealth.VisualDelta
@@ -518,7 +673,7 @@ export type VisualDelta = Message<"vrooli.ui_health.v1.visualhealth.VisualDelta"
  * Use `create(VisualDeltaSchema)` to create a new message.
  */
 export const VisualDeltaSchema: GenMessage<VisualDelta> = /*@__PURE__*/
-  messageDesc(file_ui_health_v1_visualhealth_visualhealth, 13);
+  messageDesc(file_ui_health_v1_visualhealth_visualhealth, 18);
 
 /**
  * @generated from message vrooli.ui_health.v1.visualhealth.CompareArtifactsResponse
@@ -535,7 +690,7 @@ export type CompareArtifactsResponse = Message<"vrooli.ui_health.v1.visualhealth
  * Use `create(CompareArtifactsResponseSchema)` to create a new message.
  */
 export const CompareArtifactsResponseSchema: GenMessage<CompareArtifactsResponse> = /*@__PURE__*/
-  messageDesc(file_ui_health_v1_visualhealth_visualhealth, 14);
+  messageDesc(file_ui_health_v1_visualhealth_visualhealth, 19);
 
 /**
  * @generated from message vrooli.ui_health.v1.visualhealth.ListRulesRequest
@@ -548,7 +703,7 @@ export type ListRulesRequest = Message<"vrooli.ui_health.v1.visualhealth.ListRul
  * Use `create(ListRulesRequestSchema)` to create a new message.
  */
 export const ListRulesRequestSchema: GenMessage<ListRulesRequest> = /*@__PURE__*/
-  messageDesc(file_ui_health_v1_visualhealth_visualhealth, 15);
+  messageDesc(file_ui_health_v1_visualhealth_visualhealth, 20);
 
 /**
  * @generated from message vrooli.ui_health.v1.visualhealth.VisualRule
@@ -585,7 +740,7 @@ export type VisualRule = Message<"vrooli.ui_health.v1.visualhealth.VisualRule"> 
  * Use `create(VisualRuleSchema)` to create a new message.
  */
 export const VisualRuleSchema: GenMessage<VisualRule> = /*@__PURE__*/
-  messageDesc(file_ui_health_v1_visualhealth_visualhealth, 16);
+  messageDesc(file_ui_health_v1_visualhealth_visualhealth, 21);
 
 /**
  * @generated from message vrooli.ui_health.v1.visualhealth.ListRulesResponse
@@ -602,7 +757,7 @@ export type ListRulesResponse = Message<"vrooli.ui_health.v1.visualhealth.ListRu
  * Use `create(ListRulesResponseSchema)` to create a new message.
  */
 export const ListRulesResponseSchema: GenMessage<ListRulesResponse> = /*@__PURE__*/
-  messageDesc(file_ui_health_v1_visualhealth_visualhealth, 17);
+  messageDesc(file_ui_health_v1_visualhealth_visualhealth, 22);
 
 /**
  * @generated from enum vrooli.ui_health.v1.visualhealth.VisualSeverity
@@ -703,6 +858,24 @@ export const VisualHealthService: GenService<{
     methodKind: "unary";
     input: typeof ListRulesRequestSchema;
     output: typeof ListRulesResponseSchema;
+  },
+  /**
+   * Client-measured geometry is supporting evidence, never a native screenshot.
+   *
+   * @generated from rpc vrooli.ui_health.v1.visualhealth.VisualHealthService.RecordBrowserObservation
+   */
+  recordBrowserObservation: {
+    methodKind: "unary";
+    input: typeof RecordBrowserObservationRequestSchema;
+    output: typeof RecordBrowserObservationResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.ui_health.v1.visualhealth.VisualHealthService.ListBrowserObservations
+   */
+  listBrowserObservations: {
+    methodKind: "unary";
+    input: typeof ListBrowserObservationsRequestSchema;
+    output: typeof ListBrowserObservationsResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_ui_health_v1_visualhealth_visualhealth, 0);

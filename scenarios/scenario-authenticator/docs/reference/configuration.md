@@ -24,6 +24,7 @@ binary by hand or when a scenario adds a new variable.
 | `UI_PORT` | `20000-24999` | Port for the production UI server (`ui/server.js`) |
 | `REDIS_URL` | `redis://host:port[/db]` | Optional for one local replica. When configured, Redis backs sessions, token-family revocation, OAuth CSRF state, and shared rate limiting. Shared Redis or an equivalent store is required when correctness spans replicas. |
 | `VROOLI_AUTH_RESOURCE_AUDIENCES` | `resource-id=audience,...` | Optional operator-owned resource registry. Registering `bridge=scenario-authenticator:bridge` lets `Register` and `Login` accept `resource: "bridge"`, stamps that audience into new access tokens, and preserves it through refresh rotation. Empty keeps the default-realm audience. |
+| `VROOLI_AUTH_SERVICE_PRINCIPALS` | JSON array of `{name, resource, scopes, issuers}` | Optional operator-owned service-principal profiles. `IssueServicePrincipal` lets a verified human listed in `issuers` (or a realm administrator) mint or rotate the principal's credential into the credential authority at `scenario-authenticator/service-principal/<name>/<resource>` (field `credential`); it is never returned. `ExchangeServiceCredential` trades it for a short-lived `actor_kind=service` token for the resource's registered audience with exactly the listed scopes. Wildcard scopes are refused. Delete the credential entry to revoke. Empty configures none. |
 
 If the scenario adds WebSocket channels on the existing API or UI server,
 do not add another `ports` entry. Declare an additional port only when

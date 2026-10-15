@@ -112,6 +112,14 @@ const MaxAuthorizationLifetime = 7 * 24 * time.Hour
 // balance. It governs ONLY standing grants; interactive grants keep the 7-day cap.
 const MaxStandingGrantLifetime = 30 * 24 * time.Hour
 
+// MaxSessionGrantLifetime hard-caps a human-session delegation grant (Phase 5).
+// A tunnel-UI session grant is bounded to the session, but a forgotten-open
+// session must never confer indefinite authority, so its lifetime is the lesser
+// of the requested session lifetime and this cap. It is deliberately short: a
+// session grant lets work spawned inside one operator session inherit that
+// operator's authority, which should expire soon after the operator steps away.
+const MaxSessionGrantLifetime = 4 * time.Hour
+
 func WithAuthorizations(repo domain.AuthorizationRepository) Option {
 	return func(o *Orchestrator) { o.authorizations = repo }
 }
@@ -220,6 +228,79 @@ func (o *Orchestrator) RevokeStandingGrant(ctx context.Context, id string) (bool
 		return false, domain.NewValidationError("id", "standing grant id is required")
 	}
 	return o.standingGrants.Revoke(ctx, id, o.now())
+}
+
+// CreateSessionGrant mints a Phase-5 human-session delegation grant: a
+// short-lived run-creation grant keyed to a verified human subject AND a
+// web-console session id, so work spawned inside that operator session inherits
+// the operator's authority, bounded and attributable. The caller MUST have
+// already verified the human (a verified-independent-human spawn) — this records
+// the authority that gate authorized; it never decides who may call it. The
+// lifetime is min(requested, MaxSessionGrantLifetime): a forgotten-open session
+// cannot confer indefinite authority. It is revoked when the session closes.
+func (o *Orchestrator) CreateSessionGrant(ctx context.Context, humanSubject, sessionID string, requestedTTL time.Duration) (*domain.StandingGrant, error) {
+	if o.standingGrants == nil {
+		return nil, errors.New("standing grant store is not configured")
+	}
+	humanSubject = strings.TrimSpace(humanSubject)
+	sessionID = strings.TrimSpace(sessionID)
+	if humanSubject == "" || sessionID == "" {
+		return nil, domain.NewValidationError("session_grant", "session grant requires a human subject and a session id")
+	}
+	ttl := requestedTTL
+	if ttl <= 0 || ttl > MaxSessionGrantLifetime {
+		ttl = MaxSessionGrantLifetime
+	}
+	now := o.now()
+	expires := now.Add(ttl)
+	id := uuid.NewString()
+	g := &domain.StandingGrant{
+		ID:        id,
+		Subject:   humanSubject,
+		SessionID: sessionID,
+		Grant: &requestidentity.OperationGrant{
+			ID:         id,
+			Policy:     "run-creation",
+			Approver:   humanSubject,
+			Operations: []string{"run.create"},
+			Targets:    []string{standingGrantRunCreateTarget},
+			ExpiresAt:  expires,
+		},
+		State:      domain.StandingGrantApproved,
+		ApprovedBy: humanSubject,
+		ApprovedAt: now,
+		ExpiresAt:  expires,
+	}
+	if err := o.standingGrants.Put(ctx, g); err != nil {
+		return nil, err
+	}
+	return g, nil
+}
+
+// RevokeSessionGrants revokes every active session-scoped grant for a
+// (human subject, session id) pair so a closed session denies on the next
+// lookup. It is idempotent; grants for other sessions or subjects are untouched.
+func (o *Orchestrator) RevokeSessionGrants(ctx context.Context, humanSubject, sessionID string) error {
+	if o.standingGrants == nil {
+		return nil
+	}
+	humanSubject = strings.TrimSpace(humanSubject)
+	sessionID = strings.TrimSpace(sessionID)
+	if humanSubject == "" || sessionID == "" {
+		return nil
+	}
+	grants, err := o.standingGrants.ActiveForSubject(ctx, humanSubject, o.now())
+	if err != nil {
+		return err
+	}
+	for _, g := range grants {
+		if g.SessionID == sessionID {
+			if _, err := o.standingGrants.Revoke(ctx, g.ID, o.now()); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // ListStandingGrants returns recorded standing grants (newest first) for the

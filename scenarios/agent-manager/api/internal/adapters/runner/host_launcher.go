@@ -82,6 +82,12 @@ func scrubInheritedIdentity(env []string) []string {
 		if strings.HasPrefix(entry, "VROOLI_AGENT_IDENTITY_TOKEN=") {
 			continue
 		}
+		// A session-scoped human-owner delegation is bound to one Web Console
+		// session; a nested agent-manager launch owns a different run, so a stale
+		// inherited delegation must not be re-forwarded onto its attach.
+		if strings.HasPrefix(entry, "WC_HUMAN_OWNER_DELEGATION=") {
+			continue
+		}
 		result = append(result, entry)
 	}
 	return result

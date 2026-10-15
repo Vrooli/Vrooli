@@ -44,9 +44,10 @@ import (
 
 // Orchestrator coordinates agent execution using injected dependencies.
 type Orchestrator struct {
-	authorizations  domain.AuthorizationRepository
-	standingGrants  domain.StandingGrantRepository
-	maintenanceGate interface {
+	authorizations        domain.AuthorizationRepository
+	standingGrants        domain.StandingGrantRepository
+	pendingAuthorizations domain.PendingAuthorizationRepository
+	maintenanceGate       interface {
 		Admit(context.Context) (func(), error)
 	}
 	familySupervision *supervision.Service

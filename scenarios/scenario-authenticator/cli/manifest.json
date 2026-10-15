@@ -215,6 +215,16 @@
           "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
         },
         {
+          "name": "issue-service-principal",
+          "description": "Issue or rotate an operator-configured service-principal credential into the credential authority; never print the credential",
+          "flags": [
+            {"name": "name", "required": true, "description": "Configured service principal name (for example agent-manager)"},
+            {"name": "access-token", "description": "Administrator access token; defaults to the explicit local owner exchange"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "AccountsService", "method": "IssueServicePrincipal"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]}
+        },
+        {
           "name": "grant-scope",
           "description": "Grant an opaque scope to the authenticated principal",
           "flags": [
@@ -394,6 +404,11 @@
       "service": "AccountsService",
       "method": "ExchangeMachinePrincipal",
       "reason": "Local Unix-socket-only exchange is consumed by bridge/authentication adapters, not a TCP operator CLI command."
+    },
+    {
+      "service": "AccountsService",
+      "method": "ExchangeServiceCredential",
+      "reason": "Service-to-service exchange consumed by the owning service (for example agent-manager's web-console client) from the credential authority; an operator CLI would only print a bearer token."
     }
   ]
 }

@@ -1964,6 +1964,132 @@ func (x *ExchangeServiceCredentialResponse) GetScopes() []string {
 	return nil
 }
 
+type MintSessionDelegationRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Access token of the verified human the delegation is minted for. The minted
+	// token's subject is taken from this token, never from the request body, so a
+	// caller cannot mint a delegation naming a different operator.
+	AccessToken string `protobuf:"bytes,1,opt,name=access_token,json=accessToken,proto3" json:"access_token,omitempty"`
+	// The Web Console session the delegation is bound to (wc_session_id claim).
+	// agent-manager accepts the delegation only when this equals the attaching
+	// harness session, so a delegation cannot be replayed onto another session.
+	WcSessionId string `protobuf:"bytes,2,opt,name=wc_session_id,json=wcSessionId,proto3" json:"wc_session_id,omitempty"`
+	// Optional registered resource id the delegation is audience-scoped to. Empty
+	// resolves to the realm's default audience — what a relying party (e.g.
+	// agent-manager with no explicit audience override) accepts out of the box.
+	// A non-empty value must be a registered resource audience.
+	Resource      string `protobuf:"bytes,3,opt,name=resource,proto3" json:"resource,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MintSessionDelegationRequest) Reset() {
+	*x = MintSessionDelegationRequest{}
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MintSessionDelegationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MintSessionDelegationRequest) ProtoMessage() {}
+
+func (x *MintSessionDelegationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MintSessionDelegationRequest.ProtoReflect.Descriptor instead.
+func (*MintSessionDelegationRequest) Descriptor() ([]byte, []int) {
+	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *MintSessionDelegationRequest) GetAccessToken() string {
+	if x != nil {
+		return x.AccessToken
+	}
+	return ""
+}
+
+func (x *MintSessionDelegationRequest) GetWcSessionId() string {
+	if x != nil {
+		return x.WcSessionId
+	}
+	return ""
+}
+
+func (x *MintSessionDelegationRequest) GetResource() string {
+	if x != nil {
+		return x.Resource
+	}
+	return ""
+}
+
+type MintSessionDelegationResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// RS256 JWT: actor_kind "human", subject = the verified operator, the
+	// requested resource audience, a wc_session_id claim, a tight expiry, and no
+	// capability scopes.
+	DelegationToken string `protobuf:"bytes,1,opt,name=delegation_token,json=delegationToken,proto3" json:"delegation_token,omitempty"`
+	// Delegation expiry.
+	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MintSessionDelegationResponse) Reset() {
+	*x = MintSessionDelegationResponse{}
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MintSessionDelegationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MintSessionDelegationResponse) ProtoMessage() {}
+
+func (x *MintSessionDelegationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MintSessionDelegationResponse.ProtoReflect.Descriptor instead.
+func (*MintSessionDelegationResponse) Descriptor() ([]byte, []int) {
+	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *MintSessionDelegationResponse) GetDelegationToken() string {
+	if x != nil {
+		return x.DelegationToken
+	}
+	return ""
+}
+
+func (x *MintSessionDelegationResponse) GetExpiresAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return nil
+}
+
 var File_scenario_authenticator_v1_accounts_accounts_proto protoreflect.FileDescriptor
 
 const file_scenario_authenticator_v1_accounts_accounts_proto_rawDesc = "" +
@@ -2111,7 +2237,15 @@ const file_scenario_authenticator_v1_accounts_accounts_proto_rawDesc = "" +
 	"\x17access_token_expires_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x14accessTokenExpiresAt\x12\x1a\n" +
 	"\baudience\x18\x03 \x01(\tR\baudience\x12\x18\n" +
 	"\asubject\x18\x04 \x01(\tR\asubject\x12\x16\n" +
-	"\x06scopes\x18\x05 \x03(\tR\x06scopes2\xbd\x12\n" +
+	"\x06scopes\x18\x05 \x03(\tR\x06scopes\"\x81\x01\n" +
+	"\x1cMintSessionDelegationRequest\x12!\n" +
+	"\faccess_token\x18\x01 \x01(\tR\vaccessToken\x12\"\n" +
+	"\rwc_session_id\x18\x02 \x01(\tR\vwcSessionId\x12\x1a\n" +
+	"\bresource\x18\x03 \x01(\tR\bresource\"\x85\x01\n" +
+	"\x1dMintSessionDelegationResponse\x12)\n" +
+	"\x10delegation_token\x18\x01 \x01(\tR\x0fdelegationToken\x129\n" +
+	"\n" +
+	"expires_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt2\xea\x13\n" +
 	"\x0fAccountsService\x12\x83\x01\n" +
 	"\bRegister\x12:.vrooli.scenario_authenticator.v1.accounts.RegisterRequest\x1a;.vrooli.scenario_authenticator.v1.accounts.RegisterResponse\x12z\n" +
 	"\x05Login\x127.vrooli.scenario_authenticator.v1.accounts.LoginRequest\x1a8.vrooli.scenario_authenticator.v1.accounts.LoginResponse\x12\x95\x01\n" +
@@ -2130,7 +2264,8 @@ const file_scenario_authenticator_v1_accounts_accounts_proto_rawDesc = "" +
 	"\x18ExchangeMachinePrincipal\x12J.vrooli.scenario_authenticator.v1.accounts.ExchangeMachinePrincipalRequest\x1a8.vrooli.scenario_authenticator.v1.accounts.LoginResponse\x12\x98\x01\n" +
 	"\x0fIssueBreakGlass\x12A.vrooli.scenario_authenticator.v1.accounts.IssueBreakGlassRequest\x1aB.vrooli.scenario_authenticator.v1.accounts.IssueBreakGlassResponse\x12\xaa\x01\n" +
 	"\x15IssueServicePrincipal\x12G.vrooli.scenario_authenticator.v1.accounts.IssueServicePrincipalRequest\x1aH.vrooli.scenario_authenticator.v1.accounts.IssueServicePrincipalResponse\x12\xb6\x01\n" +
-	"\x19ExchangeServiceCredential\x12K.vrooli.scenario_authenticator.v1.accounts.ExchangeServiceCredentialRequest\x1aL.vrooli.scenario_authenticator.v1.accounts.ExchangeServiceCredentialResponseB_Z]github.com/vrooli/vrooli/packages/proto/gen/go/scenario-authenticator/v1/accounts;accounts_v1b\x06proto3"
+	"\x19ExchangeServiceCredential\x12K.vrooli.scenario_authenticator.v1.accounts.ExchangeServiceCredentialRequest\x1aL.vrooli.scenario_authenticator.v1.accounts.ExchangeServiceCredentialResponse\x12\xaa\x01\n" +
+	"\x15MintSessionDelegation\x12G.vrooli.scenario_authenticator.v1.accounts.MintSessionDelegationRequest\x1aH.vrooli.scenario_authenticator.v1.accounts.MintSessionDelegationResponseB_Z]github.com/vrooli/vrooli/packages/proto/gen/go/scenario-authenticator/v1/accounts;accounts_v1b\x06proto3"
 
 var (
 	file_scenario_authenticator_v1_accounts_accounts_proto_rawDescOnce sync.Once
@@ -2144,7 +2279,7 @@ func file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP() []byte
 	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescData
 }
 
-var file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes = make([]protoimpl.MessageInfo, 31)
+var file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes = make([]protoimpl.MessageInfo, 33)
 var file_scenario_authenticator_v1_accounts_accounts_proto_goTypes = []any{
 	(*Account)(nil),                           // 0: vrooli.scenario_authenticator.v1.accounts.Account
 	(*TokenPair)(nil),                         // 1: vrooli.scenario_authenticator.v1.accounts.TokenPair
@@ -2177,57 +2312,62 @@ var file_scenario_authenticator_v1_accounts_accounts_proto_goTypes = []any{
 	(*IssueServicePrincipalResponse)(nil),     // 28: vrooli.scenario_authenticator.v1.accounts.IssueServicePrincipalResponse
 	(*ExchangeServiceCredentialRequest)(nil),  // 29: vrooli.scenario_authenticator.v1.accounts.ExchangeServiceCredentialRequest
 	(*ExchangeServiceCredentialResponse)(nil), // 30: vrooli.scenario_authenticator.v1.accounts.ExchangeServiceCredentialResponse
-	(*timestamppb.Timestamp)(nil),             // 31: google.protobuf.Timestamp
+	(*MintSessionDelegationRequest)(nil),      // 31: vrooli.scenario_authenticator.v1.accounts.MintSessionDelegationRequest
+	(*MintSessionDelegationResponse)(nil),     // 32: vrooli.scenario_authenticator.v1.accounts.MintSessionDelegationResponse
+	(*timestamppb.Timestamp)(nil),             // 33: google.protobuf.Timestamp
 }
 var file_scenario_authenticator_v1_accounts_accounts_proto_depIdxs = []int32{
-	31, // 0: vrooli.scenario_authenticator.v1.accounts.Account.created_at:type_name -> google.protobuf.Timestamp
-	31, // 1: vrooli.scenario_authenticator.v1.accounts.TokenPair.access_token_expires_at:type_name -> google.protobuf.Timestamp
+	33, // 0: vrooli.scenario_authenticator.v1.accounts.Account.created_at:type_name -> google.protobuf.Timestamp
+	33, // 1: vrooli.scenario_authenticator.v1.accounts.TokenPair.access_token_expires_at:type_name -> google.protobuf.Timestamp
 	0,  // 2: vrooli.scenario_authenticator.v1.accounts.RegisterResponse.account:type_name -> vrooli.scenario_authenticator.v1.accounts.Account
 	1,  // 3: vrooli.scenario_authenticator.v1.accounts.RegisterResponse.tokens:type_name -> vrooli.scenario_authenticator.v1.accounts.TokenPair
 	0,  // 4: vrooli.scenario_authenticator.v1.accounts.LoginResponse.account:type_name -> vrooli.scenario_authenticator.v1.accounts.Account
 	1,  // 5: vrooli.scenario_authenticator.v1.accounts.LoginResponse.tokens:type_name -> vrooli.scenario_authenticator.v1.accounts.TokenPair
 	1,  // 6: vrooli.scenario_authenticator.v1.accounts.RefreshResponse.tokens:type_name -> vrooli.scenario_authenticator.v1.accounts.TokenPair
-	31, // 7: vrooli.scenario_authenticator.v1.accounts.ValidateResponse.expires_at:type_name -> google.protobuf.Timestamp
-	31, // 8: vrooli.scenario_authenticator.v1.accounts.LinkMachineAccountResponse.linked_at:type_name -> google.protobuf.Timestamp
-	31, // 9: vrooli.scenario_authenticator.v1.accounts.IssueServicePrincipalResponse.issued_at:type_name -> google.protobuf.Timestamp
-	31, // 10: vrooli.scenario_authenticator.v1.accounts.ExchangeServiceCredentialResponse.access_token_expires_at:type_name -> google.protobuf.Timestamp
-	2,  // 11: vrooli.scenario_authenticator.v1.accounts.AccountsService.Register:input_type -> vrooli.scenario_authenticator.v1.accounts.RegisterRequest
-	4,  // 12: vrooli.scenario_authenticator.v1.accounts.AccountsService.Login:input_type -> vrooli.scenario_authenticator.v1.accounts.LoginRequest
-	6,  // 13: vrooli.scenario_authenticator.v1.accounts.AccountsService.ChangePassword:input_type -> vrooli.scenario_authenticator.v1.accounts.ChangePasswordRequest
-	8,  // 14: vrooli.scenario_authenticator.v1.accounts.AccountsService.Refresh:input_type -> vrooli.scenario_authenticator.v1.accounts.RefreshRequest
-	10, // 15: vrooli.scenario_authenticator.v1.accounts.AccountsService.Logout:input_type -> vrooli.scenario_authenticator.v1.accounts.LogoutRequest
-	12, // 16: vrooli.scenario_authenticator.v1.accounts.AccountsService.Validate:input_type -> vrooli.scenario_authenticator.v1.accounts.ValidateRequest
-	14, // 17: vrooli.scenario_authenticator.v1.accounts.AccountsService.GrantScope:input_type -> vrooli.scenario_authenticator.v1.accounts.GrantScopeRequest
-	15, // 18: vrooli.scenario_authenticator.v1.accounts.AccountsService.RevokeScope:input_type -> vrooli.scenario_authenticator.v1.accounts.RevokeScopeRequest
-	16, // 19: vrooli.scenario_authenticator.v1.accounts.AccountsService.ListScopes:input_type -> vrooli.scenario_authenticator.v1.accounts.ListScopesRequest
-	19, // 20: vrooli.scenario_authenticator.v1.accounts.AccountsService.SetRoles:input_type -> vrooli.scenario_authenticator.v1.accounts.SetRolesRequest
-	20, // 21: vrooli.scenario_authenticator.v1.accounts.AccountsService.LinkMachineAccount:input_type -> vrooli.scenario_authenticator.v1.accounts.LinkMachineAccountRequest
-	22, // 22: vrooli.scenario_authenticator.v1.accounts.AccountsService.RevokeMachineAccount:input_type -> vrooli.scenario_authenticator.v1.accounts.RevokeMachineAccountRequest
-	24, // 23: vrooli.scenario_authenticator.v1.accounts.AccountsService.ExchangeMachinePrincipal:input_type -> vrooli.scenario_authenticator.v1.accounts.ExchangeMachinePrincipalRequest
-	25, // 24: vrooli.scenario_authenticator.v1.accounts.AccountsService.IssueBreakGlass:input_type -> vrooli.scenario_authenticator.v1.accounts.IssueBreakGlassRequest
-	27, // 25: vrooli.scenario_authenticator.v1.accounts.AccountsService.IssueServicePrincipal:input_type -> vrooli.scenario_authenticator.v1.accounts.IssueServicePrincipalRequest
-	29, // 26: vrooli.scenario_authenticator.v1.accounts.AccountsService.ExchangeServiceCredential:input_type -> vrooli.scenario_authenticator.v1.accounts.ExchangeServiceCredentialRequest
-	3,  // 27: vrooli.scenario_authenticator.v1.accounts.AccountsService.Register:output_type -> vrooli.scenario_authenticator.v1.accounts.RegisterResponse
-	5,  // 28: vrooli.scenario_authenticator.v1.accounts.AccountsService.Login:output_type -> vrooli.scenario_authenticator.v1.accounts.LoginResponse
-	7,  // 29: vrooli.scenario_authenticator.v1.accounts.AccountsService.ChangePassword:output_type -> vrooli.scenario_authenticator.v1.accounts.ChangePasswordResponse
-	9,  // 30: vrooli.scenario_authenticator.v1.accounts.AccountsService.Refresh:output_type -> vrooli.scenario_authenticator.v1.accounts.RefreshResponse
-	11, // 31: vrooli.scenario_authenticator.v1.accounts.AccountsService.Logout:output_type -> vrooli.scenario_authenticator.v1.accounts.LogoutResponse
-	13, // 32: vrooli.scenario_authenticator.v1.accounts.AccountsService.Validate:output_type -> vrooli.scenario_authenticator.v1.accounts.ValidateResponse
-	17, // 33: vrooli.scenario_authenticator.v1.accounts.AccountsService.GrantScope:output_type -> vrooli.scenario_authenticator.v1.accounts.ScopeResponse
-	17, // 34: vrooli.scenario_authenticator.v1.accounts.AccountsService.RevokeScope:output_type -> vrooli.scenario_authenticator.v1.accounts.ScopeResponse
-	18, // 35: vrooli.scenario_authenticator.v1.accounts.AccountsService.ListScopes:output_type -> vrooli.scenario_authenticator.v1.accounts.ListScopesResponse
-	0,  // 36: vrooli.scenario_authenticator.v1.accounts.AccountsService.SetRoles:output_type -> vrooli.scenario_authenticator.v1.accounts.Account
-	21, // 37: vrooli.scenario_authenticator.v1.accounts.AccountsService.LinkMachineAccount:output_type -> vrooli.scenario_authenticator.v1.accounts.LinkMachineAccountResponse
-	23, // 38: vrooli.scenario_authenticator.v1.accounts.AccountsService.RevokeMachineAccount:output_type -> vrooli.scenario_authenticator.v1.accounts.RevokeMachineAccountResponse
-	5,  // 39: vrooli.scenario_authenticator.v1.accounts.AccountsService.ExchangeMachinePrincipal:output_type -> vrooli.scenario_authenticator.v1.accounts.LoginResponse
-	26, // 40: vrooli.scenario_authenticator.v1.accounts.AccountsService.IssueBreakGlass:output_type -> vrooli.scenario_authenticator.v1.accounts.IssueBreakGlassResponse
-	28, // 41: vrooli.scenario_authenticator.v1.accounts.AccountsService.IssueServicePrincipal:output_type -> vrooli.scenario_authenticator.v1.accounts.IssueServicePrincipalResponse
-	30, // 42: vrooli.scenario_authenticator.v1.accounts.AccountsService.ExchangeServiceCredential:output_type -> vrooli.scenario_authenticator.v1.accounts.ExchangeServiceCredentialResponse
-	27, // [27:43] is the sub-list for method output_type
-	11, // [11:27] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	33, // 7: vrooli.scenario_authenticator.v1.accounts.ValidateResponse.expires_at:type_name -> google.protobuf.Timestamp
+	33, // 8: vrooli.scenario_authenticator.v1.accounts.LinkMachineAccountResponse.linked_at:type_name -> google.protobuf.Timestamp
+	33, // 9: vrooli.scenario_authenticator.v1.accounts.IssueServicePrincipalResponse.issued_at:type_name -> google.protobuf.Timestamp
+	33, // 10: vrooli.scenario_authenticator.v1.accounts.ExchangeServiceCredentialResponse.access_token_expires_at:type_name -> google.protobuf.Timestamp
+	33, // 11: vrooli.scenario_authenticator.v1.accounts.MintSessionDelegationResponse.expires_at:type_name -> google.protobuf.Timestamp
+	2,  // 12: vrooli.scenario_authenticator.v1.accounts.AccountsService.Register:input_type -> vrooli.scenario_authenticator.v1.accounts.RegisterRequest
+	4,  // 13: vrooli.scenario_authenticator.v1.accounts.AccountsService.Login:input_type -> vrooli.scenario_authenticator.v1.accounts.LoginRequest
+	6,  // 14: vrooli.scenario_authenticator.v1.accounts.AccountsService.ChangePassword:input_type -> vrooli.scenario_authenticator.v1.accounts.ChangePasswordRequest
+	8,  // 15: vrooli.scenario_authenticator.v1.accounts.AccountsService.Refresh:input_type -> vrooli.scenario_authenticator.v1.accounts.RefreshRequest
+	10, // 16: vrooli.scenario_authenticator.v1.accounts.AccountsService.Logout:input_type -> vrooli.scenario_authenticator.v1.accounts.LogoutRequest
+	12, // 17: vrooli.scenario_authenticator.v1.accounts.AccountsService.Validate:input_type -> vrooli.scenario_authenticator.v1.accounts.ValidateRequest
+	14, // 18: vrooli.scenario_authenticator.v1.accounts.AccountsService.GrantScope:input_type -> vrooli.scenario_authenticator.v1.accounts.GrantScopeRequest
+	15, // 19: vrooli.scenario_authenticator.v1.accounts.AccountsService.RevokeScope:input_type -> vrooli.scenario_authenticator.v1.accounts.RevokeScopeRequest
+	16, // 20: vrooli.scenario_authenticator.v1.accounts.AccountsService.ListScopes:input_type -> vrooli.scenario_authenticator.v1.accounts.ListScopesRequest
+	19, // 21: vrooli.scenario_authenticator.v1.accounts.AccountsService.SetRoles:input_type -> vrooli.scenario_authenticator.v1.accounts.SetRolesRequest
+	20, // 22: vrooli.scenario_authenticator.v1.accounts.AccountsService.LinkMachineAccount:input_type -> vrooli.scenario_authenticator.v1.accounts.LinkMachineAccountRequest
+	22, // 23: vrooli.scenario_authenticator.v1.accounts.AccountsService.RevokeMachineAccount:input_type -> vrooli.scenario_authenticator.v1.accounts.RevokeMachineAccountRequest
+	24, // 24: vrooli.scenario_authenticator.v1.accounts.AccountsService.ExchangeMachinePrincipal:input_type -> vrooli.scenario_authenticator.v1.accounts.ExchangeMachinePrincipalRequest
+	25, // 25: vrooli.scenario_authenticator.v1.accounts.AccountsService.IssueBreakGlass:input_type -> vrooli.scenario_authenticator.v1.accounts.IssueBreakGlassRequest
+	27, // 26: vrooli.scenario_authenticator.v1.accounts.AccountsService.IssueServicePrincipal:input_type -> vrooli.scenario_authenticator.v1.accounts.IssueServicePrincipalRequest
+	29, // 27: vrooli.scenario_authenticator.v1.accounts.AccountsService.ExchangeServiceCredential:input_type -> vrooli.scenario_authenticator.v1.accounts.ExchangeServiceCredentialRequest
+	31, // 28: vrooli.scenario_authenticator.v1.accounts.AccountsService.MintSessionDelegation:input_type -> vrooli.scenario_authenticator.v1.accounts.MintSessionDelegationRequest
+	3,  // 29: vrooli.scenario_authenticator.v1.accounts.AccountsService.Register:output_type -> vrooli.scenario_authenticator.v1.accounts.RegisterResponse
+	5,  // 30: vrooli.scenario_authenticator.v1.accounts.AccountsService.Login:output_type -> vrooli.scenario_authenticator.v1.accounts.LoginResponse
+	7,  // 31: vrooli.scenario_authenticator.v1.accounts.AccountsService.ChangePassword:output_type -> vrooli.scenario_authenticator.v1.accounts.ChangePasswordResponse
+	9,  // 32: vrooli.scenario_authenticator.v1.accounts.AccountsService.Refresh:output_type -> vrooli.scenario_authenticator.v1.accounts.RefreshResponse
+	11, // 33: vrooli.scenario_authenticator.v1.accounts.AccountsService.Logout:output_type -> vrooli.scenario_authenticator.v1.accounts.LogoutResponse
+	13, // 34: vrooli.scenario_authenticator.v1.accounts.AccountsService.Validate:output_type -> vrooli.scenario_authenticator.v1.accounts.ValidateResponse
+	17, // 35: vrooli.scenario_authenticator.v1.accounts.AccountsService.GrantScope:output_type -> vrooli.scenario_authenticator.v1.accounts.ScopeResponse
+	17, // 36: vrooli.scenario_authenticator.v1.accounts.AccountsService.RevokeScope:output_type -> vrooli.scenario_authenticator.v1.accounts.ScopeResponse
+	18, // 37: vrooli.scenario_authenticator.v1.accounts.AccountsService.ListScopes:output_type -> vrooli.scenario_authenticator.v1.accounts.ListScopesResponse
+	0,  // 38: vrooli.scenario_authenticator.v1.accounts.AccountsService.SetRoles:output_type -> vrooli.scenario_authenticator.v1.accounts.Account
+	21, // 39: vrooli.scenario_authenticator.v1.accounts.AccountsService.LinkMachineAccount:output_type -> vrooli.scenario_authenticator.v1.accounts.LinkMachineAccountResponse
+	23, // 40: vrooli.scenario_authenticator.v1.accounts.AccountsService.RevokeMachineAccount:output_type -> vrooli.scenario_authenticator.v1.accounts.RevokeMachineAccountResponse
+	5,  // 41: vrooli.scenario_authenticator.v1.accounts.AccountsService.ExchangeMachinePrincipal:output_type -> vrooli.scenario_authenticator.v1.accounts.LoginResponse
+	26, // 42: vrooli.scenario_authenticator.v1.accounts.AccountsService.IssueBreakGlass:output_type -> vrooli.scenario_authenticator.v1.accounts.IssueBreakGlassResponse
+	28, // 43: vrooli.scenario_authenticator.v1.accounts.AccountsService.IssueServicePrincipal:output_type -> vrooli.scenario_authenticator.v1.accounts.IssueServicePrincipalResponse
+	30, // 44: vrooli.scenario_authenticator.v1.accounts.AccountsService.ExchangeServiceCredential:output_type -> vrooli.scenario_authenticator.v1.accounts.ExchangeServiceCredentialResponse
+	32, // 45: vrooli.scenario_authenticator.v1.accounts.AccountsService.MintSessionDelegation:output_type -> vrooli.scenario_authenticator.v1.accounts.MintSessionDelegationResponse
+	29, // [29:46] is the sub-list for method output_type
+	12, // [12:29] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_scenario_authenticator_v1_accounts_accounts_proto_init() }
@@ -2241,7 +2381,7 @@ func file_scenario_authenticator_v1_accounts_accounts_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_scenario_authenticator_v1_accounts_accounts_proto_rawDesc), len(file_scenario_authenticator_v1_accounts_accounts_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   31,
+			NumMessages:   33,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -206,6 +206,39 @@ func (h *connectHandler) IssueBreakGlass(ctx context.Context, req *connect.Reque
 	return connect.NewResponse(&accountsv1.IssueBreakGlassResponse{Credential: token, ExpiresAt: expiresAt.Unix()}), nil
 }
 
+func (h *connectHandler) IssueServicePrincipal(ctx context.Context, req *connect.Request[accountsv1.IssueServicePrincipalRequest]) (*connect.Response[accountsv1.IssueServicePrincipalResponse], error) {
+	res, err := h.deps.Service.IssueServicePrincipal(ctx, req.Msg.GetAccessToken(), req.Msg.GetName(), metaFrom(req))
+	if err != nil {
+		return nil, h.toConnectErr("IssueServicePrincipal", err)
+	}
+	return connect.NewResponse(&accountsv1.IssueServicePrincipalResponse{
+		Name: res.Name, Audience: res.Audience, Scopes: res.Scopes,
+		CredentialIdentity: res.CredentialIdentity, CredentialField: res.CredentialField,
+		IssuedAt: timestamppb.New(res.IssuedAt),
+	}), nil
+}
+
+func (h *connectHandler) ExchangeServiceCredential(ctx context.Context, req *connect.Request[accountsv1.ExchangeServiceCredentialRequest]) (*connect.Response[accountsv1.ExchangeServiceCredentialResponse], error) {
+	res, err := h.deps.Service.ExchangeServiceCredential(ctx, req.Msg.GetCredential(), metaFrom(req))
+	if err != nil {
+		return nil, h.toConnectErr("ExchangeServiceCredential", err)
+	}
+	return connect.NewResponse(&accountsv1.ExchangeServiceCredentialResponse{
+		AccessToken: res.AccessToken, AccessTokenExpiresAt: timestamppb.New(res.ExpiresAt),
+		Audience: res.Audience, Subject: res.Subject, Scopes: res.Scopes,
+	}), nil
+}
+
+func (h *connectHandler) MintSessionDelegation(ctx context.Context, req *connect.Request[accountsv1.MintSessionDelegationRequest]) (*connect.Response[accountsv1.MintSessionDelegationResponse], error) {
+	token, expiresAt, err := h.deps.Service.MintSessionDelegation(ctx, req.Msg.GetAccessToken(), req.Msg.GetWcSessionId(), req.Msg.GetResource(), metaFrom(req))
+	if err != nil {
+		return nil, h.toConnectErr("MintSessionDelegation", err)
+	}
+	return connect.NewResponse(&accountsv1.MintSessionDelegationResponse{
+		DelegationToken: token, ExpiresAt: timestamppb.New(expiresAt),
+	}), nil
+}
+
 // toConnectErr maps the service's domain errors to Connect codes. Login/refresh
 // failures collapse to a single code+message (anti-enumeration); unexpected
 // errors are logged and surfaced as Internal without leaking detail.
@@ -233,6 +266,14 @@ func (h *connectHandler) toConnectErr(op string, err error) error {
 		return connect.NewError(connect.CodeFailedPrecondition, errors.New("local principal has multiple default bindings"))
 	case errors.Is(err, accounts.ErrMachineBindingInvalid):
 		return connect.NewError(connect.CodeInvalidArgument, errors.New("invalid machine binding"))
+	case errors.Is(err, accounts.ErrServicePrincipalForbidden):
+		return connect.NewError(connect.CodePermissionDenied, accounts.ErrServicePrincipalForbidden)
+	case errors.Is(err, accounts.ErrServicePrincipalUnknown):
+		return connect.NewError(connect.CodeNotFound, accounts.ErrServicePrincipalUnknown)
+	case errors.Is(err, accounts.ErrServiceCredentialRejected):
+		return connect.NewError(connect.CodeUnauthenticated, accounts.ErrServiceCredentialRejected)
+	case errors.Is(err, accounts.ErrServiceCustodyUnavailable):
+		return connect.NewError(connect.CodeUnavailable, accounts.ErrServiceCustodyUnavailable)
 	case errors.Is(err, accounts.ErrLastAdministrator):
 		return connect.NewError(connect.CodeFailedPrecondition, errors.New("cannot remove the last realm administrator"))
 	}

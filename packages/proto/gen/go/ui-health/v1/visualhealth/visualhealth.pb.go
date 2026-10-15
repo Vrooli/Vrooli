@@ -131,6 +131,327 @@ func (VisualCategory) EnumDescriptor() ([]byte, []int) {
 	return file_ui_health_v1_visualhealth_visualhealth_proto_rawDescGZIP(), []int{1}
 }
 
+type BrowserObservation struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Scenario string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	// Random per-tab identity. Contains no account or device identifier.
+	ClientId   string `protobuf:"bytes,2,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
+	BuildId    string `protobuf:"bytes,3,opt,name=build_id,json=buildId,proto3" json:"build_id,omitempty"`
+	UserAgent  string `protobuf:"bytes,4,opt,name=user_agent,json=userAgent,proto3" json:"user_agent,omitempty"`
+	Standalone bool   `protobuf:"varint,5,opt,name=standalone,proto3" json:"standalone,omitempty"`
+	Embedded   bool   `protobuf:"varint,6,opt,name=embedded,proto3" json:"embedded,omitempty"`
+	// Bounded metadata: viewport, insets, edge-owner rectangles/colors; no DOM text.
+	LayoutJson string `protobuf:"bytes,7,opt,name=layout_json,json=layoutJson,proto3" json:"layout_json,omitempty"`
+	// Assigned by the receiver, not trusted from the browser.
+	ReceivedAt string `protobuf:"bytes,8,opt,name=received_at,json=receivedAt,proto3" json:"received_at,omitempty"`
+	Id         string `protobuf:"bytes,9,opt,name=id,proto3" json:"id,omitempty"`
+	// Always browser_geometry for these reports. Native pixels require a device transport.
+	CaptureKind string `protobuf:"bytes,10,opt,name=capture_kind,json=captureKind,proto3" json:"capture_kind,omitempty"`
+	// Receiver-computed geometry/style findings; not native pixel judgments.
+	Findings      []*VisualFinding `protobuf:"bytes,11,rep,name=findings,proto3" json:"findings,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BrowserObservation) Reset() {
+	*x = BrowserObservation{}
+	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BrowserObservation) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BrowserObservation) ProtoMessage() {}
+
+func (x *BrowserObservation) ProtoReflect() protoreflect.Message {
+	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BrowserObservation.ProtoReflect.Descriptor instead.
+func (*BrowserObservation) Descriptor() ([]byte, []int) {
+	return file_ui_health_v1_visualhealth_visualhealth_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *BrowserObservation) GetScenario() string {
+	if x != nil {
+		return x.Scenario
+	}
+	return ""
+}
+
+func (x *BrowserObservation) GetClientId() string {
+	if x != nil {
+		return x.ClientId
+	}
+	return ""
+}
+
+func (x *BrowserObservation) GetBuildId() string {
+	if x != nil {
+		return x.BuildId
+	}
+	return ""
+}
+
+func (x *BrowserObservation) GetUserAgent() string {
+	if x != nil {
+		return x.UserAgent
+	}
+	return ""
+}
+
+func (x *BrowserObservation) GetStandalone() bool {
+	if x != nil {
+		return x.Standalone
+	}
+	return false
+}
+
+func (x *BrowserObservation) GetEmbedded() bool {
+	if x != nil {
+		return x.Embedded
+	}
+	return false
+}
+
+func (x *BrowserObservation) GetLayoutJson() string {
+	if x != nil {
+		return x.LayoutJson
+	}
+	return ""
+}
+
+func (x *BrowserObservation) GetReceivedAt() string {
+	if x != nil {
+		return x.ReceivedAt
+	}
+	return ""
+}
+
+func (x *BrowserObservation) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *BrowserObservation) GetCaptureKind() string {
+	if x != nil {
+		return x.CaptureKind
+	}
+	return ""
+}
+
+func (x *BrowserObservation) GetFindings() []*VisualFinding {
+	if x != nil {
+		return x.Findings
+	}
+	return nil
+}
+
+type RecordBrowserObservationRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Observation   *BrowserObservation    `protobuf:"bytes,1,opt,name=observation,proto3" json:"observation,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RecordBrowserObservationRequest) Reset() {
+	*x = RecordBrowserObservationRequest{}
+	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecordBrowserObservationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecordBrowserObservationRequest) ProtoMessage() {}
+
+func (x *RecordBrowserObservationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecordBrowserObservationRequest.ProtoReflect.Descriptor instead.
+func (*RecordBrowserObservationRequest) Descriptor() ([]byte, []int) {
+	return file_ui_health_v1_visualhealth_visualhealth_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *RecordBrowserObservationRequest) GetObservation() *BrowserObservation {
+	if x != nil {
+		return x.Observation
+	}
+	return nil
+}
+
+type RecordBrowserObservationResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Observation   *BrowserObservation    `protobuf:"bytes,1,opt,name=observation,proto3" json:"observation,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RecordBrowserObservationResponse) Reset() {
+	*x = RecordBrowserObservationResponse{}
+	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecordBrowserObservationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecordBrowserObservationResponse) ProtoMessage() {}
+
+func (x *RecordBrowserObservationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecordBrowserObservationResponse.ProtoReflect.Descriptor instead.
+func (*RecordBrowserObservationResponse) Descriptor() ([]byte, []int) {
+	return file_ui_health_v1_visualhealth_visualhealth_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *RecordBrowserObservationResponse) GetObservation() *BrowserObservation {
+	if x != nil {
+		return x.Observation
+	}
+	return nil
+}
+
+type ListBrowserObservationsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	ClientId      string                 `protobuf:"bytes,2,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
+	Limit         int32                  `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListBrowserObservationsRequest) Reset() {
+	*x = ListBrowserObservationsRequest{}
+	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListBrowserObservationsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListBrowserObservationsRequest) ProtoMessage() {}
+
+func (x *ListBrowserObservationsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListBrowserObservationsRequest.ProtoReflect.Descriptor instead.
+func (*ListBrowserObservationsRequest) Descriptor() ([]byte, []int) {
+	return file_ui_health_v1_visualhealth_visualhealth_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *ListBrowserObservationsRequest) GetScenario() string {
+	if x != nil {
+		return x.Scenario
+	}
+	return ""
+}
+
+func (x *ListBrowserObservationsRequest) GetClientId() string {
+	if x != nil {
+		return x.ClientId
+	}
+	return ""
+}
+
+func (x *ListBrowserObservationsRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+type ListBrowserObservationsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Observations  []*BrowserObservation  `protobuf:"bytes,1,rep,name=observations,proto3" json:"observations,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListBrowserObservationsResponse) Reset() {
+	*x = ListBrowserObservationsResponse{}
+	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListBrowserObservationsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListBrowserObservationsResponse) ProtoMessage() {}
+
+func (x *ListBrowserObservationsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListBrowserObservationsResponse.ProtoReflect.Descriptor instead.
+func (*ListBrowserObservationsResponse) Descriptor() ([]byte, []int) {
+	return file_ui_health_v1_visualhealth_visualhealth_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *ListBrowserObservationsResponse) GetObservations() []*BrowserObservation {
+	if x != nil {
+		return x.Observations
+	}
+	return nil
+}
+
 type ArtifactRef struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
@@ -145,7 +466,7 @@ type ArtifactRef struct {
 
 func (x *ArtifactRef) Reset() {
 	*x = ArtifactRef{}
-	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[0]
+	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -157,7 +478,7 @@ func (x *ArtifactRef) String() string {
 func (*ArtifactRef) ProtoMessage() {}
 
 func (x *ArtifactRef) ProtoReflect() protoreflect.Message {
-	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[0]
+	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -170,7 +491,7 @@ func (x *ArtifactRef) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArtifactRef.ProtoReflect.Descriptor instead.
 func (*ArtifactRef) Descriptor() ([]byte, []int) {
-	return file_ui_health_v1_visualhealth_visualhealth_proto_rawDescGZIP(), []int{0}
+	return file_ui_health_v1_visualhealth_visualhealth_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ArtifactRef) GetScenario() string {
@@ -227,7 +548,7 @@ type Viewport struct {
 
 func (x *Viewport) Reset() {
 	*x = Viewport{}
-	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[1]
+	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -239,7 +560,7 @@ func (x *Viewport) String() string {
 func (*Viewport) ProtoMessage() {}
 
 func (x *Viewport) ProtoReflect() protoreflect.Message {
-	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[1]
+	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -252,7 +573,7 @@ func (x *Viewport) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Viewport.ProtoReflect.Descriptor instead.
 func (*Viewport) Descriptor() ([]byte, []int) {
-	return file_ui_health_v1_visualhealth_visualhealth_proto_rawDescGZIP(), []int{1}
+	return file_ui_health_v1_visualhealth_visualhealth_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *Viewport) GetWidth() int32 {
@@ -293,7 +614,7 @@ type ConsoleEntry struct {
 
 func (x *ConsoleEntry) Reset() {
 	*x = ConsoleEntry{}
-	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[2]
+	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -305,7 +626,7 @@ func (x *ConsoleEntry) String() string {
 func (*ConsoleEntry) ProtoMessage() {}
 
 func (x *ConsoleEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[2]
+	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -318,7 +639,7 @@ func (x *ConsoleEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConsoleEntry.ProtoReflect.Descriptor instead.
 func (*ConsoleEntry) Descriptor() ([]byte, []int) {
-	return file_ui_health_v1_visualhealth_visualhealth_proto_rawDescGZIP(), []int{2}
+	return file_ui_health_v1_visualhealth_visualhealth_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ConsoleEntry) GetLevel() string {
@@ -348,7 +669,7 @@ type NetworkEntry struct {
 
 func (x *NetworkEntry) Reset() {
 	*x = NetworkEntry{}
-	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[3]
+	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -360,7 +681,7 @@ func (x *NetworkEntry) String() string {
 func (*NetworkEntry) ProtoMessage() {}
 
 func (x *NetworkEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[3]
+	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -373,7 +694,7 @@ func (x *NetworkEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NetworkEntry.ProtoReflect.Descriptor instead.
 func (*NetworkEntry) Descriptor() ([]byte, []int) {
-	return file_ui_health_v1_visualhealth_visualhealth_proto_rawDescGZIP(), []int{3}
+	return file_ui_health_v1_visualhealth_visualhealth_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *NetworkEntry) GetUrl() string {
@@ -421,7 +742,7 @@ type PageError struct {
 
 func (x *PageError) Reset() {
 	*x = PageError{}
-	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[4]
+	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -433,7 +754,7 @@ func (x *PageError) String() string {
 func (*PageError) ProtoMessage() {}
 
 func (x *PageError) ProtoReflect() protoreflect.Message {
-	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[4]
+	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -446,7 +767,7 @@ func (x *PageError) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PageError.ProtoReflect.Descriptor instead.
 func (*PageError) Descriptor() ([]byte, []int) {
-	return file_ui_health_v1_visualhealth_visualhealth_proto_rawDescGZIP(), []int{4}
+	return file_ui_health_v1_visualhealth_visualhealth_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *PageError) GetMessage() string {
@@ -484,7 +805,7 @@ type VisualStepArtifact struct {
 
 func (x *VisualStepArtifact) Reset() {
 	*x = VisualStepArtifact{}
-	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[5]
+	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -496,7 +817,7 @@ func (x *VisualStepArtifact) String() string {
 func (*VisualStepArtifact) ProtoMessage() {}
 
 func (x *VisualStepArtifact) ProtoReflect() protoreflect.Message {
-	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[5]
+	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -509,7 +830,7 @@ func (x *VisualStepArtifact) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VisualStepArtifact.ProtoReflect.Descriptor instead.
 func (*VisualStepArtifact) Descriptor() ([]byte, []int) {
-	return file_ui_health_v1_visualhealth_visualhealth_proto_rawDescGZIP(), []int{5}
+	return file_ui_health_v1_visualhealth_visualhealth_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *VisualStepArtifact) GetStepId() string {
@@ -613,7 +934,7 @@ type VisualMetric struct {
 
 func (x *VisualMetric) Reset() {
 	*x = VisualMetric{}
-	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[6]
+	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -625,7 +946,7 @@ func (x *VisualMetric) String() string {
 func (*VisualMetric) ProtoMessage() {}
 
 func (x *VisualMetric) ProtoReflect() protoreflect.Message {
-	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[6]
+	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -638,7 +959,7 @@ func (x *VisualMetric) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VisualMetric.ProtoReflect.Descriptor instead.
 func (*VisualMetric) Descriptor() ([]byte, []int) {
-	return file_ui_health_v1_visualhealth_visualhealth_proto_rawDescGZIP(), []int{6}
+	return file_ui_health_v1_visualhealth_visualhealth_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *VisualMetric) GetName() string {
@@ -672,7 +993,7 @@ type VisualFinding struct {
 
 func (x *VisualFinding) Reset() {
 	*x = VisualFinding{}
-	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[7]
+	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -684,7 +1005,7 @@ func (x *VisualFinding) String() string {
 func (*VisualFinding) ProtoMessage() {}
 
 func (x *VisualFinding) ProtoReflect() protoreflect.Message {
-	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[7]
+	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -697,7 +1018,7 @@ func (x *VisualFinding) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VisualFinding.ProtoReflect.Descriptor instead.
 func (*VisualFinding) Descriptor() ([]byte, []int) {
-	return file_ui_health_v1_visualhealth_visualhealth_proto_rawDescGZIP(), []int{7}
+	return file_ui_health_v1_visualhealth_visualhealth_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *VisualFinding) GetCode() string {
@@ -775,7 +1096,7 @@ type StepVerdict struct {
 
 func (x *StepVerdict) Reset() {
 	*x = StepVerdict{}
-	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[8]
+	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -787,7 +1108,7 @@ func (x *StepVerdict) String() string {
 func (*StepVerdict) ProtoMessage() {}
 
 func (x *StepVerdict) ProtoReflect() protoreflect.Message {
-	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[8]
+	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -800,7 +1121,7 @@ func (x *StepVerdict) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StepVerdict.ProtoReflect.Descriptor instead.
 func (*StepVerdict) Descriptor() ([]byte, []int) {
-	return file_ui_health_v1_visualhealth_visualhealth_proto_rawDescGZIP(), []int{8}
+	return file_ui_health_v1_visualhealth_visualhealth_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *StepVerdict) GetStepId() string {
@@ -842,7 +1163,7 @@ type AnalyzeArtifactsRequest struct {
 
 func (x *AnalyzeArtifactsRequest) Reset() {
 	*x = AnalyzeArtifactsRequest{}
-	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[9]
+	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -854,7 +1175,7 @@ func (x *AnalyzeArtifactsRequest) String() string {
 func (*AnalyzeArtifactsRequest) ProtoMessage() {}
 
 func (x *AnalyzeArtifactsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[9]
+	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -867,7 +1188,7 @@ func (x *AnalyzeArtifactsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AnalyzeArtifactsRequest.ProtoReflect.Descriptor instead.
 func (*AnalyzeArtifactsRequest) Descriptor() ([]byte, []int) {
-	return file_ui_health_v1_visualhealth_visualhealth_proto_rawDescGZIP(), []int{9}
+	return file_ui_health_v1_visualhealth_visualhealth_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *AnalyzeArtifactsRequest) GetScenario() string {
@@ -904,7 +1225,7 @@ type AnalyzeArtifactsResponse struct {
 
 func (x *AnalyzeArtifactsResponse) Reset() {
 	*x = AnalyzeArtifactsResponse{}
-	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[10]
+	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -916,7 +1237,7 @@ func (x *AnalyzeArtifactsResponse) String() string {
 func (*AnalyzeArtifactsResponse) ProtoMessage() {}
 
 func (x *AnalyzeArtifactsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[10]
+	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -929,7 +1250,7 @@ func (x *AnalyzeArtifactsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AnalyzeArtifactsResponse.ProtoReflect.Descriptor instead.
 func (*AnalyzeArtifactsResponse) Descriptor() ([]byte, []int) {
-	return file_ui_health_v1_visualhealth_visualhealth_proto_rawDescGZIP(), []int{10}
+	return file_ui_health_v1_visualhealth_visualhealth_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *AnalyzeArtifactsResponse) GetScenario() string {
@@ -979,7 +1300,7 @@ type CompareArtifact struct {
 
 func (x *CompareArtifact) Reset() {
 	*x = CompareArtifact{}
-	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[11]
+	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -991,7 +1312,7 @@ func (x *CompareArtifact) String() string {
 func (*CompareArtifact) ProtoMessage() {}
 
 func (x *CompareArtifact) ProtoReflect() protoreflect.Message {
-	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[11]
+	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1004,7 +1325,7 @@ func (x *CompareArtifact) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompareArtifact.ProtoReflect.Descriptor instead.
 func (*CompareArtifact) Descriptor() ([]byte, []int) {
-	return file_ui_health_v1_visualhealth_visualhealth_proto_rawDescGZIP(), []int{11}
+	return file_ui_health_v1_visualhealth_visualhealth_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *CompareArtifact) GetPage() string {
@@ -1048,7 +1369,7 @@ type CompareArtifactsRequest struct {
 
 func (x *CompareArtifactsRequest) Reset() {
 	*x = CompareArtifactsRequest{}
-	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[12]
+	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1060,7 +1381,7 @@ func (x *CompareArtifactsRequest) String() string {
 func (*CompareArtifactsRequest) ProtoMessage() {}
 
 func (x *CompareArtifactsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[12]
+	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1073,7 +1394,7 @@ func (x *CompareArtifactsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompareArtifactsRequest.ProtoReflect.Descriptor instead.
 func (*CompareArtifactsRequest) Descriptor() ([]byte, []int) {
-	return file_ui_health_v1_visualhealth_visualhealth_proto_rawDescGZIP(), []int{12}
+	return file_ui_health_v1_visualhealth_visualhealth_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *CompareArtifactsRequest) GetScenario() string {
@@ -1123,7 +1444,7 @@ type VisualDelta struct {
 
 func (x *VisualDelta) Reset() {
 	*x = VisualDelta{}
-	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[13]
+	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1135,7 +1456,7 @@ func (x *VisualDelta) String() string {
 func (*VisualDelta) ProtoMessage() {}
 
 func (x *VisualDelta) ProtoReflect() protoreflect.Message {
-	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[13]
+	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1148,7 +1469,7 @@ func (x *VisualDelta) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VisualDelta.ProtoReflect.Descriptor instead.
 func (*VisualDelta) Descriptor() ([]byte, []int) {
-	return file_ui_health_v1_visualhealth_visualhealth_proto_rawDescGZIP(), []int{13}
+	return file_ui_health_v1_visualhealth_visualhealth_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *VisualDelta) GetPage() string {
@@ -1188,7 +1509,7 @@ type CompareArtifactsResponse struct {
 
 func (x *CompareArtifactsResponse) Reset() {
 	*x = CompareArtifactsResponse{}
-	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[14]
+	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1200,7 +1521,7 @@ func (x *CompareArtifactsResponse) String() string {
 func (*CompareArtifactsResponse) ProtoMessage() {}
 
 func (x *CompareArtifactsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[14]
+	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1213,7 +1534,7 @@ func (x *CompareArtifactsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompareArtifactsResponse.ProtoReflect.Descriptor instead.
 func (*CompareArtifactsResponse) Descriptor() ([]byte, []int) {
-	return file_ui_health_v1_visualhealth_visualhealth_proto_rawDescGZIP(), []int{14}
+	return file_ui_health_v1_visualhealth_visualhealth_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *CompareArtifactsResponse) GetDeltas() []*VisualDelta {
@@ -1231,7 +1552,7 @@ type ListRulesRequest struct {
 
 func (x *ListRulesRequest) Reset() {
 	*x = ListRulesRequest{}
-	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[15]
+	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1243,7 +1564,7 @@ func (x *ListRulesRequest) String() string {
 func (*ListRulesRequest) ProtoMessage() {}
 
 func (x *ListRulesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[15]
+	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1256,7 +1577,7 @@ func (x *ListRulesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRulesRequest.ProtoReflect.Descriptor instead.
 func (*ListRulesRequest) Descriptor() ([]byte, []int) {
-	return file_ui_health_v1_visualhealth_visualhealth_proto_rawDescGZIP(), []int{15}
+	return file_ui_health_v1_visualhealth_visualhealth_proto_rawDescGZIP(), []int{20}
 }
 
 type VisualRule struct {
@@ -1272,7 +1593,7 @@ type VisualRule struct {
 
 func (x *VisualRule) Reset() {
 	*x = VisualRule{}
-	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[16]
+	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1284,7 +1605,7 @@ func (x *VisualRule) String() string {
 func (*VisualRule) ProtoMessage() {}
 
 func (x *VisualRule) ProtoReflect() protoreflect.Message {
-	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[16]
+	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1297,7 +1618,7 @@ func (x *VisualRule) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VisualRule.ProtoReflect.Descriptor instead.
 func (*VisualRule) Descriptor() ([]byte, []int) {
-	return file_ui_health_v1_visualhealth_visualhealth_proto_rawDescGZIP(), []int{16}
+	return file_ui_health_v1_visualhealth_visualhealth_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *VisualRule) GetId() string {
@@ -1344,7 +1665,7 @@ type ListRulesResponse struct {
 
 func (x *ListRulesResponse) Reset() {
 	*x = ListRulesResponse{}
-	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[17]
+	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1356,7 +1677,7 @@ func (x *ListRulesResponse) String() string {
 func (*ListRulesResponse) ProtoMessage() {}
 
 func (x *ListRulesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[17]
+	mi := &file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1369,7 +1690,7 @@ func (x *ListRulesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRulesResponse.ProtoReflect.Descriptor instead.
 func (*ListRulesResponse) Descriptor() ([]byte, []int) {
-	return file_ui_health_v1_visualhealth_visualhealth_proto_rawDescGZIP(), []int{17}
+	return file_ui_health_v1_visualhealth_visualhealth_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *ListRulesResponse) GetRules() []*VisualRule {
@@ -1383,7 +1704,35 @@ var File_ui_health_v1_visualhealth_visualhealth_proto protoreflect.FileDescripto
 
 const file_ui_health_v1_visualhealth_visualhealth_proto_rawDesc = "" +
 	"\n" +
-	",ui-health/v1/visualhealth/visualhealth.proto\x12 vrooli.ui_health.v1.visualhealth\"\xa5\x01\n" +
+	",ui-health/v1/visualhealth/visualhealth.proto\x12 vrooli.ui_health.v1.visualhealth\"\x85\x03\n" +
+	"\x12BrowserObservation\x12\x1a\n" +
+	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x1b\n" +
+	"\tclient_id\x18\x02 \x01(\tR\bclientId\x12\x19\n" +
+	"\bbuild_id\x18\x03 \x01(\tR\abuildId\x12\x1d\n" +
+	"\n" +
+	"user_agent\x18\x04 \x01(\tR\tuserAgent\x12\x1e\n" +
+	"\n" +
+	"standalone\x18\x05 \x01(\bR\n" +
+	"standalone\x12\x1a\n" +
+	"\bembedded\x18\x06 \x01(\bR\bembedded\x12\x1f\n" +
+	"\vlayout_json\x18\a \x01(\tR\n" +
+	"layoutJson\x12\x1f\n" +
+	"\vreceived_at\x18\b \x01(\tR\n" +
+	"receivedAt\x12\x0e\n" +
+	"\x02id\x18\t \x01(\tR\x02id\x12!\n" +
+	"\fcapture_kind\x18\n" +
+	" \x01(\tR\vcaptureKind\x12K\n" +
+	"\bfindings\x18\v \x03(\v2/.vrooli.ui_health.v1.visualhealth.VisualFindingR\bfindings\"y\n" +
+	"\x1fRecordBrowserObservationRequest\x12V\n" +
+	"\vobservation\x18\x01 \x01(\v24.vrooli.ui_health.v1.visualhealth.BrowserObservationR\vobservation\"z\n" +
+	" RecordBrowserObservationResponse\x12V\n" +
+	"\vobservation\x18\x01 \x01(\v24.vrooli.ui_health.v1.visualhealth.BrowserObservationR\vobservation\"o\n" +
+	"\x1eListBrowserObservationsRequest\x12\x1a\n" +
+	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x1b\n" +
+	"\tclient_id\x18\x02 \x01(\tR\bclientId\x12\x14\n" +
+	"\x05limit\x18\x03 \x01(\x05R\x05limit\"{\n" +
+	"\x1fListBrowserObservationsResponse\x12X\n" +
+	"\fobservations\x18\x01 \x03(\v24.vrooli.ui_health.v1.visualhealth.BrowserObservationR\fobservations\"\xa5\x01\n" +
 	"\vArtifactRef\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x15\n" +
 	"\x06run_id\x18\x02 \x01(\tR\x05runId\x12\x17\n" +
@@ -1495,11 +1844,13 @@ const file_ui_health_v1_visualhealth_visualhealth_proto_rawDesc = "" +
 	"\x13VISUAL_CATEGORY_DOM\x10\x02\x12\x1a\n" +
 	"\x16VISUAL_CATEGORY_LAYOUT\x10\x03\x12\x19\n" +
 	"\x15VISUAL_CATEGORY_ASSET\x10\x04\x12\x19\n" +
-	"\x15VISUAL_CATEGORY_FOCUS\x10\x052\xa3\x03\n" +
+	"\x15VISUAL_CATEGORY_FOCUS\x10\x052\xe8\x05\n" +
 	"\x13VisualHealthService\x12\x89\x01\n" +
 	"\x10AnalyzeArtifacts\x129.vrooli.ui_health.v1.visualhealth.AnalyzeArtifactsRequest\x1a:.vrooli.ui_health.v1.visualhealth.AnalyzeArtifactsResponse\x12\x89\x01\n" +
 	"\x10CompareArtifacts\x129.vrooli.ui_health.v1.visualhealth.CompareArtifactsRequest\x1a:.vrooli.ui_health.v1.visualhealth.CompareArtifactsResponse\x12t\n" +
-	"\tListRules\x122.vrooli.ui_health.v1.visualhealth.ListRulesRequest\x1a3.vrooli.ui_health.v1.visualhealth.ListRulesResponseBZZXgithub.com/vrooli/vrooli/packages/proto/gen/go/ui-health/v1/visualhealth;visualhealth_v1b\x06proto3"
+	"\tListRules\x122.vrooli.ui_health.v1.visualhealth.ListRulesRequest\x1a3.vrooli.ui_health.v1.visualhealth.ListRulesResponse\x12\xa1\x01\n" +
+	"\x18RecordBrowserObservation\x12A.vrooli.ui_health.v1.visualhealth.RecordBrowserObservationRequest\x1aB.vrooli.ui_health.v1.visualhealth.RecordBrowserObservationResponse\x12\x9e\x01\n" +
+	"\x17ListBrowserObservations\x12@.vrooli.ui_health.v1.visualhealth.ListBrowserObservationsRequest\x1aA.vrooli.ui_health.v1.visualhealth.ListBrowserObservationsResponseBZZXgithub.com/vrooli/vrooli/packages/proto/gen/go/ui-health/v1/visualhealth;visualhealth_v1b\x06proto3"
 
 var (
 	file_ui_health_v1_visualhealth_visualhealth_proto_rawDescOnce sync.Once
@@ -1514,63 +1865,76 @@ func file_ui_health_v1_visualhealth_visualhealth_proto_rawDescGZIP() []byte {
 }
 
 var file_ui_health_v1_visualhealth_visualhealth_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
+var file_ui_health_v1_visualhealth_visualhealth_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
 var file_ui_health_v1_visualhealth_visualhealth_proto_goTypes = []any{
-	(VisualSeverity)(0),              // 0: vrooli.ui_health.v1.visualhealth.VisualSeverity
-	(VisualCategory)(0),              // 1: vrooli.ui_health.v1.visualhealth.VisualCategory
-	(*ArtifactRef)(nil),              // 2: vrooli.ui_health.v1.visualhealth.ArtifactRef
-	(*Viewport)(nil),                 // 3: vrooli.ui_health.v1.visualhealth.Viewport
-	(*ConsoleEntry)(nil),             // 4: vrooli.ui_health.v1.visualhealth.ConsoleEntry
-	(*NetworkEntry)(nil),             // 5: vrooli.ui_health.v1.visualhealth.NetworkEntry
-	(*PageError)(nil),                // 6: vrooli.ui_health.v1.visualhealth.PageError
-	(*VisualStepArtifact)(nil),       // 7: vrooli.ui_health.v1.visualhealth.VisualStepArtifact
-	(*VisualMetric)(nil),             // 8: vrooli.ui_health.v1.visualhealth.VisualMetric
-	(*VisualFinding)(nil),            // 9: vrooli.ui_health.v1.visualhealth.VisualFinding
-	(*StepVerdict)(nil),              // 10: vrooli.ui_health.v1.visualhealth.StepVerdict
-	(*AnalyzeArtifactsRequest)(nil),  // 11: vrooli.ui_health.v1.visualhealth.AnalyzeArtifactsRequest
-	(*AnalyzeArtifactsResponse)(nil), // 12: vrooli.ui_health.v1.visualhealth.AnalyzeArtifactsResponse
-	(*CompareArtifact)(nil),          // 13: vrooli.ui_health.v1.visualhealth.CompareArtifact
-	(*CompareArtifactsRequest)(nil),  // 14: vrooli.ui_health.v1.visualhealth.CompareArtifactsRequest
-	(*VisualDelta)(nil),              // 15: vrooli.ui_health.v1.visualhealth.VisualDelta
-	(*CompareArtifactsResponse)(nil), // 16: vrooli.ui_health.v1.visualhealth.CompareArtifactsResponse
-	(*ListRulesRequest)(nil),         // 17: vrooli.ui_health.v1.visualhealth.ListRulesRequest
-	(*VisualRule)(nil),               // 18: vrooli.ui_health.v1.visualhealth.VisualRule
-	(*ListRulesResponse)(nil),        // 19: vrooli.ui_health.v1.visualhealth.ListRulesResponse
+	(VisualSeverity)(0),                      // 0: vrooli.ui_health.v1.visualhealth.VisualSeverity
+	(VisualCategory)(0),                      // 1: vrooli.ui_health.v1.visualhealth.VisualCategory
+	(*BrowserObservation)(nil),               // 2: vrooli.ui_health.v1.visualhealth.BrowserObservation
+	(*RecordBrowserObservationRequest)(nil),  // 3: vrooli.ui_health.v1.visualhealth.RecordBrowserObservationRequest
+	(*RecordBrowserObservationResponse)(nil), // 4: vrooli.ui_health.v1.visualhealth.RecordBrowserObservationResponse
+	(*ListBrowserObservationsRequest)(nil),   // 5: vrooli.ui_health.v1.visualhealth.ListBrowserObservationsRequest
+	(*ListBrowserObservationsResponse)(nil),  // 6: vrooli.ui_health.v1.visualhealth.ListBrowserObservationsResponse
+	(*ArtifactRef)(nil),                      // 7: vrooli.ui_health.v1.visualhealth.ArtifactRef
+	(*Viewport)(nil),                         // 8: vrooli.ui_health.v1.visualhealth.Viewport
+	(*ConsoleEntry)(nil),                     // 9: vrooli.ui_health.v1.visualhealth.ConsoleEntry
+	(*NetworkEntry)(nil),                     // 10: vrooli.ui_health.v1.visualhealth.NetworkEntry
+	(*PageError)(nil),                        // 11: vrooli.ui_health.v1.visualhealth.PageError
+	(*VisualStepArtifact)(nil),               // 12: vrooli.ui_health.v1.visualhealth.VisualStepArtifact
+	(*VisualMetric)(nil),                     // 13: vrooli.ui_health.v1.visualhealth.VisualMetric
+	(*VisualFinding)(nil),                    // 14: vrooli.ui_health.v1.visualhealth.VisualFinding
+	(*StepVerdict)(nil),                      // 15: vrooli.ui_health.v1.visualhealth.StepVerdict
+	(*AnalyzeArtifactsRequest)(nil),          // 16: vrooli.ui_health.v1.visualhealth.AnalyzeArtifactsRequest
+	(*AnalyzeArtifactsResponse)(nil),         // 17: vrooli.ui_health.v1.visualhealth.AnalyzeArtifactsResponse
+	(*CompareArtifact)(nil),                  // 18: vrooli.ui_health.v1.visualhealth.CompareArtifact
+	(*CompareArtifactsRequest)(nil),          // 19: vrooli.ui_health.v1.visualhealth.CompareArtifactsRequest
+	(*VisualDelta)(nil),                      // 20: vrooli.ui_health.v1.visualhealth.VisualDelta
+	(*CompareArtifactsResponse)(nil),         // 21: vrooli.ui_health.v1.visualhealth.CompareArtifactsResponse
+	(*ListRulesRequest)(nil),                 // 22: vrooli.ui_health.v1.visualhealth.ListRulesRequest
+	(*VisualRule)(nil),                       // 23: vrooli.ui_health.v1.visualhealth.VisualRule
+	(*ListRulesResponse)(nil),                // 24: vrooli.ui_health.v1.visualhealth.ListRulesResponse
 }
 var file_ui_health_v1_visualhealth_visualhealth_proto_depIdxs = []int32{
-	3,  // 0: vrooli.ui_health.v1.visualhealth.VisualStepArtifact.viewport:type_name -> vrooli.ui_health.v1.visualhealth.Viewport
-	2,  // 1: vrooli.ui_health.v1.visualhealth.VisualStepArtifact.screenshot_ref:type_name -> vrooli.ui_health.v1.visualhealth.ArtifactRef
-	2,  // 2: vrooli.ui_health.v1.visualhealth.VisualStepArtifact.dom_ref:type_name -> vrooli.ui_health.v1.visualhealth.ArtifactRef
-	2,  // 3: vrooli.ui_health.v1.visualhealth.VisualStepArtifact.layout_ref:type_name -> vrooli.ui_health.v1.visualhealth.ArtifactRef
-	4,  // 4: vrooli.ui_health.v1.visualhealth.VisualStepArtifact.console:type_name -> vrooli.ui_health.v1.visualhealth.ConsoleEntry
-	5,  // 5: vrooli.ui_health.v1.visualhealth.VisualStepArtifact.network:type_name -> vrooli.ui_health.v1.visualhealth.NetworkEntry
-	6,  // 6: vrooli.ui_health.v1.visualhealth.VisualStepArtifact.page_errors:type_name -> vrooli.ui_health.v1.visualhealth.PageError
-	0,  // 7: vrooli.ui_health.v1.visualhealth.VisualFinding.severity:type_name -> vrooli.ui_health.v1.visualhealth.VisualSeverity
-	1,  // 8: vrooli.ui_health.v1.visualhealth.VisualFinding.category:type_name -> vrooli.ui_health.v1.visualhealth.VisualCategory
-	8,  // 9: vrooli.ui_health.v1.visualhealth.VisualFinding.metrics:type_name -> vrooli.ui_health.v1.visualhealth.VisualMetric
-	9,  // 10: vrooli.ui_health.v1.visualhealth.StepVerdict.findings:type_name -> vrooli.ui_health.v1.visualhealth.VisualFinding
-	8,  // 11: vrooli.ui_health.v1.visualhealth.StepVerdict.metrics:type_name -> vrooli.ui_health.v1.visualhealth.VisualMetric
-	7,  // 12: vrooli.ui_health.v1.visualhealth.AnalyzeArtifactsRequest.steps:type_name -> vrooli.ui_health.v1.visualhealth.VisualStepArtifact
-	10, // 13: vrooli.ui_health.v1.visualhealth.AnalyzeArtifactsResponse.steps:type_name -> vrooli.ui_health.v1.visualhealth.StepVerdict
-	9,  // 14: vrooli.ui_health.v1.visualhealth.AnalyzeArtifactsResponse.findings:type_name -> vrooli.ui_health.v1.visualhealth.VisualFinding
-	2,  // 15: vrooli.ui_health.v1.visualhealth.CompareArtifact.screenshot_ref:type_name -> vrooli.ui_health.v1.visualhealth.ArtifactRef
-	13, // 16: vrooli.ui_health.v1.visualhealth.CompareArtifactsRequest.base:type_name -> vrooli.ui_health.v1.visualhealth.CompareArtifact
-	13, // 17: vrooli.ui_health.v1.visualhealth.CompareArtifactsRequest.current:type_name -> vrooli.ui_health.v1.visualhealth.CompareArtifact
-	15, // 18: vrooli.ui_health.v1.visualhealth.CompareArtifactsResponse.deltas:type_name -> vrooli.ui_health.v1.visualhealth.VisualDelta
-	1,  // 19: vrooli.ui_health.v1.visualhealth.VisualRule.category:type_name -> vrooli.ui_health.v1.visualhealth.VisualCategory
-	0,  // 20: vrooli.ui_health.v1.visualhealth.VisualRule.severity:type_name -> vrooli.ui_health.v1.visualhealth.VisualSeverity
-	18, // 21: vrooli.ui_health.v1.visualhealth.ListRulesResponse.rules:type_name -> vrooli.ui_health.v1.visualhealth.VisualRule
-	11, // 22: vrooli.ui_health.v1.visualhealth.VisualHealthService.AnalyzeArtifacts:input_type -> vrooli.ui_health.v1.visualhealth.AnalyzeArtifactsRequest
-	14, // 23: vrooli.ui_health.v1.visualhealth.VisualHealthService.CompareArtifacts:input_type -> vrooli.ui_health.v1.visualhealth.CompareArtifactsRequest
-	17, // 24: vrooli.ui_health.v1.visualhealth.VisualHealthService.ListRules:input_type -> vrooli.ui_health.v1.visualhealth.ListRulesRequest
-	12, // 25: vrooli.ui_health.v1.visualhealth.VisualHealthService.AnalyzeArtifacts:output_type -> vrooli.ui_health.v1.visualhealth.AnalyzeArtifactsResponse
-	16, // 26: vrooli.ui_health.v1.visualhealth.VisualHealthService.CompareArtifacts:output_type -> vrooli.ui_health.v1.visualhealth.CompareArtifactsResponse
-	19, // 27: vrooli.ui_health.v1.visualhealth.VisualHealthService.ListRules:output_type -> vrooli.ui_health.v1.visualhealth.ListRulesResponse
-	25, // [25:28] is the sub-list for method output_type
-	22, // [22:25] is the sub-list for method input_type
-	22, // [22:22] is the sub-list for extension type_name
-	22, // [22:22] is the sub-list for extension extendee
-	0,  // [0:22] is the sub-list for field type_name
+	14, // 0: vrooli.ui_health.v1.visualhealth.BrowserObservation.findings:type_name -> vrooli.ui_health.v1.visualhealth.VisualFinding
+	2,  // 1: vrooli.ui_health.v1.visualhealth.RecordBrowserObservationRequest.observation:type_name -> vrooli.ui_health.v1.visualhealth.BrowserObservation
+	2,  // 2: vrooli.ui_health.v1.visualhealth.RecordBrowserObservationResponse.observation:type_name -> vrooli.ui_health.v1.visualhealth.BrowserObservation
+	2,  // 3: vrooli.ui_health.v1.visualhealth.ListBrowserObservationsResponse.observations:type_name -> vrooli.ui_health.v1.visualhealth.BrowserObservation
+	8,  // 4: vrooli.ui_health.v1.visualhealth.VisualStepArtifact.viewport:type_name -> vrooli.ui_health.v1.visualhealth.Viewport
+	7,  // 5: vrooli.ui_health.v1.visualhealth.VisualStepArtifact.screenshot_ref:type_name -> vrooli.ui_health.v1.visualhealth.ArtifactRef
+	7,  // 6: vrooli.ui_health.v1.visualhealth.VisualStepArtifact.dom_ref:type_name -> vrooli.ui_health.v1.visualhealth.ArtifactRef
+	7,  // 7: vrooli.ui_health.v1.visualhealth.VisualStepArtifact.layout_ref:type_name -> vrooli.ui_health.v1.visualhealth.ArtifactRef
+	9,  // 8: vrooli.ui_health.v1.visualhealth.VisualStepArtifact.console:type_name -> vrooli.ui_health.v1.visualhealth.ConsoleEntry
+	10, // 9: vrooli.ui_health.v1.visualhealth.VisualStepArtifact.network:type_name -> vrooli.ui_health.v1.visualhealth.NetworkEntry
+	11, // 10: vrooli.ui_health.v1.visualhealth.VisualStepArtifact.page_errors:type_name -> vrooli.ui_health.v1.visualhealth.PageError
+	0,  // 11: vrooli.ui_health.v1.visualhealth.VisualFinding.severity:type_name -> vrooli.ui_health.v1.visualhealth.VisualSeverity
+	1,  // 12: vrooli.ui_health.v1.visualhealth.VisualFinding.category:type_name -> vrooli.ui_health.v1.visualhealth.VisualCategory
+	13, // 13: vrooli.ui_health.v1.visualhealth.VisualFinding.metrics:type_name -> vrooli.ui_health.v1.visualhealth.VisualMetric
+	14, // 14: vrooli.ui_health.v1.visualhealth.StepVerdict.findings:type_name -> vrooli.ui_health.v1.visualhealth.VisualFinding
+	13, // 15: vrooli.ui_health.v1.visualhealth.StepVerdict.metrics:type_name -> vrooli.ui_health.v1.visualhealth.VisualMetric
+	12, // 16: vrooli.ui_health.v1.visualhealth.AnalyzeArtifactsRequest.steps:type_name -> vrooli.ui_health.v1.visualhealth.VisualStepArtifact
+	15, // 17: vrooli.ui_health.v1.visualhealth.AnalyzeArtifactsResponse.steps:type_name -> vrooli.ui_health.v1.visualhealth.StepVerdict
+	14, // 18: vrooli.ui_health.v1.visualhealth.AnalyzeArtifactsResponse.findings:type_name -> vrooli.ui_health.v1.visualhealth.VisualFinding
+	7,  // 19: vrooli.ui_health.v1.visualhealth.CompareArtifact.screenshot_ref:type_name -> vrooli.ui_health.v1.visualhealth.ArtifactRef
+	18, // 20: vrooli.ui_health.v1.visualhealth.CompareArtifactsRequest.base:type_name -> vrooli.ui_health.v1.visualhealth.CompareArtifact
+	18, // 21: vrooli.ui_health.v1.visualhealth.CompareArtifactsRequest.current:type_name -> vrooli.ui_health.v1.visualhealth.CompareArtifact
+	20, // 22: vrooli.ui_health.v1.visualhealth.CompareArtifactsResponse.deltas:type_name -> vrooli.ui_health.v1.visualhealth.VisualDelta
+	1,  // 23: vrooli.ui_health.v1.visualhealth.VisualRule.category:type_name -> vrooli.ui_health.v1.visualhealth.VisualCategory
+	0,  // 24: vrooli.ui_health.v1.visualhealth.VisualRule.severity:type_name -> vrooli.ui_health.v1.visualhealth.VisualSeverity
+	23, // 25: vrooli.ui_health.v1.visualhealth.ListRulesResponse.rules:type_name -> vrooli.ui_health.v1.visualhealth.VisualRule
+	16, // 26: vrooli.ui_health.v1.visualhealth.VisualHealthService.AnalyzeArtifacts:input_type -> vrooli.ui_health.v1.visualhealth.AnalyzeArtifactsRequest
+	19, // 27: vrooli.ui_health.v1.visualhealth.VisualHealthService.CompareArtifacts:input_type -> vrooli.ui_health.v1.visualhealth.CompareArtifactsRequest
+	22, // 28: vrooli.ui_health.v1.visualhealth.VisualHealthService.ListRules:input_type -> vrooli.ui_health.v1.visualhealth.ListRulesRequest
+	3,  // 29: vrooli.ui_health.v1.visualhealth.VisualHealthService.RecordBrowserObservation:input_type -> vrooli.ui_health.v1.visualhealth.RecordBrowserObservationRequest
+	5,  // 30: vrooli.ui_health.v1.visualhealth.VisualHealthService.ListBrowserObservations:input_type -> vrooli.ui_health.v1.visualhealth.ListBrowserObservationsRequest
+	17, // 31: vrooli.ui_health.v1.visualhealth.VisualHealthService.AnalyzeArtifacts:output_type -> vrooli.ui_health.v1.visualhealth.AnalyzeArtifactsResponse
+	21, // 32: vrooli.ui_health.v1.visualhealth.VisualHealthService.CompareArtifacts:output_type -> vrooli.ui_health.v1.visualhealth.CompareArtifactsResponse
+	24, // 33: vrooli.ui_health.v1.visualhealth.VisualHealthService.ListRules:output_type -> vrooli.ui_health.v1.visualhealth.ListRulesResponse
+	4,  // 34: vrooli.ui_health.v1.visualhealth.VisualHealthService.RecordBrowserObservation:output_type -> vrooli.ui_health.v1.visualhealth.RecordBrowserObservationResponse
+	6,  // 35: vrooli.ui_health.v1.visualhealth.VisualHealthService.ListBrowserObservations:output_type -> vrooli.ui_health.v1.visualhealth.ListBrowserObservationsResponse
+	31, // [31:36] is the sub-list for method output_type
+	26, // [26:31] is the sub-list for method input_type
+	26, // [26:26] is the sub-list for extension type_name
+	26, // [26:26] is the sub-list for extension extendee
+	0,  // [0:26] is the sub-list for field type_name
 }
 
 func init() { file_ui_health_v1_visualhealth_visualhealth_proto_init() }
@@ -1584,7 +1948,7 @@ func file_ui_health_v1_visualhealth_visualhealth_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ui_health_v1_visualhealth_visualhealth_proto_rawDesc), len(file_ui_health_v1_visualhealth_visualhealth_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   18,
+			NumMessages:   23,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

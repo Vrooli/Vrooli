@@ -52,6 +52,36 @@ type breakGlassProvisioner struct {
 	target    string
 }
 
+// cloudflareHumanAssertion adapts the shared managed-Cloudflare provider to the
+// accounts.HumanAssertionVerifier seam so MintSessionDelegation can accept a
+// tunnel operator's Cloudflare Access assertion as human proof. It verifies via
+// the SAME path the request middleware uses — resolving the web-console Access
+// binding and checking signature, audience, expiry and the non-empty user — then
+// returns the verified subject only for a genuine human. No new trust surface:
+// the assertion is already trusted by web-console and agent-manager.
+type cloudflareHumanAssertion struct {
+	provider *authn.ManagedCloudflareProvider
+}
+
+func (c cloudflareHumanAssertion) VerifyHuman(ctx context.Context, rawAssertion string) (string, string, bool) {
+	if c.provider == nil || strings.TrimSpace(rawAssertion) == "" {
+		return "", "", false
+	}
+	// The managed provider verifies from a request header, so present the
+	// assertion the same way Cloudflare delivers it. The request is synthetic and
+	// carries only the assertion; no ambient identity leaks in.
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://local/mint", nil)
+	if err != nil {
+		return "", "", false
+	}
+	req.Header.Set("Cf-Access-Jwt-Assertion", strings.TrimSpace(rawAssertion))
+	principal, err := c.provider.VerifyRequest(ctx, req)
+	if err != nil || !principal.IsHuman() {
+		return "", "", false
+	}
+	return principal.Subject, principal.Email, true
+}
+
 func (p breakGlassProvisioner) Provision(_ context.Context, accountID, realmID string, scopes []string, linkedAt time.Time) error {
 	if !p.available {
 		return fmt.Errorf("break-glass is unavailable under the configured trust posture")
@@ -201,6 +231,10 @@ func runMainWithFiniteOwner(owner *accounts.FiniteOwnerStartup) {
 	repo := accounts.NewSQLiteRepository(db, clk)
 	auditLogger := audit.NewSQLiteLogger(db, clk)
 	authorizationService := authorization.NewService(repo.(authorization.ScopeStore), auditLogger)
+	servicePrincipals, err := accounts.ParseServicePrincipalProfiles(os.Getenv("VROOLI_AUTH_SERVICE_PRINCIPALS"))
+	if err != nil {
+		log.Fatalf("service principal configuration: %v", err)
+	}
 	authService := accounts.NewService(accounts.ServiceConfig{
 		Repo:              repo,
 		Signer:            signer,
@@ -213,6 +247,15 @@ func runMainWithFiniteOwner(owner *accounts.FiniteOwnerStartup) {
 		MFA:               mfaStore,
 		Clock:             clk,
 		ResourceAudiences: parseResourceAudiences(os.Getenv("VROOLI_AUTH_RESOURCE_AUDIENCES")),
+		ServicePrincipals: servicePrincipals,
+		ServiceCustody:    authorityServiceCustodian{authority: credentialAuthority},
+		// A tunnel operator authenticates via Cloudflare Access, not an account
+		// bearer. Accept that same assertion — verified against the WEB-CONSOLE
+		// Access binding (the audience the operator's token is for) — as human
+		// proof for a session-delegation mint. This introduces no new trust: the
+		// assertion is already trusted by web-console and agent-manager, and the
+		// mint yields only a no-capability owner label.
+		HumanAssertion: cloudflareHumanAssertion{provider: authn.NewManagedCloudflareProvider("web-console")},
 	})
 	_, localHandler := accountsconnect.NewAccountsServiceHandler(authH.NewConnectHandler(authH.Deps{Service: authService, Logger: log.Default()}))
 	exchangeLimiter := localexchange.NewRateLimiter(20, time.Minute)
@@ -282,6 +325,7 @@ func runMainWithFiniteOwner(owner *accounts.FiniteOwnerStartup) {
 		PathPrefixes: []string{
 			"/vrooli.scenario_authenticator.v1.accounts.AccountsService/Login",
 			"/vrooli.scenario_authenticator.v1.accounts.AccountsService/Register",
+			"/vrooli.scenario_authenticator.v1.accounts.AccountsService/ExchangeServiceCredential",
 		},
 	}, nil)
 

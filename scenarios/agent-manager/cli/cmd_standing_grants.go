@@ -157,8 +157,32 @@ func (a *App) standingGrantsList(args []string) error {
 	if err != nil {
 		return apiError(body, err)
 	}
-	cliutil.PrintJSON(body)
-	_ = jsonOut
+	if *jsonOut {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+	var resp struct {
+		Grants []struct {
+			ID                string `json:"id"`
+			Subject           string `json:"subject"`
+			State             string `json:"state"`
+			MaxConcurrentRuns int    `json:"max_concurrent_runs"`
+			ExpiresAt         string `json:"expires_at"`
+		} `json:"grants"`
+	}
+	if err := json.Unmarshal(body, &resp); err != nil {
+		// Unexpected shape — fall back to raw rather than hide the response.
+		cliutil.PrintJSON(body)
+		return nil
+	}
+	if len(resp.Grants) == 0 {
+		fmt.Println("No standing grants.")
+		return nil
+	}
+	for _, g := range resp.Grants {
+		fmt.Printf("%s  subject=%s  state=%s  max_concurrent_runs=%d  expires=%s\n",
+			g.ID, g.Subject, g.State, g.MaxConcurrentRuns, g.ExpiresAt)
+	}
 	return nil
 }
 

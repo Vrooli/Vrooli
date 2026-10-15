@@ -1,18 +1,64 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 	"strings"
 
+	"agent-manager/internal/domain"
+	"agent-manager/internal/orchestration"
 	"agent-manager/internal/supervision"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/identity"
 	"github.com/vrooli/api-core/lifecycle"
+	"github.com/vrooli/api-core/owneridentity"
 	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
 	commonconnect "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1/commonv1connect"
 )
+
+// defaultAskedStandingGrantConcurrency is the concurrency bound an operator is
+// asked to approve for a service principal's standing grant raised via the
+// "ask, don't block" path. It is stated in the notification so a one-tap approve
+// is informed; the operator can later tune it by re-issuing the grant.
+const defaultAskedStandingGrantConcurrency = 3
+
+// serviceNeedsApproval handles the needs-approval outcome for a verified service
+// caller: it raises an operator decision (idempotent, per-subject capped) and
+// answers with a typed "approval pending" (202). A service principal is a
+// recurring, subject-keyed caller, so the ask proposes a bounded STANDING grant.
+// Without a configured raiser it degrades to the prior hard refuse (403).
+func serviceNeedsApproval(w http.ResponseWriter, r *http.Request, subject string) {
+	raiser, ok := ApprovalRaiserFromContext(r.Context())
+	if !ok {
+		http.Error(w, "service authority does not include this operation", http.StatusForbidden)
+		return
+	}
+	raised, err := raiser.RaiseAuthorizationApproval(r.Context(), orchestration.AuthorizationApprovalRequest{
+		Subject:           subject,
+		Operation:         "run.create",
+		Target:            RunCreationTarget,
+		Kind:              domain.PendingAuthorizationKindStanding,
+		MaxConcurrentRuns: defaultAskedStandingGrantConcurrency,
+	})
+	if errors.Is(err, orchestration.ErrAuthorizationFlood) {
+		// Over the per-subject outstanding-ask cap: refuse WITHOUT raising another
+		// operator notification, so a buggy or hostile caller cannot flood.
+		http.Error(w, "too many outstanding authorization requests for this subject", http.StatusTooManyRequests)
+		return
+	}
+	if err != nil || !raised {
+		// A raise failure (or no raiser) is a refusal, not an accidental allow.
+		http.Error(w, "service authority does not include this operation", http.StatusForbidden)
+		return
+	}
+	writeJSON(w, http.StatusAccepted, map[string]string{
+		"status":  "approval_pending",
+		"subject": subject,
+		"detail":  "operator approval requested; the operation proceeds once approved",
+	})
+}
 
 // AgentOperationMiddleware prevents coarse write eligibility from opening
 // global management to agents. Permitted mutations still pass their existing
@@ -63,8 +109,16 @@ func AgentOperationMiddleware(next http.Handler) http.Handler {
 			// the same seam — no grant logic here. The run admission still enforces
 			// the grant's limits and attributes the owner.
 			if r.Method == http.MethodPost && (r.URL.Path == "/api/v1/runs" || r.URL.Path == "/api/v1/tasks") {
-				if _, err := authn.RequireOperation(r.Context(), "agent-manager:write", "run.create", RunCreationTarget); err == nil {
+				switch _, err := authn.RequireOperation(r.Context(), "agent-manager:write", "run.create", RunCreationTarget); {
+				case err == nil:
 					next.ServeHTTP(w, r)
+					return
+				case errors.Is(err, authn.ErrNeedsApproval):
+					// Ask, don't block: a verified known caller with no covering grant.
+					// Raise an operator decision (idempotent; capped per subject) and
+					// return a typed "approval pending" (202), never a hard block. The
+					// caller's next attempt proceeds once the operator approves.
+					serviceNeedsApproval(w, r, p.Subject)
 					return
 				}
 			}
@@ -82,6 +136,21 @@ func AgentOperationMiddleware(next http.Handler) http.Handler {
 				return
 			}
 			if !ok {
+				// ONE authority decision for create-run absence. This middleware and
+				// the CreateRun handler (runs_create.go) must never disagree about an
+				// anonymous unattended create-run: both read the SAME AUTH-01 switch.
+				// With the switch OFF (operator decision P-18) an anonymous create-run
+				// is admitted to the handler, which applies the pre-AUTH-01 anonymous
+				// path; with it ON, both refuse. Previously this gate 401'd
+				// unconditionally, so the switch never took effect for this path (the
+				// P1 root cause). The heartbeat's task leg rides the same decision:
+				// task+run is one unit. Every OTHER anonymous operation is still
+				// refused below. Attributed callers (human/agent/service-standing) are
+				// handled in their own branches above and never reach this.
+				if r.Method == http.MethodPost && (r.URL.Path == "/api/v1/runs" || r.URL.Path == "/api/v1/tasks") && !owneridentity.CreateRunCallerEnforced() {
+					next.ServeHTTP(w, r)
+					return
+				}
 				http.Error(w, "verified operator required", http.StatusUnauthorized)
 				return
 			}

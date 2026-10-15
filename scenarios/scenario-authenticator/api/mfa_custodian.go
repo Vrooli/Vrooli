@@ -58,3 +58,40 @@ func (c *authoritySeedCustodian) Delete(userID, slot string) error {
 	}
 	return c.authority.Delete(identity, field)
 }
+
+// authorityServiceCustodian stores service-principal credentials in the
+// credential authority. The authenticator owns the entry; a consuming service
+// reads the same address. Deleting the entry revokes the principal.
+type authorityServiceCustodian struct {
+	authority *credentialauthority.Authority
+}
+
+const serviceCredentialField = "credential"
+
+func (c authorityServiceCustodian) Address(name, resource string) (string, string) {
+	return "scenario-authenticator/service-principal/" + strings.ToLower(strings.TrimSpace(name)) + "/" + strings.ToLower(strings.TrimSpace(resource)), serviceCredentialField
+}
+
+func (c authorityServiceCustodian) identity(name, resource string) (credentialauthority.Identity, error) {
+	if c.authority == nil {
+		return "", fmt.Errorf("credential authority is required")
+	}
+	raw, _ := c.Address(name, resource)
+	return credentialauthority.ParseIdentity(raw)
+}
+
+func (c authorityServiceCustodian) Put(name, resource, credential string) error {
+	identity, err := c.identity(name, resource)
+	if err != nil {
+		return err
+	}
+	return c.authority.Put(identity, serviceCredentialField, credential)
+}
+
+func (c authorityServiceCustodian) Resolve(name, resource string) (string, error) {
+	identity, err := c.identity(name, resource)
+	if err != nil {
+		return "", err
+	}
+	return c.authority.Require(identity, serviceCredentialField)
+}

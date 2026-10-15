@@ -2,6 +2,12 @@
 package orchestration
 
 import (
+	"context"
+	"fmt"
+	"strings"
+	"sync"
+	"time"
+
 	"agent-manager/internal/adapters/runner"
 	agentconfig "agent-manager/internal/config"
 	"agent-manager/internal/domain"
@@ -11,12 +17,8 @@ import (
 	"agent-manager/internal/orchestration/spawn"
 	"agent-manager/internal/promptmanager"
 	"agent-manager/internal/runstate"
-	"context"
-	"fmt"
+
 	"github.com/google/uuid"
-	"strings"
-	"sync"
-	"time"
 )
 
 // executeRun handles the actual agent execution (runs in background).
@@ -296,25 +298,57 @@ func (o *Orchestrator) executeInteractiveRun(ctx context.Context, run *domain.Ru
 		deliveredPrompt = strings.TrimSpace(initialPrompt) + nativeGoalPointer
 	}
 	if err := coord.Execute(runCtx, run, interactive.LaunchParams{
-		RunID:           run.ID,
-		RunnerType:      run.ResolvedConfig.RunnerType,
-		Tag:             run.GetTag(),
-		WorkingDir:      workDir,
-		RunDir:          runDir,
-		DisplayLabel:    run.GetTag(),
-		Prompt:          deliveredPrompt,
-		NativeObjective: nativeObjective,
-		Model:           run.ResolvedConfig.Model,
-		Effort:          run.ResolvedConfig.Effort,
-		Config:          run.ResolvedConfig,
+		RunID:             run.ID,
+		RunnerType:        run.ResolvedConfig.RunnerType,
+		Tag:               run.GetTag(),
+		WorkingDir:        workDir,
+		RunDir:            runDir,
+		DisplayLabel:      run.GetTag(),
+		Prompt:            deliveredPrompt,
+		NativeObjective:   nativeObjective,
+		Model:             run.ResolvedConfig.Model,
+		Effort:            run.ResolvedConfig.Effort,
+		Config:            run.ResolvedConfig,
+		HumanOwnerSubject: humanSpawnOwner(run),
 	}, release); err != nil {
 		obs.Component("interactive").Warn("interactive run finalize failed",
 			obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
+	}
+	// Human-session delegation (Phase 5): a verified-human tunnel-UI spawn mints a
+	// short-lived, session-scoped grant keyed to (human subject, web-console
+	// session id) so work spawned inside this operator session inherits the
+	// operator's authority, bounded and attributable. Only for a human-owned run
+	// with a live session id; revoked when the session closes (see interactive
+	// stop) and TTL-capped as a backstop. Best-effort: a mint failure must not
+	// fail the run.
+	if owner := humanSpawnOwner(run); owner != "" && run.WebConsoleSessionID != "" {
+		if _, err := o.CreateSessionGrant(ctx, owner, run.WebConsoleSessionID, MaxSessionGrantLifetime); err != nil {
+			obs.Component("interactive").Warn("interactive run: session grant mint failed",
+				obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
+		}
 	}
 	// Tracking mode uses the same sandbox provenance/lifecycle contract as
 	// codec-pipe execution. The coordinator owns terminal detection; once it
 	// returns, finalize the attributed sandbox before exposing the terminal run.
 	o.finalizeSandboxForTerminalRun(ctx, run)
+}
+
+// humanSpawnOwner returns the run's owner subject ONLY when the run was admitted
+// as a verified independent human spawn (CreateCaller.Kind == "human"), the
+// tunnel-UI case. For a service/agent/effort-spawned run it returns empty, so
+// web-console is never handed a non-human subject as the session's stable-create
+// owner. This is the server-verified gate behind the X-Human-Owner-Subject
+// header: the kind was set at admission from the verified human owner token, not
+// from anything the caller supplied.
+func humanSpawnOwner(run *domain.Run) string {
+	if run == nil || run.ResolvedConfig == nil || run.ResolvedConfig.Admission == nil {
+		return ""
+	}
+	caller := run.ResolvedConfig.Admission.CreateCaller
+	if caller == nil || caller.Kind != "human" {
+		return ""
+	}
+	return strings.TrimSpace(run.OwnerSubject)
 }
 
 // Interactive execution uses a host web-console terminal, not the protected

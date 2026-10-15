@@ -241,6 +241,7 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 		orchestration.WithOwnerIdentity(ownerIdentity),
 		orchestration.WithAuthorizations(database.NewAuthorizationRepository(db)),
 		orchestration.WithStandingGrants(database.NewStandingGrantRepository(db)),
+		orchestration.WithPendingAuthorizations(database.NewPendingAuthorizationRepository(db)),
 		orchestration.WithRuntimeOwnerIdentity(runtimeOwnerIdentity),
 		// Weighted-token caps (DL-8) stay off unless AGENT_MANAGER_TOKEN_CAP_MODE
 		// selects report or enforce.

@@ -270,6 +270,84 @@ func TestLaunchCodingAgentAttachesAddsOnlyTokenAndDetaches(t *testing.T) {
 	}
 }
 
+// A human-owner delegation inherited from a verified Web Console session is
+// forwarded on the attach header for every coding agent, so agent-manager can
+// verify it and attribute the run to the operator. The launcher neither mints
+// nor verifies it; it only relays the inherited value.
+func TestLaunchCodingAgentForwardsHumanOwnerDelegation(t *testing.T) {
+	t.Setenv(AgentManagerIdentityTokenEnv, "")
+	t.Setenv(HumanOwnerDelegationEnv, "delegation-token-abc")
+	var mu sync.Mutex
+	var gotDelegation string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+		switch r.URL.Path {
+		case "/api/v1/runs/attach":
+			gotDelegation = r.Header.Get(HumanOwnerDelegationHeader)
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, `{"run":{"id":"safe-run-id"},"identity_token":"safe-token"}`)
+		case "/api/v1/runs/safe-run-id/detach":
+			w.WriteHeader(http.StatusOK)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+	err := LaunchCodingAgent(context.Background(), AgentLaunchRequest{
+		Agent:       "codex",
+		APIBase:     server.URL,
+		Environment: []string{"PATH=/safe"},
+		LookPath:    func(string) (string, error) { return "/safe/fixture/codex", nil },
+		RunChild:    func(context.Context, string, []string, []string, io.Reader, io.Writer, io.Writer) error { return nil },
+	})
+	if err != nil {
+		t.Fatalf("LaunchCodingAgent() error = %v", err)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if gotDelegation != "delegation-token-abc" {
+		t.Fatalf("attach delegation header = %q, want delegation-token-abc", gotDelegation)
+	}
+}
+
+// The human-owner delegation is single-use: consumed by the attach header, it
+// must never reach the spawned agent's environment, even when it arrived via the
+// inherited request environment. A leaked raw operator credential in the child
+// is the failure this guards against.
+func TestLaunchCodingAgentDoesNotLeakDelegationToChild(t *testing.T) {
+	t.Setenv(AgentManagerIdentityTokenEnv, "")
+	var childEnvironment []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v1/runs/attach":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, `{"run":{"id":"safe-run-id"},"identity_token":"safe-token"}`)
+		case "/api/v1/runs/safe-run-id/detach":
+			w.WriteHeader(http.StatusOK)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+	err := LaunchCodingAgent(context.Background(), AgentLaunchRequest{
+		Agent:       "codex",
+		APIBase:     server.URL,
+		Environment: []string{"PATH=/safe", HumanOwnerDelegationEnv + "=delegation-token-abc"},
+		LookPath:    func(string) (string, error) { return "/safe/fixture/codex", nil },
+		RunChild: func(_ context.Context, _ string, _, environment []string, _ io.Reader, _, _ io.Writer) error {
+			childEnvironment = append([]string(nil), environment...)
+			return nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("LaunchCodingAgent() error = %v", err)
+	}
+	if got := environmentValue(childEnvironment, HumanOwnerDelegationEnv); got != "" {
+		t.Fatalf("child inherited the delegation %q; it must be single-use and stripped", got)
+	}
+}
+
 func TestLaunchCodingAgentReportsAbsentBinaryWithoutHTTPCall(t *testing.T) {
 	// A token in the ambient environment would make the launcher adopt it and
 	// skip attaching, so pin it empty to keep this test about the attach path.

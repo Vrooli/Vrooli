@@ -3,6 +3,7 @@ package accounts
 import (
 	"context"
 	"errors"
+	"log"
 	"strings"
 	"time"
 
@@ -124,6 +125,20 @@ type Service struct {
 	lockDuration      time.Duration
 	acceptedAudiences []string
 	resourceAudiences map[string]string
+	servicePrincipals map[string]ServicePrincipalProfile
+	serviceCustody    ServiceCredentialCustodian
+	humanAssertion    HumanAssertionVerifier
+}
+
+// HumanAssertionVerifier verifies a non-account human proof (a Cloudflare Access
+// assertion) and returns the verified operator subject. It lets MintSessionDelegation
+// attribute a tunnel operator who authenticated via Cloudflare Access rather than an
+// account bearer — the same assertion web-console and agent-manager already trust,
+// verified here against the web-console Access binding. Verifying it introduces no
+// new trust: it mints only a no-capability, session-scoped owner label. An
+// implementation returns ok=false for any missing/invalid/non-human proof.
+type HumanAssertionVerifier interface {
+	VerifyHuman(ctx context.Context, rawAssertion string) (subject, email string, ok bool)
 }
 
 // ServiceConfig configures a Service. Zero lockout fields fall back to defaults.
@@ -145,6 +160,14 @@ type ServiceConfig struct {
 	// ResourceAudiences maps a registered resource id to its audience. Empty
 	// resource requests retain the default realm audience.
 	ResourceAudiences map[string]string
+	// ServicePrincipals is the operator-owned service-principal profile set.
+	ServicePrincipals []ServicePrincipalProfile
+	// ServiceCustody stores issued service-principal credentials.
+	ServiceCustody ServiceCredentialCustodian
+	// HumanAssertion optionally verifies a Cloudflare Access assertion as human
+	// proof for MintSessionDelegation. Nil disables the Cf-Access mint path (the
+	// account-bearer path still works).
+	HumanAssertion HumanAssertionVerifier
 }
 
 // NewService constructs the orchestrator.
@@ -168,6 +191,9 @@ func NewService(cfg ServiceConfig) *Service {
 		clock:            cfg.Clock, lockThreshold: cfg.LockThreshold, lockDuration: cfg.LockDuration,
 		acceptedAudiences: append([]string(nil), cfg.AcceptedAudiences...),
 		resourceAudiences: copyStringMap(cfg.ResourceAudiences),
+		servicePrincipals: indexServicePrincipals(cfg.ServicePrincipals),
+		serviceCustody:    cfg.ServiceCustody,
+		humanAssertion:    cfg.HumanAssertion,
 	}
 }
 
@@ -186,6 +212,91 @@ func (s *Service) IssueBreakGlass(ctx context.Context, accessToken string, reque
 	}
 	s.logEvent(ctx, vt.UserID, vt.Realm, "break_glass.issued", meta, true, map[string]any{"expires_at": expiresAt.UTC().Format(time.RFC3339)})
 	return token, expiresAt, nil
+}
+
+// HumanActorKind is the actor_kind claim stamped on a human session-delegation
+// token, mirroring ServiceActorKind for service-principal tokens. A relying
+// party uses it to confirm the delegation represents a person.
+const HumanActorKind = "human"
+
+// DefaultSessionDelegationTTL bounds a Web Console session-delegation token.
+// It is a pure attribution credential, so it is deliberately short: long enough
+// for the launched agent to self-attach, not long enough to be a standing grant.
+const DefaultSessionDelegationTTL = 10 * time.Minute
+
+// MintSessionDelegation mints a short-lived, session-scoped human-owner
+// delegation for the verified human presenting accessToken. The human proof is
+// accepted from EITHER an account bearer (Validate, which rejects any non-human
+// actor_kind) OR — for a tunnel operator — a Cloudflare Access assertion verified
+// against the web-console Access binding (the same assertion web-console and
+// agent-manager already trust). The subject is taken from the verified proof,
+// never from the request, so a caller cannot name a different operator; a
+// service/agent/anonymous caller yields no verified human and is refused. The
+// delegation carries actor_kind "human", an audience, a wc_session_id claim, a
+// tight expiry, and NO capability scopes: it attributes, it does not empower. An
+// empty resource resolves to the realm's default audience (what a relying party
+// accepts out of the box); a non-empty resource must be a registered resource
+// audience, else the mint is refused.
+func (s *Service) MintSessionDelegation(ctx context.Context, accessToken, wcSessionID, resource string, meta RequestMeta) (string, time.Time, error) {
+	wcSessionID = strings.TrimSpace(wcSessionID)
+	resource = strings.TrimSpace(resource)
+	if wcSessionID == "" {
+		return "", time.Time{}, InvalidInputError{Msg: "session delegation requires a web console session id"}
+	}
+
+	// Resolve the verified human from either proof. Account bearer first; then a
+	// Cloudflare Access assertion (the tunnel operator). Neither ⇒ refuse.
+	subject, email, realmID, err := s.resolveDelegationHuman(ctx, accessToken)
+	if err != nil {
+		return "", time.Time{}, err
+	}
+
+	aud, err := s.resolveAudience(ctx, realmID, resource)
+	if err != nil {
+		return "", time.Time{}, err
+	}
+	ttl := DefaultSessionDelegationTTL
+	token, err := s.signer.Sign(authcrypto.TokenInput{
+		UserID:      subject,
+		Email:       email,
+		Audience:    aud,
+		ActorKind:   HumanActorKind,
+		WCSessionID: wcSessionID,
+		ExpiresIn:   ttl,
+	})
+	if err != nil {
+		s.logEvent(ctx, subject, realmID, "session_delegation.mint.refused", meta, false, map[string]any{"reason": err.Error()})
+		return "", time.Time{}, err
+	}
+	expiresAt := s.clock.Now().Add(ttl)
+	s.logEvent(ctx, subject, realmID, "session_delegation.minted", meta, true, map[string]any{"wc_session_id": wcSessionID, "audience": aud, "expires_at": expiresAt.UTC().Format(time.RFC3339)})
+	return token, expiresAt, nil
+}
+
+// resolveDelegationHuman returns the verified operator subject/email/realm for a
+// delegation mint. It tries the account bearer first (Validate), then falls back
+// to a Cloudflare Access assertion when a human-assertion verifier is configured.
+// A Cf-Access human has no scenario-authenticator realm, so it is attributed in
+// the default realm (the delegation is a cross-scenario owner label, not an
+// account token). Any proof that is missing, invalid, or not a verified human
+// yields ErrInvalidCredentials.
+func (s *Service) resolveDelegationHuman(ctx context.Context, accessToken string) (subject, email, realmID string, err error) {
+	if vt, ok, vErr := s.Validate(ctx, accessToken); vErr != nil {
+		return "", "", "", vErr
+	} else if ok {
+		log.Printf("[phase5-diag] mint: resolved via account bearer human=%s realm=%s", vt.UserID, vt.Realm)
+		return vt.UserID, vt.Email, vt.Realm, nil
+	}
+	if s.humanAssertion != nil {
+		sub, mail, ok := s.humanAssertion.VerifyHuman(ctx, accessToken)
+		log.Printf("[phase5-diag] mint: account-bearer not a verified human; Cf-Access verify ok=%t subjectPresent=%t", ok, strings.TrimSpace(sub) != "")
+		if ok && strings.TrimSpace(sub) != "" {
+			return strings.TrimSpace(sub), strings.TrimSpace(mail), realm.DefaultID, nil
+		}
+	} else {
+		log.Printf("[phase5-diag] mint: account-bearer not a verified human and NO Cf-Access verifier configured")
+	}
+	return "", "", "", ErrInvalidCredentials
 }
 
 // LinkMachineAccount binds an operator-authenticated account to a local
@@ -458,6 +569,11 @@ func (s *Service) Validate(ctx context.Context, accessToken string) (ValidatedTo
 	}
 	claims, err := s.signer.ValidateAny(accessToken, aud, s.acceptedAudienceValues()...)
 	if err != nil {
+		return ValidatedToken{}, false, nil
+	}
+	// Account operations accept human account tokens only. A service-principal
+	// token is valid at its relying party, never as account authority here.
+	if strings.TrimSpace(claims.ActorKind) != "" {
 		return ValidatedToken{}, false, nil
 	}
 	authVersion, err := s.sessions.CurrentAuthVersion(ctx, claims.UserID)

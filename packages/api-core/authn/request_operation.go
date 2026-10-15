@@ -2,6 +2,7 @@ package authn
 
 import (
 	"context"
+
 	"github.com/vrooli/api-core/identity"
 )
 
@@ -19,6 +20,7 @@ type requestOperationKey struct{}
 func WithRequestOperationAuthority(ctx context.Context, a RequestOperationAuthority) context.Context {
 	return context.WithValue(ctx, requestOperationKey{}, a)
 }
+
 func RequestOperationAuthorityFromContext(ctx context.Context) (RequestOperationAuthority, bool) {
 	a, ok := ctx.Value(requestOperationKey{}).(RequestOperationAuthority)
 	return a, ok && a != nil

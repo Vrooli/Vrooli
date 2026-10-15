@@ -11,9 +11,11 @@ import (
 )
 
 type fakeContainer struct {
-	runs      []string
-	selfCalls []string
-	fail      bool
+	runs       []string
+	selfCalls  []string
+	selfLimits []SessionContainment
+	failSelf   bool
+	fail       bool
 }
 
 func (f *fakeContainer) Run(_ context.Context, scope string, c SessionContainment, p SessionProcess) (ContainedSession, error) {
@@ -29,6 +31,10 @@ func (f *fakeContainer) Run(_ context.Context, scope string, c SessionContainmen
 
 func (f *fakeContainer) ContainSelf(scope string, c SessionContainment) (ContainedSession, error) {
 	f.selfCalls = append(f.selfCalls, scope)
+	f.selfLimits = append(f.selfLimits, c)
+	if f.failSelf {
+		return ContainedSession{Method: ContainmentMethodNone}, errors.New("fixture containment failure")
+	}
 	return ContainedSession{Scope: "cgroup:/x/" + scope + ".scope", Method: "transient-unit"}, nil
 }
 
