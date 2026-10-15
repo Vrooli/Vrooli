@@ -12,7 +12,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"github.com/vrooli/api-core/effortauthority"
 	"log"
 	"net/http"
 	"os"
@@ -21,6 +20,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/effortauthority"
 
 	"prompt-manager/handlers/actions"
 	"prompt-manager/handlers/agents"
@@ -49,11 +50,13 @@ import (
 	objectivesdomain "prompt-manager/internal/objectives"
 	"prompt-manager/internal/paths"
 	"prompt-manager/internal/projection"
+	"prompt-manager/internal/requestpolicy"
 	"prompt-manager/internal/sourceledger"
 	"prompt-manager/internal/store"
 	"prompt-manager/internal/world"
 
 	"github.com/vrooli/api-core/apihttp"
+	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/connectx"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
@@ -384,6 +387,7 @@ func main() {
 	}
 	runMainWithFiniteOwner(owner)
 }
+
 func runMainWithFiniteOwner(finiteOwner *heartbeat.FiniteOwnerStartup) {
 	if err := effortauthority.MainInstallationGate(os.Getenv("VROOLI_FINITE_ENABLED"), finiteOwner != nil && finiteOwner.Live()); err != nil {
 		log.Fatal(err)
@@ -1208,13 +1212,18 @@ func runMainWithFiniteOwner(finiteOwner *heartbeat.FiniteOwnerStartup) {
 
 	}
 
-	handler := securityHeaders(apihttp.TestModeMiddleware(corsHandler(router)))
+	authentication, err := authn.FromEnvironment(os.Getenv)
+	if err != nil {
+		log.Fatalf("Authentication configuration: %v", err)
+	}
+	handler := securityHeaders(apihttp.TestModeMiddleware(corsHandler(requestpolicy.PreparationBoundary(router))))
 	runPublic := server.Run
 	if privatePublication != nil {
 		runPublic = privatePublication.RunPublic
 	}
 	if err := runPublic(server.Config{
-		Handler: handler,
+		Handler:        handler,
+		Authentication: &authentication,
 		Cleanup: func(ctx context.Context) error {
 			if db != nil {
 				return db.Close()

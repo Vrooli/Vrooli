@@ -19,6 +19,7 @@ import (
 
 	"prompt-manager/handlers/transportbridge"
 	workspace "prompt-manager/internal/effortworkspace"
+	"prompt-manager/internal/requestpolicy"
 	domain "prompt-manager/internal/teams"
 )
 
@@ -120,6 +121,9 @@ func (h *connectHandler) ListTeams(ctx context.Context, req *connect.Request[tea
 }
 
 func (h *connectHandler) GetTeam(ctx context.Context, req *connect.Request[teamsv1.GetTeamRequest]) (*connect.Response[teamsv1.TeamDetails], error) {
+	if err := requestpolicy.RequirePreparationRead(ctx, req.Msg.GetId()); err != nil {
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
+	}
 	result, err := h.legacy.GetTeam(ctx, req.Msg.GetId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, err)

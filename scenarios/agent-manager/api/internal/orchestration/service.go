@@ -45,6 +45,7 @@ import (
 // Orchestrator coordinates agent execution using injected dependencies.
 type Orchestrator struct {
 	authorizations  domain.AuthorizationRepository
+	standingGrants  domain.StandingGrantRepository
 	maintenanceGate interface {
 		Admit(context.Context) (func(), error)
 	}
@@ -197,11 +198,12 @@ type Orchestrator struct {
 	// interactive run then fails cleanly at execute time rather than hanging.
 	interactiveSessions webconsole.SessionController
 
-	// webConsoleUIBase is the resolved web-console UI base URL (browser-facing
-	// origin), captured once at wiring time. Used to build the run-detail deep
-	// link (Run.WebConsoleSessionURL) for interactive runs. Empty when the UI
-	// base could not be resolved — the deep link is then omitted and clients
-	// fall back to the session id.
+	// webConsoleUIBase is an OPTIONAL override of the web-console UI base URL
+	// (browser-facing origin) for the links agent-manager shows or sends to the
+	// operator. When empty — the production default — resolveWebConsoleUIBase
+	// derives it per request through the canonical resolver (tunnel subdomain,
+	// request origin, or localhost), so links work from a phone. It is set only
+	// by tests or an operator-pinned WEB_CONSOLE_UI_URL.
 	webConsoleUIBase string
 
 	// approvalPublisher raises a *.decision_requested.v1 event when a run enters
@@ -675,9 +677,10 @@ func WithInteractiveSessions(sessions webconsole.SessionController) Option {
 	}
 }
 
-// WithWebConsoleUIBase sets the resolved web-console UI base URL used to build
-// the run-detail deep link for interactive runs. Empty disables the deep link
-// (clients fall back to the session id).
+// WithWebConsoleUIBase overrides the web-console UI base URL used for operator
+// links. Leave it unset in production: resolveWebConsoleUIBase then derives a
+// request-correct URL (tunnel-aware) on its own. Set it to pin a base (tests,
+// or an operator-fixed origin).
 func WithWebConsoleUIBase(base string) Option {
 	return func(o *Orchestrator) {
 		o.webConsoleUIBase = base

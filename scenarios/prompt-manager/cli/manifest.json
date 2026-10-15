@@ -3167,6 +3167,11 @@
       "command": "team friction-capture",
       "class": "passthrough",
       "reason": "Friction capture validates typed flags or a complete JSON file, reads the stable topic for bounded repeats, and conditionally invokes AddKnowledge; it is not one RPC binding."
+    },
+    {
+      "command": "team heartbeat-amend-effort",
+      "class": "passthrough",
+      "reason": "Preparation amendment validates bounded CAS and evidence input, reads the exact disabled binding, and sends only a guarded lifecycle transition."
     }
   ]
 }

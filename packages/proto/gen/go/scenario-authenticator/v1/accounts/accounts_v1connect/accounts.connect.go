@@ -72,6 +72,12 @@ const (
 	// AccountsServiceIssueBreakGlassProcedure is the fully-qualified name of the AccountsService's
 	// IssueBreakGlass RPC.
 	AccountsServiceIssueBreakGlassProcedure = "/vrooli.scenario_authenticator.v1.accounts.AccountsService/IssueBreakGlass"
+	// AccountsServiceIssueServicePrincipalProcedure is the fully-qualified name of the
+	// AccountsService's IssueServicePrincipal RPC.
+	AccountsServiceIssueServicePrincipalProcedure = "/vrooli.scenario_authenticator.v1.accounts.AccountsService/IssueServicePrincipal"
+	// AccountsServiceExchangeServiceCredentialProcedure is the fully-qualified name of the
+	// AccountsService's ExchangeServiceCredential RPC.
+	AccountsServiceExchangeServiceCredentialProcedure = "/vrooli.scenario_authenticator.v1.accounts.AccountsService/ExchangeServiceCredential"
 )
 
 // AccountsServiceClient is a client for the
@@ -127,6 +133,16 @@ type AccountsServiceClient interface {
 	// Issue a short-lived offline credential from already-provisioned local
 	// break-glass material. The caller must save the response owner-only.
 	IssueBreakGlass(context.Context, *connect.Request[accounts.IssueBreakGlassRequest]) (*connect.Response[accounts.IssueBreakGlassResponse], error)
+	// IssueServicePrincipal mints, or rotates, the credential of one
+	// operator-configured service principal. The caller must be a verified human
+	// named as an issuer in that profile, or a realm administrator. The principal's audience and scopes come only from the
+	// operator-owned profile; the request cannot widen them. The credential is
+	// written to the credential authority and is never returned on the wire.
+	IssueServicePrincipal(context.Context, *connect.Request[accounts.IssueServicePrincipalRequest]) (*connect.Response[accounts.IssueServicePrincipalResponse], error)
+	// ExchangeServiceCredential trades a service-principal credential for a
+	// short-lived access token (actor_kind "service") bound to the principal's
+	// single configured resource audience. No refresh token is issued.
+	ExchangeServiceCredential(context.Context, *connect.Request[accounts.ExchangeServiceCredentialRequest]) (*connect.Response[accounts.ExchangeServiceCredentialResponse], error)
 }
 
 // NewAccountsServiceClient constructs a client for the
@@ -225,25 +241,39 @@ func NewAccountsServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(accountsServiceMethods.ByName("IssueBreakGlass")),
 			connect.WithClientOptions(opts...),
 		),
+		issueServicePrincipal: connect.NewClient[accounts.IssueServicePrincipalRequest, accounts.IssueServicePrincipalResponse](
+			httpClient,
+			baseURL+AccountsServiceIssueServicePrincipalProcedure,
+			connect.WithSchema(accountsServiceMethods.ByName("IssueServicePrincipal")),
+			connect.WithClientOptions(opts...),
+		),
+		exchangeServiceCredential: connect.NewClient[accounts.ExchangeServiceCredentialRequest, accounts.ExchangeServiceCredentialResponse](
+			httpClient,
+			baseURL+AccountsServiceExchangeServiceCredentialProcedure,
+			connect.WithSchema(accountsServiceMethods.ByName("ExchangeServiceCredential")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // accountsServiceClient implements AccountsServiceClient.
 type accountsServiceClient struct {
-	register                 *connect.Client[accounts.RegisterRequest, accounts.RegisterResponse]
-	login                    *connect.Client[accounts.LoginRequest, accounts.LoginResponse]
-	changePassword           *connect.Client[accounts.ChangePasswordRequest, accounts.ChangePasswordResponse]
-	refresh                  *connect.Client[accounts.RefreshRequest, accounts.RefreshResponse]
-	logout                   *connect.Client[accounts.LogoutRequest, accounts.LogoutResponse]
-	validate                 *connect.Client[accounts.ValidateRequest, accounts.ValidateResponse]
-	grantScope               *connect.Client[accounts.GrantScopeRequest, accounts.ScopeResponse]
-	revokeScope              *connect.Client[accounts.RevokeScopeRequest, accounts.ScopeResponse]
-	listScopes               *connect.Client[accounts.ListScopesRequest, accounts.ListScopesResponse]
-	setRoles                 *connect.Client[accounts.SetRolesRequest, accounts.Account]
-	linkMachineAccount       *connect.Client[accounts.LinkMachineAccountRequest, accounts.LinkMachineAccountResponse]
-	revokeMachineAccount     *connect.Client[accounts.RevokeMachineAccountRequest, accounts.RevokeMachineAccountResponse]
-	exchangeMachinePrincipal *connect.Client[accounts.ExchangeMachinePrincipalRequest, accounts.LoginResponse]
-	issueBreakGlass          *connect.Client[accounts.IssueBreakGlassRequest, accounts.IssueBreakGlassResponse]
+	register                  *connect.Client[accounts.RegisterRequest, accounts.RegisterResponse]
+	login                     *connect.Client[accounts.LoginRequest, accounts.LoginResponse]
+	changePassword            *connect.Client[accounts.ChangePasswordRequest, accounts.ChangePasswordResponse]
+	refresh                   *connect.Client[accounts.RefreshRequest, accounts.RefreshResponse]
+	logout                    *connect.Client[accounts.LogoutRequest, accounts.LogoutResponse]
+	validate                  *connect.Client[accounts.ValidateRequest, accounts.ValidateResponse]
+	grantScope                *connect.Client[accounts.GrantScopeRequest, accounts.ScopeResponse]
+	revokeScope               *connect.Client[accounts.RevokeScopeRequest, accounts.ScopeResponse]
+	listScopes                *connect.Client[accounts.ListScopesRequest, accounts.ListScopesResponse]
+	setRoles                  *connect.Client[accounts.SetRolesRequest, accounts.Account]
+	linkMachineAccount        *connect.Client[accounts.LinkMachineAccountRequest, accounts.LinkMachineAccountResponse]
+	revokeMachineAccount      *connect.Client[accounts.RevokeMachineAccountRequest, accounts.RevokeMachineAccountResponse]
+	exchangeMachinePrincipal  *connect.Client[accounts.ExchangeMachinePrincipalRequest, accounts.LoginResponse]
+	issueBreakGlass           *connect.Client[accounts.IssueBreakGlassRequest, accounts.IssueBreakGlassResponse]
+	issueServicePrincipal     *connect.Client[accounts.IssueServicePrincipalRequest, accounts.IssueServicePrincipalResponse]
+	exchangeServiceCredential *connect.Client[accounts.ExchangeServiceCredentialRequest, accounts.ExchangeServiceCredentialResponse]
 }
 
 // Register calls vrooli.scenario_authenticator.v1.accounts.AccountsService.Register.
@@ -319,6 +349,18 @@ func (c *accountsServiceClient) IssueBreakGlass(ctx context.Context, req *connec
 	return c.issueBreakGlass.CallUnary(ctx, req)
 }
 
+// IssueServicePrincipal calls
+// vrooli.scenario_authenticator.v1.accounts.AccountsService.IssueServicePrincipal.
+func (c *accountsServiceClient) IssueServicePrincipal(ctx context.Context, req *connect.Request[accounts.IssueServicePrincipalRequest]) (*connect.Response[accounts.IssueServicePrincipalResponse], error) {
+	return c.issueServicePrincipal.CallUnary(ctx, req)
+}
+
+// ExchangeServiceCredential calls
+// vrooli.scenario_authenticator.v1.accounts.AccountsService.ExchangeServiceCredential.
+func (c *accountsServiceClient) ExchangeServiceCredential(ctx context.Context, req *connect.Request[accounts.ExchangeServiceCredentialRequest]) (*connect.Response[accounts.ExchangeServiceCredentialResponse], error) {
+	return c.exchangeServiceCredential.CallUnary(ctx, req)
+}
+
 // AccountsServiceHandler is an implementation of the
 // vrooli.scenario_authenticator.v1.accounts.AccountsService service.
 type AccountsServiceHandler interface {
@@ -372,6 +414,16 @@ type AccountsServiceHandler interface {
 	// Issue a short-lived offline credential from already-provisioned local
 	// break-glass material. The caller must save the response owner-only.
 	IssueBreakGlass(context.Context, *connect.Request[accounts.IssueBreakGlassRequest]) (*connect.Response[accounts.IssueBreakGlassResponse], error)
+	// IssueServicePrincipal mints, or rotates, the credential of one
+	// operator-configured service principal. The caller must be a verified human
+	// named as an issuer in that profile, or a realm administrator. The principal's audience and scopes come only from the
+	// operator-owned profile; the request cannot widen them. The credential is
+	// written to the credential authority and is never returned on the wire.
+	IssueServicePrincipal(context.Context, *connect.Request[accounts.IssueServicePrincipalRequest]) (*connect.Response[accounts.IssueServicePrincipalResponse], error)
+	// ExchangeServiceCredential trades a service-principal credential for a
+	// short-lived access token (actor_kind "service") bound to the principal's
+	// single configured resource audience. No refresh token is issued.
+	ExchangeServiceCredential(context.Context, *connect.Request[accounts.ExchangeServiceCredentialRequest]) (*connect.Response[accounts.ExchangeServiceCredentialResponse], error)
 }
 
 // NewAccountsServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -465,6 +517,18 @@ func NewAccountsServiceHandler(svc AccountsServiceHandler, opts ...connect.Handl
 		connect.WithSchema(accountsServiceMethods.ByName("IssueBreakGlass")),
 		connect.WithHandlerOptions(opts...),
 	)
+	accountsServiceIssueServicePrincipalHandler := connect.NewUnaryHandler(
+		AccountsServiceIssueServicePrincipalProcedure,
+		svc.IssueServicePrincipal,
+		connect.WithSchema(accountsServiceMethods.ByName("IssueServicePrincipal")),
+		connect.WithHandlerOptions(opts...),
+	)
+	accountsServiceExchangeServiceCredentialHandler := connect.NewUnaryHandler(
+		AccountsServiceExchangeServiceCredentialProcedure,
+		svc.ExchangeServiceCredential,
+		connect.WithSchema(accountsServiceMethods.ByName("ExchangeServiceCredential")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.scenario_authenticator.v1.accounts.AccountsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AccountsServiceRegisterProcedure:
@@ -495,6 +559,10 @@ func NewAccountsServiceHandler(svc AccountsServiceHandler, opts ...connect.Handl
 			accountsServiceExchangeMachinePrincipalHandler.ServeHTTP(w, r)
 		case AccountsServiceIssueBreakGlassProcedure:
 			accountsServiceIssueBreakGlassHandler.ServeHTTP(w, r)
+		case AccountsServiceIssueServicePrincipalProcedure:
+			accountsServiceIssueServicePrincipalHandler.ServeHTTP(w, r)
+		case AccountsServiceExchangeServiceCredentialProcedure:
+			accountsServiceExchangeServiceCredentialHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -558,4 +626,12 @@ func (UnimplementedAccountsServiceHandler) ExchangeMachinePrincipal(context.Cont
 
 func (UnimplementedAccountsServiceHandler) IssueBreakGlass(context.Context, *connect.Request[accounts.IssueBreakGlassRequest]) (*connect.Response[accounts.IssueBreakGlassResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_authenticator.v1.accounts.AccountsService.IssueBreakGlass is not implemented"))
+}
+
+func (UnimplementedAccountsServiceHandler) IssueServicePrincipal(context.Context, *connect.Request[accounts.IssueServicePrincipalRequest]) (*connect.Response[accounts.IssueServicePrincipalResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_authenticator.v1.accounts.AccountsService.IssueServicePrincipal is not implemented"))
+}
+
+func (UnimplementedAccountsServiceHandler) ExchangeServiceCredential(context.Context, *connect.Request[accounts.ExchangeServiceCredentialRequest]) (*connect.Response[accounts.ExchangeServiceCredentialResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_authenticator.v1.accounts.AccountsService.ExchangeServiceCredential is not implemented"))
 }

@@ -15,9 +15,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/owneridentity"
 
+	"prompt-manager/internal/requestpolicy"
 	"prompt-manager/internal/store"
 	"prompt-manager/internal/teamconfig"
 
@@ -292,6 +294,10 @@ func (h *Handlers) GetHeartbeat(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	teamID := vars["id"]
 	agentID := vars["agentId"]
+	if err := requestpolicy.RequirePreparationRead(ctx, teamID); err != nil {
+		http.Error(w, err.Error(), http.StatusForbidden)
+		return
+	}
 
 	if _, err := h.teamStore.Get(ctx, teamID); err != nil {
 		http.Error(w, "Team not found", http.StatusNotFound)
@@ -324,7 +330,7 @@ func (h *Handlers) GetHeartbeat(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Heartbeat config not found", http.StatusNotFound)
 		return
 	}
-	if config.FiniteLeader != nil && h.executor != nil && h.executor.FiniteLeader != nil {
+	if !requestpolicy.IsBounded(ctx) && config.FiniteLeader != nil && h.executor != nil && h.executor.FiniteLeader != nil {
 		// Refresh the response after reconciliation so the GET does not return
 		// the pre-reconciliation heartbeat projection. Reconciliation only
 		// observes the exact retained owner run; it never starts a new one.
@@ -343,6 +349,10 @@ func (h *Handlers) CreateHeartbeat(w http.ResponseWriter, r *http.Request) {
 	teamID := vars["id"]
 	agentID := vars["agentId"]
 
+	if err := requireBoundedHeartbeatManagement(ctx, teamID); err != nil {
+		http.Error(w, err.Error(), http.StatusForbidden)
+		return
+	}
 	var req CreateHeartbeatRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -482,6 +492,11 @@ func (h *Handlers) UpdateHeartbeat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := requireBoundedHeartbeatManagement(ctx, teamID); err != nil {
+		http.Error(w, err.Error(), http.StatusForbidden)
+		return
+	}
+
 	config, err := h.teamStore.GetHeartbeatConfig(ctx, teamID, agentID)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
@@ -576,6 +591,16 @@ func (h *Handlers) UpdateHeartbeat(w http.ResponseWriter, r *http.Request) {
 func (h *Handlers) applyFiniteEffortTransition(w http.ResponseWriter, r *http.Request, teamID, agentID string, req UpdateHeartbeatRequest) {
 	ctx := r.Context()
 	transition := req.FiniteEffortTransition
+	if transition.Operation != "amend" {
+		if err := requireBoundedHeartbeatManagement(ctx, teamID); err != nil {
+			http.Error(w, err.Error(), http.StatusForbidden)
+			return
+		}
+	}
+	if transition.Operation != "amend" && (transition.Binding != nil || transition.ExpectedRevision != "") {
+		http.Error(w, "amendment fields require operation amend", http.StatusBadRequest)
+		return
+	}
 	if req.FiniteLeader != nil || req.WakeAdmission != nil || req.Schedule != nil || req.ProfileKey != nil || req.Enabled != nil || req.TimeoutSeconds != nil {
 		http.Error(w, "finite effort transition must not be combined with configuration changes", http.StatusBadRequest)
 		return
@@ -590,6 +615,15 @@ func (h *Handlers) applyFiniteEffortTransition(w http.ResponseWriter, r *http.Re
 		return
 	}
 	switch strings.ToLower(strings.TrimSpace(transition.Operation)) {
+	case "amend":
+		if transition.Binding == nil || transition.Revision != "" {
+			http.Error(w, "amend requires expectedRevision, binding and evidenceRef", http.StatusBadRequest)
+			return
+		}
+		if err := h.teamStore.AmendFinitePreparation(ctx, teamID, agentID, transition.ExpectedRevision, transition.Binding, transition.EvidenceRef); err != nil {
+			writeFinitePreparationError(w, err)
+			return
+		}
 	case "complete":
 		if _, _, err := h.teamStore.CompleteFiniteLeader(ctx, teamID, agentID, transition.Revision, transition.EvidenceRef); err != nil {
 			writeFiniteEffortTransitionError(w, err)
@@ -610,7 +644,7 @@ func (h *Handlers) applyFiniteEffortTransition(w http.ResponseWriter, r *http.Re
 			return
 		}
 	default:
-		http.Error(w, "finite effort transition operation must be 'complete', 'reopen', or 'restart'", http.StatusBadRequest)
+		http.Error(w, "finite effort transition operation must be 'amend', 'complete', 'reopen', or 'restart'", http.StatusBadRequest)
 		return
 	}
 	updated, err := h.teamStore.GetHeartbeatConfig(ctx, teamID, agentID)
@@ -635,12 +669,40 @@ func writeFiniteEffortTransitionError(w http.ResponseWriter, err error) {
 	}
 }
 
+// writeFinitePreparationError preserves authentication, CAS and lifecycle refusals.
+func writeFinitePreparationError(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, authn.ErrCapability), errors.Is(err, authn.ErrOperation):
+		http.Error(w, err.Error(), http.StatusForbidden)
+	case errors.Is(err, store.ErrFinitePreparationConflict), errors.Is(err, store.ErrFiniteLeaderStaleRevision):
+		http.Error(w, err.Error(), http.StatusConflict)
+	default:
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
+}
+
+// Existing management operations must not borrow authority from a narrower
+// interactive preparation grant. Their full authentication migration remains
+// separate; this protects the currently verified delegated request channel.
+func requireBoundedHeartbeatManagement(ctx context.Context, teamID string) error {
+	if !requestpolicy.IsBounded(ctx) {
+		return nil
+	}
+	_, err := authn.RequireOperation(ctx, "prompt-manager:write", "team.manage", "prompt-manager:team/"+teamID)
+	return err
+}
+
 // DeleteHeartbeat handles DELETE /teams/{id}/heartbeats/{agentId} - deletes heartbeat config
 func (h *Handlers) DeleteHeartbeat(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	vars := mux.Vars(r)
 	teamID := vars["id"]
 	agentID := vars["agentId"]
+
+	if err := requireBoundedHeartbeatManagement(ctx, teamID); err != nil {
+		http.Error(w, err.Error(), http.StatusForbidden)
+		return
+	}
 
 	if _, err := h.teamStore.Get(ctx, teamID); err != nil {
 		http.Error(w, "Team not found", http.StatusNotFound)
@@ -2511,21 +2573,26 @@ func formatDuration(d time.Duration) string {
 func (h *Handlers) toResponse(config *store.HeartbeatConfig) HeartbeatConfigResponse {
 	teamEnabled, effectiveState, effectiveReason, controlState, scheduled := h.effectiveExecutionState(context.Background(), config)
 	resp := HeartbeatConfigResponse{
-		TeamID:              config.TeamID,
-		AgentID:             config.AgentID,
-		Enabled:             config.Enabled,
-		TeamEnabled:         teamEnabled,
-		EffectiveState:      effectiveState,
-		EffectiveReason:     effectiveReason,
-		ControlState:        controlState,
-		Scheduled:           scheduled,
-		Schedule:            config.Schedule,
-		ProfileKey:          config.ProfileKey,
-		TimeoutSeconds:      config.TimeoutSeconds,
-		ConsecutiveFailures: config.ConsecutiveFailures,
-		LifecycleState:      config.LifecycleState,
-		CreatedAt:           config.CreatedAt,
-		UpdatedAt:           config.UpdatedAt,
+		PreparationAmendments: config.PreparationAmendments,
+		TeamID:                config.TeamID,
+		AgentID:               config.AgentID,
+		Enabled:               config.Enabled,
+		TeamEnabled:           teamEnabled,
+		EffectiveState:        effectiveState,
+		EffectiveReason:       effectiveReason,
+		ControlState:          controlState,
+		Scheduled:             scheduled,
+		Schedule:              config.Schedule,
+		ProfileKey:            config.ProfileKey,
+		TimeoutSeconds:        config.TimeoutSeconds,
+		ConsecutiveFailures:   config.ConsecutiveFailures,
+		LifecycleState:        config.LifecycleState,
+		CreatedAt:             config.CreatedAt,
+		UpdatedAt:             config.UpdatedAt,
+	}
+
+	if team, err := h.teamStore.Get(context.Background(), config.TeamID); err == nil {
+		resp.CreationProof = team.CreationProof
 	}
 
 	if h.scheduler != nil {

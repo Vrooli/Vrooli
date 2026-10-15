@@ -21,20 +21,16 @@ func ResolveBaseURL() string {
 	})
 }
 
-// ResolveUIBaseURL resolves the web-console UI base URL (the browser-facing
-// origin, not the API base) without hardcoding a port. Resolution mirrors
-// ResolveBaseURL but targets the UI port:
-//  1. WEB_CONSOLE_UI_URL / WEB_CONSOLE_UI_BASE env override (full base URL),
-//  2. WEB_CONSOLE_UI_PORT env → http://localhost:<port>,
-//  3. `vrooli scenario port web-console UI_PORT` live detection.
+// ResolveUIBaseOverride returns an operator-pinned web-console UI base URL from
+// the environment (WEB_CONSOLE_UI_URL / WEB_CONSOLE_UI_BASE), or "" when none is
+// set.
 //
-// It returns "" when the UI base cannot be located; callers surface that as an
-// absent run-detail deep link (the client falls back to the session id) rather
-// than building a link to a wrong hardcoded port.
-func ResolveUIBaseURL() string {
+// It deliberately does NOT fall back to a localhost port. An absent override
+// means "resolve the UI base per request via the canonical resolver" — which is
+// tunnel-aware and therefore produces links that work when opened from another
+// machine (a phone), unlike a localhost port captured once at startup.
+func ResolveUIBaseOverride() string {
 	return cliutil.DetermineAPIBase(cliutil.APIBaseOptions{
-		EnvVars:      []string{"WEB_CONSOLE_UI_URL", "WEB_CONSOLE_UI_BASE"},
-		PortEnvVars:  []string{"WEB_CONSOLE_UI_PORT"},
-		PortDetector: cliutil.DetectPortFromVrooli("web-console", "UI_PORT"),
+		EnvVars: []string{"WEB_CONSOLE_UI_URL", "WEB_CONSOLE_UI_BASE"},
 	})
 }

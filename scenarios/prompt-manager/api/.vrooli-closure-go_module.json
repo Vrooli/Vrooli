@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "key": "f053a8d13af8c44f5254d78d6d103527690b82978041d5d5a5faf2a4f70a7895",
+  "key": "45ad753459be2c6c3d3c952d1906e171f9ad928ae7838dd53acd8ccc09a5aac9",
   "inputs": [
     "go.mod",
     "go.sum",
@@ -160,6 +160,8 @@
     "packages/proto/gen/go/source-ledger/v1/scopes/scopesv1connect",
     "packages/proto/gen/go/tunnel-manager/v1/config",
     "packages/proto/gen/go/tunnel-manager/v1/config/config_v1connect",
+    "packages/proto/gen/go/tunnel-manager/v1/exposure",
+    "packages/proto/gen/go/tunnel-manager/v1/exposure/exposure_v1connect",
     "packages/proto/gen/go/vrooli-bridge/v1/dispatch",
     "packages/proto/gen/go/vrooli-bridge/v1/dispatch/dispatch_v1connect",
     "packages/proto/gen/go/vrooli-bridge/v1/gate",
@@ -229,6 +231,7 @@
     "scenarios/prompt-manager/api/internal/ogmeta",
     "scenarios/prompt-manager/api/internal/paths",
     "scenarios/prompt-manager/api/internal/projection",
+    "scenarios/prompt-manager/api/internal/requestpolicy",
     "scenarios/prompt-manager/api/internal/search",
     "scenarios/prompt-manager/api/internal/skills",
     "scenarios/prompt-manager/api/internal/skillset",

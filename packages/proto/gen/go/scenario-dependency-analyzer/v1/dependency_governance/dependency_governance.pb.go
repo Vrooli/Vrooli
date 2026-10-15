@@ -24,7 +24,7 @@ const (
 type InstallDependencyRequest struct {
 	state    protoimpl.MessageState `protogen:"open.v1"`
 	Scenario string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
-	// Target surface within the scenario: ui, api, or cli.
+	// Target installable surface within the scenario.
 	Surface     string `protobuf:"bytes,2,opt,name=surface,proto3" json:"surface,omitempty"`
 	Ecosystem   string `protobuf:"bytes,3,opt,name=ecosystem,proto3" json:"ecosystem,omitempty"`
 	PackageName string `protobuf:"bytes,4,opt,name=package_name,json=packageName,proto3" json:"package_name,omitempty"`
@@ -33,7 +33,10 @@ type InstallDependencyRequest struct {
 	Version string `protobuf:"bytes,5,opt,name=version,proto3" json:"version,omitempty"`
 	// apply=false (the default) is a dry run: the command + governance verdict are
 	// returned but nothing is installed. apply=true performs the install.
-	Apply         bool `protobuf:"varint,6,opt,name=apply,proto3" json:"apply,omitempty"`
+	Apply bool `protobuf:"varint,6,opt,name=apply,proto3" json:"apply,omitempty"`
+	// exact_version asks the governed JavaScript surface to persist the requested
+	// version without a caret/range. It requires a concrete version.
+	ExactVersion  bool `protobuf:"varint,7,opt,name=exact_version,json=exactVersion,proto3" json:"exact_version,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -106,6 +109,13 @@ func (x *InstallDependencyRequest) GetVersion() string {
 func (x *InstallDependencyRequest) GetApply() bool {
 	if x != nil {
 		return x.Apply
+	}
+	return false
+}
+
+func (x *InstallDependencyRequest) GetExactVersion() bool {
+	if x != nil {
+		return x.ExactVersion
 	}
 	return false
 }
@@ -3889,14 +3899,15 @@ var File_scenario_dependency_analyzer_v1_dependency_governance_dependency_govern
 
 const file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDesc = "" +
 	"\n" +
-	"Qscenario-dependency-analyzer/v1/dependency_governance/dependency_governance.proto\x12<vrooli.scenario_dependency_analyzer.v1.dependency_governance\"\xc1\x01\n" +
+	"Qscenario-dependency-analyzer/v1/dependency_governance/dependency_governance.proto\x12<vrooli.scenario_dependency_analyzer.v1.dependency_governance\"\xe6\x01\n" +
 	"\x18InstallDependencyRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x18\n" +
 	"\asurface\x18\x02 \x01(\tR\asurface\x12\x1c\n" +
 	"\tecosystem\x18\x03 \x01(\tR\tecosystem\x12!\n" +
 	"\fpackage_name\x18\x04 \x01(\tR\vpackageName\x12\x18\n" +
 	"\aversion\x18\x05 \x01(\tR\aversion\x12\x14\n" +
-	"\x05apply\x18\x06 \x01(\bR\x05apply\"\xea\x02\n" +
+	"\x05apply\x18\x06 \x01(\bR\x05apply\x12#\n" +
+	"\rexact_version\x18\a \x01(\bR\fexactVersion\"\xea\x02\n" +
 	"\x19InstallDependencyResponse\x12\x1c\n" +
 	"\tinstalled\x18\x01 \x01(\bR\tinstalled\x12\x17\n" +
 	"\adry_run\x18\x02 \x01(\bR\x06dryRun\x12\x18\n" +

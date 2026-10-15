@@ -284,3 +284,47 @@ class IssueBreakGlassResponse(_message.Message):
     credential: str
     expires_at: int
     def __init__(self, credential: _Optional[str] = ..., expires_at: _Optional[int] = ...) -> None: ...
+
+class IssueServicePrincipalRequest(_message.Message):
+    __slots__ = ("access_token", "name")
+    ACCESS_TOKEN_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    access_token: str
+    name: str
+    def __init__(self, access_token: _Optional[str] = ..., name: _Optional[str] = ...) -> None: ...
+
+class IssueServicePrincipalResponse(_message.Message):
+    __slots__ = ("name", "audience", "scopes", "credential_identity", "credential_field", "issued_at")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    AUDIENCE_FIELD_NUMBER: _ClassVar[int]
+    SCOPES_FIELD_NUMBER: _ClassVar[int]
+    CREDENTIAL_IDENTITY_FIELD_NUMBER: _ClassVar[int]
+    CREDENTIAL_FIELD_FIELD_NUMBER: _ClassVar[int]
+    ISSUED_AT_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    audience: str
+    scopes: _containers.RepeatedScalarFieldContainer[str]
+    credential_identity: str
+    credential_field: str
+    issued_at: _timestamp_pb2.Timestamp
+    def __init__(self, name: _Optional[str] = ..., audience: _Optional[str] = ..., scopes: _Optional[_Iterable[str]] = ..., credential_identity: _Optional[str] = ..., credential_field: _Optional[str] = ..., issued_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+
+class ExchangeServiceCredentialRequest(_message.Message):
+    __slots__ = ("credential",)
+    CREDENTIAL_FIELD_NUMBER: _ClassVar[int]
+    credential: str
+    def __init__(self, credential: _Optional[str] = ...) -> None: ...
+
+class ExchangeServiceCredentialResponse(_message.Message):
+    __slots__ = ("access_token", "access_token_expires_at", "audience", "subject", "scopes")
+    ACCESS_TOKEN_FIELD_NUMBER: _ClassVar[int]
+    ACCESS_TOKEN_EXPIRES_AT_FIELD_NUMBER: _ClassVar[int]
+    AUDIENCE_FIELD_NUMBER: _ClassVar[int]
+    SUBJECT_FIELD_NUMBER: _ClassVar[int]
+    SCOPES_FIELD_NUMBER: _ClassVar[int]
+    access_token: str
+    access_token_expires_at: _timestamp_pb2.Timestamp
+    audience: str
+    subject: str
+    scopes: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, access_token: _Optional[str] = ..., access_token_expires_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., audience: _Optional[str] = ..., subject: _Optional[str] = ..., scopes: _Optional[_Iterable[str]] = ...) -> None: ...

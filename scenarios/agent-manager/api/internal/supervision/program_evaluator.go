@@ -37,11 +37,23 @@ const (
 	// artifact it no longer holds. Replaying the identical request cannot
 	// succeed, so the watch parks on a long interval.
 	classificationContractRejected = "program_contract_rejected"
+	// classificationContractRejectedDeadLetter marks a watch terminated because
+	// the runtime kept rejecting its request long after a deploy window could
+	// explain it — a permanent misconfiguration, not a transient outage.
+	classificationContractRejectedDeadLetter = "program_contract_rejected_dead_letter"
 
 	unavailableBaseBackoff        = 30 * time.Second
 	unavailableMaxBackoff         = 15 * time.Minute
 	contractRejectedRetryInterval = time.Hour
-	failureDetailLimit            = 200
+	// contractRejectionDeadLetterThreshold is how many consecutive contract
+	// rejections a watch tolerates before it is dead-lettered to terminal. A
+	// rejection is permanent by definition, but a brief mismatch during a
+	// program-runtime redeploy also surfaces as one; at hourly retries this is
+	// about a day — long enough to rule out a deploy window, short enough that a
+	// genuinely misconfigured watch stops retrying forever and self-clears
+	// instead of accumulating as a permanent zombie.
+	contractRejectionDeadLetterThreshold = 24
+	failureDetailLimit                   = 200
 )
 
 type declaredProgramRunner interface {
@@ -140,6 +152,9 @@ func (e *ProgramRuntimeEvaluator) Evaluate(ctx context.Context, input Evaluation
 	}))
 	if err != nil {
 		if isContractRejection(err) {
+			if input.ConsecutiveFailures+1 >= contractRejectionDeadLetterThreshold {
+				return e.deadLetterDecision(input, classificationContractRejectedDeadLetter+":"+boundedErrorText(err), err), nil
+			}
 			return e.parkedDecision(input, classificationContractRejected+":"+boundedErrorText(err), err), nil
 		}
 		return e.transientDecision(input, classificationRuntimeUnavailable, err), nil
@@ -369,6 +384,28 @@ func (e *ProgramRuntimeEvaluator) transientDecision(input EvaluationInput, class
 func (e *ProgramRuntimeEvaluator) parkedDecision(input EvaluationInput, classification string, cause error) *domainpb.WatchDecision {
 	decision := parkedProgramDecision(input, classification)
 	e.logFailure(input, decision, cause)
+	return decision
+}
+
+// deadLetterDecision terminates a watch whose request the runtime has rejected
+// past contractRejectionDeadLetterThreshold. A rejection never clears by
+// replay, so retrying forever only accumulates a permanent zombie that no
+// scheduler pass can resolve; terminating it stops the retries and lets the
+// watch clear itself without an operator cancel. The classification records it
+// was dead-lettered, not a real cohort terminal outcome.
+func (e *ProgramRuntimeEvaluator) deadLetterDecision(input EvaluationInput, classification string, cause error) *domainpb.WatchDecision {
+	decision := &domainpb.WatchDecision{
+		Disposition:       domainpb.WatchDisposition_WATCH_DISPOSITION_TERMINAL,
+		Classification:    classification,
+		RecommendedAction: domainpb.WatchActionKind_WATCH_ACTION_KIND_OBSERVE,
+		NextWakeAt:        timestamppb.New(input.Now.UTC()),
+	}
+	if e.log != nil {
+		e.log.Warn("supervision watch dead-lettered after sustained contract rejection",
+			"watchID", input.Watch.GetWatchId(), "policyVersion", input.Watch.GetSpec().GetPolicyVersion(),
+			"consecutiveFailures", input.ConsecutiveFailures+1, "threshold", contractRejectionDeadLetterThreshold,
+			obs.KeyError, boundedErrorText(cause))
+	}
 	return decision
 }
 

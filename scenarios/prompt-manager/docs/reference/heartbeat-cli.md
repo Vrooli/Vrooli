@@ -112,6 +112,40 @@ an older server ignoring the new fields cannot be reported as successful
 provisioning. Neither command starts an
 agent or supplies an effort grant.
 
+### Amend an unused preparation
+
+An accepted-revision label and source references may change only through the guarded draft operation, before any task/run reservation. Ordinary `heartbeat-bind-effort --update` retains the immutable binding fence and is for scheduling/liveness policy changes.
+
+```bash
+prompt-manager team heartbeat-amend-effort <team-id> <leader-id> --request-file amendment.json --json
+```
+
+```json
+{
+  "expectedRevision": "<current-exact-revision>",
+  "binding": {
+    "effortRef": "<same-effort>",
+    "acceptedRevision": "<replacement-revision>",
+    "coordinatorPromptRef": "<replacement-prompt-ref>",
+    "sourceRefs": ["<replacement-source-ref>"]
+  },
+  "evidenceRef": "<retained-reviewed-amendment>"
+}
+```
+
+Copy the complete current binding (including keepAlive/checkin when present), then replace only its revision, coordinator prompt or source references. The operation requires both team and heartbeat disabled, the declared finite leader, no reservation/dispatch/execution/completion history, unchanged effort/profile/liveness policy, and the expected revision. Native validation and a retained receipt are required; the label is not proof of accepted content or authority to start work. A lost-response replay returns the existing receipt, while conflicting content refuses. The atomic heartbeat snapshot retains old/new bindings and verified actor evidence; idle pre-reservation state projects through that chain without mutating reads.
+
+New team creation stores `creationProof` only from shared verified request identity. A currently verified creator with `prompt-manager:write` may amend its draft without another operation approval. Interactive operation grants still enforce their current targets, even for that creator. Missing/legacy attribution does not establish creator authority. Other agents need a capable human or the reviewed `team-preparation` / `team.prepare` grant for `prompt-manager:team/<id>`; activation and dispatch remain separate. Heartbeat JSON exposes creation proof and amendment receipts for inspection. No supplied actor/session header or team member name establishes ownership. Presented operation grants or verified request-operation authorities enter a closed API allowlist: GetTeam/GetHeartbeat enforce the exact approved team target, and UpdateHeartbeat accepts only the guarded amendment. The exact GET /health and /api/v1/health routes also permit the CLI’s read-only bootstrap with prompt-manager:read; health mutations and other procedures or unknown/legacy paths are refused before handler effects. Bounded heartbeat inspection does not reconcile retained run state.
+
+For an existing attached session, request the bounded grant through the configured authenticated Agent Manager URL:
+
+```bash
+vrooli agent authorize <session-or-run> --policy team-preparation \
+  --target prompt-manager:team/<id> --approval-base https://<authenticated-agent-manager-host>
+```
+
+The owner reviews the concrete pending request in the existing consent UI. Expiry/revocation and session validity are checked by Agent Manager; the grant does not confer team activation, source acceptance, credentials or broader object access. Unregistered sessions must first use the native process/session enrollment path, not an invented identity token.
+
 Retire future finite dispatch while retaining the current run and reservation:
 
 ```bash

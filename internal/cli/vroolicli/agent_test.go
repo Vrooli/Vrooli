@@ -1,6 +1,11 @@
 package vroolicli
 
 import (
+	"encoding/json"
+	"github.com/vrooli/cli-core/cliutil"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -66,5 +71,58 @@ func TestRunAgentCommandUsesTypedRunnerArguments(t *testing.T) {
 				t.Fatalf("runner argv = %q, want %q", got, test.want)
 			}
 		})
+	}
+}
+
+func TestRunAgentExecProtectedCommandAndTypedArguments(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	namespace, err := os.MkdirTemp("", "cmd-fixture-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(namespace)
+	t.Setenv("TMPDIR", namespace)
+	t.Setenv(cliutil.EnvIdentityToken, "")
+	t.Setenv(cliutil.AgentSessionEnv, "")
+	attach, detach := 0, 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/attach") {
+			var body struct {
+				HarnessKind string `json:"harness_kind"`
+				Session     string `json:"harness_session_id"`
+				PID         int    `json:"process_id"`
+			}
+			if json.NewDecoder(r.Body).Decode(&body) != nil || body.HarnessKind != "command-session" || body.Session == "" || body.PID != os.Getpid() {
+				t.Error("dishonest command session binding")
+			}
+			attach++
+			w.WriteHeader(201)
+			io.WriteString(w, `{"run":{"id":"synthetic-owned-command"},"identity_token":"synthetic-command-leaf"}`)
+			return
+		}
+		if strings.HasSuffix(r.URL.Path, "/detach") {
+			detach++
+			w.WriteHeader(200)
+			return
+		}
+		t.Error("unexpected route")
+	}))
+	defer server.Close()
+	t.Setenv(cliutil.AgentManagerLauncherBaseEnv, server.URL)
+	var out strings.Builder
+	ctx := &AppContext{Stdin: strings.NewReader(""), Stdout: &out, Stderr: &strings.Builder{}}
+	if err := (&App{}).runAgentCommand(ctx, []string{"exec", "--", "/bin/echo", "literal $(no-shell)", "a b"}); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "literal $(no-shell) a b\n" || attach != 1 || detach != 1 {
+		t.Fatal("argv/cleanup", out.String(), attach, detach)
+	}
+	for _, args := range [][]string{{"exec"}, {"exec", "--task", "invalid", "--", "/bin/echo"}, {"exec", "--task", "00000000-0000-0000-0000-000000000000", "--", "/bin/echo"}} {
+		if err := (&App{}).runAgentCommand(ctx, args); err == nil {
+			t.Fatal("invalid command accepted")
+		}
+	}
+	if attach != 1 || detach != 1 {
+		t.Fatal("invalid arguments caused effects")
 	}
 }

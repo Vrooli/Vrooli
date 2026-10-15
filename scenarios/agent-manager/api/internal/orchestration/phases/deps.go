@@ -50,13 +50,21 @@ type StructuredResultResolver interface {
 	Resolve(context.Context, *domain.ResultSpec, *domain.RunResult) *domain.StructuredResult
 }
 
-// ApprovalNotifier is told when a run enters needs_review so the operator can
-// be alerted out-of-band (the orchestration service publishes a decision event
-// that notification-hub turns into an Approve/Reject Ask). It is best-effort
-// and must never block the run's terminal transition. Nil disables it — the
-// run still reaches needs_review, it just sends no notification.
+// ApprovalNotifier is told about run lifecycle moments the operator may want
+// surfaced out-of-band (the orchestration service publishes a domain event that
+// notification-hub turns into an Ask or a notification). Both methods are
+// best-effort and must never block the run's terminal transition. Nil disables
+// them — the run still transitions, it just sends no notification.
+//
+//   - NotifyRunNeedsReview fires when a run enters needs_review under
+//     manualReview (a *.decision_requested.v1 Approve/Reject Ask).
+//   - NotifyRunOutcome fires when a run reaches a terminal, non-review outcome
+//     (Completed/Failed) — a generic *.notification.v1 "Run completed" /
+//     "Run failed" notification. It must NOT fire for needs_review runs, which
+//     already notify via NotifyRunNeedsReview.
 type ApprovalNotifier interface {
 	NotifyRunNeedsReview(ctx context.Context, run *domain.Run)
+	NotifyRunOutcome(ctx context.Context, run *domain.Run)
 }
 
 // Deps bundles the common dependencies every phase shares. Each phase's

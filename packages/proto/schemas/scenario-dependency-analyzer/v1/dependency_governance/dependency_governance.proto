@@ -43,7 +43,7 @@ service DependencyGovernanceService {
 
 message InstallDependencyRequest {
   string scenario = 1;
-  // Target surface within the scenario: ui, api, or cli.
+  // Target installable surface within the scenario.
   string surface = 2;
   string ecosystem = 3;
   string package_name = 4;
@@ -53,6 +53,9 @@ message InstallDependencyRequest {
   // apply=false (the default) is a dry run: the command + governance verdict are
   // returned but nothing is installed. apply=true performs the install.
   bool apply = 6;
+  // exact_version asks the governed JavaScript surface to persist the requested
+  // version without a caret/range. It requires a concrete version.
+  bool exact_version = 7;
 }
 
 message InstallDependencyResponse {

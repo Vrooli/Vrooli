@@ -30,6 +30,14 @@ type AgentManagerClient struct {
 	httpClient           *http.Client
 	testBaseURL          string // override for tests; empty in production
 	sleep                func(context.Context, time.Duration) error
+	// serviceToken mints Prompt Manager's own service-principal bearer for an
+	// unattended heartbeat that carries no human or run proof. A verified service
+	// identity lets Agent Manager admit run.create on the operator-approved
+	// standing grant. nil disables service-identity forwarding (tests, or before
+	// the credential is issued), leaving the prior unqualified behaviour.
+	serviceToken interface {
+		Token(context.Context) (string, error)
+	}
 }
 
 func waitForRetry(ctx context.Context, delay time.Duration) error {
@@ -50,6 +58,7 @@ func NewAgentManagerClient(timeout time.Duration) *AgentManagerClient {
 		httpClient: &http.Client{
 			Timeout: timeout,
 		},
+		serviceToken: defaultServiceTokenSource(),
 	}
 }
 
@@ -760,6 +769,19 @@ func (c *AgentManagerClient) doRequest(ctx context.Context, method, path string,
 		if err := ctx.Err(); err != nil {
 			return nil, NewDispatchRejectedError(err)
 		}
+		// The heartbeat creates its task BEFORE its run, in the same qualified
+		// context. The task leg must carry the SAME caller proof as the run leg
+		// (an unattended heartbeat's service bearer, or a forwarded human/run
+		// proof) — otherwise it arrives anonymous and agent-manager 401s before
+		// the run is ever reached. Effort callers forward no header on the task
+		// leg (their proof is minted per-run at the runs channel).
+		proof := createRunCaller(ctx)
+		if proof.authorization != "" {
+			req.Header.Set("Authorization", proof.authorization)
+		}
+		if proof.runIdentity != "" {
+			req.Header.Set("X-Agent-Identity-Token", proof.runIdentity)
+		}
 		client := *c.httpClient
 		client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
 		return client.Do(req)
@@ -844,6 +866,17 @@ func (c *AgentManagerClient) prepareCreateRunCaller(ctx context.Context) (contex
 		return ctx, nil
 	}
 	proof := createRunCaller(ctx)
+	// An unattended heartbeat carries no human owner token and no run identity.
+	// Present Prompt Manager's own service-principal bearer so Agent Manager sees
+	// a verified service identity and can admit run.create on the operator's
+	// standing grant. A human or run proof already in context always wins and is
+	// never replaced by the service identity. If no service token can be minted
+	// (credential not yet issued), fall through to the prior unqualified path.
+	if proof.authorization == "" && proof.runIdentity == "" && c.serviceToken != nil {
+		if token, err := c.serviceToken.Token(ctx); err == nil && strings.TrimSpace(token) != "" {
+			return withCreateRunCaller(ctx, "Bearer "+token, ""), nil
+		}
+	}
 	headers := http.Header{}
 	if proof.authorization != "" {
 		headers.Set("Authorization", proof.authorization)

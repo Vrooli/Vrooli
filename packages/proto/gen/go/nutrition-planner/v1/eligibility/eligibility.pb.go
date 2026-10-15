@@ -22,19 +22,25 @@ const (
 )
 
 type EvaluateRequest struct {
-	state              protoimpl.MessageState `protogen:"open.v1"`
-	WorkspaceId        string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
-	ProfileRevision    int64                  `protobuf:"varint,2,opt,name=profile_revision,json=profileRevision,proto3" json:"profile_revision,omitempty"`
-	RecipeRevision     int64                  `protobuf:"varint,3,opt,name=recipe_revision,json=recipeRevision,proto3" json:"recipe_revision,omitempty"`
-	ExcludedGroups     []string               `protobuf:"bytes,4,rep,name=excluded_groups,json=excludedGroups,proto3" json:"excluded_groups,omitempty"`
-	Allergies          []string               `protobuf:"bytes,5,rep,name=allergies,proto3" json:"allergies,omitempty"`
-	Appliances         []string               `protobuf:"bytes,6,rep,name=appliances,proto3" json:"appliances,omitempty"`
-	RecipeGroups       []string               `protobuf:"bytes,7,rep,name=recipe_groups,json=recipeGroups,proto3" json:"recipe_groups,omitempty"`
-	RequiredAppliances []string               `protobuf:"bytes,8,rep,name=required_appliances,json=requiredAppliances,proto3" json:"required_appliances,omitempty"`
-	AllergenEvidence   map[string]string      `protobuf:"bytes,9,rep,name=allergen_evidence,json=allergenEvidence,proto3" json:"allergen_evidence,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	MethodIds          []string               `protobuf:"bytes,10,rep,name=method_ids,json=methodIds,proto3" json:"method_ids,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId     string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	ProfileRevision int64                  `protobuf:"varint,2,opt,name=profile_revision,json=profileRevision,proto3" json:"profile_revision,omitempty"`
+	RecipeRevision  int64                  `protobuf:"varint,3,opt,name=recipe_revision,json=recipeRevision,proto3" json:"recipe_revision,omitempty"`
+	ExcludedGroups  []string               `protobuf:"bytes,4,rep,name=excluded_groups,json=excludedGroups,proto3" json:"excluded_groups,omitempty"`
+	Allergies       []string               `protobuf:"bytes,5,rep,name=allergies,proto3" json:"allergies,omitempty"`
+	Appliances      []string               `protobuf:"bytes,6,rep,name=appliances,proto3" json:"appliances,omitempty"`
+	RecipeGroups    []string               `protobuf:"bytes,7,rep,name=recipe_groups,json=recipeGroups,proto3" json:"recipe_groups,omitempty"`
+	// Deprecated: Marked as deprecated in nutrition-planner/v1/eligibility/eligibility.proto.
+	RequiredAppliances []string          `protobuf:"bytes,8,rep,name=required_appliances,json=requiredAppliances,proto3" json:"required_appliances,omitempty"`
+	AllergenEvidence   map[string]string `protobuf:"bytes,9,rep,name=allergen_evidence,json=allergenEvidence,proto3" json:"allergen_evidence,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Deprecated: Marked as deprecated in nutrition-planner/v1/eligibility/eligibility.proto.
+	MethodIds       []string             `protobuf:"bytes,10,rep,name=method_ids,json=methodIds,proto3" json:"method_ids,omitempty"`
+	Methods         []*EligibilityMethod `protobuf:"bytes,11,rep,name=methods,proto3" json:"methods,omitempty"`
+	Cookware        []string             `protobuf:"bytes,12,rep,name=cookware,proto3" json:"cookware,omitempty"`
+	Tools           []string             `protobuf:"bytes,13,rep,name=tools,proto3" json:"tools,omitempty"`
+	DeviceFunctions []string             `protobuf:"bytes,14,rep,name=device_functions,json=deviceFunctions,proto3" json:"device_functions,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *EvaluateRequest) Reset() {
@@ -116,6 +122,7 @@ func (x *EvaluateRequest) GetRecipeGroups() []string {
 	return nil
 }
 
+// Deprecated: Marked as deprecated in nutrition-planner/v1/eligibility/eligibility.proto.
 func (x *EvaluateRequest) GetRequiredAppliances() []string {
 	if x != nil {
 		return x.RequiredAppliances
@@ -130,9 +137,130 @@ func (x *EvaluateRequest) GetAllergenEvidence() map[string]string {
 	return nil
 }
 
+// Deprecated: Marked as deprecated in nutrition-planner/v1/eligibility/eligibility.proto.
 func (x *EvaluateRequest) GetMethodIds() []string {
 	if x != nil {
 		return x.MethodIds
+	}
+	return nil
+}
+
+func (x *EvaluateRequest) GetMethods() []*EligibilityMethod {
+	if x != nil {
+		return x.Methods
+	}
+	return nil
+}
+
+func (x *EvaluateRequest) GetCookware() []string {
+	if x != nil {
+		return x.Cookware
+	}
+	return nil
+}
+
+func (x *EvaluateRequest) GetTools() []string {
+	if x != nil {
+		return x.Tools
+	}
+	return nil
+}
+
+func (x *EvaluateRequest) GetDeviceFunctions() []string {
+	if x != nil {
+		return x.DeviceFunctions
+	}
+	return nil
+}
+
+type EligibilityMethod struct {
+	state                   protoimpl.MessageState `protogen:"open.v1"`
+	Id                      string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name                    string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	PreparationMode         string                 `protobuf:"bytes,3,opt,name=preparation_mode,json=preparationMode,proto3" json:"preparation_mode,omitempty"`
+	RequiredAppliances      []string               `protobuf:"bytes,4,rep,name=required_appliances,json=requiredAppliances,proto3" json:"required_appliances,omitempty"`
+	RequiredCookware        []string               `protobuf:"bytes,5,rep,name=required_cookware,json=requiredCookware,proto3" json:"required_cookware,omitempty"`
+	RequiredTools           []string               `protobuf:"bytes,6,rep,name=required_tools,json=requiredTools,proto3" json:"required_tools,omitempty"`
+	RequiredDeviceFunctions []string               `protobuf:"bytes,7,rep,name=required_device_functions,json=requiredDeviceFunctions,proto3" json:"required_device_functions,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
+}
+
+func (x *EligibilityMethod) Reset() {
+	*x = EligibilityMethod{}
+	mi := &file_nutrition_planner_v1_eligibility_eligibility_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EligibilityMethod) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EligibilityMethod) ProtoMessage() {}
+
+func (x *EligibilityMethod) ProtoReflect() protoreflect.Message {
+	mi := &file_nutrition_planner_v1_eligibility_eligibility_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EligibilityMethod.ProtoReflect.Descriptor instead.
+func (*EligibilityMethod) Descriptor() ([]byte, []int) {
+	return file_nutrition_planner_v1_eligibility_eligibility_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *EligibilityMethod) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *EligibilityMethod) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *EligibilityMethod) GetPreparationMode() string {
+	if x != nil {
+		return x.PreparationMode
+	}
+	return ""
+}
+
+func (x *EligibilityMethod) GetRequiredAppliances() []string {
+	if x != nil {
+		return x.RequiredAppliances
+	}
+	return nil
+}
+
+func (x *EligibilityMethod) GetRequiredCookware() []string {
+	if x != nil {
+		return x.RequiredCookware
+	}
+	return nil
+}
+
+func (x *EligibilityMethod) GetRequiredTools() []string {
+	if x != nil {
+		return x.RequiredTools
+	}
+	return nil
+}
+
+func (x *EligibilityMethod) GetRequiredDeviceFunctions() []string {
+	if x != nil {
+		return x.RequiredDeviceFunctions
 	}
 	return nil
 }
@@ -144,13 +272,14 @@ type EligibilityReason struct {
 	Reference       string                 `protobuf:"bytes,3,opt,name=reference,proto3" json:"reference,omitempty"`
 	Message         string                 `protobuf:"bytes,4,opt,name=message,proto3" json:"message,omitempty"`
 	ViableMethodIds []string               `protobuf:"bytes,5,rep,name=viable_method_ids,json=viableMethodIds,proto3" json:"viable_method_ids,omitempty"`
+	MethodId        string                 `protobuf:"bytes,6,opt,name=method_id,json=methodId,proto3" json:"method_id,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
 
 func (x *EligibilityReason) Reset() {
 	*x = EligibilityReason{}
-	mi := &file_nutrition_planner_v1_eligibility_eligibility_proto_msgTypes[1]
+	mi := &file_nutrition_planner_v1_eligibility_eligibility_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -162,7 +291,7 @@ func (x *EligibilityReason) String() string {
 func (*EligibilityReason) ProtoMessage() {}
 
 func (x *EligibilityReason) ProtoReflect() protoreflect.Message {
-	mi := &file_nutrition_planner_v1_eligibility_eligibility_proto_msgTypes[1]
+	mi := &file_nutrition_planner_v1_eligibility_eligibility_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -175,7 +304,7 @@ func (x *EligibilityReason) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EligibilityReason.ProtoReflect.Descriptor instead.
 func (*EligibilityReason) Descriptor() ([]byte, []int) {
-	return file_nutrition_planner_v1_eligibility_eligibility_proto_rawDescGZIP(), []int{1}
+	return file_nutrition_planner_v1_eligibility_eligibility_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *EligibilityReason) GetCode() string {
@@ -213,20 +342,97 @@ func (x *EligibilityReason) GetViableMethodIds() []string {
 	return nil
 }
 
+func (x *EligibilityReason) GetMethodId() string {
+	if x != nil {
+		return x.MethodId
+	}
+	return ""
+}
+
+type EligibilityMethodAssessment struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	MethodId      string                 `protobuf:"bytes,1,opt,name=method_id,json=methodId,proto3" json:"method_id,omitempty"`
+	MethodName    string                 `protobuf:"bytes,2,opt,name=method_name,json=methodName,proto3" json:"method_name,omitempty"`
+	Status        string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	Reasons       []*EligibilityReason   `protobuf:"bytes,4,rep,name=reasons,proto3" json:"reasons,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EligibilityMethodAssessment) Reset() {
+	*x = EligibilityMethodAssessment{}
+	mi := &file_nutrition_planner_v1_eligibility_eligibility_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EligibilityMethodAssessment) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EligibilityMethodAssessment) ProtoMessage() {}
+
+func (x *EligibilityMethodAssessment) ProtoReflect() protoreflect.Message {
+	mi := &file_nutrition_planner_v1_eligibility_eligibility_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EligibilityMethodAssessment.ProtoReflect.Descriptor instead.
+func (*EligibilityMethodAssessment) Descriptor() ([]byte, []int) {
+	return file_nutrition_planner_v1_eligibility_eligibility_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *EligibilityMethodAssessment) GetMethodId() string {
+	if x != nil {
+		return x.MethodId
+	}
+	return ""
+}
+
+func (x *EligibilityMethodAssessment) GetMethodName() string {
+	if x != nil {
+		return x.MethodName
+	}
+	return ""
+}
+
+func (x *EligibilityMethodAssessment) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *EligibilityMethodAssessment) GetReasons() []*EligibilityReason {
+	if x != nil {
+		return x.Reasons
+	}
+	return nil
+}
+
 type EvaluateResponse struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	Status           string                 `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
-	Reasons          []*EligibilityReason   `protobuf:"bytes,2,rep,name=reasons,proto3" json:"reasons,omitempty"`
-	ProfileRevision  int64                  `protobuf:"varint,3,opt,name=profile_revision,json=profileRevision,proto3" json:"profile_revision,omitempty"`
-	RecipeRevision   int64                  `protobuf:"varint,4,opt,name=recipe_revision,json=recipeRevision,proto3" json:"recipe_revision,omitempty"`
-	EvaluatorVersion string                 `protobuf:"bytes,5,opt,name=evaluator_version,json=evaluatorVersion,proto3" json:"evaluator_version,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state             protoimpl.MessageState         `protogen:"open.v1"`
+	Status            string                         `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
+	Reasons           []*EligibilityReason           `protobuf:"bytes,2,rep,name=reasons,proto3" json:"reasons,omitempty"`
+	ProfileRevision   int64                          `protobuf:"varint,3,opt,name=profile_revision,json=profileRevision,proto3" json:"profile_revision,omitempty"`
+	RecipeRevision    int64                          `protobuf:"varint,4,opt,name=recipe_revision,json=recipeRevision,proto3" json:"recipe_revision,omitempty"`
+	EvaluatorVersion  string                         `protobuf:"bytes,5,opt,name=evaluator_version,json=evaluatorVersion,proto3" json:"evaluator_version,omitempty"`
+	MethodAssessments []*EligibilityMethodAssessment `protobuf:"bytes,6,rep,name=method_assessments,json=methodAssessments,proto3" json:"method_assessments,omitempty"`
+	ViableMethodIds   []string                       `protobuf:"bytes,7,rep,name=viable_method_ids,json=viableMethodIds,proto3" json:"viable_method_ids,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *EvaluateResponse) Reset() {
 	*x = EvaluateResponse{}
-	mi := &file_nutrition_planner_v1_eligibility_eligibility_proto_msgTypes[2]
+	mi := &file_nutrition_planner_v1_eligibility_eligibility_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -238,7 +444,7 @@ func (x *EvaluateResponse) String() string {
 func (*EvaluateResponse) ProtoMessage() {}
 
 func (x *EvaluateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_nutrition_planner_v1_eligibility_eligibility_proto_msgTypes[2]
+	mi := &file_nutrition_planner_v1_eligibility_eligibility_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -251,7 +457,7 @@ func (x *EvaluateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EvaluateResponse.ProtoReflect.Descriptor instead.
 func (*EvaluateResponse) Descriptor() ([]byte, []int) {
-	return file_nutrition_planner_v1_eligibility_eligibility_proto_rawDescGZIP(), []int{2}
+	return file_nutrition_planner_v1_eligibility_eligibility_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *EvaluateResponse) GetStatus() string {
@@ -289,11 +495,25 @@ func (x *EvaluateResponse) GetEvaluatorVersion() string {
 	return ""
 }
 
+func (x *EvaluateResponse) GetMethodAssessments() []*EligibilityMethodAssessment {
+	if x != nil {
+		return x.MethodAssessments
+	}
+	return nil
+}
+
+func (x *EvaluateResponse) GetViableMethodIds() []string {
+	if x != nil {
+		return x.ViableMethodIds
+	}
+	return nil
+}
+
 var File_nutrition_planner_v1_eligibility_eligibility_proto protoreflect.FileDescriptor
 
 const file_nutrition_planner_v1_eligibility_eligibility_proto_rawDesc = "" +
 	"\n" +
-	"2nutrition-planner/v1/eligibility/eligibility.proto\x12'vrooli.nutrition_planner.v1.eligibility\"\xa6\x04\n" +
+	"2nutrition-planner/v1/eligibility/eligibility.proto\x12'vrooli.nutrition_planner.v1.eligibility\"\xe1\x05\n" +
 	"\x0fEvaluateRequest\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12)\n" +
 	"\x10profile_revision\x18\x02 \x01(\x03R\x0fprofileRevision\x12'\n" +
@@ -303,27 +523,48 @@ const file_nutrition_planner_v1_eligibility_eligibility_proto_rawDesc = "" +
 	"\n" +
 	"appliances\x18\x06 \x03(\tR\n" +
 	"appliances\x12#\n" +
-	"\rrecipe_groups\x18\a \x03(\tR\frecipeGroups\x12/\n" +
-	"\x13required_appliances\x18\b \x03(\tR\x12requiredAppliances\x12{\n" +
-	"\x11allergen_evidence\x18\t \x03(\v2N.vrooli.nutrition_planner.v1.eligibility.EvaluateRequest.AllergenEvidenceEntryR\x10allergenEvidence\x12\x1d\n" +
+	"\rrecipe_groups\x18\a \x03(\tR\frecipeGroups\x123\n" +
+	"\x13required_appliances\x18\b \x03(\tB\x02\x18\x01R\x12requiredAppliances\x12{\n" +
+	"\x11allergen_evidence\x18\t \x03(\v2N.vrooli.nutrition_planner.v1.eligibility.EvaluateRequest.AllergenEvidenceEntryR\x10allergenEvidence\x12!\n" +
 	"\n" +
 	"method_ids\x18\n" +
-	" \x03(\tR\tmethodIds\x1aC\n" +
+	" \x03(\tB\x02\x18\x01R\tmethodIds\x12T\n" +
+	"\amethods\x18\v \x03(\v2:.vrooli.nutrition_planner.v1.eligibility.EligibilityMethodR\amethods\x12\x1a\n" +
+	"\bcookware\x18\f \x03(\tR\bcookware\x12\x14\n" +
+	"\x05tools\x18\r \x03(\tR\x05tools\x12)\n" +
+	"\x10device_functions\x18\x0e \x03(\tR\x0fdeviceFunctions\x1aC\n" +
 	"\x15AllergenEvidenceEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x9f\x01\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xa3\x02\n" +
+	"\x11EligibilityMethod\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12)\n" +
+	"\x10preparation_mode\x18\x03 \x01(\tR\x0fpreparationMode\x12/\n" +
+	"\x13required_appliances\x18\x04 \x03(\tR\x12requiredAppliances\x12+\n" +
+	"\x11required_cookware\x18\x05 \x03(\tR\x10requiredCookware\x12%\n" +
+	"\x0erequired_tools\x18\x06 \x03(\tR\rrequiredTools\x12:\n" +
+	"\x19required_device_functions\x18\a \x03(\tR\x17requiredDeviceFunctions\"\xbc\x01\n" +
 	"\x11EligibilityReason\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12\x12\n" +
 	"\x04rule\x18\x02 \x01(\tR\x04rule\x12\x1c\n" +
 	"\treference\x18\x03 \x01(\tR\treference\x12\x18\n" +
 	"\amessage\x18\x04 \x01(\tR\amessage\x12*\n" +
-	"\x11viable_method_ids\x18\x05 \x03(\tR\x0fviableMethodIds\"\x81\x02\n" +
+	"\x11viable_method_ids\x18\x05 \x03(\tR\x0fviableMethodIds\x12\x1b\n" +
+	"\tmethod_id\x18\x06 \x01(\tR\bmethodId\"\xc9\x01\n" +
+	"\x1bEligibilityMethodAssessment\x12\x1b\n" +
+	"\tmethod_id\x18\x01 \x01(\tR\bmethodId\x12\x1f\n" +
+	"\vmethod_name\x18\x02 \x01(\tR\n" +
+	"methodName\x12\x16\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\x12T\n" +
+	"\areasons\x18\x04 \x03(\v2:.vrooli.nutrition_planner.v1.eligibility.EligibilityReasonR\areasons\"\xa2\x03\n" +
 	"\x10EvaluateResponse\x12\x16\n" +
 	"\x06status\x18\x01 \x01(\tR\x06status\x12T\n" +
 	"\areasons\x18\x02 \x03(\v2:.vrooli.nutrition_planner.v1.eligibility.EligibilityReasonR\areasons\x12)\n" +
 	"\x10profile_revision\x18\x03 \x01(\x03R\x0fprofileRevision\x12'\n" +
 	"\x0frecipe_revision\x18\x04 \x01(\x03R\x0erecipeRevision\x12+\n" +
-	"\x11evaluator_version\x18\x05 \x01(\tR\x10evaluatorVersion2\x95\x01\n" +
+	"\x11evaluator_version\x18\x05 \x01(\tR\x10evaluatorVersion\x12s\n" +
+	"\x12method_assessments\x18\x06 \x03(\v2D.vrooli.nutrition_planner.v1.eligibility.EligibilityMethodAssessmentR\x11methodAssessments\x12*\n" +
+	"\x11viable_method_ids\x18\a \x03(\tR\x0fviableMethodIds2\x95\x01\n" +
 	"\x12EligibilityService\x12\x7f\n" +
 	"\bEvaluate\x128.vrooli.nutrition_planner.v1.eligibility.EvaluateRequest\x1a9.vrooli.nutrition_planner.v1.eligibility.EvaluateResponseB`Z^github.com/vrooli/vrooli/packages/proto/gen/go/nutrition-planner/v1/eligibility;eligibility_v1b\x06proto3"
 
@@ -339,23 +580,28 @@ func file_nutrition_planner_v1_eligibility_eligibility_proto_rawDescGZIP() []byt
 	return file_nutrition_planner_v1_eligibility_eligibility_proto_rawDescData
 }
 
-var file_nutrition_planner_v1_eligibility_eligibility_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_nutrition_planner_v1_eligibility_eligibility_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_nutrition_planner_v1_eligibility_eligibility_proto_goTypes = []any{
-	(*EvaluateRequest)(nil),   // 0: vrooli.nutrition_planner.v1.eligibility.EvaluateRequest
-	(*EligibilityReason)(nil), // 1: vrooli.nutrition_planner.v1.eligibility.EligibilityReason
-	(*EvaluateResponse)(nil),  // 2: vrooli.nutrition_planner.v1.eligibility.EvaluateResponse
-	nil,                       // 3: vrooli.nutrition_planner.v1.eligibility.EvaluateRequest.AllergenEvidenceEntry
+	(*EvaluateRequest)(nil),             // 0: vrooli.nutrition_planner.v1.eligibility.EvaluateRequest
+	(*EligibilityMethod)(nil),           // 1: vrooli.nutrition_planner.v1.eligibility.EligibilityMethod
+	(*EligibilityReason)(nil),           // 2: vrooli.nutrition_planner.v1.eligibility.EligibilityReason
+	(*EligibilityMethodAssessment)(nil), // 3: vrooli.nutrition_planner.v1.eligibility.EligibilityMethodAssessment
+	(*EvaluateResponse)(nil),            // 4: vrooli.nutrition_planner.v1.eligibility.EvaluateResponse
+	nil,                                 // 5: vrooli.nutrition_planner.v1.eligibility.EvaluateRequest.AllergenEvidenceEntry
 }
 var file_nutrition_planner_v1_eligibility_eligibility_proto_depIdxs = []int32{
-	3, // 0: vrooli.nutrition_planner.v1.eligibility.EvaluateRequest.allergen_evidence:type_name -> vrooli.nutrition_planner.v1.eligibility.EvaluateRequest.AllergenEvidenceEntry
-	1, // 1: vrooli.nutrition_planner.v1.eligibility.EvaluateResponse.reasons:type_name -> vrooli.nutrition_planner.v1.eligibility.EligibilityReason
-	0, // 2: vrooli.nutrition_planner.v1.eligibility.EligibilityService.Evaluate:input_type -> vrooli.nutrition_planner.v1.eligibility.EvaluateRequest
-	2, // 3: vrooli.nutrition_planner.v1.eligibility.EligibilityService.Evaluate:output_type -> vrooli.nutrition_planner.v1.eligibility.EvaluateResponse
-	3, // [3:4] is the sub-list for method output_type
-	2, // [2:3] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	5, // 0: vrooli.nutrition_planner.v1.eligibility.EvaluateRequest.allergen_evidence:type_name -> vrooli.nutrition_planner.v1.eligibility.EvaluateRequest.AllergenEvidenceEntry
+	1, // 1: vrooli.nutrition_planner.v1.eligibility.EvaluateRequest.methods:type_name -> vrooli.nutrition_planner.v1.eligibility.EligibilityMethod
+	2, // 2: vrooli.nutrition_planner.v1.eligibility.EligibilityMethodAssessment.reasons:type_name -> vrooli.nutrition_planner.v1.eligibility.EligibilityReason
+	2, // 3: vrooli.nutrition_planner.v1.eligibility.EvaluateResponse.reasons:type_name -> vrooli.nutrition_planner.v1.eligibility.EligibilityReason
+	3, // 4: vrooli.nutrition_planner.v1.eligibility.EvaluateResponse.method_assessments:type_name -> vrooli.nutrition_planner.v1.eligibility.EligibilityMethodAssessment
+	0, // 5: vrooli.nutrition_planner.v1.eligibility.EligibilityService.Evaluate:input_type -> vrooli.nutrition_planner.v1.eligibility.EvaluateRequest
+	4, // 6: vrooli.nutrition_planner.v1.eligibility.EligibilityService.Evaluate:output_type -> vrooli.nutrition_planner.v1.eligibility.EvaluateResponse
+	6, // [6:7] is the sub-list for method output_type
+	5, // [5:6] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_nutrition_planner_v1_eligibility_eligibility_proto_init() }
@@ -369,7 +615,7 @@ func file_nutrition_planner_v1_eligibility_eligibility_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_nutrition_planner_v1_eligibility_eligibility_proto_rawDesc), len(file_nutrition_planner_v1_eligibility_eligibility_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

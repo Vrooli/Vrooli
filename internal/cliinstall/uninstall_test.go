@@ -237,6 +237,45 @@ func TestRecordProjectSetupRecordsOwnedCheckoutWithoutScanning(t *testing.T) {
 	}
 }
 
+// npm creates .bin/<tool> as a relative symlink into the package tree under
+// the same --prefix; recording it must not trip symlink_outside_prefix.
+func TestRecordNPMToolInstallArtifactsAcceptsBinShimSymlink(t *testing.T) {
+	home := t.TempDir()
+	prefix := filepath.Join(home, ".cache", "vrooli", "formal-tools", "quint", "node")
+	target := filepath.Join(prefix, "node_modules", "@informalsystems", "quint", "dist", "src", "cli.js")
+	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(target, []byte("#!/usr/bin/env node\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	source := filepath.Join(prefix, "node_modules", ".bin", "quint")
+	if err := os.MkdirAll(filepath.Dir(source), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("../@informalsystems/quint/dist/src/cli.js", source); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(home, ".local", "bin", "quint")
+	if err := os.MkdirAll(filepath.Dir(link), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(source, link); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := RecordNPMToolInstallArtifacts(home, source, prefix, link); err != nil {
+		t.Fatalf("RecordNPMToolInstallArtifacts: %v", err)
+	}
+	record, err := LoadInstallRecord(home)
+	if err != nil {
+		t.Fatalf("LoadInstallRecord: %v", err)
+	}
+	if len(record.Entries) != 3 {
+		t.Fatalf("expected prefix, shim and PATH link entries, got %#v", record.Entries)
+	}
+}
+
 func TestUninstallRefusesTargetBeforeReadingInventory(t *testing.T) {
 	service, home := newUninstallTestService(t)
 	writeRawInstallRecord(t, home, InstallRecord{Version: 99, Entries: []InstallEntry{{Scope: ScopeRuntime, Kind: EntryFile, Path: "/outside", Prefix: "/outside"}}})

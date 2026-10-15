@@ -95,11 +95,16 @@ func TestAuth01DirectCreateRunIngressRejectsMissingOrMalformedProofBeforeOwnerCa
 	}
 }
 
-func TestAuth01CreateRunProofDoesNotAuthorizeSiblingRequests(t *testing.T) {
+// The heartbeat's task and run are ONE authorized unit created in the same
+// qualified context, so the task leg MUST carry the same caller proof as the run
+// leg. (A task created with no proof arrives anonymous and agent-manager 401s it
+// before the run — the live heartbeat defect.) This is not "widening": the proof
+// authorizes this heartbeat's task+run, not an unrelated sibling.
+func TestAuth01CreateTaskCarriesTheHeartbeatCallerProof(t *testing.T) {
 	enforceAuth01(t)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get("Authorization") != "" || r.Header.Get("X-Agent-Identity-Token") != "" {
-			t.Error("CreateRun proof widened to sibling")
+		if r.Header.Get("Authorization") != "Bearer fixture-owner" || r.Header.Get("X-Agent-Identity-Token") != "fixture-run" {
+			t.Errorf("task leg did not carry the heartbeat caller proof: auth=%q identity=%q", r.Header.Get("Authorization"), r.Header.Get("X-Agent-Identity-Token"))
 		}
 		_, _ = w.Write([]byte(`{"task":{"id":"6a89415d-9f95-4ee0-a534-00619ce6fd5a"}}`))
 	}))
@@ -107,6 +112,23 @@ func TestAuth01CreateRunProofDoesNotAuthorizeSiblingRequests(t *testing.T) {
 	client := newTestClient(t, srv)
 	_, err := client.CreateTask(withCreateRunCaller(context.Background(), "Bearer fixture-owner", "fixture-run"), &Task{Title: "fixture"})
 	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+// With no caller proof in context (nothing qualified the heartbeat), the task
+// leg stays anonymous — it never fabricates a credential.
+func TestAuth01CreateTaskStaysAnonymousWithoutProof(t *testing.T) {
+	enforceAuth01(t)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "" || r.Header.Get("X-Agent-Identity-Token") != "" {
+			t.Error("task leg fabricated a proof none was supplied")
+		}
+		_, _ = w.Write([]byte(`{"task":{"id":"6a89415d-9f95-4ee0-a534-00619ce6fd5a"}}`))
+	}))
+	defer srv.Close()
+	client := newTestClient(t, srv)
+	if _, err := client.CreateTask(context.Background(), &Task{Title: "fixture"}); err != nil {
 		t.Fatal(err)
 	}
 }

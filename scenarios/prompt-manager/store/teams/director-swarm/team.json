@@ -306,7 +306,7 @@
     }
   },
   "purpose": "domain-stewardship",
-  "revision": 18,
+  "revision": 24,
   "runtime": {
     "mode": "multi-process"
   },
@@ -352,5 +352,5 @@
       "purpose": "Route vision-walk demand-validation signal into the monetization validation queue for that team's drainer to classify."
     }
   ],
-  "updatedAt": "2026-09-14T05:05:31Z"
+  "updatedAt": "2026-10-15T00:12:06Z"
 }

@@ -162,7 +162,7 @@ Focused tests: `go test ./internal/heartbeat ./internal/store ./internal/teamcon
 
 The finite-leader binding is part of one governed team-native effort start. A
 real effort needs a finite delivery team, a validated operating contract, a
-registered Source Ledger scope and an exact accepted effort revision. Keep the
+registered Source Ledger scope and an exact accepted effort revision. Disabled, undispatched preparation may revise its content binding through `heartbeat-amend-effort` under current verified creator/approved owner authority and compare-and-swap evidence. After reservation, the owner identity fence remains immutable; amendment metadata alone never supplies accepted-content or execution authority. Keep the
 team disabled until the operator starts the goal. The effort supervisor is not
 the finite leader.
 

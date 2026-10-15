@@ -25,6 +25,30 @@ func (o *Orchestrator) authenticateCreateRunCaller(ctx context.Context, req *Cre
 		return o.authenticateEffortCaller(ctx, req)
 	}
 	verifiedOwner, hasVerifiedOwner := coreidentity.PrincipalFromContext(ctx)
+	// A verified service principal carries its identity in the Authorization
+	// bearer that the authn middleware already verified into this principal. That
+	// bearer is NOT a human owner token, so it must not enter owner verification;
+	// a service caller is authorized solely by its operator-approved standing
+	// grant. Recognize it before owner/run routing and attribute the run to the
+	// grant's approver — never the service, never the anonymous path.
+	serviceCaller := hasVerifiedOwner && verifiedOwner.Kind == coreidentity.ActorService && verifiedOwner.IsVerified()
+	if serviceCaller && req.RunIdentityToken == "" {
+		owner, err := o.standingGrantOwner(ctx, verifiedOwner.Subject)
+		if err != nil {
+			return err
+		}
+		if owner != "" {
+			req.OwnerToken = ""
+			req.OwnerSubject = owner
+			req.caller = &domain.CreateRunCaller{Kind: "service-standing", Subject: owner}
+			return narrowCreateRunScopes(req)
+		}
+		// A verified service with no covering standing grant has no run-creation
+		// authority. The middleware already refuses this, so reaching here means
+		// the grant was revoked between the gate and admission: refuse, never fall
+		// back to the anonymous path on the strength of a service bearer.
+		return refuse("service caller has no standing grant for run creation")
+	}
 	ownerOffered := req.OwnerToken != "" || (hasVerifiedOwner && verifiedOwner.IsHuman())
 	runOffered := req.RunIdentityToken != ""
 	if !ownerOffered && !runOffered {
@@ -124,6 +148,21 @@ func (o *Orchestrator) revalidateCreateRunCaller(ctx context.Context, req Create
 	fresh.OwnerSubject, fresh.OwnerScopes, fresh.OwnerExpiresAt = "", nil, nil
 	if err := o.authenticateCreateRunCaller(ctx, &fresh); err != nil {
 		return err
+	}
+	// A service-standing caller carries no owner token or expiry — its authority
+	// is the durable standing grant, which re-authentication above just
+	// re-resolved against the live store (approved, not revoked, not expired, and
+	// still covering run.create for this owner). So the anti-escalation guarantee
+	// holds: a grant revoked, narrowed, or expired between admit and here yields a
+	// different (or empty) owner and is refused. We therefore compare caller
+	// identity + attributed owner, but NOT the human/run OwnerExpiresAt ceiling
+	// (which is intentionally absent for this kind), and never treat a re-minted
+	// service bearer with the same underlying grant as a change.
+	if req.caller.Kind == "service-standing" {
+		if fresh.caller == nil || *fresh.caller != *req.caller || fresh.OwnerSubject != req.OwnerSubject {
+			return domain.NewValidationErrorWithCode("authorization", "caller authority changed during admission", domain.ErrCodePolicyScope)
+		}
+		return nil
 	}
 	if fresh.caller == nil || *fresh.caller != *req.caller || fresh.OwnerSubject != req.OwnerSubject || !sameCreateRunScopeCeiling(fresh.OwnerScopes, req.OwnerScopes) || fresh.OwnerExpiresAt == nil || req.OwnerExpiresAt == nil || fresh.OwnerExpiresAt.Before(*req.OwnerExpiresAt) {
 		return domain.NewValidationErrorWithCode("authorization", "caller authority changed during admission", domain.ErrCodePolicyScope)

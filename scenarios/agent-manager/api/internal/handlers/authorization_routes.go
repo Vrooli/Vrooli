@@ -1,9 +1,10 @@
 package handlers
 
 import (
-	"agent-manager/internal/supervision"
 	"net/http"
 	"strings"
+
+	"agent-manager/internal/supervision"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/authn"
@@ -46,6 +47,28 @@ func AgentOperationMiddleware(next http.Handler) http.Handler {
 		p, ok := identity.PrincipalFromContext(r.Context())
 		if r.Method == http.MethodGet || r.Method == http.MethodHead || r.Method == http.MethodOptions || r.URL.Path == "/api/v1/identity/verify" || (r.Method == http.MethodPost && agentReadRPC[r.URL.Path]) {
 			next.ServeHTTP(w, r)
+			return
+		}
+		// A verified service principal carries no capability of its own for a
+		// costly write; its sole admission is an operator-approved standing grant,
+		// sourced durably by StandingGrantMiddleware and evaluated through the same
+		// RequestOperationAuthority seam an agent grant uses. run.create is the only
+		// operation a standing grant admits today; every other service write falls
+		// through to the refusal below. No grant logic lives here — this delegates.
+		if ok && p.Kind == identity.ActorService {
+			// A standing grant authorizes the heartbeat's task+run as ONE unit: the
+			// unattended heartbeat creates its task first, then the run it carries.
+			// Both legs are admitted under the same run.create authority (a task is
+			// an inert precursor with no authority of its own), evaluated through
+			// the same seam — no grant logic here. The run admission still enforces
+			// the grant's limits and attributes the owner.
+			if r.Method == http.MethodPost && (r.URL.Path == "/api/v1/runs" || r.URL.Path == "/api/v1/tasks") {
+				if _, err := authn.RequireOperation(r.Context(), "agent-manager:write", "run.create", RunCreationTarget); err == nil {
+					next.ServeHTTP(w, r)
+					return
+				}
+			}
+			http.Error(w, "service authority does not include this operation", http.StatusForbidden)
 			return
 		}
 		if !ok || p.Kind != identity.ActorAgent {

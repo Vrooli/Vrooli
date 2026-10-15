@@ -22,8 +22,17 @@ func freshnessPolicyDecision(policy string) dependencyDecision {
 }
 
 func TestDependencySourceDriftKeepsServingOwner(t *testing.T) {
-	for _, policy := range []string{"optional", scenario.DependencyFreshnessPolicyReuseRunning} {
-		t.Run(policy, func(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		policy string
+		opts   StartOptions
+	}{
+		{name: "optional", policy: "optional"},
+		{name: "reuse_running", policy: scenario.DependencyFreshnessPolicyReuseRunning},
+		{name: "explicit_restart", policy: scenario.DependencyFreshnessPolicyRestartWhenStale, opts: StartOptions{restartAfterStop: true}},
+		{name: "agent_manager_explicit_restart", policy: scenario.DependencyFreshnessPolicyRestartWhenStale, opts: StartOptions{stopFirst: true}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
 			root, home := t.TempDir(), t.TempDir()
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				_, _ = io.WriteString(w, `{"status":"healthy","readiness":true}`)
@@ -61,14 +70,14 @@ func TestDependencySourceDriftKeepsServingOwner(t *testing.T) {
 				t.Fatal(err)
 			}
 			dependency := scenario.Dependency{Enabled: true, StartupPolicy: scenario.DependencyStartupPolicyTryStart}
-			if policy != "optional" {
+			if tc.policy != "optional" {
 				dependency.Required = true
 				dependency.StartupPolicy = scenario.DependencyStartupPolicyMustStart
-				dependency.FreshnessPolicy = policy
+				dependency.FreshnessPolicy = tc.policy
 			}
 			consumer := scenario.Scenario{Slug: "agent-manager", Manifest: scenario.ServiceManifest{Dependencies: scenario.Dependencies{Scenarios: map[string]scenario.Dependency{"program-runtime": dependency}}}}
 			session := newStartSession(t.Context()).childStack("agent-manager")
-			failed, err := runner.ensureDependency(t.Context(), consumer, StartOptions{}, session, 0, "program-runtime", 1)
+			failed, err := runner.ensureDependency(t.Context(), consumer, tc.opts, session, 0, "program-runtime", 1)
 			if err != nil || failed != "" || !session.isReady("program-runtime") {
 				t.Fatalf("healthy serving dependency was churned into its bootstrap cycle: failed=%s err=%v", failed, err)
 			}

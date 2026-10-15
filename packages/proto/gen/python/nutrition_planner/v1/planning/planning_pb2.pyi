@@ -132,30 +132,46 @@ class ExploreRecipesRequest(_message.Message):
     def __init__(self, workspace_id: _Optional[str] = ...) -> None: ...
 
 class ExploreFitReason(_message.Message):
-    __slots__ = ("code", "rule", "reference", "message")
+    __slots__ = ("code", "rule", "reference", "message", "method_id")
     CODE_FIELD_NUMBER: _ClassVar[int]
     RULE_FIELD_NUMBER: _ClassVar[int]
     REFERENCE_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    METHOD_ID_FIELD_NUMBER: _ClassVar[int]
     code: str
     rule: str
     reference: str
     message: str
-    def __init__(self, code: _Optional[str] = ..., rule: _Optional[str] = ..., reference: _Optional[str] = ..., message: _Optional[str] = ...) -> None: ...
+    method_id: str
+    def __init__(self, code: _Optional[str] = ..., rule: _Optional[str] = ..., reference: _Optional[str] = ..., message: _Optional[str] = ..., method_id: _Optional[str] = ...) -> None: ...
+
+class ExploreMethodAssessment(_message.Message):
+    __slots__ = ("method_id", "method_name", "status", "reasons")
+    METHOD_ID_FIELD_NUMBER: _ClassVar[int]
+    METHOD_NAME_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    REASONS_FIELD_NUMBER: _ClassVar[int]
+    method_id: str
+    method_name: str
+    status: str
+    reasons: _containers.RepeatedCompositeFieldContainer[ExploreFitReason]
+    def __init__(self, method_id: _Optional[str] = ..., method_name: _Optional[str] = ..., status: _Optional[str] = ..., reasons: _Optional[_Iterable[_Union[ExploreFitReason, _Mapping]]] = ...) -> None: ...
 
 class ExploreRecipeCandidate(_message.Message):
-    __slots__ = ("recipe_id", "name", "recipe_revision", "fit_reasons", "summary")
+    __slots__ = ("recipe_id", "name", "recipe_revision", "fit_reasons", "summary", "method_assessments")
     RECIPE_ID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     RECIPE_REVISION_FIELD_NUMBER: _ClassVar[int]
     FIT_REASONS_FIELD_NUMBER: _ClassVar[int]
     SUMMARY_FIELD_NUMBER: _ClassVar[int]
+    METHOD_ASSESSMENTS_FIELD_NUMBER: _ClassVar[int]
     recipe_id: str
     name: str
     recipe_revision: int
     fit_reasons: _containers.RepeatedCompositeFieldContainer[ExploreFitReason]
     summary: str
-    def __init__(self, recipe_id: _Optional[str] = ..., name: _Optional[str] = ..., recipe_revision: _Optional[int] = ..., fit_reasons: _Optional[_Iterable[_Union[ExploreFitReason, _Mapping]]] = ..., summary: _Optional[str] = ...) -> None: ...
+    method_assessments: _containers.RepeatedCompositeFieldContainer[ExploreMethodAssessment]
+    def __init__(self, recipe_id: _Optional[str] = ..., name: _Optional[str] = ..., recipe_revision: _Optional[int] = ..., fit_reasons: _Optional[_Iterable[_Union[ExploreFitReason, _Mapping]]] = ..., summary: _Optional[str] = ..., method_assessments: _Optional[_Iterable[_Union[ExploreMethodAssessment, _Mapping]]] = ...) -> None: ...
 
 class ExploreRecipesResponse(_message.Message):
     __slots__ = ("plan_revision", "profile_revision", "profile_configured", "candidates", "blocking_reasons", "saved_recipe_count")

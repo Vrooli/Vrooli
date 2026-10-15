@@ -7,20 +7,22 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class InstallDependencyRequest(_message.Message):
-    __slots__ = ("scenario", "surface", "ecosystem", "package_name", "version", "apply")
+    __slots__ = ("scenario", "surface", "ecosystem", "package_name", "version", "apply", "exact_version")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     SURFACE_FIELD_NUMBER: _ClassVar[int]
     ECOSYSTEM_FIELD_NUMBER: _ClassVar[int]
     PACKAGE_NAME_FIELD_NUMBER: _ClassVar[int]
     VERSION_FIELD_NUMBER: _ClassVar[int]
     APPLY_FIELD_NUMBER: _ClassVar[int]
+    EXACT_VERSION_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     surface: str
     ecosystem: str
     package_name: str
     version: str
     apply: bool
-    def __init__(self, scenario: _Optional[str] = ..., surface: _Optional[str] = ..., ecosystem: _Optional[str] = ..., package_name: _Optional[str] = ..., version: _Optional[str] = ..., apply: _Optional[bool] = ...) -> None: ...
+    exact_version: bool
+    def __init__(self, scenario: _Optional[str] = ..., surface: _Optional[str] = ..., ecosystem: _Optional[str] = ..., package_name: _Optional[str] = ..., version: _Optional[str] = ..., apply: _Optional[bool] = ..., exact_version: _Optional[bool] = ...) -> None: ...
 
 class InstallDependencyResponse(_message.Message):
     __slots__ = ("installed", "dry_run", "verdict", "blocked", "command", "package_manager", "manifest_path", "message", "next_steps", "security_notes", "guidance")

@@ -104,9 +104,19 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 	authConfig = authConfig.WithCreateRunCallerAudience("swarm-manager")
 	authConfig = authConfig.WithManagedCloudflare("agent-manager")
 	router.Use(authn.Middleware(authConfig))
+	// A verified service principal's only costly-write authority is an
+	// operator-approved standing grant. This installs that authority into the
+	// request context (for service callers only) before AgentOperationMiddleware
+	// and the handlers decide, so one RequestOperationAuthority seam serves both.
+	if deps.DB != nil && deps.Orchestrator != nil {
+		standingGrants := database.NewStandingGrantRepository(deps.DB)
+		standingAuthority := handlers.NewStandingGrantAuthority(standingGrants, standingGrantUsageReader{orch: deps.Orchestrator}, nil)
+		router.Use(handlers.StandingGrantMiddleware(standingAuthority))
+	}
 	router.Use(handlers.AgentOperationMiddleware)
 	if deps.Orchestrator != nil {
 		handlers.RegisterAuthorizations(router, deps.Orchestrator)
+		handlers.RegisterStandingGrants(router, deps.Orchestrator)
 	}
 	if deps.LifecycleService != nil {
 		path, handler := commonconnect.NewLifecycleMaintenanceServiceHandler(deps.LifecycleService)

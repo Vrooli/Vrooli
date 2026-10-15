@@ -53,7 +53,7 @@ func (o *Orchestrator) NotifyRunNeedsReview(ctx context.Context, run *domain.Run
 	if o == nil || o.approvalPublisher == nil || run == nil {
 		return
 	}
-	event := o.runApprovalEvent(run)
+	event := o.runApprovalEvent(ctx, run)
 	if err := o.approvalPublisher.PublishDomainEvent(ctx, event); err != nil {
 		approvalLog().Warn("run approval decision event publish failed",
 			obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
@@ -63,7 +63,7 @@ func (o *Orchestrator) NotifyRunNeedsReview(ctx context.Context, run *domain.Run
 // runApprovalEvent builds the decision_requested event for a run awaiting
 // review. The payload is the facts-only producer contract notification-hub
 // parses (see scenarios/notification-hub/.../decision_events.go: decisionFacts).
-func (o *Orchestrator) runApprovalEvent(run *domain.Run) eventbus.DomainEvent {
+func (o *Orchestrator) runApprovalEvent(ctx context.Context, run *domain.Run) eventbus.DomainEvent {
 	question := fmt.Sprintf("Apply the changes from this run? %s changed.", pluralizeFiles(run.ChangedFiles))
 
 	payload := map[string]any{
@@ -80,7 +80,7 @@ func (o *Orchestrator) runApprovalEvent(run *domain.Run) eventbus.DomainEvent {
 		"urgency":     "normal",
 		"correlation": map[string]any{"run_id": run.ID.String()},
 	}
-	if link := o.runReviewURL(run); link != "" {
+	if link := reviewURLForBase(o.resolveWebConsoleNoticeBase(ctx), run); link != "" {
 		payload["context_url"] = link
 	}
 
@@ -100,15 +100,14 @@ func (o *Orchestrator) runApprovalEvent(run *domain.Run) eventbus.DomainEvent {
 	}
 }
 
-// runReviewURL builds a browser link to the run's review page in web-console.
-// Empty when the UI base was not resolved at wiring time (the notification then
-// omits the link and the operator opens the AI Changes queue directly).
-func (o *Orchestrator) runReviewURL(run *domain.Run) string {
-	if o.webConsoleUIBase == "" || run == nil {
+// reviewURLForBase builds a browser link to the run's review page in
+// web-console. Empty when base is empty (the notification then omits the link
+// and the operator opens the AI Changes queue directly).
+func reviewURLForBase(base string, run *domain.Run) string {
+	if base == "" || run == nil {
 		return ""
 	}
-	base := strings.TrimRight(o.webConsoleUIBase, "/")
-	return base + "/?run=" + url.QueryEscape(run.ID.String())
+	return strings.TrimRight(base, "/") + "/?run=" + url.QueryEscape(run.ID.String())
 }
 
 func shortRunID(id string) string {

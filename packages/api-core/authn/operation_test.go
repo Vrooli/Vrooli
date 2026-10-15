@@ -32,6 +32,24 @@ func TestOperationGrantCannotApproveHumanDecisionsOrOtherObjects(t *testing.T) {
 	}
 }
 
+func TestTeamPreparationPolicyDoesNotGrantActivationOrOtherObjects(t *testing.T) {
+	p, ok := InteractivePolicy("team-preparation")
+	if !ok || len(p.Operations) != 1 || p.Operations[0] != "team.prepare" || len(p.Domains) != 1 || p.Domains[0] != "prompt-manager" {
+		t.Fatalf("invalid bounded policy: %+v", p)
+	}
+	grant := &identity.OperationGrant{ID: "g", Approver: "owner", Operations: p.Operations, Targets: []string{"prompt-manager:team/draft"}, ExpiresAt: time.Now().Add(time.Hour)}
+	principal := identity.Principal{Kind: identity.ActorAgent, Subject: "run", Owner: "owner", Verified: true, Scopes: p.Scopes, Grant: grant}
+	ctx := identity.WithPrincipal(context.Background(), principal)
+	if _, err := RequireOperation(ctx, "prompt-manager:write", "team.prepare", "prompt-manager:team/draft"); err != nil {
+		t.Fatal(err)
+	}
+	for _, pair := range [][2]string{{"team.activate", "prompt-manager:team/draft"}, {"team.prepare", "prompt-manager:team/other"}, {"team.prepare", "agent-manager:effort/draft"}} {
+		if _, err := RequireOperation(ctx, "prompt-manager:write", pair[0], pair[1]); err == nil {
+			t.Fatalf("grant escaped preparation: %v", pair)
+		}
+	}
+}
+
 func TestMiddlewarePreservesVerifiedAgentWithoutHumanProviders(t *testing.T) {
 	ctx := provenance.NewContext(context.Background(), provenance.Provenance{Actor: provenance.ActorAgent, VerificationStatus: provenance.VerificationVerified, RunID: "run", Subject: "owner", Scopes: []string{"swarm-manager:write"}})
 	request := httptest.NewRequest(http.MethodGet, "/api", nil).WithContext(ctx)

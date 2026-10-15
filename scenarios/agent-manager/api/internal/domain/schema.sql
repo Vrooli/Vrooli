@@ -333,3 +333,22 @@ CREATE TABLE IF NOT EXISTS authorization_grants (
     created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS authorization_grants_root ON authorization_grants(root_pid, created_at DESC);
+-- Standing grants are operator-approved, durable authority for a verified
+-- subject (a service principal, or — Phase 5 — a human session) to perform a
+-- costly operation within bounds, without a human present for each call. Unlike
+-- authorization_grants they are keyed by subject rather than a live process, and
+-- carry no run/session binding beyond the optional session_id. Revoking is a
+-- state flip; expiry is enforced both by expires_at here and by the grant's own
+-- ExpiresAt at evaluation time.
+CREATE TABLE IF NOT EXISTS standing_grants (
+    id TEXT PRIMARY KEY,
+    subject TEXT NOT NULL,
+    session_id TEXT NOT NULL DEFAULT '',
+    state TEXT NOT NULL,
+    body TEXT NOT NULL,
+    approved_by TEXT NOT NULL DEFAULT '',
+    approved_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    revoked_at TEXT
+);
+CREATE INDEX IF NOT EXISTS standing_grants_subject ON standing_grants(subject, state);

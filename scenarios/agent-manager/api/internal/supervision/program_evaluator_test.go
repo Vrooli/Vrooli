@@ -2,6 +2,7 @@ package supervision
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -26,6 +27,51 @@ func (f *fakeDeclaredProgramRunner) RunDeclaredProgram(_ context.Context, req *c
 	f.req = req.Msg
 	return connect.NewResponse(&libraryv1.RunDeclaredProgramResponse{Terminal: true, Program: &programsv1.Program{Status: programsv1.ProgramStatus_PROGRAM_STATUS_SUCCEEDED, Stdout: f.stdout}}), nil
 }
+
+type rejectingProgramRunner struct{}
+
+func (rejectingProgramRunner) RunDeclaredProgram(_ context.Context, _ *connect.Request[libraryv1.RunDeclaredProgramRequest]) (*connect.Response[libraryv1.RunDeclaredProgramResponse], error) {
+	return nil, connect.NewError(connect.CodeInvalidArgument, errors.New(`input "watch_id" must have type string`))
+}
+
+// A contract rejection is permanent, so a watch must stop retrying it: under
+// the threshold it parks (unavailable), at the threshold it dead-letters to
+// terminal so it clears itself instead of becoming an eternal zombie.
+func TestContractRejectionDeadLettersAfterThreshold(t *testing.T) {
+	now := time.Date(2026, 10, 14, 12, 0, 0, 0, time.UTC)
+	evaluator := NewProgramRuntimeEvaluator()
+	evaluator.runner = rejectingProgramRunner{}
+
+	below, err := evaluator.Evaluate(context.Background(), EvaluationInput{
+		Watch: evaluatorWatch(now), Now: now, ProposedCursor: "cursor-2",
+		ConsecutiveFailures: contractRejectionDeadLetterThreshold - 2,
+	})
+	if err != nil {
+		t.Fatalf("below threshold err: %v", err)
+	}
+	if below.GetDisposition() != domainpb.WatchDisposition_WATCH_DISPOSITION_UNAVAILABLE {
+		t.Fatalf("below threshold should park unavailable, got %v", below.GetDisposition())
+	}
+	if got := below.GetClassification(); !hasPrefix(got, classificationContractRejected+":") || hasPrefix(got, classificationContractRejectedDeadLetter) {
+		t.Fatalf("below threshold classification = %q", got)
+	}
+
+	at, err := evaluator.Evaluate(context.Background(), EvaluationInput{
+		Watch: evaluatorWatch(now), Now: now, ProposedCursor: "cursor-2",
+		ConsecutiveFailures: contractRejectionDeadLetterThreshold - 1,
+	})
+	if err != nil {
+		t.Fatalf("at threshold err: %v", err)
+	}
+	if at.GetDisposition() != domainpb.WatchDisposition_WATCH_DISPOSITION_TERMINAL {
+		t.Fatalf("at threshold should dead-letter to terminal, got %v", at.GetDisposition())
+	}
+	if !hasPrefix(at.GetClassification(), classificationContractRejectedDeadLetter+":") {
+		t.Fatalf("at threshold classification = %q", at.GetClassification())
+	}
+}
+
+func hasPrefix(s, p string) bool { return len(s) >= len(p) && s[:len(p)] == p }
 
 func evaluatorWatch(now time.Time) *domainpb.CohortWatch {
 	return &domainpb.CohortWatch{

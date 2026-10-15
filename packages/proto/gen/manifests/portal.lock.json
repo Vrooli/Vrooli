@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "portal",
-  "input_digest": "sha256:072b68cd5e2d71476f07100ed5c408a643812668fea6c4c79ff6e4bfee1795b8",
+  "input_digest": "sha256:3b927afdd00bb1c261ee587943c8b870ff4414f7da3f0e48db7ed1193878578d",
   "input_files": [
     "schemas/common/v1/surface.proto",
     "schemas/device-control/v1/desktop/desktop.proto",

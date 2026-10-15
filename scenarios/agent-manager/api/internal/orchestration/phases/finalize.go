@@ -304,6 +304,24 @@ type ApplyAtRunEndInput struct {
 // Mutates in.Run: Status, ApprovalState, ApprovedBy, ApprovedAt are set
 // based on the apply outcome.
 func ApplyAtRunEnd(ctx context.Context, in ApplyAtRunEndInput) bool {
+	// Out-of-band operator notification for terminal, non-review outcomes.
+	// The ManualReview branch returns before this fires (it notifies via
+	// NotifyRunNeedsReview instead), so a needs_review run is never
+	// double-notified. Best-effort: scheduled on return so every non-review
+	// exit path of this seam is covered without threading a call into each.
+	defer func() {
+		if in.Deps.ApprovalNotifier == nil || in.Run == nil {
+			return
+		}
+		switch in.Run.Status {
+		case domain.RunStatusComplete, domain.RunStatusFailed:
+			in.Deps.ApprovalNotifier.NotifyRunOutcome(ctx, in.Run)
+		default:
+			// needs_review notifies via NotifyRunNeedsReview; cancelled and any
+			// non-terminal status raise no outcome notification.
+		}
+	}()
+
 	cfg := EffectiveSandboxConfig(in.Run)
 	if cfg == nil {
 		// Defensive: resolveSandboxConfig guarantees a non-nil config for

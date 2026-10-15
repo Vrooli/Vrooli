@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file nutrition-planner/v1/eligibility/eligibility.proto.
  */
 export const file_nutrition_planner_v1_eligibility_eligibility: GenFile = /*@__PURE__*/
-  fileDesc("CjJudXRyaXRpb24tcGxhbm5lci92MS9lbGlnaWJpbGl0eS9lbGlnaWJpbGl0eS5wcm90bxIndnJvb2xpLm51dHJpdGlvbl9wbGFubmVyLnYxLmVsaWdpYmlsaXR5IoYDCg9FdmFsdWF0ZVJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgJEhgKEHByb2ZpbGVfcmV2aXNpb24YAiABKAMSFwoPcmVjaXBlX3JldmlzaW9uGAMgASgDEhcKD2V4Y2x1ZGVkX2dyb3VwcxgEIAMoCRIRCglhbGxlcmdpZXMYBSADKAkSEgoKYXBwbGlhbmNlcxgGIAMoCRIVCg1yZWNpcGVfZ3JvdXBzGAcgAygJEhsKE3JlcXVpcmVkX2FwcGxpYW5jZXMYCCADKAkSaQoRYWxsZXJnZW5fZXZpZGVuY2UYCSADKAsyTi52cm9vbGkubnV0cml0aW9uX3BsYW5uZXIudjEuZWxpZ2liaWxpdHkuRXZhbHVhdGVSZXF1ZXN0LkFsbGVyZ2VuRXZpZGVuY2VFbnRyeRISCgptZXRob2RfaWRzGAogAygJGjcKFUFsbGVyZ2VuRXZpZGVuY2VFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIm4KEUVsaWdpYmlsaXR5UmVhc29uEgwKBGNvZGUYASABKAkSDAoEcnVsZRgCIAEoCRIRCglyZWZlcmVuY2UYAyABKAkSDwoHbWVzc2FnZRgEIAEoCRIZChF2aWFibGVfbWV0aG9kX2lkcxgFIAMoCSK9AQoQRXZhbHVhdGVSZXNwb25zZRIOCgZzdGF0dXMYASABKAkSSwoHcmVhc29ucxgCIAMoCzI6LnZyb29saS5udXRyaXRpb25fcGxhbm5lci52MS5lbGlnaWJpbGl0eS5FbGlnaWJpbGl0eVJlYXNvbhIYChBwcm9maWxlX3JldmlzaW9uGAMgASgDEhcKD3JlY2lwZV9yZXZpc2lvbhgEIAEoAxIZChFldmFsdWF0b3JfdmVyc2lvbhgFIAEoCTKVAQoSRWxpZ2liaWxpdHlTZXJ2aWNlEn8KCEV2YWx1YXRlEjgudnJvb2xpLm51dHJpdGlvbl9wbGFubmVyLnYxLmVsaWdpYmlsaXR5LkV2YWx1YXRlUmVxdWVzdBo5LnZyb29saS5udXRyaXRpb25fcGxhbm5lci52MS5lbGlnaWJpbGl0eS5FdmFsdWF0ZVJlc3BvbnNlQmBaXmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vbnV0cml0aW9uLXBsYW5uZXIvdjEvZWxpZ2liaWxpdHk7ZWxpZ2liaWxpdHlfdjFiBnByb3RvMw");
+  fileDesc("CjJudXRyaXRpb24tcGxhbm5lci92MS9lbGlnaWJpbGl0eS9lbGlnaWJpbGl0eS5wcm90bxIndnJvb2xpLm51dHJpdGlvbl9wbGFubmVyLnYxLmVsaWdpYmlsaXR5IpYECg9FdmFsdWF0ZVJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgJEhgKEHByb2ZpbGVfcmV2aXNpb24YAiABKAMSFwoPcmVjaXBlX3JldmlzaW9uGAMgASgDEhcKD2V4Y2x1ZGVkX2dyb3VwcxgEIAMoCRIRCglhbGxlcmdpZXMYBSADKAkSEgoKYXBwbGlhbmNlcxgGIAMoCRIVCg1yZWNpcGVfZ3JvdXBzGAcgAygJEh8KE3JlcXVpcmVkX2FwcGxpYW5jZXMYCCADKAlCAhgBEmkKEWFsbGVyZ2VuX2V2aWRlbmNlGAkgAygLMk4udnJvb2xpLm51dHJpdGlvbl9wbGFubmVyLnYxLmVsaWdpYmlsaXR5LkV2YWx1YXRlUmVxdWVzdC5BbGxlcmdlbkV2aWRlbmNlRW50cnkSFgoKbWV0aG9kX2lkcxgKIAMoCUICGAESSwoHbWV0aG9kcxgLIAMoCzI6LnZyb29saS5udXRyaXRpb25fcGxhbm5lci52MS5lbGlnaWJpbGl0eS5FbGlnaWJpbGl0eU1ldGhvZBIQCghjb29rd2FyZRgMIAMoCRINCgV0b29scxgNIAMoCRIYChBkZXZpY2VfZnVuY3Rpb25zGA4gAygJGjcKFUFsbGVyZ2VuRXZpZGVuY2VFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIroBChFFbGlnaWJpbGl0eU1ldGhvZBIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhgKEHByZXBhcmF0aW9uX21vZGUYAyABKAkSGwoTcmVxdWlyZWRfYXBwbGlhbmNlcxgEIAMoCRIZChFyZXF1aXJlZF9jb29rd2FyZRgFIAMoCRIWCg5yZXF1aXJlZF90b29scxgGIAMoCRIhChlyZXF1aXJlZF9kZXZpY2VfZnVuY3Rpb25zGAcgAygJIoEBChFFbGlnaWJpbGl0eVJlYXNvbhIMCgRjb2RlGAEgASgJEgwKBHJ1bGUYAiABKAkSEQoJcmVmZXJlbmNlGAMgASgJEg8KB21lc3NhZ2UYBCABKAkSGQoRdmlhYmxlX21ldGhvZF9pZHMYBSADKAkSEQoJbWV0aG9kX2lkGAYgASgJIqIBChtFbGlnaWJpbGl0eU1ldGhvZEFzc2Vzc21lbnQSEQoJbWV0aG9kX2lkGAEgASgJEhMKC21ldGhvZF9uYW1lGAIgASgJEg4KBnN0YXR1cxgDIAEoCRJLCgdyZWFzb25zGAQgAygLMjoudnJvb2xpLm51dHJpdGlvbl9wbGFubmVyLnYxLmVsaWdpYmlsaXR5LkVsaWdpYmlsaXR5UmVhc29uIroCChBFdmFsdWF0ZVJlc3BvbnNlEg4KBnN0YXR1cxgBIAEoCRJLCgdyZWFzb25zGAIgAygLMjoudnJvb2xpLm51dHJpdGlvbl9wbGFubmVyLnYxLmVsaWdpYmlsaXR5LkVsaWdpYmlsaXR5UmVhc29uEhgKEHByb2ZpbGVfcmV2aXNpb24YAyABKAMSFwoPcmVjaXBlX3JldmlzaW9uGAQgASgDEhkKEWV2YWx1YXRvcl92ZXJzaW9uGAUgASgJEmAKEm1ldGhvZF9hc3Nlc3NtZW50cxgGIAMoCzJELnZyb29saS5udXRyaXRpb25fcGxhbm5lci52MS5lbGlnaWJpbGl0eS5FbGlnaWJpbGl0eU1ldGhvZEFzc2Vzc21lbnQSGQoRdmlhYmxlX21ldGhvZF9pZHMYByADKAkylQEKEkVsaWdpYmlsaXR5U2VydmljZRJ/CghFdmFsdWF0ZRI4LnZyb29saS5udXRyaXRpb25fcGxhbm5lci52MS5lbGlnaWJpbGl0eS5FdmFsdWF0ZVJlcXVlc3QaOS52cm9vbGkubnV0cml0aW9uX3BsYW5uZXIudjEuZWxpZ2liaWxpdHkuRXZhbHVhdGVSZXNwb25zZUJgWl5naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL251dHJpdGlvbi1wbGFubmVyL3YxL2VsaWdpYmlsaXR5O2VsaWdpYmlsaXR5X3YxYgZwcm90bzM");
 
 /**
  * @generated from message vrooli.nutrition_planner.v1.eligibility.EvaluateRequest
@@ -52,7 +52,8 @@ export type EvaluateRequest = Message<"vrooli.nutrition_planner.v1.eligibility.E
   recipeGroups: string[];
 
   /**
-   * @generated from field: repeated string required_appliances = 8;
+   * @generated from field: repeated string required_appliances = 8 [deprecated = true];
+   * @deprecated
    */
   requiredAppliances: string[];
 
@@ -62,9 +63,30 @@ export type EvaluateRequest = Message<"vrooli.nutrition_planner.v1.eligibility.E
   allergenEvidence: { [key: string]: string };
 
   /**
-   * @generated from field: repeated string method_ids = 10;
+   * @generated from field: repeated string method_ids = 10 [deprecated = true];
+   * @deprecated
    */
   methodIds: string[];
+
+  /**
+   * @generated from field: repeated vrooli.nutrition_planner.v1.eligibility.EligibilityMethod methods = 11;
+   */
+  methods: EligibilityMethod[];
+
+  /**
+   * @generated from field: repeated string cookware = 12;
+   */
+  cookware: string[];
+
+  /**
+   * @generated from field: repeated string tools = 13;
+   */
+  tools: string[];
+
+  /**
+   * @generated from field: repeated string device_functions = 14;
+   */
+  deviceFunctions: string[];
 };
 
 /**
@@ -73,6 +95,53 @@ export type EvaluateRequest = Message<"vrooli.nutrition_planner.v1.eligibility.E
  */
 export const EvaluateRequestSchema: GenMessage<EvaluateRequest> = /*@__PURE__*/
   messageDesc(file_nutrition_planner_v1_eligibility_eligibility, 0);
+
+/**
+ * @generated from message vrooli.nutrition_planner.v1.eligibility.EligibilityMethod
+ */
+export type EligibilityMethod = Message<"vrooli.nutrition_planner.v1.eligibility.EligibilityMethod"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string preparation_mode = 3;
+   */
+  preparationMode: string;
+
+  /**
+   * @generated from field: repeated string required_appliances = 4;
+   */
+  requiredAppliances: string[];
+
+  /**
+   * @generated from field: repeated string required_cookware = 5;
+   */
+  requiredCookware: string[];
+
+  /**
+   * @generated from field: repeated string required_tools = 6;
+   */
+  requiredTools: string[];
+
+  /**
+   * @generated from field: repeated string required_device_functions = 7;
+   */
+  requiredDeviceFunctions: string[];
+};
+
+/**
+ * Describes the message vrooli.nutrition_planner.v1.eligibility.EligibilityMethod.
+ * Use `create(EligibilityMethodSchema)` to create a new message.
+ */
+export const EligibilityMethodSchema: GenMessage<EligibilityMethod> = /*@__PURE__*/
+  messageDesc(file_nutrition_planner_v1_eligibility_eligibility, 1);
 
 /**
  * @generated from message vrooli.nutrition_planner.v1.eligibility.EligibilityReason
@@ -102,6 +171,11 @@ export type EligibilityReason = Message<"vrooli.nutrition_planner.v1.eligibility
    * @generated from field: repeated string viable_method_ids = 5;
    */
   viableMethodIds: string[];
+
+  /**
+   * @generated from field: string method_id = 6;
+   */
+  methodId: string;
 };
 
 /**
@@ -109,7 +183,39 @@ export type EligibilityReason = Message<"vrooli.nutrition_planner.v1.eligibility
  * Use `create(EligibilityReasonSchema)` to create a new message.
  */
 export const EligibilityReasonSchema: GenMessage<EligibilityReason> = /*@__PURE__*/
-  messageDesc(file_nutrition_planner_v1_eligibility_eligibility, 1);
+  messageDesc(file_nutrition_planner_v1_eligibility_eligibility, 2);
+
+/**
+ * @generated from message vrooli.nutrition_planner.v1.eligibility.EligibilityMethodAssessment
+ */
+export type EligibilityMethodAssessment = Message<"vrooli.nutrition_planner.v1.eligibility.EligibilityMethodAssessment"> & {
+  /**
+   * @generated from field: string method_id = 1;
+   */
+  methodId: string;
+
+  /**
+   * @generated from field: string method_name = 2;
+   */
+  methodName: string;
+
+  /**
+   * @generated from field: string status = 3;
+   */
+  status: string;
+
+  /**
+   * @generated from field: repeated vrooli.nutrition_planner.v1.eligibility.EligibilityReason reasons = 4;
+   */
+  reasons: EligibilityReason[];
+};
+
+/**
+ * Describes the message vrooli.nutrition_planner.v1.eligibility.EligibilityMethodAssessment.
+ * Use `create(EligibilityMethodAssessmentSchema)` to create a new message.
+ */
+export const EligibilityMethodAssessmentSchema: GenMessage<EligibilityMethodAssessment> = /*@__PURE__*/
+  messageDesc(file_nutrition_planner_v1_eligibility_eligibility, 3);
 
 /**
  * @generated from message vrooli.nutrition_planner.v1.eligibility.EvaluateResponse
@@ -139,6 +245,16 @@ export type EvaluateResponse = Message<"vrooli.nutrition_planner.v1.eligibility.
    * @generated from field: string evaluator_version = 5;
    */
   evaluatorVersion: string;
+
+  /**
+   * @generated from field: repeated vrooli.nutrition_planner.v1.eligibility.EligibilityMethodAssessment method_assessments = 6;
+   */
+  methodAssessments: EligibilityMethodAssessment[];
+
+  /**
+   * @generated from field: repeated string viable_method_ids = 7;
+   */
+  viableMethodIds: string[];
 };
 
 /**
@@ -146,7 +262,7 @@ export type EvaluateResponse = Message<"vrooli.nutrition_planner.v1.eligibility.
  * Use `create(EvaluateResponseSchema)` to create a new message.
  */
 export const EvaluateResponseSchema: GenMessage<EvaluateResponse> = /*@__PURE__*/
-  messageDesc(file_nutrition_planner_v1_eligibility_eligibility, 2);
+  messageDesc(file_nutrition_planner_v1_eligibility_eligibility, 4);
 
 /**
  * @generated from service vrooli.nutrition_planner.v1.eligibility.EligibilityService

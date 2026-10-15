@@ -244,9 +244,10 @@ type AgentRuntime struct {
 
 // Team represents a team entity from team.json
 type Team struct {
-	Purpose    string   `json:"purpose,omitempty"`
-	Lifetime   string   `json:"lifetime,omitempty"`
-	EffortRefs []string `json:"effortRefs,omitempty"`
+	CreationProof *TeamCreationProof `json:"creationProof,omitempty"`
+	Purpose       string             `json:"purpose,omitempty"`
+	Lifetime      string             `json:"lifetime,omitempty"`
+	EffortRefs    []string           `json:"effortRefs,omitempty"`
 	// ObjectivesServed is the team's authored declaration from team.json. It is
 	// an import and drift-comparison input, not the current-state authority;
 	// internal/objectives owns current objective state.
@@ -688,6 +689,7 @@ type TeamsIndexEntry struct {
 //
 // DOC: docs/concepts/HEARTBEATS.md
 type HeartbeatConfig struct {
+	PreparationAmendments []FinitePreparationAmendment `json:"preparationAmendments,omitempty"`
 	BaseEntity
 	FiniteLeader        *teamconfig.FiniteLeader  `json:"finiteLeader,omitempty"`
 	WakeAdmission       *teamconfig.WakeAdmission `json:"wakeAdmission,omitempty"`

@@ -2,15 +2,17 @@
 package database
 
 import (
-	"agent-manager/internal/domain"
 	"context"
 	"errors"
-	"github.com/google/uuid"
-	"github.com/sirupsen/logrus"
-	_ "modernc.org/sqlite"
 	"strings"
 	"testing"
 	"time"
+
+	"agent-manager/internal/domain"
+
+	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
+	_ "modernc.org/sqlite"
 )
 
 func TestEventRepository(t *testing.T) {
@@ -140,6 +142,43 @@ func TestEventRepositoryReadsLegacyTypedPayloadRow(t *testing.T) {
 	}
 	if payload.ToolName != "Read" || payload.Output != "file contents" || payload.Error != "permission denied" || payload.Success {
 		t.Fatalf("migrated payload = %#v", payload)
+	}
+}
+
+func TestInitializeSchemaPreservesLegacyEventBytesAndReadsThem(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repos := NewRepositories(db, logrus.New())
+	ctx := context.Background()
+	task := &domain.Task{ID: uuid.New(), Title: "legacy startup", ScopePath: "/test", Status: domain.TaskStatusQueued}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatal(err)
+	}
+	run := &domain.Run{ID: uuid.New(), TaskID: task.ID, Status: domain.RunStatusRunning, Phase: domain.RunPhaseExecuting, ApprovalState: domain.ApprovalStateNone}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+	legacy := `{"toolName":"Read","toolOutput":"retained evidence","toolError":"permission denied"}`
+	if _, err := db.ExecContext(ctx, `INSERT INTO run_events (id, run_id, sequence, event_type, data) VALUES (?, ?, 0, ?, ?)`, uuid.New().String(), run.ID.String(), domain.EventTypeToolResult, legacy); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.InitializeSchema(); err != nil {
+		t.Fatal(err)
+	}
+	var persisted string
+	if err := db.GetContext(ctx, &persisted, `SELECT data FROM run_events WHERE run_id = ?`, run.ID.String()); err != nil {
+		t.Fatal(err)
+	}
+	if persisted != legacy {
+		t.Fatal("startup rewrote historical evidence")
+	}
+	events, err := repos.Events.Get(ctx, run.ID, -1, 10)
+	if err != nil || len(events) != 1 {
+		t.Fatal("legacy read failed", err)
+	}
+	payload, ok := events[0].Data.(*domain.ToolResultEventData)
+	if !ok || payload.Output != "retained evidence" || payload.Error != "permission denied" {
+		t.Fatalf("legacy payload lost meaning: %+v", events[0].Data)
 	}
 }
 

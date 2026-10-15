@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"slices"
 	"strings"
@@ -99,12 +100,136 @@ func ruleSummary(rules []domain.AuthorizationRule) (string, []string) {
 // which begins at approval with fresh human proof and a live session binding.
 const AuthorizationReviewWindow = 7 * 24 * time.Hour
 
-// MaxAuthorizationLifetime bounds an approved grant. Grants stay narrow by
-// target and end early when the session changes or the run ends.
+// MaxAuthorizationLifetime bounds an approved interactive grant. Grants stay
+// narrow by target and end early when the session changes or the run ends.
 const MaxAuthorizationLifetime = 7 * 24 * time.Hour
+
+// MaxStandingGrantLifetime bounds an operator-approved standing grant. It is
+// deliberately longer than the interactive cap: a standing grant exists for
+// recurring unattended work (heartbeats), so too short a TTL silently
+// reintroduces the heartbeat breakage this effort fixes. 30 days bounded —
+// revocable at any time and concurrency-capped — is the reliability/exposure
+// balance. It governs ONLY standing grants; interactive grants keep the 7-day cap.
+const MaxStandingGrantLifetime = 30 * 24 * time.Hour
 
 func WithAuthorizations(repo domain.AuthorizationRepository) Option {
 	return func(o *Orchestrator) { o.authorizations = repo }
+}
+
+// WithStandingGrants supplies the durable, subject-keyed standing-grant store so
+// run admission can attribute a service-standing run to the operator who
+// approved the grant. The middleware already authorized the operation through
+// the same store; this resolves the accountable owner for the created run.
+func WithStandingGrants(repo domain.StandingGrantRepository) Option {
+	return func(o *Orchestrator) { o.standingGrants = repo }
+}
+
+// standingGrantRunCreateTarget mirrors handlers.RunCreationTarget. Create-run
+// names no specific run id, so a run-creation grant covers the domain-wide
+// agent-manager object. It is duplicated (not imported) to avoid an
+// orchestration→handlers import cycle; both must stay in step.
+const standingGrantRunCreateTarget = "agent-manager:*"
+
+// standingGrantOwner returns the accountable owner (the grant's approver) of the
+// first active standing grant for subject that authorizes run.create, or empty
+// when none applies. It never authorizes — the middleware already did — it only
+// attributes; limits are enforced at the gate, not re-checked here.
+func (o *Orchestrator) standingGrantOwner(ctx context.Context, subject string) (string, error) {
+	if o.standingGrants == nil || subject == "" {
+		return "", nil
+	}
+	grants, err := o.standingGrants.ActiveForSubject(ctx, subject, o.now())
+	if err != nil {
+		return "", err
+	}
+	for _, g := range grants {
+		if g.Grant != nil && g.Grant.Allows("run.create", standingGrantRunCreateTarget, o.now()) {
+			return g.Grant.Approver, nil
+		}
+	}
+	return "", nil
+}
+
+// StandingGrantRequest is one operator decision to grant a subject bounded,
+// durable run-creation authority. Approver is set by the handler from the
+// verified human — never from the request body — so a caller cannot name
+// someone else as the accountable owner.
+type StandingGrantRequest struct {
+	Subject   string
+	Approver  string
+	Limits    authn.StandingGrantLimits
+	SessionID string
+	TTL       time.Duration
+}
+
+// CreateStandingGrant writes an operator-approved run-creation standing grant.
+// It never decides who may call it — the handler enforces the verified
+// independent-human gate; this records the authority that gate authorized. The
+// operation and target are fixed to run.create on agent-manager so this endpoint
+// cannot mint authority for any other operation.
+func (o *Orchestrator) CreateStandingGrant(ctx context.Context, req StandingGrantRequest) (*domain.StandingGrant, error) {
+	if o.standingGrants == nil {
+		return nil, errors.New("standing grant store is not configured")
+	}
+	subject := strings.TrimSpace(req.Subject)
+	approver := strings.TrimSpace(req.Approver)
+	if subject == "" || approver == "" {
+		return nil, domain.NewValidationError("subject", "standing grant requires a subject and an approver")
+	}
+	if req.TTL <= 0 || req.TTL > MaxStandingGrantLifetime {
+		return nil, domain.NewValidationError("ttl", "standing grant lifetime must be positive and within the maximum standing-grant lifetime")
+	}
+	if req.Limits.MaxConcurrentRuns < 0 || req.Limits.MaxRunBudgetUSD < 0 {
+		return nil, domain.NewValidationError("limits", "standing grant limits cannot be negative")
+	}
+	now := o.now()
+	expires := now.Add(req.TTL)
+	id := uuid.NewString()
+	g := &domain.StandingGrant{
+		ID:        id,
+		Subject:   subject,
+		SessionID: strings.TrimSpace(req.SessionID),
+		Grant: &requestidentity.OperationGrant{
+			ID:         id,
+			Policy:     "run-creation",
+			Approver:   approver,
+			Operations: []string{"run.create"},
+			Targets:    []string{standingGrantRunCreateTarget},
+			ExpiresAt:  expires,
+		},
+		Limits:     req.Limits,
+		State:      domain.StandingGrantApproved,
+		ApprovedBy: approver,
+		ApprovedAt: now,
+		ExpiresAt:  expires,
+	}
+	if err := o.standingGrants.Put(ctx, g); err != nil {
+		return nil, err
+	}
+	return g, nil
+}
+
+// RevokeStandingGrant revokes a standing grant by id so the next lookup denies
+// it. Like create, the caller authorization (verified independent human) is the
+// handler's responsibility.
+func (o *Orchestrator) RevokeStandingGrant(ctx context.Context, id string) (bool, error) {
+	if o.standingGrants == nil {
+		return false, errors.New("standing grant store is not configured")
+	}
+	if strings.TrimSpace(id) == "" {
+		return false, domain.NewValidationError("id", "standing grant id is required")
+	}
+	return o.standingGrants.Revoke(ctx, id, o.now())
+}
+
+// ListStandingGrants returns recorded standing grants (newest first) for the
+// operator admin surface. Like create/revoke, the caller gate is the handler's
+// job; this is a read of the durable record.
+func (o *Orchestrator) ListStandingGrants(ctx context.Context, limit int) ([]*domain.StandingGrant, error) {
+	if o.standingGrants == nil {
+		return nil, errors.New("standing grant store is not configured")
+	}
+	return o.standingGrants.List(ctx, limit)
 }
 
 func (o *Orchestrator) RequestAuthorization(ctx context.Context, req AuthorizationRequest) (*domain.AuthorizationGrant, error) {
@@ -199,6 +324,28 @@ func approvalPolicy(g *domain.AuthorizationGrant) (authn.Policy, error) {
 	return union, nil
 }
 
+// MissingAuthorizationCapabilities reports the current human capability gap
+// without approving, attaching, or minting authority. Browser preflight and the
+// final owner check use the same reviewed policy; possession of these scopes
+// does not replace independent-human, lifetime, process or lineage checks.
+func MissingAuthorizationCapabilities(ctx context.Context, g *domain.AuthorizationGrant) ([]string, error) {
+	policy, err := approvalPolicy(g)
+	if err != nil {
+		return nil, err
+	}
+	return missingAuthorizationCapabilities(ctx, policy), nil
+}
+
+func missingAuthorizationCapabilities(ctx context.Context, policy authn.Policy) []string {
+	var missing []string
+	for _, scope := range append([]string{"agent-manager:write"}, policy.Scopes...) {
+		if _, err := authn.RequireCapability(ctx, scope); err != nil && !slices.Contains(missing, scope) {
+			missing = append(missing, scope)
+		}
+	}
+	return missing
+}
+
 func (o *Orchestrator) managedAuthorizationRun(ctx context.Context, binding cliutil.ProcessBinding) (uuid.UUID, error) {
 	managedID := uuid.Nil
 	for offset := 0; ; offset += 100 {
@@ -281,10 +428,8 @@ func (o *Orchestrator) ApproveAuthorization(ctx context.Context, id uuid.UUID) (
 	if err != nil {
 		return nil, err
 	}
-	for _, scope := range policy.Scopes {
-		if !scopecatalog.Resolve(p.Scopes, scope) {
-			return nil, authn.ErrCapability
-		}
+	if missing := missingAuthorizationCapabilities(ctx, policy); len(missing) > 0 {
+		return nil, fmt.Errorf("%w: approving this request requires %s; update the verified owner's capability policy, then review this request again", authn.ErrCapability, strings.Join(missing, ", "))
 	}
 	live, err := cliutil.ObserveProcessBinding(g.Binding.PID)
 	if err != nil || live != g.Binding {

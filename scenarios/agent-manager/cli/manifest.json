@@ -1852,6 +1852,54 @@
       ]
     },
     {
+      "name": "standing-grants",
+      "description": "Create, list, or revoke operator-approved standing grants",
+      "commands": [
+        {
+          "name": "create",
+          "description": "Create a bounded standing grant for a service subject (human-only; use --local-owner)",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "list",
+          "description": "List recorded standing grants (human-only; use --local-owner)",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "revoke",
+          "description": "Revoke a standing grant by id (human-only; use --local-owner)",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "ops",
       "description": "Inspect typed-event operational statistics",
       "commands": [

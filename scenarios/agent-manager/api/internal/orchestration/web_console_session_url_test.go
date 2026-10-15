@@ -1,6 +1,7 @@
 package orchestration
 
 import (
+	"context"
 	"testing"
 
 	"agent-manager/internal/domain"
@@ -12,6 +13,12 @@ import (
 // set only for interactive runs with a session id and a resolved UI base, and
 // omitted otherwise so clients fall back to the session id.
 func TestWebConsoleSessionURL(t *testing.T) {
+	// With no explicit override, the base resolves to empty here so the
+	// "no base" case is deterministic (no live discovery/tunnel in a unit test).
+	restore := resolveExternalURL
+	resolveExternalURL = func(context.Context, string, string) (string, error) { return "", nil }
+	t.Cleanup(func() { resolveExternalURL = restore })
+
 	interactive := &domain.Run{
 		ID:                  uuid.New(),
 		ExecutionMode:       domain.ExecutionModeInteractive,
@@ -62,7 +69,7 @@ func TestWebConsoleSessionURL(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.o.webConsoleSessionURL(tt.run); got != tt.want {
+			if got := tt.o.webConsoleSessionURL(context.Background(), tt.run); got != tt.want {
 				t.Errorf("webConsoleSessionURL = %q, want %q", got, tt.want)
 			}
 		})

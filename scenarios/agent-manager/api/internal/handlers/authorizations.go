@@ -114,8 +114,17 @@ func RegisterAuthorizations(r *mux.Router, svc AuthorizationService) {
 					return
 				}
 				grant.State = grant.EffectiveState(time.Now())
+				page := consentView(grant, action, "")
+				if action == "approve" && page.Open {
+					page.MissingCapabilities, err = orchestration.MissingAuthorizationCapabilities(r.Context(), grant)
+					if err != nil {
+						writeError(w, r, err)
+						return
+					}
+					page.Open = len(page.MissingCapabilities) == 0
+				}
 				w.Header().Set("Content-Type", "text/html; charset=utf-8")
-				consentTemplate.Execute(w, consentView(grant, action, ""))
+				consentTemplate.Execute(w, page)
 				return
 			}
 			// Browser approval is same-origin. Native clients need independently
@@ -166,12 +175,13 @@ type consentRule struct {
 }
 
 type consentPage struct {
-	Grant  *domain.AuthorizationGrant
-	Action string
-	Title  string
-	Rules  []consentRule
-	Open   bool
-	Detail string
+	Grant               *domain.AuthorizationGrant
+	Action              string
+	Title               string
+	Rules               []consentRule
+	Open                bool
+	Detail              string
+	MissingCapabilities []string
 }
 
 func consentView(g *domain.AuthorizationGrant, action, title string) consentPage {
@@ -186,7 +196,7 @@ func consentView(g *domain.AuthorizationGrant, action, title string) consentPage
 
 const consentStyle = `<style>body{font:16px/1.45 system-ui,sans-serif;margin:0;padding:16px;max-width:40rem;color:#111;background:#fff}h1{font-size:1.4rem}section{border:1px solid #ccc;border-radius:8px;padding:8px 12px;margin:8px 0}code{word-break:break-all}button{font-size:1rem;padding:10px 18px}small{color:#555}@media (prefers-color-scheme:dark){body{color:#eee;background:#111}section{border-color:#444}small{color:#aaa}}</style>`
 
-var consentTemplate = template.Must(template.New("consent").Funcs(template.FuncMap{"permissionLifetime": permissionLifetime}).Parse(`<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Agent authorization</title>` + consentStyle + `<main><h1>Agent authorization: {{.Action}}</h1><p>State: <strong>{{.Grant.State}}</strong>{{if .Grant.SupersededBy}} (replaced by <code>{{.Grant.SupersededBy}}</code>){{end}}</p><p>Session: {{.Grant.HarnessKind}} / <code>{{.Grant.HarnessSession}}</code></p>{{range .Rules}}<section><p>Policy: <strong>{{.Policy}}</strong></p><p>Operations: {{range $i, $o := .Operations}}{{if $i}}, {{end}}<code>{{$o}}</code>{{end}}</p><p>Targets:</p><ul>{{range .Targets}}<li><code>{{.}}</code></li>{{end}}</ul></section>{{end}}<p>Permission lifetime: {{permissionLifetime .Grant.DurationSeconds}}, starting when you confirm.</p><p>Approval deadline: {{.Grant.RequestExpiresAt.Format "2006-01-02 15:04 MST"}}</p><p><small>Process {{.Grant.Binding.PID}}; boundary <code>{{.Grant.Binding.Cgroup}}</code>; boot {{.Grant.Binding.Boot}}; incarnation {{.Grant.Binding.Start}}</small></p><p>This grants an agent authority to perform the listed routine operations. Your identity remains the approver.</p>{{if .Open}}<form method="post"><button type="submit">Confirm {{.Action}}</button></form>{{else}}<p>This request can no longer be {{.Action}}d.</p>{{end}}</main></html>`))
+var consentTemplate = template.Must(template.New("consent").Funcs(template.FuncMap{"permissionLifetime": permissionLifetime}).Parse(`<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Agent authorization</title>` + consentStyle + `<main><h1>Agent authorization: {{.Action}}</h1><p>State: <strong>{{.Grant.State}}</strong>{{if .Grant.SupersededBy}} (replaced by <code>{{.Grant.SupersededBy}}</code>){{end}}</p><p>Session: {{.Grant.HarnessKind}} / <code>{{.Grant.HarnessSession}}</code></p>{{range .Rules}}<section><p>Policy: <strong>{{.Policy}}</strong></p><p>Operations: {{range $i, $o := .Operations}}{{if $i}}, {{end}}<code>{{$o}}</code>{{end}}</p><p>Targets:</p><ul>{{range .Targets}}<li><code>{{.}}</code></li>{{end}}</ul></section>{{end}}<p>Permission lifetime: {{permissionLifetime .Grant.DurationSeconds}}, starting when you confirm.</p><p>Approval deadline: {{.Grant.RequestExpiresAt.Format "2006-01-02 15:04 MST"}}</p><p><small>Process {{.Grant.Binding.PID}}; boundary <code>{{.Grant.Binding.Cgroup}}</code>; boot {{.Grant.Binding.Boot}}; incarnation {{.Grant.Binding.Start}}</small></p><p>This grants an agent authority to perform the listed routine operations. Your identity remains the approver.</p>{{if .MissingCapabilities}}<h2>Approval access needs setup</h2><p>Your sign-in is verified, but it lacks the following capabilities required to approve this request:</p><ul>{{range .MissingCapabilities}}<li><code>{{.}}</code></li>{{end}}</ul><p>Have the verified owner’s capability policy updated, then reload this page to review and confirm. This request remains pending; no permission has been granted.</p>{{else if .Open}}<form method="post"><button type="submit">Confirm {{.Action}}</button></form>{{else}}<p>This request can no longer be {{.Action}}d.</p>{{end}}</main></html>`))
 
 var consentResultTemplate = template.Must(template.New("consent-result").Parse(`<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Agent authorization</title>` + consentStyle + `<main>{{if .Grant}}<h1>{{.Action}}d</h1><p>State: <strong>{{.Grant.State}}</strong></p>{{range .Rules}}<section><p><strong>{{.Policy}}</strong>: {{range $i, $t := .Targets}}{{if $i}}, {{end}}<code>{{$t}}</code>{{end}}</p></section>{{end}}{{if .Grant.Grant}}<p>Expires {{.Grant.Grant.ExpiresAt.Format "2006-01-02 15:04 MST"}}.</p>{{end}}<p>You can close this page.</p>{{else}}<h1>{{.Title}}</h1><p>{{.Detail}}</p>{{end}}</main></html>`))
 

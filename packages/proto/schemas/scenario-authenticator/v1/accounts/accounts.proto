@@ -103,6 +103,18 @@ service AccountsService {
   // break-glass material. The caller must save the response owner-only.
   rpc IssueBreakGlass(IssueBreakGlassRequest) returns (IssueBreakGlassResponse);
 
+  // IssueServicePrincipal mints, or rotates, the credential of one
+  // operator-configured service principal. The caller must be a verified human
+  // named as an issuer in that profile, or a realm administrator. The principal's audience and scopes come only from the
+  // operator-owned profile; the request cannot widen them. The credential is
+  // written to the credential authority and is never returned on the wire.
+  rpc IssueServicePrincipal(IssueServicePrincipalRequest) returns (IssueServicePrincipalResponse);
+
+  // ExchangeServiceCredential trades a service-principal credential for a
+  // short-lived access token (actor_kind "service") bound to the principal's
+  // single configured resource audience. No refresh token is issued.
+  rpc ExchangeServiceCredential(ExchangeServiceCredentialRequest) returns (ExchangeServiceCredentialResponse);
+
 }
 
 // Account is the wire shape for a single account resource. Never carries a
@@ -305,4 +317,34 @@ message IssueBreakGlassRequest {
 message IssueBreakGlassResponse {
   string credential = 1;
   int64 expires_at = 2;
+}
+
+message IssueServicePrincipalRequest {
+  // Access token of the verified human issuing the principal.
+  string access_token = 1;
+  // Name of an operator-configured service principal profile.
+  string name = 2;
+}
+
+// IssueServicePrincipalResponse describes where the credential was stored. It
+// never carries the credential itself.
+message IssueServicePrincipalResponse {
+  string name = 1;
+  string audience = 2;
+  repeated string scopes = 3;
+  string credential_identity = 4;
+  string credential_field = 5;
+  google.protobuf.Timestamp issued_at = 6;
+}
+
+message ExchangeServiceCredentialRequest {
+  string credential = 1;
+}
+
+message ExchangeServiceCredentialResponse {
+  string access_token = 1;
+  google.protobuf.Timestamp access_token_expires_at = 2;
+  string audience = 3;
+  string subject = 4;
+  repeated string scopes = 5;
 }

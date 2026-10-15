@@ -13,6 +13,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/api-core/authn"
+	"github.com/vrooli/api-core/identity"
+
 	"prompt-manager/internal/finding"
 	"prompt-manager/internal/sourceledger"
 
@@ -191,6 +194,13 @@ func (s *FileTeamStore) Create(ctx context.Context, team *Team) error {
 	if scoped := s.forContext(ctx); scoped != s {
 		return scoped.Create(ctx, team)
 	}
+	_, bounded := authn.RequestOperationAuthorityFromContext(ctx)
+	if principal, ok := identity.PrincipalFromContext(ctx); bounded || (ok && principal.Grant != nil) {
+		if _, err := authn.RequireOperation(ctx, "prompt-manager:write", "team.manage", "prompt-manager:team/"+team.ID); err != nil {
+			return err
+		}
+	}
+
 	// Check team doesn't already exist
 	if _, err := s.Get(ctx, team.ID); err == nil {
 		return fmt.Errorf("team already exists: %s", team.ID)
@@ -201,6 +211,9 @@ func (s *FileTeamStore) Create(ctx context.Context, team *Team) error {
 	if err := s.validateOperatingContract(context.Background(), team); err != nil {
 		return err
 	}
+
+	// Creation attribution is supplied by the verified request, never input JSON.
+	team.CreationProof = verifiedTeamCreator(ctx)
 
 	// Set up team entity
 	team.Kind = KindTeam
@@ -253,6 +266,24 @@ func (s *FileTeamStore) Update(ctx context.Context, id string, updates *Team) er
 	if scoped := s.forContext(ctx); scoped != s {
 		return scoped.Update(ctx, id, updates)
 	}
+	_, bounded := authn.RequestOperationAuthorityFromContext(ctx)
+	if principal, ok := identity.PrincipalFromContext(ctx); bounded || (ok && principal.Grant != nil) {
+		// Creator-owns-while-alive: the team.manage operation gate exists so one
+		// agent cannot mutate another agent's team. The team's own verified
+		// creator, acting under a still-live (unexpired) identity, needs no
+		// separate grant to update what it created. Mirrors the finite-preparation
+		// creator bypass (finite_preparation.go). Fail-closed: any doubt — missing
+		// proof, unknown team, legacy team with no creation proof — still requires
+		// the operation, and a different agent's identity never matches.
+		if !s.callerIsVerifiedTeamCreator(ctx, id) {
+			if _, err := authn.RequireOperation(ctx, "prompt-manager:write", "team.manage", "prompt-manager:team/"+id); err != nil {
+				return err
+			}
+		}
+	}
+
+	finiteLeaderMu.Lock()
+	defer finiteLeaderMu.Unlock()
 	team, err := s.Get(ctx, id)
 	if err != nil {
 		return err

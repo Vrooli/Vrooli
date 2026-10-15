@@ -122,6 +122,7 @@ func (a *App) dependencies() support.Dependencies {
 		Settings:         a.cmdSettings,
 		Maintenance:      a.cmdMaintenance,
 		Storage:          a.cmdStorage,
+		StandingGrants:   a.cmdStandingGrants,
 		Ops:              a.cmdOps,
 		Health:           a.cmdHealth,
 		Events:           a.cmdEvents,

@@ -12,6 +12,8 @@ import (
 	"agent-manager/internal/adapters/database"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration/testutil"
+	"errors"
+	"github.com/vrooli/api-core/authn"
 
 	requestidentity "github.com/vrooli/api-core/identity"
 )
@@ -26,6 +28,32 @@ func authorizationFixture(t *testing.T, now *time.Time) *Orchestrator {
 
 func ownerContext(now time.Time) context.Context {
 	return requestidentity.WithPrincipal(context.Background(), requestidentity.Principal{Kind: requestidentity.ActorHuman, Subject: "owner", Source: requestidentity.SourceCloudflareAccess, Verified: true, Scopes: []string{"agent-manager:read", "agent-manager:write"}, ExpiresAt: now.Add(6 * time.Hour)})
+}
+
+func TestPreparationConsentNamesMissingOwnerCapabilitiesAndRemainsPending(t *testing.T) {
+	now := time.Now().UTC()
+	o := authorizationFixture(t, &now)
+	g, err := o.RequestAuthorization(context.Background(), AuthorizationRequest{PID: os.Getpid(), HarnessKind: "codex", HarnessSession: "missing-owner-scopes", DurationSeconds: 3600, Policy: "team-preparation", Targets: []string{"prompt-manager:team/draft"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = o.ApproveAuthorization(ownerContext(now), g.ID)
+	if !errors.Is(err, authn.ErrCapability) || !strings.Contains(err.Error(), "prompt-manager:read") || !strings.Contains(err.Error(), "prompt-manager:write") {
+		t.Fatalf("owner receives no actionable missing-capability diagnosis: %v", err)
+	}
+	retained, err := o.GetAuthorization(context.Background(), g.ID)
+	if err != nil || retained.State != domain.AuthorizationPending || retained.ApprovedAt != nil || retained.Grant != nil {
+		t.Fatalf("failed consent changed authority: %+v, %v", retained, err)
+	}
+	if token, found, err := o.ResolveAuthorizationCredential(context.Background(), os.Getpid()); err != nil || found || token != "" {
+		t.Fatalf("failed consent minted identity: found=%v, err=%v", found, err)
+	}
+	p, _ := requestidentity.PrincipalFromContext(ownerContext(now))
+	p.Scopes = append(p.Scopes, "prompt-manager:read", "prompt-manager:write")
+	approved, err := o.ApproveAuthorization(requestidentity.WithPrincipal(context.Background(), p), g.ID)
+	if err != nil || approved.State != domain.AuthorizationApproved || approved.Grant == nil || !approved.Grant.Allows("team.prepare", "prompt-manager:team/draft", now) || approved.Grant.Allows("team.prepare", "prompt-manager:team/other", now) || approved.Grant.Allows("team.manage", "prompt-manager:team/draft", now) {
+		t.Fatalf("explicit owner approval lost its reviewed boundary: %v", err)
+	}
 }
 
 func TestOneConsentCarriesSeveralPoliciesWithoutCrossingTargets(t *testing.T) {

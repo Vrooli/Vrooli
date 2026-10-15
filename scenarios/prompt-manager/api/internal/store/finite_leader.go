@@ -176,6 +176,7 @@ func (s *FileTeamStore) WithFiniteLeader(ctx context.Context, teamID, agentID st
 	if err != nil {
 		return err
 	}
+	reconcilePreparationState(cfg, state)
 	if state.Version != 1 || state.TeamID != teamID || state.AgentID != agentID || !sameFiniteBinding(&state.Binding, cfg.FiniteLeader) || state.ProfileKey != cfg.ProfileKey {
 		return fmt.Errorf("finite leader reservation conflicts with the exact effort binding; retain owner identity")
 	}

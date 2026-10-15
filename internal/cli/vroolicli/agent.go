@@ -45,10 +45,13 @@ func (a *agentArgs) Set(value string) error {
 
 func (app *App) runAgentCommand(ctx *AppContext, args []string) error {
 	if len(args) == 0 || strings.TrimSpace(args[0]) == "" {
-		return clipolicy.UsageErrorf("agent", "an agent subcommand is required (supported: launch, list, reap, recover, thaw, authorize, authorization, revoke-authorization)")
+		return clipolicy.UsageErrorf("agent", "an agent subcommand is required (supported: launch, exec, list, reap, recover, thaw, authorize, authorization, revoke-authorization)")
 	}
 	if args[0] == "authorize" || args[0] == "authorization" || args[0] == "revoke-authorization" {
 		return app.runAgentAuthorization(ctx, args[0], args[1:])
+	}
+	if args[0] == "exec" {
+		return app.runAgentExec(ctx, args[1:])
 	}
 	if args[0] == "recover" {
 		return app.runAgentRecovery(ctx, args[1:])
@@ -63,13 +66,14 @@ func (app *App) runAgentCommand(ctx *AppContext, args []string) error {
 		return app.runAgentReap(ctx, args[1:])
 	}
 	if args[0] != "launch" {
-		return clipolicy.UsageErrorf("agent", "unsupported agent subcommand %q (supported: launch, list, reap, recover, thaw, authorize, authorization, revoke-authorization)", args[0])
+		return clipolicy.UsageErrorf("agent", "unsupported agent subcommand %q (supported: launch, exec, list, reap, recover, thaw, authorize, authorization, revoke-authorization)", args[0])
 	}
 
 	fs := commandtree.NewFlagSet("vrooli agent launch")
 	fs.SetOutput(ctx.Stderr)
 	runner := fs.String("runner", agentClaude, "coding-agent runner: claude, codex, opencode, or grok")
 	prompt := fs.String("prompt", "", "optional non-interactive prompt")
+	requireIdentity := fs.Bool("require-native-identity", false, "refuse protected startup without native identity; broker refusal is terminal")
 	cwd := fs.String("cwd", "", "optional working directory")
 	var extra agentArgs
 	fs.Var(&extra, "arg", "additional argv token passed to the runner (repeatable)")
@@ -91,13 +95,14 @@ func (app *App) runAgentCommand(ctx *AppContext, args []string) error {
 	}
 	childArgs := agentInvocationArgs(binary, extra, *prompt)
 	launch, err := cliutil.LaunchCodingAgentResult(context.Background(), cliutil.AgentLaunchRequest{
-		Agent:      *runner,
-		Args:       childArgs,
-		WorkingDir: strings.TrimSpace(*cwd),
-		Claims:     absoluteClaims(claims, strings.TrimSpace(*cwd)),
-		Stdin:      ctx.Stdin,
-		Stdout:     ctx.Stdout,
-		Stderr:     ctx.Stderr,
+		Agent:                 *runner,
+		RequireNativeIdentity: *requireIdentity,
+		Args:                  childArgs,
+		WorkingDir:            strings.TrimSpace(*cwd),
+		Claims:                absoluteClaims(claims, strings.TrimSpace(*cwd)),
+		Stdin:                 ctx.Stdin,
+		Stdout:                ctx.Stdout,
+		Stderr:                ctx.Stderr,
 	})
 	if err != nil {
 		return err
@@ -237,4 +242,23 @@ func absoluteClaims(claims []string, cwd string) []string {
 		out = append(out, filepath.Clean(claim))
 	}
 	return out
+}
+
+// runAgentExec wraps commands inside an existing local task without another model.
+func (app *App) runAgentExec(ctx *AppContext, args []string) error {
+	fs := commandtree.NewFlagSet("vrooli agent exec")
+	fs.SetOutput(ctx.Stderr)
+	task := fs.String("task", "", "existing native task UUID; omit if the local task has no native task row")
+	cwd := fs.String("cwd", "", "command working directory")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if fs.NArg() == 0 {
+		return clipolicy.UsageErrorf("agent exec", "command argv required after --")
+	}
+	_, err := cliutil.LaunchCommandSessionResult(context.Background(), cliutil.AgentLaunchRequest{
+		TaskID: *task, Args: fs.Args(), WorkingDir: *cwd,
+		Stdin: ctx.Stdin, Stdout: ctx.Stdout, Stderr: ctx.Stderr,
+	})
+	return err
 }

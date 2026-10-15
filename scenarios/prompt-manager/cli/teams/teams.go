@@ -622,6 +622,8 @@ func route(ctx appctx.Context, args []string) error {
 		return cmdHeartbeatEnable(ctx, subArgs)
 	case "heartbeat-bind-effort":
 		return cmdHeartbeatBindEffort(ctx, subArgs)
+	case "heartbeat-amend-effort":
+		return cmdHeartbeatAmendEffort(ctx, subArgs)
 	case "heartbeat-retire-effort":
 		return cmdHeartbeatRetireEffort(ctx, subArgs)
 	case "heartbeat-complete-effort":
@@ -735,6 +737,7 @@ Heartbeat Commands:
   heartbeat <team-id> <agent-id>              Show heartbeat config
   heartbeat-enable <team-id> <agent-id>       Enable heartbeat with schedule
   heartbeat-bind-effort <team-id> <agent-id>  Bind a disabled finite leader from --request-file (--update keeps enabled; --checkin-mode parked|event)
+  heartbeat-amend-effort <team-id> <agent-id>  Amend a disabled undispatched preparation through verified creator or approved owner authority
   heartbeat-retire-effort <team-id> <agent-id> Retire finite leader scheduling; retain run identity
   heartbeat-complete-effort <team-id> <agent-id> Record the revision-checked completion receipt from --request-file
   heartbeat-reopen-effort <team-id> <agent-id> Reopen a completed finite effort with a replacement revision from --request-file
@@ -1566,6 +1569,8 @@ func cmdMessageClear(ctx appctx.Context, args []string) error {
 
 // HeartbeatConfig represents a heartbeat configuration from the API
 type HeartbeatConfig struct {
+	CreationProof           json.RawMessage           `json:"creationProof,omitempty"`
+	PreparationAmendments   json.RawMessage           `json:"preparationAmendments,omitempty"`
 	FiniteLeader            *teamconfig.FiniteLeader  `json:"finiteLeader,omitempty"`
 	FiniteLeaderState       json.RawMessage           `json:"finiteLeaderState,omitempty"`
 	FiniteLeaderError       string                    `json:"finiteLeaderError,omitempty"`
@@ -1639,9 +1644,11 @@ type UpdateHeartbeatRequest struct {
 // FiniteEffortTransition is an explicit finite-effort lifecycle operation sent
 // on the member heartbeat update path. It carries no configuration changes.
 type FiniteEffortTransition struct {
-	Operation   string `json:"operation"`
-	Revision    string `json:"revision"`
-	EvidenceRef string `json:"evidenceRef"`
+	ExpectedRevision string                   `json:"expectedRevision,omitempty"`
+	Binding          *teamconfig.FiniteLeader `json:"binding,omitempty"`
+	Operation        string                   `json:"operation"`
+	Revision         string                   `json:"revision"`
+	EvidenceRef      string                   `json:"evidenceRef"`
 }
 
 // TriggerResponse is the response from triggering a heartbeat

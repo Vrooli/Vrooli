@@ -16,14 +16,21 @@ import (
 	"github.com/vrooli/api-core/identity"
 )
 
-type authorizationFake struct{ approvals int }
+type authorizationFake struct {
+	approvals int
+	policy    string
+}
 
 func (*authorizationFake) RequestAuthorization(context.Context, orchestration.AuthorizationRequest) (*domain.AuthorizationGrant, error) {
 	return &domain.AuthorizationGrant{ID: uuid.New(), State: "pending"}, nil
 }
 
-func (*authorizationFake) GetAuthorization(context.Context, uuid.UUID) (*domain.AuthorizationGrant, error) {
-	return &domain.AuthorizationGrant{State: "pending", Policy: "effort-metadata", Targets: []string{"agent-manager:effort/bas"}, DurationSeconds: 3600, RequestExpiresAt: time.Now().Add(time.Hour)}, nil
+func (f *authorizationFake) GetAuthorization(context.Context, uuid.UUID) (*domain.AuthorizationGrant, error) {
+	policy := f.policy
+	if policy == "" {
+		policy = "effort-metadata"
+	}
+	return &domain.AuthorizationGrant{State: "pending", Policy: policy, Targets: []string{"agent-manager:effort/bas"}, DurationSeconds: 3600, RequestExpiresAt: time.Now().Add(time.Hour)}, nil
 }
 
 func (*authorizationFake) ListAuthorizations(context.Context, int) ([]*domain.AuthorizationGrant, error) {
@@ -44,7 +51,7 @@ func TestAuthorizationConsentRequiresIndependentHumanAndConfiguredOrigin(t *test
 	router := mux.NewRouter()
 	RegisterAuthorizations(router, f)
 	path := "/api/v1/authorizations/" + uuid.NewString() + "/approve"
-	p := identity.Principal{Kind: identity.ActorHuman, Subject: "owner", Source: identity.SourceCloudflareAccess, Verified: true, ExpiresAt: time.Now().Add(time.Hour)}
+	p := identity.Principal{Kind: identity.ActorHuman, Subject: "owner", Source: identity.SourceCloudflareAccess, Verified: true, Scopes: []string{"agent-manager:read", "agent-manager:write"}, ExpiresAt: time.Now().Add(time.Hour)}
 	invoke := func(human bool, origin, agent string) int {
 		req := httptest.NewRequest(http.MethodPost, "http://backend.local"+path, strings.NewReader(""))
 		if human {
@@ -101,7 +108,7 @@ func TestBrowserConsentShowsReadablePagesNotJSON(t *testing.T) {
 	router := mux.NewRouter()
 	RegisterAuthorizations(router, &authorizationFake{})
 	path := "/api/v1/authorizations/" + uuid.NewString() + "/approve"
-	p := identity.Principal{Kind: identity.ActorHuman, Subject: "owner", Source: identity.SourceCloudflareAccess, Verified: true, ExpiresAt: time.Now().Add(time.Hour)}
+	p := identity.Principal{Kind: identity.ActorHuman, Subject: "owner", Source: identity.SourceCloudflareAccess, Verified: true, Scopes: []string{"agent-manager:read", "agent-manager:write"}, ExpiresAt: time.Now().Add(time.Hour)}
 	t.Setenv("AGENT_MANAGER_AUTHORIZATION_URL", "https://agent-manager.example.test")
 	serve := func(method, accept string) *httptest.ResponseRecorder {
 		req := httptest.NewRequest(method, "http://backend.local"+path, strings.NewReader(""))
@@ -123,5 +130,28 @@ func TestBrowserConsentShowsReadablePagesNotJSON(t *testing.T) {
 	api := serve(http.MethodPost, "application/json")
 	if !strings.HasPrefix(api.Header().Get("Content-Type"), "application/json") {
 		t.Fatal("a programmatic approval lost its JSON receipt")
+	}
+}
+
+func TestBrowserConsentListsMissingCapabilitiesBeforeConfirmation(t *testing.T) {
+	f := &authorizationFake{policy: "team-preparation"}
+	router := mux.NewRouter()
+	RegisterAuthorizations(router, f)
+	path := "/api/v1/authorizations/" + uuid.NewString() + "/approve"
+	p := identity.Principal{Kind: identity.ActorHuman, Subject: "owner", Source: identity.SourceCloudflareAccess, Verified: true, Scopes: []string{"agent-manager:read", "agent-manager:write"}, ExpiresAt: time.Now().Add(time.Hour)}
+	req := httptest.NewRequest(http.MethodGet, path, nil)
+	req = req.WithContext(identity.WithPrincipal(req.Context(), p))
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	body := rec.Body.String()
+	if rec.Code != http.StatusOK || !strings.Contains(body, "Approval access needs setup") || !strings.Contains(body, "prompt-manager:read") || !strings.Contains(body, "prompt-manager:write") || strings.Contains(body, "Confirm approve") || strings.Contains(body, "can no longer") || f.approvals != 0 {
+		t.Fatalf("preflight is misleading or authoritative: %d %s", rec.Code, body)
+	}
+	p.Scopes = append(p.Scopes, "prompt-manager:read", "prompt-manager:write")
+	req = req.WithContext(identity.WithPrincipal(req.Context(), p))
+	rec = httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if !strings.Contains(rec.Body.String(), "Confirm approve") || f.approvals != 0 {
+		t.Fatal("eligible pending request lacks independent confirmation")
 	}
 }

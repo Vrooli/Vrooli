@@ -71,14 +71,24 @@ class RecipeIngredient(_message.Message):
     def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., amount: _Optional[str] = ..., unit: _Optional[str] = ..., discrete: _Optional[bool] = ..., preparation: _Optional[str] = ...) -> None: ...
 
 class RecipeMethod(_message.Message):
-    __slots__ = ("id", "name", "steps")
+    __slots__ = ("id", "name", "steps", "preparation_mode", "required_appliances", "required_cookware", "required_tools", "required_device_functions")
     ID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     STEPS_FIELD_NUMBER: _ClassVar[int]
+    PREPARATION_MODE_FIELD_NUMBER: _ClassVar[int]
+    REQUIRED_APPLIANCES_FIELD_NUMBER: _ClassVar[int]
+    REQUIRED_COOKWARE_FIELD_NUMBER: _ClassVar[int]
+    REQUIRED_TOOLS_FIELD_NUMBER: _ClassVar[int]
+    REQUIRED_DEVICE_FUNCTIONS_FIELD_NUMBER: _ClassVar[int]
     id: str
     name: str
     steps: _containers.RepeatedCompositeFieldContainer[RecipeStep]
-    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., steps: _Optional[_Iterable[_Union[RecipeStep, _Mapping]]] = ...) -> None: ...
+    preparation_mode: str
+    required_appliances: _containers.RepeatedScalarFieldContainer[str]
+    required_cookware: _containers.RepeatedScalarFieldContainer[str]
+    required_tools: _containers.RepeatedScalarFieldContainer[str]
+    required_device_functions: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., steps: _Optional[_Iterable[_Union[RecipeStep, _Mapping]]] = ..., preparation_mode: _Optional[str] = ..., required_appliances: _Optional[_Iterable[str]] = ..., required_cookware: _Optional[_Iterable[str]] = ..., required_tools: _Optional[_Iterable[str]] = ..., required_device_functions: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class RecipeStep(_message.Message):
     __slots__ = ("id", "instruction", "depends_on", "inputs", "outputs", "equipment", "settings")

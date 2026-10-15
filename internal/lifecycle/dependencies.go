@@ -201,7 +201,7 @@ func (r *Runner) ensureDependency(ctx context.Context, item scenario.Scenario, o
 	dependencyForceSetup := forceSetupFor(opts, dependencyItem.Slug)
 	strictHealthy := r.isRegistryRuntimeServingHealthy(dependencyItem, dependencyView)
 	dependencyRunning := dependencyView.Authoritative
-	if opts.restartAfterStop && dependencyRunning && strictHealthy {
+	if (opts.stopFirst || opts.restartAfterStop) && dependencyRunning && strictHealthy {
 		leaseID, leaseErr := r.acquireDependencyDemandLease(ctx, item, dependencyItem)
 		if leaseErr != nil {
 			if decision.continueOnFailure {

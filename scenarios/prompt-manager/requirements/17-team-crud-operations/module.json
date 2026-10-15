@@ -62,6 +62,58 @@
           "notes": "Org chart edges stored and retrieved correctly"
         }
       ]
+    },
+    {
+      "id": "PM-TEAM-PREPARATION",
+      "title": "Verified creator and governed finite draft amendments",
+      "status": "in_progress",
+      "prd_ref": "prompt-manager-must-have-team-crud-with-roles-members-org-chart",
+      "category": "security",
+      "description": "Record server-verified team creation identity; amend only a disabled undispatched finite draft through its current creator with write authority or an exact approved owner operation, preserving CAS, audit, grants and reservation fences.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "api/internal/store/finite_preparation_test.go",
+          "status": "not_implemented",
+          "notes": "Creator/legacy object authority, expiration, lifecycle denial, concurrency, atomic restart projection and attribution preservation. Status is earned through owner validation sync."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "api/handlers/heartbeat/finite_preparation_test.go::TestFinitePreparationConnectUsesVerifiedActorAndPreservesRefusals",
+          "status": "not_implemented",
+          "notes": "Actual generated Connect wire path preserves verified actor and denied request semantics."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "cli/teams/finite_preparation_test.go",
+          "status": "not_implemented",
+          "notes": "Bounded exact amendment input and no false owner confirmation."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "api/internal/requestpolicy/preparation_test.go::TestPreparationGrantCannotReachOtherMutationHandlers",
+          "status": "not_implemented",
+          "notes": "Closed ingress boundary denies every generated non-preparation team/heartbeat procedure, unrelated and unknown routes, for both interactive grants and request authorities before handler side effects."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "api/handlers/teams/finite_preparation_test.go::TestPreparationReadIsLimitedToApprovedTeam",
+          "status": "not_implemented",
+          "notes": "Generated Connect read admits approved team, refuses another existing team before disclosure."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "api/internal/requestpolicy/preparation_test.go::TestPreparationGrantAllowsOnlyReadOnlyBootstrapHealth",
+          "status": "not_implemented",
+          "notes": "Approved CLI identity may use only exact GET health bootstrap routes with read capability; health mutations and unrelated reads remain denied."
+        }
+      ]
     }
   ]
 }

@@ -956,3 +956,10 @@ pending separately inspectable screenshot review.
   `20260917-032425-ae40d310` still shows separate 3D readiness/budget, editor
   visibility, BAS context, and search harness failures. UX-CAMPAIGN-007 remains
   unverified; no 3D success is inferred from fallback execution.
+
+## Work ladder — verified finite preparation amendments (2026-10-14)
+
+- Rung: W3, scoped enhancement under the existing team CRUD target and the operator's request to amend a team created in this conversation.
+- Evidence: `validateFiniteLeaderUpdate` rejects every acceptedRevision/sourceRefs change before authorization. The native external-knowledge-delivery v2 update was refused as immutable, while both enabled flags and dispatch markers remained false. Team creation did not retain verified creator identity.
+- Repair: add the explicit disabled/undispatched `heartbeat-amend-effort` operation with expected revision, retained evidence, server-verified creator attribution, exact legacy owner operation grants, atomic receipt history and read-only idle-state recovery. Keep existing run/profile/effort/activation and current-grant fences.
+- Validation: focused regression and affected Test Genie evidence will be recorded after execution. Native legacy application requires actual authenticated approval; never retroactively stamp this conversation as the creator without historical proof.

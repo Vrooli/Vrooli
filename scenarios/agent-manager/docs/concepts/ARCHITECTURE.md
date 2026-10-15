@@ -780,10 +780,24 @@ canceled submission retains the Run relation and does not clean unrelated
 sessions. Restart uses existing reconciliation rather than creating a new
 identity. This requires the current single Web Console Manager lifecycle owner;
 a second independent manager sharing the database is outside that owner model.
-Retention still requires explicit legacy AM owner provenance; canonical verified
-creator rows remain conservatively preserved until the native owner can safely
-distinguish AM sessions from unrelated programmatic sessions. Native serving
-adoption and lawful authenticated-caller qualification remain separate receipts.
+Agent Manager calls Web Console as its own verified service principal.
+`scenario-authenticator` issues the `agent-manager` principal from an
+operator-owned profile (audience `scenario-authenticator:web-console`, scope
+`web-console:write`, named issuer) and stores its credential in the credential
+authority at `scenario-authenticator/service-principal/agent-manager/web-console`
+(field `credential`). The Web Console client in `internal/adapters/webconsole`
+reads that credential, exchanges it for a short-lived service token
+(`actor_kind=service`), and sends the token as a bearer on every Web Console call.
+It never forwards a caller's or run's identity. Web Console verifies the token
+through the shared `authn` scenario-authenticator provider, so its List pins
+`stable_create_owner=agent-manager`. If the credential is missing, revoked or
+fails exchange, the client calls anonymously. Read and drive calls keep working,
+and reserved Create is still refused before submission. The verified owner
+equals the `agent-manager` tag, so these sessions match the retention
+reconciler's owner filter. Rotation: rerun
+`scenario-authenticator auth issue-service-principal --name agent-manager`. To
+revoke, delete the credential entry. The 2026-10-14 receipt is in the identity
+migration ledger.
 
 Profile reconciliation remains the pattern for workflow desired-state
 reconciliation, not a contract to overload: bounded scenario-local sources are

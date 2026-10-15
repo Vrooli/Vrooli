@@ -200,7 +200,10 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 
 	var interactiveSessions webconsole.SessionController
 	if baseURL := webconsole.ResolveBaseURL(); baseURL != "" {
-		interactiveSessions = webconsole.NewClient(baseURL, nil)
+		// Present Agent Manager's operator-issued service principal so Web
+		// Console can pin a verified stable-create owner.
+		serviceTokens := webconsole.NewServiceTokenSource(webconsole.AuthorityServiceCredential, webconsole.AuthenticatorServiceExchanger(nil), nil)
+		interactiveSessions = webconsole.NewClient(baseURL, webconsole.NewServicePrincipalHTTPClient(serviceTokens))
 		log.Printf("interactive-runner: web-console session controller wired (base=%s)", baseURL)
 	} else {
 		log.Printf("interactive-runner: web-console API base unresolved; interactive runs disabled")
@@ -237,6 +240,7 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 		orchestration.WithRunStateRootResolver(runStateResolver), orchestration.WithArtifacts(artifactCollector), orchestration.WithReceiptSummaryReader(receiptReader), orchestration.WithFindings(repos.Findings), orchestration.WithInvestigationLifecycleRepository(repos.Investigations), orchestration.WithInvestigationLearningRecorder(investigationlearning.NewClient()), orchestration.WithReceiptEvidenceStore(repos.ReceiptEvidence), orchestration.WithInvestigationLedgerStore(repos.InvestigationLedger), orchestration.WithInvocationReadModel(repos.InvocationReadModel), orchestration.WithDurabilityBoundary(repos.DurabilityBoundary),
 		orchestration.WithOwnerIdentity(ownerIdentity),
 		orchestration.WithAuthorizations(database.NewAuthorizationRepository(db)),
+		orchestration.WithStandingGrants(database.NewStandingGrantRepository(db)),
 		orchestration.WithRuntimeOwnerIdentity(runtimeOwnerIdentity),
 		// Weighted-token caps (DL-8) stay off unless AGENT_MANAGER_TOKEN_CAP_MODE
 		// selects report or enforce.
@@ -245,9 +249,13 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 	if interactiveSessions != nil {
 		opts = append(opts, orchestration.WithInteractiveSessions(interactiveSessions))
 	}
-	// Resolve the web-console UI base for review deep links on any manualReview
-	// run, not only interactive ones (the needs_review notification links here).
-	opts = append(opts, orchestration.WithWebConsoleUIBase(webconsole.ResolveUIBaseURL()))
+	// Pin the web-console UI base only when an operator fixed one via the
+	// environment. Otherwise leave it unset so the orchestrator resolves a
+	// request-correct, tunnel-aware URL per link (a localhost port here would
+	// strand the review/outcome notifications on a phone).
+	if uiBaseOverride := webconsole.ResolveUIBaseOverride(); uiBaseOverride != "" {
+		opts = append(opts, orchestration.WithWebConsoleUIBase(uiBaseOverride))
+	}
 	if receiptsClient.Enabled() {
 		// Run approvals (needs_review) publish *.decision_requested.v1 here so
 		// notification-hub alerts the operator with an Approve/Reject ask.

@@ -12,7 +12,7 @@ service RecipeService {
 }
 message Recipe { string id=1; int64 revision=2; string name=3; string notes=4; string source_url=5; string source_type=6; string original_text=7; string status=8; google.protobuf.Timestamp created_at=9; google.protobuf.Timestamp updated_at=10; repeated RecipeMethod methods=11; repeated string groups=12; repeated string required_appliances=13; map<string,string> allergen_evidence=14; string canonical_yield=15; string serving_unit=16; repeated RecipeIngredient ingredients=17; }
 message RecipeIngredient { string id=1; string name=2; string amount=3; string unit=4; bool discrete=5; string preparation=6; }
-message RecipeMethod { string id=1; string name=2; repeated RecipeStep steps=3; }
+message RecipeMethod { string id=1; string name=2; repeated RecipeStep steps=3; string preparation_mode=4; repeated string required_appliances=5; repeated string required_cookware=6; repeated string required_tools=7; repeated string required_device_functions=8; }
 message RecipeStep { string id=1; string instruction=2; repeated string depends_on=3; repeated string inputs=4; repeated string outputs=5; repeated string equipment=6; repeated string settings=7; }
 message ListRecipesRequest { string workspace_id=1; }
 message ListRecipesResponse { repeated Recipe recipes=1; }

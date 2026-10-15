@@ -20,6 +20,7 @@ type Dependencies struct {
 	Settings         CommandFunc
 	Maintenance      CommandFunc
 	Storage          CommandFunc
+	StandingGrants   CommandFunc
 	Ops              CommandFunc
 	Health           CommandFunc
 	Events           CommandFunc

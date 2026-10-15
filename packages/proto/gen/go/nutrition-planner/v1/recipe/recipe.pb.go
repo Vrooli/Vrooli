@@ -279,12 +279,17 @@ func (x *RecipeIngredient) GetPreparation() string {
 }
 
 type RecipeMethod struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Steps         []*RecipeStep          `protobuf:"bytes,3,rep,name=steps,proto3" json:"steps,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                   protoimpl.MessageState `protogen:"open.v1"`
+	Id                      string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name                    string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Steps                   []*RecipeStep          `protobuf:"bytes,3,rep,name=steps,proto3" json:"steps,omitempty"`
+	PreparationMode         string                 `protobuf:"bytes,4,opt,name=preparation_mode,json=preparationMode,proto3" json:"preparation_mode,omitempty"`
+	RequiredAppliances      []string               `protobuf:"bytes,5,rep,name=required_appliances,json=requiredAppliances,proto3" json:"required_appliances,omitempty"`
+	RequiredCookware        []string               `protobuf:"bytes,6,rep,name=required_cookware,json=requiredCookware,proto3" json:"required_cookware,omitempty"`
+	RequiredTools           []string               `protobuf:"bytes,7,rep,name=required_tools,json=requiredTools,proto3" json:"required_tools,omitempty"`
+	RequiredDeviceFunctions []string               `protobuf:"bytes,8,rep,name=required_device_functions,json=requiredDeviceFunctions,proto3" json:"required_device_functions,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *RecipeMethod) Reset() {
@@ -334,6 +339,41 @@ func (x *RecipeMethod) GetName() string {
 func (x *RecipeMethod) GetSteps() []*RecipeStep {
 	if x != nil {
 		return x.Steps
+	}
+	return nil
+}
+
+func (x *RecipeMethod) GetPreparationMode() string {
+	if x != nil {
+		return x.PreparationMode
+	}
+	return ""
+}
+
+func (x *RecipeMethod) GetRequiredAppliances() []string {
+	if x != nil {
+		return x.RequiredAppliances
+	}
+	return nil
+}
+
+func (x *RecipeMethod) GetRequiredCookware() []string {
+	if x != nil {
+		return x.RequiredCookware
+	}
+	return nil
+}
+
+func (x *RecipeMethod) GetRequiredTools() []string {
+	if x != nil {
+		return x.RequiredTools
+	}
+	return nil
+}
+
+func (x *RecipeMethod) GetRequiredDeviceFunctions() []string {
+	if x != nil {
+		return x.RequiredDeviceFunctions
 	}
 	return nil
 }
@@ -1155,11 +1195,16 @@ const file_nutrition_planner_v1_recipe_recipe_proto_rawDesc = "" +
 	"\x06amount\x18\x03 \x01(\tR\x06amount\x12\x12\n" +
 	"\x04unit\x18\x04 \x01(\tR\x04unit\x12\x1a\n" +
 	"\bdiscrete\x18\x05 \x01(\bR\bdiscrete\x12 \n" +
-	"\vpreparation\x18\x06 \x01(\tR\vpreparation\"x\n" +
+	"\vpreparation\x18\x06 \x01(\tR\vpreparation\"\xe4\x02\n" +
 	"\fRecipeMethod\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12D\n" +
-	"\x05steps\x18\x03 \x03(\v2..vrooli.nutrition_planner.v1.recipe.RecipeStepR\x05steps\"\xc9\x01\n" +
+	"\x05steps\x18\x03 \x03(\v2..vrooli.nutrition_planner.v1.recipe.RecipeStepR\x05steps\x12)\n" +
+	"\x10preparation_mode\x18\x04 \x01(\tR\x0fpreparationMode\x12/\n" +
+	"\x13required_appliances\x18\x05 \x03(\tR\x12requiredAppliances\x12+\n" +
+	"\x11required_cookware\x18\x06 \x03(\tR\x10requiredCookware\x12%\n" +
+	"\x0erequired_tools\x18\a \x03(\tR\rrequiredTools\x12:\n" +
+	"\x19required_device_functions\x18\b \x03(\tR\x17requiredDeviceFunctions\"\xc9\x01\n" +
 	"\n" +
 	"RecipeStep\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12 \n" +

@@ -11,31 +11,33 @@ import (
 
 // HeartbeatConfigResponse is the API response for a heartbeat configuration
 type HeartbeatConfigResponse struct {
-	FiniteLeader            *teamconfig.FiniteLeader  `json:"finiteLeader,omitempty"`
-	FiniteLeaderState       *store.FiniteLeaderState  `json:"finiteLeaderState,omitempty"`
-	FiniteLeaderError       string                    `json:"finiteLeaderError,omitempty"`
-	WakeAdmission           *teamconfig.WakeAdmission `json:"wakeAdmission,omitempty"`
-	TeamID                  string                    `json:"teamId"`
-	AgentID                 string                    `json:"agentId"`
-	Enabled                 bool                      `json:"enabled"`
-	TeamEnabled             bool                      `json:"teamEnabled"`
-	EffectiveState          string                    `json:"effectiveState"`
-	EffectiveReason         string                    `json:"effectiveReason,omitempty"`
-	ControlState            string                    `json:"controlState,omitempty"`
-	SchedulerState          *SchedulerState           `json:"schedulerState,omitempty"`
-	SchedulerRegistered     bool                      `json:"schedulerRegistered"`
-	Scheduled               bool                      `json:"scheduled"`
-	Schedule                string                    `json:"schedule"`
-	ProfileKey              string                    `json:"profileKey,omitempty"`
-	TimeoutSeconds          int                       `json:"timeoutSeconds,omitempty"`
-	ConsecutiveFailures     int                       `json:"consecutiveFailures"`
-	LifecycleState          string                    `json:"lifecycleState"`
-	LastExecution           *HeartbeatExecResultDTO   `json:"lastExecution,omitempty"`
-	LastSuccessfulExecution *HeartbeatExecResultDTO   `json:"lastSuccessfulExecution,omitempty"`
-	NextExecution           string                    `json:"nextExecution,omitempty"`
-	NextExecutions          []string                  `json:"nextExecutions,omitempty"`
-	CreatedAt               string                    `json:"createdAt"`
-	UpdatedAt               string                    `json:"updatedAt"`
+	CreationProof           *store.TeamCreationProof           `json:"creationProof,omitempty"`
+	PreparationAmendments   []store.FinitePreparationAmendment `json:"preparationAmendments,omitempty"`
+	FiniteLeader            *teamconfig.FiniteLeader           `json:"finiteLeader,omitempty"`
+	FiniteLeaderState       *store.FiniteLeaderState           `json:"finiteLeaderState,omitempty"`
+	FiniteLeaderError       string                             `json:"finiteLeaderError,omitempty"`
+	WakeAdmission           *teamconfig.WakeAdmission          `json:"wakeAdmission,omitempty"`
+	TeamID                  string                             `json:"teamId"`
+	AgentID                 string                             `json:"agentId"`
+	Enabled                 bool                               `json:"enabled"`
+	TeamEnabled             bool                               `json:"teamEnabled"`
+	EffectiveState          string                             `json:"effectiveState"`
+	EffectiveReason         string                             `json:"effectiveReason,omitempty"`
+	ControlState            string                             `json:"controlState,omitempty"`
+	SchedulerState          *SchedulerState                    `json:"schedulerState,omitempty"`
+	SchedulerRegistered     bool                               `json:"schedulerRegistered"`
+	Scheduled               bool                               `json:"scheduled"`
+	Schedule                string                             `json:"schedule"`
+	ProfileKey              string                             `json:"profileKey,omitempty"`
+	TimeoutSeconds          int                                `json:"timeoutSeconds,omitempty"`
+	ConsecutiveFailures     int                                `json:"consecutiveFailures"`
+	LifecycleState          string                             `json:"lifecycleState"`
+	LastExecution           *HeartbeatExecResultDTO            `json:"lastExecution,omitempty"`
+	LastSuccessfulExecution *HeartbeatExecResultDTO            `json:"lastSuccessfulExecution,omitempty"`
+	NextExecution           string                             `json:"nextExecution,omitempty"`
+	NextExecutions          []string                           `json:"nextExecutions,omitempty"`
+	CreatedAt               string                             `json:"createdAt"`
+	UpdatedAt               string                             `json:"updatedAt"`
 }
 
 // HeartbeatExecResultDTO represents execution result in API responses
@@ -77,9 +79,11 @@ type UpdateHeartbeatRequest struct {
 // operation. Operation is "complete", "reopen", or "restart". Revision and
 // EvidenceRef are the exact accepted revision and the retained owner evidence.
 type FiniteEffortTransition struct {
-	Operation   string `json:"operation"`
-	Revision    string `json:"revision"`
-	EvidenceRef string `json:"evidenceRef"`
+	ExpectedRevision string                   `json:"expectedRevision,omitempty"`
+	Binding          *teamconfig.FiniteLeader `json:"binding,omitempty"`
+	Operation        string                   `json:"operation"`
+	Revision         string                   `json:"revision"`
+	EvidenceRef      string                   `json:"evidenceRef"`
 }
 
 // TriggerHeartbeatRequest is the request body for manually triggering a heartbeat
