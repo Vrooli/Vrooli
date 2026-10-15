@@ -285,7 +285,6 @@ function FileListImpl({
   onIgnoreFile,
   onStageAll,
   onUnstageAll,
-  isStaging,
   pendingPaths,
   isDiscarding,
   isIgnoring,

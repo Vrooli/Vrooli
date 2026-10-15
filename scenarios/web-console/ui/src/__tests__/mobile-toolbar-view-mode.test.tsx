@@ -1,6 +1,6 @@
 import { renderWithProviders as render } from "../test-utils";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent, act } from "@testing-library/react";
 import MobileToolbar from "../components/MobileToolbar";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { useMessagesViewStore } from "../stores/useMessagesViewStore";
@@ -46,6 +46,21 @@ describe("MobileToolbar viewMode", () => {
     expect(screen.queryByTestId("toolbar-mod-alt")).toBeNull();
     expect(screen.queryByTestId("toolbar-mod-shift")).toBeNull();
     expect(screen.queryByTestId(/toolbar-key-/)).toBeNull();
+  });
+
+  it("tightens keyboard-open gutters while preserving key sizes and restoring closed spacing", () => {
+    useWorkspaceStore.setState({ keyboardOpen: false });
+    render(<MobileToolbar {...baseProps} />);
+    const keys = screen.getByTestId("toolbar-keys-area");
+    const key = screen.getByTestId("toolbar-key-arrow-down");
+    const initialHeight = key.style.height;
+    const initialPadding = parseFloat(keys.style.padding);
+    act(() => { useWorkspaceStore.setState({ keyboardOpen: true }); });
+    expect(screen.getByTestId("mobile-toolbar")).toHaveAttribute("data-keyboard-open", "true");
+    expect(parseFloat(keys.style.padding)).toBeLessThan(initialPadding);
+    expect(key.style.height).toBe(initialHeight);
+    act(() => { useWorkspaceStore.setState({ keyboardOpen: false }); });
+    expect(parseFloat(keys.style.padding)).toBe(initialPadding);
   });
 
   it("keeps input, send, image upload, and mic in messages mode", () => {

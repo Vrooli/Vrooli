@@ -1,6 +1,8 @@
 import { defineConfig, type UserConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import stringsCodegen from "./scripts/vite-plugin-strings-codegen.mjs";
+import { readFileSync } from "node:fs";
+import launchProfiles from "./src/launch-profiles.json";
 
 // Mode-aware config. A regular `vite build` ships the lean prod artifact;
 // `vite build --mode profile` produces the perf-build channel used for
@@ -23,7 +25,22 @@ export default defineConfig(({ mode }): UserConfig => {
     // INTEROP-CRITICAL: base must be './' for tunnel/proxy embedding compatibility.
     // Changing this breaks parent-scenario iframe routing.
     base: './',
-    plugins: [react(), stringsCodegen()],
+    plugins: [react(), stringsCodegen(), {
+      name: "aquila-launch-shell",
+      transformIndexHtml: {
+        order: "pre",
+        handler: (html) => html
+          .replace("<!-- aquila:launch-styles -->", `<style>${readFileSync(new URL("./src/launch-screen.css", import.meta.url), "utf8")}</style>`)
+          .replace("<!-- aquila:launch-identity -->", readFileSync(new URL("./src/launch-screen.html", import.meta.url), "utf8"))
+          .replace("<!-- aquila:startup-images -->", launchProfiles.flatMap(({ width, height, scale }) =>
+            ["portrait", "landscape"].map((orientation) => {
+              const w = orientation === "portrait" ? width : height;
+              const h = orientation === "portrait" ? height : width;
+              return `<link rel="apple-touch-startup-image" href="./public/launch/${String(w * scale)}x${String(h * scale)}.png" media="(device-width: ${String(width)}px) and (device-height: ${String(height)}px) and (-webkit-device-pixel-ratio: ${String(scale)}) and (orientation: ${orientation})">`;
+            }),
+          ).join("\n")),
+      },
+    }],
     resolve: isProfile
       ? {
           alias: {

@@ -135,7 +135,7 @@ func (s *Server) setupRoutes() {
 	if s.sweeper != nil {
 		s.sweeper.SetArchiveHandler(sessionAdapter.Archive)
 	}
-	sessionsH.Module(sessionAdapter, nil).Mount(s.router)
+	sessionsH.Module(sessionAdapter, nil, mintSessionDelegation).Mount(s.router)
 	s.registerOwnerCleanupRoutes()
 	s.mountTargetCatalog()
 	s.mountMachines()

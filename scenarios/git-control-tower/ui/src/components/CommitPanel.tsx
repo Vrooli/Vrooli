@@ -290,7 +290,7 @@ export function CommitPanel({
 
   return (
     <Card
-      className={`flex flex-col min-w-0 ${fillHeight ? "h-full" : "h-auto"}`}
+      className={`flex flex-col min-w-0 ${fillHeight ? "h-full" : "h-auto max-h-full"}`}
       data-testid="commit-panel"
     >
       <CardHeader className="py-3 min-w-0">

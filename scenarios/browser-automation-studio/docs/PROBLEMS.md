@@ -100,3 +100,32 @@ Qualification status comes from the 24 preservation journeys in `requirements/08
 | WH 2026-07-27 | Workflow Health artifacts | Failed Workflow Health runs keep only `latest.json` and `timeline.json`, with no screenshot, console log or network trace (see run 2d7cec0e…). | Failed-run artifacts include browser evidence. |
 | AGENT-REUSE 2026-09-04 | Requirements/provider evidence | The AGENT-REUSE requirement stays in_progress. Provider discrepancies are in knw-1788561851141947801 and knw-1788561878575592107. | Provider evidence is earned without lowering gates. |
 | Storage audit 2026-09-05 | Persistence domains | Storage validation still reports direct-writer, permission-proof, cross-domain FK and uncovered-database findings (audit archived with this register). | The findings are fixed or classified. |
+
+## Mobile safe-area capture repair — 2026-10-15
+
+The GCT bottom-edge investigation reproduced accepted CDP inset overrides
+vanishing on navigation after their CDP owner detached. Captures at 390x844
+silently reported env()=0 despite source requesting 59px top/34px bottom.
+Keep a page-owned CDP session until close, apply after session initialization,
+and reapply at the awaited navigation boundary before captures/assertions.
+Qualification must inspect actual env() values, not a successful CDP response.
+
+Real Chromium tests cover navigation/reload and the production SessionManager
+path; context/navigation targeted tests: 47 PASS. BAS shadow execution
+6f99457c-6cf7-4992-ab0e-381db5e66475 completed 49 GCT observer steps with observed
+59/34px insets and a simulated installed viewport resolving zero bottom inset.
+Live BAS is frozen by the pre-existing bas-goal engagement; its shadow runs the
+repair. This work did not promote or abandon that engagement. These captures
+cannot certify the native iPhone home-indicator region outside the web viewport.
+
+
+2026-10-15 installed-client follow-up: the earlier synthetic 390×903 screen
+profile was not sufficient qualification. Actual Rigel phone observations showed
+393×852 screen, innerHeight/dvh 793 and CSS 100lvh 852. The maintained GCT mobile
+case now allocates 393×852 and replays that specific shortened-report shape;
+execution a89d764a-f725-4e3f-8436-2dbf9c2bb84a completed 50 steps. Actual phone
+geometry and operator confirmation are recorded in GCT's mobile oracle. Browser
+viewport artifacts explicitly remain distinct from physical-screen capture;
+UI Health can fail a native-screen requirement instead of silently accepting
+emulation. GCT's automatic UI Health reports now provide live client geometry
+without screenshot uploads.

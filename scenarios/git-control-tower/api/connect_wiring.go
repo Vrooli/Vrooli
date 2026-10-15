@@ -151,7 +151,10 @@ func (s *Server) mountConnectHandlers() {
 	// handler-managed human intent (see policygate.HandlerManagedIntentProcedures).
 	proposalsPath, proposalsHandler := proposalsconnect.NewProposalServiceHandler(proposalConnectServer{server: s}, policyOpt)
 
+	browserObservationPath, browserObservation := browserObservationHandler()
+
 	connectx.RegisterServices(s.router,
+		connectx.ServiceMount{Path: browserObservationPath, Handler: browserObservation},
 		connectx.ServiceMount{Path: wtPath, Handler: wtHandler},
 		connectx.ServiceMount{Path: repoPath, Handler: repoHandler},
 		connectx.ServiceMount{Path: branchPath, Handler: branchHandler},

@@ -483,6 +483,17 @@ func (sm *Manager) createWithRemote(ctx context.Context, shell string, cols, row
 	if launchDir == "" && remote == nil {
 		launchDir = config.ResolveWorkingDir()
 	}
+	// A create-scoped pre-spawn hook runs here, with the session id now known
+	// and BEFORE the PTY environment is assembled below, so a side effect it
+	// records by session id (e.g. a minted human-owner delegation) is visible to
+	// envForSession on the very next line. Local PTYs only: a remote session's
+	// environment is owned by the node agent, not this builder. Best-effort — it
+	// never fails or blocks the launch.
+	if remote == nil {
+		if hook, ok := preSpawnHookFromContext(ctx); ok {
+			hook(sessionID)
+		}
+	}
 	spec := pty.LaunchSpec{
 		SessionID:     sessionID,
 		Shell:         shell,

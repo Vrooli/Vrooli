@@ -17,6 +17,27 @@ PTY or tmux delivery primitive.
 
 ## System Layers
 
+### Browser launch and viewport ownership
+
+The visual concept for launch is continuity: Aquila's existing icon and name
+sit on the same slate canvas from the installed launch image through the first
+interactive workspace. `ui/src/launch-screen.html` and `launch-screen.css` own
+this small composition. Vite inlines them into the initial HTML; `LaunchScreen`
+uses the same trusted markup during the health query, lazy workspace import,
+and session hydration. There is no minimum display time or simulated progress.
+The progress indicator stops animating for reduced-motion users. The OS launch
+images under `ui/public/public/launch/` render the same composition and existing
+icon in the dimensions declared by `ui/src/launch-profiles.json`. Their links
+follow Apple's [startup-image mechanism](https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariWebContent/ConfiguringWebApplications/ConfiguringWebApplications.html).
+
+`App` owns `useAppViewport` before any asynchronous loading boundary. It sizes
+html, body, React root, and workspace to one measured frame and publishes
+keyboard state to the workspace store. The shared library hook owns keyboard
+detection, including touch keyboards that contract both layout and visual
+viewports; Web Console does not infer a second keyboard state from focus.
+Keyboard-open toolbar layout reduces outer gutters, keeps key sizes intact,
+and removes the home-indicator padding because that edge meets the keyboard.
+
 ```
 ┌─────────────────────────────────────────────────┐
 │  Browser UI (Vite + React + xterm.js)           │

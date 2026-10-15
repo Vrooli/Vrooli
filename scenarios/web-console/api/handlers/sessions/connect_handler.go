@@ -6,11 +6,12 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/vrooli/api-core/identity"
-	"google.golang.org/protobuf/proto"
 	"log"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/identity"
+	"google.golang.org/protobuf/proto"
 
 	"connectrpc.com/connect"
 
@@ -19,7 +20,11 @@ import (
 	"web-console/internal/sessionstore"
 )
 
-// Deps wires the seams the Connect sessions handler needs.
+// Deps wires the seams the Connect sessions handler needs. The human-owner
+// delegation mint is no longer invoked here: it is owned by the Adapter, which
+// runs it through a create-scoped pre-spawn hook so the delegation is stored
+// BEFORE the session's PTY environment is built. The handler only forwards the
+// operator's candidate credentials down via CreateInput.HumanOwnerCredentials.
 type Deps struct {
 	Service Service
 	Logger  *log.Logger
@@ -78,6 +83,15 @@ var (
 
 const idempotencyHeader = "X-Idempotency-Key"
 
+// humanOwnerSubjectHeader carries the verified human a trusted service caller
+// (agent-manager) is acting for when it opens or lists sessions on the
+// operator's behalf (a tunnel-UI spawn). It is a creator-identity LABEL only:
+// web-console attributes the session's stable-create owner to it but derives NO
+// authority from it — the caller's own verified identity still gates the call.
+// agent-manager sets it ONLY from a verified-independent-human spawn context.
+// Must match agent-manager's webconsole.HumanOwnerSubjectHeader.
+const humanOwnerSubjectHeader = "X-Human-Owner-Subject"
+
 func (h *connectHandler) Create(ctx context.Context, req *connect.Request[sessionsv1.CreateRequest]) (*connect.Response[sessionsv1.CreateResponse], error) {
 	raw, err := proto.MarshalOptions{Deterministic: true}.Marshal(req.Msg)
 	if err != nil {
@@ -103,7 +117,27 @@ func (h *connectHandler) Create(ctx context.Context, req *connect.Request[sessio
 		LaunchMode:           req.Msg.GetLaunchMode(),
 		LaunchDescriptorJSON: req.Msg.GetLaunchDescriptorJson(),
 		IdempotencyKey:       req.Header().Get(idempotencyHeader),
+		HumanOwnerSubject:    strings.TrimSpace(req.Header().Get(humanOwnerSubjectHeader)),
 	}
+	// Carry the operator's candidate human credentials down into the create flow
+	// so a session-scoped human-owner delegation can be minted BEFORE the PTY
+	// environment is built (see Adapter.Create). The raw credentials authenticate
+	// the mint at scenario-authenticator only; they are never persisted or placed
+	// in the agent env. We pass both the Authorization bearer and the Cf-Access
+	// assertion because for the tunnel operator the Cf-Access one is the human
+	// proof while the bearer may be a non-human service token; the authenticator
+	// refuses any non-human credential, so trying both is safe.
+	if authz := strings.TrimSpace(req.Header().Get("Authorization")); authz != "" {
+		in.HumanOwnerCredentials = append(in.HumanOwnerCredentials, authz)
+	}
+	if cfAccess := strings.TrimSpace(req.Header().Get("Cf-Access-Jwt-Assertion")); cfAccess != "" {
+		in.HumanOwnerCredentials = append(in.HumanOwnerCredentials, cfAccess)
+	}
+	pKind, pOK := "none", false
+	if p, ok := identity.PrincipalFromContext(ctx); ok {
+		pOK, pKind = true, string(p.Kind)
+	}
+	h.deps.Logger.Printf("[phase5-diag] session-delegation connect principalOK=%t principalKind=%s credentialCandidates=%d", pOK, pKind, len(in.HumanOwnerCredentials))
 	if req.Msg.GetHasPolicy() && req.Msg.GetPolicy() != nil {
 		in.HasPolicy = true
 		in.Policy = Policy{
@@ -115,10 +149,11 @@ func (h *connectHandler) Create(ctx context.Context, req *connect.Request[sessio
 	if err != nil {
 		return nil, h.classify(err, "sessions.Create")
 	}
+	h.deps.Logger.Printf("[phase5-diag] session-delegation create returned session=%s", sess.ID)
 	return connect.NewResponse(&sessionsv1.CreateResponse{Session: sessionToProto(sess)}), nil
 }
 
-func (h *connectHandler) List(ctx context.Context, _ *connect.Request[sessionsv1.ListRequest]) (*connect.Response[sessionsv1.ListResponse], error) {
+func (h *connectHandler) List(ctx context.Context, req *connect.Request[sessionsv1.ListRequest]) (*connect.Response[sessionsv1.ListResponse], error) {
 	out, err := h.deps.Service.List(ctx)
 	if err != nil {
 		return nil, h.classify(err, "sessions.List")
@@ -128,6 +163,20 @@ func (h *connectHandler) List(ctx context.Context, _ *connect.Request[sessionsv1
 	creatorOwner := ""
 	if principal, ok := identity.PrincipalFromContext(ctx); ok {
 		creatorOwner = principal.OwnerSubject()
+		// A trusted, VERIFIED service caller acting for a verified human (a
+		// tunnel-UI spawn) carries that human on the header; the stable-create
+		// owner is then the human — the operator the spawned session is attributed
+		// to — not the service caller. This only RELABELS a request the caller's
+		// own verified identity already authorized (creatorOwner was non-empty): it
+		// is a creator-identity LABEL, never authority. It is deliberately inside
+		// the verified-principal branch so an anonymous caller that sets the header
+		// gets nothing — the header can never conjure identity. Empty header leaves
+		// the caller-derived owner unchanged (the prior non-human-spawn behaviour).
+		if creatorOwner != "" {
+			if human := strings.TrimSpace(req.Header().Get(humanOwnerSubjectHeader)); human != "" {
+				creatorOwner = human
+			}
+		}
 	}
 	if owner, ok := h.deps.Service.(interface{ SupportsStableCreateIdentity() bool }); ok {
 		stable = owner.SupportsStableCreateIdentity()

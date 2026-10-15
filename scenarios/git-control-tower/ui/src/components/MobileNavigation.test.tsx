@@ -1,4 +1,4 @@
-import { fireEvent, screen, within } from "@testing-library/react";
+import { fireEvent, screen, within, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { MobileHeader } from "./MobileHeader";
 import { MobileNav } from "./MobileNav";
@@ -118,7 +118,7 @@ describe("MobileNav", () => {
 });
 
 describe("MobileHeader", () => {
-  it("routes top-level actions and exposes repository details in the menu sheet", () => {
+  it("routes top-level actions and exposes repository details in the menu sheet", async () => {
     const onRefresh = vi.fn();
     const onOpenSettings = vi.fn();
     const onOpenReview = vi.fn();
@@ -161,7 +161,7 @@ describe("MobileHeader", () => {
 
     fireEvent.click(within(dialog).getByRole("button", { name: /Refresh status/i }));
     expect(onRefresh).toHaveBeenCalledTimes(1);
-    expect(screen.queryByRole("dialog", { name: "Settings & Info" })).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Settings & Info" })).not.toBeInTheDocument());
 
     fireEvent.click(screen.getByTestId("mobile-menu-button"));
     fireEvent.click(screen.getByRole("button", { name: /Settings/i }));

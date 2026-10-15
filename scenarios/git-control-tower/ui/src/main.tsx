@@ -10,6 +10,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { initIframeBridgeChild } from "@vrooli/iframe-bridge";
 import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
 import App from "./App";
+import { startBrowserLayoutObservations } from "./lib/browserLayoutObservations";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { onProfilerRender } from "./lib/profiler";
 import "./design-tokens.css";
@@ -67,3 +68,6 @@ ReactDOM.createRoot(rootElement).render(
     </LibraryStringsProvider>
     // vrooli:library-strings-provider end
 );
+
+const stopLayoutObservations = startBrowserLayoutObservations();
+if (import.meta.hot) import.meta.hot.dispose(stopLayoutObservations);

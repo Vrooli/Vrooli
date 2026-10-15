@@ -319,3 +319,36 @@ Follow-up verification (2026-10-08):
   real proposals were committed or changed. No Plan Manager operations were used.
 
 - Follow-up work journal receipt: `3b8a385d-a446-4ba6-ab77-009c5c97b27c`. Final lifecycle restart healthy at 2026-10-08 14:31 EDT (API 18710 / UI 21400).
+
+## Mobile safe-area repair acceptance — 2026-10-15
+
+The operator reports excessive space below bottom navigation, clipped icons,
+bottom canvas color disagreement, and drawers failing to take ownership of
+the home-indicator area. Web Console is the reference for viewport ownership.
+This is a bounded repair, not a workspace redesign. Existing unrelated working
+tree changes must be retained. Scope includes GCT and the shared library and
+BAS/ui-health evidence owners where the defect crosses those boundaries.
+
+- The shell fills its allocated viewport. Its header, bounded content scroller,
+  and nonshrinking navigation are structural rows. Navigation controls remain
+  entirely above the effective bottom inset, reserved exactly once.
+- Bottom clearance accounts for the actual overlap of the reported app frame
+  with the native safe area. It must not assume every gap equals the status-bar
+  height. Navigation and overlays consume the same viewport contract.
+- The page canvas matches the resting bottom navigation. An open sheet/drawer
+  paints through the bottom edge; closing it restores the resting canvas.
+- Evidence distinguishes a zero-inset browser, an emulated notched viewport,
+  and a physical installed app. Captures must retain actual observed insets,
+  geometry and screenshots together. No emulation is called real iPhone proof.
+- Regression assertions must detect absent insets, clipped controls, duplicate
+  inset spacing, bottom paint disagreement and drawer open/close transitions.
+  A screenshot alone or a nav outer rectangle alone is insufficient.
+
+Work handoff: work until this contract is implemented and its focused regressions
+and relevant Test Genie phases have observed results. Use scientific-debugging
+and docs/TESTING.md; checkpoint in docs/internal/PROBLEMS.md. Fix understood
+blocking owner defects within this boundary; retain unrelated issues for triage.
+Blocked means a missing decision, credential or approval; name it. Keep going
+through friction, stepping back when an experiment stops providing information.
+Before handoff, review the boundary twice for correctness and unnecessary code.
+Report changed, verified and unverified behavior without claiming device proof.

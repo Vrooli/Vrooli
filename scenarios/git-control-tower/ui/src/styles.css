@@ -4,25 +4,34 @@
 
 :root {
   color-scheme: dark;
-  background-color: #0f172a;
   --gct-chrome-color: #0f172a;
   --gct-app-color: #020617;
+  /* Canvas outside the reported viewport continues the bottom navigation. */
+  background-color: var(--gct-app-color);
 }
 
 html,
 body,
 #root {
-  height: 100%;
-  min-height: 100%;
+  height: var(--gct-app-height, 100%);
+  min-height: 0;
+}
+
+/* The app owns all scrolling internally (the active panel scrolls, not the page).
+   Locking the page — as web-console does — stops iOS rubber-band/overscroll from
+   dragging the whole shell (and the bottom nav) out of position. */
+html,
+body {
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 body {
+  position: fixed;
+  inset: 0;
   font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   margin: 0;
-  /* The host may paint the native status area outside #root. Keep the page
-     background on the chrome surface so translucent platform bars agree with
-     the RCL theme before React has mounted. */
-  background-color: var(--gct-chrome-color);
+  background-color: var(--gct-app-color);
 }
 
 .gct-mobile-chrome {
@@ -34,13 +43,9 @@ body {
   background: var(--rcl-status-fill, var(--gct-chrome-color));
 }
 
-/* The mobile app is often embedded in a host iframe. Percentage sizing keeps
-   ownership with the host's allocated frame rather than guessing at browser
-   viewport units. Header/content/nav are structural rows; only the active
-   panel is allowed to own scrolling. */
+/* The viewport hook measures this frame; the active panel owns scrolling. */
 .gct-mobile-shell {
-  min-height: 100%;
-  height: 100%;
+  height: var(--gct-app-height, 100dvh);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -54,13 +59,20 @@ body {
   background: var(--gct-app-color);
 }
 
-/* The bottom tab bar sits on the app canvas, not a raised surface. Match its
-   background to the content so the safe-area band below the tabs blends with
-   the shell instead of reading as a lighter blue block. The RCL top hairline
-   still separates it from the content above. (Attribute+class beats the RCL
+/* The bottom tab bar sits on the app canvas. Match its background to the content
+   so the safe-area band below the tabs blends with the shell. The RCL top hairline
+   separates it from the content above. (Attribute+class beats the RCL
    [data-rcl-bottom-nav] background rule.) */
 [data-rcl-bottom-nav].gct-mobile-tabbar {
   background: var(--gct-app-color);
+  padding-block-start: 2px;
+}
+
+/* Tighten the tab row to a native-height bar (keeps a 44px tap target) so the
+   bar is not ~20px taller than it needs to be above the home-indicator inset. */
+.gct-mobile-tabbar [data-rcl-bottom-nav-item] {
+  min-block-size: 44px;
+  padding-block: 2px;
 }
 
 @media (max-width: 767px) {
@@ -209,15 +221,6 @@ pre {
 
 .duration-300 {
   animation-duration: 300ms;
-}
-
-/* Safe area padding for mobile */
-.pb-safe {
-  padding-bottom: max(24px, env(safe-area-inset-bottom, 0px));
-}
-
-.pt-safe {
-  padding-top: env(safe-area-inset-top, 0px);
 }
 
 /* Touch-friendly minimum sizes */

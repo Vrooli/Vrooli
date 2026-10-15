@@ -5,6 +5,7 @@ const viewportState = vi.hoisted(() => ({
   current: {
     layoutWidth: 390,
     layoutHeight: 844,
+    frameHeight: undefined as number | undefined,
     visibleWidth: 390,
     visibleHeight: 760,
     offsetLeft: 0,
@@ -29,6 +30,7 @@ describe("useAppViewport", () => {
     viewportState.current = {
       layoutWidth: 390,
       layoutHeight: 844,
+      frameHeight: undefined,
       visibleWidth: 390,
       visibleHeight: 760,
       offsetLeft: 0,
@@ -46,7 +48,7 @@ describe("useAppViewport", () => {
   });
 
   it("projects the snapshot into only the shell's variables; the library owns its own", () => {
-    renderHook(() => useAppViewport());
+    renderHook(() => { useAppViewport(); });
     expect(cssVar("--wc-app-height")).toBe("844px");
     expect(cssVar("--wc-kb-height")).toBe("0px");
     expect(cssVar("--wc-safe-bottom")).toBe("env(safe-area-inset-bottom)");
@@ -58,7 +60,7 @@ describe("useAppViewport", () => {
 
   it("projects established keyboard state and notifies followers once per transition", () => {
     const onKeyboardChange = vi.fn();
-    const { rerender } = renderHook(() => useAppViewport({ onKeyboardChange }));
+    const { rerender } = renderHook(() => { useAppViewport({ onKeyboardChange }); });
     expect(onKeyboardChange).toHaveBeenLastCalledWith(false);
 
     viewportState.current = { ...viewportState.current, visibleHeight: 520, keyboardInset: 324, keyboardVisible: true, reachesScreenBottom: false };
@@ -80,19 +82,51 @@ describe("useAppViewport", () => {
       keyboardInset: 0,
       keyboardVisible: false,
     };
-    renderHook(() => useAppViewport());
+    renderHook(() => { useAppViewport(); });
     expect(cssVar("--wc-app-height")).toBe("844px");
+  });
+
+  it("uses the measured installed-app frame and restores it after keyboard dismissal", () => {
+    viewportState.current = {
+      ...viewportState.current,
+      layoutHeight: 793,
+      frameHeight: 852,
+      visibleHeight: 793,
+    };
+    const { rerender } = renderHook(() => { useAppViewport(); });
+    expect(cssVar("--wc-app-height")).toBe("852px");
+
+    viewportState.current = {
+      ...viewportState.current,
+      visibleHeight: 500,
+      keyboardInset: 293,
+      keyboardVisible: true,
+      reachesScreenBottom: false,
+    };
+    rerender();
+    expect(cssVar("--wc-app-height")).toBe("500px");
+    expect(cssVar("--wc-safe-bottom")).toBe("0px");
+
+    viewportState.current = {
+      ...viewportState.current,
+      keyboardInset: 0,
+      keyboardVisible: false,
+      reachesScreenBottom: true,
+    };
+    rerender();
+    expect(cssVar("--wc-app-height")).toBe("852px");
+    expect(cssVar("--wc-safe-bottom")).toBe("env(safe-area-inset-bottom)");
   });
 
   it("reserves no bottom inset in the shell when the library says the app stops short of the screen's bottom", () => {
     viewportState.current = { ...viewportState.current, visibleHeight: 793, reachesScreenBottom: false };
-    renderHook(() => useAppViewport());
+    renderHook(() => { useAppViewport(); });
     expect(cssVar("--wc-safe-bottom")).toBe("0px");
   });
 
   it("does not scroll for ordinary resize snapshots", () => {
     const scrollTo = vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
-    const { rerender } = renderHook(() => useAppViewport());
+    const { rerender } = renderHook(() => { useAppViewport(); });
     viewportState.current = { ...viewportState.current, visibleHeight: 680 };
     rerender();
     expect(scrollTo).not.toHaveBeenCalled();
@@ -101,13 +135,13 @@ describe("useAppViewport", () => {
   it("corrects a demonstrated visual viewport offset", () => {
     const scrollTo = vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
     viewportState.current = { ...viewportState.current, offsetTop: 24 };
-    renderHook(() => useAppViewport());
+    renderHook(() => { useAppViewport(); });
     expect(scrollTo).toHaveBeenCalledOnce();
     expect(scrollTo).toHaveBeenCalledWith(0, 0);
   });
 
   it("removes its application variables on unmount", () => {
-    const { unmount } = renderHook(() => useAppViewport());
+    const { unmount } = renderHook(() => { useAppViewport(); });
     unmount();
     expect(cssVar("--wc-app-height")).toBeUndefined();
     expect(cssVar("--wc-kb-height")).toBeUndefined();

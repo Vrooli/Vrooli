@@ -351,6 +351,14 @@ vi.mock("../components/ErrorBanner", () => ({
 }));
 
 describe("Workspace", () => {
+  it("keeps the branded launch visible until sessions finish hydrating", () => {
+    hookState.isHydrated = false;
+    render(<Workspace />);
+    expect(screen.getByTestId("app-launch")).toBeInTheDocument();
+    expect(screen.getByText("Aquila")).toBeInTheDocument();
+    expect(screen.queryByTestId("workspace-root")).not.toBeInTheDocument();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     hookState.panes = [];

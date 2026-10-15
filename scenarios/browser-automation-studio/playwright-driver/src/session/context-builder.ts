@@ -1,5 +1,5 @@
 import { mkdir } from 'fs/promises';
-import type { Browser, BrowserContext, Frame, Page } from 'rebrowser-playwright';
+import type { Browser, BrowserContext, CDPSession, Frame, Page } from 'rebrowser-playwright';
 import type { SessionSpec, BehaviorSettings } from '../types';
 import type { Config } from '../config';
 import { logger } from '../utils';
@@ -37,7 +37,8 @@ export { BEHAVIOR_SETTINGS_KEY } from '../browser-profile';
  * phone ever shows — the exact blind spot that let GCT ship a bottom-nav safe-area
  * regression past the mobile-regression gate. Inject representative iPhone insets
  * (Dynamic Island 59px top, home indicator 34px bottom) for mobile viewports so
- * captures and geometry assertions see what the device sees.
+ * captures and geometry assertions exercise nonzero insets. This models CSS
+ * safe-area geometry, not Safari browser chrome or an installed iOS viewport.
  */
 export const MOBILE_SAFE_AREA_INSETS = { top: 59, bottom: 34, left: 0, right: 0 } as const;
 
@@ -50,25 +51,44 @@ export function isMobileViewport(viewport?: { width: number; height: number }): 
  * Apply display safe-area insets to a page for phone-class viewports via the CDP
  * Emulation domain (Playwright has no first-class API). No-op for larger viewports
  * and best-effort: a driver without this CDP command must not fail the capture.
+ * Assertions requiring a notch must measure env() and fail if it is absent.
  */
+const safeAreaSessions = new WeakMap<Page, CDPSession>();
+
 export async function applySafeAreaInsets(
   page: Page,
   viewport?: { width: number; height: number }
 ): Promise<void> {
   if (!isMobileViewport(viewport)) return;
   try {
-    const cdp = await page.context().newCDPSession(page);
+    let cdp = safeAreaSessions.get(page);
+    if (!cdp) {
+      cdp = await page.context().newCDPSession(page);
+      safeAreaSessions.set(page, cdp);
+      const owner = cdp;
+      page.once('close', () => {
+        safeAreaSessions.delete(page);
+        void owner.detach().catch(() => {});
+      });
+    }
     // setSafeAreaInsetsOverride is newer than some protocol typings ship, hence the cast.
     await (cdp as unknown as { send: (m: string, p: unknown) => Promise<unknown> }).send(
       'Emulation.setSafeAreaInsetsOverride',
       { insets: MOBILE_SAFE_AREA_INSETS }
     );
-    await cdp.detach().catch(() => {});
-    logger.debug('Applied mobile safe-area insets', { viewport, insets: MOBILE_SAFE_AREA_INSETS });
-  } catch (error) {
-    logger.warn('Safe-area inset override unavailable; mobile capture will render with zero insets', {
-      error: error instanceof Error ? error.message : String(error),
+    // Detaching leaves the current document inset but drops the override on the
+    // next navigation. Keep its CDP owner alive for the entire page lifetime.
+    logger.info('Configured mobile safe-area emulation', {
+      viewport,
+      insets: MOBILE_SAFE_AREA_INSETS,
     });
+  } catch (error) {
+    logger.warn(
+      'Safe-area inset override unavailable; mobile capture will render with zero insets',
+      {
+        error: error instanceof Error ? error.message : String(error),
+      }
+    );
   }
 }
 

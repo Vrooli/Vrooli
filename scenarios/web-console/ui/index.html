@@ -2,6 +2,8 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <!-- aquila:launch-styles -->
+    <!-- aquila:startup-images -->
     <!-- Viewport directives — tightly coupled with useAppViewport.ts:
          • interactive-widget=resizes-content: browser shrinks the layout viewport
            when the virtual keyboard opens, so visualViewport.height reflects
@@ -55,7 +57,7 @@
 <!-- brand-manager:icons:end -->
 </head>
   <body>
-    <div id="root"></div>
+    <div id="root"><div class="wc-launch" data-wc-launch="true" data-testid="app-launch" role="status" aria-label="Opening Aquila"><!-- aquila:launch-identity --></div></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

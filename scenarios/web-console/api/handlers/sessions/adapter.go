@@ -8,14 +8,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/google/uuid"
-	"github.com/vrooli/api-core/identity"
 	"log"
 	"os"
 	"sort"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/vrooli/api-core/identity"
 
 	"github.com/vrooli/api-core/nodereach"
 	"github.com/vrooli/api-core/scopecatalog"
@@ -95,8 +96,16 @@ type Adapter struct {
 	RemoveAgentHomes    func(sessionID string) error
 	Now                 func() time.Time
 	Remote              RemoteService
-	LifecycleLedger     continuity.Ledger
-	ContinuityCatalog   interface {
+	// DelegationMinter, when set, mints and stores a short-lived, session-scoped
+	// human-owner delegation for a verified-human create. The adapter invokes it
+	// through a create-scoped pre-spawn hook at the moment the session id is
+	// known and BEFORE the PTY environment is built, so the env builder sees the
+	// delegation for the fresh session. rawCredential authenticates the mint at
+	// scenario-authenticator and is never persisted here. Best-effort: it must
+	// never fail or block a create. A nil minter leaves behaviour unchanged.
+	DelegationMinter func(ctx context.Context, sessionID, rawCredential string)
+	LifecycleLedger  continuity.Ledger
+	ContinuityCatalog interface {
 		EnqueueTombstone(context.Context, string) error
 		List(context.Context, string, int) ([]continuity.CatalogRecord, bool, error)
 		ListAll(context.Context, string) ([]continuity.CatalogRecord, error)
@@ -292,13 +301,25 @@ func lifecycleStateForMetadata(meta sessionstore.Metadata) continuity.State {
 // -----------------------------------------------------------------------------
 
 func (a *Adapter) Create(ctx context.Context, in CreateInput) (Session, error) {
+	verifiedCaller := false
 	if principal, ok := identity.PrincipalFromContext(ctx); ok {
 		in.Owner = principal.OwnerSubject()
+		verifiedCaller = in.Owner != ""
 	} else if status, ok := identity.StatusFromContext(ctx); ok {
 		in.Owner = ""
 		if status.FailureClass != "" && status.FailureClass != identity.FailureMissing {
 			return Session{}, fmt.Errorf("verified session owner required: %s: %w", status.FailureClass, ErrFailedPrecondition)
 		}
+	}
+	// A trusted, VERIFIED service caller opening a session for a verified human
+	// (tunnel-UI spawn) carries that human on the header; the stored creator
+	// owner is then the human, not the service caller. This only RELABELS a
+	// request the caller's own verified identity already authorized, so it is
+	// gated on a verified caller — an unverified caller that sets the header gets
+	// nothing. It is a creator-identity LABEL; web-console derives no authority
+	// from it. Empty leaves the caller-derived owner (the prior behaviour).
+	if verifiedCaller && in.HumanOwnerSubject != "" {
+		in.Owner = in.HumanOwnerSubject
 	}
 	fingerprint := createFingerprint(in)
 	if in.RequestFingerprint != "" {
@@ -414,6 +435,36 @@ func (a *Adapter) Create(ctx context.Context, in CreateInput) (Session, error) {
 	// recovery) and a short expiry so a leaked session reaps itself. See
 	// testmode.go.
 	bid, policyPtr := applyTestLeaseShape(ctx, backend.ID(in.Backend), policyPtr)
+
+	// Best-effort human-owner delegation: for a plain-terminal local create with
+	// candidate human credentials, install a create-scoped pre-spawn hook so the
+	// delegation is minted and stored BEFORE the PTY environment is built. This
+	// is the ordering fix — minting after Create returned left the env builder
+	// with nothing, so the launched agent forwarded no delegation. The mint only
+	// talks to scenario-authenticator (never agent-manager) and can never fail
+	// the create. The reserved-creation path (RequestedSessionID) is excluded: it
+	// rejects ExecuteLaunchCommand and is not the human-spawn launcher path.
+	if a.DelegationMinter != nil && in.RequestedSessionID == "" && len(in.HumanOwnerCredentials) > 0 {
+		creds := in.HumanOwnerCredentials
+		minter := a.DelegationMinter
+		logger := a.logger()
+		ctx = session.WithPreSpawnHook(ctx, func(sessionID string) {
+			if sessionID == "" {
+				return
+			}
+			logger.Printf("[phase5-diag] session-delegation pre-spawn mint session=%s credentialCandidates=%d", sessionID, len(creds))
+			// The authority check lives at scenario-authenticator, which mints ONLY
+			// for a verified human and refuses everything else — so we attempt every
+			// candidate credential and let the authenticator decide. The tunnel
+			// operator's human proof is the Cf-Access assertion; the Authorization
+			// bearer may be a non-human service token, so both are tried.
+			for _, cred := range creds {
+				if strings.TrimSpace(cred) != "" {
+					minter(ctx, sessionID, cred)
+				}
+			}
+		})
+	}
 
 	var sess *session.Session
 	var err error

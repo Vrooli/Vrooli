@@ -104,6 +104,14 @@ collapses identical-color ticks (the common case under a busy TUI).
 
 ## Platform notes & limitations
 
+The shared viewport hook owns drawable-frame and keyboard measurements.
+Web Console projects that frame into `--wc-app-height`; `html`, `body`,
+`#root`, and the workspace must all fill it. A fixed body contributes no
+height to an auto-sized document element, so expanding only body/content
+leaves an inconsistent root canvas around both normal chrome and portaled
+drawers. Root overflow locking and frame sizing belong together. Keep safe
+clearance as internal toolbar/drawer padding; tint layers supply color only.
+
 - **Android / PWA and iOS Safari 15-18.6:** the `<meta name="theme-color">` tag
   is updated live, so browser chrome follows the terminal background.
 - **iOS Safari 26.x:** WebKit no longer honors `theme-color` for tab tinting.

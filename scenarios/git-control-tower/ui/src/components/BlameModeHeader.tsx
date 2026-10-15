@@ -17,7 +17,7 @@ export function BlameModeHeader({ file, onExit, compact }: BlameModeHeaderProps)
   if (compact) {
     return (
       <header
-        className="flex items-center justify-between px-3 py-2 border-b border-blue-800/50 bg-blue-950/30 backdrop-blur-sm pt-safe"
+        className="flex items-center justify-between px-3 py-2 border-b border-blue-800/50 bg-blue-950/30 backdrop-blur-sm"
         data-testid="mobile-header"
       >
         <div className="flex items-center gap-2 min-w-0 flex-1">

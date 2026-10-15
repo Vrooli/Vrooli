@@ -2,6 +2,9 @@ package main
 
 import (
 	"log"
+	"time"
+
+	"github.com/vrooli/cli-core/cliutil"
 
 	"web-console/internal/config"
 	"web-console/internal/pty"
@@ -51,11 +54,21 @@ func wireDefaultManagerHooks(sm *session.Manager) {
 // into the spawned PTY. Wired into session.Manager.envForSession by both
 // constructors; tests can override the field for hermetic spawning.
 func defaultSessionEnv(sessionID string) map[string]string {
-	return map[string]string{
+	env := map[string]string{
 		"WC_WEB_CONSOLE_SESSION_ID": sessionID,
 		// The launcher uses this root to materialize CODEX_HOME/GROK_HOME only
 		// when the corresponding native agent is actually started. A plain shell
 		// therefore carries attribution identity without creating agent state.
 		"WC_SESSION_STATE_ROOT": resolveSessionStateRoot(),
 	}
+	// A verified-human session carries a short-lived human-owner delegation that
+	// a coding agent launched here forwards on attach so agent-manager attributes
+	// the run to the operator. Absent for plain shells, service/agent sessions,
+	// or an expired delegation — then the agent attaches unattributed, exactly as
+	// before. This is the ONLY place the delegation enters an agent environment,
+	// and it is the derived minted token, never the operator's browser credential.
+	if token, ok := activeSessionDelegations.Lookup(sessionID, time.Now()); ok {
+		env[cliutil.HumanOwnerDelegationEnv] = token
+	}
+	return env
 }

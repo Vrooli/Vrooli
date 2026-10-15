@@ -425,13 +425,18 @@ describe('mobile safe-area insets', () => {
   it('overrides safe-area insets via CDP for a mobile viewport', async () => {
     const send = jest.fn().mockResolvedValue(undefined);
     const detach = jest.fn().mockResolvedValue(undefined);
-    const page = { context: () => ({ newCDPSession: jest.fn().mockResolvedValue({ send, detach }) }) };
+    const page = { context: () => ({ newCDPSession: jest.fn().mockResolvedValue({ send, detach }) }), once: jest.fn() };
 
     await applySafeAreaInsets(page as never, { width: 390, height: 844 });
 
     expect(send).toHaveBeenCalledWith('Emulation.setSafeAreaInsetsOverride', {
       insets: MOBILE_SAFE_AREA_INSETS,
     });
+    // Detaching drops the override on the next navigation.
+    expect(detach).not.toHaveBeenCalled();
+    expect(page.once).toHaveBeenCalledWith('close', expect.any(Function));
+    page.once.mock.calls[0][1]();
+    expect(detach).toHaveBeenCalledTimes(1);
     expect(MOBILE_SAFE_AREA_INSETS.bottom).toBeGreaterThan(0); // home indicator must be non-zero
   });
 

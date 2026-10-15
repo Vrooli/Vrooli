@@ -176,9 +176,9 @@ describe("ChangeMetricsModal", () => {
         filePath="src/api.ts"
       />,
     );
-    // Mobile layout has the slide-in class
+    // The library drawer owns mobile positioning, animation and safe areas.
     const dialog = screen.getByRole("dialog");
-    expect(dialog.className).toContain("slide-in-from-bottom");
+    expect(dialog).toHaveClass("rcl-full-page-drawer__panel");
   });
 
   it("renders custom title when provided", () => {

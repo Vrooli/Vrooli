@@ -64,7 +64,6 @@ export function PushSafetyDialog({ repoId, onClose, onPush }: Props) {
     contentPadding="none"
     avoidKeyboard
     testId="push-safety-dialog"
-    panelClassName="!border-slate-700/70 !bg-slate-900 !text-slate-200"
     footer={
       <div className="flex flex-nowrap items-center justify-end gap-2">
         <Button variant="outline" className="mr-auto h-9 gap-2 rounded-xl border-transparent px-2 text-xs text-slate-400" disabled={Boolean(busy)} onClick={() => void refresh()} aria-label="Refresh inspection"><RefreshCw className="h-3.5 w-3.5" /><span className="hidden sm:inline">Refresh inspection</span></Button>

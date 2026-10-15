@@ -217,6 +217,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
 }, ref) {
   const { t } = useTranslation();
   const aiSuggestActive = useWorkspaceStore((state) => state.aiSuggestActive);
+  const keyboardOpen = useWorkspaceStore((state) => state.keyboardOpen);
   const {
     supported: voiceSupported,
     preparing: voicePreparing,
@@ -563,9 +564,10 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
   const layout = useMemo(
     () => layoutToolbar(toolbarPrefs, measuredWidth ?? INITIAL_TOOLBAR_WIDTH_PX, {
       view: viewMode,
+      compactSpacing: keyboardOpen,
       unavailable,
     }),
-    [toolbarPrefs, measuredWidth, viewMode, unavailable],
+    [toolbarPrefs, measuredWidth, viewMode, unavailable, keyboardOpen],
   );
 
   const controlLabels = useMemo<Record<string, string>>(() => ({
@@ -672,6 +674,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
   return (
     <div
       data-testid="mobile-toolbar"
+      data-keyboard-open={keyboardOpen}
       // The toolbar is the app's bottom edge, so it alone reserves the home
       // indicator. --wc-safe-bottom is 0px whenever the app does not reach the
       // screen's bottom (keyboard up, or a viewport that stops short), so this
@@ -750,7 +753,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
         />
       )}
       {/* Command input row */}
-      <div className="flex items-end gap-0.5 px-1 py-1">
+      <div className={cn("flex items-end gap-0.5 px-1", keyboardOpen ? "py-0.5" : "py-1")}>
         <div className="flex min-w-0 flex-1 flex-col">
           {/* Uncontrolled: the DOM owns the value (mirrored into the shared
               draft), so typing and native backspace never re-render the toolbar. */}

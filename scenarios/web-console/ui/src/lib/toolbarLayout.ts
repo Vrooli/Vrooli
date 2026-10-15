@@ -199,6 +199,8 @@ export interface ToolbarLayout {
 
 export interface LayoutToolbarOptions {
   view?: ToolbarView;
+  /** Tighten outer gutters while retaining the configured key sizes. */
+  compactSpacing?: boolean;
   /** Controls whose feature is unavailable this render (no mic permission,
    *  no upload handler). Filtered before layout so they claim no width. */
   unavailable?: readonly ToolbarControlId[];
@@ -220,7 +222,7 @@ export function layoutToolbar(
 ): ToolbarLayout {
   const view = options.view ?? "terminal";
   const unavailable = new Set(options.unavailable ?? []);
-  const m = toolbarMetrics(prefs.density);
+  const m = { ...toolbarMetrics(prefs.density), ...(options.compactSpacing ? { padding: 2 } : {}) };
   // The messages view has no key controls to stack, so a second row would only
   // add height around a handful of actions. It gets one row whatever the
   // terminal's budget is, and its controls share that row evenly.

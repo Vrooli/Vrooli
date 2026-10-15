@@ -613,3 +613,240 @@ Scoped W3 repair: user reported the recovery dialog lacked the visual hierarchy 
   execution IDs live in DESIGN.md. No real proposal mutation or Plan Manager use.
 
 - Follow-up work journal receipt: `3b8a385d-a446-4ba6-ab77-009c5c97b27c`. Final lifecycle restart healthy at 2026-10-08 14:31 EDT (API 18710 / UI 21400).
+
+### Mobile bottom edge investigation — 2026-10-15
+
+**REOPENED by physical screenshots at 11:45 EDT.** The operator's 1179×2556
+screenshots (393×852 CSS pixels at 3×) contradict the previous fix claim.
+The 49-step Chromium run below remains historical emulation evidence only.
+Its invented 390×903 screen shape did not reproduce the phone and MUST NOT be
+used to qualify the installed app. Root cause remains under investigation.
+
+The normal header is 60px high (44px controls plus 16px vertical padding),
+independently of the status inset. The photographed navigation begins around
+743 CSS px, leaving about 109px to the physical bottom; this exceeds the
+51px row plus the assumed 34px inset. Actual client inset and viewport readings
+are needed to distinguish oversized env() from excluded native space.
+
+Follow-up acceptance: collect automatic, bounded layout observations from the
+actual installed client, including build identity, screen/layout/visual/fixed
+geometry, raw/effective insets, nav/header dimensions and open overlay owner.
+UI Health owns retention and readback; GCT supplies a same-origin facade.
+Geometry observations explicitly do not contain OS pixels. A fabricated
+standalone flag or an html2canvas rendering is not physical-device evidence.
+
+Scoped W3 repair plus W2 evidence repair; no full scenario-readiness claim.
+Prior-art search found the existing mobile regression oracle and percentage
+height shell in docs/concepts/ARCHITECTURE.md. Source-ledger recall timed out;
+other search providers returned related work. Existing GCT viewport/CSS edits
+and ui-health measured-height rule were already dirty at investigation start.
+
+Hypotheses and falsifiers:
+1. Divergent inset owners: GCT publishes unused --gct-safe-bottom while BottomNav
+   reads raw env() and library overlays resolve screen-bottom independently.
+   Test geometry with nonzero insets and a viewport ending before the screen;
+   disprove if all owners reserve the same effective inset in both states.
+2. Canvas ownership: custom mobile dialogs bypass library drawer canvas rules.
+   Test page background through menu -> Settings -> close and compare an actual
+   FullPageDrawer; disprove if custom dialogs and library drawers paint equally.
+3. Evidence never exercises the phone shape: mobile dimensions alone produce
+   zero env() insets. Initial BAS capture a2ed1402-8212-45ba-940a-f27ab6a775c4
+   confirms a zero-height status strip. Driver source includes emulation but
+   running BAS dates to Oct 6; lifecycle reports a failed replacement UI build.
+   Test governed replacement and observed env() values before accepting proof.
+
+Initial screenshots: /tmp/gct-safe-area-before/a2ed1402-8212-45ba-940a-f27ab6a775c4.
+These are zero-inset Chromium evidence, not the operator's physical phone state.
+
+#### Findings, repair and qualification
+
+Operator clarified: **"Installed Rigel app from Home Screen"**. The native
+home-indicator strip can be outside the app's reported viewport. Screenshots
+of the web document cannot show or certify that physical OS region.
+
+Confirmed causes:
+- GCT wrote unused --gct-safe-bottom while BottomNav used env() directly.
+  In the simulated installed 390x844 viewport on a 390x903 screen, the shared
+  detector correctly resolves the effective inset to zero. BottomNav 1.5.4
+  now consumes that same library contract, rather than reserving another 34px.
+- The custom menu, Settings and mobile dialogs bypassed the library's page
+  canvas rule. Reused BottomSheet/FullPageDrawer for the menu, Settings, metrics,
+  history filters, upstream information, discard/delete/stage confirmations,
+  baseline creation and scenario picker. Removed private gesture/portal/scroll
+  lock code and obsolete local safe-area classes. History/blame headers also
+  reserved a second top inset inside TopSafeArea; removed that duplicate.
+- BAS accepted its CDP inset override but discarded it across navigation when
+  its owner detached. Retained one page-owned CDP session and reapplied the
+  profile after completed navigation. Production-session initialization needed
+  the override after setup as well. A simple browser-only test was insufficient;
+  the production-session integration and an actual BAS execution caught that.
+- BAS expands `${...}` in workflow expressions. The old mobile regression used
+  JavaScript template literals for selectors and RGB conversion; interpolation
+  corrupted those expressions (observed metaRGB was `rgb(, , )`). Replaced those
+  literals with concatenation and retained every existing assertion.
+- UI Health assumed one color for all four edges and used CSS inset counts as
+  screenshot pixel counts. It now accepts a semantic bottom-owner color, scales
+  sampling to the screenshot, retains raw versus effective inset measurements,
+  and reports zero-inset mobile captures as `visual_safe_area_not_exercised`.
+
+Qualification:
+- BAS shadow execution **6f99457c-6cf7-4992-ab0e-381db5e66475**: **49 steps PASS**,
+  covering Changes/Diff return, measured 59/34px insets, all five nav controls'
+  bounds/descendants/hit tests, exactly one inset, menu and Settings canvas
+  changes/restoration, and simulated installed app zero-inset navigation/footer.
+- Screenshots, DOM and traces are retained by BAS under that execution. Use
+  `browser-automation-studio --instance shadow executions screenshots <id> --json`
+  and `executions timeline <id> --json`. Named screenshot nodes and observed
+  profile values are retained in experience/fixtures/mobile-regression-oracle.json.
+- UI Health live analyzer passed all **six** selected real screenshot states.
+  Negative control with expected bottom red FAILED with
+  `visual_safe_area_color_mismatch`, measured bottom **#020617**. Both requests
+  used the same captured screenshot/DOM bytes; only the expectation changed.
+- GCT focused UI: **63 tests PASS**, type-check/lint PASS. BAS context/navigation
+  regressions: **47 tests PASS**, including real Chromium and production session
+  creation. UI Health visual/runtime packages: **65 tests PASS**. RCL BottomNav
+  unit/a11y tests: **4 PASS**, plus owned component contract report
+  **ctr_16d50785fb2d68a6 PASS** for release **1.5.4**. Strict RCL package build
+  selected verified artifact 5c062f2abe3a65a8e276cec4e840c766b8a6f06bae1208e243d48420f48bb90e.
+  Proto owner verifier completed with exit 0; no generated files hand-edited.
+- GCT and UI Health were rebuilt/restarted through lifecycle and are healthy.
+  BAS shadow was rebuilt/restarted and is healthy. Live BAS intentionally still
+  runs the existing bas-goal frozen serving tree; no engagement was promoted,
+  abandoned or force-bypassed. Early live restarts therefore tested the frozen
+  source, not this repair. The exact qualified target is BAS **shadow**.
+- Scoped Test Genie **20261015-151502-3513bec9 FAIL** across unit/ui-health/
+  workflow/experience. Relevant debt includes CLI trusted-base fixtures, unit
+  policy/companion/coverage findings, UI governance debt, old API workflow JSON
+  with unknown `requirements`, observer action classification, and unresolved
+  experience bindings. This is not a full scenario certification. Earlier docs
+  already record those debt families; no check was weakened to turn them green.
+- The unrelated one-asset RCL gate fault on missing collection-page manifest is
+  filed as **knw-1792077958624332549** through report-bug. The supported component
+  contract runner passed. The attempted UI Health shadow start rejected the
+  documented --variant-dependencies flag; this did not affect live analyzer proof.
+
+Review passes:
+1. Found secondary top-inset duplication and the scenario-picker canvas path;
+   removed duplicate padding and migrated the picker to the shared drawer.
+   Scoped keyboard reveal to its owned scroller. Added selection/search coverage.
+2. Reviewed the resulting boundary for clipping, double padding, busy-operation
+   dismissal, canvas restoration, provenance, and unnecessary code: no additional
+   material findings. Confirmations retain guards during mutations.
+3. Rechecked code/evidence after focused tests, six-state pixel analysis and the
+   negative control: no additional material findings. Physical installed-iPhone
+   confirmation remains unverified, as explicitly recorded above.
+
+Reusable case remains the maintained BAS fixture. An Action creation preview
+for workflow-health start-selected was structurally valid but unvalidated at its
+owner's permission/governance boundary; no unvalidated Action was published.
+
+- Work record: **cac62d1b-66b3-431d-a9d7-5eeab774f5a0**. Documented variant
+  flag rejection filed as **knw-1792078526646646813**. Final review removed a
+  peripheral, unqualified media-lightbox canvas override; the requested drawer
+  paths use the shared library's tested paint ownership.
+
+
+#### Physical client follow-up — 2026-10-15 12:06 EDT
+
+Automatic UI Health intake received real installed-client observations after the
+operator reopened Rigel. Observation **9f5d79f0da36073c97f4f9427936726d**:
+393×852 screen, innerHeight/visualViewport/100dvh **793**, measured 100lvh **852**,
+59px top inset, 34px raw bottom inset, effective bottom **0**, shell bottom **793**,
+nav **742–793**, track **745–793**. Build `index-NsiwAUXo.js`. Thus the earlier
+zero-inset workaround worked as written and still left 59px of drawable canvas
+unused. The photographed nav height was 51px plus that 59px band, not duplicate
+34px padding. The tentative partial-overlap hypothesis above was falsified;
+no partial-gap arithmetic was shipped. Full CSS canvas measurement is the owner.
+
+The named Commit/Push surfaces already adopted **ResponsiveDialog**. That
+library presentation lacked the canvas rule in FullPageDrawer/BottomSheet;
+Settings-only coverage missed it. Both consumers also overrode the panel color
+with `!bg-slate-900`, which would disagree with a library-owned canvas. Removed
+those overrides and repaired ResponsiveDialog's mobile canvas ownership.
+
+The shared viewport now retains raw layout/visual measurements and exposes a
+measured drawable frame only when standalone, top-level, black-translucent,
+full-width geometry is corroborated by 100lvh matching the screen and the
+status-height deficit. GCT sizes all roots and the shell to that same frame.
+The common overlay hook fills it for every presentation; keyboard avoidance
+still uses the established keyboard viewport. Library bottom clearance is again
+reserved once inside the full frame. Web Console's projection also consumes
+the optional frame, preserving fallback behavior for older host snapshots.
+
+Published through draft ownership: useViewportEnvironment **1.1.1**,
+useOverlaySurface **1.4.5**, ResponsiveDialog **1.3.2**. Intermediate overlay
+release 1.4.4 failed portable declaration emission; it was superseded and
+retired through VersionLifecycleService after owner eligibility preflight.
+No released source was edited. Strict package build selected verified artifact
+**0972fc40be09a85dd9d0bcf7af30c1923f5fbd2a9521b584b55a63f60c67fed7**.
+
+The actual-device reports eliminate manual screenshots for layout diagnosis.
+Native screenshot automation is a separate capability: device-control inventory
+exposed no iPhone screen transport; scenario-to-ios target probing returned a
+bridge inventory authentication failure. That failure does not establish that
+no trusted macOS/iPhone route exists. OS pixels remain explicitly unverified
+until a device transport supplies them; browser screenshots cannot substitute.
+
+
+Final phone confirmation: **"Looks great! The top navbar could still use some
+ tightening up perhaps, but everything else looks great"**. Automatic actual
+client report **2162035af13965de10fdba14daf83e80** (16:20:54Z,
+`index--YIPbwyE.js`) now measures innerHeight/dvh **852**, shell/nav bottom **852**,
+nav top **767**, one **34px** bottom inset, and all five control hit tests **true**.
+Push report **1bae2b98771fe2b47b56528308582bad** measures panel bottom **852** and
+panel/body both **rgb(23,32,51)**; nav hit tests are correctly obstructed by the
+modal. On close the canvas restores to **rgb(2,6,23)** and nav hits pass again.
+The remaining top toolbar is **45px**, below a single measured **59px** status
+inset. Tightened its horizontal gutters/gaps while preserving 44px controls.
+
+BAS shadow replay **a89d764a-f725-4e3f-8436-2dbf9c2bb84a** completed all **50**
+steps using a 393×852 browser and the actual phone's shortened-report shape.
+The earlier failed follow-up replay d2af7167 used the fixture's old 390×844
+settings despite requested parameters; corrected the fixture-owned settings.
+This remains Chromium evidence, not native OS pixels.
+
+Validation: focused GCT UI **25 PASS** (and final changed-client subset **19
+PASS**), type-check/lint PASS; shared frame/overlay/canvas focused **6 PASS**;
+Web Console viewport projection **7 PASS**. UI Health visual/runtime/schema/
+observation packages and all CLI packages PASS. Negative regression proves
+`chrome.requireNativeScreen` rejects emulation. Client intake now retains
+receiver-computed findings for unused canvas, unreachable nav controls,
+oversized declared headers and overlay/canvas style disagreement.
+
+Broad checks remain separate: GCT Test Genie **20261015-161500-da4eda78 FAIL**
+(unit/ui-health/workflow debt); UI Health unit **20261015-161810-262b4407 FAIL**
+(parser lookup under unrelated home Git repository plus existing UI provider
+policy). Corrected parser tooling fallback after the suite exposed that host
+fixture path. RCL story contract **ctr_67148ab6eb5d2f3d FAIL** at BAS screenshot
+capture across variants; source/closure/story-contract stages passed. This
+report is not represented as passing browser qualification. The actual GCT
+Push drawer rendering is independently confirmed by its phone report and the
+operator. No full scenario certification is claimed.
+
+
+Final coherence review resolved an invalid dependency pin in the RCL preview: ResponsiveDialog
+1.3.2's immutable lock observed overlay 1.4.4, which had been superseded/retired.
+A fresh draft retained that old pin until the governed catalog lock generator
+ran. Published **ResponsiveDialog 1.3.3** with overlay **1.4.5**, retired the
+unusable intermediate 1.3.2 through the owner, and confirmed preview HTTP **200**.
+The selected strict runtime artifact is now
+**e4c8ae2954411c68a917e98da5270bf5f571d3ced99c66ebf8f0524838dd2f8f**.
+The retired releases were never hand-edited. Final owner browser contract
+**ctr_bc3043135ddb973c FAIL** still reports screenshot-capture failures for
+several stories and readiness timeouts for others. Source/closure/contract
+stages pass. An independent full-viewport capture of the published 1.3.3
+sheet, **49d20eb9-5db7-45b8-984b-5304a8706e45**, visibly renders the dialog
+without console errors. That capture does not replace the authoritative
+contract. Cause remains unestablished; filed through report-bug as
+**knw-1792082382843370162**. Browser-contract qualification remains open.
+
+Parser regression coverage now passes every selected shell-ownership case and
+the validation handlers. The remaining PWA/default-kit fixture failures are
+filed as **knw-1792081948919897572**. Web Console's approved local dependency was
+refreshed through Scenario Dependency Analyzer without manifest changes; its
+frameHeight freshness errors are gone. Remaining machine/desktop test-fixture
+type errors are filed as **knw-1792081948624493753** through report-bug. The seven viewport
+projection tests pass; no Web Console runtime restart was required.
+
+Work record: **bcaf815a-11a4-4af9-8dd7-61fd0ccc5227**. Final scoped diff
+whitespace check passed. Runtime healthy after the coherent library rebuild.

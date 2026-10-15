@@ -1,5 +1,151 @@
 # Web Console — Known Problems and Risks
 
+## 2026-10-15 — Keyboard spacing and launch continuity (W3)
+
+Operator confirms the bottom-overlap repair is fixed on the phone and GCT
+looks perfect. This follow-up is a bounded finish pass: remove surplus space
+above the keyboard and make the initial launch, health check, lazy workspace,
+and session hydration share the existing Aquila identity and canvas. No
+artificial loading delay or new viewport detector belongs in Web Console.
+
+Hypotheses: a keyboard that contracts layout and visual viewports together
+escapes the shared detector's layout-minus-visual comparison; retained safe
+padding and toolbar gutters waste space. During launch, viewport projection
+starts only in lazy Workspace, while two independent plain loading views
+paint slate-950 over a slate-900 body. The screenshot's transient bottom band
+is consistent with that timing and color mismatch.
+
+Target: the shared owner detects settled, focus-qualified layout contraction
+as well as visual occlusion; keyboard-open chrome removes bottom safe padding
+and tightens outer gutters without reducing key hit areas. One branded launch
+composition is visible before JS and throughout hydration, fills the measured
+canvas, respects reduced motion, and hands off immediately when ready. Native
+iPhone launch images reuse the existing icon. Validate focused regressions,
+slowed-loading captures, keyboard/rotation/hardware-focus cases, and scoped
+UI-health. Native OS launch timing remains device-qualified evidence.
+
+Implemented: published **useViewportEnvironment 1.1.2** through draft ownership
+and `content-set`; refreshed Web Console through Scenario Dependency Analyzer.
+`App` now publishes viewport state before asynchronous loading. The initial
+HTML and both React loading boundaries use one shared launch HTML/CSS source,
+with the existing Aquila icon, name, and indeterminate dots on **#0f172a**.
+Native portrait/landscape startup images cover the 11 declared phone profiles
+(22 PNGs, about 1.1 MiB). No artificial delay or brand replacement was added.
+
+Evidence:
+
+- The new resizes-content regression failed against 1.1.1 and passes against
+  1.1.2. Shared viewport cohort: **20 PASS**, including unchanged drawable
+  frame, visual-only keyboard occlusion, ordinary resize, rotation, desktop
+  hardware focus, and layout contraction without editable focus.
+- Web Console: **190 PASS** across eight focused files; focused new/changed
+  launch/layout/App tests and sources pass ESLint. Production UI build and
+  strict shared-package build PASS. Initial strict artifact:
+  **1fee8a8ea21a564ae136b15374788b9954dfa7bcdcfdfa2e9019567ae330d8b9**.
+- Browser staging held the entry script, health response, workspace chunk,
+  and session list independently. Every stage retained three **852px** roots,
+  the same **rgb(15,23,42)** html/body/launch canvas, a loaded mark, and no
+  visible plain loading label. Captures: `/tmp/wc-launch-{before-javascript,
+  health,workspace-chunk,session-hydration}.png`; measurements:
+  `/tmp/wc-polish-browser-proof.json`.
+- Mobile toolbar: **159px → 147px → 159px** across keyboard open/dismissal
+  with unchanged key heights and all **16** control centers reachable. The
+  keyboard-open safe-bottom variable is **0px**. The synthetic browser uses
+  zero native insets; the previously retained device home inset is removed
+  in addition to the measured **12px** gutter reduction.
+- Desktop 1440×900 launch has one uniform canvas, all three progress
+  animations disabled under reduced motion, and **22** startup links. Handoff
+  removes every launch node immediately and retains a **900px** document.
+  Screenshot: `/tmp/wc-launch-desktop.png`; measurements:
+  `/tmp/wc-polish-desktop-proof.json`.
+- Two fresh final review passes found no further material implementation
+  findings: source/ownership/state restoration, then staged mobile/desktop
+  rendering and accessibility/motion. Earlier finish findings (a possible
+  4px adaptive-tint sliver and asymmetric native/HTML centering) were resolved.
+
+Limits: native iPhone keyboard spacing and OS startup-image selection await
+device feedback. Shared story run **ctr_4a0ba55b2ead3e46 FAIL**: default behavior,
+source/closure/contract and default browser evidence pass, but inherited
+boundary-story readiness and review-sheet screenshot failures remain, related
+to **knw-1792082382843370162**. RCL preview UI rebuild, token check, all 180 pin
+checks, and 12-route registration check pass. Test Genie UI-health
+**20261015-174648-b421e805 FAIL** retains missing workspace/shell contract debt
+and terminal visual findings; new findings filed as **knw-1792086641427937775**.
+The previously reported unrelated machine/desktop fixture type failures remain.
+Work record: **9f823026-98fa-419b-9e0d-19533bc242af**. Documentation CLI append
+failure was separately captured as **knw-1792086733379798376**; canonical files
+were updated directly to complete this work.
+
+## 2026-10-15 — Mobile toolbar and full-page drawer bottom clipping
+
+**Scoped W3 root-sizing repair built and served; native confirmation open.**
+Operator screenshots `IMG_1656.jpeg` and
+`IMG_1657.jpeg` show the toolbar's second button row and the account drawer
+cut off at the same bottom edge after today's shared viewport changes.
+
+Related prior work: Git Control Tower's 2026-10-15 drawable-frame repair in
+its `docs/internal/PROBLEMS.md`, work record
+`bcaf815a-11a4-4af9-8dd7-61fd0ccc5227`. That change published shared viewport
+1.1.1 and overlay 1.4.5 and made Web Console consume `frameHeight`.
+
+Hypotheses and checks:
+
+- A foreground tint strip covers controls: inspect strip geometry and layer.
+  The only local strip is 4px at z-index 0, inconsistent with the large band
+  and the same clipping inside a modal.
+- Web Console expanded its content without expanding the document canvas:
+  measure all roots in the running browser. Before repair, at 393×852,
+  `html` measures **0px** with `overflow:hidden`; body and React root measure
+  **852px**. GCT explicitly sizes all three. The new root-height contract
+  fails for html, body fallback, and React root before the CSS repair.
+- Keyboard-dismissal state retained a short frame: exercise the measured
+  793px layout / 852px frame through keyboard open and dismissal. The existing
+  projection correctly restores 852px even with a stale visual height; this
+  hypothesis does not explain the missing root sizing.
+
+Target: html, body, React root, and workspace fill the same shared measured
+frame; modal portals use the library's geometry and layer; bottom safe-area
+padding is reserved inside the toolbar or drawer once. Validate focused root,
+viewport, settings, and toolbar regressions plus browser geometry/hit tests
+and the scoped Test Genie UI phase. Native iPhone pixels remain unverified
+until actual-device confirmation; Chromium geometry is narrower evidence.
+
+Bounded task handoff: finish this target inside Web Console's UI and existing
+documentation, retain failing/passing proof here, and report any unrelated
+failures without broadening the repair. No new viewport detector or overlay
+stack is needed.
+
+Repair: size html, body, and React root to `--wc-app-height` together, with
+the same `100dvh` fallback as the workspace. Preserve the shared detector,
+overlay layering, keyboard projection, internal safe-area padding, and tint
+strip behavior. No library release or copied viewport detector was needed.
+
+Verification:
+
+- Focused viewport/overlay/settings/toolbar cohort: **92 PASS** across five
+  files; changed-test ESLint PASS; production build PASS and served directly
+  by the lifecycle-managed UI server.
+- Live Chromium at 393×852: all roots **852px**; all **16** toolbar control
+  centers pass hit testing, with the lowest controls ending at **846px**.
+  Account drawer and scroller end at **852px**; the lower OpenRouter input
+  scrolls into view and passes hit testing.
+- Synthetic installed-app geometry: reported layout **793px**, drawable
+  frame **852px**, all roots and drawer **852px**. Established keyboard
+  shrinks all roots to **500px**; dismissal restores **852px** even while
+  the visual measurement stays **500px**. Evidence retained during the run
+  at `/tmp/wc-bottom-frame-browser.json`; this is Chromium, not native pixels.
+- Test Genie **20261015-172628-8f2c9d62 FAIL**: missing declared
+  `workspace-shell` experience surface and shell manifest; shared adoption
+  warnings; native-screen/safe-area qualification absent. These findings
+  do not establish a browser clipping regression. Contract debt filed as
+  **knw-1792085363990345979** through report-bug.
+- Type-check still fails in unrelated MachineList and desktopTransport test
+  fixtures, already filed as **knw-1792081948624493753** by the prior work.
+
+The root-height mismatch is measured and repaired. Whether this fully removes
+the photographed iPhone band remains unverified until actual-device feedback.
+Work record: **13d7339b-3136-4157-968b-68257548802f**.
+
 ## Work ladder
 
 - Rung: W1

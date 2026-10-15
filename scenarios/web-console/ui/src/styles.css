@@ -147,6 +147,17 @@
  *    position: fixed + scrollTo(0,0) in the hook prevents this.
  *
  * DO NOT remove these without also updating useAppViewport.ts. */
+/* Size the document canvas as well as its fixed body. The shared drawable
+ * frame can exceed innerHeight in an installed translucent iOS app; leaving
+ * html auto-sized gives it zero height and a different overflow boundary from
+ * the workspace and the library's portaled drawers. */
+html,
+body,
+#root {
+  height: var(--wc-app-height, 100dvh);
+  min-height: 0;
+}
+
 html {
   overflow: hidden;
   overscroll-behavior: none;

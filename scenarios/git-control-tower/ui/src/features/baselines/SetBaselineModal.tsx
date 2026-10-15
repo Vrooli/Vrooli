@@ -1,3 +1,4 @@
+import { FullPageDrawer } from "@vrooli/react-component-library/FullPageDrawer/1";
 // SetBaselineModal (Plan B §4.2) — the capture flow.
 //
 // Every capture is one comprehensive baseline-profile Test Genie run. The
@@ -130,27 +131,23 @@ export function SetBaselineModal({
 
   if (isMobile) {
     return (
-      <div
-        className="fixed inset-0 z-50 flex flex-col bg-slate-950 animate-in slide-in-from-bottom duration-200"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Set baseline"
+      <FullPageDrawer
+        open={isOpen}
+        onClose={() => {
+          if (!create.isPending) onClose();
+        }}
+        title="Set baseline"
+        closeLabel="Close"
+        dismissAffordance="close"
+        contentClassName="px-4 py-6"
+        footer={
+          <div className="flex w-full gap-3 [&>button]:flex-1 [&>button]:h-12">
+            {footer}
+          </div>
+        }
       >
-        <div className="flex items-center justify-between border-b border-slate-800 px-4 py-4 pt-safe">
-          <h2 className="text-base font-semibold text-slate-100">Set baseline</h2>
-          <button
-            type="button"
-            className="h-11 w-11 inline-flex items-center justify-center rounded-full border border-slate-700 text-slate-300 hover:bg-slate-800/60 touch-target"
-            onClick={onClose}
-            aria-label="Close"
-            disabled={create.isPending}
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-        <div className="flex-1 overflow-y-auto px-4 py-6">{body}</div>
-        <div className="border-t border-slate-800 px-4 py-4 pb-safe flex gap-3 [&>button]:flex-1 [&>button]:h-12">{footer}</div>
-      </div>
+        {body}
+      </FullPageDrawer>
     );
   }
 

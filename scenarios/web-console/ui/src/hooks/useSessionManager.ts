@@ -42,6 +42,38 @@ export interface PaneState {
 
 const scratchKey = (sessionId: string) => `web-console:scratch:${sessionId}`;
 
+const DEEP_LINK_SESSION_PARAM = "session";
+
+/**
+ * Resolve a `?session=<id>` deep link against the operator's loaded sessions.
+ * Returns the id only when it names a session they actually have, so a stale or
+ * foreign id falls through to the normal default pane instead of a blank focus.
+ * Session ids are bare UUIDs, matching the `/?session=<id>` links the hub and
+ * agent-manager emit.
+ */
+export function resolveDeepLinkSession(search: string, sessionIds: readonly string[]): string {
+  let requested = "";
+  try {
+    requested = new URLSearchParams(search).get(DEEP_LINK_SESSION_PARAM)?.trim() ?? "";
+  } catch {
+    return "";
+  }
+  return requested && sessionIds.includes(requested) ? requested : "";
+}
+
+/** Strip the consumed deep-link param from the address bar without a reload. */
+function clearDeepLinkSessionParam(): void {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has(DEEP_LINK_SESSION_PARAM)) return;
+    params.delete(DEEP_LINK_SESSION_PARAM);
+    const query = params.toString();
+    window.history.replaceState({}, "", `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`);
+  } catch {
+    // A history-API hiccup is harmless: the param just stays in the URL.
+  }
+}
+
 // A pane with no saved name shows the session's own label when it has one.
 // Falling straight through to the shell basename meant every programmatically
 // created session rendered as "bash", hiding a label the API already carried
@@ -135,6 +167,16 @@ export function useSessionManager() {
         const layout = layoutResult.status === "fulfilled" ? layoutResult.value : null;
 
         if (canceled) return;
+
+        // Deep link: an operator opening a `?session=<id>` link (e.g. a
+        // notification tap) should land focused on THAT session rather than the
+        // stored/default active pane. Only honored when the session is actually
+        // in their list; the param is consumed (stripped) once applied so a
+        // later reload or pane switch isn't yanked back to it.
+        const deepLinkSession = resolveDeepLinkSession(
+          window.location.search,
+          sessions.map((s) => s.id),
+        );
         // Activity arrives by push afterwards; the list seeds what is true now.
         useSessionActivityStore.getState().hydrate(sessions);
 
@@ -223,7 +265,7 @@ export function useSessionManager() {
           // after a reload already satisfies the block invariant.
           if (store.panes.length === 0) useWorkspaceStore.setState({
             panes: orderPanesByGroupBlocks(paneMetadata),
-            activePane: layout.active_pane || paneMetadata[0]?.sessionId || null,
+            activePane: deepLinkSession || layout.active_pane || paneMetadata[0]?.sessionId || null,
             groups: layout.groups.map((g) => ({
               id: g.id,
               name: g.name,
@@ -271,8 +313,14 @@ export function useSessionManager() {
               supportsMessagesView: false,
               manuallyUnread: false,
             })),
-            activePane: sessions[0]?.id || null,
+            activePane: deepLinkSession || sessions[0]?.id || null,
           });
+        }
+
+        // Consume the deep link so a reload / manual pane switch isn't pulled
+        // back to it. Done once, only when we actually applied it.
+        if (deepLinkSession && (layout || (sessions.length > 0 && store.panes.length === 0))) {
+          clearDeepLinkSessionParam();
         }
       } catch (err) {
         // Unexpected synchronous failure inside the hydration pipeline

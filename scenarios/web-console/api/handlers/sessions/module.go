@@ -212,6 +212,23 @@ type CreateInput struct {
 	TmuxMouseMode        bool
 	LaunchMode           string
 	LaunchDescriptorJSON string
+	// HumanOwnerSubject is the verified human on whose behalf a service caller
+	// (agent-manager) is opening this session, carried on the X-Human-Owner-Subject
+	// request header. It is a creator-identity LABEL only — web-console never
+	// derives authority from it; authority stays with the caller's own verified
+	// grant. When set it overrides the service caller's own OwnerSubject for the
+	// session's stable-create owner so a tunnel-UI spawn is attributed to the
+	// operator, not the service principal. Empty leaves the prior behaviour.
+	HumanOwnerSubject string
+	// HumanOwnerCredentials are the operator's inbound verified-human candidate
+	// credentials (the Authorization bearer and/or the Cloudflare Access
+	// assertion) carried ONLY to authenticate a best-effort human-owner
+	// delegation mint during create, before the session's PTY environment is
+	// built. They are never persisted, logged, or placed in the agent env — only
+	// the derived minted token reaches the env, via the delegation holder. Empty
+	// leaves behaviour unchanged (no mint). scenario-authenticator refuses any
+	// non-human credential, so trying both candidates is safe.
+	HumanOwnerCredentials []string
 }
 
 // RecoverInput bundles inputs for the recovery RPC.
@@ -271,10 +288,19 @@ type PolicyView struct {
 	HasExpiry  bool
 }
 
-// Module wires the sessions domain into the API server.
-func Module(svc Service, logger *log.Logger) module.Module {
+// Module wires the sessions domain into the API server. delegationMinter is
+// optional (nil disables human-owner delegation minting). The mint runs inside
+// the Adapter through a create-scoped pre-spawn hook so the delegation is stored
+// BEFORE the session's PTY environment is built; Module installs it on an
+// *Adapter svc here rather than on the handler, which no longer mints.
+func Module(svc Service, logger *log.Logger, delegationMinter func(ctx context.Context, sessionID, rawCredential string)) module.Module {
 	if logger == nil {
 		logger = log.Default()
+	}
+	if delegationMinter != nil {
+		if adapter, ok := svc.(*Adapter); ok && adapter.DelegationMinter == nil {
+			adapter.DelegationMinter = delegationMinter
+		}
 	}
 	connectPath, connectHandler := sessionsconnect.NewSessionsServiceHandler(NewConnectHandler(Deps{
 		Service: svc,

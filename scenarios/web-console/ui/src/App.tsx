@@ -4,7 +4,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { fetchHealth } from "./api/health";
 import { HEALTH_RETRY_COUNT, HEALTH_RETRY_DELAY_MS } from "./consts/config";
-import { strings } from "./consts/strings";
 import { HandednessProvider } from "@vrooli/react-component-library/useHandedness";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { useWorkspaceStore } from "./stores/useWorkspaceStore";
@@ -15,19 +14,16 @@ import {
 import type { MaybeBanner } from "./components/banners/types";
 import { useCapabilities } from "./hooks/useCapabilities";
 import { onProfilerRender } from "./lib/profiler";
+import { useAppViewport } from "./hooks/useAppViewport";
+import LaunchScreen from "./components/LaunchScreen";
 
 const Workspace = lazy(() => import("./components/Workspace"));
 
-const PageFallback = () => {
-  const { t } = useTranslation();
-  return (
-    <div className="flex h-wc-app items-center justify-center bg-wc-surface-base text-wc-text-muted">
-      {t(strings.app.loading)}
-    </div>
-  );
-};
-
 export default function App() {
+  // Size the canvas during health/chunk loading too. Workspace hydration and
+  // terminal followers consume this same keyboard state after they mount.
+  const setKeyboardOpen = useWorkspaceStore((state) => state.setKeyboardOpen);
+  useAppViewport({ onKeyboardChange: setKeyboardOpen });
   const handedness = useWorkspaceStore((state) => state.handedness);
   const audioIntent = useWorkspaceStore((state) => state.audioIntent);
   const { t } = useTranslation();
@@ -100,9 +96,9 @@ export default function App() {
       <div className="wc-ios-tint-edge wc-ios-tint-edge-bottom" aria-hidden="true" />
 
       {/* Always render workspace — even during initial load or error */}
-      <Suspense fallback={<PageFallback />}>
-        {isLoading && !error ? (
-          <PageFallback />
+      <Suspense fallback={<LaunchScreen />}>
+        {isLoading ? (
+          <LaunchScreen />
         ) : (
           <Profiler id="Workspace" onRender={onProfilerRender}>
             <Workspace appBanners={appBanners} />

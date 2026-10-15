@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import launchProfiles from "../launch-profiles.json";
 
 /**
  * Enforces the fleet `/public/*` asset convention for web-console
@@ -30,6 +31,7 @@ interface ManifestIcon {
 }
 
 interface WebManifest {
+  background_color?: string;
   name?: string;
   short_name?: string;
   start_url?: string;
@@ -53,6 +55,24 @@ function resolvesUnderPublic(ref: string): boolean {
 }
 
 describe("public-assets convention: web-console branding/PWA/OG under /public/", () => {
+  it("keeps the initial HTML launch and manifest on the same canvas", () => {
+    expect(INDEX_HTML).toContain("aquila:launch-styles");
+    expect(INDEX_HTML).toContain("aquila:launch-identity");
+    expect(INDEX_HTML).toContain("aquila:startup-images");
+    const css = readFileSync(resolve(UI_ROOT, "src/launch-screen.css"), "utf8");
+    expect(css).toContain(`--wc-launch-background: ${String(readManifest().background_color)}`);
+    expect(css).toContain("prefers-reduced-motion: reduce");
+  });
+
+  it.each(launchProfiles)("provides correctly sized portrait and landscape launch images for $width×$height at $scale×", ({ width, height, scale }) => {
+    for (const [w, h] of [[width * scale, height * scale], [height * scale, width * scale]]) {
+      const bytes = readFileSync(resolve(PUBLIC_DIR, `launch/${String(w)}x${String(h)}.png`));
+      expect(bytes.subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a");
+      expect(bytes.readUInt32BE(16)).toBe(w);
+      expect(bytes.readUInt32BE(20)).toBe(h);
+    }
+  });
+
   it("presents Aquila in browser, installation, and share metadata", () => {
     const html = new DOMParser().parseFromString(INDEX_HTML, "text/html");
     expect(html.title).toBe("Aquila");

@@ -7,7 +7,7 @@ import (
 )
 
 func TestModuleMounts(t *testing.T) {
-	m := Module(nil, nil)
+	m := Module(nil, nil, nil)
 	if m.Name != "sessions" || m.Mount == nil || len(m.Endpoints) == 0 {
 		t.Fatalf("invalid module: %#v", m)
 	}

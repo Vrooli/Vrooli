@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SettingsModal, type SettingsTab } from "./SettingsModal";
 import { jsonResponse, renderWithQueryClient, setViewport } from "../test-utils";
@@ -272,16 +272,16 @@ describe("SettingsModal", () => {
     });
   });
 
-  it("uses the full-screen mobile modal controls below the mobile breakpoint", () => {
+  it("uses the library mobile drawer with one safe-area footer owner", () => {
     const props = settingsProps();
     setViewport(375, 740);
 
     renderWithQueryClient(<SettingsModal {...props} />);
 
-    expect(screen.getByRole("dialog", { name: "Settings" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Settings" })).toHaveClass("rcl-full-page-drawer__panel");
     expect(screen.getByText("Repo: /work/git-control-tower")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    fireEvent.click(within(screen.getByRole("dialog", { name: "Settings" })).getByRole("button", { name: "Close" }));
 
     expect(props.onClose).toHaveBeenCalledOnce();
   });

@@ -44,10 +44,13 @@ describe("App bootstrap and top-level notices", () => {
     useWorkspaceStore.setState({ audioIntent: false });
   });
 
-  it("shows the loading boundary before mounting the workspace", async () => {
+  it("shows the loading boundary before mounting the workspace", () => {
     fetchHealth.mockReturnValue(new Promise(() => {}));
     renderWithProviders(<App />);
-    expect(screen.getByText("app.loading")).toBeInTheDocument();
+    expect(screen.getByRole("status", { name: "app.loading" })).toBeInTheDocument();
+    expect(screen.getByText("Aquila")).toBeInTheDocument();
+    expect(screen.getByTestId("app-launch").querySelector("img")).toHaveAttribute("src", "./public/icon-192.png");
+    expect(document.documentElement.style.getPropertyValue("--wc-app-height")).not.toBe("");
   });
 
   it("stays quiet about unavailable audio until something asks for it", async () => {
@@ -62,7 +65,7 @@ describe("App bootstrap and top-level notices", () => {
     });
 
     renderWithProviders(<App />);
-    await waitFor(() => expect(screen.getByTestId("workspace-mock")).toBeInTheDocument());
+    await waitFor(() => { expect(screen.getByTestId("workspace-mock")).toBeInTheDocument(); });
     expect(screen.queryByTestId("audio-unavailable-banner")).not.toBeInTheDocument();
   });
 
@@ -76,7 +79,7 @@ describe("App bootstrap and top-level notices", () => {
     useWorkspaceStore.setState({ audioIntent: true });
 
     renderWithProviders(<App />);
-    await waitFor(() => expect(screen.getByTestId("audio-unavailable-banner")).toBeInTheDocument());
+    await waitFor(() => { expect(screen.getByTestId("audio-unavailable-banner")).toBeInTheDocument(); });
     expect(screen.getByTestId("workspace-mock")).toBeInTheDocument();
   });
 
@@ -90,7 +93,7 @@ describe("App bootstrap and top-level notices", () => {
     useWorkspaceStore.setState({ audioIntent: true });
 
     renderWithProviders(<App />);
-    await waitFor(() => expect(screen.getByTestId("connection-banner")).toBeInTheDocument(), { timeout: 5000 });
+    await waitFor(() => { expect(screen.getByTestId("connection-banner")).toBeInTheDocument(); }, { timeout: 5000 });
     fireEvent.click(screen.getByRole("button", { name: "dismiss" }));
     expect(screen.queryByTestId("connection-banner")).not.toBeInTheDocument();
     expect(screen.getByTestId("audio-unavailable-banner")).toBeInTheDocument();
@@ -100,8 +103,8 @@ describe("App bootstrap and top-level notices", () => {
     const error = new Error("temporary outage");
     fetchHealth.mockRejectedValueOnce(error).mockResolvedValueOnce({ status: "ok" });
     renderWithProviders(<App />);
-    await waitFor(() => expect(screen.getByTestId("connection-banner")).toBeInTheDocument(), { timeout: 5000 });
+    await waitFor(() => { expect(screen.getByTestId("connection-banner")).toBeInTheDocument(); }, { timeout: 5000 });
     fireEvent.click(screen.getByRole("button", { name: "app.connectionBanner.retry" }));
-    await waitFor(() => expect(fetchHealth).toHaveBeenCalledTimes(2), { timeout: 5000 });
+    await waitFor(() => { expect(fetchHealth).toHaveBeenCalledTimes(2); }, { timeout: 5000 });
   });
 });

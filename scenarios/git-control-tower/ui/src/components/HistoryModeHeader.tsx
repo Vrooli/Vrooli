@@ -32,7 +32,7 @@ export function HistoryModeHeader({ commit, onExit, compact }: HistoryModeHeader
   if (compact) {
     return (
       <header
-        className="flex items-center justify-between px-3 py-2 border-b border-amber-800/50 bg-amber-950/30 backdrop-blur-sm pt-safe"
+        className="flex items-center justify-between px-3 py-2 border-b border-amber-800/50 bg-amber-950/30 backdrop-blur-sm"
         data-testid="mobile-header"
       >
         <div className="flex items-center gap-2 min-w-0 flex-1">

@@ -1,4 +1,5 @@
 import { usePendingWorkspaceChanges } from "./lib/hooks-core";
+import { useAppViewport } from "./hooks/useAppViewport";
 import { PushSafetyProvider } from "./components/PushSafetyIndicators";
 import { PushSafetyDialog } from "./components/PushSafetyDialog";
 import { CommitAuthorizationDialog, type PendingCommitAuthorization } from "./components/CommitAuthorizationDialog";
@@ -156,6 +157,7 @@ function writeCommitConfirmationPreference(skip: boolean): void {
 
 export default function App() {
   const queryClient = useQueryClient();
+  useAppViewport();
   const { repoId, setRepoId } = useRepoSelection();
   const isMobile = useIsMobile();
   const mainRef = useRef<HTMLDivElement | null>(null);
@@ -262,8 +264,8 @@ export default function App() {
   const [urlInitComplete, setUrlInitComplete] = useState(false);
 
   useEffect(() => {
-	chromeTheme.setBase({ statusColor: GCT_CHROME_COLOR, fillColor: GCT_CHROME_COLOR });
-	}, []);
+    chromeTheme.setBase({ statusColor: GCT_CHROME_COLOR, fillColor: GCT_CHROME_COLOR });
+  }, []);
 
 	useEffect(() => {
     if (fileViewMode !== "grouped" || groupingRules.length === 0) {
@@ -2792,7 +2794,10 @@ export default function App() {
               canAmend={canAmend}
               amendDisabledReason={amendDisabledReason}
               collapsed={false}
-              fillHeight={true}
+              /* Size to content on mobile: the commit form is short, so h-full
+                 stretched the bordered card into a large empty void above the nav
+                 (the "extra padding at the bottom" seen on every device). */
+              fillHeight={false}
               onPush={handlePush}
               isPushing={isPushing}
               pushProgressLabel={syncProgressLabel}

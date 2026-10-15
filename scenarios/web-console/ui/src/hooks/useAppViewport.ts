@@ -17,7 +17,7 @@ export function useAppViewport(options: { onKeyboardChange?: (open: boolean) => 
     // false strands the whole shell in the upper part of the screen.  The
     // layout viewport is the stable app height; only adopt the smaller visual
     // height once the shared detector has positively established a keyboard.
-    const appHeight = viewport.keyboardVisible ? viewport.visibleHeight : viewport.layoutHeight;
+    const appHeight = viewport.keyboardVisible ? viewport.visibleHeight : viewport.frameHeight ?? viewport.layoutHeight;
     root.setProperty("--wc-app-height", `${String(appHeight)}px`);
     root.setProperty("--wc-safe-top", "env(safe-area-inset-top)");
     root.setProperty("--wc-safe-left", "env(safe-area-inset-left)");
@@ -37,7 +37,7 @@ export function useAppViewport(options: { onKeyboardChange?: (open: boolean) => 
     if (window.scrollX !== 0 || window.scrollY !== 0 || viewport.offsetLeft !== 0 || viewport.offsetTop !== 0) {
       window.scrollTo(0, 0);
     }
-  }, [viewport.keyboardInset, viewport.keyboardVisible, viewport.offsetLeft, viewport.offsetTop, viewport.reachesScreenBottom, viewport.visibleHeight]);
+  }, [viewport.frameHeight, viewport.layoutHeight, viewport.keyboardInset, viewport.keyboardVisible, viewport.offsetLeft, viewport.offsetTop, viewport.reachesScreenBottom, viewport.visibleHeight]);
 
   useEffect(() => () => {
     const root = document.documentElement.style;

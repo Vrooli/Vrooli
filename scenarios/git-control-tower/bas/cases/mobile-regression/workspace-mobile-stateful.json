@@ -1,7 +1,7 @@
 {
   "metadata": {
     "name": "gct-mobile-embedded-regression",
-    "description": "Stateful layout gate for GCT-MOBILE-001 through GCT-MOBILE-006. It asserts mobile chrome colour agreement and Changes \u2192 Diff \u2192 Changes geometry (nav within viewport, header not overlapping content, geometry restored) without mutating repository state.",
+    "description": "Stateful layout gate for GCT-MOBILE-001 through GCT-MOBILE-006. It asserts mobile chrome colour agreement and Changes \u2192 Diff \u2192 Changes geometry (nav within viewport, header not overlapping content, geometry restored) without mutating repository state. Requires observed nonzero phone insets and verifies nav descendants, hit targets, single-inset spacing and menu/Settings canvas restoration. Chromium only; synthetic standalone geometry is not physical installed-app qualification. Header controls must fit a 44\u201348px row below the status inset.",
     "execution_mode": "observer",
     "requirement": "GCT-MOBILE-001",
     "version": "1",
@@ -49,7 +49,7 @@
         },
         "type": "ACTION_TYPE_EVALUATE",
         "evaluate": {
-          "expression": "(() => { const pick = (id) => { const el = document.querySelector(`[data-testid=${id}]`); if (!el) return null; const r = el.getBoundingClientRect(); return { top:r.top, bottom:r.bottom, height:r.height, scrollTop:el.scrollTop, scrollHeight:el.scrollHeight, clientHeight:el.clientHeight }; }; const scroll = document.querySelector('[data-testid=changes-scroll-region] [data-radix-scroll-area-viewport]') || document.querySelector('[data-testid=changes-scroll-region]'); const scrollRect = scroll?.getBoundingClientRect(); const result = { viewport:{width:innerWidth,height:innerHeight}, root:pick('git-control-tower'), header:pick('mobile-header'), nav:pick('mobile-nav'), changes:pick('file-list-panel'), changesScroll:scroll ? {top:scrollRect.top,bottom:scrollRect.bottom,scrollTop:scroll.scrollTop,scrollHeight:scroll.scrollHeight,clientHeight:scroll.clientHeight} : null }; const navInView = Boolean(result.nav && result.nav.top >= 0 && result.nav.bottom <= result.viewport.height + 1); const noOverlap = Boolean(result.header && result.changesScroll && result.header.bottom <= result.changesScroll.top + 1); document.body.dataset.gctNavInViewport = navInView ? 'true' : 'false'; document.body.dataset.gctNoHeaderOverlap = noOverlap ? 'true' : 'false'; return result; })()",
+          "expression": "(() => { const pick = (id) => { const el = document.querySelector('[data-testid=\"' + id + '\"]'); if (!el) return null; const r = el.getBoundingClientRect(); return { top:r.top, bottom:r.bottom, height:r.height, scrollTop:el.scrollTop, scrollHeight:el.scrollHeight, clientHeight:el.clientHeight }; }; const scroll = document.querySelector('[data-testid=changes-scroll-region] [data-radix-scroll-area-viewport]') || document.querySelector('[data-testid=changes-scroll-region]'); const scrollRect = scroll?.getBoundingClientRect(); const result = { viewport:{width:innerWidth,height:innerHeight}, root:pick('git-control-tower'), header:pick('mobile-header'), nav:pick('mobile-nav'), changes:pick('file-list-panel'), changesScroll:scroll ? {top:scrollRect.top,bottom:scrollRect.bottom,scrollTop:scroll.scrollTop,scrollHeight:scroll.scrollHeight,clientHeight:scroll.clientHeight} : null }; const navInView = Boolean(result.nav && result.nav.top >= 0 && result.nav.bottom <= result.viewport.height + 1); const noOverlap = Boolean(result.header && result.changesScroll && result.header.bottom <= result.changesScroll.top + 1); document.body.dataset.gctHeaderCompact = result.header && result.header.height >= 44 && result.header.height <= 48 ? 'true' : 'false'; document.body.dataset.gctNavInViewport = navInView ? 'true' : 'false'; document.body.dataset.gctNoHeaderOverlap = noOverlap ? 'true' : 'false'; return result; })()",
           "store_result": "gct_initial_geometry"
         }
       }
@@ -113,7 +113,7 @@
         },
         "type": "ACTION_TYPE_EVALUATE",
         "evaluate": {
-          "expression": "(() => { const fill = getComputedStyle(document.querySelector('[data-testid=status-bar-fill]')).backgroundColor; const header = getComputedStyle(document.querySelector('[data-testid=mobile-header]')).backgroundColor; const meta = (document.querySelector('meta[name=theme-color]')?.getAttribute('content') || '').trim().toLowerCase(); const hex = meta.match(/^#([0-9a-f]{6})$/); const metaRGB = hex ? `rgb(${parseInt(hex[1].slice(0,2),16)}, ${parseInt(hex[1].slice(2,4),16)}, ${parseInt(hex[1].slice(4,6),16)})` : ''; const normalize = (value) => value.replace(/\\s+/g, '').replace(/^rgba\\(([^,]+),([^,]+),([^,]+),1\\)$/, 'rgb($1,$2,$3)'); const ok = Boolean(fill && header && metaRGB && normalize(fill) === normalize(header) && normalize(fill) === normalize(metaRGB)); document.body.dataset.gctChromeColors = ok ? 'true' : 'false'; return { fill, header, meta, metaRGB, ok }; })()",
+          "expression": "(() => { const fill = getComputedStyle(document.querySelector('[data-testid=status-bar-fill]')).backgroundColor; const header = getComputedStyle(document.querySelector('[data-testid=mobile-header]')).backgroundColor; const meta = (document.querySelector('meta[name=theme-color]')?.getAttribute('content') || '').trim().toLowerCase(); const hex = meta.match(/^#([0-9a-f]{6})$/); const metaRGB = hex ? 'rgb(' + parseInt(hex[1].slice(0,2),16) + ', ' + parseInt(hex[1].slice(2,4),16) + ', ' + parseInt(hex[1].slice(4,6),16) + ')' : ''; const normalize = (value) => value.replace(/\\s+/g, '').replace(/^rgba\\(([^,]+),([^,]+),([^,]+),1\\)$/, 'rgb($1,$2,$3)'); const ok = Boolean(fill && header && metaRGB && normalize(fill) === normalize(header) && normalize(fill) === normalize(metaRGB)); document.body.dataset.gctChromeColors = ok ? 'true' : 'false'; return { fill, header, meta, metaRGB, ok }; })()",
           "store_result": "gct_chrome_colors"
         }
       }
@@ -216,7 +216,7 @@
           "selector": "body",
           "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
           "timeout_ms": 10000,
-          "failure_message": "GCT-MOBILE-004: after Changes → Diff → Changes, the Changes panel and bottom nav must remain within the viewport",
+          "failure_message": "GCT-MOBILE-004: after Changes \u2192 Diff \u2192 Changes, the Changes panel and bottom nav must remain within the viewport",
           "attribute_name": "data-gct-geometry-restored",
           "expected": {
             "string_value": "true"
@@ -235,82 +235,789 @@
           "full_page": false
         }
       }
+    },
+    {
+      "id": "measure-bottom-edge",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => {\n const probe=document.createElement('div');probe.style.cssText='position:fixed;visibility:hidden;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)';document.body.append(probe);\n const ps=getComputedStyle(probe);const safe={top:parseFloat(ps.paddingTop),bottom:parseFloat(ps.paddingBottom)};probe.remove();\n const nav=document.querySelector('[data-testid=mobile-nav]');const track=nav.querySelector('[data-rcl-bottom-nav-track]');\n const rect=e=>{const r=e.getBoundingClientRect();return {top:r.top,bottom:r.bottom,left:r.left,right:r.right,height:r.height}};\n const nr=rect(nav),tr=rect(track),ns=getComputedStyle(nav);\n const controls=[...nav.querySelectorAll('[data-rcl-bottom-nav-item]')].map(el=>{const r=rect(el);const hit=document.elementFromPoint((r.left+r.right)/2,r.bottom-2);const children=[...el.querySelectorAll('[data-rcl-bottom-nav-icon],[data-rcl-bottom-nav-label]')].map(rect);return {label:el.textContent,rect:r,hit:!!hit&&el.contains(hit),children};});\n const result={viewport:{width:innerWidth,height:innerHeight,dpr:devicePixelRatio},safe,nav:nr,track:tr,paddingBottom:parseFloat(ns.paddingBottom),navColor:ns.backgroundColor,htmlColor:getComputedStyle(document.documentElement).backgroundColor,bodyColor:getComputedStyle(document.body).backgroundColor,controls};\n const ok=safe.top>0&&safe.bottom>0&&Math.abs(nr.bottom-innerHeight)<=1&&Math.abs(nr.bottom-tr.bottom-safe.bottom)<=1&&Math.abs(result.paddingBottom-safe.bottom)<=1&&tr.height>=44&&tr.height<=60&&controls.length===5&&controls.every(c=>c.hit&&c.rect.height>=44&&c.rect.bottom<=innerHeight-safe.bottom+1&&c.children.every(r=>r.top>=c.rect.top-1&&r.bottom<=c.rect.bottom+1))&&result.navColor===result.htmlColor&&result.navColor===result.bodyColor;\n document.body.dataset.gctBottomEdge=String(ok);document.body.dataset.gctBottomEdgeEvidence=JSON.stringify(result);return result;\n})()",
+          "store_result": "measure_bottom_edge"
+        },
+        "metadata": {
+          "label": "Measure bottom edge"
+        }
+      }
+    },
+    {
+      "id": "assert-bottom-edge",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "body",
+          "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+          "attribute_name": "data-gct-bottom-edge",
+          "expected": {
+            "string_value": "true"
+          },
+          "timeout_ms": 2000,
+          "failure_message": "Nonzero phone insets required; nav controls must be unclipped, compact, hit-testable, and reserve the bottom inset exactly once."
+        },
+        "metadata": {
+          "label": "Assert bottom edge"
+        }
+      }
+    },
+    {
+      "id": "bottom-edge-resting",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": false
+        },
+        "metadata": {
+          "label": "Bottom edge resting"
+        }
+      }
+    },
+    {
+      "id": "open-mobile-menu",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "[data-testid=mobile-menu-button]"
+        },
+        "metadata": {
+          "label": "Open mobile menu"
+        }
+      }
+    },
+    {
+      "id": "settle-menu",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 350
+        },
+        "metadata": {
+          "label": "Settle menu"
+        }
+      }
+    },
+    {
+      "id": "measure-menu-edge",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => {\n const panel=document.querySelector('[data-rcl-full-page-drawer][data-state=\"open\"] .rcl-full-page-drawer__panel, [data-rcl-bottom-sheet][data-state=\"open\"] .rcl-bottom-sheet__panel');\n if(!panel){document.body.dataset.gctOverlayEdge='false';return {missing:true}};\n const r=panel.getBoundingClientRect(),color=getComputedStyle(panel).backgroundColor,htmlColor=getComputedStyle(document.documentElement).backgroundColor,bodyColor=getComputedStyle(document.body).backgroundColor;\n const footer=panel.querySelector('footer');const content=panel.querySelector('.rcl-full-page-drawer__content,.rcl-bottom-sheet__content');\n const result={bottom:r.bottom,viewportHeight:innerHeight,color,htmlColor,bodyColor,footerPadding:footer?getComputedStyle(footer).paddingBottom:null,contentPadding:content?getComputedStyle(content).paddingBottom:null};\n const ok=Math.abs(r.bottom-innerHeight)<=1&&color===htmlColor&&color===bodyColor&&(!footer||parseFloat(result.contentPadding)<1);\n document.body.dataset.gctOverlayEdge=String(ok);document.body.dataset.gctOverlayEdgeEvidence=JSON.stringify(result);return result;\n})()",
+          "store_result": "measure_menu_edge"
+        },
+        "metadata": {
+          "label": "Measure menu edge"
+        }
+      }
+    },
+    {
+      "id": "assert-menu-edge",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "body",
+          "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+          "attribute_name": "data-gct-overlay-edge",
+          "expected": {
+            "string_value": "true"
+          },
+          "timeout_ms": 2000,
+          "failure_message": "Open menu must paint both page canvases to match its bottom surface."
+        },
+        "metadata": {
+          "label": "Assert menu edge"
+        }
+      }
+    },
+    {
+      "id": "bottom-edge-menu",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": false
+        },
+        "metadata": {
+          "label": "Bottom edge menu"
+        }
+      }
+    },
+    {
+      "id": "open-settings",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "[role=dialog] button:has-text(\"Layout, grouping, and credentials\")"
+        },
+        "metadata": {
+          "label": "Open settings"
+        }
+      }
+    },
+    {
+      "id": "settle-settings",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 350
+        },
+        "metadata": {
+          "label": "Settle settings"
+        }
+      }
+    },
+    {
+      "id": "measure-settings-edge",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => {\n const panel=document.querySelector('[data-rcl-full-page-drawer][data-state=\"open\"] .rcl-full-page-drawer__panel, [data-rcl-bottom-sheet][data-state=\"open\"] .rcl-bottom-sheet__panel');\n if(!panel){document.body.dataset.gctOverlayEdge='false';return {missing:true}};\n const r=panel.getBoundingClientRect(),color=getComputedStyle(panel).backgroundColor,htmlColor=getComputedStyle(document.documentElement).backgroundColor,bodyColor=getComputedStyle(document.body).backgroundColor;\n const footer=panel.querySelector('footer');const content=panel.querySelector('.rcl-full-page-drawer__content,.rcl-bottom-sheet__content');\n const result={bottom:r.bottom,viewportHeight:innerHeight,color,htmlColor,bodyColor,footerPadding:footer?getComputedStyle(footer).paddingBottom:null,contentPadding:content?getComputedStyle(content).paddingBottom:null};\n const ok=Math.abs(r.bottom-innerHeight)<=1&&color===htmlColor&&color===bodyColor&&(!footer||parseFloat(result.contentPadding)<1);\n document.body.dataset.gctOverlayEdge=String(ok);document.body.dataset.gctOverlayEdgeEvidence=JSON.stringify(result);return result;\n})()",
+          "store_result": "measure_settings_edge"
+        },
+        "metadata": {
+          "label": "Measure settings edge"
+        }
+      }
+    },
+    {
+      "id": "assert-settings-edge",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "body",
+          "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+          "attribute_name": "data-gct-overlay-edge",
+          "expected": {
+            "string_value": "true"
+          },
+          "timeout_ms": 2000,
+          "failure_message": "Settings drawer must reach the bottom edge and reserve its safe area in its footer only."
+        },
+        "metadata": {
+          "label": "Assert settings edge"
+        }
+      }
+    },
+    {
+      "id": "bottom-edge-settings",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": false
+        },
+        "metadata": {
+          "label": "Bottom edge settings"
+        }
+      }
+    },
+    {
+      "id": "close-settings",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "[role=dialog] button:has-text(\"Done\")"
+        },
+        "metadata": {
+          "label": "Close settings"
+        }
+      }
+    },
+    {
+      "id": "settle-closed-settings",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 350
+        },
+        "metadata": {
+          "label": "Settle closed settings"
+        }
+      }
+    },
+    {
+      "id": "measure-restored-edge",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => {\n const probe=document.createElement('div');probe.style.cssText='position:fixed;visibility:hidden;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)';document.body.append(probe);\n const ps=getComputedStyle(probe);const safe={top:parseFloat(ps.paddingTop),bottom:parseFloat(ps.paddingBottom)};probe.remove();\n const nav=document.querySelector('[data-testid=mobile-nav]');const track=nav.querySelector('[data-rcl-bottom-nav-track]');\n const rect=e=>{const r=e.getBoundingClientRect();return {top:r.top,bottom:r.bottom,left:r.left,right:r.right,height:r.height}};\n const nr=rect(nav),tr=rect(track),ns=getComputedStyle(nav);\n const controls=[...nav.querySelectorAll('[data-rcl-bottom-nav-item]')].map(el=>{const r=rect(el);const hit=document.elementFromPoint((r.left+r.right)/2,r.bottom-2);const children=[...el.querySelectorAll('[data-rcl-bottom-nav-icon],[data-rcl-bottom-nav-label]')].map(rect);return {label:el.textContent,rect:r,hit:!!hit&&el.contains(hit),children};});\n const result={viewport:{width:innerWidth,height:innerHeight,dpr:devicePixelRatio},safe,nav:nr,track:tr,paddingBottom:parseFloat(ns.paddingBottom),navColor:ns.backgroundColor,htmlColor:getComputedStyle(document.documentElement).backgroundColor,bodyColor:getComputedStyle(document.body).backgroundColor,controls};\n const ok=safe.top>0&&safe.bottom>0&&Math.abs(nr.bottom-innerHeight)<=1&&Math.abs(nr.bottom-tr.bottom-safe.bottom)<=1&&Math.abs(result.paddingBottom-safe.bottom)<=1&&tr.height>=44&&tr.height<=60&&controls.length===5&&controls.every(c=>c.hit&&c.rect.height>=44&&c.rect.bottom<=innerHeight-safe.bottom+1&&c.children.every(r=>r.top>=c.rect.top-1&&r.bottom<=c.rect.bottom+1))&&result.navColor===result.htmlColor&&result.navColor===result.bodyColor;\n document.body.dataset.gctBottomEdge=String(ok);document.body.dataset.gctBottomEdgeEvidence=JSON.stringify(result);return result;\n})()",
+          "store_result": "measure_restored_edge"
+        },
+        "metadata": {
+          "label": "Measure restored edge"
+        }
+      }
+    },
+    {
+      "id": "assert-restored-edge",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "body",
+          "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+          "attribute_name": "data-gct-bottom-edge",
+          "expected": {
+            "string_value": "true"
+          },
+          "timeout_ms": 2000,
+          "failure_message": "Closing the drawer must restore the compact navigation and original page canvas."
+        },
+        "metadata": {
+          "label": "Assert restored edge"
+        }
+      }
+    },
+    {
+      "id": "bottom-edge-restored",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": false
+        },
+        "metadata": {
+          "label": "Bottom edge restored"
+        }
+      }
+    },
+    {
+      "id": "simulate-installed-screen",
+      "action": {
+        "metadata": {
+          "label": "Replay client-observed 793px report with 852px CSS canvas"
+        },
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => { const script=document.createElement('script');script.dataset.gctViewportSimulation='installed-stops-short';script.textContent=`Object.defineProperty(navigator,'standalone',{configurable:true,value:true});Object.defineProperty(screen,'width',{configurable:true,value:393});Object.defineProperty(screen,'height',{configurable:true,value:852});Object.defineProperty(window,'innerHeight',{configurable:true,value:793});Object.defineProperty(window.visualViewport,'height',{configurable:true,value:793});window.dispatchEvent(new Event('resize'));`;document.head.append(script);return new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve({simulation:'installed-stops-short',screen:{width:screen.width,height:screen.height},viewport:{width:innerWidth,height:innerHeight}}))));})()",
+          "store_result": "installed_screen_simulation"
+        }
+      }
+    },
+    {
+      "id": "measure-installed-navigation",
+      "action": {
+        "metadata": {
+          "label": "Measure installed navigation"
+        },
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => {\n const probe=document.createElement('div');probe.style.cssText='position:fixed;visibility:hidden;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)';document.body.append(probe);\n const ps=getComputedStyle(probe);const safe={top:parseFloat(ps.paddingTop),bottom:parseFloat(ps.paddingBottom)};probe.remove();\n const nav=document.querySelector('[data-testid=mobile-nav]');const track=nav.querySelector('[data-rcl-bottom-nav-track]');\n const rect=e=>{const r=e.getBoundingClientRect();return {top:r.top,bottom:r.bottom,left:r.left,right:r.right,height:r.height}};\n const nr=rect(nav),tr=rect(track),ns=getComputedStyle(nav);\n const controls=[...nav.querySelectorAll('[data-rcl-bottom-nav-item]')].map(el=>{const r=rect(el);const hit=document.elementFromPoint((r.left+r.right)/2,r.bottom-2);const children=[...el.querySelectorAll('[data-rcl-bottom-nav-icon],[data-rcl-bottom-nav-label]')].map(rect);return {label:el.textContent,rect:r,hit:!!hit&&el.contains(hit),children};});\n const result={viewport:{width:innerWidth,height:innerHeight,dpr:devicePixelRatio},safe,nav:nr,track:tr,paddingBottom:parseFloat(ns.paddingBottom),navColor:ns.backgroundColor,htmlColor:getComputedStyle(document.documentElement).backgroundColor,bodyColor:getComputedStyle(document.body).backgroundColor,controls};\n const ok=safe.top>0&&safe.bottom>0&&Math.abs(nr.bottom-852)<=1&&Math.abs(nr.bottom-tr.bottom-safe.bottom)<=1&&Math.abs(result.paddingBottom-safe.bottom)<=1&&tr.height>=44&&tr.height<=60&&controls.length===5&&controls.every(c=>c.hit&&c.rect.height>=44&&c.rect.bottom<=852-safe.bottom+1&&c.children.every(r=>r.top>=c.rect.top-1&&r.bottom<=c.rect.bottom+1))&&result.navColor===result.htmlColor&&result.navColor===result.bodyColor;\n document.body.dataset.gctBottomEdge=String(ok);document.body.dataset.gctBottomEdgeEvidence=JSON.stringify(result);return result;\n})()",
+          "store_result": "installed_navigation"
+        }
+      }
+    },
+    {
+      "id": "assert-installed-navigation",
+      "action": {
+        "metadata": {
+          "label": "Assert installed navigation"
+        },
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "body",
+          "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+          "attribute_name": "data-gct-bottom-edge",
+          "expected": {
+            "string_value": "true"
+          },
+          "timeout_ms": 2000,
+          "failure_message": "Observed installed geometry must fill the measured 852px canvas and reserve the 34px home-indicator inset exactly once."
+        }
+      }
+    },
+    {
+      "id": "capture-installed-navigation",
+      "action": {
+        "metadata": {
+          "label": "Capture installed navigation"
+        },
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": false
+        }
+      }
+    },
+    {
+      "id": "open-installed-menu",
+      "action": {
+        "metadata": {
+          "label": "Open installed menu"
+        },
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "[data-testid=mobile-menu-button]"
+        }
+      }
+    },
+    {
+      "id": "settle-installed-menu",
+      "action": {
+        "metadata": {
+          "label": "Settle installed menu"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 350
+        }
+      }
+    },
+    {
+      "id": "open-installed-settings",
+      "action": {
+        "metadata": {
+          "label": "Open installed settings"
+        },
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "[role=dialog] button:has-text(\"Layout, grouping, and credentials\")"
+        }
+      }
+    },
+    {
+      "id": "settle-installed-settings",
+      "action": {
+        "metadata": {
+          "label": "Settle installed settings"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 350
+        }
+      }
+    },
+    {
+      "id": "measure-installed-drawer",
+      "action": {
+        "metadata": {
+          "label": "Measure installed drawer"
+        },
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => {const panel=document.querySelector('.rcl-full-page-drawer__panel');const footer=panel?.querySelector('footer');const content=panel?.querySelector('.rcl-full-page-drawer__content');const result={panelBottom:panel?.getBoundingClientRect().bottom,footerPadding:footer?getComputedStyle(footer).paddingBottom:null,contentPadding:content?getComputedStyle(content).paddingBottom:null,bodyColor:getComputedStyle(document.body).backgroundColor,panelColor:panel?getComputedStyle(panel).backgroundColor:null};document.body.dataset.gctInstalledDrawer=String(Math.abs(result.panelBottom-852)<=1&&result.footerPadding==='50px'&&result.contentPadding==='0px'&&result.bodyColor===result.panelColor);document.body.dataset.gctInstalledDrawerEvidence=JSON.stringify(result);return result;})()",
+          "store_result": "installed_drawer"
+        }
+      }
+    },
+    {
+      "id": "assert-installed-drawer",
+      "action": {
+        "metadata": {
+          "label": "Assert installed drawer"
+        },
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "body",
+          "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+          "attribute_name": "data-gct-installed-drawer",
+          "expected": {
+            "string_value": "true"
+          },
+          "timeout_ms": 2000,
+          "failure_message": "Drawer must fill the same 852px measured canvas, with one 34px footer inset and matching body/panel paint."
+        }
+      }
+    },
+    {
+      "id": "capture-installed-drawer",
+      "action": {
+        "metadata": {
+          "label": "Capture installed drawer"
+        },
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": false
+        }
+      }
+    },
+    {
+      "id": "close-installed-settings",
+      "action": {
+        "metadata": {
+          "label": "Close installed settings"
+        },
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "[role=dialog] button:has-text(\"Done\")"
+        }
+      }
+    },
+    {
+      "id": "settle-installed-restoration",
+      "action": {
+        "metadata": {
+          "label": "Settle installed restoration"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 350
+        }
+      }
+    },
+    {
+      "id": "measure-installed-restoration",
+      "action": {
+        "metadata": {
+          "label": "Measure installed restoration"
+        },
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => {\n const probe=document.createElement('div');probe.style.cssText='position:fixed;visibility:hidden;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)';document.body.append(probe);\n const ps=getComputedStyle(probe);const safe={top:parseFloat(ps.paddingTop),bottom:parseFloat(ps.paddingBottom)};probe.remove();\n const nav=document.querySelector('[data-testid=mobile-nav]');const track=nav.querySelector('[data-rcl-bottom-nav-track]');\n const rect=e=>{const r=e.getBoundingClientRect();return {top:r.top,bottom:r.bottom,left:r.left,right:r.right,height:r.height}};\n const nr=rect(nav),tr=rect(track),ns=getComputedStyle(nav);\n const controls=[...nav.querySelectorAll('[data-rcl-bottom-nav-item]')].map(el=>{const r=rect(el);const hit=document.elementFromPoint((r.left+r.right)/2,r.bottom-2);const children=[...el.querySelectorAll('[data-rcl-bottom-nav-icon],[data-rcl-bottom-nav-label]')].map(rect);return {label:el.textContent,rect:r,hit:!!hit&&el.contains(hit),children};});\n const result={viewport:{width:innerWidth,height:innerHeight,dpr:devicePixelRatio},safe,nav:nr,track:tr,paddingBottom:parseFloat(ns.paddingBottom),navColor:ns.backgroundColor,htmlColor:getComputedStyle(document.documentElement).backgroundColor,bodyColor:getComputedStyle(document.body).backgroundColor,controls};\n const ok=safe.top>0&&safe.bottom>0&&Math.abs(nr.bottom-852)<=1&&Math.abs(nr.bottom-tr.bottom-safe.bottom)<=1&&Math.abs(result.paddingBottom-safe.bottom)<=1&&tr.height>=44&&tr.height<=60&&controls.length===5&&controls.every(c=>c.hit&&c.rect.height>=44&&c.rect.bottom<=852-safe.bottom+1&&c.children.every(r=>r.top>=c.rect.top-1&&r.bottom<=c.rect.bottom+1))&&result.navColor===result.htmlColor&&result.navColor===result.bodyColor;\n document.body.dataset.gctBottomEdge=String(ok);document.body.dataset.gctBottomEdgeEvidence=JSON.stringify(result);return result;\n})()",
+          "store_result": "installed_restoration"
+        }
+      }
+    },
+    {
+      "id": "assert-installed-restoration",
+      "action": {
+        "metadata": {
+          "label": "Assert installed restoration"
+        },
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "body",
+          "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+          "attribute_name": "data-gct-bottom-edge",
+          "expected": {
+            "string_value": "true"
+          },
+          "timeout_ms": 2000,
+          "failure_message": "Installed navigation and canvas must restore without adding safe-area space."
+        }
+      }
+    },
+    {
+      "id": "capture-installed-restored",
+      "action": {
+        "metadata": {
+          "label": "Capture installed restored"
+        },
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": false
+        }
+      }
+    },
+    {
+      "id": "assert-compact-header",
+      "action": {
+        "metadata": {
+          "label": "Header reserves the status inset once and uses a compact toolbar row"
+        },
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "body",
+          "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+          "attribute_name": "data-gct-header-compact",
+          "expected": {
+            "string_value": "true"
+          },
+          "timeout_ms": 10000,
+          "failure_message": "Mobile header must be 44\u201348px high below the separate status inset; remove excess vertical padding."
+        }
+      }
     }
   ],
   "edges": [
     {
-      "id": "open-to-chrome",
+      "id": "edge-open-workspace-assert-mobile-chrome",
       "source": "open-workspace",
-      "target": "assert-mobile-chrome"
+      "target": "assert-mobile-chrome",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
-      "id": "chrome-to-geometry",
+      "id": "edge-assert-mobile-chrome-capture-initial-geometry",
       "source": "assert-mobile-chrome",
-      "target": "capture-initial-geometry"
+      "target": "capture-initial-geometry",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
-      "id": "geometry-to-nav-assert",
+      "id": "edge-capture-initial-geometry-assert-nav-in-viewport",
       "source": "capture-initial-geometry",
-      "target": "assert-nav-in-viewport"
+      "target": "assert-compact-header",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
-      "id": "nav-assert-to-overlap-assert",
+      "id": "edge-assert-nav-in-viewport-assert-no-header-overlap",
       "source": "assert-nav-in-viewport",
-      "target": "assert-no-header-overlap"
+      "target": "assert-no-header-overlap",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
-      "id": "overlap-assert-to-chrome",
+      "id": "edge-assert-no-header-overlap-scroll-changes",
       "source": "assert-no-header-overlap",
-      "target": "capture-chrome-colors"
+      "target": "scroll-changes",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
-      "id": "chrome-to-assert",
-      "source": "capture-chrome-colors",
-      "target": "assert-chrome-colors"
-    },
-    {
-      "id": "assert-chrome-to-scroll",
-      "source": "assert-chrome-colors",
-      "target": "scroll-changes"
-    },
-    {
-      "id": "scroll-to-shot",
+      "id": "edge-scroll-changes-capture-chrome-colors",
       "source": "scroll-changes",
-      "target": "capture-initial-screenshot"
+      "target": "capture-chrome-colors",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
-      "id": "shot-to-diff",
+      "id": "edge-capture-chrome-colors-assert-chrome-colors",
+      "source": "capture-chrome-colors",
+      "target": "assert-chrome-colors",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-assert-chrome-colors-capture-initial-screenshot",
+      "source": "assert-chrome-colors",
+      "target": "capture-initial-screenshot",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-capture-initial-screenshot-open-diff-tab",
       "source": "capture-initial-screenshot",
-      "target": "open-diff-tab"
+      "target": "open-diff-tab",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
-      "id": "diff-to-assert",
+      "id": "edge-open-diff-tab-assert-diff-tab",
       "source": "open-diff-tab",
-      "target": "assert-diff-tab"
+      "target": "assert-diff-tab",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
-      "id": "assert-to-return",
+      "id": "edge-assert-diff-tab-return-changes-tab",
       "source": "assert-diff-tab",
-      "target": "return-changes-tab"
+      "target": "return-changes-tab",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
-      "id": "return-to-geometry",
+      "id": "edge-return-changes-tab-capture-restored-geometry",
       "source": "return-changes-tab",
-      "target": "capture-restored-geometry"
+      "target": "capture-restored-geometry",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
-      "id": "geometry-to-restored-assert",
+      "id": "edge-capture-restored-geometry-assert-geometry-restored",
       "source": "capture-restored-geometry",
-      "target": "assert-geometry-restored"
+      "target": "assert-geometry-restored",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
     },
     {
-      "id": "restored-assert-to-final-shot",
+      "id": "edge-assert-geometry-restored-capture-restored-screenshot",
       "source": "assert-geometry-restored",
-      "target": "capture-restored-screenshot"
+      "target": "capture-restored-screenshot",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-capture-restored-screenshot-measure-bottom-edge",
+      "source": "capture-restored-screenshot",
+      "target": "measure-bottom-edge",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-measure-bottom-edge-assert-bottom-edge",
+      "source": "measure-bottom-edge",
+      "target": "assert-bottom-edge",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-assert-bottom-edge-bottom-edge-resting",
+      "source": "assert-bottom-edge",
+      "target": "bottom-edge-resting",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-bottom-edge-resting-open-mobile-menu",
+      "source": "bottom-edge-resting",
+      "target": "open-mobile-menu",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-open-mobile-menu-settle-menu",
+      "source": "open-mobile-menu",
+      "target": "settle-menu",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-settle-menu-measure-menu-edge",
+      "source": "settle-menu",
+      "target": "measure-menu-edge",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-measure-menu-edge-assert-menu-edge",
+      "source": "measure-menu-edge",
+      "target": "assert-menu-edge",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-assert-menu-edge-bottom-edge-menu",
+      "source": "assert-menu-edge",
+      "target": "bottom-edge-menu",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-bottom-edge-menu-open-settings",
+      "source": "bottom-edge-menu",
+      "target": "open-settings",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-open-settings-settle-settings",
+      "source": "open-settings",
+      "target": "settle-settings",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-settle-settings-measure-settings-edge",
+      "source": "settle-settings",
+      "target": "measure-settings-edge",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-measure-settings-edge-assert-settings-edge",
+      "source": "measure-settings-edge",
+      "target": "assert-settings-edge",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-assert-settings-edge-bottom-edge-settings",
+      "source": "assert-settings-edge",
+      "target": "bottom-edge-settings",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-bottom-edge-settings-close-settings",
+      "source": "bottom-edge-settings",
+      "target": "close-settings",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-close-settings-settle-closed-settings",
+      "source": "close-settings",
+      "target": "settle-closed-settings",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-settle-closed-settings-measure-restored-edge",
+      "source": "settle-closed-settings",
+      "target": "measure-restored-edge",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-measure-restored-edge-assert-restored-edge",
+      "source": "measure-restored-edge",
+      "target": "assert-restored-edge",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-assert-restored-edge-bottom-edge-restored",
+      "source": "assert-restored-edge",
+      "target": "bottom-edge-restored",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-bottom-edge-restored-simulate-installed-screen",
+      "source": "bottom-edge-restored",
+      "target": "simulate-installed-screen",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-simulate-installed-screen-measure-installed-navigation",
+      "source": "simulate-installed-screen",
+      "target": "measure-installed-navigation",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-measure-installed-navigation-assert-installed-navigation",
+      "source": "measure-installed-navigation",
+      "target": "assert-installed-navigation",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-assert-installed-navigation-capture-installed-navigation",
+      "source": "assert-installed-navigation",
+      "target": "capture-installed-navigation",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-capture-installed-navigation-open-installed-menu",
+      "source": "capture-installed-navigation",
+      "target": "open-installed-menu",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-open-installed-menu-settle-installed-menu",
+      "source": "open-installed-menu",
+      "target": "settle-installed-menu",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-settle-installed-menu-open-installed-settings",
+      "source": "settle-installed-menu",
+      "target": "open-installed-settings",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-open-installed-settings-settle-installed-settings",
+      "source": "open-installed-settings",
+      "target": "settle-installed-settings",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-settle-installed-settings-measure-installed-drawer",
+      "source": "settle-installed-settings",
+      "target": "measure-installed-drawer",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-measure-installed-drawer-assert-installed-drawer",
+      "source": "measure-installed-drawer",
+      "target": "assert-installed-drawer",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-assert-installed-drawer-capture-installed-drawer",
+      "source": "assert-installed-drawer",
+      "target": "capture-installed-drawer",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-capture-installed-drawer-close-installed-settings",
+      "source": "capture-installed-drawer",
+      "target": "close-installed-settings",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-close-installed-settings-settle-installed-restoration",
+      "source": "close-installed-settings",
+      "target": "settle-installed-restoration",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-settle-installed-restoration-measure-installed-restoration",
+      "source": "settle-installed-restoration",
+      "target": "measure-installed-restoration",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-measure-installed-restoration-assert-installed-restoration",
+      "source": "measure-installed-restoration",
+      "target": "assert-installed-restoration",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-assert-installed-restoration-capture-installed-restored",
+      "source": "assert-installed-restoration",
+      "target": "capture-installed-restored",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-compact-header-assert-nav-in-viewport",
+      "source": "assert-compact-header",
+      "target": "assert-nav-in-viewport"
     }
   ],
   "settings": {
-    "viewport_width": 390,
-    "viewport_height": 844
+    "viewport_width": 393,
+    "viewport_height": 852
   }
 }

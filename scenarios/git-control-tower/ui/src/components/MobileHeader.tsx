@@ -93,11 +93,11 @@ export function MobileHeader({
   return (
     <>
       <header
-        className="flex items-center justify-between px-3 py-2 border-b border-slate-800 bg-slate-900"
+        className="flex items-center justify-between px-2 py-0 border-b border-slate-800 bg-slate-900"
         data-testid="mobile-header"
       >
         {/* Left: Branch info */}
-        <div className="flex items-center gap-2 min-w-0 flex-1">
+        <div className="flex items-center gap-1 min-w-0 flex-1">
           <BranchSelector
             status={status}
             syncStatus={syncStatus}
@@ -111,7 +111,7 @@ export function MobileHeader({
         </div>
 
         {/* Right: Actions */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-0">
           {onPush && onPull && (
             <SyncButton
               ahead={syncStatus?.ahead ?? 0}

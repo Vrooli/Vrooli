@@ -10,7 +10,10 @@ import branchSelector from "./components/BranchSelector.tsx?raw";
 
 describe("GCT-MOBILE embedded shell regression contract", () => {
   it("GCT-MOBILE-001/002/006: declares a viewport-filling safe-area shell and chrome contract", () => {
-    expect(indexHTML).toContain('name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"');
+    const viewport = new DOMParser().parseFromString(indexHTML, "text/html").querySelector('meta[name="viewport"]')?.getAttribute('content');
+    expect(viewport).toContain("viewport-fit=cover");
+    expect(viewport).toContain("width=device-width");
+    expect(viewport).not.toContain("user-scalable=no");
     expect(indexHTML).toContain('name="theme-color" content="#0f172a"');
     expect(app).toContain('data-mobile-shell="true"');
     expect(app).toContain('data-testid="gct-mobile-content"');

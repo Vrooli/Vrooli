@@ -67,3 +67,7 @@ export const repoClient: Client<typeof RepoService> = createClient(RepoService, 
 
 /** Typed advisory review lifecycle client. */
 export const reviewClient: Client<typeof ReviewService> = createClient(ReviewService, transport);
+
+// Same-origin intake only; UI Health owns retained browser layout evidence.
+import { VisualHealthService } from "@vrooli/proto-types/ui-health/v1/visualhealth/visualhealth_pb";
+export const browserObservationClient = createClient(VisualHealthService, transport);

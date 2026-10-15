@@ -547,11 +547,6 @@ export class SessionManager {
       contextForCleanup = context;
 
       const page = await context.newPage();
-      // Faithful phone rendering: real devices report notch/home-indicator insets
-      // that fixed chrome pads against. Apply them before any navigation so the
-      // very first paint — and every geometry assertion and screenshot — sees the
-      // layout the device actually produces.
-      await applySafeAreaInsets(page, actualViewport);
       let audioDeviceEvidence: BrowserCaptureDeviceEvidence | undefined;
       if (deviceEvidenceEnabled) {
         if (!spec.base_url) {
@@ -790,6 +785,7 @@ export class SessionManager {
         }
 
         await this.completeSessionRegistration(session);
+        await applySafeAreaInsets(page, actualViewport);
 
         // Return actualViewport from buildContext (includes source attribution)
         return { sessionId, leaseId: session.leaseId, reused: false, createdAt, actualViewport };

@@ -146,4 +146,49 @@ func TestStableCreateOwnerRequiresVerifiedServicePrincipal(t *testing.T) {
 	if created.Msg.Session.Id != id || created.Msg.Session.Owner != "agent-manager" || created.Msg.Session.CreateFingerprint == "" {
 		t.Fatalf("reserved create not pinned to the service principal: %+v", created.Msg.Session)
 	}
+
+	// Phase 5: when the verified service caller carries the human-owner header (a
+	// tunnel-UI spawn), the stable-create owner AND the created session owner are
+	// the HUMAN, not the service principal. The header is a creator-identity
+	// label: the verified service principal still gated the call (see below),
+	// web-console derives no authority from the header.
+	clientWithHeader := func(bearer, human string) sessionsconnect.SessionsServiceClient {
+		return sessionsconnect.NewSessionsServiceClient(srv.Client(), srv.URL, connect.WithInterceptors(connect.UnaryInterceptorFunc(
+			func(next connect.UnaryFunc) connect.UnaryFunc {
+				return func(ctx2 context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
+					if bearer != "" {
+						req.Header().Set("Authorization", "Bearer "+bearer)
+					}
+					if human != "" {
+						req.Header().Set("X-Human-Owner-Subject", human)
+					}
+					return next(ctx2, req)
+				}
+			})))
+	}
+	svcToken := issuer.sign(t, serviceClaims("scenario-authenticator:web-console"))
+	humanService := clientWithHeader(svcToken, "operator@example.test")
+	if owner := listOwner(humanService); owner != "operator@example.test" {
+		t.Fatalf("human-owner header did not set the stable-create owner: got %q", owner)
+	}
+	hid := uuid.NewString()
+	hcreated, err := humanService.Create(t.Context(), connect.NewRequest(&sessionsv1.CreateRequest{
+		RequestedSessionId: hid, Shell: "/bin/sh", Backend: "standard", Owner: "forged",
+		Origin: sessionsv1.SessionOrigin_SESSION_ORIGIN_PROGRAMMATIC,
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = mgr.Delete(t.Context(), hid) })
+	if hcreated.Msg.Session.Owner != "operator@example.test" {
+		t.Fatalf("human-session spawn not attributed to the operator: owner=%q", hcreated.Msg.Session.Owner)
+	}
+
+	// Guardrail 1 — the header is NEVER authority at web-console. An ANONYMOUS
+	// caller that sets the human header gets NO owner: the header only relabels a
+	// request the caller's own verified identity already authorized; with no
+	// verified caller there is nothing to relabel.
+	if owner := listOwner(clientWithHeader("", "operator@example.test")); owner != "" {
+		t.Fatalf("anonymous caller with human header received owner %q — header must not confer identity", owner)
+	}
 }

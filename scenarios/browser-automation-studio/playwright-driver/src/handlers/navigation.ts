@@ -6,6 +6,7 @@ import { resolveTimeoutFromContext } from './behavior-utils';
 import type { AppTargetSpec } from '../types/session';
 import path from 'node:path';
 import { applyInteractionState } from '../session/interaction-state';
+import { applySafeAreaInsets } from '../session/context-builder';
 
 // =============================================================================
 // URL VALIDATION - Decision Boundary for Navigation Security
@@ -217,6 +218,10 @@ export class NavigationHandler extends BaseHandler {
       if (requestedWaitUntil === 'load' || requestedWaitUntil === 'networkidle') {
         await page.waitForLoadState(requestedWaitUntil, { timeout });
       }
+
+      // A document can replace emulation state during startup/viewport setup.
+      // Reapply at the awaited document boundary before assertions or captures.
+      await applySafeAreaInsets(page, page.viewportSize() ?? undefined);
 
       if (params.waitForSelector) {
         await page.waitForSelector(params.waitForSelector, { timeout, state: 'visible' });

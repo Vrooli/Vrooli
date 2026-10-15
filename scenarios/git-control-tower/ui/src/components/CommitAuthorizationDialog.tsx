@@ -52,9 +52,8 @@ export function CommitAuthorizationDialog({
       contentPadding="none"
       avoidKeyboard
       testId="commit-authorization-dialog"
-      panelClassName="!border-slate-700/80 !bg-slate-900 !text-slate-200"
       footer={
-        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <div className="flex flex-row items-center justify-end gap-2">
           <button
             type="button"
             className="rounded-xl border border-slate-700 px-4 py-2.5 text-xs font-medium text-slate-300 transition hover:bg-slate-800 disabled:opacity-60"
@@ -101,9 +100,9 @@ export function CommitAuthorizationDialog({
         </div>
 
         <dl className="divide-y divide-slate-800/80 rounded-xl border border-slate-800 bg-slate-950/25 text-xs">
-          <div className="flex items-start justify-between gap-4 px-3 py-2.5">
+          <div className="flex items-center justify-between gap-4 px-3 py-2.5">
             <dt className="flex shrink-0 items-center gap-2 text-slate-500"><Clock3 className="h-3.5 w-3.5" /> Revision</dt>
-            <dd className="break-all text-right font-mono text-[11px] text-slate-300">{pending.preview.expectedRevision}</dd>
+            <dd className="truncate text-right font-mono text-[11px] text-slate-300" title={pending.preview.expectedRevision}>{pending.preview.expectedRevision.slice(0, 12)}</dd>
           </div>
           <div className="flex items-start justify-between gap-4 px-3 py-2.5">
             <dt className="flex shrink-0 items-center gap-2 text-slate-500"><Sparkles className="h-3.5 w-3.5" /> Message</dt>
@@ -121,7 +120,7 @@ export function CommitAuthorizationDialog({
           <ul className="mt-2 max-h-28 space-y-1 overflow-y-auto rounded-lg border border-slate-800/80 bg-slate-950 p-2 font-mono text-[11px] text-slate-400">
             {pending.preview.stagedFiles.map((file) => <li key={file} className="truncate">{file}</li>)}
           </ul>
-          <p className="mt-2 break-all text-[10px] text-slate-600">Subject digest: {pending.preview.subjectDigest}</p>
+          <p className="mt-2 truncate text-[10px] text-slate-600" title={pending.preview.subjectDigest}>Subject digest: {pending.preview.subjectDigest.slice(0, 16)}…</p>
         </div>
 
         <div className="space-y-2">

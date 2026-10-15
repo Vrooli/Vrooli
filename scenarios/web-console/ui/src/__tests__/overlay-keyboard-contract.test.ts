@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+import postcss from "postcss";
 
 /**
  * Every overlay states whether it moves for the virtual keyboard.
@@ -45,6 +46,21 @@ const overlayFiles = componentFiles(COMPONENT_ROOT).filter((path) => {
 });
 
 describe("overlay keyboard contract", () => {
+  it.each(["html", "body", "#root"])(
+    "%s fills the same measured frame as the workspace and portaled drawers",
+    (selector) => {
+      // A fixed body contributes no height to html. Expanding just the body
+      // and workspace leaves a different clipping canvas around every portal.
+      const css = postcss.parse(readFileSync(join(__dirname, "..", "styles.css"), "utf8"));
+      let height: string | undefined;
+      css.walkRules((rule) => {
+        if (!rule.selector.split(",").map((part) => part.trim()).includes(selector)) return;
+        rule.walkDecls("height", (declaration) => { height = declaration.value; });
+      });
+      expect(height).toBe("var(--wc-app-height, 100dvh)");
+    },
+  );
+
   // A guard whose subject set can silently empty out is not a guard. If a
   // refactor moves every overlay elsewhere, this fails rather than passing
   // vacuously.

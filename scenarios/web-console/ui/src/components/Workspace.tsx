@@ -14,7 +14,7 @@ import { useSessionManager } from "../hooks/useSessionManager";
 import { useGlobalEventStream } from "../hooks/useGlobalEventStream";
 import { useConversationHydration } from "../hooks/useConversationHydration";
 import { useScenarioVoiceInput as useVoiceInput } from "../audio-integration";
-import { useAppViewport } from "../hooks/useAppViewport";
+import LaunchScreen from "./LaunchScreen";
 import { useTouchControls } from "../hooks/useTouchControls";
 import { useWakeLock } from "../hooks/useWakeLock";
 import { useWorkspaceSync } from "../hooks/useWorkspaceSync";
@@ -320,16 +320,12 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   const sidebarLayoutRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const activeResizeRef = useRef<ActiveResize | null>(null);
-  // Publish this device's keyboard state so each pane can declare it to its
-  // session; followers draw the leader's keyboard rather than guessing at it.
-  const setKeyboardOpen = useWorkspaceStore((state) => state.setKeyboardOpen);
   /**
    * Latched by every entry point that reaches for audio. It is what
    * lets the audio-unavailable notice stay quiet until the reader
    * has actually asked for the feature that is down.
    */
   const markAudioIntent = useWorkspaceStore((state) => state.markAudioIntent);
-  useAppViewport({ onKeyboardChange: setKeyboardOpen });
   const needsTouchControls = useTouchControls();
   const wakeLockStatus = useWakeLock(workspace.keepScreenAwake);
   const setWakeLockStatus = useWakeLockStatus((s) => s.setStatus);
@@ -1915,11 +1911,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   // the empty state ("New Terminal" button) from flashing before we know
   // whether any sessions exist.
   if (!isHydrated) {
-    return (
-      <div className="flex h-wc-app items-center justify-center bg-wc-surface-base text-wc-text-muted">
-        Loading...
-      </div>
-    );
+    return <LaunchScreen />;
   }
 
   // Empty state
