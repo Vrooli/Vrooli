@@ -1,5 +1,5 @@
 import { Component, memo, useMemo, type ComponentPropsWithoutRef, type MouseEvent, type ReactNode, type ErrorInfo } from "react";
-import ReactMarkdown from "react-markdown";
+import ReactMarkdown, { defaultUrlTransform } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { remarkProsePaths } from "./utils/remarkProsePaths";
 import { CodeBlock } from "./components/CodeBlock";
@@ -7,6 +7,18 @@ import { InlineCode } from "./components/InlineCode";
 import { MermaidDiagram } from "./components/MermaidDiagram";
 import { ResizableMarkdownTable } from "@vrooli/react-component-library/markdown-renderer/0";
 import { isExternalHref } from "../../lib/fileReferences";
+
+// Schemes allowed in markdown links beyond react-markdown's built-in safe set
+// (http, https, irc(s), mailto, xmpp). `webapp:` is how an installed scenario
+// PWA is opened on the operator's device; without this, react-markdown's
+// defaultUrlTransform strips such an href to "" and the link renders inert.
+// Everything else still flows through defaultUrlTransform, so javascript:,
+// data:, and other unsafe schemes remain neutralized.
+const EXTRA_SAFE_SCHEME = /^webapp:/i;
+
+function markdownUrlTransform(url: string): string {
+  return EXTRA_SAFE_SCHEME.test(url.trim()) ? url : defaultUrlTransform(url);
+}
 
 interface MarkdownErrorBoundaryProps {
   children: ReactNode;
@@ -170,7 +182,11 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
 
   // If search is active, wrap rendered output with highlighting
   const rendered = (
-    <ReactMarkdown remarkPlugins={[remarkGfm, remarkProsePaths]} components={components}>
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm, remarkProsePaths]}
+      components={components}
+      urlTransform={markdownUrlTransform}
+    >
       {safeContent}
     </ReactMarkdown>
   );

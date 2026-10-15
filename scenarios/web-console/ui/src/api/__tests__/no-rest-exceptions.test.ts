@@ -15,6 +15,8 @@ import { fileURLToPath } from "node:url";
 //                       routing / playback diagnostics)
 //   ai.ts            -> RESTReasonBrowserSurface (typed 402 browser contract)
 //   conversation.ts  -> RESTReasonBrowserSurface (legacy browser controls)
+//   notifications.ts -> RESTReasonBrowserSurface (same-origin facade to
+//                       notification-hub's REST notification-preferences API)
 //   monetization.ts  -> RESTReasonThirdPartyShape (commercial/session JSON)
 //
 // The tts hook is a deliberately tiny web-console-internal surface that never
@@ -33,6 +35,7 @@ const ALLOWLIST = new Set([
   "ttsHook.ts",
   "ai.ts",
   "conversation.ts",
+  "notifications.ts",
   "monetization.ts",
 ]);
 

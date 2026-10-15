@@ -173,6 +173,46 @@ func (s *Service) resolveIconURL(ctx context.Context, sourceScenario string) str
 	return resolve(ctx, sourceScenario)
 }
 
+// resolveDisplayName returns the source scenario's human display name from the
+// branding seam, or "" when none resolves (tests, or an unknown source). It is
+// used to self-identify a relayed notification in its title: on iOS every
+// notification shows notification-hub's own app icon regardless of the icon we
+// send (Safari ignores the per-notification icon), so the title is the only
+// place the operator can see which scenario a notification is actually from.
+func (s *Service) resolveDisplayName(ctx context.Context, sourceScenario string) string {
+	sourceScenario = strings.TrimSpace(sourceScenario)
+	if sourceScenario == "" {
+		return ""
+	}
+	if p := s.prefs(); p != nil {
+		if resolver, ok := p.(BrandResolver); ok {
+			if name, _, _, found := resolver.ResolveBrand(ctx, sourceScenario); found {
+				return strings.TrimSpace(name)
+			}
+		}
+	}
+	return ""
+}
+
+// titleWithSource prefixes a notification title with its source's display name
+// so a relayed notification is self-identifying on iOS. It is a no-op when the
+// name is empty or the title already leads with it (a source that already
+// names itself is not doubled up).
+func titleWithSource(displayName, title string) string {
+	displayName = strings.TrimSpace(displayName)
+	title = strings.TrimSpace(title)
+	if displayName == "" {
+		return title
+	}
+	if title == "" {
+		return displayName
+	}
+	if strings.HasPrefix(strings.ToLower(title), strings.ToLower(displayName)) {
+		return title
+	}
+	return displayName + " — " + title
+}
+
 // defaultIconURL resolves the source scenario's PWA app icon to an absolute,
 // browser-loadable URL. The icon PATH comes from the source's declared icon
 // field: an http(s) value is a full per-source override returned verbatim; a
@@ -872,7 +912,7 @@ func (s *Service) deliverTarget(ctx context.Context, target channelTarget, n Not
 		if strings.TrimSpace(n.ContextURL) != "" {
 			url = n.ContextURL
 		}
-		msg := PushMessage{Title: n.Title, Body: body, Tag: n.ID, URL: url}
+		msg := PushMessage{Title: titleWithSource(s.resolveDisplayName(ctx, n.SourceScenario), n.Title), Body: body, Tag: n.ID, URL: url}
 		if s.iconURL != nil {
 			msg.Icon = s.resolveIconURL(ctx, n.SourceScenario)
 		}

@@ -12,6 +12,7 @@ import GroupTemplatesPanel from "./settings/GroupTemplatesPanel";
 import HandoffRulesPanel from "./settings/HandoffRulesPanel";
 import IntegrationsSection from "./settings/IntegrationsSection";
 import NewPaneDefaultsSection from "./settings/NewPaneDefaultsSection";
+import NotificationsSection from "./settings/NotificationsSection";
 import SessionManagementSection from "./settings/SessionManagementSection";
 import ShortcutProfilesSection from "./settings/ShortcutProfilesSection";
 import SnippetsPanel from "./settings/SnippetsPanel";
@@ -69,6 +70,7 @@ const SECTION_COMPONENTS: Record<SettingsTabId, SettingsSectionComponent> = {
   snippets: SnippetsPanel as SettingsSectionComponent,
   "handoff-rules": HandoffRulesPanel as SettingsSectionComponent,
   integrations: IntegrationsSection as SettingsSectionComponent,
+  notifications: NotificationsSection as SettingsSectionComponent,
 };
 
 /** The library keeps `settings-tab-<id>` reachable so existing flows still address a tab. */

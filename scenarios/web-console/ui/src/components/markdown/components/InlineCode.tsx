@@ -1,11 +1,11 @@
 import type { ReactNode } from "react";
 import { useMemo } from "react";
-import { FileText } from "lucide-react";
+import { ExternalLink, FileText } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { CopyIconButton } from "@vrooli/react-component-library/CopyIconButton/1";
 import { strings } from "../../../consts/strings";
 import { copyText } from "../../../lib/clipboard";
-import { looksLikeInlineFileReference } from "../../../lib/fileReferences";
+import { isExternalHref, looksLikeInlineFileReference, looksLikeInlineUrl } from "../../../lib/fileReferences";
 
 interface InlineCodeProps {
   children: ReactNode;
@@ -35,6 +35,10 @@ export function InlineCode({ children, onFileReferenceClick }: InlineCodeProps) 
     textContent.length > 0 &&
     looksLikeInlineFileReference(textContent);
 
+  // A URL in backticks (e.g. `https://…` or `webapp://…`) should be openable,
+  // not just copyable — same affordance as a markdown link, minus the syntax.
+  const isUrl = !isFileRef && textContent.length > 0 && looksLikeInlineUrl(textContent);
+
   const copyButton = (label: string) => (
     <CopyIconButton
       size="xs"
@@ -62,6 +66,25 @@ export function InlineCode({ children, onFileReferenceClick }: InlineCodeProps) 
           <code className="min-w-0 break-all [overflow-wrap:anywhere] leading-relaxed">{children}</code>
         </button>
         {copyButton(t(strings.messageActions.copyPath))}
+      </span>
+    );
+  }
+
+  if (isUrl) {
+    const external = isExternalHref(textContent);
+    return (
+      <span className="group inline-flex max-w-full items-center gap-1 rounded-full border border-wc-default bg-wc-surface-raised/80 px-2 py-0.5 text-xs font-mono align-middle">
+        <a
+          href={textContent}
+          target={external ? "_blank" : undefined}
+          rel={external ? "noopener noreferrer" : undefined}
+          className="inline-flex min-w-0 items-center gap-1 text-wc-accent hover:text-wc-accent/80 underline underline-offset-2"
+          title={`Open ${textContent}`}
+        >
+          <ExternalLink className="h-3 w-3 shrink-0" aria-hidden="true" />
+          <code className="min-w-0 break-all [overflow-wrap:anywhere] leading-relaxed">{children}</code>
+        </a>
+        {copyButton(t(strings.messageActions.copyInlineCode))}
       </span>
     );
   }

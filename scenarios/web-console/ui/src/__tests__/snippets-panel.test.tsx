@@ -79,7 +79,7 @@ describe("SnippetsPanel", () => {
   });
 
   it("places snippets between templates and handoff rules in the settings tabs", () => {
-    expect(SETTINGS_TAB_IDS).toHaveLength(11);
+    expect(SETTINGS_TAB_IDS).toHaveLength(12);
     expect(SETTINGS_TAB_IDS.slice(7, 10)).toEqual(["templates", "snippets", "handoff-rules"]);
   });
 

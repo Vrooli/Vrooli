@@ -7,6 +7,7 @@ import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { initIframeBridgeChild } from "@vrooli/iframe-bridge";
 import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
+import { initPendingNavigation } from "./features/pendingNav";
 import "./styles.css";
 
 // INTEROP-CRITICAL: Embedded mounts identify themselves before React renders so
@@ -27,6 +28,11 @@ if (import.meta.env.PROD && "serviceWorker" in navigator) {
     });
   });
 }
+
+// A notification tap can't drive navigation from the worker on iOS (the OS just
+// foregrounds the app), so the worker stashes the target and we act on it here
+// when the app loads or returns to the foreground. See features/pendingNav.ts.
+initPendingNavigation();
 
 const rootEl = document.getElementById("root");
 if (!rootEl) {

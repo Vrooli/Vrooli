@@ -1,0 +1,8 @@
+{
+  "displayName": "Web Console",
+  "icon": "web-console",
+  "categories": [
+    { "key": "session.input_needed", "displayName": "Session needs your input", "description": "An agent session is blocked waiting on you — a permission prompt, a question, or an approval.", "defaultEnabled": true, "defaultMinUrgency": "high" },
+    { "key": "session.turn_completed", "displayName": "Session finished its turn", "description": "An agent session finished its turn and is idle, waiting for your next instruction.", "defaultEnabled": true, "defaultMinUrgency": "normal" }
+  ]
+}

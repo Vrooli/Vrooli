@@ -518,6 +518,14 @@
         "runtime_only_rationale": "Web Console consumes Integration Hub through the generated common.v1.integrations ConnectionService; no hub implementation is imported into this scenario.",
         "description": "Provider-neutral connection metadata and lifecycle owner for managed integrations.",
         "degraded_behavior": "Runtime dependencies and local BYOK behavior remain available; connected-account management reports an explicit unavailable state until Integration Hub recovers."
+      },
+      "notification-hub": {
+        "required": false,
+        "startup_policy": "try_start",
+        "runtime_only": true,
+        "runtime_only_rationale": "Web Console reaches notification-hub only through its REST API boundary (/api/v1/notifications/*), resolved per request via scenario discovery; there is no Go package import or in-process implementation dependency. The browser calls Web Console's own same-origin facade, which forwards the operator's Bearer token to notification-hub.",
+        "description": "Owner of the operator's notification preferences (sources, categories, min-urgency, channel overrides). The Notifications settings tab reads the preference catalog and upserts preferences through notification-hub.",
+        "degraded_behavior": "The terminal workspace and all other settings remain available. The Notifications settings tab shows an explicit \"Notifications service is unavailable\" state (facade returns a clean 503) until notification-hub is reachable, then recovers on the next catalog fetch."
       }
     }
   },

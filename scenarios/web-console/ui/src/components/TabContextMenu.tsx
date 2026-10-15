@@ -1,8 +1,9 @@
-import { ArrowDown, ArrowUp, ClipboardCopy, Dot, FolderCog, FolderMinus, FolderPlus, MailOpen, Palette, Pencil, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Bell, BellOff, ClipboardCopy, Dot, FolderCog, FolderMinus, FolderPlus, MailOpen, Palette, Pencil, Trash2, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ContextMenu, type ContextMenuItem } from "@vrooli/react-component-library/ContextMenu/1";
 import { strings } from "../consts/strings";
 import { writeText } from "../lib/clipboard";
+import { useSessionNotificationMute } from "../hooks/useSessionNotificationMute";
 
 interface TabContextMenuProps {
   /** Viewport coordinates where the menu should appear. */
@@ -56,6 +57,7 @@ export default function TabContextMenu({
   onDismiss,
 }: TabContextMenuProps) {
   const { t } = useTranslation();
+  const sessionNotifications = useSessionNotificationMute(sessionId);
   const items: ContextMenuItem[] = [
     {
       id: "rename",
@@ -79,6 +81,25 @@ export default function TabContextMenu({
       onSelect: onCustomize,
     },
   ];
+  // Per-session notification override: mute this session alone, or unmute it
+  // while the rest stay off. Hidden when Notification Hub is unreachable so the
+  // menu never offers a control that cannot take effect.
+  if (sessionNotifications.available) {
+    items.push({
+      id: "toggle-session-notifications",
+      label: t(
+        sessionNotifications.muted
+          ? strings.tabContextMenu.unmuteSessionNotifications
+          : strings.tabContextMenu.muteSessionNotifications,
+      ),
+      icon: sessionNotifications.muted
+        ? <BellOff className="h-4 w-4 shrink-0" />
+        : <Bell className="h-4 w-4 shrink-0" />,
+      testId: "tab-ctx-toggle-session-notifications",
+      disabled: sessionNotifications.isPending,
+      onSelect: sessionNotifications.toggle,
+    });
+  }
   if (currentGroupId) {
     items.push(
       {

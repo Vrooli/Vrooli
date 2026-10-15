@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isExternalHref, looksLikeFileReference, looksLikeInlineFileReference, matchFileReferenceBlockLines, matchProseFilePaths } from "../lib/fileReferences";
+import { isExternalHref, looksLikeFileReference, looksLikeInlineFileReference, looksLikeInlineUrl, matchFileReferenceBlockLines, matchProseFilePaths } from "../lib/fileReferences";
 
 describe("fileReferences", () => {
   it("detects external hrefs", () => {
@@ -13,6 +13,23 @@ describe("fileReferences", () => {
     expect(looksLikeFileReference("docs/plan.md")).toBe(true);
     expect(looksLikeFileReference("https://example.com")).toBe(false);
     expect(looksLikeFileReference("#anchor")).toBe(false);
+    // Custom URL schemes are navigable links, not file references — they must
+    // not be hijacked into the file-preview drawer.
+    expect(looksLikeFileReference("webapp://notification-hub.itsagitime.com")).toBe(false);
+    expect(looksLikeFileReference("webapp://notification-hub.itsagitime.com/settings")).toBe(false);
+    expect(looksLikeFileReference("webapp://notification-hub")).toBe(false);
+    // file:// is still a previewable file reference.
+    expect(looksLikeFileReference("file:///tmp/x.log")).toBe(true);
+  });
+
+  it("detects openable URLs inside inline code (not file refs)", () => {
+    expect(looksLikeInlineUrl("https://notification-hub.itsagitime.com")).toBe(true);
+    expect(looksLikeInlineUrl("webapp://notification-hub.itsagitime.com/settings")).toBe(true);
+    expect(looksLikeInlineUrl("webapp://notification-hub")).toBe(true);
+    // Not URLs: file paths, bare text, file://, multi-token strings.
+    expect(looksLikeInlineUrl("docs/plan.md")).toBe(false);
+    expect(looksLikeInlineUrl("file:///tmp/x.log")).toBe(false);
+    expect(looksLikeInlineUrl("vrooli scenario restart web-console")).toBe(false);
   });
 });
 

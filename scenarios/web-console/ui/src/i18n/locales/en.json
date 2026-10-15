@@ -1273,6 +1273,11 @@
         "description": "Layout and workspace behavior across desktop and mobile.",
         "label": "Workspace",
         "shortLabel": "Workspace"
+      },
+      "notifications": {
+        "label": "Notifications",
+        "shortLabel": "Notifications",
+        "description": "Which scenarios can notify you, and how urgent an event must be."
       }
     },
     "title": "Settings",
@@ -1588,6 +1593,34 @@
       "wakeLockDenied": "Screen wake lock was denied — your device may be in power-save mode.",
       "wakeLockReleased": "Re-acquiring screen wake lock…",
       "wakeLockUnsupported": "Your browser or connection doesn't support screen wake lock. A video-based fallback is being used instead."
+    },
+    "notificationsSection": {
+      "eyebrow": "Preferences",
+      "title": "Notifications",
+      "description": "Choose which of your apps can notify you, and how urgent a notification must be before it reaches you.",
+      "minUrgencyLabel": "Minimum urgency",
+      "urgency": {
+        "low": "Low",
+        "normal": "Normal",
+        "high": "High",
+        "critical": "Critical"
+      },
+      "allCategory": "All notifications",
+      "loading": {
+        "label": "Loading your notification preferences…"
+      },
+      "error": {
+        "title": "Can't reach notifications right now",
+        "body": "The Notification Hub may be starting up. Give it a moment, then try again.",
+        "retry": "Try again"
+      },
+      "empty": {
+        "title": "No notifications to manage yet",
+        "body": "When your Vrooli apps start sending you notifications, you'll be able to fine-tune them here.",
+        "refresh": "Refresh",
+        "setup": "Set up notification delivery in Notification Hub"
+      },
+      "openHub": "Open Notification Hub"
     }
   },
   "snippets": {
@@ -1697,7 +1730,9 @@
     "moveUp": "Move Up",
     "newGroup": "New Group...",
     "removeFromGroup": "Remove from Group",
-    "rename": "Rename"
+    "rename": "Rename",
+    "muteSessionNotifications": "Mute this session",
+    "unmuteSessionNotifications": "Unmute this session"
   },
   "terminalContextMenu": {
     "clearTerminal": "Clear Terminal",

@@ -173,6 +173,9 @@ type Server struct {
 	resolveConsoleURL  func(ctx context.Context, scenarioSlug, requestHost string) (string, error)
 	monetization       *monetization.Gate
 	monetizationOutbox *monetization.Outbox
+	// sessionNotifier raises generic *.notification.v1 events when a session
+	// needs the operator or finishes a turn (api/session_notifications.go).
+	sessionNotifier *sessionNotifier
 }
 
 // getSummarizeAutoPolicy returns the cached auto-summarize policy. The
@@ -318,6 +321,7 @@ func NewServer(db *database.RoutedDB) *Server {
 		resolveConsoleURL: discovery.ResolveExternalURL,
 		sessions:          sessions,
 		hub:               NewConversationHub(),
+		sessionNotifier:   newSessionNotifier(),
 		events:            eventLog,
 		metrics:           metrics,
 		backendRegistry:   backendRegistry,
@@ -1171,7 +1175,12 @@ func main() {
 	}
 }
 
+// pointerToManagedAuthentication composes Web Console's verified callers: the
+// operator's Cloudflare Access login, and scenario-authenticator tokens issued
+// for the web-console resource audience. The latter carries Agent Manager's
+// operator-issued service principal, which Web Console pins as the stable
+// session creator. Unverified callers still receive no principal.
 func pointerToManagedAuthentication(config authn.Config) *authn.Config {
-	config = config.WithManagedCloudflare("web-console")
+	config = config.WithScenarioAuthenticator("web-console").WithManagedCloudflare("web-console")
 	return &config
 }

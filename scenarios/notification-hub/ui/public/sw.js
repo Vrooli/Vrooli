@@ -1,5 +1,34 @@
+// SW_VERSION is the one knob to bump on every service-worker change. The
+// Settings "Connection status" panel reads the RUNNING worker's version (via a
+// GET_VERSION message) and the AVAILABLE version (by fetching this file fresh)
+// and flags the worker as stale when they differ — so a worker iOS refused to
+// swap is visible instead of silent. Keep this a simple literal the panel can
+// also parse out of the served source with a regex.
+const SW_VERSION = "2026-10-14.5";
 const CACHE_NAME = "notification-hub-app-shell-v1";
 const APP_SHELL_URLS = ["./", "./site.webmanifest"];
+
+// Where a notification tap stashes its intended destination. iOS does NOT honor
+// a URL passed to navigate()/openWindow() from a backgrounded home-screen app —
+// it just foregrounds the app at whatever page it was on. So the worker can't
+// drive the navigation itself; it records the target here and the app reads it
+// when it comes to the foreground (see src/features/pendingNav.ts).
+const PENDING_NAV_CACHE = "notification-hub-pending-nav";
+const PENDING_NAV_KEY = "/__pending_nav";
+
+async function stashPendingNav(url) {
+  if (!url) return;
+  try {
+    const cache = await caches.open(PENDING_NAV_CACHE);
+    await cache.put(
+      PENDING_NAV_KEY,
+      new Response(JSON.stringify({ url, ts: Date.now() }), { headers: { "Content-Type": "application/json" } }),
+    );
+  } catch {
+    // A failed stash just means the foreground app has nothing to act on; the
+    // notification still opened the app. Never throw out of a click handler.
+  }
+}
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -13,10 +42,30 @@ self.addEventListener("activate", (event) => {
     caches
       .keys()
       .then((names) =>
-        Promise.all(names.filter((name) => name !== CACHE_NAME).map((name) => caches.delete(name)))
+        Promise.all(
+          names
+            .filter((name) => name !== CACHE_NAME && name !== PENDING_NAV_CACHE)
+            .map((name) => caches.delete(name)),
+        )
       )
       .then(() => self.clients.claim())
   );
+});
+
+// The page talks to the worker to read its version and to force a stuck update
+// through. GET_VERSION replies on the MessageChannel port the page supplied;
+// SKIP_WAITING lets the Settings "Update now" button promote a waiting worker
+// immediately rather than waiting for iOS's own (slow, opaque) swap timing.
+self.addEventListener("message", (event) => {
+  const data = event.data || {};
+  if (data.type === "GET_VERSION") {
+    const port = event.ports && event.ports[0];
+    if (port) port.postMessage({ type: "VERSION", version: SW_VERSION });
+    return;
+  }
+  if (data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener("push", (event) => {
@@ -34,35 +83,35 @@ self.addEventListener("push", (event) => {
   }));
 });
 
-// A tap opens the page the hub named (an ask opens /asks/<id>), resolved
-// against this worker's scope so a proxied or path-prefixed origin still
-// works. iOS home-screen apps get no notification action buttons, so the
-// tap-then-choose page is the answer path there.
-function notificationTarget(data) {
-  const path = data && typeof data.url === "string" && data.url ? data.url : "./";
-  try {
-    const target = new URL(path, self.registration.scope);
-    return target.origin === new URL(self.registration.scope).origin ? target.href : self.registration.scope;
-  } catch {
-    return self.registration.scope;
-  }
-}
-
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const target = notificationTarget(event.notification.data);
-  event.waitUntil(clients.matchAll({ type: "window", includeUncontrolled: true }).then(async (windows) => {
-    const existing = windows[0];
-    if (existing && typeof existing.navigate === "function") {
-      try {
-        const navigated = await existing.navigate(target);
-        return (navigated || existing).focus();
-      } catch {
-        // An uncontrolled window cannot be navigated by the worker.
-      }
+  const data = event.notification.data || {};
+  const url = typeof data.url === "string" ? data.url : "";
+  event.waitUntil((async () => {
+    // Record the destination first — this is what the foregrounded app acts on,
+    // and the only mechanism that works on iOS (navigate/openWindow with a path
+    // are ignored there). Then try the direct paths too, which DO work on
+    // desktop/Android, and post the target to any live client so an
+    // already-open app can act immediately without waiting on the cache read.
+    await stashPendingNav(url);
+    const windows = await clients.matchAll({ type: "window", includeUncontrolled: true });
+    for (const client of windows) {
+      client.postMessage({ type: "PENDING_NAV", url });
     }
-    return clients.openWindow(target);
-  }));
+    if (windows.length > 0) {
+      // On iOS this focus is all that happens — the client's PENDING_NAV /
+      // foreground handler performs the actual navigation. On desktop focus
+      // also surfaces the window the app will route in.
+      try {
+        await windows[0].focus();
+      } catch {
+        // ignore
+      }
+      return;
+    }
+    // App isn't open: launch it at the root; it reads the stash on boot.
+    await clients.openWindow("./");
+  })());
 });
 
 self.addEventListener("pushsubscriptionchange", (event) => {

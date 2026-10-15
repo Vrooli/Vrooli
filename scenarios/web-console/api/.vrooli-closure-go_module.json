@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "key": "f9f24830b82f0baad6a8509b710d8ecb2d16da94fffd00a7ef3d3a0064537b5d",
+  "key": "7301af49d413f2a8cdd4e490659ddc9c897e6c833e3faf5415f5931b08a01d34",
   "inputs": [
     "go.mod",
     "go.sum",
@@ -146,6 +146,8 @@
     "packages/proto/gen/go/setup/v1",
     "packages/proto/gen/go/tunnel-manager/v1/config",
     "packages/proto/gen/go/tunnel-manager/v1/config/config_v1connect",
+    "packages/proto/gen/go/tunnel-manager/v1/exposure",
+    "packages/proto/gen/go/tunnel-manager/v1/exposure/exposure_v1connect",
     "packages/proto/gen/go/vrooli-bridge/v1/credentialgrant",
     "packages/proto/gen/go/vrooli-bridge/v1/credentialgrant/credentialgrant_v1connect",
     "packages/proto/gen/go/vrooli-bridge/v1/dispatch",

@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { useMemo } from "react";
 import {
+  Bell,
   Blocks,
   Keyboard,
   PlugZap,
@@ -28,6 +29,7 @@ export const SETTINGS_TAB_IDS = [
   "snippets",
   "handoff-rules",
   "integrations",
+  "notifications",
 ] as const;
 
 export type SettingsTabId = typeof SETTINGS_TAB_IDS[number];
@@ -52,6 +54,7 @@ const TAB_ICONS: Record<SettingsTabId, typeof TerminalSquare> = {
   snippets: StickyNote,
   "handoff-rules": Send,
   integrations: PlugZap,
+  notifications: Bell,
 };
 
 const TAB_STRING_KEYS = {
@@ -109,6 +112,11 @@ const TAB_STRING_KEYS = {
     label: strings.settings.tabs.integrations.label,
     shortLabel: strings.settings.tabs.integrations.shortLabel,
     description: strings.settings.tabs.integrations.description,
+  },
+  notifications: {
+    label: strings.settings.tabs.notifications.label,
+    shortLabel: strings.settings.tabs.notifications.shortLabel,
+    description: strings.settings.tabs.notifications.description,
   },
 } as const;
 

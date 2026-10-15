@@ -1286,6 +1286,11 @@ export const strings = {
         label: "settings.tabs.workspace.label",
         shortLabel: "settings.tabs.workspace.shortLabel",
       },
+      notifications: {
+        label: "settings.tabs.notifications.label",
+        shortLabel: "settings.tabs.notifications.shortLabel",
+        description: "settings.tabs.notifications.description",
+      },
     },
     title: "settings.title",
     voiceInputSection: {
@@ -1601,6 +1606,34 @@ export const strings = {
       wakeLockReleased: "settings.workspaceSection.wakeLockReleased",
       wakeLockUnsupported: "settings.workspaceSection.wakeLockUnsupported",
     },
+    notificationsSection: {
+      eyebrow: "settings.notificationsSection.eyebrow",
+      title: "settings.notificationsSection.title",
+      description: "settings.notificationsSection.description",
+      minUrgencyLabel: "settings.notificationsSection.minUrgencyLabel",
+      urgency: {
+        low: "settings.notificationsSection.urgency.low",
+        normal: "settings.notificationsSection.urgency.normal",
+        high: "settings.notificationsSection.urgency.high",
+        critical: "settings.notificationsSection.urgency.critical",
+      },
+      allCategory: "settings.notificationsSection.allCategory",
+      loading: {
+        label: "settings.notificationsSection.loading.label",
+      },
+      error: {
+        title: "settings.notificationsSection.error.title",
+        body: "settings.notificationsSection.error.body",
+        retry: "settings.notificationsSection.error.retry",
+      },
+      empty: {
+        title: "settings.notificationsSection.empty.title",
+        body: "settings.notificationsSection.empty.body",
+        refresh: "settings.notificationsSection.empty.refresh",
+        setup: "settings.notificationsSection.empty.setup",
+      },
+      openHub: "settings.notificationsSection.openHub",
+    },
   },
   snippets: {
     body: "snippets.body",
@@ -1710,6 +1743,8 @@ export const strings = {
     newGroup: "tabContextMenu.newGroup",
     removeFromGroup: "tabContextMenu.removeFromGroup",
     rename: "tabContextMenu.rename",
+    muteSessionNotifications: "tabContextMenu.muteSessionNotifications",
+    unmuteSessionNotifications: "tabContextMenu.unmuteSessionNotifications",
   },
   terminalContextMenu: {
     clearTerminal: "terminalContextMenu.clearTerminal",

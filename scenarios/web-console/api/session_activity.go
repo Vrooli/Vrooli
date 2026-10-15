@@ -88,6 +88,11 @@ func (s *Server) newActivityDetector(sess *session.Session) *session.ActivityDet
 		},
 		Publish: func(a session.Activity) {
 			s.hub.Publish(HubEnvelope{SessionID: id, Kind: HubKindSessionActivity, Payload: newSessionActivityPayload(a)})
+			// A session transition worth telling the operator about (needs
+			// input / finished its turn) becomes a notification-hub event.
+			// observe is fast (map + timer-arm, safe under the detector lock);
+			// it defers the network delivery to a settle timer off this path.
+			s.sessionNotifier.observe(id, a)
 		},
 		Answering: s.promptAnswering.decide,
 	})

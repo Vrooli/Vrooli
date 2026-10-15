@@ -1206,6 +1206,34 @@
       "eyebrow": "プロバイダー",
       "title": "統合"
     },
+    "notificationsSection": {
+      "eyebrow": "設定",
+      "title": "通知",
+      "description": "通知を送信できるアプリと、通知が届くために必要な緊急度の最小値を選びます。",
+      "minUrgencyLabel": "最小緊急度",
+      "urgency": {
+        "low": "低",
+        "normal": "通常",
+        "high": "高",
+        "critical": "重大"
+      },
+      "allCategory": "すべての通知",
+      "loading": {
+        "label": "通知設定を読み込んでいます…"
+      },
+      "error": {
+        "title": "現在、通知に接続できません",
+        "body": "通知ハブが起動中の可能性があります。少し待ってから、もう一度お試しください。",
+        "retry": "再試行"
+      },
+      "empty": {
+        "title": "管理する通知はまだありません",
+        "body": "Vrooli アプリから通知が届くようになると、ここで細かく調整できます。",
+        "refresh": "更新",
+        "setup": "通知ハブで通知配信を設定する"
+      },
+      "openHub": "通知ハブを開く"
+    },
     "newPaneDefaultsSection": {
       "description": "既存のセッションに影響を与えず、新規ターミナルペインのベースラインの見た目を設定します。",
       "emptyTerminal": "空のターミナル",
@@ -1298,6 +1326,11 @@
         "description": "接続済みサービスとプロバイダー構成。",
         "label": "統合",
         "shortLabel": "統合"
+      },
+      "notifications": {
+        "label": "通知",
+        "shortLabel": "通知",
+        "description": "どのシナリオがどの緊急度以上で通知できるかを設定します。"
       },
       "account": {
         "description": "サブスクリプションのID、クレジット、非公開プロバイダーキー。",
@@ -1682,7 +1715,9 @@
     "moveUp": "上へ移動",
     "newGroup": "新しいグループ...",
     "removeFromGroup": "グループから削除",
-    "rename": "名前を変更"
+    "rename": "名前を変更",
+    "muteSessionNotifications": "このセッションをミュート",
+    "unmuteSessionNotifications": "このセッションのミュートを解除"
   },
   "terminalContextMenu": {
     "clearTerminal": "ターミナルをクリア",

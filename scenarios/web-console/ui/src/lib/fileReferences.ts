@@ -1,12 +1,32 @@
 const externalSchemes = /^(https?:\/\/|mailto:|tel:)/i;
 
+// Any URL carrying a scheme other than file:// is a navigable link, never a
+// local file path. This keeps custom schemes — notably webapp:// (how an
+// installed scenario PWA is opened on a device) — from being hijacked into the
+// file-preview drawer just because they contain a slash. file:// is excluded so
+// it still resolves as a previewable file reference below.
+const nonFileUrlScheme = /^(?!file:)[a-z][a-z0-9+.-]*:\/\//i;
+
 export function isExternalHref(href: string): boolean {
   return externalSchemes.test(href.trim());
 }
 
+/**
+ * Whether a single inline-code token is a navigable URL the chip should let the
+ * operator OPEN (not merely copy): http(s)/mailto/tel, or a custom scheme like
+ * webapp:// used to open an installed scenario PWA. Must be one whitespace-free
+ * token. file:// is deliberately excluded — it is a previewable file reference,
+ * handled by looksLikeInlineFileReference instead.
+ */
+export function looksLikeInlineUrl(text: string): boolean {
+  const value = text.trim();
+  if (!value || /\s/.test(value)) return false;
+  return isExternalHref(value) || nonFileUrlScheme.test(value);
+}
+
 export function looksLikeFileReference(href: string): boolean {
   const value = href.trim();
-  if (!value || isExternalHref(value) || value.startsWith("#")) {
+  if (!value || isExternalHref(value) || nonFileUrlScheme.test(value) || value.startsWith("#")) {
     return false;
   }
   if (value.startsWith("file://")) {

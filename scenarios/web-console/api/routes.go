@@ -143,6 +143,17 @@ func (s *Server) setupRoutes() {
 	s.router.PathPrefix("/vrooli.device_control.v1.desktop.DesktopSessionService/").Handler(newDesktopProxy(func(ctx context.Context) (string, error) {
 		return discovery.ResolveScenarioURLDefault(ctx, "device-control")
 	}))
+	// Same-origin facade for the operator's notification preferences. The
+	// browser calls Web Console's own API; this proxy forwards to
+	// notification-hub (resolved per request) carrying the operator's Bearer
+	// token. An unreachable hub returns a clean 503 for the Notifications tab.
+	s.router.PathPrefix("/api/v1/notifications/").Handler(newNotificationsProxy(func(ctx context.Context) (string, error) {
+		return discovery.ResolveScenarioURLDefault(ctx, "notification-hub")
+	}))
+	// Resolve a person-openable link to another scenario's interface, relative
+	// to the origin this browser used (tunnel subdomain when present, localhost
+	// otherwise). The Notifications tab uses it to link to Notification Hub.
+	s.router.HandleFunc("/api/v1/external-url", handleExternalURL).Methods(http.MethodGet)
 	s.router.PathPrefix("/api/v1/desktop/{nodeID}/").Handler(newDesktopTargetProxy(func(ctx context.Context) (*nodereach.Client, error) {
 		client, base := bridgeNodeClient(ctx)
 		if client == nil || !base.Available {
