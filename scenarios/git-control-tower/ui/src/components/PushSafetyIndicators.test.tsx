@@ -3,12 +3,12 @@ import appSource from "../App.tsx?raw";
 import ts from "typescript";
 import { HistoryFileList } from "./HistoryFileList";
 import { renderWithProviders as render } from "../test-utils/renderWithProviders";
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { create } from "@bufbuild/protobuf";
 import { PushSafetyReportSchema } from "@vrooli/proto-types/git-control-tower/v1/repo/repo_pb";
 import { afterEach, expect, test, vi } from "vitest";
-import { historySafetyLabel, PushSafetyProvider, PushSafetyNotice, StagedSafetyNotice, StagedSafetyBadge, historyPathBlockers } from "./PushSafetyIndicators";
+import { historySafetyLabel, usePushSafety, PushSafetyProvider, PushSafetyNotice, StagedSafetyNotice, StagedSafetyBadge, historyPathBlockers } from "./PushSafetyIndicators";
 import { CommitPanel } from "./CommitPanel";
 import { inspectPushSafety } from "../lib/api-push-safety";
 vi.mock("../lib/api-push-safety", () => ({ inspectPushSafety: vi.fn() }));
@@ -175,4 +175,22 @@ test("background safety inspection waits for pending writes to finish", async ()
  mounted.rerender(<PushSafetyProvider repoId="busy" revision="one" paused={false} review={()=>{}}><PushSafetyNotice/></PushSafetyProvider>);
  await screen.findByRole("button",{name:/Push blocked/});
  expect(inspectPushSafety).toHaveBeenCalledTimes(1);
+});
+
+
+test("fresh safety-clock ticks do not rerender report consumers", async () => {
+ vi.useFakeTimers();
+ vi.mocked(inspectPushSafety).mockResolvedValue(report());
+ const renders = vi.fn();
+ function Consumer() { usePushSafety(); renders(); return null; }
+ const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+ const review = vi.fn();
+ const mounted = render(<QueryClientProvider client={client}><PushSafetyProvider repoId="clock" revision="one" review={review}><Consumer /></PushSafetyProvider></QueryClientProvider>);
+ await act(async () => { await vi.advanceTimersByTimeAsync(10); });
+ expect(inspectPushSafety).toHaveBeenCalledOnce();
+ const count = renders.mock.calls.length;
+ await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+ expect(renders).toHaveBeenCalledTimes(count);
+ mounted.unmount();
+ client.clear();
 });

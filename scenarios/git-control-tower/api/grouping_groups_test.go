@@ -1,10 +1,20 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"path/filepath"
+	"reflect"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
+
+	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/filerouting"
+	"github.com/vrooli/api-core/storage"
+	repov1 "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/repo"
 
 	"github.com/vrooli/repo-contract-go/repocontracttest"
 )
@@ -102,5 +112,51 @@ func TestResolveChangeGroupsOrdersByKind(t *testing.T) {
 	want := []string{"manual", "scenarios", "resources", "packages", "docs", "Other"}
 	if strings.Join(labels, ",") != strings.Join(want, ",") {
 		t.Fatalf("labels = %v, want %v", labels, want)
+	}
+}
+
+// Group polling needs paths, not content-derived statistics. It must still
+// reflect new changes on every call and propagate an unavailable Git read.
+func TestRepoGroupsReadsFreshPathsWithoutPresentationWork(t *testing.T) {
+	ctx := context.Background()
+	repoDir := t.TempDir()
+	fake := NewFakeGitRunner()
+	fake.Staged["partial.go"] = "staged"
+	fake.Unstaged["partial.go"] = "worktree"
+	fake.Untracked = []string{"new.go"}
+	store := newTestRepoStore(t)
+	record, err := store.Upsert(ctx, RepoRecord{Path: repoDir, Name: "groups"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	roots := filerouting.New(storage.Paths{ConfigDir: filepath.Join(t.TempDir(), "forbidden-production")})
+	if err := roots.InstallTestRoots(storage.Paths{ConfigDir: t.TempDir()}, "group-poll-test", time.Minute); err != nil {
+		t.Fatal(err)
+	}
+	server := &Server{git: fake, repos: NewRepoService(store, fake), fileRoots: roots}
+	request := &repov1.GetRepoGroupsRequest{RepositoryId: strconv.FormatInt(record.ID, 10)}
+	response, err := server.getRepoGroupsConnect(ctx, request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(response.Groups) != 1 || !reflect.DeepEqual(response.Groups[0].Files, []string{"partial.go", "new.go"}) {
+		t.Fatalf("groups lost or duplicated changed paths: %+v", response.Groups)
+	}
+	for _, method := range []string{"DiffNumstat", "ConfigGet", "LogFileFrequency"} {
+		if fake.AssertCalled(method) {
+			t.Errorf("group polling performed presentation work: %s", method)
+		}
+	}
+	fake.Untracked = append(fake.Untracked, "later.go")
+	response, err = server.getRepoGroupsConnect(ctx, request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(response.Groups) != 1 || !reflect.DeepEqual(response.Groups[0].Files, []string{"partial.go", "later.go", "new.go"}) {
+		t.Fatalf("group polling did not read fresh paths: %+v", response.Groups)
+	}
+	fake.StatusError = errors.New("git unavailable")
+	if _, err := server.getRepoGroupsConnect(ctx, request); connect.CodeOf(err) != connect.CodeInternal {
+		t.Fatalf("status failure must be reported, got %v", err)
 	}
 }

@@ -1,9 +1,9 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { PushSafetyReport } from "@vrooli/proto-types/git-control-tower/v1/repo/repo_pb";
 import { inspectPushSafety } from "../lib/api-push-safety";
 
-type Safety = { report?: PushSafetyReport; label: string; review?: () => void; checking?: boolean };
+type Safety = { stagedFilesByPath?: ReadonlyMap<string, PushSafetyReport["stagedFiles"][number]>; report?: PushSafetyReport; label: string; review?: () => void; checking?: boolean };
 const Context = createContext<Safety>({ label: "" });
 export const usePushSafety = () => useContext(Context);
 
@@ -23,7 +23,18 @@ export function PushSafetyProvider({ repoId, revision, review, paused = false, c
     ? "Couldn’t verify push file sizes"
     : report.state === "blocked" ? `Push blocked: ${count} oversized file${count === 1 ? "" : "s"}`
     : largeCount ? `${largeCount} large file${largeCount === 1 ? "" : "s"} in outgoing commits` : "";
-  return <Context.Provider value={{ report, label, review, checking: query.isFetching }}>{children}</Context.Provider>;
+  const stagedFilesByPath = useMemo(() => {
+    const index = new Map<string, PushSafetyReport["stagedFiles"][number]>();
+    if (report?.stagedComplete) {
+      for (const file of report.stagedFiles) {
+        for (const path of file.paths) if (!index.has(path)) index.set(path, file);
+      }
+    }
+    return index;
+  }, [report]);
+  const checking = query.isFetching;
+  const value = useMemo(() => ({ report, label, review, checking, stagedFilesByPath }), [report, label, review, checking, stagedFilesByPath]);
+  return <Context.Provider value={value}>{children}</Context.Provider>;
 }
 
 export function PushSafetyNotice() {
@@ -61,8 +72,8 @@ export function HistorySafetyBadge({ hash, unpushed }: { hash: string; unpushed:
 }
 
 export function StagedSafetyBadge({ path }: { path: string }) {
-  const { report, review } = usePushSafety();
-  const file = report?.stagedComplete ? report.stagedFiles.find(file => file.paths.includes(path)) : undefined;
+  const { stagedFilesByPath, review } = usePushSafety();
+  const file = stagedFilesByPath?.get(path);
   if (!file) return null;
   return <button type="button" className="shrink-0 text-xs text-amber-200" title={`${(Number(file.bytes) / 1048576).toFixed(2)} MiB in the index. ${file.blocked ? "Would block push if committed." : "Large staged file."}`} onClick={event => { event.stopPropagation(); review?.(); }}>{file.blocked ? "Push blocker" : "Large file"}</button>;
 }

@@ -796,6 +796,82 @@
           }
         }
       ]
+    },
+    {
+      "name": "packaged-experiment",
+      "description": "Governed packaged experiment validation, capture, and reporting",
+      "commands": [
+        {
+          "name": "validate-experiment",
+          "description": "Validate a packaged-experiment.v1 comparison matrix",
+          "flags": [
+            {
+              "name": "manifest-json",
+              "required": true,
+              "description": "JSON packaged-experiment.v1 manifest"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PackagedService",
+            "method": "ValidateExperiment"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "capture-experiment-cell",
+          "description": "Capture one packaged comparison cell",
+          "flags": [
+            {
+              "name": "request-json",
+              "required": true,
+              "description": "JSON packaged capture request for one subject, profile and condition"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PackagedService",
+            "method": "Capture"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:write",
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "experiment-report",
+          "description": "Render the packaged comparison report",
+          "flags": [
+            {
+              "name": "query-json",
+              "required": true,
+              "description": "JSON report query"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PackagedService",
+            "method": "Report"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
     }
   ],
   "measures": {

@@ -77,55 +77,6 @@ export interface FileListProps {
   onOpenRun?: (runId: string) => void;
 }
 
-export interface FileSectionProps {
-  title: string;
-  category: FileCategory;
-  files: string[];
-  fileStatuses?: Record<string, string>;
-  binaryFiles?: Set<string>;
-  runIndex?: Map<string, import("../lib/runAttribution").RunAttribution>;
-  onOpenRun?: (runId: string) => void;
-  maxPathChars: number;
-  icon: React.ReactNode;
-  selectedFiles?: SelectedFileEntry[];
-  selectedKeySet?: Set<string>;
-  selectionKey: (entry: SelectedFileEntry) => string;
-  onSelectFile: (
-    path: string,
-    staged: boolean,
-    event: React.MouseEvent<HTMLLIElement>,
-  ) => void;
-  onAction: (path: string) => void;
-  actionIcon: React.ReactNode;
-  actionLabel: string;
-  /** Paths with an in-flight op; the matching row shows a spinner. */
-  pendingPaths?: ReadonlySet<string>;
-  /** Section-wide loading fallback when pendingPaths is not supplied. */
-  isLoading?: boolean;
-  changeStats?: DiffStats;
-  defaultExpanded?: boolean;
-  /** Controlled expand state (with onToggle); falls back to internal state when omitted. */
-  expanded?: boolean;
-  onToggle?: () => void;
-  onDiscard?: (path: string) => void;
-  isDiscarding?: boolean;
-  confirmingDiscard?: string | null;
-  onConfirmDiscard?: (path: string | null) => void;
-  onIgnore?: (path: string, level?: "project" | "group", groupDir?: string) => void;
-  isIgnoring?: boolean;
-  confirmingIgnore?: string | null;
-  onConfirmIgnore?: (path: string | null) => void;
-  resolvedGroups?: ChangeGroupAPI[];
-  onOpenMobileActions?: (file: string) => void;
-  onContextMenu?: (file: string, event: React.MouseEvent) => void;
-  mobileSelectionMode?: boolean;
-  onLongPress?: (file: string, staged: boolean) => void;
-  onMobileTap?: (file: string, staged: boolean, mode: "toggle" | "range") => void;
-  onStatsClick?: () => void;
-  onViewMetrics?: (file: string, category: FileCategory) => void;
-  onRevealInTree?: (file: string) => void;
-}
-
 export interface FileRowProps {
   file: string;
   displayPath?: string;

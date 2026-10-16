@@ -38,6 +38,15 @@ func TestSubcommandGroups(t *testing.T) {
 		require.NotEmpty(t, g.Name, "group[%d].Name must be set", i)
 		require.NotEmpty(t, g.Subcommands, "group[%d] (%s) must register at least one subcommand", i, g.Name)
 	}
+	var packagedGroup *cliapp.SubcommandGroup
+	for i := range got {
+		if got[i].Name == "packaged" {
+			packagedGroup = &got[i]
+			break
+		}
+	}
+	require.NotNil(t, packagedGroup, "packaged measurements must be exposed in the CLI")
+	require.Equal(t, []string{"capture", "report", "compare"}, []string{packagedGroup.Subcommands[0].Name, packagedGroup.Subcommands[1].Name, packagedGroup.Subcommands[2].Name})
 }
 
 // readManifestForTest reads cli/manifest.json from the parent cli/ directory

@@ -22,28 +22,29 @@ const TestingConfigRelPath = ".vrooli/testing.json"
 // `performance.budgets`. Zero means unset. Units are milliseconds and bytes
 // throughout (the historical `_seconds` axes are gone).
 type budgetRecord struct {
-	GoBuildMaxMs            int64                       `json:"go_build_max_ms,omitempty"`
-	UIBuildMaxMs            int64                       `json:"ui_build_max_ms,omitempty"`
-	BundleMaxBytes          int64                       `json:"bundle_max_bytes,omitempty"`
-	LCPMaxMs                int64                       `json:"lcp_max_ms,omitempty"`
-	CLSMax                  float64                     `json:"cls_max,omitempty"`
-	ResponseEndMaxMs        int64                       `json:"response_end_max_ms,omitempty"`
-	DOMInteractiveMaxMs     int64                       `json:"dom_interactive_max_ms,omitempty"`
-	DOMContentLoadedMaxMs   int64                       `json:"dom_content_loaded_max_ms,omitempty"`
-	LoadEventEndMaxMs       int64                       `json:"load_event_end_max_ms,omitempty"`
-	StartupMaxMs            int64                       `json:"startup_max_ms,omitempty"`
-	ComponentCommitAvgMaxMs float64                     `json:"component_commit_avg_max_ms,omitempty"`
-	ComponentCommitMaxMs    float64                     `json:"component_commit_max_ms,omitempty"`
-	DrawnFPSMin             float64                     `json:"drawn_fps_min,omitempty"`
-	DroppedFrameRateMax     float64                     `json:"dropped_frame_rate_max,omitempty"`
-	LongTaskTotalMaxMs      int64                       `json:"long_task_total_max_ms,omitempty"`
-	LongTaskMaxMs           float64                     `json:"long_task_max_ms,omitempty"`
-	RasterTotalMaxMs        float64                     `json:"raster_total_max_ms,omitempty"`
-	LayoutTotalMaxMs        float64                     `json:"layout_total_max_ms,omitempty"`
-	PaintTotalMaxMs         float64                     `json:"paint_total_max_ms,omitempty"`
-	InputEventCountMin      int64                       `json:"input_event_count_min,omitempty"`
-	Ratchet                 bool                        `json:"ratchet,omitempty"`
-	Flows                   map[string]flowBudgetRecord `json:"flows,omitempty"`
+	GoBuildMaxMs            int64                         `json:"go_build_max_ms,omitempty"`
+	UIBuildMaxMs            int64                         `json:"ui_build_max_ms,omitempty"`
+	BundleMaxBytes          int64                         `json:"bundle_max_bytes,omitempty"`
+	LCPMaxMs                int64                         `json:"lcp_max_ms,omitempty"`
+	CLSMax                  float64                       `json:"cls_max,omitempty"`
+	ResponseEndMaxMs        int64                         `json:"response_end_max_ms,omitempty"`
+	DOMInteractiveMaxMs     int64                         `json:"dom_interactive_max_ms,omitempty"`
+	DOMContentLoadedMaxMs   int64                         `json:"dom_content_loaded_max_ms,omitempty"`
+	LoadEventEndMaxMs       int64                         `json:"load_event_end_max_ms,omitempty"`
+	StartupMaxMs            int64                         `json:"startup_max_ms,omitempty"`
+	ComponentCommitAvgMaxMs float64                       `json:"component_commit_avg_max_ms,omitempty"`
+	ComponentCommitMaxMs    float64                       `json:"component_commit_max_ms,omitempty"`
+	DrawnFPSMin             float64                       `json:"drawn_fps_min,omitempty"`
+	DroppedFrameRateMax     float64                       `json:"dropped_frame_rate_max,omitempty"`
+	LongTaskTotalMaxMs      int64                         `json:"long_task_total_max_ms,omitempty"`
+	LongTaskMaxMs           float64                       `json:"long_task_max_ms,omitempty"`
+	RasterTotalMaxMs        float64                       `json:"raster_total_max_ms,omitempty"`
+	LayoutTotalMaxMs        float64                       `json:"layout_total_max_ms,omitempty"`
+	PaintTotalMaxMs         float64                       `json:"paint_total_max_ms,omitempty"`
+	InputEventCountMin      int64                         `json:"input_event_count_min,omitempty"`
+	Ratchet                 bool                          `json:"ratchet,omitempty"`
+	Flows                   map[string]flowBudgetRecord   `json:"flows,omitempty"`
+	Packaged                map[string]map[string]float64 `json:"packaged,omitempty"`
 }
 
 // flowBudgetRecord is one interaction flow's thresholds as they sit on disk
@@ -90,6 +91,7 @@ func (r budgetRecord) toBudget(scenario string) Budget {
 		PaintTotalMaxMs:         r.PaintTotalMaxMs,
 		InputEventCountMin:      r.InputEventCountMin,
 		Ratchet:                 r.Ratchet,
+		Packaged:                r.Packaged,
 	}
 	if len(r.Flows) > 0 {
 		b.Flows = make(map[string]FlowBudget, len(r.Flows))
@@ -123,6 +125,7 @@ func recordFromBudget(b Budget) budgetRecord {
 		PaintTotalMaxMs:         b.PaintTotalMaxMs,
 		InputEventCountMin:      b.InputEventCountMin,
 		Ratchet:                 b.Ratchet,
+		Packaged:                b.Packaged,
 	}
 	if len(b.Flows) > 0 {
 		rec.Flows = make(map[string]flowBudgetRecord, len(b.Flows))

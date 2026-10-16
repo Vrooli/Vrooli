@@ -19,11 +19,13 @@
       "action": {
         "type": "ACTION_TYPE_WAIT",
         "wait": {
-          "selector": "[data-testid=git-control-tower]",
+          "selector": "[data-testid=file-item-unstaged]",
           "state": "WAIT_STATE_VISIBLE",
-          "timeout_ms": 15000
+          "timeout_ms": 30000
         },
-        "metadata": { "label": "Wait for the workspace shell" }
+        "metadata": {
+          "label": "Wait for repository changes, then scroll the populated workspace"
+        }
       }
     },
     {
@@ -34,7 +36,9 @@
           "selector": "[data-testid=changes-scroll-region]",
           "delta_y": 900
         },
-        "metadata": { "label": "Scroll the Changes list" }
+        "metadata": {
+          "label": "Scroll the Changes list"
+        }
       }
     },
     {
@@ -46,12 +50,22 @@
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 15000
         },
-        "metadata": { "label": "Allow the Changes list to settle" }
+        "metadata": {
+          "label": "Allow the Changes list to settle"
+        }
       }
     }
   ],
   "edges": [
-    { "id": "shell-to-scroll", "source": "wait-shell", "target": "scroll-changes" },
-    { "id": "scroll-to-settle", "source": "scroll-changes", "target": "settle-after-scroll" }
+    {
+      "id": "shell-to-scroll",
+      "source": "wait-shell",
+      "target": "scroll-changes"
+    },
+    {
+      "id": "scroll-to-settle",
+      "source": "scroll-changes",
+      "target": "settle-after-scroll"
+    }
   ]
 }

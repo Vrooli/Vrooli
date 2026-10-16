@@ -60,6 +60,9 @@ type Budget struct {
 	// Ratchet, when true, makes SetBudget tighten-only: a write that loosens any
 	// declared axis is rejected.
 	Ratchet bool
+	// Packaged holds advisory launch budgets keyed by ramp then metric. They do
+	// not participate in existing web performance gates.
+	Packaged map[string]map[string]float64
 	// Flows holds per-interaction-flow budgets keyed by flow slug. These gate a
 	// specific targeted journey (driven by `audit run --workflow <slug>`) on the
 	// continuous cadence, independently of the scenario aggregate. Only the

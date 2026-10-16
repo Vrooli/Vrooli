@@ -152,6 +152,19 @@ describe("FileList", () => {
     expect(props.onConfirmIgnore).toHaveBeenCalledWith("src/changed.ts");
   });
 
+  it("keeps partially staged files in both grouped categories with the correct actions", async () => {
+    const { props, user } = renderFileList({
+      fileViewMode: "grouped",
+      files: { staged: ["src/partial.ts"], unstaged: ["src/partial.ts"], untracked: [], conflicts: [] },
+      resolvedGroups: [{ key: "partial", kind: "scenario", id: "partial", label: "partial", source: "contract", files: ["src/partial.ts"] }],
+    });
+    expect(screen.getAllByText("src/partial.ts")).toHaveLength(2);
+    await user.click(screen.getByTestId("file-action-staged"));
+    expect(props.onUnstageFile).toHaveBeenCalledWith("src/partial.ts");
+    await user.click(screen.getByTestId("file-action-unstaged"));
+    expect(props.onStageFile).toHaveBeenCalledWith("src/partial.ts");
+  });
+
   it("renders server-resolved groups without matching paths in the browser", () => {
     renderFileList({
       fileViewMode: "grouped",
@@ -261,6 +274,18 @@ describe("FileList", () => {
     renderFileList();
     expect(screen.queryByText("src/changed.ts")).not.toBeInTheDocument();
     expect(screen.getByTestId("file-section-staged")).toBeInTheDocument();
+  });
+
+  it("opens a persisted collapsed group and untracked category before resolving a scroll target", async () => {
+    localStorage.setItem("gct.collapsedGroups.default", JSON.stringify(["target-group"]));
+    const done = vi.fn();
+    renderFileList({ fileViewMode: "grouped", scrollToFile: "src/new.ts", onScrollComplete: done,
+      resolvedGroups: [{ key: "target-group", kind: "scenario", id: "target", label: "target", source: "contract", files: ["src/new.ts"] }],
+    });
+    expect(await screen.findByText("src/new.ts")).toBeInTheDocument();
+    expect(screen.getByTestId("file-group-toggle-target-group")).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByTestId("file-section-toggle-untracked")).toHaveAttribute("aria-expanded", "true");
+    await vi.waitFor(() => expect(done).toHaveBeenCalled());
   });
 
   it("saves the Changes scroll position to the store on scroll", () => {
@@ -381,6 +406,16 @@ describe("FileList", () => {
 
     await user.click(screen.getByTestId("file-group-toggle-contract:scenario:one"));
     expect(screen.getByTestId("group-run-dots").children).toHaveLength(2);
+  });
+
+  it("shows run dots only for files included by the active group filter", async () => {
+    const { user } = renderFileList({ fileViewMode: "grouped",
+      runIndex: new Map([["src/changed.ts", { runId: "hidden-run", owner: "agent" }]]),
+      resolvedGroups: [{ key: "filtered", id: "filtered", kind: "scenario", label: "filtered", source: "contract", files: ["src/committed.ts", "src/changed.ts"] }],
+    });
+    await user.click(screen.getByRole("tab", { name: "Staged" }));
+    await user.click(screen.getByTestId("file-group-toggle-filtered"));
+    expect(screen.queryByTestId("group-run-dots")).not.toBeInTheDocument();
   });
 
   it("exposes Reveal in file tree from the mobile action sheet", async () => {

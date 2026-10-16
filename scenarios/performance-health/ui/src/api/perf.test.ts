@@ -25,6 +25,7 @@ vi.mock("@connectrpc/connect", () => ({
 vi.mock("./client", () => ({ transport: {} }));
 
 beforeEach(() => {
+  vi.resetModules();
   calls.length = 0;
 });
 

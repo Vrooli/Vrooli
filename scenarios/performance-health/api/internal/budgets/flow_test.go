@@ -2,6 +2,7 @@ package budgets
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"testing"
 )
@@ -177,6 +178,26 @@ func TestConfigStoreFlowRoundTrip(t *testing.T) {
 	// The block lives under performance.budgets.flows in testing.json.
 	if _, err := filepath.Abs(filepath.Join(root, TestingConfigRelPath)); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestConfigStoreReadsPackagedDesktopAdvisoryBudgets(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "scenarios", "demo", ".vrooli")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	config := `{"performance":{"budgets":{"packaged":{"desktop":{"app_interactive_ms":2500,"steady_pss_mb":512}}}}}`
+	if err := os.WriteFile(filepath.Join(dir, "testing.json"), []byte(config), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	store := NewConfigStore(root, nil)
+	budget, declared, err := store.Get(context.Background(), "demo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !declared || budget.Packaged["desktop"]["app_interactive_ms"] != 2500 || budget.Packaged["desktop"]["steady_pss_mb"] != 512 {
+		t.Fatalf("packaged advisory budgets = %+v, declared=%v", budget.Packaged, declared)
 	}
 }
 

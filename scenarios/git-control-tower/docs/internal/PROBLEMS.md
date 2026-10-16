@@ -850,3 +850,153 @@ projection tests pass; no Web Console runtime restart was required.
 
 Work record: **bcaf815a-11a4-4af9-8dd7-61fd0ccc5227**. Final scoped diff
 whitespace check passed. Runtime healthy after the coherent library rebuild.
+
+
+## Large-change workspace responsiveness — 2026-10-15
+
+- Authority: operator requests investigation, Git-noise cleanup, significant UI
+  performance improvement and related UI code-quality repair. Shape: bounded
+  convergence task; no Plan Manager or separate Swarm goal required.
+- Rung: W3 scoped implementation. Prior art:
+  `../perf/2026-09-07-ux-audit.md` measured flat-list virtualization benefits;
+  current grouped mode still uses eager FileSection maps. Search-hub recall
+  found related work; source-ledger recall timed out and agent/swarm ranking
+  was degraded, so recall completeness is unknown.
+- Baseline: `git status --porcelain=v1 -uall` reports about 10,804 paths;
+  7,204 untracked Secrets Manager desktop paths (7,049 copied resources),
+  1,851 untracked delivery-operations paths and 424 external-delivery paths.
+  These counts include legitimate source and design documents.
+- Expected design: one shared measured virtual list for flat and grouped
+  Changes, including bands, group headers, category headers and file rows.
+  Preserve both staged and unstaged appearances of partially staged files,
+  collapse persistence, filters, all file/group actions, mobile selection and
+  reveal/scroll behavior. Keep scrolling state below the FileList model.
+  Remove the unreachable legacy flat JSX and duplicate category rendering.
+- Hypotheses: (1) expanded grouped DOM grows with total changed files; test with
+  real virtualizer and a 10,000-file fixture. (2) group classification drops
+  partially staged paths because a single Map category overwrites the first;
+  test both action routes. (3) repeated parent/query and push-safety context
+  updates amplify work; inspect consumers and measure the governed journey.
+- Git hygiene: ignore only reproducible desktop bundle copies and generated
+  delivery media/evidence, retaining source, design/operations Markdown and
+  scripts. Preserve files in place so live consumers and references keep working.
+- Validation: focused regression tests, UI type/lint checks, scoped Test Genie
+  unit/lint/performance phases and before/after performance-health capture.
+  Record failures and unavailable evidence without treating them as passes.
+- Harness handoff: Work until this verified end state is true: the design above
+  holds under large-change regressions and the governed performance journey is
+  measured or explicitly unavailable. Boundary: git-control-tower UI/docs/BAS,
+  existing desktop/docs ignore rules. Extend with a recorded reason for related
+  owner fixes. Keep going through friction; step back when progress stalls.
+  Blocked means a decision, credential, or approval you lack. Checkpoint here on
+  interruption; report changed, verified, remaining and unverified. Before
+  handoff, run two fresh reviews for correctness, edge cases, maintainability
+  and visual behavior; resolve material findings and retain evidence here.
+
+### Scope extension: grouping polling cost
+
+The grouped-list RPC calls full `GetRepoStatus` every five seconds although it
+only consumes changed paths. This repeats binary inspection, diff line counts,
+untracked content reads and author resolution on the UI polling path. Extend the
+repair boundary to `api/repo_diff_connect.go` and its focused grouping regression:
+reuse the existing fresh porcelain-only snapshot and preserve group semantics.
+This is the same scenario/behavior and does not change the mutation boundary.
+
+
+### Implementation and review checkpoint
+
+- Shared virtualization now covers grouped headers/bands and all expanded
+  category/file rows. Removed the eager FileSection implementation, its orphan
+  props, and unreachable legacy flat JSX (over 500 net lines removed).
+- Stable path/category keys preserve measurement identity across inserts and
+  collapse. Stable virtualizer callbacks retain its measurement cache on scroll.
+  The local list resolves its ancestor on first mount before the ancestor ref
+  attaches; real-virtualizer tests caught this previously masked layout edge.
+- Both categories of partially staged files are preserved. Selection fallback
+  works without a caller-supplied key Set. Navigation opens collapsed target
+  groups/categories before scrolling and completion; deferred scroll restoration
+  cancels both frames on unmount.
+- App file-list callbacks now depend on stable mutation functions. FileList is
+  memoized. Push-safety context values remain stable during fresh clock ticks;
+  staged badges use one shared path index instead of scanning the report per row.
+- Scoped backend regression first failed on DiffNumstat/ConfigGet work. Group
+  polling now reads fresh porcelain paths, sorts categories as before, deduplicates
+  partially staged membership and propagates Git failures. Six focused Go tests
+  pass; proto owner `make verify-committed-gen` passed (artifact selected by
+  lifecycle: e60d8071bf7dab60f60255031e8c572de80fea23cd851996a8ecc33111fb389d).
+- Read-only live benchmark (three iterations, after ignore cleanup): full
+  presentation status 871.6 ms mean; fresh path snapshot 459.2 ms mean (47% less
+  for this component). This is not an end-to-end action or browser latency claim.
+- Initial regression evidence: grouped partially staged rendering lost one copy;
+  eager 10,000-file grouped mount exhausted a 4 GiB Vitest worker. After repair,
+  actual TanStack range logic (only jsdom geometry supplied) keeps fewer than 60
+  mounted file rows at 10,000 changes and fewer than 30 headers at 1,000 groups.
+  Distant-row selection, collapse/reopen and selection restoration pass.
+- Full UI suite: 64 files / 525 tests pass. Focused navigation/safety tests,
+  TypeScript and touched-file ESLint pass. Later stable-callback work receives a
+  final focused rerun; broad Test Genie unit/performance run is server-owned as
+  `20261015-192354-8a40dcef`. The current CLI has no lint phase; ESLint is direct.
+- Review pass 1 found the first-mount ancestor-ref gap, index-based measurement
+  cache invalidation and collapsed navigation; all repaired with focused guards.
+  Review pass 2 checks action closure freshness, staged/unstaged preservation,
+  generated/source ignore boundaries and bounded scroll work. No remaining
+  material defect found in those reviewed paths. Final browser/gate receipts follow.
+
+
+### Final evidence — 2026-10-15
+
+- After deferring settings/review/proposal modules, production entry JavaScript
+  is 1,156,444 bytes (315,644 gzip), down 18.8% from 1,424,087 bytes. Settings
+  retention regression proves drafts survive close/reopen after first lazy load.
+- Final populated grouped trace: BAS
+  `9f19f7c8-a620-4406-a3a6-6b1f32a5b98f/fd062d5e-a51c-4d2a-81e3-3ed56c0f7503`.
+  FileList 2.5 ms average / 11.3 ms max; App 4.1 / 26.1 ms;
+  browser Layout 23.5 ms total / 5.8 ms max; scroll events 1.0 / 1.7 ms.
+  No original-versus-final grouped percentage claim: the initial default trace
+  captured only the shell before status arrived. The default flow now waits for
+  actual rows. Frame-duration/FPS findings remain unreliable and are reported
+  to Scenario QA as `knw-1792092650729110423`.
+- Populated desktop BAS capture: `a5cf22cd-7bf1-42b6-b099-ebe9ec240791`;
+  populated mobile capture: `23d083ef-5325-49f8-8c95-8e164e43dfbe`. Both inspected
+  visually; file rows fit their owned scroller, and mobile navigation stays
+  pinned. These are Chromium observations, not physical-device qualification.
+  A first screenshot attempt coincided with lifecycle restart and failed
+  navigation; a later healthy-runtime capture succeeded without a code workaround.
+- Final full UI run: 65 files / 526 tests pass. A subsequent filtered-run-dot
+  regression plus the affected large-list/lazy-settings tests pass (29 tests).
+  Six Go grouping regressions also pass under `-race`; touched-file lint,
+  TypeScript and scoped `git diff --check` pass.
+- Review follow-up found two further hot-path/edge issues: group action arrays
+  were rebuilt when a visible header rerendered, and precomputed run dots could
+  include paths excluded by the active filter. Group summaries are now computed
+  with the model and respect its filtered paths; a new regression covers the dots.
+- Fresh closing review A: checked staged/unstaged actions, all category
+  discard/ignore routes, group confirmation closures, filter summaries and
+  persisted navigation; no material issue found.
+- Fresh closing review B: checked stable measurement callbacks, offscreen
+  reachability, mount/restore cleanup, lazy form retention and source-vs-output
+  ignore examples; no material issue found. Neither review claims an independent
+  acceptance verdict or full scenario certification.
+- Git hygiene examples: generated bundle resource/media/render paths are ignored;
+  native-host source, Electron source, delivery START-HERE/verifier and authored
+  prototype HTML remain visible. No file relocation, shared-index mutation or
+  history rewrite was needed. Already tracked generated payloads remain tracked.
+- Wider unit run `20261015-192354-8a40dcef` remains failed on existing UI policy
+  projection, companion helper and CLI execution debt. CLI finding filed as
+  `knw-1792092503178001899`; no CLI changes were made here. The broad unit gate
+  is advisory for this repair and is not represented as passing.
+
+- Performance-only rerun `20261015-192848-a0c426f6` remains FAIL on Lighthouse
+  0.66 < 0.75 (previous 0.64). No budget or score threshold was weakened.
+  Existing initial-load performance debt remains measurable; the grouped-list
+  interaction, DOM bounds, bundle reduction and fresh-path read improvements
+  are separately evidenced above. No FPS claim is made from the analyzer.
+- The runtime is rebuilt/restarted through the lifecycle after final source
+  edits. No real staging, discard, commit, push or proposal mutation was used
+  for verification; action semantics are covered in disposable/fake fixtures.
+
+- Final unchanged-code UI receipt: all 65 files / 527 tests pass, including the
+  filtered-run-dot regression. Lifecycle restart reported healthy at
+  2026-10-15 15:31:32 America/New_York; API 18710, UI 21400. The final scoped
+  whitespace check passes. Closing reviews were rechecked against this final
+  source with no additional material findings.

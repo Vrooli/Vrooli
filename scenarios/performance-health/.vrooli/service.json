@@ -1,5 +1,15 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "skills": {
+    "usage": {
+      "source": "skills/performance-health/SKILL.md",
+      "programs": [
+        "performance-health.packaged-experiment"
+      ]
+    },
+    "feature": [],
+    "waivers": {}
+  },
   "version": "1.0.0",
   "storage": {
     "entries": {

@@ -121,10 +121,13 @@ func (s *Server) getRepoGroupsConnect(ctx context.Context, req *repov1.GetRepoGr
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	status, err := GetRepoStatus(ctx, RepoStatusDeps{Git: s.git, RepoDir: resolved.Path})
+	// Group polling consumes paths only. A fresh porcelain snapshot avoids
+	// repeated diff statistics, binary/content reads and author resolution.
+	status, err := readRepoStatusSnapshot(ctx, s.git, resolved.Path)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
+	sortFileStatus(&status.Files, nil)
 	groups := ResolveChangeGroups(resolved.Path, status.Files, *config)
 	result := make([]*repov1.ChangeGroup, 0, len(groups))
 	for _, group := range groups {

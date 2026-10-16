@@ -12,8 +12,7 @@ import { cleanup, screen, waitFor } from "@testing-library/react";
 
 import { expectNoA11yViolations, renderWithProviders } from "../test-utils";
 import { selectors } from "../consts/selectors";
-import { setLocale } from "../i18n";
-import { TestAppRouter } from "../app/routes";
+import type { ScenarioContextValue } from "../features/perf/scenarioContextValue";
 
 vi.mock("../api/perf", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../api/perf")>();
@@ -68,13 +67,31 @@ const ROUTES: [string, string][] = [
 describe("per-route accessibility (English)", () => {
   beforeEach(async () => {
     vi.clearAllMocks();
+    vi.resetModules();
+    const { setLocale } = await import("../i18n");
     await setLocale("en");
   });
   afterEach(() => cleanup());
 
   it.each(ROUTES)("has no axe violations at %s", async (path, rootSelector) => {
+    const [{ TestAppRouter }, { ThemeProvider }, { ScenarioContext }] = await Promise.all([
+      import("../app/routes"),
+      import("../theme/ThemeProvider"),
+      import("../features/perf/scenarioContextValue"),
+    ]);
+    const scenarioValue: ScenarioContextValue = {
+      scenario: "performance-health",
+      setScenario: vi.fn(),
+      scenarios: ["performance-health"],
+      isLoadingScenarios: false,
+    };
     const { container } = renderWithProviders(<TestAppRouter initialEntries={[path]} />, {
       withoutRouter: true,
+      extraProviders: (children) => (
+        <ThemeProvider initialChoice="light">
+          <ScenarioContext.Provider value={scenarioValue}>{children}</ScenarioContext.Provider>
+        </ThemeProvider>
+      ),
     });
     // Wait for the page root, then for every query to settle (no spinner left)
     // so axe scans against fully-resolved content and no state update lands

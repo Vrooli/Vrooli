@@ -1,15 +1,13 @@
 import {
   Profiler,
+  memo,
   useState,
-  useContext,
   useEffect,
   useLayoutEffect,
   useRef,
   useMemo,
   useCallback,
-  Fragment,
 } from "react";
-import { useVirtualizer } from "@tanstack/react-virtual";
 import { onProfilerRender } from "../lib/profiler";
 import {
   File,
@@ -40,10 +38,8 @@ import { ContextMenu, type ContextMenuItem } from "@vrooli/react-component-libra
 import { ChangeMetricsModal } from "./ChangeMetricsModal";
 import { getFileStats, filterFileStats, filterCategoryStats } from "../lib/metrics";
 import { useDiffStats } from "../lib/hooks";
-import { MobileContext, type FileCategory, type FileListProps, type FileRowProps, summarizeFileStats, LineStats, getStatusBadge } from "./FileListTypes";
-import { FileSection } from "./FileSection";
-import { FileRow } from "./FileRow";
-import { formatPath } from "../lib/utils";
+import { MobileContext, type FileCategory, type FileListProps, summarizeFileStats, LineStats } from "./FileListTypes";
+import { VirtualizedFileSections, type ChangeListSection, type ChangeListBlock } from "./FileSection";
 import { groupKindLabel } from "../lib/groupKinds";
 import { RunSheet } from "./RunSheet";
 import { runHue } from "../lib/runAttribution";
@@ -51,226 +47,6 @@ import { IconButton } from "@vrooli/react-component-library/IconButton/3";
 import { Tabs } from "@vrooli/react-component-library/Tabs/1";
 
 export type { GroupingRule, FileCategory, SelectedFileEntry, FileListProps } from "./FileListTypes";
-
-type FlatVirtualSection = {
-  key: string;
-  title: string;
-  category: FileCategory;
-  files: string[];
-  expanded: boolean;
-  icon: React.ReactNode;
-  actionIcon: React.ReactNode;
-  actionLabel: string;
-  onAction: (path: string) => void;
-  onToggle: () => void;
-  changeStats?: DiffStats;
-  onStatsClick?: () => void;
-  onDiscard?: (path: string) => void;
-};
-
-interface VirtualizedFlatSectionsProps {
-  sections: FlatVirtualSection[];
-  scrollRef: React.RefObject<HTMLDivElement | null>;
-  fileStatuses?: Record<string, string>;
-  binaryFiles?: Set<string>;
-  runIndex?: FileListProps["runIndex"];
-  onOpenRun?: FileListProps["onOpenRun"];
-  maxPathChars: number;
-  selectedKeySet?: Set<string>;
-  selectionKey: FileListProps["selectionKey"];
-  onSelectFile: FileListProps["onSelectFile"];
-  pendingPaths?: ReadonlySet<string>;
-  isDiscarding: boolean;
-  isIgnoring: boolean;
-  confirmingDiscard: string | null;
-  onConfirmDiscard: FileListProps["onConfirmDiscard"];
-  confirmingIgnore: string | null;
-  onConfirmIgnore: FileListProps["onConfirmIgnore"];
-  onIgnore?: FileRowProps["onIgnore"];
-  resolvedGroups?: FileListProps["resolvedGroups"];
-  onOpenMobileActions?: FileRowProps["onOpenMobileActions"];
-  onContextMenu?: FileRowProps["onContextMenu"];
-  mobileSelectionMode: boolean;
-  onLongPress?: FileRowProps["onLongPress"];
-  onMobileTap?: FileRowProps["onMobileTap"];
-  onViewMetrics?: FileRowProps["onViewMetrics"];
-  scrollToFile?: string;
-  onScrollComplete?: () => void;
-}
-
-type FlatVirtualItem =
-  | { type: "header"; sectionIndex: number }
-  | { type: "file"; sectionIndex: number; fileIndex: number };
-
-function renderLegacyFlatSections() {
-  return false;
-}
-
-function VirtualizedFlatSections({
-  sections,
-  scrollRef,
-  fileStatuses,
-  binaryFiles,
-  runIndex,
-  onOpenRun,
-  maxPathChars,
-  selectedKeySet,
-  selectionKey,
-  onSelectFile,
-  pendingPaths,
-  isDiscarding,
-  isIgnoring,
-  confirmingDiscard,
-  onConfirmDiscard,
-  confirmingIgnore,
-  onConfirmIgnore,
-  onIgnore,
-  resolvedGroups,
-  onOpenMobileActions,
-  onContextMenu,
-  mobileSelectionMode,
-  onLongPress,
-  onMobileTap,
-  onViewMetrics,
-  scrollToFile,
-  onScrollComplete,
-}: VirtualizedFlatSectionsProps) {
-  const isMobile = useContext(MobileContext);
-  const virtualItems = useMemo<FlatVirtualItem[]>(
-    () => sections.flatMap((section, sectionIndex) => {
-      if (section.files.length === 0) return [];
-      return [
-        { type: "header", sectionIndex } as const,
-        ...(section.expanded
-          ? section.files.map((_, fileIndex) => ({ type: "file", sectionIndex, fileIndex } as const))
-          : []),
-      ];
-    }),
-    [sections],
-  );
-  const rowVirtualizer = useVirtualizer({
-    count: virtualItems.length,
-    getScrollElement: () => scrollRef.current,
-    estimateSize: (index) => virtualItems[index]?.type === "header"
-      ? (isMobile ? 44 : 36)
-      : (isMobile ? 48 : 30),
-    overscan: 8,
-  });
-
-  useEffect(() => {
-    if (!scrollToFile) return;
-    const itemIndex = virtualItems.findIndex((item) =>
-      item.type === "file" && sections[item.sectionIndex]?.files[item.fileIndex] === scrollToFile,
-    );
-    if (itemIndex < 0) {
-      onScrollComplete?.();
-      return;
-    }
-    rowVirtualizer.scrollToIndex(itemIndex, { align: "center" });
-    const frame = requestAnimationFrame(() => onScrollComplete?.());
-    return () => cancelAnimationFrame(frame);
-  }, [onScrollComplete, rowVirtualizer, scrollToFile, sections, virtualItems]);
-
-  return (
-    <div className="relative min-w-0" style={{ height: `${rowVirtualizer.getTotalSize()}px` }}>
-      {rowVirtualizer.getVirtualItems().map((virtualItem) => {
-        const item = virtualItems[virtualItem.index];
-        if (!item) return null;
-        const section = sections[item.sectionIndex];
-        if (!section) return null;
-
-        if (item.type === "header") {
-          return (
-            <div
-              key={`${section.key}-header`}
-              ref={rowVirtualizer.measureElement}
-              data-index={virtualItem.index}
-              data-testid={`file-section-${section.category}`}
-              className="absolute top-0 left-0 right-0 mb-1"
-              style={{ transform: `translateY(${virtualItem.start}px)` }}
-            >
-              <div className={`flex items-center gap-2 w-full px-2 py-1.5 rounded hover:bg-slate-800/50 transition-colors ${isMobile ? "min-h-11" : ""}`}>
-                <button
-                  type="button"
-                  className={`flex min-w-0 flex-1 items-center gap-2 text-left ${isMobile ? "min-h-11" : ""}`}
-                  onClick={section.onToggle}
-                  data-testid={`file-section-toggle-${section.category}`}
-                >
-                  {section.expanded ? (
-                    <ChevronDown className={`text-slate-500 ${isMobile ? "h-4 w-4" : "h-3 w-3"}`} />
-                  ) : (
-                    <ChevronRight className={`text-slate-500 ${isMobile ? "h-4 w-4" : "h-3 w-3"}`} />
-                  )}
-                  {section.icon}
-                  <span className={`font-medium text-slate-400 uppercase tracking-wider ${isMobile ? "text-sm" : "text-xs"}`}>
-                    {section.title}
-                  </span>
-                </button>
-                <div className="ml-auto flex items-center gap-2">
-                  <LineStats stats={section.changeStats} compact onClick={section.onStatsClick} />
-                  <span className={`text-slate-600 ${isMobile ? "text-sm" : "text-xs"}`}>{section.files.length}</span>
-                </div>
-              </div>
-            </div>
-          );
-        }
-
-        const file = section.files[item.fileIndex];
-        if (!file) return null;
-        const isStaged = section.category === "staged";
-        const entry = { path: file, staged: isStaged };
-        return (
-          <div
-            key={`${section.key}-${file}`}
-            ref={rowVirtualizer.measureElement}
-            data-index={virtualItem.index}
-            className="absolute top-0 left-0 right-0"
-            style={{ transform: `translateY(${virtualItem.start}px)` }}
-          >
-            <ul className="contents">
-              <FileRow
-                file={file}
-                displayPath={formatPath(file, maxPathChars)}
-                badge={getStatusBadge(fileStatuses?.[file], section.category)}
-                isSelected={selectedKeySet?.has(selectionKey(entry)) ?? false}
-                isStaged={isStaged}
-                canDiscard={section.category === "unstaged" || section.category === "untracked"}
-                isLoading={pendingPaths?.has(file) ?? false}
-                isDiscarding={isDiscarding}
-                isIgnoring={isIgnoring}
-                isBinary={binaryFiles?.has(file) ?? false}
-                runAttribution={runIndex?.get(file)}
-                onOpenRun={onOpenRun}
-                itemTestId={`file-item-${section.category}`}
-                actionTestId={`file-action-${section.category}`}
-                discardTestId={`file-discard-${section.category}`}
-                ignoreTestId={`file-ignore-${section.category}`}
-                actionIcon={section.actionIcon}
-                actionLabel={section.actionLabel}
-                onSelectFile={onSelectFile}
-                onAction={section.onAction}
-                onDiscard={section.onDiscard}
-                onConfirmDiscard={onConfirmDiscard}
-                onIgnore={onIgnore}
-                onConfirmIgnore={onConfirmIgnore}
-                confirmingDiscard={confirmingDiscard}
-                confirmingIgnore={confirmingIgnore}
-                resolvedGroups={resolvedGroups}
-                onOpenMobileActions={onOpenMobileActions}
-                onContextMenu={onContextMenu}
-                mobileSelectionMode={mobileSelectionMode}
-                onLongPress={onLongPress}
-                onMobileTap={onMobileTap}
-                onViewMetrics={onViewMetrics}
-                category={section.category}
-              />
-            </ul>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
 
 function FileListImpl({
   files,
@@ -350,6 +126,7 @@ function FileListImpl({
     } catch { /* ignore */ }
     return {};
   });
+  const selectedKeys = useMemo(() => selectedKeySet ?? new Set(selectedFiles?.map(selectionKey)), [selectedKeySet, selectedFiles, selectionKey]);
   const binarySet = useMemo(
     () => new Set(files?.binary ?? []),
     [files?.binary],
@@ -423,7 +200,7 @@ function FileListImpl({
   const [openRunId, setOpenRunId] = useState<string | null>(null);
   const [listFilter, setListFilter] = useState<"all" | "agents" | "staged" | "conflicts">("all");
   const openRun = onOpenRun ?? setOpenRunId;
-  const attributionEntries = runIndex ? Array.from(runIndex.entries()) : [];
+  const attributionEntries = useMemo(() => runIndex ? Array.from(runIndex.entries()) : [], [runIndex]);
   const runStats = useMemo(() => ({
     ...(fileStats?.untracked ?? {}),
     ...(fileStats?.unstaged ?? {}),
@@ -674,26 +451,34 @@ function FileListImpl({
     }
   }, [groupingActive]);
 
-  // Scroll to file when returning from Related Files panel
+  // Navigation may target a virtual row in a collapsed group/category. Open
+  // the owning section before the virtualizer resolves the destination.
   useEffect(() => {
-    if (!scrollToFile || fileViewMode === "tree") return; // Tree view handles its own scrolling
-
-    const timeoutId = setTimeout(() => {
-      const element = document.querySelector(`[data-file-path="${CSS.escape(scrollToFile)}"]`);
-      const scroller = scrollAreaRef.current;
-      if (element instanceof HTMLElement && scroller) {
-        const target = element.getBoundingClientRect();
-        const container = scroller.getBoundingClientRect();
-        const nextTop = scroller.scrollTop + target.top - container.top - (scroller.clientHeight - target.height) / 2;
-        scroller.scrollTo({ top: Math.max(0, nextTop), behavior: "smooth" });
-        onScrollComplete?.();
-      } else if (fileViewMode !== "flat") {
-        onScrollComplete?.();
-      }
-    }, 100);
-
-    return () => clearTimeout(timeoutId);
-  }, [scrollToFile, onScrollComplete, fileViewMode]);
+    if (!scrollToFile || fileViewMode === "tree") return;
+    const categories = (["conflicts", "staged", "unstaged", "untracked"] as const)
+      .filter(category => files?.[category]?.includes(scrollToFile));
+    const group = groupingActive ? resolvedGroups?.find(candidate => candidate.files.includes(scrollToFile)) : undefined;
+    if (!categories.length || (groupingActive && !group)) {
+      onScrollComplete?.();
+      return;
+    }
+    setListFilter("all");
+    const groupId = group?.key ?? "__flat__";
+    if (group) setCollapsedGroups(prev => {
+      if (!prev.has(groupId)) return prev;
+      const next = new Set(prev);
+      next.delete(groupId);
+      try { localStorage.setItem(`gct.collapsedGroups.${repoId ?? "default"}`, JSON.stringify([...next])); } catch { /* ignore */ }
+      return next;
+    });
+    setSectionExpanded(prev => {
+      if (categories.every(category => prev[`${groupId}::${category}`] === true)) return prev;
+      const next = { ...prev };
+      for (const category of categories) next[`${groupId}::${category}`] = true;
+      try { localStorage.setItem(`gct.collapsedSections.${repoId ?? "default"}`, JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  }, [scrollToFile, fileViewMode, files, groupingActive, resolvedGroups, onScrollComplete, repoId]);
 
   // Persist the Changes list scroll position (mobile only, when a store is
   // supplied). The store is a ref assignment, so writing on every scroll event
@@ -716,17 +501,23 @@ function FileListImpl({
     if (!scrollTopStore || scrollToFile) return;
     const el = scrollAreaRef.current;
     const restore = () => el?.scrollTo({ top: scrollTopStore.current, behavior: "auto" });
-    const firstFrame = requestAnimationFrame(() => requestAnimationFrame(restore));
-    return () => cancelAnimationFrame(firstFrame);
+    let secondFrame: number | undefined;
+    const firstFrame = requestAnimationFrame(() => { secondFrame = requestAnimationFrame(restore); });
+    return () => {
+      cancelAnimationFrame(firstFrame);
+      if (secondFrame !== undefined) cancelAnimationFrame(secondFrame);
+    };
     // Mount-only: intentionally not re-running on scrollTopStore/scrollToFile changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const filterPaths = useCallback((category: FileCategory, paths?: string[]) => (paths ?? []).filter((path) => {
-    if (listFilter === "all") return true;
+  const filterPaths = useCallback((category: FileCategory, paths?: string[]) => {
+    if (listFilter === "all") return paths ?? [];
+    return (paths ?? []).filter((path) => {
     if (listFilter === "agents") return runIndex?.has(path) ?? false;
     return category === listFilter;
-  }), [listFilter, runIndex]);
+    });
+  }, [listFilter, runIndex]);
 
   const groupedSections = useMemo(() => {
     if (!groupingActive) return [];
@@ -736,17 +527,15 @@ function FileListImpl({
       ["unstaged", filterPaths("unstaged", files?.unstaged)],
       ["untracked", filterPaths("untracked", files?.untracked)],
     ];
-    const categoryByPath = new Map<string, FileCategory>();
-    for (const [category, paths] of categories) {
-      for (const path of paths ?? []) categoryByPath.set(path, category);
-    }
+    const categoryPaths = categories.map(([category, paths]) => [category, new Set(paths)] as const);
     const visibleGroups = (resolvedGroups ?? []).map((group) => {
       const groupedFiles: Record<FileCategory, string[]> = {
         conflicts: [], staged: [], unstaged: [], untracked: [],
       };
       for (const path of group.files) {
-        const category = categoryByPath.get(path);
-        if (category) groupedFiles[category].push(path);
+        for (const [category, paths] of categoryPaths) {
+          if (paths.has(path)) groupedFiles[category].push(path);
+        }
       }
       return {
         id: group.key,
@@ -755,6 +544,10 @@ function FileListImpl({
         source: group.source,
         displayPrefix: group.root ?? "",
         files: groupedFiles,
+        stageable: [...groupedFiles.unstaged, ...groupedFiles.untracked, ...groupedFiles.conflicts],
+        discardCount: groupedFiles.unstaged.length + groupedFiles.untracked.length,
+        count: Object.values(groupedFiles).reduce((total, paths) => total + paths.length, 0),
+        runs: [...new Set(Object.values(groupedFiles).flatMap(paths => paths.map(path => runIndex?.get(path)?.runId)).filter((id): id is string => Boolean(id)))],
       };
     }).filter((group) => Object.values(group.files).some((paths) => paths.length > 0));
 
@@ -763,7 +556,7 @@ function FileListImpl({
       const bandKind = (group.source === "contract" ? group.kind : group.source) ?? "other";
       const summary = bandSummaries.get(bandKind) ?? { groups: 0, files: 0 };
       summary.groups += 1;
-      summary.files += Object.values(group.files).reduce((total, paths) => total + paths.length, 0);
+      summary.files += group.count;
       bandSummaries.set(bandKind, summary);
     }
 
@@ -771,79 +564,214 @@ function FileListImpl({
       ...group,
       bandSummary: bandSummaries.get((group.source === "contract" ? group.kind : group.source) ?? "other") ?? { groups: 0, files: 0 },
     }));
-  }, [files, groupingActive, resolvedGroups, filterPaths]);
+  }, [files, groupingActive, resolvedGroups, filterPaths, runIndex]);
 
-  const flatSections = useMemo<FlatVirtualSection[]>(() => [
-    {
-      key: "conflicts",
-      title: "Conflicts",
-      category: "conflicts",
-      files: filterPaths("conflicts", files?.conflicts),
-      expanded: isSectionExpanded("__flat__", "conflicts", true),
-      icon: <AlertTriangle className="h-3.5 w-3.5 text-red-500" />,
-      actionIcon: <Plus className="h-3 w-3 text-slate-400" />,
-      actionLabel: "Stage file",
-      onAction: onStageFile,
-      onToggle: () => toggleSectionCollapse("__flat__", "conflicts", true),
-      changeStats: summarizeFileStats(files?.conflicts ?? [], fileStats?.unstaged),
-      onStatsClick: openAggregateMetrics,
-    },
-    {
-      key: "staged",
-      title: "Staged",
-      category: "staged",
-      files: filterPaths("staged", files?.staged),
-      expanded: isSectionExpanded("__flat__", "staged", true),
-      icon: <FilePlus className="h-3.5 w-3.5 text-emerald-500" />,
-      actionIcon: <Minus className="h-3 w-3 text-slate-400" />,
-      actionLabel: "Unstage file",
-      onAction: onUnstageFile,
-      onToggle: () => toggleSectionCollapse("__flat__", "staged", true),
-      changeStats: summarizeFileStats(files?.staged ?? [], fileStats?.staged),
-      onStatsClick: openAggregateMetrics,
-    },
-    {
-      key: "unstaged",
-      title: "Modified",
-      category: "unstaged",
-      files: filterPaths("unstaged", files?.unstaged),
-      expanded: isSectionExpanded("__flat__", "unstaged", true),
-      icon: <FileX className="h-3.5 w-3.5 text-amber-500" />,
-      actionIcon: <Plus className="h-3 w-3 text-slate-400" />,
-      actionLabel: "Stage file",
-      onAction: onStageFile,
-      onToggle: () => toggleSectionCollapse("__flat__", "unstaged", true),
-      changeStats: summarizeFileStats(files?.unstaged ?? [], fileStats?.unstaged),
-      onStatsClick: openAggregateMetrics,
-      onDiscard: handleDiscardUnstaged,
-    },
-    {
-      key: "untracked",
-      title: "Untracked",
-      category: "untracked",
-      files: filterPaths("untracked", files?.untracked),
-      expanded: isSectionExpanded("__flat__", "untracked", false),
-      icon: <File className="h-3.5 w-3.5 text-slate-500" />,
-      actionIcon: <Plus className="h-3 w-3 text-slate-400" />,
-      actionLabel: "Stage file",
-      onAction: onStageFile,
-      onToggle: () => toggleSectionCollapse("__flat__", "untracked", false),
-      changeStats: summarizeFileStats(files?.untracked ?? [], fileStats?.untracked),
-      onStatsClick: openAggregateMetrics,
-      onDiscard: handleDiscardUntracked,
-    },
-  ], [
-    files,
-    fileStats,
-    filterPaths,
-    isSectionExpanded,
-    onStageFile,
-    onUnstageFile,
-    toggleSectionCollapse,
-    openAggregateMetrics,
-    handleDiscardUnstaged,
-    handleDiscardUntracked,
-  ]);
+  const renderGroupHeader = useCallback((group: (typeof groupedSections)[number], index: number) => {
+    const { stageable, discardCount, count: groupCount, runs } = group;
+    const discardTracked = group.files.unstaged;
+    const discardUntracked = group.files.untracked;
+    const isGroupCollapsed = collapsedGroups.has(group.id);
+
+    const previous = groupedSections[index - 1];
+    const bandKind = group.source === "contract" ? group.kind : group.source;
+    const previousBandKind = previous?.source === "contract" ? previous.kind : previous?.source;
+    const showBand = bandKind !== previousBandKind;
+    return (
+      <>
+      {showBand && (
+        <div role="region" aria-label={`${groupKindLabel(group.kind, group.source)} group band`} className="relative z-10 flex min-h-[30px] items-center gap-2 border-y border-slate-800 bg-slate-950 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500" data-testid={`file-kind-band-${bandKind || "other"}`}>
+          <span>{groupKindLabel(group.kind, group.source)}</span>
+          <span className="h-px flex-1 bg-slate-800" />
+          <span>{group.bandSummary.groups} groups · {group.bandSummary.files} files</span>
+        </div>
+      )}
+      <div
+        key={group.id}
+        className="border-b border-slate-800/80"
+        data-testid={`file-group-${group.id}`}
+      >
+        <div
+          className={`flex flex-wrap items-center justify-between gap-2 px-3 py-2 ${isGroupCollapsed ? "" : "border-b border-slate-800/70"}`}
+        >
+          <button
+            type="button"
+            className="flex items-center gap-2 min-w-0 hover:bg-slate-800/30 rounded px-1 -ml-1 transition-colors"
+            onClick={() => toggleGroupCollapse(group.id)}
+            aria-expanded={!isGroupCollapsed}
+            data-testid={`file-group-toggle-${group.id}`}
+          >
+            {isGroupCollapsed ? (
+              <ChevronRight className={`text-slate-500 flex-shrink-0 ${isMobile ? "h-4.5 w-4.5" : "h-3.5 w-3.5"}`} />
+            ) : (
+              <ChevronDown className={`text-slate-500 flex-shrink-0 ${isMobile ? "h-4.5 w-4.5" : "h-3.5 w-3.5"}`} />
+            )}
+            <div className="min-w-0 text-left">
+              <div className={`font-semibold text-slate-300 ${isMobile ? "text-sm" : "text-xs"}`}>
+                {group.label}
+              </div>
+              {group.displayPrefix && group.source !== "contract" && (
+                <div className={`text-slate-500 ${isMobile ? "text-xs" : "text-[11px]"}`}>
+                  {group.displayPrefix}
+                </div>
+              )}
+            </div>
+          </button>
+          <div className={`flex items-center gap-2 text-slate-500 ${isMobile ? "text-sm" : "text-xs"}`}>
+            {isGroupCollapsed && runIndex && (() => {
+              return runs.length > 0 ? <span className="flex items-center gap-1" data-testid="group-run-dots">{runs.slice(0, 3).map((runId) => <span key={runId} className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: runHue(runId) }} />)}{runs.length > 3 && <span>+{runs.length - 3}</span>}</span> : null;
+            })()}
+            {onOpenReview && group.kind === "scenario" && group.displayPrefix ? (
+              <button
+                type="button"
+                className="h-7 px-2 inline-flex items-center gap-1 rounded text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenReview(group.displayPrefix?.split("/")[1] ?? "");
+                }}
+                title="Open scenario review"
+              >
+                {groupCount !== undefined && <span>{groupCount} files</span>}
+                <ClipboardCheck className="h-3.5 w-3.5" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="hover:underline decoration-slate-600 cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openGroupMetrics(group.files, group.label);
+                }}
+              >
+                {groupCount} files
+              </button>
+            )}
+            {!mobileSelectionMode &&
+              !isGroupCollapsed &&
+              stageable.length > 0 &&
+              onStagePaths && (
+                compactHeader ? <IconButton
+                  size="xs"
+                  surface="ghost"
+                  denseTapTarget
+                  onClick={() => onStagePaths(stageable)}
+                  disabled={false}
+                  className="!h-8 !w-8 !min-h-0 !min-w-0 !border-0 !shadow-none !text-emerald-300"
+                  aria-label="Stage all files in group"
+                  title="Stage All"
+                ><Plus className="h-4 w-4" /></IconButton> : <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onStagePaths(stageable)}
+                  disabled={false}
+                  className="h-7 px-2"
+                  title="Stage All"
+                >Stage All</Button>
+              )}
+            {!mobileSelectionMode &&
+              !isGroupCollapsed &&
+              discardCount > 0 &&
+              onDiscardPaths && (
+                compactHeader ? <IconButton
+                  size="xs"
+                  surface="ghost"
+                  denseTapTarget
+                  onClick={() => setConfirmingGroup(group.id)}
+                  disabled={isDiscarding}
+                  className="!h-8 !w-8 !min-h-0 !min-w-0 !border-0 !shadow-none !text-red-300"
+                  aria-label="Discard all files in group"
+                  title="Discard All"
+                ><Trash2 className="h-4 w-4" /></IconButton> : <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setConfirmingGroup(group.id)}
+                  disabled={isDiscarding}
+                  className="h-7 border-red-400/40 px-2 text-red-200 hover:bg-red-900/20"
+                  title="Discard All"
+                >Discard All</Button>
+              )}
+          </div>
+        </div>
+        {!isGroupCollapsed && confirmingGroup === group.id &&
+              discardCount > 0 && (
+                <div className="flex items-center justify-between gap-2 px-3 py-2 text-xs text-red-200 bg-red-950/30 border-b border-red-900/40">
+                  <span>
+                    Discard {discardCount} changes in this
+                    group?
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      className="px-2 py-1 rounded border border-red-400/40 text-red-100 hover:bg-red-900/30"
+                      onClick={() => {
+                        if (discardTracked.length > 0) {
+                          onDiscardPaths?.(
+                            discardTracked,
+                            false,
+                          );
+                        }
+                        if (discardUntracked.length > 0) {
+                          onDiscardPaths?.(
+                            discardUntracked,
+                            true,
+                          );
+                        }
+                        setConfirmingGroup(null);
+                      }}
+                    >
+                      Discard
+                    </button>
+                    <button
+                      type="button"
+                      className="px-2 py-1 rounded border border-slate-600 text-slate-200 hover:bg-slate-800/50"
+                      onClick={() => setConfirmingGroup(null)}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+      </div>
+      </>
+    );
+  }, [groupedSections, collapsedGroups, isMobile, runIndex, onOpenReview,
+    mobileSelectionMode, onStagePaths, compactHeader, onDiscardPaths,
+    isDiscarding, confirmingGroup, toggleGroupCollapse, openGroupMetrics]);
+
+
+  const listBlocks = useMemo<ChangeListBlock[]>(() => {
+    const sectionsFor = (groupId: string, categoryFiles: Partial<Record<FileCategory, string[]>>, label?: string): ChangeListBlock[] => {
+      const categories: FileCategory[] = ["conflicts", "staged", "unstaged", "untracked"];
+      return categories.map((category) => {
+        const paths = filterPaths(category, categoryFiles[category]);
+        const statsCategory = category === "conflicts" ? "unstaged" : category;
+        const section: ChangeListSection = {
+          key: `${groupId}:${category}`, category, files: paths,
+          title: category === "unstaged" ? "Modified" : category.charAt(0).toUpperCase() + category.slice(1),
+          expanded: isSectionExpanded(groupId, category, category !== "untracked"),
+          onToggle: () => toggleSectionCollapse(groupId, category, category !== "untracked"),
+          icon: category === "conflicts" ? <AlertTriangle className="h-3.5 w-3.5 text-red-500" />
+            : category === "staged" ? <FilePlus className="h-3.5 w-3.5 text-emerald-500" />
+            : category === "unstaged" ? <FileX className="h-3.5 w-3.5 text-amber-500" />
+            : <File className="h-3.5 w-3.5 text-slate-500" />,
+          actionIcon: category === "staged" ? <Minus className="h-3 w-3 text-slate-400" /> : <Plus className="h-3 w-3 text-slate-400" />,
+          actionLabel: category === "staged" ? "Unstage file" : "Stage file",
+          onAction: category === "staged" ? onUnstageFile : onStageFile,
+          onDiscard: category === "unstaged" ? handleDiscardUnstaged : category === "untracked" ? handleDiscardUntracked : undefined,
+          changeStats: summarizeFileStats(paths, fileStats?.[statsCategory]),
+          onStatsClick: label ? () => openGroupCategoryMetrics(paths, statsCategory, label) : openAggregateMetrics,
+        };
+        return { type: "section", section };
+      });
+    };
+    if (!groupingActive) return sectionsFor("__flat__", files ?? {});
+    return groupedSections.flatMap((group, index): ChangeListBlock[] => [
+      { type: "header", key: `group:${group.id}`, render: () => renderGroupHeader(group, index), estimateSize: isMobile ? 80 : 72 },
+      ...(collapsedGroups.has(group.id) ? [] : sectionsFor(group.id, group.files, group.label)),
+    ]);
+  }, [files, fileStats, groupedSections, groupingActive, collapsedGroups, filterPaths,
+    isSectionExpanded, toggleSectionCollapse, onStageFile, onUnstageFile,
+    handleDiscardUnstaged, handleDiscardUntracked, openAggregateMetrics, openGroupCategoryMetrics,
+    isMobile, renderGroupHeader]);
 
   const handleCycleViewMode = onCycleViewMode ?? (() => {});
   const totalFilesCount =
@@ -1050,380 +978,16 @@ function FileListImpl({
                     onBlameFile={onBlameFile}
                     repoId={repoId}
                   />
-                ) : groupingActive ? (
-                  groupedSections.map((group, index) => {
-                    const stageable = [
-                      ...group.files.unstaged,
-                      ...group.files.untracked,
-                      ...group.files.conflicts,
-                    ];
-                    const discardTracked = group.files.unstaged;
-                    const discardUntracked = group.files.untracked;
-                    const discardCount =
-                      discardTracked.length + discardUntracked.length;
-                    const groupCount =
-                      group.files.conflicts.length +
-                      group.files.staged.length +
-                      group.files.unstaged.length +
-                      group.files.untracked.length;
-                    const isGroupCollapsed = collapsedGroups.has(group.id);
-
-                    const previous = groupedSections[index - 1];
-                    const bandKind = group.source === "contract" ? group.kind : group.source;
-                    const previousBandKind = previous?.source === "contract" ? previous.kind : previous?.source;
-                    const showBand = bandKind !== previousBandKind;
-                    return (
-                      <Fragment key={group.id}>
-                      {showBand && (
-                        <div role="region" aria-label={`${groupKindLabel(group.kind, group.source)} group band`} className="relative z-10 flex min-h-[30px] items-center gap-2 border-y border-slate-800 bg-slate-950 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500" data-testid={`file-kind-band-${bandKind || "other"}`}>
-                          <span>{groupKindLabel(group.kind, group.source)}</span>
-                          <span className="h-px flex-1 bg-slate-800" />
-                          <span>{group.bandSummary.groups} groups · {group.bandSummary.files} files</span>
-                        </div>
-                      )}
-                      <div
-                        key={group.id}
-                        className="border-b border-slate-800/80"
-                        data-testid={`file-group-${group.id}`}
-                      >
-                        <div
-                          className={`flex flex-wrap items-center justify-between gap-2 px-3 py-2 ${isGroupCollapsed ? "" : "border-b border-slate-800/70"}`}
-                        >
-                          <button
-                            type="button"
-                            className="flex items-center gap-2 min-w-0 hover:bg-slate-800/30 rounded px-1 -ml-1 transition-colors"
-                            onClick={() => toggleGroupCollapse(group.id)}
-                            data-testid={`file-group-toggle-${group.id}`}
-                          >
-                            {isGroupCollapsed ? (
-                              <ChevronRight className={`text-slate-500 flex-shrink-0 ${isMobile ? "h-4.5 w-4.5" : "h-3.5 w-3.5"}`} />
-                            ) : (
-                              <ChevronDown className={`text-slate-500 flex-shrink-0 ${isMobile ? "h-4.5 w-4.5" : "h-3.5 w-3.5"}`} />
-                            )}
-                            <div className="min-w-0 text-left">
-                              <div className={`font-semibold text-slate-300 ${isMobile ? "text-sm" : "text-xs"}`}>
-                                {group.label}
-                              </div>
-                              {group.displayPrefix && group.source !== "contract" && (
-                                <div className={`text-slate-500 ${isMobile ? "text-xs" : "text-[11px]"}`}>
-                                  {group.displayPrefix}
-                                </div>
-                              )}
-                            </div>
-                          </button>
-                          <div className={`flex items-center gap-2 text-slate-500 ${isMobile ? "text-sm" : "text-xs"}`}>
-                            {isGroupCollapsed && runIndex && (() => {
-                              const runs = [...new Set(Object.values(group.files).flat().map((path) => runIndex.get(path)?.runId).filter(Boolean))] as string[];
-                              return runs.length > 0 ? <span className="flex items-center gap-1" data-testid="group-run-dots">{runs.slice(0, 3).map((runId) => <span key={runId} className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: runHue(runId) }} />)}{runs.length > 3 && <span>+{runs.length - 3}</span>}</span> : null;
-                            })()}
-                            {onOpenReview && group.kind === "scenario" && group.displayPrefix ? (
-                              <button
-                                type="button"
-                                className="h-7 px-2 inline-flex items-center gap-1 rounded text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-colors"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onOpenReview(group.displayPrefix?.split("/")[1] ?? "");
-                                }}
-                                title="Open scenario review"
-                              >
-                                {groupCount !== undefined && <span>{groupCount} files</span>}
-                                <ClipboardCheck className="h-3.5 w-3.5" />
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                className="hover:underline decoration-slate-600 cursor-pointer"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  openGroupMetrics(group.files, group.label);
-                                }}
-                              >
-                                {groupCount} files
-                              </button>
-                            )}
-                            {!mobileSelectionMode &&
-                              !isGroupCollapsed &&
-                              stageable.length > 0 &&
-                              onStagePaths && (
-                                compactHeader ? <IconButton
-                                  size="xs"
-                                  surface="ghost"
-                                  denseTapTarget
-                                  onClick={() => onStagePaths(stageable)}
-                                  disabled={false}
-                                  className="!h-8 !w-8 !min-h-0 !min-w-0 !border-0 !shadow-none !text-emerald-300"
-                                  aria-label="Stage all files in group"
-                                  title="Stage All"
-                                ><Plus className="h-4 w-4" /></IconButton> : <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => onStagePaths(stageable)}
-                                  disabled={false}
-                                  className="h-7 px-2"
-                                  title="Stage All"
-                                >Stage All</Button>
-                              )}
-                            {!mobileSelectionMode &&
-                              !isGroupCollapsed &&
-                              discardCount > 0 &&
-                              onDiscardPaths && (
-                                compactHeader ? <IconButton
-                                  size="xs"
-                                  surface="ghost"
-                                  denseTapTarget
-                                  onClick={() => setConfirmingGroup(group.id)}
-                                  disabled={isDiscarding}
-                                  className="!h-8 !w-8 !min-h-0 !min-w-0 !border-0 !shadow-none !text-red-300"
-                                  aria-label="Discard all files in group"
-                                  title="Discard All"
-                                ><Trash2 className="h-4 w-4" /></IconButton> : <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => setConfirmingGroup(group.id)}
-                                  disabled={isDiscarding}
-                                  className="h-7 border-red-400/40 px-2 text-red-200 hover:bg-red-900/20"
-                                  title="Discard All"
-                                >Discard All</Button>
-                              )}
-                          </div>
-                        </div>
-                        {!isGroupCollapsed && (
-                          <>
-                            {confirmingGroup === group.id &&
-                              discardCount > 0 && (
-                                <div className="flex items-center justify-between gap-2 px-3 py-2 text-xs text-red-200 bg-red-950/30 border-b border-red-900/40">
-                                  <span>
-                                    Discard {discardCount} changes in this
-                                    group?
-                                  </span>
-                                  <div className="flex items-center gap-2">
-                                    <button
-                                      type="button"
-                                      className="px-2 py-1 rounded border border-red-400/40 text-red-100 hover:bg-red-900/30"
-                                      onClick={() => {
-                                        if (discardTracked.length > 0) {
-                                          onDiscardPaths?.(
-                                            discardTracked,
-                                            false,
-                                          );
-                                        }
-                                        if (discardUntracked.length > 0) {
-                                          onDiscardPaths?.(
-                                            discardUntracked,
-                                            true,
-                                          );
-                                        }
-                                        setConfirmingGroup(null);
-                                      }}
-                                    >
-                                      Discard
-                                    </button>
-                                    <button
-                                      type="button"
-                                      className="px-2 py-1 rounded border border-slate-600 text-slate-200 hover:bg-slate-800/50"
-                                      onClick={() => setConfirmingGroup(null)}
-                                    >
-                                      Cancel
-                                    </button>
-                                  </div>
-                                </div>
-                              )}
-                            <div className="px-2 py-2">
-                              <FileSection
-                                key={`${group.id}-conflicts`}
-                                title="Conflicts"
-                                category="conflicts"
-                                expanded={isSectionExpanded(group.id, "conflicts", true)}
-                                onToggle={() => toggleSectionCollapse(group.id, "conflicts", true)}
-                                files={group.files.conflicts}
-                                fileStatuses={files?.statuses}
-                                binaryFiles={binarySet}
-                                runIndex={runIndex}
-                                onOpenRun={openRun}
-                                maxPathChars={maxPathChars}
-                                icon={
-                                  <AlertTriangle className="h-3.5 w-3.5 text-red-500" />
-                                }
-                                selectedFiles={selectedFiles}
-                                selectedKeySet={selectedKeySet}
-                                selectionKey={selectionKey}
-                                onSelectFile={onSelectFile}
-                                onAction={onStageFile}
-                                actionIcon={
-                                  <Plus className="h-3 w-3 text-slate-400" />
-                                }
-                                actionLabel="Stage file"
-                                pendingPaths={pendingPaths}
-                                changeStats={summarizeFileStats(
-                                  group.files.conflicts,
-                                  fileStats?.unstaged,
-                                )}
-                                onIgnore={handleIgnoreFile}
-                                isIgnoring={isIgnoring}
-                                confirmingIgnore={confirmingIgnore}
-                                onConfirmIgnore={onConfirmIgnore}
-                                resolvedGroups={resolvedGroups}
-                                onOpenMobileActions={handleOpenMobileActions}
-                                onContextMenu={onBlameFile || onStageFilesWithSameName ? handleFileContextMenu : undefined}
-                                mobileSelectionMode={mobileSelectionMode}
-                                onLongPress={handleLongPress}
-                                onMobileTap={handleMobileTap}
-                                onStatsClick={() => openGroupCategoryMetrics(group.files.conflicts, "unstaged", group.label)}
-                                onViewMetrics={openFileMetrics}
-                              />
-                              <FileSection
-                                key={`${group.id}-staged`}
-                                title="Staged"
-                                category="staged"
-                                expanded={isSectionExpanded(group.id, "staged", true)}
-                                onToggle={() => toggleSectionCollapse(group.id, "staged", true)}
-                                files={group.files.staged}
-                                fileStatuses={files?.statuses}
-                                binaryFiles={binarySet}
-                                runIndex={runIndex}
-                                onOpenRun={openRun}
-                                maxPathChars={maxPathChars}
-                                icon={
-                                  <FilePlus className="h-3.5 w-3.5 text-emerald-500" />
-                                }
-                                selectedFiles={selectedFiles}
-                                selectedKeySet={selectedKeySet}
-                                selectionKey={selectionKey}
-                                onSelectFile={onSelectFile}
-                                onAction={onUnstageFile}
-                                actionIcon={
-                                  <Minus className="h-3 w-3 text-slate-400" />
-                                }
-                                actionLabel="Unstage file"
-                                pendingPaths={pendingPaths}
-                                changeStats={summarizeFileStats(
-                                  group.files.staged,
-                                  fileStats?.staged,
-                                )}
-                                onIgnore={handleIgnoreFile}
-                                isIgnoring={isIgnoring}
-                                confirmingIgnore={confirmingIgnore}
-                                onConfirmIgnore={onConfirmIgnore}
-                                resolvedGroups={resolvedGroups}
-                                onOpenMobileActions={handleOpenMobileActions}
-                                onContextMenu={onBlameFile || onStageFilesWithSameName ? handleFileContextMenu : undefined}
-                                mobileSelectionMode={mobileSelectionMode}
-                                onLongPress={handleLongPress}
-                                onMobileTap={handleMobileTap}
-                                onStatsClick={() => openGroupCategoryMetrics(group.files.staged, "staged", group.label)}
-                                onViewMetrics={openFileMetrics}
-                              />
-                              <FileSection
-                                key={`${group.id}-unstaged`}
-                                title="Modified"
-                                category="unstaged"
-                                expanded={isSectionExpanded(group.id, "unstaged", true)}
-                                onToggle={() => toggleSectionCollapse(group.id, "unstaged", true)}
-                                files={group.files.unstaged}
-                                fileStatuses={files?.statuses}
-                                binaryFiles={binarySet}
-                                runIndex={runIndex}
-                                onOpenRun={openRun}
-                                maxPathChars={maxPathChars}
-                                icon={
-                                  <FileX className="h-3.5 w-3.5 text-amber-500" />
-                                }
-                                selectedFiles={selectedFiles}
-                                selectedKeySet={selectedKeySet}
-                                selectionKey={selectionKey}
-                                onSelectFile={onSelectFile}
-                                onAction={onStageFile}
-                                actionIcon={
-                                  <Plus className="h-3 w-3 text-slate-400" />
-                                }
-                                actionLabel="Stage file"
-                                pendingPaths={pendingPaths}
-                                changeStats={summarizeFileStats(
-                                  group.files.unstaged,
-                                  fileStats?.unstaged,
-                                )}
-                                onDiscard={handleDiscardUnstaged}
-                                isDiscarding={isDiscarding}
-                                confirmingDiscard={confirmingDiscard}
-                                onConfirmDiscard={onConfirmDiscard}
-                                onIgnore={handleIgnoreFile}
-                                isIgnoring={isIgnoring}
-                                confirmingIgnore={confirmingIgnore}
-                                onConfirmIgnore={onConfirmIgnore}
-                                resolvedGroups={resolvedGroups}
-                                onOpenMobileActions={handleOpenMobileActions}
-                                onContextMenu={onBlameFile || onStageFilesWithSameName ? handleFileContextMenu : undefined}
-                                mobileSelectionMode={mobileSelectionMode}
-                                onLongPress={handleLongPress}
-                                onMobileTap={handleMobileTap}
-                                onStatsClick={() => openGroupCategoryMetrics(group.files.unstaged, "unstaged", group.label)}
-                                onViewMetrics={openFileMetrics}
-                              />
-                              <FileSection
-                                key={`${group.id}-untracked`}
-                                title="Untracked"
-                                category="untracked"
-                                expanded={isSectionExpanded(group.id, "untracked", false)}
-                                onToggle={() => toggleSectionCollapse(group.id, "untracked", false)}
-                                files={group.files.untracked}
-                                fileStatuses={files?.statuses}
-                                binaryFiles={binarySet}
-                                runIndex={runIndex}
-                                onOpenRun={openRun}
-                                maxPathChars={maxPathChars}
-                                icon={
-                                  <File className="h-3.5 w-3.5 text-slate-500" />
-                                }
-                                selectedFiles={selectedFiles}
-                                selectedKeySet={selectedKeySet}
-                                selectionKey={selectionKey}
-                                onSelectFile={onSelectFile}
-                                onAction={onStageFile}
-                                actionIcon={
-                                  <Plus className="h-3 w-3 text-slate-400" />
-                                }
-                                actionLabel="Stage file"
-                                pendingPaths={pendingPaths}
-                                changeStats={summarizeFileStats(
-                                  group.files.untracked,
-                                  fileStats?.untracked,
-                                )}
-                                defaultExpanded={false}
-                                onDiscard={handleDiscardUntracked}
-                                isDiscarding={isDiscarding}
-                                confirmingDiscard={confirmingDiscard}
-                                onConfirmDiscard={onConfirmDiscard}
-                                onIgnore={handleIgnoreFile}
-                                isIgnoring={isIgnoring}
-                                confirmingIgnore={confirmingIgnore}
-                                onConfirmIgnore={onConfirmIgnore}
-                                resolvedGroups={resolvedGroups}
-                                onOpenMobileActions={handleOpenMobileActions}
-                                onContextMenu={onBlameFile || onStageFilesWithSameName ? handleFileContextMenu : undefined}
-                                mobileSelectionMode={mobileSelectionMode}
-                                onLongPress={handleLongPress}
-                                onMobileTap={handleMobileTap}
-                                onStatsClick={() => openGroupCategoryMetrics(group.files.untracked, "untracked", group.label)}
-                                onViewMetrics={openFileMetrics}
-                              />
-                            </div>
-                          </>
-                        )}
-                      </div>
-                      </Fragment>
-                    );
-                  })
                 ) : (
-                  <>
-                    <VirtualizedFlatSections
-                      sections={flatSections}
+                    <VirtualizedFileSections
+                      blocks={listBlocks}
                       scrollRef={scrollAreaRef}
                       fileStatuses={files?.statuses}
                       binaryFiles={binarySet}
                       runIndex={runIndex}
                       onOpenRun={openRun}
                       maxPathChars={maxPathChars}
-                      selectedKeySet={selectedKeySet}
+                      selectedKeySet={selectedKeys}
                       selectionKey={selectionKey}
                       onSelectFile={onSelectFile}
                       pendingPaths={pendingPaths}
@@ -1444,179 +1008,6 @@ function FileListImpl({
                       scrollToFile={scrollToFile}
                       onScrollComplete={onScrollComplete}
                     />
-                    {renderLegacyFlatSections() && (
-                    <>
-                    {/* Conflicts - Always show first if any */}
-                    <FileSection
-                      title="Conflicts"
-                      category="conflicts"
-                      expanded={isSectionExpanded("__flat__", "conflicts", true)}
-                      onToggle={() => toggleSectionCollapse("__flat__", "conflicts", true)}
-                      files={filterPaths("conflicts", files?.conflicts)}
-                      fileStatuses={files?.statuses}
-                      binaryFiles={binarySet}
-                      runIndex={runIndex}
-                      onOpenRun={openRun}
-                      maxPathChars={maxPathChars}
-                      icon={
-                        <AlertTriangle className="h-3.5 w-3.5 text-red-500" />
-                      }
-                      selectedFiles={selectedFiles}
-                      selectedKeySet={selectedKeySet}
-                      selectionKey={selectionKey}
-                      onSelectFile={onSelectFile}
-                      onAction={onStageFile}
-                      actionIcon={<Plus className="h-3 w-3 text-slate-400" />}
-                      actionLabel="Stage file"
-                      pendingPaths={pendingPaths}
-                      changeStats={summarizeFileStats(
-                        files?.conflicts ?? [],
-                        fileStats?.unstaged,
-                      )}
-                      onIgnore={handleIgnoreFile}
-                      isIgnoring={isIgnoring}
-                      confirmingIgnore={confirmingIgnore}
-                      onConfirmIgnore={onConfirmIgnore}
-                    resolvedGroups={resolvedGroups}
-                      onOpenMobileActions={handleOpenMobileActions}
-                      onContextMenu={onBlameFile || onStageFilesWithSameName ? handleFileContextMenu : undefined}
-                      mobileSelectionMode={mobileSelectionMode}
-                      onLongPress={handleLongPress}
-                      onMobileTap={handleMobileTap}
-                      onStatsClick={openAggregateMetrics}
-                      onViewMetrics={openFileMetrics}
-                    />
-
-                    {/* Staged Changes */}
-                    <FileSection
-                      title="Staged"
-                      category="staged"
-                      expanded={isSectionExpanded("__flat__", "staged", true)}
-                      onToggle={() => toggleSectionCollapse("__flat__", "staged", true)}
-                      files={filterPaths("staged", files?.staged)}
-                      fileStatuses={files?.statuses}
-                      binaryFiles={binarySet}
-                      runIndex={runIndex}
-                      onOpenRun={openRun}
-                      maxPathChars={maxPathChars}
-                      icon={
-                        <FilePlus className="h-3.5 w-3.5 text-emerald-500" />
-                      }
-                      selectedFiles={selectedFiles}
-                      selectedKeySet={selectedKeySet}
-                      selectionKey={selectionKey}
-                      onSelectFile={onSelectFile}
-                      onAction={onUnstageFile}
-                      actionIcon={<Minus className="h-3 w-3 text-slate-400" />}
-                      actionLabel="Unstage file"
-                      pendingPaths={pendingPaths}
-                      changeStats={summarizeFileStats(
-                        files?.staged ?? [],
-                        fileStats?.staged,
-                      )}
-                      onIgnore={handleIgnoreFile}
-                      isIgnoring={isIgnoring}
-                      confirmingIgnore={confirmingIgnore}
-                      onConfirmIgnore={onConfirmIgnore}
-                    resolvedGroups={resolvedGroups}
-                      onOpenMobileActions={handleOpenMobileActions}
-                      onContextMenu={onBlameFile || onStageFilesWithSameName ? handleFileContextMenu : undefined}
-                      mobileSelectionMode={mobileSelectionMode}
-                      onLongPress={handleLongPress}
-                      onMobileTap={handleMobileTap}
-                      onStatsClick={openAggregateMetrics}
-                      onViewMetrics={openFileMetrics}
-                    />
-
-                    {/* Unstaged Changes */}
-                    <FileSection
-                      title="Modified"
-                      category="unstaged"
-                      expanded={isSectionExpanded("__flat__", "unstaged", true)}
-                      onToggle={() => toggleSectionCollapse("__flat__", "unstaged", true)}
-                      files={filterPaths("unstaged", files?.unstaged)}
-                      fileStatuses={files?.statuses}
-                      binaryFiles={binarySet}
-                      runIndex={runIndex}
-                      onOpenRun={openRun}
-                      maxPathChars={maxPathChars}
-                      icon={<FileX className="h-3.5 w-3.5 text-amber-500" />}
-                      selectedFiles={selectedFiles}
-                      selectedKeySet={selectedKeySet}
-                      selectionKey={selectionKey}
-                      onSelectFile={onSelectFile}
-                      onAction={onStageFile}
-                      actionIcon={<Plus className="h-3 w-3 text-slate-400" />}
-                      actionLabel="Stage file"
-                      pendingPaths={pendingPaths}
-                      changeStats={summarizeFileStats(
-                        files?.unstaged ?? [],
-                        fileStats?.unstaged,
-                      )}
-                      onDiscard={handleDiscardUnstaged}
-                      isDiscarding={isDiscarding}
-                      confirmingDiscard={confirmingDiscard}
-                      onConfirmDiscard={onConfirmDiscard}
-                      onIgnore={handleIgnoreFile}
-                      isIgnoring={isIgnoring}
-                      confirmingIgnore={confirmingIgnore}
-                      onConfirmIgnore={onConfirmIgnore}
-                    resolvedGroups={resolvedGroups}
-                      onOpenMobileActions={handleOpenMobileActions}
-                      onContextMenu={onBlameFile || onStageFilesWithSameName ? handleFileContextMenu : undefined}
-                      mobileSelectionMode={mobileSelectionMode}
-                      onLongPress={handleLongPress}
-                      onMobileTap={handleMobileTap}
-                      onStatsClick={openAggregateMetrics}
-                      onViewMetrics={openFileMetrics}
-                    />
-
-                    {/* Untracked Files */}
-                    <FileSection
-                      title="Untracked"
-                      category="untracked"
-                      expanded={isSectionExpanded("__flat__", "untracked", false)}
-                      onToggle={() => toggleSectionCollapse("__flat__", "untracked", false)}
-                      files={filterPaths("untracked", files?.untracked)}
-                      fileStatuses={files?.statuses}
-                      binaryFiles={binarySet}
-                      runIndex={runIndex}
-                      onOpenRun={openRun}
-                      maxPathChars={maxPathChars}
-                      icon={<File className="h-3.5 w-3.5 text-slate-500" />}
-                      selectedFiles={selectedFiles}
-                      selectedKeySet={selectedKeySet}
-                      selectionKey={selectionKey}
-                      onSelectFile={onSelectFile}
-                      onAction={onStageFile}
-                      actionIcon={<Plus className="h-3 w-3 text-slate-400" />}
-                      actionLabel="Stage file"
-                      pendingPaths={pendingPaths}
-                      changeStats={summarizeFileStats(
-                        files?.untracked ?? [],
-                        fileStats?.untracked,
-                      )}
-                      defaultExpanded={false}
-                      onDiscard={handleDiscardUntracked}
-                      isDiscarding={isDiscarding}
-                      confirmingDiscard={confirmingDiscard}
-                      onConfirmDiscard={onConfirmDiscard}
-                      onIgnore={handleIgnoreFile}
-                      isIgnoring={isIgnoring}
-                      confirmingIgnore={confirmingIgnore}
-                      onConfirmIgnore={onConfirmIgnore}
-                    resolvedGroups={resolvedGroups}
-                      onOpenMobileActions={handleOpenMobileActions}
-                      onContextMenu={onBlameFile || onStageFilesWithSameName ? handleFileContextMenu : undefined}
-                      mobileSelectionMode={mobileSelectionMode}
-                      onLongPress={handleLongPress}
-                      onMobileTap={handleMobileTap}
-                      onStatsClick={openAggregateMetrics}
-                      onViewMetrics={openFileMetrics}
-                    />
-                  </>
-                  )}
-                  </>
                 )}
 
                 {/* Empty State - only show for flat/grouped views */}
@@ -1819,10 +1210,10 @@ function FileListImpl({
   );
 }
 
-export function FileList(props: FileListProps) {
+export const FileList = memo(function FileList(props: FileListProps) {
   return (
     <Profiler id="FileList" onRender={onProfilerRender}>
       <FileListImpl {...props} />
     </Profiler>
   );
-}
+});

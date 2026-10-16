@@ -4,17 +4,20 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"os"
 	"path/filepath"
 	"time"
 
 	internalbudgets "performance-health/internal/budgets"
 	"performance-health/internal/modules"
+	"performance-health/internal/packaged"
 	"performance-health/internal/server"
 	"performance-health/internal/trend"
 	"performance-health/internal/workload"
 
 	"github.com/vrooli/api-core/schedule"
 	"github.com/vrooli/api-core/storage"
+	"github.com/vrooli/cli-core/cliutil"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
@@ -63,7 +66,8 @@ func main() {
 		log.Fatalf("trend store migration failed: %v", err)
 	}
 
-	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
+	schemas := append(modules.AllSchemas(), database.SchemaProviderFunc(packaged.Schema))
+	if err := database.EnsureSchemas(context.Background(), db.Primary(), schemas...); err != nil {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
 
@@ -78,6 +82,19 @@ func main() {
 	// (analysis, benchmark, startup) and the budgets measurement source — so
 	// those domains depend on narrow seams, never on the trend domain itself.
 	trendStore := trend.NewStore(db.Primary())
+	budgetConfig := internalbudgets.NewConfigStore(repoRoot, nil)
+	packagedStore := packaged.NewStore(db.Primary())
+	home, err := os.UserHomeDir()
+	if err != nil {
+		log.Fatalf("resolve home directory for packaged evidence: %v", err)
+	}
+	packagedService := packaged.NewService(packagedStore, &packaged.HTTPLauncher{BaseURL: os.Getenv("SCENARIO_TO_DESKTOP_API_URL"), Port: cliutil.DetectPortFromVrooli("scenario-to-desktop", "API_PORT")}, filepath.Join(home, ".vrooli", "evidence", "desktop-packaging", "E1")).WithBudgetSource(func(ctx context.Context, scenario string) (map[string]float64, error) {
+		budget, _, err := budgetConfig.Get(ctx, scenario)
+		if err != nil {
+			return nil, err
+		}
+		return budget.Packaged["desktop"], nil
+	})
 	storageResolver, err := storage.NewResolver(storage.ResolverConfig{})
 	if err != nil {
 		log.Fatalf("workload storage resolver: %v", err)
@@ -93,7 +110,7 @@ func main() {
 	// checks each flow's latest flow-tagged sample. Shared shape with the budgets
 	// handler, constructed here so the sweep can drive CheckFlow off the trend.
 	sweepGate := internalbudgets.NewService(
-		internalbudgets.NewConfigStore(repoRoot, nil),
+		budgetConfig,
 		internalbudgets.WithMeasurementSource(internalbudgets.NewSampleMeasurementSource(trendStore)),
 	)
 
@@ -117,6 +134,9 @@ func main() {
 	// runtime test DB pool without restarting this scenario.
 	rootMux := http.NewServeMux()
 	devrouting.Register(rootMux, db)
+	rootMux.Handle("/api/v1/packaged/", packaged.NewHandler(packagedService))
+	packagedRPCPath, packagedRPCHandler := packaged.NewRPCHandler(packagedService)
+	rootMux.Handle(packagedRPCPath, packagedRPCHandler)
 
 	rootMux.Handle("/", srv.Handler())
 
@@ -132,8 +152,9 @@ func main() {
 		// browser capture before responding. The api-core default 30s WriteTimeout
 		// severs the connection mid-handler, so the CLI sees `unexpected EOF`. Mirror
 		// git-control-tower (same BAS-capture pattern) and give long synchronous
-		// captures room. Health/CRUD routes are unaffected (they respond in ms).
-		WriteTimeout: 15 * time.Minute,
+		// captures room. A packaged capture may contain ten multi-minute launches
+		// plus a discarded warmup; health/CRUD routes still respond in ms.
+		WriteTimeout: time.Hour,
 		Cleanup:      func(ctx context.Context) error { return db.Close() },
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)

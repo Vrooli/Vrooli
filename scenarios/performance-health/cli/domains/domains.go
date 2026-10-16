@@ -7,6 +7,7 @@ import (
 	"performance-health/cli/domains/budget"
 	"performance-health/cli/domains/fleet"
 	"performance-health/cli/domains/lighthouse"
+	"performance-health/cli/domains/packaged"
 	"performance-health/cli/domains/readiness"
 	"performance-health/cli/domains/startup"
 	"performance-health/cli/domains/sweep"
@@ -24,6 +25,7 @@ var registrars = []func(*cliapp.ScenarioApp, []byte) (cliapp.SubcommandGroup, er
 	budget.Register,
 	fleet.Register,
 	lighthouse.Register,
+	packaged.Register,
 	readiness.Register,
 	startup.Register,
 	sweep.Register,

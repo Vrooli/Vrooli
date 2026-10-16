@@ -8,7 +8,7 @@ import { CommitAuthorizationDialog, type PendingCommitAuthorization } from "./co
 // doc for component boundaries and the operational targets (OT-P1-002 etc.)
 // driving future work; performance characteristics are tracked in
 // docs/perf/.
-import { useState, useCallback, useEffect, useRef, useMemo } from "react";
+import { lazy, Suspense, useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { create } from "@bufbuild/protobuf";
 import { AuthorityStatusSchema } from "@vrooli/proto-types/git-control-tower/v1/human_control/human_control_pb";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -31,8 +31,8 @@ import { FileSearchModal } from "./components/FileSearchModal";
 import { MobileFileSearch } from "./components/MobileFileSearch";
 import { RelatedFilesPanel } from "./components/RelatedFilesPanel";
 import { type LayoutPreset, type LayoutSection } from "./components/LayoutSettingsModal";
-import { SettingsModal } from "./components/SettingsModal";
-import { ScenarioReviewPanel } from "./components/ScenarioReviewPanel";
+import { DeferredSettingsModal as SettingsModal } from "./components/DeferredSettingsModal";
+
 import { SourceDistributionPanel } from "./components/SourceDistributionPanel";
 import { useGlobalKeydown, useIsMobile, useUrlState, parseUrlState, useScenarioReviewState } from "./hooks";
 import type { UrlState, ReviewTab } from "./hooks";
@@ -46,7 +46,7 @@ import { buildRunIndex } from "./lib/runAttribution";
 import type { ViewingCommit } from "./components/HistoryModeHeader";
 import { computeNextSelection, layoutOrder, type SelectionEntry } from "./AppSelection";
 import { ProposalsSection } from "./features/proposals/ProposalsSection";
-import { ProposalWorkspace } from "./features/proposals/ProposalWorkspace";
+
 import type { SyncActivity } from "./App.types";
 import {
   useMutationErrorToasts,
@@ -91,6 +91,10 @@ import {
   useSaveGroupingRules,
   queryKeys,
 } from "./lib/hooks";
+
+const ScenarioReviewPanel = lazy(() => import("./components/ScenarioReviewPanel").then(module => ({ default: module.ScenarioReviewPanel })));
+const ProposalWorkspace = lazy(() => import("./features/proposals/ProposalWorkspace").then(module => ({ default: module.ProposalWorkspace })));
+const panelLoading = <div role="status" className="p-4 text-sm text-slate-400">Loading workspace…</div>;
 
 type GroupingRuleLike = Partial<GroupingRule> & { prefix?: string };
 
@@ -578,6 +582,12 @@ export default function App() {
   const repoGroupsQuery = useRepoGroups(repoId);
   const saveGroupingRulesMutation = useSaveGroupingRules(repoId);
 
+  // Mutation result objects change on every render; their mutate functions
+  // are stable and keep file-action callbacks from invalidating the list.
+  const unstageMutate = unstageMutation.mutate;
+  const discardMutate = discardMutation.mutate;
+  const ignoreMutate = ignoreMutation.mutate;
+
   const workspaceChanges = usePendingWorkspaceChanges(repoId);
   const [queuedStagePaths, setQueuedStagePaths] = useState<string[]>([]);
   const stageMutate = stageMutation.mutate;
@@ -1023,7 +1033,7 @@ export default function App() {
         selectedStaged.some((selectedPath) => selectedPath === path);
       const pathsToUnstage = shouldUnstageSelection ? selectedStaged : [path];
 
-      unstageMutation.mutate(
+      unstageMutate(
         { paths: pathsToUnstage },
         {
           onSuccess: () => {
@@ -1051,7 +1061,7 @@ export default function App() {
         }
       );
     },
-    [unstageMutation, queryClient, selectedFile, selectedIsStaged, selectedFiles, repoId, isMobile, setMobileActivePanel]
+    [unstageMutate, queryClient, selectedFile, selectedIsStaged, selectedFiles, repoId, isMobile, setMobileActivePanel]
   );
 
   const handleStageAll = useCallback(() => {
@@ -1075,7 +1085,7 @@ export default function App() {
         });
       }
     });
-  }, [notify, stageBatcher, statusQuery.data]);
+  }, [notify, stageBatcher, statusQuery.data?.files]);
 
   const handleStagePaths = useCallback(
     (paths: string[]) => {
@@ -1117,13 +1127,13 @@ export default function App() {
     const files = statusQuery.data?.files;
     if (!files || (files.staged?.length ?? 0) === 0) return;
 
-    unstageMutation.mutate({ paths: files.staged ?? [] });
-  }, [unstageMutation, statusQuery.data]);
+    unstageMutate({ paths: files.staged ?? [] });
+  }, [unstageMutate, statusQuery.data?.files]);
 
   const handleDiscardPaths = useCallback(
     (paths: string[], untracked: boolean) => {
       if (paths.length === 0) return;
-      discardMutation.mutate(
+      discardMutate(
         { paths, untracked },
         {
           onSuccess: () => {
@@ -1138,12 +1148,12 @@ export default function App() {
         }
       );
     },
-    [discardMutation, queryClient, selectedFile, repoId]
+    [discardMutate, queryClient, selectedFile, repoId]
   );
 
   const handleDiscardFile = useCallback(
     (path: string, untracked: boolean) => {
-      discardMutation.mutate(
+      discardMutate(
         { paths: [path], untracked },
         {
           onSuccess: () => {
@@ -1159,7 +1169,7 @@ export default function App() {
         }
       );
     },
-    [discardMutation, queryClient, selectedFile, repoId]
+    [discardMutate, queryClient, selectedFile, repoId]
   );
 
   const handleDiscardMultiple = useCallback(() => {
@@ -1182,11 +1192,11 @@ export default function App() {
     // Handle tracked and untracked separately since API requires specific untracked flag
     if (trackedPaths.length > 0 && untrackedPaths.length > 0) {
       // Both types - chain the mutations
-      discardMutation.mutate(
+      discardMutate(
         { paths: trackedPaths, untracked: false },
         {
           onSuccess: () => {
-            discardMutation.mutate(
+            discardMutate(
               { paths: untrackedPaths, untracked: true },
               { onSuccess: cleanup }
             );
@@ -1194,15 +1204,15 @@ export default function App() {
         }
       );
     } else if (trackedPaths.length > 0) {
-      discardMutation.mutate({ paths: trackedPaths, untracked: false }, { onSuccess: cleanup });
+      discardMutate({ paths: trackedPaths, untracked: false }, { onSuccess: cleanup });
     } else if (untrackedPaths.length > 0) {
-      discardMutation.mutate({ paths: untrackedPaths, untracked: true }, { onSuccess: cleanup });
+      discardMutate({ paths: untrackedPaths, untracked: true }, { onSuccess: cleanup });
     }
-  }, [pendingDiscardFiles, discardMutation, queryClient, selectedFile, repoId]);
+  }, [pendingDiscardFiles, discardMutate, queryClient, selectedFile, repoId]);
 
   const handleIgnoreFile = useCallback(
     (path: string, level?: "project" | "group", groupDir?: string) => {
-      ignoreMutation.mutate(
+      ignoreMutate(
         { path, level, group_dir: groupDir },
         {
           onSuccess: () => {
@@ -1215,7 +1225,7 @@ export default function App() {
         }
       );
     },
-    [ignoreMutation, queryClient, selectedFile, repoId]
+    [ignoreMutate, queryClient, selectedFile, repoId]
   );
 
   const handleConfirmDiscard = useCallback(
@@ -2363,6 +2373,28 @@ export default function App() {
     setIsResizingHistory(true);
   };
 
+  const handleRevealChangeInTree = useCallback((path: string) => {
+    setFileViewMode("tree");
+    setScrollToFile(path);
+  }, []);
+  const handleSelectChangeFile = useCallback((path: string, staged: boolean, event: React.MouseEvent<HTMLLIElement>) => {
+    handleSelectFile(path, staged, event);
+    if (isMobile) setMobileActivePanel("diff");
+    else if (primaryPanel === "review") setPrimaryPanel("diff");
+  }, [handleSelectFile, isMobile, primaryPanel]);
+  const toggleChangesCollapsed = useCallback(() => setChangesCollapsed(prev => !prev), []);
+  const switchReviewScenario = scenarioReview.switchScenario;
+  const handleOpenChangesReview = useCallback((slug: string) => {
+    if (isMobile) {
+      setReviewScenarioSlug(slug);
+      setMobileActivePanel("review");
+    } else {
+      if (reviewScenarioSlug && slug !== reviewScenarioSlug) switchReviewScenario(reviewScenarioSlug, slug);
+      setReviewScenarioSlug(slug);
+      setPrimaryPanel("review");
+    }
+  }, [isMobile, reviewScenarioSlug, switchReviewScenario]);
+
   const renderPanel = (panel: LayoutSection, slot: "top" | "middle" | "bottom" | "main") => {
     const isMain = slot === "main";
     const isHistoryMode = Boolean(viewingCommit);
@@ -2388,7 +2420,7 @@ export default function App() {
               selectedFile={selectedFile}
               onSelectFile={handleSelectHistoryFile}
               collapsed={changesCollapsed}
-              onToggleCollapse={() => setChangesCollapsed((prev) => !prev)}
+              onToggleCollapse={toggleChangesCollapsed}
               fillHeight={isMain || !changesCollapsed}
               onDeletePath={handleRequestDeletePath}
             />
@@ -2398,18 +2430,12 @@ export default function App() {
           <FileList
             files={statusQuery.data?.files}
             runIndex={runIndex}
-            onRevealInTree={(path) => {
-              setFileViewMode("tree");
-              setScrollToFile(path);
-            }}
+            onRevealInTree={handleRevealChangeInTree}
             fileStats={statusQuery.data?.file_stats}
             selectedFiles={selectedFiles}
             selectedKeySet={selectedKeySet}
             selectionKey={selectionKey}
-            onSelectFile={(path, staged, event) => {
-              handleSelectFile(path, staged, event);
-              if (primaryPanel === "review") setPrimaryPanel("diff");
-            }}
+            onSelectFile={handleSelectChangeFile}
             onStageFile={handleStageFile}
             onUnstageFile={handleUnstageFile}
             onDiscardFile={handleDiscardFile}
@@ -2425,7 +2451,7 @@ export default function App() {
             confirmingIgnore={confirmingIgnore}
             onConfirmIgnore={handleConfirmIgnore}
             collapsed={changesCollapsed}
-            onToggleCollapse={() => setChangesCollapsed((prev) => !prev)}
+            onToggleCollapse={toggleChangesCollapsed}
             fillHeight={isMain || !changesCollapsed}
             fileViewMode={fileViewMode}
             groupingRules={groupingRules}
@@ -2441,7 +2467,7 @@ export default function App() {
             onBlameFile={handleBlameFile}
             onStageFilesWithSameName={handleRequestStageFilesWithSameName}
             repoId={repoId}
-            onOpenReview={(slug) => { if (reviewScenarioSlug && slug !== reviewScenarioSlug) { scenarioReview.switchScenario(reviewScenarioSlug, slug); } setReviewScenarioSlug(slug); setPrimaryPanel("review"); }}
+            onOpenReview={handleOpenChangesReview}
             mobileSelectionMode={mobileSelectionMode}
             onEnterSelectionMode={handleEnterSelectionMode}
             onExitSelectionMode={handleExitSelectionMode}
@@ -2539,7 +2565,7 @@ export default function App() {
         );
       case "review":
         return (
-          <ScenarioReviewPanel
+          <Suspense fallback={panelLoading}><ScenarioReviewPanel
             scenarioSlug={reviewScenarioSlug}
             repoId={repoId}
             fileStats={statusQuery.data?.file_stats}
@@ -2550,7 +2576,7 @@ export default function App() {
             onAgentRunIdChange={(id) => scenarioReview.update({ agentRunId: id })}
             scenarioState={scenarioReview.state}
             onScenarioStateChange={scenarioReview.update}
-          />
+          /></Suspense>
         );
       case "diff":
       default:
@@ -2682,19 +2708,12 @@ export default function App() {
           <FileList
             files={statusQuery.data?.files}
             runIndex={runIndex}
-            onRevealInTree={(path) => {
-              setFileViewMode("tree");
-              setScrollToFile(path);
-            }}
+            onRevealInTree={handleRevealChangeInTree}
             fileStats={statusQuery.data?.file_stats}
             selectedFiles={selectedFiles}
             selectedKeySet={selectedKeySet}
             selectionKey={selectionKey}
-            onSelectFile={(path, staged, event) => {
-              handleSelectFile(path, staged, event);
-              // On mobile, switch to diff view after selecting a file
-              setMobileActivePanel("diff");
-            }}
+            onSelectFile={handleSelectChangeFile}
             onStageFile={handleStageFile}
             onUnstageFile={handleUnstageFile}
             onDiscardFile={handleDiscardFile}
@@ -2726,7 +2745,7 @@ export default function App() {
             onBlameFile={handleBlameFile}
             onStageFilesWithSameName={handleRequestStageFilesWithSameName}
             repoId={repoId}
-            onOpenReview={(slug) => { setReviewScenarioSlug(slug); setMobileActivePanel("review"); }}
+            onOpenReview={handleOpenChangesReview}
             mobileSelectionMode={mobileSelectionMode}
             onEnterSelectionMode={handleEnterSelectionMode}
             onExitSelectionMode={handleExitSelectionMode}
@@ -2860,7 +2879,7 @@ export default function App() {
         );
       case "review":
         return (
-          <ScenarioReviewPanel
+          <Suspense fallback={panelLoading}><ScenarioReviewPanel
             scenarioSlug={reviewScenarioSlug}
             repoId={repoId}
             fileStats={statusQuery.data?.file_stats}
@@ -2872,17 +2891,17 @@ export default function App() {
             scenarioState={scenarioReview.state}
             onScenarioStateChange={scenarioReview.update}
             isMobile
-          />
+          /></Suspense>
         );
     }
   };
 
   if (proposalView) {
     return <div className="h-full" data-testid="git-control-tower" role="application">
-      <ProposalWorkspace repoId={repoId} proposalId={proposalView} selectedPath={proposalFile} revision={proposalRevision}
+      <Suspense fallback={panelLoading}><ProposalWorkspace repoId={repoId} proposalId={proposalView} selectedPath={proposalFile} revision={proposalRevision}
         canApprove={authorityStatus?.canMutate ?? false} approveDisabledReason={authorityStatus?.reason}
         skipConfirmation={skipCommitConfirmation} operator={authorityStatus?.principalId}
-        onOpen={handleOpenProposal} onSelectPath={setProposalFile} onExit={() => { setProposalView(null); setProposalFile(undefined); setProposalRevision(undefined); }} />
+        onOpen={handleOpenProposal} onSelectPath={setProposalFile} onExit={() => { setProposalView(null); setProposalFile(undefined); setProposalRevision(undefined); }} /></Suspense>
     </div>;
   }
 
