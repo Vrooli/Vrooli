@@ -69,8 +69,12 @@ func newDelegationOrchestrator(t *testing.T, verifier coreidentity.Principal, va
 	return orch, cleanup
 }
 
-// A verified human delegation bound to the attaching session attributes the run
-// to the operator.
+// A verified human delegation bound to the web-console session attributes the
+// run to the operator. The harness/coding-agent session id is deliberately
+// DIFFERENT from the web-console session id (as in production, where the launcher
+// uses a codex thread id): the delegation's wc_session_id claim binds against the
+// web-console session id carried on WebConsoleSessionID, never the harness id. If
+// the binding were ever (re)based on HarnessSession, this test would fail.
 func TestAttachRunAttributesVerifiedDelegation(t *testing.T) {
 	ctx := context.Background()
 	token := delegationToken(t, delegationSession)
@@ -78,7 +82,8 @@ func TestAttachRunAttributesVerifiedDelegation(t *testing.T) {
 	t.Cleanup(cleanup)
 
 	result, err := orch.AttachRun(ctx, AttachRunRequest{
-		HarnessKind: "codex", HarnessSession: delegationSession,
+		HarnessKind: "codex", HarnessSession: "codex-thread-abc",
+		WebConsoleSessionID:  delegationSession,
 		HumanOwnerDelegation: token,
 	})
 	if err != nil {
@@ -122,8 +127,12 @@ func TestAttachRunRefusesUnverifiableDelegation(t *testing.T) {
 			}
 			orch, cleanup := newDelegationOrchestrator(t, humanPrincipal(time.Now().Add(time.Hour)), accepted)
 			t.Cleanup(cleanup)
+			// WebConsoleSessionID is the legitimate web-console session; the replay
+			// case presents a delegation bound to a DIFFERENT session, so the binding
+			// check refuses it.
 			result, err := orch.AttachRun(ctx, AttachRunRequest{
-				HarnessKind: "codex", HarnessSession: delegationSession,
+				HarnessKind: "codex", HarnessSession: "codex-thread-abc",
+				WebConsoleSessionID:  delegationSession,
 				HumanOwnerDelegation: tc.delegation,
 			})
 			if err != nil {
@@ -151,7 +160,8 @@ func TestAttachRunRefusesNonHumanDelegation(t *testing.T) {
 	t.Cleanup(cleanup)
 
 	result, err := orch.AttachRun(ctx, AttachRunRequest{
-		HarnessKind: "codex", HarnessSession: delegationSession,
+		HarnessKind: "codex", HarnessSession: "codex-thread-abc",
+		WebConsoleSessionID:  delegationSession,
 		HumanOwnerDelegation: token,
 	})
 	if err != nil {

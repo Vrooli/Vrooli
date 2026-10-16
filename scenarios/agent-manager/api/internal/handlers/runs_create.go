@@ -18,7 +18,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-	"github.com/vrooli/api-core/effortauthority"
 	"github.com/vrooli/api-core/owneridentity"
 	"github.com/vrooli/cli-core/cliutil"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
@@ -40,19 +39,15 @@ func bearerToken(value string) string {
 
 // CreateRun creates a new run.
 func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
-	if len(r.Header.Values("Authorization")) > 1 || len(r.Header.Values(cliutil.HeaderAgentIdentityToken)) > 1 || len(r.Header.Values(effortauthority.Header)) > 1 {
+	if len(r.Header.Values("Authorization")) > 1 || len(r.Header.Values(cliutil.HeaderAgentIdentityToken)) > 1 {
 		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "a single proof per identity channel is required"})
-		return
-	}
-	if len(r.Header.Values(effortauthority.Header)) != 0 && (strings.TrimSpace(r.Header.Get(effortauthority.Header)) == "" || len(r.Header.Values("Authorization")) != 0 || len(r.Header.Values(cliutil.HeaderAgentIdentityToken)) != 0) {
-		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "one exclusive finite effort proof channel is required"})
 		return
 	}
 	// Credential absence is not operator authority. Reject before body parsing
 	// or calling orchestration; localhost, parentRunId and profile labels are
 	// not caller proof. Offered credentials still pass the existing verifiers.
 	// AUTH-01 holds absence only while VROOLI_AUTH01_ENFORCE is on (P-18).
-	if owneridentity.CreateRunCallerEnforced() && strings.TrimSpace(r.Header.Get("Authorization")) == "" && strings.TrimSpace(r.Header.Get(cliutil.HeaderAgentIdentityToken)) == "" && len(r.Header.Values(effortauthority.Header)) == 0 {
+	if owneridentity.CreateRunCallerEnforced() && strings.TrimSpace(r.Header.Get("Authorization")) == "" && strings.TrimSpace(r.Header.Get(cliutil.HeaderAgentIdentityToken)) == "" {
 		writeJSON(w, http.StatusUnauthorized, map[string]string{
 			"error": "create-run requires verified caller identity: human Authorization or exact-parent X-Agent-Identity-Token",
 		})
@@ -112,7 +107,6 @@ func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
 
 	req := orchestration.CreateRunRequest{
 		TaskID:           taskID,
-		EffortProof:      r.Header.Get(effortauthority.Header),
 		Force:            protoReq.Force,
 		OwnerToken:       bearerToken(r.Header.Get("Authorization")),
 		RunIdentityToken: identityToken,
@@ -322,10 +316,6 @@ func optionalTrimmedString(raw string) *string {
 // or cancelled run, inheriting its task + profile and seeding the prior
 // attempt's transcript and diff so the agent can complete the remaining work.
 func (h *Handler) ResumeFromFailedRun(w http.ResponseWriter, r *http.Request) {
-	if len(r.Header.Values(effortauthority.Header)) > 1 || (len(r.Header.Values(effortauthority.Header)) != 0 && (strings.TrimSpace(r.Header.Get(effortauthority.Header)) == "" || len(r.Header.Values("Authorization")) != 0 || len(r.Header.Values(cliutil.HeaderAgentIdentityToken)) != 0)) {
-		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "one exclusive finite effort proof channel is required"})
-		return
-	}
 	if h.denyRunInitiatedLifecycleOperation(w, r, "resume-from-failed") {
 		return
 	}
@@ -347,7 +337,6 @@ func (h *Handler) ResumeFromFailedRun(w http.ResponseWriter, r *http.Request) {
 
 	run, err := h.svc.ResumeFromFailedRun(r.Context(), orchestration.ResumeFromFailedRunRequest{
 		RunID:         runID,
-		EffortProof:   r.Header.Get(effortauthority.Header),
 		CustomContext: req.CustomContext,
 		AttachmentIDs: req.AttachmentIDs,
 	})

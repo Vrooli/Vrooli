@@ -140,8 +140,11 @@ Search is one Connect call over the full history: `/vrooli.web_console.v1.conver
 | POST | `FilePreviewService/Resolve` (Connect-RPC) | `file_preview.connectHandler.Resolve` |
 | POST | `FilePreviewService/GetTextContent` (Connect-RPC) | `file_preview.connectHandler.GetTextContent` |
 | GET/HEAD | `/api/v1/sessions/{id}/file-previews/{previewId}/blob` | `Server.handleFilePreviewBlob` (REST exception, `ops_probe`) |
+| GET/HEAD | `/api/v1/sessions/{id}/file-previews/{previewId}/runtime/{resource}` | `Server.handleFilePreviewRuntime` (HTML and directory-confined presentation resources) |
 
 The blob route serves bytes for an opaque, session-bound `preview_id` with HTTP Range support; it is consumed directly by native `<img>/<video>/<audio>/<iframe>`. See `docs/concepts/ARCHITECTURE.md#file-preview` and `docs/internal/SEAMS.md`.
+
+The HTML runtime uses the same streaming/range transport for allowed audio and video, including multi-gigabyte files. Its 16 MiB resource limit applies to non-media presentation assets. Neither route buffers the entire media file before playback.
 
 ## Workspace
 

@@ -47,6 +47,7 @@ export interface UseDraggablePositionOptions {
   storageKey?: string | null;
   defaultPosition: { x: number; y: number } | (() => { x: number; y: number } | null);
   floatingMargin?: number;
+  topInset?: number;
   dragThreshold?: number;
   onDragStart?: () => void;
   onDragEnd?: (info: DragEndInfo) => void;
@@ -123,12 +124,13 @@ export const useDraggablePosition = (
     storageKey = null,
     defaultPosition,
     floatingMargin = DEFAULT_FLOATING_MARGIN,
+    topInset = 0,
     dragThreshold = DEFAULT_DRAG_THRESHOLD,
     onDragStart,
     onDragEnd,
   } = options;
 
-  const { clampPosition } = useFloatingPosition({ floatingMargin });
+  const { clampPosition } = useFloatingPosition({ floatingMargin, topInset });
 
   const elementRef = useRef<HTMLElement | null>(null);
   const dragStateRef = useRef<DragState | null>(null);
@@ -279,9 +281,7 @@ export const useDraggablePosition = (
           }
         }
       }
-      if (!state.dragging) return;
-
-      event.preventDefault?.();
+      event.preventDefault();
       const next = clampPosition(
         event.clientX - state.offsetX,
         event.clientY - state.offsetY,
@@ -289,7 +289,7 @@ export const useDraggablePosition = (
       );
       // Write transform directly to the DOM for immediate visual feedback,
       // bypassing React's async render cycle that causes 1+ frame lag (jitter).
-      element.style.transform = `translate3d(${Math.round(next.x)}px, ${Math.round(next.y)}px, 0)`;
+      element.style.transform = `translate3d(${String(Math.round(next.x))}px, ${String(Math.round(next.y))}px, 0)`;
       state.lastPosition = next;
 
       // Track velocity samples (keep last 5 for smoothing)
@@ -301,7 +301,7 @@ export const useDraggablePosition = (
   );
 
   const handlePointerMove = useCallback(
-    (event: ReactPointerEvent) => processPointerMove(event),
+    (event: ReactPointerEvent) => { processPointerMove(event); },
     [processPointerMove],
   );
 
@@ -313,7 +313,7 @@ export const useDraggablePosition = (
       if (state.pointerCaptured) releasePointerCapture(event.pointerId);
 
       if (state.dragging) {
-        event.preventDefault?.();
+        event.preventDefault();
         suppressClickRef.current = true;
 
         // Compute velocity from recent samples
@@ -355,14 +355,14 @@ export const useDraggablePosition = (
   );
 
   const handlePointerEnd = useCallback(
-    (event: ReactPointerEvent) => processPointerEnd(event),
+    (event: ReactPointerEvent) => { processPointerEnd(event); },
     [processPointerEnd],
   );
 
   useEffect(() => {
     if (typeof window === "undefined" || !isTrackingPointer) return;
-    const onMove = (e: PointerEvent) => processPointerMove(e);
-    const onUp = (e: PointerEvent) => processPointerEnd(e);
+    const onMove = (e: PointerEvent) => { processPointerMove(e); };
+    const onUp = (e: PointerEvent) => { processPointerEnd(e); };
     window.addEventListener("pointermove", onMove, { passive: false });
     window.addEventListener("pointerup", onUp, { passive: false });
     window.addEventListener("pointercancel", onUp, { passive: false });
@@ -384,7 +384,7 @@ export const useDraggablePosition = (
   const floatingStyle = useMemo<CSSProperties | undefined>(() => {
     if (!isActive) return undefined;
     return {
-      transform: `translate3d(${Math.round(position.x)}px, ${Math.round(position.y)}px, 0)`,
+      transform: `translate3d(${String(Math.round(position.x))}px, ${String(Math.round(position.y))}px, 0)`,
     };
   }, [isActive, position]);
 

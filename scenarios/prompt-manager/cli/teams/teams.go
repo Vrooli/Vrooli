@@ -620,18 +620,6 @@ func route(ctx appctx.Context, args []string) error {
 		return cmdHeartbeat(ctx, subArgs)
 	case "heartbeat-enable":
 		return cmdHeartbeatEnable(ctx, subArgs)
-	case "heartbeat-bind-effort":
-		return cmdHeartbeatBindEffort(ctx, subArgs)
-	case "heartbeat-amend-effort":
-		return cmdHeartbeatAmendEffort(ctx, subArgs)
-	case "heartbeat-retire-effort":
-		return cmdHeartbeatRetireEffort(ctx, subArgs)
-	case "heartbeat-complete-effort":
-		return cmdHeartbeatCompleteEffort(ctx, subArgs)
-	case "heartbeat-reopen-effort":
-		return cmdHeartbeatReopenEffort(ctx, subArgs)
-	case "heartbeat-restart-effort":
-		return cmdHeartbeatRestartEffort(ctx, subArgs)
 	case "heartbeat-disable":
 		return cmdHeartbeatDisable(ctx, subArgs)
 	case "heartbeat-trigger":
@@ -736,12 +724,6 @@ Heartbeat Commands:
   heartbeat-fleet-health                      Count durable work products, blocked runs, and failures in the last 24 hours
   heartbeat <team-id> <agent-id>              Show heartbeat config
   heartbeat-enable <team-id> <agent-id>       Enable heartbeat with schedule
-  heartbeat-bind-effort <team-id> <agent-id>  Bind a disabled finite leader from --request-file (--update keeps enabled; --checkin-mode parked|event)
-  heartbeat-amend-effort <team-id> <agent-id>  Amend a disabled undispatched preparation through verified creator or approved owner authority
-  heartbeat-retire-effort <team-id> <agent-id> Retire finite leader scheduling; retain run identity
-  heartbeat-complete-effort <team-id> <agent-id> Record the revision-checked completion receipt from --request-file
-  heartbeat-reopen-effort <team-id> <agent-id> Reopen a completed finite effort with a replacement revision from --request-file
-  heartbeat-restart-effort <team-id> <agent-id> Recover a terminal dispatched run from --request-file
   heartbeat-disable <team-id> <agent-id>      Disable heartbeat; --on-demand --profile=key creates a disabled reviewer without a timer
   heartbeat-trigger <team-id> <agent-id>      Manually trigger heartbeat
   heartbeat-logs <team-id> <agent-id>         List execution logs
@@ -1570,10 +1552,6 @@ func cmdMessageClear(ctx appctx.Context, args []string) error {
 // HeartbeatConfig represents a heartbeat configuration from the API
 type HeartbeatConfig struct {
 	CreationProof           json.RawMessage           `json:"creationProof,omitempty"`
-	PreparationAmendments   json.RawMessage           `json:"preparationAmendments,omitempty"`
-	FiniteLeader            *teamconfig.FiniteLeader  `json:"finiteLeader,omitempty"`
-	FiniteLeaderState       json.RawMessage           `json:"finiteLeaderState,omitempty"`
-	FiniteLeaderError       string                    `json:"finiteLeaderError,omitempty"`
 	WakeAdmission           *teamconfig.WakeAdmission `json:"wakeAdmission,omitempty"`
 	TeamID                  string                    `json:"teamId"`
 	AgentID                 string                    `json:"agentId"`
@@ -1621,7 +1599,6 @@ type HeartbeatExecResult struct {
 
 // CreateHeartbeatRequest is the request for creating a heartbeat
 type CreateHeartbeatRequest struct {
-	FiniteLeader   *teamconfig.FiniteLeader  `json:"finiteLeader,omitempty"`
 	WakeAdmission  *teamconfig.WakeAdmission `json:"wakeAdmission,omitempty"`
 	Schedule       string                    `json:"schedule"`
 	ProfileKey     string                    `json:"profileKey,omitempty"`
@@ -1631,24 +1608,11 @@ type CreateHeartbeatRequest struct {
 
 // UpdateHeartbeatRequest is the request for updating a heartbeat
 type UpdateHeartbeatRequest struct {
-	FiniteLeader   *teamconfig.FiniteLeader  `json:"finiteLeader,omitempty"`
 	WakeAdmission  *teamconfig.WakeAdmission `json:"wakeAdmission,omitempty"`
 	Schedule       *string                   `json:"schedule,omitempty"`
 	ProfileKey     *string                   `json:"profileKey,omitempty"`
 	Enabled        *bool                     `json:"enabled,omitempty"`
 	TimeoutSeconds *int                      `json:"timeoutSeconds,omitempty"`
-
-	FiniteEffortTransition *FiniteEffortTransition `json:"finiteEffortTransition,omitempty"`
-}
-
-// FiniteEffortTransition is an explicit finite-effort lifecycle operation sent
-// on the member heartbeat update path. It carries no configuration changes.
-type FiniteEffortTransition struct {
-	ExpectedRevision string                   `json:"expectedRevision,omitempty"`
-	Binding          *teamconfig.FiniteLeader `json:"binding,omitempty"`
-	Operation        string                   `json:"operation"`
-	Revision         string                   `json:"revision"`
-	EvidenceRef      string                   `json:"evidenceRef"`
 }
 
 // TriggerResponse is the response from triggering a heartbeat
@@ -2198,11 +2162,6 @@ func cmdHeartbeat(ctx appctx.Context, args []string) error {
 		fmt.Printf("Execution reason: %s\n", config.EffectiveReason)
 	}
 	fmt.Printf("Scheduler entry: %v\n", config.Scheduled)
-	if config.FiniteLeader != nil {
-		if err := printFiniteLeaderBinding(config, false); err != nil {
-			return err
-		}
-	}
 	if config.WakeAdmission != nil {
 		fmt.Printf("Wake admission: %s", config.WakeAdmission.Mode)
 		if len(config.WakeAdmission.ChangeSources) > 0 {

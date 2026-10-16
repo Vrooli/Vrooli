@@ -22,7 +22,7 @@ import {
   type MessageActionContext,
 } from "./messageActions";
 import { MessageActionList, useMessageActions, type ActionsOrigin } from "./MessageActionList";
-import { messageOutline } from "./outline";
+import { messageOutline, messagePreview } from "./outline";
 import { speakerKey, timeLabel } from "./speaker";
 
 // DOC: docs/internal/MESSAGES-VIEW-PROJECTION-UX.md#the-row-and-action-reveal
@@ -92,21 +92,23 @@ function MessageRowImpl({
   } = actionContext;
   const { t, i18n } = useTranslation();
   const [revealed, setRevealed] = useState(false);
-  const [isTall, setIsTall] = useState(false);
+  const [overflows, setOverflows] = useState(false);
+  const preview = useMemo(() => messagePreview(event.text), [event.text]);
+  const isTall = preview.truncated || overflows;
   const rowRef = useRef<HTMLElement | null>(null);
   const moreButtonRef = useRef<HTMLButtonElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const node = contentRef.current;
-    if (!node) return;
-    const measure = () => { setIsTall(node.scrollHeight > COLLAPSE_THRESHOLD_PX); };
+    if (!node || preview.truncated) return;
+    const measure = () => { setOverflows(node.scrollHeight > COLLAPSE_THRESHOLD_PX); };
     measure();
     if (typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(() => { measure(); });
     observer.observe(node);
     return () => { observer.disconnect(); };
-  }, [event.text, isPlaintext]);
+  }, [event.text, isPlaintext, preview.truncated]);
 
   const isUser = event.role === "user";
   const isSpeaking = !isUser && isTtsSpeaking && activeSpeakingEventId === event.id;
@@ -246,10 +248,13 @@ function MessageRowImpl({
               data-testid={`msg-plaintext-${event.id}`}
               className="whitespace-pre-wrap break-words [overflow-wrap:anywhere] font-mono"
             >
-              {event.text}
+              {preview.source}
             </pre>
           ) : (
-            <MarkdownRenderer content={event.text} onLinkClick={onLinkClick} onFileReferenceClick={onFileReferenceClick} onMermaidOpen={onMermaidOpen} />
+            <>
+              <MarkdownRenderer content={preview.markdown} onLinkClick={onLinkClick} onFileReferenceClick={onFileReferenceClick} onMermaidOpen={onMermaidOpen} />
+              {preview.plainText && <pre className="whitespace-pre-wrap break-words [overflow-wrap:anywhere] font-mono">{preview.plainText}</pre>}
+            </>
           )}
         </div>
 

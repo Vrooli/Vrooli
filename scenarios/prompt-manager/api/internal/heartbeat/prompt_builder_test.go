@@ -143,22 +143,6 @@ func TestPromptBuilderAgentOnlyWrapsReferenceContext(t *testing.T) {
 	}
 }
 
-func TestFiniteLeaderGuidanceRequiresProgressOrTypedBlocker(t *testing.T) {
-	for _, want := range []string{
-		"enabled, incomplete delivery effort is an actionable mandate",
-		"select and admit the next bounded action",
-		"perform the first docs/plan action",
-		"record a typed external blocker",
-		"Do not finish a wake with `no-action`",
-		"persist the result, next action, and evidence",
-		"Do not invent a second approval gate",
-	} {
-		if !strings.Contains(finiteLeaderGuidance, want) {
-			t.Errorf("finite leader guidance missing required progress rule %q", want)
-		}
-	}
-}
-
 func TestPromptBuilderUsesVolatilityOrderAndTaskOutsideContext(t *testing.T) {
 	ctx := context.Background()
 	roots := paths.RootsForTest(t)

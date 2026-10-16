@@ -259,6 +259,7 @@ export interface ReplayPage {
 }
 
 export interface ReplayPlayerProps {
+  recordedVideo?: { source: string; trimStartMs?: number };
   frames: ReplayFrame[];
   /** Pages for multi-page workflow playback. */
   pages?: ReplayPage[];

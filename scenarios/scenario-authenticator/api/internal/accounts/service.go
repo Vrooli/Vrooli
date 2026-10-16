@@ -3,7 +3,6 @@ package accounts
 import (
 	"context"
 	"errors"
-	"log"
 	"strings"
 	"time"
 
@@ -284,17 +283,12 @@ func (s *Service) resolveDelegationHuman(ctx context.Context, accessToken string
 	if vt, ok, vErr := s.Validate(ctx, accessToken); vErr != nil {
 		return "", "", "", vErr
 	} else if ok {
-		log.Printf("[phase5-diag] mint: resolved via account bearer human=%s realm=%s", vt.UserID, vt.Realm)
 		return vt.UserID, vt.Email, vt.Realm, nil
 	}
 	if s.humanAssertion != nil {
-		sub, mail, ok := s.humanAssertion.VerifyHuman(ctx, accessToken)
-		log.Printf("[phase5-diag] mint: account-bearer not a verified human; Cf-Access verify ok=%t subjectPresent=%t", ok, strings.TrimSpace(sub) != "")
-		if ok && strings.TrimSpace(sub) != "" {
+		if sub, mail, ok := s.humanAssertion.VerifyHuman(ctx, accessToken); ok && strings.TrimSpace(sub) != "" {
 			return strings.TrimSpace(sub), strings.TrimSpace(mail), realm.DefaultID, nil
 		}
-	} else {
-		log.Printf("[phase5-diag] mint: account-bearer not a verified human and NO Cf-Access verifier configured")
 	}
 	return "", "", "", ErrInvalidCredentials
 }

@@ -7,6 +7,8 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/owneridentity"
 	"log"
 	"net/http"
 	"net/url"
@@ -72,10 +74,11 @@ type Config struct {
 
 // Server wires the HTTP router and database connection
 type Server struct {
-	config *Config
-	db     *database.RoutedDB
-	stores *modules.Stores
-	router *mux.Router
+	runCallerValidator owneridentity.Validator
+	config             *Config
+	db                 *database.RoutedDB
+	stores             *modules.Stores
+	router             *mux.Router
 
 	// fileRoots routes file-store reads and writes per request, the file-side
 	// counterpart of db's per-request SQL routing. Together they are what lets
@@ -160,12 +163,13 @@ func NewServer() (*Server, error) {
 	}
 
 	srv := &Server{
-		config:      cfg,
-		db:          db,
-		stores:      stores,
-		fileRoots:   fileRoots,
-		router:      mux.NewRouter(),
-		searchToken: &searchTokenHolder{},
+		runCallerValidator: owneridentity.NewClient(owneridentity.Config{Resolver: discovery.NewResolver(discovery.ResolverConfig{})}),
+		config:             cfg,
+		db:                 db,
+		stores:             stores,
+		fileRoots:          fileRoots,
+		router:             mux.NewRouter(),
+		searchToken:        &searchTokenHolder{},
 	}
 
 	srv.setupServices()
@@ -488,7 +492,7 @@ func (s *Server) setupRoutes() {
 
 	s.registerKnowledgeBase()
 
- // Connect-RPC: KnowledgeObservatoryService (DocHealth + future RPCs).
+	// Connect-RPC: KnowledgeObservatoryService (DocHealth + future RPCs).
 	if s.docHealthService != nil {
 		handler := dochealthhandler.NewWithDeps(dochealthhandler.Deps{
 			Service:      s.docHealthService,

@@ -1,0 +1,144 @@
+{
+  "version": 1,
+  "limits": "Local references; not a universal template or repeatability certification.",
+  "examples": [
+    {
+      "id": "aquila-r5",
+      "product": "aquila",
+      "purpose": [
+        "story",
+        "mobile",
+        "rich-messages",
+        "search",
+        "browser-frame",
+        "material-art",
+        "energetic-music"
+      ],
+      "viewport": "430x880 mobile plus desktop",
+      "date": "2026-10-16",
+      "build": "see capture manifests; unchanged Aquila frontend fixture / fresh read-only Vega",
+      "proof_scope": "ui",
+      "operator_rating": 8,
+      "rating_scale": 10,
+      "video": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/product-video-research-2026-10-15/films/aquila-prism-film/video.mp4",
+      "sha256": "6e5d114b42c0442bb0917a42ee7c426def383e1bbe14f7a48e980dc2e96931f3",
+      "feedback": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/product-video-research-2026-10-15/revision-05/feedback.json",
+      "method": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/product-video-research-2026-10-15/revision-05/production-method.md",
+      "review": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/product-video-research-2026-10-15/revision-05/review-final.json",
+      "limits": [
+        "Local operator rating; future acceptance and conversion unmeasured",
+        "Generated stills with camera/light motion, not animated 3D geometry",
+        "No new agent audio audition",
+        "QR machine-decode is not physical phone certification"
+      ]
+    },
+    {
+      "id": "vega-r5",
+      "product": "vega",
+      "purpose": [
+        "metrics",
+        "detail",
+        "custom-cursor",
+        "browser-frame",
+        "material-art",
+        "cut-boundaries"
+      ],
+      "viewport": "desktop + 664x648 detail",
+      "date": "2026-10-16",
+      "build": "see capture manifests; unchanged Aquila frontend fixture / fresh read-only Vega",
+      "proof_scope": "observed-read-only-metrics",
+      "operator_rating": 7,
+      "rating_scale": 10,
+      "video": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/product-video-research-2026-10-15/films/vega-spectrum-film/video.mp4",
+      "sha256": "e75fca3cb9affc04a35c9dc78432d193a30c2d2d083bec1b748191a26e3c2f3f",
+      "feedback": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/product-video-research-2026-10-15/revision-05/feedback.json",
+      "method": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/product-video-research-2026-10-15/revision-05/production-method.md",
+      "review": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/product-video-research-2026-10-15/revision-05/review-final.json",
+      "limits": [
+        "Local operator rating; future acceptance and conversion unmeasured",
+        "Generated stills with camera/light motion, not animated 3D geometry",
+        "No new agent audio audition",
+        "QR machine-decode is not physical phone certification"
+      ]
+    },
+    {
+      "id": "query-as-headline",
+      "purpose": [
+        "semantic",
+        "search",
+        "offline"
+      ],
+      "kind": "failure",
+      "lesson": "Feature, sample input and observed result must be distinct.",
+      "evidence": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/product-video-research-2026-10-15/revision-05/skill-change-proposal.md",
+      "date": "2026-10-16",
+      "proof_scope": "observed-production-failure"
+    },
+    {
+      "id": "internal-route-cta",
+      "purpose": [
+        "cta",
+        "url",
+        "qr"
+      ],
+      "kind": "failure",
+      "lesson": "Use full public URL, rendered destination verification and final-video QR decoding.",
+      "evidence": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/product-video-research-2026-10-15/revision-05/skill-change-proposal.md",
+      "date": "2026-10-16",
+      "proof_scope": "observed-production-failure"
+    },
+    {
+      "id": "silent-audio-tail",
+      "purpose": [
+        "audio",
+        "coverage",
+        "arrangement"
+      ],
+      "kind": "failure",
+      "lesson": "Container duration hid an early audio end; require sample math and encoded stream coverage.",
+      "evidence": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/product-video-research-2026-10-15/revision-05/review/audio-investigation.md",
+      "date": "2026-10-16",
+      "proof_scope": "observed-production-failure"
+    },
+    {
+      "id": "loading-at-cut",
+      "purpose": [
+        "capture",
+        "trim",
+        "cut-boundaries"
+      ],
+      "kind": "failure",
+      "lesson": "Middle frames passed; first detail frames contained dashboard/loading state.",
+      "evidence": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/product-video-research-2026-10-15/revision-05/production-method.md",
+      "date": "2026-10-16",
+      "proof_scope": "observed-production-failure"
+    },
+    {
+      "id": "flat-procedural-broll",
+      "purpose": [
+        "craft",
+        "3d",
+        "materials"
+      ],
+      "kind": "failure",
+      "lesson": "Approve materials/light and silhouette before animation; switch weak medium.",
+      "evidence": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/product-video-research-2026-10-15/revision-04/skill-change-proposal.md",
+      "date": "2026-10-16",
+      "proof_scope": "observed-production-failure"
+    },
+    {
+      "id": "native-style-bypass",
+      "purpose": [
+        "bas",
+        "frame",
+        "cursor",
+        "export"
+      ],
+      "kind": "failure",
+      "lesson": "Stored styles did not apply to recorded-video exports.",
+      "evidence": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/product-video-research-2026-10-15/revision-04/bas/debugging.md",
+      "date": "2026-10-16",
+      "proof_scope": "observed-production-failure"
+    }
+  ]
+}

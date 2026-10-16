@@ -9,7 +9,7 @@ import { clampProgress, findFrameForTime } from "./timeline";
 import type { ExportMetadata, FrameTimeline, FrameWaiter } from "./types";
 import "./types";
 
-const PROGRESS_EPSILON = 0.02;
+const PROGRESS_EPSILON = 0.00001;
 const DEFAULT_TIMEOUT_MS = 6000;
 
 interface ReplayExportBridgeOptions {

@@ -47,6 +47,7 @@ describe("useVirtualList", () => {
               <div
                 key={item.index}
                 data-testid={`row-${String(item.index)}`}
+                data-measured={String(list.isMeasured(item.index))}
                 ref={(node) => { list.registerItem(item.index, node); }}
                 style={{ position: "absolute", top: `${String(item.start)}px` }}
               />
@@ -112,6 +113,67 @@ describe("useVirtualList", () => {
       const screenOffset = (testId: string) => parseFloat(screen.getByTestId(testId).style.top) - state.scrollTop;
       return { scroller, state, measure, screenOffset };
     }
+
+    it("measures from delivered border boxes without forcing row layout during mount or resize", () => {
+      stubMeasurement();
+      render(<Harness />);
+      const bounds = vi.mocked(Element.prototype.getBoundingClientRect);
+      expect(bounds).not.toHaveBeenCalled();
+      const row = screen.getByTestId("row-2");
+      act(() => {
+        for (const observer of observers) {
+          if (observer.targets.has(row)) observer.callback([
+            { target: row, borderBoxSize: [{ blockSize: 320, inlineSize: 500 }] } as unknown as ResizeObserverEntry,
+          ], {} as ResizeObserver);
+        }
+        const pending = frames;
+        frames = [];
+        for (const frame of pending) frame(0);
+      });
+      expect(bounds).not.toHaveBeenCalled();
+      expect(parseFloat(screen.getByTestId("row-3").style.top)).toBe(560);
+    });
+
+    it("publishes the first confirmed measurement even when it equals the estimate", () => {
+      stubMeasurement();
+      render(<Harness />);
+      const row = screen.getByTestId("row-2");
+      expect(row).toHaveAttribute("data-measured", "false");
+      act(() => {
+        for (const observer of observers) {
+          if (observer.targets.has(row)) observer.callback([
+            { target: row, borderBoxSize: [{ blockSize: 120, inlineSize: 500 }] } as unknown as ResizeObserverEntry,
+          ], {} as ResizeObserver);
+        }
+        const pending = frames;
+        frames = [];
+        for (const frame of pending) frame(0);
+      });
+      expect(row).toHaveAttribute("data-measured", "true");
+    });
+
+    it("keeps measured heights with their item keys when equal-length pages change order", () => {
+      stubMeasurement();
+      const scrollElementRef = createRef<HTMLElement>();
+      const { result, rerender } = renderHook(({ keys }: { keys: string[] }) => useVirtualList({
+        count: keys.length, estimateSize: estimate, getItemKey: (index) => keys[index] ?? index, scrollElementRef,
+      }), { initialProps: { keys: ["a", "b"] } });
+      const row = document.createElement("div");
+      act(() => { result.current.registerItem(0, row); });
+      act(() => {
+        for (const observer of observers) {
+          if (observer.targets.has(row)) observer.callback([
+            { target: row, borderBoxSize: [{ blockSize: 240, inlineSize: 500 }] } as unknown as ResizeObserverEntry,
+          ], {} as ResizeObserver);
+        }
+        const pending = frames;
+        frames = [];
+        for (const frame of pending) frame(0);
+      });
+      expect(result.current.virtualItems.map((item) => item.size)).toEqual([240, 120]);
+      rerender({ keys: ["b", "a"] });
+      expect(result.current.virtualItems.map((item) => item.size)).toEqual([120, 240]);
+    });
 
     it("[REQ:P0-017a] during a fling, a row above measuring taller writes no scrollTop and moves nothing on screen; the correction lands when the fling ends", () => {
       stubMeasurement();

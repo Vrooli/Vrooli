@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { computeAnchoredFloatingPosition } from "../hooks/useFloatingPosition";
+import { renderHook } from "@testing-library/react";
+import { computeAnchoredFloatingPosition, useFloatingPosition } from "../hooks/useFloatingPosition";
 
 describe("computeAnchoredFloatingPosition", () => {
   it("flips a submenu left when the preferred right side would overflow", () => {
@@ -70,4 +71,12 @@ describe("computeAnchoredFloatingPosition", () => {
     expect(position.x).toBe(28);
     expect(position.y).toBe(12);
   });
+});
+
+
+it("keeps persisted and dragged toolbar positions below reserved navigation after resizing", () => {
+  const { result, rerender } = renderHook(({ topInset }) => useFloatingPosition({ topInset }), { initialProps: { topInset: 88 } });
+  expect(result.current.clampPosition(1400, 12, { width: 220, height: 54 }, { width: 1440, height: 900 })).toEqual({ x: 1208, y: 100 });
+  rerender({ topInset: 140 });
+  expect(result.current.clampPosition(1400, 12, { width: 220, height: 54 }, { width: 800, height: 600 })).toEqual({ x: 568, y: 152 });
 });

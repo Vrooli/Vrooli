@@ -447,12 +447,10 @@ func (a *Adapter) Create(ctx context.Context, in CreateInput) (Session, error) {
 	if a.DelegationMinter != nil && in.RequestedSessionID == "" && len(in.HumanOwnerCredentials) > 0 {
 		creds := in.HumanOwnerCredentials
 		minter := a.DelegationMinter
-		logger := a.logger()
 		ctx = session.WithPreSpawnHook(ctx, func(sessionID string) {
 			if sessionID == "" {
 				return
 			}
-			logger.Printf("[phase5-diag] session-delegation pre-spawn mint session=%s credentialCandidates=%d", sessionID, len(creds))
 			// The authority check lives at scenario-authenticator, which mints ONLY
 			// for a verified human and refuses everything else — so we attempt every
 			// candidate credential and let the authenticator decide. The tunnel

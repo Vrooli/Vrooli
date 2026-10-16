@@ -49,9 +49,9 @@ class ProductionTests(unittest.TestCase):
     def test_changed_footage_invalidates_provenance(self):
         (self.root/'clip.mp4').write_text('replacement')
         self.assertTrue(any('source digest mismatch' in e for e in self.errors()))
-    def test_camera_motion_alone_cannot_prove_product(self):
+    def test_faithful_state_hold_is_valid_product_evidence(self):
         self.plan['scenes'][0]['product_motion']=False
-        self.assertTrue(any('real product motion required' in e for e in self.errors()))
+        self.assertEqual([],self.errors())
     def test_short_text_hold_fails(self):
         self.plan['scenes'][0]['text']=[{'value':'A full sentence that needs time','hold':.5}]
         self.assertTrue(any('reading hold' in e for e in self.errors()))
@@ -84,7 +84,7 @@ class ProductionTests(unittest.TestCase):
         (self.root/'review.json').write_text(json.dumps(review))
         self.plan['audio']['mode']='music'
         self.plan.update(video='video.mp4',poster='poster.jpg',technical_report='inspection.json',review='review.json')
-        meta={'streams':[{'codec_type':'video','width':1920,'height':1080,'avg_frame_rate':'30/1'}],'format':{'duration':'4'}}
+        meta={'streams':[{'codec_type':'video','width':1920,'height':1080,'avg_frame_rate':'30/1','duration':'4'}, {'codec_type':'audio','duration':'4'}],'format':{'duration':'4'}}
         with patch.object(p,'probe',return_value=meta):
             errors=self.errors('deliver')
         self.assertTrue(any('review does not match' in e for e in errors))
@@ -98,13 +98,13 @@ class ProductionTests(unittest.TestCase):
         self.plan['scenes'][0]['class']='explanatory'
         self.assertIn('unrequested study cannot proceed to polish',self.errors('polish'))
 
-    def test_token_product_insert_does_not_replace_product_led_film(self):
+    def test_story_specific_balance_has_no_universal_footage_quota(self):
         self.plan['duration']=20
         import copy
         title=copy.deepcopy(self.plan['scenes'][0]);title.update(id='title',start=4,duration=16)
         title['class']='explanatory'
         self.plan['scenes'].append(title)
-        self.assertIn('product captures must occupy at least half the film',self.errors())
+        self.assertEqual([],self.errors())
 
     def test_generated_music_cannot_be_replaced_with_unrequested_original_score(self):
         self.plan['audio'].update(mode='music',source_kind='original-score')
@@ -130,10 +130,63 @@ class ProductionTests(unittest.TestCase):
             'visual_observations':'fixture inspected','audio_observations':'silent by design',
             'audio_status':'not-applicable','verdict':'pass','defects':[]}))
         self.plan.update(video='video.mp4',poster='poster.jpg',technical_report='inspection.json',review='review.json')
-        meta={'streams':[{'codec_type':'video','width':1920,'height':1080,'avg_frame_rate':'30/1'}],
+        meta={'streams':[{'codec_type':'video','width':1920,'height':1080,'avg_frame_rate':'30/1','duration':'4'}, {'codec_type':'audio','duration':'4'}],
               'format':{'duration':'4'}}
         with patch.object(p,'probe',return_value=meta):
             self.assertEqual([],self.errors('deliver'))
+
+    def test_audio_coverage_uses_streams_not_container(self):
+        meta = {'format': {'duration': '33'}, 'streams': [
+            {'codec_type': 'video', 'duration': '33', 'start_time': '0'},
+            {'codec_type': 'audio', 'duration': '23.115', 'start_time': '0'}]}
+        self.assertFalse(p.audio_covers_video(meta))
+        meta['streams'][1]['duration'] = '33'
+        self.assertTrue(p.audio_covers_video(meta))
+        meta['streams'][1]['start_time'] = '1'
+        self.assertFalse(p.audio_covers_video(meta))
+
+    def test_unknown_audio_stream_duration_cannot_pass(self):
+        self.assertFalse(p.audio_covers_video({'streams': [
+            {'codec_type': 'video', 'duration': '33'}, {'codec_type': 'audio'}]}))
+
+    def current_plan(self):
+        self.plan.update(version=2, review_status='draft', cta={
+            'url':'https://vrooli.com/apps/example', 'action':'Explore Example',
+            'expected_content':'Example product page', 'availability':'Preview; learn more'})
+        self.plan['story'].update(viewing_context='muted landing page', category='work organizer',
+            setup='Find decisions in project history', next_action='Explore Example',
+            footage_balance='A short decisive interaction supports a longer conceptual introduction')
+        self.plan['scenes'][0].update(visual_intention='Calm readable decision detail',
+            proof_kind='state', product_motion=False, frame='thin browser', cursor='none: static result',
+            settle_evidence='diagram fully loaded', trim='0–4 seconds',
+            meaning={'feature':'Message search','sample_input':'offline',
+                     'observed_result':'Matching messages','viewer_inference':'Search past messages'})
+
+    def test_current_plan_allows_static_proof_and_context_disclosure(self):
+        self.current_plan()
+        self.assertEqual([], self.errors())
+
+    def test_query_cannot_be_promoted_to_feature_headline(self):
+        self.current_plan()
+        self.plan['scenes'][0]['headline']='Offline'
+        self.assertTrue(any('sample input cannot be' in e for e in self.errors()))
+
+    def test_internal_route_is_not_usable_cta(self):
+        self.current_plan()
+        self.plan['cta']['url']='/apps/example'
+        self.assertIn('CTA requires a complete public HTTPS URL', self.errors())
+
+    def test_interaction_claim_needs_observed_action(self):
+        self.current_plan()
+        self.plan['scenes'][0]['proof_kind']='interaction'
+        self.assertTrue(any('interaction proof requires' in e for e in self.errors()))
+
+    def test_setup_and_viewing_context_are_required(self):
+        self.current_plan()
+        self.plan['story']['setup']=''
+        self.plan['story']['viewing_context']=''
+        self.assertIn('story.setup required', self.errors())
+        self.assertIn('story.viewing_context required', self.errors())
 
 
 if __name__=='__main__':unittest.main()

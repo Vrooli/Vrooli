@@ -30,6 +30,7 @@ interface AnchoredFloatingOptions {
 
 interface FloatingPositionOptions {
   floatingMargin?: number;
+  topInset?: number;
 }
 
 const DEFAULT_FLOATING_MARGIN = 12;
@@ -127,6 +128,7 @@ export function useAnchoredPopoverPosition(
 
 export const useFloatingPosition = (options: FloatingPositionOptions = {}) => {
   const floatingMargin = options.floatingMargin ?? DEFAULT_FLOATING_MARGIN;
+  const topInset = options.topInset ?? 0;
 
   const clampPosition = useCallback(
     (
@@ -143,7 +145,8 @@ export const useFloatingPosition = (options: FloatingPositionOptions = {}) => {
       };
       const safe = readSafeAreaInsets();
       const minX = floatingMargin + safe.left;
-      const minY = floatingMargin + safe.top;
+      const availableY = Math.max(floatingMargin + safe.top, vp.height - size.height - floatingMargin - safe.bottom);
+      const minY = Math.min(availableY, Math.max(floatingMargin + safe.top, topInset + floatingMargin));
       const maxX = Math.max(
         minX,
         vp.width - size.width - floatingMargin - safe.right,
@@ -157,7 +160,7 @@ export const useFloatingPosition = (options: FloatingPositionOptions = {}) => {
         y: Math.min(Math.max(y, minY), maxY),
       };
     },
-    [floatingMargin],
+    [floatingMargin, topInset],
   );
 
   const computeBottomRightPosition = useCallback(

@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/api-core/owneridentity"
+
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -65,6 +67,9 @@ func (c *DocHealingClient) reconcileProfiles(ctx context.Context) error {
 }
 
 func (c *DocHealingClient) CreateRun(ctx context.Context, req dochealing.AgentRunRequest) (string, error) {
+	if err := owneridentity.RequireCreateRunCaller(ctx, time.Now(), true); err != nil {
+		return "", err
+	}
 	if err := c.reconcileProfiles(ctx); err != nil {
 		return "", err
 	}

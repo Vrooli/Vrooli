@@ -1,3 +1,6 @@
+import { useActivityTime, useConversationNavigation } from "../../hooks/useConversationNavigation";
+import { handoffTargetSections } from "../../hooks/useHandoff";
+import { buildSessionActivity } from "../../lib/workspaceNavigation";
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { Loader2, Plus, Search, Send, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -488,4 +491,20 @@ function TargetRow({
       />
     </div>
   );
+}
+
+
+export function WorkspaceHandoffComposer({ panes, lastVisitedBySession, ...props }: Omit<HandoffComposerProps, "targets"> & {
+  panes: import("../../stores/useWorkspaceStore").PaneMetadata[];
+  lastVisitedBySession: Record<string, string>;
+}) {
+  const sessions = useConversationNavigation(props.open ? panes.map(pane => pane.sessionId) : []);
+  const minute = useActivityTime();
+  const targets = useMemo(() => {
+    if (!props.open) return [];
+    const pane = panes.find(candidate => candidate.sessionId === props.sourceSessionId);
+    return handoffTargetSections(props.sourceSessionId ?? "", pane?.groupId ?? null,
+      buildSessionActivity(panes, sessions, lastVisitedBySession, minute));
+  }, [lastVisitedBySession, minute, panes, props.open, props.sourceSessionId, sessions]);
+  return <HandoffComposer {...props} targets={targets} />;
 }

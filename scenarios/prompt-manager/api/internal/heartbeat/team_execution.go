@@ -11,7 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vrooli/api-core/effortauthority"
 	"github.com/vrooli/api-core/owneridentity"
 
 	"prompt-manager/internal/teamconfig"
@@ -107,8 +106,7 @@ const (
 )
 
 type queuedExecution struct {
-	EffortBinding   *effortauthority.Binding `json:"effortBinding,omitempty"`
-	ManualAdmission bool                     `json:"manual_admission,omitempty"`
+	ManualAdmission bool `json:"manual_admission,omitempty"`
 	// Only in-memory caller proof. Recovery requires fresh authorized admission.
 	caller     context.Context `json:"-"`
 	AgentID    string          `json:"AgentID"`
@@ -145,7 +143,6 @@ type queuedExecution struct {
 }
 
 type runningEntry struct {
-	EffortBinding        *effortauthority.Binding
 	ProfileKey           string
 	RunID                string
 	State                string
@@ -271,12 +268,8 @@ func (c *TeamExecutionContext) Enqueue(ctx context.Context, agentID, profileKey 
 	}
 
 	if len(c.running) < c.maxConcurrentRuns {
-		c.running[agentID] = runningEntry{ProfileKey: profileKey, EffortBinding: qualifiedEffortBinding(worker)}
-		if err := c.persistLocked(); err != nil && qualifiedEffortBinding(worker) != nil {
-			delete(c.running, agentID)
-			c.mu.Unlock()
-			return nil, NewDispatchUncertainError(fmt.Errorf("finite queue save failed: %w", err))
-		}
+		c.running[agentID] = runningEntry{ProfileKey: profileKey}
+		_ = c.persistLocked()
 		c.mu.Unlock()
 		c.startExecution(agentID, profileKey, worker)
 		result.Status = "started"
@@ -284,14 +277,9 @@ func (c *TeamExecutionContext) Enqueue(ctx context.Context, agentID, profileKey 
 		return result, nil
 	}
 
-	c.queue = append(c.queue, queuedExecution{AgentID: agentID, ProfileKey: profileKey, caller: worker, ManualAdmission: manualAdmission, EffortBinding: qualifiedEffortBinding(worker)})
+	c.queue = append(c.queue, queuedExecution{AgentID: agentID, ProfileKey: profileKey, caller: worker, ManualAdmission: manualAdmission})
 	c.queued[agentID] = true
-	if err := c.persistLocked(); err != nil && qualifiedEffortBinding(worker) != nil {
-		c.queue = c.queue[:len(c.queue)-1]
-		delete(c.queued, agentID)
-		c.mu.Unlock()
-		return nil, NewDispatchUncertainError(fmt.Errorf("finite queue save failed: %w", err))
-	}
+	_ = c.persistLocked()
 	c.mu.Unlock()
 	return result, nil
 }
@@ -368,15 +356,6 @@ type persistedTeamQueue struct {
 
 func (c *TeamExecutionContext) dispatchAvailableLocked() []queuedExecution {
 	var dispatches []queuedExecution
-	savedQueue := append([]queuedExecution(nil), c.queue...)
-	savedRunning := make(map[string]runningEntry, len(c.running))
-	for k, v := range c.running {
-		savedRunning[k] = v
-	}
-	savedQueued := make(map[string]bool, len(c.queued))
-	for k, v := range c.queued {
-		savedQueued[k] = v
-	}
 	// A bounded scan keeps expired/recovered entries held without blocking other
 	// callers. Their proof is never renewed from a different queued request.
 	scans := len(c.queue)
@@ -392,18 +371,10 @@ func (c *TeamExecutionContext) dispatchAvailableLocked() []queuedExecution {
 			}
 		}
 		delete(c.queued, next.AgentID)
-		c.running[next.AgentID] = runningEntry{ProfileKey: next.ProfileKey, EffortBinding: next.EffortBinding}
+		c.running[next.AgentID] = runningEntry{ProfileKey: next.ProfileKey}
 		dispatches = append(dispatches, next)
 	}
-	if err := c.persistLocked(); err != nil {
-		for _, d := range dispatches {
-			if d.EffortBinding != nil {
-				c.queue, c.running, c.queued = savedQueue, savedRunning, savedQueued
-				log.Printf("team_execution: finite dispatch held because queue save failed: %v", err)
-				return nil
-			}
-		}
-	}
+	_ = c.persistLocked()
 	return dispatches
 }
 
@@ -502,18 +473,6 @@ func (c *TeamExecutionContext) ReconcileDispatch(ctx context.Context, agentID st
 		c.mu.Unlock()
 		return fmt.Errorf("cannot replay %s/%s dispatch: agent client is not configured", c.teamID, agentID)
 	}
-	if client, ok := c.agentClient.(*AgentManagerClient); ok && entry.EffortBinding != nil {
-		if client.efforts == nil {
-			c.mu.Unlock()
-			return effortauthority.ErrRefused
-		}
-		restored, e := client.efforts.Restore(ctx, *entry.EffortBinding, c.teamID, agentID, entry.ProfileKey)
-		if e != nil {
-			c.mu.Unlock()
-			return e
-		}
-		ctx = restored
-	}
 	profileKey := entry.ProfileKey
 	intent := DispatchIntent{
 		IdempotencyKey:   entry.IdempotencyKey,
@@ -540,9 +499,6 @@ func (c *TeamExecutionContext) ReconcileDispatch(ctx context.Context, agentID st
 	if err != nil {
 		if IsDispatchUncertain(err) {
 			c.MarkDispatchUncertain(agentID, err.Error())
-			return err
-		}
-		if entry.EffortBinding != nil {
 			return err
 		}
 		// Definitive owner refusal: the intent can never become a run.
@@ -702,18 +658,11 @@ func (c *TeamExecutionContext) Recover(ctx context.Context) {
 		} // stale scheduled ticks remain discarded
 		// With AUTH-01 off (P-18) an ordinary manual intent is a stale tick as
 		// before AUTH-01: the schedule, not a held intent, restarts the member.
-		// Finite effort entries keep their own protected binding either way.
-		if item.EffortBinding == nil && !owneridentity.CreateRunCallerEnforced() {
+		if !owneridentity.CreateRunCallerEnforced() {
 			continue
 		}
 		item.caller = nil
 		item.State = "caller_required"
-		if client, ok := c.agentClient.(*AgentManagerClient); ok && client.efforts != nil && item.EffortBinding != nil {
-			item.caller, _ = client.efforts.Restore(ctx, *item.EffortBinding, c.teamID, item.AgentID, item.ProfileKey)
-			if item.caller != nil {
-				item.State = ""
-			}
-		}
 		c.queue = append(c.queue, item)
 		c.queued[item.AgentID] = true
 	}
@@ -740,7 +689,6 @@ func (c *TeamExecutionContext) Recover(ctx context.Context) {
 func (c *TeamExecutionContext) reconcileRunningEntry(ctx context.Context, item queuedExecution) (runningEntry, bool) {
 	base := runningEntry{
 		ProfileKey:           item.ProfileKey,
-		EffortBinding:        item.EffortBinding,
 		RunID:                item.RunID,
 		IdempotencyKey:       item.IdempotencyKey,
 		TaskID:               item.TaskID,
@@ -823,7 +771,6 @@ func (c *TeamExecutionContext) persistLocked() error {
 		running = append(running, queuedExecution{
 			AgentID:              agentID,
 			ProfileKey:           entry.ProfileKey,
-			EffortBinding:        entry.EffortBinding,
 			RunID:                entry.RunID,
 			State:                entry.State,
 			IdempotencyKey:       entry.IdempotencyKey,

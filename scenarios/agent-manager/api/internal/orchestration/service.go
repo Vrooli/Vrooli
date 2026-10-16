@@ -38,8 +38,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/authn"
-	"github.com/vrooli/api-core/effortauthority"
-	isolation "github.com/vrooli/vrooli/packages/nativeisolation"
 )
 
 // Orchestrator coordinates agent execution using injected dependencies.
@@ -167,17 +165,7 @@ type Orchestrator struct {
 	// are admitted into a run. A missing provider is permitted for internal
 	// callers that do not present an owner token; a presented token never
 	// falls back to an unverified identity.
-	ownerIdentity   authn.TokenVerifier
-	effortAuthority effortauthority.Engine
-	// Admission-only seam is private; production installs a concrete ready
-	// factory. Launch and terminal ownership never use this interface.
-	finiteNativeFactory interface {
-		Enabled() bool
-		CheckBinding(string, isolation.Binding) error
-	}
-	finiteNativeTerminal interface {
-		Terminal(context.Context, string) error
-	}
+	ownerIdentity authn.TokenVerifier
 
 	// dispatcher serializes runner startups and exposes queue depth.
 	// All run-spawn paths (CreateRun, ResumeRun) MUST go through it —
@@ -693,7 +681,6 @@ func WithWebConsoleUIBase(base string) Option {
 func (o *Orchestrator) SetReconciler(r *Reconciler) {
 	o.reconciler = r
 	if r != nil {
-		r.finiteSerialRecovery = o
 		r.structuredResults = o.structuredResults
 		r.interactiveRecoveryMu = &o.wakeMu
 		r.interactiveLiveDrivers = o.interactiveDrivers
@@ -796,13 +783,3 @@ func (o *Orchestrator) now() time.Time {
 // -----------------------------------------------------------------------------
 // AgentProfile Operations
 // -----------------------------------------------------------------------------
-
-// WithEffortAuthority installs an explicitly configured authority. No default
-// provider, client enrollment, credential exchange or grant is inferred.
-func WithEffortAuthority(a effortauthority.Engine) Option {
-	return func(o *Orchestrator) { o.effortAuthority = a }
-}
-
-func (o *Orchestrator) finiteNativeEnabled() bool {
-	return o.finiteNativeFactory != nil && o.finiteNativeFactory.Enabled()
-}

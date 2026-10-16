@@ -51,7 +51,9 @@ func mintSessionDelegation(ctx context.Context, sessionID, rawCredential string)
 	if err != nil {
 		// A refusal (non-human caller, unverifiable credential) is expected and
 		// benign: the session simply attaches unattributed. Do not surface it.
-		log.Printf("[phase5-diag] session-delegation: mint DECLINED for session %s: %v", sessionID, err)
+		// A refusal (non-human caller, unverifiable credential) is expected and
+		// benign: the session simply attaches unattributed.
+		log.Printf("session-delegation: mint declined for session %s (attaches unattributed)", sessionID)
 		return
 	}
 	token := ""
@@ -66,7 +68,6 @@ func mintSessionDelegation(ctx context.Context, sessionID, rawCredential string)
 		return
 	}
 	activeSessionDelegations.Put(sessionID, token, expires)
-	log.Printf("[phase5-diag] session-delegation: MINTED for session %s (expires %s)", sessionID, expires.UTC().Format(time.RFC3339))
 }
 
 // bearerTokenValue strips a leading "Bearer " so the authenticator receives the

@@ -55,6 +55,84 @@ func TestDependentSandboxPermissionsSurviveWireRoundTrip(t *testing.T) {
 	}
 }
 
+// TestInvariantChildRunNeverBroadensParent is the named auth invariant
+// (AUTHORIZATION-INVARIANTS.md INV-7): a child run requesting a scope its parent
+// never held — and whose owner never held — must not receive it. The broader
+// intersection matrix (profile/owner/request ceilings, excess-expiry, revocation,
+// wrong-owner) is pinned by TestMintDelegatedIdentityRespectsChildAuthority; this
+// test isolates the single escalation attempt so a regression names the
+// invariant directly.
+func TestInvariantChildRunNeverBroadensParent(t *testing.T) {
+	ctx := context.Background()
+	repos, _, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	now := time.Now().Truncate(time.Second)
+	secret := []byte("child-never-broadens-parent")
+	parent := &domain.Run{ID: uuid.New(), TaskID: uuid.New(), Status: domain.RunStatusRunning}
+	task := &domain.Task{ID: parent.TaskID, Title: "escalation fixture", ScopePath: "src"}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatal(err)
+	}
+	// Parent holds only read.
+	parentToken, err := identity.GenerateToken(&identity.Claims{
+		RunID: parent.ID, TaskID: task.ID, Subject: "owner-a", ProfileKey: "parent",
+		ScopePath: task.ScopePath, Scopes: []string{"agent-manager:read"},
+		IssuedAt: now.Unix(), ExpiresAt: now.Add(time.Hour).Unix(),
+	}, secret)
+	if err != nil {
+		t.Fatal(err)
+	}
+	parent.IdentityTokenHash = identity.HashToken(parentToken)
+	if err := repos.Runs.Create(ctx, parent); err != nil {
+		t.Fatal(err)
+	}
+	// Child profile and owner would allow destructive, and the child explicitly
+	// requests destructive — but the parent ceiling is read-only, so the
+	// intersection must drop it.
+	profile := &domain.AgentProfile{ID: uuid.New(), Name: "child", ProfileKey: "child", DeclaredScopes: []string{"agent-manager:read", "agent-manager:destructive"}}
+	expires := now.Add(20 * time.Minute)
+	child := &domain.Run{
+		ID: uuid.New(), TaskID: task.ID, ParentRunID: &parent.ID, AgentProfileID: &profile.ID,
+		Status: domain.RunStatusRunning, OwnerSubject: "owner-a", OwnerExpiresAt: &expires,
+		OwnerScopes:     []string{"agent-manager:read", "agent-manager:destructive"},
+		RequestedScopes: []string{"agent-manager:destructive"},
+	}
+	if err := repos.Profiles.Create(ctx, profile); err != nil {
+		t.Fatal(err)
+	}
+	if err := repos.Runs.Create(ctx, child); err != nil {
+		t.Fatal(err)
+	}
+	o := &Orchestrator{runs: repos.Runs, profiles: repos.Profiles, identitySecret: secret, clock: func() time.Time { return now }}
+	// Requesting a scope the parent never held is refused outright — a child can
+	// never mint a credential broader than its parent, even when its own profile
+	// and owner would allow it.
+	if result, err := o.MintDelegatedIdentity(ctx, MintDelegatedIdentityRequest{ParentToken: parentToken, ChildRunID: child.ID, RequestedScopes: []string{"agent-manager:destructive"}}); err == nil || result != nil {
+		t.Fatalf("child minted a credential broader than the parent's read-only ceiling: %v", err)
+	}
+
+	// A child narrowing to what the parent holds succeeds, and the issued
+	// credential never carries destructive.
+	child.RequestedScopes = []string{"agent-manager:read"}
+	if err := repos.Runs.Update(ctx, child); err != nil {
+		t.Fatal(err)
+	}
+	result, err := o.MintDelegatedIdentity(ctx, MintDelegatedIdentityRequest{ParentToken: parentToken, ChildRunID: child.ID, RequestedScopes: []string{"agent-manager:read"}})
+	if err != nil || result == nil {
+		t.Fatalf("legitimate narrowed delegation failed: %v", err)
+	}
+	verified, err := o.VerifyIdentityToken(ctx, result.Token)
+	if err != nil || verified == nil || !verified.Valid {
+		t.Fatalf("issued credential is not active: %v", err)
+	}
+	if slices.Contains(verified.Claims.Scopes, "agent-manager:destructive") {
+		t.Fatalf("narrowed child credential leaked destructive: %v", verified.Claims.Scopes)
+	}
+	if !slices.Contains(verified.Claims.Scopes, "agent-manager:read") {
+		t.Fatalf("narrowed child credential lost its legitimate read scope: %v", verified.Claims.Scopes)
+	}
+}
+
 func TestMintDelegatedIdentityRespectsChildAuthority(t *testing.T) {
 	for _, variant := range []string{"narrowed", "omitted-profile-scopes", "empty-request", "empty-owner", "no-profile", "revoked", "terminal", "wrong-owner", "expired-owner", "excess-expiry"} {
 		t.Run(variant, func(t *testing.T) {

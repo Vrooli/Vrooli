@@ -1,3 +1,7 @@
+import { useState } from 'react';
+import type { ReplayStyleOverrides } from '@/domains/replay-style';
+import { useReplayPresentationModel } from '@/domains/exports/replay/useReplayPresentationModel';
+import ReplayPresentation from '@/domains/exports/replay/ReplayPresentation';
 /**
  * ExportDialog - Modal dialog for configuring and executing replay exports.
  *
@@ -273,10 +277,10 @@ function PreviewSection() {
     }
     // Raw style: no chrome, no background, no cursor styling
     return normalizeReplayStyle({
-      chromeTheme: "none",
-      presentation: "plain",
-      background: "none",
-      cursorTheme: "system",
+      chromeTheme: "minimal",
+      presentation: { showDesktop: false, showBrowserFrame: false, showDeviceFrame: false },
+      background: { type: "theme", id: "none" },
+      cursorTheme: "disabled",
       cursorClickAnimation: "none",
     });
   }, [isStylized, replayStyle]);
@@ -298,21 +302,7 @@ function PreviewSection() {
       </div>
       <div className="overflow-hidden rounded-xl border border-white/10 bg-slate-900/60">
         {showRecordedVideo ? (
-          // Video player for recorded video
-          <div
-            className="relative w-full"
-            style={{
-              aspectRatio: `${selectedDimensions.width} / ${selectedDimensions.height}`,
-            }}
-          >
-            <video
-              src={recordedVideoUrl}
-              controls
-              autoPlay={false}
-              loop
-              className="absolute inset-0 h-full w-full object-contain bg-black"
-            />
-          </div>
+          <RecordedVideoPreview source={recordedVideoUrl} style={previewStyle} dimensions={selectedDimensions} />
         ) : showReplayPlayer ? (
           // ReplayPlayer for slideshow
           <div
@@ -779,3 +769,9 @@ export function ExportDialog({ isOpen }: ExportDialogProps) {
 }
 
 export default ExportDialog;
+
+function RecordedVideoPreview({ source, style, dimensions }: { source: string; style: ReplayStyleOverrides; dimensions: { width: number; height: number } }) {
+  const [viewport, setViewport] = useState(dimensions);
+  const model = useReplayPresentationModel({ style, title: 'Recording', canvasDimensions: dimensions, viewportDimensions: viewport, presentationBounds: dimensions, presentationFit: 'contain' });
+  return <ReplayPresentation model={model}>{layout => <video src={source} controls playsInline onLoadedMetadata={event => setViewport({ width: event.currentTarget.videoWidth, height: event.currentTarget.videoHeight })} style={{ width: layout.viewportRect.width, height: layout.viewportRect.height }} className="object-contain" />}</ReplayPresentation>;
+}

@@ -5,14 +5,13 @@ import { ArrowDown, Search } from "lucide-react";
 import { useConversationStore, getSessionConversationEvents, getSessionSlice, resolveConversationView } from "../stores/useConversationStore";
 import { loadConversationPageContaining, loadOlderConversationPage, refreshConversationSession } from "../hooks/useConversationSession";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
-import { MESSAGES_FONT_DEFAULT, useMessagesViewStore, type OpenReader } from "../stores/useMessagesViewStore";
+import { useMessagesViewStore, type OpenReader } from "../stores/useMessagesViewStore";
 import { clampMessagesFont, useMessagesTypographyPinch } from "../hooks/useMessagesTypographyPinch";
 import { useTrailingThrottle } from "../hooks/useTrailingThrottle";
 import { captureTopPosition } from "./messages/scrollPosition";
 import { useLiveStreamNotice } from "../hooks/useLiveStreamNotice";
 import { writeText } from "../lib/clipboard";
 import { executeConversationControl, getConversationRange, preflightConversationControl, searchConversation, type ConversationControlPreflight, type ConversationEvent, type ConversationSearchMatch } from "../api/conversation";
-import { TERMINAL_FONT_SIZE } from "../consts/config";
 import { cn } from "../lib/classnames";
 import { IconButton } from "@vrooli/react-component-library/IconButton";
 import { looksLikeFileReference } from "../lib/fileReferences";
@@ -148,7 +147,7 @@ export default function MessagesPane({
   // faster than the sentence can be read.
   const liveInterrupted = useLiveStreamNotice();
 
-  const messagesFontSize = clampMessagesFont(useMessagesViewStore((state) => state.messagesFontSize ?? MESSAGES_FONT_DEFAULT));
+  const messagesFontSize = clampMessagesFont(useMessagesViewStore((state) => state.messagesFontSize));
   const setMessagesFontSize = useCallback((size: number) => {
     useMessagesViewStore.getState().setMessagesFontSize(clampMessagesFont(size));
   }, []);
@@ -792,24 +791,11 @@ export default function MessagesPane({
     });
   }, [sessionId, t]);
 
-  // One stable handler per event id. The label needs the event's sequence, so
-  // the closure is per-event; caching it keeps its identity stable across
-  // renders of the same event.
-  const snippetHandlersRef = useRef(new Map<string, (text: string) => void>());
-  useEffect(() => {
-    snippetHandlersRef.current.clear();
-  }, [sessionId, t]);
-  const saveAsSnippetHandlerFor = useCallback((event: ConversationEvent) => {
-    const existing = snippetHandlersRef.current.get(event.id);
-    if (existing) return existing;
-    const handler = (text: string) => {
-      setSnippetSaveSource({
-        body: text,
-        sourceLabel: t(strings.snippets.save.fromMessage, { session: sessionId, sequence: event.sequence }),
-      });
-    };
-    snippetHandlersRef.current.set(event.id, handler);
-    return handler;
+  const handleSaveAsSnippet = useCallback((event: ConversationEvent) => {
+    setSnippetSaveSource({
+      body: event.text,
+      sourceLabel: t(strings.snippets.save.fromMessage, { session: sessionId, sequence: event.sequence }),
+    });
   }, [sessionId, t]);
 
   // One action context per message, shared by its row and the reader.
@@ -835,7 +821,7 @@ export default function MessagesPane({
     onToggleRenderMode: toggleRenderMode,
     onSendToComposer,
     onRewind: readOnly ? undefined : handleRewindRequest,
-    onSaveAsSnippet: saveAsSnippetHandlerFor(event),
+    onSaveAsSnippet: handleSaveAsSnippet,
     onHandoff: readOnly ? undefined : onHandoff,
   });
 

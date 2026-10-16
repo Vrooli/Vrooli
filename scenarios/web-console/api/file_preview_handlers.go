@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"mime"
 	"net/http"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/gorilla/mux"
 
@@ -218,7 +220,7 @@ func (s *Server) handleFilePreviewBlob(w http.ResponseWriter, r *http.Request) {
 
 	// ServeContent honors the already-set Content-Type, adds Accept-Ranges,
 	// and handles Range (206/Content-Range/416) and HEAD automatically.
-	http.ServeContent(w, r, entry.Basename, info.ModTime(), file)
+	servePreviewContent(w, r, entry.Basename, info.ModTime(), file)
 }
 
 // handleFilePreviewRuntime serves an HTML preview and the small set of local
@@ -274,7 +276,10 @@ func (s *Server) handleFilePreviewRuntime(w http.ResponseWriter, r *http.Request
 		http.Error(w, "preview resource is outside the presentation directory", http.StatusForbidden)
 		return
 	}
-	if info.Size() > previewRuntimeMaxResourceBytes {
+	// Media is streamed from disk by ServeContent, including native HEAD and
+	// byte-range requests. Its total length does not determine memory use; a
+	// presentation-asset limit must not reject multi-gigabyte video or audio.
+	if info.Size() > previewRuntimeMaxResourceBytes && !previewRuntimeMedia(resourcePath) {
 		http.Error(w, "preview resource is too large", http.StatusRequestEntityTooLarge)
 		return
 	}
@@ -315,8 +320,32 @@ func (s *Server) handleFilePreviewRuntime(w http.ResponseWriter, r *http.Request
 	} else {
 		h.Set("Content-Type", previewRuntimeContentType(resourcePath))
 	}
-	http.ServeContent(w, r, filepath.Base(resourcePath), info.ModTime(), file)
+	servePreviewContent(w, r, filepath.Base(resourcePath), info.ModTime(), file)
 }
+
+// Preview transfers may outlast the server's ordinary response budget. Refresh
+// the write deadline for each chunk so active streams can continue while a
+// blocked client is still bounded. The wrapper also keeps copies buffered in
+// small chunks rather than loading the file into memory.
+func servePreviewContent(w http.ResponseWriter, r *http.Request, name string, modTime time.Time, content io.ReadSeeker) {
+	stream := &previewStreamWriter{ResponseWriter: w, idleTimeout: httpWriteTimeout}
+	http.ServeContent(stream, r, name, modTime, content)
+}
+
+type previewStreamWriter struct {
+	http.ResponseWriter
+	idleTimeout time.Duration
+}
+
+func (w *previewStreamWriter) Write(p []byte) (int, error) {
+	err := http.NewResponseController(w.ResponseWriter).SetWriteDeadline(time.Now().Add(w.idleTimeout))
+	if err != nil && !errors.Is(err, http.ErrNotSupported) {
+		return 0, err
+	}
+	return w.ResponseWriter.Write(p)
+}
+
+func (w *previewStreamWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
 
 const previewRuntimeMaxResourceBytes int64 = 16 << 20
 
@@ -358,7 +387,16 @@ func pathWithinRoot(root, candidate string) bool {
 
 func previewRuntimeResourceAllowed(name string) bool {
 	switch strings.ToLower(filepath.Ext(name)) {
-	case ".html", ".htm", ".css", ".js", ".mjs", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".avif", ".bmp", ".ico", ".svg", ".woff", ".woff2", ".ttf", ".otf", ".mp4", ".webm", ".mp3", ".wav", ".ogg":
+	case ".html", ".htm", ".css", ".js", ".mjs", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".avif", ".bmp", ".ico", ".svg", ".woff", ".woff2", ".ttf", ".otf":
+		return true
+	default:
+		return previewRuntimeMedia(name)
+	}
+}
+
+func previewRuntimeMedia(name string) bool {
+	switch strings.ToLower(filepath.Ext(name)) {
+	case ".mp4", ".webm", ".mp3", ".wav", ".ogg":
 		return true
 	default:
 		return false

@@ -35,6 +35,7 @@ export interface UseRecordedVideoStatusResult {
    * Whether recorded video is available for this execution.
    */
   available: boolean;
+  url: string | null;
 
   /**
    * Number of recorded video artifacts available.
@@ -119,6 +120,7 @@ export function useRecordedVideoStatus({
 
   return {
     available: status.available,
+    url: status.videos.find(video => video.url)?.url ?? null,
     count: status.count,
     loading,
     error,

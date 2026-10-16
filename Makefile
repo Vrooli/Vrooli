@@ -1,4 +1,4 @@
-.PHONY: help setup dev develop build install verify-supervisory verify-supervisory-build status stop fmt lint fmt-ts format-ts lint-ts type test debt cross-compile check-platforms vrooli-dist vrooli-dist-all capability-conformance acquisition-schema-check fleet-contract-check lint-portability lint-library-contracts lint-artifact-paths check hygiene fmt-packages lint-packages type-packages test-packages check-packages clean
+.PHONY: help setup dev develop build install verify-supervisory verify-supervisory-build status stop fmt lint fmt-ts format-ts lint-ts type test proto-preflight debt cross-compile check-platforms vrooli-dist vrooli-dist-all capability-conformance acquisition-schema-check fleet-contract-check lint-portability lint-library-contracts lint-artifact-paths check hygiene fmt-packages lint-packages type-packages test-packages check-packages clean
 
 .DEFAULT_GOAL := help
 
@@ -131,7 +131,10 @@ vrooli-dist: ## Build a prebuilt vrooli CLI + .fp sidecar (GOOS=<os> GOARCH=<arc
 vrooli-dist-all: ## Build the complete supported prebuilt CLI matrix into dist/
 	@go run ./cmd/vrooli-dist --all --out-dir dist --version "$(VERSION)"
 
-test: ## Run project-level Go tests
+proto-preflight: ## Verify repository-owned generated outputs before direct Go tests
+	@$(MAKE) --no-print-directory -C packages/proto verify-committed-gen
+
+test: proto-preflight ## Run project-level Go tests
 	@go test ./internal/...
 	@go test ./cmd/vrooli-buildmeta
 	@go test ./cmd/vrooli

@@ -2,6 +2,7 @@ import { renderHook, act, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useTtsPlaybackController } from "./useTtsPlaybackController";
 import type { ConversationEvent } from "../../api/conversation";
+import { useConversationStore, createConversationSessionState } from "../../stores/useConversationStore";
 import { useTtsPlaybackIntentStore } from "./store";
 
 const { mockGetConfig, mockSummarizeEvent, mockUpdateConfig } = vi.hoisted(() => ({
@@ -40,9 +41,15 @@ function makeEvent(overrides: Partial<ConversationEvent> & { id: string; sequenc
   };
 }
 
+function seedSessions(sessions: Record<string, { events: ConversationEvent[] }>) {
+  useConversationStore.setState({ sessions: Object.fromEntries(Object.entries(sessions).map(([id, session]) =>
+    [id, createConversationSessionState(session)])) });
+}
+
 describe("useTtsPlaybackController", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    useConversationStore.setState({ sessions: {} });
     window.localStorage.clear();
     useTtsPlaybackIntentStore.setState({
       playbackIntent: "continuous",
@@ -87,8 +94,8 @@ describe("useTtsPlaybackController", () => {
       speechParagraphs: ["Summarized 2"],
     });
 
+    seedSessions(sessions);
     const { result } = renderHook(() => useTtsPlaybackController({
-      conversationSessions: sessions,
       activePaneId: "sess-1",
       autoTtsEnabled: true,
       audioState: { isSpeaking: false, isPaused: false },
@@ -130,8 +137,8 @@ describe("useTtsPlaybackController", () => {
     }));
     const speakText = vi.fn().mockResolvedValue("browser");
 
+    seedSessions(sessions);
     const { result } = renderHook(() => useTtsPlaybackController({
-      conversationSessions: sessions,
       activePaneId: "sess-1",
       autoTtsEnabled: true,
       audioState: { isSpeaking: false, isPaused: false },
@@ -168,8 +175,8 @@ describe("useTtsPlaybackController", () => {
     const speakText = vi.fn().mockResolvedValue("browser");
     mockSummarizeEvent.mockRejectedValue(new Error("[unavailable] HTTP 502"));
 
+    seedSessions(sessions);
     const { result } = renderHook(() => useTtsPlaybackController({
-      conversationSessions: sessions,
       activePaneId: "sess-1",
       autoTtsEnabled: true,
       audioState: { isSpeaking: false, isPaused: false },
@@ -205,8 +212,8 @@ describe("useTtsPlaybackController", () => {
     const onSummarizeFailed = vi.fn();
     mockSummarizeEvent.mockRejectedValue(new Error("[deadline_exceeded] timeout"));
 
+    seedSessions(sessions);
     const { result } = renderHook(() => useTtsPlaybackController({
-      conversationSessions: sessions,
       activePaneId: "sess-1",
       autoTtsEnabled: true,
       audioState: { isSpeaking: false, isPaused: false },
@@ -242,8 +249,8 @@ describe("useTtsPlaybackController", () => {
     const onSummarizeFailed = vi.fn();
     mockSummarizeEvent.mockRejectedValue(new Error("[failed_precondition] summarize model is not installed"));
 
+    seedSessions(sessions);
     const { result } = renderHook(() => useTtsPlaybackController({
-      conversationSessions: sessions,
       activePaneId: "sess-1",
       autoTtsEnabled: true,
       audioState: { isSpeaking: false, isPaused: false },
@@ -296,8 +303,8 @@ describe("useTtsPlaybackController", () => {
     };
     const speakText = vi.fn();
 
+    seedSessions(sessions);
     const { result } = renderHook(() => useTtsPlaybackController({
-      conversationSessions: sessions,
       activePaneId: "sess-1",
       autoTtsEnabled: true,
       audioState: { isSpeaking: false, isPaused: false },
@@ -337,8 +344,8 @@ describe("useTtsPlaybackController", () => {
     const sessions = { "sess-1": { events: [event] } };
     const speakText = vi.fn().mockResolvedValue("browser");
 
+    seedSessions(sessions);
     const { result } = renderHook(() => useTtsPlaybackController({
-      conversationSessions: sessions,
       activePaneId: "sess-1",
       autoTtsEnabled: true,
       audioState: { isSpeaking: false, isPaused: false },
@@ -369,8 +376,8 @@ describe("useTtsPlaybackController", () => {
     const speakText = vi.fn().mockResolvedValue("browser");
     const ack = vi.fn();
 
+    seedSessions(sessions);
     const { result } = renderHook(() => useTtsPlaybackController({
-      conversationSessions: sessions,
       activePaneId: "sess-1",
       autoTtsEnabled: true,
       audioState: { isSpeaking: false, isPaused: false },
@@ -407,8 +414,8 @@ describe("useTtsPlaybackController", () => {
     const sessions = { "sess-1": { events: [e1, e2] } };
     const speakText = vi.fn().mockResolvedValue("browser");
 
+    seedSessions(sessions);
     const props = {
-      conversationSessions: sessions,
       activePaneId: "sess-1",
       autoTtsEnabled: true,
       audioState: { isSpeaking: false, isPaused: false },
@@ -451,8 +458,8 @@ describe("useTtsPlaybackController", () => {
     const sessions = { "sess-1": { events: [e1, e2] } };
     const speakText = vi.fn().mockResolvedValue("browser");
 
+    seedSessions(sessions);
     const props = {
-      conversationSessions: sessions,
       activePaneId: "sess-1",
       autoTtsEnabled: true,
       audioState: { isSpeaking: false, isPaused: false },
@@ -491,8 +498,8 @@ describe("useTtsPlaybackController", () => {
     const sessions = { "sess-1": { events: [event] } };
     const speakText = vi.fn().mockResolvedValue("browser");
 
+    seedSessions(sessions);
     const { result } = renderHook(() => useTtsPlaybackController({
-      conversationSessions: sessions,
       activePaneId: "other-pane",
       autoTtsEnabled: true,
       audioState: { isSpeaking: false, isPaused: false },
@@ -516,4 +523,30 @@ describe("useTtsPlaybackController", () => {
     expect(speakText).not.toHaveBeenCalled();
     expect(useTtsPlaybackIntentStore.getState().selectedTarget).toEqual(priorTarget);
   });
+
+  it("reads fresh cross-session queues without subscribing to unrelated conversations", async () => {
+    seedSessions({ "sess-1": { events: [makeEvent({ id: "a", sequence: 1 })] },
+      "sess-2": { events: [makeEvent({ id: "b", sessionId: "sess-2", sequence: 1 })] } });
+    const renders = vi.fn();
+    const speakText = vi.fn(() => new Promise<string | undefined>(() => {}));
+    const { result } = renderHook(() => {
+      renders();
+      return useTtsPlaybackController({
+        activePaneId: "sess-1", autoTtsEnabled: false,
+        audioState: { isSpeaking: false, isPaused: false }, setViewMode: vi.fn(),
+        speakText, stopPlayback: vi.fn(), applySummarizeResult: vi.fn(),
+      });
+    });
+    await act(async () => { await Promise.resolve(); });
+    const before = renders.mock.calls.length;
+    act(() => useConversationStore.getState().appendEvent(makeEvent({ id: "c", sessionId: "sess-2", sequence: 2 })));
+    expect(renders).toHaveBeenCalledTimes(before);
+    act(() => result.current.playFromHere("sess-2", "b"));
+    await act(async () => { await Promise.resolve(); });
+    expect(speakText).toHaveBeenCalledWith("sess-2", "Message 1", ["Message 1"], expect.objectContaining({ eventId: "b" }));
+    expect(result.current.buildPillContext("sess-2", false, { isSpeaking: false, isPaused: false })).toMatchObject({ event: { id: "b" }, queueLength: 2 });
+    act(() => useConversationStore.getState().updateEvent("sess-2", "b", { speechParagraphs: ["Updated summary"], summarized: true }));
+    expect(result.current.buildPillContext("sess-2", false, { isSpeaking: false, isPaused: false })?.event?.speechParagraphs).toEqual(["Updated summary"]);
+  });
+
 });

@@ -46,6 +46,8 @@ function saveDockedEdge(edge: DockedEdge) {
 }
 
 interface FloatingToolbarProps {
+  /** Bottom of reserved navigation chrome, in viewport coordinates. */
+  topInset?: number;
   onOpenSettings: () => void;
   onOpenAccount: () => void;
   /** Opens the machines surface, which owns linking a computer and its permissions. */
@@ -94,6 +96,7 @@ interface FloatingToolbarProps {
 }
 
 export default function FloatingToolbar({
+  topInset = 48,
   onOpenSettings,
   onOpenAccount,
   onOpenMachines,
@@ -133,15 +136,16 @@ export default function FloatingToolbar({
   // width replaces this estimate immediately after layout.
   const [toolbarWidth, setToolbarWidth] = useState(220);
   /** Viewport width for right-dock positioning */
-  const [vpWidth, setVpWidth] = useState(() =>
-    typeof window !== "undefined" ? window.innerWidth : 1000,
-  );
+  const [viewport, setViewport] = useState(() => ({
+    width: typeof window !== "undefined" ? window.innerWidth : 1000,
+    height: typeof window !== "undefined" ? window.innerHeight : 900,
+  }));
 
   // Track viewport width for right-dock transform
   useLayoutEffect(() => {
-    const onResize = () => setVpWidth(window.innerWidth);
+    const onResize = () => { setViewport({ width: window.innerWidth, height: window.innerHeight }); };
     window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
+    return () => { window.removeEventListener("resize", onResize); };
   }, []);
 
   const dockedRef = useRef(docked);
@@ -164,14 +168,15 @@ export default function FloatingToolbar({
       setAnimating(true);
       setDocked(edge);
       saveDockedEdge(edge);
-      setTimeout(() => setAnimating(false), DOCK_ANIMATION_MS);
+      setTimeout(() => { setAnimating(false); }, DOCK_ANIMATION_MS);
     }
   }, []);
 
-  const { clampPosition } = useFloatingPosition();
+  const { clampPosition } = useFloatingPosition({ topInset });
   const { elementRef, floatingStyle, pointerHandlers, handleClickCapture, position, moveTo } =
     useDraggablePosition({
-      isActive: true,
+      isActive: !hidden,
+      topInset,
       storageKey: "wc-toolbar-pos",
       defaultPosition: () => {
         if (typeof window === "undefined") return { x: 100, y: 12 };
@@ -209,13 +214,13 @@ export default function FloatingToolbar({
     const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(syncMeasuredBounds);
     observer?.observe(el);
     return () => observer?.disconnect();
-  }, [clampPosition, docked, elementRef, moveTo, position.x, position.y]);
+  }, [clampPosition, docked, elementRef, hidden, moveTo, position.x, position.y]);
 
   const undock = useCallback(() => {
     setAnimating(true);
     setDocked(null);
     saveDockedEdge(null);
-    setTimeout(() => setAnimating(false), DOCK_ANIMATION_MS);
+    setTimeout(() => { setAnimating(false); }, DOCK_ANIMATION_MS);
   }, []);
 
   // Compute style: when docked, override transform to slide off-screen,
@@ -224,29 +229,26 @@ export default function FloatingToolbar({
   // Left dock:  toolbar slides left, right edge is visible → tab renders at right end
   // Right dock: toolbar slides right, left edge is visible → tab renders at left end
   const computedStyle = useMemo(() => {
+    const safePosition = clampPosition(position.x, position.y, { width: toolbarWidth, height: 54 }, viewport);
     if (!docked) {
       // Clamp the rendered transform as well as the stored state. Layout
       // effects repair the persisted coordinate, but the first paint must not
       // briefly extend past the capture viewport while that repair runs.
-      const safePosition = clampPosition(position.x, position.y, {
-        width: toolbarWidth,
-        height: 54,
-      });
       return {
         ...floatingStyle,
-        transform: `translate3d(${Math.round(safePosition.x)}px, ${Math.round(safePosition.y)}px, 0)`,
+        transform: `translate3d(${String(Math.round(safePosition.x))}px, ${String(Math.round(safePosition.y))}px, 0)`,
       };
     }
-    const y = position.y;
+    const y = safePosition.y;
     if (docked === "left") {
       // Slide left so only the rightmost DOCK_TAB_WIDTH pixels are visible
       const safe = readSafeAreaInsets();
-      return { transform: `translate3d(${safe.left - (toolbarWidth - DOCK_TAB_WIDTH)}px, ${Math.max(y, safe.top + 12)}px, 0)` };
+      return { transform: `translate3d(${String(safe.left - (toolbarWidth - DOCK_TAB_WIDTH))}px, ${String(y)}px, 0)` };
     }
     // Slide right so only the leftmost DOCK_TAB_WIDTH pixels are visible
     const safe = readSafeAreaInsets();
-    return { transform: `translate3d(${vpWidth - safe.right - DOCK_TAB_WIDTH}px, ${Math.max(y, safe.top + 12)}px, 0)` };
-  }, [clampPosition, docked, floatingStyle, position.x, position.y, toolbarWidth, vpWidth]);
+    return { transform: `translate3d(${String(viewport.width - safe.right - DOCK_TAB_WIDTH)}px, ${String(y)}px, 0)` };
+  }, [clampPosition, docked, floatingStyle, position.x, position.y, toolbarWidth, viewport]);
 
   const plusHandlers = useLongPress({
     onPress: plusButtonBehavior === "launcher" ? onOpenLauncher : onNewTerminal,

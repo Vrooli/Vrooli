@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { Archive, ArrowDownUp, ArrowLeft, ChevronRight, Circle, CircleUserRound, GripVertical, MessageSquareText, MonitorSmartphone, Pencil, Plus, Search, TerminalSquare, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { strings } from "../consts/strings";
 import { cn } from "../lib/classnames";
 import { paneAccentStyle } from "../lib/paneColor";
+import { buildOriginBucketedNavigation, countWorkspaceUnreadMessages, type BuildOriginBucketedNavigationOptions } from "../lib/workspaceNavigation";
+import { useActivityTime, useConversationNavigation } from "../hooks/useConversationNavigation";
 import type { OriginBucketNavigation } from "../lib/workspaceNavigation";
 import type { PaneMetadata, RoleMeta, SidebarOriginTab } from "../stores/useWorkspaceStore";
 import { SwipeActions, type SwipeAction } from "@vrooli/react-component-library/SwipeActions";
@@ -219,8 +221,9 @@ export default function SessionSidebar({
 
   useEffect(() => {
     void refreshArchive();
-    window.addEventListener("web-console:archive-changed", refreshArchive);
-    return () => { window.removeEventListener("web-console:archive-changed", refreshArchive); };
+    const onArchiveChanged = () => { void refreshArchive(); };
+    window.addEventListener("web-console:archive-changed", onArchiveChanged);
+    return () => { window.removeEventListener("web-console:archive-changed", onArchiveChanged); };
   }, [refreshArchive]);
 
   const visibleArchived = archivedSessions
@@ -300,7 +303,7 @@ export default function SessionSidebar({
 
   const startSidebarDrag = useCallback((paneId: string, index: number, event: React.PointerEvent<HTMLElement>) => {
     if (!isManualSort) return;
-    event.currentTarget.setPointerCapture?.(event.pointerId);
+    event.currentTarget.setPointerCapture(event.pointerId);
     setDragState({ paneId, dropIndex: index });
   }, [isManualSort]);
 
@@ -935,4 +938,32 @@ export default function SessionSidebar({
       })()}
     </>
   );
+}
+
+
+/** Own conversation subscriptions here so background events do not render Workspace. */
+export function WorkspaceSessionSidebar({ navigation, ...props }: Omit<SessionSidebarProps, "buckets"> & {
+  navigation: Omit<BuildOriginBucketedNavigationOptions, "conversationSessions" | "now">;
+}) {
+  const sessions = useConversationNavigation(navigation.panes.map(pane => pane.sessionId));
+  const minute = useActivityTime();
+  const buckets = useMemo(() => buildOriginBucketedNavigation({
+    ...navigation, conversationSessions: sessions, now: minute,
+  }), [navigation, sessions, minute]);
+  return <SessionSidebar {...props} buckets={buckets} />;
+}
+
+export function WorkspaceUnreadBadge({ panes, activeSessionId, flagged = false }: {
+  panes: PaneMetadata[];
+  activeSessionId?: string;
+  flagged?: boolean;
+}) {
+  const sessions = useConversationNavigation(panes.map(pane => pane.sessionId));
+  const count = activeSessionId
+    ? sessions[activeSessionId]?.unreadCount ?? 0
+    : countWorkspaceUnreadMessages(panes, sessions);
+  if (!count) return flagged ? <span data-testid="workspace-sidebar-toggle-flagged" className="absolute -end-0.5 -top-0.5 h-2 w-2 rounded-full bg-wc-accent" /> : null;
+  return activeSessionId
+    ? <span className="rounded-full bg-wc-accent px-1.5 py-0.5 text-[10px] font-semibold text-wc-accent-fg">{count}</span>
+    : <span data-testid="workspace-sidebar-toggle-unread" className="absolute -end-1 -top-1 min-w-4 rounded-full bg-wc-accent px-1 text-[10px] font-semibold leading-4 text-wc-accent-fg">{count > 99 ? "99+" : count}</span>;
 }

@@ -66,8 +66,8 @@ describe("MachineList", () => {
       <MachineList
         fleet={fleet([
           machine({ target: { id: "local", kind: "local", label: "this", available: false }, heartbeatAgeSeconds: 0, manageable: false }),
-          machine({ target: { id: "bridge-node:new", label: "new", available: false }, heartbeatAgeSeconds: 0 }),
-          machine({ target: { id: "bridge-node:lost", label: "lost", available: false, recovery_action: "Restart the agent" }, heartbeatAgeSeconds: 90 }),
+          machine({ target: { id: "bridge-node:new", kind: "bridge-node", label: "new", available: false }, heartbeatAgeSeconds: 0 }),
+          machine({ target: { id: "bridge-node:lost", kind: "bridge-node", label: "lost", available: false, recovery_action: "Restart the agent" }, heartbeatAgeSeconds: 90 }),
         ])}
         loading={false}
         refreshing={false}

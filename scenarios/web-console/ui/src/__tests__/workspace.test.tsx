@@ -80,7 +80,7 @@ const { mockSyncPaneUpdate, mockSyncPaneOrder } = vi.hoisted(() => ({
   mockSyncPaneOrder: vi.fn(),
 }));
 const { mockVoiceInputState, voiceTranscriptCapture } = vi.hoisted(() => ({
-  voiceTranscriptCapture: { callback: null as null | ((text: string) => void) },
+  voiceTranscriptCapture: { renders: 0, callback: null as null | ((text: string) => void) },
   mockVoiceInputState: {
     supported: true,
     backend: "whisper",
@@ -148,6 +148,8 @@ vi.mock("../hooks/useSessionManager", () => ({
   }),
 }));
 
+vi.mock("../hooks/useConversationHydration", () => ({ useConversationHydration: vi.fn() }));
+
 vi.mock("../hooks/useWorkspaceSync", () => ({
   useWorkspaceSync: () => ({
     syncActivePane: vi.fn(),
@@ -165,6 +167,7 @@ vi.mock("../hooks/useTouchControls", () => ({
 
 vi.mock("../audio-integration", () => ({
   useScenarioVoiceInput: (onTranscript: (text: string) => void) => {
+    voiceTranscriptCapture.renders++;
     voiceTranscriptCapture.callback = onTranscript;
     return mockVoiceInputState;
   },
@@ -399,6 +402,31 @@ describe("Workspace", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  it("keeps background message updates inside navigation without rendering Workspace", async () => {
+    const other = { ...mockSession, id: "background" };
+    hookState.panes = [{ session: mockSession }, { session: other }];
+    mockStoreState.panes = [
+      { sessionId: mockSession.id, name: "Active", headerColor: "transparent" },
+      { sessionId: other.id, name: "Background", headerColor: "transparent" },
+    ];
+    mockStoreState.activePane = mockSession.id;
+    mockStoreState.displayMode = "sidebar";
+    useConversationStore.setState({ sessions: {
+      [mockSession.id]: createConversationSessionState(),
+      [other.id]: createConversationSessionState(),
+    } });
+    render(<Workspace />);
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 100)); });
+    const before = voiceTranscriptCapture.renders;
+    act(() => useConversationStore.getState().appendEvent({
+      ...conversationEvent(other.id, 1), text: "Fresh background reply",
+    }));
+    expect(screen.getByText("Fresh background reply")).toBeInTheDocument();
+    expect(voiceTranscriptCapture.renders).toBe(before);
+    act(() => useConversationStore.getState().updateEvent(other.id, `${other.id}-1`, { speechParagraphs: ["Changed speech"] }));
+    expect(voiceTranscriptCapture.renders).toBe(before);
   });
 
   // --- Empty state ---

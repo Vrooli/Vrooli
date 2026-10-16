@@ -24,16 +24,18 @@ import (
 // Resolution is the resolved install plan for a request: where it runs, which
 // manager, the manifest it mutates, and the exact argv.
 type Resolution struct {
-	RepositoryRoot  string
-	SurfaceRoot     string
-	PackageManager  string
-	ManifestPath    string
-	PackageName     string
-	TemplateVersion string
-	PythonLockfiles []string
-	PythonIndexSets map[string]pythonIndexSet
-	Argv            []string
-	Profile         InstallProfile
+	RepositoryRoot        string
+	SurfaceRoot           string
+	PackageManager        string
+	ManifestPath          string
+	PackageName           string
+	TemplateVersion       string
+	ExactVersion          bool
+	GeneratedManifestPath string
+	PythonLockfiles       []string
+	PythonIndexSets       map[string]pythonIndexSet
+	Argv                  []string
+	Profile               InstallProfile
 }
 
 // InstallProfile records the security properties of a governed mutation. It
@@ -68,7 +70,11 @@ func ValidateProtectedBuildException(exception ProtectedBuildException) error {
 // string to a shell.
 func (r Resolution) Command() string {
 	if r.TemplateVersion != "" {
-		return "declare " + r.PackageName + "@" + r.TemplateVersion + " and regenerate the template lockfile in a temporary scenario surface"
+		qualifier := ""
+		if r.ExactVersion {
+			qualifier = " exactly"
+		}
+		return "declare " + r.PackageName + "@" + r.TemplateVersion + qualifier + " and regenerate the template lockfile in a temporary scenario surface"
 	}
 	if len(r.PythonLockfiles) > 0 {
 		return "uv pip compile --only-binary :all: --generate-hashes " + r.PackageName + " into " + strings.Join(baseNames(r.PythonLockfiles), ", ")
@@ -185,19 +191,53 @@ func Resolve(repoRoot, scenario, surface, ecosystem, packageName, version string
 		}
 		templateVersion = version
 	}
+	generatedManifestPath := ""
+	if templateVersion != "" && scenario == "scenario-to-desktop" && surface == "template/vanilla" && (packageName == "electron" || packageName == "electron-mksnapshot") {
+		generatedManifestPath = filepath.Join(surfaceRoot, "package.json.template")
+	}
 	return Resolution{
-		TemplateVersion: templateVersion,
-		PythonLockfiles: pythonLockfilesFor(surfaceRoot, manager),
-		PythonIndexSets: pythonIndexSetsFor(surfaceRoot, manager),
-		RepositoryRoot:  repoRoot,
-		SurfaceRoot:     surfaceRoot,
-		PackageManager:  manager,
-		ManifestPath:    manifest,
-		PackageName:     packageName,
-		Argv:            argv,
-		Profile:         SafeProfileFor(manager, argv),
+		TemplateVersion:       templateVersion,
+		GeneratedManifestPath: generatedManifestPath,
+		PythonLockfiles:       pythonLockfilesFor(surfaceRoot, manager),
+		PythonIndexSets:       pythonIndexSetsFor(surfaceRoot, manager),
+		RepositoryRoot:        repoRoot,
+		SurfaceRoot:           surfaceRoot,
+		PackageManager:        manager,
+		ManifestPath:          manifest,
+		PackageName:           packageName,
+		Argv:                  argv,
+		Profile:               SafeProfileFor(manager, argv),
 	}, nil
 }
+
+// ApplyExactVersion adds the package manager's exact-save option to a resolved
+// install. Template installs also project the same version into the generated
+// Electron app manifest through installTemplate.
+func ApplyExactVersion(r *Resolution, version string) error {
+	if r == nil {
+		return fmt.Errorf("install resolution is required")
+	}
+	version = strings.TrimSpace(version)
+	if !exactNpmVersion.MatchString(version) {
+		return fmt.Errorf("exact version requires a concrete semantic version")
+	}
+	var flag string
+	switch r.PackageManager {
+	case "npm":
+		flag = "--save-exact"
+	case "pnpm":
+		flag = "--save-exact"
+	case "yarn":
+		flag = "--exact"
+	default:
+		return fmt.Errorf("exact package pinning is not supported for %s installs", r.PackageManager)
+	}
+	r.Argv = append(r.Argv, flag)
+	r.ExactVersion = true
+	return nil
+}
+
+var exactNpmVersion = regexp.MustCompile(`^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$`)
 
 func SafeProfileFor(manager string, argv []string) InstallProfile {
 	profile := InstallProfile{Governance: "scenario-dependency-analyzer", LifecycleMode: "native-governed"}

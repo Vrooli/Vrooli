@@ -1,5 +1,79 @@
 # Web Console — Known Problems and Risks
 
+## 2026-10-16 — Large video blocked inside HTML previews (W3)
+
+**RESOLVED (bounded implementation repair):** The operator could see the new
+Aquila film's poster but could not play its 33,949,998-byte MP4 in the report.
+The HTML runtime applied its 16 MiB presentation-resource cap to media. A HEAD
+request through the live UI proxy returned **413**; the direct blob transport
+already supported large files. This localized mismatch justified W3 repair;
+no missing product contract or traceability audit was inferred.
+
+The competing proxy-buffering and codec hypotheses did not explain the 413:
+the proxy pipes responses and the H264/AAC film plays after the runtime cap is
+removed for allowed audio/video. Non-media resources keep the 16 MiB limit.
+Both preview byte routes stream from disk with native HEAD/ranges. Their writes
+renew the 150-second response deadline per chunk, so ongoing large transfers
+are not cut off by a total-response budget. Session binding, directory/symlink
+confinement, stale-file checks, sandbox policy, and preview expiry remain enforced.
+
+Evidence: regressions first failed with 413 for every embedded media fixture
+while the same direct blob tests passed. All 18 focused file-preview tests now
+pass, including 5 GiB files, suffix/late ranges beyond 4 GiB, 416 responses,
+non-media rejection, and a real HTTP stream spanning multiple write budgets.
+The internal resolver/store suite also passed. Live Chrome verification used
+the production HTML document helper, its `allow-scripts` sandbox, and the UI
+proxy: the actual Aquila film played and sought to 40 seconds. A valid sparse
+5,368,773,026-byte H264 MP4 played and sought to 4 seconds; Chrome fetched its
+metadata at byte 5,368,741,888 with **206**. The sparse fixture contains a large
+`free` box, not five gigabytes of encoded frames; only 69,632 disk bytes were
+allocated. This proves browser/transport handling of large lengths and offsets.
+
+Regression lesson: standalone report hosting bypassed this runtime limit.
+Future report QA must include playback through web-console's preview route.
+Retained limitation: preview IDs expire after 30 minutes; reopening resolves a
+new ID. This repair removes the media size cap, not that separate expiry policy.
+
+Evidence directory:
+`~/.vrooli/plan-artifacts/efforts/product-video-research-2026-10-15/web-console-large-video-2026-10-16/`.
+The broader API run found unrelated catalogue/documentation failures and a
+server-construction fixture that accesses real host sessions/legacy storage.
+Filed through `report-bug` as **knw-1792125249934722814**,
+**knw-1792125250578899496**, and **knw-1792125249221022524**, respectively.
+The current canonical live database is separate from the legacy path mentioned
+by that test; no claim of live data loss is made.
+Scoped Test Genie unit run **20261016-042955-006b9b41** returned **FAIL**, with
+test-command failures and UI render-policy findings; it is not a
+passing scenario-wide certificate. Final changed-code regressions and live
+browser assertions above passed independently.
+
+## 2026-10-15–16 — Long-session UI performance (W3)
+
+Implemented and measured against the real 574-message heartbeat investigation.
+Collapsed previews are bounded without losing full reader/copy/export text; row
+measurement consumes delivered resize boxes; find/search avoids duplicate work;
+one event-aware snippet handler replaces a per-event callback cache. RCL canvas
+styles now use the existing LayerManager lifecycle flag instead of root `:has`
+queries. Governed releases: LayerManager 2.0.2, BottomSheet 1.3.5, FullPageDrawer
+1.4.5, ResponsiveDialog 1.3.5; adopted through Scenario Dependency Analyzer.
+
+Desktop MessagesPane average commit: **3.1 → 2.4ms**. Mobile long tasks:
+**1,186 → 581 / 612ms**; mounted transcript nodes **2,186 → 1,249**. Captures
+match the session, final scroll position and 23,998-character reader content.
+Final focused checks: **216 Web Console + 5 library tests PASS**. Native mobile
+search/account canvas colors agree across html/body/panel; guarded navigation,
+long-reader inspection and restored unsent draft produce no prohibited attempts
+or page errors. Ordinary production runtime is restored and healthy.
+
+Retained debt: scoped Performance phase **20261016-040746-e5211c49 FAIL** on
+Lighthouse **49 < 75**. Cold loading remains expensive; the owner also ignores
+the configured desktop measurement settings (**knw-1792123967704779496**).
+Existing machine/desktop fixture type-check errors remain. Desktop voice toolbar
+overlap filed as **knw-1792123204122572156**. No sessions were created, messages
+sent, or conversations archived/deleted. See
+[full evidence and limits](../perf/2026-10-15-long-session-performance.md).
+Work record: **67b8f5d5-e3be-420c-861a-626815e05689**.
+
 ## 2026-10-15 — Keyboard spacing and launch continuity (W3)
 
 Operator confirms the bottom-overlap repair is fixed on the phone and GCT
@@ -1126,3 +1200,24 @@ then re-run the canonical command.
 ## 2026-10-14T03:10:31.675440+00:00 — Interactive stable-create has no authenticated creator owner
 
 Original Nooch E30 and Desktop E3 native admissions failed before worker prompt/session Create with `web-console stable-create identity unsupported; no Create submitted`. Read-only SessionsService/List on live WC reports supportsStableCreateIdentity=true and stableCreateOwner empty, matching AM wiring NewClient(baseURL,nil). WC List derives creator owner from verified PrincipalFromContext; the transport supplies none. No session-store capability absence is established. Preserve stable UUID/owner/fingerprint checks and do not substitute an execution mode, invent a principal, drop an offered credential or restart as proof. Required owner boundary: carry a verified authorized session-creator principal through the registered native route; qualify stable create, uncertain-result get-by-ID owner/fingerprint readback, conflict refusal, original interactive prompt delivery and existing-session preservation. Existing reports: Desktop knw-1791945836169396257, Nooch knw-1791946783491615210. Evidence: docs/internal/delivery-operations/2026-10-12/sources/execution-evidence/2026-10-13/web-console-stable-create-capability.json. Shared AM identity correction is source/serving/consumer-qualified and final unit 20261014-024937-9072cd54 PASS; this is a separate remaining boundary.
+
+
+## 2026-10-16 — Authorized performance follow-up repairs (W3)
+
+Follow-up to the long-session audit above: corrected the Lighthouse owner device
+settings; prioritized/shared history loading with two background workers; moved
+conversation subscriptions into navigation and selected-session playback; deferred
+closed settings/appearance/fleet/archive surfaces; reserved navigation clearance
+for floating controls; repaired machine/desktop fixture types. No thresholds or
+real-session mutation permissions changed. The original audit's retained-debt
+paragraph is historical; current evidence and remaining limits are in the
+[follow-up audit](../perf/2026-10-15-long-session-performance.md#authorized-follow-up-implementation--2026-10-16).
+
+Evidence so far: the original implementation fails regressions for background
+Workspace renders and duplicate/unbounded startup loads; 119 focused tests now
+pass; full type-check and touched-production lint pass. Guarded deployed baseline
+observed 31 concurrent history requests, 32 requests for 31 sessions. Unit phases
+`20261016-131742-facec4ac` (Web Console) and `20261016-131741-30ff3215`
+(Performance Health) are owned by Test Genie; final deployed evidence follows in
+the audit. Physical iPhone validation has no verified authorized device route:
+bridge inventory returned unauthenticated. Browser emulation is not physical proof.

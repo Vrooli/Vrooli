@@ -6,7 +6,44 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/identity"
+	"prompt-manager/internal/teamconfig"
 )
+
+func preparationActor() identity.Principal {
+	return identity.Principal{Kind: identity.ActorAgent, Subject: "creator-run", Owner: "owner", Source: identity.SourceAgentProvenance, Verified: true, Scopes: []string{"prompt-manager:write"}}
+}
+
+// preparationFixture creates a team "draft" with (attributed=true) or without
+// (attributed=false) a verified creation proof, isolating the creator-ownership
+// gate from the finite machinery that formerly shared this helper.
+func preparationFixture(t *testing.T, attributed bool) (*FileTeamStore, context.Context, struct{}) {
+	t.Helper()
+	s := setupStateTestStore(t)
+	ctx := identity.WithPrincipal(context.Background(), preparationActor())
+	team, err := s.Get(context.Background(), "team-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	team.ID = "draft"
+	team.Enabled = false
+	team.Purpose = "delivery"
+	team.Lifetime = "finite"
+	team.EffortRefs = []string{"new:arbitrary-effort"}
+	team.Coordination.Pattern = teamconfig.CoordinationPatternLeaderLed
+	team.Coordination.LeadAgentID = "leader"
+	team.Coordination.ReportingMode = teamconfig.ReportingModeLeader
+	team.Execution.QueuePolicy = teamconfig.QueuePolicySerialized
+	team.Execution.MaxConcurrentRuns = 1
+	team.OperatingContract.Members["leader"] = team.OperatingContract.Members["lead"]
+	createCtx := context.Background()
+	if attributed {
+		createCtx = ctx
+	}
+	if err = s.Create(createCtx, team); err != nil {
+		t.Fatal(err)
+	}
+	return s, ctx, struct{}{}
+}
 
 // Creator-owns-while-alive: the team's own verified creator may update what it
 // created without a separate team.manage grant, but any other agent — and any

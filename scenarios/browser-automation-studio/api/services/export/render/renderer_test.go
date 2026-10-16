@@ -1,11 +1,16 @@
 package render
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"fmt"
+	"image"
+	"image/color"
+	"image/png"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 	"time"
@@ -159,16 +164,16 @@ func TestRenderCapture_ContiguousFrameNumbering(t *testing.T) {
 	dir := filepath.Dir(pattern)
 
 	for i := 0; i < 3; i++ {
-		path := filepath.Join(dir, fmt.Sprintf("frame-%05d.jpg", i))
+		path := filepath.Join(dir, fmt.Sprintf("frame-%05d.png", i))
 		if _, err := os.Stat(path); os.IsNotExist(err) {
-			t.Fatalf("expected contiguous frame-%05d.jpg to exist", i)
+			t.Fatalf("expected contiguous frame-%05d.png to exist", i)
 		}
 	}
 
 	// frame-00003 should NOT exist (only 3 valid frames: 0, 1, 2)
-	path := filepath.Join(dir, "frame-00003.jpg")
+	path := filepath.Join(dir, "frame-00003.png")
 	if _, err := os.Stat(path); err == nil {
-		t.Fatal("frame-00003.jpg should not exist — only 3 valid frames")
+		t.Fatal("frame-00003.png should not exist — only 3 valid frames")
 	}
 }
 
@@ -474,5 +479,46 @@ func newTestRenderer(t *testing.T) *ReplayRenderer {
 		exportPageURL:     "http://localhost:9999/export",
 		captureIntervalMs: 100,
 		apiBaseURL:        "http://localhost:9999",
+	}
+}
+
+// The driver returns PNG frames. Mixed image encodings must survive export.
+func TestRenderCapture_RealEncoderAcceptsPNGAndJPEG(t *testing.T) {
+	ffmpeg, err := exec.LookPath("ffmpeg")
+	if err != nil {
+		t.Skip("ffmpeg is required for the replay encoding regression")
+	}
+	var buf bytes.Buffer
+	img := image.NewRGBA(image.Rect(0, 0, 320, 240))
+	for y := 0; y < 240; y++ {
+		for x := 0; x < 320; x++ {
+			img.Set(x, y, color.RGBA{uint8(x), uint8(y), 80, 255})
+		}
+	}
+	if err := png.Encode(&buf, img); err != nil {
+		t.Fatal(err)
+	}
+	pngData := base64.StdEncoding.EncodeToString(buf.Bytes())
+	for _, tc := range []struct {
+		name   string
+		frames []captureFrame
+	}{
+		{"driver-png", []captureFrame{{Data: pngData}, {Data: pngData}}},
+		{"mixed-capture", []captureFrame{{Data: pngData}, {Data: makeJPEGBase64(t, 320, 240)}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			r := newTestRenderer(t)
+			r.captureClient = &stubCaptureClient{response: &captureResponse{Frames: tc.frames}}
+			r.videoEncoder = NewFFmpegEncoder(ffmpeg)
+			spec := &ReplayMovieSpec{Playback: &exportsv1.ReplayPlayback{FrameIntervalMs: 100}, Summary: &exportsv1.ReplaySummary{TotalDurationMs: 200}, Frames: []*exportsv1.ReplayFrame{{DurationMs: 200}}}
+			media, err := r.renderCapture(t.Context(), spec, RenderFormatMP4, "native-png.mp4", 100)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer media.Cleanup()
+			if output, err := exec.Command(ffmpeg, "-v", "error", "-i", media.Path, "-f", "null", "-").CombinedOutput(); err != nil {
+				t.Fatalf("export must fully decode: %v: %s", err, output)
+			}
+		})
 	}
 }

@@ -380,6 +380,11 @@ func (o *Orchestrator) RequestAuthorization(ctx context.Context, req Authorizati
 			return nil, err
 		}
 	}
+	// Push the operator to the review UI for this pending interactive request
+	// (gap G3). Best-effort: the durable request already stands, so a publish
+	// failure never fails the request. It issues no authority — approval still
+	// requires the operator's live verified login via ApproveAuthorization.
+	o.NotifyAuthorizationRequested(ctx, grant)
 	return grant, nil
 }
 
@@ -538,8 +543,8 @@ func (o *Orchestrator) ApproveAuthorization(ctx context.Context, id uuid.UUID) (
 		if run == nil || run.Status.IsTerminal() || !cliutil.ProcessDescendsFrom(run.RunnerPID, g.Binding) || run.OwnerSubject != p.Subject {
 			return nil, errors.New("run is not live and bound to this owner and process")
 		}
-		if run.ParentRunID != nil || (run.ResolvedConfig != nil && run.ResolvedConfig.Admission != nil && run.ResolvedConfig.Admission.Effort != nil) {
-			return nil, errors.New("finite or delegated runs retain their original authority; interactive grants cannot replace it")
+		if run.ParentRunID != nil {
+			return nil, errors.New("delegated runs retain their original authority; interactive grants cannot replace it")
 		}
 		if run.ExecutionMode.Normalized() != domain.ExecutionModeAttached {
 			if run.ResolvedConfig == nil || run.ResolvedConfig.Admission == nil || run.ResolvedConfig.Admission.FrozenIdentityScopes == nil {

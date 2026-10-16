@@ -133,11 +133,6 @@ func (h *connectHandler) Create(ctx context.Context, req *connect.Request[sessio
 	if cfAccess := strings.TrimSpace(req.Header().Get("Cf-Access-Jwt-Assertion")); cfAccess != "" {
 		in.HumanOwnerCredentials = append(in.HumanOwnerCredentials, cfAccess)
 	}
-	pKind, pOK := "none", false
-	if p, ok := identity.PrincipalFromContext(ctx); ok {
-		pOK, pKind = true, string(p.Kind)
-	}
-	h.deps.Logger.Printf("[phase5-diag] session-delegation connect principalOK=%t principalKind=%s credentialCandidates=%d", pOK, pKind, len(in.HumanOwnerCredentials))
 	if req.Msg.GetHasPolicy() && req.Msg.GetPolicy() != nil {
 		in.HasPolicy = true
 		in.Policy = Policy{
@@ -149,7 +144,6 @@ func (h *connectHandler) Create(ctx context.Context, req *connect.Request[sessio
 	if err != nil {
 		return nil, h.classify(err, "sessions.Create")
 	}
-	h.deps.Logger.Printf("[phase5-diag] session-delegation create returned session=%s", sess.ID)
 	return connect.NewResponse(&sessionsv1.CreateResponse{Session: sessionToProto(sess)}), nil
 }
 

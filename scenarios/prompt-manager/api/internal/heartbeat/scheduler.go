@@ -14,8 +14,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vrooli/api-core/effortauthority"
-
 	"prompt-manager/internal/store"
 	"prompt-manager/internal/teamconfig"
 
@@ -73,9 +71,6 @@ type Scheduler struct {
 
 // NewScheduler creates a new heartbeat scheduler
 func NewScheduler(executor HeartbeatExecutor, agentClient AgentClient, configStore HeartbeatConfigStore, teamExecStore *TeamExecutionStore) *Scheduler {
-	if e, ok := executor.(*Executor); ok && e.teamStore != nil && teamExecStore != nil {
-		e.FiniteLeader = &FiniteLeaderRuntime{Executor: e, Queue: teamExecStore}
-	}
 	var teamStore TeamStateStore
 	if teams, ok := configStore.(TeamStateStore); ok {
 		teamStore = teams
@@ -107,9 +102,6 @@ func (s *Scheduler) SetControlStore(controlStore *HeartbeatControlStore) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.controlStore = controlStore
-	if e, ok := s.executor.(*Executor); ok && e.FiniteLeader != nil {
-		e.FiniteLeader.Control = controlStore
-	}
 }
 
 // Start begins the scheduler
@@ -181,7 +173,6 @@ func (s *Scheduler) Schedule(teamID, agentID, schedule string) error {
 	}
 
 	key := makeKey(teamID, agentID)
-	schedule = s.effectiveSchedule(teamID, agentID, schedule)
 
 	// Remove existing schedule if any
 	if existing, ok := s.scheduled[key]; ok {
@@ -230,19 +221,6 @@ func (s *Scheduler) Schedule(teamID, agentID, schedule string) error {
 		teamID, agentID, schedule, nextRun.Format(time.RFC3339))
 
 	return nil
-}
-
-// effectiveSchedule replaces the cron for an event check-in leader with its
-// signal poll interval; every other heartbeat keeps its configured schedule.
-func (s *Scheduler) effectiveSchedule(teamID, agentID, schedule string) string {
-	if s.configStore == nil {
-		return schedule
-	}
-	cfg, err := s.configStore.GetHeartbeatConfig(context.Background(), teamID, agentID)
-	if err != nil || cfg == nil || !cfg.FiniteLeader.EventCheckins() {
-		return schedule
-	}
-	return "@every " + cfg.FiniteLeader.CheckinPollInterval().String()
 }
 
 // Unschedule removes a heartbeat schedule
@@ -383,14 +361,6 @@ func (s *Scheduler) executeHeartbeat(ctx context.Context, teamID, agentID string
 			return
 		}
 		profileKey = config.ProfileKey
-		if config.FiniteLeader != nil {
-			if executor, ok := s.executor.(*Executor); ok && executor.FiniteLeader != nil {
-				if _, err := executor.FiniteLeader.Tick(ctx, teamID, agentID); err != nil {
-					log.Printf("Finite leader tick for %s/%s: %v", teamID, agentID, err)
-				}
-			}
-			return
-		}
 	}
 
 	// Route through the team execution store so the configured queue policy is enforced.
@@ -649,23 +619,4 @@ func DefaultProfileKeyForRuntimeMode(runtimeMode string) (string, error) {
 // makeKey creates a unique key for a team/agent combination
 func makeKey(teamID, agentID string) string {
 	return teamID + "/" + agentID
-}
-
-// NewSchedulerWithFinite composes an already prepared installation before the
-// scheduler can be started. Preparation never starts a service or approves work.
-func NewSchedulerWithFinite(executor HeartbeatExecutor, agentClient AgentClient, configStore HeartbeatConfigStore, teamExecStore *TeamExecutionStore, finite *PreparedFiniteInstallation) (*Scheduler, error) {
-	if finite == nil {
-		return NewScheduler(executor, agentClient, configStore, teamExecStore), nil
-	}
-	e, ok := executor.(*Executor)
-	if !ok || e.teamStore == nil || teamExecStore == nil || e.FiniteLeader != nil {
-		return nil, effortauthority.ErrRefused
-	}
-	runtime := &FiniteLeaderRuntime{Executor: e, Queue: teamExecStore}
-	if err := finite.Apply(runtime); err != nil {
-		return nil, err
-	}
-	scheduler := NewScheduler(executor, agentClient, configStore, teamExecStore)
-	e.FiniteLeader = runtime
-	return scheduler, nil
 }

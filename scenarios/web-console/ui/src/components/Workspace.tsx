@@ -1,8 +1,8 @@
 // DOC: docs/concepts/ARCHITECTURE.md#system-layers
 // DOC: docs/internal/SEAMS.md#1-entry-presentation
-import { Profiler, useState, useCallback, useEffect, useMemo, useRef, type ChangeEvent } from "react";
+import { lazy, Profiler, useState, useCallback, useEffect, useMemo, useRef } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
-import { CircleUserRound, Loader2, Menu, MessageSquareText, MonitorSmartphone, Plus, Settings, TerminalSquare, X } from "lucide-react";
+import { CircleUserRound, Menu, MessageSquareText, MonitorSmartphone, Plus, Settings, TerminalSquare } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
@@ -41,7 +41,6 @@ import type { LaunchOptions } from "./TerminalLauncher";
 import ErrorBanner from "./ErrorBanner";
 import GridSplitter from "./GridSplitter";
 import TerminalLauncher from "./TerminalLauncher";
-import FleetDrawer from "./fleet/FleetDrawer";
 import MobileToolbar from "./MobileToolbar";
 import type { MobileToolbarHandle } from "./MobileToolbar";
 import AiInput from "./AiInput";
@@ -73,27 +72,25 @@ import {
   useSessionRecoveryBanner,
 } from "./banners/useRecoveryBanners";
 import WorkspaceMinimap from "./WorkspaceMinimap";
-import SettingsModal from "./SettingsModal";
-import AppearanceModal from "./AppearanceModal";
+import DeferredSurface from "./DeferredSurface";
 import ManageGroupsDrawer from "./ManageGroupsDrawer";
 import CloseGroupDialog from "./CloseGroupDialog";
-import HandoffComposer from "./handoff/HandoffComposer";
+import { WorkspaceHandoffComposer } from "./handoff/HandoffComposer";
 import type { RoleMeta } from "../stores/useWorkspaceStore";
 import GroupUndoBanner from "./GroupUndoBanner";
 import RoleMenu from "./RoleMenu";
 import { useGroupActions } from "../hooks/useGroupActions";
 import { useRoleActions } from "../hooks/useRoleActions";
-import { handoffTargetSections, sendHandoff, type HandoffTarget } from "../hooks/useHandoff";
+import { sendHandoff, type HandoffTarget } from "../hooks/useHandoff";
 import type { GroupCreationRequest } from "./launcher/GroupModePanel";
 import { listGroupTemplates, upsertGroupTemplate } from "../api/grouptemplates";
 import { IconButton } from "@vrooli/react-component-library/IconButton";
 import { AlertDialog } from "@vrooli/react-component-library/AlertDialog/2";
 import WorkspacePaneShell from "./WorkspacePaneShell";
 import TabBar from "./TabBar";
-import SessionSidebar from "./SessionSidebar";
+import { WorkspaceSessionSidebar, WorkspaceUnreadBadge } from "./SessionSidebar";
 import { PlaybackPill, type PillState } from "./tts/PlaybackPill";
 import type { SummarizeErrorState } from "../types/summarize";
-import ArchiveDrawer from "./ArchiveDrawer";
 import TopSafeArea from "./TopSafeArea";
 import { useConversationStore } from "../stores/useConversationStore";
 import { useMessagesViewStore, type PaneViewMode } from "../stores/useMessagesViewStore";
@@ -105,8 +102,12 @@ import { getTransport, usePlaybackPaused } from "../domains/tts-playback/transpo
 import { useTtsPlaybackController } from "../domains/tts-playback/useTtsPlaybackController";
 import { setupMediaSession } from "../domains/tts-playback/mediaSession";
 import { isTabLikeDisplayMode } from "../lib/workspaceDisplayMode";
-import { buildWorkspaceNavigationItems, buildOriginBucketedNavigation, buildSessionActivity, countWorkspaceUnreadMessages } from "../lib/workspaceNavigation";
 import { useTabLikeNavigationShortcuts } from "../hooks/useTabLikeNavigationShortcuts";
+
+const FleetDrawer = lazy(() => import("./fleet/FleetDrawer"));
+const SettingsModal = lazy(() => import("./SettingsModal"));
+const AppearanceModal = lazy(() => import("./AppearanceModal"));
+const ArchiveDrawer = lazy(() => import("./ArchiveDrawer"));
 
 type ActiveResize = {
   axis: "column" | "row";
@@ -291,14 +292,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   const pendingHandoffBySessionRef = useRef<Map<string, string>>(new Map());
   // The role a just-started session belongs to, attached when its pane lands.
   const pendingRoleBySessionRef = useRef<Map<string, string>>(new Map());
-  const conversationState = useConversationStore(useShallow((state) => ({
-    sessions: state.sessions,
-    clearSession: state.clearSession,
-  })));
-  const {
-    sessions: conversationSessions,
-    clearSession: clearConversationSession,
-  } = conversationState;
+  const clearConversationSession = useConversationStore(state => state.clearSession);
   // Per-session view mode is persisted (useMessagesViewStore) so a reload
   // returns each pane to the view it was in.
   const conversationViewModes = useMessagesViewStore((state) => state.viewModes);
@@ -315,6 +309,21 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     }).catch(() => {});
     return () => { cancelled = true; };
   }, []);
+
+  const [toolbarTopInset, setToolbarTopInset] = useState(48);
+  const chromeObserver = useRef<ResizeObserver | null>(null);
+  const measureTopChrome = useCallback((element: HTMLDivElement | null) => {
+    chromeObserver.current?.disconnect();
+    chromeObserver.current = null;
+    if (!element) return;
+    const measure = () => { setToolbarTopInset(element.getBoundingClientRect().bottom + 48); };
+    measure();
+    if (typeof ResizeObserver !== "undefined") {
+      chromeObserver.current = new ResizeObserver(measure);
+      chromeObserver.current.observe(element);
+    }
+  }, []);
+  useEffect(() => () => chromeObserver.current?.disconnect(), []);
 
   const gridRef = useRef<HTMLDivElement>(null);
   const sidebarLayoutRef = useRef<HTMLDivElement>(null);
@@ -431,7 +440,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   const fetchDefaults = useCallback(() => {
     getSessionDefaults().then((d) => {
       if (d.default_backend) setDefaultBackend(d.default_backend as BackendID);
-      if (d.default_policy) setDefaultPolicy(d.default_policy);
+      setDefaultPolicy(d.default_policy);
     }).catch(() => {});
   }, []);
   // Fetch on mount to avoid the "standard" initial state persisting.
@@ -618,7 +627,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
         if (shouldActivate) pendingActivePaneRef.current = null;
         const pendingGroupId = pendingGroupBySessionRef.current.get(sp.session.id) ?? null;
         if (pendingGroupId) pendingGroupBySessionRef.current.delete(sp.session.id);
-        addWorkspacePane(sp.session.id, sp.session.shell ?? "terminal", shouldActivate, sp.supportsMessagesView, sp.ephemeral);
+        addWorkspacePane(sp.session.id, sp.session.shell, shouldActivate, sp.supportsMessagesView, sp.ephemeral);
         if (pendingGroupId) {
           setWorkspacePaneGroup(sp.session.id, pendingGroupId);
         }
@@ -634,7 +643,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
         const { panes: afterAdd, activePane: activeAfterAdd } = useWorkspaceStore.getState();
         const created = afterAdd.find((pane) => pane.sessionId === sp.session.id);
         syncPaneUpdate(sp.session.id, {
-          name: sp.session.shell?.split("/").pop() ?? "terminal",
+          name: sp.session.shell.split("/").pop() ?? "terminal",
           header_color: created?.headerColor ?? workspace.defaultHeaderColor,
           theme_id: workspace.defaultThemeId,
           font_size: workspace.defaultFontSize,
@@ -778,19 +787,6 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     });
   }, []);
 
-  const handoffTargetSectionsForSource = useMemo(() => {
-    if (!handoffState) return [];
-    const pane = workspacePanes.find((p) => p.sessionId === handoffState.sourceSessionId);
-    // Activity is computed here rather than inside the builder because it
-    // lives in THIS component's state, not the workspace store — the builder
-    // reading the store alone is why every target row used to be a bare name.
-    return handoffTargetSections(
-      handoffState.sourceSessionId,
-      pane?.groupId ?? null,
-      buildSessionActivity(workspacePanes, conversationSessions, lastVisitedBySession),
-    );
-  }, [handoffState, workspacePanes, conversationSessions, lastVisitedBySession]);
-
   /**
    * Deliver a handoff.
    *
@@ -829,7 +825,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
           markPendingIntents();
         },
       }),
-    [availableTargets, handoffState?.sourceSessionId, launchSession, markPendingIntents, submitToActiveTerminal],
+    [availableTargets, launchSession, markPendingIntents, submitToActiveTerminal],
   );
 
   // Creating a group from inside the launcher is server-first, like every
@@ -1009,7 +1005,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
 
   // Stable callback for the (memoized) TabBar so a conversation event landing
   // in the store doesn't re-render the whole tab strip via an inline arrow.
-  const handleNewTerminal = useCallback(() => { handleLaunch(); }, [handleLaunch]);
+  const handleNewTerminal = useCallback(() => { void handleLaunch(); }, [handleLaunch]);
 
   const releaseWorkspacePane = useCallback(
     (sessionId: string) => {
@@ -1043,6 +1039,10 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     },
     [releaseWorkspacePane, removeSessionPane, workspace.panes],
   );
+
+  const requestClosePane = useCallback((sessionId: string) => { void handleRequestClose(sessionId); }, [handleRequestClose]);
+  const requestLaunch = useCallback((opts?: LaunchOptions) => { void handleLaunch(opts); }, [handleLaunch]);
+  const requestGroupFromRoles = useCallback((request: GroupCreationRequest) => { void createGroupFromRoles(request); }, [createGroupFromRoles]);
 
   const handleRetryClose = useCallback(() => {
     const target = lastCloseTargetRef.current;
@@ -1081,7 +1081,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     panes: workspacePanes,
     activePane: workspace.activePane,
     onActivatePane: activatePane,
-    onClosePane: handleRequestClose,
+    onClosePane: requestClosePane,
   });
 
   useEffect(() => {
@@ -1218,8 +1218,11 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     // the async propagation chain (useEffect in TerminalPane → Workspace
     // Set state).  Calling stop when nothing is playing is a no-op.
     stopActiveTts(workspace.activePane ?? undefined);
-    voiceInput.startRecording({ vadEnabled: vadAutoStop && opts?.vadEnabled });
+    void voiceInput.startRecording({ vadEnabled: vadAutoStop && opts?.vadEnabled });
   }, [vadAutoStop, workspace.activePane, stopActiveTts, voiceInput, markAudioIntent]);
+
+  const startRecordingOnPane = voiceInput.startRecording;
+  const startVoiceOnPane = useCallback((opts?: { vadEnabled?: boolean }) => { void startRecordingOnPane(opts); }, [startRecordingOnPane]);
 
   const handleVoiceStop = useCallback(() => {
     voiceInput.stopRecording();
@@ -1232,11 +1235,11 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   const handleVoiceCommandConfirm = useCallback((suggestion: { commandId: string; rawText: string; args: Record<string, unknown> }) => {
     voiceInput.dismissCommandSuggestion();
     // Command execution is handled by the command vocabulary in commands.ts.
-    import("../hooks/voice/commands").then(({ VOICE_COMMANDS }) => {
+    void import("../hooks/voice/commands").then(({ VOICE_COMMANDS }) => {
       const cmd = VOICE_COMMANDS.find((c) => c.id === suggestion.commandId);
       if (!cmd) return;
       cmd.execute({
-        createTab: () => handleLaunch(),
+        createTab: () => { void handleLaunch(); },
         switchToTab: (index: number) => {
           const pane = workspacePanes[index - 1];
           if (pane) setActiveWorkspacePane(pane.sessionId);
@@ -1407,7 +1410,6 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   }, []);
 
   const ttsPlaybackController = useTtsPlaybackController({
-    conversationSessions,
     activePaneId: workspace.activePane,
     autoTtsEnabled: workspace.autoTtsEnabled,
     audioState: { isSpeaking: isTtsSpeaking, isPaused: isTtsPaused },
@@ -1461,10 +1463,10 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     if (!mediaSession || !isTtsSpeaking || !workspace.activePane) return;
     const sessionId = workspace.activePane;
     const eventId = ttsPlaybackController.activeEventId;
-    const event = eventId ? conversationSessions[sessionId]?.events.find((candidate) => candidate.id === eventId) : undefined;
+    const event = eventId ? useConversationStore.getState().sessions[sessionId]?.events.find((candidate) => candidate.id === eventId) : undefined;
     const transport = getTransport(sessionId);
     return setupMediaSession(mediaSession, {
-      title: event?.text?.slice(0, 120) || "Assistant reply",
+      title: event?.text.slice(0, 120) || "Assistant reply",
       artist: event?.source || "Vrooli",
       album: "Vrooli conversation",
       isPaused: isTtsPaused,
@@ -1472,8 +1474,8 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
       currentTime: transport?.currentTime ?? 0,
       playbackRate: transport?.playbackRate ?? 1,
       handlers: {
-        play: () => ttsPlaybackController.resumePlayback(sessionId),
-        pause: () => ttsPlaybackController.pausePlayback(sessionId),
+        play: () => { ttsPlaybackController.resumePlayback(sessionId); },
+        pause: () => { ttsPlaybackController.pausePlayback(sessionId); },
         stop: handleTtsStop,
         // Seeks read the position when pressed, not when the session was set up.
         seekbackward: () => { handleTtsSeek(Math.max(0, (getTransport(sessionId)?.currentTime ?? 0) - 10)); },
@@ -1481,11 +1483,11 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
           const now = getTransport(sessionId);
           handleTtsSeek(Math.min(now?.duration ?? Infinity, (now?.currentTime ?? 0) + 10));
         },
-        previoustrack: () => ttsPlaybackController.previousTrack(sessionId),
-        nexttrack: () => ttsPlaybackController.nextTrack(sessionId),
+        previoustrack: () => { ttsPlaybackController.previousTrack(sessionId); },
+        nexttrack: () => { ttsPlaybackController.nextTrack(sessionId); },
       },
     });
-  }, [conversationSessions, handleTtsSeek, handleTtsStop, isTtsPaused, isTtsSpeaking, ttsPlaybackController, workspace.activePane]);
+  }, [handleTtsSeek, handleTtsStop, isTtsPaused, isTtsSpeaking, ttsPlaybackController, workspace.activePane]);
 
   const handlePaneToggleView = useCallback((sessionId: string, viewMode: PaneViewMode) => {
     setConversationViewMode(sessionId, viewMode === "terminal" ? "messages" : "terminal");
@@ -1655,49 +1657,6 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   // Compute layout
   const orderedPanes = workspacePanes;
 
-  // NOTE ON PLACEMENT: everything from here to `sidebarUnreadCount` must stay
-  // ABOVE this component's early returns (`!isHydrated`, no panes). These are
-  // hooks; below those returns they would run only on some renders and break
-  // React's hook order.
-  //
-  // The navigation builders scan every event of every pane (latest event per
-  // session, unread counts). They ran on EVERY render of this component, and
-  // live conversation traffic renders it many times a second. Their inputs are
-  // really just the panes, each session's latest sequence and unread count,
-  // and the view/sort settings — so this O(panes) signature decides when the
-  // scan has to run again. Both values it reads are maintained by the
-  // conversation store, so neither costs an event walk.
-  const conversationSignature = orderedPanes
-    .map((pane) => {
-      const session = conversationSessions[pane.sessionId];
-      return `${pane.sessionId}:${String(session?.maxSequence ?? 0)}:${String(session?.unreadCount ?? 0)}:${String(pane.manuallyUnread)}`;
-    })
-    .join("|");
-  // Activity labels are relative ("2m ago"). They used to refresh as a side
-  // effect of the constant re-rendering; now that the builders are memoized
-  // they need a tick of their own, which costs one render a minute.
-  const [activityMinute, setActivityMinute] = useState(() => Math.floor(Date.now() / 60_000));
-  useEffect(() => {
-    const timer = setInterval(() => { setActivityMinute(Math.floor(Date.now() / 60_000)); }, 60_000);
-    return () => { clearInterval(timer); };
-  }, []);
-
-  const navigationItems = useMemo(() => buildWorkspaceNavigationItems({
-    panes: orderedPanes,
-    groups: workspace.groups ?? [],
-    roles: workspace.roles,
-    activePane: workspace.activePane,
-    conversationSessions,
-    viewModes: conversationViewModes,
-    lastVisitedBySession,
-    sortMode: workspace.sidebarSortMode,
-  }),
-  // `conversationSessions` is deliberately absent: `conversationSignature` is
-  // its load-bearing summary here, and depending on the map itself would
-  // rebuild on every store write — the exact cost this memo removes.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  [activityMinute, conversationSignature, conversationViewModes, lastVisitedBySession, orderedPanes, workspace.activePane, workspace.groups, workspace.roles, workspace.sidebarSortMode]);
-
   // Provenance per session for the origin-bucketed sidebar. Origin lives on the
   // session (not the workspace pane metadata), so it comes from the session
   // manager's pane list rather than the store.
@@ -1707,31 +1666,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     return provenance;
   }, [sessionPanes]);
 
-  const sidebarOriginBuckets = useMemo(() => buildOriginBucketedNavigation({
-    panes: orderedPanes,
-    groups: workspace.groups ?? [],
-    roles: workspace.roles,
-    activePane: workspace.activePane,
-    conversationSessions,
-    viewModes: conversationViewModes,
-    lastVisitedBySession,
-    sortMode: workspace.sidebarSortMode,
-    originBySession,
-  }),
-  // Same contract as navigationItems above.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  [activityMinute, conversationSignature, conversationViewModes, lastVisitedBySession, orderedPanes, originBySession, workspace.activePane, workspace.groups, workspace.roles, workspace.sidebarSortMode]);
-
-  const activeNavigationItem = navigationItems.find(
-    (item) => item.kind === "pane" && item.pane.sessionId === workspace.activePane,
-  );
-  const activeSidebarPane = activeNavigationItem?.kind === "pane" ? activeNavigationItem : null;
-  const sidebarUnreadCount = useMemo(
-    () => countWorkspaceUnreadMessages(orderedPanes, conversationSessions),
-    // Same contract as navigationItems above.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [conversationSignature, orderedPanes],
-  );
+  const activeSidebarPane = orderedPanes.find(pane => pane.sessionId === workspace.activePane);
 
   // Single SSE subscription for the whole app: conversation events + unread
   // updates for ALL sessions flow here, decoupled from any terminal WS. Auto-
@@ -1757,7 +1692,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   });
   // Keep every session's conversation hydrated for badges even when its
   // terminal pane is unmounted (offscreen panes no longer hydrate themselves).
-  useConversationHydration(orderedPanes.map((pane) => pane.sessionId));
+  useConversationHydration(orderedPanes.map((pane) => pane.sessionId), workspace.activePane);
 
   // --- Warm set: which sessions stay MOUNTED in tab-like modes ---
   // The core scaling fix: instead of mounting all N panes (and paying for N
@@ -1918,7 +1853,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   if (sessionPanes.length === 0) {
     return (
       <div className="flex h-wc-app flex-col bg-wc-surface-base text-wc-text-primary" data-testid="workspace-root" data-display-mode={workspace.displayMode}>
-        <TopSafeArea testId="workspace-top-edge">
+        <TopSafeArea testId="workspace-top-edge" containerRef={measureTopChrome}>
           <BannerRegion banners={banners} />
         </TopSafeArea>
         <div className="flex flex-1 items-center justify-center">
@@ -1957,7 +1892,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
         <TerminalLauncher
           open={launcherOpen}
           onClose={closeLauncher}
-          onLaunch={handleLaunch}
+          onLaunch={requestLaunch}
           isCreating={isCreating}
           defaultBackend={defaultBackend}
           defaultPolicy={defaultPolicy}
@@ -1973,12 +1908,12 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
           onDestinationChange={setLauncherGroupId}
           onCreateGroup={createLauncherGroup}
           appearance={launcherAppearance}
-          onCreateGroupFromRoles={createGroupFromRoles}
+          onCreateGroupFromRoles={requestGroupFromRoles}
           initialTarget={launcherInitialTarget}
           onEditShortcuts={openShortcutSettings}
           onEditTemplates={openTemplateSettings}
         />
-        <ArchiveDrawer
+        <DeferredSurface active={archiveDrawerOpen}><ArchiveDrawer
           open={archiveDrawerOpen}
           initialSessionId={archiveInitialSessionId}
           onClose={closeArchiveDrawer}
@@ -1986,7 +1921,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
           onSendToComposer={sendArchivedMessageToComposer}
           onReopened={handleArchiveReopened}
           preferOrphans={archivePreferOrphans}
-        />
+        /></DeferredSurface>
       </div>
     );
   }
@@ -1994,30 +1929,30 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   // Build splitter elements
   const columnSplitters: React.ReactNode[] = [];
   for (let i = 0; i < colFractions.length - 1; i++) {
-    const gridCol = `${2 + i * 2}`;
+    const gridCol = String(2 + i * 2);
     columnSplitters.push(
       <GridSplitter
-        key={`col-${i}`}
+        key={`col-${String(i)}`}
         axis="column"
         gridColumn={gridCol}
         gridRow={`1 / -1`}
         onPointerDown={startResize("column", i)}
-        label={`Resize column ${i + 1}`}
+        label={`Resize column ${String(i + 1)}`}
       />,
     );
   }
 
   const rowSplitters: React.ReactNode[] = [];
   for (let i = 0; i < rowFractions.length - 1; i++) {
-    const gridRow = `${2 + i * 2}`;
+    const gridRow = String(2 + i * 2);
     rowSplitters.push(
       <GridSplitter
-        key={`row-${i}`}
+        key={`row-${String(i)}`}
         axis="row"
         gridColumn={`1 / -1`}
         gridRow={gridRow}
         onPointerDown={startResize("row", i)}
-        label={`Resize row ${i + 1}`}
+        label={`Resize row ${String(i + 1)}`}
       />,
     );
   }
@@ -2028,14 +1963,14 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     const col = idx % layout.columns;
     const row = Math.floor(idx / layout.columns);
     // Grid positions account for splitter tracks: content is at odd positions (1, 3, 5, ...)
-    const gridColumn = `${1 + col * 2}`;
-    const gridRow = `${1 + row * 2}`;
+    const gridColumn = String(1 + col * 2);
+    const gridRow = String(1 + row * 2);
 
     const isBeingDragged = activeArrangeDrag?.paneId === paneMeta.sessionId;
     const isDropTarget =
       isDragging &&
       !isBeingDragged &&
-      activeArrangeDrag?.dropIndex === idx;
+      activeArrangeDrag.dropIndex === idx;
 
     return (
       <WorkspacePaneShell
@@ -2060,7 +1995,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
         selectedVersionForEvent={getSelectedPlaybackVersion}
         playbackFocusRequest={workspace.activePane === paneMeta.sessionId ? playbackFocusRequest : null}
         onActivate={activatePane}
-        onRequestClose={handleRequestClose}
+        onRequestClose={requestClosePane}
         onHandoff={openHandoff}
         onPromoteScratchRun={promoteScratchRun}
         onSendToComposer={stageMessageInComposer}
@@ -2069,7 +2004,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
         onStartArrangeDrag={startArrangeDrag}
         onTerminalExit={handleExit}
         onTerminalRef={registerTerminalRef}
-        onVoiceStart={voiceInput.startRecording}
+        onVoiceStart={startVoiceOnPane}
         onVoiceStop={voiceInput.stopRecording}
         onTtsSpeakingChange={handleTtsSpeakingChange}
         onTtsBackendReasonChange={handleTtsBackendReasonChange}
@@ -2087,7 +2022,6 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   // so a manually flagged session has to reach it too, as a dot (it has no
   // count of its own, and a real unread count outranks it).
   const sidebarHasFlagged = orderedPanes.some((pane) => pane.manuallyUnread);
-  const hasTopChrome = workspace.displayMode === "tabs" || workspace.displayMode === "sidebar";
   // h-wc-app maps to var(--wc-app-height, 100dvh) — the actual visible
   // viewport height set by useAppViewport(). This is the root layout
   // container; all descendants use flex to fill this height.
@@ -2101,6 +2035,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
       {/* Floating toolbar — hidden on mobile tab mode where TabBar
        * already provides the plus button and we move settings there. */}
       <FloatingToolbar
+        topInset={toolbarTopInset}
         // Phones already drop it in tab-like modes. Sidebar mode drops it as
         // soon as the composer bar is on screen, because then every action it
         // held lives in the sidebar header (new / machines / profile) or the
@@ -2119,7 +2054,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
         onOpenAccount={() => { openSettingsTab("account"); }}
         onOpenMachines={openMachines}
         onOpenAi={() => { workspace.setAiModalOpen(true); }}
-        onNewTerminal={() => handleLaunch()}
+        onNewTerminal={handleNewTerminal}
         onOpenLauncher={openLauncher}
         onExpandComposer={openComposer}
         isCreating={isCreating}
@@ -2142,7 +2077,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
         onVoiceExitPassive={voiceInput.exitPassiveMode}
       />
 
-      <TopSafeArea testId="workspace-top-edge">
+      <TopSafeArea testId="workspace-top-edge" containerRef={measureTopChrome}>
         <BannerRegion banners={banners} />
 
         {/* Tab bar (only in tabs mode) */}
@@ -2153,7 +2088,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
             activePane={workspace.activePane}
             onNewTerminal={handleNewTerminal}
             onOpenLauncher={openLauncher}
-            onClosePane={handleRequestClose}
+            onClosePane={requestClosePane}
             onDeletePanePermanently={setPendingDelete}
             isCreating={isCreating}
             onStartRole={startRoleFromSurface}
@@ -2216,36 +2151,19 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
               title={t(strings.sessionSidebar.open)}
             >
               <Menu className="h-4 w-4" />
-              {sidebarUnreadCount === 0 && sidebarHasFlagged && (
-                <span
-                  data-testid="workspace-sidebar-toggle-flagged"
-                  className="absolute -end-0.5 -top-0.5 h-2 w-2 rounded-full bg-wc-accent"
-                />
-              )}
-              {sidebarUnreadCount > 0 && (
-                <span
-                  data-testid="workspace-sidebar-toggle-unread"
-                  className="absolute -end-1 -top-1 min-w-4 rounded-full bg-wc-accent px-1 text-[10px] font-semibold leading-4 text-wc-accent-fg"
-                >
-                  {sidebarUnreadCount > 99 ? "99+" : sidebarUnreadCount}
-                </span>
-              )}
+              <WorkspaceUnreadBadge panes={orderedPanes} flagged={sidebarHasFlagged} />
             </Button>
             <div
               data-testid="workspace-sidebar-active-title"
               className="min-w-0 flex-1 select-none truncate text-sm font-medium touch-manipulation"
-              title={activeSidebarPane?.pane.name ?? t(strings.sessionSidebar.title)}
+              title={activeSidebarPane?.name ?? t(strings.sessionSidebar.title)}
               {...(activeSidebarPane
-                ? sidebarHeaderPressGesture.getGestureHandlers(activeSidebarPane.pane.sessionId)
+                ? sidebarHeaderPressGesture.getGestureHandlers(activeSidebarPane.sessionId)
                 : {})}
             >
-              {activeSidebarPane?.pane.name ?? t(strings.sessionSidebar.title)}
+              {activeSidebarPane?.name ?? t(strings.sessionSidebar.title)}
             </div>
-            {activeSidebarPane && activeSidebarPane.unreadCount > 0 && (
-              <span className="rounded-full bg-wc-accent px-1.5 py-0.5 text-[10px] font-semibold text-wc-accent-fg">
-                {activeSidebarPane.unreadCount}
-              </span>
-            )}
+            {activeSidebarPane && <WorkspaceUnreadBadge panes={[activeSidebarPane]} activeSessionId={activeSidebarPane.sessionId} />}
             <Button
               variant="ghost"
               size="icon"
@@ -2256,7 +2174,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
                 if (workspace.plusButtonBehavior === "launcher") {
                   openLauncher();
                 } else {
-                  handleLaunch();
+                  void handleLaunch();
                 }
               }}
               title={workspace.plusButtonBehavior === "launcher" ? t(strings.floatingToolbar.launcherFirstTitle) : t(strings.floatingToolbar.terminalFirstTitle)}
@@ -2309,8 +2227,10 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
         >
           {workspace.displayMode === "sidebar" && (
             <Profiler id="SessionSidebar" onRender={onProfilerRender}>
-            <SessionSidebar
-              buckets={sidebarOriginBuckets}
+            <WorkspaceSessionSidebar
+              navigation={{ panes: orderedPanes, groups: workspace.groups, roles: workspace.roles,
+                activePane: workspace.activePane, viewModes: conversationViewModes, lastVisitedBySession,
+                sortMode: workspace.sidebarSortMode, originBySession }}
               containerRef={sidebarLayoutRef}
               isMobile={isMobile}
               mobileOpen={mobileSidebarOpen}
@@ -2318,9 +2238,9 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
               onCloseMobile={() => { setMobileSidebarOpen(false); }}
               onOpenMobile={() => { setMobileSidebarOpen(true); }}
               onActivatePane={activatePane}
-              onClosePane={handleRequestClose}
+              onClosePane={requestClosePane}
               onDeletePanePermanently={setPendingDelete}
-              onNewTerminal={() => handleLaunch()}
+              onNewTerminal={handleNewTerminal}
               onOpenLauncher={openLauncher}
               onNewSessionInGroup={handleNewSessionInGroup}
           onStartRole={startRoleFromSurface}
@@ -2370,7 +2290,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
                   selectedVersionForEvent={getSelectedPlaybackVersion}
                   playbackFocusRequest={workspace.activePane === paneMeta.sessionId ? playbackFocusRequest : null}
                   onActivate={activatePane}
-                  onRequestClose={handleRequestClose}
+                  onRequestClose={requestClosePane}
                   onHandoff={openHandoff}
                   onPromoteScratchRun={promoteScratchRun}
                   onSendToComposer={stageMessageInComposer}
@@ -2379,7 +2299,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
                   messagesToolbarTrailingAction={activeViewMode === "messages" && paneMeta.sessionId === workspace.activePane ? viewToggleButton : undefined}
                   onTerminalExit={handleExit}
                   onTerminalRef={registerTerminalRef}
-                  onVoiceStart={voiceInput.startRecording}
+                  onVoiceStart={startVoiceOnPane}
                   onVoiceStop={voiceInput.stopRecording}
                   onTtsSpeakingChange={handleTtsSpeakingChange}
                   onTtsBackendReasonChange={handleTtsBackendReasonChange}
@@ -2427,8 +2347,8 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
               style={{
                 gridTemplateColumns: colTemplate,
                 gridTemplateRows: rowTemplate,
-                height: `${minimumGridHeightPx}px`,
-                minHeight: `${minimumGridHeightPx}px`,
+                height: `${String(minimumGridHeightPx)}px`,
+                minHeight: `${String(minimumGridHeightPx)}px`,
               }}
             >
               {paneCells}
@@ -2472,7 +2392,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
         />
       )}
 
-      {runScriptRequest && <RunScriptDialog path={runScriptRequest.path} text={runScriptRequest.text} onClose={() => setRunScriptRequest(null)} onRun={runScript} />}
+      {runScriptRequest && <RunScriptDialog path={runScriptRequest.path} text={runScriptRequest.text} onClose={() => { setRunScriptRequest(null); }} onRun={runScript} />}
 
       {/* Bottom bar */}
       <div className="relative z-wc-chrome shrink-0">
@@ -2659,7 +2579,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
       <TerminalLauncher
         open={launcherOpen}
         onClose={closeLauncher}
-        onLaunch={handleLaunch}
+        onLaunch={requestLaunch}
         isCreating={isCreating}
         defaultBackend={defaultBackend}
         defaultPolicy={defaultPolicy}
@@ -2675,22 +2595,22 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
         onDestinationChange={setLauncherGroupId}
         onCreateGroup={createLauncherGroup}
         appearance={launcherAppearance}
-        onCreateGroupFromRoles={createGroupFromRoles}
+        onCreateGroupFromRoles={requestGroupFromRoles}
         initialTarget={launcherInitialTarget}
         onEditShortcuts={openShortcutSettings}
         onEditTemplates={openTemplateSettings}
       />
 
-      <FleetDrawer open={machinesOpen} onClose={() => { setMachinesOpen(false); }} onStartSession={openLauncherForMachine} onInstallCapability={installCapability} />
+      <DeferredSurface active={machinesOpen}><FleetDrawer open={machinesOpen} onClose={() => { setMachinesOpen(false); }} onStartSession={openLauncherForMachine} onInstallCapability={installCapability} /></DeferredSurface>
 
       {/* Settings Modal */}
-      <SettingsModal
+      <DeferredSurface active={workspace.settingsModalOpen}><SettingsModal
         sessions={sessionPanes}
-        onDeleteSession={handleRequestClose}
-      />
+        onDeleteSession={requestClosePane}
+      /></DeferredSurface>
 
       {/* Appearance Modal */}
-      <AppearanceModal />
+      <DeferredSurface active={workspace.appearanceModalPane !== null}><AppearanceModal /></DeferredSurface>
 
       {/* Manage Groups drawer (opened from TabBar / SessionSidebar menus) */}
       <ManageGroupsDrawer />
@@ -2704,12 +2624,13 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
 
       {/* Handoff: one generic verb, reachable from every surface that has a
           payload worth moving. */}
-      <HandoffComposer
+      <WorkspaceHandoffComposer
         open={handoffState !== null}
         onClose={() => { setHandoffState(null); }}
         sourceLabel={handoffState?.sourceLabel ?? ""}
         payload={handoffState?.payload ?? ""}
-        targets={handoffTargetSectionsForSource}
+        panes={workspacePanes}
+        lastVisitedBySession={lastVisitedBySession}
         sourceSessionId={handoffState?.sourceSessionId}
         initialSelection={handoffState?.initialSelection}
         onSend={runHandoff}
@@ -2740,7 +2661,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
         />
       )}
 
-      <ArchiveDrawer
+      <DeferredSurface active={archiveDrawerOpen}><ArchiveDrawer
         open={archiveDrawerOpen}
         initialSessionId={archiveInitialSessionId}
         onClose={closeArchiveDrawer}
@@ -2748,7 +2669,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
         onSendToComposer={sendArchivedMessageToComposer}
         onReopened={handleArchiveReopened}
         preferOrphans={archivePreferOrphans}
-      />
+      /></DeferredSurface>
 
       {/* AI Modal */}
       <AiInput onExecute={(cmd) => { handleSendToTerminal(cmd, "bulk_text"); }} />

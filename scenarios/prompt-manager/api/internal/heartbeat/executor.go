@@ -55,7 +55,6 @@ type Executor struct {
 	runRegistry       *RunRegistry
 	handoffExtractor  HandoffExtractor
 	teamExecStore     TeamExecStoreRegistrar
-	FiniteLeader      *FiniteLeaderRuntime
 	OnComplete        func(teamID, agentID string)
 	RecoveryRequester func(ctx context.Context, scenario, reason string) (requestID string, err error)
 
@@ -204,21 +203,8 @@ func NewExecutor(
 
 // Execute runs a heartbeat for a team member
 func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey string) (*ExecutionResult, error) {
-	if e.teamStore != nil {
-		cfg, err := e.teamStore.GetHeartbeatConfig(ctx, teamID, agentID)
-		if err != nil {
-			return nil, err
-		}
-		if cfg != nil && cfg.FiniteLeader != nil {
-			if e.FiniteLeader == nil {
-				return nil, fmt.Errorf("finite leader runtime unavailable")
-			}
-			return e.FiniteLeader.Dispatch(ctx, teamID, agentID)
-		}
-	}
 	// The real owner HTTP adapter requires verified request-local identity
-	// before configuration, source-ledger or task effects. Finite-leader new
-	// admission has the same check in its own owner adapter boundary.
+	// before configuration, source-ledger or task effects.
 	if client, ok := e.agentClient.(*AgentManagerClient); ok {
 		qualified, err := client.prepareCreateRunCaller(ctx)
 		if err != nil {
@@ -374,19 +360,7 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 			WorkloadKey:      workloadKey,
 			WorkloadInstance: workloadInstance,
 		}
-		if qualifiedEffortBinding(ctx) != nil {
-			durable, ok := e.teamExecStore.(interface {
-				BeginDispatchDurable(string, string, DispatchIntent) error
-			})
-			if !ok {
-				return nil, NewDispatchUncertainError(fmt.Errorf("finite queue has no durable dispatch writer"))
-			}
-			if err := durable.BeginDispatchDurable(teamID, agentID, intent); err != nil {
-				return nil, NewDispatchUncertainError(fmt.Errorf("finite dispatch intent save failed: %w", err))
-			}
-		} else {
-			e.teamExecStore.BeginDispatch(teamID, agentID, intent)
-		}
+		e.teamExecStore.BeginDispatch(teamID, agentID, intent)
 	}
 
 	run, err := e.agentClient.CreateRun(ctx, runReq)

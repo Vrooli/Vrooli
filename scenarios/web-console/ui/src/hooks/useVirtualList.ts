@@ -67,7 +67,7 @@ export function useVirtualList({
   const dirtyFromRef = useRef<number | null>(null);
   const frameRef = useRef<number | null>(null);
   const pendingAboveDeltaRef = useRef(0);
-  const geometryRef = useRef({ sizes: [] as number[], starts: [] as number[], totalSize: 0, count: -1, estimateSize: null as UseVirtualListOptions["estimateSize"] | null });
+  const geometryRef = useRef({ sizes: [] as number[], starts: [] as number[], totalSize: 0, count: -1, estimateSize: null as UseVirtualListOptions["estimateSize"] | null, getItemKey: null as UseVirtualListOptions["getItemKey"] | null });
   // A correction that arrives while the user is scrolling is carried as an
   // offset on every row (`shift`), not written to scrollTop: on iOS a
   // scrollTop write stops a fling dead. When the scroll ends the offset moves
@@ -186,7 +186,7 @@ export function useVirtualList({
 
     let resizeObserver: ResizeObserver | null = null;
     if (typeof ResizeObserver !== "undefined") {
-      resizeObserver = new ResizeObserver(() => updateViewport());
+      resizeObserver = new ResizeObserver(() => { updateViewport(); });
       resizeObserver.observe(el);
     } else {
       window.addEventListener("resize", updateViewport);
@@ -221,13 +221,14 @@ export function useVirtualList({
 
   const measurements = useMemo(() => {
     const geometry = geometryRef.current;
-    const rebuild = geometry.count !== count || geometry.estimateSize !== estimateSize;
+    const rebuild = geometry.count !== count || geometry.estimateSize !== estimateSize || geometry.getItemKey !== getItemKey;
     const dirtyFrom = rebuild ? 0 : dirtyFromRef.current;
     if (rebuild) {
       geometry.sizes = new Array<number>(count);
       geometry.starts = new Array<number>(count);
       geometry.count = count;
       geometry.estimateSize = estimateSize;
+      geometry.getItemKey = getItemKey;
     }
     if (dirtyFrom != null) {
       let total = dirtyFrom === 0 ? 0 : (geometry.starts[dirtyFrom - 1] ?? 0) + (geometry.sizes[dirtyFrom - 1] ?? estimateSize(dirtyFrom - 1));
@@ -243,7 +244,7 @@ export function useVirtualList({
     // A fresh snapshot per recompute: consumers memoize on its identity, and
     // the geometry object itself is mutated in place.
     return { sizes: geometry.sizes, starts: geometry.starts, totalSize: geometry.totalSize };
-  }, [count, estimateSize, sizeVersion]);
+  }, [count, estimateSize, getItemKey, sizeVersion]);
 
   const registerItem = useCallback((index: number, node: HTMLElement | null) => {
     const currentNode = itemNodesRef.current.get(index);
@@ -260,14 +261,17 @@ export function useVirtualList({
 
     itemNodesRef.current.set(index, node);
 
-    const measure = () => {
+    const measure = (reportedHeight?: number) => {
       const key = getItemKeyRef.current?.(index) ?? index;
-      const rawHeight = node.getBoundingClientRect().height || estimateSizeRef.current(index);
+      const rawHeight = (reportedHeight ?? node.getBoundingClientRect().height) || estimateSizeRef.current(index);
       const height = Math.ceil(rawHeight / SIZE_QUANTUM) * SIZE_QUANTUM;
       const geometry = geometryRef.current;
-      const previous = measuredSizesRef.current.get(key) ?? geometry.sizes[index] ?? estimateSizeRef.current(index);
+      const measured = measuredSizesRef.current.get(key);
+      const previous = measured ?? geometry.sizes[index] ?? estimateSizeRef.current(index);
       measuredSizesRef.current.set(key, height);
-      if (previous === height) return;
+      // Even an exact estimate must publish its first confirmation: restored
+      // reading positions wait for isMeasured before releasing their anchor.
+      if (previous === height && measured != null) return;
       dirtyFromRef.current = dirtyFromRef.current == null ? index : Math.min(dirtyFromRef.current, index);
       const element = scrollElementRef.current;
       // Compensate only rows entirely above the viewport. The row straddling
@@ -283,12 +287,17 @@ export function useVirtualList({
       });
     };
 
-    measure();
-
     if (typeof ResizeObserver !== "undefined") {
-      const observer = new ResizeObserver(() => measure());
-      observer.observe(node);
+      // The browser has already laid out the entire commit when it delivers
+      // these boxes. Reading bounds from each attaching ref instead forces
+      // style/layout between row insertions, once for every new virtual row.
+      const observer = new ResizeObserver((entries) => {
+        measure(entries[0]?.borderBoxSize[0]?.blockSize);
+      });
+      observer.observe(node, { box: "border-box" });
       itemObserversRef.current.set(index, observer);
+    } else {
+      measure();
     }
   }, [scrollElementRef]);
 

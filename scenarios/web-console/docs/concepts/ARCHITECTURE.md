@@ -216,6 +216,8 @@ Resolution + classification + the preview-id store live in the transport-neutral
 
 Flow: message link/chip → `openPreview(path)` → `Resolve` issues a session-bound `preview_id` → text kinds fetch `GetTextContent`; blob kinds load lazily via `blob_href` in the renderer. The blob handler re-stats the file on every request and returns 409 if size/mtime changed since resolve, 404 for unknown/expired/session-mismatched ids.
 
+HTML previews load relative presentation assets through `GET|HEAD /api/v1/sessions/{id}/file-previews/{previewId}/runtime/{resource}`. The route confines resources to the HTML document's directory, rejects escaping symlinks, and preserves the script-only iframe sandbox. Allowed audio/video resources stream directly from disk without a total-file-size cap; other presentation assets retain a 16 MiB bound. Both byte routes support native HEAD, suffix ranges, 64-bit offsets, and 206/416 responses. Preview writes renew the server's 150-second write deadline per chunk, allowing active transfers to outlast the ordinary response budget while bounding stalled writes. This does not change the preview ID's 30-minute lifetime; reopening an expired preview obtains a fresh ID.
+
 ### Error Handling
 
 All API errors return structured JSON with `code`, `category`, `recovery`, and `retry` fields. See [Error Semantics](../internal/ERROR_SEMANTICS.md) for the full contract.

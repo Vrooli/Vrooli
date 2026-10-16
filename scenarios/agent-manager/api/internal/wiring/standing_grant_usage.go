@@ -12,7 +12,8 @@ import (
 // standingGrantUsageReader measures a standing grant against existing run reads
 // rather than new accounting. Concurrency is the firm, binding limit: it counts
 // the owner's non-terminal runs via the orchestrator's existing ListRuns. Budget
-// is best-effort — see the TODO below.
+// is enforced as the committed-spend floor already attributed to those runs —
+// see StandingGrantUsage below for the exact approximation.
 type standingGrantUsageReader struct {
 	orch *orchestration.Orchestrator
 }
@@ -34,6 +35,7 @@ func (r standingGrantUsageReader) StandingGrantUsage(ctx context.Context, owner 
 		return authn.StandingGrantUsage{}, nil
 	}
 	concurrent := 0
+	committedUSD := 0.0
 	for i := range standingGrantConcurrencyStatuses {
 		status := standingGrantConcurrencyStatuses[i]
 		runs, err := r.orch.ListRuns(ctx, orchestration.RunListOptions{Status: &status})
@@ -41,17 +43,37 @@ func (r standingGrantUsageReader) StandingGrantUsage(ctx context.Context, owner 
 			return authn.StandingGrantUsage{}, err
 		}
 		for _, run := range runs {
-			if run != nil && run.OwnerSubject == owner {
-				concurrent++
+			if run == nil || run.OwnerSubject != owner {
+				continue
+			}
+			concurrent++
+			// Committed spend uses the ONLY per-run USD figure the domain already
+			// records: the run's accumulated cost estimate (RunSummary.CostEstimate,
+			// derived from metered usage). There is no admission-time per-run USD
+			// budget field to sum (RunConfig carries only token/turn ceilings), so we
+			// do NOT invent an estimator — we sum the spend already attributed to the
+			// owner's live runs. The pruned List() column set omits `summary`, so each
+			// owner run is loaded by id for its cost; the set is bounded by the owner's
+			// concurrency, so this is a small, bounded read, not a scan.
+			full, err := r.orch.GetRun(ctx, run.ID)
+			if err != nil {
+				return authn.StandingGrantUsage{}, err
+			}
+			if full != nil && full.Summary != nil {
+				committedUSD += full.Summary.CostEstimate
 			}
 		}
 	}
-	// TODO(auth-consolidation Phase 2b/6): committed per-owner spend has no cheap
-	// existing read (BillingSnapshot carries plan/mode metadata, not accumulated
-	// USD). Concurrency is the binding limit for now; budget is enforced only
-	// against a request's own projected spend when a caller supplies it, which
-	// create-run does not yet. MaxRunBudgetUSD therefore admits until a real
-	// per-owner spend read exists. Flagged to the orchestrator; do not build an
-	// estimator here.
-	return authn.StandingGrantUsage{ConcurrentRuns: concurrent}, nil
+	// CommittedBudgetUSD is the committed-spend FLOOR already attributed to the
+	// owner's non-terminal runs. It is honest (never an estimate) but an
+	// APPROXIMATION of true committed spend in two bounded ways:
+	//   1. A run that has not yet projected a cost (just-started, summary not yet
+	//      derived) contributes 0, so the floor can lag live in-flight spend.
+	//   2. create-run supplies no per-request projected spend, so RequestBudgetUSD
+	//      stays 0; the budget is enforced on already-committed owner spend only.
+	// It errs toward admitting (a floor, not a ceiling), so it never refuses a
+	// caller that is actually under budget. The concurrency bound remains the firm
+	// limit; the budget bound now additionally refuses an owner whose live runs
+	// have ALREADY committed at or beyond MaxRunBudgetUSD.
+	return authn.StandingGrantUsage{ConcurrentRuns: concurrent, CommittedBudgetUSD: committedUSD}, nil
 }

@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useDeferredValue, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AArrowDown, AArrowUp, ArrowLeft, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, MoreHorizontal, Search } from "lucide-react";
 import { CopyIconButton } from "@vrooli/react-component-library/CopyIconButton/1";
@@ -18,11 +18,6 @@ import { clampMessagesFont, useMessagesTypographyPinch } from "../../hooks/useMe
 
 /** The reader's text size range and step, in px. */
 const READER_FONT_STEP = 2;
-
-/** A reader text size, rounded and held to the reader's range. */
-export function clampReaderFont(size: number): number {
-  return clampMessagesFont(size);
-}
 
 interface MessagesReaderProps {
   /** The message's actions as its row offers them, the reader itself excluded. */
@@ -74,7 +69,8 @@ export function MessagesReader({
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query);
   const [matchCount, setMatchCount] = useState(0);
-  const [activeIndex, setActiveIndex] = useState(0);
+  const [activeMatch, setActiveMatch] = useState({ eventId: event.id, text: event.text, isPlaintext, query: "", index: 0 });
+  const activeIndex = activeMatch.eventId === event.id && activeMatch.query === deferredQuery && activeMatch.text === event.text && activeMatch.isPlaintext === isPlaintext ? activeMatch.index : 0;
   const [actionsOpen, setActionsOpen] = useState(false);
   const { ctx, actions, composites } = useMessageActions(actionContext, moreRef, false);
 
@@ -87,22 +83,18 @@ export function MessagesReader({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Count matches in the rendered text whenever the query changes.
-  useEffect(() => {
-    const body = bodyRef.current;
-    const count = body ? rangesInElement(body, deferredQuery).length : 0;
-    setMatchCount(count);
-    setActiveIndex(0);
-  }, [deferredQuery, event.text, isPlaintext]);
-
-  // Paint the matches and bring the active one into view; clear on change.
+  // One rendered-text scan owns counting and painting. The old count effect
+  // scanned first, then its state update triggered another scan to highlight.
+  // A changed reply/query starts at the first match without a reset commit.
   useLayoutEffect(() => {
     const body = bodyRef.current;
-    if (!body || matchCount === 0) return;
-    const painted = paintMatches(rangesInElement(body, deferredQuery), activeIndex);
+    const ranges = body ? rangesInElement(body, deferredQuery) : [];
+    setMatchCount(ranges.length);
+    if (ranges.length === 0) return;
+    const painted = paintMatches(ranges, activeIndex);
     painted.activeElement?.scrollIntoView({ block: "center" });
     return painted.clear;
-  }, [activeIndex, deferredQuery, matchCount]);
+  }, [activeIndex, deferredQuery, event.id, event.text, isPlaintext]);
 
   // Another reply starts at its top.
   useLayoutEffect(() => {
@@ -114,7 +106,7 @@ export function MessagesReader({
 
   const step = (delta: number) => {
     if (matchCount === 0) return;
-    setActiveIndex((index) => (index + delta + matchCount) % matchCount);
+    setActiveMatch({ eventId: event.id, text: event.text, isPlaintext, query: deferredQuery, index: (activeIndex + delta + matchCount) % matchCount });
   };
   const hasQuery = query.trim() !== "";
   const speaker: string = t(speakerKey(event) as never);
@@ -250,7 +242,7 @@ export function MessagesReader({
               surface="soft"
               size="sm"
               disabled={fontSize <= 12}
-              onClick={() => { onFontSizeChange(clampReaderFont(fontSize - READER_FONT_STEP)); }}
+              onClick={() => { onFontSizeChange(clampMessagesFont(fontSize - READER_FONT_STEP)); }}
             >
               <AArrowDown />
             </IconButton>
@@ -261,7 +253,7 @@ export function MessagesReader({
               surface="soft"
               size="sm"
               disabled={fontSize >= 32}
-              onClick={() => { onFontSizeChange(clampReaderFont(fontSize + READER_FONT_STEP)); }}
+              onClick={() => { onFontSizeChange(clampMessagesFont(fontSize + READER_FONT_STEP)); }}
             >
               <AArrowUp />
             </IconButton>

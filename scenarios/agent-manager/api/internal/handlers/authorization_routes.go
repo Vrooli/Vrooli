@@ -69,10 +69,27 @@ func AgentOperationMiddleware(next http.Handler) http.Handler {
 			http.Error(w, "exact proof offered on wrong operation channel", http.StatusForbidden)
 			return
 		}
-		if r.URL.Path == "/api/v1/runs/attach" && r.Method == http.MethodPost {
-			// Local attachment establishes a zero-scope identity, never consent
-			// or delegated authority. Launcher attachment must remain usable
-			// before the owner independently approves a session grant.
+		if r.Method == http.MethodPost && localLoopbackOnlyRoute[r.URL.Path] {
+			// G2 contract: transcript CONTINUITY is a same-host, zero-authority
+			// operation, mounted LoopbackOnly exactly like /api/v1/runs/attach.
+			//   - /api/v1/runs/attach: local attachment establishes a zero-scope
+			//     identity, never consent or delegated authority. Launcher
+			//     attachment must remain usable before the owner independently
+			//     approves a session grant.
+			//   - /api/v1/runs/import-transcript: web-console hands agent-manager a
+			//     LOCAL transcript file path for its own session (a filesystem path
+			//     only meaningful on the shared host); agent-manager reads the native
+			//     transcript and owns the resulting search projection. No Web Console
+			//     catalog or raw event text crosses, and it creates NO launch or
+			//     attribution dependency — only transcript continuity.
+			//   - /api/v1/runs/external/tombstone: the idempotent delete of that same
+			//     projection by (sourceHarness, sourceSessionId).
+			// web-console holds no agent-manager service credential (verified: it
+			// sends only Content-Type today), so forwarding one is not an option; and
+			// these operations are not a costly write a standing grant governs. The
+			// loopback fence is the honest authority: a non-loopback caller is
+			// refused. If agent-manager is remote/unavailable the publish fails
+			// gracefully at the caller, which is acceptable for continuity.
 			lifecycle.LoopbackOnly(next).ServeHTTP(w, r)
 			return
 		}
@@ -240,6 +257,18 @@ func agentOperationRoute(r *http.Request, interactive bool) bool {
 var signedEventWebhookRoute = map[string]bool{
 	ProgramEventWebhookPath:  true,
 	DecisionEventWebhookPath: true,
+}
+
+// localLoopbackOnlyRoute lists the same-host, zero-authority routes a co-located
+// caller reaches. They are mounted LoopbackOnly: the loopback fence is their
+// authority, so a non-loopback caller is refused. /api/v1/runs/attach is local
+// launcher attachment; import-transcript and external/tombstone are transcript
+// continuity (see AgentOperationMiddleware for the full G2 contract). None carry
+// launch or attribution coupling.
+var localLoopbackOnlyRoute = map[string]bool{
+	"/api/v1/runs/attach":             true,
+	"/api/v1/runs/import-transcript":  true,
+	"/api/v1/runs/external/tombstone": true,
 }
 
 // Reviewed read procedures from the current owner contract. Unknown RPCs

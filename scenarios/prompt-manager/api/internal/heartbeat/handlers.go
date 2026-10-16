@@ -330,14 +330,6 @@ func (h *Handlers) GetHeartbeat(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Heartbeat config not found", http.StatusNotFound)
 		return
 	}
-	if !requestpolicy.IsBounded(ctx) && config.FiniteLeader != nil && h.executor != nil && h.executor.FiniteLeader != nil {
-		// Refresh the response after reconciliation so the GET does not return
-		// the pre-reconciliation heartbeat projection. Reconciliation only
-		// observes the exact retained owner run; it never starts a new one.
-		_, _ = h.executor.FiniteLeader.ReconcileKnownRun(ctx, teamID, agentID)
-		config, _ = h.teamStore.GetHeartbeatConfig(ctx, teamID, agentID)
-	}
-
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(h.toResponse(config))
 }
@@ -361,10 +353,6 @@ func (h *Handlers) CreateHeartbeat(w http.ResponseWriter, r *http.Request) {
 
 	if req.Schedule == "" && (req.Enabled == nil || *req.Enabled) {
 		http.Error(w, "schedule is required unless explicitly disabled", http.StatusBadRequest)
-		return
-	}
-	if err := req.FiniteLeader.Validate(req.ProfileKey); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	if err := req.WakeAdmission.Validate(); err != nil {
@@ -399,7 +387,6 @@ func (h *Handlers) CreateHeartbeat(w http.ResponseWriter, r *http.Request) {
 
 	// Create config
 	config := &store.HeartbeatConfig{
-		FiniteLeader:  req.FiniteLeader,
 		WakeAdmission: req.WakeAdmission,
 		TeamID:        teamID,
 		AgentID:       agentID,
@@ -487,11 +474,6 @@ func (h *Handlers) UpdateHeartbeat(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	if req.FiniteEffortTransition != nil {
-		h.applyFiniteEffortTransition(w, r, teamID, agentID, req)
-		return
-	}
-
 	if err := requireBoundedHeartbeatManagement(ctx, teamID); err != nil {
 		http.Error(w, err.Error(), http.StatusForbidden)
 		return
@@ -513,9 +495,6 @@ func (h *Handlers) UpdateHeartbeat(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Apply updates
-	if req.FiniteLeader != nil {
-		config.FiniteLeader = req.FiniteLeader
-	}
 	if err := req.WakeAdmission.Validate(); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -566,8 +545,7 @@ func (h *Handlers) UpdateHeartbeat(w http.ResponseWriter, r *http.Request) {
 
 	// Handle schedule changes
 	if h.scheduler != nil {
-		// A finiteLeader update may change the check-in poll cadence.
-		if config.Enabled && team.Enabled && (!wasEnabled || req.Schedule != nil || req.FiniteLeader != nil) {
+		if config.Enabled && team.Enabled && (!wasEnabled || req.Schedule != nil) {
 			// Need to (re)schedule
 			if err := h.scheduler.Schedule(teamID, agentID, config.Schedule); err != nil {
 				config.Enabled = false
@@ -583,102 +561,6 @@ func (h *Handlers) UpdateHeartbeat(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(h.toResponse(config))
-}
-
-// applyFiniteEffortTransition records an explicit completion or reopen for a
-// finite leader. It refuses to combine a lifecycle operation with configuration
-// changes so a receipt cannot be smuggled in as a configuration edit.
-func (h *Handlers) applyFiniteEffortTransition(w http.ResponseWriter, r *http.Request, teamID, agentID string, req UpdateHeartbeatRequest) {
-	ctx := r.Context()
-	transition := req.FiniteEffortTransition
-	if transition.Operation != "amend" {
-		if err := requireBoundedHeartbeatManagement(ctx, teamID); err != nil {
-			http.Error(w, err.Error(), http.StatusForbidden)
-			return
-		}
-	}
-	if transition.Operation != "amend" && (transition.Binding != nil || transition.ExpectedRevision != "") {
-		http.Error(w, "amendment fields require operation amend", http.StatusBadRequest)
-		return
-	}
-	if req.FiniteLeader != nil || req.WakeAdmission != nil || req.Schedule != nil || req.ProfileKey != nil || req.Enabled != nil || req.TimeoutSeconds != nil {
-		http.Error(w, "finite effort transition must not be combined with configuration changes", http.StatusBadRequest)
-		return
-	}
-	config, err := h.teamStore.GetHeartbeatConfig(ctx, teamID, agentID)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	if config == nil || config.FiniteLeader == nil {
-		http.Error(w, "finite leader binding unavailable", http.StatusConflict)
-		return
-	}
-	switch strings.ToLower(strings.TrimSpace(transition.Operation)) {
-	case "amend":
-		if transition.Binding == nil || transition.Revision != "" {
-			http.Error(w, "amend requires expectedRevision, binding and evidenceRef", http.StatusBadRequest)
-			return
-		}
-		if err := h.teamStore.AmendFinitePreparation(ctx, teamID, agentID, transition.ExpectedRevision, transition.Binding, transition.EvidenceRef); err != nil {
-			writeFinitePreparationError(w, err)
-			return
-		}
-	case "complete":
-		if _, _, err := h.teamStore.CompleteFiniteLeader(ctx, teamID, agentID, transition.Revision, transition.EvidenceRef); err != nil {
-			writeFiniteEffortTransitionError(w, err)
-			return
-		}
-	case "reopen":
-		if err := h.teamStore.ReopenFiniteLeader(ctx, teamID, agentID, transition.Revision, transition.EvidenceRef); err != nil {
-			writeFiniteEffortTransitionError(w, err)
-			return
-		}
-	case "restart":
-		if h.executor == nil || h.executor.FiniteLeader == nil {
-			http.Error(w, "finite leader runtime unavailable", http.StatusServiceUnavailable)
-			return
-		}
-		if err := h.executor.FiniteLeader.Restart(ctx, teamID, agentID, transition.Revision, transition.EvidenceRef); err != nil {
-			writeFiniteEffortTransitionError(w, err)
-			return
-		}
-	default:
-		http.Error(w, "finite effort transition operation must be 'amend', 'complete', 'reopen', or 'restart'", http.StatusBadRequest)
-		return
-	}
-	updated, err := h.teamStore.GetHeartbeatConfig(ctx, teamID, agentID)
-	if err != nil || updated == nil {
-		http.Error(w, "finite effort transition recorded; reread heartbeat state", http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(h.toResponse(updated))
-}
-
-// writeFiniteEffortTransitionError maps lifecycle conflicts to 409 and bad
-// completion/reopen inputs to 400. The owner's exact error is never hidden.
-func writeFiniteEffortTransitionError(w http.ResponseWriter, err error) {
-	switch {
-	case errors.Is(err, store.ErrFiniteLeaderStaleRevision), errors.Is(err, store.ErrFiniteLeaderCompleted):
-		http.Error(w, err.Error(), http.StatusConflict)
-	case strings.Contains(err.Error(), "not completed"), strings.Contains(err.Error(), "requires a terminal"), strings.Contains(err.Error(), "not terminal"):
-		http.Error(w, err.Error(), http.StatusConflict)
-	default:
-		http.Error(w, err.Error(), http.StatusBadRequest)
-	}
-}
-
-// writeFinitePreparationError preserves authentication, CAS and lifecycle refusals.
-func writeFinitePreparationError(w http.ResponseWriter, err error) {
-	switch {
-	case errors.Is(err, authn.ErrCapability), errors.Is(err, authn.ErrOperation):
-		http.Error(w, err.Error(), http.StatusForbidden)
-	case errors.Is(err, store.ErrFinitePreparationConflict), errors.Is(err, store.ErrFiniteLeaderStaleRevision):
-		http.Error(w, err.Error(), http.StatusConflict)
-	default:
-		http.Error(w, err.Error(), http.StatusBadRequest)
-	}
 }
 
 // Existing management operations must not borrow authority from a narrower
@@ -742,7 +624,7 @@ func (h *Handlers) TriggerHeartbeat(w http.ResponseWriter, r *http.Request) {
 	}
 	// AUTH-01 refuses unverified callers only while VROOLI_AUTH01_ENFORCE is on
 	// (P-18). Either way only verified human proof is forwarded for attribution.
-	qualified, authErr := owneridentity.AdmitCreateRunCaller(r.Context(), r.Header, verifier, time.Now())
+	qualified, authErr := owneridentity.AuthorizeCreateRunCaller(r.Context(), r.Header, verifier, time.Now(), owneridentity.CreateRunCallerEnforced())
 	if authErr != nil {
 		http.Error(w, "verified human heartbeat caller required", http.StatusUnauthorized)
 		return
@@ -839,16 +721,6 @@ func (h *Handlers) triggerHeartbeatMember(ctx context.Context, teamID, agentID s
 			return nil, http.StatusInternalServerError, fmt.Errorf("resolve heartbeat profile: %w", err)
 		}
 		config, err := h.teamStore.GetHeartbeatConfig(ctx, teamID, agentID)
-		if err == nil && config != nil && config.FiniteLeader != nil {
-			if h.executor.FiniteLeader == nil {
-				return nil, http.StatusServiceUnavailable, fmt.Errorf("finite leader runtime unavailable")
-			}
-			state, tickErr := h.executor.FiniteLeader.Tick(ctx, teamID, agentID)
-			if tickErr != nil {
-				return nil, http.StatusConflict, tickErr
-			}
-			return &TriggerHeartbeatResponse{TeamID: teamID, AgentID: agentID, RunID: state.RunID, Status: state.Status}, http.StatusAccepted, nil
-		}
 		if err == nil && config != nil && config.ProfileKey != "" {
 			profileKey = config.ProfileKey
 		}
@@ -1804,7 +1676,7 @@ func (h *Handlers) TriggerTeam(w http.ResponseWriter, r *http.Request) {
 	}
 	// AUTH-01 refuses unverified callers only while VROOLI_AUTH01_ENFORCE is on
 	// (P-18). Either way only verified human proof is forwarded for attribution.
-	qualified, authErr := owneridentity.AdmitCreateRunCaller(r.Context(), r.Header, verifier, time.Now())
+	qualified, authErr := owneridentity.AuthorizeCreateRunCaller(r.Context(), r.Header, verifier, time.Now(), owneridentity.CreateRunCallerEnforced())
 	if authErr != nil {
 		http.Error(w, "verified human heartbeat caller required", http.StatusUnauthorized)
 		return
@@ -2461,7 +2333,7 @@ func (h *Handlers) CreateRun(w http.ResponseWriter, r *http.Request) {
 		if verifier == nil {
 			verifier = owneridentity.NewClient(owneridentity.Config{Resolver: discovery.NewResolver(discovery.ResolverConfig{})})
 		}
-		ctx, err := owneridentity.AdmitCreateRunCaller(r.Context(), r.Header, verifier, time.Now())
+		ctx, err := owneridentity.AuthorizeCreateRunCaller(r.Context(), r.Header, verifier, time.Now(), owneridentity.CreateRunCallerEnforced())
 		if err != nil {
 			http.Error(w, "verified human conversation caller required", http.StatusUnauthorized)
 			return
@@ -2573,22 +2445,21 @@ func formatDuration(d time.Duration) string {
 func (h *Handlers) toResponse(config *store.HeartbeatConfig) HeartbeatConfigResponse {
 	teamEnabled, effectiveState, effectiveReason, controlState, scheduled := h.effectiveExecutionState(context.Background(), config)
 	resp := HeartbeatConfigResponse{
-		PreparationAmendments: config.PreparationAmendments,
-		TeamID:                config.TeamID,
-		AgentID:               config.AgentID,
-		Enabled:               config.Enabled,
-		TeamEnabled:           teamEnabled,
-		EffectiveState:        effectiveState,
-		EffectiveReason:       effectiveReason,
-		ControlState:          controlState,
-		Scheduled:             scheduled,
-		Schedule:              config.Schedule,
-		ProfileKey:            config.ProfileKey,
-		TimeoutSeconds:        config.TimeoutSeconds,
-		ConsecutiveFailures:   config.ConsecutiveFailures,
-		LifecycleState:        config.LifecycleState,
-		CreatedAt:             config.CreatedAt,
-		UpdatedAt:             config.UpdatedAt,
+		TeamID:              config.TeamID,
+		AgentID:             config.AgentID,
+		Enabled:             config.Enabled,
+		TeamEnabled:         teamEnabled,
+		EffectiveState:      effectiveState,
+		EffectiveReason:     effectiveReason,
+		ControlState:        controlState,
+		Scheduled:           scheduled,
+		Schedule:            config.Schedule,
+		ProfileKey:          config.ProfileKey,
+		TimeoutSeconds:      config.TimeoutSeconds,
+		ConsecutiveFailures: config.ConsecutiveFailures,
+		LifecycleState:      config.LifecycleState,
+		CreatedAt:           config.CreatedAt,
+		UpdatedAt:           config.UpdatedAt,
 	}
 
 	if team, err := h.teamStore.Get(context.Background(), config.TeamID); err == nil {
@@ -2602,14 +2473,6 @@ func (h *Handlers) toResponse(config *store.HeartbeatConfig) HeartbeatConfigResp
 	}
 
 	resp.WakeAdmission = config.WakeAdmission
-	resp.FiniteLeader = config.FiniteLeader
-	if config.FiniteLeader != nil && h.teamStore != nil {
-		state, err := h.teamStore.ReadFiniteLeader(context.Background(), config.TeamID, config.AgentID)
-		resp.FiniteLeaderState = state
-		if err != nil {
-			resp.FiniteLeaderError = err.Error()
-		}
-	}
 	if config.LastExecution != nil {
 		resp.LastExecution = &HeartbeatExecResultDTO{
 			StartedAt: config.LastExecution.StartedAt,

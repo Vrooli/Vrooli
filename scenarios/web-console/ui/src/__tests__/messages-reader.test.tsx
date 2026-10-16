@@ -100,6 +100,27 @@ describe("messages reader", () => {
     expect(screen.queryByTestId(/^msg-collapse-/)).toBeNull();
   });
 
+  it("bounds collapsed long-message content while the reader, find, and copy retain the full message", async () => {
+    const text = `${"A paragraph of real message text.\n\n".repeat(1200)}unique-tail-marker`;
+    seed([event("long", 1, text)]);
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    render(<MessagesPane {...props} />);
+
+    const preview = screen.getByTestId("msg-markdown-long");
+    expect(preview.textContent!.length).toBeLessThan(6500);
+    expect(preview).not.toHaveTextContent("unique-tail-marker");
+    fireEvent.click(screen.getByTestId("msg-open-reader-long"));
+    const body = screen.getByTestId("messages-reader-body");
+    expect(body.textContent).toBe(text);
+    fireEvent.change(screen.getByTestId("reader-find-input"), { target: { value: "unique-tail-marker" } });
+    await waitFor(() => { expect(screen.getByTestId("reader-match-count")).toHaveAttribute("data-total", "1"); });
+    fireEvent.click(screen.getByTestId("reader-copy"));
+    expect(writeText).toHaveBeenCalledWith(text);
+    fireEvent.click(screen.getByTestId("reader-back"));
+    expect(screen.getByTestId("msg-markdown-long").textContent!.length).toBeLessThan(6500);
+  });
+
   it("[REQ:P0-017d] opens inside the pane, over a list it takes out of reach, with back, find, copy and More as its header and the speaker, time and number heading the text", () => {
     render(<MessagesPane {...props} />);
     fireEvent.click(screen.getByTestId("msg-open-reader-long"));
@@ -144,6 +165,18 @@ describe("messages reader", () => {
     fireEvent.change(screen.getByTestId("reader-find-input"), { target: { value: "" } });
     await waitFor(() => { expect(body.querySelectorAll("mark")).toHaveLength(0); });
     expect(body).toHaveTextContent("alpha one. beta two. alpha three.");
+  });
+
+  it("resets find navigation when an open reply's source changes", async () => {
+    render(<MessagesPane {...props} />);
+    fireEvent.click(screen.getByTestId("msg-open-reader-long"));
+    fireEvent.change(screen.getByTestId("reader-find-input"), { target: { value: "alpha" } });
+    await waitFor(() => { expect(screen.getByTestId("reader-match-count")).toHaveAttribute("data-total", "3"); });
+    fireEvent.click(screen.getByTestId("reader-find-prev"));
+    expect(screen.getByTestId("reader-match-count")).toHaveAttribute("data-current", "3");
+    act(() => { seed([event("long", 2, "alpha replacement")]); });
+    await waitFor(() => { expect(screen.getByTestId("reader-match-count")).toHaveAttribute("data-total", "1"); });
+    expect(screen.getByTestId("reader-match-count")).toHaveAttribute("data-current", "1");
   });
 
   it("[REQ:P0-017d] offers match stepping only once there is a query", () => {

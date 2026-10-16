@@ -60,7 +60,7 @@ func (o *Orchestrator) executeRun(ctx context.Context, run *domain.Run, task *do
 	)
 	executor.WithClock(o.now)
 	executor.WithIdentitySecret(o.identitySecret)
-	executor.WithTerminalObserver(o.observeFiniteSerialTerminal)
+	executor.WithTerminalObserver(o.projectTerminalInvocationReadModel)
 	executor.WithRunStateRoot(runStateRoot)
 	if source, ok := o.promptClient.(promptmanager.SourceClient); ok {
 		executor.WithSkillSource(source)
@@ -451,9 +451,6 @@ func (o *Orchestrator) ResumeRun(ctx context.Context, id uuid.UUID) (*domain.Run
 		return nil, importedRunLifecycleError("resume")
 	}
 
-	if err := o.checkEffortContinuation(ctx, run); err != nil {
-		return nil, domain.RefuseBeforeEffects(err)
-	}
 	// Validate resumability using domain decision helper
 	if !run.IsResumable() {
 		return nil, domain.NewStateError("Run", string(run.Status), "resume",
@@ -566,7 +563,7 @@ func (o *Orchestrator) resumeRun(ctx context.Context, run *domain.Run, task *dom
 	)
 	executor.WithClock(o.now)
 	executor.WithIdentitySecret(o.identitySecret)
-	executor.WithTerminalObserver(o.observeFiniteSerialTerminal)
+	executor.WithTerminalObserver(o.projectTerminalInvocationReadModel)
 	executor.WithRunStateRoot(runStateRoot)
 	executor.WithRunStateWriteObserver(func() { o.recordRunStateWrite(ctx) })
 	executor.WithStructuredResultResolver(o.structuredResults)

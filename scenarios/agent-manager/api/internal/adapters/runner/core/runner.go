@@ -49,7 +49,6 @@ import (
 	"agent-manager/internal/orchestration/obs"
 
 	"github.com/google/uuid"
-	isolation "github.com/vrooli/vrooli/packages/nativeisolation"
 )
 
 // runnerLog returns the runner-core's component-tagged logger,
@@ -137,18 +136,6 @@ func (r *Runner) ToolCapabilityMap() map[string]string {
 // after the runner registry; tests can also use it to inject a mock.
 func (r *Runner) SetSandboxLauncherFactory(factory runner.SandboxLauncherFactory) {
 	r.selector.SetSandboxLauncherFactory(factory)
-}
-
-// SetFiniteNativeFactory is owner-only startup composition; main does not call it.
-func (r *Runner) SetFiniteNativeFactory(f *runner.FiniteNativeFactory) error {
-	setter, ok := r.selector.(interface {
-		SetFiniteNativeFactory(*runner.FiniteNativeFactory)
-	})
-	if !ok {
-		return fmt.Errorf("native selector cannot enforce finite isolation")
-	}
-	setter.SetFiniteNativeFactory(f)
-	return nil
 }
 
 // Type satisfies [runner.Runner] by delegating to the codec.
@@ -359,7 +346,7 @@ func (r *Runner) Execute(ctx context.Context, req runner.ExecuteRequest) (*runne
 			RunnerType:            r.codec.Type(),
 			Operation:             "execute",
 			Cause:                 err,
-			ExecutionStartedKnown: !errors.Is(err, isolation.ErrUnknown),
+			ExecutionStartedKnown: true,
 			ExecutionStarted:      false,
 		}
 	}
@@ -499,9 +486,6 @@ func (r *Runner) ValidateContinuation(ctx context.Context, req runner.ContinueRe
 }
 
 func (r *Runner) Continue(ctx context.Context, req runner.ContinueRequest) (*runner.ExecuteResult, error) {
-	if cfg := req.GetConfig(); cfg != nil && cfg.Admission != nil && cfg.Admission.Effort != nil {
-		return nil, fmt.Errorf("finite native continuation requires separately qualified unit migration")
-	}
 	if err := r.ValidateContinuation(ctx, req); err != nil {
 		return nil, err
 	}
@@ -559,7 +543,7 @@ func (r *Runner) Continue(ctx context.Context, req runner.ContinueRequest) (*run
 			RunnerType:            r.codec.Type(),
 			Operation:             "continue",
 			Cause:                 err,
-			ExecutionStartedKnown: !errors.Is(err, isolation.ErrUnknown),
+			ExecutionStartedKnown: true,
 			ExecutionStarted:      false,
 		}
 	}
@@ -1119,7 +1103,7 @@ func (r *Runner) runDurable(ctx context.Context, in durableInputs) (*runner.Exec
 			RunnerType:            r.codec.Type(),
 			Operation:             "execute",
 			Cause:                 err,
-			ExecutionStartedKnown: !errors.Is(err, isolation.ErrUnknown),
+			ExecutionStartedKnown: true,
 			ExecutionStarted:      false,
 		}
 	}

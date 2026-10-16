@@ -9,6 +9,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode, type CSSPropertie
 import clsx from 'clsx';
 
 // Sub-components
+import { RecordedVideo } from './RecordedVideo';
 import { IntroCard } from './IntroCard';
 import { OutroCard } from './OutroCard';
 import { WatermarkOverlay } from './WatermarkOverlay';
@@ -270,6 +271,7 @@ function ReplayOverlayLayer({
 }
 
 export function ReplayPlayer({
+  recordedVideo,
   frames,
   pages,
   autoPlay = true,
@@ -644,7 +646,8 @@ export function ReplayPlayer({
               zoom={zoom}
               anchorStyle={anchorStyle}
               screenshotRef={screenshotRef}
-              screenshotUrl={currentFrame.screenshot?.url}
+              screenshotUrl={recordedVideo ? undefined : currentFrame.screenshot?.url}
+              emptyState={recordedVideo ? <RecordedVideo source={recordedVideo.source} time={isExportPresentation ? ((recordedVideo.trimStartMs ?? 0) + normalizedFrames.slice(0, currentIndex).reduce((sum, frame) => sum + (frame.durationMs ?? 0), 0) + frameProgress * (currentFrame.durationMs ?? 0)) / 1000 : undefined} controls={!isExportPresentation} /> : undefined}
               screenshotAlt={currentFrame.nodeId || `Step ${currentFrame.stepIndex + 1}`}
               transition={screenshotTransition}
             >

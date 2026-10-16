@@ -33,6 +33,25 @@ import (
 // already subscribes to, so no hub change is needed.
 const AuthorizationDecisionEventType = "agent_manager.authorization.decision_requested.v1"
 
+// InteractiveAuthorizationDecisionEventType is the decision event raised when an
+// in-session (interactive) authorization REQUEST is prepared by an agent and is
+// awaiting the operator's in-UI approval. Closing gap G3: the interactive path
+// (RequestAuthorization) previously persisted a pending request but never
+// notified the operator, so a request could sit indefinitely until the operator
+// happened to open the UI.
+//
+// It is DELIBERATELY a distinct event type from
+// AuthorizationDecisionEventType. The interactive grant is approved ONLY through
+// ApproveAuthorization, which requires a live, independently-verified human AND
+// a matching live process binding — properties a notification-hub resolution
+// cannot carry. So this event is a PUSH-ONLY notification: it brings the
+// operator to the review UI; it must never be wired to a hub resolver that would
+// mint the grant, which would bypass the independent-human + process-binding
+// gates. No hub resolver subscribes to this type (ResolveAuthorizationFromHub
+// matches only AuthorizationDecisionEventType), so a resolution for it falls
+// through as a benign no-op.
+const InteractiveAuthorizationDecisionEventType = "agent_manager.interactive_authorization.decision_requested.v1"
+
 // MaxOutstandingAuthorizationRequestsPerSubject caps how many distinct
 // un-decided asks a single subject may have outstanding at once. It bounds the
 // operator's notification exposure to a buggy or hostile caller: beyond the cap
@@ -216,6 +235,77 @@ func (o *Orchestrator) authorizationDecisionEvent(ctx context.Context, p *domain
 		Occurred: p.RaisedAt.UTC().Truncate(pendingAuthorizationWindow),
 		Payload:  payload,
 	}
+}
+
+// NotifyAuthorizationRequested raises the operator decision event for an
+// in-session (interactive) authorization request the moment it is persisted, so
+// the operator is pushed to the review UI instead of discovering a pending
+// request only by chance. Delivery is best-effort, exactly like the run-approval
+// and standing-grant notifications: a publish failure is logged and never fails
+// the request — the durable pending record already stands and the operator can
+// still approve from the UI. A nil publisher is a silent no-op (no regression).
+//
+// This NEVER issues authority: the interactive grant is minted only by
+// ApproveAuthorization under a live independent-human proof and matching process
+// binding. The event carries no path to the grant.
+func (o *Orchestrator) NotifyAuthorizationRequested(ctx context.Context, g *domain.AuthorizationGrant) {
+	if o == nil || o.approvalPublisher == nil || g == nil {
+		return
+	}
+	event := o.interactiveAuthorizationEvent(ctx, g)
+	if err := o.approvalPublisher.PublishDomainEvent(ctx, event); err != nil {
+		approvalLog().Warn("interactive authorization decision event publish failed",
+			"authorization_id", g.ID.String(), obs.KeyError, err.Error())
+	}
+}
+
+// interactiveAuthorizationEvent builds the operator Ask for a pending interactive
+// authorization request. The question states exactly what is being asked for —
+// the reviewed policy name, the targets, the session, and the requested lifetime
+// — so the operator knows what they are approving before they open the UI. The
+// options point the operator at the in-UI review (there is no one-tap approve:
+// interactive consent requires the operator's live verified login at the UI).
+func (o *Orchestrator) interactiveAuthorizationEvent(ctx context.Context, g *domain.AuthorizationGrant) eventbus.DomainEvent {
+	targets := strings.Join(g.Targets, ", ")
+	question := fmt.Sprintf("An agent session (%s) is requesting authority %q for %s, for up to %s. Review and approve it in the web console with your verified login.",
+		strings.TrimSpace(g.HarnessKind), g.Policy, targets, humanizeDurationSeconds(g.DurationSeconds))
+
+	payload := map[string]any{
+		"subject":  fmt.Sprintf("Authorization requested: %s", g.Policy),
+		"question": question,
+		"options": []any{
+			map[string]any{"key": "review", "label": "Review in web console"},
+		},
+		// No recommended default and no reversible-grant claim: nothing is granted
+		// by answering this notification — approval happens only at the UI under a
+		// live verified login. This is a push to the operator, not a decision.
+		"urgency": "normal",
+		"correlation": map[string]any{
+			"authorization_id": g.ID.String(),
+			"run_id":           g.RunID.String(),
+			"harness_kind":     g.HarnessKind,
+			"harness_session":  g.HarnessSession,
+			"policy":           g.Policy,
+		},
+	}
+	if base := strings.TrimRight(o.resolveWebConsoleNoticeBase(ctx), "/"); base != "" {
+		payload["context_url"] = base + "/?authorization=" + g.ID.String()
+	}
+
+	return eventbus.DomainEvent{
+		Source:    runApprovalSource,
+		EventType: InteractiveAuthorizationDecisionEventType,
+		// A stable occurrence (the request's creation time) keeps the event id
+		// deterministic, so a redelivery maps to the same ask rather than a
+		// duplicate notification.
+		Occurred: g.CreatedAt.UTC(),
+		Payload:  payload,
+	}
+}
+
+// humanizeDurationSeconds renders a grant lifetime for the operator notification.
+func humanizeDurationSeconds(seconds int64) string {
+	return humanizeGrantTTL(time.Duration(seconds) * time.Second)
 }
 
 func humanizeGrantTTL(d time.Duration) string {

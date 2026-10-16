@@ -9,7 +9,6 @@ import (
 	"agent-manager/internal/tokenaccounting"
 
 	"github.com/google/uuid"
-	"github.com/vrooli/api-core/effortauthority"
 	eventdomain "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 )
 
@@ -673,20 +672,18 @@ type RunAdmission struct {
 	// FrozenIdentityScopes is the original owner/profile/request intersection.
 	// A nil pointer means historical admission has no provable grant ceiling.
 	FrozenIdentityScopes *[]string `json:"frozenIdentityScopes,omitempty"`
-	// Native-owned finite task projection, bound by EffortIntent.InputDigest.
-	// Stored privately with RunConfig; never a caller identity projection.
+	// Retained task projection, stored privately with RunConfig; never a caller
+	// identity projection.
 	EffortTaskProjection []byte `json:"effortTaskProjection,omitempty"`
 	// CreateCaller is internal admission evidence. Proto projection does not
 	// carry it; authentication/replay must read the full authoritative row.
-	Effort            *effortauthority.Binding `json:"effort,omitempty"`
-	EffortIntent      *effortauthority.Intent  `json:"effortIntent,omitempty"`
-	CreateCaller      *CreateRunCaller         `json:"createCaller,omitempty"`
-	RequestedRunner   string                   `json:"requestedRunner,omitempty"`
-	RequestedModel    string                   `json:"requestedModel,omitempty"`
-	RequestedRoleRef  string                   `json:"requestedRoleRef,omitempty"`
-	RequestedEffort   string                   `json:"requestedEffort,omitempty"`
-	RequestedTimeout  time.Duration            `json:"requestedTimeout,omitempty"`
-	RequestedMaxTurns int                      `json:"requestedMaxTurns,omitempty"`
+	CreateCaller      *CreateRunCaller `json:"createCaller,omitempty"`
+	RequestedRunner   string           `json:"requestedRunner,omitempty"`
+	RequestedModel    string           `json:"requestedModel,omitempty"`
+	RequestedRoleRef  string           `json:"requestedRoleRef,omitempty"`
+	RequestedEffort   string           `json:"requestedEffort,omitempty"`
+	RequestedTimeout  time.Duration    `json:"requestedTimeout,omitempty"`
+	RequestedMaxTurns int              `json:"requestedMaxTurns,omitempty"`
 
 	// RequestedGoalMode is "until" when the caller supplied a completion test,
 	// otherwise empty.

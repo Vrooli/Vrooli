@@ -1,6 +1,7 @@
 package installgateway
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -546,6 +547,60 @@ func TestScenarioOwnedCanonicalTemplateResolvesToItsSourceDirectory(t *testing.T
 	}
 }
 
+func TestExactGovernedVersionUpdatesGeneratedElectronManifest(t *testing.T) {
+	root := t.TempDir()
+	template := filepath.Join(root, "scenarios", "scenario-to-desktop", "templates", "vanilla")
+	if err := os.MkdirAll(template, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(template, "package.json"), []byte(`{"name":"desktop-template","devDependencies":{"electron":"42.11.11"}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(template, "package-lock.json"), []byte(`{"lockfileVersion":3,"packages":{}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	generatedManifest := filepath.Join(template, "package.json.template")
+	generated := `{"name":"{{APP_NAME}}","devDependencies":{"electron":"42.11.11"},"build":{"afterAllArtifactBuild":{{LINUX_ARTIFACT_SIGNER_HOOK}}}}`
+	if err := os.WriteFile(generatedManifest, []byte(generated), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, name := range []string{"electron", "electron-mksnapshot"} {
+		resolution, err := Resolve(root, "scenario-to-desktop", "template/vanilla", "npm", name, "44.7.2")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := ApplyExactVersion(&resolution, "44.7.2"); err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(strings.Join(resolution.Argv, " "), "--save-exact") {
+			t.Fatalf("install plan omitted exact-save flag: %v", resolution.Argv)
+		}
+		if _, err := installTemplate(context.Background(), resolution, npmTemplateLockInstaller{}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	manifest, err := os.ReadFile(generatedManifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var parsed struct {
+		DevDependencies map[string]string `json:"devDependencies"`
+	}
+	if err := json.Unmarshal(bytes.ReplaceAll(manifest, []byte(`{{LINUX_ARTIFACT_SIGNER_HOOK}}`), []byte(`null`)), &parsed); err != nil {
+		t.Fatalf("generated manifest must retain valid template structure: %v\n%s", err, manifest)
+	}
+	for _, name := range []string{"electron", "electron-mksnapshot"} {
+		if parsed.DevDependencies[name] != "44.7.2" {
+			t.Errorf("generated manifest %s = %q, want exact 44.7.2", name, parsed.DevDependencies[name])
+		}
+	}
+	if !bytes.Contains(manifest, []byte(`{{APP_NAME}}`)) || !bytes.Contains(manifest, []byte(`{{LINUX_ARTIFACT_SIGNER_HOOK}}`)) {
+		t.Fatalf("template placeholders were altered: %s", manifest)
+	}
+}
+
 func TestGovernedTemplateDeclarationRetainsGeneratedScenarioPath(t *testing.T) {
 	root := t.TempDir()
 	ui := filepath.Join(root, "templates", "scenarios", "react-vite", "ui")
@@ -593,8 +648,17 @@ func (npmTemplateLockInstaller) Install(_ context.Context, r Resolution) (string
 	if err = json.Unmarshal(raw, &m); err != nil {
 		return "", err
 	}
+	version := ""
+	for _, arg := range r.Argv {
+		if strings.HasPrefix(arg, r.PackageName+"@") {
+			version = strings.TrimPrefix(arg, r.PackageName+"@")
+		}
+	}
+	if version == "" {
+		return "", fmt.Errorf("template test install has no exact package version in argv: %v", r.Argv)
+	}
 	dev := m["devDependencies"].(map[string]any)
-	dev[r.PackageName] = "42.11.11"
+	dev[r.PackageName] = version
 	raw, err = json.Marshal(m)
 	if err != nil {
 		return "", err
@@ -602,7 +666,7 @@ func (npmTemplateLockInstaller) Install(_ context.Context, r Resolution) (string
 	if err = os.WriteFile(r.ManifestPath, raw, 0o644); err != nil {
 		return "", err
 	}
-	return "", os.WriteFile(filepath.Join(r.SurfaceRoot, "package-lock.json"), []byte(`{"lockfileVersion":3,"packages":{"node_modules/electron":{"version":"42.11.11"}}}`), 0o644)
+	return "", os.WriteFile(filepath.Join(r.SurfaceRoot, "package-lock.json"), []byte(fmt.Sprintf(`{"lockfileVersion":3,"packages":{"node_modules/%s":{"version":"%s"}}}`, r.PackageName, version)), 0o644)
 }
 
 func (templateLockInstaller) Install(_ context.Context, r Resolution) (string, error) {

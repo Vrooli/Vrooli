@@ -21,9 +21,6 @@ func (o *Orchestrator) authenticateCreateRunCaller(ctx context.Context, req *Cre
 	refuse := func(message string) error {
 		return domain.NewValidationErrorWithCode("authorization", message, domain.ErrCodePolicyScope)
 	}
-	if req.EffortProof != "" {
-		return o.authenticateEffortCaller(ctx, req)
-	}
 	verifiedOwner, hasVerifiedOwner := coreidentity.PrincipalFromContext(ctx)
 	// A verified service principal carries its identity in the Authorization
 	// bearer that the authn middleware already verified into this principal. That
@@ -93,14 +90,6 @@ func (o *Orchestrator) authenticateCreateRunCaller(ctx context.Context, req *Cre
 		if err != nil || parent == nil || parent.TaskID != claims.TaskID || parent.OwnerSubject != strings.TrimSpace(claims.Subject) {
 			return refuse("run claims do not match the retained parent identity")
 		}
-		if parent.ResolvedConfig != nil && parent.ResolvedConfig.Admission != nil && parent.ResolvedConfig.Admission.Effort != nil {
-			if ownerOffered {
-				return refuse("effort child cannot replace its retained authority with a human session")
-			}
-			if err := o.inheritEffortCaller(ctx, req, parent); err != nil {
-				return err
-			}
-		}
 		expires := time.Unix(claims.ExpiresAt, 0)
 		if !expires.After(o.now()) {
 			return refuse("run identity is expired")
@@ -120,7 +109,6 @@ func (o *Orchestrator) authenticateCreateRunCaller(ctx context.Context, req *Cre
 		}
 		req.OwnerExpiresAt = &expires
 		req.caller = &domain.CreateRunCaller{Kind: "run", Subject: req.OwnerSubject, RunID: claims.RunID}
-		bindEffortCaller(req)
 	}
 	req.RequestedScopes, req.ExpectedOwnerSubject = narrowing, expected
 	return narrowCreateRunScopes(req)
@@ -129,17 +117,6 @@ func (o *Orchestrator) authenticateCreateRunCaller(ctx context.Context, req *Cre
 // revalidateCreateRunCaller closes validation-time credential changes before
 // the first admission effect. It does not renew the retained scope or expiry.
 func (o *Orchestrator) revalidateCreateRunCaller(ctx context.Context, req CreateRunRequest) error {
-	if req.effort != nil {
-		if _, err := o.effortAuthority.CheckBinding(ctx, req.effort.binding); err != nil {
-			return err
-		}
-		if req.effort.serial {
-			return o.revalidateSerialCaller(ctx, req)
-		}
-		if req.effort.recovery {
-			return nil
-		}
-	}
 	if req.caller == nil {
 		return nil
 	}

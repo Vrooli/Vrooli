@@ -9,9 +9,9 @@ metadata:
   tags: ["marketing", "video", "launch"]
   icon: "video"
   status: "active"
-  revision: 15
+  revision: 17
   createdAt: "2026-09-17T00:00:00Z"
-  updatedAt: "2026-09-22T00:00:00Z"
+  updatedAt: "2026-10-16T00:00:00Z"
   requires:
     scenarios: ["prompt-manager", "landing-page-business-suite", "brand-manager"]
     commands: ["prompt-manager skill read", "brand-manager", "vrooli scenario port"]
@@ -26,16 +26,12 @@ Choose `profile: teaser` unless the request calls for a major launch, hero film,
 flagship, or investor-quality demonstration. Choose `flagship` for those requests.
 These are skill inputs, not flags on a Vrooli CLI. Narration is opt-in.
 
-**An upgrade is additive:** keep populated real product captures and the requested
-music character, then add direction, custom brand animation, and editorial craft.
-Do not substitute an all-typography/schematic film or a hand-synthesized score for
-those requirements. The operator rejected exactly that substitution in revision 12.
-Before polishing, inspect usable clips and verify that captures occupy at least
-half the film, with a sustained interaction/result as the decisive proof. Plan
-custom animation around those clips. A blocked launch request stays blocked; an
-unsolicited concept study is not its replacement, baseline, or upgraded output.
-A deliberately product-light brand film is a different brief, not an exception
-silently invented by the agent.
+Direct the audience's understanding before polishing scenes. Establish the problem,
+product category and promise, show decisive genuine product proof, then give a
+usable next action. Choose the balance of product captures, typography, conceptual
+inserts and holds from that story. Preserve requested music character and genuine
+proof. There is no universal footage percentage or required movement in every shot.
+A blocked launch remains incomplete; an unsolicited concept study cannot replace it.
 
 | Profile | Production path | Cost boundary |
 |---|---|---|
@@ -43,10 +39,15 @@ silently invented by the agent.
 | flagship | Three distinct directions, four styleframes, animatic, final composition, critique and revision | Requested duration; compare 3 governed takes initially; record render/retry and generation costs |
 
 Read `references/production.md` for the checkpoint sequence and visual classes.
-Use its accepted Vega example to calibrate the capture/animation balance. Derive
-each new product's appearance from that product's sources; do not copy Vega's theme.
+Use `references/examples.json` and `references/learning.md` for rated examples,
+failed approaches and qualification limits. Retrieve examples with
+`scripts/production.py examples <intent>`. Derive each product's direction from
+its brief and sources; do not copy a reference film's theme or sequence.
 Read `references/safety.md` before any lifecycle action or capture.
+Read `references/capture.md` before recording.
 Read `references/audio-review.md` when choosing audio or reviewing an export.
+Read `references/review.md` before reviewing meaning, craft and the ending.
+Read `references/channel-variants.md` when comparing landing-page and social edits.
 Use `scripts/production.py --help` for file-only plan checks, targeted shot retrieval,
 and delivered-media inspection. Read `references/plan-format.md` when writing the plan.
 Resolve these paths relative to this skill's canonical directory.
@@ -68,7 +69,7 @@ HyperFrames owns its composition and rendering contract.
 | Reading official sources, capturing the running product, composing, rendering, poster, share copy | Uploading, posting, or scheduling the video |
 | Recording which sources were used and which conflicts were found | Approving a Content Desk draft or activating a video post type |
 | Reporting gaps in branding, landing-page, and marketing sources | Editing brand-manager, landing-page content, or `docs/marketing/` canon |
-| Capturing a presentation instance, or live data labelled as live | Seeding a live instance, or any write to the operator's workspace |
+| Capturing a presentation instance, or authorized privacy-reviewed live data | Seeding a live instance, or any write to the operator's workspace |
 | **Authoring the demo world inside the presentation instance** (§5b) — sessions, groups, transcripts, artifacts, and any other product data the story shows | Fixture data for surfaces the presentation instance cannot own (the control plane, the node fleet) where no seeding mechanism exists — report the gap (§5b) |
 
 ---
@@ -106,7 +107,7 @@ Read every row that exists. A higher row wins a conflict. Record each conflict i
 Rules:
 - Read the landing page through the API. Do not read the presentation seed files; the published database content is the truth.
 - If row 1 returns an empty presentation, the product is not listed. Continue from row 2 and state "not on the landing page" in `sources.md`.
-- Show a capability whose status is `preview` or `coming soon` only with that label, or leave it out.
+- Preserve availability qualifications in the claim record and public viewing context. Do not imply that a preview is generally available. If the film would mislead without an in-film qualifier, narrow or omit the claim. Respect the operator's explicit rejection of persistent demo/mock/date labels; provenance belongs in the report/share context.
 - Do not write a claim that no row supports. A marketing source is not proof of shipped behavior: reconcile it with current product evidence. Withhold a disputed claim; source priority never authorizes a known falsehood.
 - Preserve claim fidelity, not page order. Reorder, omit, combine, or paraphrase supported claims without widening scope, certainty, availability, performance, or pricing. Retain the original, proposed wording, source, and qualification in `product-truth.md`.
 - Keep legally fixed wording and explicitly locked claims verbatim. If a rewrite would change meaning or a policy requires new approval, record the requested rewrite and omit it until approved. Do not approve it yourself.
@@ -115,11 +116,11 @@ Rules:
 
 ### 4. Visual sources and authority
 
-Brand Manager owns identity assets and explicit brand restrictions. The current
-official landing page supplies the video's presentation treatment by default.
-Use the rows below by role, not as a global palette override. A different page
-accent does not authorize recoloring a shipped logo, nor does a generic brand
-color erase the page's established treatment. Record any explicit-rule conflict.
+Brand Manager owns identity assets and explicit restrictions. Read the official
+landing page as a visual reference. Choose a product-specific campaign treatment
+for this film and record its relationship to those sources. A page reference does
+not mandate its layout, background or pacing. Preserve shipped marks and report
+conflicts with mandatory rules.
 
 | # | Source | How to read it | Use it for |
 |---|---|---|---|
@@ -133,9 +134,10 @@ Rules:
 - For a product in a product line, the line style wins over `path:docs/marketing/strategy/IMAGE_STYLE.md`. That precedence is stated in `IMAGE_STYLE.md` §"Scope and precedence".
 - A branded scenario's shipped icons and `og-image.png` are rendered by `brand-manager apply run`, not generated. Use them as-is.
 - Copy font files and logo files into `composition/assets/`. Do not load them from the network at render time.
-- **Carry the landing page's visual identity into the video.** Inspect the rendered product route, not only its JSON theme. Save opening/product/ending references. Extend `composition/DESIGN.md` with a source-to-video mapping using `references/production.md` §"Landing-page visual continuity". A matching logo and two colors are insufficient.
-- Preserve shipped marks and explicit brand restrictions. Use the landing page's established presentation treatment without requiring a separate styling request. Record differing tokens by role and the selected authority. If the page conflicts with an explicit mandatory restriction, retain that restriction and report the mismatch. Do not modify brand or landing-page canon to remove it.
-- Compare representative video frames beside the saved page references before rendering. Record what carries over and why any cue changes. Keep the film's own story order, readable timing, and real product captures. Do not replace those captures with illustrative landing-page mockups or recolor the app to match the composition.
+- Inspect the rendered product route after fonts and assets load. Save opening/product/ending references. Extend `composition/DESIGN.md` with the source-to-video mapping in `references/production.md`.
+- Preserve shipped marks and explicit restrictions. Record which cues carry over and why others change. Do not modify brand or landing-page canon to remove a conflict.
+- Compare representative video frames with the references before expensive rendering. Judge composition, materials/light, type, spacing, framing and motion. Matching two colors or adding one line is not a craft verdict.
+- Give individual shots different compositions when their purposes differ. Use brand identification where it serves introduction or closure. Do not default to permanent corner logos, demo badges or footer strips.
 
 ---
 
@@ -180,7 +182,8 @@ pass the study polish gate.
 When the operator authorizes mocked presentation data, inspect a bounded frontend
 fixture path before giving up on capture: a copied, unmodified frontend, authored
 schema-validated responses, and a browser that blocks all unhandled network calls.
-Capture its actual controls and rendering; label demo data visibly. Record source
+Capture its actual controls and rendering. Record fictional-data provenance in
+the report/share context; do not add persistent production labels to the film. Record source
 and bundle hashes, fixture responses, blocked requests and browser errors. This is
 `capture_mode: ui-fixture`, `proof_scope: ui`; it is not a running presentation
 scenario or proof of backend collection, persistence, external execution, or speed.
@@ -201,7 +204,7 @@ Write the demo world **before** any capture, as a deliberate artifact:
    Ingestion surfaces are usually authenticated per instance — a token under the instance's own state directory, not the caller's. Read the presentation instance's own secret; live's will not work, and reaching for it is a sign you are pointed at the wrong instance.
 5. **Author the content.** Names, titles, timestamps, and text are written, not generated filler. `Session 1 / Session 2 / Session 3` and lorem ipsum read as a demo; a viewer discounts everything around them. Vary ages, states, and lengths — uniform data looks synthetic. Invent an organisation and stay inside it: one consistent fictional team, project, and repo across every surface, so the frames agree with each other.
 6. **Invent every identifier.** No real customer, employee, host, fleet node, path, or repository — including the operator's. Fictional throughout, and internally consistent.
-7. **Honour the capability status from §3.** A fuller demo makes availability claims more persuasive, so the labelling rule tightens rather than relaxes: a `preview` or `coming-soon` capability stays labelled no matter how real its data looks.
+7. **Preserve capability status from §3.** Review the impression created by rich fictional data. Narrow or omit unsupported availability/performance claims. Record the public qualification placement without imposing persistent production metadata.
 
 Record the demo world in `sources.md`: each surface, how it was populated, roughly how much, and the command or interface used. Anyone must be able to rebuild it.
 
@@ -216,7 +219,7 @@ Order of footage sources:
 - **On live, interact read-only**: select, switch views, open viewers, scroll, and type into search fields. Do not send input to sessions, create or delete items, or take over a device.
 - **On a presentation instance, writing is the job** (§5b) — create and populate only verified instance-owned surfaces within the safety assessment. The read-only rule protects the operator's workspace; it is not a capture technique, and applying it to a presentation instance is what produces an empty video. Confirm which instance you are pointed at before the first write: check the port against `vrooli scenario status <scenario> --instance presentation`, not the browser tab.
 - Capture one clip per story scene. Name the clip after the scene.
-- **Every product scene is a moving clip, not a still.** Record the product being *used*: the pointer travelling to a control, the click, the panel opening, the list scrolling, the view changing. A screenshot with a slow scale on it is not motion — it is a photograph of software, and it reads as a mockup. Stills are for holds at the end of a clip and for brand scenes only. A scene whose only movement is a camera push fails the motion gate (§9).
+- Record real actions and their results where the claim concerns a workflow. Use faithful stills, detail crops, source collages and settled holds when they make a state easier to understand. Camera motion is editorial treatment, not evidence that the product acted. Name what each shot proves; do not invent UI movement to satisfy a quota.
 - Choose capture dimensions from the shot crop and final display size. A 1920×1080 viewport is a starting point, not a zoom budget. Record actual encoded dimensions, crop in source pixels, and maximum output footprint; require at least one source pixel per output pixel on both axes. Reframe or recapture a deficient shot. Phone capture may use 390×844 at device scale 3; verify the encoded clip retains that resolution.
 - Drive the browser with puppeteer-core against `/usr/bin/google-chrome`, wait for `networkidle2`, then wait several more seconds before the first frame. `google-chrome --headless --screenshot` captures the loading fallback no matter what `--timeout` says.
 - Record motion with the Chrome DevTools Protocol `Page.startScreencast` frame stream. Write each frame with its timestamp. Join the frames with ffmpeg concat (per-frame durations) into 30 fps H.264.
@@ -226,7 +229,7 @@ Order of footage sources:
 - **Measure the clips, then build the timeline to them.** Record first, read each clip's real duration, and set scene starts and durations from those numbers — snapping cuts to the nearest strong cue (§5d) rather than forcing a clip to fit a guessed slot.
 - Take a still from the last frame of each clip for holds and camera pushes.
 - Read every capture back (contact sheet or frames) before you use it. Read the browser console too: a presentation instance surfaces a missing follow-list dependency as a failed request, not as a visible error.
-- Verify motion by sampling frames from *different* moments of the same clip and comparing them. Two identical frames mean the clip is a still with extra steps.
+- Check that claimed interactions occur in the actual take. Inspect start/action/result and cut boundaries. A deliberate static result hold is valid; a stalled or loading capture is a defect.
 - **Keep every capture you take, including the ones you reject.** A clip you shot and did not use goes to `alternates/footage/` with one line on why (§7). Deleting it is the expensive mistake: a rejected clip costs a few hundred KB, and re-shooting it later costs a whole capture session with the presentation instance restarted and the demo world rebuilt. This applies to framings, takes, scene orders and poster frames alike — if you made a choice, the thing you chose against ships next to the thing you chose.
 
 #### 5d. Direct the eye
@@ -270,11 +273,13 @@ DECISIONS.md           every choice that had a plausible alternative, with the s
 sources.md             resolved product values, every source read (with revision/date), the captured instance and follow list, the demo world (§5b) surface by surface, conflicts and winners, gaps
 demo-world.md          what was populated, the fictional organisation, and the exact commands to rebuild it
 brag-plan.md           core story and source-linked storyboard, ordered for film
-production.json        profile, claims, shots, timing, provenance, and review references
+production.json        audience/context/setup, claims, shots, CTA, timing, provenance and review references
+feedback.json          exact operator feedback, ratings, export hashes and dispositions
+qualification.json     independent-brief trials, rework, elapsed time/cost and unmeasured outcomes
 safety-report.md      verified capture/startup boundaries and actual actions
 product-truth.md      supported claims, qualifications, restrictions, and brand tokens
 visual-reference/     rendered landing-page references; mapping and comparison in composition/DESIGN.md
-quality-review.json   timestamped critique bound to delivered file SHA-256
+quality-review.json   technical, viewer-comprehension and craft findings bound to final SHA-256
 quality-review.md     readable critique, revision outcomes, and remaining limitations
 audio-selection.md    candidates actually auditioned, measurements, selection reason
 composition-brief.md   brag brief
@@ -310,6 +315,7 @@ Empty `alternates/` subfolders are a finding, not a tidy result: either you gene
 
 - Node.js, the pinned HyperFrames CLI, ffmpeg, and headless Chrome are external tools. Reuse a verified installed toolchain first. Route any install through `scenario-dependency-analyzer` under `path:docs/package-governance.md`, including scratch installations. Never invoke a raw package-manager install or implicit `npx` download. Record versions and tool paths. Do not rebuild the platform to obtain a renderer.
 - Set `HYPERFRAMES_NO_TELEMETRY=1` for every HyperFrames command.
+- Record owned processes, render memory and cleanup under `references/safety.md`.
 - Use brag's bundled SFX, and its music only as a fallback when generation is unavailable. Their licence status is a **blocker to resolve, not a label to apply**: brag's own `assets/music/README.md` says the exact terms must be verified before publication, and the skill's MIT licence covers its code, not the bundled audio. Check the track's source terms, record what you find in `sources.md`, and if they are unresolved say so to the operator as an open decision with the source named — do not write "not verified" and treat the matter as closed.
 - **Route model-generated music through the governed capability.** Read `music-tools styles list` and the current compose contract. Reuse suitable provenance-complete takes when available. Otherwise begin with the profile’s bounded candidate count, structured duration/tempo/key, and capacity admission; wait through `music-tools jobs wait <job-id>` and retrieve with `music-tools takes list --job <job-id>`. Compare the actual audio before selecting; see `references/audio-review.md`. The retired `music-generation` skill is only a pointer; never build a virtualenv or download weights from a skill. A bundled or library track whose terms are unresolved is a blocker to publication; the governed ACE-Step resource records model and licence provenance. Search prior delivery folders and the governed take pool before declaring audio unavailable. Preserve the operator's previous style family and variety, not just the most recent agent's selection. If generation cannot safely run, use licensed reuse or a silent timing rough; a rough is not the soundtrack deliverable. Do not replace requested music with oscillator/noise synthesis unless the operator explicitly requested an original score. See `references/audio-review.md`; report unreviewed audio. Select one take for the cut and deliver **all** candidates in `alternates/music/` with `PROVENANCE.md` (§7).
 - **When a generator disappoints, find out what it actually received before blaming it.** Music and image models are commonly fronted by a planner or prompt-rewriter that restates the brief before the generating model sees it, and a small planner restates everything toward the bland middle: a brief asking for "144 BPM, cold, detuned, menacing" came back as 65 BPM "shimmering, melancholic, ethereal". Read the log for the prompt that reached the model, and turn the rewrite off when the brief is authored rather than sketched. Pass structured values — tempo, key, duration — in their own fields; a rewriter discards free text first.
@@ -334,14 +340,17 @@ You must:
 - Record in `sources.md` which instance was captured, the follow list used, and which presentation-owned, real-host, or shared-control-plane data appears in any frame.
 - **Dress the demo world before capturing (§5b), and record it in `demo-world.md`.**
 - **Apply the fullness gate before the render.** Read every scene's frames and ask of each: would a viewer believe real people use this product? A scene whose main surface is empty, single-item, or placeholder-named fails. Fix it, cut it, or report it as a defect in the draft — a failing scene may not pass silently into the render.
-- **Apply the motion gate before the render.** Sample frames from the start, middle and end of every product scene. If the product itself did not move — only the camera did — the scene fails (§5c).
+- Check the decisive proof against observed product evidence. For action claims, inspect the actual action and result. For state claims, inspect faithful source pixels and context. Do not infer a workflow from camera motion.
 - **Apply the scene-purpose gate.** Every scene adds evidence, context, emotion, or closure to the one core promise. Revisit a surface when its state change proves the story. Cut redundant scenes; do not maximize feature coverage.
 - Pass the story, claim, focus, motion-purpose, source-resolution, and final-file gates in `references/production.md`. In flagship mode, review styleframes and the animatic before full polish.
-- Pass the visual-continuity review against the product's rendered landing page. Reuse a current reviewed treatment for routine teasers; record the reference and check for source changes.
-- Inspect the actual exported MP4, record timestamped defects, preserve prior renders, fix major defects, and review the revised export. Missing product proof remains a delivery failure even if a safe composition study renders.
+- Review product identity and the chosen art direction against the source mapping. Reuse primitives and reviewed treatments only when they fit this brief. Preserve mandatory brand rules without imposing a fixed page layout.
+- Complete separate technical, viewer-comprehension and craft reviews of the exact exported MP4. Check every scene and the ending using only context already in the film. Bind findings to its hash, preserve prior renders, fix major defects and review changed exports. Missing product proof remains a delivery failure even if a safe composition study renders.
 - Report to the operator, alongside the video, every surface that could not be populated and what the video shows instead.
 - Treat any required live restart or unsafe shared build as a capture blocker. Record it and continue safe independent work.
-- Pass `hyperframes check` with zero errors before the render.
+- Pass `hyperframes check` with zero errors before the render. Render from stable inputs. Check input hashes again after rendering. Stop dependent work if its producer fails.
+- Verify audio arrangement length, full encoded-audio coverage and useful signal span. Listen through the actual export when a listening path exists; record an unreviewed gap otherwise.
+- Verify the CTA action, full public URL, rendered destination content and QR from compressed final frames as described in `references/review.md`.
+- Record resource budgets, owned jobs, cancellation/cleanup and versioned receipts. Revalidate affected checks after recuts or remastering.
 - Report the video path, the poster path, the sources that drove the story, the conflicts, and the gaps to the operator.
 - Record a work record with `vrooli-memory journal note --kind work-record`.
 

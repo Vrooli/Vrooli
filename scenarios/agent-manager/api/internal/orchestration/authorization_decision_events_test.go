@@ -9,6 +9,7 @@ import (
 	"agent-manager/internal/domain"
 	"agent-manager/internal/supervision"
 
+	"github.com/google/uuid"
 	"github.com/vrooli/api-core/eventbus"
 )
 
@@ -161,6 +162,79 @@ func TestRaiseAuthorizationApprovalAntiFloodCap(t *testing.T) {
 	}
 	if len(pub.events) != eventsAtCap {
 		t.Fatalf("over the cap must NOT raise another notification: was %d now %d", eventsAtCap, len(pub.events))
+	}
+}
+
+// G3 positive: NotifyAuthorizationRequested publishes one decision event for an
+// interactive (in-session) authorization request, carrying the distinct
+// interactive event type and the correlation an operator needs to find it.
+func TestNotifyAuthorizationRequestedPublishesInteractiveDecisionEvent(t *testing.T) {
+	now := time.Now()
+	pub := &capturingAuthPublisher{}
+	o := phase4Orchestrator(newCapturingPending(), &capturingStandingGrants{}, pub, now)
+
+	g := &domain.AuthorizationGrant{
+		ID:              uuid.New(),
+		RunID:           uuid.New(),
+		State:           domain.AuthorizationPending,
+		Policy:          "swarm-bookkeeping",
+		Targets:         []string{"swarm-manager:backlog/execute/obsolete"},
+		DurationSeconds: 3600,
+		HarnessKind:     "codex",
+		HarnessSession:  "fixture",
+		CreatedAt:       now.UTC(),
+	}
+	o.NotifyAuthorizationRequested(context.Background(), g)
+
+	if len(pub.events) != 1 {
+		t.Fatalf("expected exactly one interactive authorization notification, got %d", len(pub.events))
+	}
+	ev := pub.events[0]
+	if ev.EventType != InteractiveAuthorizationDecisionEventType {
+		t.Fatalf("event has wrong type %q; interactive requests must use their own type", ev.EventType)
+	}
+	// It must NOT masquerade as the standing-grant ask type a hub resolver mints.
+	if ev.EventType == AuthorizationDecisionEventType {
+		t.Fatal("interactive request reused the standing-grant ask type; a hub resolver could mint it")
+	}
+	corr, _ := ev.Payload["correlation"].(map[string]any)
+	if corr == nil || corr["authorization_id"] != g.ID.String() {
+		t.Fatalf("event lost the authorization_id correlation: %#v", ev.Payload["correlation"])
+	}
+	q, _ := ev.Payload["question"].(string)
+	for _, must := range []string{"codex", "swarm-bookkeeping", "swarm-manager:backlog/execute/obsolete"} {
+		if !strings.Contains(q, must) {
+			t.Fatalf("interactive ask question does not state %q: %s", must, q)
+		}
+	}
+}
+
+// G3 negative: a nil publisher is a silent no-op — the request still succeeds,
+// nothing is published, and no authority is issued.
+func TestNotifyAuthorizationRequestedNilPublisherIsNoOp(t *testing.T) {
+	now := time.Now()
+	o := phase4Orchestrator(newCapturingPending(), &capturingStandingGrants{}, nil, now)
+	// Must not panic and must not touch any store.
+	o.NotifyAuthorizationRequested(context.Background(), &domain.AuthorizationGrant{ID: uuid.New(), CreatedAt: now})
+}
+
+// G3 negative: the interactive decision event is PUSH-ONLY. A hub resolution
+// carrying the interactive event type must NOT be handled by the standing-grant
+// resolver (it would otherwise mint a grant, bypassing the independent-human +
+// process-binding gates of ApproveAuthorization). It falls through unhandled.
+func TestInteractiveAuthorizationEventIsNotHubResolvable(t *testing.T) {
+	now := time.Now()
+	grants := &capturingStandingGrants{}
+	o := phase4Orchestrator(newCapturingPending(), grants, &capturingAuthPublisher{}, now)
+
+	res := askResolution("some-authorization-id", "approve", "operator-human")
+	res.SourceEventType = InteractiveAuthorizationDecisionEventType
+	handled, err := o.ResolveAuthorizationFromHub(context.Background(), res)
+	if handled || err != nil {
+		t.Fatalf("interactive event must fall through unhandled (handled=%v err=%v)", handled, err)
+	}
+	if len(grants.put) != 0 {
+		t.Fatalf("no grant may be minted from an interactive push event, got %d", len(grants.put))
 	}
 }
 

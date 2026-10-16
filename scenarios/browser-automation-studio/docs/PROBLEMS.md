@@ -1,7 +1,7 @@
 # BAS defect register
 
 This is the sole BAS-RF register. It lists open items only.
-To update: edit an entry in place. Add a new BAS-RF id only for a distinct defect; the next free id is BAS-RF-151. When an item closes with evidence, delete its row and note the closure in the epoch slice log.
+To update: edit an entry in place. Add a new BAS-RF id only for a distinct defect; the next free id is BAS-RF-153. When an item closes with evidence, delete its row and note the closure in the epoch slice log.
 The full pre-2026-09-29 register, including resolved entries and evidence, is archived in `~/.vrooli/plan-artifacts/epoch-based-delivery-orchestration-and-bas-rehabilitation/evidence/archive/bas-rehabilitation/retired-docs-2026-09-29.tar.gz` (member `docs/PROBLEMS.md`). Retrieve it with `tar -xzOf <archive> docs/PROBLEMS.md`.
 Qualification status comes from the 24 preservation journeys in `requirements/08-rehabilitation` and the daily qualification program, not from this file.
 
@@ -83,6 +83,13 @@ Qualification status comes from the 24 preservation journeys in `requirements/08
 | BAS-RF-018 | Runtime/provider | Provider comments overpromise detection compatibility, and injection changes page behavior. Compatibility is unknown. | Versioned site/fixture results, challenge recovery and bounded claims. |
 | BAS-RF-068 | AI suggestions | The response contract is enforced. The wider AI quality/grounding/replay corpus is unqualified. | A quality corpus exists. |
 | BAS-RF-071 | Security Health | Errors are at 0, but 357 warnings are untriaged, and production security posture is unqualified. | Warnings are triaged to fixed or accepted with reasons. |
+
+## Export delivery — product-video qualification 2026-10-15
+
+| ID | Area/owner | Open problem | Close when |
+| --- | --- | --- | --- |
+| BAS-RF-151 | Replay/recorded-video export | Recorded-video export stores requested chrome/cursor overrides but copies/transcodes the raw video before applying them. Device-frame preview styling is absent from the replay export contract. QA knw-1792095684801274070. | Supported styles appear in actual continuous exports, and unsupported styles are explicitly refused with truthful receipts. |
+| BAS-RF-152 | Replay renderer budget/telemetry | PNG normalization and the current composer protocol/capture mode/canvas are repaired; a short native framed MP4 decodes. The8.446s high-resolution probe exceeds its226s deadline: incidental screenshots and large DPR frames dominate cost. Screenshot replay still lacks timed cursor/edit-map parity. Evidence: product-video-research-2026-10-15/revision-04/bas. | A bounded full replay fits measured cost, preserves timeline duration and cursor provenance, and returns a truthful native result. |
 
 ## Tooling, docs and structural debt
 

@@ -694,7 +694,7 @@ export const useExecutionExport = ({
     // New preview state for ReplayPlayer
     replayFrames: replayFramesWithFallback,
     replayStyle,
-    recordedVideoUrl: null as string | null, // TODO: Fetch from recorded video status
+    recordedVideoUrl: recordedVideoStatus.url,
     composerPreviewUrl,
     firstFramePreviewUrl,
     firstFrameLabel,

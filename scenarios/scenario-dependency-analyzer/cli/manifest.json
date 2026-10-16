@@ -124,13 +124,21 @@
             },
             {
               "name": "surface",
-              "description": "Target surface: ui, api, or cli"
+              "description": "Target installable scenario surface"
             },
             {
               "name": "version",
               "description": "Optional explicit version/range"
             },
             {
+              "name": "exact",
+              "description": "Persist an exact package version; requires an explicit version",
+              "default": "false",
+              "bind": {
+                "field": "exact_version"
+              }
+            },
+        {
               "name": "apply",
               "description": "Perform the install (default is a dry run)",
               "default": "false"

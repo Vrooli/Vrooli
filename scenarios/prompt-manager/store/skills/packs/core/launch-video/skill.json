@@ -25,7 +25,7 @@
       "brand-manager"
     ]
   },
-  "revision": 15,
+  "revision": 16,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
@@ -33,5 +33,5 @@
     "video",
     "launch"
   ],
-  "updatedAt": "2026-09-22T00:00:00Z"
+  "updatedAt": "2026-10-15T00:00:00Z"
 }

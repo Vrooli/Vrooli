@@ -29,23 +29,26 @@ func TestBuildPlaywrightCaptureInstructions_FrameCount(t *testing.T) {
 	}
 }
 
-func TestBuildPlaywrightCaptureInstructions_ClampCount(t *testing.T) {
-	spec := &ReplayMovieSpec{
-		Summary: &exportsv1.ReplaySummary{
-			TotalDurationMs: 999999,
-		},
-		Playback: &exportsv1.ReplayPlayback{
-			FrameIntervalMs: 10,
-		},
-		Frames: []*exportsv1.ReplayFrame{{DurationMs: 10}},
+func TestBuildPlaywrightCaptureInstructions_RejectsBudgetWithoutTruncating(t *testing.T) {
+	spec := &ReplayMovieSpec{Summary: &exportsv1.ReplaySummary{TotalDurationMs: 999999}, Frames: []*exportsv1.ReplayFrame{{DurationMs: 10}}}
+	_, err := buildPlaywrightCaptureInstructions("http://example.com/export", spec, 10)
+	if err == nil || !strings.Contains(err.Error(), "timeline will not be truncated") {
+		t.Fatalf("expected actionable frame budget refusal, got %v", err)
 	}
-	instr, err := buildPlaywrightCaptureInstructions("http://example.com/export", spec, 10)
+}
+
+func TestBuildPlaywrightCaptureInstructions_CoversEndBeyondOld120FrameLimit(t *testing.T) {
+	spec := &ReplayMovieSpec{Summary: &exportsv1.ReplaySummary{TotalDurationMs: 8446}, Frames: []*exportsv1.ReplayFrame{{DurationMs: 8446}}}
+	instructions, err := buildPlaywrightCaptureInstructions("http://example.com/export", spec, 40)
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatal(err)
 	}
-	// clamp at 120 frames => 240 instructions + 3 initial
-	if len(instr) != 243 {
-		t.Fatalf("expected 243 instructions, got %d", len(instr))
+	if len(instructions) != 3+213*2 {
+		t.Fatalf("incomplete timeline: %d instructions", len(instructions))
+	}
+	expression := instructions[len(instructions)-2].Action.GetEvaluate().GetExpression()
+	if !strings.Contains(expression, "seekTo(8446)") {
+		t.Fatalf("missing timeline end: %s", expression)
 	}
 }
 
@@ -283,5 +286,29 @@ func TestBuildPlaywrightCaptureInstructions_SingleFrame(t *testing.T) {
 	// Very short duration: ceil(100/1000)+1 = 2 screenshot pairs + 3 initial = 7
 	if len(instr) < 5 {
 		t.Fatalf("expected at least 5 instructions for minimal capture, got %d", len(instr))
+	}
+}
+
+// The export page accepts bas:spec:set and exposes basExport.ready/seekTo.
+// A video of its error screen must never count as a successful capture.
+func TestBuildPlaywrightCaptureInstructions_ComposerProtocol(t *testing.T) {
+	spec := &ReplayMovieSpec{Summary: &exportsv1.ReplaySummary{TotalDurationMs: 200}, Frames: []*exportsv1.ReplayFrame{{DurationMs: 200}}}
+	instr, err := buildPlaywrightCaptureInstructions("http://example.com/export", spec, 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(instr[0].Action.GetNavigate().GetUrl(), "mode=capture") {
+		t.Fatal("composer controller is only exposed in export mode")
+	}
+	inject := instr[2].Action.GetEvaluate().GetExpression()
+	for _, contract := range []string{"bas:spec:set", "basExport.ready", "basExport.error"} {
+		if !strings.Contains(inject, contract) {
+			t.Errorf("capture must honor composer contract %s", contract)
+		}
+	}
+	for i := 3; i < len(instr); i += 2 {
+		if instr[i].Action.GetType() != basactions.ActionType_ACTION_TYPE_EVALUATE || !strings.Contains(instr[i].Action.GetEvaluate().GetExpression(), "basExport.seekTo(") {
+			t.Fatal("each captured frame must await a deterministic composer seek")
+		}
 	}
 }

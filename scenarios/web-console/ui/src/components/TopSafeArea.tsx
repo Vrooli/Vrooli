@@ -1,10 +1,11 @@
-import type { ReactNode } from "react";
+import type { ReactNode, Ref } from "react";
 import { StatusBarFill } from "@vrooli/react-component-library/ChromeTheme";
 
 import { cn } from "../lib/classnames";
 
 interface TopSafeAreaProps {
   children: ReactNode;
+  containerRef?: Ref<HTMLDivElement>;
   className?: string;
   fillClassName?: string;
   testId?: string;
@@ -27,6 +28,7 @@ interface TopSafeAreaProps {
  */
 export default function TopSafeArea({
   children,
+  containerRef,
   className,
   fillClassName,
   testId,
@@ -34,6 +36,7 @@ export default function TopSafeArea({
 }: TopSafeAreaProps) {
   return (
     <div
+      ref={containerRef}
       data-testid={testId}
       className={cn("flex shrink-0 flex-col", className)}
     >

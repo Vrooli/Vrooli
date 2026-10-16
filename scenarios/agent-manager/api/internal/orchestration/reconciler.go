@@ -181,7 +181,6 @@ type Reconciler struct {
 	workflowLiveness       WorkflowWaitingLivenessRecoverer
 	pendingRunRecovery     PendingRunRecoverer
 	terminalAccounting     TerminalAccountingRecoverer
-	finiteSerialRecovery   interface{ ReconcileFiniteSerialEpisodes(context.Context) error }
 	storageMaintainer      StorageMaintainer
 }
 
@@ -564,11 +563,6 @@ func (r *Reconciler) reconcileGuarded(ctx context.Context) (stats ReconcileStats
 func (r *Reconciler) reconcile(ctx context.Context) ReconcileStats {
 	start := r.now()
 	stats := ReconcileStats{Timestamp: start}
-	if r.finiteSerialRecovery != nil {
-		if err := r.finiteSerialRecovery.ReconcileFiniteSerialEpisodes(ctx); err != nil {
-			stats.Errors = append(stats.Errors, "finite serial recovery: "+err.Error())
-		}
-	}
 	if r.workflowRecovery != nil {
 		if err := r.workflowRecovery.RecoverWorkflowExecutions(ctx); err != nil {
 			stats.Errors = append(stats.Errors, "workflow recovery: "+err.Error())

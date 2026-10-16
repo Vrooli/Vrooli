@@ -46,6 +46,11 @@ func (h *connectHandler) InstallDependency(ctx context.Context, req *connect.Req
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
+	if msg.GetExactVersion() {
+		if err := installgateway.ApplyExactVersion(&resolution, msg.GetVersion()); err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		}
+	}
 
 	verdict, blocked, nextSteps, secNotes := h.registry().governInstall(msg, resolution)
 	if resolution.Profile.ScriptsDisabled {

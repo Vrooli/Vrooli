@@ -35,6 +35,7 @@ type BASCaptureExecutor struct {
 	HTTPClient     *http.Client
 	PageSourceRoot string
 	PageUIBaseURL  string
+	discoverBAS    bool
 }
 
 func NewBASCaptureExecutor() BASCaptureExecutor {
@@ -48,24 +49,31 @@ func NewBASCaptureExecutor() BASCaptureExecutor {
 	if basBase == "" {
 		basBase = strings.TrimRight(strings.TrimSpace(os.Getenv("BAS_API_URL")), "/")
 	}
+	discoverBAS := basBase == ""
 	if basBase == "" {
-		basBase = "http://127.0.0.1:17116"
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		basBase, _ = discovery.NewResolver(discovery.ResolverConfig{}).ResolveScenarioURL(ctx, "browser-automation-studio", "API_PORT")
 	}
-	return BASCaptureExecutor{RCLBaseURL: rclBase, BASBaseURL: basBase, HTTPClient: &http.Client{Timeout: 2 * time.Minute}}
+	return BASCaptureExecutor{RCLBaseURL: rclBase, BASBaseURL: basBase, HTTPClient: &http.Client{Timeout: 2 * time.Minute}, discoverBAS: discoverBAS}
 }
 
 // Probe confirms that the browser boundary is reachable before a sweep
 // creates partial evidence. BAS owns this health endpoint; a capture failure
 // is not a reason to manufacture a blocked row for every remaining version.
 func (e BASCaptureExecutor) Probe(ctx context.Context) error {
-	if strings.TrimSpace(e.BASBaseURL) == "" {
+	basBase, err := e.basBaseURL(ctx)
+	if err != nil {
+		return ExecutorUnavailableError{Err: err}
+	}
+	if strings.TrimSpace(e.BASBaseURL) == "" && !e.discoverBAS {
 		return ExecutorUnavailableError{Err: fmt.Errorf("BAS CaptureService base URL is required")}
 	}
 	client := e.HTTPClient
 	if client == nil {
 		client = &http.Client{Timeout: 5 * time.Second}
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, e.BASBaseURL+"/health", nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, basBase+"/health", nil)
 	if err != nil {
 		return ExecutorUnavailableError{Err: err}
 	}
@@ -78,6 +86,19 @@ func (e BASCaptureExecutor) Probe(ctx context.Context) error {
 		return ExecutorUnavailableError{Err: fmt.Errorf("BAS health probe returned HTTP %d", resp.StatusCode)}
 	}
 	return nil
+}
+
+// Resolve each operation through the shared bounded cache so a recovered or
+// restarted dependency is not pinned to its constructor-time address.
+func (e BASCaptureExecutor) basBaseURL(ctx context.Context) (string, error) {
+	if !e.discoverBAS {
+		return e.BASBaseURL, nil
+	}
+	base, err := discovery.NewResolver(discovery.ResolverConfig{}).ResolveScenarioURL(ctx, "browser-automation-studio", "API_PORT")
+	if err != nil {
+		return "", fmt.Errorf("BAS CaptureService discovery: %w", err)
+	}
+	return base, nil
 }
 
 type basCaptureRequest struct {
@@ -137,7 +158,7 @@ func (e BASCaptureExecutor) ExecuteStory(ctx context.Context, libraryID, version
 	if strings.TrimSpace(e.RCLBaseURL) == "" {
 		return StoryExecution{}, ExecutorUnavailableError{Err: fmt.Errorf("RCL preview API base URL is required")}
 	}
-	if strings.TrimSpace(e.BASBaseURL) == "" {
+	if strings.TrimSpace(e.BASBaseURL) == "" && !e.discoverBAS {
 		return StoryExecution{}, ExecutorUnavailableError{Err: fmt.Errorf("BAS CaptureService base URL is required")}
 	}
 	storyURL, err := e.storyURL(libraryID, version, storyID)
@@ -151,7 +172,7 @@ func (e BASCaptureExecutor) ExecuteStorySheet(ctx context.Context, libraryID, ve
 	if strings.TrimSpace(e.RCLBaseURL) == "" {
 		return StoryExecution{}, ExecutorUnavailableError{Err: fmt.Errorf("RCL preview API base URL is required")}
 	}
-	if strings.TrimSpace(e.BASBaseURL) == "" {
+	if strings.TrimSpace(e.BASBaseURL) == "" && !e.discoverBAS {
 		return StoryExecution{}, ExecutorUnavailableError{Err: fmt.Errorf("BAS CaptureService base URL is required")}
 	}
 	if len(storyIDs) == 0 {
@@ -208,10 +229,14 @@ func (e BASCaptureExecutor) CaptureURL(ctx context.Context, pageURL, label, read
 }
 
 func (e BASCaptureExecutor) captureURL(ctx context.Context, pageURL, label, readinessSelector, screenshotSelector string) (basCaptureResponse, error) {
+	basBase, err := e.basBaseURL(ctx)
+	if err != nil {
+		return basCaptureResponse{}, ExecutorUnavailableError{Err: err}
+	}
 	if strings.TrimSpace(pageURL) == "" {
 		return basCaptureResponse{}, fmt.Errorf("BAS capture URL is required")
 	}
-	if strings.TrimSpace(e.BASBaseURL) == "" {
+	if strings.TrimSpace(e.BASBaseURL) == "" && !e.discoverBAS {
 		return basCaptureResponse{}, fmt.Errorf("BAS CaptureService base URL is required")
 	}
 	payload := basCaptureRequest{
@@ -236,7 +261,7 @@ func (e BASCaptureExecutor) captureURL(ctx context.Context, pageURL, label, read
 	if err != nil {
 		return basCaptureResponse{}, fmt.Errorf("encode BAS capture request: %w", err)
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, e.BASBaseURL+"/browser_automation_studio.v1.capture.CaptureService/Capture", strings.NewReader(string(body)))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, basBase+"/browser_automation_studio.v1.capture.CaptureService/Capture", strings.NewReader(string(body)))
 	if err != nil {
 		return basCaptureResponse{}, fmt.Errorf("create BAS capture request: %w", err)
 	}

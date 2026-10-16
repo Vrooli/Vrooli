@@ -41,6 +41,29 @@ After capture, stop only production-owned instances. Compare protected process
 identities and health against the baseline without mutating them. Record exactly
 what started, what stayed shared, and what was not attempted.
 
+## Own the production tools
+
+Record each new browser, preview server, encoder and model job before using it.
+Keep PID and start-time identities for local tools. Keep the owner job handle for
+governed services. Record the tool path/version, purpose, output directory and
+cleanup action. A pre-existing process is not owned by this production.
+
+Start local rendering with one worker and an explicit CPU budget. Record sampled
+process-tree peak RSS and elapsed time. State the sampling method and its limits.
+Crop oversized source media before composition when the crop preserves the shot.
+Disable persistent frame caches for one-off renders, or record their size and owner.
+
+Close capture browsers and temporary servers in `finally`. On timeout or failure,
+stop only the tool's owned process group and verified descendants. Compare PID
+start times before terminating a retained descendant. Use the governing lifecycle
+command for scenario/resource jobs; never kill a shared service to free capacity.
+Verify that owned processes are terminal before delivery. Retain the final process
+audit, protected-service comparison and install/disk register with the media.
+
+These receipts prove ownership and cleanup, not a hard memory ceiling. Promote
+repeated process supervision to the existing media/capture owner instead of
+copying private daemon management into each production.
+
 ## Distinguish the three capture environments
 
 - A named presentation instance isolates ports and supported data namespaces. It

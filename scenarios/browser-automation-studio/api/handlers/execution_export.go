@@ -7,7 +7,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -27,6 +29,7 @@ import (
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
 	exportsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/exports"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 // PostExecutionExport handles POST /api/v1/executions/{id}/export
@@ -118,6 +121,30 @@ func (h *Handler) PostExecutionExport(w http.ResponseWriter, r *http.Request) {
 
 		recordedVideo, videoErr := h.loadRecordedVideo(videoCtx, executionID)
 		if videoErr == nil && recordedVideo != nil {
+			if body.MovieSpec != nil || body.Overrides != nil {
+				spec, err := h.prepareStyledRecordedVideo(r.Context(), executionID, recordedVideo, body)
+				if err != nil {
+					h.respondError(w, ErrInvalidRequest.WithDetails(map[string]string{"error": err.Error()}))
+					return
+				}
+				renderCtx, cancel := context.WithTimeout(r.Context(), render.EstimateReplayRenderTimeout(spec))
+				defer cancel()
+				media, err := h.replayRenderer.Render(renderCtx, spec, render.RenderFormat(format), body.FileName)
+				if err != nil {
+					h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"error": err.Error()}))
+					return
+				}
+				defer media.Cleanup()
+				if err := render.FinishRecordedVideo(renderCtx, media, recordedVideo.Path, spec.GetSummary().GetTotalDurationMs(), format); err != nil {
+					h.respondError(w, ErrInternalServer.WithDetails(map[string]string{"error": err.Error()}))
+					return
+				}
+				w.Header().Set("Content-Type", media.ContentType)
+				w.Header().Set("X-BAS-Cursor-Mode", "source-pixels; replay-overlay-disabled")
+				setExportReceiptHeaders(w, spec, source.RenderSourceRecordedVideo)
+				http.ServeFile(w, r, media.Path)
+				return
+			}
 			// For recorded video with output_dir, save to disk instead of streaming
 			if outputDir != "" {
 				h.handleAsyncRecordedVideoExport(w, executionID, recordedVideo, format, body.FileName, outputDir)
@@ -415,6 +442,37 @@ func (h *Handler) renderExportInBackground(ctx context.Context, exportRecord *da
 		if videoErr == nil && recordedVideo != nil {
 			if err := setExportSelectedSource(ctx, h.repo, exportRecord, source.RenderSourceRecordedVideo, recordedVideo); err != nil {
 				h.log.WithError(err).WithField("export_id", exportID).Warn("Failed to persist export source receipt")
+			}
+
+			if body.MovieSpec != nil || body.Overrides != nil {
+				spec, err := h.prepareStyledRecordedVideo(ctx, executionID, recordedVideo, body)
+				if err != nil {
+					broadcastError(err.Error())
+					return
+				}
+				for key, value := range buildRenderedSpecReceipt(spec) {
+					exportRecord.Settings[key] = value
+				}
+				exportRecord.Settings["cursor_application"] = "source-pixels; replay-overlay-disabled"
+				if err := h.repo.UpdateExport(ctx, exportRecord); err != nil {
+					broadcastError(err.Error())
+					return
+				}
+				renderCtx, cancel := context.WithTimeout(ctx, render.EstimateReplayRenderTimeout(spec))
+				defer cancel()
+				media, err := h.replayRenderer.Render(renderCtx, spec, render.RenderFormat(format), body.FileName)
+				if err != nil {
+					broadcastError(fmt.Sprintf("Styled continuous-video render failed: %v", err))
+					return
+				}
+				defer media.Cleanup()
+				if err := render.FinishRecordedVideo(renderCtx, media, recordedVideo.Path, spec.GetSummary().GetTotalDurationMs(), format); err != nil {
+					broadcastError(err.Error())
+					return
+				}
+				styledSource := &source.VideoSource{Path: media.Path, ContentType: media.ContentType}
+				h.renderRecordedVideoToFile(ctx, exportRecord, styledSource, format, outputDir, broadcastProgress, broadcastError)
+				return
 			}
 			h.renderRecordedVideoToFile(ctx, exportRecord, recordedVideo, format, outputDir, broadcastProgress, broadcastError)
 			return
@@ -932,4 +990,45 @@ func (h *Handler) serveRecordedVideo(w http.ResponseWriter, r *http.Request, vid
 
 	http.ServeContent(w, r, filename, info.ModTime(), file)
 	return nil
+}
+
+// prepareStyledRecordedVideo binds a measured continuous source to the same
+// canonical presentation renderer used by preview and replay export.
+func (h *Handler) prepareStyledRecordedVideo(ctx context.Context, executionID uuid.UUID, video *source.VideoSource, body export.Request) (*exportsv1.ReplaySpec, error) {
+	base := strings.TrimRight(requestAPIBaseURL(), "/")
+	sourceURL := base + "/api/v1/recordings/assets/" + executionID.String() + "/artifacts/videos/" + url.PathEscape(filepath.Base(video.Path))
+	incoming := body.MovieSpec
+	if incoming == nil {
+		incoming = &exportsv1.ReplaySpec{}
+	}
+	spec := proto.Clone(incoming).(*exportsv1.ReplaySpec)
+	config, _ := h.loadReplayConfig(ctx)
+	applyReplayConfigToSpec(spec, config)
+	exportservices.Apply(spec, replayConfigToOverrides(config))
+	if body.MovieSpec != nil {
+		if body.MovieSpec.Decor != nil {
+			spec.Decor = proto.Clone(body.MovieSpec.Decor).(*exportsv1.ReplayDecor)
+		}
+		if body.MovieSpec.Presentation != nil {
+			spec.Presentation = proto.Clone(body.MovieSpec.Presentation).(*exportsv1.ReplayPresentation)
+		}
+	}
+	exportservices.Apply(spec, body.Overrides)
+	return render.PrepareRecordedVideoSpec(ctx, spec, video.Path, sourceURL)
+}
+
+func requestAPIBaseURL() string {
+	scheme := strings.TrimSpace(os.Getenv("API_SCHEME"))
+	if scheme == "" {
+		scheme = "http"
+	}
+	host := strings.TrimSpace(os.Getenv("API_HOST"))
+	if host == "" {
+		host = "127.0.0.1"
+	}
+	port := strings.TrimSpace(os.Getenv("API_PORT"))
+	if port != "" {
+		host = net.JoinHostPort(host, port)
+	}
+	return scheme + "://" + host
 }

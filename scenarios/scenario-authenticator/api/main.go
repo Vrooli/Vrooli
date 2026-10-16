@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/vrooli/api-core/effortauthority"
 	"log"
 	"net/http"
 	"os"
@@ -101,19 +100,6 @@ func (p breakGlassProvisioner) Issue(_ context.Context, accountID, realmID strin
 }
 
 func main() {
-	owner, err := loadProtectedFiniteOwnerStartup(context.Background())
-	if err != nil {
-		log.Fatalf("protected finite startup refused: %v", err)
-	}
-	if owner != nil && owner.CheckStartup() != nil {
-		log.Fatal("protected finite startup expired or outside original window")
-	}
-	runMainWithFiniteOwner(owner)
-}
-func runMainWithFiniteOwner(owner *accounts.FiniteOwnerStartup) {
-	if err := effortauthority.MainInstallationGate(os.Getenv("VROOLI_FINITE_ENABLED"), owner != nil); err != nil {
-		log.Fatal(err)
-	}
 	// Preflight checks must run first so the binary can re-exec itself
 	// after a stale-source rebuild before any listeners are opened.
 	if preflight.Run(preflight.Config{ScenarioName: "scenario-authenticator"}) {
@@ -146,15 +132,7 @@ func runMainWithFiniteOwner(owner *accounts.FiniteOwnerStartup) {
 	if err != nil {
 		log.Fatalf("resolve signing key directory: %v", err)
 	}
-	var keys *authcrypto.Keys
-	if owner == nil {
-		keys, err = authcrypto.LoadOrGenerate(keyDir)
-	} else {
-		keys, err = authcrypto.LoadExisting(keyDir)
-		if err == nil && keys.KID() != owner.ExistingJWTKID() {
-			err = fmt.Errorf("finite owner existing JWT key differs")
-		}
-	}
+	keys, err := authcrypto.LoadOrGenerate(keyDir)
 	if err != nil {
 		log.Fatalf("load/generate signing key: %v", err)
 	}
@@ -235,6 +213,26 @@ func runMainWithFiniteOwner(owner *accounts.FiniteOwnerStartup) {
 	if err != nil {
 		log.Fatalf("service principal configuration: %v", err)
 	}
+
+	// Cf-Access binding reachability self-check. Human operators authenticate a
+	// session-delegation mint through the web-console Cloudflare Access binding,
+	// resolved from tunnel-manager. If that binding is misconfigured or
+	// tunnel-manager is unreachable, the failure would otherwise surface only on
+	// the first real operator login (a silent fleet human-login outage). We probe
+	// it once at startup and surface it loudly. This is deliberately best-effort,
+	// not boot-fatal: resolution depends on a live tunnel-manager, and a healthy
+	// authenticator must still boot (to serve native logins/JWKS) when Cloudflare
+	// is simply not configured in this deployment. The check primes the provider's
+	// cache on success so the first operator login does not pay the resolution.
+	cloudflareHumanProvider := authn.NewManagedCloudflareProvider("web-console")
+	checkCtx, cancelCheck := context.WithTimeout(context.Background(), 10*time.Second)
+	if bindingErr := cloudflareHumanProvider.CheckBindingReachable(checkCtx); bindingErr != nil {
+		log.Printf("WARNING: cloudflare access binding self-check failed; operator human login via the tunnel may be unavailable until the tunnel-manager binding is reachable: %v", bindingErr)
+	} else {
+		log.Printf("cloudflare access binding self-check passed; web-console human-login binding is reachable")
+	}
+	cancelCheck()
+
 	authService := accounts.NewService(accounts.ServiceConfig{
 		Repo:              repo,
 		Signer:            signer,
@@ -255,7 +253,7 @@ func runMainWithFiniteOwner(owner *accounts.FiniteOwnerStartup) {
 		// proof for a session-delegation mint. This introduces no new trust: the
 		// assertion is already trusted by web-console and agent-manager, and the
 		// mint yields only a no-capability owner label.
-		HumanAssertion: cloudflareHumanAssertion{provider: authn.NewManagedCloudflareProvider("web-console")},
+		HumanAssertion: cloudflareHumanAssertion{provider: cloudflareHumanProvider},
 	})
 	_, localHandler := accountsconnect.NewAccountsServiceHandler(authH.NewConnectHandler(authH.Deps{Service: authService, Logger: log.Default()}))
 	exchangeLimiter := localexchange.NewRateLimiter(20, time.Minute)
@@ -300,20 +298,6 @@ func runMainWithFiniteOwner(owner *accounts.FiniteOwnerStartup) {
 	// runtime test DB pool without restarting this scenario.
 	rootMux := http.NewServeMux()
 	devrouting.Register(rootMux, db)
-
-	var privatePublication *effortauthority.ProtectedPublication
-	if owner != nil {
-		ledger := &effortauthority.SQLStore{DB: db.Primary()}
-		if err = ledger.Ensure(context.Background()); err != nil {
-			log.Fatalf("finite canonical ledger: %v", err)
-		}
-		var consent http.Handler
-		consent, privatePublication, err = owner.Compose(context.Background(), authService, ledger)
-		if err != nil {
-			log.Fatalf("finite owner exact issuer graph: %v", err)
-		}
-		rootMux.Handle(effortauthority.ConsentEndpoint, consent)
-	}
 	rootMux.Handle("/", srv.Handler())
 
 	// Backend-authoritative fixed-window rate limit on the brute-force surface
@@ -334,11 +318,7 @@ func runMainWithFiniteOwner(owner *accounts.FiniteOwnerStartup) {
 	// installed test pool. Self-disables in production mode.
 	handler := apihttp.TestModeMiddleware(limiter.Middleware(rootMux))
 
-	runPublic := apiserver.Run
-	if privatePublication != nil {
-		runPublic = privatePublication.RunPublic
-	}
-	if err := runPublic(apiserver.Config{
+	if err := apiserver.Run(apiserver.Config{
 		Handler: handler,
 		Cleanup: func(ctx context.Context) error {
 			localStop()

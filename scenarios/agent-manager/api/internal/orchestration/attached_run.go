@@ -7,7 +7,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"log"
 	"strings"
 	"time"
 
@@ -165,17 +164,13 @@ func (o *Orchestrator) AttachRun(ctx context.Context, req AttachRunRequest) (*At
 func (o *Orchestrator) verifiedDelegationOwner(ctx context.Context, delegation, session string) (string, []string, time.Time) {
 	delegation = strings.TrimSpace(delegation)
 	if delegation == "" || o.ownerIdentity == nil {
-		log.Printf("[phase5-diag] verifyDelegation: delegationPresent=%t ownerIdentityNil=%t", delegation != "", o.ownerIdentity == nil)
 		return "", nil, time.Time{}
 	}
 	principal, err := o.ownerIdentity.Verify(ctx, delegation)
 	if err != nil || !principal.IsHuman() {
-		log.Printf("[phase5-diag] verifyDelegation: Verify err=%v isHuman=%t", err, err == nil && principal.IsHuman())
 		return "", nil, time.Time{}
 	}
-	boundSession := delegationWCSessionID(delegation)
-	log.Printf("[phase5-diag] verifyDelegation: verified human subject=%q claimWCSession=%q expectedWCSession=%q match=%t", principal.Subject, boundSession, session, boundSession != "" && boundSession == session)
-	if boundSession == "" || boundSession != session {
+	if boundSession := delegationWCSessionID(delegation); boundSession == "" || boundSession != session {
 		// The delegation must be bound to THIS web-console session; a session's
 		// delegation cannot be replayed onto another session's attach.
 		return "", nil, time.Time{}

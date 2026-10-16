@@ -13,10 +13,13 @@
 package render
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"image"
+	"image/png"
 	"math"
 	"net/http"
 	"os"
@@ -107,14 +110,11 @@ func (r *ReplayRenderer) Render(ctx context.Context, spec *ReplayMovieSpec, form
 	if spec.GetPlayback().GetFrameIntervalMs() > 0 {
 		captureInterval = int(spec.GetPlayback().GetFrameIntervalMs())
 	}
-	if spec.GetSummary().GetTotalDurationMs() > 0 {
-		targetInterval := int(math.Ceil(float64(spec.GetSummary().GetTotalDurationMs()) / float64(maxCaptureFrames)))
-		if targetInterval > captureInterval {
-			captureInterval = targetInterval
-		}
-		if captureInterval < 20 {
-			captureInterval = 20
-		}
+	if captureInterval < 20 {
+		captureInterval = 20
+	}
+	if _, err := buildPlaywrightCaptureInstructions(r.exportPageURL, spec, captureInterval); err != nil {
+		return nil, err
 	}
 
 	return r.renderCapture(ctx, spec, format, filename, captureInterval)
@@ -183,10 +183,25 @@ func (r *ReplayRenderer) renderCapture(ctx context.Context, spec *ReplayMovieSpe
 			cleanup()
 			return nil, fmt.Errorf("failed to decode captured frame %d: %w", written, decodeErr)
 		}
+		// Capture can return PNG or JPEG. The image2 demuxer selects its codec
+		// from the sequence suffix, so raw PNG bytes in a .jpg sequence fail
+		// even though Go's dimension probe can read them. Normalize every
+		// decoded image to lossless PNG, including mixed-format captures.
+		captured, _, imageErr := image.Decode(bytes.NewReader(decoded))
+		if imageErr != nil {
+			cleanup()
+			return nil, fmt.Errorf("invalid captured image %d: %w", written, imageErr)
+		}
+		var normalized bytes.Buffer
+		if imageErr := png.Encode(&normalized, captured); imageErr != nil {
+			cleanup()
+			return nil, fmt.Errorf("failed to normalize captured image %d: %w", written, imageErr)
+		}
+		decoded = normalized.Bytes()
 		// Use `written` (not loop index) to produce a contiguous sequence.
 		// FFmpeg's image2 demuxer reads frame-00000, frame-00001, ... and stops
 		// at the first gap, so skipped (empty) frames must not leave holes.
-		filePath := filepath.Join(framesDir, fmt.Sprintf("frame-%05d.jpg", written))
+		filePath := filepath.Join(framesDir, fmt.Sprintf("frame-%05d.png", written))
 		if err := os.WriteFile(filePath, decoded, 0o644); err != nil {
 			cleanup()
 			return nil, fmt.Errorf("failed to persist captured frame %d: %w", written, err)
@@ -207,7 +222,7 @@ func (r *ReplayRenderer) renderCapture(ctx context.Context, spec *ReplayMovieSpe
 		}
 	}
 
-	sequencePattern := filepath.Join(framesDir, "frame-%05d.jpg")
+	sequencePattern := filepath.Join(framesDir, "frame-%05d.png")
 	baseVideoPath := filepath.Join(tempRoot, "replay.mp4")
 	encoder := r.videoEncoder
 	if encoder == nil {

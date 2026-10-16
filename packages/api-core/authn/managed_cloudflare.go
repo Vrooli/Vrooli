@@ -2,6 +2,8 @@ package authn
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"sync"
@@ -30,6 +32,43 @@ type ManagedCloudflareProvider struct {
 
 func NewManagedCloudflareProvider(resource string) *ManagedCloudflareProvider {
 	return &ManagedCloudflareProvider{Resource: resource, Resolve: resolveManagedCloudflareBinding}
+}
+
+// ErrBindingUnreachable reports that the managed Cloudflare Access binding could
+// not be resolved or does not yield a usable verifier. It is deliberately
+// distinct from a per-request FailureUnavailable so a startup self-check can
+// surface the outage loudly instead of discovering it silently on the first
+// human login.
+var ErrBindingUnreachable = errors.New("cloudflare access binding is unreachable")
+
+// CheckBindingReachable resolves the managed Cloudflare Access binding once and
+// confirms it yields a usable verifier, priming the brief cache so the first
+// real human login does not pay the resolution. It exists so a scenario that
+// authenticates humans via Cloudflare Access can fail fast (or log loudly) at
+// startup rather than silently blocking every operator login later when the
+// binding is misconfigured or tunnel-manager is unreachable.
+//
+// It is best-effort by design: resolution requires a live tunnel-manager, so a
+// caller that cannot tolerate a startup dependency on tunnel-manager should log
+// the returned error rather than treat it as fatal. On success the resolved
+// verifier is cached exactly as a request-path resolution would cache it.
+func (p *ManagedCloudflareProvider) CheckBindingReachable(ctx context.Context) error {
+	resolve := p.Resolve
+	if resolve == nil {
+		resolve = resolveManagedCloudflareBinding
+	}
+	cfg, err := resolve(ctx, p.Resource)
+	if err != nil {
+		return fmt.Errorf("%w: resolve binding for %q: %v", ErrBindingUnreachable, p.Resource, err)
+	}
+	verifier, err := cloudflareaccess.NewVerifier(cfg)
+	if err != nil {
+		return fmt.Errorf("%w: build verifier for %q: %v", ErrBindingUnreachable, p.Resource, err)
+	}
+	p.mu.Lock()
+	p.verifier, p.until = verifier, time.Now().Add(5*time.Minute)
+	p.mu.Unlock()
+	return nil
 }
 
 func (*ManagedCloudflareProvider) Source() identity.AuthSource {

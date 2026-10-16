@@ -7,21 +7,22 @@ describe('replay style spec adapter', () => {
   it('hydrates replay style from movie spec', () => {
     const spec = {
       decor: {
-        chrome_theme: 'chromium',
-        background_theme: 'ocean',
-        cursor_theme: 'white',
-        cursor_initial_position: 'top-left',
-        cursor_click_animation: 'pulse',
-        cursor_scale: 1.3,
+        chromeTheme: 'chromium',
+        backgroundTheme: 'ocean',
+        background: { type: 'theme', id: 'ocean' },
+        cursorTheme: 'white',
+        cursorInitialPosition: 'top-left',
+        cursorClickAnimation: 'pulse',
+        cursorScale: 1.3,
       },
-      cursor_motion: {
-        initial_position: 'bottom-right',
-        click_animation: 'ripple',
-        cursor_scale: 1.1,
+      cursorMotion: {
+        initialPosition: 'bottom-right',
+        clickAnimation: 'ripple',
+        cursorScale: 1.1,
       },
       cursor: {
-        initial_position: 'center',
-        click_animation: 'none',
+        initialPosition: 'center',
+        clickAnimation: 'none',
         scale: 1,
       },
     } as ReplayMovieSpec;
@@ -39,7 +40,7 @@ describe('replay style spec adapter', () => {
   it('applies replay style into spec decor and presentation', () => {
     const spec = {
       decor: {},
-      cursor_motion: {},
+      cursorMotion: {},
       cursor: {},
       presentation: {
         canvas: { width: 1000, height: 800 },
@@ -56,12 +57,24 @@ describe('replay style spec adapter', () => {
       browserScale: 0.5,
     });
 
-    expect(updated.decor?.chrome_theme).toBe('midnight');
-    expect(updated.decor?.background_theme).toBe('nebula');
+    expect(updated.decor?.chromeTheme).toBe('midnight');
+    expect(updated.decor?.backgroundTheme).toBe('nebula');
     expect(updated.decor?.background).toMatchObject({ type: 'theme', id: 'nebula' });
-    expect(updated.decor?.cursor_theme).toBe('aura');
+    expect(updated.decor?.cursorTheme).toBe('aura');
     expect(updated.cursor?.scale).toBe(1.2);
-    expect(updated.presentation?.browser_frame?.width).toBe(500);
-    expect(updated.presentation?.browser_frame?.height).toBe(400);
+    expect(updated.presentation?.browserFrame?.width).toBe(500);
+    expect(updated.presentation?.browserFrame?.height).toBe(400);
   });
+  it('preserves explicit disabled chrome and device framing through export spec', () => {
+    const updated = applyReplayStyleToSpec({ presentation: { canvas: { width: 1080, height: 1920 }, viewport: { width: 430, height: 880 } } } as ReplayMovieSpec, {
+      presentation: { showDesktop: true, showBrowserFrame: false, showDeviceFrame: true },
+      deviceFrameTheme: 'slim', browserScale: 0.7, cursorTheme: 'arrowNeon',
+    });
+    const restored = resolveReplayStyleFromSpec(updated);
+    expect(restored.presentation).toEqual({ showDesktop: true, showBrowserFrame: false, showDeviceFrame: true });
+    expect(restored.deviceFrameTheme).toBe('slim');
+    expect(restored.browserScale).toBe(0.7);
+    expect(restored.cursorTheme).toBe('arrowNeon');
+  });
+
 });

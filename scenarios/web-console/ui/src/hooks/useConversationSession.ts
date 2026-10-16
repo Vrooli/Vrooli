@@ -8,6 +8,7 @@ export { PAGE_SIZE, describeLoadFailure } from "../lib/conversationLoad";
 export type { RefreshOutcome } from "../lib/conversationLoad";
 
 const olderPageLoads = new Set<string>();
+const refreshLoads = new Map<string, Promise<RefreshOutcome>>();
 
 /**
  * refreshConversationSession fetches the events the local store is missing
@@ -21,7 +22,17 @@ const olderPageLoads = new Set<string>();
  * and stores the server's capture diagnosis, and a failure is kept so the view
  * can explain itself rather than falling back to an empty state.
  */
-export async function refreshConversationSession(sessionId: string): Promise<RefreshOutcome> {
+export function refreshConversationSession(sessionId: string): Promise<RefreshOutcome> {
+  const pending = refreshLoads.get(sessionId);
+  if (pending) return pending;
+  const request = fetchConversationSession(sessionId).finally(() => {
+    refreshLoads.delete(sessionId);
+  });
+  refreshLoads.set(sessionId, request);
+  return request;
+}
+
+async function fetchConversationSession(sessionId: string): Promise<RefreshOutcome> {
   const state = useConversationStore.getState();
   const existing = state.sessions[sessionId];
   const since = getSessionRefetchSinceSequence(state, sessionId);

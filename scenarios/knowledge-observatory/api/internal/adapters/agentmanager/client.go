@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/api-core/owneridentity"
+
 	"github.com/vrooli/api-core/discovery"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
@@ -108,6 +110,9 @@ func (c *Client) CreateTask(ctx context.Context, task *domainpb.Task) (*domainpb
 
 // CreateRun starts a new run for a task.
 func (c *Client) CreateRun(ctx context.Context, req *apipb.CreateRunRequest) (*domainpb.Run, error) {
+	if err := owneridentity.RequireCreateRunCaller(ctx, time.Now(), true); err != nil {
+		return nil, err
+	}
 	body, err := c.jsonOpts.Marshal(req)
 	if err != nil {
 		return nil, fmt.Errorf("marshal request: %w", err)
@@ -120,7 +125,7 @@ func (c *Client) CreateRun(ctx context.Context, req *apipb.CreateRunRequest) (*d
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return nil, c.parseError(resp)
+		return nil, fmt.Errorf("%s", owneridentity.RedactCreateRunCaller(ctx, c.parseError(resp).Error()))
 	}
 
 	var result apipb.CreateRunResponse
@@ -273,7 +278,16 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body []byte
 	}
 	req.Header.Set("Accept", "application/json")
 
-	return c.httpClient.Do(req)
+	client := *c.httpClient
+	if method == http.MethodPost && path == "/api/v1/runs" {
+		auth, err := owneridentity.CreateRunAuthorization(ctx, time.Now())
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Authorization", auth)
+		client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	}
+	return client.Do(req)
 }
 
 func (c *Client) resolveBaseURL(ctx context.Context) (string, error) {

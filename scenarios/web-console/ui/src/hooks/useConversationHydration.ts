@@ -1,75 +1,72 @@
-import { useEffect } from "react";
-import { getConversationSession, type ConversationSessionResponse } from "../api/conversation";
+import { useEffect, useRef } from "react";
 import { useConversationStore } from "../stores/useConversationStore";
-import { describeLoadFailure, PAGE_SIZE } from "../lib/conversationLoad";
+import { refreshConversationSession } from "./useConversationSession";
 
+const BACKGROUND_CONCURRENCY = 2;
 const HYDRATION_RETRY_DELAYS_MS = [1000, 3000, 10 * 1000];
 
 /**
- * useConversationHydration ensures every known session has its conversation
- * history loaded into the store ONCE, independent of whether its terminal pane
- * is currently mounted.
- *
- * Previously each pane hydrated its own conversation on mount. Once offscreen
- * terminals are unmounted (multi-session perf overhaul, Layer 2), that per-pane
- * hydrate no longer runs for backgrounded sessions — so their unread badges
- * would start empty until the next live event. Hydrating centrally keeps every
- * tab's badge correct from load. Live updates then arrive via the global SSE
- * channel (see useGlobalEventStream).
- *
- * The request is windowed to PAGE_SIZE like every other conversation fetch.
- * It used to ask for the whole history of every open pane at once, which on a
- * busy workspace meant pulling thousands of events per session into memory to
- * render a single unread badge — and, because it recorded no paging metadata,
- * it also left "load older messages" with nothing to page from.
- *
- * Idempotent: skips any session already hydrated, and the store's hydrate/merge
- * dedupe by event id, so overlap with a pane's own load is harmless.
+ * Seed unread badges for every session, after prioritizing the visible session.
+ * Background history is still windowed and eventually loaded for correct badges,
+ * but two workers replace the startup request burst. Foreground pane loads share
+ * refresh ownership with these workers, including loading/error/paging metadata.
  */
-export function useConversationHydration(sessionIds: string[]): void {
-  const hydrateSession = useConversationStore((s) => s.hydrateSession);
-  const failLoad = useConversationStore((s) => s.failLoad);
-  // Join into a stable key so the effect only re-runs when the set changes,
-  // not on every parent render (the array identity is unstable).
+export function useConversationHydration(sessionIds: string[], activeSessionId: string | null = null): void {
   const key = sessionIds.join("|");
+  const activeRef = useRef(activeSessionId);
+  activeRef.current = activeSessionId;
+  const running = useRef(0);
+  const pumpRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     let cancelled = false;
-    const timers: ReturnType<typeof setTimeout>[] = [];
-    const ids = key ? key.split("|") : [];
-    const hydrate = (id: string, attempt: number) => {
-      if (!id) return;
-      if (useConversationStore.getState().sessions[id]?.hydrated) return;
-      void (async () => {
-        try {
-          const data: ConversationSessionResponse = await getConversationSession(id, { limit: PAGE_SIZE });
-          if (!cancelled) {
-            hydrateSession(id, data.events, data.cursor, {
-              oldestSequence: data.oldestSequence ?? data.events[0]?.sequence ?? 0,
-              hasOlder: data.hasMore ?? false,
-              totalCount: data.totalCount ?? data.events.length,
-              capture: data.capture,
-            });
-          }
-        } catch (error) {
-          if (cancelled) return;
-          const described = describeLoadFailure(error);
-          // Record the failure rather than only logging it. A background
-          // hydration that fails silently leaves the pane rendering an empty
-          // session it never actually loaded.
-          failLoad(id, described);
-          if (!described.retryable) return;
-          const delay = HYDRATION_RETRY_DELAYS_MS[Math.min(attempt, HYDRATION_RETRY_DELAYS_MS.length - 1)];
-          timers.push(setTimeout(() => hydrate(id, attempt + 1), delay));
-        }
-      })();
+    const timers = new Set<ReturnType<typeof setTimeout>>();
+    const pending = (key ? key.split("|") : []).map(id => ({ id, attempt: 0 }));
+    const schedule = (callback: () => void, delay: number) => {
+      const timer = setTimeout(() => { timers.delete(timer); callback(); }, delay);
+      timers.add(timer);
     };
-    for (const id of ids) {
-      hydrate(id, 0);
-    }
+    const pump = () => {
+      if (cancelled) return;
+      while (running.current < BACKGROUND_CONCURRENCY && pending.length) {
+        const priority = pending.findIndex(item => item.id === activeRef.current);
+        const item = pending.splice(priority < 0 ? 0 : priority, 1)[0];
+        if (!item) break;
+        if (useConversationStore.getState().sessions[item.id]?.hydrated) continue;
+        running.current++;
+        void refreshConversationSession(item.id).then(result => {
+          if (!cancelled && !result.ok && result.error.retryable) {
+            const delay = HYDRATION_RETRY_DELAYS_MS[Math.min(item.attempt, HYDRATION_RETRY_DELAYS_MS.length - 1)] ?? 10_000;
+            schedule(() => {
+              pending.push({ id: item.id, attempt: item.attempt + 1 });
+              pump();
+            }, delay);
+          }
+        }).finally(() => {
+          running.current--;
+          // A changed session list may own the queue now. Yield between pages
+          // so decoding/rendering can finish before another background batch.
+          if (!cancelled) schedule(() => { pumpRef.current(); }, 50);
+          else pumpRef.current();
+        });
+      }
+    };
+    pumpRef.current = pump;
+    const active = activeRef.current;
+    const foreground = active && !useConversationStore.getState().sessions[active]?.hydrated && pending.some(item => item.id === active)
+      ? refreshConversationSession(active)
+      : Promise.resolve();
+    void foreground.finally(() => { if (!cancelled) schedule(pump, 50); });
     return () => {
       cancelled = true;
       for (const timer of timers) clearTimeout(timer);
     };
-  }, [key, hydrateSession, failLoad]);
+  }, [key]);
+
+  // Switching to a queued session never waits behind background requests.
+  useEffect(() => {
+    if (activeSessionId && !useConversationStore.getState().sessions[activeSessionId]?.hydrated) {
+      void refreshConversationSession(activeSessionId);
+    }
+  }, [activeSessionId]);
 }

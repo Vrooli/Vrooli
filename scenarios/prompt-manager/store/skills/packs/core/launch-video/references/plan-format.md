@@ -59,7 +59,8 @@ The example describes shape, not a recommended 24-second single shot. Scene slot
 partition the full duration with no gaps/overlaps; transitions occur inside those
 slots. `text.hold` is settled reading time, excluding entrances/exits. `crop` uses
 actual encoded source pixels; `max_display` includes the largest zoom, not CSS size
-before scaling. Evidence and presentation scenes require moving source media.
+before scaling. Evidence and presentation scenes require faithful product source media. A state
+hold or still is valid; interaction claims need an observed action and result.
 
 Flagship additionally supplies `directions` (at least three objects with `id`,
 `structure`, `shot_language`, `audio`, `rationale`), `chosen_direction`, `styleframes`
@@ -94,8 +95,8 @@ Measured loudness and technical decode cannot satisfy listening review.
 
 ## Revision 13 preflight
 
-Launch plans require captured media for at least half the duration at the plan
-stage; studies require `study_requested: true` and `request_source` to proceed
+Launch plans require decisive genuine product proof and an explicit footage-balance
+rationale, without a fixed duration quota. Studies require `study_requested: true` and `request_source` to proceed
 to polish. A blocked launch request does not imply a study request.
 
 Audio adds `source_kind` (`governed-generation`, `licensed-reuse`, `original-score`).
@@ -104,7 +105,7 @@ When `variety_requested: true`, `candidate_styles` names distinct actual style
 families, not seed IDs. Silence is a timing rough unless explicitly requested.
 
 For operator-authorized staged frontend captures, each scene records
-`capture_mode: ui-fixture`, `proof_scope: ui`, visible `disclosure`, `capture_report`,
+`capture_mode: ui-fixture`, `proof_scope: ui`, `disclosure` placement in the report/share context, `capture_report`,
 and `schema_validation` files. Every referenced claim has `scope: ui`. A regular
 capture still needs all original provenance/privacy/pixel fields. The final-file
 and listening gates apply to both capture modes. These structural checks cannot

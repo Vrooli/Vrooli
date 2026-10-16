@@ -438,9 +438,9 @@ const ReplayExportPage = () => {
   const cursorDefaultSpeedProfile = asCursorSpeedProfile(motion?.speedProfile);
   const cursorDefaultPathStyle = asCursorPathStyle(motion?.pathStyle);
   const browserFrameWidth = movieSpec?.presentation?.browserFrame?.width;
-  const browserScale = browserFrameWidth && effectiveCanvasWidth > 0
+  const browserScale = movieSpec?.decor?.browserScale ?? (browserFrameWidth && effectiveCanvasWidth > 0
     ? Math.min(MAX_BROWSER_SCALE, Math.max(MIN_BROWSER_SCALE, browserFrameWidth / effectiveCanvasWidth))
-    : 1;
+    : 1);
   const resolvedStyle = {
     ...styleFromSpec,
     browserScale,
@@ -524,6 +524,7 @@ const ReplayExportPage = () => {
         )}
       >
         <ReplayPlayer
+          recordedVideo={movieSpec?.recordedVideo}
           frames={replayFrames}
           autoPlay={false}
           loop={false}

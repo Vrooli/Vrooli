@@ -3,14 +3,18 @@ package componenttests
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/vrooli/cli-core/cliutil"
 )
 
 func TestBASCaptureExecutorProbeRequiresHealthyBoundary(t *testing.T) {
@@ -145,4 +149,79 @@ func TestPageStoryURLUsesConcreteStoryRoute(t *testing.T) {
 	got, err := executor.storyURL("page:Design", "workspace", "detail")
 	require.NoError(t, err)
 	require.Equal(t, "http://ui.test/design/demo/page?__rcl_page_story=Design&__rcl_story=detail", got)
+}
+
+// Use the shared discovery seam, not a private CLI or browser implementation.
+func TestNewBASCaptureExecutorUsesSelectedRuntimeAndExplicitOverrides(t *testing.T) {
+	t.Setenv("VROOLI_PORT_LOOKUP_STATS_FILE", filepath.Join(t.TempDir(), "lookup-stats.jsonl"))
+	t.Setenv("RCL_BAS_API_URL", "")
+	t.Setenv("BAS_API_URL", "")
+	t.Setenv(cliutil.EnvShadowScenarios, "")
+	t.Setenv(cliutil.EnvInstanceVariant, "rcl-capture-fixture")
+	t.Setenv(cliutil.EnvVariantDependencies, "browser-automation-studio")
+	calls := 0
+	restore := cliutil.SetPortLookupRunner(func(ctx context.Context, target, key string) cliutil.ScenarioPortOutcome {
+		calls++
+		require.Equal(t, "browser-automation-studio@rcl-capture-fixture", target)
+		require.Equal(t, "API_PORT", key)
+		return cliutil.ScenarioPortOutcome{Port: "19321", Output: "19321"}
+	})
+	defer restore()
+	require.Equal(t, "http://localhost:19321", NewBASCaptureExecutor().BASBaseURL)
+	require.Equal(t, 1, calls)
+	t.Setenv("BAS_API_URL", " http://bas-explicit.test/ ")
+	require.Equal(t, "http://bas-explicit.test", NewBASCaptureExecutor().BASBaseURL)
+	t.Setenv("RCL_BAS_API_URL", " http://rcl-bas-explicit.test/ ")
+	require.Equal(t, "http://rcl-bas-explicit.test", NewBASCaptureExecutor().BASBaseURL)
+	require.Equal(t, 1, calls, "explicit endpoints must bypass runtime discovery")
+}
+
+func TestNewBASCaptureExecutorDoesNotGuessPortForMissingSelectedRuntime(t *testing.T) {
+	t.Setenv("VROOLI_PORT_LOOKUP_STATS_FILE", filepath.Join(t.TempDir(), "lookup-stats.jsonl"))
+	t.Setenv("RCL_BAS_API_URL", "")
+	t.Setenv("BAS_API_URL", "")
+	t.Setenv(cliutil.EnvShadowScenarios, "")
+	t.Setenv(cliutil.EnvInstanceVariant, "rcl-capture-missing")
+	t.Setenv(cliutil.EnvVariantDependencies, "browser-automation-studio")
+	restore := cliutil.SetPortLookupRunner(func(ctx context.Context, target, key string) cliutil.ScenarioPortOutcome {
+		require.Equal(t, "browser-automation-studio@rcl-capture-missing", target)
+		return cliutil.ScenarioPortOutcome{Output: "scenario is not running", Err: errors.New("scenario is not running")}
+	})
+	defer restore()
+	executor := NewBASCaptureExecutor()
+	require.Empty(t, executor.BASBaseURL)
+	require.ErrorContains(t, executor.Probe(context.Background()), "discovery")
+}
+
+func TestBASCaptureExecutorRecoversWhenSelectedRuntimeBecomesAvailable(t *testing.T) {
+	t.Setenv("VROOLI_PORT_LOOKUP_STATS_FILE", filepath.Join(t.TempDir(), "lookup-stats.jsonl"))
+	t.Setenv("RCL_BAS_API_URL", "")
+	t.Setenv("BAS_API_URL", "")
+	t.Setenv(cliutil.EnvShadowScenarios, "")
+	t.Setenv(cliutil.EnvInstanceVariant, "rcl-capture-recovery")
+	t.Setenv(cliutil.EnvVariantDependencies, "browser-automation-studio")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "/health", r.URL.Path)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+	parsed, err := url.Parse(server.URL)
+	require.NoError(t, err)
+	available := false
+	clock := time.Now()
+	cliutil.SetPortCacheNowForTest(func() time.Time { return clock })
+	defer cliutil.SetPortCacheNowForTest(nil)
+	restore := cliutil.SetPortLookupRunner(func(ctx context.Context, target, key string) cliutil.ScenarioPortOutcome {
+		require.Equal(t, "browser-automation-studio@rcl-capture-recovery", target)
+		if !available {
+			return cliutil.ScenarioPortOutcome{Output: "scenario is not running", Err: errors.New("scenario is not running")}
+		}
+		return cliutil.ScenarioPortOutcome{Port: parsed.Port(), Output: parsed.Port()}
+	})
+	defer restore()
+	executor := NewBASCaptureExecutor()
+	require.Error(t, executor.Probe(context.Background()))
+	available = true
+	clock = clock.Add(5 * time.Second)
+	require.NoError(t, executor.Probe(context.Background()), "same executor must retry discovery after the dependency recovers")
 }

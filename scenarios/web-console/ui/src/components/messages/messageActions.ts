@@ -47,7 +47,7 @@ export interface MessageActionContext {
   /** Present only where the surface can reach a composer. */
   onSendToComposer?: (text: string) => void;
   onRewind?: (eventId: string) => void;
-  onSaveAsSnippet?: (text: string) => void;
+  onSaveAsSnippet?: (event: ConversationEvent) => void;
   onHandoff?: (sessionId: string, payload: string) => void;
   onOpenPlaybackMode?: () => void;
   renderPlaybackAction?: () => ReactNode;
@@ -138,7 +138,7 @@ export const MESSAGE_ACTIONS: readonly MessageAction[] = [
     placement: "primary",
     placementFor: (ctx) => (ctx.event.role === "user" ? "primary" : "overflow"),
     appliesTo: (ctx) => ctx.onSaveAsSnippet != null,
-    run: (ctx) => { ctx.onSaveAsSnippet?.(ctx.event.text); },
+    run: (ctx) => { ctx.onSaveAsSnippet?.(ctx.event); },
     testId: (ctx) => `msg-save-snippet-${ctx.event.id}`,
   },
   {

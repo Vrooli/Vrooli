@@ -32,7 +32,6 @@ function transport(overrides: Partial<PlaybackTransport> = {}): PlaybackTranspor
 
 function renderController(activePaneId: string) {
   return renderHook(() => useTtsPlaybackController({
-    conversationSessions: {},
     activePaneId,
     autoTtsEnabled: false,
     audioState: { isSpeaking: true, isPaused: false },

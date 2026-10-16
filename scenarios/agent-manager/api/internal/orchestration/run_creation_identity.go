@@ -2,17 +2,18 @@
 package orchestration
 
 import (
+	"context"
+	"fmt"
+	"slices"
+	"strings"
+
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/identity"
-	"context"
-	"fmt"
+
 	"github.com/google/uuid"
-	"github.com/vrooli/api-core/effortauthority"
 	coreidentity "github.com/vrooli/api-core/identity"
 	"github.com/vrooli/api-core/scopecatalog"
-	"slices"
-	"strings"
 )
 
 // buildRunAdmission captures the immutable requested-versus-effective
@@ -78,23 +79,12 @@ func (o *Orchestrator) getIdentityBoundRunReplay(ctx context.Context, id uuid.UU
 	if err := validateRunIdentityReplay(run, req); err != nil {
 		return nil, err
 	}
-	if err := o.acceptEffortRun(ctx, run); err != nil {
-		return nil, err
-	}
 	return run, nil
 }
 
 func validateRunIdentityReplay(run *domain.Run, req CreateRunRequest) error {
 	if run == nil {
 		return domain.NewValidationError("idempotency_key", "original run unavailable")
-	}
-	if req.effort != nil {
-		if run.ResolvedConfig == nil || run.ResolvedConfig.Admission == nil || run.ResolvedConfig.Admission.Effort == nil || *run.ResolvedConfig.Admission.Effort != req.effort.binding {
-			return effortauthority.ErrRefused
-		}
-		if req.effort.proof != nil && (run.ResolvedConfig.Admission.EffortIntent == nil || effortauthority.Digest(*run.ResolvedConfig.Admission.EffortIntent) != effortauthority.Digest(req.effort.proof.Intent)) {
-			return effortauthority.ErrRefused
-		}
 	}
 	if req.caller != nil {
 		if run.ResolvedConfig == nil || run.ResolvedConfig.Admission == nil || run.ResolvedConfig.Admission.CreateCaller == nil || *run.ResolvedConfig.Admission.CreateCaller != *req.caller {
@@ -143,12 +133,6 @@ func buildRunAdmission(req CreateRunRequest, cfg *domain.RunConfig) *domain.RunA
 	if req.caller != nil {
 		copy := *req.caller
 		admission.CreateCaller = &copy
-		if req.effort != nil {
-			b := req.effort.binding
-			i := req.effort.intent
-			admission.Effort = &b
-			admission.EffortIntent = &i
-		}
 	}
 	if req.RoleRef != nil {
 		admission.RequestedRoleRef = strings.TrimSpace(*req.RoleRef)

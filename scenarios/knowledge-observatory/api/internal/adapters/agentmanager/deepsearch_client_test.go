@@ -54,6 +54,9 @@ func TestDeepSearchClientCreateRun(t *testing.T) {
 		writeProtoJSON(t, w, resp)
 	})
 	mux.HandleFunc("/api/v1/runs", func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "Bearer fixture-owner" {
+			t.Error("proof lost")
+		}
 		if r.Method != http.MethodPost {
 			t.Fatalf("expected POST, got %s", r.Method)
 		}
@@ -70,7 +73,7 @@ func TestDeepSearchClientCreateRun(t *testing.T) {
 	defer server.Close()
 
 	client := NewDeepSearchClientWithBaseURL(5*time.Second, cfg, server.URL)
-	runID, err := client.CreateRun(context.Background(), deepsearch.AgentRunRequest{
+	runID, err := client.CreateRun(auth01FixtureCaller(t, context.Background()), deepsearch.AgentRunRequest{
 		Title:       "Deep Search",
 		Description: "Integration test",
 		Prompt:      "Find docs",

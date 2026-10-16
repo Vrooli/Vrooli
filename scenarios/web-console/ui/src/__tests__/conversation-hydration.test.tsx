@@ -47,8 +47,9 @@ describe("useConversationHydration", () => {
 
     renderHook(() => useConversationHydration(["s1"]));
 
+    // Background hydration yields until the visible session has priority.
     await act(async () => {
-      await Promise.resolve();
+      await vi.advanceTimersByTimeAsync(50);
     });
     // A failed hydrate must not read as an empty session. It stays
     // un-hydrated so the retry still runs, and it records the failure so the
@@ -59,8 +60,7 @@ describe("useConversationHydration", () => {
     expect(failed?.error?.retryable).toBe(true);
 
     await act(async () => {
-      vi.advanceTimersByTime(1000);
-      await Promise.resolve();
+      await vi.advanceTimersByTimeAsync(1000);
     });
 
     const session = useConversationStore.getState().sessions.s1;

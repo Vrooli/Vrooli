@@ -105,6 +105,51 @@ func TestLocalIdentityOnlyAttachmentDoesNotRequireAnExistingGrant(t *testing.T) 
 	}
 }
 
+// G2: transcript continuity (import-transcript, external/tombstone) is mounted
+// LoopbackOnly — a loopback caller (a co-located web-console) reaches the
+// handler; a non-loopback caller is refused. This is the chosen contract:
+// web-console holds no agent-manager service credential, and continuity is a
+// same-host, zero-authority operation, so the loopback fence is its authority.
+func TestTranscriptContinuityIsLoopbackOnly(t *testing.T) {
+	h := AgentOperationMiddleware(lifecycle.LoopbackOnly(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusCreated) })))
+	for _, path := range []string{"/api/v1/runs/import-transcript", "/api/v1/runs/external/tombstone"} {
+		for _, tc := range []struct {
+			peer string
+			want int
+		}{
+			{"127.0.0.1:5555", http.StatusCreated},    // positive: loopback import succeeds
+			{"192.0.2.10:5555", http.StatusForbidden}, // negative: non-loopback refused
+		} {
+			r := httptest.NewRequest(http.MethodPost, path, nil)
+			r.RemoteAddr = tc.peer
+			w := httptest.NewRecorder()
+			h.ServeHTTP(w, r)
+			if w.Code != tc.want {
+				t.Fatalf("%s from %s: got %d want %d", path, tc.peer, w.Code, tc.want)
+			}
+		}
+	}
+}
+
+// G2 regression: the previous behavior was a hard 401 for an anonymous
+// import-transcript (it fell through to "verified operator required"). Confirm
+// an anonymous NON-loopback caller is now refused by the loopback fence (403),
+// not silently admitted — the fix does not open the endpoint to anyone.
+func TestTranscriptContinuityAnonymousNonLoopbackRefused(t *testing.T) {
+	reached := false
+	h := AgentOperationMiddleware(lifecycle.LoopbackOnly(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { reached = true })))
+	r := httptest.NewRequest(http.MethodPost, "/api/v1/runs/import-transcript", nil)
+	r.RemoteAddr = "203.0.113.7:4444"
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, r)
+	if reached {
+		t.Fatal("non-loopback anonymous import-transcript reached the handler")
+	}
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("non-loopback anonymous import-transcript want 403, got %d", w.Code)
+	}
+}
+
 func TestSignedEventWebhooksReachTheirSignatureCheckWithoutACaller(t *testing.T) {
 	for _, path := range []string{ProgramEventWebhookPath, DecisionEventWebhookPath} {
 		reached := false

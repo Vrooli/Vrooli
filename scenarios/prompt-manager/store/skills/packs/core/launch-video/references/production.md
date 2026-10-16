@@ -6,8 +6,9 @@ exact-copy restriction. Separate verified behavior from marketing aspirations.
 Record brand inheritance and shipped assets. Do not treat source precedence as
 permission to show a feature that the product cannot perform.
 
-Write one core promise, primary viewer, problem, transformation, decisive proof
-moment, and takeaway. Select evidence that proves that promise. Feature coverage
+Write one core promise, primary viewer, viewing context, product category, setup,
+problem, transformation, decisive proof moment, takeaway and next action. State
+what the first-time viewer must understand before the first product interaction. Select evidence that proves that promise. Feature coverage
 is not an objective. A scene must add something that would be lost if it were cut.
 
 ## Work table
@@ -34,10 +35,10 @@ Each direction states concept, audience fit, emotional arc, narrative structure,
 shot language, density, typography role, camera behavior, transitions, audio, and
 ending. Score product clarity, factual support, distinctiveness, feasibility,
 source-material fit, and readability from 1–5 with reasons. Scores record judgment,
-not objective quality. Choose a direction whose decisive shot can actually be made. Select from usable
-captures before full polish. In a product launch, real UI occupies at least half
-the film and must be large enough to inspect; a tiny decorative product inset does
-not satisfy the intent. Custom scenes introduce, connect, and resolve that proof.
+not objective quality. Choose a direction whose decisive shot can actually be made. Select from usable captures before full polish. Compare inexpensive timed roughs
+for substantial films. Choose the footage balance explicitly; no fixed percentage
+replaces decisive genuine proof at a readable size. Custom scenes introduce,
+connect and resolve that proof. Review campaign films together for distinctness.
 
 Evaluate against the user's requested energy and the previous accepted film, not
 only the agent's own draft. “Clean,” “calm,” and “restrained” are direction choices,
@@ -52,30 +53,30 @@ representative hero, product, and closing frames in `visual-reference/`. Record
 the URL, read time, viewport, theme values and relevant computed styles. Inspect
 motion separately when a reduced-motion screenshot hides the page's signature.
 If the page is unavailable, use a dated verified reference or Brand Manager and
-record the gap. Do not silently invent an unrelated treatment.
+record the gap. Record the chosen treatment and its source relationship.
 
 Extend the generated `composition/DESIGN.md` with this compact mapping:
 
 | Cue | Page observation and source | Video application or reason to depart |
 |---|---|---|
-| Palette | Canvas, raised surface, text, muted text, accent and CTA roles | Preserve each role; do not merely sample a dominant color |
-| Type | Font, weight, line height, tracking, accent words and label hierarchy | Scale for video readability while retaining hierarchy |
-| Surface and light | Border, radius, rim light, shadow and depth | Frame real captures with the same treatment |
+| Palette | Canvas, raised surface, text, muted text, accent and CTA roles | Record retained roles and deliberate changes; preserve mandatory restrictions |
+| Type | Font, weight, line height, tracking, accent words and label hierarchy | Choose readable hierarchy for the film; record source relationship |
+| Surface and light | Border, radius, rim light, shadow and depth | Choose a clean browser/device frame or no frame for the shot |
 | Motif | Product-specific geometry, texture, imagery or constellation | Adapt the product's own motif; keep it secondary to proof |
 | Composition | Spacing, alignment, product framing and density | Translate into the shot's aspect ratio and focal point |
 | Motion | Reveal, settle, transition and atmosphere | Compress for film without extending the hook or adding constant drift |
 
 Keep token differences explicit. A mark's container color and a page's campaign
 accent can have different roles. Brand Manager governs identity assets and explicit
-mandatory restrictions; the current official landing page governs the surrounding
-presentation treatment by default. Report conflicts with explicit restrictions.
+mandatory restrictions; the landing page informs the surrounding treatment; the film brief chooses its
+art direction. Report conflicts with explicit restrictions.
 Leave the source systems unchanged. Page order remains independent of film
 order; visual continuity does not narrow the story to a scrolling page tour.
 
 Before polish, compare opening, product, detail and ending frames against these
 references. For an established teaser treatment, one compact comparison is enough.
-Record a visual verdict and specific mismatches. Repair a missing defining cue
-before full rendering, or explain a deliberate departure. Matching hex values is
+Record a visual verdict and specific mismatches. Repair a missing mandatory identity cue before rendering. Record deliberate
+changes to optional page cues. Matching hex values is
 not a passing visual review. This is a reviewer judgment, not an automated taste
 score. Review the exported file again because renderer output can differ.
 
@@ -86,14 +87,14 @@ music character when adopting the page's visual tone.
 
 ## Three visual classes
 
-1. **Product evidence:** moving capture of a real interaction or changing result.
+1. **Product evidence:** actual capture of a real interaction, result or state.
    Record the instance, source digest, capture date, known start state, action, and
    end state. A composition camera move does not prove product motion.
 2. **Product presentation:** faithful crop/mask/reframe of that evidence. Retain the
    source and transform. Never change values, remove qualifications, or imply a
-   functionality or speed the capture does not demonstrate. Label time compression.
+   functionality or speed the capture does not demonstrate. Record time compression. Avoid implying measured real-time performance; add an in-film qualification only when meaning requires it.
 3. **Explanatory/brand:** typography, diagrams, metaphors, generated atmospherics.
-   Label simulations/concepts where a viewer could mistake them for real behavior.
+   Keep concepts distinct from evidence; narrow misleading scenes or qualify their meaning.
    These cannot satisfy the product-proof gate. Never generate counterfeit UI.
 
 ## Shot selection and motion
@@ -118,8 +119,12 @@ the exact capture layout, and remove it when its subject scrolls away.
 
 ## Styleframes and animatic
 
-Compare four representative frames with the landing-page references for visual
-continuity. Review brand, dominant focal point, typography,
+Compare four representative frames with the source mapping and chosen visual
+intention. Inspect silhouette, backgrounds, materials, light, type and spacing
+before animating expensive scenes. Switch a weak concept or medium instead of
+adding decoration. Distinguish generated still plates with camera/light motion
+from actual animated 3D geometry. Record prompts, source dimensions, model, seed
+and cost when exposed, provenance and limits. Review brand, dominant focal point, typography,
 contrast, density, authenticity, and generic-template symptoms. Keep a short
 written verdict for each. Fail a frame with two competing primary reads.
 
@@ -137,7 +142,7 @@ source assets and timing. Compare orchestration separately from renderer changes
 A small Remotion test is optional; a new dependency and license obligation require
 an evidenced benefit. Do not change the default renderer from documentation alone.
 
-## Accepted reference: Vega, 2026-09-22
+## Historical reference: Vega, 2026-09-22
 
 The operator accepted the landing-style draft: “I like this a lot” and “pretty
 good for now.” The local evidence directory is
@@ -160,3 +165,10 @@ Its composer is a retained production example, not a portable render service.
 Discover a current installed toolchain; do not depend on its old `/tmp` location.
 Operator draft acceptance is not publication permission or a fabricated agent
 audio audition. Record acceptance separately from technical/listening checks.
+
+## Current quality references and review
+
+Use `examples.json` and `learning.md` for the October Aquila 8/10 and Vega 7/10
+exports and the failures that preceded them. Read `capture.md` for shot preparation
+and `review.md` for semantic/craft/CTA review. Operator ratings do not certify
+repeatability, independent audience comprehension or conversion.

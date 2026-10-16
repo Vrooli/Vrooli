@@ -69,7 +69,6 @@ const INITIAL_AUX: AuxState = {
 };
 
 interface UseTtsPlaybackControllerOptions {
-  conversationSessions: Record<string, ConversationSessionLike | undefined>;
   activePaneId: string | null;
   autoTtsEnabled: boolean;
   audioState: SessionPlaybackAudioState;
@@ -84,7 +83,7 @@ interface UseTtsPlaybackControllerOptions {
 let loadIdCounter = 0;
 const generateLoadId = (): string => {
   loadIdCounter += 1;
-  return `load-${Date.now()}-${loadIdCounter}`;
+  return `load-${String(Date.now())}-${String(loadIdCounter)}`;
 };
 
 // Phase 7: an assistant message arriving while TTS is already speaking is
@@ -141,7 +140,6 @@ const queueEntriesFromState = (
 };
 
 export function useTtsPlaybackController({
-  conversationSessions,
   activePaneId,
   autoTtsEnabled,
   audioState,
@@ -161,8 +159,10 @@ export function useTtsPlaybackController({
 
   const smStateRef = useRef(smState);
   smStateRef.current = smState;
-  const conversationSessionsRef = useRef(conversationSessions);
-  conversationSessionsRef.current = conversationSessions;
+  const targetSessionId = smState.status === "idle" ? persistedTarget?.sessionId : smState.sessionId;
+  const targetSession = useConversationStore(state => targetSessionId ? state.sessions[targetSessionId] : undefined);
+  const conversationSessions = useMemo(() => targetSessionId && targetSession
+    ? { [targetSessionId]: targetSession } : {}, [targetSession, targetSessionId]);
   const auxRef = useRef(aux);
   auxRef.current = aux;
   const playbackIntentRef = useRef(playbackIntent);
@@ -187,7 +187,7 @@ export function useTtsPlaybackController({
   }, []);
 
   const getEvent = useCallback((sessionId: string, eventId: string): ConversationEvent | null => {
-    const session = conversationSessionsRef.current[sessionId];
+    const session = useConversationStore.getState().sessions[sessionId];
     return session?.events.find((event) => event.id === eventId) ?? null;
   }, []);
 
@@ -385,14 +385,14 @@ export function useTtsPlaybackController({
   }, [beginQueue]);
 
   const playFromHere = useCallback((sessionId: string, eventId: string) => {
-    const session = conversationSessions[sessionId];
+    const session = useConversationStore.getState().sessions[sessionId];
     if (!session) return;
     const startIndex = session.events.findIndex((event) => event.id === eventId);
     if (startIndex === -1) return;
     const queueIds = session.events.slice(startIndex).map((event) => event.id);
     if (queueIds.length === 0) return;
     beginQueue(sessionId, queueIds, 0);
-  }, [beginQueue, conversationSessions]);
+  }, [beginQueue]);
 
   const nextTrack = useCallback((sessionId: string | null) => {
     if (!sessionId) return;
@@ -526,8 +526,7 @@ export function useTtsPlaybackController({
             beginQueue(sessionId, [eventId], 0);
           }
           setAux((prev) => {
-            const nextErrors = { ...prev.summarizeErrors };
-            delete nextErrors[eventId];
+            const { [eventId]: _cleared, ...nextErrors } = prev.summarizeErrors;
             return {
               ...prev,
               summarizingEventId: prev.summarizingEventId === eventId ? null : prev.summarizingEventId,
@@ -601,8 +600,7 @@ export function useTtsPlaybackController({
   const clearSummarizeError = useCallback((eventId: string) => {
     setAux((prev) => {
       if (!(eventId in prev.summarizeErrors)) return prev;
-      const nextErrors = { ...prev.summarizeErrors };
-      delete nextErrors[eventId];
+      const { [eventId]: _cleared, ...nextErrors } = prev.summarizeErrors;
       return { ...prev, summarizeErrors: nextErrors };
     });
   }, []);

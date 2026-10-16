@@ -689,9 +689,7 @@ type TeamsIndexEntry struct {
 //
 // DOC: docs/concepts/HEARTBEATS.md
 type HeartbeatConfig struct {
-	PreparationAmendments []FinitePreparationAmendment `json:"preparationAmendments,omitempty"`
 	BaseEntity
-	FiniteLeader        *teamconfig.FiniteLeader  `json:"finiteLeader,omitempty"`
 	WakeAdmission       *teamconfig.WakeAdmission `json:"wakeAdmission,omitempty"`
 	TeamID              string                    `json:"teamId"`
 	AgentID             string                    `json:"agentId"`

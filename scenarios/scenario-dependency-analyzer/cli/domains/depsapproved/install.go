@@ -33,18 +33,19 @@ func RegisterInstall(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 func runInstall(core *cliapp.ScenarioApp, args []string) error {
 	fs := support.NewFlagSet("deps install")
 	var scenario, surface, version string
-	var apply, jsonOutput bool
+	var apply, jsonOutput, exactVersion bool
 	fs.StringVar(&scenario, "scenario", "", "Target scenario")
 	fs.StringVar(&surface, "surface", "", "Target surface: ui, api, cli, agent, playwright-driver, resource, tools/<package>, platforms/<package>, or template/<id>")
 	fs.StringVar(&version, "version", "", "Optional explicit version/range")
 	fs.BoolVar(&apply, "apply", false, "Perform the install (default is a dry run)")
+	fs.BoolVar(&exactVersion, "exact", false, "Persist an exact package version (requires an explicit version)")
 	fs.BoolVar(&jsonOutput, "json", false, "Output raw JSON")
 	if err := support.ParseFlags(fs, args); err != nil {
 		return err
 	}
 	positionals := fs.Args()
 	if len(positionals) != 1 {
-		return fmt.Errorf("usage: %s deps install <ecosystem>/<package>[@version] --scenario <name> --surface <ui|api|cli|agent|playwright-driver|resource|tools/<package>|platforms/<package>|template/<id>> [--apply] [--json]", support.AppName)
+		return fmt.Errorf("usage: %s deps install <ecosystem>/<package>[@version] --scenario <name> --surface <ui|api|cli|agent|playwright-driver|resource|tools/<package>|platforms/<package>|template/<id>> [--exact] [--apply] [--json]", support.AppName)
 	}
 	ecosystem, packageName, version, err := parseInstallDependencySpec(positionals[0], version)
 	if err != nil {
@@ -55,12 +56,13 @@ func runInstall(core *cliapp.ScenarioApp, args []string) error {
 	}
 
 	resp, err := governanceClient(core).InstallDependency(context.Background(), connect.NewRequest(&governancev1.InstallDependencyRequest{
-		Scenario:    scenario,
-		Surface:     surface,
-		Ecosystem:   ecosystem,
-		PackageName: packageName,
-		Version:     version,
-		Apply:       apply,
+		Scenario:     scenario,
+		Surface:      surface,
+		Ecosystem:    ecosystem,
+		PackageName:  packageName,
+		Version:      version,
+		Apply:        apply,
+		ExactVersion: exactVersion,
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError("install dependency", err, nil)

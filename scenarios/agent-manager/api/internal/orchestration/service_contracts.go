@@ -82,8 +82,6 @@ type CreateRunRequest struct {
 	// not depend on the authenticator being reachable.
 	// RunIdentityToken is transported separately from the human credential.
 	RunIdentityToken string `json:"-"`
-	EffortProof      string `json:"-"`
-	effort           *effortAdmission
 	// caller and profileAdmission are derived only inside public admission.
 	caller           *domain.CreateRunCaller
 	profileAdmission *profileAdmissionPlan
@@ -501,7 +499,6 @@ type ContinueRunRequest struct {
 // seeded with that run's transcript and diff so the agent can complete the
 // remaining work instead of starting over.
 type ResumeFromFailedRunRequest struct {
-	EffortProof   string    `json:"-"`
 	RunID         uuid.UUID `json:"runId"`
 	CustomContext string    `json:"customContext,omitempty"`
 	AttachmentIDs []string  `json:"attachmentIds,omitempty"`

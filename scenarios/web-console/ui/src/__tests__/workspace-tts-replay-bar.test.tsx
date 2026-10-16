@@ -202,6 +202,7 @@ vi.mock("../hooks/useWakeLock", () => ({
   useWakeLockStatus: () => ({ setStatus: vi.fn() }),
 }));
 vi.mock("../hooks/useConversationSession", () => ({
+  refreshConversationSession: vi.fn().mockResolvedValue({ ok: true, addedEvents: 0 }),
   useConversationSession: () => ({ events: [], cursor: { lastSeenSequence: 0, lastListenedSequence: 0 }, persistCursor: vi.fn() }),
 }));
 vi.mock("../hooks/useImageUpload", () => ({

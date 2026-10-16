@@ -405,10 +405,10 @@ export default function MessageJumpList({
   const q = isControlledQuery ? (query ?? "") : internalQuery;
   const setQuery = useCallback(
     (next: string) => {
-      if (isControlledQuery) onQueryChange?.(next);
+      if (onQueryChange) onQueryChange(next);
       else setInternalQuery(next);
     },
-    [isControlledQuery, onQueryChange],
+    [onQueryChange],
   );
 
   const [role, setRole] = useState<RoleFilter>("all");
@@ -429,9 +429,13 @@ export default function MessageJumpList({
     [q, role, status, content, sort, groupMode],
   );
 
+  // The parent supplies a fresh search envelope on every pane commit. Only
+  // changed hits should rebuild the result list while the reader scrolls.
+  const searchHits = search?.hits;
+  const hasServerSearch = search !== undefined;
   const results = useMemo(
-    () => (q.trim() && search ? buildSearchResults(search.hits ?? [], events, navState) : buildResults(events, navState)),
-    [events, navState, q, search],
+    () => (q.trim() && hasServerSearch ? buildSearchResults(searchHits ?? [], events, navState) : buildResults(events, navState)),
+    [events, navState, q, hasServerSearch, searchHits],
   );
   const groups = useMemo(() => groupResults(results, groupMode), [results, groupMode]);
   const navigatorRows = useMemo(() => groups.flatMap((group) => {
@@ -510,13 +514,13 @@ export default function MessageJumpList({
   useEffect(() => {
     if (!wantsSearchFocus || isMobile) return;
     const id = setTimeout(() => searchRef.current?.focus(), 50);
-    return () => clearTimeout(id);
+    return () => { clearTimeout(id); };
   }, [wantsSearchFocus, isMobile]);
 
   const handleSelect = useCallback(
     (eventId: string) => {
       if (exportActive) {
-        exportSelection?.onToggle(eventId);
+        exportSelection.onToggle(eventId);
         return;
       }
       onSelect(eventId);
@@ -547,7 +551,7 @@ export default function MessageJumpList({
   }, [results, selectedIds]);
   const hiddenSelectedCount = (selectedIds?.size ?? 0) - visibleSelectedCount;
 
-  const exitExportSelection = useCallback(() => setIsExportSelecting(false), []);
+  const exitExportSelection = useCallback(() => { setIsExportSelecting(false); }, []);
 
   const moveActive = useCallback(
     (delta: number) => {
@@ -622,7 +626,7 @@ export default function MessageJumpList({
         else onClose();
       }
     },
-    [results, safeActive, scrollToEvent, handleSelect, q, setQuery, onClose, exportActive, exitExportSelection],
+    [results, safeActive, scrollToEvent, handleSelect, q, setQuery, onClose, exportActive, exitExportSelection, listRef],
   );
 
   // The speaker also narrows the server search; a runtime (source) filter
@@ -650,12 +654,12 @@ export default function MessageJumpList({
     : t(strings.messageJumpList.titleJump);
 
   const renderRow = (result: NavigatorResult, index: number) => (
-    <div key={result.event.id} ref={(node) => registerNavigatorItem(index, node)}>
+    <div key={result.event.id} ref={(node) => { registerNavigatorItem(index, node); }}>
       <NavRow
         result={result}
         isFocused={!exportActive && result.event.id === focusedEventId}
         isActive={result.event.id === activeId}
-        onSelect={() => handleSelect(result.event.id)}
+        onSelect={() => { handleSelect(result.event.id); }}
         now={now}
         selectMode={exportActive}
         isSelected={exportActive && (selectedIds?.has(result.event.id) ?? false)}
@@ -853,7 +857,7 @@ export default function MessageJumpList({
             <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-wc-text-faint">{t(strings.messageJumpList.statusHeading)}</div>
             <div role="radiogroup" aria-label={t(strings.messageJumpList.statusHeading)} className="flex flex-wrap gap-1">
               {STATUS_OPTIONS.map((opt) => (
-                <OptionButton key={opt} testId={`msg-nav-status-${opt}`} label={t(STATUS_LABEL_KEY[opt])} active={status === opt} onClick={() => setStatus(opt)} />
+                <OptionButton key={opt} testId={`msg-nav-status-${opt}`} label={t(STATUS_LABEL_KEY[opt])} active={status === opt} onClick={() => { setStatus(opt); }} />
               ))}
             </div>
           </div>
@@ -862,7 +866,7 @@ export default function MessageJumpList({
             <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-wc-text-faint">{t(strings.messageJumpList.contentHeading)}</div>
             <div role="radiogroup" aria-label={t(strings.messageJumpList.contentHeading)} className="flex flex-wrap gap-1">
               {CONTENT_OPTIONS.map((opt) => (
-                <OptionButton key={opt} testId={`msg-nav-content-${opt}`} label={t(CONTENT_LABEL_KEY[opt])} active={content === opt} onClick={() => setContent(opt)} />
+                <OptionButton key={opt} testId={`msg-nav-content-${opt}`} label={t(CONTENT_LABEL_KEY[opt])} active={content === opt} onClick={() => { setContent(opt); }} />
               ))}
             </div>
           </div>
@@ -876,7 +880,7 @@ export default function MessageJumpList({
                   testId={`msg-nav-sort-${opt}`}
                   label={t(SORT_LABEL_KEY[opt])}
                   active={sort === opt}
-                  onClick={() => setSort(opt)}
+                  onClick={() => { setSort(opt); }}
                 />
               ))}
             </div>
@@ -886,7 +890,7 @@ export default function MessageJumpList({
             <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-wc-text-faint">{t(strings.messageJumpList.groupHeading)}</div>
             <div role="radiogroup" aria-label={t(strings.messageJumpList.groupHeading)} className="flex flex-wrap gap-1">
               {GROUP_OPTIONS.map((opt) => (
-                <OptionButton key={opt} testId={`msg-nav-group-${opt}`} label={t(GROUP_LABEL_KEY[opt])} active={groupMode === opt} onClick={() => setGroupMode(opt)} />
+                <OptionButton key={opt} testId={`msg-nav-group-${opt}`} label={t(GROUP_LABEL_KEY[opt])} active={groupMode === opt} onClick={() => { setGroupMode(opt); }} />
               ))}
             </div>
           </div>
@@ -911,7 +915,7 @@ export default function MessageJumpList({
               return (
                 <div key={row.type === "header" ? row.id : row.result.event.id} style={{ position: "absolute", top: item.start, left: 0, right: 0 }}>
                   {row.type === "header" ? (
-                    <div ref={(node) => registerNavigatorItem(item.index, node)} className="px-2 pt-1 text-[10px] font-semibold uppercase tracking-wider text-wc-text-faint">
+                    <div ref={(node) => { registerNavigatorItem(item.index, node); }} className="px-2 pt-1 text-[10px] font-semibold uppercase tracking-wider text-wc-text-faint">
                       {row.label === "user" ? t(strings.messageJumpList.roleYou) : t(strings.messageJumpList.roleAssistant)}
                     </div>
                   ) : renderRow(row.result, item.index)}
@@ -928,7 +932,7 @@ export default function MessageJumpList({
         </div>
       )}
 
-      {exportActive && exportSelection && (
+      {exportActive && (
         <div
           data-testid="msg-export-footer"
           className="shrink-0 border-t border-wc-default/60 bg-wc-surface-raised px-3 pt-2 pb-3"
@@ -945,7 +949,7 @@ export default function MessageJumpList({
             <button
               type="button"
               data-testid="msg-export-select-visible"
-              onClick={() => exportSelection.onSelectVisible(results.map((r) => r.event.id))}
+              onClick={() => { exportSelection.onSelectVisible(results.map((r) => r.event.id)); }}
               className="min-h-[32px] rounded-md bg-wc-surface-input/40 px-2 py-1 text-[11px] font-medium text-wc-text-muted transition hover:bg-wc-surface-input hover:text-wc-text-primary"
             >
               {t(strings.messageExport.selectVisible)}
@@ -1053,7 +1057,7 @@ export default function MessageJumpList({
 
 
   return createPortal(
-    <div className="fixed inset-0 z-wc-popover-backdrop" onMouseDown={(e) => e.preventDefault()}>
+    <div className="fixed inset-0 z-wc-popover-backdrop" onMouseDown={(e) => { e.preventDefault(); }}>
       <div className="absolute inset-0 bg-wc-backdrop" onClick={onClose} />
       <div
         ref={desktopPanelRef}

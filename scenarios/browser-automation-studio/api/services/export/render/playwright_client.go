@@ -1,12 +1,14 @@
 package render
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"image"
 	"math"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -19,7 +21,10 @@ import (
 	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
 	autoexecutor "github.com/vrooli/browser-automation-studio/automation/executor"
 	"github.com/vrooli/browser-automation-studio/config"
+	sessionprofile "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
+	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // viewportStabilizationScript is injected before capture begins to prevent
@@ -108,6 +113,14 @@ func (c *playwrightCaptureClient) Capture(ctx context.Context, spec *ReplayMovie
 	if err != nil {
 		return nil, fmt.Errorf("build capture instructions: %w", err)
 	}
+	canvas := spec.GetPresentation().GetCanvas()
+	viewportWidth, viewportHeight := int(canvas.GetWidth()), int(canvas.GetHeight())
+	if viewportWidth <= 0 {
+		viewportWidth = 1920
+	}
+	if viewportHeight <= 0 {
+		viewportHeight = 1080
+	}
 	plan := autocontracts.ExecutionPlan{
 		SchemaVersion:  autocontracts.ExecutionPlanSchemaVersion,
 		PayloadVersion: autocontracts.PayloadVersion,
@@ -115,8 +128,14 @@ func (c *playwrightCaptureClient) Capture(ctx context.Context, spec *ReplayMovie
 		WorkflowID:     uuid.New(),
 		Instructions:   instructions,
 		CreatedAt:      time.Now().UTC(),
+		Metadata:       map[string]any{"executionViewport": map[string]any{"width": viewportWidth, "height": viewportHeight}},
 	}
 
+	// Replay screenshots are explicit actions. Incidental evaluate/navigation
+	// screenshots double capture work and cannot contribute to the movie.
+	artifactConfig := config.ArtifactCollectionSettings{
+		ScreenshotPolicy: basexecution.ScreenshotCapturePolicy_SCREENSHOT_CAPTURE_POLICY_NEVER,
+	}
 	req := autoexecutor.Request{
 		Plan:              plan,
 		EngineName:        "playwright",
@@ -124,6 +143,10 @@ func (c *playwrightCaptureClient) Capture(ctx context.Context, spec *ReplayMovie
 		Recorder:          rec,
 		EventSink:         eventSink,
 		HeartbeatInterval: 0,
+		ArtifactConfig:    &artifactConfig,
+		// The canvas is already in output pixels. Driver-default 2x DPR
+		// quadruples pixels and cost without adding source detail.
+		BrowserProfile: &sessionprofile.BrowserProfile{Fingerprint: &sessionprofile.FingerprintSettings{DeviceScaleFactor: 1}},
 	}
 
 	if err := exec.Execute(ctx, req); err != nil {
@@ -135,10 +158,19 @@ func (c *playwrightCaptureClient) Capture(ctx context.Context, spec *ReplayMovie
 	}
 
 	frames := make([]captureFrame, 0, len(rec.outcomes))
+	rasterWidth, rasterHeight := 0, 0
 	for idx, outcome := range rec.outcomes {
-		if outcome.Screenshot == nil || len(outcome.Screenshot.Data) == 0 {
+		if !strings.HasPrefix(outcome.NodeID, "screenshot-") || outcome.Screenshot == nil || len(outcome.Screenshot.Data) == 0 {
 			continue
 		}
+		dimensions, _, err := image.DecodeConfig(bytes.NewReader(outcome.Screenshot.Data))
+		if err != nil {
+			return nil, fmt.Errorf("invalid replay screenshot: %w", err)
+		}
+		if dimensions.Width != viewportWidth || dimensions.Height != viewportHeight {
+			return nil, fmt.Errorf("replay raster %dx%d differs from requested canvas %dx%d", dimensions.Width, dimensions.Height, viewportWidth, viewportHeight)
+		}
+		rasterWidth, rasterHeight = dimensions.Width, dimensions.Height
 		ts := 0
 		if outcome.CompletedAt != nil && plan.CreatedAt.Before(*outcome.CompletedAt) {
 			ts = int(outcome.CompletedAt.Sub(plan.CreatedAt).Milliseconds())
@@ -152,7 +184,11 @@ func (c *playwrightCaptureClient) Capture(ctx context.Context, spec *ReplayMovie
 	if len(frames) == 0 {
 		return nil, fmt.Errorf("playwright capture returned no frames")
 	}
-	return &captureResponse{Frames: frames}, nil
+	fps := int(math.Round(1000.0 / float64(captureInterval)))
+	if fps < 1 {
+		fps = 1
+	}
+	return &captureResponse{Frames: frames, FPS: fps, Width: rasterWidth, Height: rasterHeight}, nil
 }
 
 func buildPlaywrightCaptureInstructions(exportPageURL string, spec *ReplayMovieSpec, captureInterval int) ([]autocontracts.CompiledInstruction, error) {
@@ -171,15 +207,28 @@ func buildPlaywrightCaptureInstructions(exportPageURL string, spec *ReplayMovieS
 	}
 
 	frameCount := int(math.Ceil(float64(totalMs)/float64(captureInterval))) + 1
-	if frameCount < 1 {
-		frameCount = 1
-	}
-	if frameCount > 120 {
-		frameCount = 120
+	if frameCount > maxCaptureFrames {
+		return nil, fmt.Errorf("replay requires %d frames; budget is %d: choose a lower FPS or export shorter sections; timeline will not be truncated", frameCount, maxCaptureFrames)
 	}
 
-	specJSON, _ := json.Marshal(spec)
-	script := fmt.Sprintf("window.__BAS_RENDER_SPEC=%s;window.dispatchEvent(new CustomEvent('bas:render',{detail:%d}));", string(specJSON), captureInterval)
+	specJSON, err := protojson.Marshal(spec)
+	if err != nil {
+		return nil, fmt.Errorf("serialize replay spec: %w", err)
+	}
+	// Use the export page's public message/controller contract. The retired
+	// bas:render event has no listener and used to capture the error screen.
+	script := fmt.Sprintf(`(async()=>{
+      const deadline=Date.now()+15000;
+      while(!window.basExport || window.basExport.error==='initializing'){if(Date.now()>deadline)throw Error('Replay composer unavailable');await new Promise(r=>setTimeout(r,25));}
+      window.postMessage({type:'bas:spec:set',spec:%s},window.location.origin);
+      while(!window.basExport.ready){
+        const error=window.basExport.error;
+        if(error && error!=='initializing' && error!=='Missing replay payload')throw Error(error);
+        if(Date.now()>deadline)throw Error('Replay composer did not become ready');
+        await new Promise(r=>setTimeout(r,25));
+      }
+      window.basExport.pause();await window.basExport.seekTo(0);await document.fonts.ready;return {ready:true};
+    })()`, string(specJSON))
 
 	// Helper to build action with error handling
 	buildAction := func(stepType string, params map[string]any) (*basactions.ActionDefinition, error) {
@@ -190,9 +239,19 @@ func buildPlaywrightCaptureInstructions(exportPageURL string, spec *ReplayMovieS
 		return action, nil
 	}
 
+	// Standalone preview intentionally does not expose the capture controller.
+	// Select capture mode while preserving other owner-supplied URL parameters.
+	composerURL, err := url.Parse(exportPageURL)
+	if err != nil {
+		return nil, fmt.Errorf("parse composer URL: %w", err)
+	}
+	query := composerURL.Query()
+	query.Set("mode", "capture")
+	composerURL.RawQuery = query.Encode()
 	// Build initial navigation and script injection
 	navigateAction, err := buildAction("navigate", map[string]any{
-		"url":       exportPageURL,
+		"url":       composerURL.String(),
+		"waitUntil": "networkidle",
 		"timeoutMs": 45000,
 	})
 	if err != nil {
@@ -241,8 +300,17 @@ func buildPlaywrightCaptureInstructions(exportPageURL string, spec *ReplayMovieS
 	// Build wait/screenshot pairs for each frame
 	idx := 3
 	for i := 0; i < frameCount; i++ {
-		waitAction, err := buildAction("wait", map[string]any{
-			"ms": captureInterval,
+		targetMs := i * captureInterval
+		if targetMs > totalMs {
+			targetMs = totalMs
+		}
+		waitAction, err := buildAction("evaluate", map[string]any{
+			"expression": fmt.Sprintf(`(async()=>{if(!window.basExport.ready)throw Error(window.basExport.error||'Replay composer unavailable');await window.basExport.seekTo(%d);await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+            for(const video of document.querySelectorAll('video[data-bas-source-video]')){
+                const deadline=Date.now()+10000;
+                while(video.readyState<2||video.seeking){if(video.error)throw Error('Recorded video decode failed');if(Date.now()>deadline)throw Error('Recorded video frame did not settle');await new Promise(r=>setTimeout(r,10));}
+            }
+            await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));return {ready:true};})()`, targetMs),
 		})
 		if err != nil {
 			return nil, err

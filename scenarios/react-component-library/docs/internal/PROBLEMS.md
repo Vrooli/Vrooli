@@ -1,5 +1,45 @@
 # Problems — React Component Library
 
+## 2026-10-15–16 — Overlay canvas selectors amplify Web Console work (W3)
+
+Web Console's 574-message real-session audit traced excessive style work to
+root descendant canvas queries. Narrow portal queries preserved colors but did
+not reproduce the isolated removal experiment's speedup. The final repair uses
+LayerManager's existing sheet/drawer stack to publish `data-rcl-overlay-canvas`
+on transitions, with no second tracker or DOM observer. Nested menus retain an
+underlying sheet's canvas; the last sheet/drawer closing clears the flag.
+
+Governed releases: **LayerManager 2.0.2**, **BottomSheet 1.3.5**,
+**FullPageDrawer 1.4.5**, **ResponsiveDialog 1.3.5**. Five focused lifecycle and
+actual-portal behavior tests pass; strict package/declaration build verified
+artifact **b900bb8d8bb4cc0a123e494a0b82e95a5686278f51eb5ceb8f533024963ad19b**.
+Web Console adopted through Scenario Dependency Analyzer. Actual mobile search
+and account panels, html and body match **rgb(23,32,51)**. Its final combined
+journeys show mobile long tasks **1,186 → 581 / 612ms** and desktop MessagesPane
+average commits **3.1 → 2.4ms**. These are combined consumer changes, not an
+isolated attribution to this shared patch. Native iOS qualification and full
+story certification are not claimed. Detailed evidence and retained cold-load
+gate failure: `scenarios/web-console/docs/perf/2026-10-15-long-session-performance.md`.
+
+## 2026-10-15 — Keyboard contraction of both viewports (scoped W3)
+
+Web Console's keyboard-spacing follow-up reproduced a detector gap: editable
+touch input followed by a same-width contraction from 793px to 500px in both
+layout and visual viewports left `keyboardVisible=false` and safe-bottom
+padding active. The regression fails against 1.1.1. Published
+**useViewportEnvironment 1.1.2** through draft/content-set ownership, using a
+width-qualified layout baseline and the existing focus, scale, size, and
+settling gates. Width changes reset the baseline; desktop hardware focus and
+unfocused layout contraction remain keyboard-negative. No release was edited.
+
+Focused viewport cohort: **20 PASS**. Strict package/declaration build PASS;
+Web Console adoption and live keyboard open/dismissal browser proof PASS.
+Story **ctr_4a0ba55b2ead3e46 FAIL** retains inherited boundary-story readiness
+and review-sheet capture failures; default behavior and its browser evidence,
+source, closure, and contract stages pass. No full story qualification is
+claimed. Detailed consumer evidence and remaining native-device confirmation:
+`scenarios/web-console/docs/internal/PROBLEMS.md`, keyboard/launch entry.
+
 Dated observations and design decisions below are historical evidence, not current readiness claims. Unchecked recommendations are **design intent**. See the [behavior claim register](TESTING.md#behavior-claim-register).
 
 Persistent register of known issues, tech debt, and deferred work

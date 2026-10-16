@@ -113,6 +113,13 @@ export const resolveReplayStyleFromSpec = (
   const cursor = spec.cursor;
   return normalizeReplayStyle({
     chromeTheme: decor?.chromeTheme,
+    deviceFrameTheme: decor?.deviceFrameTheme,
+    presentation: {
+      showDesktop: decor?.showDesktop,
+      showBrowserFrame: decor?.showBrowserFrame,
+      showDeviceFrame: decor?.showDeviceFrame,
+    },
+    browserScale: decor?.browserScale,
     background: backgroundFromJson(decor?.background),
     cursorTheme: decor?.cursorTheme,
     cursorInitialPosition:
@@ -195,6 +202,11 @@ export const applyReplayStyleToSpec = (
       cursorInitialPosition: style.cursorInitialPosition,
       cursorClickAnimation: style.cursorClickAnimation,
       cursorScale: style.cursorScale,
+      deviceFrameTheme: style.deviceFrameTheme,
+      showDesktop: style.presentation.showDesktop,
+      showBrowserFrame: style.presentation.showBrowserFrame,
+      showDeviceFrame: style.presentation.showDeviceFrame,
+      browserScale: style.browserScale,
     }),
     cursorMotion: create(ReplayCursorMotionSchema, {
       speedProfile: motion?.speedProfile,

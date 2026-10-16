@@ -326,6 +326,152 @@
         "production.md",
         "upstream.md"
       ]
+    },
+    {
+      "id": "source-constellation",
+      "intent": [
+        "breadth",
+        "connections",
+        "collage"
+      ],
+      "media": [
+        "capture-derivative"
+      ],
+      "complexity": "medium",
+      "durationRange": [
+        3,
+        7
+      ],
+      "requires": [
+        "related-source-crops",
+        "source-bounds"
+      ],
+      "notes": "Arrange related genuine regions spatially; connect only relationships supported by the product.",
+      "antiPatterns": [
+        "Decorative edges that imply unobserved integration."
+      ],
+      "implementationRefs": [
+        "capture.md",
+        "review.md",
+        "examples.json"
+      ]
+    },
+    {
+      "id": "material-metaphor",
+      "intent": [
+        "broll",
+        "materials",
+        "atmosphere"
+      ],
+      "media": [
+        "generated-still",
+        "real-3d"
+      ],
+      "complexity": "medium",
+      "durationRange": [
+        3,
+        7
+      ],
+      "requires": [
+        "approved-styleframe",
+        "provenance"
+      ],
+      "notes": "Use light, material and silhouette to express a story idea; keep it distinct from product evidence.",
+      "antiPatterns": [
+        "Basic geometry with extra shadows presented as finished art."
+      ],
+      "implementationRefs": [
+        "capture.md",
+        "review.md",
+        "examples.json"
+      ]
+    },
+    {
+      "id": "mobile-reader",
+      "intent": [
+        "messages",
+        "mobile",
+        "rich-content"
+      ],
+      "media": [
+        "moving-capture"
+      ],
+      "complexity": "medium",
+      "durationRange": [
+        3,
+        7
+      ],
+      "requires": [
+        "actual-responsive-ui",
+        "rich-fictional-data"
+      ],
+      "notes": "Show useful rich messages at phone content width, scroll with eased stops and hold a decision.",
+      "antiPatterns": [
+        "Shrunk desktop UI or device shell covering controls."
+      ],
+      "implementationRefs": [
+        "capture.md",
+        "review.md",
+        "examples.json"
+      ]
+    },
+    {
+      "id": "search-decision",
+      "intent": [
+        "search",
+        "find",
+        "proof"
+      ],
+      "media": [
+        "moving-capture"
+      ],
+      "complexity": "medium",
+      "durationRange": [
+        3,
+        7
+      ],
+      "requires": [
+        "known-query",
+        "observed-results"
+      ],
+      "notes": "Lead with the search capability, show actual input and hold the resulting decision.",
+      "antiPatterns": [
+        "Using the query as the editorial feature claim."
+      ],
+      "implementationRefs": [
+        "capture.md",
+        "review.md",
+        "examples.json"
+      ]
+    },
+    {
+      "id": "public-destination",
+      "intent": [
+        "cta",
+        "qr",
+        "ending"
+      ],
+      "media": [
+        "brand"
+      ],
+      "complexity": "medium",
+      "durationRange": [
+        3,
+        7
+      ],
+      "requires": [
+        "verified-full-url",
+        "deterministic-qr"
+      ],
+      "notes": "Hold a usable action, complete URL and stationary QR; verify compressed video at playback widths.",
+      "antiPatterns": [
+        "Bare internal route, unverified download or source-only QR check."
+      ],
+      "implementationRefs": [
+        "capture.md",
+        "review.md",
+        "examples.json"
+      ]
     }
   ]
 }

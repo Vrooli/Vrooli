@@ -1,6 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ConversationEvent } from "../../api/conversation";
+import { useConversationStore, createConversationSessionState } from "../../stores/useConversationStore";
 import { useTtsPlaybackIntentStore } from "./store";
 import { useTtsPlaybackController } from "./useTtsPlaybackController";
 
@@ -37,8 +38,8 @@ function makeEvent(id: string, sequence: number): ConversationEvent {
 
 function renderController(setViewMode = vi.fn()) {
   const sessions = { s1: { events: [makeEvent("e1", 1), makeEvent("e2", 2)] } };
+  useConversationStore.setState({ sessions: { s1: createConversationSessionState(sessions.s1) } });
   const hook = renderHook(() => useTtsPlaybackController({
-    conversationSessions: sessions,
     activePaneId: "s1",
     autoTtsEnabled: false,
     audioState: { isSpeaking: false, isPaused: false },
@@ -70,10 +71,10 @@ describe("playback pill context", () => {
 
   it("[REQ:P0-017h] a paused pill stays up with auto-TTS off, so it can be resumed", async () => {
     const sessions = { s1: { events: [makeEvent("e1", 1), makeEvent("e2", 2)] } };
+    useConversationStore.setState({ sessions: { s1: createConversationSessionState(sessions.s1) } });
     const { result, rerender } = renderHook(
       ({ audioState }: { audioState: { isSpeaking: boolean; isPaused: boolean } }) => useTtsPlaybackController({
-        conversationSessions: sessions,
-        activePaneId: "s1",
+            activePaneId: "s1",
         autoTtsEnabled: false,
         audioState,
         setViewMode: vi.fn(),

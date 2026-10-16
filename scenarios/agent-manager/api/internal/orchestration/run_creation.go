@@ -23,15 +23,13 @@ import (
 	"agent-manager/internal/tokenaccounting"
 
 	"github.com/google/uuid"
-	"github.com/vrooli/api-core/effortauthority"
-	isolation "github.com/vrooli/vrooli/packages/nativeisolation"
 	eventpb "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 	"google.golang.org/protobuf/proto"
 )
 
 func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*domain.Run, error) {
 	// Public caller projections are not authority, including in-process callers.
-	req.caller, req.profileAdmission, req.effort = nil, nil, nil
+	req.caller, req.profileAdmission = nil, nil
 	req.OwnerSubject, req.OwnerScopes, req.OwnerExpiresAt = "", nil, nil
 	if err := o.authenticateCreateRunCaller(ctx, &req); err != nil {
 		return nil, err
@@ -63,12 +61,6 @@ func (o *Orchestrator) createRun(ctx context.Context, req CreateRunRequest, reco
 			return nil, err
 		}
 	}
-	if req.effort != nil && (o.finiteNativeFactory == nil || o.finiteNativeFactory.CheckBinding(req.effort.binding.PolicyID, isolation.Binding{PolicyDigest: req.effort.binding.PolicyDigest, ProfileDigest: req.effort.intent.ProfileDigest, Repository: req.effort.intent.Repository, Deadline: req.effort.binding.Deadline}) != nil) {
-		return nil, effortauthority.ErrRefused
-	}
-	if o.finiteNativeEnabled() && (req.effort == nil || recovery != nil || (req.effort.intent.Effect != "run.create" && !(req.effort.serial && req.effort.intent.Effect == "run.child"))) {
-		return nil, effortauthority.ErrRefused
-	}
 	reserved := false
 	failCreation := func() {
 		if reserved {
@@ -84,9 +76,6 @@ func (o *Orchestrator) createRun(ctx context.Context, req CreateRunRequest, reco
 		}
 		if original != nil {
 			if err := validateRunIdentityReplay(original, req); err != nil {
-				return nil, err
-			}
-			if err := o.acceptEffortRun(ctx, original); err != nil {
 				return nil, err
 			}
 			o.markIdempotencyComplete(ctx, req.IdempotencyKey, original.ID, "Run")
@@ -119,9 +108,6 @@ func (o *Orchestrator) createRun(ctx context.Context, req CreateRunRequest, reco
 					}
 					if reconciled != nil {
 						if err := validateRunIdentityReplay(reconciled, req); err != nil {
-							return nil, err
-						}
-						if err := o.acceptEffortRun(ctx, reconciled); err != nil {
 							return nil, err
 						}
 						o.markIdempotencyComplete(ctx, req.IdempotencyKey, reconciled.ID, "Run")
@@ -174,12 +160,6 @@ func (o *Orchestrator) createRun(ctx context.Context, req CreateRunRequest, reco
 		return nil, err
 	}
 
-	if req.effort != nil && req.effort.serial {
-		if req.effort.serialTask == nil || validateSerialTaskProjection(task, req.effort.serialPayload) != nil {
-			return nil, effortauthority.ErrRefused
-		}
-		task = req.effort.serialTask
-	}
 	// Normalize a copy; rejected admission must not update task storage.
 	taskCopy := *task
 	task = &taskCopy
@@ -488,7 +468,6 @@ func (o *Orchestrator) createRun(ctx context.Context, req CreateRunRequest, reco
 	// Native controls depend on the final sandbox policy, including retained
 	// recovery grants. Attach it before recording admission, not afterward.
 	resolvedConfig.SandboxConfig = sandboxConfig
-	narrowEffortConfig(req, resolvedConfig, o.now())
 	resolvedConfig.Admission = buildRunAdmission(req, resolvedConfig)
 	identityOwnerScopes := req.OwnerScopes
 	if identityOwnerScopes == nil {
@@ -509,11 +488,7 @@ func (o *Orchestrator) createRun(ctx context.Context, req CreateRunRequest, reco
 		failCreation()
 		return nil, err
 	}
-	o.inheritParentEffortReferences(ctx, &req)
 	if err := o.revalidateCreateRunCaller(ctx, req); err != nil {
-		return nil, err
-	}
-	if err := o.reserveEffortAdmission(ctx, &req, task, resolvedConfig); err != nil {
 		return nil, err
 	}
 	// Caller, owner narrowing, profile policy and dependent qualification have
@@ -527,17 +502,6 @@ func (o *Orchestrator) createRun(ctx context.Context, req CreateRunRequest, reco
 		}
 	}
 	reserved = true
-	if req.effort != nil {
-		b := req.effort.binding
-		i := req.effort.intent
-		resolvedConfig.Admission.Effort = &b
-		resolvedConfig.Admission.EffortIntent = &i
-		if req.effort.serial {
-			resolvedConfig.Admission.EffortTaskProjection = append([]byte(nil), req.effort.serialPayload...)
-		} else {
-			resolvedConfig.Admission.EffortTaskProjection, _ = json.Marshal(serialTaskRoot{TaskID: task.ID.String(), RootTaskDigest: effortTaskDigest(task), RootTag: req.Tag})
-		}
-	}
 	if err := o.preflightScopePath(task, runMode, req.ExistingSandboxID); err != nil {
 		failCreation()
 		return nil, err
@@ -621,9 +585,6 @@ func (o *Orchestrator) createRun(ctx context.Context, req CreateRunRequest, reco
 	if err := o.runs.Create(ctx, run); err != nil {
 		failCreation()
 		return nil, err
-	}
-	if err := o.acceptEffortRun(ctx, run); err != nil {
-		return nil, domain.NewStateError("Run", "effort_acceptance_unresolved", "create", "run persisted but finite receipt unresolved; reconcile original run, no redispatch")
 	}
 	if o.toolRestrictionIsAdvisory(resolvedConfig) && o.events != nil {
 		declared := "allowedTools"

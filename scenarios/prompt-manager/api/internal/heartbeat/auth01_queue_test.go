@@ -62,7 +62,7 @@ func TestAuth01QueueMissingExpiredRecoveryHasNoDispatch(t *testing.T) {
 		t.Fatal("anonymous admission effects")
 	}
 	// Proof validated in the past is expired now, without timing sleeps.
-	expired, err := owneridentity.AuthorizeCreateRunCaller(context.Background(), http.Header{"Authorization": []string{"Bearer fixture"}}, auth01QueueExpiredVerifier{}, time.Now().Add(-2*time.Hour))
+	expired, err := owneridentity.AuthorizeCreateRunCaller(context.Background(), http.Header{"Authorization": []string{"Bearer fixture"}}, auth01QueueExpiredVerifier{}, time.Now().Add(-2*time.Hour), true)
 	if err != nil {
 		t.Fatal(err)
 	}

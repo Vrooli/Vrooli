@@ -97,12 +97,9 @@ describe("createDesktopPeer", () => {
     vi.restoreAllMocks();
   });
 
-  type Handlers = Record<string, ((event: unknown) => void) | null>;
-
-  function installMockPeerConnection(): { instances: FakePeerConnection[] } {
+  function installMockPeerConnection() {
     const instances: FakePeerConnection[] = [];
-    class FakePeerConnection implements Handlers {
-      [key: string]: unknown;
+    class FakePeerConnection {
       config: unknown;
       connectionState: RTCPeerConnectionState = "new";
       ontrack: ((event: unknown) => void) | null = null;

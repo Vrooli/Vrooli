@@ -15,9 +15,10 @@
   ],
   "draft": "",
   "entry": "useViewportEnvironment.tsx",
-  "evictedVersions": [
-    "1.0.4"
-  ],
-  "latest": "1.1.0",
-  "libraryId": "react-component-library:useViewportEnvironment"
+  "evictedVersions": [],
+  "latest": "1.1.2",
+  "libraryId": "react-component-library:useViewportEnvironment",
+  "displayName": "useViewportEnvironment",
+  "description": "A singleton browser viewport environment with coalesced visual-viewport measurements, focus-qualified keyboard geometry, SSR fallbacks, and an explicit host override.",
+  "tags": []
 }

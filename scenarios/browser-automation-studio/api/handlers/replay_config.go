@@ -123,6 +123,24 @@ func applyReplayConfigToSpec(spec *exportsv1.ReplaySpec, config map[string]any) 
 
 	style, extra := unwrapReplayConfig(config)
 	merged := mergeReplayConfig(style, extra)
+	if theme := firstString(merged, "deviceFrameTheme", "device_frame_theme"); theme != "" {
+		spec.Decor.DeviceFrameTheme = theme
+	}
+	if scale, ok := firstFloat(merged, "browserScale", "browser_scale"); ok && isFiniteFloat(scale) {
+		spec.Decor.BrowserScale = &scale
+	}
+	if presentation, ok := merged["presentation"].(map[string]any); ok {
+		if value, ok := presentation["showDesktop"].(bool); ok {
+			spec.Decor.ShowDesktop = &value
+		}
+		if value, ok := presentation["showBrowserFrame"].(bool); ok {
+			spec.Decor.ShowBrowserFrame = &value
+		}
+		if value, ok := presentation["showDeviceFrame"].(bool); ok {
+			spec.Decor.ShowDeviceFrame = &value
+		}
+	}
+
 	backgroundTheme := readBackgroundTheme(merged)
 	backgroundSource := readBackgroundSource(merged, backgroundTheme)
 	chromeTheme := firstString(merged, "chromeTheme", "replayChromeTheme", "chrome_theme")

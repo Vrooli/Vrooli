@@ -754,13 +754,6 @@ func (s *FileTeamStore) SetHeartbeatConfig(ctx context.Context, teamID, agentID 
 	}
 	finiteLeaderMu.Lock()
 	defer finiteLeaderMu.Unlock()
-	previous, err := s.GetHeartbeatConfig(ctx, teamID, agentID)
-	if err != nil {
-		return err
-	}
-	if err := validateFiniteLeaderUpdate(previous, config); err != nil {
-		return err
-	}
 	// Ensure member directory exists
 	if err := s.EnsureMemberDir(ctx, teamID, agentID); err != nil {
 		return err
@@ -834,13 +827,6 @@ func (s *FileTeamStore) DeleteHeartbeatConfig(ctx context.Context, teamID, agent
 	}
 	finiteLeaderMu.Lock()
 	defer finiteLeaderMu.Unlock()
-	config, err := s.GetHeartbeatConfig(ctx, teamID, agentID)
-	if err != nil {
-		return err
-	}
-	if config != nil && config.FiniteLeader != nil {
-		return fmt.Errorf("finite leader binding must be retained; disable or retire instead of deleting")
-	}
 	configPath := filepath.Join(s.runtimeMemberDir(teamID, agentID), "heartbeat.json")
 	return DeleteFile(configPath)
 }

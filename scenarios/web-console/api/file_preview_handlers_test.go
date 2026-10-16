@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -61,7 +63,7 @@ func blobRequest(t *testing.T, srv *Server, method, sessionID, previewID string,
 	return rec
 }
 
-func runtimeRequest(t *testing.T, srv *Server, method, sessionID, previewID, resource string) *httptest.ResponseRecorder {
+func runtimeRequest(t *testing.T, srv *Server, method, sessionID, previewID, resource string, ranges ...string) *httptest.ResponseRecorder {
 	t.Helper()
 	requestPath := "/api/v1/sessions/" + sessionID + "/file-previews/" + previewID + "/runtime/" + resource
 	if resource == "" {
@@ -69,6 +71,9 @@ func runtimeRequest(t *testing.T, srv *Server, method, sessionID, previewID, res
 	}
 	req := httptest.NewRequest(method, requestPath, nil)
 	req = mux.SetURLVars(req, map[string]string{"id": sessionID, "previewId": previewID, "resource": resource})
+	if len(ranges) > 0 {
+		req.Header.Set("Range", ranges[0])
+	}
 	rec := httptest.NewRecorder()
 	srv.handleFilePreviewRuntime(rec, req)
 	return rec
@@ -156,6 +161,124 @@ func TestFilePreview_Runtime_ServesHTMLAndConfinedPresentationResources(t *testi
 	child := runtimeRequest(t, srv, http.MethodGet, sessionID, res.PreviewID, "child.html")
 	if child.Code != http.StatusOK || child.Header().Get("Content-Type") != "text/html; charset=utf-8" || !strings.Contains(child.Header().Get("Content-Security-Policy"), "connect-src 'none'") {
 		t.Fatalf("child html response: status=%d type=%q csp=%q", child.Code, child.Header().Get("Content-Type"), child.Header().Get("Content-Security-Policy"))
+	}
+}
+
+// Sparse media exercises 64-bit lengths and offsets without allocating or
+// transferring gigabytes. Both preview transports must use native byte ranges.
+func TestFilePreview_LargeMediaStreamsThroughRuntimeAndBlob(t *testing.T) {
+	root := t.TempDir()
+	html := filepath.Join(root, "index.html")
+	if err := os.WriteFile(html, []byte(`<video src="film.mp4" controls></video>`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	srv := newFilePreviewTestServer(t, root)
+	sessionID := newPreviewSession(t, srv)
+	doc := resolvePreview(t, srv, sessionID, html)
+	const size int64 = (5 << 30) + 123
+	payload := "media bytes beyond 4 GiB"
+	offset := size - int64(len(payload))
+	for _, name := range []string{"film.mp4", "film.webm", "sound.mp3", "sound.wav", "sound.ogg"} {
+		t.Run(name, func(t *testing.T) {
+			file, err := os.Create(filepath.Join(root, name))
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer file.Close()
+			if err := file.Truncate(size); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := file.WriteAt([]byte(payload), offset); err != nil {
+				t.Fatal(err)
+			}
+			media := resolvePreview(t, srv, sessionID, filepath.Join(root, name))
+			for _, transport := range []string{"runtime", "blob"} {
+				t.Run(transport, func(t *testing.T) {
+					request := func(method, ranges string) *httptest.ResponseRecorder {
+						if transport == "runtime" {
+							return runtimeRequest(t, srv, method, sessionID, doc.PreviewID, name, ranges)
+						}
+						return blobRequest(t, srv, method, sessionID, media.PreviewID, ranges)
+					}
+					head := request(http.MethodHead, "")
+					if head.Code != http.StatusOK || head.Header().Get("Content-Length") != fmt.Sprint(size) || head.Body.Len() != 0 || head.Header().Get("Accept-Ranges") != "bytes" {
+						t.Fatalf("HEAD status=%d headers=%v body=%d", head.Code, head.Header(), head.Body.Len())
+					}
+					if got := head.Header().Get("Content-Type"); !strings.HasPrefix(got, "video/") && !strings.HasPrefix(got, "audio/") {
+						t.Fatalf("media Content-Type=%q", got)
+					}
+					for _, ranges := range []string{fmt.Sprintf("bytes=%d-%d", offset, size-1), fmt.Sprintf("bytes=-%d", len(payload))} {
+						rec := request(http.MethodGet, ranges)
+						wantRange := fmt.Sprintf("bytes %d-%d/%d", offset, size-1, size)
+						if rec.Code != http.StatusPartialContent || rec.Header().Get("Content-Range") != wantRange || rec.Header().Get("Content-Length") != fmt.Sprint(len(payload)) || rec.Body.String() != payload {
+							t.Fatalf("%s status=%d headers=%v body=%q", ranges, rec.Code, rec.Header(), rec.Body.String())
+						}
+					}
+					if rec := request(http.MethodGet, fmt.Sprintf("bytes=%d-", size)); rec.Code != http.StatusRequestedRangeNotSatisfiable || rec.Header().Get("Content-Range") != fmt.Sprintf("bytes */%d", size) {
+						t.Fatalf("out-of-bounds range status=%d headers=%v", rec.Code, rec.Header())
+					}
+				})
+			}
+		})
+	}
+}
+
+func TestFilePreview_Runtime_KeepsNonMediaResourceLimit(t *testing.T) {
+	root := t.TempDir()
+	html := filepath.Join(root, "index.html")
+	if err := os.WriteFile(html, []byte("<h1>preview</h1>"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	srv := newFilePreviewTestServer(t, root)
+	sessionID := newPreviewSession(t, srv)
+	doc := resolvePreview(t, srv, sessionID, html)
+	for _, name := range []string{"large.js", "large.css", "large.png"} {
+		file, err := os.Create(filepath.Join(root, name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = file.Truncate(previewRuntimeMaxResourceBytes + 1)
+		file.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if rec := runtimeRequest(t, srv, http.MethodHead, sessionID, doc.PreviewID, name); rec.Code != http.StatusRequestEntityTooLarge {
+			t.Errorf("%s status=%d, want 413", name, rec.Code)
+		}
+	}
+}
+
+type pacedPreviewReader struct{ *strings.Reader }
+
+func (r pacedPreviewReader) Read(p []byte) (int, error) {
+	// A real connection must remain writable over many deadline intervals.
+	time.Sleep(20 * time.Millisecond)
+	if len(p) > 512 {
+		p = p[:512]
+	}
+	return r.Reader.Read(p)
+}
+
+func TestFilePreview_ActiveStreamOutlastsResponseDeadline(t *testing.T) {
+	body := strings.Repeat("media", 7000)
+	srv := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "video/mp4")
+		stream := &previewStreamWriter{ResponseWriter: w, idleTimeout: 500 * time.Millisecond}
+		http.ServeContent(stream, r, "film.mp4", time.Time{}, pacedPreviewReader{strings.NewReader(body)})
+	}))
+	srv.Config.WriteTimeout = 50 * time.Millisecond
+	srv.Start()
+	defer srv.Close()
+	client := srv.Client()
+	client.Timeout = 10 * time.Second
+	res, err := client.Get(srv.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	got, err := io.ReadAll(res.Body)
+	if err != nil || res.StatusCode != http.StatusOK || string(got) != body {
+		t.Fatalf("stream cut off: status=%d bytes=%d/%d error=%v", res.StatusCode, len(got), len(body), err)
 	}
 }
 
