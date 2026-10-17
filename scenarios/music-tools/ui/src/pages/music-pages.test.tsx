@@ -98,6 +98,16 @@ describe("music feature pages", () => {
     expect(screen.getByRole("checkbox")).toBeDisabled();
   });
   it("renders pool depth", async () => { renderWithProviders(<PoolPage />); expect(await screen.findByText(/2 available/)).toBeInTheDocument(); });
+  it("defaults new composition to launch-club and preserves explicit ACE choice", async () => {
+    renderWithProviders(<CompositionPage />);
+    const input = screen.getByTestId("compose-style").querySelector("input")!;
+    expect(input).toHaveValue("launch-club");
+    fireEvent.click(screen.getByRole("button", { name: "Compose" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(expect.stringMatching(/\/compose$/), expect.objectContaining({body: JSON.stringify({style_id:"launch-club",takes:10})})));
+    fireEvent.change(input,{target:{value:"launch-trap"}});
+    fireEvent.click(screen.getByRole("button", { name: "Compose" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(expect.stringMatching(/\/compose$/), expect.objectContaining({body: JSON.stringify({style_id:"launch-trap",takes:10})})));
+  });
   it("queues composition and draws a take", async () => {
     renderWithProviders(<CompositionPage />);
     fireEvent.click(screen.getByRole("button", { name: "Compose" }));

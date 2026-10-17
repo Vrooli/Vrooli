@@ -193,9 +193,13 @@ func TestCompileRejectsInvalidSamplerDraftsAndKeepsDefaults(t *testing.T) {
 	}{
 		{"defaults", `"inference_steps":0,"guidance_scale":0`, true},
 		{"boundaries", `"inference_steps":100,"guidance_scale":20`, true},
-		{"negative steps", `"inference_steps":-1`, false}, {"too many steps", `"inference_steps":101`, false},
-		{"negative guidance", `"guidance_scale":-1`, false}, {"high guidance", `"guidance_scale":21`, false},
-		{"nan guidance", `"guidanceScale":"NaN"`, false}, {"infinite guidance", `"guidanceScale":"Infinity"`, false}, {"negative infinite guidance", `"guidanceScale":"-Infinity"`, false},
+		{"negative steps", `"inference_steps":-1`, false},
+		{"too many steps", `"inference_steps":101`, false},
+		{"negative guidance", `"guidance_scale":-1`, false},
+		{"high guidance", `"guidance_scale":21`, false},
+		{"nan guidance", `"guidanceScale":"NaN"`, false},
+		{"infinite guidance", `"guidanceScale":"Infinity"`, false},
+		{"negative infinite guidance", `"guidanceScale":"-Infinity"`, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			store := NewStore()
@@ -215,5 +219,18 @@ func TestCompileRejectsInvalidSamplerDraftsAndKeepsDefaults(t *testing.T) {
 				t.Fatalf("invalid sampler compiled: %+v %v", compiled, err)
 			}
 		})
+	}
+}
+
+func TestCompileLyricsRemainBackendNeutralWithoutStructuredTempo(t *testing.T) {
+	const text = "[Verse]\nKeep my exact words\n\n[Chorus]\nTogether\n"
+	store := NewStore()
+	_, err := store.Create(Style{ID: "generic-song", Name: "Generic song", Caption: "a new original song", Lyrics: text, Params: Params{Duration: 30}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	compiled, err := store.Compile("generic-song")
+	if err != nil || compiled.Lyrics != text || compiled.Params.BPM != 0 {
+		t.Fatalf("shared style contract imposed backend controls or changed lyrics: %+v %v", compiled, err)
 	}
 }

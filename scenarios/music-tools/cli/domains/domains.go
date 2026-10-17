@@ -78,6 +78,8 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 		{Name: "takes", Description: "Inspect generated takes", NeedsAPI: true, Subcommands: []cliapp.Command{
 			{Name: "list", Description: "List generated takes", Run: func(args []string) error { return listTakes(core, args) }},
 			{Name: "get", Description: "Get one take", Run: func(args []string) error { return oneArgGet(core, args, "/v1/takes/") }},
+			{Name: "receipt", Description: "Read/export exact retained resource receipt", Run: func(args []string) error { return exportTake(core, args, false) }},
+			{Name: "audio", Description: "Export take WAV to a new file", Run: func(args []string) error { return exportTake(core, args, true) }},
 			{Name: "reserve", Description: "Reserve one take", Run: func(args []string) error { return transition(core, args, "/reserve") }},
 			{Name: "consume", Description: "Consume one reserved take", Run: func(args []string) error { return transition(core, args, "/consume") }},
 			{Name: "release", Description: "Release one reserved take", Run: func(args []string) error { return transition(core, args, "/release") }},
@@ -146,7 +148,7 @@ func styleBody(args []string) (any, error) {
 func compose(core *cliapp.ScenarioApp, args []string) error {
 	fs := flag.NewFlagSet("compose", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
-	style := fs.String("style", "", "style ID")
+	style := fs.String("style", "launch-club", "style ID (default launch-club; explicit launch-trap retains ACE)")
 	takes := fs.Int("takes", 10, "number of peer takes")
 	duration := fs.Int("duration", 0, "duration in seconds")
 	seed := fs.Int64("seed", 0, "repeatable signed base seed (omitted chooses fresh)")

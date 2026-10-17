@@ -7,14 +7,89 @@
     "licence": "permissive",
     "installed": true,
     "bytes": 7516192768,
-    "operations": ["compose"],
-    "hardware": {"min_vram_bytes": 6442450944, "min_ram_bytes": 8589934592, "cpu_capable": false},
+    "operations": [
+      "compose"
+    ],
+    "hardware": {
+      "min_vram_bytes": 6442450944,
+      "min_ram_bytes": 8589934592,
+      "cpu_capable": false
+    },
     "license": "MIT",
     "commercial_use": "yes",
     "commercial_use_notes": "Vendor asserts licensed, royalty-free, or synthetic training data.",
     "base_model_lineage": "ACE-Step 1.5",
     "known_risks": "Publisher-authored remote code is pinned and reviewed inside the verified resource artifact.",
     "checksum": "3f6e0797fad420a39bd33979eb6e840e30989e34a3794e843d23b60ec6e422d7",
-    "disk_floor_bytes": 2147483648
+    "disk_floor_bytes": 2147483648,
+    "engine": "ace-step",
+    "composition_preference": 2,
+    "sung_lyrics": {
+      "supported": true,
+      "reason": "Pinned generation API accepts authored lyrics as a distinct conditioning input; vocal adherence still requires audition.",
+      "source": "https://github.com/ace-step/ACE-Step-1.5/blob/ca1e85fe9430179831e6bc6be790c332190a3866/acestep/inference.py"
+    }
+  },
+  {
+    "id": "stabilityai/stable-audio-3-medium",
+    "display_name": "Stable Audio 3 Medium",
+    "variant": "stable-audio-3-medium",
+    "revision": "d4d3579395a8ac0df4ab13b5b1d7138ce7290f81",
+    "licence": "restricted",
+    "installed": false,
+    "bytes": 10443825655,
+    "operations": [
+      "compose"
+    ],
+    "hardware": {
+      "min_vram_bytes": 9663676416,
+      "min_ram_bytes": 25769803776,
+      "cpu_capable": false
+    },
+    "license": "Stability AI Community License; Gemma terms",
+    "commercial_use": "conditional",
+    "commercial_use_notes": "Requires applicable Community commercial eligibility/registration and Gemma terms; current-host gate acceptance is not blanket eligibility.",
+    "base_model_lineage": "Stable Audio 3 Medium; T5Gemma",
+    "known_risks": "Gated local CUDA resource; 9GiB estimated resident claim, 8GiB Torch cap; actual startup/fit must be qualified per host.",
+    "checksum": "48d9c65e290e7bcd5194e0633bfc2424a59ee9683f5c2d58762d997b7d8ce0b5",
+    "disk_floor_bytes": 2147483648,
+    "engine": "stable-audio-3",
+    "composition_preference": 1,
+    "sung_lyrics": {
+      "supported": false,
+      "reason": "This model does not output intelligible vocals; vocal textures cannot satisfy authored sung lyrics.",
+      "source": "https://github.com/Stability-AI/stable-audio-3/blob/77e0398c26f7d22d801ec1bb036307e8b231f741/docs/guides/prompting.md"
+    }
+  },
+  {
+    "id": "ACE-Step/Ace-Step1.5:acestep-v15-sft",
+    "display_name": "ACE-Step 1.5 SFT",
+    "variant": "acestep-v15-sft",
+    "revision": "c410d249e71ea9385a7b586865e65b1473e1098d",
+    "licence": "permissive",
+    "installed": false,
+    "bytes": 0,
+    "operations": [
+      "compose"
+    ],
+    "hardware": {
+      "min_vram_bytes": 6442450944,
+      "min_ram_bytes": 8589934592,
+      "cpu_capable": false
+    },
+    "license": "MIT",
+    "commercial_use": "yes",
+    "commercial_use_notes": "Vendor asserts licensed, royalty-free, or synthetic training data.",
+    "base_model_lineage": "ACE-Step/acestep-v15-sft; ACE-Step 1.5 shared components",
+    "known_risks": "Publisher-authored remote code is pinned and reviewed inside the verified resource artifact.",
+    "checksum": "d4dd3a93870f06720027965b90771f529ab02094b3d29e2518f1d5e097e1af7e",
+    "disk_floor_bytes": 2147483648,
+    "engine": "ace-step",
+    "composition_preference": 3,
+    "sung_lyrics": {
+      "supported": true,
+      "reason": "Pinned generation API accepts authored lyrics as a distinct conditioning input; vocal adherence still requires audition.",
+      "source": "https://github.com/ace-step/ACE-Step-1.5/blob/ca1e85fe9430179831e6bc6be790c332190a3866/acestep/inference.py"
+    }
   }
 ]

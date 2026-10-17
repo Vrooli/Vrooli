@@ -2,37 +2,37 @@
 
 Use normal control-plane resource lifecycle. Do not run uvicorn, Python service
 files, a virtualenv installer or package managers directly to start/repair this
-resource. Root owns dependency approval/acquisition, artifact composition,
-capacity admission and native pilot qualification.
+resource. Use the dependency, acquisition and lifecycle owners for setup and repair; keep
+model installation separate from a launch-video production run.
 
 ## Reproducible inputs
 
-Source77e0398c26f7d22d801ec1bb036307e8b231f741 is MIT. The public source archive
-SHA256 is2cd8dcc690766f8112a8aac8ea3c99cd35fa6690928a49588afb285718837a3f.
-Medium model revisiond4d3579395a8ac0df4ab13b5b1d7138ce7290f81 uses Stability
+Source 77e0398c26f7d22d801ec1bb036307e8b231f741 is MIT. The public source archive
+SHA256 is 2cd8dcc690766f8112a8aac8ea3c99cd35fa6690928a49588afb285718837a3f.
+Medium model revision d4d3579395a8ac0df4ab13b5b1d7138ce7290f81 uses Stability
 Community and redistributed Gemma terms. The acquisition target holds only a typed
 reference to `vrooli/stable-audio-3:huggingface-token`; inference receives no token.
 The descriptor is optional for offline runtime; a needed gated acquisition still
 fails closed when its explicit target reference cannot resolve an authorized token.
 Accept the HF gate and applicable commercial obligations before acquisition.
 
-The12-file model/support/notice set is declared in both resource data artifacts and
+The 12-file model/support/notice set is declared in both resource data artifacts and
 `server/model-lock.json`; tests require those declarations to agree. Do not pad tiny
 JSON, copy a different checkpoint's configuration or use unpinned HF-cache contents.
 The combined checkpoint includes its decoder; no separate SAME-L file is needed.
 Startup verifies sizes/SHA256s, fixes only the copied effective config's local text
 encoder path, forces offline loading and rejects incomplete/unqualified inputs.
-The authenticated reviewed model config has sample_size16,777,216 at44.1kHz,
-T5Gemma max_length256 with learned padding and rf_denoiser objective. It omits
+The authenticated reviewed model config has sample_size 16,777,216 at 44.1 kHz,
+T5Gemma max_length 256 with learned padding and rf_denoiser objective. It omits
 sampling_distribution_shift_options, so the pinned upstream constructs a
 LogSNRShift(rate=0, anchor_logsnr=-6.2, logsnr_end=2). Receipts capture the actual
 loaded object rather than misreporting the separate training-distribution shift.
 
 `requirements.in` is the authored input. SDA owns creation/update of a complete,
-hash-pinned, wheel-only `requirements.lock`, with CUDA12.6 and PyPI indices declared
-in resource.json. Transformers5.10.4 is the reviewed, unyanked patch above upstream's
-5.8 floor; the earlier5.10.0 pin was publisher-yanked and is superseded. Native T5
-compatibility remains to be qualified. FA2 uses the exact
+hash-pinned, wheel-only `requirements.lock`, with CUDA 12.6 and PyPI indices declared
+in resource.json. Transformers 5.10.4 is the reviewed, unyanked patch above upstream's
+5.8 floor; the earlier 5.10.0 pin was publisher-yanked and is superseded. Native T5
+compatibility passed the local Medium pilot; other hardware remains unqualified. FA2 uses the exact
 official Dao cp312/Torch2.7/CUDA12 ABI-TRUE wheel. No source-distribution build or
 post-install mutation is part of this profile.
 
@@ -46,13 +46,15 @@ Bytecode/caches/outputs stay outside the immutable executable tree.
 
 ## Fixed initial capacity profile
 
-The qualification profile requests **estimated9GiB VRAM** through the existing
-broker and declares24GiB RAM. Capacity admission remains advisory under the current
+The qualification profile requests **estimated 9 GiB VRAM** through the existing
+broker and declares 24 GiB RAM. Capacity admission remains advisory under the current
 policy; the declared receipt field is not proof of a live ledger reservation.
-The first native trial exposed startup lease expiry; the shared renewal repair
-still requires deployed lifecycle qualification. Before model allocation, the service applies
-Torch's supported **8GiB caching-allocator ceiling**, using actual GPU total memory
-to compute its fraction. The1GiB difference is estimated non-Torch/context headroom;
+The first native trial exposed startup lease expiry. The shared renewal repair
+passed focused race regressions, independent review and a native trial in which
+the same claim survived startup plus 45 seconds idle and was released on verified
+normal stop. Before model allocation, the service applies
+Torch's supported **8 GiB caching-allocator ceiling**, using actual GPU total memory
+to compute its fraction. The 1 GiB difference is estimated non-Torch/context headroom;
 it is not a measured bound. CPU FP32 load→FP16 conversion→CUDA avoids a transient
 FP32 main-model GPU copy. The unregistered T5Gemma encoder moves separately on first
 use in its upstream precision. The qualified Medium A/B receipts observed the
@@ -65,7 +67,7 @@ automatic precision change, lower-quality rung, ceiling bump or other-tenant
 mutation occurs on allocation/admission failure. Root may normally stop ACE under
 the user's authority; this does not authorize stopping whisper/Ollama or prove fit.
 The canonical broker profile has one estimated `medium` rung, with preferred and
-floor both9GiB. `capacity degrade --to medium` uses the existing lifecycle adapter
+floor both 9 GiB. `capacity degrade --to medium` uses the existing lifecycle adapter
 to restart this resource with that same fixed recipe; unsupported rungs are refused.
 There is no smaller-memory rung or automatic upshift. The required idle-yield opt-in
 lets existing broker policy consider normal owner stop when an idle floor claim
@@ -87,11 +89,14 @@ The Python cohort needs existing FastAPI/Pydantic/httpx/numpy, or the governed t
 environment; Torch/upstream/encoder are fakes. It does not load real weights or CUDA.
 `PYTHONDONTWRITEBYTECODE=1` protects staged runtime invocations during qualification.
 
-Native acceptance still requires the normal validated artifact install/start,
-real ABI/FA/T5 load, two serialized48-second requests, source decode/frame/hash
-checks, owned cancellation/drain evidence and bounded capacity/cleanup receipts.
-Use existing `music-tools delivery arrange` for matched8..20-second excerpts.
-Neither source checks nor valid audio establish operator preference or no vocals.
+The October 17 reference-host trial qualified normal artifact install/start, real
+ABI/FA/T5 load, two serialized 48-second requests, source decode/frame/hash checks,
+capacity liveness and ordinary stop. The operator preferred harder B and then
+approved its full source. Exact receipts live in the launch-video example
+`stable-audio-3-harder-instrumental`; that approval does not transfer to new takes.
+Native cancellation/drain and other hardware remain unqualified. Use
+`music-tools delivery arrange` for matching and edits. Source checks and valid
+audio alone establish neither musical fit nor vocal absence.
 
 
 ## Capacity liveness and stop authority
@@ -101,7 +106,7 @@ claim while verification and CPU-first initialization run under the authored
 operation context. It makes a final renewal on normal completion. The existing
 activity-edge companion immediately renews admitted residency independently of
 active/idle request reporting, then uses the canonical default TTL/3 cadence
-(normally10s) and default heartbeat TTL (normally30s). This companion heartbeat
+(normally 10 s) and default heartbeat TTL (normally 30 s). This companion heartbeat
 uses the default TTL rather than the resource's initial admission TTL. Renewal never creates a replacement claim or resizes the
 reservation, and broker errors remain observable and fail open for requests.
 

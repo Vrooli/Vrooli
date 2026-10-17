@@ -170,7 +170,7 @@ send a direct portable Style document. Use the flat shape documented in
 duration and the other parameters at the top level. A legitimate legacy nested
 `params` file is also supported. Unknown/mixed fields and trailing JSON fail;
 they do not silently become a parameter-free style. The portable ingress bound
-is1MiB. Compilation, not draft creation, requires positive BPM and duration.
+is1MiB. Compilation, not draft creation, requires positive duration and nonnegative BPM. Provider admission validates actual structured controls: ACE needs positive BPM; SA3 uses BPM 0/no keyscale.
 
 For a file using the example ID `driving-rave`:
 
@@ -393,3 +393,42 @@ pool state as `unavailable` and requests refill using the existing threshold.
 The take's provenance remains queryable. Job terminal caching is bounded; evicted
 terminal jobs still support durable Get/Wait and one-result terminal subscription.
 This does not delete jobs or their output media.
+
+## Default local instrumental workflow
+
+`compose` and `compose run` both submit through the same maintained command.
+The default style is `launch-club`: the approved harder 48-second caption, 8 steps,
+CFG 1, BPM 0/no keyscale. Existing `launch-trap` explicitly retains ACE. New styles
+with blank variant and instrumental lyrics resolve to SA3; songs and explicit ACE
+variants retain ACE. SA3 tempo/key intentions belong in caption text. Structured
+BPM/keyscale, ACE shift, duration above 120 seconds, and steps above 32 are refused.
+A missing SA3 resource names `vrooli resource start stable-audio-3`; Music does not
+start/stop tenants or silently substitute ACE. Community/Gemma eligibility is required;
+a permissive-only Music configuration refuses SA3.
+
+```bash
+music-tools compose run --style launch-club --takes 1 --seed 42
+music-tools jobs wait JOB_ID
+music-tools takes list --job JOB_ID --limit 100
+music-tools takes receipt TAKE_ID --out NEW-receipt.json
+music-tools takes audio TAKE_ID --out NEW-audio.wav
+```
+
+`--seed` is the repeatable batch base, not the per-take effective seed. Receipt export
+preserves exact raw resource bytes (stdout is also raw); compare the exported file SHA
+with `generation_profiles[TAKE_ID].receipt_sha256` in job metadata. Audio export also
+preserves exact bytes. Both `--out` paths must be new files in an existing writable
+parent; publication refuses replacement. No output export triggers another generation.
+Registry `runtime_unverified` means declaration without a readiness observation.
+
+Lyrics are a common style field, not an ACE-only input. The existing registry filters
+model preference by declared sung-lyrics support. Current SA3 explicitly lacks
+intelligible vocals, so a blank-variant song presently selects ACE; an explicit SA3
+song is refused with its actual reason/source rather than losing the words. If a
+preferred model supports sung lyrics it stays selected. Export/import and durable
+snapshots preserve authored text; no CLI lyrics or model schema changed.
+
+New admissions also freeze the selected exact variant, including an implicit lyric
+model preference. A differently loaded runtime is refused through the existing
+expected-variant/returned-variant contract; Music never switches a resident model.
+Previously queued snapshots with blank variant retain their historical semantics.

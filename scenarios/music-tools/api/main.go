@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"path/filepath"
 
 	"music-tools/internal/capabilities"
@@ -99,7 +100,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("composition job manager initialization failed: %v", err)
 	}
-	modelRegistry, err := models.LoadSeed(true)
+	modelRegistry, err := models.LoadSeed(os.Getenv("MUSIC_LICENSE_LANE") == "permissive")
 	if err != nil {
 		log.Fatalf("model registry initialization failed: %v", err)
 	}

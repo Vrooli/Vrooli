@@ -36,7 +36,7 @@ func Module(registry *modeldomain.Registry) module.Module {
 func wire(model modeldomain.Model) *modelspb.Model {
 	status := "available"
 	if !model.Installed {
-		status = "not_installed"
+		status = "runtime_unverified"
 	}
 	return &modelspb.Model{Id: model.ID, DisplayName: model.DisplayName, Variant: model.Variant, LicenseLane: string(model.Licence), Status: status, Revision: model.Revision, Bytes: model.Bytes}
 }

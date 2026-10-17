@@ -11,7 +11,9 @@ import (
 	"fmt"
 	"io"
 	"runtime"
+	"slices"
 	"sort"
+	"strings"
 )
 
 type LicenceLane string
@@ -21,23 +23,33 @@ const (
 	LicenceRestricted LicenceLane = "restricted"
 )
 
+// Capability describes supported behavior, not guaranteed audible output.
+type Capability struct {
+	Supported bool   `json:"supported"`
+	Reason    string `json:"reason"`
+	Source    string `json:"source"`
+}
+
 type Model struct {
-	ID                 string      `json:"id"`
-	DisplayName        string      `json:"display_name"`
-	Variant            string      `json:"variant"`
-	Revision           string      `json:"revision"`
-	Licence            LicenceLane `json:"licence"`
-	Installed          bool        `json:"installed"`
-	Bytes              uint64      `json:"bytes"`
-	Operations         []string    `json:"operations"`
-	Hardware           Hardware    `json:"hardware"`
-	License            string      `json:"license"`
-	CommercialUse      string      `json:"commercial_use"`
-	CommercialUseNotes string      `json:"commercial_use_notes"`
-	BaseModelLineage   string      `json:"base_model_lineage"`
-	KnownRisks         string      `json:"known_risks"`
-	Checksum           string      `json:"checksum"`
-	DiskFloorBytes     uint64      `json:"disk_floor_bytes"`
+	Engine                string      `json:"engine"`
+	CompositionPreference int         `json:"composition_preference"`
+	SungLyrics            Capability  `json:"sung_lyrics"`
+	ID                    string      `json:"id"`
+	DisplayName           string      `json:"display_name"`
+	Variant               string      `json:"variant"`
+	Revision              string      `json:"revision"`
+	Licence               LicenceLane `json:"licence"`
+	Installed             bool        `json:"installed"`
+	Bytes                 uint64      `json:"bytes"`
+	Operations            []string    `json:"operations"`
+	Hardware              Hardware    `json:"hardware"`
+	License               string      `json:"license"`
+	CommercialUse         string      `json:"commercial_use"`
+	CommercialUseNotes    string      `json:"commercial_use_notes"`
+	BaseModelLineage      string      `json:"base_model_lineage"`
+	KnownRisks            string      `json:"known_risks"`
+	Checksum              string      `json:"checksum"`
+	DiskFloorBytes        uint64      `json:"disk_floor_bytes"`
 }
 
 type Hardware struct {
@@ -106,10 +118,77 @@ func (r *Registry) Resolve(id string) (Model, error) {
 func (r *Registry) List() []Model {
 	out := make([]Model, 0, len(r.models))
 	for _, m := range r.models {
-		out = append(out, m)
+		if !r.permissiveBuild || m.Licence == LicencePermissive {
+			out = append(out, m)
+		}
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
 	return out
+}
+
+// compositionModels is the existing registry's declared preference order. A
+// resource/variant name never implies lyric support, installation or readiness.
+func (r *Registry) compositionModels() []Model {
+	out := []Model{}
+	for _, m := range r.models {
+		if m.Engine != "" && m.CompositionPreference > 0 && slices.Contains(m.Operations, "compose") {
+			out = append(out, m)
+		}
+	}
+	slices.SortFunc(out, func(a, b Model) int {
+		if a.CompositionPreference < b.CompositionPreference {
+			return -1
+		}
+		if a.CompositionPreference > b.CompositionPreference {
+			return 1
+		}
+		return strings.Compare(a.ID, b.ID)
+	})
+	return out
+}
+
+func (r *Registry) requireLyrics(m Model, needsLyrics bool) (Model, error) {
+	if needsLyrics && !m.SungLyrics.Supported {
+		reason, source := m.SungLyrics.Reason, m.SungLyrics.Source
+		if reason == "" {
+			reason = "sung-lyrics capability is not declared"
+		}
+		if source == "" {
+			source = "no capability source declared"
+		}
+		return Model{}, fmt.Errorf("models: %s cannot satisfy authored sung lyrics: %s (source: %s)", m.ID, reason, source)
+	}
+	return r.Resolve(m.ID)
+}
+
+// SelectComposition preserves explicit choices. Otherwise capability filters the
+// declared preference order. Licence refusal never triggers a silent fallback.
+func (r *Registry) SelectComposition(variant string, needsLyrics bool) (Model, error) {
+	for _, m := range r.compositionModels() {
+		if variant != "" {
+			if m.Variant == variant {
+				return r.requireLyrics(m, needsLyrics)
+			}
+		} else if !needsLyrics || m.SungLyrics.Supported {
+			return r.requireLyrics(m, needsLyrics)
+		}
+	}
+	if variant != "" {
+		return Model{}, fmt.Errorf("models: unsupported explicit model variant %q", variant)
+	}
+	return Model{}, fmt.Errorf("models: no declared composition model supports the requested capability")
+}
+
+// ValidateComposition checks recorded ownership without resolving a new default
+// for recovered jobs. An absent old provider is mapped to ACE by the caller.
+func (r *Registry) ValidateComposition(engine, variant string, needsLyrics bool) error {
+	for _, m := range r.compositionModels() {
+		if m.Engine == engine && (variant == "" || m.Variant == variant) {
+			_, err := r.requireLyrics(m, needsLyrics)
+			return err
+		}
+	}
+	return fmt.Errorf("models: no declared composition model matches recorded engine %q and variant %q", engine, variant)
 }
 
 func (r *Registry) Validate() error {

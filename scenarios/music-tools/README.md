@@ -2,6 +2,25 @@
 
 Local-first music capability primitive: generation, transformation, and analysis via CLI, UI, and API
 
+
+The default instrumental workflow uses the maintained local Stable Audio 3 Medium
+resource with the `launch-club` harder-club preset. Explicit variants are preserved; lyric songs use the preferred model declaring
+sung-lyrics support (currently ACE, because SA3 does not produce intelligible vocals). SA3 requires applicable Community/Gemma eligibility; permissive-only
+configurations refuse it without fallback. Resource lifecycle owns resident capacity.
+
+```bash
+music-tools compose run --style launch-club --takes 1 --seed 42
+music-tools jobs wait JOB_ID
+music-tools takes list --job JOB_ID --limit 100
+music-tools takes receipt TAKE_ID --out NEW-receipt.json
+music-tools takes audio TAKE_ID --out NEW-audio.wav
+```
+
+Exports preserve exact receipt/audio bytes and refuse existing outputs. The batch base
+seed differs from each take's effective uint32 seed. See [CLI commands](docs/reference/cli-commands.md#default-local-instrumental-workflow)
+for supported controls, exact hashes and readiness recovery. A valid receipt is not
+a listening-quality guarantee.
+
 This scenario provides
 the standard full-stack Vrooli scenario shape:
 
@@ -130,7 +149,7 @@ finer-grained presets.
 6. **Update `docs/concepts/DOMAINS.md`** before adding product code.
 7. **Keep `docs/manifest.json` accurate.** Durable docs should be registered there with a truthful maturity value.
 8. **Append progress entries** to `docs/internal/PROGRESS.md` whenever you land work.
-9. **Add resources** to `.vrooli/service.json` only when needed; this scenario ships with no resource dependencies (SQLite is in-process).
+9. **Add resources** to `.vrooli/service.json` only when needed; composition declares SA3 optional/try-start and ACE optional/on-demand (SQLite is in-process).
 10. **Keep boundaries**: only edit within this scenario's directory.
 
 ## pnpm Everywhere

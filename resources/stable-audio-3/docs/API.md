@@ -1,7 +1,9 @@
 # API and content export
 
 This is a resource-specific HTTP contract, exposed through the existing resource
-activity edge. It is not an ACE endpoint and does not populate Music jobs/pools.
+activity edge. It is not an ACE endpoint. Music Tools adapts this contract into
+its durable jobs/takes for normal consumer generation; direct resource exports
+remain caller-owned and do not create Music jobs/pools.
 
 `GET /health` returns200 only after exact local closure, CUDA/attention runtime and
 model load pass. Loading or initialization failure returns503 with structured
@@ -61,3 +63,14 @@ are not force-killed. Cancellation before commit suppresses publication; a calle
 can lose the response after an already completed commit. Do not infer that a CLI
 error proves no completed server output. Inspect health/retained resource state;
 normal resource stop remains the process-stop authority.
+
+
+## Lyrics capability
+
+This pinned model does not generate intelligible sung lyrics. Its own
+[prompt guide](https://github.com/Stability-AI/stable-audio-3/blob/77e0398c26f7d22d801ec1bb036307e8b231f741/docs/guides/prompting.md)
+records that limitation. Occasional non-lexical vocal textures do not establish
+lyric conditioning; placing authored lyrics inside a caption does not add it.
+Music Tools keeps lyrics in its common Style contract and selects an appropriate
+model from declared capabilities. This resource's lack of a lyrics field reflects
+the checkpoint's actual support, not a general restriction on future models.

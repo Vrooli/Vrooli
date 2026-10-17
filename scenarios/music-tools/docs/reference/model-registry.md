@@ -34,8 +34,9 @@ it as a budget.
 ## Licence Lanes
 
 - **Permissive** — usable in commercially distributed output.
-- **Restricted** — non-commercial, share-alike, or undeclared licence. Personal use
-  only. An undeclared licence defaults here.
+- **Restricted** — additional or unverified terms, including Community, non-commercial,
+  share-alike or undeclared licences. This is not a universal personal-use-only rule;
+  check the specific model terms and commercial eligibility. Undeclared defaults here.
 
 A permissive-lane build must still satisfy the composition and analysis contracts.
 It does, but with weaker analysis quality — this is the cost of the lane split and
@@ -226,3 +227,38 @@ The dated investigation and primary-source comparison are retained at `/home/mat
 - [`../internal/DECISIONS.md`](../internal/DECISIONS.md) — what was decided from this
 - [`../internal/PERFORMANCE.md`](../internal/PERFORMANCE.md) — cost of running it at library scale
 - [`../internal/PROBLEMS.md`](../internal/PROBLEMS.md) — unresolved upstream contradictions
+
+## Stable Audio 3 Medium default — 2026-10-17
+
+The default local instrumental route declares `stabilityai/stable-audio-3-medium`,
+revision `d4d3579395a8ac0df4ab13b5b1d7138ce7290f81`, in the restricted lane.
+Stability AI Community License and Gemma terms apply, including applicable commercial
+eligibility/registration; this host's approval does not license other hosts or businesses.
+The registry reports `runtime_unverified` for declarations, not a false installation
+absence or universal installation claim. Actual composition probes the resource.
+
+The resource's bounded profile declares 9 GiB estimated VRAM and 24 GiB RAM, with an
+8 GiB Torch allocator ceiling. These are limits/estimates, not a guarantee of fit or
+exclusive GPU ownership. Residency and admission belong to the resource lifecycle.
+The qualified recipe is pinned by composed, source, lockfile and model-lock identities;
+Music refuses a changed recipe until reviewed. The historical host figures above are
+dated evidence, not present free-memory observations or current admission decisions.
+
+## Composition selection and sung lyrics
+
+`registry.seed.json` is the single declaration owner for engine, positive ordered
+`composition_preference`, and `sung_lyrics` supported/reason/source. Selection filters
+capability before preference for new blank-variant jobs; explicit variants are
+validated without substitution. License refusal never silently picks another model.
+Current preference is SA3 Medium then ACE Turbo then ACE SFT. SA3 cannot satisfy
+authored sung words: its [pinned official prompting guide](https://github.com/Stability-AI/stable-audio-3/blob/77e0398c26f7d22d801ec1bb036307e8b231f741/docs/guides/prompting.md)
+documents no intelligible vocals, only possible vocal textures. ACE variants declare
+support based on the pinned distinct-lyrics conditioning API; listening still decides
+adherence. A future preferred capable model must remain selected regardless of name.
+
+SFT is a distinct declaration, variant `acestep-v15-sft`, weight revision
+`c410d249e71ea9385a7b586865e65b1473e1098d` and SHA
+`d4dd3a93870f06720027965b90771f529ab02094b3d29e2518f1d5e097e1af7e`.
+Its aggregate bytes remain0 (unknown/unmeasured) and installed=false declaration
+projects runtime_unverified. It must not inherit Turbo's closure size or imply a
+loaded planner. The resource remains the authority for actual variant/planner identity.

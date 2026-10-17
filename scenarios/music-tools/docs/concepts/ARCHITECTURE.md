@@ -40,6 +40,7 @@ so the desktop delivery tier does not require a container runtime.
 
 | Runtime | Kind | Holds | Why separate |
 |---|---|---|---|
+| `stable-audio-3` | Managed-service resource | Default local instrumental composition | Offline pinned Medium model, resource-owned resident admission |
 | `ace-step` | Managed-service resource | Composition and its native edit operations | Pins a newer Python and an aggressive inference backend |
 | `music-mir` (planned; resource not created) | Managed-service resource | Structure and beat analysis, stem separation | Pins an exact torch build and an older NumPy major |
 | in-scenario sidecar (planned) | Native uv-provisioned virtualenv | Embedding models, notation, loudness | Compatible stack; the always-on hot path, so no process hop |
@@ -50,7 +51,7 @@ no change to the shared single-virtualenv sidecar provisioner.
 
 ### Residency policy
 
-The intended analysis design keeps an embedding pool resident. Current composition
+The intended analysis design keeps an embedding pool resident. ACE composition
 claims operation-scoped VRAM through the control-plane broker and renews that claim.
 The broker can be advisory: a claim does not establish exclusive GPU ownership.
 Music applies a supported reduced rung or refuses when the loaded resource cannot
@@ -63,7 +64,7 @@ exclusive                       [ composition ]
                                                               [ structure ]
 ```
 
-Every GPU-bearing operation declares ordered profile rungs — model variant,
+ACE GPU-bearing jobs declare ordered profile rungs — model variant,
 precision, batch size — so the broker can degrade it under contention rather than
 fail it. The applied rung travels with the result, so degraded output is never
 mistaken for full-quality output.
@@ -98,9 +99,10 @@ The consumer-facing contract has four parts, and all four are load-bearing:
 4. **Explicit partiality.** When a runtime is unavailable the result says which
    layers are missing rather than returning a quietly shorter description.
 
-Flow of a GPU-bearing operation: resolve model within the configured lane → declare
-profile rungs → claim and renew capacity → execute under admitted posture → write through
-the BlobStore seam with provenance → release. Full state machines are in
+Composition resolves and snapshots its provider within the configured lane. SA3 validates
+resource readiness and identity, then uses resource-owned residency and its generation
+slot. ACE jobs declare profile rungs, claim/renew capacity, and release after execution.
+Both paths write through the BlobStore seam with provenance. Full state machines are in
 [`FLOWS.md`](FLOWS.md).
 
 ## Shared Infrastructure
@@ -217,7 +219,7 @@ loaded and attested hashes before a listening finding can be exported.
 | Documented | Yes — this document, `DOMAINS.md`, `FLOWS.md`, `DATA.md`, model registry |
 | Implemented | **Partial.** Composition, styles, durable jobs, takes/pool, model registry, storage and cleanup exist; the full analysis/transform inventory is not implemented |
 | Resources created | ACE-Step exists; music-mir remains planned |
-| Dependencies declared | ACE-Step is enabled/required in service.json |
+| Dependencies declared | SA3 is enabled, optional, try-start; ACE is optional/on-demand |
 | Measured | Prior composition and exact arrangement trials are retained; fresh reliability changes need focused checks and supported-runtime qualification |
 
 Do not infer whole-scenario readiness from the implemented composition slice.
@@ -247,3 +249,30 @@ Historical broad validation remains non-green. See [`../internal/PROBLEMS.md`](.
 - [`../internal/DECISIONS.md`](../internal/DECISIONS.md) — why each choice was made
 - [`../internal/PROBLEMS.md`](../internal/PROBLEMS.md) — current gaps
 - [`../reference/model-registry.md`](../reference/model-registry.md) — model evidence
+
+
+
+## Approved default local instrumental route — 2026-10-17
+
+SA3 owns its resident capacity claim and single generation slot. Music validates the
+qualified runtime recipe, full raw receipt, and WAV before publishing a take; it never
+applies ACE degradation to SA3. Exact raw receipts are protected, non-regenerable
+owned blobs, linked by hash from durable job metadata. Registry declarations report
+`runtime_unverified` until an execution readiness probe; they do not imply installation.
+See [the routing decision](../internal/DECISIONS.md#approved-default-local-instrumental-route--2026-10-17).
+
+### Capability-based lyric selection
+
+The existing model registry declares composition engine, preference order and sourced
+sung-lyrics capability. New composition chooses the preferred capable model; an
+explicit unsupported variant is refused with its reason/source. Current SA3 has no
+intelligible vocal output, so authored lyric songs use an ACE variant. This is a model
+capability result, not an engine-name rule. Recorded provider validation checks its
+capability without selecting a new default, preserving queued/recovered ownership.
+Common style compilation preserves lyrics without imposing an engine's structured
+BPM requirement; actual provider controls are validated at composition admission.
+
+New admissions also freeze the selected exact variant, including an implicit lyric
+model preference. A differently loaded runtime is refused through the existing
+expected-variant/returned-variant contract; Music never switches a resident model.
+Previously queued snapshots with blank variant retain their historical semantics.

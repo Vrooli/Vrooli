@@ -109,6 +109,11 @@
       "binding": "."
     },
     {
+      "path": "takes audio",
+      "group": "takes",
+      "command": "audio"
+    },
+    {
       "path": "takes consume",
       "group": "takes",
       "command": "consume",
@@ -131,6 +136,11 @@
       "group": "takes",
       "command": "list",
       "binding": "."
+    },
+    {
+      "path": "takes receipt",
+      "group": "takes",
+      "command": "receipt"
     },
     {
       "path": "takes release",

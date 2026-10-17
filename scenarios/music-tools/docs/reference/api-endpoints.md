@@ -116,7 +116,7 @@ oversized requests are refused before saving, including valid prefixes.
 Records are custom (`builtin` cannot grant built-in identity), and creation
 timestamps are server-owned; recognized legacy timestamps do not override them.
 Built-in IDs remain immutable and cannot be shadowed. Creation still permits
-incomplete drafts; compilation requires positive BPM and duration. Export/import
+incomplete drafts; compilation requires positive duration and nonnegative BPM. Provider admission validates actual structured controls: ACE needs positive BPM; SA3 uses BPM 0/no keyscale. Export/import
 preserves the actual parameter tuple and caption, while import creates a fresh
 custom record. Create reports malformed/invalid JSON as400 and domain conflicts
 as409; import retains its existing409 decoding/domain response (body-read/size
@@ -181,10 +181,10 @@ uint32 effective seed. Optional `shift` must be finite1..5 for the current ACE
 protocol; omission preserves the loaded profile default. It is sampling control,
 not an instrumentality override. Compose cannot override style lyrics.
 
-Admission snapshots resolved style lyrics. Old queued payloads without that
+New admissions snapshot provider and the entire compiled style, including lyrics. Old queued payloads without that
 snapshot retain the old instrumental behavior; absent old seeds retain base zero.
 Recovery does not sample another seed or reinterpret missing lyrics using a newly
-recreated style. Other style fields still use the existing style lookup contract.
+recreated style. Only historical payloads lacking a compiled snapshot retain the legacy style lookup contract; missing provider means ACE.
 
 Job metadata provides compact input facts `lyrics_intent`, `lyrics_source`,
 `lyrics_sha256`, `lyrics_bytes`, `seed_base` and `seed_base_source`; full authored
@@ -206,7 +206,7 @@ lease for competing running workers.
 
 For a launch video, require source-job instrumental intent **and audition the actual
 audio for lyrics/vocals**. A style ID or `[instrumental]` request cannot prove heard
-absence; delete/recreate style-ID drift is not repaired by this change.
+absence; new jobs preserve their compiled snapshot across style edits or deletion.
 
 Compile/admission accepts unset sampler zeros, inference steps0..100 and finite
 guidance0..20; invalid drafts can still be saved, but cannot queue generation.
@@ -215,3 +215,38 @@ style with no variant precondition served by SFT. Turbo's effective guidance1 is
 legitimate normalization. Request encoding errors refuse HTTP dispatch rather than
 sending an empty body. These bounds describe the current resource protocol, not a
 promise that every model accepts every value (turbo retains its narrower step cap).
+
+## Default instrumental provider and raw receipt
+
+Blank-variant instrumentals use SA3; explicit ACE variants and authored lyrics use ACE.
+SA3 refuses structured BPM/keyscale, `shift`, duration outside 1..120, and more than
+32 steps before enqueueing. Use caption text for tempo/key intentions. Unset steps/CFG
+resolve to 8/1 at admission. No fallback occurs on readiness or licensing refusal.
+`MUSIC_LICENSE_LANE=permissive` excludes/refuses SA3.
+
+`GET /api/v1/takes/{id}/receipt` returns exact raw SA3 resource receipt bytes, with
+`X-Music-Receipt-SHA256`; ordinary missing/legacy takes do not invent a receipt.
+`generation_profiles[takeID]` in durable job metadata links its receipt reference/SHA,
+audio SHA and actual seed/steps/CFG. ACE profile fields apply only to ACE takes.
+SA3 receipts validate the qualified composed/runtime/source recipe and PCM24 WAV;
+requested instrumentality and successful validation do not establish audible quality.
+Publication writes the protected raw receipt before audio. A later publication failure
+never advertises a ready take; original resource output remains available and a retained
+receipt can diagnose partial publication. Cancellation aborts transport without publishing
+a new take; the resource owns cancellation/drain of its generation slot.
+
+### Capability-based lyric routing
+
+`Style.lyrics` remains backend-neutral. New blank-variant requests select the
+registry's preferred model supporting their requested sung-lyrics capability. Current
+SA3 cannot output intelligible vocals, so current lyric requests select ACE; this is
+not an unconditional backend rule. An explicit SA3 lyric request returns a400 with
+the actual limitation and immutable upstream source, without enqueueing or dropping
+text. Explicit ACE variants retain their real controls. Whole-style/provider snapshots
+and legacy missing-provider ACE semantics remain unchanged. Selection support is
+distinct from successful runtime readiness and audible lyric adherence.
+
+New admissions also freeze the selected exact variant, including an implicit lyric
+model preference. A differently loaded runtime is refused through the existing
+expected-variant/returned-variant contract; Music never switches a resident model.
+Previously queued snapshots with blank variant retain their historical semantics.

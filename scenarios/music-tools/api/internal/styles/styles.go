@@ -46,10 +46,12 @@ type Compiled struct {
 	Params  Params
 }
 
-var ErrBuiltinCollision = errors.New("style id collides with a built-in style")
-var ErrInvalid = errors.New("invalid style")
-var ErrDecode = errors.New("decode style")
-var ErrBuiltinImmutable = errors.New("built-in styles are immutable")
+var (
+	ErrBuiltinCollision = errors.New("style id collides with a built-in style")
+	ErrInvalid          = errors.New("invalid style")
+	ErrDecode           = errors.New("decode style")
+	ErrBuiltinImmutable = errors.New("built-in styles are immutable")
+)
 
 const InstrumentalLyrics = "[instrumental]"
 
@@ -69,6 +71,9 @@ var builtins = []Style{{
 	Lyrics:      InstrumentalLyrics,
 	Params:      Params{BPM: 144, KeyScale: "G minor", Duration: 45, Steps: 8, Guidance: 1, Variant: "acestep-v15-turbo"},
 	Builtin:     true,
+}, {
+	ID: "launch-club", Name: "Launch Club", Description: "Original harder club instrumental; SA3 prompt-only tempo intent. New takes require audition.",
+	Caption: "Original instrumental hard dance and glossy club pop, 172 BPM. An immediate, catchy synth hook over distorted rolling bass, tight pounding kick, sharp claps and busy syncopated percussion. Stacked bright synths, punchy edits, short builds and explosive drops; energetic and rhythmically intricate. Clean, wide, polished mix. Instrumental throughout, no vocals.", Lyrics: InstrumentalLyrics, Params: Params{Duration: 48, Steps: 8, Guidance: 1}, Builtin: true,
 }}
 
 type SQLExecutor interface {
@@ -237,8 +242,8 @@ func (s *Store) Compile(id string) (Compiled, error) {
 	if !ok {
 		return Compiled{}, fmt.Errorf("style %q not found", id)
 	}
-	if style.Params.BPM <= 0 || style.Params.Duration <= 0 {
-		return Compiled{}, fmt.Errorf("%w: style %q requires bpm and duration", ErrInvalid, id)
+	if style.Params.BPM < 0 || style.Params.Duration <= 0 {
+		return Compiled{}, fmt.Errorf("%w: style %q requires nonnegative bpm and positive duration", ErrInvalid, id)
 	}
 	if style.Params.Steps < 0 || style.Params.Steps > 100 {
 		return Compiled{}, fmt.Errorf("%w: style %q inference_steps must be 0..100 (0 is unset)", ErrInvalid, id)

@@ -1,6 +1,7 @@
 package domains
 
 import (
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -22,8 +23,8 @@ func TestStyleLyricsFilePreservesTextForCreateAndImport(t *testing.T) {
 			dir := t.TempDir()
 			file := filepath.Join(dir, "style.json")
 			text := filepath.Join(dir, "lyrics.txt")
-			require.NoError(t, os.WriteFile(file, []byte(`{"id":"song","name":"Song","caption":"bright pop","lyrics":"old text","bpm":150,"duration":30}`), 0600))
-			require.NoError(t, os.WriteFile(text, []byte(lyrics), 0600))
+			require.NoError(t, os.WriteFile(file, []byte(`{"id":"song","name":"Song","caption":"bright pop","lyrics":"old text","bpm":150,"duration":30}`), 0o600))
+			require.NoError(t, os.WriteFile(text, []byte(lyrics), 0o600))
 			requests := make(chan map[string]any, 1)
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				wantPath := "/api/v1/styles"
@@ -74,15 +75,15 @@ func TestStyleLyricsFileErrorsAndEmptyInputAreExplicit(t *testing.T) {
 			dir := t.TempDir()
 			file := filepath.Join(dir, "style.json")
 			text := filepath.Join(dir, "lyrics.txt")
-			require.NoError(t, os.WriteFile(file, []byte(`{"id":"song"}`), 0600))
-			require.NoError(t, os.WriteFile(text, test.content, 0600))
+			require.NoError(t, os.WriteFile(file, []byte(`{"id":"song"}`), 0o600))
+			require.NoError(t, os.WriteFile(text, test.content, 0o600))
 			_, err := styleBody([]string{"--file", file, "--lyrics-file", text})
 			require.Error(t, err)
 			require.Contains(t, err.Error(), test.reason)
 		})
 	}
 	file := filepath.Join(t.TempDir(), "style.json")
-	require.NoError(t, os.WriteFile(file, []byte(`{"id":"song"}`), 0600))
+	require.NoError(t, os.WriteFile(file, []byte(`{"id":"song"}`), 0o600))
 	_, err := styleBody([]string{"--file", file, "--lyrics-file", filepath.Join(t.TempDir(), "missing.txt")})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "read lyrics")
@@ -188,4 +189,69 @@ func readManifestForTest(t *testing.T) []byte {
 	bytes, err := os.ReadFile(filepath.Join("..", "manifest.json"))
 	require.NoError(t, err, "read cli/manifest.json")
 	return bytes
+}
+
+func TestDefaultComposeParserRoutesConvenienceAndRunLeaf(t *testing.T) {
+	for _, args := range [][]string{{"compose", "run", "--takes", "1", "--seed", "0"}, {"compose", "--takes", "1", "--seed", "0"}} {
+		t.Run(fmt.Sprint(args), func(t *testing.T) {
+			calls := 0
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/health" {
+					fmt.Fprint(w, `{"status":"healthy","readiness":true}`)
+					return
+				}
+				calls++
+				var body map[string]any
+				json.NewDecoder(r.Body).Decode(&body)
+				require.Equal(t, "/api/v1/compose", r.URL.Path)
+				require.Equal(t, "launch-club", body["style_id"])
+				require.Equal(t, float64(0), body["seed"])
+				fmt.Fprint(w, `{"job_id":"test-job"}`)
+			}))
+			defer server.Close()
+			app, e := cliapp.NewScenarioApp(cliapp.ScenarioOptions{Name: "default-music-cli-test", DefaultAPIBase: server.URL, APIPrefix: "/api/v1", AllowAnonymous: true, Preflight: func(cliapp.Command, cliapp.GlobalOptions, *cliapp.ScenarioApp) error { return nil }})
+			require.NoError(t, e)
+			groups, e := SubcommandGroups(app, readManifestForTest(t))
+			require.NoError(t, e)
+			app.SetCommandsWithSubgroups(nil, groups)
+			require.NoError(t, app.CLI.Run(args))
+			require.Equal(t, 1, calls)
+		})
+	}
+}
+
+func TestTakeExportsPreserveExactBytesAndRefuseOverwrite(t *testing.T) {
+	for _, audio := range []bool{false, true} {
+		t.Run(fmt.Sprint(audio), func(t *testing.T) {
+			raw := []byte(`{"schema_version":1,"actual":"retained receipt"}`)
+			if audio {
+				raw = make([]byte, 48)
+				copy(raw, "RIFF")
+				binary.LittleEndian.PutUint32(raw[4:], 40)
+				copy(raw[8:], "WAVE")
+			}
+			calls := 0
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				calls++
+				suffix := "receipt"
+				if audio {
+					suffix = "audio"
+				}
+				require.Equal(t, "/api/v1/takes/take-1/"+suffix, r.URL.Path)
+				w.Write(raw)
+			}))
+			defer server.Close()
+			app, e := cliapp.NewScenarioApp(cliapp.ScenarioOptions{Name: "take-export-test", DefaultAPIBase: server.URL, APIPrefix: "/api/v1", AllowAnonymous: true})
+			require.NoError(t, e)
+			out := filepath.Join(t.TempDir(), "new-output")
+			require.NoError(t, exportTake(app, []string{"take-1", "--out", out}, audio))
+			actual, e := os.ReadFile(out)
+			require.NoError(t, e)
+			require.Equal(t, raw, actual)
+			require.Error(t, exportTake(app, []string{"take-1", "--out", out}, audio))
+			require.Equal(t, 1, calls)
+			require.Error(t, exportTake(app, []string{"take-1", "--out", filepath.Join(t.TempDir(), "missing", "out")}, audio))
+			require.Equal(t, 1, calls)
+		})
+	}
 }

@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 type Take = { id: string; style_id: string; blob_ref?: string; provenance?: { seed?: number } };
 
 export function CompositionPage() {
-  const [style, setStyle] = useState("launch-trap");
+  const [style, setStyle] = useState("launch-club");
   const [takes, setTakes] = useState(10);
   const [job, setJob] = useState<string | null>(null);
   const [inventory, setInventory] = useState<Take[]>([]);
@@ -50,7 +50,7 @@ export function CompositionPage() {
       <span data-testid="compose-effective-caption" role="status">Caption: {style}</span>
       <label data-testid="compose-take-count" className="flex flex-col gap-1">Takes<input className="rounded border p-2" type="number" min={1} value={takes} onChange={event => setTakes(Number(event.target.value))} /></label>
       <span data-testid="compose-cost" role="status">Estimated GPU time and storage shown before submission.</span>
-      <span data-testid="compose-rung-notice" role="status">Admission rung will be disclosed before work starts.</span>
+      <span data-testid="compose-rung-notice" role="status">SA3 residency is managed by its resource; explicit ACE uses its job admission rung.</span>
       <button data-testid="compose-submit" className="rounded bg-primary px-4 py-2 text-primary-foreground" onClick={() => void compose()}>Compose</button>
       <button className="rounded border px-4 py-2" onClick={() => void draw()}>Draw take</button>
       {job && <span data-testid="compose-unavailable" role="status">{message} {job}</span>}

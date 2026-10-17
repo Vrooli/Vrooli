@@ -70,3 +70,53 @@ The operator judged corrected ACE-Step V5 only very slightly better and requeste
 Current investigation prioritizes explicitly selected Eleven Music v2.5 and Google Lyria 3.5 for hosted listening, Stable Audio 3 for local feasibility, and HeartMuLa for a permissively licensed alternative. Published release/CPU/offload evidence qualifies older categorical hardware and quality rejections. No local throughput, superior sound, account entitlement or commercial lane is inferred. The gateway still lacks a music-generation request path, and Music is ACE-specific; reuse those owners if a candidate earns integration.
 
 Evidence: the model registry's reassessment section and `/home/matthalloran8/.vrooli/plan-artifacts/efforts/video-toolchain-reliability-2026-10-16/research/music-model-alternatives.md`. The bounded reports distinguish current official contracts, publisher claims and unverified tests. No model/dependency acquisition, paid call, source integration or lifecycle change occurred during the investigation.
+
+
+## Approved default local instrumental route — 2026-10-17
+
+Stable Audio 3 Medium is the default for newly admitted instrumental styles with
+no explicit variant. The built-in `launch-club` preserves the approved harder B
+48-second prompt, 8 steps and CFG1. Existing `launch-trap` and explicit ACE variants,
+plus styles with authored lyrics, retain ACE. Queued jobs persist provider and the
+entire compiled style; historical payloads without a provider retain legacy ACE.
+Resource-owned residency admission replaces the ACE job claim for SA3; Music must
+not double-charge, silently substitute engines, or invent an offload rung.
+
+SA3 is **restricted**, governed by Stability AI Community License and Gemma terms,
+not the permissive ACE lane. Current-host approval does not establish eligibility
+for other hosts or businesses; resource acquisition and applicable terms remain
+required. `MUSIC_LICENSE_LANE=permissive` refuses SA3 explicitly without fallback.
+Registry declaration never proves the resource installed/loaded on another host.
+
+SA3 captions express tempo/key intentions as text. Structured BPM/keyscale and ACE
+shift are unsupported and refused before enqueue; use BPM0/no keyscale, duration
+1..120 and steps1..32 (unset steps/CFG resolve8/1). ACE continues requiring positive
+structured BPM and its existing controls. Full exact resource receipts and their
+hashes accompany managed audio; requested intent is distinct from audible success.
+The rated pilot does not confer a score on future generations.
+
+## Capability-based lyric routing — 2026-10-17
+
+This supersedes the earlier shorthand "lyrics retain ACE" as routing policy. Lyrics
+remain a common Style field with exact text/newlines preserved in compiled admission
+snapshots. Model preference is filtered by declared sung-lyrics capability in the
+existing registry; a supported preferred model stays preferred regardless of its
+engine/name. Explicit unsupported model selection is refused, never stripped or
+reinterpreted as instrumental. Unknown capability is not assumed support.
+
+The current pinned SA3 prompting guide states that it does not output intelligible
+vocals: [immutable upstream guide](https://github.com/Stability-AI/stable-audio-3/blob/77e0398c26f7d22d801ec1bb036307e8b231f741/docs/guides/prompting.md).
+ACE's pinned generation API has distinct authored-lyrics conditioning. Both actually
+supported ACE variants are declared separately, including SFT's exact c410d249…
+revision/weight hash rather than Turbo's. Neither capability promises audible
+adherence or establishes installation. Resource readiness/expected variant remain
+execution gates; future supported models still need their real adapter contract.
+
+Recorded provider and compiled snapshots are not reselected on recovery. Historical
+payloads lacking provider keep legacy ACE semantics. There is no lyric-schema or
+database migration, new provider catalog, model acquisition or silent license fallback.
+
+New admissions also freeze the selected exact variant, including an implicit lyric
+model preference. A differently loaded runtime is refused through the existing
+expected-variant/returned-variant contract; Music never switches a resident model.
+Previously queued snapshots with blank variant retain their historical semantics.

@@ -20,6 +20,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gorilla/mux"
 	compositionpb "github.com/vrooli/vrooli/packages/proto/gen/go/music-tools/v1/composition"
 	jobspb "github.com/vrooli/vrooli/packages/proto/gen/go/music-tools/v1/jobs"
 	stylespb "github.com/vrooli/vrooli/packages/proto/gen/go/music-tools/v1/styles"
@@ -34,17 +35,17 @@ import (
 	"music-tools/internal/module"
 	musicstorage "music-tools/internal/storage"
 	"music-tools/internal/styles"
-
-	"github.com/gorilla/mux"
 )
 
 type ModuleState struct {
-	Styles      *styles.Store
-	Pool        *core.Pool
-	HTTP        *http.Client
-	ResourceURL string
-	Blobs       *musicstorage.Store
-	JobManager  *jobs.Manager
+	Styles         *styles.Store
+	Pool           *core.Pool
+	HTTP           *http.Client
+	ResourceURL    string
+	SA3URL         string
+	PermissiveOnly bool
+	Blobs          *musicstorage.Store
+	JobManager     *jobs.Manager
 }
 
 // NewStateWithCapacityAndStorage wires the only production batch engine.
@@ -71,6 +72,17 @@ func NewStateWithCapacityAndStorage(db jobs.SQLExecutor, broker capacity.Broker,
 	recorder := measures.NewRecorder(db)
 	var manager *jobs.Manager
 	manager = jobs.New(db, jobs.Config{Runner: state.runDurableJob, Admit: func(ctx context.Context, cancel context.CancelCauseFunc, job jobs.Job) (func(), map[string]string, error) {
+		var input composeJobPayload
+		if err := json.Unmarshal(job.Payload, &input); err != nil {
+			return nil, nil, err
+		}
+		provider, err := input.provider()
+		if err != nil {
+			return nil, nil, err
+		}
+		if provider == providerSA3 {
+			return state.sa3Admission(ctx)
+		}
 		release, meta, err := capacity.Admit(ctx, cancel, broker, job.ID, 7516192768, 6442450944)
 		if err != nil || meta["capacity_degrade"] == "" {
 			return release, meta, err
@@ -140,12 +152,23 @@ func NewStateWithCapacityAndStorage(db jobs.SQLExecutor, broker capacity.Broker,
 			state.Pool.ReplenishmentFinished(styleID)
 			return
 		}
-		payload, marshalErr := json.Marshal(composeJobPayload{composeRequest: composeRequest{StyleID: styleID, Takes: needed, Duration: 45, Seed: seed}, ResolvedLyrics: &compiled.Lyrics, SeedSource: "fresh-at-admission"})
+		request := composeRequest{StyleID: styleID, Takes: needed, Duration: compiled.Params.Duration, Seed: seed}
+		selected, resolveErr := resolveComposition(compiled)
+		provider := selected.Engine
+		if resolveErr == nil {
+			compiled.Params.Variant = selected.Variant
+			resolveErr = validateProviderInput(provider, compiled, request, state.PermissiveOnly)
+		}
+		if resolveErr != nil {
+			state.Pool.ReplenishmentFinished(styleID)
+			return
+		}
+		payload, marshalErr := json.Marshal(composeJobPayload{composeRequest: request, ResolvedLyrics: &compiled.Lyrics, SeedSource: "fresh-at-admission", Provider: provider, ResolvedStyle: snapshotStyle(provider, compiled)})
 		if marshalErr != nil {
 			state.Pool.ReplenishmentFinished(styleID)
 			return
 		}
-		if submitted, submitErr := manager.Submit(context.Background(), jobs.Spec{Operation: "compose-replenish", Lane: jobs.LaneGPU, Payload: payload, EstimatedSeconds: needed * 45}); submitErr != nil {
+		if submitted, submitErr := manager.Submit(context.Background(), jobs.Spec{Operation: "compose-replenish", Lane: jobs.LaneGPU, Payload: payload, EstimatedSeconds: needed * request.Duration}); submitErr != nil {
 			state.Pool.ReplenishmentFinished(styleID)
 		} else {
 			if err := state.Pool.SetLastReplenishJob(styleID, submitted.ID); err != nil {
@@ -164,7 +187,7 @@ func (s *ModuleState) Close() {
 }
 
 func newState() *ModuleState {
-	return &ModuleState{Styles: styles.NewStore(), Pool: core.NewPool(), HTTP: &http.Client{Timeout: 20 * time.Minute}, ResourceURL: getenv("ACE_STEP_URL", "http://127.0.0.1:8895")}
+	return &ModuleState{Styles: styles.NewStore(), Pool: core.NewPool(), HTTP: &http.Client{Timeout: 20 * time.Minute}, ResourceURL: getenv("ACE_STEP_URL", "http://127.0.0.1:8895"), SA3URL: getenv("STABLE_AUDIO_3_URL", "http://127.0.0.1:8896"), PermissiveOnly: os.Getenv("MUSIC_LICENSE_LANE") == "permissive"}
 }
 
 func getenv(key, fallback string) string {
@@ -190,6 +213,7 @@ func Module(state *ModuleState) module.Module {
 		r.HandleFunc("/api/v1/takes", state.listTakes).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/takes/{id}", state.getTake).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/takes/{id}/audio", state.audioTake).Methods(http.MethodGet)
+		r.HandleFunc("/api/v1/takes/{id}/receipt", state.receiptTake).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/takes/{id}/reserve", state.reserveTake).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/takes/{id}/consume", state.consumeTake).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/takes/{id}/release", state.releaseTake).Methods(http.MethodPost)
@@ -358,8 +382,10 @@ func freshBaseSeed() (*int64, error) {
 // A missing snapshot belongs to the old always-instrumental request contract.
 type composeJobPayload struct {
 	composeRequest
-	ResolvedLyrics *string `json:"resolved_lyrics,omitempty"`
-	SeedSource     string  `json:"seed_source,omitempty"`
+	ResolvedLyrics *string          `json:"resolved_lyrics,omitempty"`
+	SeedSource     string           `json:"seed_source,omitempty"`
+	Provider       string           `json:"provider,omitempty"`
+	ResolvedStyle  *styles.Compiled `json:"resolved_style,omitempty"`
 }
 
 func (request composeJobPayload) lyrics() string {
@@ -414,6 +440,16 @@ func (s *ModuleState) compose(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "shift must be finite and between 1 and 5", http.StatusBadRequest)
 		return
 	}
+	selected, err := resolveComposition(compiled)
+	provider := selected.Engine
+	if err == nil {
+		compiled.Params.Variant = selected.Variant
+		err = validateProviderInput(provider, compiled, request, s.PermissiveOnly)
+	}
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	seedSource := "explicit"
 	if request.Seed == nil {
 		seedSource = "fresh-at-admission"
@@ -423,7 +459,7 @@ func (s *ModuleState) compose(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	payload, _ := json.Marshal(composeJobPayload{composeRequest: request, ResolvedLyrics: &compiled.Lyrics, SeedSource: seedSource})
+	payload, _ := json.Marshal(composeJobPayload{composeRequest: request, ResolvedLyrics: &compiled.Lyrics, SeedSource: seedSource, Provider: provider, ResolvedStyle: snapshotStyle(provider, compiled)})
 	created, err := s.JobManager.Submit(r.Context(), jobs.Spec{Operation: "compose", Lane: jobs.LaneGPU, Payload: payload, EstimatedSeconds: request.Duration * request.Takes})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
@@ -437,16 +473,24 @@ func (s *ModuleState) runDurableJob(ctx context.Context, queued jobs.Job, emit f
 	if err := json.Unmarshal(queued.Payload, &request); err != nil {
 		return jobs.Result{}, err
 	}
-	compiled, err := s.Styles.Compile(request.StyleID)
+	compiled, err := s.resolvedInput(request)
 	if err != nil {
 		return jobs.Result{}, err
 	}
-	compiled.Lyrics = request.lyrics()
+	provider, err := request.provider()
+	if err != nil {
+		return jobs.Result{}, err
+	}
+	if provider == providerSA3 {
+		if err := validateProviderInput(provider, compiled, request.composeRequest, s.PermissiveOnly); err != nil {
+			return jobs.Result{}, err
+		}
+	}
 	planned, err := core.PlanBatch(core.BatchRequest{JobID: queued.ID, StyleID: request.StyleID, Caption: compiled.Caption, Takes: request.Takes, Duration: request.Duration, Seed: request.baseSeed()})
 	if err != nil {
 		return jobs.Result{}, err
 	}
-	profiles := map[string]generationProfile{}
+	profiles := map[string]any{}
 	completed := []core.Take{}
 	result := func() jobs.Result {
 		if len(completed) == 0 {
@@ -462,7 +506,12 @@ func (s *ModuleState) runDurableJob(ctx context.Context, queued jobs.Job, emit f
 		}
 		encoded, _ := json.Marshal(profiles)
 		encodedIDs, _ := json.Marshal(ids)
-		meta := map[string]string{"lyrics_sent_sha256": lyricsHash(compiled.Lyrics), "generation_profiles": string(encoded), "generation_profile_scope": "completed-takes", "completed_take_ids": string(encodedIDs), "seed_receipt": "verified-uint32"}
+		meta := map[string]string{"composition_provider": provider, "generation_profiles": string(encoded), "generation_profile_scope": "completed-takes", "completed_take_ids": string(encodedIDs), "seed_receipt": "verified-uint32"}
+		if provider == providerACE {
+			meta["lyrics_sent_sha256"] = lyricsHash(compiled.Lyrics)
+		} else {
+			meta["lyrics_sent"] = "false"
+		}
 		if uniformModel {
 			meta["model_id"] = first.ModelID
 		}
@@ -478,15 +527,20 @@ func (s *ModuleState) runDurableJob(ctx context.Context, queued jobs.Job, emit f
 		if err := ctx.Err(); err != nil {
 			return result(), err
 		}
-		profile, err := s.generateTake(ctx, &planned[i], request.composeRequest, compiled, queued.Meta["capacity_admitted_rung"])
+		var profile any
+		if provider == providerSA3 {
+			profile, err = s.generateSA3Take(ctx, &planned[i], request.composeRequest, compiled)
+		} else {
+			profile, err = s.generateTake(ctx, &planned[i], request.composeRequest, compiled, queued.Meta["capacity_admitted_rung"])
+		}
 		if err != nil {
 			return result(), err
 		}
-		completed = append(completed, planned[i])
-		profiles[planned[i].ID] = profile
 		if err := s.Pool.Add(planned[i]); err != nil {
 			return result(), fmt.Errorf("retain completed take %s: %w", planned[i].ID, err)
 		}
+		completed = append(completed, planned[i])
+		profiles[planned[i].ID] = profile
 		emit((i+1)*100/len(planned), fmt.Sprintf("take %d/%d", i+1, len(planned)))
 	}
 	return result(), nil
@@ -629,6 +683,9 @@ func wireJob(item jobs.Job) *jobspb.Job {
 				meta = map[string]string{}
 			}
 			maps.Copy(meta, request.lyricsMetadata())
+			if provider, err := request.provider(); err == nil {
+				meta["composition_provider"] = provider
+			}
 			meta["seed_base"] = strconv.FormatInt(request.baseSeed(), 10)
 			source := request.SeedSource
 			if source == "" {

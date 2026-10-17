@@ -10,20 +10,38 @@
         "regenerable": false,
         "subpath": "music-tools.db",
         "rationale": "Durable styles, jobs, measures, and pool inventory state.",
-        "budget": {"max_bytes": "5GiB", "rationale": "Alarm-only durable state; cleanup never deletes the database."}
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Alarm-only durable state; cleanup never deletes the database."
+        }
       },
       "database_wal": {
-        "rung": "owned", "kind": "file", "class": "data", "regenerable": false,
-        "subpath": "music-tools.db-wal", "rationale": "Live SQLite WAL; never remove while the database is open."
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "regenerable": false,
+        "subpath": "music-tools.db-wal",
+        "rationale": "Live SQLite WAL; never remove while the database is open."
       },
       "database_shm": {
-        "rung": "owned", "kind": "file", "class": "data", "regenerable": false,
-        "subpath": "music-tools.db-shm", "rationale": "Live SQLite shared-memory sidecar; lifecycle-owned with the database."
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "regenerable": false,
+        "subpath": "music-tools.db-shm",
+        "rationale": "Live SQLite shared-memory sidecar; lifecycle-owned with the database."
       },
       "audio_ownership": {
-        "rung": "owned", "kind": "dir", "class": "data", "regenerable": false,
-        "subpath": "blobs/ownership", "rationale": "Bounded generated-audio ownership receipts; removed only with their owner blob.",
-        "budget": {"max_bytes": "1GiB", "rationale": "Alarm-only bound for ownership metadata; initialization rejects more than 100000 receipts or any receipt over 16 KiB."}
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "subpath": "blobs/ownership",
+        "rationale": "Bounded generated-audio ownership receipts; removed only with their owner blob.",
+        "budget": {
+          "max_bytes": "1GiB",
+          "rationale": "Alarm-only bound for ownership metadata; initialization rejects more than 100000 receipts or any receipt over 16 KiB."
+        }
       },
       "job_outputs": {
         "rung": "owned",
@@ -32,18 +50,38 @@
         "regenerable": false,
         "subpath": "blobs/out",
         "rationale": "Exact generated take bytes are source artifacts; explicit owner lifecycle cleanup may reclaim eligible unreserved takes, never a blanket cache purge.",
-        "budget": {"max_age": "7d", "max_bytes": "32GiB", "rationale": "Bound generated audio while protecting reserved takes."},
-        "reclaim": {"pruner": "custom"}
+        "budget": {
+          "max_age": "7d",
+          "max_bytes": "32GiB",
+          "rationale": "Bound generated audio while protecting reserved takes."
+        },
+        "reclaim": {
+          "pruner": "custom"
+        }
       },
       "deployment_reports": {
-        "rung": "owned", "kind": "dir", "class": "data", "regenerable": false,
-        "subpath": "deployment", "rationale": "Retained owner deployment decisions and verification reports.",
-        "budget": {"max_bytes": "16MiB", "rationale": "Alarm-only report ceiling; no automatic deletion of activation evidence."}
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "subpath": "deployment",
+        "rationale": "Retained owner deployment decisions and verification reports.",
+        "budget": {
+          "max_bytes": "16MiB",
+          "rationale": "Alarm-only report ceiling; no automatic deletion of activation evidence."
+        }
       },
       "retention_receipts": {
-        "rung": "owned", "kind": "dir", "class": "state", "regenerable": false,
-        "subpath": "retention", "rationale": "Control-plane retention enforcement receipts for this owner.",
-        "budget": {"max_bytes": "16MiB", "rationale": "Alarm-only retained enforcement evidence ceiling."}
+        "rung": "owned",
+        "kind": "dir",
+        "class": "state",
+        "regenerable": false,
+        "subpath": "retention",
+        "rationale": "Control-plane retention enforcement receipts for this owner.",
+        "budget": {
+          "max_bytes": "16MiB",
+          "rationale": "Alarm-only retained enforcement evidence ceiling."
+        }
       },
       "runtime": {
         "rung": "owned",
@@ -52,7 +90,22 @@
         "regenerable": true,
         "subpath": "runtime",
         "rationale": "Rebuildable local runtime material.",
-        "budget": {"max_bytes": "1GiB", "rationale": "Alarm-only runtime ceiling."}
+        "budget": {
+          "max_bytes": "1GiB",
+          "rationale": "Alarm-only runtime ceiling."
+        }
+      },
+      "generation_receipts": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "subpath": "blobs/generation-receipts",
+        "rationale": "Exact retained SA3 generation receipts bound to durable takes; never a regenerable cache.",
+        "budget": {
+          "max_bytes": "1GiB",
+          "rationale": "Alarm-only provenance bound; at most512KiB per resource receipt."
+        }
       }
     },
     "cleanup_providers": [
@@ -62,7 +115,9 @@
         "safety_tier": "safe_with_owner",
         "default_mode": "disabled",
         "default_approval": "operator",
-        "storage_entries": ["job_outputs"]
+        "storage_entries": [
+          "job_outputs"
+        ]
       }
     ]
   },
@@ -162,8 +217,15 @@
     "resources": {
       "ace-step": {
         "description": "Governed ACE-Step 1.5 local music generation runtime",
+        "enabled": false,
+        "required": false,
+        "startup_policy": "ignore"
+      },
+      "stable-audio-3": {
+        "description": "Default instrumental composition; gated Community/Gemma eligibility, resource-owned resident capacity",
         "enabled": true,
-        "required": true
+        "required": false,
+        "startup_policy": "try_start"
       }
     }
   },

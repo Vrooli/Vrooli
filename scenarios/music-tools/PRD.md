@@ -21,7 +21,7 @@ Value promise: every music operation runs locally at zero marginal cost, on hard
 
 - [ ] OT-P0-001 | Headless capability surface | Every composition, transformation, and analysis operation completes from the CLI with no UI and no ComfyUI dependency, returning report-shaped output.
 - [ ] OT-P0-002 | Governed model registry | Every model is declared with hardware gates, disk cost, licence, and commercial-use lane; installs are checksum-verified and refuse to start when free disk is below the declared floor.
-- [ ] OT-P0-003 | Arbitrated GPU execution | Every GPU operation claims through the capacity broker, degrades to a declared lower rung under contention, and releases on completion or failure — never evicting a co-resident tenant implicitly.
+- [ ] OT-P0-003 | Arbitrated GPU execution | Every GPU operation uses its owning capacity contract: SA3 resident admission belongs to resource lifecycle; ACE jobs claim, renew, apply supported rungs, and release — never evicting a co-resident tenant implicitly.
 - [x] OT-P0-004 | Uniform decomposition | Any track, owned or generated, yields the same structured description — embeddings, structure and beats, key and tempo, loudness, tags — through a single contract.
 - [ ] OT-P0-005 | Durable async jobs | Long operations are server-owned jobs that survive client disconnect, expose progress, and end in success or an explicit recoverable failure.
 - [ ] OT-P0-006 | Bounded derived storage | Stems, frame-level embeddings, and generated audio live under a declared budget sized for discarded takes, with on-demand production and LRU eviction that prefers unselected takes.
@@ -72,3 +72,16 @@ The three-runtime split, residency policy, and licence lanes are in `docs/concep
 Measurement status as of 2026-09-18: **the composition tier has been measured on the reference host and nothing else has.** ACE-Step 1.5 turbo produces 45 s of audio in 17.9 s resident, 55.2 s with the DiT offloaded to CPU — a 3.1× cost that is the first concrete instance of an `OT-P0-003` degradation rung. Analysis, embedding, structure-and-beats, and separation remain entirely unmeasured, and they are the larger share of eventual GPU time. See `docs/internal/PERFORMANCE.md`; do not read one measured tier as a profiled scenario.
 
 The composition recipe is implemented by this scenario's governed styles, compose, jobs, and takes surfaces. The `music-generation` core-pack skill is a pointer to those surfaces and retains only brief-writing judgment.
+
+
+## Approved default local instrumental route — 2026-10-17
+
+New blank-variant instrumentals prefer Stable Audio 3 Medium. Registry-declared
+sung-lyrics capability filters that preference for songs; currently ACE supports
+authored sung lyrics and SA3 does not. Explicit model choices remain explicit. Provider and compiled input are durable
+admission snapshots; historical jobs without provider remain ACE. Resource lifecycle
+owns SA3 residency admission; Music does not acquire a second ACE job claim.
+The default `launch-club` preset uses the approved harder 48-second brief. SA3
+requires Community/Gemma eligibility and is refused in a permissive-only lane.
+See [the routing decision](docs/internal/DECISIONS.md#approved-default-local-instrumental-route--2026-10-17)
+for supported controls, provenance, and compatibility boundaries.
