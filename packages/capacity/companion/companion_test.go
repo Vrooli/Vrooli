@@ -417,3 +417,44 @@ func TestRunReturnsCleanlyOnCancellation(t *testing.T) {
 		t.Fatalf("Run() = %v, want nil on cancellation", err)
 	}
 }
+
+func TestReporterHeartbeatRejectsForeignIdentityAndPreservesCAS(t *testing.T) {
+	for _, mode := range []string{"foreign-owner", "foreign-kind", "missing-generation", "stale-generation"} {
+		t.Run(mode, func(t *testing.T) {
+			heartbeats := 0
+			payload := `{"claims":[{"claim_id":"mine","owner_id":"model","owner_kind":"resource","generation":7}]}`
+			switch mode {
+			case "foreign-owner":
+				payload = strings.ReplaceAll(payload, `"model"`, `"ollama"`)
+			case "foreign-kind":
+				payload = strings.ReplaceAll(payload, `"resource"`, `"op"`)
+			case "missing-generation":
+				payload = strings.ReplaceAll(payload, `:7`, `:0`)
+			}
+			r := companion.Reporter{Resource: "model", Exec: func(_ context.Context, _ string, args ...string) ([]byte, error) {
+				if args[1] == "list" {
+					return []byte(payload), nil
+				}
+				if args[1] != "heartbeat" {
+					t.Fatalf("liveness attempted other mutation: %v", args)
+				}
+				heartbeats++
+				joined := strings.Join(args, " ")
+				if !strings.Contains(joined, "--claim-id mine --generation 7") {
+					t.Fatalf("lost exact identity/CAS: %v", args)
+				}
+				return nil, errors.New("stale generation")
+			}}
+			if err := r.Heartbeat(context.Background()); err == nil {
+				t.Fatal("bad/stale identity accepted")
+			}
+			want := 0
+			if mode == "stale-generation" {
+				want = 1
+			}
+			if heartbeats != want {
+				t.Fatalf("mutations=%d want%d", heartbeats, want)
+			}
+		})
+	}
+}

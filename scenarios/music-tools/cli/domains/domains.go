@@ -5,10 +5,14 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/vrooli/cli-core/cliapp"
+	"math"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
+	"unicode/utf8"
+
+	"github.com/vrooli/cli-core/cliapp"
 )
 
 // CommandGroups aggregates flat command groups from domain packages.
@@ -43,6 +47,7 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
 	_ = manifest
 	return []cliapp.SubcommandGroup{
+		{Name: "delivery", Description: "Deterministic local music delivery", NeedsAPI: false, Subcommands: []cliapp.Command{{Name: "arrange", Description: "Arrange sample-exact PCM with provenance; never certify taste", Run: arrange}}},
 		{Name: "styles", Description: "Manage composition styles", NeedsAPI: true, Subcommands: []cliapp.Command{
 			{Name: "create", Description: "Create a style from a JSON file", Run: func(args []string) error {
 				body, err := styleBody(args)
@@ -95,6 +100,7 @@ func styleBody(args []string) (any, error) {
 	fs.SetOutput(os.Stderr)
 	file := fs.String("file", "", "style JSON file")
 	id := fs.String("id", "", "style ID")
+	lyricsFile := fs.String("lyrics-file", "", "UTF-8 lyrics file for this separate song style (overrides JSON lyrics)")
 	if err := fs.Parse(args); err != nil {
 		return nil, err
 	}
@@ -109,6 +115,28 @@ func styleBody(args []string) (any, error) {
 	if err := json.Unmarshal(b, &body); err != nil {
 		return nil, fmt.Errorf("decode style: %w", err)
 	}
+	if body == nil {
+		return nil, errors.New("style JSON must be an object")
+	}
+	hasLyricsFile := false
+	fs.Visit(func(f *flag.Flag) {
+		if f.Name == "lyrics-file" {
+			hasLyricsFile = true
+		}
+	})
+	if hasLyricsFile {
+		text, err := os.ReadFile(*lyricsFile)
+		if err != nil {
+			return nil, fmt.Errorf("read lyrics: %w", err)
+		}
+		if !utf8.Valid(text) {
+			return nil, errors.New("lyrics file must be UTF-8")
+		}
+		if strings.TrimSpace(string(text)) == "" {
+			return nil, errors.New("lyrics file is empty; omit --lyrics-file for an instrumental style")
+		}
+		body["lyrics"] = string(text)
+	}
 	if *id != "" {
 		body["id"] = *id
 	}
@@ -121,6 +149,8 @@ func compose(core *cliapp.ScenarioApp, args []string) error {
 	style := fs.String("style", "", "style ID")
 	takes := fs.Int("takes", 10, "number of peer takes")
 	duration := fs.Int("duration", 0, "duration in seconds")
+	seed := fs.Int64("seed", 0, "repeatable signed base seed (omitted chooses fresh)")
+	shift := fs.Float64("shift", 0, "optional sampling shift between 1 and 5")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -128,6 +158,24 @@ func compose(core *cliapp.ScenarioApp, args []string) error {
 		return errors.New("--style is required")
 	}
 	body := map[string]any{"style_id": *style, "takes": *takes}
+	var suppliedSeed, suppliedShift bool
+	fs.Visit(func(f *flag.Flag) {
+		if f.Name == "seed" {
+			suppliedSeed = true
+		}
+		if f.Name == "shift" {
+			suppliedShift = true
+		}
+	})
+	if suppliedSeed {
+		body["seed"] = *seed
+	}
+	if suppliedShift {
+		if math.IsNaN(*shift) || math.IsInf(*shift, 0) || *shift < 1 || *shift > 5 {
+			return errors.New("--shift must be finite and between 1 and 5")
+		}
+		body["shift"] = *shift
+	}
 	if *duration > 0 {
 		body["duration"] = *duration
 	}
@@ -220,12 +268,17 @@ func listTakes(core *cliapp.ScenarioApp, args []string) error {
 	fs.SetOutput(os.Stderr)
 	job := fs.String("job", "", "job ID")
 	style := fs.String("style", "", "style ID")
+	limit := fs.Int("limit", 100, "Maximum peer takes (1–100); filter by job/style")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	path := "/v1/takes?style_id=" + url.QueryEscape(*style) + "&job_id=" + url.QueryEscape(*job)
+	if *limit < 1 || *limit > 100 {
+		return fmt.Errorf("limit must be 1–100")
+	}
+	path := "/v1/takes?limit=" + strconv.Itoa(*limit) + "&style_id=" + url.QueryEscape(*style) + "&job_id=" + url.QueryEscape(*job)
 	return get(core, path)
 }
+
 func request(core *cliapp.ScenarioApp, method, path string, body any) error {
 	path = strings.TrimPrefix(path, "/v1")
 	b, err := core.Request(method, path, nil, body)
@@ -234,6 +287,7 @@ func request(core *cliapp.ScenarioApp, method, path string, body any) error {
 	}
 	return printJSON(b)
 }
+
 func printJSON(b []byte) error {
 	var value any
 	if err := json.Unmarshal(b, &value); err != nil {

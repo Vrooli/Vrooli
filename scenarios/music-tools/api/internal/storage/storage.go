@@ -1,17 +1,20 @@
 // Package storage is music-tools' persistence seam for audio bytes. It keeps
-// pixels OUT of SQLite and out of the repo: blobs live under the api-core
+// audio bytes OUT of SQLite and out of the repo: blobs live under the api-core
 // storage substrate (namespace-aware, outside-repo by default), addressed by
 // opaque keys. Outputs are user-owned — a request may redirect a result to an
 // arbitrary host path instead of the managed blob store.
 //
-// The ingest boundary is guarded against decompression bombs and oversize
-// uploads (see guard.go); nothing in the rest of the scenario should accept raw
-// audio bytes without passing through Guard.Inspect first.
+// Owned generated outputs stream through a bounded reader. Domain callers validate
+// the expected media format; arbitrary upload/decoded-duration inspection is separate.
 package storage
 
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -37,6 +40,7 @@ type Store struct {
 
 type Entry struct {
 	Key         string
+	SHA256      string
 	Owner       string
 	Size        uint64
 	LastAccess  time.Time
@@ -64,14 +68,18 @@ func New(namespace string) (*Store, error) {
 		return nil, fmt.Errorf("storage: resolve namespace %q: %w", namespace, err)
 	}
 	root := filepath.Join(paths.DataDir, "blobs")
-	if err := os.MkdirAll(root, 0o755); err != nil {
+	if err := corestorage.EnsureDirectory(root, 0o755); err != nil {
 		return nil, fmt.Errorf("storage: create blob root: %w", err)
 	}
-	return NewWithBlobStore(blobstore.NewFilesystemBlobStore(root), root), nil
+	store := NewWithBlobStore(blobstore.NewFilesystemBlobStore(root), root)
+	if err := store.restoreEntries(); err != nil {
+		return nil, err
+	}
+	return store, nil
 }
 
-// NewWithBlobStore wraps an existing BlobStore (the test seam — pass an
-// in-memory store, or a filesystem store rooted at a temp dir).
+// NewWithBlobStore wraps a BlobStore backed by the supplied filesystem root.
+// Tests may wrap a temporary filesystem store to inject substrate failures.
 func NewWithBlobStore(bs blobstore.BlobStore, root string) *Store {
 	return &Store{blobs: bs, root: root, entries: map[string]Entry{}}
 }
@@ -89,17 +97,157 @@ func (s *Store) Entries() []Entry {
 	return out
 }
 
+const MaxOwnedBytes int64 = 128 << 20
+
+// ownedReader bounds bytes before BlobStore's atomic commit, including streams
+// without Content-Length. It checks cancellation for every read.
+type ownedReader struct {
+	ctx  context.Context
+	r    io.Reader
+	size int64
+}
+
+func (r *ownedReader) Read(p []byte) (int, error) {
+	if err := r.ctx.Err(); err != nil {
+		return 0, err
+	}
+	p = p[:min(len(p), int(MaxOwnedBytes-r.size+1))]
+	n, err := r.r.Read(p)
+	r.size += int64(n)
+	if r.size > MaxOwnedBytes {
+		return 0, fmt.Errorf("generated audio exceeds 128 MiB")
+	}
+	return n, err
+}
+
+func ownershipKey(key string) string {
+	sum := sha256.Sum256([]byte(key))
+	return "ownership/" + hex.EncodeToString(sum[:]) + ".json"
+}
+
 func (s *Store) PutOwned(ctx context.Context, key, owner string, r io.Reader, mime string, regenerable bool) error {
-	data, err := io.ReadAll(r)
+	digest := sha256.New()
+	stream := &ownedReader{ctx: ctx, r: io.TeeReader(r, digest)}
+	if err := s.Put(ctx, key, stream, mime); err != nil {
+		// Shared BlobStore can commit bytes then fail its MIME metadata write.
+		// Account such retained bytes conservatively without declaring a take ready.
+		if path, pathErr := s.PathForKey(key); pathErr == nil {
+			if info, statErr := os.Lstat(path); statErr == nil && info.Mode().IsRegular() {
+				s.mu.Lock()
+				s.entries[key] = Entry{Key: key, Owner: owner, Size: uint64(info.Size()), Protected: true, LastAccess: info.ModTime()}
+				s.mu.Unlock()
+			}
+		}
+		return err
+	}
+	entry := Entry{Key: key, Owner: owner, SHA256: hex.EncodeToString(digest.Sum(nil)), Size: uint64(stream.size), LastAccess: time.Now().UTC(), Regenerable: regenerable, Protected: true}
+	s.mu.Lock()
+	s.entries[key] = entry
+	s.mu.Unlock()
+	raw, err := json.Marshal(entry)
 	if err != nil {
 		return err
 	}
-	if err := s.Put(ctx, key, bytes.NewReader(data), mime); err != nil {
+	if err = s.blobs.Put(ctx, ownershipKey(key), bytes.NewReader(raw), "application/json"); err != nil {
+		return fmt.Errorf("retain audio ownership metadata: %w", err)
+	}
+	return nil
+}
+
+// restoreEntries replays immutable ownership receipts. All loaded blobs begin
+// protected until the authoritative pool reapplies its persisted take state.
+func (s *Store) restoreEntries() error {
+	dir := filepath.Join(s.root, "ownership")
+	files, err := os.ReadDir(dir)
+	if os.IsNotExist(err) {
+		files = nil
+		err = nil
+	}
+	if err != nil {
 		return err
 	}
-	s.mu.Lock()
-	s.entries[key] = Entry{Key: key, Owner: owner, Size: uint64(len(data)), LastAccess: time.Now().UTC(), Regenerable: regenerable}
-	s.mu.Unlock()
+	if len(files) > 100000 {
+		return fmt.Errorf("ownership inventory exceeds supported 100000 entries")
+	}
+	for _, file := range files {
+		if file.IsDir() || !strings.HasSuffix(file.Name(), ".json") {
+			continue
+		}
+		info, err := file.Info()
+		if err != nil {
+			return err
+		}
+		if !info.Mode().IsRegular() || info.Size() > 16384 {
+			return fmt.Errorf("invalid ownership receipt %s", file.Name())
+		}
+		raw, err := os.ReadFile(filepath.Join(dir, file.Name()))
+		if err != nil {
+			return err
+		}
+		var entry Entry
+		if err = json.Unmarshal(raw, &entry); err != nil {
+			return err
+		}
+		if err = validateKey(entry.Key); err != nil {
+			return err
+		}
+		if ownershipKey(entry.Key) != "ownership/"+file.Name() {
+			return fmt.Errorf("ownership key mismatch")
+		}
+		stat, err := os.Lstat(filepath.Join(s.root, filepath.FromSlash(entry.Key)))
+		if os.IsNotExist(err) {
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		if !stat.Mode().IsRegular() || uint64(stat.Size()) != entry.Size {
+			return fmt.Errorf("owned blob size/type mismatch: %s", entry.Key)
+		}
+		entry.Protected = true
+		s.entries[entry.Key] = entry
+	}
+	// Historical generated outputs without receipts remain accounted and protected.
+	// Only explicit authoritative pool reconciliation may make them reclaimable.
+	count := 0
+	err = filepath.WalkDir(filepath.Join(s.root, "out"), func(path string, d os.DirEntry, walkErr error) error {
+		if os.IsNotExist(walkErr) {
+			return nil
+		}
+		if walkErr != nil {
+			return walkErr
+		}
+		if d.IsDir() {
+			return nil
+		}
+		if strings.HasSuffix(d.Name(), ".meta") {
+			return nil
+		}
+		count++
+		if count > 100000 {
+			return fmt.Errorf("legacy inventory exceeds 100000 entries")
+		}
+		info, err := d.Info()
+		if err != nil {
+			return err
+		}
+		if !info.Mode().IsRegular() {
+			return fmt.Errorf("nonregular legacy generated blob")
+		}
+		key, err := filepath.Rel(s.root, path)
+		if err != nil {
+			return err
+		}
+		key = filepath.ToSlash(key)
+		if _, ok := s.entries[key]; !ok {
+			s.entries[key] = Entry{Key: key, Size: uint64(info.Size()), Protected: true, LastAccess: info.ModTime()}
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -119,6 +267,75 @@ func (s *Store) SetProtected(key string, protected bool) {
 		s.entries[key] = entry
 	}
 	s.mu.Unlock()
+}
+
+// ProtectAndCommit serializes reservation commit against eligible deletion. If
+// deletion won first, reservation fails instead of granting missing audio. Only
+// confirmed physical absence returns false without error; access/I/O/type failures
+// retain their cause and must not retire the authoritative pool take.
+func (s *Store) ProtectAndCommit(key string, commit func() error) (bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	entry, ok := s.entries[key]
+	if !ok {
+		return false, nil
+	}
+	path, err := s.PathForKey(key)
+	if err != nil {
+		return false, err
+	}
+	info, err := os.Lstat(path)
+	if errors.Is(err, os.ErrNotExist) {
+		delete(s.entries, key)
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("verify reservation blob %q: %w", key, err)
+	}
+	if !info.Mode().IsRegular() {
+		return false, fmt.Errorf("reservation blob %q is not a regular file", key)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	rc, _, err := s.blobs.Get(ctx, key)
+	if errors.Is(err, os.ErrNotExist) {
+		delete(s.entries, key)
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("open reservation blob %q: %w", key, err)
+	}
+	if err := rc.Close(); err != nil {
+		return false, fmt.Errorf("close reservation blob %q: %w", key, err)
+	}
+	protected := entry.Protected
+	entry.Protected = true
+	s.entries[key] = entry
+	if err := commit(); err != nil {
+		entry.Protected = protected
+		s.entries[key] = entry
+		return false, err
+	}
+	return true, nil
+}
+
+func sameEntry(a, b Entry) bool {
+	return a.Key == b.Key && a.Owner == b.Owner && a.SHA256 == b.SHA256 && a.Size == b.Size && a.LastAccess.Equal(b.LastAccess) && a.EvictionPriority == b.EvictionPriority
+}
+
+// DeleteEligible is the only preview/eviction deletion primitive. Observation,
+// identity/protection verification and deletion share one lock with reservation.
+func (s *Store) DeleteEligible(ctx context.Context, expected Entry) (bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	current, ok := s.entries[expected.Key]
+	if !ok || current.Protected || !current.Regenerable || !sameEntry(current, expected) {
+		return false, nil
+	}
+	if err := s.deleteLocked(ctx, current.Key); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 func (s *Store) SetEvictionPriority(key string, priority int) {
@@ -160,12 +377,13 @@ func (s *Store) Evict(ctx context.Context) ([]string, error) {
 		if total <= budget {
 			break
 		}
-		if err := s.Delete(ctx, entry.Key); err != nil {
+		removedCurrent, err := s.DeleteEligible(ctx, entry)
+		if err != nil {
 			return removed, err
 		}
-		s.mu.Lock()
-		delete(s.entries, entry.Key)
-		s.mu.Unlock()
+		if !removedCurrent {
+			continue
+		}
 		total -= entry.Size
 		removed = append(removed, entry.Key)
 	}
@@ -220,12 +438,28 @@ func (s *Store) Delete(ctx context.Context, key string) error {
 	if err := validateKey(key); err != nil {
 		return err
 	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.deleteLocked(ctx, key)
+}
+
+func (s *Store) deleteLocked(ctx context.Context, key string) error {
 	if err := s.blobs.Delete(ctx, key); err != nil {
+		// A substrate can remove audio and then fail removing its sidecar.
+		// Preserve the error while keeping availability truthful if audio is gone.
+		if path, pathErr := s.PathForKey(key); pathErr == nil {
+			if _, statErr := os.Lstat(path); errors.Is(statErr, os.ErrNotExist) {
+				delete(s.entries, key)
+			}
+		}
 		return fmt.Errorf("storage: delete %q: %w", key, err)
 	}
-	s.mu.Lock()
+	// Audio is removed even when subsequent ownership-receipt deletion fails.
+	// Keep the failed receipt for diagnosis, but never advertise absent audio.
 	delete(s.entries, key)
-	s.mu.Unlock()
+	if err := s.blobs.Delete(ctx, ownershipKey(key)); err != nil {
+		return fmt.Errorf("delete ownership receipt: %w", err)
+	}
 	return nil
 }
 

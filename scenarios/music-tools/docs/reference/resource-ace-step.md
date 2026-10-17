@@ -151,13 +151,15 @@ the working reference for a measured GPU declaration.
 
 Two host facts constrain this and are recorded so they are not rediscovered:
 
-1. **The broker runs advisory on this host** (`enforce = advisory`,
-   `preempt_enabled = false`). A claim that cannot be satisfied returns a queue
-   verdict that never resolves, because nothing reclaims. The resource must
-   therefore treat the broker as advisory — claim, read the verdict, degrade on
-   its advice, and proceed. This is the pattern `image-tools` already ships in
-   `api/internal/ai/capacity.go`, where a nil broker means no arbitration and any
-   broker error leaves GPU selection untouched.
+1. **Advisory mode does not waive admission.** Music proceeds only on a granted
+   or reduced-profile admission; queue, deny, broker errors, and unknown rung
+   labels refuse before generation. Advisory reclaim can select the supported
+   offload posture, but that posture must be acknowledged by the loaded
+   resource without an unauthorized restart. A nil broker is an explicit
+   development/test posture, not a production error fallback. A full admission
+   permits an already-loaded offload model; reduced admission never permits a
+   loaded full model. The request and actual-output contract is maintained in
+   [`resources/ace-step/docs/API.md`](../../../../resources/ace-step/docs/API.md).
 2. **Fit must be computed against free VRAM, not total.** Inference backends
    commonly size their allocator against total device memory, which over-allocates
    with co-resident tenants. `image-tools` reads
@@ -182,7 +184,10 @@ bpm                a numeric field — NOT text inside the caption
 keyscale           e.g. "G minor"
 inference_steps    8 (turbo) | 50 (sft)
 guidance_scale     1.0 (turbo — inert, the variant carries no CFG) | 7.0 (sft)
-seed               int, the batch's only axis of variation
+seed               uint32 effective per-take seed (batch base is signed int64)
+shift              optional finite1..5; omit for loaded profile default
+expected_variant   optional loaded turbo/SFT identity precondition; never a switch
+use_random_seed    False; explicit seed is checked against actual upstream result
 use_cot_caption    False    ← see below
 use_cot_metas      False    ← see below
 ```
@@ -283,3 +288,23 @@ measured.
 - [`../internal/PERFORMANCE.md`](../internal/PERFORMANCE.md) — measurement status
 - [`../internal/PROBLEMS.md`](../internal/PROBLEMS.md) — the advisory-broker and scheduler gaps
 - `resources/kokoro/` (repo root) — the working reference for a measured GPU resource
+
+### Verified generation receipts
+
+The Music consumer requires actual `X-ACE-Step-{Seed,Planner,Inference-Steps,Guidance-Scale,Shift}`
+headers before ingesting a WAV. Seed must exactly equal the planned uint32. Planner
+is the loaded `acestep-5Hz-lm-0.6B` or `acestep-5Hz-lm-1.7B`; steps are1..100,
+guidance finite0..20, shift finite1..5. Explicit requested steps/shift must match. For actual SFT responses, authored
+nonzero guidance must also match; turbo's effective CFG1 can legitimately differ
+from authored guidance. Unset style
+steps/guidance are omitted so resource defaults remain reachable. Optional
+`X-ACE-Step-LM-Code-SHA256`/`X-ACE-Step-LM-Code-Count` are a paired lowercase SHA256
+and positive count<=100000 only when actual semantic codes exist. No codes are
+fabricated when unavailable. Existing model, permissive license and admitted-rung
+checks remain. Old resource responses without the required receipt fail closed.
+
+Style-owned lyrics are snapshotted by Music; empty legacy text becomes
+`[instrumental]`. The resource still uses English. Intent, exact input hashes and
+upstream seed receipts establish provenance, not an audio-quality/vocal-absence
+verdict. Historical qualification that preceded effective-seed receipts must not
+be presented as actual-seed verification.

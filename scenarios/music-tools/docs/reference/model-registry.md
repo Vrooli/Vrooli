@@ -197,6 +197,14 @@ capacity broker; the embedding pool is the only persistent resident set.
 Installs are checksum-verified and refuse to start when free disk is below the
 declared floor. The reference host has 274 GB free on a volume at 85%.
 
+## 2026-10-16 alternative-model reassessment
+
+The tables above and the rejection list below retain their dated source evidence. Recent operator listening found the corrected ACE profiles only very slightly better, with no approved soundtrack. Reassess alternatives before extending prompt variations.
+
+Released [Stable Audio 3](https://github.com/Stability-AI/stable-audio-3) and [HeartMuLa](https://github.com/HeartMuLa/heartlib) reopen local feasibility work. Published CPU/offload/lazy-loading routes qualify older categorical hardware exclusions; they do not establish useful host throughput or better sound. Code, weight and output terms require separate treatment. Hosted models also need a current contract/access comparison. No new registry entry, commercial lane, default engine or runtime has been approved by this research.
+
+The dated investigation and primary-source comparison are retained at `/home/matthalloran8/.vrooli/plan-artifacts/efforts/video-toolchain-reliability-2026-10-16/research/music-model-alternatives.md`, with local and hosted companion reports. Its supported/unverified distinctions supersede unmeasured universal quality rankings in the historical rejection rationale. Actual output listening and broker-admitted host benchmarks decide advancement.
+
 ## Rejected
 
 | Model | Reason |

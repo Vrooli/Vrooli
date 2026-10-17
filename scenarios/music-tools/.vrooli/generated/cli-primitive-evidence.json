@@ -4,12 +4,18 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "music-tools",
   "generator": "v1.0.0",
-  "manifest_hash": "a4c13d5fa319edaaa2577d341be3d123f6eb6523eb90d9b9dde39322536eb7ae",
+  "manifest_hash": "32d20cab39e5515d0fd8f0e6974511f14372bd945cf15de9b7fee30e8dbee002",
   "commands": [
     {
       "path": "compose run",
       "group": "compose",
       "command": "run",
+      "binding": "."
+    },
+    {
+      "path": "delivery arrange",
+      "group": "delivery",
+      "command": "arrange",
       "binding": "."
     },
     {

@@ -1,11 +1,14 @@
 package styles
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"math"
 	"sort"
 	"strings"
 	"sync"
@@ -29,6 +32,7 @@ type Style struct {
 	Name        string    `json:"name"`
 	Description string    `json:"description,omitempty"`
 	Caption     string    `json:"caption"`
+	Lyrics      string    `json:"lyrics,omitempty"`
 	Params      Params    `json:"params"`
 	Builtin     bool      `json:"builtin,omitempty"`
 	CreatedAt   time.Time `json:"created_at,omitempty"`
@@ -38,17 +42,31 @@ type Style struct {
 type Compiled struct {
 	StyleID string
 	Caption string
+	Lyrics  string
 	Params  Params
 }
 
 var ErrBuiltinCollision = errors.New("style id collides with a built-in style")
 var ErrInvalid = errors.New("invalid style")
+var ErrDecode = errors.New("decode style")
 var ErrBuiltinImmutable = errors.New("built-in styles are immutable")
+
+const InstrumentalLyrics = "[instrumental]"
+
+// ResolveLyrics preserves authored text and supplies the preexisting default
+// only for an absent/empty legacy style. It does not certify audible content.
+func ResolveLyrics(text string) string {
+	if text == "" {
+		return InstrumentalLyrics
+	}
+	return text
+}
 
 var builtins = []Style{{
 	ID: "launch-trap", Name: "Launch Trap",
 	Description: "Dark, restless trap with a cold metallic lead and tight drums.",
 	Caption:     "dark trap instrumental, 144 bpm, cold detuned metallic lead, menacing and restless, tight syncopated hi-hats, deep sub bass, punchy 808 kick, sparse arrangement, cinematic tension",
+	Lyrics:      InstrumentalLyrics,
 	Params:      Params{BPM: 144, KeyScale: "G minor", Duration: 45, Steps: 8, Guidance: 1, Variant: "acestep-v15-turbo"},
 	Builtin:     true,
 }}
@@ -94,6 +112,7 @@ func (s *Store) Create(style Style) (Style, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	style.ID, style.Name, style.Caption = strings.TrimSpace(style.ID), strings.TrimSpace(style.Name), strings.TrimSpace(style.Caption)
+	style.Lyrics = ResolveLyrics(style.Lyrics)
 	if style.ID == "" || style.Name == "" || style.Caption == "" {
 		return Style{}, ErrInvalid
 	}
@@ -181,19 +200,25 @@ func (s *Store) Import(data []byte) (Style, error) {
 }
 
 func encodeStyle(style Style) ([]byte, error) {
-	return protojson.Marshal(&stylespb.Style{Id: style.ID, Name: style.Name, Description: style.Description, Caption: style.Caption, Bpm: int32(style.Params.BPM), Keyscale: style.Params.KeyScale, Duration: int32(style.Params.Duration), InferenceSteps: int32(style.Params.Steps), GuidanceScale: style.Params.Guidance, Variant: style.Params.Variant, Builtin: style.Builtin})
+	return protojson.Marshal(&stylespb.Style{Id: style.ID, Name: style.Name, Description: style.Description, Caption: style.Caption, Lyrics: style.Lyrics, Bpm: int32(style.Params.BPM), Keyscale: style.Params.KeyScale, Duration: int32(style.Params.Duration), InferenceSteps: int32(style.Params.Steps), GuidanceScale: style.Params.Guidance, Variant: style.Params.Variant, Builtin: style.Builtin})
 }
 
 func decodeStyle(data []byte) (Style, error) {
 	var wire stylespb.Style
 	if err := protojson.Unmarshal(data, &wire); err != nil {
 		var legacy Style
-		if legacyErr := json.Unmarshal(data, &legacy); legacyErr != nil {
-			return Style{}, fmt.Errorf("decode style: %w", err)
+		decoder := json.NewDecoder(bytes.NewReader(data))
+		decoder.DisallowUnknownFields()
+		if legacyErr := decoder.Decode(&legacy); legacyErr != nil {
+			return Style{}, fmt.Errorf("%w: portable: %v; legacy: %v", ErrDecode, err, legacyErr)
 		}
+		if trailingErr := decoder.Decode(new(any)); trailingErr != io.EOF {
+			return Style{}, fmt.Errorf("%w: legacy document must contain one JSON value", ErrDecode)
+		}
+		legacy.Lyrics = ResolveLyrics(legacy.Lyrics)
 		return legacy, nil
 	}
-	return Style{ID: wire.Id, Name: wire.Name, Description: wire.Description, Caption: wire.Caption, Params: Params{BPM: int(wire.Bpm), KeyScale: wire.Keyscale, Duration: int(wire.Duration), Steps: int(wire.InferenceSteps), Guidance: wire.GuidanceScale, Variant: wire.Variant}, Builtin: wire.Builtin}, nil
+	return Style{ID: wire.Id, Name: wire.Name, Description: wire.Description, Caption: wire.Caption, Lyrics: ResolveLyrics(wire.Lyrics), Params: Params{BPM: int(wire.Bpm), KeyScale: wire.Keyscale, Duration: int(wire.Duration), Steps: int(wire.InferenceSteps), Guidance: wire.GuidanceScale, Variant: wire.Variant}, Builtin: wire.Builtin}, nil
 }
 
 func (s *Store) List() []Style {
@@ -215,5 +240,11 @@ func (s *Store) Compile(id string) (Compiled, error) {
 	if style.Params.BPM <= 0 || style.Params.Duration <= 0 {
 		return Compiled{}, fmt.Errorf("%w: style %q requires bpm and duration", ErrInvalid, id)
 	}
-	return Compiled{StyleID: style.ID, Caption: style.Caption, Params: style.Params}, nil
+	if style.Params.Steps < 0 || style.Params.Steps > 100 {
+		return Compiled{}, fmt.Errorf("%w: style %q inference_steps must be 0..100 (0 is unset)", ErrInvalid, id)
+	}
+	if math.IsNaN(style.Params.Guidance) || math.IsInf(style.Params.Guidance, 0) || style.Params.Guidance < 0 || style.Params.Guidance > 20 {
+		return Compiled{}, fmt.Errorf("%w: style %q guidance_scale must be finite 0..20 (0 is unset)", ErrInvalid, id)
+	}
+	return Compiled{StyleID: style.ID, Caption: style.Caption, Lyrics: ResolveLyrics(style.Lyrics), Params: style.Params}, nil
 }

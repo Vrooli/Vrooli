@@ -86,7 +86,11 @@ func main() {
 		log.Fatalf("file storage configuration failed: %v", err)
 	}
 	fileRoots := filerouting.New(primaryFileRoots)
-	musicBlobs, err := musicstorage.New("music-tools")
+	audioNamespace, err := storage.ScenarioNamespace("music-tools")
+	if err != nil {
+		log.Fatalf("music blob namespace: %v", err)
+	}
+	musicBlobs, err := musicstorage.New(audioNamespace)
 	if err != nil {
 		log.Fatalf("music blob storage configuration failed: %v", err)
 	}

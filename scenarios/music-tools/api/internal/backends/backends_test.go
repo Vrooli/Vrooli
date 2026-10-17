@@ -25,6 +25,7 @@ func TestRegistryRequiresHeadlessProvider(t *testing.T) {
 		t.Fatal("restricted registry accepted cloud-only operation")
 	}
 }
+
 func TestRegistrySelectsLocal(t *testing.T) {
 	r := New()
 	_ = r.Register(providerStub{name: "local", standalone: true, available: true})

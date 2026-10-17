@@ -33,7 +33,7 @@ hardware. Three constraints drive every structural choice here:
    frame-level embeddings are about four orders of magnitude larger per track than
    pooled ones.
 
-### Three runtimes, no containers
+### Runtime boundaries: composition implemented, analysis planned
 
 Isolation is at the process and environment boundary, not the container boundary,
 so the desktop delivery tier does not require a container runtime.
@@ -41,18 +41,20 @@ so the desktop delivery tier does not require a container runtime.
 | Runtime | Kind | Holds | Why separate |
 |---|---|---|---|
 | `ace-step` | Managed-service resource | Composition and its native edit operations | Pins a newer Python and an aggressive inference backend |
-| `music-mir` | Managed-service resource | Structure and beat analysis, stem separation | Pins an exact torch build and an older NumPy major |
-| in-scenario sidecar | Native uv-provisioned virtualenv | Embedding models, notation, loudness | Compatible stack; the always-on hot path, so no process hop |
+| `music-mir` (planned; resource not created) | Managed-service resource | Structure and beat analysis, stem separation | Pins an exact torch build and an older NumPy major |
+| in-scenario sidecar (planned) | Native uv-provisioned virtualenv | Embedding models, notation, loudness | Compatible stack; the always-on hot path, so no process hop |
 
-Both resources acquire lockfile-pinned wheels and checksum-verified weights
-natively. Because a resource is its own unit with its own environment, this needs
+The implemented ACE-Step resource acquires lockfile-pinned wheels and checksum-verified weights
+natively; the other runtimes remain intended architecture. Because a resource is its own unit with its own environment, this needs
 no change to the shared single-virtualenv sidecar provisioner.
 
 ### Residency policy
 
-The embedding pool is the only persistently resident model set. Composition, stem
-separation, and structure analysis each take an **exclusive** GPU lease through the
-control-plane capacity broker.
+The intended analysis design keeps an embedding pool resident. Current composition
+claims operation-scoped VRAM through the control-plane broker and renews that claim.
+The broker can be advisory: a claim does not establish exclusive GPU ownership.
+Music applies a supported reduced rung or refuses when the loaded resource cannot
+apply it without a managed restart. Separation/structure runtime policy is planned.
 
 ```
 persistent   [ embedding pool ]────────────────────────────────
@@ -70,7 +72,7 @@ mistaken for full-quality output.
 
 | Inside | Outside |
 |---|---|
-| Composition, transformation, analysis over music and sound | Playback, libraries, taste, ranking — `music-library` |
+| Composition and bounded operator audition; planned music transformation/analysis | Product playback, libraries, taste/ranking — consuming products |
 | The model registry, its licence lanes, and model execution | Speech recognition and synthesis — `audio-tools` |
 | GPU claims, degradation, and release | Host GPU detection and remediation — the control plane |
 | Derived-artifact budget and eviction | Ownership of anyone's source audio |
@@ -97,16 +99,16 @@ The consumer-facing contract has four parts, and all four are load-bearing:
    layers are missing rather than returning a quietly shorter description.
 
 Flow of a GPU-bearing operation: resolve model within the configured lane → declare
-profile rungs → claim capacity → execute under an exclusive lease → write through
+profile rungs → claim and renew capacity → execute under admitted posture → write through
 the BlobStore seam with provenance → release. Full state machines are in
 [`FLOWS.md`](FLOWS.md).
 
 ## Shared Infrastructure
 
 - **Capacity broker** (`vrooli capacity`) — the sole authority for GPU admission.
-  This scenario holds no private GPU queue.
-- **api-core BlobStore** — all outputs, with ownership metadata, rather than ad-hoc
-  filesystem paths.
+  The durable local GPU job lane serializes this scenario’s work; it does not arbitrate host GPU capacity.
+- **api-core BlobStore** — generated server outputs and ownership receipts. The
+  accepted caller-local arrangement CLI writes an explicit new output bundle.
 - **`pyenv-go`** — provisions the single in-scenario virtualenv. Unmodified; the
   additional environments live in resources precisely so this package needs no
   change.
@@ -150,18 +152,76 @@ per model rather than assumed per scenario.
 - **Copyleft tools** are invoked as separate processes and never linked in-process,
   so their obligations do not reach the scenario binary.
 
+## Video delivery reliability contract (2026-10-16)
+
+Caller-local arrangement stays in the bounded CLI delivery domain. It validates
+sample arithmetic before work, snapshots regular source bytes, decodes into
+bounded disk spools, and mixes fixed-size PCM blocks. Context cancellation covers
+copy, decode, mix and publication. Raw snapshots are bounded to 256 MiB each /
+512 MiB total, decoded spools to 128 MiB each / 256 MiB total, and output to
+600 seconds. Process/codec peak memory requires measurement. A complete WAV/recipe/hash receipt bundle is
+staged beside the destination and published under an exclusive owner publication
+lock; existing outputs are preserved. The sibling lock fences cooperating owner
+invocations; arbitrary external writers racing the final rename are outside
+that portable guarantee. Hard termination can leave a lock/scratch directory;
+inspect ownership before explicit cleanup rather than automatically deleting it. Source-byte bounds and decoded-byte bounds
+are separate from measured process memory. The receipt records the decoder and
+algorithm identity; listening remains unreviewed.
+
+Production composition has one durable manager and one generation path. Domain
+mutations must persist before becoming observable. Persistence failures are
+errors, never terminal success. A failed metadata finalization preserves audio
+and remains explicitly recoverable; clients must receive the error through
+Get/Wait rather than an invented durable result. The pool schema is installed by
+production EnsureSchemas, not opportunistic constructor DDL. Existing dev data
+is retained; incompatible old schema requires an owner-directed maintenance step.
+
+Generated media uses bounded streaming ingestion and retains actual model/rung
+identity supplied by ACE-Step. Invalid requests fail before capacity admission.
+Operation-scoped capacity claims renew via the control-plane heartbeat contract;
+Music never implements host policy or stops another tenant. Audition is a bounded
+candidate session: unloading playback bytes does not delete takes or erase
+hash-bound findings; listening remains an explicit operator attestation.
+
+### Reviewed concurrency and recovery obligations
+
+Cleanup uses conditional deletion under the same storage lock that protects a
+reservation's durable commit. A stale preview cannot delete a newly reserved,
+changed, or recently accessed artifact. Explicit administrative deletion is a
+separate operation. ACE-Step serializes load/degrade acknowledgement and checks
+Music's explicit admitted-rung set before inference: full budget permits loaded
+full or offload, reduced budget permits offload only. Existing strict
+`expected_rung` callers remain strict, including when both restrictions are set.
+Job `capacity_admitted_rung` records admission; actual output headers, take
+provenance, and uniform successful job summaries record execution. Mixed batches
+mark `output_identity: mixed` and omit each varying model/rung summary field;
+per-take identities remain actual. The authoritative request contract is
+`resources/ace-step/docs/API.md`. Historical job reads distinguish a
+missing row from unavailable/canceled/corrupt storage. Terminal notifications
+retain one final event even for slow subscribers. Persisted terminal cache entries
+are bounded to 256 by default; active/subscribed work and pending failed
+finalizations remain retained, and historical observers use durable rows. Pool
+targets are 1–100, matching supported batch size. Authorized cleanup of available
+audio makes a later selection durably mark that take unavailable, exclude it
+from ready depth, and request refill under the existing threshold policy. Reservation
+checks a regular physical blob and bounded readable handle under the storage lock;
+only confirmed absence retires availability. Permission/transient I/O errors remain
+explicit failures. Partial owned deletion removes catalog availability once audio
+is gone even if receipt cleanup fails, preserving that cleanup error and receipt. Audition draft restore reconciles
+loaded and attested hashes before a listening finding can be exported.
+
 ## Architecture Maturity
 
 | Aspect | State |
 |---|---|
 | Documented | Yes — this document, `DOMAINS.md`, `FLOWS.md`, `DATA.md`, model registry |
-| Implemented | **No.** No domain exists in code; the template example domain is still present |
-| Resources created | **No.** `ace-step` and `music-mir` are declared but do not exist |
-| Dependencies declared | **No.** `.vrooli/service.json` declares none |
-| Measured | **No.** Every performance figure is vendor-stated or estimated |
+| Implemented | **Partial.** Composition, styles, durable jobs, takes/pool, model registry, storage and cleanup exist; the full analysis/transform inventory is not implemented |
+| Resources created | ACE-Step exists; music-mir remains planned |
+| Dependencies declared | ACE-Step is enabled/required in service.json |
+| Measured | Prior composition and exact arrangement trials are retained; fresh reliability changes need focused checks and supported-runtime qualification |
 
-This scenario is at `generated`. Everything above is intended architecture, not
-running software. See [`../internal/PROBLEMS.md`](../internal/PROBLEMS.md).
+Do not infer whole-scenario readiness from the implemented composition slice.
+Historical broad validation remains non-green. See [`../internal/PROBLEMS.md`](../internal/PROBLEMS.md).
 
 ## Intentional Deviations
 

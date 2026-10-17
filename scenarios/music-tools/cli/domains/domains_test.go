@@ -1,6 +1,7 @@
 package domains
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -13,6 +14,118 @@ import (
 
 	"github.com/vrooli/cli-core/cliapp"
 )
+
+func TestStyleLyricsFilePreservesTextForCreateAndImport(t *testing.T) {
+	const lyrics = "[Verse]\nOur own café lights\n\n[Chorus]\nWe rise again\n"
+	for _, operation := range []string{"create", "import"} {
+		t.Run(operation, func(t *testing.T) {
+			dir := t.TempDir()
+			file := filepath.Join(dir, "style.json")
+			text := filepath.Join(dir, "lyrics.txt")
+			require.NoError(t, os.WriteFile(file, []byte(`{"id":"song","name":"Song","caption":"bright pop","lyrics":"old text","bpm":150,"duration":30}`), 0600))
+			require.NoError(t, os.WriteFile(text, []byte(lyrics), 0600))
+			requests := make(chan map[string]any, 1)
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				wantPath := "/api/v1/styles"
+				if operation == "import" {
+					wantPath += "/import"
+				}
+				if r.Method != http.MethodPost || r.URL.Path != wantPath {
+					t.Errorf("request=%s %s", r.Method, r.URL.Path)
+				}
+				var body map[string]any
+				if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+					t.Error(err)
+				}
+				requests <- body
+				w.WriteHeader(http.StatusCreated)
+				fmt.Fprint(w, `{"id":"song"}`)
+			}))
+			defer server.Close()
+			app, err := cliapp.NewScenarioApp(cliapp.ScenarioOptions{Name: "lyrics-file-test", DefaultAPIBase: server.URL, APIPrefix: "/api/v1", AllowAnonymous: true})
+			require.NoError(t, err)
+			groups, err := SubcommandGroups(app, readManifestForTest(t))
+			require.NoError(t, err)
+			var run func([]string) error
+			for _, group := range groups {
+				if group.Name == "styles" {
+					for _, command := range group.Subcommands {
+						if command.Name == operation {
+							run = command.Run
+						}
+					}
+				}
+			}
+			require.NotNil(t, run)
+			require.NoError(t, run([]string{"--file", file, "--lyrics-file", text}))
+			got := <-requests
+			require.Equal(t, lyrics, got["lyrics"])
+			require.Equal(t, float64(150), got["bpm"])
+		})
+	}
+}
+
+func TestStyleLyricsFileErrorsAndEmptyInputAreExplicit(t *testing.T) {
+	for name, test := range map[string]struct {
+		content []byte
+		reason  string
+	}{"empty": {[]byte{}, "empty"}, "whitespace": {[]byte(" \n\t"), "empty"}, "invalid UTF8": {[]byte{0xff}, "UTF-8"}} {
+		t.Run(name, func(t *testing.T) {
+			dir := t.TempDir()
+			file := filepath.Join(dir, "style.json")
+			text := filepath.Join(dir, "lyrics.txt")
+			require.NoError(t, os.WriteFile(file, []byte(`{"id":"song"}`), 0600))
+			require.NoError(t, os.WriteFile(text, test.content, 0600))
+			_, err := styleBody([]string{"--file", file, "--lyrics-file", text})
+			require.Error(t, err)
+			require.Contains(t, err.Error(), test.reason)
+		})
+	}
+	file := filepath.Join(t.TempDir(), "style.json")
+	require.NoError(t, os.WriteFile(file, []byte(`{"id":"song"}`), 0600))
+	_, err := styleBody([]string{"--file", file, "--lyrics-file", filepath.Join(t.TempDir(), "missing.txt")})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "read lyrics")
+}
+
+func TestComposeOptionalSeedAndShiftWire(t *testing.T) {
+	for name, args := range map[string][]string{"default": {}, "explicit zero": {"--seed", "0"}, "paired shift": {"--seed", "424242", "--shift", "3"}, "negative base": {"--seed", "-7", "--shift", "1"}} {
+		t.Run(name, func(t *testing.T) {
+			requests := make(chan map[string]any, 1)
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				var body map[string]any
+				if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+					t.Error(err)
+				}
+				requests <- body
+				fmt.Fprint(w, `{"job_id":"fake"}`)
+			}))
+			defer server.Close()
+			app, err := cliapp.NewScenarioApp(cliapp.ScenarioOptions{Name: "compose-seed-test", DefaultAPIBase: server.URL, APIPrefix: "/api/v1", AllowAnonymous: true})
+			require.NoError(t, err)
+			require.NoError(t, compose(app, append([]string{"--style", "song", "--takes", "1"}, args...)))
+			body := <-requests
+			switch name {
+			case "default":
+				require.NotContains(t, body, "seed")
+				require.NotContains(t, body, "shift")
+			case "explicit zero":
+				require.Equal(t, float64(0), body["seed"])
+			case "paired shift":
+				require.Equal(t, float64(424242), body["seed"])
+				require.Equal(t, float64(3), body["shift"])
+			case "negative base":
+				require.Equal(t, float64(-7), body["seed"])
+				require.Equal(t, float64(1), body["shift"])
+			}
+		})
+	}
+	for _, value := range []string{"NaN", "Inf", "0", "-1", "6"} {
+		err := compose(nil, []string{"--style", "song", "--shift", value})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "between 1 and 5")
+	}
+}
 
 func TestWaitForJobUsesServerOwnedWaitClient(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

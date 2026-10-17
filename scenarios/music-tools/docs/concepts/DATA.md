@@ -222,3 +222,37 @@ met by the consumer.
 - [`DOMAINS.md`](DOMAINS.md) — domain ownership
 - [`../reference/model-registry.md`](../reference/model-registry.md) — registry disk budget
 - [`../internal/PERFORMANCE.md`](../internal/PERFORMANCE.md) — cost of producing these artifacts
+
+## Reviewed take availability and observer cache
+
+Pool state `unavailable` retains provenance for a take whose owned audio was
+removed before selection. It is neither ready depth nor a reservable candidate.
+The unavailable transition is durable before refill is requested. Reservation
+commit and eligible deletion share the storage owner lock so completed
+reservation never grants bytes that cleanup already removed.
+
+Job rows remain authoritative. The process cache retains at most 256 persisted
+terminal jobs by default, plus active work and unpersisted finalizations; cache
+eviction never deletes durable job or take/media state. Get/Wait and terminal
+Subscribe recover historical rows, distinguishing actual absence from unavailable
+or canceled reads.
+
+### Composition intent and effective-profile provenance
+
+Style JSON now includes optional lyrics, with empty legacy text resolved centrally
+to `[instrumental]`. The existing opaque job payload stores resolved lyrics and the
+admitted signed-int64 base seed once; no pool schema or parallel mode table is added.
+Old payloads lacking lyrics remain instrumental. Old missing seeds retain base zero.
+Per-take effective seeds are uint32 and must match the resource receipt before
+storage. Job metadata retains bounded profiles keyed by completed take ID, including
+actual planner/steps/guidance/shift and optional semantic-code witness. It hashes
+sent lyrics rather than duplicating full lyrics into compact job metadata. Take
+`job_id` is the join to this evidence; historical actual seeds remain unknown.
+
+Terminal job updates are conditional on queued/running state. The first persisted
+terminal result wins; zero affected rows require reading/adopting that result.
+Partial facts from a losing worker are not appended to terminal history. This is
+terminal-state protection, not distributed running-worker ownership or a style-ID
+versioning repair. Separate vocal and instrumental style IDs are normal usage;
+launch consumers must inspect original job intent and actual audio even when a
+style has since been deleted/recreated.

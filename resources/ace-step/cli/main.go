@@ -47,7 +47,7 @@ func newApp() (*cliapp.ResourceApp, error) {
 	}
 	app.SetCommandsWithSubgroups(
 		append(app.StandardLifecycleCommands(), cliapp.CommandGroup{Title: "Capacity", Commands: []cliapp.Command{activityedge.Command(edge)}}),
-		[]cliapp.SubcommandGroup{companion.LifecycleCapacityCommands(companion.LifecycleVerbsConfig{Resource: appName, Steps: capacitySteps(), Apply: applyCapacityRung})},
+		[]cliapp.SubcommandGroup{companion.LifecycleCapacityCommands(companion.LifecycleVerbsConfig{Resource: appName, Steps: capacitySteps(), Apply: applyCapacityRung}), profileCommands(nil)},
 	)
 	return app, nil
 }

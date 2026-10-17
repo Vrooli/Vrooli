@@ -70,14 +70,18 @@ integrity data, not secrets, and belong in version control.
 
 Known and accepted for now:
 
-- **No implementation exists**, so none of the controls above are enforced by code
-  yet. Every row in the threat table is a design commitment, not a shipped control.
-- **The registry seed's checksums must actually be populated.** A seed entry with an
-  empty checksum silently disables the integrity control it appears to provide.
-  Treat an unverified checksum as a blocking defect, not a placeholder.
-- **The lane boundary needs a test**, not just a convention. A permissive build that
-  can resolve a restricted model is a compliance failure that no review will catch
-  reliably.
+- **Implementation scope is partial.** Composition, styles, durable jobs, pool,
+  model resolution and owned storage/cleanup are implemented. The wider declared
+  analysis and transformation inventory is not certified by those controls.
+- **Integrity and licence checks have focused regressions.** The model owner tests
+  unknown-licence refusal, permissive resolution, checksums, disk floors and the
+  pinned ACE registry entry. Resource acquisition verifies the executable tree
+  and declared model data; the source-authority correction below identifies the
+  code actually loaded. These checks are not a full supply-chain security audit.
+- **Runtime qualification is separate from source tests.** Actual loaded model/rung
+  identity must match the admitted execution contract before inference and remain
+  attached to persisted takes. Retain failed admissions and provenance gaps;
+  an available HTTP endpoint alone does not qualify generation or musical fit.
 - **Host GPU accounting is currently inaccurate** — unclaimed consumers exist on the
   reference host. Admission verdicts are only as good as the ledger. See
   [`PROBLEMS.md`](PROBLEMS.md).
@@ -89,6 +93,11 @@ Known and accepted for now:
 - [`../reference/model-registry.md`](../reference/model-registry.md) — per-model licences
 - [`PROBLEMS.md`](PROBLEMS.md) — open issues
 # ACE-Step remote-code review (2026-09-19)
+
+This is the historical review of the Hugging Face modules at the model
+revision below. It does not establish that those modules are the actual
+executable authority; the 2026-10-16 correction below identifies the source
+code used by initialization.
 
 The qualified source pin is `ACE-Step/ACE-Step-1.5` commit
 `ca1e85fe9430179831e6bc6be790c332190a3866`. The model revision is
@@ -119,3 +128,30 @@ Licence evidence: the pinned source is MIT. The pinned model card reports MIT
 and states that its training data includes licensed and royalty-free/no-
 copyright data; that training-data statement remains a vendor assertion and
 is not independently audited.
+
+## Executable source authority correction (2026-10-16)
+
+The same pinned source commit performs mandatory local code synchronization
+before its `AutoModel.from_pretrained(..., trust_remote_code=True)` call.
+`init_service_orchestrator.py` checks weights, synchronizes model Python, then
+loads the model; `model_downloader.py` copies all non-`__init__.py` variant
+modules from `acestep/models/{turbo,sft}` when checkpoint code is missing or
+different. The resource therefore retires the four independently pinned HF
+Python data artifacts. All 24 remaining data-artifact pins, source archive,
+wheel lock, and composed-tree digest remain unchanged.
+
+Actual executable model code comes from the exact composed source tree. Its
+212-byte configuration shims import
+`acestep.models.common.configuration_acestep_v15`; both model implementations
+import common DCW code, and SFT additionally imports its APG shim and shared
+guidance implementation. These dependencies are present in the composed
+source package on PYTHONPATH. The model-revision modules inspected in the
+historical review differ from these source modules; the historical findings
+must not be treated as a complete review of the latter closure.
+
+The current correction verifies the synchronization order and local dependency
+presence. It is not a new full security audit of the source closure or a live
+network-denial qualification. Source-tree integrity and offline loading remain
+required, and future source/model pin changes require reviewing the executable
+variant and common-module closure. See `resources/ace-step/docs/OPERATIONS.md`
+for the acquisition and startup contract.

@@ -84,12 +84,14 @@ func New(permissiveBuild bool, seed ...Model) *Registry {
 	}
 	return r
 }
+
 func (r *Registry) Add(m Model) {
 	if m.Licence == "" {
 		m.Licence = LicenceRestricted
 	}
 	r.models[m.ID] = m
 }
+
 func (r *Registry) Resolve(id string) (Model, error) {
 	m, ok := r.models[id]
 	if !ok {
@@ -100,6 +102,7 @@ func (r *Registry) Resolve(id string) (Model, error) {
 	}
 	return m, nil
 }
+
 func (r *Registry) List() []Model {
 	out := make([]Model, 0, len(r.models))
 	for _, m := range r.models {

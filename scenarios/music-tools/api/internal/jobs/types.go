@@ -1,4 +1,4 @@
-// Package jobs is image-tools' server-owned, durable async job system. It
+// Package jobs is music-tools' server-owned, durable async job system. It
 // mirrors the test-genie run-lifecycle philosophy: a submit returns a job id +
 // ETA immediately, work runs under a server-lifetime context (so a client
 // disconnect never destroys it), callers block ONCE on Wait (no polling), and
@@ -74,8 +74,9 @@ type Job struct {
 	Error     string `json:"error,omitempty"`      // failure detail when State == failed
 	ResultRef string `json:"result_ref,omitempty"` // output ref (blob key / path) when succeeded
 	// Meta is the backend's record of the run: which model served it, which
-	// tier it ran on, what the route cost. Set only on success, and only by
-	// backends that report it. See Result.Meta.
+	// tier it ran on, what the route cost. Completed partial facts may survive
+	// failure or cancellation; only the authoritative terminal writer can add them.
+	// See Result.Meta.
 	Meta             map[string]string `json:"meta,omitempty"`
 	Payload          []byte            `json:"-"`
 	EstimatedSeconds int               `json:"estimated_seconds"`

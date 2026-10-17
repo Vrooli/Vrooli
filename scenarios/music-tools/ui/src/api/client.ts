@@ -11,6 +11,7 @@ import {
 
 export const API_BASE = resolveApiBase();
 const REST_API_BASE = resolveApiBase({ appendSuffix: true });
+export const musicRestUrl = (path: string) => buildApiUrl(path, { baseUrl: REST_API_BASE });
 const PROTO_READ_OPTIONS = { ignoreUnknownFields: true } as const;
 
 export const transport = createScenarioConnectTransport({ baseUrl: API_BASE });

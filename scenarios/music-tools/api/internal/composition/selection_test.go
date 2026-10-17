@@ -3,7 +3,7 @@ package composition
 import "testing"
 
 func TestSelectionIsNotInterpretedAsRanking(t *testing.T) {
-	takes, err := PlanBatch(BatchRequest{JobID: "job-5", StyleID: "style", Caption: "sound", Takes: 2, Seed: 3})
+	takes, err := PlanBatch(BatchRequest{Duration: 45, JobID: "job-5", StyleID: "style", Caption: "sound", Takes: 2, Seed: 3})
 	if err != nil {
 		t.Fatal(err)
 	}

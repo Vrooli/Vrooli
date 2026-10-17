@@ -3,7 +3,7 @@ package composition
 import "testing"
 
 func TestPlanBatchProducesPeerTakesWithDistinctSeeds(t *testing.T) {
-	takes, err := PlanBatch(BatchRequest{JobID: "job-2", StyleID: "style", Caption: "sound", Takes: 10, Seed: 99})
+	takes, err := PlanBatch(BatchRequest{Duration: 45, JobID: "job-2", StyleID: "style", Caption: "sound", Takes: 10, Seed: 99})
 	if err != nil {
 		t.Fatal(err)
 	}

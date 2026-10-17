@@ -1,10 +1,96 @@
 package styles
 
 import (
+	"encoding/json"
+	"errors"
+	"fmt"
 	"testing"
 
 	db "github.com/vrooli/api-core/databasetest"
+	stylespb "github.com/vrooli/vrooli/packages/proto/gen/go/music-tools/v1/styles"
+	"google.golang.org/protobuf/encoding/protojson"
 )
+
+func TestLyricsSurvivePortableAndDatabaseRoundTrips(t *testing.T) {
+	const lyrics = "[Verse]\nWe write our own tomorrow\nCafé lights come alive\n"
+	for _, legacy := range []bool{false, true} {
+		t.Run(fmt.Sprint(legacy), func(t *testing.T) {
+			d := db.NewSQLite(t)
+			if _, err := d.Exec(Schema()); err != nil {
+				t.Fatal(err)
+			}
+			store, err := NewStoreWithDB(d)
+			if err != nil {
+				t.Fatal(err)
+			}
+			doc := map[string]any{"id": "song", "name": "Song", "caption": "bright energetic pop", "lyrics": lyrics, "bpm": 150, "duration": 30}
+			if legacy {
+				delete(doc, "bpm")
+				delete(doc, "duration")
+				doc["params"] = map[string]any{"bpm": 150, "duration": 30}
+			}
+			data, _ := json.Marshal(doc)
+			if _, err := store.Import(data); err != nil {
+				t.Fatal(err)
+			}
+			reloaded, err := NewStoreWithDB(d)
+			if err != nil {
+				t.Fatal(err)
+			}
+			exported, err := reloaded.Export("song")
+			if err != nil {
+				t.Fatal(err)
+			}
+			var wire stylespb.Style
+			if err := protojson.Unmarshal(exported, &wire); err != nil || wire.Lyrics != lyrics {
+				t.Fatalf("lyrics lost: %q err=%v", wire.Lyrics, err)
+			}
+			copy := NewStore()
+			if _, err := copy.Import(exported); err != nil {
+				t.Fatal(err)
+			}
+			again, _ := copy.Export("song")
+			if err := protojson.Unmarshal(again, &wire); err != nil || wire.Lyrics != lyrics {
+				t.Fatalf("portable lyrics changed: %q err=%v", wire.Lyrics, err)
+			}
+		})
+	}
+}
+
+func TestPortableStyleRejectsUnrecognizedOrInvalidFields(t *testing.T) {
+	for name, payload := range map[string]string{
+		"unknown canonical field": `{"id":"invalid","name":"Invalid","caption":"drums","bpm":200,"duration":48,"guidence_scale":1}`,
+		"invalid canonical value": `{"id":"invalid","name":"Invalid","caption":"drums","bpm":"fast","duration":48}`,
+		"unknown nested field":    `{"id":"invalid","name":"Invalid","caption":"drums","params":{"bpm":200,"duration":48,"stepz":8}}`,
+		"mixed representations":   `{"id":"invalid","name":"Invalid","caption":"drums","bpm":200,"params":{"duration":48}}`,
+		"trailing legacy value":   `{"id":"invalid","name":"Invalid","caption":"drums","params":{"bpm":200,"duration":48}} {}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			store := NewStore()
+			if _, err := store.Import([]byte(payload)); !errors.Is(err, ErrDecode) {
+				t.Fatalf("invalid portable style must return a decode error, got %v", err)
+			}
+			if _, ok := store.Get("invalid"); ok {
+				t.Fatal("rejected style was persisted")
+			}
+		})
+	}
+}
+
+func TestPortableStyleKeepsExistingCreationAndBuiltinRules(t *testing.T) {
+	store := NewStore()
+	// Creation still permits an incomplete draft; compilation owns BPM/duration requirements.
+	created, err := store.Import([]byte(`{"id":"draft","name":"Draft","caption":"drums","builtin":true}`))
+	if err != nil || created.Builtin || created.CreatedAt.IsZero() || created.CreatedAt != created.UpdatedAt {
+		t.Fatalf("draft/custom creation changed: %+v err=%v", created, err)
+	}
+	if _, err := store.Compile(created.ID); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("incomplete draft compile error=%v", err)
+	}
+	if _, err := store.Import([]byte(`{"id":"launch-trap","name":"Shadow","caption":"drums","bpm":200,"duration":48}`)); !errors.Is(err, ErrBuiltinCollision) {
+		t.Fatalf("built-in collision error=%v", err)
+	}
+}
 
 func TestCompileIsDeterministic(t *testing.T) {
 	store := NewStore()
@@ -97,5 +183,37 @@ func TestCustomStylesPersistThroughDatabaseStore(t *testing.T) {
 	}
 	if _, ok := second.Get(want.ID); ok {
 		t.Fatal("deleted style still present")
+	}
+}
+
+func TestCompileRejectsInvalidSamplerDraftsAndKeepsDefaults(t *testing.T) {
+	for _, tc := range []struct {
+		name, params string
+		valid        bool
+	}{
+		{"defaults", `"inference_steps":0,"guidance_scale":0`, true},
+		{"boundaries", `"inference_steps":100,"guidance_scale":20`, true},
+		{"negative steps", `"inference_steps":-1`, false}, {"too many steps", `"inference_steps":101`, false},
+		{"negative guidance", `"guidance_scale":-1`, false}, {"high guidance", `"guidance_scale":21`, false},
+		{"nan guidance", `"guidanceScale":"NaN"`, false}, {"infinite guidance", `"guidanceScale":"Infinity"`, false}, {"negative infinite guidance", `"guidanceScale":"-Infinity"`, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			store := NewStore()
+			input := `{"id":"draft","name":"Draft","caption":"drums","bpm":150,"duration":30,` + tc.params + `}`
+			if _, err := store.Import([]byte(input)); err != nil {
+				t.Fatalf("draft creation changed: %v", err)
+			}
+			compiled, err := store.Compile("draft")
+			if tc.valid {
+				if err != nil {
+					t.Fatalf("valid sampler rejected: %v", err)
+				}
+				if compiled.StyleID != "draft" {
+					t.Fatal("wrong compiled identity")
+				}
+			} else if !errors.Is(err, ErrInvalid) {
+				t.Fatalf("invalid sampler compiled: %+v %v", compiled, err)
+			}
+		})
 	}
 }

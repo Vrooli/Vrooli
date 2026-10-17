@@ -41,17 +41,19 @@ type BatchRequest struct {
 var ErrInvalidBatch = errors.New("invalid composition batch")
 
 func PlanBatch(req BatchRequest) ([]Take, error) {
-	if req.JobID == "" || req.StyleID == "" || req.Caption == "" || req.Takes < 1 || req.Takes > 100 {
+	if req.JobID == "" || req.StyleID == "" || req.Caption == "" || req.Takes < 1 || req.Takes > 100 || req.Duration < 1 || req.Duration > 240 {
 		return nil, ErrInvalidBatch
 	}
 	now := time.Now().UTC()
 	rng := rand.New(rand.NewSource(req.Seed))
 	out := make([]Take, req.Takes)
 	for i := range out {
-		seed := rng.Int63()
+		// ACE's effective seed must survive its numeric boundary exactly.
+		// The batch seed remains int64; each actual take receives a uint32.
+		seed := int64(rng.Uint32())
 		out[i] = Take{
 			ID: fmt.Sprintf("%s-take-%02d", req.JobID, i+1), JobID: req.JobID, StyleID: req.StyleID, PoolState: "available", CreatedAt: now,
-			Provenance: Provenance{ModelID: "ACE-Step/Ace-Step1.5:acestep-v15-turbo", LicenseLane: "permissive", AppliedRung: "full", Seed: seed, CaptionAsAuthored: req.Caption, CaptionAsSent: req.Caption},
+			Provenance: Provenance{ModelID: "", LicenseLane: "", AppliedRung: "", Seed: seed, CaptionAsAuthored: req.Caption, CaptionAsSent: req.Caption},
 		}
 	}
 	return out, nil

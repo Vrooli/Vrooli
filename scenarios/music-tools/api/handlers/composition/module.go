@@ -3,14 +3,21 @@ package composition
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"maps"
+	"math"
 	"net/http"
 	"net/url"
 	"os"
-	"path/filepath"
-	"sync"
+	"slices"
+	"strconv"
+	"strings"
 	"time"
 
 	compositionpb "github.com/vrooli/vrooli/packages/proto/gen/go/music-tools/v1/composition"
@@ -36,29 +43,22 @@ type ModuleState struct {
 	Pool        *core.Pool
 	HTTP        *http.Client
 	ResourceURL string
-	AudioDir    string
 	Blobs       *musicstorage.Store
-	mu          sync.Mutex
-	jobs        map[string]*job
 	JobManager  *jobs.Manager
 }
 
-// NewStateWithJobs wires the composition domain to the durable server-owned
-// job manager. Tests that exercise only the HTTP shape may continue using
-// NewState, while production always supplies the database-backed manager.
-func NewStateWithJobs(db jobs.SQLExecutor) (*ModuleState, error) {
-	return NewStateWithCapacity(db, nil)
-}
-
-// NewStateWithCapacity is the production constructor. The broker is injected
-// so unit tests can exercise durable jobs without claiming host VRAM.
-func NewStateWithCapacity(db jobs.SQLExecutor, broker capacity.Broker) (*ModuleState, error) {
-	return NewStateWithCapacityAndStorage(db, broker, nil)
-}
-
+// NewStateWithCapacityAndStorage wires the only production batch engine.
+// Tests inject an isolated owner-schema database, fake broker and BlobStore.
 func NewStateWithCapacityAndStorage(db jobs.SQLExecutor, broker capacity.Broker, blobs *musicstorage.Store) (*ModuleState, error) {
-	state := NewState()
-	state.Pool = core.NewPoolWithStore(db)
+	if blobs == nil {
+		return nil, fmt.Errorf("managed audio storage is required")
+	}
+	state := newState()
+	var err error
+	state.Pool, err = core.NewPoolWithStore(db)
+	if err != nil {
+		return nil, err
+	}
 	state.Blobs = blobs
 	if blobs != nil {
 		state.Pool.SetBlobPolicy(blobs)
@@ -70,13 +70,15 @@ func NewStateWithCapacityAndStorage(db jobs.SQLExecutor, broker capacity.Broker,
 	}
 	recorder := measures.NewRecorder(db)
 	var manager *jobs.Manager
-	manager = jobs.New(db, jobs.Config{Runner: state.runDurableJob, Admit: func(ctx context.Context, job jobs.Job) (func(), map[string]string, error) {
-		release, meta, err := capacity.Admit(ctx, broker, job.ID, 7516192768, 6442450944)
+	manager = jobs.New(db, jobs.Config{Runner: state.runDurableJob, Admit: func(ctx context.Context, cancel context.CancelCauseFunc, job jobs.Job) (func(), map[string]string, error) {
+		release, meta, err := capacity.Admit(ctx, cancel, broker, job.ID, 7516192768, 6442450944)
 		if err != nil || meta["capacity_degrade"] == "" {
 			return release, meta, err
 		}
 		degradeURL := state.ResourceURL + "/v1/capacity/degrade?to=" + url.QueryEscape(meta["capacity_degrade"])
-		request, requestErr := http.NewRequestWithContext(ctx, http.MethodPost, degradeURL, nil)
+		applyCtx, applyCancel := context.WithTimeout(ctx, 10*time.Second)
+		defer applyCancel()
+		request, requestErr := http.NewRequestWithContext(applyCtx, http.MethodPost, degradeURL, nil)
 		if requestErr != nil {
 			if release != nil {
 				release()
@@ -98,6 +100,16 @@ func NewStateWithCapacityAndStorage(db jobs.SQLExecutor, broker capacity.Broker,
 			}
 			return nil, nil, fmt.Errorf("capacity degrade returned %s: %s", response.Status, string(body))
 		}
+		var applied struct {
+			RestartRequired bool   `json:"restart_required"`
+			Rung            string `json:"applied_rung"`
+		}
+		if err := json.NewDecoder(io.LimitReader(response.Body, 4096)).Decode(&applied); err != nil || applied.RestartRequired || applied.Rung != meta["capacity_degrade"] {
+			if release != nil {
+				release()
+			}
+			return nil, nil, fmt.Errorf("resource cannot apply capacity rung without managed restart; no tenant was restarted")
+		}
 		return release, meta, nil
 	}, OnComplete: func(job jobs.Job) {
 		var replenishment composeRequest
@@ -118,7 +130,17 @@ func NewStateWithCapacityAndStorage(db jobs.SQLExecutor, broker capacity.Broker,
 	}
 	state.JobManager = manager
 	state.Pool.SetReplenishTrigger(func(styleID string, needed int) {
-		payload, marshalErr := json.Marshal(composeRequest{StyleID: styleID, Takes: needed, Duration: 45, Seed: time.Now().UnixNano()})
+		compiled, compileErr := state.Styles.Compile(styleID)
+		if compileErr != nil {
+			state.Pool.ReplenishmentFinished(styleID)
+			return
+		}
+		seed, seedErr := freshBaseSeed()
+		if seedErr != nil {
+			state.Pool.ReplenishmentFinished(styleID)
+			return
+		}
+		payload, marshalErr := json.Marshal(composeJobPayload{composeRequest: composeRequest{StyleID: styleID, Takes: needed, Duration: 45, Seed: seed}, ResolvedLyrics: &compiled.Lyrics, SeedSource: "fresh-at-admission"})
 		if marshalErr != nil {
 			state.Pool.ReplenishmentFinished(styleID)
 			return
@@ -126,7 +148,10 @@ func NewStateWithCapacityAndStorage(db jobs.SQLExecutor, broker capacity.Broker,
 		if submitted, submitErr := manager.Submit(context.Background(), jobs.Spec{Operation: "compose-replenish", Lane: jobs.LaneGPU, Payload: payload, EstimatedSeconds: needed * 45}); submitErr != nil {
 			state.Pool.ReplenishmentFinished(styleID)
 		} else {
-			state.Pool.SetLastReplenishJob(styleID, submitted.ID)
+			if err := state.Pool.SetLastReplenishJob(styleID, submitted.ID); err != nil {
+				_ = manager.Cancel(submitted.ID)
+				state.Pool.ReplenishmentFinished(styleID)
+			}
 		}
 	})
 	return state, nil
@@ -138,20 +163,8 @@ func (s *ModuleState) Close() {
 	}
 }
 
-type job struct {
-	ID    string        `json:"id"`
-	State string        `json:"state"`
-	Error string        `json:"error,omitempty"`
-	Takes []core.Take   `json:"takes"`
-	Done  chan struct{} `json:"-"`
-}
-
-func NewState() *ModuleState {
-	dir := os.Getenv("MUSIC_TOOLS_AUDIO_DIR")
-	if dir == "" {
-		dir = filepath.Join(os.TempDir(), "music-tools-audio")
-	}
-	return &ModuleState{Styles: styles.NewStore(), Pool: core.NewPool(), HTTP: &http.Client{Timeout: 20 * time.Minute}, ResourceURL: getenv("ACE_STEP_URL", "http://127.0.0.1:8895"), AudioDir: dir, jobs: map[string]*job{}}
+func newState() *ModuleState {
+	return &ModuleState{Styles: styles.NewStore(), Pool: core.NewPool(), HTTP: &http.Client{Timeout: 20 * time.Minute}, ResourceURL: getenv("ACE_STEP_URL", "http://127.0.0.1:8895")}
 }
 
 func getenv(key, fallback string) string {
@@ -231,22 +244,27 @@ func (s *ModuleState) listStyles(w http.ResponseWriter, _ *http.Request) {
 	}
 	writeProtoJSON(w, http.StatusOK, response)
 }
+
 func (s *ModuleState) createStyle(w http.ResponseWriter, r *http.Request) {
-	var style styles.Style
-	if err := readJSON(r, &style); err != nil {
+	data, err := readPortableJSON(r, "style")
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	created, err := s.Styles.Create(style)
+	created, err := s.Styles.Import(data)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusConflict)
+		status := http.StatusConflict
+		if errors.Is(err, styles.ErrDecode) {
+			status = http.StatusBadRequest
+		}
+		http.Error(w, err.Error(), status)
 		return
 	}
 	writeProtoJSON(w, http.StatusCreated, wireStyle(created))
 }
 
 func (s *ModuleState) importStyle(w http.ResponseWriter, r *http.Request) {
-	data, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
+	data, err := readPortableJSON(r, "style")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -257,6 +275,20 @@ func (s *ModuleState) importStyle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeProtoJSON(w, http.StatusCreated, wireStyle(created))
+}
+
+// Portable ingress consumes one complete bounded document. Read one
+// extra byte so a valid prefix at the existing import limit cannot hide a tail.
+func readPortableJSON(r *http.Request, kind string) ([]byte, error) {
+	const limit = 1 << 20
+	data, err := io.ReadAll(io.LimitReader(r.Body, limit+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(data) > limit {
+		return nil, fmt.Errorf("%s JSON exceeds 1 MiB", kind)
+	}
+	return data, nil
 }
 
 func (s *ModuleState) exportStyle(w http.ResponseWriter, r *http.Request) {
@@ -280,6 +312,7 @@ func (s *ModuleState) deleteStyle(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
+
 func (s *ModuleState) compileStyle(w http.ResponseWriter, r *http.Request) {
 	compiled, err := s.Styles.Compile(mux.Vars(r)["id"])
 	if err != nil {
@@ -290,26 +323,78 @@ func (s *ModuleState) compileStyle(w http.ResponseWriter, r *http.Request) {
 }
 
 func wireStyle(style styles.Style) *stylespb.Style {
-	return &stylespb.Style{Id: style.ID, Name: style.Name, Description: style.Description, Caption: style.Caption, Bpm: int32(style.Params.BPM), Keyscale: style.Params.KeyScale, Duration: int32(style.Params.Duration), InferenceSteps: int32(style.Params.Steps), GuidanceScale: style.Params.Guidance, Variant: style.Params.Variant, Builtin: style.Builtin}
+	return &stylespb.Style{Id: style.ID, Name: style.Name, Description: style.Description, Caption: style.Caption, Lyrics: style.Lyrics, Bpm: int32(style.Params.BPM), Keyscale: style.Params.KeyScale, Duration: int32(style.Params.Duration), InferenceSteps: int32(style.Params.Steps), GuidanceScale: style.Params.Guidance, Variant: style.Params.Variant, Builtin: style.Builtin}
 }
 
 func wireStyleFromCompiled(compiled styles.Compiled) *stylespb.Style {
-	return &stylespb.Style{Id: compiled.StyleID, Caption: compiled.Caption, Bpm: int32(compiled.Params.BPM), Keyscale: compiled.Params.KeyScale, Duration: int32(compiled.Params.Duration), InferenceSteps: int32(compiled.Params.Steps), GuidanceScale: compiled.Params.Guidance, Variant: compiled.Params.Variant}
+	return &stylespb.Style{Id: compiled.StyleID, Caption: compiled.Caption, Lyrics: compiled.Lyrics, Bpm: int32(compiled.Params.BPM), Keyscale: compiled.Params.KeyScale, Duration: int32(compiled.Params.Duration), InferenceSteps: int32(compiled.Params.Steps), GuidanceScale: compiled.Params.Guidance, Variant: compiled.Params.Variant}
 }
 
 type composeRequest struct {
-	StyleID  string `json:"style_id"`
-	Takes    int    `json:"takes"`
-	Duration int    `json:"duration"`
-	Seed     int64  `json:"seed"`
+	StyleID  string   `json:"style_id"`
+	Takes    int      `json:"takes"`
+	Duration int      `json:"duration"`
+	Seed     *int64   `json:"seed,omitempty"`
+	Shift    *float64 `json:"shift,omitempty"`
+}
+
+func (r composeRequest) baseSeed() int64 {
+	if r.Seed == nil {
+		return 0
+	}
+	return *r.Seed
+}
+
+func freshBaseSeed() (*int64, error) {
+	var data [8]byte
+	if _, err := rand.Read(data[:]); err != nil {
+		return nil, err
+	}
+	seed := int64(binary.LittleEndian.Uint64(data[:]))
+	return &seed, nil
+}
+
+// ResolvedLyrics is server-owned durable input, never a per-compose override.
+// A missing snapshot belongs to the old always-instrumental request contract.
+type composeJobPayload struct {
+	composeRequest
+	ResolvedLyrics *string `json:"resolved_lyrics,omitempty"`
+	SeedSource     string  `json:"seed_source,omitempty"`
+}
+
+func (request composeJobPayload) lyrics() string {
+	if request.ResolvedLyrics == nil {
+		return styles.InstrumentalLyrics
+	}
+	return styles.ResolveLyrics(*request.ResolvedLyrics)
+}
+
+func lyricsHash(text string) string { return fmt.Sprintf("%x", sha256.Sum256([]byte(text))) }
+
+func (request composeJobPayload) lyricsMetadata() map[string]string {
+	text := request.lyrics()
+	intent, source := "lyrics-provided", "style-snapshot"
+	if text == styles.InstrumentalLyrics {
+		intent = "instrumental"
+	}
+	if request.ResolvedLyrics == nil {
+		source = "legacy-instrumental-default"
+	}
+	return map[string]string{"lyrics_intent": intent, "lyrics_source": source, "lyrics_sha256": lyricsHash(text), "lyrics_bytes": strconv.Itoa(len(text))}
 }
 
 func (s *ModuleState) compose(w http.ResponseWriter, r *http.Request) {
-	var request composeRequest
-	if err := readJSON(r, &request); err != nil {
+	data, err := readPortableJSON(r, "compose")
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	var wire compositionpb.SubmitRequest
+	if err := protojson.Unmarshal(data, &wire); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	request := composeRequest{StyleID: wire.StyleId, Takes: int(wire.Takes), Duration: int(wire.Duration), Seed: wire.Seed, Shift: wire.Shift}
 	compiled, err := s.Styles.Compile(request.StyleID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -321,27 +406,34 @@ func (s *ModuleState) compose(w http.ResponseWriter, r *http.Request) {
 	if request.Duration == 0 {
 		request.Duration = compiled.Params.Duration
 	}
-	if s.JobManager != nil {
-		payload, _ := json.Marshal(request)
-		created, submitErr := s.JobManager.Submit(context.Background(), jobs.Spec{Operation: "compose", Lane: jobs.LaneGPU, Payload: payload, EstimatedSeconds: request.Duration * request.Takes})
-		if submitErr != nil {
-			http.Error(w, submitErr.Error(), http.StatusServiceUnavailable)
-			return
-		}
-		writeJSON(w, http.StatusAccepted, map[string]any{"job_id": created.ID, "state": created.State, "takes": request.Takes})
+	if _, err = core.PlanBatch(core.BatchRequest{JobID: "validate", StyleID: request.StyleID, Caption: compiled.Caption, Takes: request.Takes, Duration: request.Duration}); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	id := fmt.Sprintf("job-%d", time.Now().UnixNano())
-	item := &job{ID: id, State: "queued", Done: make(chan struct{})}
-	s.mu.Lock()
-	s.jobs[id] = item
-	s.mu.Unlock()
-	go s.runBatch(item, request, compiled.Caption)
-	writeJSON(w, http.StatusAccepted, map[string]any{"job_id": id, "state": item.State, "takes": request.Takes})
+	if request.Shift != nil && (math.IsNaN(*request.Shift) || math.IsInf(*request.Shift, 0) || *request.Shift < 1 || *request.Shift > 5) {
+		http.Error(w, "shift must be finite and between 1 and 5", http.StatusBadRequest)
+		return
+	}
+	seedSource := "explicit"
+	if request.Seed == nil {
+		seedSource = "fresh-at-admission"
+		request.Seed, err = freshBaseSeed()
+		if err != nil {
+			http.Error(w, "choose base seed: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+	payload, _ := json.Marshal(composeJobPayload{composeRequest: request, ResolvedLyrics: &compiled.Lyrics, SeedSource: seedSource})
+	created, err := s.JobManager.Submit(r.Context(), jobs.Spec{Operation: "compose", Lane: jobs.LaneGPU, Payload: payload, EstimatedSeconds: request.Duration * request.Takes})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusServiceUnavailable)
+		return
+	}
+	writeJSON(w, http.StatusAccepted, map[string]any{"job_id": created.ID, "state": created.State, "takes": request.Takes})
 }
 
 func (s *ModuleState) runDurableJob(ctx context.Context, queued jobs.Job, emit func(int, string)) (jobs.Result, error) {
-	var request composeRequest
+	var request composeJobPayload
 	if err := json.Unmarshal(queued.Payload, &request); err != nil {
 		return jobs.Result{}, err
 	}
@@ -349,234 +441,227 @@ func (s *ModuleState) runDurableJob(ctx context.Context, queued jobs.Job, emit f
 	if err != nil {
 		return jobs.Result{}, err
 	}
-	planned, err := core.PlanBatch(core.BatchRequest{JobID: queued.ID, StyleID: request.StyleID, Caption: compiled.Caption, Takes: request.Takes, Duration: request.Duration, Seed: request.Seed})
+	compiled.Lyrics = request.lyrics()
+	planned, err := core.PlanBatch(core.BatchRequest{JobID: queued.ID, StyleID: request.StyleID, Caption: compiled.Caption, Takes: request.Takes, Duration: request.Duration, Seed: request.baseSeed()})
 	if err != nil {
 		return jobs.Result{}, err
 	}
-	if err := os.MkdirAll(s.AudioDir, 0o755); err != nil {
-		return jobs.Result{}, err
+	profiles := map[string]generationProfile{}
+	completed := []core.Take{}
+	result := func() jobs.Result {
+		if len(completed) == 0 {
+			return jobs.Result{}
+		}
+		first := completed[0].Provenance
+		uniformModel, uniformRung := true, true
+		ids := make([]string, 0, len(completed))
+		for _, take := range completed {
+			ids = append(ids, take.ID)
+			uniformModel = uniformModel && take.Provenance.ModelID == first.ModelID
+			uniformRung = uniformRung && take.Provenance.AppliedRung == first.AppliedRung
+		}
+		encoded, _ := json.Marshal(profiles)
+		encodedIDs, _ := json.Marshal(ids)
+		meta := map[string]string{"lyrics_sent_sha256": lyricsHash(compiled.Lyrics), "generation_profiles": string(encoded), "generation_profile_scope": "completed-takes", "completed_take_ids": string(encodedIDs), "seed_receipt": "verified-uint32"}
+		if uniformModel {
+			meta["model_id"] = first.ModelID
+		}
+		if uniformRung {
+			meta["applied_rung"] = first.AppliedRung
+		}
+		if !uniformModel || !uniformRung {
+			meta["output_identity"] = "mixed"
+		}
+		return jobs.Result{Meta: meta}
 	}
 	for i := range planned {
-		select {
-		case <-ctx.Done():
-			return jobs.Result{}, ctx.Err()
-		default:
+		if err := ctx.Err(); err != nil {
+			return result(), err
 		}
-		if err := s.generateTake(ctx, &planned[i], request, compiled); err != nil {
-			return jobs.Result{}, err
+		profile, err := s.generateTake(ctx, &planned[i], request.composeRequest, compiled, queued.Meta["capacity_admitted_rung"])
+		if err != nil {
+			return result(), err
 		}
-		s.Pool.Add(planned[i])
-		s.mu.Lock()
-		if item := s.jobs[queued.ID]; item != nil {
-			item.Takes = append(item.Takes, planned[i])
+		completed = append(completed, planned[i])
+		profiles[planned[i].ID] = profile
+		if err := s.Pool.Add(planned[i]); err != nil {
+			return result(), fmt.Errorf("retain completed take %s: %w", planned[i].ID, err)
 		}
-		s.mu.Unlock()
 		emit((i+1)*100/len(planned), fmt.Sprintf("take %d/%d", i+1, len(planned)))
 	}
-	return jobs.Result{Meta: map[string]string{"model_id": planned[0].Provenance.ModelID, "applied_rung": planned[0].Provenance.AppliedRung}}, nil
+	return result(), nil
 }
 
-func (s *ModuleState) generateTake(ctx context.Context, take *core.Take, request composeRequest, compiled styles.Compiled) error {
-	payload := map[string]any{"caption": take.Provenance.CaptionAsAuthored, "lyrics": "[instrumental]", "duration": request.Duration, "bpm": compiled.Params.BPM, "keyscale": compiled.Params.KeyScale, "inference_steps": compiled.Params.Steps, "guidance_scale": compiled.Params.Guidance, "seed": take.Provenance.Seed, "rewrite_caption": false}
-	body, _ := json.Marshal(payload)
+func (s *ModuleState) generateTake(ctx context.Context, take *core.Take, request composeRequest, compiled styles.Compiled, admittedRung string) (generationProfile, error) {
+	if take.Provenance.Seed < 0 || take.Provenance.Seed > math.MaxUint32 {
+		return generationProfile{}, fmt.Errorf("planned effective seed must be uint32")
+	}
+	var allowed []string
+	switch admittedRung {
+	case "full":
+		allowed = []string{"full", "offload-dit"}
+	case "offload-dit":
+		allowed = []string{"offload-dit"}
+	case "": // Explicit nil-broker development/test posture.
+	default:
+		return generationProfile{}, fmt.Errorf("unsupported capacity admission rung %q", admittedRung)
+	}
+	payload := map[string]any{"caption": take.Provenance.CaptionAsAuthored, "lyrics": styles.ResolveLyrics(compiled.Lyrics), "duration": request.Duration, "bpm": compiled.Params.BPM, "keyscale": compiled.Params.KeyScale, "seed": take.Provenance.Seed, "rewrite_caption": false}
+	if compiled.Params.Steps > 0 {
+		payload["inference_steps"] = compiled.Params.Steps
+	}
+	if compiled.Params.Guidance != 0 {
+		payload["guidance_scale"] = compiled.Params.Guidance
+	}
+	if compiled.Params.Variant != "" {
+		payload["expected_variant"] = compiled.Params.Variant
+	}
+	if request.Shift != nil {
+		payload["shift"] = *request.Shift
+	}
+	if len(allowed) > 0 {
+		payload["admitted_rungs"] = allowed
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return generationProfile{}, fmt.Errorf("encode resource compose request: %w", err)
+	}
 	resourceRequest, err := http.NewRequestWithContext(ctx, http.MethodPost, s.ResourceURL+"/v1/compose", bytes.NewReader(body))
 	if err != nil {
-		return err
+		return generationProfile{}, err
 	}
 	resourceRequest.Header.Set("Content-Type", "application/json")
 	response, err := s.HTTP.Do(resourceRequest)
 	if err != nil {
-		return err
+		return generationProfile{}, err
 	}
 	defer response.Body.Close()
 	if response.StatusCode >= 300 {
 		data, _ := io.ReadAll(io.LimitReader(response.Body, 4096))
-		return fmt.Errorf("ace-step returned %s: %s", response.Status, string(data))
+		return generationProfile{}, fmt.Errorf("ace-step returned %s: %s", response.Status, string(data))
 	}
 	rung := response.Header.Get("X-Ace-Step-Profile-Rung")
-	if rung == "" {
-		rung = "full"
+	model := response.Header.Get("X-Ace-Step-Model-ID")
+	lane := response.Header.Get("X-Ace-Step-License-Lane")
+	if (rung != "full" && rung != "offload-dit") || model == "" || lane != "permissive" || (len(allowed) > 0 && !slices.Contains(allowed, rung)) {
+		return generationProfile{}, fmt.Errorf("resource output identity missing or unsupported")
+	}
+	if compiled.Params.Variant != "" && !strings.HasSuffix(model, ":"+compiled.Params.Variant) {
+		return generationProfile{}, fmt.Errorf("resource model does not match expected variant %q", compiled.Params.Variant)
+	}
+	profile, err := readGenerationProfile(response.Header, take.Provenance.Seed, request, compiled)
+	if err != nil {
+		return generationProfile{}, err
 	}
 	take.Provenance.AppliedRung = rung
-	if s.Blobs != nil {
-		data, readErr := io.ReadAll(response.Body)
-		if readErr != nil {
-			return readErr
-		}
-		ref := "out/" + take.ID + ".wav"
-		if writeErr := s.Blobs.PutOwned(ctx, ref, take.ID, bytes.NewReader(data), "audio/wav", true); writeErr != nil {
-			return writeErr
-		}
-		take.BlobRef = ref
-		return nil
+	take.Provenance.ModelID = model
+	take.Provenance.LicenseLane = lane
+	if s.Blobs == nil {
+		return generationProfile{}, fmt.Errorf("managed audio storage is required")
 	}
-	target := filepath.Join(s.AudioDir, take.ID+".wav")
-	file, err := os.Create(target)
+	ref := "out/" + take.ID + ".wav"
+	media, err := core.ValidatedWAV(response.Body)
 	if err != nil {
-		return err
+		return generationProfile{}, err
 	}
-	_, copyErr := io.Copy(file, response.Body)
-	closeErr := file.Close()
-	if copyErr != nil {
-		return copyErr
+	if err := s.Blobs.PutOwned(ctx, ref, take.ID, media, "audio/wav", true); err != nil {
+		return generationProfile{}, err
 	}
-	if closeErr != nil {
-		return closeErr
-	}
-	take.BlobRef = target
-	return nil
+	take.BlobRef = ref
+	return profile, nil
 }
 
-func (s *ModuleState) runBatch(item *job, request composeRequest, caption string) {
-	s.mu.Lock()
-	item.State = "running"
-	s.mu.Unlock()
-	planned, err := core.PlanBatch(core.BatchRequest{JobID: item.ID, StyleID: request.StyleID, Caption: caption, Takes: request.Takes, Duration: request.Duration, Seed: request.Seed})
-	if err != nil {
-		s.finish(item, err)
-		return
-	}
-	_ = os.MkdirAll(s.AudioDir, 0o755)
-	compiled, _ := s.Styles.Compile(request.StyleID)
-	for i := range planned {
-		payload := map[string]any{"caption": planned[i].Provenance.CaptionAsAuthored, "lyrics": "[instrumental]", "duration": request.Duration, "bpm": compiled.Params.BPM, "keyscale": compiled.Params.KeyScale, "inference_steps": compiled.Params.Steps, "guidance_scale": compiled.Params.Guidance, "seed": planned[i].Provenance.Seed, "rewrite_caption": false}
-		body, _ := json.Marshal(payload)
-		response, callErr := s.HTTP.Post(s.ResourceURL+"/v1/compose", "application/json", bytes.NewReader(body))
-		if callErr != nil {
-			s.finish(item, callErr)
-			return
-		}
-		if response.StatusCode >= 300 {
-			data, _ := io.ReadAll(io.LimitReader(response.Body, 4096))
-			_ = response.Body.Close()
-			s.finish(item, fmt.Errorf("ace-step returned %s: %s", response.Status, string(data)))
-			return
-		}
-		rung := response.Header.Get("X-ACE-Step-Profile-Rung")
-		if rung == "" {
-			rung = "full"
-		}
-		planned[i].Provenance.AppliedRung = rung
-		target := filepath.Join(s.AudioDir, planned[i].ID+".wav")
-		file, fileErr := os.Create(target)
-		if fileErr == nil {
-			_, fileErr = io.Copy(file, response.Body)
-			_ = file.Close()
-		}
-		_ = response.Body.Close()
-		if fileErr != nil {
-			s.finish(item, fileErr)
-			return
-		}
-		planned[i].BlobRef = target
-		// Retain each completed take immediately. A later resource failure must
-		// not erase usable work from an otherwise partial batch.
-		s.Pool.Add(planned[i])
-		s.mu.Lock()
-		item.Takes = append(item.Takes, planned[i])
-		s.mu.Unlock()
-	}
-	s.mu.Lock()
-	item.State = "succeeded"
-	s.mu.Unlock()
-	close(item.Done)
-}
-func (s *ModuleState) finish(item *job, err error) {
-	s.mu.Lock()
-	item.State, item.Error = "failed", err.Error()
-	s.mu.Unlock()
-	close(item.Done)
-}
 func (s *ModuleState) getJob(w http.ResponseWriter, r *http.Request) {
-	if s.JobManager != nil {
-		item, err := s.JobManager.Get(r.Context(), mux.Vars(r)["id"])
-		if err != nil {
-			http.NotFound(w, r)
-			return
-		}
-		writeProtoJSON(w, http.StatusOK, wireJob(item))
-		return
-	}
-	s.mu.Lock()
-	item := s.jobs[mux.Vars(r)["id"]]
-	s.mu.Unlock()
-	if item == nil {
-		http.NotFound(w, r)
-		return
-	}
-	writeJSON(w, http.StatusOK, item)
-}
-
-func (s *ModuleState) listJobs(w http.ResponseWriter, r *http.Request) {
-	if s.JobManager == nil {
-		writeProtoJSON(w, http.StatusOK, &jobspb.ListJobsResponse{})
-		return
-	}
-	items, err := s.JobManager.List(r.Context(), 100)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	response := &jobspb.ListJobsResponse{}
-	for _, item := range items {
-		response.Jobs = append(response.Jobs, wireJob(item))
-	}
-	writeProtoJSON(w, http.StatusOK, response)
-}
-func (s *ModuleState) waitJob(w http.ResponseWriter, r *http.Request) {
-	if s.JobManager != nil {
-		item, err := s.JobManager.Wait(r.Context(), mux.Vars(r)["id"])
-		if err != nil {
-			if r.Context().Err() != nil {
-				return
-			}
-			http.NotFound(w, r)
-			return
-		}
-		writeProtoJSON(w, http.StatusOK, wireJob(item))
-		return
-	}
-	s.mu.Lock()
-	item := s.jobs[mux.Vars(r)["id"]]
-	s.mu.Unlock()
-	if item == nil {
-		http.NotFound(w, r)
-		return
-	}
-	select {
-	case <-item.Done:
-		writeJSON(w, http.StatusOK, item)
-	case <-r.Context().Done():
-		return
-	}
-}
-
-func (s *ModuleState) cancelJob(w http.ResponseWriter, r *http.Request) {
-	if s.JobManager == nil {
-		http.Error(w, "durable jobs are not enabled", http.StatusNotImplemented)
-		return
-	}
-	if err := s.JobManager.Cancel(mux.Vars(r)["id"]); err != nil {
-		http.NotFound(w, r)
-		return
-	}
 	item, err := s.JobManager.Get(r.Context(), mux.Vars(r)["id"])
 	if err != nil {
-		http.NotFound(w, r)
+		jobError(w, err)
 		return
 	}
 	writeProtoJSON(w, http.StatusOK, wireJob(item))
 }
 
+func (s *ModuleState) listJobs(w http.ResponseWriter, r *http.Request) {
+	items, err := s.JobManager.List(r.Context(), 100)
+	if err != nil {
+		jobError(w, err)
+		return
+	}
+	wire := &jobspb.ListJobsResponse{}
+	for _, item := range items {
+		wire.Jobs = append(wire.Jobs, wireJob(item))
+	}
+	writeProtoJSON(w, http.StatusOK, wire)
+}
+
+func (s *ModuleState) waitJob(w http.ResponseWriter, r *http.Request) {
+	item, err := s.JobManager.Wait(r.Context(), mux.Vars(r)["id"])
+	if err != nil {
+		if r.Context().Err() == nil {
+			jobError(w, err)
+		}
+		return
+	}
+	writeProtoJSON(w, http.StatusOK, wireJob(item))
+}
+
+func (s *ModuleState) cancelJob(w http.ResponseWriter, r *http.Request) {
+	if err := s.JobManager.Cancel(mux.Vars(r)["id"]); err != nil {
+		jobError(w, err)
+		return
+	}
+	s.getJob(w, r)
+}
+
+func jobError(w http.ResponseWriter, err error) {
+	status := http.StatusServiceUnavailable
+	if errors.Is(err, jobs.ErrNotFound) {
+		status = http.StatusNotFound
+	}
+	http.Error(w, err.Error(), status)
+}
+
 func wireJob(item jobs.Job) *jobspb.Job {
+	meta := maps.Clone(item.Meta)
+	if item.Operation == "compose" || item.Operation == "compose-replenish" {
+		var request composeJobPayload
+		if json.Unmarshal(item.Payload, &request) == nil && request.StyleID != "" {
+			if meta == nil {
+				meta = map[string]string{}
+			}
+			maps.Copy(meta, request.lyricsMetadata())
+			meta["seed_base"] = strconv.FormatInt(request.baseSeed(), 10)
+			source := request.SeedSource
+			if source == "" {
+				source = "legacy-recorded"
+				if request.Seed == nil {
+					source = "legacy-zero-default"
+				}
+			}
+			meta["seed_base_source"] = source
+		}
+	}
 	return &jobspb.Job{
 		Id: item.ID, Kind: item.Operation, State: string(item.State), Lane: string(item.Lane), Error: item.Error,
-		Total: 100, Completed: int32(item.Progress), ResultRef: item.ResultRef, Meta: item.Meta,
+		Total: 100, Completed: int32(item.Progress), ResultRef: item.ResultRef, Meta: meta,
 	}
 }
+
 func (s *ModuleState) listTakes(w http.ResponseWriter, r *http.Request) {
 	wire := &compositionpb.ListTakesResponse{}
+	limit := 20
+	if raw := r.URL.Query().Get("limit"); raw != "" {
+		n, err := strconv.Atoi(raw)
+		if err != nil || n < 1 || n > 100 {
+			http.Error(w, "limit must be 1–100", http.StatusBadRequest)
+			return
+		}
+		limit = n
+	}
 	for _, take := range s.Pool.ListFiltered(r.URL.Query().Get("style_id"), r.URL.Query().Get("job_id")) {
+		if len(wire.Takes) >= limit {
+			w.Header().Set("X-Music-Takes-Truncated", "true")
+			break
+		}
 		wire.Takes = append(wire.Takes, wireTake(take))
 	}
 	writeProtoJSON(w, http.StatusOK, wire)
@@ -597,6 +682,7 @@ func (s *ModuleState) reserveTake(w http.ResponseWriter, r *http.Request) {
 	}
 	writeProtoJSON(w, http.StatusOK, wireTake(drawn))
 }
+
 func (s *ModuleState) consumeTake(w http.ResponseWriter, r *http.Request) {
 	take, err := s.Pool.MarkConsumed(mux.Vars(r)["id"])
 	if err != nil {
@@ -605,6 +691,7 @@ func (s *ModuleState) consumeTake(w http.ResponseWriter, r *http.Request) {
 	}
 	writeProtoJSON(w, http.StatusOK, wireTake(take))
 }
+
 func (s *ModuleState) releaseTake(w http.ResponseWriter, r *http.Request) {
 	if err := s.Pool.Release(mux.Vars(r)["id"]); err != nil {
 		http.Error(w, err.Error(), http.StatusConflict)
@@ -612,6 +699,7 @@ func (s *ModuleState) releaseTake(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "available"})
 }
+
 func (s *ModuleState) discardTake(w http.ResponseWriter, r *http.Request) {
 	if err := s.Pool.Discard(mux.Vars(r)["id"]); err != nil {
 		http.Error(w, err.Error(), http.StatusConflict)
@@ -619,6 +707,7 @@ func (s *ModuleState) discardTake(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "discarded"})
 }
+
 func (s *ModuleState) getTake(w http.ResponseWriter, r *http.Request) {
 	take, ok := s.Pool.Get(mux.Vars(r)["id"])
 	if !ok {
@@ -650,6 +739,7 @@ func (s *ModuleState) audioTake(w http.ResponseWriter, r *http.Request) {
 	}
 	http.ServeFile(w, r, take.BlobRef)
 }
+
 func (s *ModuleState) configurePool(w http.ResponseWriter, r *http.Request) {
 	var p struct {
 		StyleID   string `json:"style_id"`
@@ -666,6 +756,7 @@ func (s *ModuleState) configurePool(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, p)
 }
+
 func (s *ModuleState) draw(w http.ResponseWriter, r *http.Request) {
 	var p struct {
 		StyleID string `json:"style_id"`
@@ -682,6 +773,7 @@ func (s *ModuleState) draw(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"take": take, "replenishment_needed": replenish})
 }
+
 func (s *ModuleState) poolStatus(w http.ResponseWriter, r *http.Request) {
 	a, res, target, threshold := s.Pool.Status(r.URL.Query().Get("style_id"))
 	writeJSON(w, http.StatusOK, map[string]int{"available": a, "reserved": res, "target_depth": target, "replenish_below": threshold})

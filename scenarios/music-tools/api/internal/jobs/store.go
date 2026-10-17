@@ -26,17 +26,14 @@ type store struct {
 
 func newStore(db SQLExecutor) *store { return &store{db: db} }
 
-// migrate adds columns to an install created before they existed. SQLite has no
-// ADD COLUMN IF NOT EXISTS, so a duplicate-column error is the steady state
-// rather than a failure. Without this a running install keeps the old table —
-// CREATE TABLE IF NOT EXISTS is a no-op there — and every insert fails on the
-// column count.
+// migrate verifies the owner-installed schema without mutating existing data.
 func (s *store) migrate(ctx context.Context) error {
-	_, err := s.db.ExecContext(ctx, `ALTER TABLE jobs ADD COLUMN meta TEXT NOT NULL DEFAULT ''`)
-	if err != nil && !strings.Contains(strings.ToLower(err.Error()), "duplicate column") {
-		return fmt.Errorf("jobs: migrate schema: %w", err)
+	rows, err := s.db.QueryContext(ctx, "SELECT meta FROM jobs LIMIT 0")
+	if err != nil {
+		return fmt.Errorf("jobs: apply owner schema compatibility before start: %w", err)
 	}
-	return nil
+	defer rows.Close()
+	return rows.Err()
 }
 
 const insertJobSQL = `
@@ -56,18 +53,40 @@ func (s *store) insert(ctx context.Context, j Job) error {
 
 const updateJobSQL = `
 UPDATE jobs SET state=?, progress=?, message=?, error=?, result_ref=?, meta=?, started_at=?, finished_at=?
-WHERE id=?`
+WHERE id=? AND state IN ('queued','running')`
 
 func (s *store) update(ctx context.Context, j Job) error {
-	_, err := s.db.ExecContext(ctx, updateJobSQL,
+	result, err := s.db.ExecContext(ctx, updateJobSQL,
 		string(j.State), j.Progress, j.Message, j.Error, j.ResultRef, encodeMeta(j.Meta),
 		formatTimePtr(j.StartedAt), formatTimePtr(j.FinishedAt), j.ID,
 	)
 	if err != nil {
 		return fmt.Errorf("jobs: update: %w", err)
 	}
+	n, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		authoritative, readErr := s.get(ctx, j.ID)
+		if readErr != nil {
+			return fmt.Errorf("jobs: terminal fence read: %w", readErr)
+		}
+		if authoritative.State.Terminal() {
+			return &terminalWinner{job: authoritative}
+		}
+	}
+	if n != 1 {
+		return fmt.Errorf("jobs: expected one persisted active row, updated %d", n)
+	}
 	return nil
 }
+
+// terminalWinner is an authoritative persisted first terminal result. It is
+// adoption, never permission to retry a stale terminal overwrite.
+type terminalWinner struct{ job Job }
+
+func (e *terminalWinner) Error() string { return "jobs: authoritative terminal already persisted" }
 
 const selectJobColumns = `id, operation, lane, state, progress, message, error, result_ref, meta, payload, estimated_seconds, created_at, started_at, finished_at`
 

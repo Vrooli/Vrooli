@@ -3,7 +3,7 @@ package composition
 import "testing"
 
 func TestRewriteIsVisibleInProvenance(t *testing.T) {
-	takes, err := PlanBatch(BatchRequest{JobID: "job-3", StyleID: "style", Caption: "authored", Takes: 1, Seed: 1})
+	takes, err := PlanBatch(BatchRequest{Duration: 45, JobID: "job-3", StyleID: "style", Caption: "authored", Takes: 1, Seed: 1})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -223,6 +223,7 @@ func (r *Runner) SyncOnce(ctx context.Context) {
 type LedgerClaim struct {
 	ClaimID     string `json:"claim_id"`
 	OwnerID     string `json:"owner_id"`
+	OwnerKind   string `json:"owner_kind"`
 	AmountBytes int64  `json:"amount_bytes"`
 	Generation  int64  `json:"generation"`
 	Status      string `json:"status"`
@@ -421,4 +422,18 @@ func (r Reporter) ActiveClaim(ctx context.Context) (LedgerClaim, bool) {
 		}
 	}
 	return LedgerClaim{}, false
+}
+
+// Heartbeat renews only an existing resource-owned admission. It never creates,
+// resizes or changes activity; failures remain advisory to the request path.
+func (r Reporter) Heartbeat(ctx context.Context) error {
+	claim, ok := r.ActiveClaim(ctx)
+	if !ok {
+		return fmt.Errorf("no active admission claim for %s", r.Resource)
+	}
+	if claim.OwnerKind != "resource" || claim.Generation <= 0 {
+		return fmt.Errorf("invalid resource admission identity for %s", r.Resource)
+	}
+	_, err := r.Exec(ctx, "vrooli", "capacity", "heartbeat", "--claim-id", claim.ClaimID, "--generation", strconv.FormatInt(claim.Generation, 10), "--json")
+	return err
 }

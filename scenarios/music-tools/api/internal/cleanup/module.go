@@ -4,7 +4,9 @@
 package cleanup
 
 import (
+	"crypto/sha256"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -83,17 +85,28 @@ func Module(deps Deps) module.Module {
 	}, Endpoints: Endpoints}
 }
 
-func (h *owner) candidates(minAge time.Duration) []Item {
+func cleanupID(entry storage.Entry) string {
+	raw, _ := json.Marshal(entry)
+	return fmt.Sprintf("%x", sha256.Sum256(raw))
+}
+func (h *owner) eligibleEntries(minAge time.Duration) []storage.Entry {
 	if minAge <= 0 {
 		minAge = 7 * 24 * time.Hour
 	}
 	cutoff := h.now().Add(-minAge)
-	var out []Item
+	var out []storage.Entry
 	for _, entry := range h.store.Entries() {
-		if !entry.Regenerable || entry.Protected || entry.LastAccess.After(cutoff) {
-			continue
+		if entry.Regenerable && !entry.Protected && !entry.LastAccess.After(cutoff) {
+			out = append(out, entry)
 		}
-		out = append(out, Item{ID: entry.Key, Path: entry.Key, Bytes: int64(entry.Size), AgeSeconds: int64(h.now().Sub(entry.LastAccess) / time.Second), Protected: entry.Protected})
+	}
+	return out
+}
+
+func (h *owner) candidates(minAge time.Duration) []Item {
+	var out []Item
+	for _, entry := range h.eligibleEntries(minAge) {
+		out = append(out, Item{ID: cleanupID(entry), Path: entry.Key, Bytes: int64(entry.Size), AgeSeconds: int64(h.now().Sub(entry.LastAccess) / time.Second), Protected: entry.Protected})
 	}
 	return out
 }
@@ -149,24 +162,24 @@ func (h *owner) apply(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.mu.Unlock()
-	current := make(map[string]Item)
-	for _, item := range h.candidates(time.Duration(req.Preview.MinAgeSeconds) * time.Second) {
-		current[item.ID] = item
+	current := make(map[string]storage.Entry)
+	for _, entry := range h.eligibleEntries(time.Duration(req.Preview.MinAgeSeconds) * time.Second) {
+		current[cleanupID(entry)] = entry
 	}
 	result := ApplyResponse{ProviderID: ProviderID, RemovedItemIDs: []string{}, SkippedItemIDs: []string{}}
 	for _, reviewed := range req.Preview.Items {
 		item, ok := current[reviewed.ID]
-		if !ok || item.Path != reviewed.Path || item.Bytes != reviewed.Bytes || reviewed.Protected {
+		if !ok || item.Key != reviewed.Path || int64(item.Size) != reviewed.Bytes || reviewed.Protected {
 			result.SkippedItemIDs = append(result.SkippedItemIDs, reviewed.ID)
 			result.Warnings = append(result.Warnings, "stale, changed, or protected output: "+reviewed.ID)
 			continue
 		}
-		if err := h.store.Delete(r.Context(), item.Path); err != nil {
+		if removed, err := h.store.DeleteEligible(r.Context(), item); err != nil || !removed {
 			result.SkippedItemIDs = append(result.SkippedItemIDs, reviewed.ID)
-			result.Warnings = append(result.Warnings, "delete failed for "+reviewed.ID+": "+err.Error())
+			result.Warnings = append(result.Warnings, fmt.Sprintf("changed, protected, or failed output %s: %v", reviewed.ID, err))
 			continue
 		}
-		result.ReclaimedBytes += item.Bytes
+		result.ReclaimedBytes += int64(item.Size)
 		result.RemovedItemIDs = append(result.RemovedItemIDs, reviewed.ID)
 	}
 	h.mu.Lock()
@@ -186,6 +199,7 @@ func parseAge(raw string) time.Duration {
 func recoveryRequest(r *http.Request) bool {
 	return strings.EqualFold(strings.TrimSpace(r.Header.Get("X-Vrooli-Recovery-Only")), "true")
 }
+
 func itemsBytes(items []Item) int64 {
 	var total int64
 	for _, item := range items {
@@ -193,6 +207,7 @@ func itemsBytes(items []Item) int64 {
 	}
 	return total
 }
+
 func writeJSON(w http.ResponseWriter, value any) {
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(value)

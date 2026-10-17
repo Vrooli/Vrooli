@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"mime/multipart"
 	"net"
@@ -13,6 +14,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"testing"
 	"time"
@@ -107,6 +109,28 @@ func TestProxyForwardsTransparentlyAndBrackets(t *testing.T) {
 	}
 }
 
+func TestStableAudio3CanonicalBoundaryMatchesOnlyComposeWork(t *testing.T) {
+	h, err := ForResource("stable-audio-3")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if h.DefaultListen != "127.0.0.1:8896" || h.DefaultUpstream != "127.0.0.1:18896" || h.Native {
+		t.Fatalf("wrong resource binding: %+v", h)
+	}
+	for _, tc := range []struct {
+		method, path string
+		want         bool
+	}{
+		{http.MethodPost, "/v1/compose", true}, {http.MethodGet, "/v1/compose", false},
+		{http.MethodGet, "/health", false}, {http.MethodGet, "/v1/outputs/abc/audio", false},
+		{http.MethodPost, "/v1/capacity/degrade", false},
+	} {
+		if got := h.Match(httptest.NewRequest(tc.method, tc.path, nil)); got != tc.want {
+			t.Errorf("%s %s matched=%t want=%t", tc.method, tc.path, got, tc.want)
+		}
+	}
+}
+
 func TestEveryAcceleratorResourceTransitionsActiveThenIdle(t *testing.T) {
 	cases := []struct {
 		resource string
@@ -117,6 +141,7 @@ func TestEveryAcceleratorResourceTransitionsActiveThenIdle(t *testing.T) {
 		{resource: "kokoro", method: http.MethodPost, path: "/v1/audio/speech"},
 		{resource: "kyutai-stt", method: http.MethodGet, path: "/v1/stream"},
 		{resource: "ace-step", method: http.MethodPost, path: "/v1/compose"},
+		{resource: "stable-audio-3", method: http.MethodPost, path: "/v1/compose"},
 		{resource: "speaker-verification", method: http.MethodPost, path: "/v1/verify"},
 		{resource: "ollama", method: http.MethodPost, path: "/api/chat"},
 		{resource: "reranker", method: http.MethodPost, path: "/rerank"},
@@ -422,3 +447,95 @@ type testAddr string
 
 func (a testAddr) Network() string { return "tcp" }
 func (a testAddr) String() string  { return string(a) }
+
+func TestIdleEdgeRenewsOwnClaimWithoutActivityOrResize(t *testing.T) {
+	var mu sync.Mutex
+	var calls []string
+	renewed := make(chan struct{}, 8)
+	h := &Handlers{Resource: "stable-audio-3", Stdout: io.Discard, Stderr: io.Discard, HeartbeatInterval: time.Millisecond, Exec: func(_ context.Context, _ string, args ...string) ([]byte, error) {
+		mu.Lock()
+		calls = append(calls, strings.Join(args, " "))
+		mu.Unlock()
+		if len(args) > 1 && args[1] == "list" {
+			return []byte(`{"claims":[{"claim_id":"other","owner_id":"ollama","generation":9},{"claim_id":"owned","owner_kind":"resource","owner_id":"stable-audio-3","generation":3,"status":"granted"}]}`), nil
+		}
+		if len(args) > 1 && args[1] == "heartbeat" {
+			select {
+			case renewed <- struct{}{}:
+			default:
+			}
+		}
+		return []byte(`{}`), nil
+	}}
+	stop, _ := h.startHeartbeat(&tracker{}, time.Now())
+	defer stop()
+	select {
+	case <-renewed:
+	case <-time.After(time.Second):
+		t.Fatal("idle resident never renewed its admitted claim")
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	for _, call := range calls {
+		if strings.Contains(call, "activity") || strings.Contains(call, "resize") || strings.Contains(call, "release") || strings.Contains(call, "claim-id other") {
+			t.Fatalf("liveness changed activity/footprint/another owner: %s", call)
+		}
+	}
+}
+
+func TestOldEdgeStopsRenewalOnParentGoneOrShutdownWithoutRelease(t *testing.T) {
+	for _, dead := range []bool{false, true} {
+		t.Run(fmt.Sprint(dead), func(t *testing.T) {
+			var gone atomic.Bool
+			renewed := make(chan struct{}, 8)
+			var callsMu sync.Mutex
+			var calls []string
+			h := &Handlers{Resource: "stable-audio-3", ParentPID: 42, ParentAlive: func(int) bool { return !gone.Load() }, Stdout: io.Discard, Stderr: io.Discard, HeartbeatInterval: time.Millisecond, Exec: func(_ context.Context, _ string, args ...string) ([]byte, error) {
+				callsMu.Lock()
+				calls = append(calls, strings.Join(args, " "))
+				callsMu.Unlock()
+				if len(args) > 1 && args[1] == "list" {
+					return []byte(`{"claims":[{"claim_id":"reused-on-restart","owner_id":"stable-audio-3","owner_kind":"resource","generation":4}]}`), nil
+				}
+				if len(args) > 1 && args[1] == "heartbeat" {
+					select {
+					case renewed <- struct{}{}:
+					default:
+					}
+				}
+				return []byte(`{}`), nil
+			}}
+			stop, finished := h.startHeartbeat(&tracker{}, time.Now())
+			defer stop()
+			select {
+			case <-renewed:
+			case <-time.After(time.Second):
+				t.Fatal("missing immediate handoff renewal")
+			}
+			if dead {
+				gone.Store(true)
+				select {
+				case <-finished:
+				case <-time.After(time.Second):
+					t.Fatal("parent-death tick did not autonomously end renewal")
+				}
+			}
+			stop()
+			stop() // bounded joined, idempotent cleanup, no background ledger writes.
+			callsMu.Lock()
+			n := len(calls)
+			for _, call := range calls {
+				if strings.Contains(call, "release") {
+					t.Fatalf("old edge released replacement: %s", call)
+				}
+			}
+			callsMu.Unlock()
+			time.Sleep(3 * time.Millisecond)
+			callsMu.Lock()
+			defer callsMu.Unlock()
+			if len(calls) != n {
+				t.Fatal("renewal leaked after joined shutdown")
+			}
+		})
+	}
+}

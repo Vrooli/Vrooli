@@ -50,6 +50,7 @@ func (r *Registry) Register(provider Provider) error {
 	}
 	return nil
 }
+
 func (r *Registry) Validate() error {
 	var missing []string
 	for op, providers := range r.byOperation {
@@ -70,6 +71,7 @@ func (r *Registry) Validate() error {
 	}
 	return nil
 }
+
 func (r *Registry) Select(ctx context.Context, operation string) (Provider, error) {
 	providers := r.byOperation[operation]
 	if len(providers) == 0 {
@@ -87,6 +89,7 @@ func (r *Registry) Select(ctx context.Context, operation string) (Provider, erro
 	}
 	return nil, fmt.Errorf("%w: %s", ErrNoneAvailable, operation)
 }
+
 func (r *Registry) Operations() []string {
 	out := make([]string, 0, len(r.byOperation))
 	for op := range r.byOperation {

@@ -94,7 +94,12 @@ checksum-governed Kyutai artifact.
 **Refs:** `vrooli resource install kyutai-stt --reacquire`; Plan Manager finding
 `ebf5fcb4-9c1b-4a9d-99a9-e524f4a510a7`.
 
-### 2026-08-19 — Declared resources do not exist yet
+### 2026-08-19 — Declared resources do not exist yet (partially superseded)
+
+**2026-10-16 reconciliation:** ACE-Step now exists and is enabled/required in
+service.json. Composition, jobs, pool and storage are implemented. music-mir and
+the broader analysis runtime remain unbuilt. The historical symptom below is
+not a current instruction to recreate ACE-Step.
 
 **Symptom:** `PRD.md`, `ARCHITECTURE.md`, and `INTEGRATIONS.md` describe `ace-step`
 and `music-mir` as required managed-service resources. Neither exists under
@@ -346,8 +351,8 @@ a migration handoff with a planned retirement path back into
 | Area | Drift | Maturity Impact | Real Fix |
 |---|---|---|---|
 | Template contract | The generated `react-vite` manifest requires README headings (`What You Get`, `Customize Safely`) and reference-doc headings (`Notes (CRUD reference)`) that the same template version does not emit. `audio-tools` shows the identical mismatch, so this is template-wide, not local. | Fails doc validation on every newly generated scenario. | Upstream: reconcile `templates/scenarios/react-vite` manifest `requiredHeadings` with what the template emits. Locally the README headings were aligned; the `notes` example headings were left alone because `detemplate` removes them. |
-| Resource wiring | Docs declare two required resources; `.vrooli/service.json` declares none. | Blocks `implemented`. | Create the resources and declare them. |
-| Domain scaffolding | `DOMAINS.md` declares twelve domains; the generated `notes` example domain is still present and none of the twelve exist in code. | Expected at `generated`; blocks `implemented`. | Detemplate, then build domains in the launch order in `PRD.md`. |
+| Resource wiring | ACE-Step exists and is enabled/required. music-mir remains planned. | Full analysis scope remains unimplemented; composition is available independently. | Build music-mir only under its authorized analysis scope; do not recreate ACE-Step. |
+| Domain inventory | Composition/styles/jobs/pool/storage/model/cleanup exist; the full declared analysis/transform inventory does not. | Partial implementation, not whole-scenario readiness. | Reconcile each unbuilt domain with its PRD obligation before implementation; no blanket scaffold rebuild. |
 
 ## Cross-references
 
@@ -356,3 +361,107 @@ a migration handoff with a planned retirement path back into
 - [`TESTING.md`](TESTING.md) — test patterns
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — generic-template issues
 - [`../reference/model-registry.md`](../reference/model-registry.md) — model evidence and confidence labels
+
+
+## Work ladder
+
+### 2026-10-15 — Reduced capacity admission rejected (W3, repaired)
+
+A localized implementation defect: `internal/capacity/types.go` admits both `grant` and `degrade`, but the Music Tools CLI adapter accepted only `grant`. Live composition jobs failed with “granted step offload-dit” presented as a denial. The focused regression reproduced this before the fix and now covers full/reduced grants plus queue/deny rejection. Profile metadata and the release callback remain intact.
+
+`go test -v ./internal/capacity ./handlers/composition` passed. Governed scenario restart healthy. Two live two-take batches succeeded under the reduced rung without stopping shared tenants. Scoped Test Genie unit run `20261015-185612-97316999` remains FAIL in the unrelated UI `test:coverage` command; no W0–W2 or full-suite certification claimed. Evidence and live job IDs: `/home/matthalloran8/.vrooli/plan-artifacts/efforts/product-video-research-2026-10-15/revision-03/music/capacity-repair.md`.
+
+## 2026-10-16 launch-video delivery repair
+
+Scoped W3 behavior: local PCM arrangement replaces the repeatedly shortened
+FFmpeg filter graph, and the Audition page loads immutable audio blobs before
+playback, records cut-specific choices without discarding takes, and exports an
+operator attestation bound to those same bytes. Focused CLI/UI/type evidence and
+the 34.119-second retained-source rehearsal live in
+`~/.vrooli/plan-artifacts/efforts/product-video-research-2026-10-15/process-updates/`.
+No new model inference or shared resource lifecycle action was needed.
+
+Test Genie unit run `20261016-134901-7ccbd488` remained non-green: the UI coverage
+command reported functions 74.19% and branches 79.78%, below the retained 85% floor.
+Focused assertions pass; this is not whole-scenario certification. Earlier QA
+`knw-1792091248952297950` tracks broader validation failure. Subsequent source/UI
+changes need their own focused receipts; this run is not exact-current evidence.
+
+## 2026-10-16 video-toolchain reliability repairs
+
+Owner changes replace whole-timeline arrangement allocation with snapshotted,
+bounded disk spools and chunked exact PCM mixing. Complete output bundles stage
+before publication under a cooperating-writer lock. Cancellation covers copy,
+decode and mix. The lock is not a portable fence against arbitrary external
+writers; hard-killed processes may require explicit owned-scratch cleanup.
+
+Composition now uses one durable engine. Pool load/mutations surface persistence
+errors before exposing changes. Terminal jobs publish only after save; failed
+finalization retains the result and Get/Wait retry that save without rerunning
+model work. Process restart still marks interrupted jobs failed and retains
+already completed pool takes; no automatic inference resumption is claimed.
+Constructor DDL/ignored ALTER was retired. Older incompatible dev schema needs
+an explicit owner maintenance step; it is not silently mutated at runtime.
+
+Generated WAV ingestion is bounded/streamed, verifies PCM framing/declared bytes,
+and records actual resource model/rung identity. Ownership receipts restore byte
+accounting with protection until the pool reapplies state. Historical outputs
+without receipts are counted and protected conservatively, not silently evicted.
+Legacy adoption/cleanup remains explicit. Capacity operation claims heartbeat;
+loss cancels the owned job, and release has a bounded diagnostic path. A resource
+requiring restart to apply degradation is refused; Music performs no host repair.
+
+Audition is a bounded candidate session with job filtering, unload, hash-bound
+findings, explicit draft save/restore and generated-schema provenance parsing.
+Encoded-byte bounds do not assert a browser heap hard cap. Drafts and exported
+reviews remain operator attestations, not proof an agent heard audio.
+
+Fresh source validation and remaining production qualification are recorded in
+`~/.vrooli/plan-artifacts/efforts/video-toolchain-reliability-2026-10-16/implementation/music.md`.
+Live services/resources were not restarted by this implementation. Older running
+ACE-Step builds lack required output-identity headers and will be refused until
+an authorized managed activation; do not bypass identity checks to get footage.
+
+### Independent review corrections (2026-10-16)
+
+Cleanup now conditionally deletes an exact eligible ownership/content/access
+snapshot under the same storage lock as reservation persistence. A deletion
+that wins first makes reservation refuse missing audio; the pool persists that
+take as unavailable, excludes it from ready depth and requests refill under its
+existing threshold policy. Provenance is retained. Pool targets are 1–100;
+unsupported persisted inventory policy fails loudly instead of admitting an
+impossible batch. Terminal job cache is bounded (default 256 persisted terminal
+entries) without deleting durable rows, pending failed finalizations or active
+subscribers. Historical Get/Wait/Subscribe retain durable recovery.
+
+ACE-Step refuses capacity acknowledgement while loading and validates the
+admitted expected rung before inference. Historical DB failures no longer become
+404. Saturated subscribers retain a terminal event. Draft restore reconciles
+playback/attestation hashes and cancels in-flight loads before replacing state.
+Evidence and remaining qualification limits: effort implementation/music-review-fixes.md.
+
+### Lyrics, effective seeds and partial-profile honesty (2026-10-16)
+
+Style-owned lyrics now round-trip through the portable decoder and durable
+composition snapshots; absent legacy lyrics remain instrumental. Launch consumers
+must check original source-job intent and listen for actual lyrics/vocals. A style
+ID alone cannot establish instrumentality, especially after delete/recreate.
+English remains the configured resource language; no vocal-quality or multilingual
+qualification is claimed.
+
+Fresh compose admissions choose a base seed once unless an explicit signed-int64
+base is provided (zero is valid). The queued snapshot retains it. Per-take seeds
+are uint32 and ingestion requires an actual matching upstream receipt plus bounded
+profile headers. Historical planned seeds are not actual-seed proof; old output
+rows are not rewritten. Optional shift is sampling control, not vocal-mode control.
+
+A newly discovered durable bug allowed a late worker to overwrite a recovered
+terminal job. Active-state conditional writes now adopt the first authoritative
+terminal result, including pending-save retries. Completed partial profile facts
+survive failed/cancelled batches only if their worker wins that write; late facts
+can remain unknown. This is not a distributed running-worker lease, automatic
+inference recovery or style-versioning repair. The source changes require normal
+paired Music/ACE activation; source tests do not establish current live adoption.
+Evidence: effort `implementation/music-lyrics-seed-profile.md` and its retained
+red/green receipts. Broad UI coverage debt and whole-scenario qualification remain
+as documented above.

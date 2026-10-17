@@ -6,11 +6,11 @@
 > draw/status/configure. Analysis, models, and
 > durable infrastructure commands remain in the implementation plan.
 
-The scenario CLI is a thin Go wrapper over the API. Every command
-calls a single API endpoint and renders the result; there is no
-business logic in the CLI. If a command needs to make a decision the
-API doesn't expose, the correct fix is to add the API endpoint —
-**not** to compute it locally.
+Scenario-state and model operations run through the API. The bounded
+`delivery arrange` file operation runs locally because its inputs are caller-local
+media, not server paths. It starts no resources, writes no scenario state and
+selects no takes. It is an explicit local-file exception, not a second job queue.
+Move remote artifact arrangements into the server-owned job domain when required.
 
 The CLI binary is built from `cli/`, installed by `make setup` to
 `~/.vrooli/bin/music-tools`, and rebuilt automatically when its
@@ -139,7 +139,7 @@ Requirement IDs are from
 
 | Command | Domain | Requirement | Notes |
 |---|---|---|---|
-| `music-tools compose <brief> --takes <n> --wait` | composition | `MUS-P0-012`, `MUS-P0-013` | Produces **N takes**, not one track — see the 2026-09-18 batch decision in [`../internal/DECISIONS.md`](../internal/DECISIONS.md). `--takes` defaults above 1. |
+| `music-tools compose --style <id> --takes <n> [--seed <int64>] [--shift <1..5>]` | composition | `MUS-P0-012`, `MUS-P0-013` | Produces **N takes**, not one track — see the 2026-09-18 batch decision in [`../internal/DECISIONS.md`](../internal/DECISIONS.md). `--takes` defaults above 1. |
 | `music-tools styles {list,get,create,compile}` | styles | `OT-P0-007` | A style compiles to a caption plus parameters. This is the unit a batch and an inventory are configured with. |
 | `music-tools takes {list,get,reserve,consume,release,discard}` | composition | — | The reservation lifecycle in [`../concepts/DATA.md`](../concepts/DATA.md#the-reservation-lifecycle). `release` is the "give me a different one" path and must be cheap — it regenerates nothing. The scenario records what was reserved and passed over; it does not infer preference from it. |
 | `music-tools pool {status,draw,configure}` | composition | `OT-P1-005` | `draw` is the consumer's one-call path: reserve a ready take in a named style, or say the pool is empty. `configure` sets target depth and replenish threshold per style. |
@@ -158,9 +158,68 @@ Two shape constraints inherited from decisions, not preferences:
   this one command, so the ordinary CLI HTTP deadline cannot interrupt a long
   composition batch. Caller cancellation still ends the wait without canceling
   the server-owned job; use `jobs get` to recover its durable state.
-- **Bytes do not ride proto.** Following `image-tools`, discovery and metadata
-  are Connect-RPC while any edge carrying audio is a REST multipart endpoint
-  with proto-typed parameters. See [`api-endpoints.md`](api-endpoints.md).
+- **Composition parameters use the generated submit contract.** The current
+  style-based path is REST JSON; audio retrieval is separate. See
+  [`api-endpoints.md`](api-endpoints.md).
+
+## Portable style files
+
+`music-tools styles create --file style.json` and `styles import --file style.json`
+send a direct portable Style document. Use the flat shape documented in
+[`api-endpoints.md`](api-endpoints.md#implemented-style-json-ingress), with BPM,
+duration and the other parameters at the top level. A legitimate legacy nested
+`params` file is also supported. Unknown/mixed fields and trailing JSON fail;
+they do not silently become a parameter-free style. The portable ingress bound
+is1MiB. Compilation, not draft creation, requires positive BPM and duration.
+
+For a file using the example ID `driving-rave`:
+
+```bash
+music-tools styles create --file style.json
+music-tools styles compile driving-rave
+music-tools styles export driving-rave > style-export.json
+# Import under a new custom ID so the existing record is not shadowed.
+music-tools styles import --file style-export.json --id driving-rave-copy
+music-tools styles compile driving-rave-copy
+```
+
+Compilation exposes the caption and complete parameter tuple; inspect that
+result before submitting a composition job. Exported flat JSON can also be
+used as a create input. Normal server adoption is required for newly repaired
+ingress behavior; the CLI already forwards the file's fields unchanged.
+
+## Song lyrics and repeatable comparisons
+
+Create/import a separate vocal style with an original UTF-8 lyrics file:
+
+```bash
+music-tools styles create --file song-style.json --lyrics-file original-lyrics.txt
+music-tools styles compile my-song
+music-tools styles export my-song > my-song-export.json
+music-tools styles import --file my-song-export.json --id my-song-copy
+```
+
+`--lyrics-file` works on both create and import and explicitly overrides a `lyrics`
+field already in the JSON file. It preserves text/newlines and rejects unreadable,
+empty, whitespace-only or invalid UTF-8 files. Omit the option for a legacy/default
+instrumental style, or use `"lyrics":"[instrumental]"`. There is no compose-time
+lyrics override; export/import carries the style's lyrics.
+
+```bash
+music-tools compose --style driving-rave --takes 1 --seed 424242 --shift 1
+music-tools compose --style driving-rave --takes 1 --seed 424242 --shift 3
+# Attach once to each returned job ID:
+music-tools jobs wait <job-id>
+```
+
+Omitting `--seed` chooses a fresh base once at admission; explicit `--seed 0` is a
+repeatable base. Signed-int64 bases derive uint32 effective per-take seeds. Keep
+caption/model/profile and duration fixed for a useful shift comparison. Omitted
+`--shift` preserves the loaded profile default; explicit values must be finite1..5.
+Inspect actual job `generation_profiles` and source-job lyrics intent before
+selection. Older takes' actual seeds are unknown without the verified receipt.
+Song intent does not certify audible vocals, language or quality; launch videos
+must use instrumental intent and be auditioned for actual lyric/vocal absence.
 
 ## Output contracts
 
@@ -256,3 +315,81 @@ For a command inside an existing domain:
 - [`configuration.md`](configuration.md) — env vars and config-file precedence
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — fixes for "API unreachable", auth, stale binary
 - [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md#inside-the-cli-thin-wrapper-domain-organized) — CLI architecture
+
+## `music-tools delivery arrange`
+
+```bash
+music-tools delivery arrange --recipe arrangement.json --out arranged-v2
+```
+
+No API, GPU or model download is needed. Requires an existing FFmpeg. Output must
+be a new directory. It contains `arranged.wav`, exact `recipe.json`, and
+`receipt.json` with source/recipe/output SHA-256, sample count, rate and channels.
+Listening remains `unreviewed`. File output is automation-shaped JSON so a video
+production can bind exact sample arithmetic and provenance without parsing prose.
+
+Recipe version 1:
+
+```json
+{
+  "version": 1,
+  "segments": [
+    {"source": "take.wav", "start": 0, "end": 22.069},
+    {"source": "take.wav", "start": 11.034, "end": 13.793},
+    {"source": "take.wav", "start": 22.069, "end": 31.4}
+  ],
+  "crossfade": 0.02,
+  "expected_samples": 1637712
+}
+```
+
+Paths resolve beside the recipe; optional per-segment `sha256` pins source bytes.
+At 48 kHz, stereo, these segments imply exactly 34.119 seconds. The program checks
+the caller's expected sample frames against independently rounded segment sample
+bounds minus overlap. It snapshots each regular source, decodes separately into bounded disk PCM
+spools and crossfades fixed-size blocks; it does not use the split/trim/acrossfade graph that shortened an earlier
+34.119-second arrangement to 23.115 seconds. Float gain uses linear crossfades;
+output is 16-bit PCM. Listen to seams and dynamics before accepting the edit.
+
+Limits: 1–32 segments, at most eight sources, 600 seconds of output, 128 MiB per
+decoded source, 256 MiB total decoded source bytes, 90-second deadline, two FFmpeg
+threads. Crossfade is 0–2 seconds and at most half any segment. Changed hashes,
+invalid sample arithmetic, out-of-source trims and existing output paths fail.
+Raw snapshot limits are 256 MiB per source / 512 MiB total. Interrupt cancels
+owned copy/decode/mix work. Output publishes as a complete staged bundle under a
+sibling `.arrange-lock` directory; existing destinations fail. Cooperating owner
+writers honor the lock; arbitrary external rename races are not fenced. Hard
+termination may leave owned scratch/lock paths requiring explicit inspection and
+cleanup. Receipt includes decoder and algorithm identity. No lifecycle or shared-tenant action occurs.
+
+## Operator audition
+
+The Audition page uses actual take-audio endpoints, pauses other players when a
+new one starts, surfaces playback failures and retains all candidates. Keep/reject
+is a cut-specific review choice; it does not delete or reserve pool takes. An
+operator confirms listening, adds notes and exports a JSON review. Audio is loaded once into a bounded immutable browser blob. Playback and export
+use that same byte hash. Export records listener, time, take/job and provenance. It
+cannot approve a later final-video mix or establish that an agent heard audio.
+
+Audition lists at most 20 candidates at once; filter by job to select another
+batch. A session retains at most 100 candidate findings and 256 MiB of encoded
+audio (64 MiB/source); decoder/heap costs are additional. Unload playback bytes
+without deleting source takes or hash-bound findings. Save/restore a bounded local
+review draft explicitly. Export records cut identity (or explicit unspecified
+cut), reviewer, source identity, listening time and actual findings. A playback
+failure invalidates that candidate's listening attestation until resolved.
+
+`takes list --job <id> --limit 100` covers the largest supported batch. The limit
+is 1–100; filter by job/style for additional inventory. HTTP listing sets
+`X-Music-Takes-Truncated: true` when the requested limit omits peers.
+
+Get/Wait can return a persistence-unavailable error after successful media work.
+Retry the same job read to finalize retained metadata; do not submit new model
+work to repair a database outage. Durable List remains a database observation.
+
+Pool inventory targets accept 1–100, matching a supported composition batch.
+When authorized cleanup has removed an available candidate, selection records its
+pool state as `unavailable` and requests refill using the existing threshold.
+The take's provenance remains queryable. Job terminal caching is bounded; evicted
+terminal jobs still support durable Get/Wait and one-result terminal subscription.
+This does not delete jobs or their output media.

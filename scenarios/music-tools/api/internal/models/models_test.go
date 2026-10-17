@@ -15,6 +15,7 @@ func TestUnknownLicenceDefaultsRestricted(t *testing.T) {
 		t.Fatal("unknown licence resolved in permissive build")
 	}
 }
+
 func TestPermissiveModelResolves(t *testing.T) {
 	r := New(true, Model{ID: "ace", Licence: LicencePermissive})
 	if _, err := r.Resolve("ace"); err != nil {

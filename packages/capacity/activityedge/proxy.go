@@ -79,6 +79,7 @@ var resourceSpecs = map[string]resourceSpec{
 	"kokoro":               {listen: "127.0.0.1:8880", upstream: "127.0.0.1:18880", methods: []string{http.MethodPost}, paths: []string{"/v1/audio/speech"}},
 	"kyutai-stt":           {listen: "127.0.0.1:8094", upstream: "127.0.0.1:18094", methods: []string{http.MethodGet}, paths: []string{"/v1/stream"}},
 	"ace-step":             {listen: "127.0.0.1:8895", upstream: "127.0.0.1:18895", methods: []string{http.MethodPost}, paths: []string{"/v1/compose", "/v1/capacity/degrade"}},
+	"stable-audio-3":       {listen: "127.0.0.1:8896", upstream: "127.0.0.1:18896", methods: []string{http.MethodPost}, paths: []string{"/v1/compose"}},
 	"speaker-verification": {listen: "127.0.0.1:11452", upstream: "127.0.0.1:21452", methods: []string{http.MethodPost}, paths: []string{"/v1/profiles", "/v1/verify", "/v1/extract"}},
 	"ollama":               {listen: "127.0.0.1:11434", upstream: "127.0.0.1:21434", methods: []string{http.MethodPost}, paths: []string{"/api/generate", "/api/chat", "/api/embed", "/api/embeddings"}},
 	"reranker":             {listen: "127.0.0.1:11453", upstream: "127.0.0.1:21453", methods: []string{http.MethodPost}, paths: []string{"/rerank", "/v1/rerank"}},
@@ -87,9 +88,10 @@ var resourceSpecs = map[string]resourceSpec{
 // Handlers owns the proxy's dependencies. Tests inject the seams so no real
 // server, exec, or clock is needed.
 type Handlers struct {
-	Stdout io.Writer
-	Stderr io.Writer
-	GetEnv func(string) string
+	diagnosticMu sync.Mutex
+	Stdout       io.Writer
+	Stderr       io.Writer
+	GetEnv       func(string) string
 	// Exec runs a `vrooli capacity …` call and returns its stdout. Tests inject a
 	// fake; production shells the on-PATH vrooli binary.
 	Exec func(ctx context.Context, name string, args ...string) ([]byte, error)
@@ -233,14 +235,14 @@ func (h *Handlers) Run(args []string) error {
 	started := h.now()
 	srv, tr, err := h.serverWithTrackerMode(*listen, *upstream, *debounce, *native)
 	if err != nil {
-		fmt.Fprintf(h.Stderr, "activity-edge exit: reason=server-build err=%v\n", err)
+		h.errorf("activity-edge exit: reason=server-build err=%v\n", err)
 		return err
 	}
 
 	ln, err := h.listen("tcp", *listen)
 	if err != nil {
 		err = fmt.Errorf("listen on %s: %w", *listen, err)
-		fmt.Fprintf(h.Stderr, "activity-edge exit: reason=listen-error err=%v\n", err)
+		h.errorf("activity-edge exit: reason=listen-error err=%v\n", err)
 		return err
 	}
 	fmt.Fprintf(h.Stdout, "%s activity edge: %s -> %s (idle debounce %s)\n", h.resource(), *listen, *upstream, *debounce)
@@ -249,12 +251,12 @@ func (h *Handlers) Run(args []string) error {
 	if stopSignals != nil {
 		defer stopSignals()
 	}
-	heartbeatStop := h.startHeartbeat(tr, started)
+	heartbeatStop, _ := h.startHeartbeat(tr, started, parentPID)
 	defer heartbeatStop()
 
 	errCh := make(chan error, 1)
 	go func() { errCh <- srv.Serve(ln) }()
-	parentTicker := time.NewTicker(h.heartbeatInterval())
+	parentTicker := time.NewTicker(h.livenessInterval())
 	defer parentTicker.Stop()
 
 	for {
@@ -264,7 +266,7 @@ func (h *Handlers) Run(args []string) error {
 				shutCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 				defer cancel()
 				_ = srv.Shutdown(shutCtx)
-				fmt.Fprintln(h.Stderr, "activity-edge exit: reason=parent_gone")
+				h.errorf("%s\n", "activity-edge exit: reason=parent_gone")
 				return nil
 			}
 			continue
@@ -273,17 +275,17 @@ func (h *Handlers) Run(args []string) error {
 			defer cancel()
 			err := srv.Shutdown(shutCtx)
 			if err != nil {
-				fmt.Fprintf(h.Stderr, "activity-edge exit: reason=signal sig=%s shutdown_error=%v\n", sig, err)
+				h.errorf("activity-edge exit: reason=signal sig=%s shutdown_error=%v\n", sig, err)
 				return err
 			}
-			fmt.Fprintf(h.Stderr, "activity-edge exit: reason=signal sig=%s\n", sig)
+			h.errorf("activity-edge exit: reason=signal sig=%s\n", sig)
 			return nil
 		case err := <-errCh:
 			if err == http.ErrServerClosed {
-				fmt.Fprintln(h.Stderr, "activity-edge exit: reason=server-closed")
+				h.errorf("%s\n", "activity-edge exit: reason=server-closed")
 				return nil
 			}
-			fmt.Fprintf(h.Stderr, "activity-edge exit: reason=serve-error err=%v\n", err)
+			h.errorf("activity-edge exit: reason=serve-error err=%v\n", err)
 			return err
 		}
 	}
@@ -626,22 +628,61 @@ func (h *Handlers) now() time.Time {
 	return time.Now()
 }
 
-func (h *Handlers) startHeartbeat(tr *tracker, since time.Time) func() {
-	interval := h.heartbeatInterval()
-	ticker := time.NewTicker(interval)
+// livenessInterval is separate from the diagnostic alive-log interval: a
+// resident must renew before the canonical TTL even when it receives no work.
+func (h *Handlers) livenessInterval() time.Duration {
+	interval := tuning.CapacityHeartbeatTTL() / 3
+	if h.HeartbeatInterval > 0 && h.HeartbeatInterval < interval {
+		interval = h.HeartbeatInterval
+	}
+	return interval
+}
+
+func (h *Handlers) startHeartbeat(tr *tracker, since time.Time, parentPIDs ...int) (func(), <-chan struct{}) {
+	parentPID := h.ParentPID
+	if len(parentPIDs) > 0 {
+		parentPID = parentPIDs[0]
+	}
+	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
 	go func() {
+		defer close(done)
+		liveTicker := time.NewTicker(h.livenessInterval())
+		defer liveTicker.Stop()
+		logTicker := time.NewTicker(h.heartbeatInterval())
+		defer logTicker.Stop()
+		renew := func() bool {
+			if h.parentGone(parentPID) {
+				return false
+			}
+			if h.Exec == nil {
+				return true
+			}
+			callCtx, stop := context.WithTimeout(ctx, h.livenessInterval())
+			defer stop()
+			if err := (companion.Reporter{Resource: h.resource(), Exec: h.Exec}).Heartbeat(callCtx); err != nil && ctx.Err() == nil {
+				h.errorf("activity-edge capacity renewal (%s): %v\n", h.resource(), err)
+			}
+			return true
+		}
+		if !renew() {
+			return
+		}
 		for {
 			select {
-			case <-ticker.C:
-				h.logHeartbeat(tr, since)
-			case <-done:
-				ticker.Stop()
+			case <-ctx.Done():
 				return
+			case <-liveTicker.C:
+				if !renew() {
+					return
+				}
+			case <-logTicker.C:
+				h.logHeartbeat(tr, since)
 			}
 		}
 	}()
-	return func() { close(done) }
+	var once sync.Once
+	return func() { once.Do(func() { cancel(); <-done }) }, done
 }
 
 func (h *Handlers) logHeartbeat(tr *tracker, since time.Time) {
@@ -709,4 +750,14 @@ func (t *tracker) snapshot() (uint64, bool) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	return t.requests, t.active
+}
+
+// Renewal and shutdown diagnostics can run concurrently. Writers supplied by
+// callers (including buffers) need not be concurrency-safe.
+func (h *Handlers) errorf(format string, args ...any) {
+	h.diagnosticMu.Lock()
+	defer h.diagnosticMu.Unlock()
+	if h.Stderr != nil {
+		fmt.Fprintf(h.Stderr, format, args...)
+	}
 }

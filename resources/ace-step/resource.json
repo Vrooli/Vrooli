@@ -45,10 +45,10 @@
     },
     "artifact": {
       "path": "server/ace-step",
-      "version": "1.1.0-ca1e85fe",
+      "version": "1.1.5-ca1e85fe",
       "layout": "dir",
       "entry_path": "runtime/bin/python",
-      "sha256_by_platform": {"linux-amd64": "f84cc276ea13a5328bc208340ed7e6b859d57bb62870ee6fda77acf8dca42cc3"},
+      "sha256_by_platform": {"linux-amd64": "937961b1bd3b77ba160521eea97dcada2e4b638379ea1cf4d60f557e67d0e2d2"},
       "bundle_artifact": "resource-ace-step_${os}_${arch}"
     },
     "acquisition": {
@@ -59,7 +59,7 @@
         {
           "when": {"os": "linux", "arch": "amd64", "gpu.cuda_compute": ">=8.9"},
           "layout": "dir",
-          "artifact_sha256": "f84cc276ea13a5328bc208340ed7e6b859d57bb62870ee6fda77acf8dca42cc3",
+          "artifact_sha256": "937961b1bd3b77ba160521eea97dcada2e4b638379ea1cf4d60f557e67d0e2d2",
           "runtime_env": {"ACE_STEP_DEVICE": "cuda", "ACE_STEP_VARIANT": "acestep-v15-turbo"},
           "compose": [
             {
@@ -115,22 +115,6 @@
         }
       },
       {
-        "name": "turbo-remote-code-configuration",
-        "path": "checkpoints/acestep-v15-turbo/configuration_acestep_v15.py",
-        "acquisition": {
-          "kind": "url", "license": "MIT", "provenance": {"kind": "none"},
-          "targets": [{"url": "https://huggingface.co/ACE-Step/Ace-Step1.5/resolve/19671f406d603126926c1b7e2adc169acbcade22/acestep-v15-turbo/configuration_acestep_v15.py", "sha256": "b89870c5c7a7ce060eb0bcdbb5ffc86b0b1a324ca325a26be552ea1b42496dc5", "layout": "file"}]
-        }
-      },
-      {
-        "name": "turbo-remote-code-modeling",
-        "path": "checkpoints/acestep-v15-turbo/modeling_acestep_v15_turbo.py",
-        "acquisition": {
-          "kind": "url", "license": "MIT", "provenance": {"kind": "none"},
-          "targets": [{"url": "https://huggingface.co/ACE-Step/Ace-Step1.5/resolve/19671f406d603126926c1b7e2adc169acbcade22/acestep-v15-turbo/modeling_acestep_v15_turbo.py", "sha256": "c1ab0dd547124fee7ada449b2b86eae8201dc7d15889932643bbb67e3c982444", "layout": "file"}]
-        }
-      },
-      {
         "name": "turbo-silence-latent",
         "path": "checkpoints/acestep-v15-turbo/silence_latent.pt",
         "acquisition": {
@@ -152,22 +136,6 @@
         "acquisition": {
           "kind": "url", "license": "MIT", "provenance": {"kind": "none"},
           "targets": [{"url": "https://huggingface.co/ACE-Step/acestep-v15-sft/resolve/c410d249e71ea9385a7b586865e65b1473e1098d/config.json", "sha256": "9bb4f832f2e5e6c8bf7bddab3c6a6da1b13c01d072efbf0ed3c830536c473359", "layout": "file"}]
-        }
-      },
-      {
-        "name": "sft-remote-code-configuration",
-        "path": "checkpoints/acestep-v15-sft/configuration_acestep_v15.py",
-        "acquisition": {
-          "kind": "url", "license": "MIT", "provenance": {"kind": "none"},
-          "targets": [{"url": "https://huggingface.co/ACE-Step/acestep-v15-sft/resolve/c410d249e71ea9385a7b586865e65b1473e1098d/configuration_acestep_v15.py", "sha256": "b89870c5c7a7ce060eb0bcdbb5ffc86b0b1a324ca325a26be552ea1b42496dc5", "layout": "file"}]
-        }
-      },
-      {
-        "name": "sft-remote-code-modeling",
-        "path": "checkpoints/acestep-v15-sft/modeling_acestep_v15_base.py",
-        "acquisition": {
-          "kind": "url", "license": "MIT", "provenance": {"kind": "none"},
-          "targets": [{"url": "https://huggingface.co/ACE-Step/acestep-v15-sft/resolve/c410d249e71ea9385a7b586865e65b1473e1098d/modeling_acestep_v15_base.py", "sha256": "5e3b475d46965dcd5b0d037e53a9af359305a7dbd78e2ee08b39e94c4b02ca48", "layout": "file"}]
         }
       },
       {
@@ -265,8 +233,41 @@
       {
         "name": "text-encoder-vocab", "path": "checkpoints/Qwen3-Embedding-0.6B/vocab.json",
         "acquisition": {"kind": "url", "license": "MIT", "provenance": {"kind": "none"}, "targets": [{"url": "https://huggingface.co/ACE-Step/Ace-Step1.5/resolve/19671f406d603126926c1b7e2adc169acbcade22/Qwen3-Embedding-0.6B/vocab.json", "sha256": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910", "layout": "file"}]}
+      },
+      {
+        "name": "bundled-planner-config", "path": "checkpoints/acestep-5Hz-lm-1.7B/config.json",
+        "acquisition": {"kind": "url", "license": "MIT", "provenance": {"kind": "none"}, "targets": [{"url": "https://huggingface.co/ACE-Step/Ace-Step1.5/resolve/19671f406d603126926c1b7e2adc169acbcade22/acestep-5Hz-lm-1.7B/config.json", "sha256": "73515ca4bfd86a5b56f28bf680311d1911e159c85d7f7ceb2188e310007c9010", "layout": "file"}]}
+      },
+      {
+        "name": "bundled-planner-tokenizer", "path": "checkpoints/acestep-5Hz-lm-1.7B/tokenizer.json",
+        "acquisition": {"kind": "url", "license": "MIT", "provenance": {"kind": "none"}, "targets": [{"url": "https://huggingface.co/ACE-Step/Ace-Step1.5/resolve/19671f406d603126926c1b7e2adc169acbcade22/acestep-5Hz-lm-1.7B/tokenizer.json", "sha256": "35af56c3f5cb3ea2cc578aa28a8937770981d504f183ac5c8c38baf4bbd4af4d", "layout": "file"}]}
+      },
+      {
+        "name": "bundled-planner-tokenizer-config", "path": "checkpoints/acestep-5Hz-lm-1.7B/tokenizer_config.json",
+        "acquisition": {"kind": "url", "license": "MIT", "provenance": {"kind": "none"}, "targets": [{"url": "https://huggingface.co/ACE-Step/Ace-Step1.5/resolve/19671f406d603126926c1b7e2adc169acbcade22/acestep-5Hz-lm-1.7B/tokenizer_config.json", "sha256": "6cd70cdd89425971794f5235562edcc608b0629a6c4686ae51a8b8c8b8ba5e95", "layout": "file"}]}
+      },
+      {
+        "name": "bundled-planner-chat-template", "path": "checkpoints/acestep-5Hz-lm-1.7B/chat_template.jinja",
+        "acquisition": {"kind": "url", "license": "MIT", "provenance": {"kind": "none"}, "targets": [{"url": "https://huggingface.co/ACE-Step/Ace-Step1.5/resolve/19671f406d603126926c1b7e2adc169acbcade22/acestep-5Hz-lm-1.7B/chat_template.jinja", "sha256": "a55ee1b1660128b7098723e0abcd92caa0788061051c62d51cbe87d9cf1974d8", "layout": "file"}]}
+      },
+      {
+        "name": "bundled-planner-added-tokens", "path": "checkpoints/acestep-5Hz-lm-1.7B/added_tokens.json",
+        "acquisition": {"kind": "url", "license": "MIT", "provenance": {"kind": "none"}, "targets": [{"url": "https://huggingface.co/ACE-Step/Ace-Step1.5/resolve/19671f406d603126926c1b7e2adc169acbcade22/acestep-5Hz-lm-1.7B/added_tokens.json", "sha256": "db08b66a515fb5d6acca0b3492d25bb44e0deda6241fc1113ac0679d40558c48", "layout": "file"}]}
+      },
+      {
+        "name": "bundled-planner-merges", "path": "checkpoints/acestep-5Hz-lm-1.7B/merges.txt",
+        "acquisition": {"kind": "url", "license": "MIT", "provenance": {"kind": "none"}, "targets": [{"url": "https://huggingface.co/ACE-Step/Ace-Step1.5/resolve/19671f406d603126926c1b7e2adc169acbcade22/acestep-5Hz-lm-1.7B/merges.txt", "sha256": "8831e4f1a044471340f7c0a83d7bd71306a5b867e95fd870f74d0c5308a904d5", "layout": "file"}]}
+      },
+      {
+        "name": "bundled-planner-special-tokens-map", "path": "checkpoints/acestep-5Hz-lm-1.7B/special_tokens_map.json",
+        "acquisition": {"kind": "url", "license": "MIT", "provenance": {"kind": "none"}, "targets": [{"url": "https://huggingface.co/ACE-Step/Ace-Step1.5/resolve/19671f406d603126926c1b7e2adc169acbcade22/acestep-5Hz-lm-1.7B/special_tokens_map.json", "sha256": "76e233bfc357b0b03d7b6e6ba8e799244f358552575a7cdadb78d3d19106b298", "layout": "file"}]}
+      },
+      {
+        "name": "bundled-planner-vocab", "path": "checkpoints/acestep-5Hz-lm-1.7B/vocab.json",
+        "acquisition": {"kind": "url", "license": "MIT", "provenance": {"kind": "none"}, "targets": [{"url": "https://huggingface.co/ACE-Step/Ace-Step1.5/resolve/19671f406d603126926c1b7e2adc169acbcade22/acestep-5Hz-lm-1.7B/vocab.json", "sha256": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910", "layout": "file"}]}
       }
     ],
+    "environment_file": "active.env",
     "arguments": ["-B", "-m", "uvicorn", "source.server:app", "--host", "127.0.0.1", "--port", "${RESOURCE_PORT_UPSTREAM}"],
     "environment": {
       "PYTHONPATH": "${RESOURCE_ARTIFACT_DIR}/source/ACE-Step-1.5-ca1e85fe9430179831e6bc6be790c332190a3866:${RESOURCE_ARTIFACT_DIR}/source:${RESOURCE_ARTIFACT_DIR}/wheels",
@@ -311,6 +312,7 @@
   "platforms": {"linux": "supported", "macos": "unsupported", "windows": "unsupported"},
   "ports": [{"name": "http", "container": 8880, "host": 8895}, {"name": "upstream", "container": 8880, "host": 18895}],
   "companions": [{"name": "activity-edge", "command": "resource-ace-step", "args": ["activity-edge"], "port": 8895, "required": true}],
+  "lifecycle": {"start_timeout_seconds": 600},
   "orchestration": {"startup_order": 560, "startup_timeout_seconds": 600, "startup_time_estimate": "cold model load may take several minutes", "dependencies": [], "recovery_attempts": 2, "priority": "medium"},
   "environment_exports": {"static": {"ACE_STEP_HOST": "localhost"}, "from_ports": {"ACE_STEP_PORT": "http"}, "derived": {"ACE_STEP_URL": {"template": "http://${ACE_STEP_HOST}:${ACE_STEP_PORT}"}}},
   "health_checks": [{"type": "http", "target": "http://127.0.0.1:8895/health", "kind": "readiness", "interval_seconds": 10, "timeout_seconds": 10}, {"type": "http", "target": "http://127.0.0.1:8895/health", "kind": "liveness", "interval_seconds": 30, "timeout_seconds": 10}],
